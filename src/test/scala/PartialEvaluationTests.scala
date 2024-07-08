@@ -4,7 +4,7 @@ import scala.runtime.stdLibPatches.Predef.assert
 
 class PartialEvaluationTests extends AnyFunSuite {
 
-  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) = {
+  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) : Unit = {
     var actualSeq = Seq[Expr]()
     var n: Expr = Tuple(stream, 0 /*unused*/)
     expectedSeq.foreach(exp =>
