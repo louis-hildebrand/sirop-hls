@@ -95,7 +95,7 @@ object VecFold {
 
 
 
-object ExprInterpreter {
+object ExprEvaluator {
 
   private def substitute(e: Expr)(implicit substitutions: Map[Param, Expr]) : Expr = {
     e match {
@@ -136,14 +136,14 @@ object ExprInterpreter {
   }
 
 
-  def interpret(e: Expr)(implicit substitutions: Map[Param, Expr] = Map()): Expr = {
+  def eval(e: Expr)(implicit substitutions: Map[Param, Expr] = Map()): Expr = {
     e match {
 
-      case t: Tuple => Tuple(t.elems.toSeq.map(interpret(_)):_*)
+      case t: Tuple => Tuple(t.elems.toSeq.map(eval(_)):_*)
       case TupleAccess(t: Expr, i: Expr) =>
-        val tuple = interpret(t).asInstanceOf[Tuple]
-        val index = interpret(i).asInstanceOf[IntCst]
-        interpret(tuple.elems(index.i))
+        val tuple = eval(t).asInstanceOf[Tuple]
+        val index = eval(i).asInstanceOf[IntCst]
+        eval(tuple.elems(index.i))
 
       case p: Param => substitutions.get(p) match {
         case Some(v) => v
@@ -151,61 +151,61 @@ object ExprInterpreter {
       }
       case f: Function => substitute(f).asInstanceOf[Function]
       case FunCall(f: Expr, arg: Expr) =>
-        val fun = interpret(f).asInstanceOf[Function]
-        interpret(fun.body)(substitutions+((fun.param, interpret(arg))))
+        val fun = eval(f).asInstanceOf[Function]
+        eval(fun.body)(substitutions+((fun.param, eval(arg))))
 
-      case Add(e1: Expr, e2: Expr) => interpret(e1).asInstanceOf[IntCst].i + interpret(e2).asInstanceOf[IntCst].i
-      case Mul(e1: Expr, e2: Expr) => interpret(e1).asInstanceOf[IntCst].i * interpret(e2).asInstanceOf[IntCst].i
+      case Add(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i + eval(e2).asInstanceOf[IntCst].i
+      case Mul(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i * eval(e2).asInstanceOf[IntCst].i
       case IntCst(_) => e
 
       case True  => True
       case False => False
-      case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) => if (interpret(cond).asInstanceOf[BoolExpr]) interpret(trueE) else interpret(falseE)
-      case NotEqual(e1: Expr, e2: Expr) => interpret(e1).asInstanceOf[IntCst].i != interpret(e2).asInstanceOf[IntCst].i
-      case Equal(e1: Expr, e2: Expr) => interpret(e1).asInstanceOf[IntCst].i == interpret(e2).asInstanceOf[IntCst].i
+      case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) => if (eval(cond).asInstanceOf[BoolExpr]) eval(trueE) else eval(falseE)
+      case NotEqual(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i != eval(e2).asInstanceOf[IntCst].i
+      case Equal(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i == eval(e2).asInstanceOf[IntCst].i
 
       case Iterate(n: Expr, z: Expr, f: Function) => {
-        val n_int : Int = interpret(n).asInstanceOf[IntCst].i
+        val n_int : Int = eval(n).asInstanceOf[IntCst].i
         assert(n_int > -1)
 
-        val z_interpreted = interpret(z)
+        val z_interpreted = eval(z)
         if (n_int == 0)
           z_interpreted
         else
-          interpret(Iterate(n_int-1, FunCall(f, z_interpreted), f))
+          eval(Iterate(n_int-1, FunCall(f, z_interpreted), f))
       }
 
       case StmBuild(length, seed, f) =>
-        StmBuild(interpret(length), interpret(seed), interpret(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
+        StmBuild(eval(length), eval(seed), eval(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
 
       case StmLength(s) =>
-        val stream = interpret(s).asInstanceOf[StmBuild]
-        interpret(stream.length)
+        val stream = eval(s).asInstanceOf[StmBuild]
+        eval(stream.length)
 
       case StmNext(e: Expr) => // need to ensure that from now on, cannot access e: can either make Next primitive take a new body for what to do next a bit like a function
-        val stream: StmBuild = interpret(e).asInstanceOf[StmBuild]
-        assert(interpret(stream.length).asInstanceOf[IntCst].i > 0)
+        val stream: StmBuild = eval(e).asInstanceOf[StmBuild]
+        assert(eval(stream.length).asInstanceOf[IntCst].i > 0)
 
-        val next: Tuple = interpret(FunCall(stream.nextF, stream.seed)).asInstanceOf[Tuple]
+        val next: Tuple = eval(FunCall(stream.nextF, stream.seed)).asInstanceOf[Tuple]
 
         // return the new stream and the next element
         Tuple(
-          StmBuild(interpret(stream.length + -1), interpret(next.__0), interpret(stream.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
-          interpret(next.__1))
+          StmBuild(eval(stream.length + -1), eval(next.__0), eval(stream.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
+          eval(next.__1))
 
-      case VecBuild(len: Expr, f: Function) => VecBuild(interpret(len), interpret(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
-      case VecAccess(vec: Expr, i: Expr) => interpret(FunCall(interpret(vec).asInstanceOf[VecBuild].f,interpret(i)))
-      case VecLength(vec: Expr) => interpret(interpret(vec).asInstanceOf[VecBuild].len)
+      case VecBuild(len: Expr, f: Function) => VecBuild(eval(len), eval(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
+      case VecAccess(vec: Expr, i: Expr) => eval(FunCall(eval(vec).asInstanceOf[VecBuild].f,eval(i)))
+      case VecLength(vec: Expr) => eval(eval(vec).asInstanceOf[VecBuild].len)
     }
   }
 
-  def partialInterpret(e: Expr)(implicit substitutions: Map[Param, Expr] = Map()): Expr = {
+  def partialEval(e: Expr)(implicit substitutions: Map[Param, Expr] = Map()): Expr = {
     e match {
 
-      case t: Tuple => Tuple(t.elems.toSeq.map(partialInterpret(_)): _*)
+      case t: Tuple => Tuple(t.elems.toSeq.map(partialEval(_)): _*)
       case TupleAccess(t: Expr, i: Expr) =>
-        (partialInterpret(t), partialInterpret(i)) match {
-          case (tuple: Tuple, index: IntCst) => partialInterpret(tuple.elems(index.i))
+        (partialEval(t), partialEval(i)) match {
+          case (tuple: Tuple, index: IntCst) => partialEval(tuple.elems(index.i))
           case (tuple@_, index@_) => TupleAccess(tuple, index)
         }
 
@@ -215,20 +215,20 @@ object ExprInterpreter {
       }
       case f: Function =>
         val newF = substitute(f).asInstanceOf[Function]
-        Function(newF.param, partialInterpret(newF.body))
+        Function(newF.param, partialEval(newF.body))
       case FunCall(f: Expr, arg: Expr) =>
-        partialInterpret(f) match {
-          case fun: Function => partialInterpret(fun.body)(substitutions + ((fun.param, partialInterpret(arg))))
-          case fun@_ => FunCall(fun, partialInterpret(arg))
+        partialEval(f) match {
+          case fun: Function => partialEval(fun.body)(substitutions + ((fun.param, partialEval(arg))))
+          case fun@_ => FunCall(fun, partialEval(arg))
         }
 
       case Add(e1: Expr, e2: Expr) =>
-        (partialInterpret(e1),partialInterpret(e2)) match {
+        (partialEval(e1),partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i + e2.i
           case (e1@_, e2@_) => Add(e1, e2)
         }
       case Mul(e1: Expr, e2: Expr) =>
-        (partialInterpret(e1),partialInterpret(e2)) match {
+        (partialEval(e1),partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i * e2.i
           case (e1@_, e2@_) => Mul(e1, e2)
         }
@@ -237,63 +237,63 @@ object ExprInterpreter {
       case True => True
       case False => False
       case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) =>
-        partialInterpret(cond) match {
-          case True  => partialInterpret(trueE)
-          case False => partialInterpret(falseE)
+        partialEval(cond) match {
+          case True  => partialEval(trueE)
+          case False => partialEval(falseE)
           case cond@_ =>
             if (trueE == falseE)
               trueE
             else
-              IfThenElse(cond, partialInterpret(trueE), partialInterpret(falseE))
+              IfThenElse(cond, partialEval(trueE), partialEval(falseE))
         }
       case NotEqual(e1: Expr, e2: Expr) =>
-        (partialInterpret(e1),partialInterpret(e2)) match {
+        (partialEval(e1),partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i != e2.i
           case (e1@_, e2@_) => NotEqual(e1, e2)
         }
       case Equal(e1: Expr, e2: Expr) =>
-        (partialInterpret(e1),partialInterpret(e2)) match {
+        (partialEval(e1),partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i == e2.i
           case (e1@_, e2@_) => Equal(e1, e2)
         }
 
       case Iterate(n: Expr, z: Expr, f: Function) => {
-        partialInterpret(n) match {
+        partialEval(n) match {
           case n: IntCst => {
             val n_int: Int = n.i
             assert(n_int > -1)
 
-            val z_interpreted = partialInterpret(z)
+            val z_interpreted = partialEval(z)
             if (n_int == 0)
               z_interpreted
             else
-              partialInterpret(Iterate(n_int - 1, FunCall(f, z_interpreted), f))
+              partialEval(Iterate(n_int - 1, FunCall(f, z_interpreted), f))
           }
-          case n@_ =>  Iterate(n, partialInterpret(z), f)
+          case n@_ =>  Iterate(n, partialEval(z), f)
         }
       }
 
       case StmBuild(length, seed, f) =>
-        StmBuild(partialInterpret(length), partialInterpret(seed), partialInterpret(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
+        StmBuild(partialEval(length), partialEval(seed), partialEval(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
 
       case StmLength(s) =>
-        partialInterpret(s) match {
-          case s: StmBuild => partialInterpret(s.length)
+        partialEval(s) match {
+          case s: StmBuild => partialEval(s.length)
           case s@_ => StmLength(s)
         }
 
       case StmNext(s: Expr) =>
-        partialInterpret(s) match {
+        partialEval(s) match {
           case s: StmBuild =>
-            partialInterpret(s.length) match {
+            partialEval(s.length) match {
               case len: IntCst => {
                 assert(len.i > 0)
-                partialInterpret(FunCall(s.nextF, s.seed)) match {
+                partialEval(FunCall(s.nextF, s.seed)) match {
                   case next: Tuple => {
                     // return the new stream and the next element
                     Tuple(
-                      StmBuild(partialInterpret(s.length + -1), partialInterpret(next.__0), partialInterpret(s.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
-                      partialInterpret(next.__1))
+                      StmBuild(partialEval(s.length + -1), partialEval(next.__0), partialEval(s.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
+                      partialEval(next.__1))
                   }
                   case next@_ => StmNext(s)
                 }
@@ -304,15 +304,15 @@ object ExprInterpreter {
         }
 
 
-      case VecBuild(len: Expr, f: Function) => VecBuild(partialInterpret(len), partialInterpret(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
+      case VecBuild(len: Expr, f: Function) => VecBuild(partialEval(len), partialEval(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
       case VecAccess(vec: Expr, i: Expr) =>
-        partialInterpret(vec) match {
-          case vec: VecBuild => partialInterpret(FunCall(vec.f, partialInterpret(i)))
-          case vec@_ => VecAccess(vec, partialInterpret(i))
+        partialEval(vec) match {
+          case vec: VecBuild => partialEval(FunCall(vec.f, partialEval(i)))
+          case vec@_ => VecAccess(vec, partialEval(i))
         }
       case VecLength(vec: Expr) =>
-        partialInterpret(vec) match {
-          case vec: VecBuild => partialInterpret(vec.len)
+        partialEval(vec) match {
+          case vec: VecBuild => partialEval(vec.len)
           case vec@_ => VecLength(vec)
         }
     }

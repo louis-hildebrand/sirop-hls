@@ -9,16 +9,16 @@ class StreamTests extends AnyFunSuite {
     var actualSeq = Seq[Expr]()
     var n: Expr = Tuple(stream, 0 /*unused*/)
     expectedSeq.foreach(exp =>
-      n = ExprInterpreter.partialInterpret(StmNext(n.__0))
-      actualSeq = actualSeq :+ ExprInterpreter.partialInterpret(n.__1)
+      n = ExprEvaluator.partialEval(StmNext(n.__0))
+      actualSeq = actualSeq :+ ExprEvaluator.partialEval(n.__1)
     )
     assert(actualSeq == expectedSeq)
-    assert(ExprInterpreter.partialInterpret(StmLength(n.__0)) == IntCst(0))
+    assert(ExprEvaluator.partialEval(StmLength(n.__0)) == IntCst(0))
   }
 
   test("IntCst") {
     val intAst = IntCst(3)
-    assert(ExprInterpreter.partialInterpret(intAst) == IntCst(3))
+    assert(ExprEvaluator.partialEval(intAst) == IntCst(3))
   }
 
   test("CstStream") {
@@ -71,7 +71,7 @@ class StreamTests extends AnyFunSuite {
     val next2 = StmNext(next1.__0)
     assertStreamEqual(next2.__1, Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)))
 
-    assert(ExprInterpreter.partialInterpret(StmLength(next2.__0)) == IntCst(0))
+    assert(ExprEvaluator.partialEval(StmLength(next2.__0)) == IntCst(0))
   }
 
   test("MapMapStream") {
@@ -101,13 +101,13 @@ class StreamTests extends AnyFunSuite {
     val next2 = StmNext(next1.__0)
     assertStreamEqual(next2.__1, Seq(4,5,6))
 
-    assert(ExprInterpreter.partialInterpret(StmLength(next2.__0)) == IntCst(0))
+    assert(ExprEvaluator.partialEval(StmLength(next2.__0)) == IntCst(0))
   }
 
 
   test("foldStm") {
     val sum = StmFold(CounterStream(5), 2, (i: Expr) => (acc:Expr) => i+acc)
-    assert(ExprInterpreter.partialInterpret(sum) == IntCst(12))
+    assert(ExprEvaluator.partialEval(sum) == IntCst(12))
   }
 
   test("fold2Dstm") {
