@@ -39,5 +39,21 @@ object Stm2VecAlternative {
 
 object VecZip {
   def apply(a: Expr /* Vec<A> */, b: Expr /* Vec<B> */): VecBuild /* Vec<(A, B)> */ =
-    VecBuild(StmLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
+    VecBuild(VecLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
+}
+
+object VecSplit {
+  def apply(vec: Expr /* Vec<A; n> */, m: Int): VecBuild /* Vec<Vec<A; m>; n/m> */ = {
+    val n = VecLength(vec)
+    // n must be divisible by m
+    VecBuild(n / m, (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i * m + j)))
+  }
+}
+
+object VecJoin {
+  def apply(v: Expr /* Vec<Vec<A; m>; n> */): VecBuild /* Vec<A; n * m> */ = {
+    val n = VecLength(v)
+    val m = IfThenElse(Equal(n, 0), 1, VecLength(VecAccess(v, 0)))
+    VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
+  }
 }

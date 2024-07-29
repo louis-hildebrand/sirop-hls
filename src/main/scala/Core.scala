@@ -3,6 +3,8 @@ import scala.language.implicitConversions
 sealed abstract class Expr {
   def +(that: Expr): Add = Add(this, that)
   def *(that: Expr): Mul = Mul(this, that)
+  def /(that: Expr): Div = Div(this, that)
+  def %(that: Expr): Mod = Mod(this, that)
   def eq(that: Expr): Equal = Equal(this, that)
   def ne(that: Expr): NotEqual = NotEqual(this, that)
 
@@ -46,6 +48,8 @@ implicit def intCst2Int(ic: IntCst): Int = ic.i
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr
 case class Mul(e1: Expr, e2: Expr) extends IntExpr
+case class Div(e1: Expr, e2: Expr) extends IntExpr
+case class Mod(e1: Expr, e2: Expr) extends IntExpr
 
 // Boolean expressions
 sealed abstract class BoolExpr extends Expr
@@ -112,6 +116,8 @@ object ExprEvaluator {
 
       case Add(e1: Expr, e2: Expr) => Add(substitute(e1),substitute(e2))
       case Mul(e1: Expr, e2: Expr) => Mul(substitute(e1),substitute(e2))
+      case Div(e1: Expr, e2: Expr) => Div(substitute(e1),substitute(e2))
+      case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1),substitute(e2))
       case IntCst(_) => e
 
       case True  => True
@@ -153,6 +159,8 @@ object ExprEvaluator {
 
       case Add(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i + eval(e2).asInstanceOf[IntCst].i
       case Mul(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i * eval(e2).asInstanceOf[IntCst].i
+      case Div(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i / eval(e2).asInstanceOf[IntCst].i
+      case Mod(e1: Expr, e2: Expr) => eval(e1).asInstanceOf[IntCst].i % eval(e2).asInstanceOf[IntCst].i
       case IntCst(_) => e
 
       case True  => True
@@ -230,6 +238,16 @@ object ExprEvaluator {
         (partialEval(e1),partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i * e2.i
           case (e1@_, e2@_) => Mul(e1, e2)
+        }
+      case Div(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (e1: IntCst, e2: IntCst) => e1.i / e2.i
+          case (e1@_, e2@_) => Div(e1, e2)
+        }
+      case Mod(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (e1: IntCst, e2: IntCst) => e1.i % e2.i
+          case (e1@_, e2@_) => Mod(e1, e2)
         }
       case IntCst(_) => e
 
