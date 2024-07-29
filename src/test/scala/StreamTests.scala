@@ -105,7 +105,7 @@ class StreamTests extends AnyFunSuite {
   }
 
 
-  test("foldStm") {
+  test("StmSum") {
     val sum = StmFold(CounterStream(5), 2, (i: Expr) => (acc:Expr) => i+acc)
     assert(ExprEvaluator.partialEval(sum) == IntCst(12))
   }
@@ -125,6 +125,12 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(mapFold, Seq(3,12))
   }
 
+  test("StmZip") {
+    val a = CounterStream(3)
+    val b = MapS(CounterStream(3), x => x + 5)
+    val zipped = StmZip(a, b)
+    assertStreamEqual(zipped, Seq(Tuple(0, 5), Tuple(1, 6), Tuple(2, 7)))
+  }
 
   test("Vec2Stm") {
     val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)
@@ -132,7 +138,4 @@ class StreamTests extends AnyFunSuite {
 
     assertStreamEqual(stm, Seq(1,2,3))
   }
-
-
-
 }

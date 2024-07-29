@@ -92,9 +92,6 @@ object VecFold {
   }
 }
 
-
-
-
 object ExprEvaluator {
 
   private def substitute(e: Expr)(implicit substitutions: Map[Param, Expr]) : Expr = {

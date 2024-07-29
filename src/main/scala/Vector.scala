@@ -1,4 +1,3 @@
-
 object MapV {
   def apply(input: VecBuild, f: Expr => Expr) : VecBuild =
     VecBuild(VecLength(input), (i:Expr) => f(VecAccess(input, i)))
@@ -19,4 +18,3 @@ object Stm2Vec {
          )
     )
 }
-

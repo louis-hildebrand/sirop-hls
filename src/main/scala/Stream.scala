@@ -95,6 +95,18 @@ object Concat {
 }
 
 
+////////////////////////
+// zip
+object StmZip {
+  def apply(a: Expr, b: Expr): StmBuild = {
+    val nextA = Param()
+    val nextB = Param()
+    StmBuild(StmLength(a), Tuple(a, b), (acc: Expr) =>
+      Let(nextA, StmNext(acc.__0),
+        Let(nextB, StmNext(acc.__1),
+          Tuple(Tuple(nextA.__0, nextB.__0), Tuple(nextA.__1, nextB.__1)))))
+  }
+}
 
 
 ////////////////////////
