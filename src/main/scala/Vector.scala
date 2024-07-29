@@ -18,3 +18,21 @@ object Stm2Vec {
          )
     )
 }
+
+object Stm2VecAlternative {
+  def apply(stm: Expr /* Stm<A> */): Expr /* Vec<A> */ = {
+    val n = StmLength(stm)
+    val v = VecBuild(n, (i: Expr) => IntCst(0))
+    val next = Param()
+    Iterate(
+      n,
+      Tuple(0, stm, v),
+      (acc: Expr) =>
+        Let(next, StmNext(acc.__1),
+          Tuple(
+            acc.__0 + 1,
+            next.__0,
+            VecBuild(n, (i: Expr) => IfThenElse(Equal(i, acc.__0), next.__1, VecAccess(acc.__2, i)))))
+    ).__2
+  }
+}
