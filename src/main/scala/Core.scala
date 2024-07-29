@@ -42,7 +42,7 @@ object Let {
 // Integer expressions
 sealed abstract class IntExpr extends Expr
 implicit def int2IntCst(i: Int): IntCst = IntCst(i)
-implicit def intCst2IntCst(ic: IntCst): IntCst = ic.i
+implicit def intCst2Int(ic: IntCst): Int = ic.i
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr
 case class Mul(e1: Expr, e2: Expr) extends IntExpr
@@ -64,9 +64,9 @@ case class Iterate(n: Expr /* Int */, z: Expr /* A */, f: Function /* A -> A */)
 // Streams
 case class StmBuild(length: Expr /* Int */, seed: Expr /*A*/ , nextF : Function /* A -> (A,B)*/) extends Expr
 case class StmLength(stream: Expr) extends IntExpr
-case class StmNext(stream: Expr /* Stream<A>*/) /* (A,Steam<A>) */ extends Expr // element only available for one clock cycle
+case class StmNext(stream: Expr /* Stream<A>*/) /* (Steam<A>, A) */ extends Expr // element only available for one clock cycle
 object StmFold {
-  def apply(stream: Expr /*Stream<A>*/, z: Expr /*B*/, f: Function /*(A,B) -> B*/) : Expr = {
+  def apply(stream: Expr /*Stream<A>*/, z: Expr /*B*/, f: Function /*A -> B -> B*/) : Expr = {
     Iterate(StmLength(stream), Tuple(z,stream), (acc:Expr) => {
       val next = Param()
       Let(next, StmNext(acc.__1),
@@ -85,7 +85,7 @@ case class VecBuild(len: Expr, f: Function /*Int => Expr*/) extends Expr
 case class VecAccess(vec: Expr, i: Expr) extends Expr
 case class VecLength(vec: Expr) extends IntExpr
 object VecFold {
-  def apply(vec: Expr /* Vec<A> */, z: Expr /*B*/ , f: Function/*(A, B) -> B*/) : Expr = {
+  def apply(vec: Expr /* Vec<A> */, z: Expr /*B*/ , f: Function/*A -> B -> B*/) : Expr = {
     Iterate(VecLength(vec), Tuple(z,0), (acc:Expr) => {
       Tuple(FunCall(FunCall(f,VecAccess(vec,acc.__1)),acc.__0),acc.__1+1)
     }).__0
@@ -187,11 +187,13 @@ object ExprEvaluator {
         assert(eval(stream.length).asInstanceOf[IntCst].i > 0)
 
         val next: Tuple = eval(FunCall(stream.nextF, stream.seed)).asInstanceOf[Tuple]
+        val nextSeed: Expr = next.__0
+        val nextElem: Expr = next.__1
 
         // return the new stream and the next element
         Tuple(
-          StmBuild(eval(stream.length + -1), eval(next.__0), eval(stream.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
-          eval(next.__1))
+          StmBuild(eval(stream.length + -1), eval(nextSeed), eval(stream.nextF).asInstanceOf[Function] /*this function may have free parameters*/),
+          eval(nextElem))
 
       case VecBuild(len: Expr, f: Function) => VecBuild(eval(len), eval(f).asInstanceOf[Function] /* ensures any free Param in f gets substituted */)
       case VecAccess(vec: Expr, i: Expr) => eval(FunCall(eval(vec).asInstanceOf[VecBuild].f,eval(i)))

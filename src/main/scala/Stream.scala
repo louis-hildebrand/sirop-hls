@@ -9,7 +9,7 @@ object HasNext {
 // creating streams
 
 object CstStream {
-  def apply(n: IntCst, c: IntCst) : StmBuild = StmBuild(n, c, (seed:Expr) => Tuple(c, seed))
+  def apply(n: IntCst, c: IntCst) : StmBuild = StmBuild(n, c, (seed:Expr) => Tuple(seed, c))
 }
 object CounterStream {
   def apply(n: IntCst) : StmBuild  = StmBuild(n, 0, (i:Expr) => Tuple(i+1, i))
@@ -32,9 +32,9 @@ object Counter2DStream {
 
 object MapS {
   def apply(input: Expr, f: Expr => Expr) : StmBuild = {
-    StmBuild(StmLength(input), input, (seed: Expr) => {
+    StmBuild(StmLength(input), input, (acc: Expr) => {
       val p = Param()
-      Let(p, StmNext(seed), Tuple(p.__0, f(p.__1))
+      Let(p, StmNext(acc), Tuple(p.__0, f(p.__1))
       )
     })
   }
