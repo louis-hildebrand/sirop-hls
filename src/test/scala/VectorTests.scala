@@ -36,4 +36,12 @@ class VectorTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(VecAccess(v, 2)) == IntCst(2))
   }
 
+  test("VecZip") {
+    val v0 = VecBuild(3, (i: Expr) => i)
+    val v1 = VecBuild(3, (i: Expr) => (i + 1) * 2)
+    val zipped = VecZip(v0, v1)
+    assert(ExprEvaluator.partialEval(VecAccess(zipped, 0)) == Tuple(0, 2))
+    assert(ExprEvaluator.partialEval(VecAccess(zipped, 1)) == Tuple(1, 4))
+    assert(ExprEvaluator.partialEval(VecAccess(zipped, 2)) == Tuple(2, 6))
+  }
 }

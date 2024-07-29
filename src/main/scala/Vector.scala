@@ -36,3 +36,8 @@ object Stm2VecAlternative {
     ).__2
   }
 }
+
+object VecZip {
+  def apply(a: Expr /* Vec<A> */, b: Expr /* Vec<B> */): VecBuild /* Vec<(A, B)> */ =
+    VecBuild(StmLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
+}
