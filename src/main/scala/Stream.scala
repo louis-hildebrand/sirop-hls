@@ -152,14 +152,43 @@ object StmRepeat {
 // when converting a stream of a vector, we need, sequentially, to write into a an array (or memory) and then once it is written, build the vector
 // the memory needs to be readable in one go, which is tricky. Implementation is based on shift register, need perhaps to have register represented as a primitive?
 
-//object Join {
-//  def apply(stream: BuildS) : BuildS = BuildS(
-//    stream.initLen* Inner(stream).initLen,
-//    False, // not used
-//    s => s, // not used
-//    s => Next(Inner(stream))
-//  )
-//}
+object StmJoin {
+  def apply(stm: Expr /* Stm<Stm<A; m>; n> */ ): Expr /* Stm<A; m*n> */ = {
+    val n = StmLength(stm)
+    val m = StmLength(StmNext(stm).__1)
+    val nextInner = Param()
+    val nextOuter = Param()
+    Let(
+      nextOuter,
+      StmNext(stm),
+      StmBuild(
+        n * m,
+        nextOuter, /* (Outer stream, inner stream) */
+        (acc: Expr) =>
+          IfThenElse(
+            HasNext(acc.__1),
+            // Directly return the next element from the inner stream
+            Let(
+              nextInner,
+              StmNext(acc.__1),
+              Tuple(Tuple(acc.__0, nextInner.__0), nextInner.__1)
+            ),
+            // First move to the next element in the outer stream
+            // Then return the next element from the inner stream
+            Let(
+              nextOuter,
+              StmNext(acc.__0),
+              Let(
+                nextInner,
+                StmNext(nextOuter.__1),
+                Tuple(Tuple(nextOuter.__0, nextInner.__0), nextInner.__1)
+              )
+            )
+          )
+      )
+    )
+  }
+}
 
 object StmSlide {
   def apply(

@@ -168,6 +168,65 @@ class StreamTests extends AnyFunSuite {
     )
   }
 
+  test("StmJoin") {
+    val s = Counter2DStream(3, 2)
+    val actual = StmJoin(s)
+    val expected = Seq((0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1))
+      .map((i, j) => Tuple(i, j))
+    assertStreamEqual(actual, expected)
+  }
+
+  test("StmJoin3D") {
+    // [[[(0, 0), (0, 1), (0, 2), (0, 3)],
+    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
+    //   [(2, 0), (2, 1), (2, 2), (2, 3)]],
+    //
+    //  [[(0, 0), (0, 1), (0, 2), (0, 3)],
+    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
+    //   [(2, 0), (2, 1), (2, 2), (2, 3)]]]
+    val s = StmRepeat(Counter2DStream(3, 4), 2)
+    val expected = Seq(
+      Seq(
+        Tuple(0, 0),
+        Tuple(0, 1),
+        Tuple(0, 2),
+        Tuple(0, 3)
+      ),
+      Seq(
+        Tuple(1, 0),
+        Tuple(1, 1),
+        Tuple(1, 2),
+        Tuple(1, 3)
+      ),
+      Seq(
+        Tuple(2, 0),
+        Tuple(2, 1),
+        Tuple(2, 2),
+        Tuple(2, 3)
+      ),
+      Seq(
+        Tuple(0, 0),
+        Tuple(0, 1),
+        Tuple(0, 2),
+        Tuple(0, 3)
+      ),
+      Seq(
+        Tuple(1, 0),
+        Tuple(1, 1),
+        Tuple(1, 2),
+        Tuple(1, 3)
+      ),
+      Seq(
+        Tuple(2, 0),
+        Tuple(2, 1),
+        Tuple(2, 2),
+        Tuple(2, 3)
+      )
+    )
+    assert(StreamTests.stmStm2SeqSeq(StmJoin(s)) == expected)
+    assert(StreamTests.stm2Seq(StmJoin(StmJoin(s))) == expected.flatten.toSeq)
+  }
+
   test("StmSlide") {
     val s = CounterStream(4)
     val actual = StmSlide(s, 2)
