@@ -74,7 +74,7 @@ case class StmBuild(
     nextF: Function /* A -> (A,B)*/
 ) extends Expr
 case class StmLength(stream: Expr) extends IntExpr
-case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Steam<A>, A) */
+case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr // element only available for one clock cycle
 object StmFold {
   def apply(
@@ -396,7 +396,10 @@ object ExprEvaluator {
           case s: StmBuild =>
             partialEval(s.length) match {
               case len: IntCst => {
-                assert(len.i > 0)
+                assert(
+                  len.i > 0,
+                  "Attempt to call StmNext() on a stream of length 0."
+                )
                 partialEval(FunCall(s.nextF, s.seed)) match {
                   case next: Tuple => {
                     // return the new stream and the next element

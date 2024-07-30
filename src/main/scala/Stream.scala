@@ -160,3 +160,70 @@ object StmRepeat {
 //    s => Next(Inner(stream))
 //  )
 //}
+
+object StmSlide {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      m: Int
+  ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
+    require(m <= ExprEvaluator.eval(StmLength(stm)).asInstanceOf[IntCst].i)
+    require(m >= 1)
+    val n = StmLength(stm)
+    val next = Param()
+    val v0 = Param()
+    Let(
+      v0,
+      // Read the first `m - 1` elements into a vector
+      // Don't read all `m` because the `StmBuild` will call `StmNext()` once
+      // before producing its first element
+      Iterate(
+        m - 1,
+        Tuple(stm, VecBuild(m, (i: Expr) => IntCst(0))),
+        (acc: Expr) =>
+          Let(
+            next,
+            StmNext(acc.__0),
+            Tuple(
+              next.__0,
+              // Like a shift register
+              VecBuild(
+                m,
+                (i: Expr) =>
+                  IfThenElse(i eq (m - 1), next.__1, VecAccess(acc.__1, i + 1))
+              )
+            )
+          )
+      ),
+      StmBuild(
+        n + -m + 1,
+        v0, // (stream, vector)
+        (acc: Expr) =>
+          Let(
+            next,
+            StmNext(acc.__0),
+            Tuple(
+              Tuple(
+                next.__0,
+                // Like a shift register
+                VecBuild(
+                  m,
+                  (i: Expr) =>
+                    IfThenElse(
+                      i eq (m - 1),
+                      next.__1,
+                      VecAccess(acc.__1, i + 1)
+                    )
+                )
+              ),
+              // Same as above
+              VecBuild(
+                m,
+                (i: Expr) =>
+                  IfThenElse(i eq (m - 1), next.__1, VecAccess(acc.__1, i + 1))
+              )
+            )
+          )
+      )
+    )
+  }
+}

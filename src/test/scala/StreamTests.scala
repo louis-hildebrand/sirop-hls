@@ -2,12 +2,12 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.runtime.stdLibPatches.Predef.assert
 
-class StreamTests extends AnyFunSuite {
-  def getElements(stm: Expr): Seq[Expr] = {
+object StreamTests {
+  def stm2Seq(stm: Expr): Seq[Expr] = {
     var elements = Seq[Expr]()
     val len = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
     var n: Expr = Tuple(stm, 0 /*unused*/ )
-    (1 to len).foreach(_ =>
+    (0 until len).foreach(i =>
       n = ExprEvaluator.partialEval(StmNext(n.__0))
       val e = ExprEvaluator.partialEval(n.__1)
       elements = elements :+ e
@@ -15,15 +15,18 @@ class StreamTests extends AnyFunSuite {
     elements
   }
 
-  def get2DElements(stm: Expr): Seq[Seq[Expr]] =
-    getElements(stm).map(e => getElements(e))
+  def stmStm2SeqSeq(stm: Expr): Seq[Seq[Expr]] =
+    stm2Seq(stm).map(e => stm2Seq(e))
+}
+
+class StreamTests extends AnyFunSuite {
 
   def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) = {
-    assert(getElements(stream) == expectedSeq)
+    assert(StreamTests.stm2Seq(stream) == expectedSeq)
   }
 
   def assert2DStreamEqual(stream: Expr, expectedSeq: Seq[Seq[Expr]]) = {
-    assert(get2DElements(stream) == expectedSeq)
+    assert(StreamTests.stmStm2SeqSeq(stream) == expectedSeq)
   }
 
   test("IntCst") {
@@ -163,5 +166,20 @@ class StreamTests extends AnyFunSuite {
       s2,
       Seq(Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2))
     )
+  }
+
+  test("StmSlide") {
+    val s = CounterStream(4)
+    val actual = StmSlide(s, 2)
+    val expected = Seq(
+      Seq(IntCst(0), IntCst(1)),
+      Seq(IntCst(1), IntCst(2)),
+      Seq(IntCst(2), IntCst(3))
+    )
+
+    val actualElements = StreamTests
+      .stm2Seq(actual)
+      .map(v => VectorTests.vec2Seq(v))
+    assert(actualElements == expected)
   }
 }

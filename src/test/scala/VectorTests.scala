@@ -2,22 +2,24 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.runtime.stdLibPatches.Predef.assert
 
-class VectorTests extends AnyFunSuite {
-  def getElements(vec: Expr): Seq[Expr] = {
+object VectorTests {
+  def vec2Seq(vec: Expr): Seq[Expr] = {
     val build = ExprEvaluator.partialEval(vec).asInstanceOf[VecBuild]
     val len = build.len.asInstanceOf[IntCst].i
     (0 until len).map(i => ExprEvaluator.partialEval(VecAccess(build, i)))
   }
 
-  def get2DElements(vec: Expr): Seq[Seq[Expr]] =
-    getElements(vec).map(e => getElements(e))
+  def vecVec2SeqSeq(vec: Expr): Seq[Seq[Expr]] =
+    vec2Seq(vec).map(e => vec2Seq(e))
+}
 
+class VectorTests extends AnyFunSuite {
   def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
-    assert(getElements(actual) == expectedElems)
+    assert(VectorTests.vec2Seq(actual) == expectedElems)
   }
 
   def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
-    assert(get2DElements(actual) == expected)
+    assert(VectorTests.vecVec2SeqSeq(actual) == expected)
   }
 
   test("BuildV_and_Access") {
