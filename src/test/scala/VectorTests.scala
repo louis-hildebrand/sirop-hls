@@ -90,4 +90,19 @@ class VectorTests extends AnyFunSuite {
     val joined = VecJoin(v)
     assertVecEqual(joined, Seq(0, 1, 1, 2, 2, 3))
   }
+
+  test("VecSlide") {
+    // [0, 3, 6, 9, 12]
+    val v = VecBuild(5, (i: Expr) => i * 3)
+    // [[0, 3, 6],
+    //  [3, 6, 9],
+    //  [6, 9, 12]]
+    val actual = VecSlide(v, 3)
+    val expected = Seq(
+      Seq(IntCst(0), IntCst(3), IntCst(6)),
+      Seq(IntCst(3), IntCst(6), IntCst(9)),
+      Seq(IntCst(6), IntCst(9), IntCst(12))
+    )
+    assert2DVecEqual(actual, expected)
+  }
 }

@@ -86,3 +86,16 @@ object VecJoin {
     VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
   }
 }
+
+object VecSlide {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      m: Int
+  ): Expr /* Vec<Vec<A, m>, n-m+1> */ = {
+    val n = VecLength(vec)
+    VecBuild(
+      n + -m + 1,
+      (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i + j))
+    )
+  }
+}
