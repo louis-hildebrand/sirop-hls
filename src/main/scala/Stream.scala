@@ -145,12 +145,46 @@ object StmRepeat {
   }
 }
 
-// Join/Split : need to understand how to resprent multi-dim streams
-// Stm2Vec, Vec2Stm: need to introduce buildVec, buildArray
-// buildArray is given a length, and a list of indices to use to build the array
-// buildVec is given a length and the function
-// when converting a stream of a vector, we need, sequentially, to write into a an array (or memory) and then once it is written, build the vector
-// the memory needs to be readable in one go, which is tricky. Implementation is based on shift register, need perhaps to have register represented as a primitive?
+object StmSplit {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      m: Int
+  ): Expr /* Stm<Stm<A; m>; n/m> */ = {
+    val nVal = ExprEvaluator.eval(StmLength(stm)).asInstanceOf[IntCst].i
+    require(nVal % m == 0)
+
+    val n = StmLength(stm)
+    // StmBuild(
+    //   n / m,
+    //   stm,
+    //   (acc: Expr) =>
+    //     Tuple(
+    //       // How do I write back the stream once the inner stream is done?
+    //       ???,
+    //       StmBuild(m, acc, (a: Expr) => StmNext(a))
+    //     )
+    // )
+    // TODO: This implementation isn't good
+    val v = Param()
+    Let(
+      v,
+      VecSplit(Stm2Vec(stm), m),
+      StmBuild(
+        n / m,
+        0,
+        (i: Expr) =>
+          Tuple(
+            i + 1,
+            StmBuild(
+              m,
+              0,
+              (j: Expr) => Tuple(j + 1, VecAccess(VecAccess(v, i), j))
+            )
+          )
+      )
+    )
+  }
+}
 
 object StmJoin {
   def apply(stm: Expr /* Stm<Stm<A; m>; n> */ ): Expr /* Stm<A; m*n> */ = {

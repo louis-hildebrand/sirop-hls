@@ -168,6 +168,16 @@ class StreamTests extends AnyFunSuite {
     )
   }
 
+  test("StmSplit") {
+    val s = CounterStream(6)
+    val actual = StmSplit(s, 3)
+    val expected = Seq(
+      Seq(IntCst(0), IntCst(1), IntCst(2)),
+      Seq(IntCst(3), IntCst(4), IntCst(5))
+    )
+    assert2DStreamEqual(actual, expected)
+  }
+
   test("StmJoin") {
     val s = Counter2DStream(3, 2)
     val actual = StmJoin(s)
@@ -227,6 +237,15 @@ class StreamTests extends AnyFunSuite {
     assert(StreamTests.stm2Seq(StmJoin(StmJoin(s))) == expected.flatten.toSeq)
   }
 
+  test("StmSplitJoin") {
+    val s = CounterStream(6)
+    val elems = Seq(0, 1, 2, 3, 4, 5).map(x => IntCst(x))
+    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 1))) == elems)
+    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 2))) == elems)
+    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 3))) == elems)
+    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 6))) == elems)
+  }
+
   test("StmSlide") {
     val s = CounterStream(4)
     val actual = StmSlide(s, 2)
@@ -235,6 +254,18 @@ class StreamTests extends AnyFunSuite {
       Seq(IntCst(1), IntCst(2)),
       Seq(IntCst(2), IntCst(3))
     )
+
+    val actualElements = StreamTests
+      .stm2Seq(actual)
+      .map(v => VectorTests.vec2Seq(v))
+    assert(actualElements == expected)
+  }
+
+  test("StmSlideSameSize") {
+    val s = CounterStream(5)
+    val actual = StmSlide(s, 5)
+    val expected =
+      Seq(Seq(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4)))
 
     val actualElements = StreamTests
       .stm2Seq(actual)
