@@ -59,6 +59,12 @@ object VecZip {
     VecBuild(VecLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
 }
 
+object VecRepeat {
+  def apply(vec: Expr /* Vec<A; n> */, m: Int): Expr /* Vec<Vec<A; n>, m> */ = {
+    VecBuild(m, (i: Expr) => vec)
+  }
+}
+
 object VecSplit {
   def apply(
       vec: Expr /* Vec<A; n> */,

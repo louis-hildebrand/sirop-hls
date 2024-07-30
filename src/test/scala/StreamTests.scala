@@ -155,4 +155,13 @@ class StreamTests extends AnyFunSuite {
 
     assertStreamEqual(stm, Seq(1, 2, 3))
   }
+
+  test("StmRepeat") {
+    val s = CounterStream(3)
+    val s2 = StmRepeat(s, 4)
+    assert2DStreamEqual(
+      s2,
+      Seq(Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2))
+    )
+  }
 }

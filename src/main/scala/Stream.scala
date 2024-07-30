@@ -122,14 +122,28 @@ object StmZip {
 
 ////////////////////////
 // repeat
-// need a buffer and 2D stream!
-//object Repeat {
-//  def apply(times: IntCst, input: BuildS) : BuildS = BuildS(
-//    input.initLen + times /* change + to *!!*/,
-//    True,
-//    s => s,
-//    s => Next(input))
-//}
+object StmRepeat {
+  def apply(stm: Expr /* Stm<A; n> */, m: Int): Expr /* Stm<Stm<A; n>; m> */ = {
+    val v = Param()
+    Let(
+      v,
+      Stm2Vec(stm),
+      StmBuild(
+        m,
+        0 /* unused */,
+        (i: Expr) =>
+          Tuple(
+            0,
+            StmBuild(
+              VecLength(v),
+              0,
+              (j: Expr) => Tuple(j + 1, VecAccess(v, j))
+            )
+          )
+      )
+    )
+  }
+}
 
 // Join/Split : need to understand how to resprent multi-dim streams
 // Stm2Vec, Vec2Stm: need to introduce buildVec, buildArray

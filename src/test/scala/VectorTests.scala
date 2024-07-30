@@ -3,14 +3,21 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.runtime.stdLibPatches.Predef.assert
 
 class VectorTests extends AnyFunSuite {
+  def getElements(vec: Expr): Seq[Expr] = {
+    val build = ExprEvaluator.partialEval(vec).asInstanceOf[VecBuild]
+    val len = build.len.asInstanceOf[IntCst].i
+    (0 until len).map(i => ExprEvaluator.partialEval(VecAccess(build, i)))
+  }
+
+  def get2DElements(vec: Expr): Seq[Seq[Expr]] =
+    getElements(vec).map(e => getElements(e))
+
   def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
-    val actualBuild = ExprEvaluator.partialEval(actual).asInstanceOf[VecBuild]
-    println(actualBuild)
-    val actualLen = actualBuild.len.asInstanceOf[IntCst].i
-    val actualElems = (0 until actualLen).map(i =>
-      ExprEvaluator.partialEval(VecAccess(actualBuild, i))
-    )
-    assert(actualElems == expectedElems)
+    assert(getElements(actual) == expectedElems)
+  }
+
+  def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
+    assert(get2DElements(actual) == expected)
   }
 
   test("BuildV_and_Access") {
@@ -54,30 +61,24 @@ class VectorTests extends AnyFunSuite {
     assertVecEqual(zipped, Seq(Tuple(0, 2), Tuple(1, 4), Tuple(2, 6)))
   }
 
+  test("VecRepeat") {
+    val v = VecBuild(4, (i: Expr) => (i + 1) * (i + 1))
+    val v2 = VecRepeat(v, 2)
+    val expected = Seq(
+      Seq(IntCst(1), IntCst(4), IntCst(9), IntCst(16)),
+      Seq(IntCst(1), IntCst(4), IntCst(9), IntCst(16))
+    )
+    assert2DVecEqual(v2, expected)
+  }
+
   test("VecSplit") {
-    // [0, 1, 4, 9, 16, 25]
     val v = VecBuild(6, (i: Expr) => i * i)
-    // [[ 0,  1,  4],
-    //  [ 9, 16, 25]]
     val split = VecSplit(v, 3)
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 0), 0)) == IntCst(0)
+    val expected = Seq(
+      Seq(IntCst(0), IntCst(1), IntCst(4)),
+      Seq(IntCst(9), IntCst(16), IntCst(25))
     )
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 0), 1)) == IntCst(1)
-    )
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 0), 2)) == IntCst(4)
-    )
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 1), 0)) == IntCst(9)
-    )
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 1), 1)) == IntCst(16)
-    )
-    assert(
-      ExprEvaluator.partialEval(VecAccess(VecAccess(split, 1), 2)) == IntCst(25)
-    )
+    assert2DVecEqual(split, expected)
   }
 
   test("VecJoin") {
