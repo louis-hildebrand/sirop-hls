@@ -52,4 +52,6 @@ Thumbs.db
 *.wmv
 
 # Scala
+.bloop/
 .metals/
+metals.sbt
