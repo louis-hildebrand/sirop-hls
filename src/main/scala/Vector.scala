@@ -3,6 +3,25 @@ object MapV {
     VecBuild(VecLength(input), (i: Expr) => f(VecAccess(input, i)))
 }
 
+object VecFold {
+  def apply(
+      vec: Expr /* Vec<A> */,
+      z: Expr /*B*/,
+      f: Function /*A -> B -> B*/
+  ): Expr /* B */ = {
+    Iterate(
+      VecLength(vec),
+      Tuple(z, 0),
+      (acc: Expr) => {
+        Tuple(
+          FunCall(FunCall(f, VecAccess(vec, acc.__1)), acc.__0),
+          acc.__1 + 1
+        )
+      }
+    ).__0
+  }
+}
+
 object Vec2Stm {
   def apply(v: Expr): StmBuild =
     StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))

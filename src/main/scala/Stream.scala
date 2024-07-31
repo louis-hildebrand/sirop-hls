@@ -42,6 +42,32 @@ object MapS {
   }
 }
 
+//////////////////////////
+// reductions
+object StmFold {
+  def apply(
+      stream: Expr /*Stream<A>*/,
+      z: Expr /*B*/,
+      f: Function /*A -> B -> B*/
+  ): Expr = {
+    Iterate(
+      StmLength(stream),
+      Tuple(z, stream),
+      (acc: Expr) => {
+        val next = Param()
+        Let(
+          next,
+          StmNext(acc.__1),
+          Tuple(
+            FunCall(FunCall(f, next.__1), acc.__0),
+            next.__0
+          )
+        )
+      }
+    ).__0
+  }
+}
+
 /////////////////////////
 // dropping/adding elements
 object PadFirst {

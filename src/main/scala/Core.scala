@@ -19,7 +19,7 @@ case class Tuple(elems: Expr*) extends Expr
 case class TupleAccess(t: Expr, i: Expr) extends Expr
 
 // Functions
-// cannot be a case class as the reference is usd to distinguish between Params
+// cannot be a case class as the reference is used to distinguish between Params
 class Param() extends Expr
 case class Function(param: Param, body: Expr) extends Expr
 case class FunCall(f: Expr, arg: Expr) extends Expr
@@ -76,52 +76,11 @@ case class StmBuild(
 case class StmLength(stream: Expr) extends IntExpr
 case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr // element only available for one clock cycle
-object StmFold {
-  def apply(
-      stream: Expr /*Stream<A>*/,
-      z: Expr /*B*/,
-      f: Function /*A -> B -> B*/
-  ): Expr = {
-    Iterate(
-      StmLength(stream),
-      Tuple(z, stream),
-      (acc: Expr) => {
-        val next = Param()
-        Let(
-          next,
-          StmNext(acc.__1),
-          Tuple(
-            FunCall(FunCall(f, next.__1), acc.__0),
-            next.__0
-          )
-        )
-      }
-    ).__0
-  }
-}
 
 // Vectors
 case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr
 case class VecAccess(vec: Expr, i: Expr) extends Expr
 case class VecLength(vec: Expr) extends IntExpr
-object VecFold {
-  def apply(
-      vec: Expr /* Vec<A> */,
-      z: Expr /*B*/,
-      f: Function /*A -> B -> B*/
-  ): Expr = {
-    Iterate(
-      VecLength(vec),
-      Tuple(z, 0),
-      (acc: Expr) => {
-        Tuple(
-          FunCall(FunCall(f, VecAccess(vec, acc.__1)), acc.__0),
-          acc.__1 + 1
-        )
-      }
-    ).__0
-  }
-}
 
 object ExprEvaluator {
 
