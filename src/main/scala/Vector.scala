@@ -51,6 +51,14 @@ object Stm2VecAlternative {
   }
 }
 
+object Vec2Tuple {
+  def apply(vec: VecBuild): Tuple = {
+    val n = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val elems = (0 until n).map(i => FunCall(vec.f, i))
+    Tuple(elems: _*)
+  }
+}
+
 object VecZip {
   def apply(
       a: Expr /* Vec<A> */,

@@ -56,6 +56,13 @@ class VectorTests extends AnyFunSuite {
     assertVecEqual(v, Seq(0, 1, 2))
   }
 
+  test("Vec2Tuple") {
+    val v = VecBuild(5, (i: Expr) => i * (i + 1))
+    val expected = Tuple(0, 2, 6, 12, 20)
+    val actual = ExprEvaluator.partialEval(Vec2Tuple(v))
+    assert(actual == expected)
+  }
+
   test("VecZip") {
     val v0 = VecBuild(3, (i: Expr) => i)
     val v1 = VecBuild(3, (i: Expr) => (i + 1) * 2)
