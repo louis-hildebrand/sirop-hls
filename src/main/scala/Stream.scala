@@ -150,7 +150,7 @@ object StmSplit {
       stm: Expr /* Stm<A; n> */,
       m: Int
   ): Expr /* Stm<Stm<A; m>; n/m> */ = {
-    val nVal = ExprEvaluator.eval(StmLength(stm)).asInstanceOf[IntCst].i
+    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
     require(nVal % m == 0)
 
     val n = StmLength(stm)
@@ -229,7 +229,8 @@ object StmSlide {
       stm: Expr /* Stm<A; n> */,
       m: Int
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
-    require(m <= ExprEvaluator.eval(StmLength(stm)).asInstanceOf[IntCst].i)
+    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    require(m <= nVal)
     require(m >= 1)
     val n = StmLength(stm)
     val next = Param()
