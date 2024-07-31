@@ -74,6 +74,25 @@ class VectorTests extends AnyFunSuite {
     assertVecEqual(v, Seq(0, 1, 2))
   }
 
+  test("VecPrepend") {
+    val v = VecBuild(3, (i: Expr) => i + 5)
+    val e = IntCst(42)
+    assertVecEqual(VecPrepend(v, e), Seq(42, 5, 6, 7))
+  }
+
+  test("VecAppend") {
+    val v = VecBuild(3, (i: Expr) => i + 5)
+    val e = IntCst(42)
+    assertVecEqual(VecAppend(v, e), Seq(5, 6, 7, 42))
+  }
+
+  test("VecConcat") {
+    val v1 = VecBuild(2, (i: Expr) => i)
+    val v2 = VecBuild(4, (i: Expr) => i)
+    assertVecEqual(VecConcat(v1, v2), Seq(0, 1, 0, 1, 2, 3))
+    assertVecEqual(VecConcat(v2, v1), Seq(0, 1, 2, 3, 0, 1))
+  }
+
   test("Vec2Tuple") {
     val v = VecBuild(5, (i: Expr) => i * (i + 1))
     val expected = Tuple(0, 2, 6, 12, 20)

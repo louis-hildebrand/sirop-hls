@@ -10,6 +10,7 @@ object CstStream {
   def apply(n: IntCst, c: IntCst): StmBuild =
     StmBuild(n, c, (seed: Expr) => Tuple(seed, c))
 }
+
 object CounterStream {
   def apply(n: IntCst): StmBuild = StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i))
 }
@@ -92,6 +93,11 @@ object StmScan {
         )
     )
   }
+}
+
+object Vec2Stm {
+  def apply(v: Expr): StmBuild =
+    StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))
 }
 
 /////////////////////////

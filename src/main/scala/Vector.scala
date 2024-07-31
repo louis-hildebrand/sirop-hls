@@ -51,11 +51,6 @@ object VecScan {
   }
 }
 
-object Vec2Stm {
-  def apply(v: Expr): StmBuild =
-    StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))
-}
-
 object Stm2Vec {
   def apply(s: Expr): Expr =
     StmFold(
@@ -104,6 +99,46 @@ object Vec2Tuple {
     val n = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
     val elems = (0 until n).map(i => FunCall(vec.f, i))
     Tuple(elems: _*)
+  }
+}
+
+object VecPrepend {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Vec<A; n + 1> */ = {
+    val n = VecLength(vec)
+    VecBuild(
+      n + 1,
+      (i: Expr) => IfThenElse(i eq 0, e, VecAccess(vec, i + -1))
+    )
+  }
+}
+
+object VecAppend {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Vec<A; n + 1> */ = {
+    val n = VecLength(vec)
+    VecBuild(
+      n + 1,
+      (i: Expr) => IfThenElse(i eq n, e, VecAccess(vec, i))
+    )
+  }
+}
+
+object VecConcat {
+  def apply(
+      v1: Expr /* Vec<A; n> */,
+      v2: Expr /* Vec<A; m> */
+  ): Expr /* Vec<A; n+m> */ = {
+    val n = VecLength(v1)
+    val m = VecLength(v2)
+    VecBuild(
+      n + m,
+      (i: Expr) => IfThenElse(i lt n, VecAccess(v1, i), VecAccess(v2, i - n))
+    )
   }
 }
 

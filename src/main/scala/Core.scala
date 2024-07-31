@@ -2,11 +2,13 @@ import scala.language.implicitConversions
 
 sealed abstract class Expr {
   def +(that: Expr): Add = Add(this, that)
+  def -(that: Expr): Sub = Sub(this, that)
   def *(that: Expr): Mul = Mul(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
   def eq(that: Expr): Equal = Equal(this, that)
   def ne(that: Expr): NotEqual = NotEqual(this, that)
+  def lt(that: Expr): LessThan = LessThan(this, that)
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
   def __0: TupleAccess = TupleAccess(this, 0)
@@ -44,6 +46,7 @@ implicit def int2IntCst(i: Int): IntCst = IntCst(i)
 implicit def intCst2Int(ic: IntCst): Int = ic.i
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr
+case class Sub(e1: Expr, e2: Expr) extends IntExpr
 case class Mul(e1: Expr, e2: Expr) extends IntExpr
 case class Div(e1: Expr, e2: Expr) extends IntExpr
 case class Mod(e1: Expr, e2: Expr) extends IntExpr
@@ -59,6 +62,7 @@ object False extends BoolExpr
 case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr
 case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
+case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
 
 // High-level function
 case class Iterate(
@@ -109,6 +113,7 @@ object ExprEvaluator {
         FunCall(substitute(f), substitute(arg))
 
       case Add(e1: Expr, e2: Expr) => Add(substitute(e1), substitute(e2))
+      case Sub(e1: Expr, e2: Expr) => Sub(substitute(e1), substitute(e2))
       case Mul(e1: Expr, e2: Expr) => Mul(substitute(e1), substitute(e2))
       case Div(e1: Expr, e2: Expr) => Div(substitute(e1), substitute(e2))
       case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1), substitute(e2))
@@ -121,6 +126,8 @@ object ExprEvaluator {
       case NotEqual(e1: Expr, e2: Expr) =>
         NotEqual(substitute(e1), substitute(e2))
       case Equal(e1: Expr, e2: Expr) => Equal(substitute(e1), substitute(e2))
+      case LessThan(e1: Expr, e2: Expr) =>
+        LessThan(substitute(e1), substitute(e2))
 
       case Iterate(n: Expr, z: Expr, f: Function) =>
         Iterate(
@@ -181,6 +188,11 @@ object ExprEvaluator {
           case (e1: IntCst, e2: IntCst) => e1.i + e2.i
           case (e1 @ _, e2 @ _)         => Add(e1, e2)
         }
+      case Sub(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (e1: IntCst, e2: IntCst) => e1.i - e2.i
+          case (e1 @ _, e2 @ _)         => Sub(e1, e2)
+        }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i * e2.i
@@ -219,6 +231,11 @@ object ExprEvaluator {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i == e2.i
           case (e1 @ _, e2 @ _)         => Equal(e1, e2)
+        }
+      case LessThan(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (e1: IntCst, e2: IntCst) => e1.i < e2.i
+          case (e1 @ _, e2 @ _)         => LessThan(e1, e2)
         }
 
       case Iterate(n: Expr, z: Expr, f: Function) => {
