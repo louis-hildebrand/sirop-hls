@@ -22,6 +22,35 @@ object VecFold {
   }
 }
 
+object VecScan {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      z: Expr /* B */,
+      f: Expr => Expr => Expr /* A -> B -> B */,
+      inclusive: Boolean
+  ): Expr /* Vec<B; n> */ = {
+    val n = VecLength(vec)
+    Iterate(
+      if inclusive then n else n + -1,
+      Tuple(0, VecBuild(n, (i: Expr) => z)),
+      (acc: Expr) =>
+        Tuple(
+          acc.__0 + 1,
+          VecBuild(
+            n,
+            // Like a shift register, but one element is computed using f
+            (i: Expr) =>
+              IfThenElse(
+                i eq n + -1,
+                f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1)),
+                VecAccess(acc.__1, i + 1)
+              )
+          )
+        )
+    ).__1
+  }
+}
+
 object Vec2Stm {
   def apply(v: Expr): StmBuild =
     StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))

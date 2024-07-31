@@ -70,11 +70,11 @@ object StmFold {
 
 object StmScan {
   def apply(
-      stm: Expr /* Stm<A> */,
+      stm: Expr /* Stm<A; n> */,
       z: Expr /* B */,
       f: Expr => Expr => Expr /* A -> B -> B */,
       inclusive: Boolean
-  ): Expr /* B */ = {
+  ): Expr /* Vec<B; n> */ = {
     val next = Param()
     val y = Param()
     StmBuild(

@@ -50,6 +50,24 @@ class VectorTests extends AnyFunSuite {
     )
   }
 
+  test("VecScanInclusive") {
+    // [2, 3,  4,  5,  6]
+    val v = VecBuild(5, (i: Expr) => i + 2)
+    // [2, 7, 18, 41, 88]
+    val sum =
+      VecScan(v, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
+    assertVecEqual(sum, Seq(2, 7, 18, 41, 88))
+  }
+
+  test("VecScanExclusive") {
+    // [2, 3, 4,  5,  6]
+    val v = VecBuild(5, (i: Expr) => i + 2)
+    // [0, 2, 7, 18, 41]
+    val sum =
+      VecScan(v, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
+    assertVecEqual(sum, Seq(0, 2, 7, 18, 41))
+  }
+
   test("Stm2Vec") {
     val cntAst = CounterStream(3)
     val v = Stm2Vec(cntAst)
