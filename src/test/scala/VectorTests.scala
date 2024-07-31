@@ -35,7 +35,7 @@ class VectorTests extends AnyFunSuite {
 
   test("Map_and_Access") {
     val v0 = VecBuild(3, (i: Expr) => i + 1)
-    val v1 = MapV(v0, (x: Expr) => x * x)
+    val v1 = VecMap(v0, (x: Expr) => x * x)
     assert(ExprEvaluator.partialEval(VecAccess(v1, 0)) == IntCst(1))
     assert(ExprEvaluator.partialEval(VecAccess(v1, 1)) == IntCst(4))
     assert(ExprEvaluator.partialEval(VecAccess(v1, 2)) == IntCst(9))

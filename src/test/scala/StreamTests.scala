@@ -54,35 +54,35 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Map") {
-    val mapAst = MapS(CounterStream(5), e => Add(e, IntCst(7)))
+    val mapAst = StmMap(CounterStream(5), e => Add(e, IntCst(7)))
     assertStreamEqual(mapAst, Seq(7, 8, 9, 10, 11))
   }
 
   test("Pad") {
-    val stmPadFirst = PadFirst(CounterStream(3), IntCst(33))
+    val stmPadFirst = StmPrepend(CounterStream(3), IntCst(33))
     assertStreamEqual(stmPadFirst, Seq(33, 0, 1, 2))
 
-    val stmPadLast = PadLast(CounterStream(3), IntCst(44))
+    val stmPadLast = StmAppend(CounterStream(3), IntCst(44))
     assertStreamEqual(stmPadLast, Seq(0, 1, 2, 44))
 
     val stmFirstLast =
-      PadLast(PadFirst(CounterStream(3), IntCst(33)), IntCst(44))
+      StmAppend(StmPrepend(CounterStream(3), IntCst(33)), IntCst(44))
     assertStreamEqual(stmFirstLast, Seq(33, 0, 1, 2, 44))
 
     val stmLastFirst =
-      PadFirst(PadLast(CounterStream(3), IntCst(44)), IntCst(33))
+      StmPrepend(StmAppend(CounterStream(3), IntCst(44)), IntCst(33))
     assertStreamEqual(stmLastFirst, Seq(33, 0, 1, 2, 44))
   }
 
   test("Concat") {
-    val stmConcatTwice = Concat(CstStream(1, 77), CstStream(1, 77))
+    val stmConcatTwice = StmConcat(CstStream(1, 77), CstStream(1, 77))
     assertStreamEqual(stmConcatTwice, Seq(77, 77))
 
-    val stmConcat = Concat(CounterStream(3), CstStream(4, 77))
+    val stmConcat = StmConcat(CounterStream(3), CstStream(4, 77))
     assertStreamEqual(stmConcat, Seq(0, 1, 2, 77, 77, 77, 77))
 
-    val stmConcat1 = Concat(CounterStream(3), CstStream(4, 77))
-    val stmConcat2 = Concat(stmConcat1, CounterStream(2))
+    val stmConcat1 = StmConcat(CounterStream(3), CstStream(4, 77))
+    val stmConcat2 = StmConcat(stmConcat1, CounterStream(2))
     assertStreamEqual(stmConcat2, Seq(0, 1, 2, 77, 77, 77, 77, 0, 1))
   }
 
@@ -99,7 +99,7 @@ class StreamTests extends AnyFunSuite {
 
   test("MapMapStream") {
     val stream = StmBuild(3, 0, (i: Expr) => Tuple(i + 1, i))
-    val mapMapStream = MapS(MapS(stream, e => e + 1), e => e * 2)
+    val mapMapStream = StmMap(StmMap(stream, e => e + 1), e => e * 2)
 
     assertStreamEqual(mapMapStream, Seq(2, 4, 6))
   }
@@ -112,7 +112,7 @@ class StreamTests extends AnyFunSuite {
         Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
     )
 
-    val mappedStream2D = MapS(stream2D, e1 => MapS(e1, e2 => e2 + 1))
+    val mappedStream2D = StmMap(stream2D, e1 => StmMap(e1, e2 => e2 + 1))
 
     val next1 = StmNext(mappedStream2D)
     assertStreamEqual(next1.__1, Seq(1, 2, 3))
@@ -130,7 +130,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmScanInclusive") {
     // [2, 3,  4,  5,  6]
-    val s = MapS(CounterStream(5), (x: Expr) => x + 2)
+    val s = StmMap(CounterStream(5), (x: Expr) => x + 2)
     // [2, 7, 18, 41, 88]
     val sum =
       StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
@@ -139,7 +139,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmScanExclusive") {
     // [2, 3, 4,  5,  6]
-    val s = MapS(CounterStream(5), (x: Expr) => x + 2)
+    val s = StmMap(CounterStream(5), (x: Expr) => x + 2)
     // [0, 2, 7, 18, 41]
     val sum =
       StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
@@ -154,7 +154,7 @@ class StreamTests extends AnyFunSuite {
         Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
     )
 
-    val mapFold = MapS(
+    val mapFold = StmMap(
       stream2D,
       innerStream =>
         StmFold(innerStream, 0, (i: Expr) => (acc: Expr) => i + acc)
@@ -165,7 +165,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmZip") {
     val a = CounterStream(3)
-    val b = MapS(CounterStream(3), x => x + 5)
+    val b = StmMap(CounterStream(3), x => x + 5)
     val zipped = StmZip(a, b)
     assertStreamEqual(zipped, Seq(Tuple(0, 5), Tuple(1, 6), Tuple(2, 7)))
   }

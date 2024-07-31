@@ -1,4 +1,4 @@
-object MapV {
+object VecMap {
   def apply(input: VecBuild, f: Expr => Expr): VecBuild =
     VecBuild(VecLength(input), (i: Expr) => f(VecAccess(input, i)))
 }

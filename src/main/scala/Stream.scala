@@ -29,7 +29,7 @@ object Counter2DStream {
 //////////////////////////
 // manipulating streams
 
-object MapS {
+object StmMap {
   def apply(input: Expr, f: Expr => Expr): StmBuild = {
     StmBuild(
       StmLength(input),
@@ -96,7 +96,7 @@ object StmScan {
 
 /////////////////////////
 // dropping/adding elements
-object PadFirst {
+object StmPrepend {
   def apply(input: StmBuild, e: Expr): StmBuild = {
     StmBuild(
       input.length + 1,
@@ -113,7 +113,7 @@ object PadFirst {
     )
   }
 }
-object PadLast {
+object StmAppend {
   def apply(input: StmBuild, e: Expr): StmBuild = {
     StmBuild(
       input.length + 1,
@@ -132,7 +132,7 @@ object PadLast {
 
 /////////////////////////
 // concat
-object Concat {
+object StmConcat {
   def apply(in1: StmBuild, in2: StmBuild): StmBuild = StmBuild(
     in1.length + in2.length,
     Tuple(in1, in2),
