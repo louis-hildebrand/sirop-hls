@@ -68,6 +68,32 @@ object StmFold {
   }
 }
 
+object StmScan {
+  def apply(
+      stm: Expr /* Stm<A> */,
+      z: Expr /* B */,
+      f: Expr => Expr => Expr /* A -> B -> B */,
+      inclusive: Boolean
+  ): Expr /* B */ = {
+    val next = Param()
+    val y = Param()
+    StmBuild(
+      StmLength(stm),
+      Tuple(stm, z),
+      (acc: Expr) =>
+        Let(
+          next,
+          StmNext(acc.__0),
+          Let(
+            y,
+            f(next.__1)(acc.__1),
+            Tuple(Tuple(next.__0, y), if inclusive then y else acc.__1)
+          )
+        )
+    )
+  }
+}
+
 /////////////////////////
 // dropping/adding elements
 object PadFirst {

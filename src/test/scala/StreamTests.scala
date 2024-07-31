@@ -128,6 +128,24 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(sum) == IntCst(12))
   }
 
+  test("StmScanInclusive") {
+    // [2, 3,  4,  5,  6]
+    val s = MapS(CounterStream(5), (x: Expr) => x + 2)
+    // [2, 7, 18, 41, 88]
+    val sum =
+      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
+    assertStreamEqual(sum, Seq(2, 7, 18, 41, 88))
+  }
+
+  test("StmScanExclusive") {
+    // [2, 3, 4,  5,  6]
+    val s = MapS(CounterStream(5), (x: Expr) => x + 2)
+    // [0, 2, 7, 18, 41]
+    val sum =
+      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
+    assertStreamEqual(sum, Seq(0, 2, 7, 18, 41))
+  }
+
   test("fold2Dstm") {
     val stream2D = StmBuild(
       2,
