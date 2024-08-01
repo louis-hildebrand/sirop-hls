@@ -8,11 +8,23 @@ object HasNext {
 
 object CstStream {
   def apply(n: IntCst, c: IntCst): StmBuild =
-    StmBuild(n, c, (seed: Expr) => Tuple(seed, c))
+    StmBuild(
+      n,
+      c,
+      (seed: Expr) => Tuple(seed, c),
+      id = StmBuild.freshId("cst"),
+      index = 0
+    )
 }
 
 object CounterStream {
-  def apply(n: IntCst): StmBuild = StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i))
+  def apply(n: IntCst): StmBuild = StmBuild(
+    n,
+    0,
+    (i: Expr) => Tuple(i + 1, i),
+    id = StmBuild.freshId("counter"),
+    index = 0
+  )
 }
 
 // two solutions: one using multi-dim stream, the other using arithmetic and a 1D stream, the latter can be implemented currently with / and %
@@ -22,7 +34,18 @@ object Counter2DStream {
       n,
       0,
       (i: Expr) =>
-        Tuple(i + 1, StmBuild(m, 0, (j: Expr) => Tuple(j + 1, Tuple(i, j))))
+        Tuple(
+          i + 1,
+          StmBuild(
+            m,
+            0,
+            (j: Expr) => Tuple(j + 1, Tuple(i, j)),
+            id = StmBuild.freshId("counter2dinner"),
+            index = 0
+          )
+        ),
+      id = StmBuild.freshId("counter2douter"),
+      index = 0
     )
   }
 }
@@ -38,7 +61,9 @@ object StmMap {
       (acc: Expr) => {
         val p = Param()
         Let(p, StmNext(acc), Tuple(p.__0, f(p.__1)))
-      }
+      },
+      id = StmBuild.freshId("map"),
+      index = 0
     )
   }
 }
@@ -90,14 +115,22 @@ object StmScan {
             f(next.__1)(acc.__1),
             Tuple(Tuple(next.__0, y), if inclusive then y else acc.__1)
           )
-        )
+        ),
+      id = StmBuild.freshId("scan"),
+      index = 0
     )
   }
 }
 
 object Vec2Stm {
   def apply(v: Expr): StmBuild =
-    StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))
+    StmBuild(
+      VecLength(v),
+      0,
+      (i: Expr) => Tuple(i + 1, VecAccess(v, i)),
+      id = StmBuild.freshId("vec2stm"),
+      index = 0
+    )
 }
 
 /////////////////////////
@@ -115,7 +148,9 @@ object StmPrepend {
             Let(p, StmNext(seed.__1), Tuple(Tuple(False, p.__0), p.__1))
           }
         )
-      }
+      },
+      id = StmBuild.freshId("prepend"),
+      index = 0
     )
   }
 }
@@ -131,7 +166,9 @@ object StmAppend {
             Let(p, StmNext(seed), Tuple(p.__0, p.__1))
           },
           Tuple(seed, e)
-        )
+        ),
+      id = StmBuild.freshId("append"),
+      index = 0
     )
   }
 }
@@ -151,7 +188,9 @@ object StmConcat {
           val p = Param()
           Let(p, StmNext(seed.__1), Tuple(Tuple(seed.__0, p.__0), p.__1))
         }
-      )
+      ),
+    id = StmBuild.freshId("concat"),
+    index = 0
   )
 }
 
@@ -173,7 +212,9 @@ object StmZip {
             StmNext(acc.__1),
             Tuple(Tuple(nextA.__0, nextB.__0), Tuple(nextA.__1, nextB.__1))
           )
-        )
+        ),
+      id = StmBuild.freshId("zip"),
+      index = 0
     )
   }
 }
@@ -195,9 +236,13 @@ object StmRepeat {
             StmBuild(
               VecLength(v),
               0,
-              (j: Expr) => Tuple(j + 1, VecAccess(v, j))
+              (j: Expr) => Tuple(j + 1, VecAccess(v, j)),
+              id = StmBuild.freshId("repeatinner"),
+              index = 0
             )
-          )
+          ),
+        id = StmBuild.freshId("repeatouter"),
+        index = 0
       )
     )
   }
@@ -236,9 +281,13 @@ object StmSplit {
             StmBuild(
               m,
               0,
-              (j: Expr) => Tuple(j + 1, VecAccess(VecAccess(v, i), j))
+              (j: Expr) => Tuple(j + 1, VecAccess(VecAccess(v, i), j)),
+              id = StmBuild.freshId("splitinner"),
+              index = 0
             )
-          )
+          ),
+        id = StmBuild.freshId("splitouter"),
+        index = 0
       )
     )
   }
@@ -276,7 +325,9 @@ object StmJoin {
                 Tuple(Tuple(nextOuter.__0, nextInner.__0), nextInner.__1)
               )
             )
-          )
+          ),
+        id = StmBuild.freshId("join"),
+        index = 0
       )
     )
   }
@@ -344,7 +395,9 @@ object StmSlide {
                   IfThenElse(i eq (m - 1), next.__1, VecAccess(acc.__1, i + 1))
               )
             )
-          )
+          ),
+        id = StmBuild.freshId("slide"),
+        index = 0
       )
     )
   }

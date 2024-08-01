@@ -75,8 +75,30 @@ case class Iterate(
 case class StmBuild(
     length: Expr /* Int */,
     seed: Expr /*A*/,
-    nextF: Function /* A -> (A,B)*/
-) extends Expr
+    nextF: Function /* A -> (A,B)*/,
+    id: String,
+    index: Int
+) extends Expr {
+  StmBuild.stmTable += (id, index) -> false
+}
+object StmBuild {
+  var stmTable = Map[(String, Int), Boolean]()
+
+  def takenIds: Set[String] = stmTable.keySet.map((id, idx) => id)
+
+  def freshId(prefix: String): String = {
+    var n = 0
+    while (true) {
+      var id = s"${prefix}_${n}"
+      if !takenIds.contains(id) then {
+        return id
+      }
+      n += 1
+    }
+    // Unreachable
+    ""
+  }
+}
 case class StmLength(stream: Expr) extends IntExpr
 case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr // element only available for one clock cycle
@@ -136,11 +158,13 @@ object ExprEvaluator {
           substitute(f).asInstanceOf[Function]
         )
 
-      case StmBuild(length, seed, f) =>
+      case s @ StmBuild(length, seed, f, id, index) =>
         StmBuild(
           substitute(length),
           substitute(seed),
-          substitute(f).asInstanceOf[Function]
+          substitute(f).asInstanceOf[Function],
+          id = id,
+          index = index
         )
       case StmLength(s)     => StmLength(substitute(s))
       case StmNext(e: Expr) => StmNext(substitute(e))
@@ -254,13 +278,15 @@ object ExprEvaluator {
         }
       }
 
-      case StmBuild(length, seed, f) =>
+      case s @ StmBuild(length, seed, f, id, index) =>
         StmBuild(
           partialEval(length),
           partialEval(seed),
           partialEval(f).asInstanceOf[
             Function
-          ] /* ensures any free Param in f gets substituted */
+          ], /* ensures any free Param in f gets substituted */
+          id = id,
+          index = index
         )
 
       case StmLength(s) =>
@@ -272,6 +298,11 @@ object ExprEvaluator {
       case StmNext(s: Expr) =>
         partialEval(s) match {
           case s: StmBuild =>
+            assert(
+              !StmBuild.stmTable.contains((s.id, s.index)),
+              s"Attempt to call StmNext() multiple times on the same stream [id='${s.id}', index='${s.index}']."
+            )
+            StmBuild.stmTable += (s.id, s.index) -> true
             partialEval(s.length) match {
               case len: IntCst => {
                 assert(
@@ -285,9 +316,10 @@ object ExprEvaluator {
                       StmBuild(
                         partialEval(s.length + -1),
                         partialEval(next.__0),
-                        partialEval(s.nextF).asInstanceOf[
-                          Function
-                        ] /*this function may have free parameters*/
+                        // this function may have free parameters
+                        partialEval(s.nextF).asInstanceOf[Function],
+                        id = s.id,
+                        index = s.index + 1
                       ),
                       partialEval(next.__1)
                     )
