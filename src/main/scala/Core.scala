@@ -59,6 +59,10 @@ else if (b == False) false
 else throw new RuntimeException("unexpected boolean value")
 object True extends BoolExpr
 object False extends BoolExpr
+// This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
+// False is interpreted as 0 and True as 1.
+// However, IfThenElse does *not* evaluate the branch that's not taken, which
+// is important in cases like calling StmNext() or memory accesses.
 case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr
 case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
