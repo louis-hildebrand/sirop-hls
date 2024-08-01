@@ -211,12 +211,34 @@ class StreamTests extends AnyFunSuite {
 
   test("StmSplit") {
     val s = CounterStream(6)
-    val actual = StmSplit(s, 3)
-    val expected = Seq(
+
+    var expected = Seq(
+      Seq(IntCst(0)),
+      Seq(IntCst(1)),
+      Seq(IntCst(2)),
+      Seq(IntCst(3)),
+      Seq(IntCst(4)),
+      Seq(IntCst(5))
+    )
+    assert2DStreamEqual(StmSplit(s, 1), expected)
+
+    expected = Seq(
+      Seq(IntCst(0), IntCst(1)),
+      Seq(IntCst(2), IntCst(3)),
+      Seq(IntCst(4), IntCst(5))
+    )
+    assert2DStreamEqual(StmSplit(s, 2), expected)
+
+    expected = Seq(
       Seq(IntCst(0), IntCst(1), IntCst(2)),
       Seq(IntCst(3), IntCst(4), IntCst(5))
     )
-    assert2DStreamEqual(actual, expected)
+    assert2DStreamEqual(StmSplit(s, 3), expected)
+
+    expected = Seq(
+      Seq(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4), IntCst(5))
+    )
+    assert2DStreamEqual(StmSplit(s, 6), expected)
   }
 
   test("StmJoin") {

@@ -155,9 +155,12 @@ object StmPrepend {
   }
 }
 object StmAppend {
-  def apply(input: StmBuild, e: Expr): StmBuild = {
+  def apply(
+      input: Expr /* Stm<A; n> */,
+      e: Expr /* A */
+  ): StmBuild /* Stm<A; n+1> */ = {
     StmBuild(
-      input.length + 1,
+      StmLength(input) + 1,
       input,
       (seed: Expr) =>
         IfThenElse(
@@ -257,38 +260,34 @@ object StmSplit {
     require(nVal % m == 0)
 
     val n = StmLength(stm)
-    // StmBuild(
-    //   n / m,
-    //   stm,
-    //   (acc: Expr) =>
-    //     Tuple(
-    //       // How do I write back the stream once the inner stream is done?
-    //       ???,
-    //       StmBuild(m, acc, (a: Expr) => StmNext(a))
-    //     )
-    // )
-    // TODO: This implementation isn't good
-    val v = Param()
-    Let(
-      v,
-      VecSplit(Stm2Vec(stm), m),
-      StmBuild(
-        n / m,
-        0,
-        (i: Expr) =>
+    val next = Param()
+    StmBuild(
+      n / m,
+      stm,
+      (input: Expr) =>
+        // Gradually build up the inner stream and return both the inner stream
+        // and the new state of the input stream
+        Iterate(
+          m,
           Tuple(
-            i + 1,
+            input,
             StmBuild(
-              m,
               0,
-              (j: Expr) => Tuple(j + 1, VecAccess(VecAccess(v, i), j)),
-              id = StmBuild.freshId("splitinner"),
+              0 /* unused */,
+              (_: Expr) => Tuple(0, 0),
+              id = "empty",
               index = 0
             )
           ),
-        id = StmBuild.freshId("splitouter"),
-        index = 0
-      )
+          (acc: Expr) =>
+            Let(
+              next,
+              StmNext(acc.__0),
+              Tuple(next.__0, StmAppend(acc.__1, next.__1))
+            )
+        ),
+      id = StmBuild.freshId("splitouter"),
+      index = 0
     )
   }
 }
