@@ -6,17 +6,17 @@ object HasNext {
 //////////////////////////
 // creating streams
 
-object CstStream {
+object StmCst {
   def apply(n: IntCst, c: IntCst): StmBuild =
-    StmBuild(n, c, (seed: Expr) => Tuple(seed, c))
+    StmBuild(n, 0 /* unused */, (_: Expr) => Tuple(0, c))
 }
 
-object CounterStream {
+object StmCount {
   def apply(n: IntCst): StmBuild = StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i))
 }
 
 // two solutions: one using multi-dim stream, the other using arithmetic and a 1D stream, the latter can be implemented currently with / and %
-object Counter2DStream {
+object StmCount2D {
   def apply(n: Int, m: Int): StmBuild = {
     StmBuild(
       n,

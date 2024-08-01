@@ -69,7 +69,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("Stm2Vec") {
-    val cntAst = CounterStream(3)
+    val cntAst = StmCount(3)
     val v = Stm2Vec(cntAst)
     assertVecEqual(v, Seq(0, 1, 2))
   }

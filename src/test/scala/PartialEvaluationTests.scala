@@ -16,7 +16,7 @@ class PartialEvaluationTests extends AnyFunSuite {
   }
 
   test("Stm2Vec2Stm") {
-    val cntAst = CounterStream(3)
+    val cntAst = StmCount(3)
     val stream = Vec2Stm(Stm2Vec(cntAst))
     assertStreamEqual(stream, Seq(0, 1, 2))
 
