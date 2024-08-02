@@ -88,6 +88,35 @@ object VecAppend {
   }
 }
 
+object VecPrefix {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      k: Expr /* Int */
+  ): Expr /* Vec<A; k> */ = {
+    val nVal = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    require(kVal >= 0)
+    require(kVal <= nVal)
+
+    VecBuild(k, (i: Expr) => VecAccess(vec, i))
+  }
+}
+
+object VecSuffix {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      k: Expr /* Int */
+  ): Expr /* Vec<A; k> */ = {
+    val nVal = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    require(kVal >= 0)
+    require(kVal <= nVal)
+
+    val n = VecLength(vec)
+    VecBuild(k, (i: Expr) => VecAccess(vec, i + (n - k)))
+  }
+}
+
 object VecShiftLeft {
   def apply(
       vec: Expr /* Vec<A; n> */,

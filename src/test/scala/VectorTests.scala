@@ -86,6 +86,22 @@ class VectorTests extends AnyFunSuite {
     assertVecEqual(VecAppend(v, e), Seq(5, 6, 7, 42))
   }
 
+  test("VecPrefix") {
+    val v = VecBuild(3, (i: Expr) => i)
+    assertVecEqual(VecPrefix(v, 0), Seq())
+    assertVecEqual(VecPrefix(v, 1), Seq(0))
+    assertVecEqual(VecPrefix(v, 2), Seq(0, 1))
+    assertVecEqual(VecPrefix(v, 3), Seq(0, 1, 2))
+  }
+
+  test("VecSuffix") {
+    val v = VecBuild(3, (i: Expr) => i)
+    assertVecEqual(VecSuffix(v, 0), Seq())
+    assertVecEqual(VecSuffix(v, 1), Seq(2))
+    assertVecEqual(VecSuffix(v, 2), Seq(1, 2))
+    assertVecEqual(VecSuffix(v, 3), Seq(0, 1, 2))
+  }
+
   test("VecShiftLeft") {
     val v = VecBuild(3, (i: Expr) => i * (i + 2))
     assertVecEqual(VecShiftLeft(v, 42), Seq(3, 8, 42))
