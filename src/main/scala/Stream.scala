@@ -32,13 +32,11 @@ object StmCount2D {
 
 object StmMap {
   def apply(input: Expr, f: Expr => Expr): StmBuild = {
+    val p = Param()
     StmBuild(
       StmLength(input),
       input,
-      (acc: Expr) => {
-        val p = Param()
-        Let(p, StmNext(acc), Tuple(p.__0, f(p.__1)))
-      }
+      (acc: Expr) => Let(p, StmNext(acc), Tuple(p.__0, f(p.__1)))
     )
   }
 }
@@ -51,11 +49,11 @@ object StmFold {
       z: Expr /*B*/,
       f: Function /*A -> B -> B*/
   ): Expr = {
+    val next = Param()
     Iterate(
       StmLength(stream),
       Tuple(z, stream),
-      (acc: Expr) => {
-        val next = Param()
+      (acc: Expr) =>
         Let(
           next,
           StmNext(acc.__1),
@@ -64,7 +62,6 @@ object StmFold {
             next.__0
           )
         )
-      }
     ).__0
   }
 }
