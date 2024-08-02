@@ -81,6 +81,32 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(stmLastFirst, Seq(33, 0, 1, 2, 44))
   }
 
+  test("StmPrefix") {
+    val s = StmCount(3)
+    assertStreamEqual(StmPrefix(s, 0), Seq())
+    assertStreamEqual(StmPrefix(s, 1), Seq(0))
+    assertStreamEqual(StmPrefix(s, 2), Seq(0, 1))
+    assertStreamEqual(StmPrefix(s, 3), Seq(0, 1, 2))
+  }
+
+  test("StmSuffix") {
+    val s = StmCount(3)
+    assertStreamEqual(StmSuffix(s, 0), Seq())
+    assertStreamEqual(StmSuffix(s, 1), Seq(2))
+    assertStreamEqual(StmSuffix(s, 2), Seq(1, 2))
+    assertStreamEqual(StmSuffix(s, 3), Seq(0, 1, 2))
+  }
+
+  test("StmShiftLeft") {
+    val s = StmCount(3)
+    assertStreamEqual(StmShiftLeft(s, 42), Seq(1, 2, 42))
+  }
+
+  test("StmShiftRight") {
+    val s = StmCount(3)
+    assertStreamEqual(StmShiftRight(s, 42), Seq(42, 0, 1))
+  }
+
   test("Concat") {
     val stmConcatTwice = StmConcat(StmCst(1, 77), StmCst(1, 77))
     assertStreamEqual(stmConcatTwice, Seq(77, 77))

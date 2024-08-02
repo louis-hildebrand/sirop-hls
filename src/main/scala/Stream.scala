@@ -120,9 +120,12 @@ object Vec2Stm {
 /////////////////////////
 // dropping/adding elements
 object StmPrepend {
-  def apply(input: StmBuild, e: Expr): StmBuild = {
+  def apply(
+      input: Expr /* Stm<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Stm<A; n+1> */ = {
     StmBuild(
-      input.length + 1,
+      StmLength(input) + 1,
       Tuple(True, input),
       (seed: Expr) => {
         IfThenElse(
@@ -136,6 +139,7 @@ object StmPrepend {
     )
   }
 }
+
 object StmAppend {
   def apply(
       input: Expr /* Stm<A; n> */,
@@ -153,6 +157,54 @@ object StmAppend {
           Tuple(seed, e)
         )
     )
+  }
+}
+
+object StmPrefix {
+  def apply(
+      stm: Expr /* Stm<A, n> */,
+      k: Expr /* Int */
+  ): Expr /* Stm<A; k> */ = {
+    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    require(kVal >= 0)
+    require(kVal <= nVal)
+
+    StmBuild(k, stm, (acc: Expr) => StmNext(acc))
+  }
+}
+
+object StmSuffix {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      k: Expr /* Int */
+  ): Expr /* Stm<A; k> */ = {
+    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    require(kVal >= 0)
+    require(kVal <= nVal)
+
+    val n = StmLength(stm)
+    // Drop the first n - k elements
+    Iterate(n - k, stm, (acc: Expr) => StmNext(acc).__0)
+  }
+}
+
+object StmShiftLeft {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Stm<A; n> */ = {
+    StmAppend(StmSuffix(stm, StmLength(stm) - 1), e)
+  }
+}
+
+object StmShiftRight {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Stm<A; n> */ = {
+    StmPrepend(StmPrefix(stm, StmLength(stm) - 1), e)
   }
 }
 
