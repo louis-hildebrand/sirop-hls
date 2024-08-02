@@ -36,15 +36,9 @@ object VecScan {
       (acc: Expr) =>
         Tuple(
           acc.__0 + 1,
-          VecBuild(
-            n,
-            // Like a shift register, but one element is computed using f
-            (i: Expr) =>
-              IfThenElse(
-                i eq n + -1,
-                f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1)),
-                VecAccess(acc.__1, i + 1)
-              )
+          VecShiftLeft(
+            acc.__1,
+            f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1))
           )
         )
     ).__1
@@ -56,42 +50,8 @@ object Stm2Vec {
     StmFold(
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
-      (e: Expr) =>
-        (
-            (v: Expr) =>
-              VecBuild(
-                VecLength(v),
-                (i: Expr) =>
-                  IfThenElse(i eq VecLength(v) + -1, e, VecAccess(v, i + 1))
-              )
-        )
+      (e: Expr) => (v: Expr) => VecShiftLeft(v, e)
     )
-}
-
-object Stm2VecAlternative {
-  def apply(stm: Expr /* Stm<A> */ ): Expr /* Vec<A> */ = {
-    val n = StmLength(stm)
-    val v = VecBuild(n, (i: Expr) => IntCst(0))
-    val next = Param()
-    Iterate(
-      n,
-      Tuple(0, stm, v),
-      (acc: Expr) =>
-        Let(
-          next,
-          StmNext(acc.__1),
-          Tuple(
-            acc.__0 + 1,
-            next.__0,
-            VecBuild(
-              n,
-              (i: Expr) =>
-                IfThenElse(Equal(i, acc.__0), next.__1, VecAccess(acc.__2, i))
-            )
-          )
-        )
-    ).__2
-  }
 }
 
 object Vec2Tuple {
@@ -124,6 +84,32 @@ object VecAppend {
     VecBuild(
       n + 1,
       (i: Expr) => IfThenElse(i eq n, e, VecAccess(vec, i))
+    )
+  }
+}
+
+object VecShiftLeft {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Vec<A; n> */ = {
+    val n = VecLength(vec)
+    VecBuild(
+      n,
+      (i: Expr) => IfThenElse(i eq n + -1, e, VecAccess(vec, i + 1))
+    )
+  }
+}
+
+object VecShiftRight {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      e: Expr /* A */
+  ): Expr /* Vec<A; n> */ = {
+    val n = VecLength(vec)
+    VecBuild(
+      n,
+      (i: Expr) => IfThenElse(i eq 0, e, VecAccess(vec, i + -1))
     )
   }
 }

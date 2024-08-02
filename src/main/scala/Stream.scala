@@ -321,15 +321,7 @@ object StmSlide {
           Let(
             next,
             StmNext(acc.__0),
-            Tuple(
-              next.__0,
-              // Like a shift register
-              VecBuild(
-                m,
-                (i: Expr) =>
-                  IfThenElse(i eq (m - 1), next.__1, VecAccess(acc.__1, i + 1))
-              )
-            )
+            Tuple(next.__0, VecShiftLeft(acc.__1, next.__1))
           )
       ),
       StmBuild(
@@ -340,25 +332,8 @@ object StmSlide {
             next,
             StmNext(acc.__0),
             Tuple(
-              Tuple(
-                next.__0,
-                // Like a shift register
-                VecBuild(
-                  m,
-                  (i: Expr) =>
-                    IfThenElse(
-                      i eq (m - 1),
-                      next.__1,
-                      VecAccess(acc.__1, i + 1)
-                    )
-                )
-              ),
-              // Same as above
-              VecBuild(
-                m,
-                (i: Expr) =>
-                  IfThenElse(i eq (m - 1), next.__1, VecAccess(acc.__1, i + 1))
-              )
+              Tuple(next.__0, VecShiftLeft(acc.__1, next.__1)),
+              VecShiftLeft(acc.__1, next.__1)
             )
           )
       )
