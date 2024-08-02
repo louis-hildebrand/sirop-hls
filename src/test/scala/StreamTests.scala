@@ -58,6 +58,13 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(mapAst, Seq(7, 8, 9, 10, 11))
   }
 
+  test("StmAccess") {
+    val s = StmMap(StmCount(3), (x: Expr) => x + 5)
+    assert(ExprEvaluator.partialEval(StmAccess(s, 0)) == IntCst(5))
+    assert(ExprEvaluator.partialEval(StmAccess(s, 1)) == IntCst(6))
+    assert(ExprEvaluator.partialEval(StmAccess(s, 2)) == IntCst(7))
+  }
+
   test("Pad") {
     val stmPadFirst = StmPrepend(StmCount(3), IntCst(33))
     assertStreamEqual(stmPadFirst, Seq(33, 0, 1, 2))

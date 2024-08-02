@@ -43,6 +43,26 @@ object StmMap {
 
 //////////////////////////
 // reductions
+object StmAccess {
+  def apply(stm: Expr /* Stm<A; n> */, i: Expr /* Int */ ): Expr /* A */ = {
+    val iVal = ExprEvaluator.partialEval(i).asInstanceOf[IntCst].i
+    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    require(iVal >= 0)
+    require(iVal < nVal)
+
+    val next = Param()
+    Let(
+      next,
+      StmNext(stm),
+      Iterate(
+        i,
+        next,
+        (acc: Expr) => StmNext(acc.__0)
+      ).__1
+    )
+  }
+}
+
 object StmFold {
   def apply(
       stream: Expr /*Stream<A>*/,
