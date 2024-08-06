@@ -114,6 +114,8 @@ object StmScan {
 
 object Vec2Stm {
   def apply(v: Expr): StmBuild =
+    // TODO: Would it be better to use a shift register for accessing the
+    // input?
     StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i)))
 }
 
@@ -124,16 +126,15 @@ object StmPrepend {
       input: Expr /* Stm<A; n> */,
       e: Expr /* A */
   ): Expr /* Stm<A; n+1> */ = {
+    val p = Param()
     StmBuild(
       StmLength(input) + 1,
       Tuple(True, input),
       (seed: Expr) => {
         IfThenElse(
           seed.__0,
-          Tuple(Tuple(False, seed.__1), e), {
-            val p = Param()
-            Let(p, StmNext(seed.__1), Tuple(Tuple(False, p.__0), p.__1))
-          }
+          Tuple(Tuple(False, seed.__1), e),
+          Let(p, StmNext(seed.__1), Tuple(Tuple(False, p.__0), p.__1))
         )
       }
     )
@@ -148,14 +149,7 @@ object StmAppend {
     StmBuild(
       StmLength(input) + 1,
       input,
-      (seed: Expr) =>
-        IfThenElse(
-          HasNext(seed), {
-            val p = Param()
-            Let(p, StmNext(seed), Tuple(p.__0, p.__1))
-          },
-          Tuple(seed, e)
-        )
+      (seed: Expr) => IfThenElse(HasNext(seed), StmNext(seed), Tuple(seed, e))
     )
   }
 }
@@ -211,20 +205,19 @@ object StmShiftRight {
 /////////////////////////
 // concat
 object StmConcat {
-  def apply(in1: StmBuild, in2: StmBuild): StmBuild = StmBuild(
-    in1.length + in2.length,
-    Tuple(in1, in2),
-    (seed: Expr) =>
-      IfThenElse(
-        HasNext(seed.__0), {
-          val p = Param()
-          Let(p, StmNext(seed.__0), Tuple(Tuple(p.__0, seed.__1), p.__1))
-        }, {
-          val p = Param()
+  def apply(in1: StmBuild, in2: StmBuild): StmBuild = {
+    val p = Param()
+    StmBuild(
+      in1.length + in2.length,
+      Tuple(in1, in2),
+      (seed: Expr) =>
+        IfThenElse(
+          HasNext(seed.__0),
+          Let(p, StmNext(seed.__0), Tuple(Tuple(p.__0, seed.__1), p.__1)),
           Let(p, StmNext(seed.__1), Tuple(Tuple(seed.__0, p.__0), p.__1))
-        }
-      )
-  )
+        )
+    )
+  }
 }
 
 ////////////////////////
@@ -258,19 +251,7 @@ object StmRepeat {
     Let(
       v,
       Stm2Vec(stm),
-      StmBuild(
-        m,
-        0 /* unused */,
-        (i: Expr) =>
-          Tuple(
-            0,
-            StmBuild(
-              VecLength(v),
-              0,
-              (j: Expr) => Tuple(j + 1, VecAccess(v, j))
-            )
-          )
-      )
+      StmBuild(m, 0 /* unused */, (i: Expr) => Tuple(0, Vec2Stm(v)))
     )
   }
 }
