@@ -133,6 +133,16 @@ class VectorTests extends AnyFunSuite {
     assertVecEqual(zipped, Seq(Tuple(0, 2), Tuple(1, 4), Tuple(2, 6)))
   }
 
+  test("VecZipAlternating") {
+    val v0 = VecBuild(4, (i: Expr) => i)
+    val v1 = VecBuild(4, (i: Expr) => (i + 1) * 2)
+    val zipped = VecZipAlternating(v0, v1)
+    assertVecEqual(
+      zipped,
+      Seq(Tuple(0, 2), Tuple(4, 1), Tuple(2, 6), Tuple(8, 3))
+    )
+  }
+
   test("VecRepeat") {
     val v = VecBuild(4, (i: Expr) => (i + 1) * (i + 1))
     val v2 = VecRepeat(v, 2)

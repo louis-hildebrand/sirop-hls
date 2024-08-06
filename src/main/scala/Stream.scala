@@ -223,7 +223,10 @@ object StmConcat {
 ////////////////////////
 // zip
 object StmZip {
-  def apply(a: Expr, b: Expr): StmBuild = {
+  def apply(
+      a: Expr /* Stm<A; n> */,
+      b: Expr /* Stm<B; n> */
+  ): StmBuild /* Stm<(A, B); n> */ = {
     val nextA = Param()
     val nextB = Param()
     StmBuild(
@@ -237,6 +240,31 @@ object StmZip {
             nextB,
             StmNext(acc.__1),
             Tuple(Tuple(nextA.__0, nextB.__0), Tuple(nextA.__1, nextB.__1))
+          )
+        )
+    )
+  }
+}
+
+// Not particularly useful, just a strange case to be used to test the compiler
+object StmZipAlternating {
+  def apply(
+      a: Expr /* Stm<A; n> */,
+      b: Expr /* Stm<A; n> */
+  ): StmBuild /* Stm<(A, A); n> */ = {
+    val nextA = Param()
+    val nextB = Param()
+    StmBuild(
+      StmLength(a),
+      Tuple(a, b),
+      (acc: Expr) =>
+        Let(
+          nextA,
+          StmNext(acc.__0),
+          Let(
+            nextB,
+            StmNext(acc.__1),
+            Tuple(Tuple(nextB.__0, nextA.__0), Tuple(nextA.__1, nextB.__1))
           )
         )
     )

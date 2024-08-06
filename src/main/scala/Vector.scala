@@ -161,10 +161,28 @@ object VecConcat {
 
 object VecZip {
   def apply(
-      a: Expr /* Vec<A> */,
-      b: Expr /* Vec<B> */
-  ): VecBuild /* Vec<(A, B)> */ =
+      a: Expr /* Vec<A; n> */,
+      b: Expr /* Vec<B; n> */
+  ): VecBuild /* Vec<(A, B); n> */ =
     VecBuild(VecLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
+}
+
+// Not particularly useful, just the Vec counterpart to StmZipAlternating
+object VecZipAlternating {
+  def apply(
+      a: Expr /* Vec<A; n> */,
+      b: Expr /* Vec<A; n> */
+  ): Expr /* Vec<(A, A); n> */ = {
+    VecBuild(
+      VecLength(a),
+      (i: Expr) =>
+        IfThenElse(
+          (i % 2) eq 0,
+          Tuple(VecAccess(a, i), VecAccess(b, i)),
+          Tuple(VecAccess(b, i), VecAccess(a, i))
+        )
+    )
+  }
 }
 
 object VecRepeat {

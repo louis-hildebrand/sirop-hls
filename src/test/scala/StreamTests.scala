@@ -198,9 +198,22 @@ class StreamTests extends AnyFunSuite {
 
   test("StmZip") {
     val a = StmCount(3)
-    val b = StmMap(StmCount(3), x => x + 5)
+    val b = StmMap(StmCount(3), x => x % 2 eq 0)
     val zipped = StmZip(a, b)
-    assertStreamEqual(zipped, Seq(Tuple(0, 5), Tuple(1, 6), Tuple(2, 7)))
+    assertStreamEqual(
+      zipped,
+      Seq(Tuple(0, True), Tuple(1, False), Tuple(2, True))
+    )
+  }
+
+  test("StmZipAlternating") {
+    val a = StmCount(4)
+    val b = StmMap(StmCount(4), x => x + 5)
+    val zipped = StmZipAlternating(a, b)
+    assertStreamEqual(
+      zipped,
+      Seq(Tuple(0, 5), Tuple(6, 1), Tuple(2, 7), Tuple(8, 3))
+    )
   }
 
   test("Vec2Stm") {
