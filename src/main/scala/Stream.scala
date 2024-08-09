@@ -15,6 +15,17 @@ object StmCount {
   def apply(n: IntCst): StmBuild = StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i))
 }
 
+object StmCst2D {
+  def apply(n: Int, m: Int, c: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
+    StmBuild(
+      n,
+      0 /* unused */,
+      (_: Expr) =>
+        Tuple(0, StmBuild(m, 0 /* unused */, (_: Expr) => Tuple(0, c)))
+    )
+  }
+}
+
 // two solutions: one using multi-dim stream, the other using arithmetic and a 1D stream, the latter can be implemented currently with / and %
 object StmCount2D {
   def apply(n: Int, m: Int): StmBuild = {
@@ -155,15 +166,18 @@ object StmAppend {
 }
 
 object StmPrefix {
-  /**
-   * Take elements from the beginning of a stream.
-   *
-   * NOTE: k must be such that 0 &le; k &le; n.
-   *
-   * @param stm The input stream.
-   * @param k   The number of elements to extract.
-   * @return    A stream consisting of the first `k` elements from `stm`.
-   */
+
+  /** Take elements from the beginning of a stream.
+    *
+    * NOTE: k must be such that 0 &le; k &le; n.
+    *
+    * @param stm
+    *   The input stream.
+    * @param k
+    *   The number of elements to extract.
+    * @return
+    *   A stream consisting of the first `k` elements from `stm`.
+    */
   def apply(
       stm: Expr /* Stm<A, n> */,
       k: Expr /* Int */

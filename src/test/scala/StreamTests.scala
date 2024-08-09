@@ -44,6 +44,16 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(cntAst, Seq(0, 1, 2, 3, 4))
   }
 
+  test("StmCst2D") {
+    val actual = StmCst2D(3, 4, 42)
+    val expected = Seq(
+      Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42)),
+      Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42)),
+      Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42))
+    )
+    assert(StreamTests.stmStm2SeqSeq(actual) == expected)
+  }
+
   test("Counter2DStream") {
     val s = StmCount2D(2, 3)
     val expected = Seq(
@@ -132,7 +142,8 @@ class StreamTests extends AnyFunSuite {
 
   test("MapMapStream") {
     val stream = StmBuild(3, 0, (i: Expr) => Tuple(i + 1, i))
-    val mapMapStream = StmMap(StmMap(stream, (e: Expr) => e + 1), (e: Expr) => e * 2)
+    val mapMapStream =
+      StmMap(StmMap(stream, (e: Expr) => e + 1), (e: Expr) => e * 2)
 
     assertStreamEqual(mapMapStream, Seq(2, 4, 6))
   }
@@ -145,7 +156,8 @@ class StreamTests extends AnyFunSuite {
         Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
     )
 
-    val mappedStream2D = StmMap(stream2D, e1 => StmMap(e1, (e2: Expr) => e2 + 1))
+    val mappedStream2D =
+      StmMap(stream2D, e1 => StmMap(e1, (e2: Expr) => e2 + 1))
 
     val next1 = StmNext(mappedStream2D)
     assertStreamEqual(next1.__1, Seq(1, 2, 3))
