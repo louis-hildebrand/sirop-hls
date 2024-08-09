@@ -31,12 +31,12 @@ object StmCount2D {
 // manipulating streams
 
 object StmMap {
-  def apply(input: Expr, f: Expr => Expr): StmBuild = {
+  def apply(input: Expr, f: Function): StmBuild = {
     val p = Param()
     StmBuild(
       StmLength(input),
       input,
-      (acc: Expr) => Let(p, StmNext(acc), Tuple(p.__0, f(p.__1)))
+      (acc: Expr) => Let(p, StmNext(acc), Tuple(p.__0, FunCall(f, p.__1)))
     )
   }
 }
@@ -155,15 +155,19 @@ object StmAppend {
 }
 
 object StmPrefix {
+  /**
+   * Take elements from the beginning of a stream.
+   *
+   * NOTE: k must be such that 0 &le; k &le; n.
+   *
+   * @param stm The input stream.
+   * @param k   The number of elements to extract.
+   * @return    A stream consisting of the first `k` elements from `stm`.
+   */
   def apply(
       stm: Expr /* Stm<A, n> */,
       k: Expr /* Int */
   ): Expr /* Stm<A; k> */ = {
-    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
-    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
-    require(kVal >= 0)
-    require(kVal <= nVal)
-
     StmBuild(k, stm, (acc: Expr) => StmNext(acc))
   }
 }

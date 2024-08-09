@@ -132,7 +132,7 @@ class StreamTests extends AnyFunSuite {
 
   test("MapMapStream") {
     val stream = StmBuild(3, 0, (i: Expr) => Tuple(i + 1, i))
-    val mapMapStream = StmMap(StmMap(stream, e => e + 1), e => e * 2)
+    val mapMapStream = StmMap(StmMap(stream, (e: Expr) => e + 1), (e: Expr) => e * 2)
 
     assertStreamEqual(mapMapStream, Seq(2, 4, 6))
   }
@@ -145,7 +145,7 @@ class StreamTests extends AnyFunSuite {
         Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
     )
 
-    val mappedStream2D = StmMap(stream2D, e1 => StmMap(e1, e2 => e2 + 1))
+    val mappedStream2D = StmMap(stream2D, e1 => StmMap(e1, (e2: Expr) => e2 + 1))
 
     val next1 = StmNext(mappedStream2D)
     assertStreamEqual(next1.__1, Seq(1, 2, 3))
@@ -198,7 +198,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmZip") {
     val a = StmCount(3)
-    val b = StmMap(StmCount(3), x => x % 2 eq 0)
+    val b = StmMap(StmCount(3), (x: Expr) => x % 2 eq 0)
     val zipped = StmZip(a, b)
     assertStreamEqual(
       zipped,
@@ -208,7 +208,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmZipAlternating") {
     val a = StmCount(4)
-    val b = StmMap(StmCount(4), x => x + 5)
+    val b = StmMap(StmCount(4), (x: Expr) => x + 5)
     val zipped = StmZipAlternating(a, b)
     assertStreamEqual(
       zipped,
@@ -357,5 +357,16 @@ class StreamTests extends AnyFunSuite {
       .stm2Seq(actual)
       .map(v => VectorTests.vec2Seq(v))
     assert(actualElements == expected)
+  }
+
+  test("MapPrefix") {
+    val stm = StmCount2D(3, 1000)
+    val actual = StmMap(stm, (s: Expr) => StmPrefix(s, 2))
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1)),
+      Seq(Tuple(1, 0), Tuple(1, 1)),
+      Seq(Tuple(2, 0), Tuple(2, 1))
+    )
+    assert(StreamTests.stmStm2SeqSeq(actual) == expected)
   }
 }
