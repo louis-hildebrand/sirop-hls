@@ -50,6 +50,13 @@ class VectorTests extends AnyFunSuite {
     )
   }
 
+  test("SumRows") {
+    val v = VecBuild(3, (i: Expr) => VecBuild(2, (j: Expr) => i + j))
+    val v2 =
+      VecMap(v, (v: Expr) => VecFold(v, 0, (x: Expr) => (y: Expr) => x + y))
+    assert(VectorTests.vec2Seq(v2) == Seq(1, 3, 5).map(n => IntCst(n)))
+  }
+
   test("VecScanInclusive") {
     // [2, 3,  4,  5,  6]
     val v = VecBuild(5, (i: Expr) => i + 2)

@@ -68,6 +68,22 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(mapAst, Seq(7, 8, 9, 10, 11))
   }
 
+  test("SumRows") {
+    // [[0, 1, 2],
+    //  [1, 2, 3],
+    //  [2, 3, 4],
+    //  [3, 4, 5]]
+    val stm = StmMap(
+      StmCount2D(4, 3),
+      (s: Expr) => StmMap(s, (x: Expr) => x.__0 + x.__1)
+    )
+    val summed = StmMap(
+      stm,
+      (s: Expr) => StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x)
+    )
+    assert(StreamTests.stm2Seq(summed) == Seq(3, 6, 9, 12).map(n => IntCst(n)))
+  }
+
   test("StmAccess") {
     val s = StmMap(StmCount(3), (x: Expr) => x + 5)
     assert(ExprEvaluator.partialEval(StmAccess(s, 0)) == IntCst(5))
