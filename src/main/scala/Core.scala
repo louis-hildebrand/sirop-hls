@@ -79,7 +79,7 @@ case class Iterate(
 case class StmBuild(
     length: Expr /* Int */,
     seed: Expr /*A*/,
-    nextF: Function /* A -> (A,B)*/
+    nextF: Function /* A -> (A, B, Bool)*/
 ) extends Expr
 case class StmLength(stream: Expr) extends IntExpr
 case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
@@ -262,9 +262,8 @@ object ExprEvaluator {
         StmBuild(
           partialEval(length),
           partialEval(seed),
-          partialEval(f).asInstanceOf[
-            Function
-          ] /* ensures any free Param in f gets substituted */
+          // ensures any free Param in f gets substituted
+          partialEval(f).asInstanceOf[Function]
         )
 
       case StmLength(s) =>
@@ -283,19 +282,39 @@ object ExprEvaluator {
                   "Attempt to call StmNext() on a stream of length 0."
                 )
                 partialEval(FunCall(s.nextF, s.seed)) match {
-                  case next: Tuple => {
-                    // return the new stream and the next element
-                    Tuple(
-                      StmBuild(
-                        partialEval(s.length + -1),
-                        partialEval(next.__0),
-                        partialEval(s.nextF).asInstanceOf[
-                          Function
-                        ] /*this function may have free parameters*/
-                      ),
-                      partialEval(next.__1)
+                  case next: Tuple =>
+                    val n = next.elems.length
+                    require(
+                      n == 3,
+                      s"The function in StmBuild returned a ${n}-tuple instead of a 3-tuple."
                     )
-                  }
+                    partialEval(next.__2) match {
+                      case True =>
+                        // return the new stream and the next element
+                        Tuple(
+                          StmBuild(
+                            len.i - 1,
+                            partialEval(next.__0),
+                            // this function may have free parameters
+                            partialEval(s.nextF).asInstanceOf[Function]
+                          ),
+                          partialEval(next.__1)
+                        )
+                      case False =>
+                        // skip this element, look for the next one
+                        partialEval(
+                          StmNext(
+                            StmBuild(
+                              len,
+                              partialEval(next.__0),
+                              // this function may have free parameters
+                              partialEval(s.nextF).asInstanceOf[Function]
+                            )
+                          )
+                        )
+                      case _ =>
+                        StmNext(s)
+                    }
                   case next @ _ => StmNext(s)
                 }
               }

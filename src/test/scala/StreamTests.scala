@@ -157,7 +157,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("MapMapStream") {
-    val stream = StmBuild(3, 0, (i: Expr) => Tuple(i + 1, i))
+    val stream = StmBuild(3, 0, (i: Expr) => Tuple(i + 1, i, True))
     val mapMapStream =
       StmMap(StmMap(stream, (e: Expr) => e + 1), (e: Expr) => e * 2)
 
@@ -169,7 +169,11 @@ class StreamTests extends AnyFunSuite {
       2,
       0,
       (i: Expr) =>
-        Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
+        Tuple(
+          i + 1,
+          StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j, True)),
+          True
+        )
     )
 
     val mappedStream2D =
@@ -212,7 +216,11 @@ class StreamTests extends AnyFunSuite {
       2,
       0,
       (i: Expr) =>
-        Tuple(i + 1, StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j)))
+        Tuple(
+          i + 1,
+          StmBuild(3, 0, (j: Expr) => Tuple(j + 1, i * 3 + j, True)),
+          True
+        )
     )
 
     val mapFold = StmMap(
