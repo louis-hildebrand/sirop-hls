@@ -68,13 +68,6 @@ case class Equal(e1: Expr, e2: Expr) extends BoolExpr
 case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
 
-// High-level function
-case class Iterate(
-    n: Expr /* Int */,
-    z: Expr /* A */,
-    f: Function /* A -> A */
-) extends Expr
-
 // Streams
 case class StmBuild(
     length: Expr /* Int */,
@@ -132,13 +125,6 @@ object ExprEvaluator {
       case Equal(e1: Expr, e2: Expr) => Equal(substitute(e1), substitute(e2))
       case LessThan(e1: Expr, e2: Expr) =>
         LessThan(substitute(e1), substitute(e2))
-
-      case Iterate(n: Expr, z: Expr, f: Function) =>
-        Iterate(
-          substitute(n),
-          substitute(z),
-          substitute(f).asInstanceOf[Function]
-        )
 
       case StmBuild(length, seed, f) =>
         StmBuild(
@@ -241,22 +227,6 @@ object ExprEvaluator {
           case (e1: IntCst, e2: IntCst) => e1.i < e2.i
           case (e1 @ _, e2 @ _)         => LessThan(e1, e2)
         }
-
-      case Iterate(n: Expr, z: Expr, f: Function) => {
-        partialEval(n) match {
-          case n: IntCst => {
-            val n_int: Int = n.i
-            assert(n_int > -1)
-
-            val z_interpreted = partialEval(z)
-            if (n_int == 0)
-              z_interpreted
-            else
-              partialEval(Iterate(n_int - 1, FunCall(f, z_interpreted), f))
-          }
-          case n @ _ => Iterate(n, partialEval(z), f)
-        }
-      }
 
       case StmBuild(length, seed, f) =>
         StmBuild(

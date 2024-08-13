@@ -1,3 +1,24 @@
+// High-level function
+object Iterate {
+  def apply(
+      n: Expr /* Int */,
+      z: Expr /* A */,
+      f: Function /* A -> A */
+  ): Expr = {
+    val s = StmBuild(
+      1,
+      Tuple(n, z),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__0 eq 0,
+          Tuple(Tuple(acc.__0, acc.__1), acc.__1, True),
+          Tuple(Tuple(acc.__0 - 1, FunCall(f, acc.__1)), acc.__1, False)
+        )
+    )
+    StmNext(s).__1
+  }
+}
+
 // could also make this a primitive in case we want (in the future) to have streams with no length, or if we do not want to use the length information but just the last signal in hardware
 object HasNext {
   def apply(stream: Expr): BoolExpr = NotEqual(StmLength(stream), 0)
@@ -222,6 +243,7 @@ object StmSuffix {
           next,
           StmNext(acc.__1),
           IfThenElse(
+            // TODO: Maybe it would be better to use eq here (and in StmSlide)
             acc.__0 lt n - k,
             // drop
             Tuple(Tuple(acc.__0 + 1, next.__0), next.__1, False),
