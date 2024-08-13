@@ -234,21 +234,19 @@ object StmSuffix {
 
     val n = StmLength(stm)
     val next = Param()
-    // Drop the first n - k elements
     StmBuild(
       k,
-      Tuple(0, stm),
+      Tuple(n - k, stm),
       (acc: Expr) =>
         Let(
           next,
           StmNext(acc.__1),
           IfThenElse(
-            // TODO: Maybe it would be better to use eq here (and in StmSlide)
-            acc.__0 lt n - k,
-            // drop
-            Tuple(Tuple(acc.__0 + 1, next.__0), next.__1, False),
+            acc.__0 eq 0,
             // keep
-            Tuple(Tuple(acc.__0, next.__0), next.__1, True)
+            Tuple(Tuple(acc.__0, next.__0), next.__1, True),
+            // drop
+            Tuple(Tuple(acc.__0 - 1, next.__0), next.__1, False)
           )
         )
     )
@@ -460,7 +458,7 @@ object StmSlide {
     val v = Param()
     StmBuild(
       n - m + 1,
-      Tuple(0, stm, VecBuild(m, (i: Expr) => IntCst(0))),
+      Tuple(m - 1, stm, VecBuild(m, (i: Expr) => IntCst(0))),
       (acc: Expr) =>
         Let(
           next,
@@ -469,11 +467,11 @@ object StmSlide {
             v,
             VecShiftLeft(acc.__2, next.__1),
             IfThenElse(
-              acc.__0 lt m - 1,
-              // shift register is not full yet
-              Tuple(Tuple(acc.__0 + 1, next.__0, v), v, False),
+              acc.__0 eq 0,
               // shift register is full
-              Tuple(Tuple(acc.__0, next.__0, v), v, True)
+              Tuple(Tuple(acc.__0, next.__0, v), v, True),
+              // shift register is not full yet
+              Tuple(Tuple(acc.__0 - 1, next.__0, v), v, False)
             )
           )
         )
