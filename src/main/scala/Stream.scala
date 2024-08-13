@@ -73,16 +73,8 @@ object StmAccess {
     require(iVal >= 0)
     require(iVal < nVal)
 
-    val next = Param()
-    Let(
-      next,
-      StmNext(stm),
-      Iterate(
-        i,
-        next,
-        (acc: Expr) => StmNext(acc.__0)
-      ).__1
-    )
+    val n = StmLength(stm)
+    StmNext(StmSuffix(stm, n - i)).__1
   }
 }
 
@@ -220,8 +212,24 @@ object StmSuffix {
     require(kVal <= nVal)
 
     val n = StmLength(stm)
+    val next = Param()
     // Drop the first n - k elements
-    Iterate(n - k, stm, (acc: Expr) => StmNext(acc).__0)
+    StmBuild(
+      k,
+      Tuple(0, stm),
+      (acc: Expr) =>
+        Let(
+          next,
+          StmNext(acc.__1),
+          IfThenElse(
+            acc.__0 lt n - k,
+            // drop
+            Tuple(Tuple(acc.__0 + 1, next.__0), next.__1, False),
+            // keep
+            Tuple(Tuple(acc.__0, next.__0), next.__1, True)
+          )
+        )
+    )
   }
 }
 
@@ -355,6 +363,7 @@ object StmSplit {
           p,
           // Gradually build up the inner stream and return both the inner stream
           // and the new state of the input stream
+          // TODO: Rewrite this without using Iterate()?
           Iterate(
             m,
             Tuple(
@@ -426,36 +435,26 @@ object StmSlide {
     require(m >= 1)
     val n = StmLength(stm)
     val next = Param()
-    val v0 = Param()
-    Let(
-      v0,
-      // Read the first `m - 1` elements into a vector
-      // Don't read all `m` because the `StmBuild` will call `StmNext()` once
-      // before producing its first element
-      Iterate(
-        m - 1,
-        Tuple(stm, VecBuild(m, (i: Expr) => IntCst(0))),
-        (acc: Expr) =>
+    val v = Param()
+    StmBuild(
+      n - m + 1,
+      Tuple(0, stm, VecBuild(m, (i: Expr) => IntCst(0))),
+      (acc: Expr) =>
+        Let(
+          next,
+          StmNext(acc.__1),
           Let(
-            next,
-            StmNext(acc.__0),
-            Tuple(next.__0, VecShiftLeft(acc.__1, next.__1))
-          )
-      ),
-      StmBuild(
-        n + -m + 1,
-        v0, // (stream, vector)
-        (acc: Expr) =>
-          Let(
-            next,
-            StmNext(acc.__0),
-            Tuple(
-              Tuple(next.__0, VecShiftLeft(acc.__1, next.__1)),
-              VecShiftLeft(acc.__1, next.__1),
-              True
+            v,
+            VecShiftLeft(acc.__2, next.__1),
+            IfThenElse(
+              acc.__0 lt m - 1,
+              // shift register is not full yet
+              Tuple(Tuple(acc.__0 + 1, next.__0, v), v, False),
+              // shift register is full
+              Tuple(Tuple(acc.__0, next.__0, v), v, True)
             )
           )
-      )
+        )
     )
   }
 }
