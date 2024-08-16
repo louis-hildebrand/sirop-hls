@@ -253,11 +253,18 @@ object ExprEvaluator {
   }
 
   def canonicalize(stm: StmBuild): StmBuild = {
-    val s0 = tupleAccumulator(stm)
+    val s = partialEval(stm).asInstanceOf[StmBuild]
+    val s0 = tupleAccumulator(s)
     val s1 = flattenAccumulator(s0)
-    removeEmptyTuples(s1)
+    val s2 = removeEmptyTuples(s1)
+    moveStreamsToFront(s2)
   }
 
+  /** Wrap the accumulator in a tuple and update `nextF` accordingly.
+    *
+    * This is useful to ensure the accumulator is always a tuple (and not, for
+    * example, a scalar).
+    */
   private def tupleAccumulator(stm: StmBuild): StmBuild = {
     val acc = stm.nextF.param
     val sub = (body: Expr) => substitute(body)(Map(acc -> TupleAccess(acc, 0)))
@@ -269,6 +276,9 @@ object ExprEvaluator {
     )
   }
 
+  /** Flatten the accumulator. For example, if the seed was ((0, 1), 2), the new
+    * seed will be (0, 1, 2) and `nextF` will be updated accordingly.
+    */
   private def flattenAccumulator(stm: StmBuild): StmBuild = {
     val p = Param()
     val (tupleAccessMap, _) =
@@ -279,6 +289,83 @@ object ExprEvaluator {
       flatten(stm.seed),
       Function(p, substitute(flattenHead(stm.nextF.body))(tupleAccessMap))
     )
+  }
+
+  /** Remove empty tuples from the accumulator (leaving the accumulator as an
+    * empty tuple if the accumulator itself is empty).
+    */
+  private def removeEmptyTuples(stm: StmBuild): StmBuild = {
+    // Assumes the accumulator is a tuple
+    // A previous transformation should tuple the accumulator if necessary
+    val seed = stm.seed.asInstanceOf[Tuple]
+    val indicesToRemove = seed.elems.zipWithIndex
+      .filter((e, _) => e == Tuple())
+      .map((_, i) => i)
+    // Need to adjust indices used to read accumulator.
+    // For each element removed, you need to decrement the indices of all
+    // following elements by one.
+    val indexMap = (0 until seed.elems.length)
+      .map(i =>
+        i ->
+          (if indicesToRemove.contains(i) then None
+           else Some(i - indicesToRemove.count(j => j < i)))
+      )
+      .toMap
+    val acc = stm.nextF.param
+    val subs: Map[Expr, Expr] = indexMap
+      .map((i, j) =>
+        j match {
+          case None    => TupleAccess(acc, i) -> Tuple()
+          case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
+        }
+      )
+    val f = removeIndices(indicesToRemove)
+    StmBuild(
+      stm.length,
+      f(seed),
+      Function(acc, substitute(transformHead(f)(stm.nextF.body))(subs))
+    )
+  }
+
+  /** Permute the elements in the accumulator so that the input streams, if any,
+    * all occupy the places with the lowest indices.
+    */
+  private def moveStreamsToFront(stm: StmBuild): StmBuild = {
+    val seed = stm.seed.asInstanceOf[Tuple]
+    val acc = stm.nextF.param
+    val indexMap = seed.elems.zipWithIndex
+      .sortBy((e, i) => !e.isInstanceOf[StmBuild])
+      .zipWithIndex
+      .map({ case ((_, oldIdx), newIdx) => oldIdx -> newIdx })
+      .toMap
+    val sub = (body: Expr) =>
+      substitute(body)(
+        indexMap.map((oldIdx, newIdx) =>
+          TupleAccess(acc, oldIdx) -> TupleAccess(acc, newIdx)
+        )
+      )
+    StmBuild(
+      stm.length,
+      permute(indexMap)(stm.seed),
+      Function(acc, sub(transformHead(permute(indexMap))(stm.nextF.body)))
+    )
+  }
+
+  /** Permute the elements of a tuple.
+    *
+    * @param indexMap
+    *   Map from old index to new index
+    * @param e
+    *   Expression to permute (must be a tuple)
+    */
+  private def permute(indexMap: Map[Int, Int])(e: Expr): Expr = {
+    val t = e.asInstanceOf[Tuple]
+    val newElems = indexMap
+      .map((oldIdx, newIdx) => newIdx -> t.elems(oldIdx))
+      .toSeq
+      .sortBy((i, _) => i)
+      .map((_, e) => e)
+    Tuple(newElems: _*)
   }
 
   /** Traverse the tree of tuples and construct a map from old tuple accesses
@@ -366,39 +453,6 @@ object ExprEvaluator {
         Tuple(combinedElems: _*)
       case _ => e
     }
-  }
-
-  private def removeEmptyTuples(stm: StmBuild): StmBuild = {
-    // Assumes the accumulator is a tuple
-    // A previous transformation should tuple the accumulator if necessary
-    val seed = stm.seed.asInstanceOf[Tuple]
-    val indicesToRemove = seed.elems.zipWithIndex
-      .filter((e, _) => e == Tuple())
-      .map((_, i) => i)
-    // Need to adjust indices used to read accumulator.
-    // For each element removed, you need to decrement the indices of all
-    // following elements by one.
-    val indexMap = (0 until seed.elems.length)
-      .map(i =>
-        i ->
-          (if indicesToRemove.contains(i) then None
-           else Some(i - indicesToRemove.count(j => j < i)))
-      )
-      .toMap
-    val acc = stm.nextF.param
-    val subs: Map[Expr, Expr] = indexMap
-      .map((i, j) =>
-        j match {
-          case None    => TupleAccess(acc, i) -> Tuple()
-          case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
-        }
-      )
-    val f = removeIndices(indicesToRemove)
-    StmBuild(
-      stm.length,
-      f(seed),
-      Function(acc, substitute(transformHead(f)(stm.nextF.body))(subs))
-    )
   }
 
   private def removeIndices(indices: Seq[Int])(e: Expr): Tuple = {

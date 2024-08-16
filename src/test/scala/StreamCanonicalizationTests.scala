@@ -47,23 +47,23 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     )
     val canon = StmBuild(
       3,
-      Tuple(0, 1, 2, 3, 4, StmCount(3)),
+      Tuple(StmCount(3), 0, 1, 2, 3, 4),
       (acc: Expr) =>
         Tuple(
           Tuple(
-            acc.__0 + 1,
-            acc.__1 + 2,
-            acc.__2 + 3,
-            acc.__3 + 4,
-            acc.__4 + 5,
-            StmNext(acc.__5).__0
+            StmNext(acc.__0).__0,
+            acc.__1 + 1,
+            acc.__2 + 2,
+            acc.__3 + 3,
+            acc.__4 + 4,
+            acc.__5 + 5
           ),
-          (acc.__0
-            + acc.__1
+          (acc.__1
             + acc.__2
             + acc.__3
             + acc.__4
-            + StmNext(acc.__5).__1),
+            + acc.__5
+            + StmNext(acc.__0).__1),
           True
         )
     )
@@ -104,7 +104,37 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     assert(ExprEvaluator.canonicalize(s) == canon)
   }
 
-  test("MoveStreamToFront") {
-    ???
+  test("MoveStreamsToFront") {
+    val s = StmBuild(
+      3,
+      Tuple(5, StmCount(6), 7, StmCount(8)),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 - 1,
+            StmNext(acc.__1).__0,
+            acc.__2 - 2,
+            StmNext(acc.__3).__0
+          ),
+          acc.__0 + StmNext(acc.__1).__1 + acc.__2 + StmNext(acc.__3).__1,
+          True
+        )
+    )
+    val canon = StmBuild(
+      3,
+      Tuple(StmCount(6), StmCount(8), 5, 7),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            StmNext(acc.__0).__0,
+            StmNext(acc.__1).__0,
+            acc.__2 - 1,
+            acc.__3 - 2
+          ),
+          acc.__2 + StmNext(acc.__0).__1 + acc.__3 + StmNext(acc.__1).__1,
+          True
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
   }
 }
