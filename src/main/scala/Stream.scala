@@ -10,7 +10,7 @@ object Iterate {
       Tuple(n, z),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0 eq 0,
+          acc.__0 === 0,
           Tuple(Tuple(acc.__0, acc.__1), acc.__1, True),
           Tuple(Tuple(acc.__0 - 1, FunCall(f, acc.__1)), acc.__1, False)
         )
@@ -74,7 +74,7 @@ object StmCount2D {
 object StmMap {
   def apply(
       input: Expr /* Stm<A; n> */,
-      f: Function /* A -> B */
+      f: Expr /* A -> B */
   ): Expr /* Stm<B; n> */ = {
     val p = Param()
     StmBuild(
@@ -185,12 +185,21 @@ object StmAppend {
     val next = Param()
     StmBuild(
       StmLength(input) + 1,
-      input,
-      (seed: Expr) =>
+      Tuple(input, StmLength(input)),
+      (acc: Expr) =>
         IfThenElse(
-          HasNext(seed),
-          Let(next, StmNext(seed), Tuple(next.__0, next.__1, True)),
-          Tuple(seed, e, True)
+          acc.__1 !== 0,
+          Let(
+            next,
+            StmNext(acc.__0),
+            Tuple(Tuple(next.__0, acc.__1 - 1), next.__1, True)
+          ),
+          // In theory we could collapse `Tuple(acc.__0, acc.__1)` to just
+          // `acc`.
+          // However, the stream fusion function would then be unable to get
+          // back to the expanded form without knowing the type of `acc`, which
+          // is not available in the interpreter :/
+          Tuple(Tuple(acc.__0, acc.__1), e, True)
         )
     )
   }
@@ -223,15 +232,22 @@ object StmPrefix {
 }
 
 object StmSuffix {
+
+  /** Take elements from the end of a stream.
+    *
+    * NOTE: k must be such that 0 &le; k &le; n.
+    *
+    * @param stm
+    *   The input stream.
+    * @param k
+    *   The number of elements to extract.
+    * @return
+    *   A stream consisting of the last `k` elements from `stm`.
+    */
   def apply(
       stm: Expr /* Stm<A; n> */,
       k: Expr /* Int */
   ): Expr /* Stm<A; k> */ = {
-    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
-    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
-    require(kVal >= 0)
-    require(kVal <= nVal)
-
     val n = StmLength(stm)
     val next = Param()
     StmBuild(
@@ -242,7 +258,7 @@ object StmSuffix {
           next,
           StmNext(acc.__1),
           IfThenElse(
-            acc.__0 eq 0,
+            acc.__0 === 0,
             // keep
             Tuple(Tuple(acc.__0, next.__0), next.__1, True),
             // drop
@@ -467,7 +483,7 @@ object StmSlide {
             v,
             VecShiftLeft(acc.__2, next.__1),
             IfThenElse(
-              acc.__0 eq 0,
+              acc.__0 === 0,
               // shift register is full
               Tuple(Tuple(acc.__0, next.__0, v), v, True),
               // shift register is not full yet

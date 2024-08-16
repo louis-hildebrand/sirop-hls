@@ -32,7 +32,10 @@ class PartialEvaluationTests extends AnyFunSuite {
     val c = Param()
     val z = IntCst(0)
     val v =
-      VecBuild(3, (i: Expr) => IfThenElse(i eq 0, a, IfThenElse(i eq 1, b, c)))
+      VecBuild(
+        3,
+        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c))
+      )
     val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
     val pe = ExprEvaluator.partialEval
     assert(pe(VecAccess(v2, 0)) == z + a)

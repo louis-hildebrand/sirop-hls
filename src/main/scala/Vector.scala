@@ -72,7 +72,7 @@ object VecPrepend {
     val n = VecLength(vec)
     VecBuild(
       n + 1,
-      (i: Expr) => IfThenElse(i eq 0, e, VecAccess(vec, i + -1))
+      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1))
     )
   }
 }
@@ -85,7 +85,7 @@ object VecAppend {
     val n = VecLength(vec)
     VecBuild(
       n + 1,
-      (i: Expr) => IfThenElse(i eq n, e, VecAccess(vec, i))
+      (i: Expr) => IfThenElse(i === n, e, VecAccess(vec, i))
     )
   }
 }
@@ -127,7 +127,7 @@ object VecShiftLeft {
     val n = VecLength(vec)
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i eq n + -1, e, VecAccess(vec, i + 1))
+      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1))
     )
   }
 }
@@ -140,7 +140,7 @@ object VecShiftRight {
     val n = VecLength(vec)
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i eq 0, e, VecAccess(vec, i + -1))
+      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1))
     )
   }
 }
@@ -177,7 +177,7 @@ object VecZipAlternating {
       VecLength(a),
       (i: Expr) =>
         IfThenElse(
-          (i % 2) eq 0,
+          (i % 2) === 0,
           Tuple(VecAccess(a, i), VecAccess(b, i)),
           Tuple(VecAccess(b, i), VecAccess(a, i))
         )

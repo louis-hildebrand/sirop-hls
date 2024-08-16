@@ -234,7 +234,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmZip") {
     val a = StmCount(3)
-    val b = StmMap(StmCount(3), (x: Expr) => x % 2 eq 0)
+    val b = StmMap(StmCount(3), (x: Expr) => x % 2 === 0)
     val zipped = StmZip(a, b)
     assertStreamEqual(
       zipped,
