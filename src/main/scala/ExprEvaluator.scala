@@ -252,6 +252,106 @@ object ExprEvaluator {
     }
   }
 
+  def canonicalize(stm: StmBuild): StmBuild = {
+    flattenAccumulator(stm)
+  }
+
+  private def flattenAccumulator(stm: StmBuild): StmBuild = {
+    val p = Param()
+    val (tupleAccessMap, _) =
+      makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
+    StmBuild(
+      stm.length,
+      flatten(stm.seed),
+      Function(p, substitute(flattenHead(stm.nextF.body))(tupleAccessMap))
+    )
+  }
+
+  /** Traverse the tree of tuples and construct a map from old tuple accesses
+    * (e.g., acc.__0.__1) to tuple accesses in a flattened version of the tree
+    * (e.g., acc.__1). This assumes the flattening happens via a pre-order
+    * traversal.
+    *
+    * @param e
+    *   Expression to traverse
+    * @param oldAcc
+    *   Parameter that was being used to refer to the original tuple.
+    * @param newAcc
+    *   Parameter that will be used to refer to the new tuple.
+    * @param path
+    *   Sequence of tuple accesses needed to get to the current expression
+    * @param nextIdx
+    *   Next index in the flattened expression
+    */
+  private def makeTupleAccessMap(
+      e: Expr,
+      oldAcc: Param,
+      newAcc: Param,
+      path: Seq[Int],
+      nextIdx: Int
+  ): (Map[Expr, Expr], Int) = {
+    e match {
+      case Tuple(elems: _*) =>
+        // Inner node
+        /* The programmer could refer directly to one of these inner nodes,
+         * right? Maybe assume the expression is already rewritten in such a
+         * way that all tuple expressions are expanded (e.g.,
+         * Tuple(acc.__0, acc.__1) instead of just acc). Doing this requires
+         * type-checking to know the arity of tuple-typed parameters.
+         */
+        var ni = nextIdx
+        var m = Map[Expr, Expr]()
+        for ((elem, idx) <- elems.zipWithIndex) {
+          val (m_, ni_) =
+            makeTupleAccessMap(elem, oldAcc, newAcc, path :+ idx, ni)
+          ni = ni_
+          m = m ++ m_
+        }
+        (m, ni)
+      case _ =>
+        // Leaf node
+        val originalAccess =
+          path.foldLeft(oldAcc: Expr)((e, i) => TupleAccess(e, i))
+        val newAccess = TupleAccess(newAcc, nextIdx)
+        (Map(originalAccess -> newAccess), nextIdx + 1)
+    }
+  }
+
+  /** Given an expression that must evaluate to a tuple, flatten the element at
+    * index 0.
+    */
+  private def flattenHead(e: Expr): Expr = {
+    e match {
+      case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild =>
+        throw new IllegalArgumentException(
+          "Failed to flatten due to an apparent type error."
+        )
+      case _: TupleAccess | _: VecAccess | _: Param | _: FunCall | _: StmNext =>
+        ???
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(cond, flattenHead(trueE), flattenHead(falseE))
+      case Tuple(elems: _*) =>
+        Tuple(flatten(elems.head) +: elems.tail: _*)
+    }
+  }
+
+  /** Flatten the given tree of tuples via a pre-order traversal.
+    */
+  private def flatten(e: Expr): Expr = {
+    e match {
+      case Tuple(elems: _*) =>
+        val flatElems = elems.map(e => flatten(e))
+        val combinedElems = flatElems.flatMap(e =>
+          e match {
+            case Tuple(elems: _*) => elems
+            case _                => Seq(e)
+          }
+        )
+        Tuple(combinedElems: _*)
+      case _ => e
+    }
+  }
+
   /** Fuse a `StmBuild` with its first stream input.
     */
   def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
