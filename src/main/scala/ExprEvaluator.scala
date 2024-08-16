@@ -253,13 +253,16 @@ object ExprEvaluator {
   }
 
   def canonicalize(stm: StmBuild): StmBuild = {
-    flattenAccumulator(stm)
+    // TODO: Need to tuple accumulator first
+    val s0 = flattenAccumulator(stm)
+    removeEmptyTuples(s0)
   }
 
   private def flattenAccumulator(stm: StmBuild): StmBuild = {
     val p = Param()
     val (tupleAccessMap, _) =
       makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
+    val flattenHead = transformHead(e => flatten(e))
     StmBuild(
       stm.length,
       flatten(stm.seed),
@@ -291,7 +294,7 @@ object ExprEvaluator {
       nextIdx: Int
   ): (Map[Expr, Expr], Int) = {
     e match {
-      case Tuple(elems: _*) =>
+      case Tuple(elems: _*) if !elems.isEmpty =>
         // Inner node
         /* The programmer could refer directly to one of these inner nodes,
          * right? Maybe assume the expression is already rewritten in such a
@@ -317,21 +320,23 @@ object ExprEvaluator {
     }
   }
 
-  /** Given an expression that must evaluate to a tuple, flatten the element at
-    * index 0.
+  /** Given an expression that must evaluate to a tuple, construct a new
+    * expression by applying `f` to the element at index 0 and keeping the
+    * remaining elements unchanged.
     */
-  private def flattenHead(e: Expr): Expr = {
+  private def transformHead(f: Expr => Expr)(e: Expr): Expr = {
     e match {
-      case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild =>
+      case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild |
+          Tuple() =>
         throw new IllegalArgumentException(
-          "Failed to flatten due to an apparent type error."
+          "Failed to transform due to an apparent type error."
         )
       case _: TupleAccess | _: VecAccess | _: Param | _: FunCall | _: StmNext =>
         ???
       case IfThenElse(cond, trueE, falseE) =>
-        IfThenElse(cond, flattenHead(trueE), flattenHead(falseE))
+        IfThenElse(cond, transformHead(f)(trueE), transformHead(f)(falseE))
       case Tuple(elems: _*) =>
-        Tuple(flatten(elems.head) +: elems.tail: _*)
+        Tuple(f(elems.head) +: elems.tail: _*)
     }
   }
 
@@ -339,17 +344,60 @@ object ExprEvaluator {
     */
   private def flatten(e: Expr): Expr = {
     e match {
-      case Tuple(elems: _*) =>
+      case Tuple(elems: _*) if !elems.isEmpty =>
         val flatElems = elems.map(e => flatten(e))
         val combinedElems = flatElems.flatMap(e =>
           e match {
-            case Tuple(elems: _*) => elems
-            case _                => Seq(e)
+            case Tuple(elems: _*) if !elems.isEmpty => elems
+            case _                                  => Seq(e)
           }
         )
         Tuple(combinedElems: _*)
       case _ => e
     }
+  }
+
+  private def removeEmptyTuples(stm: StmBuild): StmBuild = {
+    // Assumes the accumulator is a tuple
+    // A previous transformation should tuple the accumulator if necessary
+    val seed = stm.seed.asInstanceOf[Tuple]
+    val indicesToRemove = seed.elems.zipWithIndex
+      .filter((e, _) => e == Tuple())
+      .map((_, i) => i)
+    // Need to adjust indices used to read accumulator.
+    // For each element removed, you need to decrement the indices of all
+    // following elements by one.
+    val indexMap = (0 until seed.elems.length)
+      .map(i =>
+        i ->
+          (if indicesToRemove.contains(i) then None
+           else Some(i - indicesToRemove.count(j => j < i)))
+      )
+      .toMap
+    val acc = stm.nextF.param
+    val subs: Map[Expr, Expr] = indexMap
+      .map((i, j) =>
+        j match {
+          case None    => TupleAccess(acc, i) -> Tuple()
+          case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
+        }
+      )
+    val f = removeIndices(indicesToRemove)
+    StmBuild(
+      stm.length,
+      f(seed),
+      Function(acc, substitute(transformHead(f)(stm.nextF.body))(subs))
+    )
+  }
+
+  private def removeIndices(indices: Seq[Int])(e: Expr): Tuple = {
+    val newElems = e
+      .asInstanceOf[Tuple]
+      .elems
+      .zipWithIndex
+      .filter((_, i) => !indices.contains(i))
+      .map((e, _) => e)
+    Tuple(newElems: _*)
   }
 
   /** Fuse a `StmBuild` with its first stream input.

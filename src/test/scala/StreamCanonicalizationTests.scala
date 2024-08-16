@@ -49,8 +49,38 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     assert(ExprEvaluator.canonicalize(s) == canon)
   }
 
+  test("EmptyAccumulator") {
+    val s = StmBuild(
+      5,
+      Tuple(Tuple()),
+      (acc: Expr) => Tuple(Tuple(acc.__0), 42, True)
+    )
+    val canon = StmBuild(5, Tuple(), (acc: Expr) => Tuple(Tuple(), 42, True))
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
   test("RemoveEmptyTuples") {
-    ???
+    val s = StmBuild(
+      4,
+      Tuple(0, Tuple(), 1, 2, Tuple()),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + 1, acc.__1, acc.__2 + 2, acc.__3 + 3, Tuple()),
+          acc.__0 * acc.__2 * acc.__3,
+          True
+        )
+    )
+    val canon = StmBuild(
+      4,
+      Tuple(0, 1, 2),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + 1, acc.__1 + 2, acc.__2 + 3),
+          acc.__0 * acc.__1 * acc.__2,
+          True
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
   }
 
   test("MoveStreamToFront") {

@@ -113,9 +113,7 @@ case class StmBuild(
     nextF: Function /* A -> (A, B, Bool)*/
 ) extends Expr {
   override def toString(): String = {
-    val s = s"StmBuild($length, $seed, $nextF)"
-    println(s)
-    s
+    s"StmBuild($length, $seed, $nextF)"
   }
 }
 case class StmLength(stream: Expr) extends IntExpr
