@@ -1,6 +1,27 @@
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamCanonicalizationTests extends AnyFunSuite {
+  test("ScalarAccumulator") {
+    val s = StmBuild(6, 0, (i: Expr) => Tuple(i + 1, i, True))
+    val canon =
+      StmBuild(6, Tuple(0), (i: Expr) => Tuple(Tuple(i.__0 + 1), i.__0, True))
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
+  test("VectorAccumulator") {
+    val s = StmBuild(
+      2,
+      VecBuild(3, (i: Expr) => IntCst(0)),
+      (v: Expr) => Tuple(VecShiftLeft(v, 42), v, True)
+    )
+    val canon = StmBuild(
+      2,
+      Tuple(VecBuild(3, (i: Expr) => IntCst(0))),
+      (v: Expr) => Tuple(Tuple(VecShiftLeft(v.__0, 42)), v.__0, True)
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
   test("FlattenAccumulator") {
     val s = StmBuild(
       3,

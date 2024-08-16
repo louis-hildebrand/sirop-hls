@@ -253,9 +253,20 @@ object ExprEvaluator {
   }
 
   def canonicalize(stm: StmBuild): StmBuild = {
-    // TODO: Need to tuple accumulator first
-    val s0 = flattenAccumulator(stm)
-    removeEmptyTuples(s0)
+    val s0 = tupleAccumulator(stm)
+    val s1 = flattenAccumulator(s0)
+    removeEmptyTuples(s1)
+  }
+
+  private def tupleAccumulator(stm: StmBuild): StmBuild = {
+    val acc = stm.nextF.param
+    val sub = (body: Expr) => substitute(body)(Map(acc -> TupleAccess(acc, 0)))
+    val tupleHead = transformHead((e: Expr) => Tuple(e))
+    StmBuild(
+      stm.length,
+      Tuple(stm.seed),
+      Function(acc, sub(tupleHead(stm.nextF.body)))
+    )
   }
 
   private def flattenAccumulator(stm: StmBuild): StmBuild = {
