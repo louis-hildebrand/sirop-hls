@@ -319,7 +319,14 @@ object ExprEvaluator {
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
       )
-    val f = removeIndices(indicesToRemove)
+    val f = rearrangeTuple(
+      indexMap.flatMap((oldIdx, opt) =>
+        opt match {
+          case None         => None
+          case Some(newIdx) => Some(oldIdx -> newIdx)
+        }
+      )
+    )
     StmBuild(
       stm.length,
       f(seed),
@@ -346,19 +353,23 @@ object ExprEvaluator {
       )
     StmBuild(
       stm.length,
-      permute(indexMap)(stm.seed),
-      Function(acc, sub(transformHead(permute(indexMap))(stm.nextF.body)))
+      rearrangeTuple(indexMap)(stm.seed),
+      Function(
+        acc,
+        sub(transformHead(rearrangeTuple(indexMap))(stm.nextF.body))
+      )
     )
   }
 
-  /** Permute the elements of a tuple.
+  /** Create a new tuple by taking elements from the given tuple in a specific
+    * order.
     *
     * @param indexMap
     *   Map from old index to new index
     * @param e
     *   Expression to permute (must be a tuple)
     */
-  private def permute(indexMap: Map[Int, Int])(e: Expr): Expr = {
+  private def rearrangeTuple(indexMap: Map[Int, Int])(e: Expr): Expr = {
     val t = e.asInstanceOf[Tuple]
     val newElems = indexMap
       .map((oldIdx, newIdx) => newIdx -> t.elems(oldIdx))
@@ -453,16 +464,6 @@ object ExprEvaluator {
         Tuple(combinedElems: _*)
       case _ => e
     }
-  }
-
-  private def removeIndices(indices: Seq[Int])(e: Expr): Tuple = {
-    val newElems = e
-      .asInstanceOf[Tuple]
-      .elems
-      .zipWithIndex
-      .filter((_, i) => !indices.contains(i))
-      .map((e, _) => e)
-    Tuple(newElems: _*)
   }
 
   /** Fuse a `StmBuild` with its first stream input.
