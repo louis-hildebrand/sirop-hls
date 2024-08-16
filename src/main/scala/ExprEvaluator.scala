@@ -469,177 +469,87 @@ object ExprEvaluator {
   /** Fuse a `StmBuild` with its first stream input.
     */
   def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
-    // TODO: Canonicalize first?
-    // TODO: Simply require accumulator to be a Tuple from the start?
-    val s = ExprEvaluator.partialEval(stm).asInstanceOf[StmBuild]
-    val inputStmPath = locateFirstInputStream(s) match {
-      case Some(s) => s
-      case None => throw new IllegalArgumentException("No input streams found.")
+    val s = canonicalize(partialEval(stm).asInstanceOf[StmBuild])
+    val outerSeed = s.seed.asInstanceOf[Tuple]
+    // TODO: canonicalize the inner stream as well?
+    val inputStm = outerSeed.elems.head match {
+      case s: StmBuild => s
+      case _ =>
+        throw new IllegalArgumentException(
+          "No input streams found to fuse with."
+        )
     }
-    val inputStm = extract(s.seed, inputStmPath).asInstanceOf[StmBuild]
-
-    val newSeed =
-      Tuple(replaceWith(s.seed, inputStmPath, Tuple()), inputStm.seed)
-    val newNextF = fuseFunctions(s.nextF, inputStm.nextF, inputStmPath)
-
-    // TODO: Rewrite the "outer" stream without the input stream (replace
-    //       references in nextF with a new "hole" Param?)
-    // Combined seed: basically combine the seeds of the two original streams
-    // Combined nextF: basically the "outer" stream's nextF, but call the
-    //                 "inner" stream's nextF in the right places?
-    StmBuild(StmLength(stm), newSeed, newNextF)
-  }
-
-  /** Return the path to the first input stream for the given `StmBuild`. The
-    * path is a sequence of tuple indices. For example, if the accumulator of
-    * the given stream is of the form (Int, (Stm, Stm), Bool), then this method
-    * should return Seq(1, 0) because to reach the first stream you must extract
-    * element 1 from the outermost tuple and then extract element 0 from the
-    * inner tuple. If the accumulator is nothing but a StmBuild, then this
-    * method should return Seq().
-    */
-  private def locateFirstInputStream(s: StmBuild): Option[Seq[Int]] =
-    locateFirstStream(s.seed)
-
-  private def locateFirstStream(e: Expr): Option[Seq[Int]] = {
-    e match {
-      case _: StmBuild      => Some(Seq())
-      case Tuple(elems: _*) => locateFirstStream(elems, 0)
-      case _                => None
-    }
-  }
-
-  @tailrec
-  private def locateFirstStream(elems: Seq[Expr], i: Int): Option[Seq[Int]] = {
-    elems.headOption match {
-      case None => None
-      case Some(e) =>
-        locateFirstStream(e) match {
-          case Some(indices) => Some(i +: indices)
-          case None          => locateFirstStream(elems.tail, i + 1)
-        }
-    }
-  }
-
-  private def extract(e: Expr, path: Seq[Int]): Expr = {
-    (e, path) match {
-      case (_, Seq())                 => e
-      case (t: Tuple, Seq(i, is: _*)) => extract(t.elems(i), is)
-      // Tuple(p.__0, p.__1) is equivalent to just p (if p is a 2-tuple)
-      case (p: Param, Seq(i, is: _*)) => extract(TupleAccess(p, i), is)
-      case _ => throw new IllegalArgumentException("Failed to extract.")
-    }
-  }
-
-  private def matches(e: Expr, p: Param, path: Seq[Int]): Boolean = {
-    e == path.foldLeft(p: Expr)((e, i) => TupleAccess(e, i))
-  }
-
-  private def replaceWith(e: Expr, path: Seq[Int], replacement: Expr): Tuple = {
-    path match {
-      case Seq() => Tuple()
-      case Seq(i, is: _*) =>
-        e match {
-          case t: Tuple =>
-            Tuple(
-              t.elems.updated(i, replaceWith(t.elems(i), is, replacement)): _*
-            )
-          // TODO: Handle this case properly
-          // Tuple(p.__0, p.__1) is equivalent to just p (if p is a 2-tuple)
-          // However, it seems like we would need to know the type of p to know
-          // how many elements to put, and we don't have that information in
-          // the interpreter
-          case p: Param => ???
-          case _ => throw new IllegalArgumentException("Failed to replace.")
-        }
-    }
-  }
-
-  private def fuseFunctions(
-      outerNextF: Function,
-      innerNextF: Function,
-      // Position of the inner stream within the outer accumulator
-      path: Seq[Int]
-  ): Function = {
-    val acc = Param()
-    Function(
-      acc,
-      fuseFunctionBodies(
-        acc,
-        outerNextF.param,
-        outerNextF.body,
-        innerNextF,
-        path
-      )
+    StmBuild(
+      s.length,
+      // Replace the inner stream with an empty tuple in the new seed.
+      // This minimizes the need for updating the indices in tuple access
+      // expressions.
+      Tuple(Tuple(Tuple() +: outerSeed.elems.tail: _*), inputStm.seed), {
+        val acc = Param()
+        Function(
+          acc,
+          fuseFunctionBodies(
+            newAcc = acc,
+            oldAcc = s.nextF.param,
+            outerBody = s.nextF.body,
+            innerNextF = inputStm.nextF
+          )
+        )
+      }
     )
   }
 
   private def fuseFunctionBodies(
       newAcc: Param,
       oldAcc: Param,
-      body: Expr,
-      innerNextF: Function,
-      // Position of the inner stream within the outer accumulator
-      path: Seq[Int]
+      outerBody: Expr,
+      innerNextF: Function
   ): Expr = {
-    val e = body match {
+    val e = outerBody match {
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(
           cond,
-          fuseFunctionBodies(newAcc, oldAcc, trueE, innerNextF, path),
-          fuseFunctionBodies(newAcc, oldAcc, falseE, innerNextF, path)
+          fuseFunctionBodies(newAcc, oldAcc, trueE, innerNextF),
+          fuseFunctionBodies(newAcc, oldAcc, falseE, innerNextF)
         )
       case _: TupleAccess | _: VecAccess | _: FunCall => ???
       case Tuple(a, e, valid) =>
-        extract(a, path) match {
-          case TupleAccess(StmNext(s), IntCst(0)) if matches(s, oldAcc, path) =>
-            // StmNext() called, so update the inner accumulator
+        a match {
+          case Tuple(
+                TupleAccess(StmNext(TupleAccess(oldAcc, IntCst(0))), IntCst(0)),
+                as: _*
+              ) =>
+            // CASE 1: StmNext() called.
+            //         Update the inner accumulator.
             val innerNext = Param()
+            val out =
+              substitute(e)(Map(StmNext(oldAcc.__0).__1 -> innerNext.__1))
             Let(
               innerNext,
-              FunCall(innerNextF, TupleAccess(newAcc, 1)),
+              FunCall(innerNextF, newAcc.__1),
               IfThenElse(
-                TupleAccess(innerNext, 2),
-                // Received next element from inner stream; proceed as planned
+                innerNext.__2,
+                // CASE 1a: Received next element from inner stream.
+                //          Update the outer accumulator.
                 Tuple(
-                  Tuple(
-                    replaceWith(a, path, Tuple()),
-                    TupleAccess(innerNext, 0)
-                  ), {
-                    val t =
-                      path.foldLeft(oldAcc: Expr)((e, i) => TupleAccess(e, i))
-                    val original = TupleAccess(StmNext(t), 1)
-                    substitute(e)(Map(original -> TupleAccess(innerNext, 1)))
-                  },
+                  Tuple(Tuple(Tuple() +: as: _*), innerNext.__0),
+                  out,
                   valid
                 ),
-                // Inner stream did not yet produce element; don't update the
-                // outer accumulator
-                Tuple(
-                  Tuple(TupleAccess(newAcc, 0), TupleAccess(innerNext, 0)), {
-                    val t =
-                      path.foldLeft(oldAcc: Expr)((e, i) => TupleAccess(e, i))
-                    val original = TupleAccess(StmNext(t), 1)
-                    substitute(e)(Map(original -> TupleAccess(innerNext, 1)))
-                  },
-                  False
-                )
+                // CASE 1b: Inner stream did not produce element yet
+                //          Leave the outer accumulator as-is.
+                Tuple(Tuple(newAcc.__0, innerNext.__0), out, False)
               )
             )
-          case s if matches(s, oldAcc, path) =>
-            // StmNext() not called, so leave the inner accumulator as-is
-            Tuple(
-              Tuple(
-                replaceWith(a, path, Tuple()),
-                TupleAccess(newAcc, 1)
-              ),
-              e,
-              valid
-            )
-          case x =>
+          case Tuple(TupleAccess(oldAcc, IntCst(0)), as: _*) =>
+            // CASE 2: StmNext() not called, so leave the inner accumulator
+            //         as-is.
+            Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc.__1), e, valid)
+          case Tuple(x, _: _*) =>
             throw new IllegalArgumentException(
-              s"I can't tell whether or not StmNext() is being called in ${x}, with oldAcc = ${oldAcc} and path = ${path}"
+              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )
+          case _ => ???
         }
       case _: IntExpr | _: BoolExpr | _: Param | _: VecBuild | _: StmBuild |
           _: StmNext | _: Function | _: Tuple =>

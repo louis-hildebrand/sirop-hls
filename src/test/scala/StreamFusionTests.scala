@@ -1,7 +1,7 @@
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamFusionTests extends AnyFunSuite {
-  val pe = ExprEvaluator.partialEval
+  val canon = (e: Expr) => ExprEvaluator.canonicalize(e.asInstanceOf[StmBuild])
   val fuse = ExprEvaluator.fuse
 
   test("CountFromFive") {
@@ -9,10 +9,10 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal =
       StmBuild(
         3,
-        Tuple(Tuple(), 0),
-        (acc: Expr) => Tuple(Tuple(Tuple(), acc.__1 + 1), acc.__1 + 5, True)
+        Tuple(0),
+        (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0 + 5, True)
       )
-    assert(pe(fuse(s)) == ideal)
+    assert(canon(fuse(s)) == ideal)
   }
 
   test("MapMap") {
@@ -22,15 +22,15 @@ class StreamFusionTests extends AnyFunSuite {
     val s = StmMap(StmMap(p, f), g)
     val ideal = StmBuild(
       StmLength(p),
-      Tuple(Tuple(), p),
+      Tuple(p),
       (acc: Expr) =>
         Tuple(
-          Tuple(Tuple(), StmNext(acc.__1).__0),
-          FunCall(g, FunCall(f, StmNext(acc.__1).__1)),
+          Tuple(StmNext(acc.__0).__0),
+          FunCall(g, FunCall(f, StmNext(acc.__0).__1)),
           True
         )
     )
-    assert(pe(fuse(s)) == ideal)
+    assert(canon(fuse(s)) == ideal)
   }
 
   test("StmShiftRight") {
@@ -38,41 +38,40 @@ class StreamFusionTests extends AnyFunSuite {
     val s = StmPrepend(StmPrefix(p, StmLength(p) - 1), 42)
     val ideal = StmBuild(
       StmLength(p),
-      Tuple(Tuple(True, Tuple()), p),
+      Tuple(True, p),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0.__0,
-          Tuple(Tuple(Tuple(False, Tuple()), acc.__1), 42, True),
-          Tuple(
-            Tuple(Tuple(False, Tuple()), StmNext(acc.__1).__0),
-            StmNext(acc.__1).__1,
-            True
-          )
+          acc.__0,
+          Tuple(Tuple(False, acc.__1), 42, True),
+          Tuple(Tuple(False, StmNext(acc.__1).__0), StmNext(acc.__1).__1, True)
         )
     )
-    assert(pe(fuse(s)) == ideal)
+    assert(canon(fuse(s)) == ideal)
   }
 
   test("StmShiftLeft") {
     val p = Param()
     val s = StmAppend(StmSuffix(p, StmLength(p) - 1), 42)
+    // TODO: Surely it can be simplified more than this, right?
     val ideal = StmBuild(
       StmLength(p),
-      Tuple(Tuple(Tuple(), StmLength(p) - 1), Tuple(1, p)),
+      Tuple(StmLength(p) - 1, Tuple(1, p)),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0.__1 !== 0, {
+          acc.__0 !== 0, {
             val innerNext = Param()
             Let(
               innerNext,
               IfThenElse(
                 acc.__1.__0 === 0,
                 Tuple(
+                  // TODO: Think this part through
                   Tuple(acc.__1.__0, StmNext(acc.__1.__1).__0),
                   StmNext(acc.__1.__1).__1,
                   True
                 ),
                 Tuple(
+                  // TODO: Think this part through
                   Tuple(acc.__1.__0 - 1, StmNext(acc.__1.__1).__0),
                   StmNext(acc.__1.__1).__1,
                   False
@@ -81,18 +80,24 @@ class StreamFusionTests extends AnyFunSuite {
               IfThenElse(
                 innerNext.__2,
                 Tuple(
-                  Tuple(Tuple(Tuple(), acc.__0.__1 - 1), innerNext.__0),
+                  // TODO: Think this part through. How will canonicalization
+                  //       affect the fact that we're returning this 2-tuple
+                  //       directly for innerNext.__0?
+                  Tuple(acc.__0 - 1, innerNext.__0),
                   innerNext.__1,
                   True
                 ),
+                // TODO: Think this part through. How will canonicalization
+                //       affect the fact that we're returning this 2-tuple
+                //       directly for innerNext.__0?
                 Tuple(Tuple(acc.__0, innerNext.__0), innerNext.__1, False)
               )
             )
           },
-          Tuple(Tuple(Tuple(Tuple(), acc.__0.__1), acc.__1), 42, True)
+          Tuple(Tuple(acc.__0, acc.__1), 42, True)
         )
     )
-    assert(pe(fuse(s)) == pe(ideal))
+    assert(canon(fuse(s)) == canon(ideal))
   }
 
   test("ZipCounters") {
@@ -106,29 +111,22 @@ class StreamFusionTests extends AnyFunSuite {
     // After one fusion
     val ideal0 = StmBuild(
       4,
-      Tuple(
-        Tuple(Tuple(), StmBuild(4, 9, (i: Expr) => Tuple(i + 2, i, True))),
-        0
-      ),
+      Tuple(StmBuild(4, 9, (i: Expr) => Tuple(i + 2, i, True)), 0),
       (acc: Expr) =>
         Tuple(
-          Tuple(Tuple(Tuple(), StmNext(acc.__0.__1).__0), acc.__1 + 1),
-          Tuple(acc.__1, StmNext(acc.__0.__1).__1),
+          Tuple(StmNext(acc.__0).__0, acc.__1 + 1),
+          Tuple(acc.__1, StmNext(acc.__0).__1),
           True
         )
     )
-    assert(pe(fuse(s)) == ideal0)
+    assert(canon(fuse(s)) == ideal0)
 
     val ideal1 = StmBuild(
       4,
-      Tuple(Tuple(Tuple(Tuple(), Tuple()), 0), 9),
+      Tuple(0, 9),
       (acc: Expr) =>
-        Tuple(
-          Tuple(Tuple(Tuple(Tuple(), Tuple()), acc.__0.__1 + 1), acc.__1 + 2),
-          Tuple(acc.__0.__1, acc.__1),
-          True
-        )
+        Tuple(Tuple(acc.__0 + 1, acc.__1 + 2), Tuple(acc.__0, acc.__1), True)
     )
-    assert(pe(fuse(pe(fuse(s)))) == ideal1)
+    assert(canon(fuse(fuse(s))) == ideal1)
   }
 }
