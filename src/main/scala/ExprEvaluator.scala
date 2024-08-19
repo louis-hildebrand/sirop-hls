@@ -471,9 +471,8 @@ object ExprEvaluator {
   def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
     val s = canonicalize(partialEval(stm).asInstanceOf[StmBuild])
     val outerSeed = s.seed.asInstanceOf[Tuple]
-    // TODO: canonicalize the inner stream as well?
     val inputStm = outerSeed.elems.head match {
-      case s: StmBuild => s
+      case s: StmBuild => canonicalize(s)
       case _ =>
         throw new IllegalArgumentException(
           "No input streams found to fuse with."
@@ -492,7 +491,9 @@ object ExprEvaluator {
             newAcc = acc,
             oldAcc = s.nextF.param,
             outerBody = s.nextF.body,
-            innerNextF = inputStm.nextF
+            innerNextF = inputStm.nextF,
+            innerStmAccArity = inputStm.seed.asInstanceOf[Tuple].elems.length,
+            outerStmAccArity = s.seed.asInstanceOf[Tuple].elems.length
           )
         )
       }
@@ -503,14 +504,31 @@ object ExprEvaluator {
       newAcc: Param,
       oldAcc: Param,
       outerBody: Expr,
-      innerNextF: Function
+      innerNextF: Function,
+      innerStmAccArity: Int,
+      outerStmAccArity: Int
   ): Expr = {
     val e = outerBody match {
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(
+          // TODO: What if the condition somehow uses `acc.__0`?
           cond,
-          fuseFunctionBodies(newAcc, oldAcc, trueE, innerNextF),
-          fuseFunctionBodies(newAcc, oldAcc, falseE, innerNextF)
+          fuseFunctionBodies(
+            newAcc,
+            oldAcc,
+            trueE,
+            innerNextF,
+            innerStmAccArity,
+            outerStmAccArity
+          ),
+          fuseFunctionBodies(
+            newAcc,
+            oldAcc,
+            falseE,
+            innerNextF,
+            innerStmAccArity,
+            outerStmAccArity
+          )
         )
       case _: TupleAccess | _: VecAccess | _: FunCall => ???
       case Tuple(a, e, valid) =>
@@ -522,6 +540,12 @@ object ExprEvaluator {
             // CASE 1: StmNext() called.
             //         Update the inner accumulator.
             val innerNext = Param()
+            // HACK: Expand all tuples manually.
+            // Ideally this would be a canonicalization pass, but I think
+            // figuring out the arity of a tuple-valued param requires input
+            // from the type system.
+            val innerNext0 = tupleExpand(innerNext.__0, innerStmAccArity)
+            val newAcc0 = tupleExpand(newAcc.__0, outerStmAccArity)
             val out =
               substitute(e)(Map(StmNext(oldAcc.__0).__1 -> innerNext.__1))
             Let(
@@ -532,19 +556,21 @@ object ExprEvaluator {
                 // CASE 1a: Received next element from inner stream.
                 //          Update the outer accumulator.
                 Tuple(
-                  Tuple(Tuple(Tuple() +: as: _*), innerNext.__0),
+                  Tuple(Tuple(Tuple() +: as: _*), innerNext0),
                   out,
                   valid
                 ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.
-                Tuple(Tuple(newAcc.__0, innerNext.__0), out, False)
+                Tuple(Tuple(newAcc0, innerNext0), out, False)
               )
             )
           case Tuple(TupleAccess(oldAcc, IntCst(0)), as: _*) =>
+            // HACK: Expand tuple manually, as above.
+            val newAcc1 = tupleExpand(newAcc.__1, innerStmAccArity)
             // CASE 2: StmNext() not called, so leave the inner accumulator
             //         as-is.
-            Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc.__1), e, valid)
+            Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc1), e, valid)
           case Tuple(x, _: _*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
@@ -558,5 +584,17 @@ object ExprEvaluator {
         )
     }
     substitute(e)(Map(oldAcc -> TupleAccess(newAcc, 0)))
+  }
+
+  /** Expand an expression that evaluates to a tuple. For example, `acc.__0` may
+    * be expanded to `Tuple(acc.__0.__0, acc.__0.__1)`.
+    *
+    * @param e
+    *   Expression to expand
+    * @param n
+    *   Number of elements in the expanded tuple
+    */
+  private def tupleExpand(e: Expr, n: Int): Expr = {
+    Tuple((0 until n).map(i => TupleAccess(e, i)): _*)
   }
 }

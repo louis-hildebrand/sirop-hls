@@ -52,52 +52,53 @@ class StreamFusionTests extends AnyFunSuite {
   test("StmShiftLeft") {
     val p = Param()
     val s = StmAppend(StmSuffix(p, StmLength(p) - 1), 42)
-    // TODO: Surely it can be simplified more than this, right?
-    val ideal = StmBuild(
-      StmLength(p),
-      Tuple(StmLength(p) - 1, Tuple(1, p)),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__0 !== 0, {
-            val innerNext = Param()
-            Let(
-              innerNext,
-              IfThenElse(
-                acc.__1.__0 === 0,
-                Tuple(
-                  // TODO: Think this part through
-                  Tuple(acc.__1.__0, StmNext(acc.__1.__1).__0),
-                  StmNext(acc.__1.__1).__1,
-                  True
+    val ideal = canon(
+      StmBuild(
+        StmLength(p),
+        Tuple(StmLength(p) - 1, 1, p),
+        (acc: Expr) =>
+          IfThenElse(
+            acc.__0 !== 0, {
+              val innerNext = Param()
+              Let(
+                innerNext,
+                IfThenElse(
+                  acc.__1 === 0,
+                  Tuple(
+                    Tuple(acc.__1, StmNext(acc.__2).__0),
+                    StmNext(acc.__2).__1,
+                    True
+                  ),
+                  Tuple(
+                    Tuple(acc.__1 - 1, StmNext(acc.__2).__0),
+                    StmNext(acc.__2).__1,
+                    False
+                  )
                 ),
-                Tuple(
-                  // TODO: Think this part through
-                  Tuple(acc.__1.__0 - 1, StmNext(acc.__1.__1).__0),
-                  StmNext(acc.__1.__1).__1,
-                  False
+                IfThenElse(
+                  innerNext.__2,
+                  Tuple(
+                    Tuple(
+                      acc.__0 - 1,
+                      innerNext.__0.__0,
+                      innerNext.__0.__1
+                    ),
+                    innerNext.__1,
+                    True
+                  ),
+                  Tuple(
+                    Tuple(acc.__0, innerNext.__0.__0, innerNext.__0.__1),
+                    innerNext.__1,
+                    False
+                  )
                 )
-              ),
-              IfThenElse(
-                innerNext.__2,
-                Tuple(
-                  // TODO: Think this part through. How will canonicalization
-                  //       affect the fact that we're returning this 2-tuple
-                  //       directly for innerNext.__0?
-                  Tuple(acc.__0 - 1, innerNext.__0),
-                  innerNext.__1,
-                  True
-                ),
-                // TODO: Think this part through. How will canonicalization
-                //       affect the fact that we're returning this 2-tuple
-                //       directly for innerNext.__0?
-                Tuple(Tuple(acc.__0, innerNext.__0), innerNext.__1, False)
               )
-            )
-          },
-          Tuple(Tuple(acc.__0, acc.__1), 42, True)
-        )
+            },
+            Tuple(Tuple(acc.__0, acc.__1, acc.__2), 42, True)
+          )
+      )
     )
-    assert(canon(fuse(s)) == canon(ideal))
+    assert(canon(fuse(s)) == ideal)
   }
 
   test("ZipCounters") {
