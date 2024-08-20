@@ -6,7 +6,13 @@ class StreamFusionTests extends AnyFunSuite {
   val stm2Seq = StreamTests.stm2Seq
 
   test("CountFromFive") {
-    val s = StmMap(StmCount(3), (x: Expr) => x + 5)
+    val s = StmMap(
+      StmCount(3),
+      (x: Expr) => x + 5,
+      n = 3,
+      fInShape = Seq(),
+      fOutShape = Seq()
+    )
     val actual = canon(fuse(s))
 
     // Correct behaviour
@@ -27,7 +33,14 @@ class StreamFusionTests extends AnyFunSuite {
     val p = Param()
     val f = Param()
     val g = Param()
-    val s = StmMap(StmMap(p, f), g)
+    val s =
+      StmMap(
+        StmMap(p, f, n = 5, fInShape = Seq(), fOutShape = Seq()),
+        g,
+        n = 5,
+        fInShape = Seq(),
+        fOutShape = Seq()
+      )
     val actual = canon(fuse(s))
 
     // Correct behaviour

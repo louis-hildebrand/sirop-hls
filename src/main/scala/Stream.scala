@@ -75,14 +75,46 @@ object StmCount2D {
 object StmMap {
   def apply(
       input: Expr /* Stm<A; n> */,
-      f: Expr /* A -> B */
+      f: Expr /* A -> B */,
+      // TODO: Ideally we would get this shape info from the type system
+      n: Int,
+      fInShape: Seq[Int],
+      fOutShape: Seq[Int]
   ): Expr /* Stm<B; n> */ = {
-    val p = Param()
-    StmBuild(
-      StmLength(input),
-      input,
-      (acc: Expr) => Let(p, StmNext(acc), Tuple(p.__0, FunCall(f, p.__1), True))
-    )
+    (fInShape, fOutShape) match {
+      case (Seq(), Seq()) =>
+        // EXAMPLE: StmMap(StmCount(3), x => x + 5)
+        val p = Param()
+        StmBuild(
+          Tuple(Tuple(n, n) +: fOutShape.map(k => Tuple(k, k)): _*),
+          input,
+          (acc: Expr) =>
+            Let(p, StmNext(acc), Tuple(p.__0, FunCall(f, p.__1), True))
+        )
+      case (Seq(), Seq(_, _: _*)) =>
+        // EXAMPLE: StmMap(StmCount(3), i => StmCst(i, 42))
+        ???
+      case (Seq(_, _: _*), Seq()) =>
+        // EXAMPLE: StmMap(StmCount2D(2, 3), s => StmFold(s, ...))
+        ???
+      case _ =>
+        // EXAMPLE: StmMap(StmCount2D(2, 3), s => StmMap(s, ...))
+        // TODO: Needing to partially evaluate to even define StmMap seems
+        //       pretty gross
+        val inner = ExprEvaluator.partialEval(FunCall(f, input))
+        // TODO: Take `inner` but repeat it `n` times
+        //       * Add an accumulator to know when the inner function is done
+        //         (needs to check both #elements read and #elements produced?)
+        //       * In the `nextF`, have an `IfThenElse` that checks when it's
+        //         time to reset. When resetting, only the new accumulator
+        //         value needs to change (and be careful to not reset
+        //         accumulators that are streams, such as `input`).
+        StmBuild(
+          Tuple(Tuple(n, n) +: fOutShape.map(k => Tuple(k, k)): _*),
+          ???,
+          ???
+        )
+    }
   }
 }
 
