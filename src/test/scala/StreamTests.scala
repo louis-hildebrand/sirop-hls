@@ -1,31 +1,34 @@
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.runtime.stdLibPatches.Predef.assert
-
 object StreamTests {
   def stm2Seq(stm: Expr): Seq[Expr] = {
-    var elements = Seq[Expr]()
-    val len = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
-    var n: Expr = Tuple(stm, 0 /*unused*/ )
-    (0 until len).foreach(i =>
-      n = ExprEvaluator.partialEval(StmNext(n.__0))
-      val e = ExprEvaluator.partialEval(n.__1)
-      elements = elements :+ e
-    )
-    elements
+    val lengths = ExprEvaluator
+      .partialEval(StmLength(stm))
+      .asInstanceOf[Tuple]
+      .elems
+      .map(e => {
+        val t = e.asInstanceOf[Tuple]
+        require(t.elems.length == 2)
+        (t.elems(0).asInstanceOf[IntCst].i, t.elems(1).asInstanceOf[IntCst].i)
+      })
+    if lengths.exists((x, _) => x <= 0) then {
+      Seq()
+    } else {
+      val next = ExprEvaluator.partialEval(StmNext(stm))
+      ExprEvaluator.partialEval(next.__1) +: stm2Seq(next.__0)
+    }
   }
 
-  def stmStm2SeqSeq(stm: Expr): Seq[Seq[Expr]] =
-    stm2Seq(stm).map(e => stm2Seq(e))
+  def stmStm2SeqSeq(stm: Expr): Seq[Seq[Expr]] = ???
 }
 
 class StreamTests extends AnyFunSuite {
 
-  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) = {
+  inline def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) = {
     assert(StreamTests.stm2Seq(stream) == expectedSeq)
   }
 
-  def assert2DStreamEqual(stream: Expr, expectedSeq: Seq[Seq[Expr]]) = {
+  inline def assert2DStreamEqual(stream: Expr, expectedSeq: Seq[Seq[Expr]]) = {
     assert(StreamTests.stmStm2SeqSeq(stream) == expectedSeq)
   }
 
@@ -34,54 +37,104 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(intAst) == IntCst(3))
   }
 
-  test("CstStream") {
-    val cstStream = StmCst(4, 3)
-    assertStreamEqual(cstStream, Seq(3, 3, 3, 3))
+  test("StmCst") {
+    val s = StmCst(4, 3)
+    assertStreamEqual(s, Seq(3, 3, 3, 3))
   }
 
-  test("CounterStream") {
-    val cntAst = StmCount(5)
-    assertStreamEqual(cntAst, Seq(0, 1, 2, 3, 4))
+  test("StmCount") {
+    val s = StmCount(5)
+    assertStreamEqual(s, Seq(0, 1, 2, 3, 4))
   }
 
   test("StmCst2D") {
-    val actual = StmCst2D(3, 4, 42)
+    val s = StmCst2D(3, 4, 42)
     val expected = Seq(
       Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42)),
       Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42)),
       Seq(IntCst(42), IntCst(42), IntCst(42), IntCst(42))
     )
-    assert(StreamTests.stmStm2SeqSeq(actual) == expected)
+    assertStreamEqual(s, expected.flatten)
   }
 
-  test("Counter2DStream") {
+  test("StmCount2D") {
     val s = StmCount2D(2, 3)
     val expected = Seq(
       Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
       Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
     )
-    assert2DStreamEqual(s, expected)
+    assertStreamEqual(s, expected.flatten)
   }
 
-  test("Map") {
-    val mapAst = StmMap(StmCount(5), e => Add(e, IntCst(7)))
-    assertStreamEqual(mapAst, Seq(7, 8, 9, 10, 11))
+  test("StmMap:1D:+7") {
+    val s = StmMap(StmCount(5), (x: Expr) => x + 7)
+    assertStreamEqual(s, Seq(7, 8, 9, 10, 11))
   }
 
-  test("SumRows") {
-    // [[0, 1, 2],
-    //  [1, 2, 3],
-    //  [2, 3, 4],
-    //  [3, 4, 5]]
-    val stm = StmMap(
+  test("StmMap:2D:Map") {
+    val s = StmMap(
       StmCount2D(4, 3),
       (s: Expr) => StmMap(s, (x: Expr) => x.__0 + x.__1)
     )
-    val summed = StmMap(
-      stm,
-      (s: Expr) => StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x)
+    // TODO
+    // val expectedStm = StmBuild(
+    //   Tuple(Tuple(4, 4), Tuple(3, 3)),
+    //   StmCount2D(4, 3),
+    //   (acc: Expr) => {
+    //     val next = Param()
+    //     Let(
+    //       next,
+    //       StmNext(acc),
+    //       Tuple(next.__0, next.__1.__0 + next.__1.__1, True)
+    //     )
+    //   }
+    // )
+    val expected = Seq(
+      Seq(0, 1, 2),
+      Seq(1, 2, 3),
+      Seq(2, 3, 4),
+      Seq(3, 4, 5)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assert(StreamTests.stm2Seq(s) == expected.flatten)
+  }
+
+  test("StmMap:2D:Fold") {
+    val s = StmMap(
+      StmCount2D(4, 3),
+      (s: Expr) =>
+        StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x.__0 + x.__1)
     )
-    assert(StreamTests.stm2Seq(summed) == Seq(3, 6, 9, 12).map(n => IntCst(n)))
+    // TODO
+    // val expectedStm = StmBuild(
+    //   Tuple(Tuple(4, 4)),
+    //   Tuple(StmCount2D(4, 3), 2, 0),
+    //   (acc: Expr) => {
+    //     val next = Param()
+    //     Let(
+    //       next,
+    //       StmNext(acc.__0),
+    //       IfThenElse(
+    //         acc.__1 === 0,
+    //         Tuple(
+    //           Tuple(next.__0, 2, 0),
+    //           acc.__2 + next.__1.__0 + next.__1.__1,
+    //           True
+    //         ),
+    //         Tuple(
+    //           Tuple(
+    //             next.__0,
+    //             acc.__1 - 1,
+    //             acc.__2 + next.__1.__0 + next.__1.__1
+    //           ),
+    //           acc.__2 + next.__1.__0 + next.__1.__1,
+    //           False
+    //         )
+    //       )
+    //     )
+    //   }
+    // )
+    val expected = Seq(3, 6, 9, 12).map(n => IntCst(n))
+    assert(StreamTests.stm2Seq(s) == expected)
   }
 
   test("StmAccess") {
@@ -89,6 +142,21 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(StmAccess(s, 0)) == IntCst(5))
     assert(ExprEvaluator.partialEval(StmAccess(s, 1)) == IntCst(6))
     assert(ExprEvaluator.partialEval(StmAccess(s, 2)) == IntCst(7))
+  }
+
+  test("StmFold:1D:Sum") {
+    val sum = StmFold(StmCount(5), 3, (x: Expr) => (y: Expr) => x + y)
+    assert(ExprEvaluator.partialEval(sum) == IntCst(18))
+  }
+
+  test("StmFold:2D:Sum") {
+    val sum = StmFold(
+      StmCount2D(3, 2),
+      0,
+      (s: Expr) =>
+        StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x.__0 + x.__1)
+    )
+    assert(ExprEvaluator.partialEval(sum) == IntCst(40))
   }
 
   test("Pad") {

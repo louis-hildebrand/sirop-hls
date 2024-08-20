@@ -108,12 +108,22 @@ case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
 
 // Streams
 case class StmBuild(
-    length: Expr /* Int */,
+    // n-tuple of (int, int) for an n-dimensional stream
+    // The first int in each tuple is the current length in that dimension.
+    // The second int in each tuple is the max length in that dimension.
+    // The first changes as StmNext() is called, but the second is constant.
+    // For example, a 2x2 stream works as follows:
+    // (start) lengths = ((2, 2), (2, 2))
+    // ( next) lengths = ((2, 2), (1, 2))
+    // ( next) lengths = ((1, 2), (2, 2))
+    // ( next) lengths = ((1, 2), (1, 2))
+    // ( next) lengths = ((0, 2), (0, 2))
+    lengths: Expr,
     seed: Expr /*A*/,
     nextF: Function /* A -> (A, B, Bool)*/
 ) extends Expr {
   override def toString(): String = {
-    s"StmBuild($length, $seed, $nextF)"
+    s"StmBuild($lengths, $seed, $nextF)"
   }
 }
 case class StmLength(stream: Expr) extends IntExpr

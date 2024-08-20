@@ -1,3 +1,5 @@
+def mkLen(e: Expr) = Tuple(Tuple(e, e))
+
 // High-level function
 object Iterate {
   def apply(
@@ -6,7 +8,7 @@ object Iterate {
       f: Function /* A -> A */
   ): Expr = {
     val s = StmBuild(
-      1,
+      mkLen(1),
       Tuple(n, z),
       (acc: Expr) =>
         IfThenElse(
@@ -29,25 +31,20 @@ object HasNext {
 
 object StmCst {
   def apply(n: IntCst, c: IntCst): Expr /* Stm<Int; n> */ =
-    StmBuild(n, 0 /* unused */, (_: Expr) => Tuple(0, c, True))
+    StmBuild(mkLen(n), 0 /* unused */, (_: Expr) => Tuple(0, c, True))
 }
 
 object StmCount {
   def apply(n: IntCst): Expr /* Stm<Int; n> */ =
-    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i, True))
+    StmBuild(mkLen(n), 0, (i: Expr) => Tuple(i + 1, i, True))
 }
 
 object StmCst2D {
   def apply(n: Int, m: Int, c: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
-      n,
-      0 /* unused */,
-      (_: Expr) =>
-        Tuple(
-          0,
-          StmBuild(m, 0 /* unused */, (_: Expr) => Tuple(0, c, True)),
-          True
-        )
+      Tuple(Tuple(n, n), Tuple(m, m)),
+      Tuple(),
+      (_: Expr) => Tuple(Tuple(), c, True)
     )
   }
 }
@@ -56,12 +53,16 @@ object StmCst2D {
 object StmCount2D {
   def apply(n: Int, m: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
-      n,
-      0,
-      (i: Expr) =>
+      Tuple(Tuple(n, n), Tuple(m, m)),
+      Tuple(0, 0),
+      (acc: Expr) =>
         Tuple(
-          i + 1,
-          StmBuild(m, 0, (j: Expr) => Tuple(j + 1, Tuple(i, j), True)),
+          IfThenElse(
+            acc.__1 === m - 1,
+            Tuple(acc.__0 + 1, 0),
+            Tuple(acc.__0, acc.__1 + 1)
+          ),
+          acc,
           True
         )
     )
@@ -132,7 +133,7 @@ object StmScan {
     val next = Param()
     val y = Param()
     StmBuild(
-      StmLength(stm),
+      mkLen(StmLength(stm)),
       Tuple(stm, z),
       (acc: Expr) =>
         Let(
@@ -152,7 +153,11 @@ object Vec2Stm {
   def apply(v: Expr /* Vec<A; n> */ ): Expr /* Stm<A; n> */ =
     // TODO: Would it be better to use a shift register for accessing the
     // input?
-    StmBuild(VecLength(v), 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i), True))
+    StmBuild(
+      mkLen(VecLength(v)),
+      0,
+      (i: Expr) => Tuple(i + 1, VecAccess(v, i), True)
+    )
 }
 
 /////////////////////////
@@ -164,7 +169,7 @@ object StmPrepend {
   ): Expr /* Stm<A; n+1> */ = {
     val p = Param()
     StmBuild(
-      StmLength(input) + 1,
+      mkLen(StmLength(input) + 1),
       Tuple(True, input),
       (seed: Expr) => {
         IfThenElse(
@@ -184,7 +189,7 @@ object StmAppend {
   ): Expr /* Stm<A; n+1> */ = {
     val next = Param()
     StmBuild(
-      StmLength(input) + 1,
+      mkLen(StmLength(input) + 1),
       Tuple(input, StmLength(input)),
       (acc: Expr) =>
         IfThenElse(
@@ -224,7 +229,7 @@ object StmPrefix {
   ): Expr /* Stm<A; k> */ = {
     val next = Param()
     StmBuild(
-      k,
+      mkLen(k),
       stm,
       (acc: Expr) => Let(next, StmNext(acc), Tuple(next.__0, next.__1, True))
     )
@@ -251,7 +256,7 @@ object StmSuffix {
     val n = StmLength(stm)
     val next = Param()
     StmBuild(
-      k,
+      mkLen(k),
       Tuple(n - k, stm),
       (acc: Expr) =>
         Let(
@@ -296,6 +301,7 @@ object StmConcat {
   ): Expr /* Stm<A; n+m> */ = {
     val p = Param()
     StmBuild(
+      // TODO: partially evaluate input stream lengths?
       StmLength(in1) + StmLength(in2),
       Tuple(in1, in2),
       (seed: Expr) =>
@@ -318,7 +324,7 @@ object StmZip {
     val nextA = Param()
     val nextB = Param()
     StmBuild(
-      StmLength(a),
+      mkLen(StmLength(a)),
       Tuple(a, b),
       (acc: Expr) =>
         Let(
@@ -347,7 +353,7 @@ object StmZipAlternating {
     val nextA = Param()
     val nextB = Param()
     StmBuild(
-      StmLength(a),
+      mkLen(StmLength(a)),
       Tuple(a, b),
       (acc: Expr) =>
         Let(
@@ -375,7 +381,11 @@ object StmRepeat {
     Let(
       v,
       Stm2Vec(stm),
-      StmBuild(m, 0 /* unused */, (i: Expr) => Tuple(0, Vec2Stm(v), True))
+      StmBuild(
+        mkLen(m),
+        0 /* unused */,
+        (i: Expr) => Tuple(0, Vec2Stm(v), True)
+      )
     )
   }
 }
@@ -392,7 +402,7 @@ object StmSplit {
     val next = Param()
     val p = Param()
     StmBuild(
-      n / m,
+      mkLen(n / m),
       stm,
       (input: Expr) =>
         Let(
@@ -405,7 +415,7 @@ object StmSplit {
             Tuple(
               input,
               StmBuild(
-                0,
+                mkLen(0),
                 0 /* unused */,
                 (_: Expr) => Tuple(0, 0, True)
               )
@@ -433,7 +443,7 @@ object StmJoin {
       nextOuter,
       StmNext(stm),
       StmBuild(
-        n * m,
+        mkLen(n * m),
         nextOuter, /* (Outer stream, inner stream) */
         (acc: Expr) =>
           IfThenElse(
@@ -473,7 +483,7 @@ object StmSlide {
     val next = Param()
     val v = Param()
     StmBuild(
-      n - m + 1,
+      mkLen(n - m + 1),
       Tuple(m - 1, stm, VecBuild(m, (i: Expr) => IntCst(0))),
       (acc: Expr) =>
         Let(
