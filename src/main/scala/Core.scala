@@ -20,14 +20,8 @@ sealed abstract class Expr {
 }
 
 // Tuples
-case class Tuple(elems: Expr*) extends Expr {
-  override def toString(): String = {
-    "(" + elems.map(e => e.toString()).mkString(", ") + ")"
-  }
-}
-case class TupleAccess(t: Expr, i: Expr) extends Expr {
-  override def toString(): String = s"${t}.__${i}"
-}
+case class Tuple(elems: Expr*) extends Expr
+case class TupleAccess(t: Expr, i: Expr) extends Expr
 
 // Functions
 // cannot be a case class as the reference is used to distinguish between Params
@@ -41,12 +35,8 @@ case class Function(param: Param, body: Expr) extends Expr {
       ExprEvaluator.substitute(this.body)(sub) == that.body
     }
   }
-
-  override def toString(): String = s"$param => $body"
 }
-case class FunCall(f: Expr, arg: Expr) extends Expr {
-  override def toString(): String = s"($f)($arg)"
-}
+case class FunCall(f: Expr, arg: Expr) extends Expr
 implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
   val p = Param()
   Function(p, sl(p))
@@ -66,24 +56,12 @@ object Let {
 sealed abstract class IntExpr extends Expr
 implicit def int2IntCst(i: Int): IntCst = IntCst(i)
 implicit def intCst2Int(ic: IntCst): Int = ic.i
-case class IntCst(i: Int) extends IntExpr {
-  override def toString(): String = i.toString()
-}
-case class Add(e1: Expr, e2: Expr) extends IntExpr {
-  override def toString(): String = s"($e1) + ($e2)"
-}
-case class Sub(e1: Expr, e2: Expr) extends IntExpr {
-  override def toString(): String = s"($e1) - ($e2)"
-}
-case class Mul(e1: Expr, e2: Expr) extends IntExpr {
-  override def toString(): String = s"($e1) * ($e2)"
-}
-case class Div(e1: Expr, e2: Expr) extends IntExpr {
-  override def toString(): String = s"($e1) / ($e2)"
-}
-case class Mod(e1: Expr, e2: Expr) extends IntExpr {
-  override def toString(): String = s"($e1) % ($e2)"
-}
+case class IntCst(i: Int) extends IntExpr
+case class Add(e1: Expr, e2: Expr) extends IntExpr
+case class Sub(e1: Expr, e2: Expr) extends IntExpr
+case class Mul(e1: Expr, e2: Expr) extends IntExpr
+case class Div(e1: Expr, e2: Expr) extends IntExpr
+case class Mod(e1: Expr, e2: Expr) extends IntExpr
 
 // Boolean expressions
 sealed abstract class BoolExpr extends Expr
@@ -91,12 +69,8 @@ implicit def boolean2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
 implicit def boolExpr2Boolean(b: BoolExpr): Boolean = if (b == True) true
 else if (b == False) false
 else throw new RuntimeException("unexpected boolean value")
-object True extends BoolExpr {
-  override def toString(): String = "True"
-}
-object False extends BoolExpr {
-  override def toString(): String = "False"
-}
+object True extends BoolExpr
+object False extends BoolExpr
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
@@ -111,11 +85,7 @@ case class StmBuild(
     length: Expr /* Int */,
     seed: Expr /*A*/,
     nextF: Function /* A -> (A, B, Bool)*/
-) extends Expr {
-  override def toString(): String = {
-    s"StmBuild($length, $seed, $nextF)"
-  }
-}
+) extends Expr
 case class StmLength(stream: Expr) extends IntExpr
 case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr // element only available for one clock cycle
