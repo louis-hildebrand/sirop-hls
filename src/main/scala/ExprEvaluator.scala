@@ -112,9 +112,7 @@ object ExprEvaluator {
     }
   }
 
-  def partialEval(
-      e: Expr
-  )(implicit substitutions: Map[Expr, Expr] = Map()): Expr = {
+  def partialEval(e: Expr): Expr = {
     e match {
 
       case t: Tuple => Tuple(t.elems.toSeq.map(partialEval(_)): _*)
@@ -125,19 +123,13 @@ object ExprEvaluator {
           case (tuple @ _, index @ _) => TupleAccess(tuple, index)
         }
 
-      case p: Param =>
-        substitutions.get(p) match {
-          case Some(v) => v
-          case None    => p
-        }
-      case f: Function =>
-        val newF = substitute(f).asInstanceOf[Function]
-        Function(newF.param, partialEval(newF.body))
+      case p: Param          => p
+      case Function(p, body) => Function(p, partialEval(body))
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
           case fun: Function =>
-            partialEval(fun.body)(
-              substitutions + ((fun.param, partialEval(arg)))
+            partialEval(
+              substitute(fun.body)(Map(fun.param -> partialEval(arg)))
             )
           case fun @ _ => FunCall(fun, partialEval(arg))
         }
