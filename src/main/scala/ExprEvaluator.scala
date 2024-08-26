@@ -282,7 +282,7 @@ object ExprEvaluator {
                 }
               case _ => StmNext(s)
             }
-          case _ => StmNext(s)
+          case s => StmNext(s)
         }
 
       case VecBuild(len: Expr, f: Function) =>

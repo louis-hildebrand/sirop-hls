@@ -138,18 +138,13 @@ object StmFold {
       z: Expr /*B*/,
       f: Function /*A -> B -> B*/
   ): Expr = {
-    val next = Param()
     Iterate(
-      StmLength(stream),
+      StmLength(stream).__0.__0,
       Tuple(z, stream),
       (acc: Expr) =>
-        Let(
-          next,
-          StmNext(acc.__1),
-          Tuple(
-            FunCall(FunCall(f, next.__1), acc.__0),
-            next.__0
-          )
+        Tuple(
+          FunCall(FunCall(f, StmNext(acc.__1).__1), acc.__0),
+          StmNext(acc.__1).__0
         )
     ).__0
   }

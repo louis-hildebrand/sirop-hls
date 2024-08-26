@@ -66,6 +66,22 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("Iterate:Square") {
+    val e = (n: Int) => Iterate(n, 3, (x: Expr) => x * x)
+    assert(ExprEvaluator.partialEval(e(0)) == IntCst(3))
+    assert(ExprEvaluator.partialEval(e(1)) == IntCst(9))
+    assert(ExprEvaluator.partialEval(e(2)) == IntCst(81))
+    assert(ExprEvaluator.partialEval(e(3)) == IntCst(81 * 81))
+  }
+
+  test("Iterate:PlusTwo") {
+    val e = (n: Int) => Iterate(n, -10, (x: Expr) => x + 2)
+    assert(ExprEvaluator.partialEval(e(0)) == IntCst(-10))
+    assert(ExprEvaluator.partialEval(e(1)) == IntCst(-8))
+    assert(ExprEvaluator.partialEval(e(2)) == IntCst(-6))
+    assert(ExprEvaluator.partialEval(e(3)) == IntCst(-4))
+  }
+
   test("StmMap:1D-1D:+7") {
     val s = StmMap(
       StmCount(5),
@@ -229,8 +245,9 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmFold:1D:Sum") {
-    val sum = StmFold(StmCount(5), 3, (x: Expr) => (y: Expr) => x + y)
-    assert(ExprEvaluator.partialEval(sum) == IntCst(18))
+    val sum = StmFold(StmCount(6), 3, (x: Expr) => (y: Expr) => x + y)
+    val pe = ExprEvaluator.partialEval(sum)
+    assert(pe == IntCst(18))
   }
 
   test("StmFold:2D:Sum") {
