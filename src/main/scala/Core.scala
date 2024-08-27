@@ -9,6 +9,7 @@ sealed abstract class Expr {
   def ===(that: Expr): Equal = Equal(this, that)
   def !==(that: Expr): NotEqual = NotEqual(this, that)
   def lt(that: Expr): LessThan = LessThan(this, that)
+  def &&(that: Expr): And = And(this, that)
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
   def __0: TupleAccess = TupleAccess(this, 0)
@@ -76,9 +77,12 @@ object False extends BoolExpr
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
 case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr
+// Comparison operators
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr
 case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
+// Logical operators
+case class And(e1: Expr, e2: Expr) extends BoolExpr
 
 // Streams
 case class StmBuild(

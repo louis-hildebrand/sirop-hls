@@ -31,8 +31,8 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("MapMap") {
     val p = Param()
-    val f = Param()
-    val g = Param()
+    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val g = (x: Expr) => x - 10
     val s =
       StmMap(
         StmMap(p, f, n = 5, fInShape = Seq(), fOutShape = Seq()),
@@ -45,16 +45,7 @@ class StreamFusionTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example p, f, and g)
-    val call = (e: Expr) =>
-      Let(
-        p,
-        StmCount(5),
-        Let(
-          f,
-          (x: Expr) => (x + 2) * (x + 3) * (x + 4),
-          Let(g, (x: Expr) => x - 10, e)
-        )
-      )
+    val call = (e: Expr) => Let(p, StmCount(5), e)
     val expectedElems = Seq(14, 50, 110, 200, 326).map(n => IntCst(n))
     assert(stm2Seq(call(s)) == expectedElems)
     assert(stm2Seq(call(actual)) == expectedElems)
@@ -99,11 +90,12 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("StmShiftLeft") {
     val p = Param()
-    val s = StmAppend(StmSuffix(p, StmLength(p) - 1), 42)
+    val n = 5
+    val s = StmAppend(StmSuffix(p, n - 1, n), 42)
     val actual = canon(fuse(s))
 
     // Correct behaviour
-    val call = (e: Expr) => Let(p, StmCount(5), e)
+    val call = (e: Expr) => Let(p, StmCount(n), e)
     val expectedElems = Seq(1, 2, 3, 4, 42).map(n => IntCst(n))
     assert(stm2Seq(call(s)) == expectedElems)
     assert(stm2Seq(call(actual)) == expectedElems)

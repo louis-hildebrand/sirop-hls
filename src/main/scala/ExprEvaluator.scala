@@ -42,6 +42,7 @@ object ExprEvaluator {
             Equal(substitute(e1), substitute(e2))
           case LessThan(e1: Expr, e2: Expr) =>
             LessThan(substitute(e1), substitute(e2))
+          case And(e1: Expr, e2: Expr) => And(substitute(e1), substitute(e2))
 
           case StmBuild(lengths, seed, f) =>
             StmBuild(
@@ -208,6 +209,14 @@ object ExprEvaluator {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i < e2.i
           case (e1 @ _, e2 @ _)         => LessThan(e1, e2)
+        }
+      case And(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (False, _) => False
+          case (_, False) => False
+          case (True, e)  => e
+          case (e, True)  => e
+          case (e1, e2)   => And(e1, e2)
         }
 
       case StmBuild(length, seed, f) =>

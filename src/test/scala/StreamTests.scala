@@ -47,6 +47,10 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, Seq(0, 1, 2, 3, 4))
   }
 
+  test("StmCountFrom") {
+    assertStreamEqual(StmCountFrom(3, 4), Seq(3, 4, 5, 6))
+  }
+
   test("StmCst2D") {
     val s = StmCst2D(3, 4, 42)
     val expected = Seq(
@@ -97,14 +101,7 @@ class StreamTests extends AnyFunSuite {
     val s =
       StmMap(
         StmCount(3),
-        (n: Expr) =>
-          StmMap(
-            StmCount(4),
-            (x: Expr) => x + n,
-            n = 4,
-            fInShape = Seq(),
-            fOutShape = Seq()
-          ),
+        (n: Expr) => StmCountFrom(n, 4),
         n = 3,
         fInShape = Seq(),
         fOutShape = Seq(4)
@@ -131,6 +128,9 @@ class StreamTests extends AnyFunSuite {
       Seq(1, 2, 3, 4),
       Seq(2, 3, 4, 5)
     ).map(ns => ns.map(n => IntCst(n)))
+    assert(
+      ExprEvaluator.partialEval(StmLength(s)) == Tuple(Tuple(3, 3), Tuple(4, 4))
+    )
     assertStreamEqual(s, expected.flatten)
   }
 
@@ -231,6 +231,24 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(actual, expected.flatten)
   }
 
+  test("StmMap:2D-2D:Suffix") {
+    val stm = StmCount2D(3, 1000)
+    val actual =
+      StmMap(
+        stm,
+        (s: Expr) => StmSuffix(s, 2, 1000),
+        n = 3,
+        fInShape = Seq(1000),
+        fOutShape = Seq(2)
+      )
+    val expected = Seq(
+      Seq(Tuple(0, 998), Tuple(0, 999)),
+      Seq(Tuple(1, 998), Tuple(1, 999)),
+      Seq(Tuple(2, 998), Tuple(2, 999))
+    )
+    assertStreamEqual(actual, expected.flatten)
+  }
+
   test("StmAccess") {
     val s = StmMap(
       StmCount(3),
@@ -239,9 +257,9 @@ class StreamTests extends AnyFunSuite {
       fInShape = Seq(),
       fOutShape = Seq()
     )
-    assert(ExprEvaluator.partialEval(StmAccess(s, 0)) == IntCst(5))
-    assert(ExprEvaluator.partialEval(StmAccess(s, 1)) == IntCst(6))
-    assert(ExprEvaluator.partialEval(StmAccess(s, 2)) == IntCst(7))
+    assert(ExprEvaluator.partialEval(StmAccess(s, 0, 3)) == IntCst(5))
+    assert(ExprEvaluator.partialEval(StmAccess(s, 1, 3)) == IntCst(6))
+    assert(ExprEvaluator.partialEval(StmAccess(s, 2, 3)) == IntCst(7))
   }
 
   test("StmFold:1D:Sum") {
@@ -286,15 +304,15 @@ class StreamTests extends AnyFunSuite {
 
   test("StmSuffix") {
     val s = StmCount(3)
-    assertStreamEqual(StmSuffix(s, 0), Seq())
-    assertStreamEqual(StmSuffix(s, 1), Seq(2))
-    assertStreamEqual(StmSuffix(s, 2), Seq(1, 2))
-    assertStreamEqual(StmSuffix(s, 3), Seq(0, 1, 2))
+    assertStreamEqual(StmSuffix(s, 0, 3), Seq())
+    assertStreamEqual(StmSuffix(s, 1, 3), Seq(2))
+    assertStreamEqual(StmSuffix(s, 2, 3), Seq(1, 2))
+    assertStreamEqual(StmSuffix(s, 3, 3), Seq(0, 1, 2))
   }
 
   test("StmShiftLeft") {
     val s = StmCount(3)
-    assertStreamEqual(StmShiftLeft(s, 42), Seq(1, 2, 42))
+    assertStreamEqual(StmShiftLeft(s, 42, 3), Seq(1, 2, 42))
   }
 
   test("StmShiftRight") {
