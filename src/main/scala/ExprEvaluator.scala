@@ -300,9 +300,10 @@ object ExprEvaluator {
   def canonicalize(stm: StmBuild): StmBuild = {
     val s = partialEval(stm).asInstanceOf[StmBuild]
     val s0 = tupleAccumulator(s)
-    val s1 = flattenAccumulator(s0)
-    val s2 = removeEmptyTuples(s1)
-    moveStreamsToFront(s2)
+    val s1 = moveIfThenElseOutsideTupleInStmBody(s0)
+    val s2 = flattenAccumulator(s1)
+    val s3 = removeEmptyTuples(s2)
+    moveStreamsToFront(s3)
   }
 
   /** Wrap the accumulator in a tuple and update `nextF` accordingly.
@@ -319,6 +320,61 @@ object ExprEvaluator {
       Tuple(stm.seed),
       Function(acc, sub(tupleHead(stm.nextF.body)))
     )
+  }
+
+  /** Move `IfThenElse` expressions outside of `Tuple` expressions in the body
+    * of the given stream.
+    *
+    * @param stm
+    *   The stream to which to apply the transformation.
+    * @return
+    *   The new stream.
+    */
+  private def moveIfThenElseOutsideTupleInStmBody(stm: StmBuild): StmBuild = {
+    StmBuild(
+      stm.lengths,
+      stm.seed,
+      Function(stm.nextF.param, moveIfThenElseOutsideTuple(stm.nextF.body))
+    )
+  }
+
+  /** Move `IfThenElse` expressions outside of `Tuple` expressions.
+    *
+    * For example, `Tuple(IfThenElse(cond, 1, 2), 3, 4)` will be replaced by
+    * `IfThenElse(cond, Tuple(1, 3, 4), Tuple(2, 3, 4))`.
+    */
+  private def moveIfThenElseOutsideTuple(e: Expr): Expr = {
+    e match {
+      case Tuple(elems: _*) =>
+        val newElems = elems.map(e => moveIfThenElseOutsideTuple(e))
+        rewriteIfThenElseInTuple(Tuple(newElems: _*))
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(
+          cond,
+          moveIfThenElseOutsideTuple(trueE),
+          moveIfThenElseOutsideTuple(falseE)
+        )
+      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
+        // Definitely will not evaluate to a tuple
+        e
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        // TODO: not sure what to do here.
+        e
+    }
+  }
+
+  private def rewriteIfThenElseInTuple(t: Tuple): Expr = {
+    val i = t.elems.indexWhere(e => e.isInstanceOf[IfThenElse])
+    if i < 0 then {
+      t
+    } else {
+      val ite = t.elems(i).asInstanceOf[IfThenElse]
+      IfThenElse(
+        ite.cond,
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.trueE): _*)),
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.falseE): _*))
+      )
+    }
   }
 
   /** Flatten the accumulator. For example, if the seed was ((0, 1), 2), the new
@@ -575,13 +631,14 @@ object ExprEvaluator {
             outerStmAccArity
           )
         )
-      case _: TupleAccess | _: VecAccess | _: FunCall => ???
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        ???
       case Tuple(a, e, valid) =>
         a match {
           case Tuple(
-                TupleAccess(StmNext(TupleAccess(oldAcc, IntCst(0))), IntCst(0)),
+                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
                 as: _*
-              ) =>
+              ) if p == oldAcc =>
             // CASE 1: StmNext() called.
             //         Update the inner accumulator.
             val innerNext = Param()
@@ -610,7 +667,7 @@ object ExprEvaluator {
                 Tuple(Tuple(newAcc0, innerNext0), out, False)
               )
             )
-          case Tuple(TupleAccess(oldAcc, IntCst(0)), as: _*) =>
+          case Tuple(TupleAccess(p, IntCst(0)), as: _*) if p == oldAcc =>
             // HACK: Expand tuple manually, as above.
             val newAcc1 = tupleExpand(newAcc.__1, innerStmAccArity)
             // CASE 2: StmNext() not called, so leave the inner accumulator
@@ -622,8 +679,8 @@ object ExprEvaluator {
             )
           case _ => ???
         }
-      case _: IntExpr | _: BoolExpr | _: Param | _: VecBuild | _: StmBuild |
-          _: StmNext | _: Function | _: Tuple =>
+      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
+          _: Tuple =>
         throw new IllegalArgumentException(
           "Could not fuse function bodies due to an apparent type error."
         )

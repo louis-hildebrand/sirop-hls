@@ -137,4 +137,72 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     )
     assert(ExprEvaluator.canonicalize(s) == canon)
   }
+
+  test("MoveIfThenElseOutsideTuple1") {
+    val s = StmBuild(
+      Tuple(Tuple(2, 2)),
+      0,
+      (i: Expr) =>
+        Tuple(i + 1, IfThenElse(i % 2 === 0, i / 2, (i - 1) / 2), True)
+    )
+    val canon = StmBuild(
+      Tuple(Tuple(2, 2)),
+      Tuple(0),
+      (i: Expr) =>
+        IfThenElse(
+          i.__0 % 2 === 0,
+          Tuple(Tuple(i.__0 + 1), i.__0 / 2, True),
+          Tuple(Tuple(i.__0 + 1), (i.__0 - 1) / 2, True)
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
+  test("MoveIfThenElseOutsideTuple2") {
+    val s = StmBuild(
+      Tuple(Tuple(2, 2), Tuple(3, 3), Tuple(4, 4)),
+      Tuple(0, Tuple(), Tuple(0, 0)),
+      (acc: Expr) =>
+        Tuple(
+          IfThenElse(
+            acc.__2.__1 === 3,
+            IfThenElse(
+              acc.__2.__0 === 2,
+              Tuple(acc.__0 + 1, Tuple(), Tuple(0, 0)),
+              Tuple(acc.__0, Tuple(), Tuple(acc.__2.__0 + 1, 0))
+            ),
+            Tuple(acc.__0, Tuple(), Tuple(acc.__2.__0, acc.__2.__1 + 1))
+          ),
+          Tuple(acc.__0, acc.__2.__0, acc.__2.__1),
+          True
+        )
+    )
+    val canon = StmBuild(
+      Tuple(Tuple(2, 2), Tuple(3, 3), Tuple(4, 4)),
+      Tuple(0, 0, 0),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__2 === 3,
+          IfThenElse(
+            acc.__1 === 2,
+            Tuple(
+              Tuple(acc.__0 + 1, 0, 0),
+              Tuple(acc.__0, acc.__1, acc.__2),
+              True
+            ),
+            Tuple(
+              Tuple(acc.__0, acc.__1 + 1, 0),
+              Tuple(acc.__0, acc.__1, acc.__2),
+              True
+            )
+          ),
+          Tuple(
+            Tuple(acc.__0, acc.__1, acc.__2 + 1),
+            Tuple(acc.__0, acc.__1, acc.__2),
+            True
+          )
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
 }
