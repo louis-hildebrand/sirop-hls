@@ -2,6 +2,35 @@ import scala.annotation.tailrec
 
 object ExprEvaluator {
 
+  def contains(e1: Expr, e2: Expr): Boolean = {
+    e1 match {
+      case _ if e1 == e2                       => true
+      case True | False | _: IntCst | _: Param => false
+      case Add(x, y)      => contains(x, e2) || contains(y, e2)
+      case Sub(x, y)      => contains(x, e2) || contains(y, e2)
+      case Mul(x, y)      => contains(x, e2) || contains(y, e2)
+      case Div(x, y)      => contains(x, e2) || contains(y, e2)
+      case Mod(x, y)      => contains(x, e2) || contains(y, e2)
+      case Equal(x, y)    => contains(x, e2) || contains(y, e2)
+      case NotEqual(x, y) => contains(x, e2) || contains(y, e2)
+      case LessThan(x, y) => contains(x, e2) || contains(y, e2)
+      case And(x, y)      => contains(x, e2) || contains(y, e2)
+      case IfThenElse(c, t, f) =>
+        contains(c, e2) || contains(t, e2) || contains(f, e2)
+      case Function(p, b)    => contains(p, e2) || contains(b, e2)
+      case FunCall(f, a)     => contains(f, e2) || contains(a, e2)
+      case Tuple(elems: _*)  => elems.exists(e => contains(e, e2))
+      case TupleAccess(t, i) => contains(t, e2) || contains(i, e2)
+      case VecBuild(n, f)    => contains(n, e2) || contains(f, e2)
+      case VecAccess(v, i)   => contains(v, e2) || contains(i, e2)
+      case VecLength(v)      => contains(v, e2)
+      case StmBuild(n, z, f) =>
+        contains(n, e2) || contains(z, e2) || contains(f, e2)
+      case StmNext(s)   => contains(s, e2)
+      case StmLength(s) => contains(s, e2)
+    }
+  }
+
   def substitute(
       e: Expr
   )(implicit substitutions: Map[Expr, Expr]): Expr = {

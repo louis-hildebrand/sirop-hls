@@ -97,7 +97,26 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, Seq(7, 8, 9, 10, 11))
   }
 
-  test("StmMap:1D-2D:CountFrom") {
+  // The scalar input to the inner function is used only in the `nextF`.
+  test("StmMap:1D-2D:StmCst") {
+    val s = StmMap(
+      StmCount(4),
+      (c: Expr) => StmCst(3, c),
+      n = 4,
+      fInShape = Seq(),
+      fOutShape = Seq(3)
+    )
+    val expected = Seq(
+      Seq(0, 0, 0),
+      Seq(1, 1, 1),
+      Seq(2, 2, 2),
+      Seq(3, 3, 3)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  // The scalar input to the inner function is used only in the seed.
+  test("StmMap:1D-2D:StmCountFrom") {
     val s =
       StmMap(
         StmCount(3),
@@ -106,23 +125,6 @@ class StreamTests extends AnyFunSuite {
         fInShape = Seq(),
         fOutShape = Seq(4)
       )
-    // TODO
-    // val expectedStm = StmBuild(
-    //   Tuple(Tuple(3, 3), Tuple(4, 4)),
-    //   Tuple(3, 0 /* outer */, 0 /* inner */ ),
-    //   (acc: Expr) =>
-    //     IfThenElse(
-    //       acc.__0 === 0,
-    //       // Reset "inner" accumulator
-    //       Tuple(Tuple(3, acc.__1 + 1, 0), acc.__1 + acc.__2, True),
-    //       // Don't reset
-    //       Tuple(
-    //         Tuple(acc.__0 - 1, acc.__1, acc.__2 + 1),
-    //         acc.__1 + acc.__2,
-    //         True
-    //       )
-    //     )
-    // )
     val expected = Seq(
       Seq(0, 1, 2, 3),
       Seq(1, 2, 3, 4),
@@ -130,6 +132,29 @@ class StreamTests extends AnyFunSuite {
     ).map(ns => ns.map(n => IntCst(n)))
     assert(
       ExprEvaluator.partialEval(StmLength(s)) == Tuple(Tuple(3, 3), Tuple(4, 4))
+    )
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  // The scalar input to the inner function is used both in the `nextF` and in
+  // the seed.
+  test("StmMap:1D-2D:StmCstAndCountFrom") {
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmBuild(
+          Tuple(Tuple(3, 3)),
+          i,
+          (acc: Expr) => Tuple(acc + 1, Tuple(i, acc), True)
+        ),
+      n = 3,
+      fInShape = Seq(),
+      fOutShape = Seq(3)
+    )
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
+      Seq(Tuple(2, 2), Tuple(2, 3), Tuple(2, 4))
     )
     assertStreamEqual(s, expected.flatten)
   }

@@ -1,9 +1,13 @@
 // Helper functions
 import ExprEvaluator.substitute
 
-def mkLen(e: Expr) = Tuple(Tuple(e, e))
+private def mkLen(e: Expr) = Tuple(Tuple(e, e))
 
-def asStm2Stm(f: Function, inShape: Seq[Int], outShape: Seq[Int]): Function = {
+private def asStm2Stm(
+    f: Function,
+    inShape: Seq[Int],
+    outShape: Seq[Int]
+): Function = {
   (inShape, outShape) match {
     case (Seq(), Seq()) =>
       // scalar -> scalar (e.g., x => x + 1)
@@ -18,13 +22,90 @@ def asStm2Stm(f: Function, inShape: Seq[Int], outShape: Seq[Int]): Function = {
         )
       )
     case (Seq(), Seq(_, _: _*)) =>
-      // scalar -> stream (e.g., StmCountFrom)
-      ???
+      // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
+      // The scalar input to the original function (`f.param`) can appear in
+      // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
+      // StmCst), or even both (if you have something weird like a
+      // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
+      // zipped together).
+      // TODO: Deal with things like IfThenElse as well?
+      // Canonicalize mainly to ensure flat accumulator for simplicity
+      val s = ExprEvaluator.canonicalize(f.body.asInstanceOf[StmBuild])
+      val seed = s.seed.asInstanceOf[Tuple]
+      val x = Param()
+      Function(
+        x /* stream */,
+        StmBuild(
+          s.lengths,
+          // TODO: Here I use 0 as an initial value for whatever the element
+          //       type is of x. The type checker will probably not be happy
+          //       with that, but we can probably find the element type of x
+          //       and then call some method that chooses a "zero" value given
+          //       that data type.
+          Tuple(
+            // Replace all seed elements that depend on the input scalar
+            // (Maybe not strictly necessary in the interpreter since these
+            // values are unused anyway, but in the compiler it wouldn't
+            // make sense to have free variables hanging around here.)
+            Tuple(
+              seed.elems.map(e =>
+                if ExprEvaluator.contains(e, f.param) then 0 else e
+              ): _*
+            ),
+            x /* input stream */,
+            0 /* element from input stream (initial value unused) */,
+            True /* whether the element is yet to be read from x */
+          ),
+          (newAcc: Expr) =>
+            substitute({
+              val innerNext = Param()
+              Let(
+                innerNext,
+                FunCall(s.nextF, newAcc.__0),
+                IfThenElse(
+                  newAcc.__3,
+                  // First read from input stream
+                  Tuple(
+                    Tuple(
+                      // Replace all seed elements that depend on the input scalar
+                      Tuple(
+                        seed.elems.zipWithIndex.map((e, i) =>
+                          if ExprEvaluator.contains(e, f.param) then
+                            substitute(e)(
+                              Map(f.param -> StmNext(newAcc.__1).__1)
+                            )
+                          else TupleAccess(newAcc, i)
+                        ): _*
+                      ),
+                      StmNext(newAcc.__1).__0,
+                      StmNext(newAcc.__1).__1,
+                      False
+                    ),
+                    innerNext.__1 /* same as other branch */,
+                    False
+                  ),
+                  // Continue as usual
+                  Tuple(
+                    Tuple(
+                      innerNext.__0,
+                      newAcc.__1,
+                      newAcc.__2,
+                      newAcc.__3
+                    ),
+                    innerNext.__1,
+                    innerNext.__2
+                  )
+                )
+              )
+            })(Map(s.nextF.param -> newAcc.__0, f.param -> newAcc.__2))
+        )
+      )
     case (Seq(_, _: _*), Seq()) =>
       // stream -> scalar (e.g., StmFold)
+      // TODO: Exclude this case by instead directly using a version of StmFold that returns a stream of length 1?
       ???
     case (Seq(_, _: _*), Seq(_, _: _*)) =>
-      // stream -> stream (e.g., StmMap)
+      // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
       f
   }
 }
@@ -59,8 +140,8 @@ object HasNext {
 // creating streams
 
 object StmCst {
-  def apply(n: IntCst, c: IntCst): Expr /* Stm<Int; n> */ =
-    StmBuild(mkLen(n), 0 /* unused */, (_: Expr) => Tuple(0, c, True))
+  def apply(n: IntCst, c: Expr): Expr /* Stm<Int; n> */ =
+    StmBuild(mkLen(n), Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
 }
 
 object StmCount {
