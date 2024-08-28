@@ -1,27 +1,25 @@
 // Helper functions
 import ExprEvaluator.substitute
 
-private def mkLen(e: Expr) = Tuple(Tuple(e, e))
-
 private def asStm2Stm(
     f: Function,
-    inShape: Seq[Int],
-    outShape: Seq[Int]
+    inShape: Option[Int],
+    outShape: Option[Int]
 ): Function = {
   (inShape, outShape) match {
-    case (Seq(), Seq()) =>
+    case (None, None) =>
       // scalar -> scalar (e.g., x => x + 1)
       val x = Param()
       Function(
         x /* stream */,
         StmBuild(
-          mkLen(1),
+          1,
           x,
           (acc: Expr) =>
             Tuple(StmNext(acc).__0, FunCall(f, StmNext(acc).__1), True)
         )
       )
-    case (Seq(), Seq(_, _: _*)) =>
+    case (None, Some(_)) =>
       // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
       // The scalar input to the original function (`f.param`) can appear in
       // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
@@ -36,7 +34,7 @@ private def asStm2Stm(
       Function(
         x /* stream */,
         StmBuild(
-          s.lengths,
+          s.length,
           // TODO: Here I use 0 as an initial value for whatever the element
           //       type is of x. The type checker will probably not be happy
           //       with that, but we can probably find the element type of x
@@ -100,11 +98,11 @@ private def asStm2Stm(
             })(Map(s.nextF.param -> newAcc.__0, f.param -> newAcc.__2))
         )
       )
-    case (Seq(_, _: _*), Seq()) =>
+    case (Some(_), None) =>
       // stream -> scalar (e.g., StmFold)
       // TODO: Exclude this case by instead directly using a version of StmFold that returns a stream of length 1?
       ???
-    case (Seq(_, _: _*), Seq(_, _: _*)) =>
+    case (Some(_), Some(_)) =>
       // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
       f
   }
@@ -118,7 +116,7 @@ object Iterate {
       f: Function /* A -> A */
   ): Expr = {
     val s = StmBuild(
-      mkLen(1),
+      1,
       Tuple(n, z),
       (acc: Expr) =>
         IfThenElse(
@@ -136,35 +134,34 @@ object Iterate {
 
 object StmCst {
   def apply(n: IntCst, c: Expr): Expr /* Stm<Int; n> */ =
-    StmBuild(mkLen(n), Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
+    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
 }
 
 object StmCount {
   def apply(n: IntCst): Expr /* Stm<Int; n> */ =
-    StmBuild(mkLen(n), 0, (i: Expr) => Tuple(i + 1, i, True))
+    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i, True))
 }
 
 object StmCountFrom {
   def apply(start: Expr, n: Expr): Expr = {
-    StmBuild(mkLen(n), start, (acc: Expr) => Tuple(acc + 1, acc, True))
+    StmBuild(n, start, (acc: Expr) => Tuple(acc + 1, acc, True))
   }
 }
 
 object StmCst2D {
   def apply(n: Int, m: Int, c: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
-      Tuple(Tuple(n, n), Tuple(m, m)),
+      n * m,
       Tuple(),
       (_: Expr) => Tuple(Tuple(), c, True)
     )
   }
 }
 
-// two solutions: one using multi-dim stream, the other using arithmetic and a 1D stream, the latter can be implemented currently with / and %
 object StmCount2D {
   def apply(n: Int, m: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
-      Tuple(Tuple(n, n), Tuple(m, m)),
+      n * m,
       Tuple(0, 0),
       (acc: Expr) =>
         Tuple(
@@ -189,8 +186,8 @@ object StmMap {
       f: Function /* A -> B */,
       // TODO: Ideally we would get this shape info from the type system
       n: Int,
-      fInShape: Seq[Int],
-      fOutShape: Seq[Int]
+      fInShape: Option[Int],
+      fOutShape: Option[Int]
   ): Expr /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
     val f2 = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
@@ -219,11 +216,11 @@ object StmMap {
     )
     // How many elements will the inner component read and produce before it
     // must be reset?
-    val numIn = fInShape.fold(1)((x, y) => x * y)
-    val numOut = fOutShape.fold(1)((x, y) => x * y)
+    val numIn = fInShape.getOrElse(1)
+    val numOut = fOutShape.getOrElse(1)
     // Build a new stream by repeating the inner one once it's done
     StmBuild(
-      Tuple(Tuple(n, n) +: fOutShape.map(k => Tuple(k, k)): _*),
+      n * numOut,
       Tuple(inner.seed, numIn, numOut), {
         val newAcc = Param()
         Function(
@@ -341,7 +338,7 @@ object StmFold {
       f: Function /*A -> B -> B*/
   ): Expr = {
     Iterate(
-      StmLength(stream).__0.__0,
+      StmLength(stream),
       Tuple(z, stream),
       (acc: Expr) =>
         Tuple(
@@ -362,7 +359,7 @@ object StmScan {
     val next = Param()
     val y = Param()
     StmBuild(
-      mkLen(StmLength(stm)),
+      StmLength(stm),
       Tuple(stm, z),
       (acc: Expr) =>
         Let(
@@ -383,7 +380,7 @@ object Vec2Stm {
     // TODO: Would it be better to use a shift register for accessing the
     // input?
     StmBuild(
-      mkLen(VecLength(v)),
+      VecLength(v),
       0,
       (i: Expr) => Tuple(i + 1, VecAccess(v, i), True)
     )
@@ -398,7 +395,7 @@ object StmPrepend {
   ): Expr /* Stm<A; n+1> */ = {
     val p = Param()
     StmBuild(
-      mkLen(StmLength(input) + 1),
+      StmLength(input) + 1,
       Tuple(True, input),
       (seed: Expr) => {
         IfThenElse(
@@ -418,7 +415,7 @@ object StmAppend {
   ): Expr /* Stm<A; n+1> */ = {
     val next = Param()
     StmBuild(
-      mkLen(StmLength(input) + 1),
+      StmLength(input) + 1,
       Tuple(input, StmLength(input)),
       (acc: Expr) =>
         IfThenElse(
@@ -458,7 +455,7 @@ object StmPrefix {
   ): Expr /* Stm<A; k> */ = {
     val next = Param()
     StmBuild(
-      mkLen(k),
+      k,
       Tuple(stm, k),
       (acc: Expr) =>
         Let(
@@ -498,7 +495,7 @@ object StmSuffix {
   ): Expr /* Stm<A; k> */ = {
     val next = Param()
     StmBuild(
-      mkLen(k),
+      k,
       Tuple(n - k, stm),
       (acc: Expr) =>
         Let(
@@ -545,7 +542,6 @@ object StmConcat {
   ): Expr /* Stm<A; n+m> */ = {
     val p = Param()
     StmBuild(
-      // TODO: partially evaluate input stream lengths?
       StmLength(in1) + StmLength(in2),
       Tuple(in1, in2, StmLength(in1)),
       (seed: Expr) =>
@@ -576,7 +572,7 @@ object StmZip {
     val nextA = Param()
     val nextB = Param()
     StmBuild(
-      mkLen(StmLength(a)),
+      StmLength(a),
       Tuple(a, b),
       (acc: Expr) =>
         Let(
@@ -605,7 +601,7 @@ object StmZipAlternating {
     val nextA = Param()
     val nextB = Param()
     StmBuild(
-      mkLen(StmLength(a)),
+      StmLength(a),
       Tuple(a, b),
       (acc: Expr) =>
         Let(
@@ -634,7 +630,7 @@ object StmRepeat {
       v,
       Stm2Vec(stm),
       StmBuild(
-        mkLen(m),
+        m,
         0 /* unused */,
         (i: Expr) => Tuple(0, Vec2Stm(v), True)
       )
@@ -654,7 +650,7 @@ object StmSplit {
     val next = Param()
     val p = Param()
     StmBuild(
-      mkLen(n / m),
+      n / m,
       stm,
       (input: Expr) =>
         Let(
@@ -667,7 +663,7 @@ object StmSplit {
             Tuple(
               input,
               StmBuild(
-                mkLen(0),
+                0,
                 0 /* unused */,
                 (_: Expr) => Tuple(0, 0, True)
               )
@@ -704,7 +700,7 @@ object StmSlide {
     val next = Param()
     val v = Param()
     StmBuild(
-      mkLen(n - m + 1),
+      n - m + 1,
       Tuple(m - 1, stm, VecBuild(m, (i: Expr) => IntCst(0))),
       (acc: Expr) =>
         Let(

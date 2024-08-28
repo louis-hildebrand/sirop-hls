@@ -91,57 +91,6 @@ object ExprEvaluator {
     }
   }
 
-  private def getLengths(e: Expr): Option[Seq[(Int, Int)]] = {
-    partialEval(e) match {
-      case Tuple(es: _*) =>
-        if es.forall(e => e.isInstanceOf[Tuple]) then {
-          val elems = es.map(e => e.asInstanceOf[Tuple].elems)
-          if elems.forall(e =>
-              e.length == 2
-                && e(0).isInstanceOf[IntCst]
-                && e(1).isInstanceOf[IntCst]
-            )
-          then {
-            Some(
-              elems.map(e =>
-                (e(0).asInstanceOf[IntCst].i, e(1).asInstanceOf[IntCst].i)
-              )
-            )
-          } else {
-            None
-          }
-        } else {
-          None
-        }
-      case _ => None
-    }
-  }
-
-  private def getNextLengths(lens: Seq[(Int, Int)]): Seq[(Int, Int)] = {
-    if lens.isEmpty then {
-      lens
-    } else {
-      val backwardsLens = lens.reverse
-      val bHead = backwardsLens.head
-      val bTail = backwardsLens.tail
-      val newBackwardsLens = if backwardsLens.head._1 == 1 then {
-        // Overflow (inner stream is empty; move to next outer stream)
-        val t = getNextLengths(bTail)
-        if t.isEmpty || t.head._1 == 0 then {
-          // Stream is completely empty
-          (0, bHead._2) +: t
-        } else {
-          // Stream still has some elements left
-          (bHead._2, bHead._2) +: t
-        }
-      } else {
-        // No overflow
-        (bHead._1 - 1, bHead._2) +: bTail
-      }
-      newBackwardsLens.reverse
-    }
-  }
-
   def partialEval(e: Expr): Expr = {
     e match {
 
@@ -258,19 +207,16 @@ object ExprEvaluator {
 
       case StmLength(s) =>
         partialEval(s) match {
-          case s: StmBuild => partialEval(s.lengths)
+          case s: StmBuild => partialEval(s.length)
           case s @ _       => StmLength(s)
         }
 
       case StmNext(s: Expr) =>
         partialEval(s) match {
           case s: StmBuild =>
-            getLengths(s.lengths) match {
-              case Some(lens) =>
-                assert(
-                  !lens.exists((n, _) => n <= 0),
-                  "Attempt to call StmNext() on an empty stream."
-                )
+            s.length match {
+              case IntCst(len) =>
+                assert(len > 0, "Attempt to call StmNext() on an empty stream.")
                 partialEval(FunCall(s.nextF, s.seed)) match {
                   case next: Tuple =>
                     val n = next.elems.length
@@ -283,10 +229,7 @@ object ExprEvaluator {
                         // return the new stream and the next element
                         Tuple(
                           StmBuild(
-                            Tuple(
-                              getNextLengths(lens)
-                                .map((x, y) => Tuple(x, y)): _*
-                            ),
+                            len - 1,
                             partialEval(next.__0),
                             // this function may have free parameters
                             partialEval(s.nextF).asInstanceOf[Function]
@@ -298,7 +241,7 @@ object ExprEvaluator {
                         partialEval(
                           StmNext(
                             StmBuild(
-                              s.lengths,
+                              s.length,
                               partialEval(next.__0),
                               // this function may have free parameters
                               partialEval(s.nextF).asInstanceOf[Function]
@@ -354,7 +297,7 @@ object ExprEvaluator {
     val sub = (body: Expr) => substitute(body)(Map(acc -> TupleAccess(acc, 0)))
     val tupleHead = transformHead((e: Expr) => Tuple(e))
     StmBuild(
-      stm.lengths,
+      stm.length,
       Tuple(stm.seed),
       Function(acc, sub(tupleHead(stm.nextF.body)))
     )
@@ -370,7 +313,7 @@ object ExprEvaluator {
     */
   private def moveIfThenElseOutsideTupleInStmBody(stm: StmBuild): StmBuild = {
     StmBuild(
-      stm.lengths,
+      stm.length,
       stm.seed,
       Function(stm.nextF.param, moveIfThenElseOutsideTuple(stm.nextF.body))
     )
@@ -424,7 +367,7 @@ object ExprEvaluator {
       makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
     val flattenHead = transformHead(e => flatten(e))
     StmBuild(
-      stm.lengths,
+      stm.length,
       flatten(stm.seed),
       Function(p, substitute(flattenHead(stm.nextF.body))(tupleAccessMap))
     )
@@ -467,7 +410,7 @@ object ExprEvaluator {
       )
     )
     StmBuild(
-      stm.lengths,
+      stm.length,
       f(seed),
       Function(acc, substitute(transformHead(f)(stm.nextF.body))(subs))
     )
@@ -491,7 +434,7 @@ object ExprEvaluator {
         )
       )
     StmBuild(
-      stm.lengths,
+      stm.length,
       rearrangeTuple(indexMap)(stm.seed),
       Function(
         acc,
@@ -618,7 +561,7 @@ object ExprEvaluator {
         )
     }
     StmBuild(
-      s.lengths,
+      s.length,
       // Replace the inner stream with an empty tuple in the new seed.
       // This minimizes the need for updating the indices in tuple access
       // expressions.

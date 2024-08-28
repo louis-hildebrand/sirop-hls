@@ -2,16 +2,13 @@ import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
   def stm2Seq(stm: Expr): Seq[Expr] = {
-    val lengths = ExprEvaluator
+    val n = ExprEvaluator
       .partialEval(StmLength(stm))
-      .asInstanceOf[Tuple]
-      .elems
-      .map(e => {
-        val t = e.asInstanceOf[Tuple]
-        require(t.elems.length == 2)
-        (t.elems(0).asInstanceOf[IntCst].i, t.elems(1).asInstanceOf[IntCst].i)
-      })
-    if lengths.exists((x, _) => x <= 0) then {
+      .asInstanceOf[IntCst]
+      .i
+    if (n < 0) then {
+      throw new IllegalArgumentException(s"Stream has negative length (${n})!")
+    } else if (n == 0) {
       Seq()
     } else {
       val next = ExprEvaluator.partialEval(StmNext(stm))
@@ -91,8 +88,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(5),
       (x: Expr) => x + 7,
       n = 5,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     assertStreamEqual(s, Seq(7, 8, 9, 10, 11))
   }
@@ -103,8 +100,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(4),
       (c: Expr) => StmCst(3, c),
       n = 4,
-      fInShape = Seq(),
-      fOutShape = Seq(3)
+      fInShape = None,
+      fOutShape = Some(3)
     )
     val expected = Seq(
       Seq(0, 0, 0),
@@ -122,17 +119,14 @@ class StreamTests extends AnyFunSuite {
         StmCount(3),
         (n: Expr) => StmCountFrom(n, 4),
         n = 3,
-        fInShape = Seq(),
-        fOutShape = Seq(4)
+        fInShape = None,
+        fOutShape = Some(4)
       )
     val expected = Seq(
       Seq(0, 1, 2, 3),
       Seq(1, 2, 3, 4),
       Seq(2, 3, 4, 5)
     ).map(ns => ns.map(n => IntCst(n)))
-    assert(
-      ExprEvaluator.partialEval(StmLength(s)) == Tuple(Tuple(3, 3), Tuple(4, 4))
-    )
     assertStreamEqual(s, expected.flatten)
   }
 
@@ -148,8 +142,8 @@ class StreamTests extends AnyFunSuite {
           (acc: Expr) => Tuple(acc + 1, Tuple(i, acc), True)
         ),
       n = 3,
-      fInShape = Seq(),
-      fOutShape = Seq(3)
+      fInShape = None,
+      fOutShape = Some(3)
     )
     val expected = Seq(
       Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
@@ -165,39 +159,22 @@ class StreamTests extends AnyFunSuite {
       (s: Expr) =>
         StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x.__0 + x.__1),
       n = 4,
-      fInShape = Seq(3),
-      fOutShape = Seq()
+      fInShape = Some(3),
+      fOutShape = None
     )
-    // TODO
-    // val expectedStm = StmBuild(
-    //   Tuple(Tuple(4, 4)),
-    //   Tuple(StmCount2D(4, 3), 2, 0),
-    //   (acc: Expr) => {
-    //     val next = Param()
-    //     Let(
-    //       next,
-    //       StmNext(acc.__0),
-    //       IfThenElse(
-    //         acc.__1 === 0,
-    //         Tuple(
-    //           Tuple(next.__0, 2, 0),
-    //           acc.__2 + next.__1.__0 + next.__1.__1,
-    //           True
-    //         ),
-    //         Tuple(
-    //           Tuple(
-    //             next.__0,
-    //             acc.__1 - 1,
-    //             acc.__2 + next.__1.__0 + next.__1.__1
-    //           ),
-    //           acc.__2 + next.__1.__0 + next.__1.__1,
-    //           False
-    //         )
-    //       )
-    //     )
-    //   }
-    // )
     val expected = Seq(3, 6, 9, 12).map(n => IntCst(n))
+    assertStreamEqual(s, expected)
+  }
+
+  test("StmMap:2D-1D:Access") {
+    val s = StmMap(
+      StmCount2D(4, 3),
+      (s: Expr) => StmAccess(s, 1, n = 3),
+      n = 4,
+      fInShape = Some(3),
+      fOutShape = None
+    )
+    val expected = Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(2, 2))
     assertStreamEqual(s, expected)
   }
 
@@ -209,26 +186,13 @@ class StreamTests extends AnyFunSuite {
           s,
           (x: Expr) => x.__0 + x.__1,
           n = 3,
-          fInShape = Seq(),
-          fOutShape = Seq()
+          fInShape = None,
+          fOutShape = None
         ),
       n = 4,
-      fInShape = Seq(3),
-      fOutShape = Seq(3)
+      fInShape = Some(3),
+      fOutShape = Some(3)
     )
-    // TODO
-    // val expectedStm = StmBuild(
-    //   Tuple(Tuple(4, 4), Tuple(3, 3)),
-    //   StmCount2D(4, 3),
-    //   (acc: Expr) => {
-    //     val next = Param()
-    //     Let(
-    //       next,
-    //       StmNext(acc),
-    //       Tuple(next.__0, next.__1.__0 + next.__1.__1, True)
-    //     )
-    //   }
-    // )
     val expected = Seq(
       Seq(0, 1, 2),
       Seq(1, 2, 3),
@@ -245,8 +209,8 @@ class StreamTests extends AnyFunSuite {
         stm,
         (s: Expr) => StmPrefix(s, 2),
         n = 3,
-        fInShape = Seq(1000),
-        fOutShape = Seq(2)
+        fInShape = Some(1000),
+        fOutShape = Some(2)
       )
     val expected = Seq(
       Seq(Tuple(0, 0), Tuple(0, 1)),
@@ -263,8 +227,8 @@ class StreamTests extends AnyFunSuite {
         stm,
         (s: Expr) => StmSuffix(s, 2, 1000),
         n = 3,
-        fInShape = Seq(1000),
-        fOutShape = Seq(2)
+        fInShape = Some(1000),
+        fOutShape = Some(2)
       )
     val expected = Seq(
       Seq(Tuple(0, 998), Tuple(0, 999)),
@@ -279,8 +243,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(3),
       (x: Expr) => x + 5,
       n = 3,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     assert(ExprEvaluator.partialEval(StmAccess(s, 0, 3)) == IntCst(5))
     assert(ExprEvaluator.partialEval(StmAccess(s, 1, 3)) == IntCst(6))
@@ -379,8 +343,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(5),
       (x: Expr) => x + 2,
       n = 5,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     // [2, 7, 18, 41, 88]
     val sum =
@@ -394,8 +358,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(5),
       (x: Expr) => x + 2,
       n = 5,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     // [0, 2, 7, 18, 41]
     val sum =
@@ -409,8 +373,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(3),
       (x: Expr) => x % 2 === 0,
       n = 3,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     val zipped = StmZip(a, b)
     assertStreamEqual(
@@ -425,8 +389,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(4),
       (x: Expr) => x + 5,
       n = 4,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     val zipped = StmZipAlternating(a, b)
     assertStreamEqual(

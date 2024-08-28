@@ -10,8 +10,8 @@ class StreamFusionTests extends AnyFunSuite {
       StmCount(3),
       (x: Expr) => x + 5,
       n = 3,
-      fInShape = Seq(),
-      fOutShape = Seq()
+      fInShape = None,
+      fOutShape = None
     )
     val actual = canon(fuse(s))
 
@@ -35,11 +35,11 @@ class StreamFusionTests extends AnyFunSuite {
     val g = (x: Expr) => x - 10
     val s =
       StmMap(
-        StmMap(p, f, n = 5, fInShape = Seq(), fOutShape = Seq()),
+        StmMap(p, f, n = 5, fInShape = None, fOutShape = None),
         g,
         n = 5,
-        fInShape = Seq(),
-        fOutShape = Seq()
+        fInShape = None,
+        fOutShape = None
       )
     val actual = canon(fuse(s))
 
