@@ -81,6 +81,9 @@ case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr
 case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
+object GreaterThan {
+  def apply(e1: Expr, e2: Expr): Expr = LessThan(e2, e1)
+}
 // Logical operators
 case class And(e1: Expr, e2: Expr) extends BoolExpr
 

@@ -131,11 +131,6 @@ object Iterate {
   }
 }
 
-// could also make this a primitive in case we want (in the future) to have streams with no length, or if we do not want to use the length information but just the last signal in hardware
-object HasNext {
-  def apply(stream: Expr): BoolExpr = NotEqual(StmLength(stream), 0)
-}
-
 //////////////////////////
 // creating streams
 
@@ -552,12 +547,20 @@ object StmConcat {
     StmBuild(
       // TODO: partially evaluate input stream lengths?
       StmLength(in1) + StmLength(in2),
-      Tuple(in1, in2),
+      Tuple(in1, in2, StmLength(in1)),
       (seed: Expr) =>
         IfThenElse(
-          HasNext(seed.__0),
-          Let(p, StmNext(seed.__0), Tuple(Tuple(p.__0, seed.__1), p.__1, True)),
-          Let(p, StmNext(seed.__1), Tuple(Tuple(seed.__0, p.__0), p.__1, True))
+          GreaterThan(seed.__2, 0),
+          Let(
+            p,
+            StmNext(seed.__0),
+            Tuple(Tuple(p.__0, seed.__1, seed.__2 - 1), p.__1, True)
+          ),
+          Let(
+            p,
+            StmNext(seed.__1),
+            Tuple(Tuple(seed.__0, p.__0, seed.__2), p.__1, True)
+          )
         )
     )
   }
@@ -684,39 +687,8 @@ object StmSplit {
 
 object StmJoin {
   def apply(stm: Expr /* Stm<Stm<A; m>; n> */ ): Expr /* Stm<A; m*n> */ = {
-    val n = StmLength(stm)
-    val m = StmLength(StmNext(stm).__1)
-    val nextInner = Param()
-    val nextOuter = Param()
-    Let(
-      nextOuter,
-      StmNext(stm),
-      StmBuild(
-        mkLen(n * m),
-        nextOuter, /* (Outer stream, inner stream) */
-        (acc: Expr) =>
-          IfThenElse(
-            HasNext(acc.__1),
-            // Directly return the next element from the inner stream
-            Let(
-              nextInner,
-              StmNext(acc.__1),
-              Tuple(Tuple(acc.__0, nextInner.__0), nextInner.__1, True)
-            ),
-            // First move to the next element in the outer stream
-            // Then return the next element from the inner stream
-            Let(
-              nextOuter,
-              StmNext(acc.__0),
-              Let(
-                nextInner,
-                StmNext(nextOuter.__1),
-                Tuple(Tuple(nextOuter.__0, nextInner.__0), nextInner.__1, True)
-              )
-            )
-          )
-      )
-    )
+    // TODO: Rewrite this in flat IR
+    ???
   }
 }
 
