@@ -197,6 +197,7 @@ object StmMap {
       fInShape: Seq[Int],
       fOutShape: Seq[Int]
   ): Expr /* Stm<B; n> */ = {
+    // Instantiate `f` as a function from stream to stream
     val f2 = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     // TODO: Needing to partially evaluate to even define StmMap seems
     //       pretty gross
@@ -221,8 +222,11 @@ object StmMap {
         .forall(e => !e.isInstanceOf[StmBuild]),
       "Function in StmMap must not take more than one stream as input."
     )
+    // How many elements will the inner component read and produce before it
+    // must be reset?
     val numIn = fInShape.fold(1)((x, y) => x * y)
     val numOut = fOutShape.fold(1)((x, y) => x * y)
+    // Build a new stream by repeating the inner one once it's done
     StmBuild(
       Tuple(Tuple(n, n) +: fOutShape.map(k => Tuple(k, k)): _*),
       Tuple(inner.seed, numIn, numOut), {
