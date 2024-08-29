@@ -1,22 +1,20 @@
 import scala.jdk.CollectionConverters._
 
 object PrettyPrinter {
-  def show(
-      e: Expr
-  )(implicit numByParam: Map[Param, Int] = Map()): String = {
+  def show(e: Expr)(implicit numByParam: Map[Param, Int]): String = {
     e match {
       case True           => "True"
       case False          => "False"
       case IntCst(n)      => n.toString
-      case Add(x, y)      => s"(${show(x)}) + (${show(y)})"
-      case Sub(x, y)      => s"(${show(x)}) - (${show(y)})"
-      case Mul(x, y)      => s"(${show(x)}) * (${show(y)})"
-      case Div(x, y)      => s"(${show(x)}) / (${show(y)})"
-      case Mod(x, y)      => s"(${show(x)}) % (${show(y)})"
-      case Equal(x, y)    => s"(${show(x)}) === (${show(y)})"
-      case NotEqual(x, y) => s"(${show(x)}) !== (${show(y)})"
-      case LessThan(x, y) => s"(${show(x)}) < (${show(y)})"
-      case And(x, y)      => s"(${show(x)}) && (${show(y)})"
+      case Add(x, y)      => s"${showWithParens(x)} + ${showWithParens(y)}"
+      case Sub(x, y)      => s"${showWithParens(x)} - ${showWithParens(y)}"
+      case Mul(x, y)      => s"${showWithParens(x)} * ${showWithParens(y)}"
+      case Div(x, y)      => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(x, y)      => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case Equal(x, y)    => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case NotEqual(x, y) => s"${showWithParens(x)} !== ${showWithParens(y)}"
+      case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
+      case And(x, y)      => s"${showWithParens(x)} && ${showWithParens(y)}"
       case IfThenElse(c, t, f) =>
         s"""if (${show(c)}) then {
            |${indent(show(t))}
@@ -41,9 +39,11 @@ object PrettyPrinter {
         } else {
           s"(${pStr} /* ${p.toString} */) => ${bStr}"
         }
-      case FunCall(f, a) => s"(${show(f)})(${show(a)})"
+      case FunCall(f, a)    => s"(${show(f)})(${show(a)})"
       case Tuple(elems: _*) =>
-        "(" + elems.map(e => show(e)).mkString(", ") + ")"
+        // Include the trailing t to distinguish between a parenthesized
+        // expression and a tuple of one element.
+        "t(" + elems.map(e => show(e)).mkString(", ") + ")"
       case TupleAccess(t, i) => s"${show(t)}.__${show(i)}"
       case StmBuild(n, z, f) =>
         val nStr = show(n)
@@ -83,4 +83,21 @@ object PrettyPrinter {
   }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
+
+  private def showWithParens(
+      e: Expr
+  )(implicit numByParam: Map[Param, Int]): String = {
+    if shouldParenthesize(e) then {
+      s"(${show(e)})"
+    } else {
+      show(e)
+    }
+  }
+
+  private def shouldParenthesize(e: Expr): Boolean = {
+    e match {
+      case _: IntCst | _: Param | _: TupleAccess => false
+      case _                                     => true
+    }
+  }
 }

@@ -72,7 +72,7 @@ private def asStm2Stm(
                             substitute(e)(
                               Map(f.param -> StmNext(newAcc.__1).__1)
                             )
-                          else TupleAccess(newAcc, i)
+                          else TupleAccess(newAcc.__0, i)
                         ): _*
                       ),
                       StmNext(newAcc.__1).__0,
@@ -170,7 +170,7 @@ object StmCount2D {
             Tuple(acc.__0 + 1, 0),
             Tuple(acc.__0, acc.__1 + 1)
           ),
-          acc,
+          Tuple(acc.__0, acc.__1),
           True
         )
     )
@@ -190,7 +190,22 @@ object StmMap {
       fOutShape: Option[Int]
   ): Expr /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
-    val f2 = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
+    val f1 = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
+    // StmMap shouldn't be messing with the input stream, so we need to be
+    // careful with the identity function
+    // TODO: does this issue occur in any cases other than the identity function?
+    val identity: Function = (x: Expr) => x
+    val f2 = if f1 == identity then {
+      val f2: Function = (s: Expr) =>
+        StmBuild(
+          0 /* doesn't matter, right? */,
+          s,
+          (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
+        )
+      f2
+    } else {
+      f1
+    }
     // TODO: Needing to partially evaluate to even define StmMap seems
     //       pretty gross
     val inner =
@@ -203,10 +218,6 @@ object StmMap {
     //       it may fail if `input` is a `Param`). In the real compiler, we should do these things based on type, not
     //       based on syntactic form.
     assert(
-      seed.elems.head.isInstanceOf[StmBuild] || seed.elems.head == input,
-      "Function in StmMap must take one stream as input."
-    )
-    assert(
       inner.seed
         .asInstanceOf[Tuple]
         .elems
@@ -218,24 +229,52 @@ object StmMap {
     // must be reset?
     val numIn = fInShape.getOrElse(1)
     val numOut = fOutShape.getOrElse(1)
+    val innerUsesInputStm =
+      seed.elems.head.isInstanceOf[StmBuild] || seed.elems.head == input
     // Build a new stream by repeating the inner one once it's done
-    StmBuild(
-      n * numOut,
-      Tuple(inner.seed, numIn, numOut), {
-        val newAcc = Param()
-        Function(
-          newAcc,
-          makeNextFBody(
-            oldBody = inner.nextF.body,
-            oldAcc = inner.nextF.param,
-            newAcc = newAcc,
-            oldSeed = inner.seed.asInstanceOf[Tuple],
-            numIn = numIn,
-            numOut = numOut
+    if innerUsesInputStm then {
+      StmBuild(
+        n * numOut,
+        Tuple(inner.seed, numIn, numOut), {
+          val newAcc = Param()
+          Function(
+            newAcc,
+            makeNextFBody(
+              oldBody = inner.nextF.body,
+              oldAcc = inner.nextF.param,
+              newAcc = newAcc,
+              oldSeed = inner.seed.asInstanceOf[Tuple],
+              numIn = numIn,
+              numOut = numOut
+            )
           )
-        )
-      }
-    )
+        }
+      )
+    } else {
+      val innerNext = Param()
+      StmBuild(
+        n * numOut,
+        Tuple(inner.seed, numOut),
+        (newAcc: Expr) =>
+          substitute(
+            Let(
+              innerNext,
+              FunCall(inner.nextF, newAcc.__0),
+              IfThenElse(
+                newAcc.__1 === 1,
+                // Reset
+                Tuple(Tuple(inner.seed, numOut), innerNext.__1, innerNext.__2),
+                // Don't reset
+                Tuple(
+                  Tuple(innerNext.__0, newAcc.__1 - 1),
+                  innerNext.__1,
+                  innerNext.__2
+                )
+              )
+            )
+          )(Map(inner.nextF.param -> newAcc.__0))
+      )
+    }
   }
 
   private def makeNextFBody(

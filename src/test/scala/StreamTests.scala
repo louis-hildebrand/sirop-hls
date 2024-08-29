@@ -94,6 +94,28 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, Seq(7, 8, 9, 10, 11))
   }
 
+  test("StmMap:1D-1D:Identity") {
+    val s = StmMap(
+      StmCount(3),
+      (x: Expr) => x,
+      n = 3,
+      fInShape = None,
+      fOutShape = None
+    )
+    assertStreamEqual(s, Seq(0, 1, 2))
+  }
+
+  test("StmMap:1D-1D:DiscardInputReturn42") {
+    val s = StmMap(
+      StmCount(6),
+      (_: Expr) => IntCst(42),
+      n = 6,
+      fInShape = None,
+      fOutShape = None
+    )
+    assertStreamEqual(s, Seq(42, 42, 42, 42, 42, 42))
+  }
+
   // The scalar input to the inner function is used only in the `nextF`.
   test("StmMap:1D-2D:StmCst") {
     val s = StmMap(
@@ -153,6 +175,23 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:1D-2D:DiscardInputReturnStmCount") {
+    val s = StmMap(
+      StmCount(4),
+      (_: Expr) => StmCount(3),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(3)
+    )
+    val expected = Seq(
+      Seq(0, 1, 2),
+      Seq(0, 1, 2),
+      Seq(0, 1, 2),
+      Seq(0, 1, 2)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
   test("StmMap:2D-1D:Fold") {
     val s = StmMap(
       StmCount2D(4, 3),
@@ -175,6 +214,18 @@ class StreamTests extends AnyFunSuite {
       fOutShape = None
     )
     val expected = Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(2, 2))
+    assertStreamEqual(s, expected)
+  }
+
+  test("StmMap:2D-1D:DiscardInputReturn42") {
+    val s = StmMap(
+      StmCount2D(3, 4),
+      (_: Expr) => IntCst(42),
+      n = 3,
+      fInShape = Some(4),
+      fOutShape = None
+    )
+    val expected = Seq(42, 42, 42).map(n => IntCst(n))
     assertStreamEqual(s, expected)
   }
 
@@ -236,6 +287,41 @@ class StreamTests extends AnyFunSuite {
       Seq(Tuple(2, 998), Tuple(2, 999))
     )
     assertStreamEqual(actual, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:Identity") {
+    val s = StmMap(
+      StmCount2D(2, 3),
+      (s: Expr) => s,
+      n = 2,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+    )
+    // TODO: this is failing because StmMap is restarting the StmCount2D rather than the identity function!
+    // But the test passes if we replace (s: Expr) => s by
+    // (s: Expr) => StmMap(s, (x: Expr) => x, n = 3, fInShape = None, fOutShape = None)
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:DiscardInputReturnStmCount") { 
+    val s = StmMap(
+      StmCount2D(4, 3),
+      (_: Expr) => StmCount(5),
+      n = 4,
+      fInShape = Some(5),
+      fOutShape = Some(5)
+    )
+    val expected = Seq(
+      Seq(0, 1, 2, 3, 4),
+      Seq(0, 1, 2, 3, 4),
+      Seq(0, 1, 2, 3, 4),
+      Seq(0, 1, 2, 3, 4)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
   }
 
   test("StmAccess") {

@@ -99,6 +99,14 @@ object ExprEvaluator {
         (partialEval(t), partialEval(i)) match {
           case (tuple: Tuple, index: IntCst) =>
             partialEval(tuple.elems(index.i))
+          case (IfThenElse(c, t, f), i) =>
+            // Move TupleAccess inside IfThenElse in the hope that it'll
+            // encounter a Tuple(...)
+            IfThenElse(
+              c,
+              partialEval(TupleAccess(t, i)),
+              partialEval(TupleAccess(f, i))
+            )
           case (tuple @ _, index @ _) => TupleAccess(tuple, index)
         }
 
@@ -168,10 +176,9 @@ object ExprEvaluator {
           case True  => partialEval(trueE)
           case False => partialEval(falseE)
           case cond @ _ =>
-            if (trueE == falseE)
-              trueE
-            else
-              IfThenElse(cond, partialEval(trueE), partialEval(falseE))
+            val t = partialEval(trueE)
+            val f = partialEval(falseE)
+            if t == f then t else IfThenElse(cond, t, f)
         }
       case NotEqual(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -281,6 +288,7 @@ object ExprEvaluator {
   def canonicalize(stm: StmBuild): StmBuild = {
     val s = partialEval(stm).asInstanceOf[StmBuild]
     val s0 = tupleAccumulator(s)
+    // TODO: would it be better to move IfThenElse *inside* tuples?
     val s1 = moveIfThenElseOutsideTupleInStmBody(s0)
     val s2 = flattenAccumulator(s1)
     val s3 = removeEmptyTuples(s2)
