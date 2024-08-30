@@ -21,11 +21,14 @@ object StreamTests {
 
 class StreamTests extends AnyFunSuite {
 
-  inline def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]) = {
+  inline def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
     assert(StreamTests.stm2Seq(stream) == expectedSeq)
   }
 
-  inline def assert2DStreamEqual(stream: Expr, expectedSeq: Seq[Seq[Expr]]) = {
+  inline def assert2DStreamEqual(
+      stream: Expr,
+      expectedSeq: Seq[Seq[Expr]]
+  ): Unit = {
     assert(StreamTests.stmStm2SeqSeq(stream) == expectedSeq)
   }
 
@@ -208,7 +211,7 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:2D-1D:Access") {
     val s = StmMap(
       StmCount2D(4, 3),
-      (s: Expr) => StmAccess(s, 1, n = 3),
+      (s: Expr) => StmAccess(s, 1, shape = Seq(3)),
       n = 4,
       fInShape = Some(3),
       fOutShape = None
@@ -369,9 +372,75 @@ class StreamTests extends AnyFunSuite {
       fInShape = None,
       fOutShape = None
     )
-    assert(ExprEvaluator.partialEval(StmAccess(s, 0, 3)) == IntCst(5))
-    assert(ExprEvaluator.partialEval(StmAccess(s, 1, 3)) == IntCst(6))
-    assert(ExprEvaluator.partialEval(StmAccess(s, 2, 3)) == IntCst(7))
+
+    val pe = ExprEvaluator.partialEval
+    assert(pe(StmAccess(s, 0, shape = Seq(3))) == IntCst(5))
+    assert(pe(StmAccess(s, 1, shape = Seq(3))) == IntCst(6))
+    assert(pe(StmAccess(s, 2, shape = Seq(3))) == IntCst(7))
+  }
+
+  test("StmAccess:2D") {
+    val s = StmCount2D(4, 5)
+
+    val row = (i: Int) => (0 until 5).map(j => Tuple(i, j))
+
+    assertStreamEqual(StmAccess(s, 0, shape = Seq(4, 5)), row(0))
+    assertStreamEqual(StmAccess(s, 1, shape = Seq(4, 5)), row(1))
+    assertStreamEqual(StmAccess(s, 2, shape = Seq(4, 5)), row(2))
+    assertStreamEqual(StmAccess(s, 3, shape = Seq(4, 5)), row(3))
+  }
+
+  test("StmAccess:3D") {
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(3),
+          (j: Expr) =>
+            StmMap(
+              StmCount(4),
+              (k: Expr) => Tuple(i, j, k),
+              n = 4,
+              fInShape = None,
+              fOutShape = None
+            ),
+          n = 3,
+          fInShape = None,
+          fOutShape = Some(4)
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(12)
+    )
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0, 0), Tuple(0, 0, 1), Tuple(0, 0, 2), Tuple(0, 0, 3)),
+        Seq(Tuple(0, 1, 0), Tuple(0, 1, 1), Tuple(0, 1, 2), Tuple(0, 1, 3)),
+        Seq(Tuple(0, 2, 0), Tuple(0, 2, 1), Tuple(0, 2, 2), Tuple(0, 2, 3))
+      ),
+      Seq(
+        Seq(Tuple(1, 0, 0), Tuple(1, 0, 1), Tuple(1, 0, 2), Tuple(1, 0, 3)),
+        Seq(Tuple(1, 1, 0), Tuple(1, 1, 1), Tuple(1, 1, 2), Tuple(1, 1, 3)),
+        Seq(Tuple(1, 2, 0), Tuple(1, 2, 1), Tuple(1, 2, 2), Tuple(1, 2, 3))
+      ),
+      Seq(
+        Seq(Tuple(2, 0, 0), Tuple(2, 0, 1), Tuple(2, 0, 2), Tuple(2, 0, 3)),
+        Seq(Tuple(2, 1, 0), Tuple(2, 1, 1), Tuple(2, 1, 2), Tuple(2, 1, 3)),
+        Seq(Tuple(2, 2, 0), Tuple(2, 2, 1), Tuple(2, 2, 2), Tuple(2, 2, 3))
+      )
+    )
+    assertStreamEqual(
+      StmAccess(s, 0, shape = Seq(3, 3, 4)),
+      expected(0).flatten
+    )
+    assertStreamEqual(
+      StmAccess(s, 1, shape = Seq(3, 3, 4)),
+      expected(1).flatten
+    )
+    assertStreamEqual(
+      StmAccess(s, 2, shape = Seq(3, 3, 4)),
+      expected(2).flatten
+    )
   }
 
   test("StmFold:1D:Sum") {
@@ -537,44 +606,22 @@ class StreamTests extends AnyFunSuite {
   test("StmSplit") {
     val s = StmCount(6)
 
-    var expected = Seq(
-      Seq(IntCst(0)),
-      Seq(IntCst(1)),
-      Seq(IntCst(2)),
-      Seq(IntCst(3)),
-      Seq(IntCst(4)),
-      Seq(IntCst(5))
-    )
-    assert2DStreamEqual(StmSplit(s, 1), expected)
-
-    expected = Seq(
-      Seq(IntCst(0), IntCst(1)),
-      Seq(IntCst(2), IntCst(3)),
-      Seq(IntCst(4), IntCst(5))
-    )
-    assert2DStreamEqual(StmSplit(s, 2), expected)
-
-    expected = Seq(
-      Seq(IntCst(0), IntCst(1), IntCst(2)),
-      Seq(IntCst(3), IntCst(4), IntCst(5))
-    )
-    assert2DStreamEqual(StmSplit(s, 3), expected)
-
-    expected = Seq(
-      Seq(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4), IntCst(5))
-    )
-    assert2DStreamEqual(StmSplit(s, 6), expected)
+    val expected = (0 until 6).map(n => IntCst(n))
+    assertStreamEqual(StmSplit(s, 1), expected)
+    assertStreamEqual(StmSplit(s, 2), expected)
+    assertStreamEqual(StmSplit(s, 3), expected)
+    assertStreamEqual(StmSplit(s, 6), expected)
   }
 
-  test("StmJoin") {
+  test("StmJoin:2D-1D") {
     val s = StmCount2D(3, 2)
-    val actual = StmJoin(s)
+
     val expected = Seq((0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1))
       .map((i, j) => Tuple(i, j))
-    assertStreamEqual(actual, expected)
+    assertStreamEqual(StmJoin(s), expected)
   }
 
-  test("StmJoin3D") {
+  test("StmJoin:3D-2D-1D") {
     // [[[(0, 0), (0, 1), (0, 2), (0, 3)],
     //   [(1, 0), (1, 1), (1, 2), (1, 3)],
     //   [(2, 0), (2, 1), (2, 2), (2, 3)]],
@@ -582,7 +629,13 @@ class StreamTests extends AnyFunSuite {
     //  [[(0, 0), (0, 1), (0, 2), (0, 3)],
     //   [(1, 0), (1, 1), (1, 2), (1, 3)],
     //   [(2, 0), (2, 1), (2, 2), (2, 3)]]]
-    val s = StmRepeat(StmCount2D(3, 4), 2)
+    val s = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCount2D(3, 4),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(12)
+    )
     val expected = Seq(
       Seq(
         Tuple(0, 0),
@@ -621,13 +674,13 @@ class StreamTests extends AnyFunSuite {
         Tuple(2, 3)
       )
     )
-    assert(StreamTests.stmStm2SeqSeq(StmJoin(s)) == expected)
-    assert(StreamTests.stm2Seq(StmJoin(StmJoin(s))) == expected.flatten.toSeq)
+    assertStreamEqual(StmJoin(s), expected.flatten)
+    assertStreamEqual(StmJoin(StmJoin(s)), expected.flatten)
   }
 
   test("StmSplitJoin") {
     val s = StmCount(6)
-    val elems = Seq(0, 1, 2, 3, 4, 5).map(x => IntCst(x))
+    val elems = (0 until 6).map(x => IntCst(x))
     assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 1))) == elems)
     assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 2))) == elems)
     assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 3))) == elems)

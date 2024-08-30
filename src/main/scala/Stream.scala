@@ -471,21 +471,30 @@ object StmAccess {
       stm: Expr /* Stm<A; n> */,
       i: Expr /* Int */,
       // TODO: Ideally we would get this shape info from the type system
-      n: Int
+      shape: Seq[Int]
   ): Expr /* A */ = {
     // NOTE: require 0 <= i < n
-    StmNext(
+    val perRow = shape.tail.product
+    val outStm =
       StmBuild(
-        1,
-        Tuple(stm, 0),
+        perRow,
+        Tuple(stm, 0, perRow),
         (acc: Expr) =>
           Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1),
+            IfThenElse(
+              acc.__2 === 1,
+              Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
+              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
+            ),
             StmNext(acc.__0).__1,
             acc.__1 === i
           )
       )
-    ).__1
+    if (shape.tail.isEmpty) then {
+      StmNext(outStm).__1
+    } else {
+      outStm
+    }
   }
 }
 
@@ -805,15 +814,15 @@ object StmSplit {
       stm: Expr /* Stm<A; n> */,
       m: Int
   ): Expr /* Stm<Stm<A; m>; n/m> */ = {
-    // TODO: Rewrite this in flat IR
-    ???
+    // Should there be some kind of assertion to check that n is divisible by
+    // m? Or will that be handled in the higher-level IR?
+    stm
   }
 }
 
 object StmJoin {
   def apply(stm: Expr /* Stm<Stm<A; m>; n> */ ): Expr /* Stm<A; m*n> */ = {
-    // TODO: Rewrite this in flat IR
-    ???
+    stm
   }
 }
 
