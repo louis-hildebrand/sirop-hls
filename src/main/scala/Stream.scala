@@ -562,18 +562,35 @@ object Vec2Stm {
 // dropping/adding elements
 object StmPrepend {
   def apply(
-      input: Expr /* Stm<A; n> */,
-      e: Expr /* A */
+      stm: Expr /* Stm<A; n> */,
+      e: Expr /* A */,
+      // Ideally we would get this shape info from the type system
+      eShape: Seq[Int]
   ): Expr /* Stm<A; n+1> */ = {
     val p = Param()
+    val eStm = if eShape.isEmpty then {
+      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
+    } else {
+      e
+    }
     StmBuild(
-      StmLength(input) + 1,
-      Tuple(True, input),
-      (seed: Expr) => {
+      StmLength(stm) + eShape.product,
+      Tuple(eStm, stm, eShape.product),
+      (acc: Expr) => {
         IfThenElse(
-          seed.__0,
-          Tuple(Tuple(False, seed.__1), e, True),
-          Let(p, StmNext(seed.__1), Tuple(Tuple(False, p.__0), p.__1, True))
+          acc.__2 === 0,
+          // Read from stm
+          Tuple(
+            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
+            StmNext(acc.__1).__1,
+            True
+          ),
+          // Read from eStm
+          Tuple(
+            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
+            StmNext(acc.__0).__1,
+            True
+          )
         )
       }
     )
@@ -582,27 +599,34 @@ object StmPrepend {
 
 object StmAppend {
   def apply(
-      input: Expr /* Stm<A; n> */,
-      e: Expr /* A */
+      stm: Expr /* Stm<A; n> */,
+      e: Expr /* A */,
+      // Ideally we would get this shape information from the type system
+      stmShape: Seq[Int]
   ): Expr /* Stm<A; n+1> */ = {
-    val next = Param()
+    val eStm = if stmShape.tail.isEmpty then {
+      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
+    } else {
+      e
+    }
     StmBuild(
-      StmLength(input) + 1,
-      Tuple(input, StmLength(input)),
+      stmShape.updated(0, stmShape.head + 1).product,
+      Tuple(stm, eStm, stmShape.product),
       (acc: Expr) =>
         IfThenElse(
-          acc.__1 !== 0,
-          Let(
-            next,
-            StmNext(acc.__0),
-            Tuple(Tuple(next.__0, acc.__1 - 1), next.__1, True)
+          acc.__2 === 0,
+          // Take from eStm
+          Tuple(
+            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
+            StmNext(acc.__1).__1,
+            True
           ),
-          // In theory we could collapse `Tuple(acc.__0, acc.__1)` to just
-          // `acc`.
-          // However, the stream fusion function would then be unable to get
-          // back to the expanded form without knowing the type of `acc`, which
-          // is not available in the interpreter :/
-          Tuple(Tuple(acc.__0, acc.__1), e, True)
+          // Take from stm
+          Tuple(
+            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
+            StmNext(acc.__0).__1,
+            True
+          )
         )
     )
   }
@@ -691,7 +715,11 @@ object StmShiftLeft {
       shape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
     val n = shape.head
-    StmAppend(StmSuffix(stm, n - 1, shape = shape), e)
+    StmAppend(
+      StmSuffix(stm, n - 1, shape = shape),
+      e,
+      stmShape = shape.updated(0, n - 1)
+    )
   }
 }
 
@@ -702,7 +730,11 @@ object StmShiftRight {
       // Ideally we would get this shape information from the type system
       shape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
-    StmPrepend(StmPrefix(stm, StmLength(stm) - 1, shape = shape), e)
+    StmPrepend(
+      StmPrefix(stm, StmLength(stm) - 1, shape = shape),
+      e,
+      eShape = shape.tail
+    )
   }
 }
 

@@ -256,6 +256,42 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:2D-2D:Prepend") {
+    val s = StmMap(
+      StmCst2D(4, 5, 42),
+      (s: Expr) => StmPrepend(s, 43, eShape = Seq()),
+      n = 4,
+      fInShape = Some(5),
+      fOutShape = Some(6)
+    )
+
+    val expected = Seq(
+      Seq(43, 42, 42, 42, 42, 42),
+      Seq(43, 42, 42, 42, 42, 42),
+      Seq(43, 42, 42, 42, 42, 42),
+      Seq(43, 42, 42, 42, 42, 42)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:Append") {
+    val s = StmMap(
+      StmCst2D(4, 5, 42),
+      (s: Expr) => StmAppend(s, 43, stmShape = Seq(5)),
+      n = 4,
+      fInShape = Some(5),
+      fOutShape = Some(6)
+    )
+
+    val expected = Seq(
+      Seq(42, 42, 42, 42, 42, 43),
+      Seq(42, 42, 42, 42, 42, 43),
+      Seq(42, 42, 42, 42, 42, 43),
+      Seq(42, 42, 42, 42, 42, 43)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
   test("StmMap:2D-2D:Prefix") {
     val stm = StmCount2D(3, 1000)
     val actual =
@@ -485,20 +521,123 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
-  test("Pad") {
-    val stmPadFirst = StmPrepend(StmCount(3), IntCst(33))
-    assertStreamEqual(stmPadFirst, Seq(33, 0, 1, 2))
+  test("StmPrepend:1D") {
+    val s = StmCount(3)
+    assertStreamEqual(
+      StmPrepend(s, 42, eShape = Seq()),
+      Seq(42, 0, 1, 2).map(n => IntCst(n))
+    )
+  }
 
-    val stmPadLast = StmAppend(StmCount(3), IntCst(44))
-    assertStreamEqual(stmPadLast, Seq(0, 1, 2, 44))
+  test("StmPrepend:2D") {
+    val s0 = StmMap(
+      StmCount2D(3, 3),
+      (s: Expr) =>
+        StmMap(s, (x: Expr) => x.__1, n = 3, fInShape = None, fOutShape = None),
+      n = 3,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val s1 = StmCst(3, 42)
 
-    val stmFirstLast =
-      StmAppend(StmPrepend(StmCount(3), IntCst(33)), IntCst(44))
-    assertStreamEqual(stmFirstLast, Seq(33, 0, 1, 2, 44))
+    val expected = Seq(
+      Seq(42, 42, 42),
+      Seq(0, 1, 2),
+      Seq(0, 1, 2),
+      Seq(0, 1, 2)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(
+      StmPrepend(s0, s1, eShape = Seq(3)),
+      expected.flatten
+    )
+  }
 
-    val stmLastFirst =
-      StmPrepend(StmAppend(StmCount(3), IntCst(44)), IntCst(33))
-    assertStreamEqual(stmLastFirst, Seq(33, 0, 1, 2, 44))
+  test("StmPrepend:3D") {
+    val s0 = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCst2D(2, 2, 42),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val s1 = StmCst2D(2, 2, 99)
+
+    val expected = Seq(
+      Seq(
+        Seq(99, 99),
+        Seq(99, 99)
+      ),
+      Seq(
+        Seq(42, 42),
+        Seq(42, 42)
+      ),
+      Seq(
+        Seq(42, 42),
+        Seq(42, 42)
+      )
+    ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
+    assertStreamEqual(
+      StmPrepend(s0, s1, eShape = Seq(2, 2)),
+      expected.flatten.flatten
+    )
+  }
+
+  test("StmAppend:1D") {
+    val s = StmCount(3)
+    assertStreamEqual(
+      StmAppend(s, 42, stmShape = Seq(3)),
+      Seq(0, 1, 2, 42).map(n => IntCst(n))
+    )
+  }
+
+  test("StmAppend:2D") {
+    val s0 = StmMap(
+      StmCount2D(3, 3),
+      (s: Expr) =>
+        StmMap(s, (x: Expr) => x.__1, n = 3, fInShape = None, fOutShape = None),
+      n = 3,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val s1 = StmCst(3, 42)
+
+    val expected = Seq(
+      Seq(0, 1, 2),
+      Seq(0, 1, 2),
+      Seq(0, 1, 2),
+      Seq(42, 42, 42)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(StmAppend(s0, s1, stmShape = Seq(3, 3)), expected.flatten)
+  }
+
+  test("StmAppend:3D") {
+    val s0 = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCst2D(2, 2, 42),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val s1 = StmCst2D(2, 2, 99)
+
+    val expected = Seq(
+      Seq(
+        Seq(42, 42),
+        Seq(42, 42)
+      ),
+      Seq(
+        Seq(42, 42),
+        Seq(42, 42)
+      ),
+      Seq(
+        Seq(99, 99),
+        Seq(99, 99)
+      )
+    ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
+    assertStreamEqual(
+      StmAppend(s0, s1, stmShape = Seq(2, 2, 2)),
+      expected.flatten.flatten
+    )
   }
 
   test("StmPrefix:1D") {
