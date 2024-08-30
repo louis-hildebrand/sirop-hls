@@ -556,6 +556,18 @@ object ExprEvaluator {
     }
   }
 
+  /** Fuse a `StmBuild` with its stream inputs until it has no more stream
+    * inputs.
+    */
+  @tailrec
+  def fuseCompletely(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
+    val s = canonicalize(partialEval(stm).asInstanceOf[StmBuild])
+    s.seed.asInstanceOf[Tuple].elems.head match {
+      case _: StmBuild => fuseCompletely(fuse(s))
+      case _           => s
+    }
+  }
+
   /** Fuse a `StmBuild` with its first stream input.
     */
   def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {

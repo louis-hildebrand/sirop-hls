@@ -12,12 +12,13 @@ object VecFold {
     Iterate(
       VecLength(vec),
       Tuple(z, 0),
-      (acc: Expr) => {
+      (acc: Expr) =>
         Tuple(
           FunCall(FunCall(f, VecAccess(vec, acc.__1)), acc.__0),
           acc.__1 + 1
-        )
-      }
+        ),
+      // TODO: this assumes `z` in `VecFold` is not a tuple (which happens to be the case in all tests so far)
+      zSize = 2
     ).__0
   }
 }
@@ -42,7 +43,8 @@ object VecScan {
             acc.__1,
             f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1))
           )
-        )
+        ),
+      zSize = 2
     ).__1
   }
 }
@@ -52,7 +54,8 @@ object Stm2Vec {
     StmFold(
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
-      (e: Expr) => (v: Expr) => VecShiftLeft(v, e)
+      (e: Expr) => (v: Expr) => VecShiftLeft(v, e),
+      n = ???
     )
 }
 
