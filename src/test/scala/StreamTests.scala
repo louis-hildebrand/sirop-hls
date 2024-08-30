@@ -460,6 +460,31 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(sum) == IntCst(40))
   }
 
+  test("Vec2Stm:1D") {
+    val v = VecBuild(5, (i: Expr) => i + 1)
+
+    assertStreamEqual(Vec2Stm(v), Seq(1, 2, 3, 4, 5))
+  }
+
+  test("Vec2Stm:2D") {
+    val v = VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)))
+    val s = StmMap(
+      Vec2Stm(v),
+      (v: Expr) => Vec2Stm(v),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(3)
+    )
+
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
+      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
+      Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+    )
+    assertStreamEqual(s, expected.flatten)
+  }
+
   test("Pad") {
     val stmPadFirst = StmPrepend(StmCount(3), IntCst(33))
     assertStreamEqual(stmPadFirst, Seq(33, 0, 1, 2))
@@ -585,13 +610,6 @@ class StreamTests extends AnyFunSuite {
       zipped,
       Seq(Tuple(0, 5), Tuple(6, 1), Tuple(2, 7), Tuple(8, 3))
     )
-  }
-
-  test("Vec2Stm") {
-    val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)
-    val stm = Vec2Stm(oneTwoThreeVec)
-
-    assertStreamEqual(stm, Seq(1, 2, 3))
   }
 
   test("StmRepeat") {
