@@ -261,7 +261,7 @@ class StreamTests extends AnyFunSuite {
     val actual =
       StmMap(
         stm,
-        (s: Expr) => StmPrefix(s, 2),
+        (s: Expr) => StmPrefix(s, 2, shape = Seq(1000)),
         n = 3,
         fInShape = Some(1000),
         fOutShape = Some(2)
@@ -279,7 +279,7 @@ class StreamTests extends AnyFunSuite {
     val actual =
       StmMap(
         stm,
-        (s: Expr) => StmSuffix(s, 2, 1000),
+        (s: Expr) => StmSuffix(s, 2, shape = Seq(1000)),
         n = 3,
         fInShape = Some(1000),
         fOutShape = Some(2)
@@ -501,30 +501,139 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(stmLastFirst, Seq(33, 0, 1, 2, 44))
   }
 
-  test("StmPrefix") {
+  test("StmPrefix:1D") {
     val s = StmCount(3)
-    assertStreamEqual(StmPrefix(s, 0), Seq())
-    assertStreamEqual(StmPrefix(s, 1), Seq(0))
-    assertStreamEqual(StmPrefix(s, 2), Seq(0, 1))
-    assertStreamEqual(StmPrefix(s, 3), Seq(0, 1, 2))
+    assertStreamEqual(StmPrefix(s, 0, shape = Seq(3)), Seq())
+    assertStreamEqual(StmPrefix(s, 1, shape = Seq(3)), Seq(0))
+    assertStreamEqual(StmPrefix(s, 2, shape = Seq(3)), Seq(0, 1))
+    assertStreamEqual(StmPrefix(s, 3, shape = Seq(3)), Seq(0, 1, 2))
   }
 
-  test("StmSuffix") {
+  test("StmPrefix:2D") {
+    val s = StmCount2D(2, 3)
+
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+    )
+    assertStreamEqual(StmPrefix(s, 0, shape = Seq(2, 3)), Seq())
+    assertStreamEqual(
+      StmPrefix(s, 1, shape = Seq(2, 3)),
+      expected.slice(0, 1).flatten
+    )
+    assertStreamEqual(
+      StmPrefix(s, 2, shape = Seq(2, 3)),
+      expected.slice(0, 2).flatten
+    )
+  }
+
+  test("StmPrefix:3D") {
+    val s = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCount2D(4, 5),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(20)
+    )
+
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+      ),
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+      )
+    )
+    assertStreamEqual(StmPrefix(s, 0, shape = Seq(2, 4, 5)), Seq())
+    assertStreamEqual(
+      StmPrefix(s, 1, shape = Seq(2, 4, 5)),
+      expected.slice(0, 1).flatten.flatten
+    )
+    assertStreamEqual(
+      StmPrefix(s, 2, shape = Seq(2, 4, 5)),
+      expected.slice(0, 2).flatten.flatten
+    )
+  }
+
+  test("StmSuffix:1D") {
     val s = StmCount(3)
-    assertStreamEqual(StmSuffix(s, 0, 3), Seq())
-    assertStreamEqual(StmSuffix(s, 1, 3), Seq(2))
-    assertStreamEqual(StmSuffix(s, 2, 3), Seq(1, 2))
-    assertStreamEqual(StmSuffix(s, 3, 3), Seq(0, 1, 2))
+    assertStreamEqual(StmSuffix(s, 0, shape = Seq(3)), Seq())
+    assertStreamEqual(StmSuffix(s, 1, shape = Seq(3)), Seq(2))
+    assertStreamEqual(StmSuffix(s, 2, shape = Seq(3)), Seq(1, 2))
+    assertStreamEqual(StmSuffix(s, 3, shape = Seq(3)), Seq(0, 1, 2))
+  }
+
+  test("StmSuffix:2D") {
+    val s = StmCount2D(3, 2)
+
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1)),
+      Seq(Tuple(1, 0), Tuple(1, 1)),
+      Seq(Tuple(2, 0), Tuple(2, 1))
+    )
+    assertStreamEqual(StmSuffix(s, 0, shape = Seq(3, 2)), Seq())
+    assertStreamEqual(
+      StmSuffix(s, 1, shape = Seq(3, 2)),
+      expected.slice(2, 3).flatten
+    )
+    assertStreamEqual(
+      StmSuffix(s, 2, shape = Seq(3, 2)),
+      expected.slice(1, 3).flatten
+    )
+    assertStreamEqual(
+      StmSuffix(s, 3, shape = Seq(3, 2)),
+      expected.slice(0, 3).flatten
+    )
+  }
+
+  test("StmSuffix:3D") {
+    val s = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCount2D(4, 5),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(20)
+    )
+
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+      ),
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+      )
+    )
+    assertStreamEqual(StmSuffix(s, 0, shape = Seq(2, 4, 5)), Seq())
+    assertStreamEqual(
+      StmSuffix(s, 1, shape = Seq(2, 4, 5)),
+      expected.slice(1, 2).flatten.flatten
+    )
+    assertStreamEqual(
+      StmSuffix(s, 2, shape = Seq(2, 4, 5)),
+      expected.slice(0, 2).flatten.flatten
+    )
   }
 
   test("StmShiftLeft") {
     val s = StmCount(3)
-    assertStreamEqual(StmShiftLeft(s, 42, 3), Seq(1, 2, 42))
+    assertStreamEqual(StmShiftLeft(s, 42, shape = Seq(3)), Seq(1, 2, 42))
   }
 
   test("StmShiftRight") {
     val s = StmCount(3)
-    assertStreamEqual(StmShiftRight(s, 42), Seq(42, 0, 1))
+    assertStreamEqual(StmShiftRight(s, 42, shape = Seq(3)), Seq(42, 0, 1))
   }
 
   test("Concat") {

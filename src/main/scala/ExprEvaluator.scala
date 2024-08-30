@@ -15,6 +15,7 @@ object ExprEvaluator {
       case NotEqual(x, y) => contains(x, e2) || contains(y, e2)
       case LessThan(x, y) => contains(x, e2) || contains(y, e2)
       case And(x, y)      => contains(x, e2) || contains(y, e2)
+      case Not(x)         => contains(x, e2)
       case IfThenElse(c, t, f) =>
         contains(c, e2) || contains(t, e2) || contains(f, e2)
       case Function(p, b)    => contains(p, e2) || contains(b, e2)
@@ -72,6 +73,7 @@ object ExprEvaluator {
           case LessThan(e1: Expr, e2: Expr) =>
             LessThan(substitute(e1), substitute(e2))
           case And(e1: Expr, e2: Expr) => And(substitute(e1), substitute(e2))
+          case Not(e: Expr)            => Not(substitute(e))
 
           case StmBuild(lengths, seed, f) =>
             StmBuild(
@@ -198,6 +200,13 @@ object ExprEvaluator {
           case (True, e)  => e
           case (e, True)  => e
           case (e1, e2)   => And(e1, e2)
+        }
+      case Not(e: Expr) =>
+        partialEval(e) match {
+          case True   => False
+          case False  => True
+          case Not(e) => e
+          case e      => Not(e)
         }
 
       case StmBuild(length, seed, f) =>

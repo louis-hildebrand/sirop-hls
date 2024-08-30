@@ -15,6 +15,7 @@ object PrettyPrinter {
       case NotEqual(x, y) => s"${showWithParens(x)} !== ${showWithParens(y)}"
       case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
       case And(x, y)      => s"${showWithParens(x)} && ${showWithParens(y)}"
+      case Not(x)         => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
         s"""if (${show(c)}) then {
            |${indent(show(t))}

@@ -157,7 +157,7 @@ object VecConcat {
     val m = VecLength(v2)
     VecBuild(
       n + m,
-      (i: Expr) => IfThenElse(i lt n, VecAccess(v1, i), VecAccess(v2, i - n))
+      (i: Expr) => IfThenElse(i < n, VecAccess(v1, i), VecAccess(v2, i - n))
     )
   }
 }

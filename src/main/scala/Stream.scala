@@ -184,6 +184,7 @@ private def findStmNext(e: Expr): Set[Expr] = {
     case NotEqual(x, y)                     => findStmNext(x) ++ findStmNext(y)
     case LessThan(x, y)                     => findStmNext(x) ++ findStmNext(y)
     case And(x, y)                          => findStmNext(x) ++ findStmNext(y)
+    case Not(x)                             => findStmNext(x)
     case IfThenElse(c, t, f) =>
       findStmNext(c) ++ findStmNext(t) ++ findStmNext(f)
     case Tuple(elems: _*) =>
@@ -622,22 +623,23 @@ object StmPrefix {
     */
   def apply(
       stm: Expr /* Stm<A, n> */,
-      k: Expr /* Int */
+      k: Expr /* Int */,
+      // Ideally we would get this shape information from the type system
+      shape: Seq[Int]
   ): Expr /* Stm<A; k> */ = {
-    val next = Param()
+    val perRow = shape.tail.product
     StmBuild(
-      k,
-      Tuple(stm, k),
+      k * perRow,
+      Tuple(stm, 0, perRow),
       (acc: Expr) =>
-        Let(
-          next,
-          StmNext(acc.__0),
+        Tuple(
           IfThenElse(
-            acc.__1 === 0,
-            // Fully drain the input
-            Tuple(Tuple(next.__0, acc.__1), next.__1, False),
-            Tuple(Tuple(next.__0, acc.__1 - 1), next.__1, True)
-          )
+            acc.__2 === 1,
+            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
+            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
+          ),
+          StmNext(acc.__0).__1,
+          acc.__1 < k
         )
     )
   }
@@ -653,32 +655,29 @@ object StmSuffix {
     *   The input stream.
     * @param k
     *   The number of elements to extract.
-    * @param n
-    *   The number of elements in the input stream.
     * @return
     *   A stream consisting of the last `k` elements from `stm`.
     */
   def apply(
       stm: Expr /* Stm<A; n> */,
       k: Expr /* Int */,
-      // TODO: Ideally we would get this shape info from the type system
-      n: Int
+      // Ideally we would get this shape info from the type system
+      shape: Seq[Int]
   ): Expr /* Stm<A; k> */ = {
-    val next = Param()
+    val perRow = shape.tail.product
+    val n = shape.head
     StmBuild(
-      k,
-      Tuple(n - k, stm),
+      k * perRow,
+      Tuple(stm, 0, perRow),
       (acc: Expr) =>
-        Let(
-          next,
-          StmNext(acc.__1),
+        Tuple(
           IfThenElse(
-            acc.__0 === 0,
-            // keep
-            Tuple(Tuple(acc.__0, next.__0), next.__1, True),
-            // drop
-            Tuple(Tuple(acc.__0 - 1, next.__0), next.__1, False)
-          )
+            acc.__2 === 1,
+            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
+            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
+          ),
+          StmNext(acc.__0).__1,
+          acc.__1 >= n - k
         )
     )
   }
@@ -688,19 +687,22 @@ object StmShiftLeft {
   def apply(
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
-      // TODO: Ideally we would get this shape info from the type system
-      n: Int
+      // Ideally we would get this shape info from the type system
+      shape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
-    StmAppend(StmSuffix(stm, n - 1, n), e)
+    val n = shape.head
+    StmAppend(StmSuffix(stm, n - 1, shape = shape), e)
   }
 }
 
 object StmShiftRight {
   def apply(
       stm: Expr /* Stm<A; n> */,
-      e: Expr /* A */
+      e: Expr /* A */,
+      // Ideally we would get this shape information from the type system
+      shape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
-    StmPrepend(StmPrefix(stm, StmLength(stm) - 1), e)
+    StmPrepend(StmPrefix(stm, StmLength(stm) - 1, shape = shape), e)
   }
 }
 

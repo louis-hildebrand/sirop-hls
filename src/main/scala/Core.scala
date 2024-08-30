@@ -8,7 +8,10 @@ sealed abstract class Expr {
   def %(that: Expr): Mod = Mod(this, that)
   def ===(that: Expr): Equal = Equal(this, that)
   def !==(that: Expr): NotEqual = NotEqual(this, that)
-  def lt(that: Expr): LessThan = LessThan(this, that)
+  def <(that: Expr): LessThan = LessThan(this, that)
+  def <=(that: Expr): Not = Not(this > that)
+  def >(that: Expr): LessThan = that < this
+  def >=(that: Expr): Not = that <= this
   def &&(that: Expr): And = And(this, that)
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
@@ -85,6 +88,7 @@ object GreaterThan {
   def apply(e1: Expr, e2: Expr): Expr = LessThan(e2, e1)
 }
 // Logical operators
+case class Not(e: Expr) extends BoolExpr
 case class And(e1: Expr, e2: Expr) extends BoolExpr
 
 // Streams

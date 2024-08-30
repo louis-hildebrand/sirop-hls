@@ -65,7 +65,7 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("StmShiftRight") {
     val p = Param()
-    val s = StmPrepend(StmPrefix(p, StmLength(p) - 1), 42)
+    val s = StmPrepend(StmPrefix(p, StmLength(p) - 1, shape = Seq(5)), 42)
     val actual = canon(fuse(s))
 
     // Correct behaviour
@@ -91,7 +91,7 @@ class StreamFusionTests extends AnyFunSuite {
   test("StmShiftLeft") {
     val p = Param()
     val n = 5
-    val s = StmAppend(StmSuffix(p, n - 1, n), 42)
+    val s = StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42)
     val actual = canon(fuse(s))
 
     // Correct behaviour
