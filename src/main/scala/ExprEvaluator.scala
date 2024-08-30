@@ -102,11 +102,7 @@ object ExprEvaluator {
           case (IfThenElse(c, t, f), i) =>
             // Move TupleAccess inside IfThenElse in the hope that it'll
             // encounter a Tuple(...)
-            IfThenElse(
-              c,
-              partialEval(TupleAccess(t, i)),
-              partialEval(TupleAccess(f, i))
-            )
+            partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
           case (tuple @ _, index @ _) => TupleAccess(tuple, index)
         }
 
@@ -649,8 +645,9 @@ object ExprEvaluator {
             // from the type system.
             val innerNext0 = tupleExpand(innerNext.__0, innerStmAccArity)
             val newAcc0 = tupleExpand(newAcc.__0, outerStmAccArity)
-            val out =
-              substitute(e)(Map(StmNext(oldAcc.__0).__1 -> innerNext.__1))
+            val subInnerNextData =
+              Map[Expr, Expr](StmNext(oldAcc.__0).__1 -> innerNext.__1)
+            val out = substitute(e)(subInnerNextData)
             Let(
               innerNext,
               FunCall(innerNextF, newAcc.__1),
@@ -659,9 +656,16 @@ object ExprEvaluator {
                 // CASE 1a: Received next element from inner stream.
                 //          Update the outer accumulator.
                 Tuple(
-                  Tuple(Tuple(Tuple() +: as: _*), innerNext0),
+                  Tuple(
+                    Tuple(
+                      Tuple() +: as.map(a =>
+                        substitute(a)(subInnerNextData)
+                      ): _*
+                    ),
+                    innerNext0
+                  ),
                   out,
-                  valid
+                  substitute(valid)(subInnerNextData)
                 ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.

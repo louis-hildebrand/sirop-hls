@@ -324,7 +324,44 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
-  test("StmAccess") {
+  test("StmMap:1D-3D:MapCount") {
+    val s = StmMap(
+      StmCount(2),
+      (i: Expr) =>
+        StmMap(
+          StmCount(3),
+          (j: Expr) =>
+            StmMap(
+              StmCount(4),
+              (k: Expr) => Tuple(i, j, k),
+              n = 4,
+              fInShape = None,
+              fOutShape = None
+            ),
+          n = 3,
+          fInShape = None,
+          fOutShape = Some(4)
+        ),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(12)
+    )
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0, 0), Tuple(0, 0, 1), Tuple(0, 0, 2), Tuple(0, 0, 3)),
+        Seq(Tuple(0, 1, 0), Tuple(0, 1, 1), Tuple(0, 1, 2), Tuple(0, 1, 3)),
+        Seq(Tuple(0, 2, 0), Tuple(0, 2, 1), Tuple(0, 2, 2), Tuple(0, 2, 3))
+      ),
+      Seq(
+        Seq(Tuple(1, 0, 0), Tuple(1, 0, 1), Tuple(1, 0, 2), Tuple(1, 0, 3)),
+        Seq(Tuple(1, 1, 0), Tuple(1, 1, 1), Tuple(1, 1, 2), Tuple(1, 1, 3)),
+        Seq(Tuple(1, 2, 0), Tuple(1, 2, 1), Tuple(1, 2, 2), Tuple(1, 2, 3))
+      )
+    )
+    assertStreamEqual(s, expected.flatten.flatten)
+  }
+
+  test("StmAccess:1D") {
     val s = StmMap(
       StmCount(3),
       (x: Expr) => x + 5,

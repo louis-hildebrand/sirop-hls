@@ -100,7 +100,7 @@ private def asStm2Stm(
                       StmNext(newAcc.__1).__1,
                       False
                     ),
-                    innerNext.__1 /* same as other branch */,
+                    0 /* doesn't matter (except maybe to the type checker) */,
                     False
                   ),
                   // Continue as usual
