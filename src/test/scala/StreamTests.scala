@@ -398,6 +398,39 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:2D-2D:StmRepeat") {
+    val s = StmMap(
+      StmCount2D(4, 4),
+      (s: Expr) => StmRepeat(s, 3, n = 4),
+      n = 4,
+      fInShape = Some(4),
+      fOutShape = Some(12)
+    )
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3))
+      ),
+      Seq(
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3))
+      ),
+      Seq(
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3))
+      ),
+      Seq(
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3))
+      )
+    )
+    assertStreamEqual(s, expected.flatten.flatten)
+  }
+
   test("StmMap:2D-2D:Identity") {
     val s = StmMap(
       StmCount2D(2, 3),
@@ -1032,17 +1065,6 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(StmConcat(s0, s1, len1 = 12), expected.flatten.flatten)
   }
 
-  test("2DTupleStream") {
-    val cnt2DAst = StmCount2D(2, 3)
-    val next1 = StmNext(cnt2DAst)
-    assertStreamEqual(next1.__1, Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)))
-
-    val next2 = StmNext(next1.__0)
-    assertStreamEqual(next2.__1, Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)))
-
-    assert(ExprEvaluator.partialEval(StmLength(next2.__0)) == IntCst(0))
-  }
-
   test("StmScanInclusive") {
     // [2, 3,  4,  5,  6]
     val s = StmMap(
@@ -1105,13 +1127,51 @@ class StreamTests extends AnyFunSuite {
     )
   }
 
-  test("StmRepeat") {
+  test("StmRepeat:1D") {
     val s = StmCount(3)
-    val s2 = StmRepeat(s, 4)
-    assert2DStreamEqual(
-      s2,
-      Seq(Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2), Seq(0, 1, 2))
+    val expected = Seq(IntCst(0), IntCst(1), IntCst(2))
+    assertStreamEqual(StmRepeat(s, 0, n = 3), Seq())
+    assertStreamEqual(StmRepeat(s, 1, n = 3), expected)
+    assertStreamEqual(StmRepeat(s, 2, n = 3), expected ++ expected)
+    assertStreamEqual(StmRepeat(s, 3, n = 3), expected ++ expected ++ expected)
+  }
+
+  test("StmRepeat:2D") {
+    val s = StmCount2D(2, 3)
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+    ).flatten
+    assertStreamEqual(StmRepeat(s, 0, n = 6), Seq())
+    assertStreamEqual(StmRepeat(s, 1, n = 6), expected)
+    assertStreamEqual(StmRepeat(s, 2, n = 6), expected ++ expected)
+    assertStreamEqual(StmRepeat(s, 3, n = 6), expected ++ expected ++ expected)
+  }
+
+  test("StmRepeat:3D") {
+    val s = StmMap(
+      StmCount(2),
+      (i: Expr) => StmCst2D(3, 4, i),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(12)
     )
+    val expected = Seq(
+      Seq(
+        Seq(0, 0, 0, 0),
+        Seq(0, 0, 0, 0),
+        Seq(0, 0, 0, 0)
+      ),
+      Seq(
+        Seq(1, 1, 1, 1),
+        Seq(1, 1, 1, 1),
+        Seq(1, 1, 1, 1)
+      )
+    ).flatMap(xss => xss.flatMap(xs => xs.map(x => IntCst(x))))
+    assertStreamEqual(StmRepeat(s, 0, n = 24), Seq())
+    assertStreamEqual(StmRepeat(s, 1, n = 24), expected)
+    assertStreamEqual(StmRepeat(s, 2, n = 24), expected ++ expected)
+    assertStreamEqual(StmRepeat(s, 3, n = 24), expected ++ expected ++ expected)
   }
 
   test("StmSplit") {

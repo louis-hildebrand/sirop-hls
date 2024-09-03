@@ -50,12 +50,16 @@ object VecScan {
 }
 
 object Stm2Vec {
-  def apply(s: Expr): Expr =
+  def apply(
+      s: Expr,
+      // Ideally we would get this shape info from the type system
+      n: Int
+  ): Expr =
     StmFold(
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
       (e: Expr) => (v: Expr) => VecShiftLeft(v, e),
-      n = ???
+      n = n
     )
 }
 

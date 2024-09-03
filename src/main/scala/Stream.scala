@@ -830,16 +830,50 @@ object StmZipAlternating {
 ////////////////////////
 // repeat
 object StmRepeat {
-  def apply(stm: Expr /* Stm<A; n> */, m: Int): Expr /* Stm<Stm<A; n>; m> */ = {
-    val v = Param()
-    Let(
-      v,
-      Stm2Vec(stm),
-      StmBuild(
-        m,
-        0 /* unused */,
-        (i: Expr) => Tuple(0, Vec2Stm(v), True)
-      )
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      m: Int,
+      // Ideally we would get this shape info from the type system
+      n: Int
+  ): Expr /* Stm<Stm<A; n>; m> */ = {
+    StmBuild(
+      n * m,
+      Tuple(stm, VecBuild(n, (_: Expr) => IntCst(0)), 0, True),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__3,
+          // First fill shift register
+          Tuple(
+            IfThenElse(
+              acc.__2 === n - 1,
+              Tuple(
+                StmNext(acc.__0).__0,
+                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
+                0,
+                False
+              ),
+              Tuple(
+                StmNext(acc.__0).__0,
+                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
+                acc.__2 + 1,
+                True
+              )
+            ),
+            VecAccess(acc.__1, acc.__2),
+            False
+          ),
+          // Shift register is full
+          Tuple(
+            Tuple(
+              acc.__0,
+              acc.__1,
+              IfThenElse(acc.__2 === n - 1, 0, acc.__2 + 1),
+              False
+            ),
+            VecAccess(acc.__1, acc.__2),
+            True
+          )
+        )
     )
   }
 }
