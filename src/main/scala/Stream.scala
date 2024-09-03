@@ -743,12 +743,13 @@ object StmShiftRight {
 object StmConcat {
   def apply(
       in1: Expr /* Stm<A; n> */,
-      in2: Expr /* Stm<A; m> */
+      in2: Expr /* Stm<A; m> */,
+      len1: Int
   ): Expr /* Stm<A; n+m> */ = {
     val p = Param()
     StmBuild(
       StmLength(in1) + StmLength(in2),
-      Tuple(in1, in2, StmLength(in1)),
+      Tuple(in1, in2, len1),
       (seed: Expr) =>
         IfThenElse(
           GreaterThan(seed.__2, 0),

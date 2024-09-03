@@ -362,6 +362,42 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:2D-2D:StmConcatBefore") {
+    val s = StmMap(
+      StmCst2D(5, 5, 99),
+      (s: Expr) => StmConcat(StmCount(3), s, len1 = 3),
+      n = 5,
+      fInShape = Some(5),
+      fOutShape = Some(8)
+    )
+    val expected = Seq(
+      Seq(0, 1, 2, 99, 99, 99, 99, 99),
+      Seq(0, 1, 2, 99, 99, 99, 99, 99),
+      Seq(0, 1, 2, 99, 99, 99, 99, 99),
+      Seq(0, 1, 2, 99, 99, 99, 99, 99),
+      Seq(0, 1, 2, 99, 99, 99, 99, 99)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:StmConcatAfter") {
+    val s = StmMap(
+      StmCst2D(5, 5, 99),
+      (s: Expr) => StmConcat(s, StmCount(3), len1 = 5),
+      n = 5,
+      fInShape = Some(5),
+      fOutShape = Some(8)
+    )
+    val expected = Seq(
+      Seq(99, 99, 99, 99, 99, 0, 1, 2),
+      Seq(99, 99, 99, 99, 99, 0, 1, 2),
+      Seq(99, 99, 99, 99, 99, 0, 1, 2),
+      Seq(99, 99, 99, 99, 99, 0, 1, 2),
+      Seq(99, 99, 99, 99, 99, 0, 1, 2)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
   test("StmMap:2D-2D:Identity") {
     val s = StmMap(
       StmCount2D(2, 3),
@@ -911,16 +947,89 @@ class StreamTests extends AnyFunSuite {
     )
   }
 
-  test("Concat") {
-    val stmConcatTwice = StmConcat(StmCst(1, 77), StmCst(1, 77))
-    assertStreamEqual(stmConcatTwice, Seq(77, 77))
+  test("StmConcat:1D") {
+    assertStreamEqual(
+      StmConcat(StmCst(1, 77), StmCst(1, 77), len1 = 1),
+      Seq(77, 77)
+    )
+    assertStreamEqual(
+      StmConcat(StmCount(3), StmCst(4, 77), len1 = 3),
+      Seq(0, 1, 2, 77, 77, 77, 77)
+    )
+    assertStreamEqual(
+      StmConcat(
+        StmConcat(StmCount(3), StmCst(4, 77), len1 = 3),
+        StmCount(2),
+        len1 = 7
+      ),
+      Seq(0, 1, 2, 77, 77, 77, 77, 0, 1)
+    )
+  }
 
-    val stmConcat = StmConcat(StmCount(3), StmCst(4, 77))
-    assertStreamEqual(stmConcat, Seq(0, 1, 2, 77, 77, 77, 77))
+  test("StmConcat:2D") {
+    val s0 = StmCst2D(2, 2, 42)
+    val s1 = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) => i + j,
+          n = 2,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(2)
+    )
+    val expected = Seq(
+      Seq(42, 42),
+      Seq(42, 42),
+      Seq(0, 1),
+      Seq(1, 2),
+      Seq(2, 3)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(StmConcat(s0, s1, len1 = 4), expected.flatten)
+  }
 
-    val stmConcat1 = StmConcat(StmCount(3), StmCst(4, 77))
-    val stmConcat2 = StmConcat(stmConcat1, StmCount(2))
-    assertStreamEqual(stmConcat2, Seq(0, 1, 2, 77, 77, 77, 77, 0, 1))
+  test("StmConcat:3D") {
+    val s0 = StmMap(
+      StmCount(3),
+      (_: Expr) => StmCst2D(2, 2, 100),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val s1 = StmMap(
+      StmCount(2),
+      (i: Expr) => StmCst2D(2, 2, i),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val expected = Seq(
+      Seq(
+        Seq(100, 100),
+        Seq(100, 100)
+      ),
+      Seq(
+        Seq(100, 100),
+        Seq(100, 100)
+      ),
+      Seq(
+        Seq(100, 100),
+        Seq(100, 100)
+      ),
+      Seq(
+        Seq(0, 0),
+        Seq(0, 0)
+      ),
+      Seq(
+        Seq(1, 1),
+        Seq(1, 1)
+      )
+    ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
+    assertStreamEqual(StmConcat(s0, s1, len1 = 12), expected.flatten.flatten)
   }
 
   test("2DTupleStream") {
