@@ -254,7 +254,7 @@ object StmCountFrom {
 }
 
 object StmCst2D {
-  def apply(n: Int, m: Int, c: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
+  def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
       n * m,
       Tuple(),
@@ -712,13 +712,13 @@ object StmShiftLeft {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape info from the type system
-      shape: Seq[Int]
+      stmShape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
-    val n = shape.head
+    val n = stmShape.head
     StmAppend(
-      StmSuffix(stm, n - 1, shape = shape),
+      StmSuffix(stm, n - 1, shape = stmShape),
       e,
-      stmShape = shape.updated(0, n - 1)
+      stmShape = stmShape.updated(0, n - 1)
     )
   }
 }
@@ -728,12 +728,12 @@ object StmShiftRight {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape information from the type system
-      shape: Seq[Int]
+      stmShape: Seq[Int]
   ): Expr /* Stm<A; n> */ = {
     StmPrepend(
-      StmPrefix(stm, StmLength(stm) - 1, shape = shape),
+      StmPrefix(stm, stmShape.head - 1, shape = stmShape),
       e,
-      eShape = shape.tail
+      eShape = stmShape.tail
     )
   }
 }
