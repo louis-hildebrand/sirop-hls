@@ -768,60 +768,40 @@ object StmConcat {
   }
 }
 
-////////////////////////
-// zip
+// TODO: Disallow applying this to multi-dimensional streams?
 object StmZip {
   def apply(
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<B; n> */
   ): Expr /* Stm<(A, B); n> */ = {
-    val nextA = Param()
-    val nextB = Param()
     StmBuild(
       StmLength(a),
       Tuple(a, b),
       (acc: Expr) =>
-        Let(
-          nextA,
-          StmNext(acc.__0),
-          Let(
-            nextB,
-            StmNext(acc.__1),
-            Tuple(
-              Tuple(nextA.__0, nextB.__0),
-              Tuple(nextA.__1, nextB.__1),
-              True
-            )
-          )
+        Tuple(
+          Tuple(StmNext(acc.__0).__0, StmNext(acc.__1).__0),
+          Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1),
+          True
         )
     )
   }
 }
 
 // Not particularly useful, just a strange case to be used to test the compiler
+// TODO: Disallow applying this to multi-dimensional streams?
 object StmZipAlternating {
   def apply(
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<A; n> */
   ): Expr /* Stm<(A, A); n> */ = {
-    val nextA = Param()
-    val nextB = Param()
     StmBuild(
       StmLength(a),
       Tuple(a, b),
       (acc: Expr) =>
-        Let(
-          nextA,
-          StmNext(acc.__0),
-          Let(
-            nextB,
-            StmNext(acc.__1),
-            Tuple(
-              Tuple(nextB.__0, nextA.__0),
-              Tuple(nextA.__1, nextB.__1),
-              True
-            )
-          )
+        Tuple(
+          Tuple(StmNext(acc.__1).__0, StmNext(acc.__0).__0),
+          Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1),
+          True
         )
     )
   }
@@ -895,6 +875,7 @@ object StmJoin {
   }
 }
 
+// TODO: Disallow applying this to multi-dimensional streams?
 object StmSlide {
   def apply(
       stm: Expr /* Stm<A; n> */,

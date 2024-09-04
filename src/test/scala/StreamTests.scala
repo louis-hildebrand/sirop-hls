@@ -398,6 +398,38 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:2D-2D:StmZipWithIndexBefore") {
+    val s = StmMap(
+      StmCount2D(3, 3),
+      (s: Expr) => StmZip(StmCount(3), s),
+      n = 3,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val expected = Seq(
+      Seq(Tuple(0, Tuple(0, 0)), Tuple(1, Tuple(0, 1)), Tuple(2, Tuple(0, 2))),
+      Seq(Tuple(0, Tuple(1, 0)), Tuple(1, Tuple(1, 1)), Tuple(2, Tuple(1, 2))),
+      Seq(Tuple(0, Tuple(2, 0)), Tuple(1, Tuple(2, 1)), Tuple(2, Tuple(2, 2)))
+    )
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:StmZipWithIndexAfter") {
+    val s = StmMap(
+      StmCount2D(3, 3),
+      (s: Expr) => StmZip(s, StmCount(3)),
+      n = 3,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val expected = Seq(
+      Seq(Tuple(Tuple(0, 0), 0), Tuple(Tuple(0, 1), 1), Tuple(Tuple(0, 2), 2)),
+      Seq(Tuple(Tuple(1, 0), 0), Tuple(Tuple(1, 1), 1), Tuple(Tuple(1, 2), 2)),
+      Seq(Tuple(Tuple(2, 0), 0), Tuple(Tuple(2, 1), 1), Tuple(Tuple(2, 2), 2))
+    )
+    assertStreamEqual(s, expected.flatten)
+  }
+
   test("StmMap:2D-2D:StmRepeat") {
     val s = StmMap(
       StmCount2D(4, 4),
@@ -597,6 +629,36 @@ class StreamTests extends AnyFunSuite {
       n = 3
     )
     assert(ExprEvaluator.partialEval(sum) == IntCst(40))
+  }
+
+  test("StmScanInclusive") {
+    // [2, 3,  4,  5,  6]
+    val s = StmMap(
+      StmCount(5),
+      (x: Expr) => x + 2,
+      n = 5,
+      fInShape = None,
+      fOutShape = None
+    )
+    // [2, 7, 18, 41, 88]
+    val sum =
+      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
+    assertStreamEqual(sum, Seq(2, 7, 18, 41, 88))
+  }
+
+  test("StmScanExclusive") {
+    // [2, 3, 4,  5,  6]
+    val s = StmMap(
+      StmCount(5),
+      (x: Expr) => x + 2,
+      n = 5,
+      fInShape = None,
+      fOutShape = None
+    )
+    // [0, 2, 7, 18, 41]
+    val sum =
+      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
+    assertStreamEqual(sum, Seq(0, 2, 7, 18, 41))
   }
 
   test("Vec2Stm:1D") {
@@ -1065,53 +1127,22 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(StmConcat(s0, s1, len1 = 12), expected.flatten.flatten)
   }
 
-  test("StmScanInclusive") {
-    // [2, 3,  4,  5,  6]
-    val s = StmMap(
-      StmCount(5),
-      (x: Expr) => x + 2,
-      n = 5,
-      fInShape = None,
-      fOutShape = None
-    )
-    // [2, 7, 18, 41, 88]
-    val sum =
-      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
-    assertStreamEqual(sum, Seq(2, 7, 18, 41, 88))
-  }
-
-  test("StmScanExclusive") {
-    // [2, 3, 4,  5,  6]
-    val s = StmMap(
-      StmCount(5),
-      (x: Expr) => x + 2,
-      n = 5,
-      fInShape = None,
-      fOutShape = None
-    )
-    // [0, 2, 7, 18, 41]
-    val sum =
-      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
-    assertStreamEqual(sum, Seq(0, 2, 7, 18, 41))
-  }
-
-  test("StmZip") {
-    val a = StmCount(3)
+  test("StmZip:1D") {
+    val a = StmCount(4)
     val b = StmMap(
-      StmCount(3),
+      StmCount(4),
       (x: Expr) => x % 2 === 0,
-      n = 3,
+      n = 4,
       fInShape = None,
       fOutShape = None
     )
-    val zipped = StmZip(a, b)
     assertStreamEqual(
-      zipped,
-      Seq(Tuple(0, True), Tuple(1, False), Tuple(2, True))
+      StmZip(a, b),
+      Seq(Tuple(0, True), Tuple(1, False), Tuple(2, True), Tuple(3, False))
     )
   }
 
-  test("StmZipAlternating") {
+  test("StmZipAlternating:1D") {
     val a = StmCount(4)
     val b = StmMap(
       StmCount(4),
@@ -1120,9 +1151,8 @@ class StreamTests extends AnyFunSuite {
       fInShape = None,
       fOutShape = None
     )
-    val zipped = StmZipAlternating(a, b)
     assertStreamEqual(
-      zipped,
+      StmZipAlternating(a, b),
       Seq(Tuple(0, 5), Tuple(6, 1), Tuple(2, 7), Tuple(8, 3))
     )
   }
@@ -1174,7 +1204,7 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(StmRepeat(s, 3, n = 24), expected ++ expected ++ expected)
   }
 
-  test("StmSplit") {
+  test("StmSplit:1D-2D") {
     val s = StmCount(6)
 
     val expected = (0 until 6).map(n => IntCst(n))
