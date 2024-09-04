@@ -80,6 +80,49 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     assert(ExprEvaluator.canonicalize(s) == canon)
   }
 
+  test("RemoveConstantAccumulatorElem") {
+    val s = StmBuild(
+      1000,
+      // The first element in the tuple will always be 1, so the optimizer
+      // should be able to get rid of it.
+      Tuple(1, 1),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__0 - 1 === 0,
+          Tuple(Tuple(1, acc.__1 + 1), acc.__1, True),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), acc.__1, True)
+        )
+    )
+    val canon = StmBuild(
+      1000,
+      Tuple(1),
+      (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0, True)
+    )
+    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+  }
+
+  test("RemoveMultipleConstantAccumulatorElems") {
+    val s = StmBuild(
+      1000,
+      // The first two elements in the tuple will always be 1 and 2,
+      // respectively, so the optimizer should be able to get rid of them
+      // both.
+      Tuple(1, 2),
+      (acc: Expr) =>
+        IfThenElse(
+          (acc.__0 - 1 === 0) && (acc.__1 + 2 === 4),
+          Tuple(Tuple(acc.__1 - 1, acc.__0 + 1), 42, True),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), 42, True)
+        )
+    )
+    val canon = StmBuild(
+      1000,
+      Tuple(),
+      (acc: Expr) => Tuple(Tuple(), 42, True)
+    )
+    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+  }
+
   test("RemoveEmptyTuples") {
     val s = StmBuild(
       4,

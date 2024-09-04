@@ -296,7 +296,7 @@ object ExprEvaluator {
     // TODO: would it be better to move IfThenElse *inside* tuples?
     val s1 = moveIfThenElseOutsideTupleInStmBody(s0)
     val s2 = flattenAccumulator(s1)
-    val s3 = removeEmptyTuples(s2)
+    val s3 = removeConstantAccumulatorElems(s2)
     moveStreamsToFront(s3)
   }
 
@@ -386,20 +386,86 @@ object ExprEvaluator {
     )
   }
 
-  /** Remove empty tuples from the accumulator (leaving the accumulator as an
-    * empty tuple if the accumulator itself is empty).
+  private def removeConstantAccumulatorElems(stm: StmBuild): StmBuild = {
+    val indicesToRemove = findConstantAccumulatorElems(
+      stm,
+      // Only remove accumulator elements for which we can definitely perform
+      // constant propagation. Replacing all uses with the initial value
+      // probably wouldn't work if the element is a stream, for example.
+      indices = stm.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .zipWithIndex
+        .filter((e, i) =>
+          e match {
+            case _: IntCst | True | False => true
+            case Tuple()                  => true
+            // TODO: allow non-empty tuples to be removed as well?
+            case _ => false
+          }
+        )
+        .map((e, i) => i)
+        .toSet
+    )
+    removeAccumulatorElemsByIndex(
+      stm,
+      indicesToRemove.toSeq,
+      replace = i => stm.seed.asInstanceOf[Tuple].elems(i)
+    )
+  }
+
+  /** @param stm
+    *   A stream whose accumulator is a non-nested tuple.
+    * @return
+    *   The indices within the accumulator tuple of the constant-valued
+    *   elements.
     */
-  private def removeEmptyTuples(stm: StmBuild): StmBuild = {
-    // Assumes the accumulator is a tuple
-    // A previous transformation should tuple the accumulator if necessary
+  @tailrec
+  private def findConstantAccumulatorElems(
+      stm: StmBuild,
+      indices: Set[Int]
+  ): Set[Int] = {
+    if indices.isEmpty then {
+      Set()
+    } else {
+      val seed = stm.seed.asInstanceOf[Tuple]
+      val z = Tuple(
+        seed.elems.zipWithIndex
+          .map((e, i) => if indices.contains(i) then e else Param()): _*
+      )
+      val acc = ExprEvaluator.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))
+      val constantIndices = indices.filter(i =>
+        ExprEvaluator.partialEval(TupleAccess(acc, i)) == seed.elems(i)
+      )
+      if constantIndices == indices then {
+        indices
+      } else {
+        findConstantAccumulatorElems(stm, constantIndices)
+      }
+    }
+  }
+
+  /** @param stm
+    *   A stream whose accumulator is a non-nested tuple.
+    * @param indicesToRemove
+    *   The indices to remove from the accumulator.
+    * @param replace
+    *   A function which, given an index from the list of indices to remove,
+    *   provides an expression with which to replace the element at that index
+    *   if it occurs in the body of the stream.
+    * @return
+    *   The stream with the given accumulator elements removed.
+    */
+  private def removeAccumulatorElemsByIndex(
+      stm: StmBuild,
+      indicesToRemove: Seq[Int],
+      replace: Int => Expr
+  ): StmBuild = {
     val seed = stm.seed.asInstanceOf[Tuple]
-    val indicesToRemove = seed.elems.zipWithIndex
-      .filter((e, _) => e == Tuple())
-      .map((_, i) => i)
     // Need to adjust indices used to read accumulator.
     // For each element removed, you need to decrement the indices of all
     // following elements by one.
-    val indexMap = (0 until seed.elems.length)
+    val indexMap = seed.elems.indices
       .map(i =>
         i ->
           (if indicesToRemove.contains(i) then None
@@ -410,7 +476,7 @@ object ExprEvaluator {
     val subs: Map[Expr, Expr] = indexMap
       .map((i, j) =>
         j match {
-          case None    => TupleAccess(acc, i) -> Tuple()
+          case None    => TupleAccess(acc, i) -> replace(i)
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
       )
