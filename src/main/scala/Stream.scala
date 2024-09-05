@@ -501,9 +501,9 @@ object StmAccess {
 
 object StmFold {
   def apply(
-      stream: Expr /*Stream<A>*/,
-      z: Expr /*B*/,
-      f: Function /*A -> B -> B*/,
+      stream: Expr /* Stream<A> */,
+      z: Expr /* B */,
+      f: Function /* B -> A -> B */,
       // TODO: Ideally we would get this shape info from the type system
       n: Int
   ): Expr = {
@@ -512,7 +512,7 @@ object StmFold {
       Tuple(z, stream),
       (acc: Expr) =>
         Tuple(
-          FunCall(FunCall(f, StmNext(acc.__1).__1), acc.__0),
+          FunCall(FunCall(f, acc.__0), StmNext(acc.__1).__1),
           StmNext(acc.__1).__0
         ),
       // TODO: this assumes `z` in `StmFold` is not a tuple (which happens to be the case in all tests so far)

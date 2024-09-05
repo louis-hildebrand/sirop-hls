@@ -58,7 +58,7 @@ object Stm2Vec {
     StmFold(
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
-      (e: Expr) => (v: Expr) => VecShiftLeft(v, e),
+      (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
       n = n
     )
 }

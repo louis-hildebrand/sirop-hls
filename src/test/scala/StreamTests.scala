@@ -199,7 +199,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount2D(4, 3),
       (s: Expr) =>
-        StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x.__0 + x.__1, n = 3),
+        StmFold(s, 0, (acc: Expr) => (x: Expr) => acc + x.__0 + x.__1, n = 3),
       n = 4,
       fInShape = Some(3),
       fOutShape = None
