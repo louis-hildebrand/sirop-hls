@@ -202,6 +202,7 @@ private def findStmNext(e: Expr): Set[Expr] = {
     case NotEqual(x, y)                     => findStmNext(x) ++ findStmNext(y)
     case LessThan(x, y)                     => findStmNext(x) ++ findStmNext(y)
     case And(x, y)                          => findStmNext(x) ++ findStmNext(y)
+    case Or(x, y)                           => findStmNext(x) ++ findStmNext(y)
     case Not(x)                             => findStmNext(x)
     case IfThenElse(c, t, f) =>
       findStmNext(c) ++ findStmNext(t) ++ findStmNext(f)

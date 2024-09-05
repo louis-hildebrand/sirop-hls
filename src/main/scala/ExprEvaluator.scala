@@ -15,6 +15,7 @@ object ExprEvaluator {
       case NotEqual(x, y) => contains(x, e2) || contains(y, e2)
       case LessThan(x, y) => contains(x, e2) || contains(y, e2)
       case And(x, y)      => contains(x, e2) || contains(y, e2)
+      case Or(x, y)       => contains(x, e2) || contains(y, e2)
       case Not(x)         => contains(x, e2)
       case IfThenElse(c, t, f) =>
         contains(c, e2) || contains(t, e2) || contains(f, e2)
@@ -73,6 +74,7 @@ object ExprEvaluator {
           case LessThan(e1: Expr, e2: Expr) =>
             LessThan(substitute(e1), substitute(e2))
           case And(e1: Expr, e2: Expr) => And(substitute(e1), substitute(e2))
+          case Or(e1: Expr, e2: Expr)  => Or(substitute(e1), substitute(e2))
           case Not(e: Expr)            => Not(substitute(e))
 
           case StmBuild(lengths, seed, f) =>
@@ -173,9 +175,15 @@ object ExprEvaluator {
         partialEval(cond) match {
           case True  => partialEval(trueE)
           case False => partialEval(falseE)
-          case cond @ _ =>
-            val t = partialEval(trueE)
-            val f = partialEval(falseE)
+          case cond  =>
+            // If (x0 && ... && xn) = True, then xi = True for each i
+            val t = partialEval(
+              substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
+            )
+            // If (x0 || ... || xn) = False, then xi = False for each i
+            val f = partialEval(
+              substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
+            )
             if t == f then t else IfThenElse(cond, t, f)
         }
       case NotEqual(e1: Expr, e2: Expr) =>
@@ -200,6 +208,13 @@ object ExprEvaluator {
           case (True, e)  => e
           case (e, True)  => e
           case (e1, e2)   => And(e1, e2)
+        }
+      case Or(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (True, _) | (_, True) => True
+          case (False, e)            => e
+          case (e, False)            => e
+          case (e1, e2)              => Or(e1, e2)
         }
       case Not(e: Expr) =>
         partialEval(e) match {
@@ -287,6 +302,22 @@ object ExprEvaluator {
           case vec: VecBuild => partialEval(vec.len)
           case vec @ _       => VecLength(vec)
         }
+    }
+  }
+
+  private def splitAnd(e: Expr): Seq[Expr] = {
+    // TODO: Convert to POS form first?
+    e match {
+      case And(x, y) => splitAnd(x) ++ splitAnd(y)
+      case e         => Seq(e)
+    }
+  }
+
+  private def splitOr(e: Expr): Seq[Expr] = {
+    // TODO: Convert to SOP form first?
+    e match {
+      case Or(x, y) => splitOr(x) ++ splitOr(y)
+      case e        => Seq(e)
     }
   }
 

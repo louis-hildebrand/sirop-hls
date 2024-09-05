@@ -90,6 +90,7 @@ object GreaterThan {
 // Logical operators
 case class Not(e: Expr) extends BoolExpr
 case class And(e1: Expr, e2: Expr) extends BoolExpr
+case class Or(e1: Expr, e2: Expr) extends BoolExpr
 
 // Streams
 case class StmBuild(
