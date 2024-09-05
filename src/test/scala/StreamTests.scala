@@ -199,7 +199,12 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount2D(4, 3),
       (s: Expr) =>
-        StmFold(s, 0, (acc: Expr) => (x: Expr) => acc + x.__0 + x.__1, n = 3),
+        StmFold(
+          s,
+          0,
+          (acc: Expr) => (x: Expr) => acc + x.__0 + x.__1,
+          stmShape = Seq(3)
+        ),
       n = 4,
       fInShape = Some(3),
       fOutShape = None
@@ -602,7 +607,7 @@ class StreamTests extends AnyFunSuite {
     )
     assertStreamEqual(
       StmAccess(s, 0, shape = Seq(3, 3, 4)),
-      expected(0).flatten
+      expected.head.flatten
     )
     assertStreamEqual(
       StmAccess(s, 1, shape = Seq(3, 3, 4)),
@@ -615,20 +620,219 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmFold:1D:Sum") {
-    val sum = StmFold(StmCount(6), 3, (x: Expr) => (y: Expr) => x + y, n = 6)
+    val sum =
+      StmFold(
+        StmCount(6),
+        3,
+        (acc: Expr) => (x: Expr) => acc + x,
+        stmShape = Seq(6)
+      )
     val pe = ExprEvaluator.partialEval(sum)
     assert(pe == IntCst(18))
   }
 
+  test("StmFold:1D:Product") {
+    val prod =
+      StmFold(
+        StmCountFrom(1, 5),
+        1,
+        (acc: Expr) => (x: Expr) => acc * x,
+        stmShape = Seq(5)
+      )
+    assert(ExprEvaluator.partialEval(prod) == IntCst(120))
+  }
+
+  test("StmFold:1D:HornerMethod") {
+    // Non-commutative, non-associative update function
+    // Evaluate y = 2x^4 + 3x^3 + 4x^2 + 5x + 6 at x = 2
+    val coefficients = StmCountFrom(2, 5)
+    val x = 2
+    val y =
+      StmFold(
+        coefficients,
+        0,
+        (acc: Expr) => (a: Expr) => a + x * acc,
+        stmShape = Seq(5)
+      )
+    assert(ExprEvaluator.partialEval(y) == IntCst(88))
+  }
+
+  test("StmFold:1D:IgnoreInput") {
+    fail("TODO")
+  }
+
   test("StmFold:2D:Sum") {
-    val sum = StmFold(
-      StmCount2D(3, 2),
-      0,
-      (s: Expr) =>
-        StmFold(s, 0, (x: Expr) => (acc: Expr) => acc + x.__0 + x.__1, n = 2),
-      n = 3
+    // [[0, 1, 2, 3],
+    //  [1, 2, 3, 4],
+    //  [2, 3, 4, 5]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => i + j,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(4)
     )
-    assert(ExprEvaluator.partialEval(sum) == IntCst(40))
+    val sum = StmFold(
+      s,
+      0,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc + StmFold(
+            s,
+            0,
+            (a: Expr) => (x: Expr) => a + x,
+            stmShape = Seq(4)
+          ),
+      stmShape = Seq(3, 4)
+    )
+    assert(ExprEvaluator.partialEval(sum) == IntCst(30))
+  }
+
+  test("StmFold:2D:SumColumn") {
+    fail("TODO")
+  }
+
+  test("StmFold:2D:Product") {
+    // [[1, 2, 3],
+    //  [2, 3, 4],
+    //  [3, 4, 5]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(3),
+          (j: Expr) => i + j + 1,
+          n = 3,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(3)
+    )
+    val prod = StmFold(
+      s,
+      1,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc * StmFold(
+            s,
+            1,
+            (acc: Expr) => (x: Expr) => acc * x,
+            stmShape = Seq(3)
+          ),
+      stmShape = Seq(3, 3)
+    )
+    assert(ExprEvaluator.partialEval(prod) == IntCst(8640))
+  }
+
+  test("StmFold:3D:Sum") {
+    // [[[0, 1, 2, 3],
+    //   [1, 2, 3, 4]],
+    //  [[1, 2, 3, 4],
+    //   [2, 3, 4, 5]],
+    //  [[2, 3, 4, 5],
+    //   [3, 4, 5, 6]]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) =>
+            StmMap(
+              StmCount(4),
+              (k: Expr) => i + j + k,
+              n = 4,
+              fInShape = None,
+              fOutShape = None
+            ),
+          n = 2,
+          fInShape = None,
+          fOutShape = Some(4)
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(8)
+    )
+    val sum = StmFold(
+      s,
+      0,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc + StmFold(
+            s,
+            0,
+            (acc: Expr) =>
+              (s: Expr) =>
+                acc + StmFold(
+                  s,
+                  0,
+                  (a: Expr) => (x: Expr) => a + x,
+                  stmShape = Seq(4)
+                ),
+            stmShape = Seq(2, 4)
+          ),
+      stmShape = Seq(3, 2, 4)
+    )
+    assert(ExprEvaluator.partialEval(sum) == IntCst(72))
+  }
+
+  test("StmFold:3D:Product") {
+    // [[[1, 2],
+    //   [2, 3]],
+    //  [[2, 3],
+    //   [3, 4]],
+    //  [[3, 4],
+    //   [4, 5]]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) =>
+            StmMap(
+              StmCount(2),
+              (k: Expr) => i + j + k + 1,
+              n = 2,
+              fInShape = None,
+              fOutShape = None
+            ),
+          n = 2,
+          fInShape = None,
+          fOutShape = Some(2)
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val prod = StmFold(
+      s,
+      1,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc * StmFold(
+            s,
+            1,
+            (acc: Expr) =>
+              (s: Expr) =>
+                acc * StmFold(
+                  s,
+                  1,
+                  (a: Expr) => (x: Expr) => a * x,
+                  stmShape = Seq(2)
+                ),
+            stmShape = Seq(2, 2)
+          ),
+      stmShape = Seq(3, 2, 2)
+    )
+    assert(ExprEvaluator.partialEval(prod) == IntCst(207360))
   }
 
   test("StmScanInclusive") {

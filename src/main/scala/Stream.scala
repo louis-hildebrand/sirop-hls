@@ -19,14 +19,13 @@ private def expandTuple(t: Expr, n: Int): Tuple = {
   *   Shape of the output of `f`. `Some(n)` means `f` returns a stream of `n`
   *   scalars. `None` means `f` returns one scalar.
   */
-@tailrec
 private def asStm2Stm(
     f: Function,
     inShape: Option[Int],
     outShape: Option[Int]
 ): Function = {
   // TODO: what about streams of vectors or streams of tuples?
-  (inShape, outShape) match {
+  val f1 = (inShape, outShape) match {
     case (None, None) => {
       // scalar -> scalar (e.g., x => x + 1)
       val x = Param()
@@ -168,6 +167,25 @@ private def asStm2Stm(
       f
     }
   }
+  // We need to be careful about the identity function.
+  // We want to be able to reset `f` itself, but *not* the input stream.
+  // TODO: does this issue occur in any cases other than the identity function?
+  val identity: Function = (x: Expr) => x
+  val f2 = if f1 == identity then {
+    val f2: Function = (s: Expr) =>
+      StmBuild(
+        0 /* doesn't matter, right? */,
+        s,
+        (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
+      )
+    f2
+  } else {
+    f1
+  }
+  // It is essential to fuse everything.
+  // If f is a chain of stream producers, we want to reset them all, not
+  // just the last producer.
+  Function(f2.param, ExprEvaluator.fuseCompletely(f2.body))
 }
 
 private def findStmNext(e: Expr): Set[Expr] = {
@@ -295,31 +313,12 @@ object StmMap {
       fOutShape: Option[Int]
   ): Expr /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
-    val f1 = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
-    // StmMap shouldn't be messing with the input stream, so we need to be
-    // careful with the identity function
-    // TODO: does this issue occur in any cases other than the identity function?
-    val identity: Function = (x: Expr) => x
-    val f2 = if f1 == identity then {
-      val f2: Function = (s: Expr) =>
-        StmBuild(
-          0 /* doesn't matter, right? */,
-          s,
-          (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
-        )
-      f2
-    } else {
-      f1
-    }
-    // It is essential to fuse everything.
-    // If f is a chain of stream producers, we want to reset them all, not
-    // just the last producer.
-    val f3 = Function(f2.param, ExprEvaluator.fuseCompletely(f2.body))
+    val stmF = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     // TODO: Needing to partially evaluate to even define StmMap seems
     //       pretty gross
     val inner =
       ExprEvaluator.canonicalize(
-        ExprEvaluator.partialEval(FunCall(f3, input)).asInstanceOf[StmBuild]
+        ExprEvaluator.partialEval(FunCall(stmF, input)).asInstanceOf[StmBuild]
       )
     val seed = inner.seed.asInstanceOf[Tuple]
     // TODO: Deal with multiple input streams?
@@ -458,7 +457,7 @@ object StmMap {
       case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
           _: Tuple =>
         throw new IllegalArgumentException(
-          "Could not fuse function bodies due to an apparent type error."
+          "Could not make StmMap body due to an apparent type error."
         )
     }
     substitute(e)(Map(oldAcc -> newAcc.__0))
@@ -505,19 +504,88 @@ object StmFold {
       z: Expr /* B */,
       f: Function /* B -> A -> B */,
       // TODO: Ideally we would get this shape info from the type system
-      n: Int
+      stmShape: Seq[Int]
   ): Expr = {
-    Iterate(
-      n,
-      Tuple(z, stream),
-      (acc: Expr) =>
-        Tuple(
-          FunCall(FunCall(f, acc.__0), StmNext(acc.__1).__1),
-          StmNext(acc.__1).__0
-        ),
-      // TODO: this assumes `z` in `StmFold` is not a tuple (which happens to be the case in all tests so far)
-      zSize = 2
-    ).__0
+    // TODO: Enforce the restriction that the accumulator cannot contain any streams?
+    val stmF =
+      asStm2Stm(
+        f.body.asInstanceOf[Function],
+        inShape =
+          if stmShape.tail.isEmpty then None else Some(stmShape.tail.product),
+        outShape = None
+      )
+    val inner = ExprEvaluator.canonicalize(
+      ExprEvaluator.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
+    )
+    val s = StmBuild(
+      1,
+      Tuple(inner.seed, z, stmShape.head), {
+        val newAcc = Param()
+        Function(
+          newAcc,
+          substitute(
+            makeNextFBody(
+              oldBody = inner.nextF.body,
+              oldAcc = inner.nextF.param,
+              newAcc = newAcc,
+              oldSeed = inner.seed.asInstanceOf[Tuple]
+            )
+          )(Map(f.param -> newAcc.__1))
+        )
+      }
+    )
+    StmNext(s).__1
+  }
+
+  private def makeNextFBody(
+      oldBody: Expr,
+      oldAcc: Param,
+      newAcc: Param,
+      oldSeed: Tuple
+  ): Expr = {
+    val e = oldBody match {
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(
+          cond,
+          makeNextFBody(
+            oldBody = trueE,
+            oldAcc = oldAcc,
+            newAcc = newAcc,
+            oldSeed = oldSeed
+          ),
+          makeNextFBody(
+            oldBody = falseE,
+            oldAcc = oldAcc,
+            newAcc = newAcc,
+            oldSeed = oldSeed
+          )
+        )
+      case Tuple(a, e, valid) =>
+        val newAccVal =
+          IfThenElse(
+            valid,
+            // Inner stream produced a value
+            Tuple(
+              // Reset inner accumulator, except the input stream
+              Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
+              // Update the outer accumulator using the value produced by the function
+              e,
+              newAcc.__2 - 1
+            ),
+            // Inner stream did not produce a new value
+            Tuple(a, newAcc.__1, newAcc.__2)
+          )
+        val newValid = newAccVal.__2 === 0
+        Tuple(newAccVal, e, newValid)
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        ???
+      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
+          _: Tuple =>
+        throw new IllegalArgumentException(
+          "Could not make StmFold body due to an apparent type error."
+        )
+    }
+    substitute(e)(Map(oldAcc -> newAcc.__0))
   }
 }
 

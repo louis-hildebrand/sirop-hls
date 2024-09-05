@@ -59,7 +59,7 @@ object Stm2Vec {
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
       (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
-      n = n
+      stmShape = Seq(n)
     )
 }
 

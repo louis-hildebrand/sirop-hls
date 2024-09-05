@@ -400,8 +400,7 @@ object ExprEvaluator {
           e match {
             case _: IntCst | True | False => true
             case Tuple()                  => true
-            // TODO: allow non-empty tuples to be removed as well?
-            case _ => false
+            case _                        => false
           }
         )
         .map((e, i) => i)
