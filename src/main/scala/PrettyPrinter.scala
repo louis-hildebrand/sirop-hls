@@ -1,11 +1,15 @@
 import scala.jdk.CollectionConverters._
 
 object PrettyPrinter {
-  def show(e: Expr)(implicit numByParam: Map[Param, Int]): String = {
+  def show(e: Expr, collapseStm: Boolean = false)(implicit
+      numByParam: Map[Param, Int]
+  ): String = {
     e match {
-      case True           => "True"
-      case False          => "False"
-      case IntCst(n)      => n.toString
+      case True      => "True"
+      case False     => "False"
+      case IntCst(n) => n.toString
+      // In theory we should also pass `collapseStm` to `showWithParens`, but
+      // hopefully there are no streams being built inside these expressions
       case Add(x, y)      => s"${showWithParens(x)} + ${showWithParens(y)}"
       case Sub(x, y)      => s"${showWithParens(x)} - ${showWithParens(y)}"
       case Mul(x, y)      => s"${showWithParens(x)} * ${showWithParens(y)}"
@@ -18,10 +22,10 @@ object PrettyPrinter {
       case Or(x, y)       => s"${showWithParens(x)} || ${showWithParens(y)}"
       case Not(x)         => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
-        s"""if (${show(c)}) then {
-           |${indent(show(t))}
+        s"""if (${show(c, collapseStm = collapseStm)}) then {
+           |${indent(show(t, collapseStm = collapseStm))}
            |} else {
-           |${indent(show(f))}
+           |${indent(show(f, collapseStm = collapseStm))}
            |}
            |""".stripMargin.stripTrailing
       case p: Param =>
@@ -32,8 +36,10 @@ object PrettyPrinter {
       case Function(p, b) =>
         val paramNum =
           if numByParam.isEmpty then 0 else numByParam.values.max + 1
-        val pStr = show(p)(numByParam + (p -> paramNum))
-        val bStr = show(b)(numByParam + (p -> paramNum))
+        val pStr =
+          show(p, collapseStm = collapseStm)(numByParam + (p -> paramNum))
+        val bStr =
+          show(b, collapseStm = collapseStm)(numByParam + (p -> paramNum))
         if isMultiline(bStr) then {
           s"""(${pStr} /* ${p.toString} */) =>
              |${indent(bStr)}
@@ -41,42 +47,51 @@ object PrettyPrinter {
         } else {
           s"(${pStr} /* ${p.toString} */) => ${bStr}"
         }
-      case FunCall(f, a)    => s"(${show(f)})(${show(a)})"
+      case FunCall(f, a) =>
+        s"(${show(f, collapseStm = collapseStm)})(${show(a, collapseStm = collapseStm)})"
       case Tuple(elems: _*) =>
         // Include the trailing t to distinguish between a parenthesized
         // expression and a tuple of one element.
-        "t(" + elems.map(e => show(e)).mkString(", ") + ")"
-      case TupleAccess(t, i) => s"${show(t)}.__${show(i)}"
+        "t(" + elems
+          .map(e => show(e, collapseStm = collapseStm))
+          .mkString(", ") + ")"
+      case TupleAccess(t, i) =>
+        s"${show(t, collapseStm = collapseStm)}.__${show(i, collapseStm = collapseStm)}"
       case StmBuild(n, z, f) =>
-        val nStr = show(n)
-        val zStr = show(z)
-        val fStr = show(f)
-        if isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr) then {
-          s"""StmBuild(
-             |${indent(nStr)},
-             |${indent(zStr)},
-             |${indent(fStr)}
-             |)
-             |""".stripMargin.stripTrailing
+        if collapseStm then {
+          s"StmBuild(${show(n, collapseStm = collapseStm)}, ...)"
         } else {
-          s"StmBuild(${nStr}, ${zStr}, ${fStr})"
+          val nStr = show(n, collapseStm = collapseStm)
+          val zStr = show(z, collapseStm = collapseStm)
+          val fStr = show(f, collapseStm = collapseStm)
+          if isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr) then {
+            s"""StmBuild(
+               |${indent(nStr)},
+               |${indent(zStr)},
+               |${indent(fStr)}
+               |)
+               |""".stripMargin.stripTrailing
+          } else {
+            s"StmBuild(${nStr}, ${zStr}, ${fStr})"
+          }
         }
-      case StmNext(s)   => s"StmNext(${show(s)})"
-      case StmLength(s) => s"len(${show(s)})"
+      case StmNext(s)   => s"StmNext(${show(s, collapseStm = collapseStm)})"
+      case StmLength(s) => s"len(${show(s, collapseStm = collapseStm)})"
       case VecBuild(n, f) =>
-        val nStr = show(n)
-        val fStr = show(f)
+        val nStr = show(n, collapseStm = collapseStm)
+        val fStr = show(f, collapseStm = collapseStm)
         if isMultiline(nStr) || isMultiline(fStr) then {
           s"""VecBuild(
-             |${indent(nStr)},
-             |${indent(fStr)}
-             |)
-             |""".stripMargin
+               |${indent(nStr)},
+               |${indent(fStr)}
+               |)
+               |""".stripMargin
         } else {
           s"VecBuild(${nStr}, ${fStr})"
         }
-      case VecAccess(v, i) => s"${show(v)}[${show(i)}]"
-      case VecLength(v)    => s"len(${show(v)})"
+      case VecAccess(v, i) =>
+        s"${show(v)}[${show(i, collapseStm = collapseStm)}]"
+      case VecLength(v) => s"len(${show(v, collapseStm = collapseStm)})"
     }
   }
 
