@@ -18,7 +18,7 @@ object VecFold {
           acc.__1 + 1
         ),
       // TODO: this assumes `z` in `VecFold` is not a tuple (which happens to be the case in all tests so far)
-      zSize = 2
+      zSize = Some(2)
     ).__0
   }
 }
@@ -44,7 +44,7 @@ object VecScan {
             f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1))
           )
         ),
-      zSize = 2
+      zSize = Some(2)
     ).__1
   }
 }

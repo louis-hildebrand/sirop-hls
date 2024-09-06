@@ -62,7 +62,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Iterate:Square") {
-    val e = (n: Int) => Iterate(n, 3, (x: Expr) => x * x, zSize = 1)
+    val e = (n: Int) => Iterate(n, 3, (x: Expr) => x * x, zSize = None)
     assert(ExprEvaluator.partialEval(e(0)) == IntCst(3))
     assert(ExprEvaluator.partialEval(e(1)) == IntCst(9))
     assert(ExprEvaluator.partialEval(e(2)) == IntCst(81))
@@ -70,7 +70,14 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Iterate:PlusTwo") {
-    val e = (n: Int) => Iterate(n, -10, (x: Expr) => x + 2, zSize = 1)
+    val e =
+      (n: Int) =>
+        Iterate(
+          n,
+          Tuple(-10),
+          (x: Expr) => Tuple(x.__0 + 2),
+          zSize = Some(1)
+        ).__0
     assert(ExprEvaluator.partialEval(e(0)) == IntCst(-10))
     assert(ExprEvaluator.partialEval(e(1)) == IntCst(-8))
     assert(ExprEvaluator.partialEval(e(2)) == IntCst(-6))

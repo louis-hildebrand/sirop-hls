@@ -256,25 +256,30 @@ object Iterate {
       z: Expr /* A */,
       f: Function /* A -> A */,
       // TODO: Ideally we would get this shape information from the type system,
-      zSize: Int
+      zSize: Option[Int]
   ): Expr = {
     val s = StmBuild(
       1,
       Tuple(n, z),
-      (acc: Expr) =>
+      (acc: Expr) => {
+        val acc1Expanded = zSize match {
+          case Some(n) => expandTuple(acc.__1, n)
+          case None    => acc.__1
+        }
         IfThenElse(
           acc.__0 === 0,
           Tuple(
-            Tuple(acc.__0, expandTuple(acc.__1, zSize)),
-            expandTuple(acc.__1, zSize),
+            Tuple(acc.__0, acc1Expanded),
+            acc1Expanded,
             True
           ),
           Tuple(
             Tuple(acc.__0 - 1, FunCall(f, acc.__1)),
-            expandTuple(acc.__1, zSize),
+            acc1Expanded,
             False
           )
         )
+      }
     )
     StmNext(s).__1
   }
