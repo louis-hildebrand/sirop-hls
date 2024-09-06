@@ -139,8 +139,35 @@ private def asStm2Stm(
           "If StmNext() is never called in f, then surely the input stream is unused in f."
           // ... because how else can you convert a stream to a scalar?
         )
-        // We can pretend the input is actually a scalar, since it's unused
-        asStm2Stm(f, inShape = None, outShape = None)
+        // Unfortunately we cannot just pretend the input is a scalar, since
+        // this may mess with the rhythm of reading and writing.
+        // For example, suppose s is a 3x3 stream.
+        // Then in StmFold(s, 0, (acc: Expr) => (s: Expr) => acc + 42), the
+        // stream corresponding to acc => s => acc + 42 actually needs to read
+        // three elements for every one element it produces.
+        val s = Param()
+        val numIn = inShape.get
+        Function(
+          s /* stream */,
+          StmBuild(
+            1,
+            Tuple(s, numIn),
+            (acc: Expr) =>
+              IfThenElse(
+                acc.__1 === 1,
+                Tuple(
+                  Tuple(StmNext(acc.__0).__0, numIn),
+                  FunCall(f, StmNext(acc.__0).__1),
+                  True
+                ),
+                Tuple(
+                  Tuple(StmNext(acc.__0).__0, acc.__1 - 1),
+                  FunCall(f, StmNext(acc.__0).__1),
+                  False
+                )
+              )
+          )
+        )
       } else if nextCalls.size > 1 then {
         throw new IllegalArgumentException(
           "Multiple different calls to StmNext() found."
@@ -174,7 +201,7 @@ private def asStm2Stm(
   val f2 = if f1 == identity then {
     val f2: Function = (s: Expr) =>
       StmBuild(
-        0 /* doesn't matter, right? */,
+        outShape.getOrElse(1),
         s,
         (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
       )
@@ -360,6 +387,7 @@ object StmMap {
         }
       )
     } else {
+      // TODO: There's got to be a way to handle this special case in `asStm2Stm`, right?
       val innerNext = Param()
       StmBuild(
         n * numOut,
@@ -518,9 +546,10 @@ object StmFold {
     val inner = ExprEvaluator.canonicalize(
       ExprEvaluator.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
     )
+    val numIn = stmShape.tail.product
     val s = StmBuild(
       1,
-      Tuple(inner.seed, z, stmShape.head), {
+      Tuple(inner.seed, z, stmShape.head, numIn, 1), {
         val newAcc = Param()
         Function(
           newAcc,
@@ -529,7 +558,8 @@ object StmFold {
               oldBody = inner.nextF.body,
               oldAcc = inner.nextF.param,
               newAcc = newAcc,
-              oldSeed = inner.seed.asInstanceOf[Tuple]
+              oldSeed = inner.seed.asInstanceOf[Tuple],
+              numIn = numIn
             )
           )(Map(f.param -> newAcc.__1))
         )
@@ -542,7 +572,8 @@ object StmFold {
       oldBody: Expr,
       oldAcc: Param,
       newAcc: Param,
-      oldSeed: Tuple
+      oldSeed: Tuple,
+      numIn: Int
   ): Expr = {
     val e = oldBody match {
       case IfThenElse(cond, trueE, falseE) =>
@@ -552,32 +583,63 @@ object StmFold {
             oldBody = trueE,
             oldAcc = oldAcc,
             newAcc = newAcc,
-            oldSeed = oldSeed
+            oldSeed = oldSeed,
+            numIn = numIn
           ),
           makeNextFBody(
             oldBody = falseE,
             oldAcc = oldAcc,
             newAcc = newAcc,
-            oldSeed = oldSeed
+            oldSeed = oldSeed,
+            numIn = numIn
           )
         )
       case Tuple(a, e, valid) =>
+        val newInCtr = a match {
+          case Tuple(
+                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
+                _: _*
+              ) if p == oldAcc =>
+            // StmNext() called, so decrement the input counter.
+            newAcc.__3 - 1
+          case Tuple(TupleAccess(p, IntCst(0)), _: _*) if p == oldAcc =>
+            // StmNext() *not* called, so do *not* decrement the input counter.
+            newAcc.__3
+          case Tuple(x, _: _*) =>
+            throw new IllegalArgumentException(
+              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
+            )
+          case _ => ???
+        }
+        val newOutCtr = IfThenElse(
+          valid,
+          // Output produced, so decrement the output counter.
+          newAcc.__4 - 1,
+          // No output produced, so do not decrement the output counter.
+          newAcc.__4
+        )
         val newAccVal =
           IfThenElse(
-            valid,
-            // Inner stream produced a value
+            (newInCtr === 0) && (newInCtr === 0),
+            // Reset
             Tuple(
-              // Reset inner accumulator, except the input stream
+              // Never reset the input stream
               Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
-              // Update the outer accumulator using the value produced by the function
-              e,
-              newAcc.__2 - 1
+              IfThenElse(valid, e, newAcc.__1),
+              newAcc.__2 - 1,
+              numIn,
+              1
             ),
-            // Inner stream did not produce a new value
-            Tuple(a, newAcc.__1, newAcc.__2)
+            // No reset
+            Tuple(
+              a,
+              IfThenElse(valid, e, newAcc.__1),
+              newAcc.__2,
+              newInCtr,
+              newOutCtr
+            )
           )
-        val newValid = newAccVal.__2 === 0
-        Tuple(newAccVal, e, newValid)
+        Tuple(newAccVal, IfThenElse(valid, e, newAcc.__1), newAccVal.__2 === 0)
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
         ???
       case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |

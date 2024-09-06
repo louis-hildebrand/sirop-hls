@@ -15,21 +15,12 @@ object StreamTests {
       ExprEvaluator.partialEval(next.__1) +: stm2Seq(next.__0)
     }
   }
-
-  def stmStm2SeqSeq(stm: Expr): Seq[Seq[Expr]] = ???
 }
 
 class StreamTests extends AnyFunSuite {
 
   inline def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
     assert(StreamTests.stm2Seq(stream) == expectedSeq)
-  }
-
-  inline def assert2DStreamEqual(
-      stream: Expr,
-      expectedSeq: Seq[Seq[Expr]]
-  ): Unit = {
-    assert(StreamTests.stmStm2SeqSeq(stream) == expectedSeq)
   }
 
   test("IntCst") {
@@ -657,27 +648,33 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(y) == IntCst(88))
   }
 
-  test("StmFold:1D:IgnoreInput") {
-    fail("TODO")
+  test("StmFold:1D:DiscardInputAdd42") {
+    val x = StmFold(
+      StmCount(5),
+      2,
+      (acc: Expr) => (_: Expr) => acc + 42,
+      stmShape = Seq(5)
+    )
+    assert(ExprEvaluator.partialEval(x) == IntCst(2 + 5 * 42))
   }
 
-  test("StmFold:2D:Sum") {
-    // [[0, 1, 2, 3],
-    //  [1, 2, 3, 4],
-    //  [2, 3, 4, 5]]
+  test("StmFold:2D:SumWide") {
+    // [[0, 1, 2, 3, 4],
+    //  [1, 2, 3, 4, 5],
+    //  [2, 3, 4, 5, 6]]
     val s = StmMap(
       StmCount(3),
       (i: Expr) =>
         StmMap(
-          StmCount(4),
+          StmCount(5),
           (j: Expr) => i + j,
-          n = 4,
+          n = 5,
           fInShape = None,
           fOutShape = None
         ),
       n = 3,
       fInShape = None,
-      fOutShape = Some(4)
+      fOutShape = Some(5)
     )
     val sum = StmFold(
       s,
@@ -688,15 +685,74 @@ class StreamTests extends AnyFunSuite {
             s,
             0,
             (a: Expr) => (x: Expr) => a + x,
-            stmShape = Seq(4)
+            stmShape = Seq(5)
           ),
-      stmShape = Seq(3, 4)
+      stmShape = Seq(3, 5)
     )
-    assert(ExprEvaluator.partialEval(sum) == IntCst(30))
+    assert(ExprEvaluator.partialEval(sum) == IntCst(45))
+  }
+
+  test("StmFold:2D:SumNarrow") {
+    // [[0, 1],
+    //  [1, 2],
+    //  [2, 3],
+    //  [3, 4]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) => i + j,
+          n = 2,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(2)
+    )
+    val sum = StmFold(
+      s,
+      0,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc + StmFold(
+            s,
+            0,
+            (a: Expr) => (x: Expr) => a + x,
+            stmShape = Seq(2)
+          ),
+      stmShape = Seq(4, 2)
+    )
+    assert(ExprEvaluator.partialEval(sum) == IntCst(16))
   }
 
   test("StmFold:2D:SumColumn") {
-    fail("TODO")
+    // [[1, 2, 3, 4],
+    //  [2, 3, 4, 5],
+    //  [3, 4, 5, 6],
+    //  [4, 5, 6, 7]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => i + j + 1,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val x = StmFold(
+      s,
+      13,
+      (acc: Expr) => (s: Expr) => acc + StmAccess(s, 1, shape = Seq(4)),
+      stmShape = Seq(4, 4)
+    )
+    assert(ExprEvaluator.partialEval(x) == IntCst(13 + 2 + 3 + 4 + 5))
   }
 
   test("StmFold:2D:Product") {
@@ -731,6 +787,38 @@ class StreamTests extends AnyFunSuite {
       stmShape = Seq(3, 3)
     )
     assert(ExprEvaluator.partialEval(prod) == IntCst(8640))
+  }
+
+  test("StmFold:2D:DiscardInputAdd42") {
+    // [[0, 1, 2, 3, 4],
+    //  [1, 2, 3, 4, 5],
+    //  [2, 3, 4, 5, 6]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(5),
+          (j: Expr) => i + j,
+          n = 5,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(5)
+    )
+    // TODO: What about a weird case where it starts by ignoring input but
+    //       then starts using the input after a certain number of rows?
+    //       This would require using a tuple accumulator, which is not
+    //       currently supported in the interpreter (although it shouldn't be
+    //       terribly difficult to implement).
+    val sum = StmFold(
+      s,
+      0,
+      (acc: Expr) => (s: Expr) => acc + 42,
+      stmShape = Seq(3, 5)
+    )
+    assert(ExprEvaluator.partialEval(sum) == IntCst(3 * 42))
   }
 
   test("StmFold:3D:Sum") {
