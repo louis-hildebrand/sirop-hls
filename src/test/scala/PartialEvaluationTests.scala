@@ -15,9 +15,21 @@ class PartialEvaluationTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(StmLength(n.__0)) == IntCst(0))
   }
 
+  // Used to debug issue with StmFold
+  test("FunCall") {
+    val x = Param()
+    val e = FunCall(
+      (y: Expr) => Tuple(StmNext(y.__1).__1 + y.__0, StmNext(y.__1).__0),
+      x
+    )
+    val expected =
+      Tuple(StmNext(x.__1).__1 + x.__0, StmNext(x.__1).__0)
+    assert(ExprEvaluator.partialEval(e) == expected)
+  }
+
   test("Stm2Vec2Stm") {
     val cntAst = StmCount(3)
-    val stream = Vec2Stm(Stm2Vec(cntAst))
+    val stream = Vec2Stm(Stm2Vec(cntAst, n = 3))
     assertStreamEqual(stream, Seq(0, 1, 2))
 
     val partialEval = ExprEvaluator.partialEval(stream)

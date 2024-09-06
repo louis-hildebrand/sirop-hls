@@ -3,10 +3,17 @@ import org.scalatest.funsuite.AnyFunSuite
 class StreamFusionTests extends AnyFunSuite {
   val canon = (e: Expr) => ExprEvaluator.canonicalize(e.asInstanceOf[StmBuild])
   val fuse = ExprEvaluator.fuse
+  val fuseCompletely = ExprEvaluator.fuseCompletely
   val stm2Seq = StreamTests.stm2Seq
 
   test("CountFromFive") {
-    val s = StmMap(StmCount(3), (x: Expr) => x + 5)
+    val s = StmMap(
+      StmCount(3),
+      (x: Expr) => x + 5,
+      n = 3,
+      fInShape = None,
+      fOutShape = None
+    )
     val actual = canon(fuse(s))
 
     // Correct behaviour
@@ -25,34 +32,34 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("MapMap") {
     val p = Param()
-    val f = Param()
-    val g = Param()
-    val s = StmMap(StmMap(p, f), g)
+    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val g = (x: Expr) => x - 10
+    val s =
+      StmMap(
+        StmMap(p, f, n = 5, fInShape = None, fOutShape = None),
+        g,
+        n = 5,
+        fInShape = None,
+        fOutShape = None
+      )
     val actual = canon(fuse(s))
 
     // Correct behaviour
     // (Using one example p, f, and g)
-    val call = (e: Expr) =>
-      Let(
-        p,
-        StmCount(5),
-        Let(
-          f,
-          (x: Expr) => (x + 2) * (x + 3) * (x + 4),
-          Let(g, (x: Expr) => x - 10, e)
-        )
-      )
+    val call = (e: Expr) => Let(p, StmCount(5), e)
     val expectedElems = Seq(14, 50, 110, 200, 326).map(n => IntCst(n))
     assert(stm2Seq(call(s)) == expectedElems)
     assert(stm2Seq(call(actual)) == expectedElems)
     // Successful fusion
     val ideal = StmBuild(
-      StmLength(p),
+      5,
       Tuple(p),
       (acc: Expr) =>
         Tuple(
-          Tuple(StmNext(acc.__0).__0),
-          FunCall(g, FunCall(f, StmNext(acc.__0).__1)),
+          Tuple(StmNext(acc.__0).__0), {
+            val x = StmNext(acc.__0).__1
+            (x + 2) * (x + 3) * (x + 4) - 10
+          },
           True
         )
     )
@@ -61,8 +68,12 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("StmShiftRight") {
     val p = Param()
-    val s = StmPrepend(StmPrefix(p, StmLength(p) - 1), 42)
-    val actual = canon(fuse(s))
+    val s = StmPrepend(
+      StmPrefix(p, StmLength(p) - 1, shape = Seq(5)),
+      42,
+      eShape = Seq()
+    )
+    val actual = canon(fuseCompletely(s))
 
     // Correct behaviour
     // (Using one example p)
@@ -73,12 +84,24 @@ class StreamFusionTests extends AnyFunSuite {
     // Successful fusion
     val ideal = StmBuild(
       StmLength(p),
-      Tuple(True, p),
+      Tuple(1, p, 0),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0,
-          Tuple(Tuple(False, acc.__1), 42, True),
-          Tuple(Tuple(False, StmNext(acc.__1).__0), StmNext(acc.__1).__1, True)
+          acc.__0 === 0,
+          IfThenElse(
+            acc.__2 < (StmLength(p) - 1),
+            Tuple(
+              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
+              StmNext(acc.__1).__1,
+              True
+            ),
+            Tuple(
+              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
+              StmNext(acc.__1).__1,
+              False
+            )
+          ),
+          Tuple(Tuple(acc.__0 - 1, acc.__1, acc.__2), 42, True)
         )
     )
     assert(actual == ideal)
@@ -86,60 +109,38 @@ class StreamFusionTests extends AnyFunSuite {
 
   test("StmShiftLeft") {
     val p = Param()
-    val s = StmAppend(StmSuffix(p, StmLength(p) - 1), 42)
-    val actual = canon(fuse(s))
+    val n = 5
+    val s =
+      StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42, stmShape = Seq(4))
+    val actual = canon(fuseCompletely(s))
 
     // Correct behaviour
-    val call = (e: Expr) => Let(p, StmCount(5), e)
+    val call = (e: Expr) => Let(p, StmCount(n), e)
     val expectedElems = Seq(1, 2, 3, 4, 42).map(n => IntCst(n))
     assert(stm2Seq(call(s)) == expectedElems)
     assert(stm2Seq(call(actual)) == expectedElems)
     // Successful fusion
-    val ideal = canon(
-      StmBuild(
-        StmLength(p),
-        Tuple(StmLength(p) - 1, 1, p),
-        (acc: Expr) =>
+    val ideal = StmBuild(
+      5,
+      Tuple(4, p, 0),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__0 === 0,
+          Tuple(Tuple(acc.__0, acc.__1, acc.__2), 42, True),
           IfThenElse(
-            acc.__0 !== 0, {
-              val innerNext = Param()
-              Let(
-                innerNext,
-                IfThenElse(
-                  acc.__1 === 0,
-                  Tuple(
-                    Tuple(acc.__1, StmNext(acc.__2).__0),
-                    StmNext(acc.__2).__1,
-                    True
-                  ),
-                  Tuple(
-                    Tuple(acc.__1 - 1, StmNext(acc.__2).__0),
-                    StmNext(acc.__2).__1,
-                    False
-                  )
-                ),
-                IfThenElse(
-                  innerNext.__2,
-                  Tuple(
-                    Tuple(
-                      acc.__0 - 1,
-                      innerNext.__0.__0,
-                      innerNext.__0.__1
-                    ),
-                    innerNext.__1,
-                    True
-                  ),
-                  Tuple(
-                    Tuple(acc.__0, innerNext.__0.__0, innerNext.__0.__1),
-                    innerNext.__1,
-                    False
-                  )
-                )
-              )
-            },
-            Tuple(Tuple(acc.__0, acc.__1, acc.__2), 42, True)
+            acc.__2 >= 1,
+            Tuple(
+              Tuple(acc.__0 - 1, StmNext(acc.__1).__0, acc.__2 + 1),
+              StmNext(acc.__1).__1,
+              True
+            ),
+            Tuple(
+              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
+              StmNext(acc.__1).__1,
+              False
+            )
           )
-      )
+        )
     )
     assert(actual == ideal)
   }

@@ -80,6 +80,49 @@ class StreamCanonicalizationTests extends AnyFunSuite {
     assert(ExprEvaluator.canonicalize(s) == canon)
   }
 
+  test("RemoveConstantAccumulatorElem") {
+    val s = StmBuild(
+      1000,
+      // The first element in the tuple will always be 1, so the optimizer
+      // should be able to get rid of it.
+      Tuple(1, 1),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__0 - 1 === 0,
+          Tuple(Tuple(1, acc.__1 + 1), acc.__1, True),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), acc.__1, True)
+        )
+    )
+    val canon = StmBuild(
+      1000,
+      Tuple(1),
+      (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0, True)
+    )
+    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+  }
+
+  test("RemoveMultipleConstantAccumulatorElems") {
+    val s = StmBuild(
+      1000,
+      // The first two elements in the tuple will always be 1 and 2,
+      // respectively, so the optimizer should be able to get rid of them
+      // both.
+      Tuple(1, 2),
+      (acc: Expr) =>
+        IfThenElse(
+          (acc.__0 - 1 === 0) && (acc.__1 + 2 === 4),
+          Tuple(Tuple(acc.__1 - 1, acc.__0 + 1), 42, True),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), 42, True)
+        )
+    )
+    val canon = StmBuild(
+      1000,
+      Tuple(),
+      (acc: Expr) => Tuple(Tuple(), 42, True)
+    )
+    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+  }
+
   test("RemoveEmptyTuples") {
     val s = StmBuild(
       4,
@@ -133,6 +176,74 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           ),
           acc.__2 + StmNext(acc.__0).__1 + acc.__3 + StmNext(acc.__1).__1,
           True
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
+  test("MoveIfThenElseOutsideTuple1") {
+    val s = StmBuild(
+      Tuple(Tuple(2, 2)),
+      0,
+      (i: Expr) =>
+        Tuple(i + 1, IfThenElse(i % 2 === 0, i / 2, (i - 1) / 2), True)
+    )
+    val canon = StmBuild(
+      Tuple(Tuple(2, 2)),
+      Tuple(0),
+      (i: Expr) =>
+        IfThenElse(
+          i.__0 % 2 === 0,
+          Tuple(Tuple(i.__0 + 1), i.__0 / 2, True),
+          Tuple(Tuple(i.__0 + 1), (i.__0 - 1) / 2, True)
+        )
+    )
+    assert(ExprEvaluator.canonicalize(s) == canon)
+  }
+
+  test("MoveIfThenElseOutsideTuple2") {
+    val s = StmBuild(
+      Tuple(Tuple(2, 2), Tuple(3, 3), Tuple(4, 4)),
+      Tuple(0, Tuple(), Tuple(0, 0)),
+      (acc: Expr) =>
+        Tuple(
+          IfThenElse(
+            acc.__2.__1 === 3,
+            IfThenElse(
+              acc.__2.__0 === 2,
+              Tuple(acc.__0 + 1, Tuple(), Tuple(0, 0)),
+              Tuple(acc.__0, Tuple(), Tuple(acc.__2.__0 + 1, 0))
+            ),
+            Tuple(acc.__0, Tuple(), Tuple(acc.__2.__0, acc.__2.__1 + 1))
+          ),
+          Tuple(acc.__0, acc.__2.__0, acc.__2.__1),
+          True
+        )
+    )
+    val canon = StmBuild(
+      Tuple(Tuple(2, 2), Tuple(3, 3), Tuple(4, 4)),
+      Tuple(0, 0, 0),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__2 === 3,
+          IfThenElse(
+            acc.__1 === 2,
+            Tuple(
+              Tuple(acc.__0 + 1, 0, 0),
+              Tuple(acc.__0, acc.__1, acc.__2),
+              True
+            ),
+            Tuple(
+              Tuple(acc.__0, acc.__1 + 1, 0),
+              Tuple(acc.__0, acc.__1, acc.__2),
+              True
+            )
+          ),
+          Tuple(
+            Tuple(acc.__0, acc.__1, acc.__2 + 1),
+            Tuple(acc.__0, acc.__1, acc.__2),
+            True
+          )
         )
     )
     assert(ExprEvaluator.canonicalize(s) == canon)

@@ -2,6 +2,37 @@ import scala.annotation.tailrec
 
 object ExprEvaluator {
 
+  def contains(e1: Expr, e2: Expr): Boolean = {
+    e1 match {
+      case _ if e1 == e2                       => true
+      case True | False | _: IntCst | _: Param => false
+      case Add(x, y)      => contains(x, e2) || contains(y, e2)
+      case Sub(x, y)      => contains(x, e2) || contains(y, e2)
+      case Mul(x, y)      => contains(x, e2) || contains(y, e2)
+      case Div(x, y)      => contains(x, e2) || contains(y, e2)
+      case Mod(x, y)      => contains(x, e2) || contains(y, e2)
+      case Equal(x, y)    => contains(x, e2) || contains(y, e2)
+      case NotEqual(x, y) => contains(x, e2) || contains(y, e2)
+      case LessThan(x, y) => contains(x, e2) || contains(y, e2)
+      case And(x, y)      => contains(x, e2) || contains(y, e2)
+      case Or(x, y)       => contains(x, e2) || contains(y, e2)
+      case Not(x)         => contains(x, e2)
+      case IfThenElse(c, t, f) =>
+        contains(c, e2) || contains(t, e2) || contains(f, e2)
+      case Function(p, b)    => contains(p, e2) || contains(b, e2)
+      case FunCall(f, a)     => contains(f, e2) || contains(a, e2)
+      case Tuple(elems: _*)  => elems.exists(e => contains(e, e2))
+      case TupleAccess(t, i) => contains(t, e2) || contains(i, e2)
+      case VecBuild(n, f)    => contains(n, e2) || contains(f, e2)
+      case VecAccess(v, i)   => contains(v, e2) || contains(i, e2)
+      case VecLength(v)      => contains(v, e2)
+      case StmBuild(n, z, f) =>
+        contains(n, e2) || contains(z, e2) || contains(f, e2)
+      case StmNext(s)   => contains(s, e2)
+      case StmLength(s) => contains(s, e2)
+    }
+  }
+
   def substitute(
       e: Expr
   )(implicit substitutions: Map[Expr, Expr]): Expr = {
@@ -42,10 +73,13 @@ object ExprEvaluator {
             Equal(substitute(e1), substitute(e2))
           case LessThan(e1: Expr, e2: Expr) =>
             LessThan(substitute(e1), substitute(e2))
+          case And(e1: Expr, e2: Expr) => And(substitute(e1), substitute(e2))
+          case Or(e1: Expr, e2: Expr)  => Or(substitute(e1), substitute(e2))
+          case Not(e: Expr)            => Not(substitute(e))
 
-          case StmBuild(length, seed, f) =>
+          case StmBuild(lengths, seed, f) =>
             StmBuild(
-              substitute(length),
+              substitute(lengths),
               substitute(seed),
               substitute(f).asInstanceOf[Function]
             )
@@ -61,9 +95,7 @@ object ExprEvaluator {
     }
   }
 
-  def partialEval(
-      e: Expr
-  )(implicit substitutions: Map[Expr, Expr] = Map()): Expr = {
+  def partialEval(e: Expr): Expr = {
     e match {
 
       case t: Tuple => Tuple(t.elems.toSeq.map(partialEval(_)): _*)
@@ -71,22 +103,20 @@ object ExprEvaluator {
         (partialEval(t), partialEval(i)) match {
           case (tuple: Tuple, index: IntCst) =>
             partialEval(tuple.elems(index.i))
+          case (IfThenElse(c, t, f), i) =>
+            // Move TupleAccess inside IfThenElse in the hope that it'll
+            // encounter a Tuple(...)
+            partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
           case (tuple @ _, index @ _) => TupleAccess(tuple, index)
         }
 
-      case p: Param =>
-        substitutions.get(p) match {
-          case Some(v) => v
-          case None    => p
-        }
-      case f: Function =>
-        val newF = substitute(f).asInstanceOf[Function]
-        Function(newF.param, partialEval(newF.body))
+      case p: Param          => p
+      case Function(p, body) => Function(p, partialEval(body))
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
           case fun: Function =>
-            partialEval(fun.body)(
-              substitutions + ((fun.param, partialEval(arg)))
+            partialEval(
+              substitute(fun.body)(Map(fun.param -> partialEval(arg)))
             )
           case fun @ _ => FunCall(fun, partialEval(arg))
         }
@@ -124,12 +154,16 @@ object ExprEvaluator {
         }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i * e2.i
-          case (e1 @ _, e2 @ _)         => Mul(e1, e2)
+          case (e1: IntCst, e2: IntCst)        => e1.i * e2.i
+          case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
+          case (e, IntCst(1))                  => e
+          case (IntCst(1), e)                  => e
+          case (e1 @ _, e2 @ _)                => Mul(e1, e2)
         }
       case Div(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i / e2.i
+          case (e, IntCst(1))           => e
           case (e1 @ _, e2 @ _)         => Div(e1, e2)
         }
       case Mod(e1: Expr, e2: Expr) =>
@@ -145,11 +179,16 @@ object ExprEvaluator {
         partialEval(cond) match {
           case True  => partialEval(trueE)
           case False => partialEval(falseE)
-          case cond @ _ =>
-            if (trueE == falseE)
-              trueE
-            else
-              IfThenElse(cond, partialEval(trueE), partialEval(falseE))
+          case cond  =>
+            // If (x0 && ... && xn) = True, then xi = True for each i
+            val t = partialEval(
+              substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
+            )
+            // If (x0 || ... || xn) = False, then xi = False for each i
+            val f = partialEval(
+              substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
+            )
+            if t == f then t else IfThenElse(cond, t, f)
         }
       case NotEqual(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -165,6 +204,28 @@ object ExprEvaluator {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i < e2.i
           case (e1 @ _, e2 @ _)         => LessThan(e1, e2)
+        }
+      case And(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (False, _) => False
+          case (_, False) => False
+          case (True, e)  => e
+          case (e, True)  => e
+          case (e1, e2)   => And(e1, e2)
+        }
+      case Or(e1: Expr, e2: Expr) =>
+        (partialEval(e1), partialEval(e2)) match {
+          case (True, _) | (_, True) => True
+          case (False, e)            => e
+          case (e, False)            => e
+          case (e1, e2)              => Or(e1, e2)
+        }
+      case Not(e: Expr) =>
+        partialEval(e) match {
+          case True   => False
+          case False  => True
+          case Not(e) => e
+          case e      => Not(e)
         }
 
       case StmBuild(length, seed, f) =>
@@ -184,12 +245,9 @@ object ExprEvaluator {
       case StmNext(s: Expr) =>
         partialEval(s) match {
           case s: StmBuild =>
-            partialEval(s.length) match {
-              case len: IntCst => {
-                assert(
-                  len.i > 0,
-                  "Attempt to call StmNext() on a stream of length 0."
-                )
+            s.length match {
+              case IntCst(len) =>
+                assert(len > 0, "Attempt to call StmNext() on an empty stream.")
                 partialEval(FunCall(s.nextF, s.seed)) match {
                   case next: Tuple =>
                     val n = next.elems.length
@@ -202,7 +260,7 @@ object ExprEvaluator {
                         // return the new stream and the next element
                         Tuple(
                           StmBuild(
-                            len.i - 1,
+                            len - 1,
                             partialEval(next.__0),
                             // this function may have free parameters
                             partialEval(s.nextF).asInstanceOf[Function]
@@ -214,7 +272,7 @@ object ExprEvaluator {
                         partialEval(
                           StmNext(
                             StmBuild(
-                              len,
+                              s.length,
                               partialEval(next.__0),
                               // this function may have free parameters
                               partialEval(s.nextF).asInstanceOf[Function]
@@ -224,12 +282,11 @@ object ExprEvaluator {
                       case _ =>
                         StmNext(s)
                     }
-                  case next @ _ => StmNext(s)
+                  case _ => StmNext(s)
                 }
-              }
-              case len @ _ => StmNext(s)
+              case _ => StmNext(s)
             }
-          case s @ _ => StmNext(s)
+          case s => StmNext(s)
         }
 
       case VecBuild(len: Expr, f: Function) =>
@@ -252,12 +309,30 @@ object ExprEvaluator {
     }
   }
 
+  private def splitAnd(e: Expr): Seq[Expr] = {
+    // TODO: Convert to POS form first?
+    e match {
+      case And(x, y) => splitAnd(x) ++ splitAnd(y)
+      case e         => Seq(e)
+    }
+  }
+
+  private def splitOr(e: Expr): Seq[Expr] = {
+    // TODO: Convert to SOP form first?
+    e match {
+      case Or(x, y) => splitOr(x) ++ splitOr(y)
+      case e        => Seq(e)
+    }
+  }
+
   def canonicalize(stm: StmBuild): StmBuild = {
     val s = partialEval(stm).asInstanceOf[StmBuild]
     val s0 = tupleAccumulator(s)
-    val s1 = flattenAccumulator(s0)
-    val s2 = removeEmptyTuples(s1)
-    moveStreamsToFront(s2)
+    // TODO: would it be better to move IfThenElse *inside* tuples?
+    val s1 = moveIfThenElseOutsideTupleInStmBody(s0)
+    val s2 = flattenAccumulator(s1)
+    val s3 = removeConstantAccumulatorElems(s2)
+    moveStreamsToFront(s3)
   }
 
   /** Wrap the accumulator in a tuple and update `nextF` accordingly.
@@ -276,6 +351,61 @@ object ExprEvaluator {
     )
   }
 
+  /** Move `IfThenElse` expressions outside of `Tuple` expressions in the body
+    * of the given stream.
+    *
+    * @param stm
+    *   The stream to which to apply the transformation.
+    * @return
+    *   The new stream.
+    */
+  private def moveIfThenElseOutsideTupleInStmBody(stm: StmBuild): StmBuild = {
+    StmBuild(
+      stm.length,
+      stm.seed,
+      Function(stm.nextF.param, moveIfThenElseOutsideTuple(stm.nextF.body))
+    )
+  }
+
+  /** Move `IfThenElse` expressions outside of `Tuple` expressions.
+    *
+    * For example, `Tuple(IfThenElse(cond, 1, 2), 3, 4)` will be replaced by
+    * `IfThenElse(cond, Tuple(1, 3, 4), Tuple(2, 3, 4))`.
+    */
+  private def moveIfThenElseOutsideTuple(e: Expr): Expr = {
+    e match {
+      case Tuple(elems: _*) =>
+        val newElems = elems.map(e => moveIfThenElseOutsideTuple(e))
+        rewriteIfThenElseInTuple(Tuple(newElems: _*))
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(
+          cond,
+          moveIfThenElseOutsideTuple(trueE),
+          moveIfThenElseOutsideTuple(falseE)
+        )
+      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
+        // Definitely will not evaluate to a tuple
+        e
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        // TODO: not sure what to do here.
+        e
+    }
+  }
+
+  private def rewriteIfThenElseInTuple(t: Tuple): Expr = {
+    val i = t.elems.indexWhere(e => e.isInstanceOf[IfThenElse])
+    if i < 0 then {
+      t
+    } else {
+      val ite = t.elems(i).asInstanceOf[IfThenElse]
+      IfThenElse(
+        ite.cond,
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.trueE): _*)),
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.falseE): _*))
+      )
+    }
+  }
+
   /** Flatten the accumulator. For example, if the seed was ((0, 1), 2), the new
     * seed will be (0, 1, 2) and `nextF` will be updated accordingly.
     */
@@ -291,20 +421,85 @@ object ExprEvaluator {
     )
   }
 
-  /** Remove empty tuples from the accumulator (leaving the accumulator as an
-    * empty tuple if the accumulator itself is empty).
+  private def removeConstantAccumulatorElems(stm: StmBuild): StmBuild = {
+    val indicesToRemove = findConstantAccumulatorElems(
+      stm,
+      // Only remove accumulator elements for which we can definitely perform
+      // constant propagation. Replacing all uses with the initial value
+      // probably wouldn't work if the element is a stream, for example.
+      indices = stm.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .zipWithIndex
+        .filter((e, i) =>
+          e match {
+            case _: IntCst | True | False => true
+            case Tuple()                  => true
+            case _                        => false
+          }
+        )
+        .map((e, i) => i)
+        .toSet
+    )
+    removeAccumulatorElemsByIndex(
+      stm,
+      indicesToRemove.toSeq,
+      replace = i => stm.seed.asInstanceOf[Tuple].elems(i)
+    )
+  }
+
+  /** @param stm
+    *   A stream whose accumulator is a non-nested tuple.
+    * @return
+    *   The indices within the accumulator tuple of the constant-valued
+    *   elements.
     */
-  private def removeEmptyTuples(stm: StmBuild): StmBuild = {
-    // Assumes the accumulator is a tuple
-    // A previous transformation should tuple the accumulator if necessary
+  @tailrec
+  private def findConstantAccumulatorElems(
+      stm: StmBuild,
+      indices: Set[Int]
+  ): Set[Int] = {
+    if indices.isEmpty then {
+      Set()
+    } else {
+      val seed = stm.seed.asInstanceOf[Tuple]
+      val z = Tuple(
+        seed.elems.zipWithIndex
+          .map((e, i) => if indices.contains(i) then e else Param()): _*
+      )
+      val acc = ExprEvaluator.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))
+      val constantIndices = indices.filter(i =>
+        ExprEvaluator.partialEval(TupleAccess(acc, i)) == seed.elems(i)
+      )
+      if constantIndices == indices then {
+        indices
+      } else {
+        findConstantAccumulatorElems(stm, constantIndices)
+      }
+    }
+  }
+
+  /** @param stm
+    *   A stream whose accumulator is a non-nested tuple.
+    * @param indicesToRemove
+    *   The indices to remove from the accumulator.
+    * @param replace
+    *   A function which, given an index from the list of indices to remove,
+    *   provides an expression with which to replace the element at that index
+    *   if it occurs in the body of the stream.
+    * @return
+    *   The stream with the given accumulator elements removed.
+    */
+  private def removeAccumulatorElemsByIndex(
+      stm: StmBuild,
+      indicesToRemove: Seq[Int],
+      replace: Int => Expr
+  ): StmBuild = {
     val seed = stm.seed.asInstanceOf[Tuple]
-    val indicesToRemove = seed.elems.zipWithIndex
-      .filter((e, _) => e == Tuple())
-      .map((_, i) => i)
     // Need to adjust indices used to read accumulator.
     // For each element removed, you need to decrement the indices of all
     // following elements by one.
-    val indexMap = (0 until seed.elems.length)
+    val indexMap = seed.elems.indices
       .map(i =>
         i ->
           (if indicesToRemove.contains(i) then None
@@ -315,7 +510,7 @@ object ExprEvaluator {
     val subs: Map[Expr, Expr] = indexMap
       .map((i, j) =>
         j match {
-          case None    => TupleAccess(acc, i) -> Tuple()
+          case None    => TupleAccess(acc, i) -> replace(i)
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
       )
@@ -466,6 +661,18 @@ object ExprEvaluator {
     }
   }
 
+  /** Fuse a `StmBuild` with its stream inputs until it has no more stream
+    * inputs.
+    */
+  @tailrec
+  def fuseCompletely(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
+    val s = canonicalize(partialEval(stm).asInstanceOf[StmBuild])
+    s.seed.asInstanceOf[Tuple].elems.head match {
+      case _: StmBuild => fuseCompletely(fuse(s))
+      case _           => s
+    }
+  }
+
   /** Fuse a `StmBuild` with its first stream input.
     */
   def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
@@ -530,13 +737,14 @@ object ExprEvaluator {
             outerStmAccArity
           )
         )
-      case _: TupleAccess | _: VecAccess | _: FunCall => ???
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        ???
       case Tuple(a, e, valid) =>
         a match {
           case Tuple(
-                TupleAccess(StmNext(TupleAccess(oldAcc, IntCst(0))), IntCst(0)),
+                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
                 as: _*
-              ) =>
+              ) if p == oldAcc =>
             // CASE 1: StmNext() called.
             //         Update the inner accumulator.
             val innerNext = Param()
@@ -546,8 +754,9 @@ object ExprEvaluator {
             // from the type system.
             val innerNext0 = tupleExpand(innerNext.__0, innerStmAccArity)
             val newAcc0 = tupleExpand(newAcc.__0, outerStmAccArity)
-            val out =
-              substitute(e)(Map(StmNext(oldAcc.__0).__1 -> innerNext.__1))
+            val subInnerNextData =
+              Map[Expr, Expr](StmNext(oldAcc.__0).__1 -> innerNext.__1)
+            val out = substitute(e)(subInnerNextData)
             Let(
               innerNext,
               FunCall(innerNextF, newAcc.__1),
@@ -556,16 +765,23 @@ object ExprEvaluator {
                 // CASE 1a: Received next element from inner stream.
                 //          Update the outer accumulator.
                 Tuple(
-                  Tuple(Tuple(Tuple() +: as: _*), innerNext0),
+                  Tuple(
+                    Tuple(
+                      Tuple() +: as.map(a =>
+                        substitute(a)(subInnerNextData)
+                      ): _*
+                    ),
+                    innerNext0
+                  ),
                   out,
-                  valid
+                  substitute(valid)(subInnerNextData)
                 ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.
                 Tuple(Tuple(newAcc0, innerNext0), out, False)
               )
             )
-          case Tuple(TupleAccess(oldAcc, IntCst(0)), as: _*) =>
+          case Tuple(TupleAccess(p, IntCst(0)), as: _*) if p == oldAcc =>
             // HACK: Expand tuple manually, as above.
             val newAcc1 = tupleExpand(newAcc.__1, innerStmAccArity)
             // CASE 2: StmNext() not called, so leave the inner accumulator
@@ -577,8 +793,8 @@ object ExprEvaluator {
             )
           case _ => ???
         }
-      case _: IntExpr | _: BoolExpr | _: Param | _: VecBuild | _: StmBuild |
-          _: StmNext | _: Function | _: Tuple =>
+      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
+          _: Tuple =>
         throw new IllegalArgumentException(
           "Could not fuse function bodies due to an apparent type error."
         )

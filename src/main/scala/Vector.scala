@@ -12,12 +12,13 @@ object VecFold {
     Iterate(
       VecLength(vec),
       Tuple(z, 0),
-      (acc: Expr) => {
+      (acc: Expr) =>
         Tuple(
           FunCall(FunCall(f, VecAccess(vec, acc.__1)), acc.__0),
           acc.__1 + 1
-        )
-      }
+        ),
+      // TODO: this assumes `z` in `VecFold` is not a tuple (which happens to be the case in all tests so far)
+      zSize = Some(2)
     ).__0
   }
 }
@@ -42,17 +43,23 @@ object VecScan {
             acc.__1,
             f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1))
           )
-        )
+        ),
+      zSize = Some(2)
     ).__1
   }
 }
 
 object Stm2Vec {
-  def apply(s: Expr): Expr =
+  def apply(
+      s: Expr,
+      // Ideally we would get this shape info from the type system
+      n: Int
+  ): Expr =
     StmFold(
       s,
       VecBuild(StmLength(s), (i: Expr) => IntCst(0)),
-      (e: Expr) => (v: Expr) => VecShiftLeft(v, e)
+      (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
+      stmShape = Seq(n)
     )
 }
 
@@ -154,7 +161,7 @@ object VecConcat {
     val m = VecLength(v2)
     VecBuild(
       n + m,
-      (i: Expr) => IfThenElse(i lt n, VecAccess(v1, i), VecAccess(v2, i - n))
+      (i: Expr) => IfThenElse(i < n, VecAccess(v1, i), VecAccess(v2, i - n))
     )
   }
 }
