@@ -625,6 +625,8 @@ object StmFold {
         )
         val newAccVal =
           IfThenElse(
+            // TODO: there's a typo here! Why didn't the tests catch it? Maybe
+            //       the output counter is not necessary.
             (newInCtr === 0) && (newInCtr === 0),
             // Reset
             Tuple(
@@ -657,28 +659,145 @@ object StmFold {
   }
 }
 
-object StmScan {
+object StmScanInclusive {
+  def apply(
+      stream: Expr /* Stream<A> */,
+      z: Expr /* B */,
+      f: Function /* B -> A -> B */,
+      // Ideally we would get this shape info from the type system
+      stmShape: Seq[Int]
+  ): Expr = {
+    // TODO: Enforce the restriction that the accumulator cannot contain any streams?
+    val stmF =
+      asStm2Stm(
+        f.body.asInstanceOf[Function],
+        inShape =
+          if stmShape.tail.isEmpty then None else Some(stmShape.tail.product),
+        outShape = None
+      )
+    val inner = ExprEvaluator.canonicalize(
+      ExprEvaluator.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
+    )
+    val numIn = stmShape.tail.product
+    StmBuild(
+      stmShape.head,
+      Tuple(inner.seed, z, stmShape.head, numIn, 1), {
+        val newAcc = Param()
+        Function(
+          newAcc,
+          substitute(
+            makeNextFBody(
+              oldBody = inner.nextF.body,
+              oldAcc = inner.nextF.param,
+              newAcc = newAcc,
+              oldSeed = inner.seed.asInstanceOf[Tuple],
+              numIn = numIn
+            )
+          )(Map(f.param -> newAcc.__1))
+        )
+      }
+    )
+  }
+
+  private def makeNextFBody(
+      oldBody: Expr,
+      oldAcc: Param,
+      newAcc: Param,
+      oldSeed: Tuple,
+      numIn: Int
+  ): Expr = {
+    val e = oldBody match {
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(
+          cond,
+          makeNextFBody(
+            oldBody = trueE,
+            oldAcc = oldAcc,
+            newAcc = newAcc,
+            oldSeed = oldSeed,
+            numIn = numIn
+          ),
+          makeNextFBody(
+            oldBody = falseE,
+            oldAcc = oldAcc,
+            newAcc = newAcc,
+            oldSeed = oldSeed,
+            numIn = numIn
+          )
+        )
+      case Tuple(a, e, valid) =>
+        val newInCtr = a match {
+          case Tuple(
+                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
+                _: _*
+              ) if p == oldAcc =>
+            // StmNext() called, so decrement the input counter.
+            newAcc.__3 - 1
+          case Tuple(TupleAccess(p, IntCst(0)), _: _*) if p == oldAcc =>
+            // StmNext() *not* called, so do *not* decrement the input counter.
+            newAcc.__3
+          case Tuple(x, _: _*) =>
+            throw new IllegalArgumentException(
+              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
+            )
+          case _ => ???
+        }
+        val newOutCtr = IfThenElse(
+          valid,
+          // Output produced, so decrement the output counter.
+          newAcc.__4 - 1,
+          // No output produced, so do not decrement the output counter.
+          newAcc.__4
+        )
+        val newAccVal =
+          IfThenElse(
+            (newInCtr === 0) && (newOutCtr === 0),
+            // Reset
+            Tuple(
+              // Never reset the input stream
+              Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
+              IfThenElse(valid, e, newAcc.__1),
+              newAcc.__2 - 1,
+              numIn,
+              1
+            ),
+            // No reset
+            Tuple(
+              a,
+              IfThenElse(valid, e, newAcc.__1),
+              newAcc.__2,
+              newInCtr,
+              newOutCtr
+            )
+          )
+        val newValid = (newInCtr === 0) && (newOutCtr === 0)
+        Tuple(newAccVal, IfThenElse(valid, e, newAcc.__1), newValid)
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+        ???
+      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
+          _: Tuple =>
+        throw new IllegalArgumentException(
+          "Could not make StmFold body due to an apparent type error."
+        )
+    }
+    substitute(e)(Map(oldAcc -> newAcc.__0))
+  }
+}
+
+object StmScanExclusive {
   def apply(
       stm: Expr /* Stm<A; n> */,
       z: Expr /* B */,
-      f: Expr => Expr => Expr /* A -> B -> B */,
-      inclusive: Boolean
+      f: Expr => Expr => Expr /* B -> A -> B */,
+      // Ideally we would get this shape info from the type system
+      stmShape: Seq[Int]
   ): Expr /* Vec<B; n> */ = {
-    val next = Param()
-    val y = Param()
-    StmBuild(
-      StmLength(stm),
-      Tuple(stm, z),
-      (acc: Expr) =>
-        Let(
-          next,
-          StmNext(acc.__0),
-          Let(
-            y,
-            f(next.__1)(acc.__1),
-            Tuple(Tuple(next.__0, y), if inclusive then y else acc.__1, True)
-          )
-        )
+    // Maybe it would be better to first take prefix of input stream, scan,
+    // and then prepend
+    StmShiftRight(
+      StmScanInclusive(stm, z, f, stmShape = stmShape),
+      z,
+      stmShape = Seq(stmShape.head)
     )
   }
 }

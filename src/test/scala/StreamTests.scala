@@ -259,6 +259,84 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:2D-2D:StmScanInclusive") {
+    // [[ 0,  1,  2,  3],
+    //  [10, 11, 12, 13],
+    //  [20, 21, 22, 23]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => 10 * i + j,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val actual = StmMap(
+      s,
+      (row: Expr) =>
+        StmScanInclusive(
+          row,
+          0,
+          (a: Expr) => (x: Expr) => a + x,
+          stmShape = Seq(4)
+        ),
+      n = 3,
+      fInShape = Some(4),
+      fOutShape = Some(4)
+    )
+    val expected = Seq(
+      Seq(0, 1, 3, 6),
+      Seq(10, 21, 33, 46),
+      Seq(20, 41, 63, 86)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(actual, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:StmScanExclusive") {
+    // [[ 0,  1,  2,  3],
+    //  [10, 11, 12, 13],
+    //  [20, 21, 22, 23]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => 10 * i + j,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val actual = StmMap(
+      s,
+      (row: Expr) =>
+        StmScanExclusive(
+          row,
+          0,
+          (a: Expr) => (x: Expr) => a + x,
+          stmShape = Seq(4)
+        ),
+      n = 3,
+      fInShape = Some(4),
+      fOutShape = Some(4)
+    )
+    val expected = Seq(
+      Seq(0, 0, 1, 3),
+      Seq(0, 10, 21, 33),
+      Seq(0, 20, 41, 63)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(actual, expected.flatten)
+  }
+
   test("StmMap:2D-2D:StmPrepend") {
     val s = StmMap(
       StmCst2D(4, 5, 42),
@@ -930,7 +1008,7 @@ class StreamTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(prod) == IntCst(207360))
   }
 
-  test("StmScanInclusive") {
+  test("StmScanInclusive:1D:Sum") {
     // [2, 3,  4,  5,  6]
     val s = StmMap(
       StmCount(5),
@@ -941,11 +1019,83 @@ class StreamTests extends AnyFunSuite {
     )
     // [2, 7, 18, 41, 88]
     val sum =
-      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = true)
+      StmScanInclusive(
+        s,
+        0,
+        (acc: Expr) => (x: Expr) => x + 2 * acc,
+        stmShape = Seq(5)
+      )
     assertStreamEqual(sum, Seq(2, 7, 18, 41, 88))
   }
 
-  test("StmScanExclusive") {
+  test("StmScanInclusive:2D:SumRowSums") {
+    // [[0, 1],
+    //  [1, 2],
+    //  [2, 3],
+    //  [3, 4]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) => i + j,
+          n = 2,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(2)
+    )
+    val sums = StmScanInclusive(
+      s,
+      0,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc + StmFold(
+            s,
+            0,
+            (a: Expr) => (x: Expr) => a + x,
+            stmShape = Seq(2)
+          ),
+      stmShape = Seq(4, 2)
+    )
+    // scan([1, 3, 5, 7])
+    val expected = Seq(1, 4, 9, 16).map(x => IntCst(x))
+    assertStreamEqual(sums, expected)
+  }
+
+  test("StmScanInclusive:2D:SumColumn1") {
+    // [[1, 2, 3, 4],
+    //  [2, 3, 4, 5],
+    //  [3, 4, 5, 6],
+    //  [4, 5, 6, 7]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => i + j + 1,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val sums = StmScanInclusive(
+      s,
+      0,
+      (acc: Expr) => (s: Expr) => acc + StmAccess(s, 1, shape = Seq(4)),
+      stmShape = Seq(4, 4)
+    )
+    // scan([2, 3, 4, 5])
+    val expected = Seq(2, 5, 9, 14).map(x => IntCst(x))
+    assertStreamEqual(sums, expected)
+  }
+
+  test("StmScanExclusive:1D:Sum") {
     // [2, 3, 4,  5,  6]
     val s = StmMap(
       StmCount(5),
@@ -956,8 +1106,80 @@ class StreamTests extends AnyFunSuite {
     )
     // [0, 2, 7, 18, 41]
     val sum =
-      StmScan(s, 0, (x: Expr) => (acc: Expr) => x + 2 * acc, inclusive = false)
+      StmScanExclusive(
+        s,
+        0,
+        (acc: Expr) => (x: Expr) => x + 2 * acc,
+        stmShape = Seq(5)
+      )
     assertStreamEqual(sum, Seq(0, 2, 7, 18, 41))
+  }
+
+  test("StmScanExclusive:2D:SumRowSums") {
+    // [[0, 1],
+    //  [1, 2],
+    //  [2, 3],
+    //  [3, 4]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(2),
+          (j: Expr) => i + j,
+          n = 2,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(2)
+    )
+    val sums = StmScanExclusive(
+      s,
+      0,
+      (acc: Expr) =>
+        (s: Expr) =>
+          acc + StmFold(
+            s,
+            0,
+            (a: Expr) => (x: Expr) => a + x,
+            stmShape = Seq(2)
+          ),
+      stmShape = Seq(4, 2)
+    )
+    // scan([1, 3, 5, 7])
+    val expected = Seq(0, 1, 4, 9).map(x => IntCst(x))
+    assertStreamEqual(sums, expected)
+  }
+
+  test("StmScanExclusive:2D:SumColumn1") {
+    // [[1, 2, 3, 4],
+    //  [2, 3, 4, 5],
+    //  [3, 4, 5, 6],
+    //  [4, 5, 6, 7]]
+    val s = StmMap(
+      StmCount(4),
+      (i: Expr) =>
+        StmMap(
+          StmCount(4),
+          (j: Expr) => i + j + 1,
+          n = 4,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = None,
+      fOutShape = Some(4)
+    )
+    val sums = StmScanExclusive(
+      s,
+      0,
+      (acc: Expr) => (s: Expr) => acc + StmAccess(s, 1, shape = Seq(4)),
+      stmShape = Seq(4, 4)
+    )
+    // scan([2, 3, 4, 5])
+    val expected = Seq(0, 2, 5, 9).map(x => IntCst(x))
+    assertStreamEqual(sums, expected)
   }
 
   test("Vec2Stm:1D") {
