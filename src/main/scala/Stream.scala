@@ -625,9 +625,10 @@ object StmFold {
         )
         val newAccVal =
           IfThenElse(
-            // TODO: there's a typo here! Why didn't the tests catch it? Maybe
+            // TODO: there was a typo here! Why didn't the tests catch it? Maybe
             //       the output counter is not necessary.
-            (newInCtr === 0) && (newInCtr === 0),
+            // (newInCtr === 0) && (newInCtr === 0),
+            (newInCtr === 0) && (newOutCtr === 0),
             // Reset
             Tuple(
               // Never reset the input stream
