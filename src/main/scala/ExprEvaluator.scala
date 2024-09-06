@@ -154,12 +154,16 @@ object ExprEvaluator {
         }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i * e2.i
-          case (e1 @ _, e2 @ _)         => Mul(e1, e2)
+          case (e1: IntCst, e2: IntCst)        => e1.i * e2.i
+          case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
+          case (e, IntCst(1))                  => e
+          case (IntCst(1), e)                  => e
+          case (e1 @ _, e2 @ _)                => Mul(e1, e2)
         }
       case Div(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst) => e1.i / e2.i
+          case (e, IntCst(1))           => e
           case (e1 @ _, e2 @ _)         => Div(e1, e2)
         }
       case Mod(e1: Expr, e2: Expr) =>
