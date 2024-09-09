@@ -84,24 +84,24 @@ class StreamFusionTests extends AnyFunSuite {
     // Successful fusion
     val ideal = StmBuild(
       StmLength(p),
-      Tuple(1, p, 0),
+      Tuple(p, 1, 0),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0 === 0,
+          acc.__1 === 0,
           IfThenElse(
             acc.__2 < (StmLength(p) - 1),
             Tuple(
-              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
-              StmNext(acc.__1).__1,
+              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
+              StmNext(acc.__0).__1,
               True
             ),
             Tuple(
-              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
-              StmNext(acc.__1).__1,
+              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
+              StmNext(acc.__0).__1,
               False
             )
           ),
-          Tuple(Tuple(acc.__0 - 1, acc.__1, acc.__2), 42, True)
+          Tuple(Tuple(acc.__0, acc.__1 - 1, acc.__2), 42, True)
         )
     )
     assert(actual == ideal)
@@ -122,21 +122,21 @@ class StreamFusionTests extends AnyFunSuite {
     // Successful fusion
     val ideal = StmBuild(
       5,
-      Tuple(4, p, 0),
+      Tuple(p, 4, 0),
       (acc: Expr) =>
         IfThenElse(
-          acc.__0 === 0,
+          acc.__1 === 0,
           Tuple(Tuple(acc.__0, acc.__1, acc.__2), 42, True),
           IfThenElse(
             acc.__2 >= 1,
             Tuple(
-              Tuple(acc.__0 - 1, StmNext(acc.__1).__0, acc.__2 + 1),
-              StmNext(acc.__1).__1,
+              Tuple(StmNext(acc.__0).__0, acc.__1 - 1, acc.__2 + 1),
+              StmNext(acc.__0).__1,
               True
             ),
             Tuple(
-              Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2 + 1),
-              StmNext(acc.__1).__1,
+              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
+              StmNext(acc.__0).__1,
               False
             )
           )

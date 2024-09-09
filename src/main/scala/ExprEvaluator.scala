@@ -536,7 +536,7 @@ object ExprEvaluator {
     val seed = stm.seed.asInstanceOf[Tuple]
     val acc = stm.nextF.param
     val indexMap = seed.elems.zipWithIndex
-      .sortBy((e, i) => !e.isInstanceOf[StmBuild])
+      .sortBy((e, i) => (!e.isInstanceOf[StmBuild], !e.isInstanceOf[Param]))
       .zipWithIndex
       .map({ case ((_, oldIdx), newIdx) => oldIdx -> newIdx })
       .toMap
