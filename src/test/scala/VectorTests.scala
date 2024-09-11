@@ -14,11 +14,11 @@ object VectorTests {
 }
 
 class VectorTests extends AnyFunSuite {
-  def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
+  inline def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
     assert(VectorTests.vec2Seq(actual) == expectedElems)
   }
 
-  def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
+  inline def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
     assert(VectorTests.vecVec2SeqSeq(actual) == expected)
   }
 
@@ -192,5 +192,16 @@ class VectorTests extends AnyFunSuite {
       Seq(IntCst(6), IntCst(9), IntCst(12))
     )
     assert2DVecEqual(actual, expected)
+  }
+
+  test("VecTranspose") {
+    val v = VecBuild(3, (i: Expr) => VecBuild(4, (j: Expr) => Tuple(i, j)))
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0)),
+      Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1)),
+      Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2)),
+      Seq(Tuple(0, 3), Tuple(1, 3), Tuple(2, 3))
+    )
+    assert2DVecEqual(VecTranspose(v), expected)
   }
 }
