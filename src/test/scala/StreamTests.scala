@@ -676,6 +676,45 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(actual, expected.flatten.flatten)
   }
 
+  test("StmMap:3D-3D:StmTranspose") {
+    // [[[(0, 0), (0, 1), (0, 2), (0, 3)],
+    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
+    //   [(2, 0), (2, 1), (2, 2), (2, 3)]],
+    //
+    //  [[(0, 0), (0, 1), (0, 2), (0, 3)],
+    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
+    //   [(2, 0), (2, 1), (2, 2), (2, 3)]]]
+    val s = StmMap(
+      StmCount(2),
+      (_: Expr) => StmCount2D(3, 4),
+      n = 2,
+      fInShape = None,
+      fOutShape = Some(12)
+    )
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0)),
+        Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1)),
+        Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2)),
+        Seq(Tuple(0, 3), Tuple(1, 3), Tuple(2, 3))
+      ),
+      Seq(
+        Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0)),
+        Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1)),
+        Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2)),
+        Seq(Tuple(0, 3), Tuple(1, 3), Tuple(2, 3))
+      )
+    )
+    val actual = StmMap(
+      s,
+      (s: Expr) => StmTranspose(s, n = 3, m = 4),
+      n = 2,
+      fInShape = Some(12),
+      fOutShape = Some(12)
+    )
+    assertStreamEqual(actual, expected.flatten.flatten)
+  }
+
   test("StmAccess:1D") {
     val s = StmMap(
       StmCount(3),
@@ -2085,6 +2124,17 @@ class StreamTests extends AnyFunSuite {
       ).flatten.flatten
     )
     val actual = StmSlideS(s, 2, stmShape = Seq(3, 3, 4))
+    assertStreamEqual(actual, expected.flatten)
+  }
+
+  test("StmTranspose") {
+    val s = StmCount2D(4, 3)
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0), Tuple(3, 0)),
+      Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(3, 1)),
+      Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2), Tuple(3, 2))
+    )
+    val actual = StmTranspose(s, n = 4, m = 3)
     assertStreamEqual(actual, expected.flatten)
   }
 }
