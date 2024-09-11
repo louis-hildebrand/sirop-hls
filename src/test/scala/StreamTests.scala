@@ -647,6 +647,35 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten.flatten)
   }
 
+  test("StmMap:2D-3D:StmSlideS") {
+    val s = StmCount2D(3, 5)
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+        Seq(Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
+        Seq(Tuple(0, 2), Tuple(0, 3), Tuple(0, 4))
+      ),
+      Seq(
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
+        Seq(Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
+        Seq(Tuple(1, 2), Tuple(1, 3), Tuple(1, 4))
+      ),
+      Seq(
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
+        Seq(Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
+        Seq(Tuple(2, 2), Tuple(2, 3), Tuple(2, 4))
+      )
+    )
+    val actual = StmMap(
+      s,
+      (s: Expr) => StmSlideS(s, 3, stmShape = Seq(5)),
+      n = 3,
+      fInShape = Some(5),
+      fOutShape = Some(9)
+    )
+    assertStreamEqual(actual, expected.flatten.flatten)
+  }
+
   test("StmAccess:1D") {
     val s = StmMap(
       StmCount(3),
@@ -1955,5 +1984,107 @@ class StreamTests extends AnyFunSuite {
     val actualElements =
       StreamTests.stm2Seq(actual).map(v => VectorTests.vec2Seq(v))
     assert(actualElements == expected)
+  }
+
+  test("StmSlideS:1D:UnitWindow") {
+    val s = StmCount(3)
+    val actual = StmSlideS(s, 1, stmShape = Seq(3))
+    val expected = Seq(Seq(0), Seq(1), Seq(2)).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(actual, expected.flatten)
+  }
+
+  test("StmSlideS:1D:SmallWindow") {
+    val s = StmCount(4)
+    val expected = Seq(
+      Seq(0, 1),
+      Seq(1, 2),
+      Seq(2, 3)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(StmSlideS(s, 2, stmShape = Seq(4)), expected.flatten)
+  }
+
+  test("StmSlideS:1D:SameSize") {
+    val s = StmCount(5)
+    val expected = Seq(
+      Seq(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4))
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(StmSlideS(s, 5, stmShape = Seq(5)), expected.flatten)
+  }
+
+  test("StmSlideS:2D") {
+    val s = StmCount2D(4, 3)
+    val expected = Seq(
+      Seq(
+        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+      ),
+      Seq(
+        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2))
+      ),
+      Seq(
+        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
+        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+      )
+    )
+    assertStreamEqual(
+      StmSlideS(s, 2, stmShape = Seq(4, 3)),
+      expected.flatten.flatten
+    )
+  }
+
+  test("StmSlideS:3D") {
+    // [[[0, 0, 0, 0],
+    //   [0, 0, 0, 0],
+    //   [0, 0, 0, 0]],
+    //
+    //  [[5, 5, 5, 5],
+    //   [5, 5, 5, 5],
+    //   [5, 5, 5, 5]],
+    //
+    //  [[10, 10, 10, 10],
+    //   [10, 10, 10, 10],
+    //   [10, 10, 10, 10]]]
+    val s = StmMap(
+      StmCount(3),
+      (i: Expr) => StmCst2D(3, 4, i * 5),
+      n = 3,
+      fInShape = None,
+      fOutShape = Some(12)
+    )
+    val expected = Seq(
+      // Window 0
+      Seq(
+        // Window 0 element 0
+        Seq(
+          Seq(IntCst(0), IntCst(0), IntCst(0), IntCst(0)),
+          Seq(IntCst(0), IntCst(0), IntCst(0), IntCst(0)),
+          Seq(IntCst(0), IntCst(0), IntCst(0), IntCst(0))
+        ),
+        // Window 0 element 1
+        Seq(
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5)),
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5)),
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5))
+        )
+      ).flatten.flatten,
+      // Window 1
+      Seq(
+        // Window 1 element 0
+        Seq(
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5)),
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5)),
+          Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5))
+        ),
+        // Window 1 element 1
+        Seq(
+          Seq(IntCst(10), IntCst(10), IntCst(10), IntCst(10)),
+          Seq(IntCst(10), IntCst(10), IntCst(10), IntCst(10)),
+          Seq(IntCst(10), IntCst(10), IntCst(10), IntCst(10))
+        )
+      ).flatten.flatten
+    )
+    val actual = StmSlideS(s, 2, stmShape = Seq(3, 3, 4))
+    assertStreamEqual(actual, expected.flatten)
   }
 }

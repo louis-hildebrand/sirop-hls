@@ -1090,3 +1090,23 @@ object StmSlideV {
     )
   }
 }
+
+object StmSlideS {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      m: Int,
+      // Ideally we would get this shape info from the type system
+      stmShape: Seq[Int]
+  ): Expr /* Stm<Stm<A; m>; n-m+1> */ = {
+    // TODO: Optimize this version specifically by producing elements while
+    //       the shift register is still filling up?
+    val s = StmSlideV(stm, m, stmShape = stmShape)
+    StmMap(
+      s,
+      (v: Expr) => Vec2Stm(v),
+      n = stmShape.head - m + 1,
+      fInShape = None,
+      fOutShape = Some(m * stmShape.tail.product)
+    )
+  }
+}
