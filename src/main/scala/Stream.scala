@@ -1021,34 +1021,69 @@ object StmJoin {
   }
 }
 
-// TODO: Disallow applying this to multi-dimensional streams?
-object StmSlide {
+object StmSlideV {
+
+  /** Return a stream of "windows" from a stream. Note that if the input stream
+    * is multidimensional, the inner dimensions will be converted to vectors and
+    * flattened.
+    *
+    * NOTE: `m` must be such that 1 &le; m &le; n.
+    *
+    * @param stm
+    *   A stream of length n.
+    * @param m
+    *   Window size.
+    */
   def apply(
       stm: Expr /* Stm<A; n> */,
-      m: Int
+      m: Int,
+      // Ideally we would get this shape info from the type system
+      stmShape: Seq[Int]
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
-    val nVal = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
-    require(m <= nVal)
-    require(m >= 1)
-    val n = StmLength(stm)
-    val next = Param()
+    val n = stmShape.head
+    val elemSize = stmShape.tail.product
     val v = Param()
     StmBuild(
       n - m + 1,
-      Tuple(m - 1, stm, VecBuild(m, (i: Expr) => IntCst(0))),
+      Tuple(
+        stm,
+        // Number of window elements left to load
+        m - 1,
+        // How many pieces of data left to load in the current window?
+        // This will always be 1 if `stm` is flat, but may be greater than 1
+        // if `stm` is multi-dimensional.
+        elemSize,
+        VecBuild(m * elemSize, (i: Expr) => IntCst(0))
+      ),
       (acc: Expr) =>
         Let(
-          next,
-          StmNext(acc.__1),
-          Let(
-            v,
-            VecShiftLeft(acc.__2, next.__1),
-            IfThenElse(
-              acc.__0 === 0,
-              // shift register is full
-              Tuple(Tuple(acc.__0, next.__0, v), v, True),
-              // shift register is not full yet
-              Tuple(Tuple(acc.__0 - 1, next.__0, v), v, False)
+          v,
+          VecShiftLeft(acc.__3, StmNext(acc.__0).__1),
+          IfThenElse(
+            (acc.__1 === 0) && (acc.__2 === 1),
+            // CASE 1: Shift register is full
+            Tuple(
+              Tuple(StmNext(acc.__0).__0, acc.__1, elemSize, v),
+              v,
+              True
+            ),
+            // CASE 2: Shift register is not full yet
+            Tuple(
+              IfThenElse(
+                acc.__1 === 0,
+                // CASE 2a: Initial loading is done, just loading the next
+                //          element. Note that each element may be a stream,
+                //          so this may take multiple cycles.
+                Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v),
+                // CASE 2b: Initial loading still in progress.
+                IfThenElse(
+                  acc.__2 === 1,
+                  Tuple(StmNext(acc.__0).__0, acc.__1 - 1, elemSize, v),
+                  Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v)
+                )
+              ),
+              v,
+              False
             )
           )
         )
