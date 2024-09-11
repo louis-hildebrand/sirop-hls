@@ -1,8 +1,8 @@
 import scala.jdk.CollectionConverters._
 
 object PrettyPrinter {
-  def show(e: Expr, collapseStm: Boolean = false)(implicit
-      numByParam: Map[Param, Int]
+  def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
+      implicit numByParam: Map[Param, Int]
   ): String = {
     e match {
       case True      => "True"
@@ -22,10 +22,10 @@ object PrettyPrinter {
       case Or(x, y)       => s"${showWithParens(x)} || ${showWithParens(y)}"
       case Not(x)         => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
-        s"""if (${show(c, collapseStm = collapseStm)}) then {
-           |${indent(show(t, collapseStm = collapseStm))}
+        s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
+           |${indent(show(t, collapseStm = collapseStm, evalVec = evalVec))}
            |} else {
-           |${indent(show(f, collapseStm = collapseStm))}
+           |${indent(show(f, collapseStm = collapseStm, evalVec = evalVec))}
            |}
            |""".stripMargin.stripTrailing
       case p: Param =>
@@ -37,9 +37,13 @@ object PrettyPrinter {
         val paramNum =
           if numByParam.isEmpty then 0 else numByParam.values.max + 1
         val pStr =
-          show(p, collapseStm = collapseStm)(numByParam + (p -> paramNum))
+          show(p, collapseStm = collapseStm, evalVec = evalVec)(
+            numByParam + (p -> paramNum)
+          )
         val bStr =
-          show(b, collapseStm = collapseStm)(numByParam + (p -> paramNum))
+          show(b, collapseStm = collapseStm, evalVec = evalVec)(
+            numByParam + (p -> paramNum)
+          )
         if isMultiline(bStr) then {
           s"""(${pStr} /* ${p.toString} */) =>
              |${indent(bStr)}
@@ -48,22 +52,22 @@ object PrettyPrinter {
           s"(${pStr} /* ${p.toString} */) => ${bStr}"
         }
       case FunCall(f, a) =>
-        s"(${show(f, collapseStm = collapseStm)})(${show(a, collapseStm = collapseStm)})"
+        s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
       case Tuple(elems: _*) =>
         // Include the trailing t to distinguish between a parenthesized
         // expression and a tuple of one element.
         "t(" + elems
-          .map(e => show(e, collapseStm = collapseStm))
+          .map(e => show(e, collapseStm = collapseStm, evalVec = evalVec))
           .mkString(", ") + ")"
       case TupleAccess(t, i) =>
-        s"${show(t, collapseStm = collapseStm)}.__${show(i, collapseStm = collapseStm)}"
+        s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
       case StmBuild(n, z, f) =>
         if collapseStm then {
-          s"StmBuild(${show(n, collapseStm = collapseStm)}, ...)"
+          s"StmBuild(${show(n, collapseStm = collapseStm, evalVec = evalVec)}, ...)"
         } else {
-          val nStr = show(n, collapseStm = collapseStm)
-          val zStr = show(z, collapseStm = collapseStm)
-          val fStr = show(f, collapseStm = collapseStm)
+          val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
+          val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
+          val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
           if isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr) then {
             s"""StmBuild(
                |${indent(nStr)},
@@ -75,23 +79,41 @@ object PrettyPrinter {
             s"StmBuild(${nStr}, ${zStr}, ${fStr})"
           }
         }
-      case StmNext(s)   => s"StmNext(${show(s, collapseStm = collapseStm)})"
-      case StmLength(s) => s"len(${show(s, collapseStm = collapseStm)})"
-      case VecBuild(n, f) =>
-        val nStr = show(n, collapseStm = collapseStm)
-        val fStr = show(f, collapseStm = collapseStm)
-        if isMultiline(nStr) || isMultiline(fStr) then {
-          s"""VecBuild(
-               |${indent(nStr)},
-               |${indent(fStr)}
-               |)
-               |""".stripMargin
-        } else {
-          s"VecBuild(${nStr}, ${fStr})"
+      case StmNext(s) =>
+        s"StmNext(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
+      case StmLength(s) =>
+        s"len(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
+      case v @ VecBuild(n, f) =>
+        val elems = if evalVec then tryEvalVec(v) else None
+        elems match {
+          case Some(elems) =>
+            // Show the elements
+            val elemStrs = elems.map(e =>
+              show(e, collapseStm = collapseStm, evalVec = evalVec)
+            )
+            if elemStrs.exists(s => isMultiline(s)) then {
+              "[\n" + elemStrs.map(s => indent(s) + ",\n") + "]"
+            } else {
+              "[" + elemStrs.mkString(", ") + "]"
+            }
+          case None =>
+            // Show the StmBuild itself
+            val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
+            val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
+            if isMultiline(nStr) || isMultiline(fStr) then {
+              s"""VecBuild(
+                 |${indent(nStr)},
+                 |${indent(fStr)}
+                 |)
+                 |""".stripMargin
+            } else {
+              s"VecBuild(${nStr}, ${fStr})"
+            }
         }
       case VecAccess(v, i) =>
-        s"${show(v)}[${show(i, collapseStm = collapseStm)}]"
-      case VecLength(v) => s"len(${show(v, collapseStm = collapseStm)})"
+        s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
+      case VecLength(v) =>
+        s"len(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
     }
   }
 
@@ -115,6 +137,20 @@ object PrettyPrinter {
     e match {
       case _: IntCst | _: Param | _: TupleAccess => false
       case _                                     => true
+    }
+  }
+
+  private def tryEvalVec(v: VecBuild): Option[Seq[Expr]] = {
+    ExprEvaluator.partialEval(v.len) match {
+      case IntCst(n) =>
+        val elems =
+          (0 until n).map(i => ExprEvaluator.partialEval(VecAccess(v, i)))
+        if elems.exists(e => e.isInstanceOf[VecAccess]) then {
+          None
+        } else {
+          Some(elems)
+        }
+      case _ => None
     }
   }
 }
