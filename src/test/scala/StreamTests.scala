@@ -1900,12 +1900,38 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmSplitJoin") {
+    val p = Param()
     val s = StmCount(6)
     val elems = (0 until 6).map(x => IntCst(x))
-    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 1))) == elems)
-    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 2))) == elems)
-    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 3))) == elems)
-    assert(StreamTests.stm2Seq(StmJoin(StmSplit(s, 6))) == elems)
+
+    // Correctness
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 1))), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 2))), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 3))), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 6))), elems)
+    // Efficiency
+    assert(StmJoin(StmSplit(p, 1)) == p)
+    assert(StmJoin(StmSplit(p, 2)) == p)
+    assert(StmJoin(StmSplit(p, 3)) == p)
+    assert(StmJoin(StmSplit(p, 6)) == p)
+  }
+
+  test("StmJoinSplit") {
+    val p = Param()
+    val s = StmCount2D(3, 2)
+    val expected = Seq(
+      Tuple(0, 0),
+      Tuple(0, 1),
+      Tuple(1, 0),
+      Tuple(1, 1),
+      Tuple(2, 0),
+      Tuple(2, 1)
+    )
+
+    // Correctness
+    assertStreamEqual(Let(p, s, StmSplit(StmJoin(p), 2)), expected)
+    // Efficiency
+    assert(StmSplit(StmJoin(p), 2) == p)
   }
 
   test("StmSlideV:1D:UnitWindow") {
