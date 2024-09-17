@@ -188,7 +188,15 @@ object ExprEvaluator {
             val f = partialEval(
               substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
             )
-            if t == f then t else IfThenElse(cond, t, f)
+            if t == f then {
+              t
+            } else if t == True && f == False then {
+              cond
+            } else if t == False && f == True then {
+              Not(cond)
+            } else {
+              IfThenElse(cond, t, f)
+            }
         }
       case NotEqual(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
