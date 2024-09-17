@@ -234,9 +234,9 @@ object VecSlide {
 }
 
 object VecTranspose {
-  def apply(v: VecBuild /* Vec<Vec<A; m>; n> */ ): Expr /* */ = {
+  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* */ = {
     val n = VecLength(v)
-    val m = IfThenElse(n === 0, 0, VecLength(VecAccess(v, 0)))
+    val m = VecLength(VecAccess(v, 0))
     VecBuild(
       m,
       (i: Expr) => VecBuild(n, (j: Expr) => VecAccess(VecAccess(v, j), i))

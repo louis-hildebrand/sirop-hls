@@ -204,4 +204,29 @@ class VectorTests extends AnyFunSuite {
     )
     assert2DVecEqual(VecTranspose(v), expected)
   }
+
+  test("VecTransposeTranspose") {
+    val p = Param()
+    val v = VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)))
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
+      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
+      Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+    )
+    val actual = VecTranspose(VecTranspose(p))
+
+    // Correctness
+    assert2DVecEqual(Let(p, v, actual), expected)
+    // Effective simplification
+    for i <- (0 until 4) do {
+      for j <- (0 until 3) do {
+        assert(
+          ExprEvaluator.partialEval(
+            VecAccess(VecAccess(actual, i), j)
+          ) == VecAccess(VecAccess(p, i), j)
+        )
+      }
+    }
+  }
 }

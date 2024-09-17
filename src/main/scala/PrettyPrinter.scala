@@ -82,7 +82,7 @@ object PrettyPrinter {
       case StmNext(s) =>
         s"StmNext(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
       case StmLength(s) =>
-        s"len(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
+        s"StmLength(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
       case v @ VecBuild(n, f) =>
         val elems = if evalVec then tryEvalVec(v) else None
         elems match {
@@ -113,7 +113,7 @@ object PrettyPrinter {
       case VecAccess(v, i) =>
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
-        s"len(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
+        s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
     }
   }
 
