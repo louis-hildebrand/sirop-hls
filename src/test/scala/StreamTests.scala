@@ -223,6 +223,26 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected)
   }
 
+  test("StmMap:2D-1D:Stm2Vec") {
+    val s = StmMap(
+      StmCount2D(5, 3),
+      (s: Expr) => Stm2Vec(s, n = 3),
+      n = 5,
+      fInShape = Some(3),
+      fOutShape = None
+    )
+    val expected = Seq(
+      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
+      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
+      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
+      Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2)),
+      Seq(Tuple(4, 0), Tuple(4, 1), Tuple(4, 2))
+    )
+
+    val actualElems = StreamTests.stm2Seq(s).map(v => VectorTests.vec2Seq(v))
+    assert(actualElems == expected)
+  }
+
   test("StmMap:2D-1D:DiscardInputReturn42") {
     val s = StmMap(
       StmCount2D(3, 4),
