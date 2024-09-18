@@ -587,7 +587,7 @@ class StreamTests extends AnyFunSuite {
       StmCount2D(4, 3),
       (_: Expr) => StmCount(5),
       n = 4,
-      fInShape = Some(5),
+      fInShape = Some(3),
       fOutShape = Some(5)
     )
     val expected = Seq(

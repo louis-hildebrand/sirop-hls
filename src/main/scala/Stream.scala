@@ -212,7 +212,28 @@ private def asStm2Stm(
   // It is essential to fuse everything.
   // If f is a chain of stream producers, we want to reset them all, not
   // just the last producer.
-  Function(f2.param, ExprEvaluator.fuseCompletely(f2.body))
+  val f3 = Function(
+    f2.param,
+    ExprEvaluator.canonicalize(ExprEvaluator.fuseCompletely(f2.body))
+  )
+  // StmMap(), StmScanInclusive(), etc. assume the function uses its input.
+  val usesInputStream = f3.body
+    .asInstanceOf[StmBuild]
+    .seed
+    .asInstanceOf[Tuple]
+    .elems
+    .contains(f3.param)
+  val f4 = if usesInputStream then {
+    f3
+  } else {
+    Function(
+      f3.param,
+      ExprEvaluator.fuseCompletely(
+        StmConcat(f3.body, StmDrain(f3.param), len1 = outShape.getOrElse(1))
+      )
+    )
+  }
+  f4
 }
 
 private def findStmNext(e: Expr): Set[Expr] = {
@@ -246,6 +267,20 @@ private def findStmNext(e: Expr): Set[Expr] = {
     case VecBuild(n, f)    => findStmNext(n) ++ findStmNext(f)
     case VecAccess(v, i)   => findStmNext(v) ++ findStmNext(i)
     case VecLength(v)      => findStmNext(v)
+  }
+}
+
+// This is useful, for example, when StmMap() or StmFold() is called with a
+// function that ignores its input. Concatenate the output of that function
+// with this to get a new stream producer that has the same effect but empties
+// the input.
+object StmDrain {
+  def apply(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; 0> */ = {
+    StmBuild(
+      0,
+      stm,
+      (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, False)
+    )
   }
 }
 
@@ -353,7 +388,6 @@ object StmMap {
       ExprEvaluator.canonicalize(
         ExprEvaluator.partialEval(FunCall(stmF, input)).asInstanceOf[StmBuild]
       )
-    val seed = inner.seed.asInstanceOf[Tuple]
     // TODO: Deal with multiple input streams?
     // TODO: This check, as well as things like reordering the accumulator, is NOT reliable as currently written (e.g.,
     //       it may fail if `input` is a `Param`). In the real compiler, we should do these things based on type, not
@@ -370,53 +404,25 @@ object StmMap {
     // must be reset?
     val numIn = fInShape.getOrElse(1)
     val numOut = fOutShape.getOrElse(1)
-    val innerUsesInputStm =
-      seed.elems.head.isInstanceOf[StmBuild] || seed.elems.head == input
     // Build a new stream by repeating the inner one once it's done
-    if innerUsesInputStm then {
-      StmBuild(
-        n * numOut,
-        Tuple(inner.seed, numIn, numOut), {
-          val newAcc = Param()
-          Function(
-            newAcc,
-            makeNextFBody(
-              oldBody = inner.nextF.body,
-              oldAcc = inner.nextF.param,
-              newAcc = newAcc,
-              oldSeed = inner.seed.asInstanceOf[Tuple],
-              numIn = numIn,
-              numOut = numOut
-            )
+    StmBuild(
+      n * numOut,
+      Tuple(inner.seed, numIn, numOut), {
+        val newAcc = Param()
+        Function(
+          newAcc,
+          makeNextFBody(
+            oldBody = inner.nextF.body,
+            oldAcc = inner.nextF.param,
+            newAcc = newAcc,
+            oldSeed = inner.seed.asInstanceOf[Tuple],
+            numIn = numIn,
+            numOut = numOut
           )
-        }
-      )
-    } else {
-      // TODO: There's got to be a way to handle this special case in `asStm2Stm`, right?
-      val innerNext = Param()
-      StmBuild(
-        n * numOut,
-        Tuple(inner.seed, numOut),
-        (newAcc: Expr) =>
-          substitute(
-            Let(
-              innerNext,
-              FunCall(inner.nextF, newAcc.__0),
-              IfThenElse(
-                newAcc.__1 === 1,
-                // Reset
-                Tuple(Tuple(inner.seed, numOut), innerNext.__1, innerNext.__2),
-                // Don't reset
-                Tuple(
-                  Tuple(innerNext.__0, newAcc.__1 - 1),
-                  innerNext.__1,
-                  innerNext.__2
-                )
-              )
-            )
-          )(Map(inner.nextF.param -> newAcc.__0))
-      )
-    }
+        )
+      }
+    )
+
   }
 
   private def makeNextFBody(
