@@ -1118,40 +1118,19 @@ object StmTranspose {
       n: Int,
       m: Int
   ): Expr /* Stm<Stm<A; n>; m> */ = {
-    val ij = Param()
-    StmBuild(
-      n * m,
-      Tuple(
-        stm,
-        VecBuild(n * m, (_: Expr) => IntCst(0)),
-        n * m,
-        StmCount2D(m, n)
-      ),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 === 0,
-          // CASE 1: the shift register is full
-          Let(
-            ij,
-            StmNext(acc.__3).__1,
-            Tuple(
-              Tuple(acc.__0, acc.__1, acc.__2, StmNext(acc.__3).__0),
-              VecAccess(acc.__1, m * ij.__1 + ij.__0),
-              True
-            )
-          ),
-          // CASE 2: the shift register is not full yet
-          Tuple(
-            Tuple(
-              StmNext(acc.__0).__0,
-              VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-              acc.__2 - 1,
-              acc.__3
-            ),
-            0 /* unused */,
-            False
-          )
-        )
+    val vectors = StmMap(
+      stm,
+      (s: Expr) => Stm2Vec(s, n = n * m),
+      n = 1,
+      fInShape = Some(n * m),
+      fOutShape = None
+    )
+    StmMap(
+      vectors,
+      (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m)))),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(n * m)
     )
   }
 }
