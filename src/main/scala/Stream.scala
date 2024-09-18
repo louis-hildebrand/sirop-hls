@@ -314,7 +314,7 @@ object StmMap {
       n: Int,
       fInShape: Option[Int],
       fOutShape: Option[Int]
-  ): Expr /* Stm<B; n> */ = {
+  ): StmBuild /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
     val stmF = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     // TODO: Needing to partially evaluate to even define StmMap seems

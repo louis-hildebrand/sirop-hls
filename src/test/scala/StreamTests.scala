@@ -1402,6 +1402,56 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("Vec2Stm2Vec") {
+    val p = Param()
+    val actual = Stm2Vec(Vec2Stm(p), n = 6)
+
+    // Correctness
+    val v0 = VecBuild(6, (i: Expr) => i + 2)
+    val expected0 = Seq(Seq(2, 3, 4, 5, 6, 7).map(n => IntCst(n)))
+    assert(
+      StreamTests
+        .stm2Seq(Let(p, v0, actual))
+        .map(v => VectorTests.vec2Seq(v)) == expected0
+    )
+    val v1 = VecBuild(6, (i: Expr) => i * i)
+    val expected1 = Seq(Seq(0, 1, 4, 9, 16, 25).map(n => IntCst(n)))
+    assert(
+      StreamTests
+        .stm2Seq(Let(p, v1, actual))
+        .map(v => VectorTests.vec2Seq(v)) == expected1
+    )
+
+    // Effective simplification
+    // TODO: check that Vec2Stm and Stm2Vec basically cancel out
+  }
+
+  test("Stm2Vec2Stm") {
+    val p = Param()
+    val actual = StmMap(
+      Stm2Vec(p, n = 6),
+      (v: Expr) => Vec2Stm(v),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(6)
+    )
+    val opt = ExprEvaluator.optimizeStream(actual)
+
+    // Correctness
+    val s0 = StmCount(6)
+    val expected0 = Seq(0, 1, 2, 3, 4, 5).map(n => IntCst(n))
+    assertStreamEqual(Let(p, s0, actual), expected0)
+    assertStreamEqual(Let(p, s0, opt), expected0)
+    val s1 = StmCst(6, 42)
+    val expected1 = Seq(42, 42, 42, 42, 42, 42).map(n => IntCst(n))
+    assertStreamEqual(Let(p, s1, actual), expected1)
+    assertStreamEqual(Let(p, s1, opt), expected1)
+
+    // Effective simplification
+    val identity = ExprEvaluator.canonicalIdentityStream(6, p)
+    assert(ExprEvaluator.canonicalize(opt) == identity)
+  }
+
   test("StmPrepend:1D") {
     val s = StmCount(3)
     assertStreamEqual(
@@ -2161,7 +2211,13 @@ class StreamTests extends AnyFunSuite {
       Seq(1, 2),
       Seq(2, 3)
     ).map(xs => xs.map(x => IntCst(x)))
-    assertStreamEqual(StmSlideS(s, 2, stmShape = Seq(4)), expected.flatten)
+    val slide = StmSlideS(s, 2, stmShape = Seq(4))
+
+    // Correctness
+    assertStreamEqual(slide, expected.flatten)
+    // Performance
+    // TODO: Look at how good the hardware is.
+    //       It is possible to implement this without any vectors or memory.
   }
 
   test("StmSlideS:1D:SameSize") {
