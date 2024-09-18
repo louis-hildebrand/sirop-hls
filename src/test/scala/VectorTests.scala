@@ -77,7 +77,8 @@ class VectorTests extends AnyFunSuite {
 
   test("Stm2Vec") {
     val v = Stm2Vec(StmCount(3), n = 3)
-    assertVecEqual(v, Seq(0, 1, 2))
+    val elems = StreamTests.stm2Seq(v).map(v => VectorTests.vec2Seq(v))
+    assert(elems == Seq(Seq(IntCst(0), IntCst(1), IntCst(2))))
   }
 
   test("VecPrepend") {

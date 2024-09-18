@@ -120,74 +120,9 @@ private def asStm2Stm(
       )
     }
     case (Some(_), None) => {
-      // stream -> scalar (e.g., StmFold, StmAccess)
-      // The only way to collapse a stream s to a scalar is to call
-      // StmNext(s).__1.
-      // So we find the unique call to StmNext(s).__1, replace that with s,
-      // and then rewrite the surrounding scalar expression to a StmMap.
-      //
-      // EDGE CASES:
-      //  * What if there are multiple occurrences of StmNext(...).__1?
-      //  * What if the programmer does something like StmNext(StmNext(...).__0).__1?
-      //     * Assume it won't happen. There should be no way to get this expression starting from the higher-level IR.
-      //  * What if there are more StmNext(...).__1 remaining after substitution (because there were StmNext(...).__1 calls inside the outer StmNext(...).__1)?
-      //  * Could it ever happen that StmLength(s) > 1 and therefore we need to add StmPrefix(s, 1)?
-      val nextCalls: Set[Expr] = findStmNext(f.body)
-      if nextCalls.isEmpty then {
-        assert(
-          !ExprEvaluator.contains(f.body, f.param),
-          "If StmNext() is never called in f, then surely the input stream is unused in f."
-          // ... because how else can you convert a stream to a scalar?
-        )
-        // Unfortunately we cannot just pretend the input is a scalar, since
-        // this may mess with the rhythm of reading and writing.
-        // For example, suppose s is a 3x3 stream.
-        // Then in StmFold(s, 0, (acc: Expr) => (s: Expr) => acc + 42), the
-        // stream corresponding to acc => s => acc + 42 actually needs to read
-        // three elements for every one element it produces.
-        val s = Param()
-        val numIn = inShape.get
-        Function(
-          s /* stream */,
-          StmBuild(
-            1,
-            Tuple(s, numIn),
-            (acc: Expr) =>
-              IfThenElse(
-                acc.__1 === 1,
-                Tuple(
-                  Tuple(StmNext(acc.__0).__0, numIn),
-                  FunCall(f, StmNext(acc.__0).__1),
-                  True
-                ),
-                Tuple(
-                  Tuple(StmNext(acc.__0).__0, acc.__1 - 1),
-                  FunCall(f, StmNext(acc.__0).__1),
-                  False
-                )
-              )
-          )
-        )
-      } else if nextCalls.size > 1 then {
-        throw new IllegalArgumentException(
-          "Multiple different calls to StmNext() found."
-            + " Does the function take multiple streams as input?"
-        )
-      } else {
-        val nextCall = nextCalls.head
-        val stmBeingReduced =
-          nextCall.asInstanceOf[TupleAccess].t.asInstanceOf[StmNext].stream
-        Function(
-          f.param,
-          StmMap(
-            stmBeingReduced,
-            (x: Expr) => substitute(f.body)(Map(nextCall -> x)),
-            n = 1,
-            fInShape = None,
-            fOutShape = None
-          )
-        )
-      }
+      throw new IllegalArgumentException(
+        "Reducing a stream to a scalar is forbidden."
+      )
     }
     case (Some(_), Some(_)) => {
       // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
@@ -396,7 +331,7 @@ object StmMap {
       inner.seed
         .asInstanceOf[Tuple]
         .elems
-        .tail
+        .drop(1)
         .forall(e => !e.isInstanceOf[StmBuild]),
       "Function in StmMap must not take more than one stream as input."
     )
@@ -422,7 +357,6 @@ object StmMap {
         )
       }
     )
-
   }
 
   private def makeNextFBody(
@@ -515,44 +449,36 @@ object StmAccess {
   ): Expr /* A */ = {
     // NOTE: require 0 <= i < n
     val perRow = shape.tail.product
-    val outStm =
-      StmBuild(
-        perRow,
-        Tuple(stm, 0, perRow),
-        (acc: Expr) =>
-          Tuple(
-            IfThenElse(
-              acc.__2 === 1,
-              Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-            ),
-            StmNext(acc.__0).__1,
-            acc.__1 === i
-          )
-      )
-    if (shape.tail.isEmpty) then {
-      StmNext(outStm).__1
-    } else {
-      outStm
-    }
+    StmBuild(
+      perRow,
+      Tuple(stm, 0, perRow),
+      (acc: Expr) =>
+        Tuple(
+          IfThenElse(
+            acc.__2 === 1,
+            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
+            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
+          ),
+          StmNext(acc.__0).__1,
+          acc.__1 === i
+        )
+    )
   }
 }
 
 object StmFold {
   def apply(
-      stream: Expr /* Stream<A> */,
+      stream: Expr /* Stm<A; n> */,
       z: Expr /* B */,
       f: Function /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
       stmShape: Seq[Int]
-  ): Expr = {
-    StmNext(
-      StmSuffix(
-        StmScanInclusive(stream, z, f, stmShape = stmShape),
-        1,
-        shape = Seq(stmShape.head)
-      )
-    ).__1
+  ): Expr /* Stm<B; 1> */ = {
+    StmSuffix(
+      StmScanInclusive(stream, z, f, stmShape = stmShape),
+      1,
+      shape = Seq(stmShape.head)
+    )
   }
 }
 
@@ -570,7 +496,7 @@ object StmScanInclusive {
         f.body.asInstanceOf[Function],
         inShape =
           if stmShape.tail.isEmpty then None else Some(stmShape.tail.product),
-        outShape = None
+        outShape = if stmShape.tail.isEmpty then None else Some(1)
       )
     val inner = ExprEvaluator.canonicalize(
       ExprEvaluator.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
@@ -1124,15 +1050,8 @@ object StmTranspose {
       n: Int,
       m: Int
   ): Expr /* Stm<Stm<A; n>; m> */ = {
-    val vectors = StmMap(
-      stm,
-      (s: Expr) => Stm2Vec(s, n = n * m),
-      n = 1,
-      fInShape = Some(n * m),
-      fOutShape = None
-    )
     StmMap(
-      vectors,
+      Stm2Vec(stm, n = n * m),
       (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m)))),
       n = 1,
       fInShape = None,

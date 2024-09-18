@@ -27,17 +27,6 @@ class PartialEvaluationTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(e) == expected)
   }
 
-  test("Stm2Vec2Stm") {
-    val cntAst = StmCount(3)
-    val stream = Vec2Stm(Stm2Vec(cntAst, n = 3))
-    assertStreamEqual(stream, Seq(0, 1, 2))
-
-    val partialEval = ExprEvaluator.partialEval(stream)
-    assertStreamEqual(partialEval, Seq(0, 1, 2))
-
-    // TODO: check that partialEval does not contain any vector!
-  }
-
   test("VecScanUnfolded") {
     val a = Param()
     val b = Param()

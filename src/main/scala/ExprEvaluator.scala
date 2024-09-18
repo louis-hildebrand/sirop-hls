@@ -675,9 +675,9 @@ object ExprEvaluator {
   @tailrec
   def fuseCompletely(stm: Expr /* Stm<A; n> */ ): StmBuild /* Stm<A; n> */ = {
     val s = canonicalize(partialEval(stm).asInstanceOf[StmBuild])
-    s.seed.asInstanceOf[Tuple].elems.head match {
-      case _: StmBuild => fuseCompletely(fuse(s))
-      case _           => s
+    s.seed.asInstanceOf[Tuple].elems.headOption match {
+      case Some(_: StmBuild) => fuseCompletely(fuse(s))
+      case _                 => s
     }
   }
 
