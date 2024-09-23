@@ -626,14 +626,10 @@ object StmScanExclusive {
 }
 
 object Vec2Stm {
-  def apply(v: Expr /* Vec<A; n> */ ): Expr /* Stm<A; n> */ =
+  def apply(v: Expr /* Vec<A; n> */, n: Int): Expr /* Stm<A; n> */ =
     // TODO: Would it be better to use a shift register for accessing the
-    // input?
-    StmBuild(
-      VecLength(v),
-      0,
-      (i: Expr) => Tuple(i + 1, VecAccess(v, i), True)
-    )
+    //       input?
+    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i), True))
 }
 
 /////////////////////////
@@ -1035,7 +1031,7 @@ object StmSlideS {
     val s = StmSlideV(stm, m, stmShape = stmShape)
     StmMap(
       s,
-      (v: Expr) => Vec2Stm(v),
+      (v: Expr) => Vec2Stm(v, n = m),
       n = stmShape.head - m + 1,
       fInShape = None,
       fOutShape = Some(m * stmShape.tail.product)
@@ -1052,7 +1048,8 @@ object StmTranspose {
   ): Expr /* Stm<Stm<A; n>; m> */ = {
     StmMap(
       Stm2Vec(stm, n = n * m),
-      (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m)))),
+      (v: Expr) =>
+        Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m))), n = n * m),
       n = 1,
       fInShape = None,
       fOutShape = Some(n * m)

@@ -1380,14 +1380,14 @@ class StreamTests extends AnyFunSuite {
   test("Vec2Stm:1D") {
     val v = VecBuild(5, (i: Expr) => i + 1)
 
-    assertStreamEqual(Vec2Stm(v), Seq(1, 2, 3, 4, 5))
+    assertStreamEqual(Vec2Stm(v, n = 5), Seq(1, 2, 3, 4, 5))
   }
 
   test("Vec2Stm:2D") {
     val v = VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)))
     val s = StmMap(
-      Vec2Stm(v),
-      (v: Expr) => Vec2Stm(v),
+      Vec2Stm(v, n = 4),
+      (v: Expr) => Vec2Stm(v, n = 3),
       n = 4,
       fInShape = None,
       fOutShape = Some(3)
@@ -1404,7 +1404,7 @@ class StreamTests extends AnyFunSuite {
 
   test("Vec2Stm2Vec") {
     val p = Param()
-    val actual = Stm2Vec(Vec2Stm(p), n = 6)
+    val actual = Stm2Vec(Vec2Stm(p, n = 6), n = 6)
 
     // Correctness
     val v0 = VecBuild(6, (i: Expr) => i + 2)
@@ -1430,7 +1430,7 @@ class StreamTests extends AnyFunSuite {
     val p = Param()
     val actual = StmMap(
       Stm2Vec(p, n = 6),
-      (v: Expr) => Vec2Stm(v),
+      (v: Expr) => Vec2Stm(v, n = 6),
       n = 1,
       fInShape = None,
       fOutShape = Some(6)
