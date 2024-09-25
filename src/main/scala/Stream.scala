@@ -499,7 +499,7 @@ object StmScanInclusive {
     val numIn = stmShape.tail.product
     StmBuild(
       stmShape.head,
-      Tuple(inner.seed, z, stmShape.head, numIn, 1), {
+      Tuple(inner.seed, z, numIn, 1), {
         val newAcc = Param()
         Function(
           newAcc,
@@ -551,10 +551,10 @@ object StmScanInclusive {
                 _: _*
               ) if p == oldAcc =>
             // StmNext() called, so decrement the input counter.
-            newAcc.__3 - 1
+            newAcc.__2 - 1
           case Tuple(TupleAccess(p, IntCst(0)), _: _*) if p == oldAcc =>
             // StmNext() *not* called, so do *not* decrement the input counter.
-            newAcc.__3
+            newAcc.__2
           case Tuple(x, _: _*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
@@ -564,9 +564,9 @@ object StmScanInclusive {
         val newOutCtr = IfThenElse(
           valid,
           // Output produced, so decrement the output counter.
-          newAcc.__4 - 1,
+          newAcc.__3 - 1,
           // No output produced, so do not decrement the output counter.
-          newAcc.__4
+          newAcc.__3
         )
         val newAccVal =
           IfThenElse(
@@ -576,7 +576,6 @@ object StmScanInclusive {
               // Never reset the input stream
               Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
               IfThenElse(valid, e, newAcc.__1),
-              newAcc.__2 - 1,
               numIn,
               1
             ),
@@ -584,7 +583,6 @@ object StmScanInclusive {
             Tuple(
               a,
               IfThenElse(valid, e, newAcc.__1),
-              newAcc.__2,
               newInCtr,
               newOutCtr
             )
