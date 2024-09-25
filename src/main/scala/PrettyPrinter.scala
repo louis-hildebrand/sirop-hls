@@ -7,6 +7,7 @@ object PrettyPrinter {
     e match {
       case True      => "True"
       case False     => "False"
+      case DontCare  => "DontCare"
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions

@@ -57,7 +57,7 @@ object Stm2Vec {
   ): Expr =
     StmFold(
       s,
-      VecBuild(n, (i: Expr) => IntCst(0)),
+      VecBuild(n, (i: Expr) => DontCare),
       (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
       stmShape = Seq(n)
     )

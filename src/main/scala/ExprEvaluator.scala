@@ -66,8 +66,8 @@ object ExprEvaluator {
 
   def contains(e1: Expr, e2: Expr): Boolean = {
     e1 match {
-      case _ if e1 == e2                       => true
-      case True | False | _: IntCst | _: Param => false
+      case _ if e1 == e2                                  => true
+      case DontCare | True | False | _: IntCst | _: Param => false
       case Add(x, y)      => contains(x, e2) || contains(y, e2)
       case Sub(x, y)      => contains(x, e2) || contains(y, e2)
       case Mul(x, y)      => contains(x, e2) || contains(y, e2)
@@ -139,6 +139,8 @@ object ExprEvaluator {
           case Or(e1: Expr, e2: Expr)  => Or(substitute(e1), substitute(e2))
           case Not(e: Expr)            => Not(substitute(e))
 
+          case DontCare => DontCare
+
           case StmBuild(lengths, seed, f) =>
             StmBuild(
               substitute(lengths),
@@ -169,7 +171,8 @@ object ExprEvaluator {
             // Move TupleAccess inside IfThenElse in the hope that it'll
             // encounter a Tuple(...)
             partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
-          case (tuple @ _, index @ _) => TupleAccess(tuple, index)
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (tuple @ _, index @ _)        => TupleAccess(tuple, index)
         }
 
       case p: Param          => p
@@ -180,7 +183,8 @@ object ExprEvaluator {
             partialEval(
               substitute(fun.body)(Map(fun.param -> partialEval(arg)))
             )
-          case fun @ _ => FunCall(fun, partialEval(arg))
+          case DontCare => DontCare
+          case fun @ _  => FunCall(fun, partialEval(arg))
         }
 
       case Add(e1: Expr, e2: Expr) =>
@@ -195,6 +199,7 @@ object ExprEvaluator {
           case (Sub(IntCst(a), e), IntCst(b)) => partialEval(IntCst(a + b) - e)
           case (IntCst(b), Sub(e, IntCst(a))) => partialEval(e + (b - a))
           case (IntCst(b), Sub(IntCst(a), e)) => partialEval(IntCst(a + b) - e)
+          case (DontCare, _) | (_, DontCare)  => DontCare
           case (e1 @ _, e2 @ _)               => Add(e1, e2)
         }
       case Sub(e1: Expr, e2: Expr) =>
@@ -212,6 +217,7 @@ object ExprEvaluator {
           case (IntCst(b), Sub(IntCst(a), e)) => partialEval(e + (b - a))
           case (Sub(x, y), z) if x == z       => partialEval(IntCst(0) - y)
           case (x, Sub(y, z)) if x == y       => z
+          case (DontCare, _) | (_, DontCare)  => DontCare
           case (e1 @ _, e2 @ _)               => Sub(e1, e2)
         }
       case Mul(e1: Expr, e2: Expr) =>
@@ -220,18 +226,21 @@ object ExprEvaluator {
           case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
           case (e, IntCst(1))                  => e
           case (IntCst(1), e)                  => e
+          case (DontCare, _) | (_, DontCare)   => DontCare
           case (e1 @ _, e2 @ _)                => Mul(e1, e2)
         }
       case Div(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i / e2.i
-          case (e, IntCst(1))           => e
-          case (e1 @ _, e2 @ _)         => Div(e1, e2)
+          case (e1: IntCst, e2: IntCst)      => e1.i / e2.i
+          case (e, IntCst(1))                => e
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1 @ _, e2 @ _)              => Div(e1, e2)
         }
       case Mod(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i % e2.i
-          case (e1 @ _, e2 @ _)         => Mod(e1, e2)
+          case (e1: IntCst, e2: IntCst)      => e1.i % e2.i
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1 @ _, e2 @ _)              => Mod(e1, e2)
         }
       case IntCst(_) => e
 
@@ -239,9 +248,10 @@ object ExprEvaluator {
       case False => False
       case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) =>
         partialEval(cond) match {
-          case True  => partialEval(trueE)
-          case False => partialEval(falseE)
-          case cond  =>
+          case True     => partialEval(trueE)
+          case False    => partialEval(falseE)
+          case DontCare => DontCare
+          case cond     =>
             // If (x0 && ... && xn) = True, then xi = True for each i
             val t = partialEval(
               substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
@@ -250,54 +260,59 @@ object ExprEvaluator {
             val f = partialEval(
               substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
             )
-            if t == f then {
-              t
-            } else if t == True && f == False then {
-              cond
-            } else if t == False && f == True then {
-              Not(cond)
-            } else {
-              IfThenElse(cond, t, f)
-            }
+            if f == DontCare then t
+            else if t == DontCare then f
+            else if t == f then t
+            else if t == True && f == False then cond
+            else if t == False && f == True then Not(cond)
+            else IfThenElse(cond, t, f)
         }
       case NotEqual(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i != e2.i
-          case (e1 @ _, e2 @ _)         => NotEqual(e1, e2)
+          case (e1: IntCst, e2: IntCst)      => e1.i != e2.i
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1 @ _, e2 @ _)              => NotEqual(e1, e2)
         }
       case Equal(e1: Expr, e2: Expr) =>
         // TODO: Add a case for when at least one of the arguments is an IfThenElse?
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i == e2.i
-          case (e1 @ _, e2 @ _)         => Equal(e1, e2)
+          case (e1: IntCst, e2: IntCst)      => e1.i == e2.i
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1 @ _, e2 @ _)              => Equal(e1, e2)
         }
       case LessThan(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst) => e1.i < e2.i
-          case (e1 @ _, e2 @ _)         => LessThan(e1, e2)
+          case (e1: IntCst, e2: IntCst)      => e1.i < e2.i
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1 @ _, e2 @ _)              => LessThan(e1, e2)
         }
       case And(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (False, _) => False
-          case (_, False) => False
-          case (True, e)  => e
-          case (e, True)  => e
-          case (e1, e2)   => And(e1, e2)
+          case (False, _)                    => False
+          case (_, False)                    => False
+          case (True, e)                     => e
+          case (e, True)                     => e
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e1, e2)                      => And(e1, e2)
         }
       case Or(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
-          case (True, _) | (_, True) => True
-          case (False, e)            => e
-          case (e, False)            => e
-          case (e1, e2)              => Or(e1, e2)
+          case (True, _) | (_, True)         => True
+          case (False, e)                    => e
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (e, False)                    => e
+          case (e1, e2)                      => Or(e1, e2)
         }
       case Not(e: Expr) =>
         partialEval(e) match {
-          case True   => False
-          case False  => True
-          case Not(e) => e
-          case e      => Not(e)
+          case True     => False
+          case False    => True
+          case DontCare => DontCare
+          case Not(e)   => e
+          case e        => Not(e)
         }
+
+      case DontCare => DontCare
 
       case StmBuild(length, seed, f) =>
         StmBuild(
@@ -310,6 +325,7 @@ object ExprEvaluator {
       case StmLength(s) =>
         partialEval(s) match {
           case s: StmBuild => partialEval(s.length)
+          case DontCare    => DontCare
           case s @ _       => StmLength(s)
         }
 
@@ -370,11 +386,13 @@ object ExprEvaluator {
       case VecAccess(vec: Expr, i: Expr) =>
         partialEval(vec) match {
           case vec: VecBuild => partialEval(FunCall(vec.f, partialEval(i)))
+          case DontCare      => DontCare
           case vec @ _       => VecAccess(vec, partialEval(i))
         }
       case VecLength(vec: Expr) =>
         partialEval(vec) match {
           case vec: VecBuild => partialEval(vec.len)
+          case DontCare      => DontCare
           case vec @ _       => VecLength(vec)
         }
     }
@@ -454,6 +472,7 @@ object ExprEvaluator {
           moveIfThenElseOutsideTuple(trueE),
           moveIfThenElseOutsideTuple(falseE)
         )
+      case DontCare => DontCare
       case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
         // Definitely will not evaluate to a tuple
         e
@@ -712,6 +731,7 @@ object ExprEvaluator {
         IfThenElse(cond, transformHead(f)(trueE), transformHead(f)(falseE))
       case Tuple(elems: _*) =>
         Tuple(f(elems.head) +: elems.tail: _*)
+      case DontCare => DontCare
     }
   }
 
@@ -810,6 +830,7 @@ object ExprEvaluator {
         )
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
         ???
+      case DontCare => DontCare
       case Tuple(a, e, valid) =>
         a match {
           case Tuple(

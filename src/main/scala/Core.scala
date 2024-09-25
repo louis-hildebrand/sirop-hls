@@ -92,6 +92,9 @@ case class Not(e: Expr) extends BoolExpr
 case class And(e1: Expr, e2: Expr) extends BoolExpr
 case class Or(e1: Expr, e2: Expr) extends BoolExpr
 
+// Useful for readability and possibly for optimization
+object DontCare extends Expr
+
 // Streams
 case class StmBuild(
     length: Expr,

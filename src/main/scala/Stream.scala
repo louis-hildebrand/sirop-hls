@@ -24,7 +24,6 @@ private def asStm2Stm(
     inShape: Option[Int],
     outShape: Option[Int]
 ): Function = {
-  // TODO: what about streams of vectors or streams of tuples?
   val f1 = (inShape, outShape) match {
     case (None, None) => {
       // scalar -> scalar (e.g., x => x + 1)
@@ -55,11 +54,6 @@ private def asStm2Stm(
         x /* stream */,
         StmBuild(
           s.length,
-          // TODO: Here I use 0 as an initial value for whatever the element
-          //       type is of x. The type checker will probably not be happy
-          //       with that, but we can probably find the element type of x
-          //       and then call some method that chooses a "zero" value given
-          //       that data type.
           Tuple(
             // Replace all seed elements that depend on the input scalar
             // (Maybe not strictly necessary in the interpreter since these
@@ -67,11 +61,11 @@ private def asStm2Stm(
             // make sense to have free variables hanging around here.)
             Tuple(
               seed.elems.map(e =>
-                if ExprEvaluator.contains(e, f.param) then 0 else e
+                if ExprEvaluator.contains(e, f.param) then DontCare else e
               ): _*
             ),
             x /* input stream */,
-            0 /* element from input stream (initial value unused) */,
+            DontCare /* element from input stream (initial value unused) */,
             True /* whether the element is yet to be read from x */
           ),
           (newAcc: Expr) =>
@@ -99,7 +93,7 @@ private def asStm2Stm(
                       StmNext(newAcc.__1).__1,
                       False
                     ),
-                    0 /* doesn't matter (except maybe to the type checker) */,
+                    DontCare,
                     False
                   ),
                   // Continue as usual
@@ -180,7 +174,7 @@ private def findStmNext(e: Expr): Set[Expr] = {
     case Mul(x, y)                          => findStmNext(x) ++ findStmNext(y)
     case Div(x, y)                          => findStmNext(x) ++ findStmNext(y)
     case Mod(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case True | False                       => Set()
+    case True | False | DontCare            => Set()
     case Equal(x, y)                        => findStmNext(x) ++ findStmNext(y)
     case NotEqual(x, y)                     => findStmNext(x) ++ findStmNext(y)
     case LessThan(x, y)                     => findStmNext(x) ++ findStmNext(y)
@@ -370,6 +364,7 @@ object StmMap {
     // Assume there is exactly one input stream and it can be found at
     // oldAcc.__0
     val e = oldBody match {
+      case DontCare => DontCare
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(
           cond,
@@ -530,6 +525,7 @@ object StmScanInclusive {
       numIn: Int
   ): Expr = {
     val e = oldBody match {
+      case DontCare => DontCare
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(
           cond,
@@ -890,9 +886,10 @@ object StmRepeat {
       // Ideally we would get this shape info from the type system
       n: Int
   ): Expr /* Stm<Stm<A; n>; m> */ = {
+    // TODO: Implement using Stm2Vec instead?
     StmBuild(
       n * m,
-      Tuple(stm, VecBuild(n, (_: Expr) => IntCst(0)), 0, True),
+      Tuple(stm, VecBuild(n, (_: Expr) => DontCare), 0, True),
       (acc: Expr) =>
         IfThenElse(
           acc.__3,
@@ -981,7 +978,7 @@ object StmSlideV {
         // This will always be 1 if `stm` is flat, but may be greater than 1
         // if `stm` is multi-dimensional.
         elemSize,
-        VecBuild(m * elemSize, (i: Expr) => IntCst(0))
+        VecBuild(m * elemSize, (i: Expr) => DontCare)
       ),
       (acc: Expr) =>
         Let(
