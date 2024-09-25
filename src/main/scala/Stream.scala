@@ -329,28 +329,38 @@ object StmMap {
         .forall(e => !e.isInstanceOf[StmBuild]),
       "Function in StmMap must not take more than one stream as input."
     )
-    // How many elements will the inner component read and produce before it
-    // must be reset?
-    val numIn = fInShape.getOrElse(1)
-    val numOut = fOutShape.getOrElse(1)
-    // Build a new stream by repeating the inner one once it's done
-    StmBuild(
-      n * numOut,
-      Tuple(inner.seed, numIn, numOut), {
-        val newAcc = Param()
-        Function(
-          newAcc,
-          makeNextFBody(
-            oldBody = inner.nextF.body,
-            oldAcc = inner.nextF.param,
-            newAcc = newAcc,
-            oldSeed = inner.seed.asInstanceOf[Tuple],
-            numIn = numIn,
-            numOut = numOut
-          )
+    n match {
+      case 0 =>
+        StmBuild(0, Tuple(), (acc: Expr) => Tuple(Tuple(), DontCare, True))
+      case 1 =>
+        // No need to reset
+        inner
+      case n if n > 1 =>
+        // How many elements will the inner component read and produce before it
+        // must be reset?
+        val numIn = fInShape.getOrElse(1)
+        val numOut = fOutShape.getOrElse(1)
+        // Build a new stream by repeating the inner one once it's done
+        StmBuild(
+          n * numOut,
+          Tuple(inner.seed, numIn, numOut), {
+            val newAcc = Param()
+            Function(
+              newAcc,
+              makeNextFBody(
+                oldBody = inner.nextF.body,
+                oldAcc = inner.nextF.param,
+                newAcc = newAcc,
+                oldSeed = inner.seed.asInstanceOf[Tuple],
+                numIn = numIn,
+                numOut = numOut
+              )
+            )
+          }
         )
-      }
-    )
+      case _ =>
+        throw new IllegalArgumentException(s"Invalid input to StmMap: n = ${n}")
+    }
   }
 
   private def makeNextFBody(
@@ -477,6 +487,8 @@ object StmFold {
   }
 }
 
+// TODO: Add special cases for n = 0 and n = 1, like in StmMap?
+//       Or better yet, define an operator like StmReset that works for both cases?
 object StmScanInclusive {
   def apply(
       stream: Expr /* Stream<A> */,

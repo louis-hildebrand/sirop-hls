@@ -117,6 +117,17 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, Seq(42, 42, 42, 42, 42, 42))
   }
 
+  test("StmMap:1D-1D:SingleElementStream") {
+    val s = StmMap(
+      StmCount(1),
+      (x: Expr) => x + 5,
+      n = 1,
+      fInShape = None,
+      fOutShape = None
+    )
+    assertStreamEqual(s, Seq(5))
+  }
+
   // The scalar input to the inner function is used only in the `nextF`.
   test("StmMap:1D-2D:StmCst") {
     val s = StmMap(
@@ -193,6 +204,17 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(s, expected.flatten)
   }
 
+  test("StmMap:1D-2D:SingleElementStream") {
+    val s = StmMap(
+      StmCst(1, 99),
+      (c: Expr) => StmCountFrom(c, 5),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(5)
+    )
+    assertStreamEqual(s, Seq(99, 100, 101, 102, 103))
+  }
+
   test("StmMap:2D-1D:StmFold") {
     val s = StmMap(
       StmCount2D(4, 3),
@@ -253,6 +275,23 @@ class StreamTests extends AnyFunSuite {
     )
     val expected = Seq(42, 42, 42).map(n => IntCst(n))
     assertStreamEqual(s, expected)
+  }
+
+  test("StmMap:2D-1D:SingleElementStream") {
+    val s = StmMap(
+      StmCount2D(1, 4),
+      (s: Expr) =>
+        StmFold(
+          s,
+          10,
+          (acc: Expr) => (x: Expr) => acc + x.__1,
+          stmShape = Seq(4)
+        ),
+      n = 1,
+      fInShape = Some(4),
+      fOutShape = Some(1)
+    )
+    assertStreamEqual(s, Seq(10 + 0 + 1 + 2 + 3))
   }
 
   test("StmMap:2D-2D:StmMap") {
@@ -628,6 +667,51 @@ class StreamTests extends AnyFunSuite {
     val actualElements =
       StreamTests.stm2Seq(actual).flatMap(v => VectorTests.vec2Seq(v))
     assert(actualElements == expected.flatten.flatten)
+  }
+
+  test("StmMap:2D-2D:SingleElementOuterStream") {
+    val s = StmMap(
+      StmCount2D(1, 3),
+      (s: Expr) =>
+        StmMap(
+          s,
+          (x: Expr) => x.__0 + x.__1,
+          n = 3,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 1,
+      fInShape = Some(3),
+      fOutShape = Some(3)
+    )
+    val expected = Seq(
+      Seq(0, 1, 2)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
+  }
+
+  test("StmMap:2D-2D:SingleElementInnerStream") {
+    val s = StmMap(
+      StmCount2D(4, 1),
+      (s: Expr) =>
+        StmMap(
+          s,
+          (x: Expr) => x.__0 + x.__1,
+          n = 1,
+          fInShape = None,
+          fOutShape = None
+        ),
+      n = 4,
+      fInShape = Some(1),
+      fOutShape = Some(1)
+    )
+    val expected = Seq(
+      Seq(0),
+      Seq(1),
+      Seq(2),
+      Seq(3)
+    ).map(xs => xs.map(x => IntCst(x)))
+    assertStreamEqual(s, expected.flatten)
   }
 
   test("StmMap:1D-3D:MapCount") {
