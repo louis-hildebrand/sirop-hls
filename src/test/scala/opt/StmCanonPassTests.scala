@@ -1,11 +1,15 @@
+package opt
+
+import ir.*
+import operations.*
 import org.scalatest.funsuite.AnyFunSuite
 
-class StreamCanonicalizationTests extends AnyFunSuite {
+class StmCanonPassTests extends AnyFunSuite {
   test("ScalarAccumulator") {
     val s = StmBuild(6, 0, (i: Expr) => Tuple(i + 1, i, True))
     val canon =
       StmBuild(6, Tuple(0), (i: Expr) => Tuple(Tuple(i.__0 + 1), i.__0, True))
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("VectorAccumulator") {
@@ -19,7 +23,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
       Tuple(VecBuild(3, (i: Expr) => IntCst(0))),
       (v: Expr) => Tuple(Tuple(VecShiftLeft(v.__0, 42)), v.__0, True)
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("FlattenAccumulator") {
@@ -67,7 +71,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           True
         )
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("EmptyAccumulator") {
@@ -77,7 +81,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
       (acc: Expr) => Tuple(Tuple(acc.__0), 42, True)
     )
     val canon = StmBuild(5, Tuple(), (acc: Expr) => Tuple(Tuple(), 42, True))
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("RemoveConstantAccumulatorElem") {
@@ -98,7 +102,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
       Tuple(1),
       (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0, True)
     )
-    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+    assert(PartialEvalPass.partialEval(StmCanonPass.canonicalize(s)) == canon)
   }
 
   test("RemoveMultipleConstantAccumulatorElems") {
@@ -120,7 +124,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
       Tuple(),
       (acc: Expr) => Tuple(Tuple(), 42, True)
     )
-    assert(ExprEvaluator.partialEval(ExprEvaluator.canonicalize(s)) == canon)
+    assert(PartialEvalPass.partialEval(StmCanonPass.canonicalize(s)) == canon)
   }
 
   test("RemoveEmptyTuples") {
@@ -144,7 +148,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           True
         )
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("MoveStreamsToFront") {
@@ -178,7 +182,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           True
         )
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("MoveIfThenElseOutsideTuple1") {
@@ -198,7 +202,7 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           Tuple(Tuple(i.__0 + 1), (i.__0 - 1) / 2, True)
         )
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 
   test("MoveIfThenElseOutsideTuple2") {
@@ -246,6 +250,6 @@ class StreamCanonicalizationTests extends AnyFunSuite {
           )
         )
     )
-    assert(ExprEvaluator.canonicalize(s) == canon)
+    assert(StmCanonPass.canonicalize(s) == canon)
   }
 }

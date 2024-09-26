@@ -1,12 +1,16 @@
+package operations
+
+import ir.*
+import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.runtime.stdLibPatches.Predef.assert
 
 object VectorTests {
   def vec2Seq(vec: Expr): Seq[Expr] = {
-    val build = ExprEvaluator.partialEval(vec).asInstanceOf[VecBuild]
+    val build = PartialEvalPass.partialEval(vec).asInstanceOf[VecBuild]
     val len = build.len.asInstanceOf[IntCst].i
-    (0 until len).map(i => ExprEvaluator.partialEval(VecAccess(build, i)))
+    (0 until len).map(i => PartialEvalPass.partialEval(VecAccess(build, i)))
   }
 
   def vecVec2SeqSeq(vec: Expr): Seq[Seq[Expr]] =
@@ -24,27 +28,33 @@ class VectorTests extends AnyFunSuite {
 
   test("BuildV_and_Access") {
     val cstVec = VecBuild(2, (i: Expr) => IntCst(7))
-    assert(ExprEvaluator.partialEval(VecAccess(cstVec, 0)) == IntCst(7))
-    assert(ExprEvaluator.partialEval(VecAccess(cstVec, 1)) == IntCst(7))
+    assert(PartialEvalPass.partialEval(VecAccess(cstVec, 0)) == IntCst(7))
+    assert(PartialEvalPass.partialEval(VecAccess(cstVec, 1)) == IntCst(7))
 
     val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)
-    assert(ExprEvaluator.partialEval(VecAccess(oneTwoThreeVec, 0)) == IntCst(1))
-    assert(ExprEvaluator.partialEval(VecAccess(oneTwoThreeVec, 1)) == IntCst(2))
-    assert(ExprEvaluator.partialEval(VecAccess(oneTwoThreeVec, 2)) == IntCst(3))
+    assert(
+      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 0)) == IntCst(1)
+    )
+    assert(
+      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 1)) == IntCst(2)
+    )
+    assert(
+      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 2)) == IntCst(3)
+    )
   }
 
   test("Map_and_Access") {
     val v0 = VecBuild(3, (i: Expr) => i + 1)
     val v1 = VecMap(v0, (x: Expr) => x * x)
-    assert(ExprEvaluator.partialEval(VecAccess(v1, 0)) == IntCst(1))
-    assert(ExprEvaluator.partialEval(VecAccess(v1, 1)) == IntCst(4))
-    assert(ExprEvaluator.partialEval(VecAccess(v1, 2)) == IntCst(9))
+    assert(PartialEvalPass.partialEval(VecAccess(v1, 0)) == IntCst(1))
+    assert(PartialEvalPass.partialEval(VecAccess(v1, 1)) == IntCst(4))
+    assert(PartialEvalPass.partialEval(VecAccess(v1, 2)) == IntCst(9))
   }
 
   test("Fold") {
     val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)
     assert(
-      ExprEvaluator.partialEval(
+      PartialEvalPass.partialEval(
         VecFold(oneTwoThreeVec, 7, (e1: Expr) => (e2: Expr) => e1 + e2)
       ) == IntCst(13)
     )
@@ -129,7 +139,7 @@ class VectorTests extends AnyFunSuite {
   test("Vec2Tuple") {
     val v = VecBuild(5, (i: Expr) => i * (i + 1))
     val expected = Tuple(0, 2, 6, 12, 20)
-    val actual = ExprEvaluator.partialEval(Vec2Tuple(v))
+    val actual = PartialEvalPass.partialEval(Vec2Tuple(v))
     assert(actual == expected)
   }
 
@@ -223,7 +233,7 @@ class VectorTests extends AnyFunSuite {
     for i <- (0 until 4) do {
       for j <- (0 until 3) do {
         assert(
-          ExprEvaluator.partialEval(
+          PartialEvalPass.partialEval(
             VecAccess(VecAccess(actual, i), j)
           ) == VecAccess(VecAccess(p, i), j)
         )

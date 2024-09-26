@@ -1,4 +1,7 @@
-import scala.jdk.CollectionConverters._
+import opt.PartialEvalPass
+import ir.*
+
+import scala.jdk.CollectionConverters.*
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
@@ -142,10 +145,10 @@ object PrettyPrinter {
   }
 
   private def tryEvalVec(v: VecBuild): Option[Seq[Expr]] = {
-    ExprEvaluator.partialEval(v.len) match {
+    PartialEvalPass.partialEval(v.len) match {
       case IntCst(n) =>
         val elems =
-          (0 until n).map(i => ExprEvaluator.partialEval(VecAccess(v, i)))
+          (0 until n).map(i => PartialEvalPass.partialEval(VecAccess(v, i)))
         if elems.exists(e => e.isInstanceOf[VecAccess]) then {
           None
         } else {

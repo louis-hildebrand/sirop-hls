@@ -1,3 +1,8 @@
+package operations
+
+import ir.*
+import opt.PartialEvalPass
+
 object VecMap {
   def apply(input: VecBuild, f: Expr => Expr): VecBuild =
     VecBuild(VecLength(input), (i: Expr) => f(VecAccess(input, i)))
@@ -65,7 +70,7 @@ object Stm2Vec {
 
 object Vec2Tuple {
   def apply(vec: VecBuild): Tuple = {
-    val n = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val n = PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
     val elems = (0 until n).map(i => FunCall(vec.f, i))
     Tuple(elems: _*)
   }
@@ -102,8 +107,9 @@ object VecPrefix {
       vec: Expr /* Vec<A; n> */,
       k: Expr /* Int */
   ): Expr /* Vec<A; k> */ = {
-    val nVal = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
-    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    val nVal =
+      PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
     require(kVal >= 0)
     require(kVal <= nVal)
 
@@ -116,8 +122,9 @@ object VecSuffix {
       vec: Expr /* Vec<A; n> */,
       k: Expr /* Int */
   ): Expr /* Vec<A; k> */ = {
-    val nVal = ExprEvaluator.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
-    val kVal = ExprEvaluator.partialEval(k).asInstanceOf[IntCst].i
+    val nVal =
+      PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+    val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
     require(kVal >= 0)
     require(kVal <= nVal)
 

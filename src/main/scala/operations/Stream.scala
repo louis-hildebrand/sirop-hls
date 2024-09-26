@@ -1,5 +1,9 @@
+package operations
+
 // Helper functions
-import ExprEvaluator.substitute
+import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
+import opt.PartialEvalPass.substitute
+import ir.*
 
 import scala.annotation.tailrec
 
@@ -47,7 +51,7 @@ private def asStm2Stm(
       // zipped together).
       // TODO: Deal with things like IfThenElse as well?
       // Canonicalize mainly to ensure flat accumulator for simplicity
-      val s = ExprEvaluator.canonicalize(f.body.asInstanceOf[StmBuild])
+      val s = StmCanonPass.canonicalize(f.body.asInstanceOf[StmBuild])
       val seed = s.seed.asInstanceOf[Tuple]
       val x = Param()
       Function(
@@ -61,7 +65,7 @@ private def asStm2Stm(
             // make sense to have free variables hanging around here.)
             Tuple(
               seed.elems.map(e =>
-                if ExprEvaluator.contains(e, f.param) then DontCare else e
+                if PartialEvalPass.contains(e, f.param) then DontCare else e
               ): _*
             ),
             x /* input stream */,
@@ -82,7 +86,7 @@ private def asStm2Stm(
                       // Replace all seed elements that depend on the input scalar
                       Tuple(
                         seed.elems.zipWithIndex.map((e, i) =>
-                          if ExprEvaluator.contains(e, f.param) then
+                          if PartialEvalPass.contains(e, f.param) then
                             substitute(e)(
                               Map(f.param -> StmNext(newAcc.__1).__1)
                             )
@@ -143,7 +147,7 @@ private def asStm2Stm(
   // just the last producer.
   val f3 = Function(
     f2.param,
-    ExprEvaluator.canonicalize(ExprEvaluator.fuseCompletely(f2.body))
+    StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
   )
   // StmMap(), StmScanInclusive(), etc. assume the function uses its input.
   val usesInputStream = f3.body
@@ -157,7 +161,7 @@ private def asStm2Stm(
   } else {
     Function(
       f3.param,
-      ExprEvaluator.fuseCompletely(
+      StmFusePass.fuseCompletely(
         StmConcat(f3.body, StmDrain(f3.param), len1 = outShape.getOrElse(1))
       )
     )
@@ -314,8 +318,8 @@ object StmMap {
     // TODO: Needing to partially evaluate to even define StmMap seems
     //       pretty gross
     val inner =
-      ExprEvaluator.canonicalize(
-        ExprEvaluator.partialEval(FunCall(stmF, input)).asInstanceOf[StmBuild]
+      StmCanonPass.canonicalize(
+        PartialEvalPass.partialEval(FunCall(stmF, input)).asInstanceOf[StmBuild]
       )
     // TODO: Deal with multiple input streams?
     // TODO: This check, as well as things like reordering the accumulator, is NOT reliable as currently written (e.g.,
@@ -505,8 +509,8 @@ object StmScanInclusive {
           if stmShape.tail.isEmpty then None else Some(stmShape.tail.product),
         outShape = if stmShape.tail.isEmpty then None else Some(1)
       )
-    val inner = ExprEvaluator.canonicalize(
-      ExprEvaluator.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
+    val inner = StmCanonPass.canonicalize(
+      PartialEvalPass.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
     )
     val numIn = stmShape.tail.product
     StmBuild(

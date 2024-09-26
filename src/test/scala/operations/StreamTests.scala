@@ -1,8 +1,14 @@
+package operations
+
+import ir.*
+import opt.PartialEvalPass
+import opt.StmCanonPass
+import opt.Optimizer
 import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
   def stm2Seq(stm: Expr): Seq[Expr] = {
-    val n = ExprEvaluator
+    val n = PartialEvalPass
       .partialEval(StmLength(stm))
       .asInstanceOf[IntCst]
       .i
@@ -11,8 +17,8 @@ object StreamTests {
     } else if (n == 0) {
       Seq()
     } else {
-      val next = ExprEvaluator.partialEval(StmNext(stm))
-      ExprEvaluator.partialEval(next.__1) +: stm2Seq(next.__0)
+      val next = PartialEvalPass.partialEval(StmNext(stm))
+      PartialEvalPass.partialEval(next.__1) +: stm2Seq(next.__0)
     }
   }
 }
@@ -25,7 +31,7 @@ class StreamTests extends AnyFunSuite {
 
   test("IntCst") {
     val intAst = IntCst(3)
-    assert(ExprEvaluator.partialEval(intAst) == IntCst(3))
+    assert(PartialEvalPass.partialEval(intAst) == IntCst(3))
   }
 
   test("StmCst") {
@@ -63,10 +69,10 @@ class StreamTests extends AnyFunSuite {
 
   test("Iterate:Square") {
     val e = (n: Int) => Iterate(n, 3, (x: Expr) => x * x, zSize = None)
-    assert(ExprEvaluator.partialEval(e(0)) == IntCst(3))
-    assert(ExprEvaluator.partialEval(e(1)) == IntCst(9))
-    assert(ExprEvaluator.partialEval(e(2)) == IntCst(81))
-    assert(ExprEvaluator.partialEval(e(3)) == IntCst(81 * 81))
+    assert(PartialEvalPass.partialEval(e(0)) == IntCst(3))
+    assert(PartialEvalPass.partialEval(e(1)) == IntCst(9))
+    assert(PartialEvalPass.partialEval(e(2)) == IntCst(81))
+    assert(PartialEvalPass.partialEval(e(3)) == IntCst(81 * 81))
   }
 
   test("Iterate:PlusTwo") {
@@ -78,10 +84,10 @@ class StreamTests extends AnyFunSuite {
           (x: Expr) => Tuple(x.__0 + 2),
           zSize = Some(1)
         ).__0
-    assert(ExprEvaluator.partialEval(e(0)) == IntCst(-10))
-    assert(ExprEvaluator.partialEval(e(1)) == IntCst(-8))
-    assert(ExprEvaluator.partialEval(e(2)) == IntCst(-6))
-    assert(ExprEvaluator.partialEval(e(3)) == IntCst(-4))
+    assert(PartialEvalPass.partialEval(e(0)) == IntCst(-10))
+    assert(PartialEvalPass.partialEval(e(1)) == IntCst(-8))
+    assert(PartialEvalPass.partialEval(e(2)) == IntCst(-6))
+    assert(PartialEvalPass.partialEval(e(3)) == IntCst(-4))
   }
 
   test("StmMap:1D-1D:+7") {
@@ -1519,7 +1525,7 @@ class StreamTests extends AnyFunSuite {
       fInShape = None,
       fOutShape = Some(6)
     )
-    val opt = ExprEvaluator.optimizeStream(actual)
+    val opt = Optimizer.optimizeStream(actual)
 
     // Correctness
     val s0 = StmCount(6)
@@ -1532,8 +1538,8 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(Let(p, s1, opt), expected1)
 
     // Effective simplification
-    val identity = ExprEvaluator.canonicalIdentityStream(6, p)
-    assert(ExprEvaluator.canonicalize(opt) == identity)
+    val identity = StmCanonPass.canonicalIdentityStream(6, p)
+    assert(StmCanonPass.canonicalize(opt) == identity)
   }
 
   test("StmPrepend:1D") {

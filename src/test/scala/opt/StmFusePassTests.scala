@@ -1,9 +1,13 @@
+package opt
+
+import ir.*
+import operations.*
 import org.scalatest.funsuite.AnyFunSuite
 
-class StreamFusionTests extends AnyFunSuite {
-  val canon = (e: Expr) => ExprEvaluator.canonicalize(e.asInstanceOf[StmBuild])
-  val fuse = ExprEvaluator.fuse
-  val fuseCompletely = ExprEvaluator.fuseCompletely
+class StmFusePassTests extends AnyFunSuite {
+  val canon = (e: Expr) => StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
+  val fuse = StmFusePass.fuse
+  val fuseCompletely = StmFusePass.fuseCompletely
   val stm2Seq = StreamTests.stm2Seq
 
   test("CountFromFive") {

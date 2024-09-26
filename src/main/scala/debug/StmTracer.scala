@@ -1,6 +1,9 @@
+import opt.PartialEvalPass
+import ir.*
+
 object StmTracer {
   def trace(stm: StmBuild): Seq[String] = {
-    val n = ExprEvaluator.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    val n = PartialEvalPass.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
     trace(n, stm.seed, stm.nextF, step = 0)
   }
 
@@ -14,11 +17,11 @@ object StmTracer {
       Seq()
     } else {
       try {
-        val next = ExprEvaluator.partialEval(FunCall(nextF, acc))
-        val nextAcc = ExprEvaluator.partialEval(next.__0)
-        val nextOut = ExprEvaluator.partialEval(next.__1)
+        val next = PartialEvalPass.partialEval(FunCall(nextF, acc))
+        val nextAcc = PartialEvalPass.partialEval(next.__0)
+        val nextOut = PartialEvalPass.partialEval(next.__1)
         val valid = boolExpr2Boolean(
-          ExprEvaluator.partialEval(next.__2).asInstanceOf[BoolExpr]
+          PartialEvalPass.partialEval(next.__2).asInstanceOf[BoolExpr]
         )
         val accStr =
           PrettyPrinter.show(acc, collapseStm = true, evalVec = true)(Map())
