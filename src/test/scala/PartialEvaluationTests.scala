@@ -27,6 +27,19 @@ class PartialEvaluationTests extends AnyFunSuite {
     assert(ExprEvaluator.partialEval(e) == expected)
   }
 
+  // Used to debug a case where partial evaluator left behind a Not(Not(...))
+  test("NotNot") {
+    val acc = Param()
+    val e =
+      IfThenElse(
+        acc.__3,
+        IfThenElse(Not(LessThan(acc.__4, 5)), False, True),
+        False
+      )
+    val expected = acc.__3 && LessThan(acc.__4, 5)
+    assert(ExprEvaluator.partialEval(e) == expected)
+  }
+
   test("VecScanUnfolded") {
     val a = Param()
     val b = Param()

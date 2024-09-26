@@ -13,6 +13,7 @@ sealed abstract class Expr {
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
   def &&(that: Expr): And = And(this, that)
+  def ||(that: Expr): Or = Or(this, that)
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
   def __0: TupleAccess = TupleAccess(this, 0)

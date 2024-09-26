@@ -264,8 +264,15 @@ object ExprEvaluator {
             else if t == DontCare then f
             else if t == f then t
             else if t == True && f == False then cond
-            else if t == False && f == True then Not(cond)
-            else IfThenElse(cond, t, f)
+            else if t == False && f == True then partialEval(Not(cond))
+            else {
+              val x = IfThenElse(cond, t, f)
+              if isBoolExpr(x).getOrElse(false) && !hasSideEffects(x) then {
+                partialEval((cond && t) || (Not(cond) && f))
+              } else {
+                x
+              }
+            }
         }
       case NotEqual(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -395,6 +402,79 @@ object ExprEvaluator {
           case DontCare      => DontCare
           case vec @ _       => VecLength(vec)
         }
+    }
+  }
+
+  // TODO: just use the type checker for this
+  private def isBoolExpr(e: Expr): Option[Boolean] = {
+    e match {
+      // Definitely evaluates to a bool
+      case True | False | And(_, _) | Or(_, _) | Not(_) | Equal(_, _) |
+          NotEqual(_, _) | LessThan(_, _) =>
+        Some(true)
+      // Definitely not a bool
+      case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function =>
+        Some(false)
+      // Not sure
+      case _: Param | DontCare => None
+      case TupleAccess(Tuple(elems: _*), _) =>
+        val isBool = elems.map(e => isBoolExpr(e))
+        val atLeastOneTrue = isBool.exists(p => p.getOrElse(false))
+        val atLeastOneFalse = isBool.exists(p => !p.getOrElse(true))
+        (atLeastOneTrue, atLeastOneFalse) match {
+          case (false, false) => None
+          case (false, true)  => Some(false)
+          case (true, false)  => Some(true)
+          case (true, true)   => None
+        }
+      case TupleAccess(_, _)             => None
+      case FunCall(Function(p, body), _) => isBoolExpr(body)
+      case FunCall(_, _)                 => None
+      case IfThenElse(_, t, f) =>
+        (isBoolExpr(t), isBoolExpr(f)) match {
+          case (None, None) => None
+          case (None, Some(true)) | (Some(true), None) |
+              (Some(true), Some(true)) =>
+            Some(true)
+          case (None, Some(false)) | (Some(false), None) |
+              (Some(false), Some(false)) =>
+            Some(false)
+          case (Some(true), Some(false)) | (Some(false), Some(true)) => None
+        }
+      case StmNext(_)      => None
+      case VecAccess(_, _) => None
+    }
+  }
+
+  private def hasSideEffects(e: Expr): Boolean = {
+    e match {
+      case Tuple(elems: _*)  => elems.exists(e => hasSideEffects(e))
+      case TupleAccess(t, i) => hasSideEffects(t) || hasSideEffects(i)
+      case _: Param          => false
+      case _: Function       => false
+      case FunCall(f, arg)   => ???
+      case _: IntCst         => false
+      case Add(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case Sub(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case Mul(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case Div(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case Mod(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case True | False      => false
+      case IfThenElse(cond, t, f) =>
+        hasSideEffects(cond) || hasSideEffects(t) || hasSideEffects(f)
+      case Equal(x, y)    => hasSideEffects(x) || hasSideEffects(y)
+      case NotEqual(x, y) => hasSideEffects(x) || hasSideEffects(y)
+      case LessThan(x, y) => hasSideEffects(x) || hasSideEffects(y)
+      case Not(x)         => hasSideEffects(x)
+      case And(x, y)      => hasSideEffects(x) || hasSideEffects(y)
+      case Or(x, y)       => hasSideEffects(x) || hasSideEffects(y)
+      case DontCare       => false
+      case _: StmBuild    => ???
+      case _: StmLength   => false
+      case _: StmNext     => true
+      case _: VecBuild    => false
+      case _: VecAccess   => false
+      case _: VecLength   => false
     }
   }
 
