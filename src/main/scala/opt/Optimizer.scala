@@ -13,20 +13,24 @@ object Optimizer {
   }
 
   def optimizeStream(stm: StmBuild): StmBuild = {
-    val s1 = StmFusePass.fuseCompletely(stm)
-    getInputStream(s1) match {
-      case None => s1
-      case Some(input) =>
-        PartialEvalPass.partialEval(s1.length) match {
-          case IntCst(n) =>
-            if actsLikeIdentityStream(s1, n, StmNext(input).__1) then {
-              StmCanonPass.canonicalIdentityStream(n, input)
-            } else {
-              s1
-            }
-          case _ => s1
-        }
-    }
+    val s1 = StmAccRemovePass.removeUnnecessaryAccumulators(
+      StmFusePass.fuseCompletely(stm)
+    )
+    s1
+//    TODO
+//    getInputStream(s1) match {
+//      case None => s1
+//      case Some(input) =>
+//        PartialEvalPass.partialEval(s1.length) match {
+//          case IntCst(n) =>
+//            if actsLikeIdentityStream(s1, n, StmNext(input).__1) then {
+//              StmCanonPass.canonicalIdentityStream(n, input)
+//            } else {
+//              s1
+//            }
+//          case _ => s1
+//        }
+//    }
   }
 
   private def getInputStream(stm: StmBuild): Option[Param] = {

@@ -1,3 +1,5 @@
+package debug
+
 import opt.PartialEvalPass
 import ir.*
 
@@ -20,9 +22,12 @@ object StmTracer {
         val next = PartialEvalPass.partialEval(FunCall(nextF, acc))
         val nextAcc = PartialEvalPass.partialEval(next.__0)
         val nextOut = PartialEvalPass.partialEval(next.__1)
-        val valid = boolExpr2Boolean(
-          PartialEvalPass.partialEval(next.__2).asInstanceOf[BoolExpr]
-        )
+        val valid = PartialEvalPass.partialEval(next.__2) match {
+          case True  => true
+          case False => false
+          case e =>
+            throw new IllegalArgumentException(s"Unknown boolean value ${e}")
+        }
         val accStr =
           PrettyPrinter.show(acc, collapseStm = true, evalVec = true)(Map())
         val outStr = PrettyPrinter.show(nextOut, evalVec = true)(Map())

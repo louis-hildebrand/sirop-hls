@@ -8,17 +8,12 @@ object StmUtils {
     *   A stream whose accumulator is a non-nested tuple.
     * @param indicesToRemove
     *   The indices to remove from the accumulator.
-    * @param replace
-    *   A function which, given an index from the list of indices to remove,
-    *   provides an expression with which to replace the element at that index
-    *   if it occurs in the body of the stream.
     * @return
     *   The stream with the given accumulator elements removed.
     */
   def removeAccumulatorElemsByIndex(
       stm: StmBuild,
-      indicesToRemove: Seq[Int],
-      replace: Int => Expr
+      indicesToRemove: Seq[Int]
   ): StmBuild = {
     val seed = stm.seed.asInstanceOf[Tuple]
     // Need to adjust indices used to read accumulator.
@@ -32,10 +27,11 @@ object StmUtils {
       )
       .toMap
     val acc = stm.nextF.param
+    val invalid = Param()
     val subs: Map[Expr, Expr] = indexMap
       .map((i, j) =>
         j match {
-          case None    => TupleAccess(acc, i) -> replace(i)
+          case None    => TupleAccess(acc, i) -> invalid
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
       )
@@ -47,7 +43,7 @@ object StmUtils {
         }
       )
     )
-    StmBuild(
+    val s = StmBuild(
       stm.length,
       f(seed),
       Function(
@@ -55,6 +51,12 @@ object StmUtils {
         PartialEvalPass.substitute(transformHead(f)(stm.nextF.body))(subs)
       )
     )
+    if PartialEvalPass.contains(s, invalid) then {
+      throw new IllegalArgumentException(
+        "At least one of the removed accumulator elements were still in use!"
+      )
+    }
+    s
   }
 
   /** Create a new tuple by taking elements from the given tuple in a specific

@@ -40,7 +40,9 @@ object StmCanonPass {
     //       StmFold:3D:Sum and StmFold:3D:Product) to seemingly get stuck in
     //       an infinite loop when moving IfThenElse outside Tuple.
     val s3 = removeConstantAccumulatorElems(s2)
-    moveStreamsToFront(s3)
+    val s4 = moveStreamsToFront(s3)
+    // Canonicalization may have revealed new partial evaluation opportunities
+    PartialEvalPass.partialEval(s4).asInstanceOf[StmBuild]
   }
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -118,10 +120,13 @@ object StmCanonPass {
         .map((e, i) => i)
         .toSet
     )
+    val acc = stm.nextF.param
+    val seed = stm.seed.asInstanceOf[Tuple]
+    val subs: Map[Expr, Expr] =
+      indicesToRemove.map(i => TupleAccess(acc, i) -> seed.elems(i)).toMap
     StmUtils.removeAccumulatorElemsByIndex(
-      stm,
-      indicesToRemove.toSeq,
-      replace = i => stm.seed.asInstanceOf[Tuple].elems(i)
+      PartialEvalPass.substitute(stm)(subs).asInstanceOf[StmBuild],
+      indicesToRemove.toSeq
     )
   }
 

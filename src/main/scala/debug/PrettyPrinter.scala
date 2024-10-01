@@ -1,3 +1,5 @@
+package debug
+
 import opt.PartialEvalPass
 import ir.*
 
