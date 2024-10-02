@@ -59,7 +59,7 @@ object Stm2Vec {
       s: Expr,
       // Ideally we would get this shape info from the type system
       n: Expr
-  ): Expr =
+  ): StmBuild =
     StmFold(
       s,
       VecBuild(n, (i: Expr) => DontCare),
@@ -141,7 +141,7 @@ object VecShiftLeft {
     val n = VecLength(vec)
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1))
+      (i: Expr) => IfThenElse(i === n - 1, e, VecAccess(vec, i + 1))
     )
   }
 }

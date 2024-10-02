@@ -483,7 +483,7 @@ object StmFold {
       f: Function /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
       stmShape: Seq[Expr]
-  ): Expr /* Stm<B; 1> */ = {
+  ): StmBuild /* Stm<B; 1> */ = {
     StmSuffix(
       StmScanInclusive(stream, z, f, stmShape = stmShape),
       1,
@@ -773,7 +773,7 @@ object StmSuffix {
       k: Expr /* Int */,
       // Ideally we would get this shape info from the type system
       shape: Seq[Expr]
-  ): Expr /* Stm<A; k> */ = {
+  ): StmBuild /* Stm<A; k> */ = {
     val perRow = shape.tail.fold(IntCst(1))(Mul.apply)
     val n = shape.head
     StmBuild(

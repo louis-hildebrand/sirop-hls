@@ -90,8 +90,8 @@ object PartialEvalPass {
           case StmLength(s)     => StmLength(substitute(s))
           case StmNext(e: Expr) => StmNext(substitute(e))
 
-          case VecBuild(len: Expr, f: Function) =>
-            VecBuild(substitute(len), substitute(f).asInstanceOf[Function])
+          case VecBuild(len: Expr, f) =>
+            VecBuild(substitute(len), substitute(f))
           case VecAccess(vec: Expr, i: Expr) =>
             VecAccess(substitute(vec), substitute(i))
           case VecLength(vec: Expr) => VecLength(substitute(vec))
@@ -131,6 +131,7 @@ object PartialEvalPass {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)       => e1.i + e2.i
           case (e, IntCst(0))                 => e
+          case (e, IntCst(n)) if n < 0        => e - IntCst(-n)
           case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a + b))
           case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a + b))
           case (IntCst(b), Add(e, IntCst(a))) => partialEval(e + (a + b))
@@ -323,12 +324,10 @@ object PartialEvalPass {
           case s => StmNext(s)
         }
 
-      case VecBuild(len: Expr, f: Function) =>
+      case VecBuild(len: Expr, f) =>
         VecBuild(
           partialEval(len),
-          partialEval(f).asInstanceOf[
-            Function
-          ] /* ensures any free Param in f gets substituted */
+          partialEval(f) /* ensures any free Param in f gets substituted */
         )
       case VecAccess(vec: Expr, i: Expr) =>
         partialEval(vec) match {

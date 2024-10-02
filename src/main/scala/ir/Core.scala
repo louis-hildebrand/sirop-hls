@@ -111,6 +111,6 @@ case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr // element only available for one clock cycle
 
 // Vectors
-case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr
+case class VecBuild(len: Expr, f: Expr /*Int => Expr*/ ) extends Expr
 case class VecAccess(vec: Expr, i: Expr) extends Expr
 case class VecLength(vec: Expr) extends IntExpr

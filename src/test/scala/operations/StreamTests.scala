@@ -302,8 +302,9 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmMap:2D-2D:StmMap") {
+    val p = Param()
     val s = StmMap(
-      StmCount2D(4, 3),
+      p,
       (s: Expr) =>
         StmMap(
           s,
@@ -316,13 +317,14 @@ class StreamTests extends AnyFunSuite {
       fInShape = Some(3),
       fOutShape = Some(3)
     )
+
     val expected = Seq(
       Seq(0, 1, 2),
       Seq(1, 2, 3),
       Seq(2, 3, 4),
       Seq(3, 4, 5)
     ).map(xs => xs.map(x => IntCst(x)))
-    assertStreamEqual(s, expected.flatten)
+    assertStreamEqual(Let(p, StmCount2D(4, 3), s), expected.flatten)
   }
 
   test("StmMap:2D-2D:StmScanInclusive") {

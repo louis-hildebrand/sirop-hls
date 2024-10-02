@@ -4,6 +4,20 @@ import ir.*
 
 object StmUtils {
 
+  def appendAccumulator(stm: StmBuild, z: Expr, next: Function): StmBuild = {
+    val p = Param()
+    StmBuild(
+      stm.length,
+      Tuple(stm.seed, z),
+      (acc: Expr) =>
+        Let(
+          p,
+          FunCall(stm.nextF, acc.__0),
+          Tuple(Tuple(p.__0, FunCall(next, acc.__1)), p.__1, p.__2)
+        )
+    )
+  }
+
   /** @param stm
     *   A stream whose accumulator is a non-nested tuple.
     * @param indicesToRemove
