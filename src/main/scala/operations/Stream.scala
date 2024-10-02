@@ -1,6 +1,5 @@
 package operations
 
-// Helper functions
 import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
 import opt.PartialEvalPass.substitute
 import ir.*
@@ -25,8 +24,8 @@ private def expandTuple(t: Expr, n: Int): Tuple = {
   */
 private def asStm2Stm(
     f: Function,
-    inShape: Option[Int],
-    outShape: Option[Int]
+    inShape: Option[Expr],
+    outShape: Option[Expr]
 ): Function = {
   val f1 = (inShape, outShape) match {
     case (None, None) => {
@@ -162,7 +161,11 @@ private def asStm2Stm(
     Function(
       f3.param,
       StmFusePass.fuseCompletely(
-        StmConcat(f3.body, StmDrain(f3.param), len1 = outShape.getOrElse(1))
+        StmConcat(
+          f3.body,
+          StmDrain(f3.param),
+          len1 = outShape.getOrElse(IntCst(1))
+        )
       )
     )
   }
@@ -257,12 +260,12 @@ object Iterate {
 // creating streams
 
 object StmCst {
-  def apply(n: IntCst, c: Expr): Expr /* Stm<Int; n> */ =
+  def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ =
     StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
 }
 
 object StmCount {
-  def apply(n: IntCst): Expr /* Stm<Int; n> */ =
+  def apply(n: Expr): Expr /* Stm<Int; n> */ =
     StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i, True))
 }
 
@@ -309,9 +312,9 @@ object StmMap {
       input: Expr /* Stm<A; n> */,
       f: Function /* A -> B */,
       // TODO: Ideally we would get this shape info from the type system
-      n: Int,
-      fInShape: Option[Int],
-      fOutShape: Option[Int]
+      n: Expr,
+      fInShape: Option[Expr],
+      fOutShape: Option[Expr]
   ): StmBuild /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
     val stmF = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
@@ -334,16 +337,16 @@ object StmMap {
       "Function in StmMap must not take more than one stream as input."
     )
     n match {
-      case 0 =>
+      case IntCst(0) =>
         StmBuild(0, Tuple(), (acc: Expr) => Tuple(Tuple(), DontCare, True))
-      case 1 =>
+      case IntCst(1) =>
         // No need to reset
         inner
-      case n if n > 1 =>
+      case n =>
         // How many elements will the inner component read and produce before it
         // must be reset?
-        val numIn = fInShape.getOrElse(1)
-        val numOut = fOutShape.getOrElse(1)
+        val numIn = fInShape.getOrElse(IntCst(1))
+        val numOut = fOutShape.getOrElse(IntCst(1))
         // Build a new stream by repeating the inner one once it's done
         StmBuild(
           n * numOut,
@@ -362,8 +365,6 @@ object StmMap {
             )
           }
         )
-      case _ =>
-        throw new IllegalArgumentException(s"Invalid input to StmMap: n = ${n}")
     }
   }
 
@@ -372,8 +373,8 @@ object StmMap {
       oldAcc: Param,
       newAcc: Param,
       oldSeed: Tuple,
-      numIn: Int,
-      numOut: Int
+      numIn: Expr,
+      numOut: Expr
   ): Expr = {
     // Assume there is exactly one input stream and it can be found at
     // oldAcc.__0
@@ -454,10 +455,10 @@ object StmAccess {
       stm: Expr /* Stm<A; n> */,
       i: Expr /* Int */,
       // TODO: Ideally we would get this shape info from the type system
-      shape: Seq[Int]
+      shape: Seq[Expr]
   ): Expr /* A */ = {
     // NOTE: require 0 <= i < n
-    val perRow = shape.tail.product
+    val perRow = shape.tail.fold(IntCst(1))((x, y) => Mul(x, y))
     StmBuild(
       perRow,
       Tuple(stm, 0, perRow),
@@ -481,7 +482,7 @@ object StmFold {
       z: Expr /* B */,
       f: Function /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<B; 1> */ = {
     StmSuffix(
       StmScanInclusive(stream, z, f, stmShape = stmShape),
@@ -499,20 +500,21 @@ object StmScanInclusive {
       z: Expr /* B */,
       f: Function /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr = {
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val stmF =
       asStm2Stm(
         f.body.asInstanceOf[Function],
         inShape =
-          if stmShape.tail.isEmpty then None else Some(stmShape.tail.product),
+          if stmShape.tail.isEmpty then None
+          else Some(stmShape.tail.fold(IntCst(1))(Mul.apply)),
         outShape = if stmShape.tail.isEmpty then None else Some(1)
       )
     val inner = StmCanonPass.canonicalize(
       PartialEvalPass.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
     )
-    val numIn = stmShape.tail.product
+    val numIn = stmShape.tail.fold(IntCst(1))(Mul.apply)
     StmBuild(
       stmShape.head,
       Tuple(inner.seed, z, numIn, 1), {
@@ -538,7 +540,7 @@ object StmScanInclusive {
       oldAcc: Param,
       newAcc: Param,
       oldSeed: Tuple,
-      numIn: Int
+      numIn: Expr
   ): Expr = {
     val e = oldBody match {
       case DontCare => DontCare
@@ -623,7 +625,7 @@ object StmScanExclusive {
       z: Expr /* B */,
       f: Expr => Expr => Expr /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Vec<B; n> */ = {
     // Maybe it would be better to first take prefix of input stream, scan,
     // and then prepend
@@ -636,7 +638,7 @@ object StmScanExclusive {
 }
 
 object Vec2Stm {
-  def apply(v: Expr /* Vec<A; n> */, n: Int): Expr /* Stm<A; n> */ =
+  def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ =
     // TODO: Would it be better to use a shift register for accessing the
     //       input?
     StmBuild(n, 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i), True))
@@ -649,7 +651,7 @@ object StmPrepend {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape info from the type system
-      eShape: Seq[Int]
+      eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val p = Param()
     val eStm = if eShape.isEmpty then {
@@ -658,8 +660,8 @@ object StmPrepend {
       e
     }
     StmBuild(
-      StmLength(stm) + eShape.product,
-      Tuple(eStm, stm, eShape.product),
+      StmLength(stm) + eShape.fold(IntCst(1))(Mul.apply),
+      Tuple(eStm, stm, eShape.fold(IntCst(1))(Mul.apply)),
       (acc: Expr) => {
         IfThenElse(
           acc.__2 === 0,
@@ -686,7 +688,7 @@ object StmAppend {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape information from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val eStm = if stmShape.tail.isEmpty then {
       StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
@@ -694,8 +696,8 @@ object StmAppend {
       e
     }
     StmBuild(
-      stmShape.updated(0, stmShape.head + 1).product,
-      Tuple(stm, eStm, stmShape.product),
+      stmShape.updated(0, stmShape.head + 1).fold(IntCst(1))(Mul.apply),
+      Tuple(stm, eStm, stmShape.fold(IntCst(1))(Mul.apply)),
       (acc: Expr) =>
         IfThenElse(
           acc.__2 === 0,
@@ -733,9 +735,9 @@ object StmPrefix {
       stm: Expr /* Stm<A, n> */,
       k: Expr /* Int */,
       // Ideally we would get this shape information from the type system
-      shape: Seq[Int]
+      shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
-    val perRow = shape.tail.product
+    val perRow = shape.tail.fold(IntCst(1))(Mul.apply)
     StmBuild(
       k * perRow,
       Tuple(stm, 0, perRow),
@@ -770,9 +772,9 @@ object StmSuffix {
       stm: Expr /* Stm<A; n> */,
       k: Expr /* Int */,
       // Ideally we would get this shape info from the type system
-      shape: Seq[Int]
+      shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
-    val perRow = shape.tail.product
+    val perRow = shape.tail.fold(IntCst(1))(Mul.apply)
     val n = shape.head
     StmBuild(
       k * perRow,
@@ -796,7 +798,7 @@ object StmShiftLeft {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<A; n> */ = {
     val n = stmShape.head
     StmAppend(
@@ -812,7 +814,7 @@ object StmShiftRight {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape information from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<A; n> */ = {
     StmPrepend(
       StmPrefix(stm, stmShape.head - 1, shape = stmShape),
@@ -828,7 +830,7 @@ object StmConcat {
   def apply(
       in1: Expr /* Stm<A; n> */,
       in2: Expr /* Stm<A; m> */,
-      len1: Int
+      len1: Expr
   ): Expr /* Stm<A; n+m> */ = {
     val p = Param()
     StmBuild(
@@ -896,9 +898,9 @@ object StmZipAlternating {
 object StmRepeat {
   def apply(
       stm: Expr /* Stm<A; n> */,
-      m: Int,
+      m: Expr,
       // Ideally we would get this shape info from the type system
-      n: Int
+      n: Expr
   ): Expr /* Stm<Stm<A; n>; m> */ = {
     // TODO: Implement using Stm2Vec instead?
     StmBuild(
@@ -946,7 +948,7 @@ object StmRepeat {
 object StmSplit {
   def apply(
       stm: Expr /* Stm<A; n> */,
-      m: Int
+      m: Expr
   ): Expr /* Stm<Stm<A; m>; n/m> */ = {
     // Should there be some kind of assertion to check that n is divisible by
     // m? Or will that be handled in the higher-level IR?
@@ -977,10 +979,10 @@ object StmSlideV {
       stm: Expr /* Stm<A; n> */,
       m: Int,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
-    val elemSize = stmShape.tail.product
+    val elemSize = stmShape.tail.fold(IntCst(1))(Mul.apply)
     val v = Param()
     StmBuild(
       n - m + 1,
@@ -1035,7 +1037,7 @@ object StmSlideS {
       stm: Expr /* Stm<A; n> */,
       m: Int,
       // Ideally we would get this shape info from the type system
-      stmShape: Seq[Int]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<Stm<A; m>; n-m+1> */ = {
     // TODO: Optimize this version specifically by producing elements while
     //       the shift register is still filling up?
@@ -1045,7 +1047,7 @@ object StmSlideS {
       (v: Expr) => Vec2Stm(v, n = m),
       n = stmShape.head - m + 1,
       fInShape = None,
-      fOutShape = Some(m * stmShape.tail.product)
+      fOutShape = Some(m * stmShape.tail.fold(IntCst(1))(Mul.apply))
     )
   }
 }
@@ -1054,8 +1056,8 @@ object StmTranspose {
   def apply(
       stm: Expr /* Stm<Stm<A; m>; n> */,
       // Ideally we would get this shape info from the type system
-      n: Int,
-      m: Int
+      n: Expr,
+      m: Expr
   ): Expr /* Stm<Stm<A; n>; m> */ = {
     StmMap(
       Stm2Vec(stm, n = n * m),

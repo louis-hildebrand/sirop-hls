@@ -58,7 +58,7 @@ object Stm2Vec {
   def apply(
       s: Expr,
       // Ideally we would get this shape info from the type system
-      n: Int
+      n: Expr
   ): Expr =
     StmFold(
       s,
@@ -200,7 +200,10 @@ object VecZipAlternating {
 }
 
 object VecRepeat {
-  def apply(vec: Expr /* Vec<A; n> */, m: Int): Expr /* Vec<Vec<A; n>, m> */ = {
+  def apply(
+      vec: Expr /* Vec<A; n> */,
+      m: Expr
+  ): Expr /* Vec<Vec<A; n>, m> */ = {
     VecBuild(m, (i: Expr) => vec)
   }
 }
@@ -208,7 +211,7 @@ object VecRepeat {
 object VecSplit {
   def apply(
       vec: Expr /* Vec<A; n> */,
-      m: Int
+      m: Expr
   ): VecBuild /* Vec<Vec<A; m>; n/m> */ = {
     val n = VecLength(vec)
     // n must be divisible by m
