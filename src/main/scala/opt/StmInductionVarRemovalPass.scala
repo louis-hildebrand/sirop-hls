@@ -32,8 +32,6 @@ object StmInductionVarRemovalPass {
 
     val indicesToRemove = inductionVarByIdx.keySet.toSeq
     StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
-
-    // TODO: the `valid` expression also needs to change somehow!
   }
 
   /** Attempt to express the accumulator element at index `i` as a function of a
@@ -56,6 +54,9 @@ object StmInductionVarRemovalPass {
       // Up counter
       case (IntCst(z), Add(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
         Some((t: Expr) => IntCst(z) + t * delta)
+      // Down counter
+      case (IntCst(z), Sub(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
+        Some((t: Expr) => IntCst(z) - t * delta)
       // VecShiftLeft
       case (
             VecBuild(n, f),
