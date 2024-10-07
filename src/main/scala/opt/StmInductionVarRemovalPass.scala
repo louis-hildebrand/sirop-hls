@@ -1,6 +1,7 @@
 package opt
 
 import ir.*
+import operations.{Max, CeilDiv}
 
 object StmInductionVarRemovalPass {
   def removeInductionVars(stm: StmBuild): StmBuild = {
@@ -10,28 +11,31 @@ object StmInductionVarRemovalPass {
       seed.elems.indices
         .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
         .toMap
+    if inductionVarByIdx.isEmpty then {
+      s
+    } else {
+      // TODO: it's a bit sketchy that partial evaluation is required here, isn't it?
+      val s1 = PartialEvalPass
+        .partialEval(
+          StmUtils.appendAccumulator(s, 0, (i: Expr) => i + 1)
+        )
+        .asInstanceOf[StmBuild]
 
-    // TODO: it's a bit sketchy that partial evaluation is required here, isn't it?
-    val s1 = PartialEvalPass
-      .partialEval(
-        StmUtils.appendAccumulator(s, 0, (i: Expr) => i + 1)
+      val acc = s1.nextF.param
+      val subs: Map[Expr, Expr] = inductionVarByIdx
+        .map((i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1))
+      // Canonicalization is required for removing accumulator elements
+      val s2 = StmCanonPass.canonicalize(
+        StmBuild(
+          s1.length,
+          s1.seed,
+          Function(acc, PartialEvalPass.substitute(s1.nextF.body)(subs))
+        )
       )
-      .asInstanceOf[StmBuild]
 
-    val acc = s1.nextF.param
-    val subs: Map[Expr, Expr] = inductionVarByIdx
-      .map((i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1))
-    // Canonicalization is required for removing accumulator elements
-    val s2 = StmCanonPass.canonicalize(
-      StmBuild(
-        s1.length,
-        s1.seed,
-        Function(acc, PartialEvalPass.substitute(s1.nextF.body)(subs))
-      )
-    )
-
-    val indicesToRemove = inductionVarByIdx.keySet.toSeq
-    StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
+      val indicesToRemove = inductionVarByIdx.keySet.toSeq
+      StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
+    }
   }
 
   /** Attempt to express the accumulator element at index `i` as a function of a
@@ -52,12 +56,26 @@ object StmInductionVarRemovalPass {
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
     (z, next) match {
       // Up counter
-      case (IntCst(z), Add(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
-        Some((t: Expr) => IntCst(z) + t * delta)
+      case (z, Add(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
+        Some((t: Expr) => z + t * delta)
       // Down counter
-      case (IntCst(z), Sub(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
-        Some((t: Expr) => IntCst(z) - t * delta)
+      case (z, Sub(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
+        Some((t: Expr) => z - t * delta)
+      // Monotonic bool (True --> False, up counter)
+      case (
+            True,
+            And(
+              TupleAccess(a0, IntCst(i0)),
+              LessThan(TupleAccess(a1, IntCst(j)), k)
+            )
+          ) if a0 == acc && a1 == acc && i0 == i =>
+        tryGetMonotonicCounter(s, i, j) match {
+          case Some((i0, delta)) if delta > 0 =>
+            Some((t: Expr) => t < (CeilDiv(Max(0, k - i0), delta) + 1))
+          case _ => None
+        }
       // VecShiftLeft
+      // TODO: watch out for infinite loops due to circular dependencies!
       case (
             VecBuild(n, f),
             VecBuild(
@@ -243,6 +261,45 @@ object StmInductionVarRemovalPass {
           case Some(f) => Some((t: Expr) => VecLength(FunCall(f, t)))
           case _       => None
         }
+    }
+  }
+
+  /** @param s
+    *   Stream.
+    * @param i
+    *   Index of a boolean that depends on this accumulator.
+    * @param j
+    *   Index of the counter.
+    * @return
+    *   `Some(z, delta)` if this is a counter, otherwise `None`
+    */
+  private def tryGetMonotonicCounter(
+      s: StmBuild,
+      i: Int,
+      j: Int
+  ): Option[(Expr, Int)] = {
+    val cntrInit = s.seed.asInstanceOf[Tuple].elems(j)
+    val cntrUpdateExpr =
+      PartialEvalPass.partialEval(
+        TupleAccess(s.nextF.body.__0, j)
+      )
+    val acc = s.nextF.param
+    cntrUpdateExpr match {
+      case IfThenElse(
+            TupleAccess(p0, i0),
+            Add(TupleAccess(p1, i1), IntCst(delta)),
+            TupleAccess(p2, i2)
+          )
+          if p0 == acc && i0 == IntCst(
+            i
+          ) && p1 == acc && i1 == IntCst(
+            j
+          ) && p2 == acc && i2 == IntCst(j) =>
+        Some((cntrInit, delta))
+      case Add(TupleAccess(p0, i0), IntCst(delta))
+          if p0 == acc && i0 == IntCst(j) =>
+        Some((cntrInit, delta))
+      case _ => None
     }
   }
 }

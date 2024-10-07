@@ -114,4 +114,8 @@ class OptimizationTests extends AnyFunSuite {
       v.seed.asInstanceOf[Tuple].elems.forall(e => !e.isInstanceOf[VecBuild])
     )
   }
+
+  test("Stm2Vec(StmCountByFrom(n, z, delta))") {
+    ???
+  }
 }

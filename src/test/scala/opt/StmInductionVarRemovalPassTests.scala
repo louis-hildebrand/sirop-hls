@@ -1,7 +1,7 @@
 package opt
 
 import ir.*
-import operations.{StreamTests, VecShiftLeft, VectorTests}
+import operations.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
@@ -41,12 +41,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         )
       )
     val actual = (nVal: Int) => StreamTests.stm2Seq(Let(n, nVal, opt))
-    assert(actual(0) == expected(0))
-    assert(actual(1) == expected(1))
-    assert(actual(2) == expected(2))
-    assert(actual(3) == expected(3))
-    assert(actual(4) == expected(4))
-    assert(actual(15) == expected(15))
+    for (nVal <- 0 to 15) {
+      assert(actual(nVal) == expected(nVal))
+    }
 
     // Effective simplification
     val ideal =
@@ -60,7 +57,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               2 * (3 + acc.__0),
               (10 + acc.__0 * 4) / 3,
               19 - acc.__0 * 2,
-              0 - acc.__0 * (-3),
+              acc.__0 * 3,
               -2 - acc.__0 * 6
             ),
             True
@@ -69,7 +66,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(opt == ideal)
   }
 
-  test("ShiftRegister") {
+  test("VecShiftLeft") {
     val n = Param()
     val m = Param()
     val s = StmBuild(
@@ -126,5 +123,106 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
       )
     assert(opt == ideal)
+  }
+
+  test("MonotonicBoolSimpleCounter") {
+    val n = Param()
+    val i0 = Param()
+    val k0 = Param()
+    val k1 = Param()
+    val delta = 3
+    val s = StmBuild(
+      n,
+      Tuple(i0, True, True),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + delta,
+            acc.__1 && (acc.__0 < k0),
+            acc.__2 && (acc.__0 < k1)
+          ),
+          Tuple(acc.__0, acc.__1, acc.__2),
+          Not(acc.__1) && (acc.__0 % 2 === 0)
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- 0 to 10) {
+      for (i0Val <- -2 to 2) {
+        for (k0Val <- -2 to 2) {
+          for (k1Val <- -2 to 2) {
+            val expected =
+              Let(n, nVal, Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, s))))
+            val actual =
+              Let(n, nVal, Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, opt))))
+            assert(
+              StreamTests.stm2Seq(actual) == StreamTests.stm2Seq(expected),
+              s"(for n = ${nVal}, i0 = ${i0Val}, k0 = ${k0Val}, k1 = ${k1Val})"
+            )
+          }
+        }
+      }
+    }
+
+    // Effective simplification
+    val ideal =
+      StmBuild(
+        n,
+        Tuple(0),
+        (acc: Expr) =>
+          Tuple(
+            Tuple(acc.__0 + 1),
+            Tuple(
+              i0 + acc.__0 * 3,
+              acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1),
+              acc.__0 < (CeilDiv(Max(0, k1 - i0), delta) + 1)
+            ),
+            Not(acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1))
+              && ((i0 + acc.__0 * 3) % 2 === 0)
+          )
+      )
+    assert(opt == ideal)
+  }
+
+  test("MonotonicBoolBoundedCounter") {
+    val n = Param()
+    val i0 = Param()
+    val k = Param()
+    val delta = 4
+    val s = StmBuild(
+      n,
+      Tuple(i0, True),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            IfThenElse(acc.__1, acc.__0 + delta, acc.__0),
+            acc.__1 && (acc.__0 < k)
+          ),
+          Tuple(acc.__0, acc.__1),
+          True
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- 0 to 10) {
+      for (i0Val <- -2 to 2) {
+        for (kVal <- -2 to 2) {
+          val expected =
+            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, s)))
+          val actual =
+            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, opt)))
+          assert(
+            StreamTests.stm2Seq(actual) == StreamTests.stm2Seq(expected),
+            s"(for n = ${nVal}, i0 = ${i0Val}, k = ${kVal})"
+          )
+        }
+      }
+    }
+
+    // Effective simplification
+    // TODO: we should be able to get rid of the bounded counter as well
+    assert(opt.seed == Tuple(i0, 0))
   }
 }

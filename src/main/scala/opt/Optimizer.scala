@@ -13,7 +13,7 @@ object Optimizer {
   }
 
   def optimizeStream(stm: StmBuild): StmBuild = {
-    val s1 = StmAccRemovePass.removeUnnecessaryAccumulators(
+    val s1 = StmInductionVarRemovalPass.removeInductionVars(
       StmFusePass.fuseCompletely(stm)
     )
     s1
