@@ -48,7 +48,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param()
     val b = Param()
     val c = Param()
-    val z = IntCst(0)
+    val z = Param()
     val v =
       VecBuild(
         3,

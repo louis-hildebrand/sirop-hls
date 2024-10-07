@@ -131,6 +131,7 @@ object PartialEvalPass {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)       => e1.i + e2.i
           case (e, IntCst(0))                 => e
+          case (IntCst(0), e)                 => e
           case (e, IntCst(n)) if n < 0        => e - IntCst(-n)
           case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a + b))
           case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a + b))
@@ -148,6 +149,7 @@ object PartialEvalPass {
           case (e1: IntCst, e2: IntCst)       => e1.i - e2.i
           case (x, y) if x == y               => 0
           case (e, IntCst(0))                 => e
+          case (e, IntCst(n)) if n < 0        => e + IntCst(-n)
           case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a - b))
           case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a - b))
           case (IntCst(b), Add(e, IntCst(a))) => partialEval(IntCst(b - a) - e)
