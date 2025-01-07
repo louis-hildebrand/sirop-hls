@@ -2,9 +2,7 @@ package operations
 
 import ir.*
 import opt.PartialEvalPass
-import opt.StmCanonPass
 import opt.Optimizer
-import opt.StmFusePass
 import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
@@ -47,6 +45,14 @@ class StreamTests extends AnyFunSuite {
 
   test("StmCountFrom") {
     assertStreamEqual(StmCountFrom(3, 4), Seq(3, 4, 5, 6))
+  }
+
+  test("StmRange(4, 3, 2)") {
+    assertStreamEqual(StmRange(4, 3, 2), Seq(3, 5, 7, 9))
+  }
+
+  test("StmRange(3, 2, -3)") {
+    assertStreamEqual(StmRange(3, 2, -3), Seq(2, -1, -4))
   }
 
   test("StmCst2D") {

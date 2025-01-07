@@ -60,7 +60,7 @@ class OptimizationTests extends AnyFunSuite {
     val expected = (n: Int) => Seq((0 until n).map(_ => c))
     val actual = (nVal: Int) =>
       StreamTests.stm2Seq(Let(n, nVal, v)).map(v => VectorTests.vec2Seq(v))
-    // TODO: handle n = 0 as well?
+    assert(actual(0) == expected(0))
     assert(actual(1) == expected(1))
     assert(actual(2) == expected(2))
     assert(actual(3) == expected(3))
@@ -79,12 +79,14 @@ class OptimizationTests extends AnyFunSuite {
     )
   }
 
-  /** The conversion of a counter of unknown length into a vector can be
-    * optimized (no delay, just return the vector directly).
+  /** The conversion of an arbitrary counter of unknown length into a vector can
+    * be optimized (no delay, just return the vector directly).
     */
-  test("Stm2Vec(StmCount(n)") {
+  test("Stm2Vec(StmRange(n, z, delta))") {
     val n = Param()
-    val s = StmCount(n)
+    val z = Param()
+    val delta = Param()
+    val s = StmRange(n, z, delta)
     val v =
       StmCanonPass.canonicalize(
         StmInductionVarRemovalPass.removeInductionVars(
@@ -93,29 +95,32 @@ class OptimizationTests extends AnyFunSuite {
       )
 
     // Correctness
-    val expected = (n: Int) => Seq((0 until n).map(i => IntCst(i)))
-    val actual = (nVal: Int) =>
-      StreamTests.stm2Seq(Let(n, nVal, v)).map(v => VectorTests.vec2Seq(v))
-    // TODO: handle n = 0 as well?
-    assert(actual(1) == expected(1))
-    assert(actual(2) == expected(2))
-    assert(actual(3) == expected(3))
-    assert(actual(15) == expected(15))
+    val expected =
+      (n: Int, z: Int, delta: Int) =>
+        Seq((0 until n).map(i => IntCst(z + i * delta)))
+    val actual = (nVal: Int, zVal: Int, deltaVal: Int) =>
+      StreamTests
+        .stm2Seq(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
+        .map(v => VectorTests.vec2Seq(v))
+    for (n <- 0 to 10) {
+      for (z <- -5 to 5) {
+        for (delta <- -5 to 5) {
+          assert(actual(n, z, delta) == expected(n, z, delta))
+        }
+      }
+    }
 
     // Effective simplification
     val ideal = StmBuild(
       1,
       Tuple(),
-      (acc: Expr) => Tuple(Tuple(), VecBuild(n, (i: Expr) => i), True)
+      (acc: Expr) =>
+        Tuple(Tuple(), VecBuild(n, (i: Expr) => z + i * delta), True)
     )
     // TODO: update `valid` expression as well and then remove the unnecessary counter
     // assert(v == ideal)
     assert(
       v.seed.asInstanceOf[Tuple].elems.forall(e => !e.isInstanceOf[VecBuild])
     )
-  }
-
-  test("Stm2Vec(StmCountByFrom(n, z, delta))") {
-    ???
   }
 }

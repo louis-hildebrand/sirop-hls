@@ -259,19 +259,38 @@ object Iterate {
 //////////////////////////
 // creating streams
 
+// TODO: It doesn't seem like using `StmRange(n, c, 0)` works here (e.g., StmFold:2D:DiscardInputAdd42 in StreamTests
+//       fails, seemingly due to the fact that, in that test, the "constant" is a param + a const). This may be
+//       something worth looking into.
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ =
     StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
 }
 
 object StmCount {
-  def apply(n: Expr): Expr /* Stm<Int; n> */ =
-    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, i, True))
+  def apply(n: Expr): Expr /* Stm<Int; n> */ = StmRange(n, 0, 1)
 }
 
 object StmCountFrom {
-  def apply(start: Expr, n: Expr): Expr = {
-    StmBuild(n, start, (acc: Expr) => Tuple(acc + 1, acc, True))
+  def apply(start: Expr, n: Expr): Expr = StmRange(n, start, 1)
+}
+
+object StmRange {
+
+  /** An arbitrary counter, a bit like Python's <code>range()</code>.
+    *
+    * @param n
+    *   Length of the stream.
+    * @param z
+    *   Initial value of the stream.
+    * @param delta
+    *   Difference between consecutive elements.
+    * @return
+    *   The stream of length <code>n</code> with elements <code>[z, z + delta, z
+    *   + 2 * delta, ...]</code>.
+    */
+  def apply(n: Expr, z: Expr, delta: Expr): Expr = {
+    StmBuild(n, z, (acc: Expr) => Tuple(acc + delta, acc, True))
   }
 }
 

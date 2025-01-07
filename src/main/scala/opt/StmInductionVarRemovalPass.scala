@@ -55,11 +55,18 @@ object StmInductionVarRemovalPass {
     val acc = s.nextF.param
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
     (z, next) match {
+      // TODO: Why did I specifically restrict delta to be an int constant at first? Are there potential problems for
+      //       other kinds of expressions? Do I need to check that it's side effect-free (e.g., no `StmNext`)?
+      // Constant
+      case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
+        Some((t: Expr) => z)
       // Up counter
-      case (z, Add(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
+      case (z, Add(TupleAccess(a0, IntCst(i0)), delta))
+          if a0 == acc && i0 == i =>
         Some((t: Expr) => z + t * delta)
       // Down counter
-      case (z, Sub(TupleAccess(a0, IntCst(i0)), IntCst(delta))) =>
+      case (z, Sub(TupleAccess(a0, IntCst(i0)), delta))
+          if a0 == acc && i0 == i =>
         Some((t: Expr) => z - t * delta)
       // Monotonic bool (True --> False, up counter)
       case (
