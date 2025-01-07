@@ -70,6 +70,45 @@ class StmFusePassTests extends AnyFunSuite {
     assert(actual == ideal)
   }
 
+  test("MapFold") {
+    val p = Param()
+    val n = Param()
+    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val s =
+      StmFold(
+        StmMap(p, f, n = n, fInShape = None, fOutShape = None),
+        0,
+        (acc: Expr) => (x: Expr) => acc + x,
+        stmShape = Seq(n)
+      )
+    val actual = canon(fuseCompletely(s))
+
+    // Correct behaviour
+    // (Using one example p, f, and g)
+    val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
+    val expected = PartialEvalPass.partialEval(
+      FunCall(f, 0)
+        + FunCall(f, 1)
+        + FunCall(f, 2)
+        + FunCall(f, 3)
+        + FunCall(f, 4)
+    )
+    assert(stm2Seq(call(s)) == Seq(expected))
+    assert(stm2Seq(call(actual)) == Seq(expected))
+    // Successful fusion
+    val ideal = canon(
+      fuseCompletely(
+        StmFold(
+          p,
+          0,
+          (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
+          stmShape = Seq(n)
+        )
+      )
+    )
+    assert(actual == ideal)
+  }
+
   test("StmShiftRight") {
     val p = Param()
     val s = StmPrepend(
@@ -101,7 +140,7 @@ class StmFusePassTests extends AnyFunSuite {
             ),
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              StmNext(acc.__0).__1,
+              DontCare,
               False
             )
           ),
@@ -140,7 +179,7 @@ class StmFusePassTests extends AnyFunSuite {
             ),
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              StmNext(acc.__0).__1,
+              DontCare,
               False
             )
           )

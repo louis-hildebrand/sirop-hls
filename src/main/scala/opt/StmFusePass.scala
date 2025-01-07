@@ -105,7 +105,6 @@ object StmFusePass {
             val newAcc0 = tupleExpand(newAcc.__0, outerStmAccArity)
             val subInnerNextData =
               Map[Expr, Expr](StmNext(oldAcc.__0).__1 -> innerNext.__1)
-            val out = PartialEvalPass.substitute(e)(subInnerNextData)
             Let(
               innerNext,
               FunCall(innerNextF, newAcc.__1),
@@ -122,12 +121,12 @@ object StmFusePass {
                     ),
                     innerNext0
                   ),
-                  out,
+                  PartialEvalPass.substitute(e)(subInnerNextData),
                   PartialEvalPass.substitute(valid)(subInnerNextData)
                 ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.
-                Tuple(Tuple(newAcc0, innerNext0), out, False)
+                Tuple(Tuple(newAcc0, innerNext0), DontCare, False)
               )
             )
           case Tuple(TupleAccess(p, IntCst(0)), as: _*) if p == oldAcc =>

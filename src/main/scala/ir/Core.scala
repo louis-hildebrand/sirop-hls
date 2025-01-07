@@ -104,6 +104,7 @@ object DontCare extends Expr
 case class StmBuild(
     length: Expr,
     seed: Expr /*A*/,
+    // TODO: Use Option<B> instead of (B, Bool) in the final IR
     nextF: Function /* A -> (A, B, Bool)*/
 ) extends Expr
 case class StmLength(stream: Expr) extends IntExpr
