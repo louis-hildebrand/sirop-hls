@@ -3,11 +3,12 @@ package debug
 import opt.PartialEvalPass
 import ir.*
 
+import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.*
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
-      implicit numByParam: Map[Param, Int]
+      implicit nameByParam: Map[Param, String]
   ): String = {
     e match {
       case True      => "True"
@@ -35,20 +36,19 @@ object PrettyPrinter {
            |}
            |""".stripMargin.stripTrailing
       case p: Param =>
-        numByParam.get(p) match {
-          case Some(n) => s"p${n}"
-          case None    => p.toString
+        nameByParam.get(p) match {
+          case Some(name) => name
+          case None       => p.toString
         }
       case Function(p, b) =>
-        val paramNum =
-          if numByParam.isEmpty then 0 else numByParam.values.max + 1
+        val newParamName = chooseNewParamName(nameByParam.values.toSet)
         val pStr =
           show(p, collapseStm = collapseStm, evalVec = evalVec)(
-            numByParam + (p -> paramNum)
+            nameByParam + (p -> newParamName)
           )
         val bStr =
           show(b, collapseStm = collapseStm, evalVec = evalVec)(
-            numByParam + (p -> paramNum)
+            nameByParam + (p -> newParamName)
           )
         if isMultiline(bStr) then {
           s"""(${pStr} /* ${p.toString} */) =>
@@ -123,6 +123,14 @@ object PrettyPrinter {
     }
   }
 
+  @tailrec
+  private def chooseNewParamName(takenNames: Set[String], i: Int = 0): String =
+    if !takenNames.contains(s"p${i}") then {
+      s"p${i}"
+    } else {
+      chooseNewParamName(takenNames, i + 1)
+    }
+
   private def indent(s: String): String = {
     s.lines.map(l => s"    ${l}").iterator().asScala.mkString("\n")
   }
@@ -131,7 +139,7 @@ object PrettyPrinter {
 
   private def showWithParens(
       e: Expr
-  )(implicit numByParam: Map[Param, Int]): String = {
+  )(implicit nameByParam: Map[Param, String]): String = {
     if shouldParenthesize(e) then {
       s"(${show(e)})"
     } else {
