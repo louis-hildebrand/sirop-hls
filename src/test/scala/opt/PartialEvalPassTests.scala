@@ -60,4 +60,45 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(VecAccess(v2, 1)) == (z + a) + b)
     assert(pe(VecAccess(v2, 2)) == ((z + a) + b) + c)
   }
+
+  // TODO: Ideally, generalize to simplifying any polynomials
+  test("AddSubCancel") {
+    val x = Param()
+    val y = Param()
+    assert(PartialEvalPass.partialEval((x + y) - x) == y)
+    assert(PartialEvalPass.partialEval((x + y) - y) == x)
+    assert(PartialEvalPass.partialEval((x - y) + y) == x)
+    assert(PartialEvalPass.partialEval(y + (x - y)) == x)
+  }
+
+  test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
+    val n = Param()
+    val i = Param()
+    val acc = Param()
+    val z = Param()
+    val delta = Param()
+    val e = IfThenElse(
+      i === (n - 1),
+      z + acc.__0 * delta,
+      z + ((acc.__0 + (i + 1)) - n) * delta
+    )
+    val actual = PartialEvalPass.partialEval(e)
+    val expected = z + ((acc.__0 + (i + 1)) - n) * delta
+    assert(actual == expected)
+  }
+
+  test("IfThenElseFalseBranchSpecialCaseOfTrueBranch") {
+    val n = Param()
+    val i = Param()
+    val acc = Param()
+    val z = Param()
+    val delta = Param()
+    val e = IfThenElse(
+      i !== (n - 1),
+      z + ((acc.__0 + (i + 1)) - n) * delta,
+      z + acc.__0 * delta
+    )
+    val expected = z + ((acc.__0 + (i + 1)) - n) * delta
+    assert(PartialEvalPass.partialEval(e) == expected)
+  }
 }

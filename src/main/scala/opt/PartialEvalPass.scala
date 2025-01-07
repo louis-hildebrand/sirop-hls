@@ -142,7 +142,11 @@ object PartialEvalPass {
           case (IntCst(b), Sub(e, IntCst(a))) => partialEval(e + (b - a))
           case (IntCst(b), Sub(IntCst(a), e)) => partialEval(IntCst(a + b) - e)
           case (DontCare, _) | (_, DontCare)  => DontCare
-          case (e1 @ _, e2 @ _)               => Add(e1, e2)
+          // TODO: I don't like these rules because they're really just associativity + cancelling, which are separate
+          //       rules. Maybe I can at least generalize by recognizing polynomials and grouping like terms.
+          case (e1, Sub(e2, e3)) if e1 == e3 => e2
+          case (Sub(e1, e2), e3) if e2 == e3 => e1
+          case (e1 @ _, e2 @ _)              => Add(e1, e2)
         }
       case Sub(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -161,7 +165,11 @@ object PartialEvalPass {
           case (Sub(x, y), z) if x == z       => partialEval(IntCst(0) - y)
           case (x, Sub(y, z)) if x == y       => z
           case (DontCare, _) | (_, DontCare)  => DontCare
-          case (e1 @ _, e2 @ _)               => Sub(e1, e2)
+          // TODO: I don't like these rules because they're really just associativity + cancelling, which are separate
+          //       rules. Maybe I can at least generalize by recognizing polynomials and grouping like terms.
+          case (Add(e1, e2), e3) if e1 == e3 => e2
+          case (Add(e1, e2), e3) if e2 == e3 => e1
+          case (e1 @ _, e2 @ _)              => Sub(e1, e2)
         }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -209,11 +217,22 @@ object PartialEvalPass {
             else if t == True && f == False then cond
             else if t == False && f == True then partialEval(Not(cond))
             else {
-              val x = IfThenElse(cond, t, f)
-              if isBoolExpr(x).getOrElse(false) && !hasSideEffects(x) then {
-                partialEval((cond && t) || (Not(cond) && f))
-              } else {
-                x
+              cond match {
+                // True branch is special case of false branch
+                case Equal(p: Param, r)
+                    if partialEval(substitute(f)(Map(p -> r))) == t =>
+                  f
+                // False branch is special case of true branch
+                case NotEqual(p: Param, r)
+                    if partialEval(substitute(t)(Map(p -> r))) == f =>
+                  t
+                case _ =>
+                  val x = IfThenElse(cond, t, f)
+                  if isBoolExpr(x).getOrElse(false) && !hasSideEffects(x) then {
+                    partialEval((cond && t) || (Not(cond) && f))
+                  } else {
+                    x
+                  }
               }
             }
         }
