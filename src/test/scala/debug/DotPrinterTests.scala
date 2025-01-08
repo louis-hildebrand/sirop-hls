@@ -74,4 +74,15 @@ class DotPrinterTests extends AnyFunSuite {
     )
     DotPrinter.save(e, "./img/NestedVecBuild.dot", nameByVar = Map(x -> "x"))
   }
+
+  test("VecAccessUnknownIndex") {
+    val i = Param()
+    val e = VecAccess(VecBuild(5, (j: Expr) => j), i)
+    DotPrinter.save(
+      e,
+      "./img/VecAccessUnknownIndex.dot",
+      nameByVar = Map(i -> "i"),
+      keepDotFile = true
+    )
+  }
 }

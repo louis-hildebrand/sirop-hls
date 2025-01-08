@@ -47,8 +47,17 @@ case class DotScalar(
   val dot: String = {
     val shape = if isConst then "none" else "ellipse"
     val node = s"$id [label=\"$label\", shape=\"$shape\"];"
-    val edges =
-      labeledChildren.map((lab, c) => s"${c.id} -> $id [label=\"$lab\"];")
+    val edges = labeledChildren
+      .map((label, c) =>
+        (
+          label,
+          c match {
+            case t: DotTuple => s"${t.id}:${t.outerPortId}"
+            case _           => c.id
+          }
+        )
+      )
+      .map((label, tailId) => s"$tailId -> $id [label=\"$label\"];")
     s"${labeledChildren.map((_, c) => c.dot).mkString("\n")}\n$node\n${edges.mkString("\n")}"
   }
   val children: Seq[DotExpr] = labeledChildren.map((_, c) => c)
@@ -66,6 +75,7 @@ case class DotTuple(children: Seq[DotExpr]) extends DotExpr {
     s"$descendantsStr\n$thisNode\n$edgesStr"
   }
 
+  lazy val outerPortId: String = DotExpr.freshId()
   private lazy val cellIds = children.map(_ => DotExpr.freshId())
   private lazy val table: String = {
     val rows: Seq[String] = children
@@ -80,7 +90,7 @@ case class DotTuple(children: Seq[DotExpr]) extends DotExpr {
         s"<TR><TD BGCOLOR=\"white\" PORT=\"$cid\">$lab</TD></TR>"
       )
     val indentedRows = rows.map(r => indent(r))
-    s"<TABLE BGCOLOR=\"darkgrey\">\n${indentedRows.mkString("\n")}\n</TABLE>"
+    s"<TABLE PORT=\"$outerPortId\" BGCOLOR=\"darkgrey\">\n${indentedRows.mkString("\n")}\n</TABLE>"
   }
   private def edges(outermostTableId: String): Seq[String] = {
     children
@@ -171,8 +181,7 @@ object DotPrinter {
       case Tuple(elems: _*) =>
         DotTuple(elems.map(e => toDot(e)))
       case VecBuild(IntCst(n), f) =>
-        // TODO: Somehow inline constants, tuples, vectors
-        // TODO: Convert vector to tuple to avoid code duplication?
+        // TODO: Convert vector to tuple ahead of time to avoid code duplication?
         val children = (0 until n)
           .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
           .map(e => toDot(e))
@@ -181,6 +190,24 @@ object DotPrinter {
         throw new IllegalArgumentException(
           "Only VecBuild with a constant length is supported."
         )
+      case VecAccess(v, i) =>
+        val vDot = toDot(v)
+        val dot = vDot match {
+          case t: DotTuple =>
+            PartialEvalPass.partialEval(i) match {
+              case IntCst(i) => Some(t.children(i))
+              case _         => None
+            }
+          case _ =>
+            None
+        }
+        // TODO: Handle accesses to nested vectors as well by creating a new vector of the same size filled with some
+        //       kind of "unknown" value?
+        dot match {
+          case Some(dot) => dot
+          case None =>
+            DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i))))
+        }
     }
   }
 
