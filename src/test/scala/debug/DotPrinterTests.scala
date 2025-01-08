@@ -85,4 +85,20 @@ class DotPrinterTests extends AnyFunSuite {
       keepDotFile = true
     )
   }
+
+  test("SimpleFunction") {
+    val f = (x: Expr) => x - 1
+    DotPrinter.save(f, "./img/SimpleFunction.dot")
+  }
+
+  test("Let") {
+    // TODO: Why is x inside the subgraph for the function that takes y? Is it due to there being edges in that inner
+    //       subgraph which mention x?
+    // TODO: It would be nice to get rid of the extra step between params and param refs
+    val x = Param()
+    val y = Param()
+    val z = Param()
+    val e = Let(x, 42, Let(y, x + 1, Let(z, x * x + y * y, z + 2)))
+    DotPrinter.save(e, "./img/Let.dot")
+  }
 }

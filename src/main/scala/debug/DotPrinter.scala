@@ -106,7 +106,30 @@ case class DotTuple(children: Seq[DotExpr]) extends DotExpr {
       )
   }
 }
-//case class DotStream(dot: String, outId: String) extends DotExpr
+case class DotFunction(param: DotParam, body: DotExpr) extends DotExpr {
+  val inputId: String = param.id
+  val outputId: String = body.id
+  val dot: String = {
+    s"""subgraph cluster_$id {
+       |    color=\"black\";
+       |    ${param.id} [label=\"\", shape=\"septagon\"];
+       |${indent(body.dot)}
+       |}
+       |""".stripMargin.stripTrailing
+  }
+  val children: Seq[DotExpr] = Seq()
+}
+case class DotFunCall(f: DotFunction, arg: DotExpr) extends DotExpr {
+  val dot: String = {
+    s"""$id [shape=\"point\"];
+       |${indent(f.dot)}
+       |${indent(arg.dot)}
+       |${arg.id} -> ${f.inputId};
+       |${f.outputId} -> $id;
+       |""".stripMargin
+  }
+  val children: Seq[DotExpr] = Seq()
+}
 
 object DotPrinter {
   def save(
@@ -208,6 +231,11 @@ object DotPrinter {
           case None =>
             DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i))))
         }
+      case Function(p, body) =>
+        val pDot = DotParam("")
+        DotFunction(pDot, toDot(body)(params + (p -> pDot)))
+      case FunCall(f, a) =>
+        DotFunCall(toDot(f).asInstanceOf[DotFunction], toDot(a))
     }
   }
 
