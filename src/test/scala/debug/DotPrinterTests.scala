@@ -43,6 +43,23 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(x, "./img/FreeVar.dot", nameByVar = Map(x -> "x"))
   }
 
+  test("SimpleTuple") {
+    val y = Param()
+    val e = Tuple(IntCst(42), True, y - 1)
+    DotPrinter.save(e, "./img/SimpleTuple.dot", nameByVar = Map(y -> "y"))
+  }
+
+  test("NestedTuple") {
+    val y = Param()
+    val e = Tuple(
+      IntCst(42),
+      True,
+      VecBuild(3, (i: Expr) => i * i),
+      Tuple(IntCst(0), y + 2)
+    )
+    DotPrinter.save(e, "./img/NestedTuple.dot", nameByVar = Map(y -> "y"))
+  }
+
   test("SimpleVecBuild") {
     val x = Param()
     val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i))

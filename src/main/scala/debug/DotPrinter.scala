@@ -168,6 +168,8 @@ object DotPrinter {
         val falseVal = toDot(f)
         // TODO: Shape this like a MUX
         DotScalar("if", Seq(("c", cond), ("t", trueVal), ("f", falseVal)))
+      case Tuple(elems: _*) =>
+        DotTuple(elems.map(e => toDot(e)))
       case VecBuild(IntCst(n), f) =>
         // TODO: Somehow inline constants, tuples, vectors
         // TODO: Convert vector to tuple to avoid code duplication?
