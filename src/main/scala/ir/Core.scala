@@ -4,7 +4,7 @@ import opt.PartialEvalPass
 
 import scala.language.implicitConversions
 
-sealed abstract class Expr {
+sealed trait Expr {
   def +(that: Expr): Add = Add(this, that)
   def -(that: Expr): Sub = Sub(this, that)
   def *(that: Expr): Mul = Mul(this, that)
@@ -61,16 +61,21 @@ object Let {
   }
 }
 
+sealed trait BinOp extends Expr {
+  val e1: Expr
+  val e2: Expr
+}
+
 // Integer expressions
 sealed abstract class IntExpr extends Expr
 implicit def int2IntCst(i: Int): IntCst = IntCst(i)
 implicit def intCst2Int(ic: IntCst): Int = ic.i
 case class IntCst(i: Int) extends IntExpr
-case class Add(e1: Expr, e2: Expr) extends IntExpr
-case class Sub(e1: Expr, e2: Expr) extends IntExpr
-case class Mul(e1: Expr, e2: Expr) extends IntExpr
-case class Div(e1: Expr, e2: Expr) extends IntExpr
-case class Mod(e1: Expr, e2: Expr) extends IntExpr
+case class Add(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Sub(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
 
 // Boolean expressions
 sealed abstract class BoolExpr extends Expr
@@ -86,16 +91,13 @@ object False extends BoolExpr
 // is important in cases like calling StmNext() or memory accesses.
 case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr
 // Comparison operators
-case class Equal(e1: Expr, e2: Expr) extends BoolExpr
-case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr
-case class LessThan(e1: Expr, e2: Expr) extends BoolExpr
-object GreaterThan {
-  def apply(e1: Expr, e2: Expr): Expr = LessThan(e2, e1)
-}
+case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp
+case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr with BinOp
+case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 // Logical operators
 case class Not(e: Expr) extends BoolExpr
-case class And(e1: Expr, e2: Expr) extends BoolExpr
-case class Or(e1: Expr, e2: Expr) extends BoolExpr
+case class And(e1: Expr, e2: Expr) extends BoolExpr with BinOp
+case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 
 // Useful for readability and possibly for optimization
 object DontCare extends Expr

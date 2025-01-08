@@ -857,7 +857,7 @@ object StmConcat {
       Tuple(in1, in2, len1),
       (seed: Expr) =>
         IfThenElse(
-          GreaterThan(seed.__2, 0),
+          seed.__2 > 0,
           Let(
             p,
             StmNext(seed.__0),
