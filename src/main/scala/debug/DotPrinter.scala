@@ -245,7 +245,7 @@ case class DotEdge(
     dir: String
 ) {
   val dot =
-    s"${source.fullPath} -> ${target.fullPath} [label=\"$label\", dir=\"$dir\"];"
+    s"${source.fullPath} -> ${target.fullPath} [label=\"$label\", dir=\"$dir\", arrowhead=\"vee\", arrowtail=\"vee\"];"
 }
 object DotEdge {
   def toParent(parent: DotNode, child: DotNode, label: String = ""): DotEdge = {
