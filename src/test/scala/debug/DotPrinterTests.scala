@@ -1,6 +1,7 @@
 package debug
 
 import ir.*
+import operations.VecMap
 import org.scalatest.funsuite.AnyFunSuite
 
 class DotPrinterTests extends AnyFunSuite {
@@ -18,7 +19,7 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(e, "./img/ArithBinOp.dot")
   }
 
-  test("LogicalOp") {
+  test("LogicalOps") {
     val e = True && (False || True)
     DotPrinter.save(e, "./img/LogicalOps.dot")
   }
@@ -81,9 +82,14 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(
       e,
       "./img/VecAccessUnknownIndex.dot",
-      nameByVar = Map(i -> "i"),
-      keepDotFile = true
+      nameByVar = Map(i -> "i")
     )
+  }
+
+  test("VecMap") {
+    val v = VecBuild(3, (i: Expr) => 1 + i * i)
+    val e = VecMap(VecBuild(3, (i: Expr) => 1 + i * i), (x: Expr) => 2 * x)
+    DotPrinter.save(e, "./img/VecMap.dot")
   }
 
   test("SimpleFunction") {
@@ -92,13 +98,10 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("Let") {
-    // TODO: Why is x inside the subgraph for the function that takes y? Is it due to there being edges in that inner
-    //       subgraph which mention x?
-    // TODO: It would be nice to get rid of the extra step between params and param refs
     val x = Param()
     val y = Param()
     val z = Param()
     val e = Let(x, 42, Let(y, x + 1, Let(z, x * x + y * y, z + 2)))
-    DotPrinter.save(e, "./img/Let.dot")
+    DotPrinter.save(e, "./img/Let.dot", keepDotFile = true)
   }
 }

@@ -7,128 +7,259 @@ import java.nio.file.{Files, Paths}
 import java.nio.charset.StandardCharsets
 import sys.process.*
 
-sealed trait DotExpr {
-  val id: String = DotExpr.freshId()
-  val dot: String
-  val children: Seq[DotExpr]
-
-  def descendants: Seq[DotExpr] = {
-    children.flatMap({
-      case dt: DotTuple => dt +: dt.descendants
-      case c            => Seq(c)
-    })
+sealed trait Scope
+case class TableScope(id: String, parent: Scope) extends Scope {
+  def outermostTableScope: TableScope = {
+    parent match {
+      case t: TableScope => t.outermostTableScope
+      case _             => this
+    }
   }
 }
-private object DotExpr {
+case class FunctionScope(id: String, parent: Scope) extends Scope
+case object GlobalScope extends Scope
+
+sealed trait DotNode {
+
+  /** Which component this expression belongs in (the top level, inside a tuple,
+    * inside a function, etc.).
+    */
+  val scope: Scope
+
+  // TODO: I should probably distinguish between full ID (table + port) and just the port.
+  /** Unique identifier for this node, to be used in the DOT code. If this node
+    * is a table cell, it instead represents the port.
+    */
+  val id: String = DotNode.freshId()
+
+  /** The string to use when referring to this node (e.g., in an edge). This may
+    * simply be the `id`, but for table cells it includes the ID of the
+    * top-level node as well as the port.
+    */
+  val fullPath: String
+
+  /** Nodes outside this one that this node is connected to. For example, if
+    * this node is an adder, then its dependencies would be its inputs.
+    */
+  val dependencies: Seq[DotNode]
+
+  /** All of this node's dependencies, including direct and transitive
+    * dependencies.
+    */
+  def allDependencies: Set[DotNode] = {
+    dependencies
+      .flatMap(n => n.allDependencies + n)
+      .toSet
+  }
+
+  /** Edges required by this node. Each node generally stores its incoming
+    * edges. For example, if this is an adder, it would need to store the edges
+    * to each of its inputs. Nodes that contain other nodes (e.g., tuples,
+    * functions) must also store the edges inside themselves.
+    */
+  def edges: Set[DotEdge]
+
+  /** The DOT code defining this node, including nodes inside this one but NOT
+    * including its dependencies nor its edges.
+    */
+  def dot: String
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case n: DotNode => n.id == this.id
+      case _          => false
+    }
+  }
+
+  override def hashCode(): Int = this.id.hashCode
+}
+private object DotNode {
   private var nextId: Int = 0
   def freshId(): String = {
     nextId += 1
     s"node$nextId"
   }
 }
-// Emit each parameter only once but, for simplicity, treat *references* to parameters more like other types of nodes
-// (i.e., a DotScalar with a DotParamRef as a child would print out that param ref).
-case class DotParam(name: String) extends DotExpr {
-  val dot: String = s"$id [label=\"$name\", shape=\"septagon\"];"
-  val children: Seq[DotExpr] = Seq()
+
+/** A free variable or a function parameter.
+  *
+  * @param name
+  *   The variable name.
+  */
+case class DotParam(name: String, scope: Scope) extends DotNode {
+  override val fullPath: String = id
+  override val dependencies: Seq[DotNode] = Seq()
+  override def edges: Set[DotEdge] = Set()
+  override val dot: String = s"$id [label=\"$name\", shape=\"septagon\"];"
 }
-case class DotParamRef(p: DotParam) extends DotExpr {
-  val dot: String =
-    s"""$id [label=\"\", shape=\"point\"];
-       |${p.id} -> $id [arrowhead=\"none\"];
-       |""".stripMargin.stripTrailing
-  val children: Seq[DotExpr] = Seq()
-}
+
+/** An expression that evaluates to a scalar. This could be a constant, a sum,
+  * etc.
+  *
+  * @param label
+  *   The label for the node.
+  * @param labeledChildren
+  *   The inputs to this node along with a label for each one. The label is
+  *   useful for non-commutative operations, for example.
+  */
 case class DotScalar(
     label: String,
-    labeledChildren: Seq[(String, DotExpr)]
-) extends DotExpr {
+    labeledChildren: Seq[(String, DotNode)],
+    scope: Scope
+) extends DotNode {
   def isConst: Boolean = labeledChildren.isEmpty
-  val dot: String = {
+  override val fullPath: String = id
+  override val dependencies: Seq[DotNode] = labeledChildren.map((_, c) => c)
+  override def edges: Set[DotEdge] =
+    labeledChildren
+      .map((label, c) => DotEdge.toParent(this, c, label = label))
+      .toSet
+  override def dot: String = {
     val shape = if isConst then "none" else "ellipse"
-    val node = s"$id [label=\"$label\", shape=\"$shape\"];"
-    val edges = labeledChildren
-      .map((label, c) =>
-        (
-          label,
-          c match {
-            case t: DotTuple => s"${t.id}:${t.outerPortId}"
-            case _           => c.id
-          }
-        )
-      )
-      .map((label, tailId) => s"$tailId -> $id [label=\"$label\"];")
-    s"${labeledChildren.map((_, c) => c.dot).mkString("\n")}\n$node\n${edges.mkString("\n")}"
+    s"$id [label=\"$label\", shape=\"$shape\"];"
   }
-  val children: Seq[DotExpr] = labeledChildren.map((_, c) => c)
 }
-case class DotTuple(children: Seq[DotExpr]) extends DotExpr {
-  val dot: String = {
-    val nonInlinedDescendants = descendants.filter({
-      case s: DotScalar if s.isConst => false
-      case _: DotTuple               => false
-      case _                         => true
-    })
-    val descendantsStr = nonInlinedDescendants.map(d => d.dot).mkString("\n")
-    val thisNode = s"$id [shape=\"none\", label=<\n${indent(table)}\n>];"
-    val edgesStr = edges(id).mkString("\n")
-    s"$descendantsStr\n$thisNode\n$edgesStr"
-  }
 
-  lazy val outerPortId: String = DotExpr.freshId()
-  private lazy val cellIds = children.map(_ => DotExpr.freshId())
-  private lazy val table: String = {
-    val rows: Seq[String] = children
-      .map({
-        // Inline scalar constants and tuples
-        case s: DotScalar if s.isConst => s.label
-        case t: DotTuple               => s"\n${indent(t.table)}\n"
-        case c                         => "."
-      })
-      .zip(cellIds)
-      .map((lab, cid) =>
-        s"<TR><TD BGCOLOR=\"white\" PORT=\"$cid\">$lab</TD></TR>"
-      )
-    val indentedRows = rows.map(r => indent(r))
-    s"<TABLE PORT=\"$outerPortId\" BGCOLOR=\"darkgrey\">\n${indentedRows.mkString("\n")}\n</TABLE>"
+/** One cell in a table (i.e., one element of a tuple or vector).
+  */
+sealed trait DotTableCell extends DotNode
+
+/** A table cell that directly contains its value.
+  */
+case class InlinedScalarCell(contents: String, scope: TableScope)
+    extends DotTableCell {
+  override val fullPath: String = s"${scope.outermostTableScope.id}:$id"
+  override val dependencies: Seq[DotNode] = Seq()
+  override def edges: Set[DotEdge] = Set()
+  override def dot: String =
+    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">$contents</TD></TR>"
+}
+
+/** A table cell containing another table.
+  */
+case class InlinedTableCell(table: DotTuple, outerScope: TableScope)
+    extends DotTableCell {
+  override val scope: TableScope = outerScope
+  override val fullPath: String = s"${outerScope.outermostTableScope.id}:$id"
+  override val dependencies: Seq[DotNode] = table.dependencies
+  override def edges: Set[DotEdge] = table.edges
+  override def dot: String =
+    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">${table.dotTable}</TD></TR>"
+}
+
+/** A table cell with an edge to its value.
+  */
+case class PointerCell(value: DotNode, scope: TableScope) extends DotTableCell {
+  override val fullPath: String = s"${scope.outermostTableScope.id}:$id"
+  override val dependencies: Seq[DotNode] = Seq(value)
+  override def edges: Set[DotEdge] = Set(DotEdge.toParent(this, value))
+  override def dot: String =
+    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">.</TD></TR>"
+}
+
+/** A node containing other nodes. This could represent a tuple or a vector.
+  *
+  * @param elems
+  *   The elements within this tuple.
+  * @param innerScope
+  *   The scope within this tuple, that the elements inside will belong to.
+  */
+case class DotTuple(
+    elems: Seq[DotNode],
+    innerScope: TableScope
+) extends DotNode {
+  override val id: String = innerScope.id
+  override val fullPath: String = s"${innerScope.outermostTableScope.id}:$id"
+  val cells: Seq[DotTableCell] = {
+    elems.map({
+      // Inline scalar constants and tuples
+      case s: DotScalar if s.isConst => InlinedScalarCell(s.label, innerScope)
+      case t: DotTuple               => InlinedTableCell(t, innerScope)
+      case c                         => PointerCell(c, innerScope)
+    })
   }
-  private def edges(outermostTableId: String): Seq[String] = {
-    children
-      .zip(cellIds)
-      .flatMap((c, cellId) =>
-        c match {
-          case s: DotScalar if s.isConst => Seq()
-          case dt: DotTuple              => dt.edges(outermostTableId)
-          // It would be nice to make the edge go to the center of the cell.
-          // Unfortunately, headclip=false doesn't seem to have any effect.
-          case c => Seq(s"${c.id} -> $outermostTableId:$cellId;")
-        }
-      )
+  override val dependencies: Seq[DotNode] = cells.flatMap(c => c.dependencies)
+  override val scope: Scope = innerScope.parent
+
+  override def edges: Set[DotEdge] = cells.flatMap(c => c.edges).toSet
+  def dotTable: String = {
+    val rows = cells.map(c => c.dot).mkString("\n")
+    s"<TABLE PORT=\"$id\" BGCOLOR=\"grey\">\n${indent(rows)}\n</TABLE>"
+  }
+  override def dot: String = {
+    s"$id [shape=\"none\", label=<\n${indent(dotTable)}\n>];"
   }
 }
-case class DotFunction(param: DotParam, body: DotExpr) extends DotExpr {
-  val inputId: String = param.id
-  val outputId: String = body.id
-  val dot: String = {
+
+/** A function, which corresponds to a component in hardware.
+  */
+case class DotFunction(
+    param: DotParam,
+    body: DotNode,
+    innerScope: FunctionScope
+) extends DotNode {
+  override val id: String = innerScope.id
+  override val fullPath: String = id
+  override val dependencies: Seq[DotNode] =
+    (param.allDependencies ++ body.allDependencies)
+      .filter(n => n.scope == innerScope.parent)
+      .toSeq
+  override val scope: Scope = innerScope.parent
+  override def edges: Set[DotEdge] =
+    // Maybe it would be better to filter out dependencies that aren't in the same scope, but since we're tossing
+    // everything into a set it shouldn't be a big deal
+    param.edges ++ body.edges ++ body.allDependencies.flatMap(n => n.edges)
+  override def dot: String = {
+    val nodesToDraw =
+      (body.allDependencies + body)
+        .filter(n => n.scope == innerScope)
+        .map(n => n.dot)
+        .mkString("\n")
     s"""subgraph cluster_$id {
        |    color=\"black\";
        |    ${param.id} [label=\"\", shape=\"septagon\"];
-       |${indent(body.dot)}
+       |${indent(nodesToDraw)}
        |}
        |""".stripMargin.stripTrailing
   }
-  val children: Seq[DotExpr] = Seq()
 }
-case class DotFunCall(f: DotFunction, arg: DotExpr) extends DotExpr {
-  val dot: String = {
-    s"""$id [shape=\"point\"];
-       |${indent(f.dot)}
-       |${indent(arg.dot)}
-       |${arg.id} -> ${f.inputId};
-       |${f.outputId} -> $id;
-       |""".stripMargin
+
+/** A call to function `f` with argument `arg`. In other words, instantiate `f`
+  * and connect `arg` to the input port of `f`.
+  */
+case class DotFunCall(f: DotFunction, arg: DotNode, scope: Scope)
+    extends DotNode {
+  override val fullPath: String = id
+  // TODO: It would be nicer to skip the point and just connect the output to whatever's using it.
+  //       Maybe add a `value` field which points to the node to connect to.
+  override val dependencies: Seq[DotNode] = Seq(f, arg)
+  override def edges: Set[DotEdge] =
+    Set(DotEdge.toParent(f.param, arg), DotEdge.toParent(this, f.body))
+  override def dot: String = s"$id [shape=\"point\"]"
+}
+
+case class DotEdge(
+    source: DotNode,
+    target: DotNode,
+    label: String,
+    dir: String
+) {
+  val dot =
+    s"${source.fullPath} -> ${target.fullPath} [label=\"$label\", dir=\"$dir\"];"
+}
+object DotEdge {
+  def toParent(parent: DotNode, child: DotNode, label: String = ""): DotEdge = {
+    DotEdge(
+      source = child,
+      target = parent,
+      label = label,
+      dir = "forward"
+    )
   }
-  val children: Seq[DotExpr] = Seq()
+
+  def toChild(parent: DotNode, child: DotNode, label: String = ""): DotEdge = {
+    DotEdge(source = child, target = parent, label = "", dir = "back")
+  }
 }
 
 object DotPrinter {
@@ -158,67 +289,80 @@ object DotPrinter {
   }
 
   private def makeDotGraph(e: Expr, nameByVar: Map[Param, String]): String = {
-    // TODO: Emit params separately?
-    val params = nameByVar.map((p, name) => p -> DotParam(name))
-    val paramDots = params.values.map(p => p.dot).mkString("\n")
-    s"""digraph {
-       |    rankdir="LR"
-       |${indent(paramDots)}
-       |${indent(toDot(e)(params).dot)}
-       |}
-       |""".stripMargin
+    // TODO: Look for functions that are never called and add lines going in and coming out for clarity?
+    val params = nameByVar.map((p, name) => p -> DotParam(name, GlobalScope))
+    val resultNode = toDot(e, GlobalScope)(params)
+    val topLevelNodes = resultNode.allDependencies + resultNode
+    val nodesDot =
+      topLevelNodes.toSeq.sortBy(n => n.id).map(n => n.dot).mkString("\n")
+    val edges = topLevelNodes.flatMap(n => n.edges)
+    val edgesDot = edges.toSeq
+      .sortBy(e => (e.source.id, e.target.id))
+      .map(e => e.dot)
+      .mkString("\n")
+    s"digraph {\n${indent("rankdir=\"LR\"")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
   }
 
   private def toDot(
-      e: Expr
-  )(implicit params: Map[Param, DotParam]): DotExpr = {
+      e: Expr,
+      scope: Scope
+  )(implicit params: Map[Param, DotParam]): DotNode = {
     e match {
       case IntCst(n) =>
-        DotScalar(n.toString, Seq())
+        DotScalar(n.toString, Seq(), scope)
       case True =>
-        DotScalar("T", Seq())
+        DotScalar("T", Seq(), scope)
       case False =>
-        DotScalar("F", Seq())
+        DotScalar("F", Seq(), scope)
       case DontCare =>
-        DotScalar("???", Seq())
+        DotScalar("???", Seq(), scope)
       case p: Param if params.contains(p) =>
         // TODO: What if this parameter is for a non-scalar?
-        DotParamRef(params(p))
+        params(p)
       case p: Param =>
         throw new IllegalArgumentException(
           s"Missing name for free variable $p."
         )
       case e: BinOp =>
-        val left = toDot(e.e1)
-        val right = toDot(e.e2)
-        DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)))
+        val left = toDot(e.e1, scope)
+        val right = toDot(e.e2, scope)
+        DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)), scope)
       case Not(e) =>
-        val child = toDot(e)
-        DotScalar("!", Seq(("", child)))
+        val child = toDot(e, scope)
+        DotScalar("!", Seq(("", child)), scope)
       case IfThenElse(c, t, f) =>
-        val cond = toDot(c)
-        val trueVal = toDot(t)
-        val falseVal = toDot(f)
+        val cond = toDot(c, scope)
+        val trueVal = toDot(t, scope)
+        val falseVal = toDot(f, scope)
         // TODO: Shape this like a MUX
-        DotScalar("if", Seq(("c", cond), ("t", trueVal), ("f", falseVal)))
+        DotScalar(
+          "if",
+          Seq(("c", cond), ("t", trueVal), ("f", falseVal)),
+          scope
+        )
       case Tuple(elems: _*) =>
-        DotTuple(elems.map(e => toDot(e)))
+        val tupScope = TableScope(DotNode.freshId(), parent = scope)
+        DotTuple(
+          elems.map(e => toDot(e, tupScope)),
+          innerScope = tupScope
+        )
       case VecBuild(IntCst(n), f) =>
-        // TODO: Convert vector to tuple ahead of time to avoid code duplication?
+        val vecScope = TableScope(DotNode.freshId(), parent = scope)
         val children = (0 until n)
           .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
-          .map(e => toDot(e))
-        DotTuple(children)
+          .map(e => toDot(e, vecScope))
+        DotTuple(children, innerScope = vecScope)
       case _: VecBuild =>
         throw new IllegalArgumentException(
           "Only VecBuild with a constant length is supported."
         )
       case VecAccess(v, i) =>
-        val vDot = toDot(v)
+        // TODO: Convert vector to tuple ahead of time to avoid code duplication?
+        val vDot = toDot(v, scope)
         val dot = vDot match {
           case t: DotTuple =>
             PartialEvalPass.partialEval(i) match {
-              case IntCst(i) => Some(t.children(i))
+              case IntCst(i) => Some(t.cells(i))
               case _         => None
             }
           case _ =>
@@ -229,13 +373,22 @@ object DotPrinter {
         dot match {
           case Some(dot) => dot
           case None =>
-            DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i))))
+            DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i, scope))), scope)
         }
       case Function(p, body) =>
-        val pDot = DotParam("")
-        DotFunction(pDot, toDot(body)(params + (p -> pDot)))
+        val funcScope = FunctionScope(DotNode.freshId(), parent = scope)
+        val pDot = DotParam("", funcScope)
+        DotFunction(
+          pDot,
+          toDot(body, funcScope)(params + (p -> pDot)),
+          innerScope = funcScope
+        )
       case FunCall(f, a) =>
-        DotFunCall(toDot(f).asInstanceOf[DotFunction], toDot(a))
+        DotFunCall(
+          toDot(f, scope).asInstanceOf[DotFunction],
+          toDot(a, scope),
+          scope
+        )
     }
   }
 
