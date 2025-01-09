@@ -56,3 +56,6 @@ Thumbs.db
 .bsp/
 .metals/
 metals.sbt
+
+# Custom
+/img/
