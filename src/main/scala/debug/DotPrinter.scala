@@ -7,7 +7,9 @@ import java.nio.file.{Files, Paths}
 import java.nio.charset.StandardCharsets
 import sys.process.*
 
-sealed trait Scope
+sealed trait Scope {
+  def equalOrInside(that: Scope): Boolean
+}
 case class TableScope(id: String, parent: Scope) extends Scope {
   def outermostTableScope: TableScope = {
     parent match {
@@ -15,9 +17,26 @@ case class TableScope(id: String, parent: Scope) extends Scope {
       case _             => this
     }
   }
+
+  override def equalOrInside(that: Scope): Boolean = {
+    this == that || this.parent.equalOrInside(that)
+  }
 }
-case class FunctionScope(id: String, parent: Scope) extends Scope
-case object GlobalScope extends Scope
+case class FunctionScope(id: String, parent: Scope) extends Scope {
+  override def equalOrInside(that: Scope): Boolean = {
+    this == that || this.parent.equalOrInside(that)
+  }
+}
+case class StreamScope(id: String, parent: Scope) extends Scope {
+  override def equalOrInside(that: Scope): Boolean = {
+    this == that || this.parent.equalOrInside(that)
+  }
+}
+case object GlobalScope extends Scope {
+  override def equalOrInside(that: Scope): Boolean = {
+    this == that
+  }
+}
 
 sealed trait DotNode {
 
@@ -25,6 +44,22 @@ sealed trait DotNode {
     * inside a function, etc.).
     */
   val scope: Scope
+
+  /** Scope in which this node should be drawn. Usually this will be the same as
+    * `scope`, but it may differ for elements that are in a table but not
+    * inlined.
+    */
+  def drawingScope: Scope = {
+    // Only table cells belong inside tables
+    this match {
+      case _: DotTableCell => scope
+      case n =>
+        n.scope match {
+          case ts: TableScope => ts.outermostTableScope.parent
+          case s              => s
+        }
+    }
+  }
 
   // TODO: I should probably distinguish between full ID (table + port) and just the port.
   /** Unique identifier for this node, to be used in the DOT code. If this node
@@ -202,7 +237,7 @@ case class DotFunction(
   override val fullPath: String = id
   override val dependencies: Seq[DotNode] =
     (param.allDependencies ++ body.allDependencies)
-      .filter(n => n.scope == innerScope.parent)
+      .filter(n => innerScope.parent.equalOrInside(n.drawingScope))
       .toSeq
   override val scope: Scope = innerScope.parent
   override def edges: Set[DotEdge] =
@@ -212,7 +247,7 @@ case class DotFunction(
   override def dot: String = {
     val nodesToDraw =
       (body.allDependencies + body)
-        .filter(n => n.scope == innerScope)
+        .filter(n => n.drawingScope == innerScope)
         .map(n => n.dot)
         .mkString("\n")
     s"""subgraph cluster_$id {
@@ -236,6 +271,44 @@ case class DotFunCall(f: DotFunction, arg: DotNode, scope: Scope)
   override def edges: Set[DotEdge] =
     Set(DotEdge.toParent(f.param, arg), DotEdge.toParent(this, f.body))
   override def dot: String = s"$id [shape=\"point\"]"
+}
+
+case class DotRegister(scope: StreamScope) extends DotNode {
+  override val fullPath: String = id
+  override val dependencies: Seq[DotNode] = Seq()
+  override def edges: Set[DotEdge] = Set()
+  override def dot: String = s"$id [label=\"reg\", shape=\"box\"];"
+}
+
+case class DotStream(z: DotNode, f: DotFunction, innerScope: StreamScope)
+    extends DotNode {
+  private val register = DotRegister(innerScope)
+  private val mux = DotScalar("MUX", Seq(("", z), ("", register)), innerScope)
+  // TODO: Handle stream that depends on another stream (ready-valid interface)
+  override val fullPath: String = id
+  override val dependencies: Seq[DotNode] = z.dependencies ++ f.dependencies
+  override val scope: Scope = innerScope.parent
+  override def edges: Set[DotEdge] = {
+    val tupleOut = f.body.asInstanceOf[DotTuple]
+    assert(tupleOut.cells.length == 3)
+    val nextAccCell = tupleOut.cells.head
+    z.edges
+      ++ f.edges
+      ++ mux.edges
+      + DotEdge.toParent(f.param, mux)
+      + DotEdge.toChild(nextAccCell, register)
+  }
+
+  override def dot: String = {
+    s"""subgraph cluster_$id {
+       |    color=\"black\"
+       |${indent(z.dot)}
+       |${indent(f.dot)}
+       |${indent(mux.dot)}
+       |${indent(register.dot)}
+       |}
+       |""".stripMargin
+  }
 }
 
 case class DotEdge(
@@ -346,16 +419,19 @@ object DotPrinter {
           elems.map(e => toDot(e, tupScope)),
           innerScope = tupScope
         )
-      case VecBuild(IntCst(n), f) =>
-        val vecScope = TableScope(DotNode.freshId(), parent = scope)
-        val children = (0 until n)
-          .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
-          .map(e => toDot(e, vecScope))
-        DotTuple(children, innerScope = vecScope)
-      case _: VecBuild =>
-        throw new IllegalArgumentException(
-          "Only VecBuild with a constant length is supported."
-        )
+      case VecBuild(n, f) =>
+        PartialEvalPass.partialEval(n) match {
+          case IntCst(n) =>
+            val vecScope = TableScope(DotNode.freshId(), parent = scope)
+            val children = (0 until n)
+              .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
+              .map(e => toDot(e, vecScope))
+            DotTuple(children, innerScope = vecScope)
+          case _ =>
+            throw new IllegalArgumentException(
+              "Only VecBuild with a constant length is supported."
+            )
+        }
       case VecAccess(v, i) =>
         // TODO: Convert vector to tuple ahead of time to avoid code duplication?
         val vDot = toDot(v, scope)
@@ -389,6 +465,11 @@ object DotPrinter {
           toDot(a, scope),
           scope
         )
+      case StmBuild(n, z, f) =>
+        val stmScope = StreamScope(DotNode.freshId(), parent = scope)
+        val zDot = toDot(z, stmScope)
+        val fDot = toDot(f, stmScope).asInstanceOf[DotFunction]
+        DotStream(zDot, fDot, stmScope)
     }
   }
 

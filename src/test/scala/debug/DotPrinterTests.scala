@@ -1,7 +1,7 @@
 package debug
 
 import ir.*
-import operations.VecMap
+import operations.{StmRange, VecMap}
 import org.scalatest.funsuite.AnyFunSuite
 
 class DotPrinterTests extends AnyFunSuite {
@@ -102,6 +102,18 @@ class DotPrinterTests extends AnyFunSuite {
     val y = Param()
     val z = Param()
     val e = Let(x, 42, Let(y, x + 1, Let(z, x * x + y * y, z + 2)))
-    DotPrinter.save(e, "./img/Let.dot", keepDotFile = true)
+    DotPrinter.save(e, "./img/Let.dot")
+  }
+
+  test("StmRange") {
+    val n = Param()
+    val delta = Param()
+    val e = StmRange(n, 0, delta)
+    DotPrinter.save(
+      e,
+      "./img/StmRange.dot",
+      nameByVar = Map(n -> "n", delta -> "delta"),
+      keepDotFile = true
+    )
   }
 }
