@@ -87,7 +87,7 @@ object StmUtils {
     val newElems = indexMap
       .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
       .toSeq
-      .sortBy((i, _) => i)
+      .sortBy({ case (i, _) => i })
       .map({ case (_, e) => e })
     Tuple(newElems: _*)
   }

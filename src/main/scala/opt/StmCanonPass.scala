@@ -111,13 +111,13 @@ object StmCanonPass {
         .asInstanceOf[Tuple]
         .elems
         .zipWithIndex
-        .filter((e, i) =>
+        .filter({ case (e, _) =>
           e match {
             case _: IntCst | True | False => true
             case Tuple()                  => true
             case _                        => false
           }
-        )
+        })
         .map({ case (e, i) => i })
         .toSet
     )
@@ -138,7 +138,9 @@ object StmCanonPass {
     val seed = stm.seed.asInstanceOf[Tuple]
     val acc = stm.nextF.param
     val indexMap = seed.elems.zipWithIndex
-      .sortBy((e, i) => (!e.isInstanceOf[StmBuild], !e.isInstanceOf[Param]))
+      .sortBy({ case (e, i) =>
+        (!e.isInstanceOf[StmBuild], !e.isInstanceOf[Param])
+      })
       .zipWithIndex
       .map({ case ((_, oldIdx), newIdx) => oldIdx -> newIdx })
       .toMap
