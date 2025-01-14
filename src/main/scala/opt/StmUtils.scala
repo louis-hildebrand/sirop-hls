@@ -49,14 +49,15 @@ object StmUtils {
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
       })
-    val f = rearrangeTuple(
-      indexMap.flatMap({ case (oldIdx, opt) =>
-        opt match {
-          case None         => None
-          case Some(newIdx) => Some(oldIdx -> newIdx)
-        }
-      })
-    )
+    val f = (e: Expr) =>
+      rearrangeTuple(
+        indexMap.flatMap({ case (oldIdx, opt) =>
+          opt match {
+            case None         => None
+            case Some(newIdx) => Some(oldIdx -> newIdx)
+          }
+        })
+      )(e)
     val s = StmBuild(
       stm.length,
       f(seed),

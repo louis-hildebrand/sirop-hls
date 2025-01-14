@@ -58,7 +58,8 @@ object StmCanonPass {
     val acc = stm.nextF.param
     val sub = (body: Expr) =>
       PartialEvalPass.substitute(body)(Map(acc -> TupleAccess(acc, 0)))
-    val tupleHead = StmUtils.transformHead((e: Expr) => Tuple(e))
+    val tupleHead = (e: Expr) =>
+      StmUtils.transformHead((e: Expr) => Tuple(e))(e)
     StmBuild(
       stm.length,
       Tuple(stm.seed),
@@ -89,7 +90,7 @@ object StmCanonPass {
     val p = Param()
     val (tupleAccessMap, _) =
       makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
-    val flattenHead = StmUtils.transformHead(e => flatten(e))
+    val flattenHead = (e: Expr) => StmUtils.transformHead(e => flatten(e))(e)
     StmBuild(
       stm.length,
       flatten(stm.seed),
