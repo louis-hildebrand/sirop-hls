@@ -294,11 +294,11 @@ case class DotStream(z: DotNode, f: DotFunction, innerScope: StreamScope)
     val tupleOut = f.body.asInstanceOf[DotTuple]
     assert(tupleOut.cells.length == 3)
     val nextAccCell = tupleOut.cells.head
-    z.edges
+    (z.edges
       ++ f.edges
       ++ mux.edges
       + DotEdge.toParent(f.param, mux)
-      + DotEdge.toChild(nextAccCell, register)
+      + DotEdge.toChild(nextAccCell, register))
   }
 
   override def dot: String = {
