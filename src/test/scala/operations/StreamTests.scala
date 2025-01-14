@@ -24,7 +24,8 @@ object StreamTests {
 
 class StreamTests extends AnyFunSuite {
 
-  inline def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
+  @inline
+  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
     assert(StreamTests.stm2Seq(stream) == expectedSeq)
   }
 

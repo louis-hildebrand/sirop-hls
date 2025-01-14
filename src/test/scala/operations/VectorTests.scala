@@ -18,11 +18,13 @@ object VectorTests {
 }
 
 class VectorTests extends AnyFunSuite {
-  inline def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
+  @inline
+  def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
     assert(VectorTests.vec2Seq(actual) == expectedElems)
   }
 
-  inline def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
+  @inline
+  def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
     assert(VectorTests.vecVec2SeqSeq(actual) == expected)
   }
 
