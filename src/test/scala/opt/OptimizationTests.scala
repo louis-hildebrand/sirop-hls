@@ -1,7 +1,7 @@
 package opt
 
-import ir.*
-import operations.*
+import ir._
+import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {

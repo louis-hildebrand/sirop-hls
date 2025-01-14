@@ -1,7 +1,7 @@
 package opt
 
 import scala.annotation.tailrec
-import ir.*
+import ir._
 
 object StmCanonPass {
   def canonicalIdentityStream(n: Expr, p: Param): StmBuild = {
@@ -58,7 +58,8 @@ object StmCanonPass {
     val acc = stm.nextF.param
     val sub = (body: Expr) =>
       PartialEvalPass.substitute(body)(Map(acc -> TupleAccess(acc, 0)))
-    val tupleHead = StmUtils.transformHead((e: Expr) => Tuple(e))
+    val tupleHead = (e: Expr) =>
+      StmUtils.transformHead((e: Expr) => Tuple(e))(e)
     StmBuild(
       stm.length,
       Tuple(stm.seed),
@@ -89,7 +90,7 @@ object StmCanonPass {
     val p = Param()
     val (tupleAccessMap, _) =
       makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
-    val flattenHead = StmUtils.transformHead(e => flatten(e))
+    val flattenHead = (e: Expr) => StmUtils.transformHead(e => flatten(e))(e)
     StmBuild(
       stm.length,
       flatten(stm.seed),
@@ -110,14 +111,14 @@ object StmCanonPass {
         .asInstanceOf[Tuple]
         .elems
         .zipWithIndex
-        .filter((e, i) =>
+        .filter({ case (e, _) =>
           e match {
             case _: IntCst | True | False => true
             case Tuple()                  => true
             case _                        => false
           }
-        )
-        .map((e, i) => i)
+        })
+        .map({ case (e, i) => i })
         .toSet
     )
     val acc = stm.nextF.param
@@ -137,15 +138,17 @@ object StmCanonPass {
     val seed = stm.seed.asInstanceOf[Tuple]
     val acc = stm.nextF.param
     val indexMap = seed.elems.zipWithIndex
-      .sortBy((e, i) => (!e.isInstanceOf[StmBuild], !e.isInstanceOf[Param]))
+      .sortBy({ case (e, i) =>
+        (!e.isInstanceOf[StmBuild], !e.isInstanceOf[Param])
+      })
       .zipWithIndex
       .map({ case ((_, oldIdx), newIdx) => oldIdx -> newIdx })
       .toMap
     val sub = (body: Expr) =>
       PartialEvalPass.substitute(body)(
-        indexMap.map((oldIdx, newIdx) =>
+        indexMap.map({ case (oldIdx, newIdx) =>
           TupleAccess(acc, oldIdx) -> TupleAccess(acc, newIdx)
-        )
+        })
       )
     StmBuild(
       stm.length,
@@ -172,7 +175,7 @@ object StmCanonPass {
     */
   private def moveIfThenElseOutsideTuple(e: Expr): Expr = {
     e match {
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         val newElems = elems.map(e => moveIfThenElseOutsideTuple(e))
         rewriteIfThenElseInTuple(Tuple(newElems: _*))
       case IfThenElse(cond, trueE, falseE) =>
@@ -193,7 +196,7 @@ object StmCanonPass {
 
   private def rewriteIfThenElseInTuple(t: Tuple): Expr = {
     val i = t.elems.indexWhere(e => e.isInstanceOf[IfThenElse])
-    if i < 0 then {
+    if (i < 0) {
       t
     } else {
       val ite = t.elems(i).asInstanceOf[IfThenElse]
@@ -216,20 +219,20 @@ object StmCanonPass {
       stm: StmBuild,
       indices: Set[Int]
   ): Set[Int] = {
-    if indices.isEmpty then {
+    if (indices.isEmpty) {
       Set()
     } else {
       val seed = stm.seed.asInstanceOf[Tuple]
       val z = Tuple(
         seed.elems.zipWithIndex
-          .map((e, i) => if indices.contains(i) then e else Param()): _*
+          .map({ case (e, i) => if (indices.contains(i)) e else Param() }): _*
       )
       val acc =
         PartialEvalPass.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))
       val constantIndices = indices.filter(i =>
         PartialEvalPass.partialEval(TupleAccess(acc, i)) == seed.elems(i)
       )
-      if constantIndices == indices then {
+      if (constantIndices == indices) {
         indices
       } else {
         findConstantAccumulatorElems(stm, constantIndices)
@@ -261,7 +264,7 @@ object StmCanonPass {
       nextIdx: Int
   ): (Map[Expr, Expr], Int) = {
     e match {
-      case Tuple(elems: _*) if !elems.isEmpty =>
+      case Tuple(elems @ _*) if !elems.isEmpty =>
         // Inner node
         /* The programmer could refer directly to one of these inner nodes,
          * right? Maybe assume the expression is already rewritten in such a
@@ -291,12 +294,12 @@ object StmCanonPass {
     */
   private def flatten(e: Expr): Expr = {
     e match {
-      case Tuple(elems: _*) if !elems.isEmpty =>
+      case Tuple(elems @ _*) if !elems.isEmpty =>
         val flatElems = elems.map(e => flatten(e))
         val combinedElems = flatElems.flatMap(e =>
           e match {
-            case Tuple(elems: _*) if !elems.isEmpty => elems
-            case _                                  => Seq(e)
+            case Tuple(elems @ _*) if !elems.isEmpty => elems
+            case _                                   => Seq(e)
           }
         )
         Tuple(combinedElems: _*)

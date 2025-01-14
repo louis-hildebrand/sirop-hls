@@ -1,6 +1,6 @@
 package opt
 
-import ir.*
+import ir._
 
 object PartialEvalPass {
 
@@ -23,7 +23,7 @@ object PartialEvalPass {
         contains(c, e2) || contains(t, e2) || contains(f, e2)
       case Function(p, b)    => contains(p, e2) || contains(b, e2)
       case FunCall(f, a)     => contains(f, e2) || contains(a, e2)
-      case Tuple(elems: _*)  => elems.exists(e => contains(e, e2))
+      case Tuple(elems @ _*) => elems.exists(e => contains(e, e2))
       case TupleAccess(t, i) => contains(t, e2) || contains(i, e2)
       case VecBuild(n, f)    => contains(n, e2) || contains(f, e2)
       case VecAccess(v, i)   => contains(v, e2) || contains(i, e2)
@@ -211,11 +211,11 @@ object PartialEvalPass {
             val f = partialEval(
               substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
             )
-            if f == DontCare then t
-            else if t == DontCare then f
-            else if t == f then t
-            else if t == True && f == False then cond
-            else if t == False && f == True then partialEval(Not(cond))
+            if (f == DontCare) t
+            else if (t == DontCare) f
+            else if (t == f) t
+            else if (t == True && f == False) cond
+            else if (t == False && f == True) partialEval(Not(cond))
             else {
               cond match {
                 // True branch is special case of false branch
@@ -228,7 +228,7 @@ object PartialEvalPass {
                   t
                 case _ =>
                   val x = IfThenElse(cond, t, f)
-                  if isBoolExpr(x).getOrElse(false) && !hasSideEffects(x) then {
+                  if (isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)) {
                     partialEval((cond && t) || (Not(cond) && f))
                   } else {
                     x
@@ -377,7 +377,7 @@ object PartialEvalPass {
         Some(false)
       // Not sure
       case _: Param | DontCare => None
-      case TupleAccess(Tuple(elems: _*), _) =>
+      case TupleAccess(Tuple(elems @ _*), _) =>
         val isBool = elems.map(e => isBoolExpr(e))
         val atLeastOneTrue = isBool.exists(p => p.getOrElse(false))
         val atLeastOneFalse = isBool.exists(p => !p.getOrElse(true))
@@ -408,7 +408,7 @@ object PartialEvalPass {
 
   private def hasSideEffects(e: Expr): Boolean = {
     e match {
-      case Tuple(elems: _*)  => elems.exists(e => hasSideEffects(e))
+      case Tuple(elems @ _*) => elems.exists(e => hasSideEffects(e))
       case TupleAccess(t, i) => hasSideEffects(t) || hasSideEffects(i)
       case _: Param          => false
       case _: Function       => false

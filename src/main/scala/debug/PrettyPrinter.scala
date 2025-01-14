@@ -1,10 +1,9 @@
 package debug
 
 import opt.PartialEvalPass
-import ir.*
+import ir._
 
 import scala.annotation.tailrec
-import scala.jdk.CollectionConverters.*
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
@@ -50,7 +49,7 @@ object PrettyPrinter {
           show(b, collapseStm = collapseStm, evalVec = evalVec)(
             nameByParam + (p -> newParamName)
           )
-        if isMultiline(bStr) then {
+        if (isMultiline(bStr)) {
           s"""(${pStr} /* ${p.toString} */) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
@@ -59,7 +58,7 @@ object PrettyPrinter {
         }
       case FunCall(f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         // Include the trailing t to distinguish between a parenthesized
         // expression and a tuple of one element.
         "t(" + elems
@@ -68,13 +67,13 @@ object PrettyPrinter {
       case TupleAccess(t, i) =>
         s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
       case StmBuild(n, z, f) =>
-        if collapseStm then {
+        if (collapseStm) {
           s"StmBuild(${show(n, collapseStm = collapseStm, evalVec = evalVec)}, ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
           val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
           val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
-          if isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr) then {
+          if (isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr)) {
             s"""StmBuild(
                |${indent(nStr)},
                |${indent(zStr)},
@@ -90,14 +89,14 @@ object PrettyPrinter {
       case StmLength(s) =>
         s"StmLength(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
       case v @ VecBuild(n, f) =>
-        val elems = if evalVec then tryEvalVec(v) else None
+        val elems = if (evalVec) tryEvalVec(v) else None
         elems match {
           case Some(elems) =>
             // Show the elements
             val elemStrs = elems.map(e =>
               show(e, collapseStm = collapseStm, evalVec = evalVec)
             )
-            if elemStrs.exists(s => isMultiline(s)) then {
+            if (elemStrs.exists(s => isMultiline(s))) {
               "[\n" + elemStrs.map(s => indent(s) + ",\n") + "]"
             } else {
               "[" + elemStrs.mkString(", ") + "]"
@@ -106,7 +105,7 @@ object PrettyPrinter {
             // Show the StmBuild itself
             val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
             val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
-            if isMultiline(nStr) || isMultiline(fStr) then {
+            if (isMultiline(nStr) || isMultiline(fStr)) {
               s"""VecBuild(
                  |${indent(nStr)},
                  |${indent(fStr)}
@@ -125,22 +124,18 @@ object PrettyPrinter {
 
   @tailrec
   private def chooseNewParamName(takenNames: Set[String], i: Int = 0): String =
-    if !takenNames.contains(s"p${i}") then {
+    if (!takenNames.contains(s"p${i}")) {
       s"p${i}"
     } else {
       chooseNewParamName(takenNames, i + 1)
     }
-
-  private def indent(s: String): String = {
-    s.lines.map(l => s"    ${l}").iterator().asScala.mkString("\n")
-  }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
 
   private def showWithParens(
       e: Expr
   )(implicit nameByParam: Map[Param, String]): String = {
-    if shouldParenthesize(e) then {
+    if (shouldParenthesize(e)) {
       s"(${show(e)})"
     } else {
       show(e)
@@ -159,7 +154,7 @@ object PrettyPrinter {
       case IntCst(n) =>
         val elems =
           (0 until n).map(i => PartialEvalPass.partialEval(VecAccess(v, i)))
-        if elems.exists(e => e.isInstanceOf[VecAccess]) then {
+        if (elems.exists(e => e.isInstanceOf[VecAccess])) {
           None
         } else {
           Some(elems)

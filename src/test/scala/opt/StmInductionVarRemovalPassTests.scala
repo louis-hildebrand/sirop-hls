@@ -1,7 +1,7 @@
 package opt
 
-import ir.*
-import operations.*
+import ir._
+import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
@@ -86,7 +86,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StreamTests
         .stm2Seq(Let(n, nVal, Let(m, mVal, opt)))
         .map(v => VectorTests.vec2Seq(v))
-    val c = IntCst.apply
+    val c = (n: Int) => IntCst(n)
     assert(actual(1, 2) == Seq(Seq(c(1), c(100))))
     assert(
       actual(4, 3) == Seq(

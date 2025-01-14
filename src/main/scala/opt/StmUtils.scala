@@ -1,6 +1,6 @@
 package opt
 
-import ir.*
+import ir._
 
 object StmUtils {
 
@@ -36,27 +36,28 @@ object StmUtils {
     val indexMap = seed.elems.indices
       .map(i =>
         i ->
-          (if indicesToRemove.contains(i) then None
+          (if (indicesToRemove.contains(i)) None
            else Some(i - indicesToRemove.count(j => j < i)))
       )
       .toMap
     val acc = stm.nextF.param
     val invalid = Param()
     val subs: Map[Expr, Expr] = indexMap
-      .map((i, j) =>
+      .map({ case (i, j) =>
         j match {
           case None    => TupleAccess(acc, i) -> invalid
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
-      )
-    val f = rearrangeTuple(
-      indexMap.flatMap((oldIdx, opt) =>
-        opt match {
-          case None         => None
-          case Some(newIdx) => Some(oldIdx -> newIdx)
-        }
-      )
-    )
+      })
+    val f = (e: Expr) =>
+      rearrangeTuple(
+        indexMap.flatMap({ case (oldIdx, opt) =>
+          opt match {
+            case None         => None
+            case Some(newIdx) => Some(oldIdx -> newIdx)
+          }
+        })
+      )(e)
     val s = StmBuild(
       stm.length,
       f(seed),
@@ -65,7 +66,7 @@ object StmUtils {
         PartialEvalPass.substitute(transformHead(f)(stm.nextF.body))(subs)
       )
     )
-    if PartialEvalPass.contains(s, invalid) then {
+    if (PartialEvalPass.contains(s, invalid)) {
       throw new IllegalArgumentException(
         "At least one of the removed accumulator elements were still in use!"
       )
@@ -84,10 +85,10 @@ object StmUtils {
   def rearrangeTuple(indexMap: Map[Int, Int])(e: Expr): Expr = {
     val t = e.asInstanceOf[Tuple]
     val newElems = indexMap
-      .map((oldIdx, newIdx) => newIdx -> t.elems(oldIdx))
+      .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
       .toSeq
-      .sortBy((i, _) => i)
-      .map((_, e) => e)
+      .sortBy({ case (i, _) => i })
+      .map({ case (_, e) => e })
     Tuple(newElems: _*)
   }
 
@@ -106,7 +107,7 @@ object StmUtils {
         ???
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(cond, transformHead(f)(trueE), transformHead(f)(falseE))
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         Tuple(f(elems.head) +: elems.tail: _*)
       case DontCare => DontCare
     }

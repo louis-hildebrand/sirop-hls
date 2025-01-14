@@ -34,10 +34,15 @@ case class TupleAccess(t: Expr, i: Expr) extends Expr
 
 // Functions
 // cannot be a case class as the reference is used to distinguish between Params
-class Param() extends Expr
+class Param extends Expr
+object Param {
+  def apply(): Param = {
+    new Param()
+  }
+}
 case class Function(param: Param, body: Expr) extends Expr {
   override def equals(x: Any): Boolean = {
-    if !x.isInstanceOf[Function] then false
+    if (!x.isInstanceOf[Function]) false
     else {
       val that = x.asInstanceOf[Function]
       val sub = Map[Expr, Expr](this.param -> that.param)
@@ -46,15 +51,6 @@ case class Function(param: Param, body: Expr) extends Expr {
   }
 }
 case class FunCall(f: Expr, arg: Expr) extends Expr
-implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
-  val p = Param()
-  Function(p, sl(p))
-}
-implicit def scalaBinaryLambdaToFunction(sl: Expr => Expr => Expr): Function = {
-  val p1 = Param()
-  val p2 = Param()
-  Function(p1, Function(p2, sl(p1)(p2)))
-}
 object Let {
   def apply(p: Param, v: Expr, in: Expr): Expr = {
     FunCall(Function(p, in), v)
@@ -68,8 +64,6 @@ sealed trait BinOp extends Expr {
 
 // Integer expressions
 sealed abstract class IntExpr extends Expr
-implicit def int2IntCst(i: Int): IntCst = IntCst(i)
-implicit def intCst2Int(ic: IntCst): Int = ic.i
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Sub(e1: Expr, e2: Expr) extends IntExpr with BinOp
@@ -79,10 +73,6 @@ case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
 
 // Boolean expressions
 sealed abstract class BoolExpr extends Expr
-implicit def boolean2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
-implicit def boolExpr2Boolean(b: BoolExpr): Boolean = if (b == True) true
-else if (b == False) false
-else throw new RuntimeException("unexpected boolean value")
 object True extends BoolExpr
 object False extends BoolExpr
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as

@@ -1,23 +1,10 @@
 package opt
 
 import org.scalatest.funsuite.AnyFunSuite
-import ir.*
-import operations.*
-
-import scala.runtime.stdLibPatches.Predef.assert
+import ir._
+import operations._
 
 class PartialEvalPassTests extends AnyFunSuite {
-
-  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
-    var actualSeq = Seq[Expr]()
-    var n: Expr = Tuple(stream, 0 /*unused*/ )
-    expectedSeq.foreach(exp =>
-      n = PartialEvalPass.partialEval(StmNext(n.__0))
-      actualSeq = actualSeq :+ PartialEvalPass.partialEval(n.__1)
-    )
-    assert(actualSeq == expectedSeq)
-    assert(PartialEvalPass.partialEval(StmLength(n.__0)) == IntCst(0))
-  }
 
   // Used to debug issue with StmFold
   test("FunCall") {
@@ -55,7 +42,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c))
       )
     val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
-    val pe = PartialEvalPass.partialEval
+    val pe = (e: Expr) => PartialEvalPass.partialEval(e)
     assert(pe(VecAccess(v2, 0)) == z + a)
     assert(pe(VecAccess(v2, 1)) == (z + a) + b)
     assert(pe(VecAccess(v2, 2)) == ((z + a) + b) + c)

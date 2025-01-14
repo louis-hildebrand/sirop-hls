@@ -1,10 +1,8 @@
 package operations
 
-import ir.*
+import ir._
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
-
-import scala.runtime.stdLibPatches.Predef.assert
 
 object VectorTests {
   def vec2Seq(vec: Expr): Seq[Expr] = {
@@ -18,11 +16,13 @@ object VectorTests {
 }
 
 class VectorTests extends AnyFunSuite {
-  inline def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
+  @inline
+  def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
     assert(VectorTests.vec2Seq(actual) == expectedElems)
   }
 
-  inline def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
+  @inline
+  def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
     assert(VectorTests.vecVec2SeqSeq(actual) == expected)
   }
 
@@ -230,8 +230,8 @@ class VectorTests extends AnyFunSuite {
     // Correctness
     assert2DVecEqual(Let(p, v, actual), expected)
     // Effective simplification
-    for i <- (0 until 4) do {
-      for j <- (0 until 3) do {
+    for (i <- (0 until 4)) {
+      for (j <- (0 until 3)) {
         assert(
           PartialEvalPass.partialEval(
             VecAccess(VecAccess(actual, i), j)

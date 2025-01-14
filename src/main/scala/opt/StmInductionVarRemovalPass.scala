@@ -1,6 +1,6 @@
 package opt
 
-import ir.*
+import ir._
 import operations.{Max, CeilDiv}
 
 object StmInductionVarRemovalPass {
@@ -11,7 +11,7 @@ object StmInductionVarRemovalPass {
       seed.elems.indices
         .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
         .toMap
-    if inductionVarByIdx.isEmpty then {
+    if (inductionVarByIdx.isEmpty) {
       s
     } else {
       // TODO: it's a bit sketchy that partial evaluation is required here, isn't it?
@@ -23,7 +23,7 @@ object StmInductionVarRemovalPass {
 
       val acc = s1.nextF.param
       val subs: Map[Expr, Expr] = inductionVarByIdx
-        .map((i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1))
+        .map({ case (i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1) })
       // Canonicalization is required for removing accumulator elements
       val s2 = StmCanonPass.canonicalize(
         StmBuild(
@@ -137,9 +137,9 @@ object StmInductionVarRemovalPass {
     e match {
       case TupleAccess(a, IntCst(i)) if a == acc =>
         tryGetInductionVarByIdx(s, i)
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         val elemFunctions = elems.map(e => tryGetInductionVar(s, e))
-        if elemFunctions.exists(e => e.isEmpty) then {
+        if (elemFunctions.exists(e => e.isEmpty)) {
           None
         } else {
           Some((t: Expr) =>
