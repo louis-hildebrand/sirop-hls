@@ -5,10 +5,11 @@ import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmFusePassTests extends AnyFunSuite {
-  val canon = (e: Expr) => StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
-  val fuse = StmFusePass.fuse
-  val fuseCompletely = StmFusePass.fuseCompletely
-  val stm2Seq = StreamTests.stm2Seq
+  private val canon = (e: Expr) =>
+    StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
+  private val fuse = (e: Expr) => StmFusePass.fuse(e)
+  private val fuseCompletely = (e: Expr) => StmFusePass.fuseCompletely(e)
+  private val stm2Seq = (e: Expr) => StreamTests.stm2Seq(e)
 
   test("CountFromFive") {
     val s = StmMap(
