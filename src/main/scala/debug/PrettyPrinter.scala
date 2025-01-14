@@ -4,7 +4,6 @@ import opt.PartialEvalPass
 import ir._
 
 import scala.annotation.tailrec
-import scala.jdk.CollectionConverters._
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(

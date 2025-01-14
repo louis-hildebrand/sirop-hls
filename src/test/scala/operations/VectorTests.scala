@@ -4,8 +4,6 @@ import ir._
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.runtime.stdLibPatches.Predef.assert
-
 object VectorTests {
   def vec2Seq(vec: Expr): Seq[Expr] = {
     val build = PartialEvalPass.partialEval(vec).asInstanceOf[VecBuild]

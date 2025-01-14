@@ -4,8 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import ir._
 import operations._
 
-import scala.runtime.stdLibPatches.Predef.assert
-
 class PartialEvalPassTests extends AnyFunSuite {
 
   // Used to debug issue with StmFold
