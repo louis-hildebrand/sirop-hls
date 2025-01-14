@@ -131,10 +131,6 @@ object PrettyPrinter {
       chooseNewParamName(takenNames, i + 1)
     }
 
-  private def indent(s: String): String = {
-    s.lines.map(l => s"    ${l}").iterator().asScala.mkString("\n")
-  }
-
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
 
   private def showWithParens(

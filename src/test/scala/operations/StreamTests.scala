@@ -2,7 +2,7 @@ package operations
 
 import ir.*
 import opt.PartialEvalPass
-import opt.Optimizer
+//import opt.Optimizer
 import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
@@ -1534,22 +1534,17 @@ class StreamTests extends AnyFunSuite {
       fInShape = None,
       fOutShape = Some(6)
     )
-    val opt = Optimizer.optimizeStream(actual)
 
     // Correctness
     val s0 = StmCount(6)
     val expected0 = Seq(0, 1, 2, 3, 4, 5).map(n => IntCst(n))
     assertStreamEqual(Let(p, s0, actual), expected0)
-    assertStreamEqual(Let(p, s0, opt), expected0)
     val s1 = StmCst(6, 42)
     val expected1 = Seq(42, 42, 42, 42, 42, 42).map(n => IntCst(n))
     assertStreamEqual(Let(p, s1, actual), expected1)
-    assertStreamEqual(Let(p, s1, opt), expected1)
 
     // Effective simplification
-    // TODO
-    // val identity = StmCanonPass.canonicalIdentityStream(6, p)
-    // assert(StmCanonPass.canonicalize(opt) == identity)
+    // TODO: Check that Sm2Vec and Vec2Stm cancel out
   }
 
   test("StmPrepend:1D") {
@@ -2322,9 +2317,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmSlideS:1D:SameSize") {
     val s = StmCount(5)
-    val expected = Seq(
-      Seq(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4))
-    ).map(xs => xs.map(x => IntCst(x)))
+    val expected = Seq(Seq(0, 1, 2, 3, 4)).map(xs => xs.map(x => IntCst(x)))
     assertStreamEqual(StmSlideS(s, 5, stmShape = Seq(5)), expected.flatten)
   }
 

@@ -1,0 +1,18 @@
+package object ir {
+  implicit def int2IntCst(i: Int): IntCst = IntCst(i)
+
+  implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
+
+  implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
+    val p = Param()
+    Function(p, sl(p))
+  }
+
+  implicit def scalaBinaryLambdaToFunction(
+      sl: Expr => Expr => Expr
+  ): Function = {
+    val p1 = Param()
+    val p2 = Param()
+    Function(p1, Function(p2, sl(p1)(p2)))
+  }
+}

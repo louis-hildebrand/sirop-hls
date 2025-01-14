@@ -4,205 +4,171 @@ import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
 import opt.PartialEvalPass.substitute
 import ir.*
 
-import scala.annotation.tailrec
+private object Helpers {
+  def expandTuple(t: Expr, n: Int): Tuple = {
+    Tuple((0 until n).map(i => TupleAccess(t, i)): _*)
+  }
 
-private def expandTuple(t: Expr, n: Int): Tuple = {
-  Tuple((0 until n).map(i => TupleAccess(t, i)): _*)
-}
-
-/** Convert the given function into a function from stream to stream.
-  *
-  * @param f
-  *   The original function, which could be (1) scalar to scalar, (2) scalar to
-  *   stream, (3) stream to scalar, or (4) stream to stream.
-  * @param inShape
-  *   Shape of the input to `f`. `Some(n)` means `f` takes a stream of `n`
-  *   scalars. `None` means `f` takes one scalar.
-  * @param outShape
-  *   Shape of the output of `f`. `Some(n)` means `f` returns a stream of `n`
-  *   scalars. `None` means `f` returns one scalar.
-  */
-private def asStm2Stm(
-    f: Function,
-    inShape: Option[Expr],
-    outShape: Option[Expr]
-): Function = {
-  val f1 = (inShape, outShape) match {
-    case (None, None) => {
-      // scalar -> scalar (e.g., x => x + 1)
-      val x = Param()
-      Function(
-        x /* stream */,
-        StmBuild(
-          1,
-          x,
-          (acc: Expr) =>
-            Tuple(StmNext(acc).__0, FunCall(f, StmNext(acc).__1), True)
+  /** Convert the given function into a function from stream to stream.
+    *
+    * @param f
+    *   The original function, which could be (1) scalar to scalar, (2) scalar
+    *   to stream, (3) stream to scalar, or (4) stream to stream.
+    * @param inShape
+    *   Shape of the input to `f`. `Some(n)` means `f` takes a stream of `n`
+    *   scalars. `None` means `f` takes one scalar.
+    * @param outShape
+    *   Shape of the output of `f`. `Some(n)` means `f` returns a stream of `n`
+    *   scalars. `None` means `f` returns one scalar.
+    */
+  def asStm2Stm(
+      f: Function,
+      inShape: Option[Expr],
+      outShape: Option[Expr]
+  ): Function = {
+    val f1 = (inShape, outShape) match {
+      case (None, None) => {
+        // scalar -> scalar (e.g., x => x + 1)
+        val x = Param()
+        Function(
+          x /* stream */,
+          StmBuild(
+            1,
+            x,
+            (acc: Expr) =>
+              Tuple(StmNext(acc).__0, FunCall(f, StmNext(acc).__1), True)
+          )
         )
-      )
-    }
-    case (None, Some(_)) => {
-      // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
-      // The scalar input to the original function (`f.param`) can appear in
-      // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
-      // StmCst), or even both (if you have something weird like a
-      // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
-      // zipped together).
-      // TODO: Deal with things like IfThenElse as well?
-      // Canonicalize mainly to ensure flat accumulator for simplicity
-      val s = StmCanonPass.canonicalize(f.body.asInstanceOf[StmBuild])
-      val seed = s.seed.asInstanceOf[Tuple]
-      val x = Param()
-      Function(
-        x /* stream */,
-        StmBuild(
-          s.length,
-          Tuple(
-            // Replace all seed elements that depend on the input scalar
-            // (Maybe not strictly necessary in the interpreter since these
-            // values are unused anyway, but in the compiler it wouldn't
-            // make sense to have free variables hanging around here.)
+      }
+      case (None, Some(_)) => {
+        // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
+        // The scalar input to the original function (`f.param`) can appear in
+        // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
+        // StmCst), or even both (if you have something weird like a
+        // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
+        // zipped together).
+        // TODO: Deal with things like IfThenElse as well?
+        // Canonicalize mainly to ensure flat accumulator for simplicity
+        val s = StmCanonPass.canonicalize(f.body.asInstanceOf[StmBuild])
+        val seed = s.seed.asInstanceOf[Tuple]
+        val x = Param()
+        Function(
+          x /* stream */,
+          StmBuild(
+            s.length,
             Tuple(
-              seed.elems.map(e =>
-                if (PartialEvalPass.contains(e, f.param)) DontCare else e
-              ): _*
+              // Replace all seed elements that depend on the input scalar
+              // (Maybe not strictly necessary in the interpreter since these
+              // values are unused anyway, but in the compiler it wouldn't
+              // make sense to have free variables hanging around here.)
+              Tuple(
+                seed.elems.map(e =>
+                  if (PartialEvalPass.contains(e, f.param)) DontCare else e
+                ): _*
+              ),
+              x /* input stream */,
+              DontCare /* element from input stream (initial value unused) */,
+              True /* whether the element is yet to be read from x */
             ),
-            x /* input stream */,
-            DontCare /* element from input stream (initial value unused) */,
-            True /* whether the element is yet to be read from x */
-          ),
-          (newAcc: Expr) =>
-            substitute({
-              val innerNext = Param()
-              Let(
-                innerNext,
-                FunCall(s.nextF, newAcc.__0),
-                IfThenElse(
-                  newAcc.__3,
-                  // First read from input stream
-                  Tuple(
+            (newAcc: Expr) =>
+              substitute({
+                val innerNext = Param()
+                Let(
+                  innerNext,
+                  FunCall(s.nextF, newAcc.__0),
+                  IfThenElse(
+                    newAcc.__3,
+                    // First read from input stream
                     Tuple(
-                      // Replace all seed elements that depend on the input scalar
                       Tuple(
-                        seed.elems.zipWithIndex.map((e, i) =>
-                          if (PartialEvalPass.contains(e, f.param))
-                            substitute(e)(
-                              Map(f.param -> StmNext(newAcc.__1).__1)
-                            )
-                          else TupleAccess(newAcc.__0, i)
-                        ): _*
+                        // Replace all seed elements that depend on the input scalar
+                        Tuple(
+                          seed.elems.zipWithIndex.map((e, i) =>
+                            if (PartialEvalPass.contains(e, f.param))
+                              substitute(e)(
+                                Map(f.param -> StmNext(newAcc.__1).__1)
+                              )
+                            else TupleAccess(newAcc.__0, i)
+                          ): _*
+                        ),
+                        StmNext(newAcc.__1).__0,
+                        StmNext(newAcc.__1).__1,
+                        False
                       ),
-                      StmNext(newAcc.__1).__0,
-                      StmNext(newAcc.__1).__1,
+                      DontCare,
                       False
                     ),
-                    DontCare,
-                    False
-                  ),
-                  // Continue as usual
-                  Tuple(
+                    // Continue as usual
                     Tuple(
-                      innerNext.__0,
-                      newAcc.__1,
-                      newAcc.__2,
-                      newAcc.__3
-                    ),
-                    innerNext.__1,
-                    innerNext.__2
+                      Tuple(
+                        innerNext.__0,
+                        newAcc.__1,
+                        newAcc.__2,
+                        newAcc.__3
+                      ),
+                      innerNext.__1,
+                      innerNext.__2
+                    )
                   )
                 )
-              )
-            })(Map(s.nextF.param -> newAcc.__0, f.param -> newAcc.__2))
+              })(Map(s.nextF.param -> newAcc.__0, f.param -> newAcc.__2))
+          )
         )
-      )
-    }
-    case (Some(_), None) => {
-      throw new IllegalArgumentException(
-        "Reducing a stream to a scalar is forbidden."
-      )
-    }
-    case (Some(_), Some(_)) => {
-      // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
-      f
-    }
-  }
-  // We need to be careful about the identity function.
-  // We want to be able to reset `f` itself, but *not* the input stream.
-  // TODO: does this issue occur in any cases other than the identity function?
-  val identity: Function = (x: Expr) => x
-  val f2 = if (f1 == identity) {
-    val f2: Function = (s: Expr) =>
-      StmBuild(
-        outShape.getOrElse(1),
-        s,
-        (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
-      )
-    f2
-  } else {
-    f1
-  }
-  // It is essential to fuse everything.
-  // If f is a chain of stream producers, we want to reset them all, not
-  // just the last producer.
-  val f3 = Function(
-    f2.param,
-    StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
-  )
-  // StmMap(), StmScanInclusive(), etc. assume the function uses its input.
-  val usesInputStream = f3.body
-    .asInstanceOf[StmBuild]
-    .seed
-    .asInstanceOf[Tuple]
-    .elems
-    .contains(f3.param)
-  val f4 = if (usesInputStream) {
-    f3
-  } else {
-    Function(
-      f3.param,
-      StmFusePass.fuseCompletely(
-        StmConcat(
-          f3.body,
-          StmDrain(f3.param),
-          len1 = outShape.getOrElse(IntCst(1))
+      }
+      case (Some(_), None) => {
+        throw new IllegalArgumentException(
+          "Reducing a stream to a scalar is forbidden."
         )
-      )
+      }
+      case (Some(_), Some(_)) => {
+        // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
+        f
+      }
+    }
+    // We need to be careful about the identity function.
+    // We want to be able to reset `f` itself, but *not* the input stream.
+    // TODO: does this issue occur in any cases other than the identity function?
+    val identity: Function = (x: Expr) => x
+    val f2 = if (f1 == identity) {
+      val f2: Function = (s: Expr) =>
+        StmBuild(
+          outShape.getOrElse(1),
+          s,
+          (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
+        )
+      f2
+    } else {
+      f1
+    }
+    // It is essential to fuse everything.
+    // If f is a chain of stream producers, we want to reset them all, not
+    // just the last producer.
+    val f3 = Function(
+      f2.param,
+      StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
     )
-  }
-  f4
-}
-
-private def findStmNext(e: Expr): Set[Expr] = {
-  e match {
-    case TupleAccess(StmNext(_), IntCst(1)) => Set(e)
-    case _: IntCst                          => Set()
-    case Add(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case Sub(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case Mul(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case Div(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case Mod(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case True | False | DontCare            => Set()
-    case Equal(x, y)                        => findStmNext(x) ++ findStmNext(y)
-    case NotEqual(x, y)                     => findStmNext(x) ++ findStmNext(y)
-    case LessThan(x, y)                     => findStmNext(x) ++ findStmNext(y)
-    case And(x, y)                          => findStmNext(x) ++ findStmNext(y)
-    case Or(x, y)                           => findStmNext(x) ++ findStmNext(y)
-    case Not(x)                             => findStmNext(x)
-    case IfThenElse(c, t, f) =>
-      findStmNext(c) ++ findStmNext(t) ++ findStmNext(f)
-    case Tuple(elems: _*) =>
-      elems.foldLeft(Set[Expr]())((s, e) => s ++ findStmNext(e))
-    case TupleAccess(t, i)     => findStmNext(t) ++ findStmNext(i)
-    case _: Param              => Set()
-    case Function(p: Param, b) => findStmNext(b)
-    case FunCall(f, a)         => findStmNext(f) ++ findStmNext(a)
-    // TODO: maybe these should be errors, since I don't expect them to ever happen
-    case StmBuild(n, z, f) => findStmNext(n) ++ findStmNext(z) ++ findStmNext(f)
-    case StmNext(s)        => findStmNext(s)
-    case StmLength(s)      => findStmNext(s)
-    case VecBuild(n, f)    => findStmNext(n) ++ findStmNext(f)
-    case VecAccess(v, i)   => findStmNext(v) ++ findStmNext(i)
-    case VecLength(v)      => findStmNext(v)
+    // StmMap(), StmScanInclusive(), etc. assume the function uses its input.
+    val usesInputStream = f3.body
+      .asInstanceOf[StmBuild]
+      .seed
+      .asInstanceOf[Tuple]
+      .elems
+      .contains(f3.param)
+    val f4 = if (usesInputStream) {
+      f3
+    } else {
+      Function(
+        f3.param,
+        StmFusePass.fuseCompletely(
+          StmConcat(
+            f3.body,
+            StmDrain(f3.param),
+            len1 = outShape.getOrElse(IntCst(1))
+          )
+        )
+      )
+    }
+    f4
   }
 }
 
@@ -234,7 +200,7 @@ object Iterate {
       Tuple(n, z),
       (acc: Expr) => {
         val acc1Expanded = zSize match {
-          case Some(n) => expandTuple(acc.__1, n)
+          case Some(n) => Helpers.expandTuple(acc.__1, n)
           case None    => acc.__1
         }
         IfThenElse(
@@ -336,7 +302,7 @@ object StmMap {
       fOutShape: Option[Expr]
   ): StmBuild /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
-    val stmF = asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
+    val stmF = Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     // TODO: Needing to partially evaluate to even define StmMap seems
     //       pretty gross
     val inner =
@@ -523,7 +489,7 @@ object StmScanInclusive {
   ): Expr = {
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val stmF =
-      asStm2Stm(
+      Helpers.asStm2Stm(
         f.body.asInstanceOf[Function],
         inShape =
           if (stmShape.tail.isEmpty) None
