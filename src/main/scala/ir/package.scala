@@ -1,3 +1,5 @@
+import scala.language.implicitConversions
+
 package object ir {
   implicit def int2IntCst(i: Int): IntCst = IntCst(i)
 
