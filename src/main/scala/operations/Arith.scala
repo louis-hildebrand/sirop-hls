@@ -1,6 +1,6 @@
 package operations
 
-import ir.*
+import ir._
 
 object Min {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {

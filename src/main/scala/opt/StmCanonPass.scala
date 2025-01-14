@@ -1,7 +1,7 @@
 package opt
 
 import scala.annotation.tailrec
-import ir.*
+import ir._
 
 object StmCanonPass {
   def canonicalIdentityStream(n: Expr, p: Param): StmBuild = {

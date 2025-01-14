@@ -1,8 +1,8 @@
 package opt
 
 import org.scalatest.funsuite.AnyFunSuite
-import ir.*
-import operations.*
+import ir._
+import operations._
 
 import scala.runtime.stdLibPatches.Predef.assert
 

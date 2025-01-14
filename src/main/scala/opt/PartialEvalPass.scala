@@ -1,6 +1,6 @@
 package opt
 
-import ir.*
+import ir._
 
 object PartialEvalPass {
 

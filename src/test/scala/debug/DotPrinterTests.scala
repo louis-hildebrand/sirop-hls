@@ -1,6 +1,6 @@
 package debug
 
-import ir.*
+import ir._
 import operations.{StmRange, VecMap}
 import org.scalatest.funsuite.AnyFunSuite
 

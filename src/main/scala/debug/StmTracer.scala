@@ -1,7 +1,7 @@
 package debug
 
 import opt.PartialEvalPass
-import ir.*
+import ir._
 
 object StmTracer {
   def trace(stm: StmBuild): Seq[String] = {

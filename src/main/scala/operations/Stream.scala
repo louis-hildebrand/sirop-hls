@@ -2,7 +2,7 @@ package operations
 
 import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
 import opt.PartialEvalPass.substitute
-import ir.*
+import ir._
 
 private object Helpers {
   def expandTuple(t: Expr, n: Int): Tuple = {

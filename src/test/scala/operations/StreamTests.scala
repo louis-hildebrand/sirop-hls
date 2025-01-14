@@ -1,6 +1,6 @@
 package operations
 
-import ir.*
+import ir._
 import opt.PartialEvalPass
 //import opt.Optimizer
 import org.scalatest.funsuite.AnyFunSuite

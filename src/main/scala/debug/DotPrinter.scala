@@ -1,11 +1,11 @@
 package debug
 
-import ir.*
+import ir._
 import opt.PartialEvalPass
 
 import java.nio.file.{Files, Paths}
 import java.nio.charset.StandardCharsets
-import sys.process.*
+import sys.process._
 
 sealed trait Scope {
   def equalOrInside(that: Scope): Boolean
