@@ -193,7 +193,7 @@ object StmCanonPass {
 
   private def rewriteIfThenElseInTuple(t: Tuple): Expr = {
     val i = t.elems.indexWhere(e => e.isInstanceOf[IfThenElse])
-    if i < 0 then {
+    if (i < 0) {
       t
     } else {
       val ite = t.elems(i).asInstanceOf[IfThenElse]
@@ -216,20 +216,20 @@ object StmCanonPass {
       stm: StmBuild,
       indices: Set[Int]
   ): Set[Int] = {
-    if indices.isEmpty then {
+    if (indices.isEmpty) {
       Set()
     } else {
       val seed = stm.seed.asInstanceOf[Tuple]
       val z = Tuple(
         seed.elems.zipWithIndex
-          .map((e, i) => if indices.contains(i) then e else Param()): _*
+          .map((e, i) => if (indices.contains(i)) e else Param()): _*
       )
       val acc =
         PartialEvalPass.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))
       val constantIndices = indices.filter(i =>
         PartialEvalPass.partialEval(TupleAccess(acc, i)) == seed.elems(i)
       )
-      if constantIndices == indices then {
+      if (constantIndices == indices) {
         indices
       } else {
         findConstantAccumulatorElems(stm, constantIndices)

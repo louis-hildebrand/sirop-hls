@@ -36,7 +36,7 @@ object StmUtils {
     val indexMap = seed.elems.indices
       .map(i =>
         i ->
-          (if indicesToRemove.contains(i) then None
+          (if (indicesToRemove.contains(i)) None
            else Some(i - indicesToRemove.count(j => j < i)))
       )
       .toMap
@@ -65,7 +65,7 @@ object StmUtils {
         PartialEvalPass.substitute(transformHead(f)(stm.nextF.body))(subs)
       )
     )
-    if PartialEvalPass.contains(s, invalid) then {
+    if (PartialEvalPass.contains(s, invalid)) {
       throw new IllegalArgumentException(
         "At least one of the removed accumulator elements were still in use!"
       )

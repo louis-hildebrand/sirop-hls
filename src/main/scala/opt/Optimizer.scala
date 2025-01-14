@@ -39,7 +39,7 @@ object Optimizer {
     val seed = stm.seed.asInstanceOf[Tuple]
     val params =
       seed.elems.filter(e => e.isInstanceOf[Param])
-    if params.length == 1 then {
+    if (params.length == 1) {
       Some(params.head.asInstanceOf[Param])
     } else {
       None
@@ -55,11 +55,11 @@ object Optimizer {
   ): Boolean = {
     // TODO: Also check that there are no side effects (e.g., writing to
     //       memory) other than reading input stream?
-    if n <= 0 then {
+    if (n <= 0) {
       true
     } else {
       val nextOut = PartialEvalPass.partialEval(StmNext(s).__1)
-      if nextOut == expected then {
+      if (nextOut == expected) {
         val nextStm = PartialEvalPass.partialEval(StmNext(s).__0)
         val nextExpected = StmNext(expected.t.__0).__1
         actsLikeIdentityStream(nextStm, n - 1, nextExpected)

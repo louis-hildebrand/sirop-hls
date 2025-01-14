@@ -4,7 +4,11 @@ import ir.*
 import operations.{StmRange, VecMap}
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.nio.file.{Files, Paths}
+
 class DotPrinterTests extends AnyFunSuite {
+  Files.createDirectories(Paths.get("./img/"))
+
   test("IntCst") {
     val e = IntCst(42)
     DotPrinter.save(e, "./img/IntCst.dot")

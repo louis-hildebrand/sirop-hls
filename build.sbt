@@ -5,6 +5,4 @@ ThisBuild / scalaVersion := "3.3.3"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test"
 
 lazy val root = (project in file("."))
-  .settings(
-    name := "stream"
-  )
+  .settings(name := "min_hw_ir")

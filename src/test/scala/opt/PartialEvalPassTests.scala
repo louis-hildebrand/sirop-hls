@@ -8,17 +8,6 @@ import scala.runtime.stdLibPatches.Predef.assert
 
 class PartialEvalPassTests extends AnyFunSuite {
 
-  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
-    var actualSeq = Seq[Expr]()
-    var n: Expr = Tuple(stream, 0 /*unused*/ )
-    expectedSeq.foreach(exp =>
-      n = PartialEvalPass.partialEval(StmNext(n.__0))
-      actualSeq = actualSeq :+ PartialEvalPass.partialEval(n.__1)
-    )
-    assert(actualSeq == expectedSeq)
-    assert(PartialEvalPass.partialEval(StmLength(n.__0)) == IntCst(0))
-  }
-
   // Used to debug issue with StmFold
   test("FunCall") {
     val x = Param()

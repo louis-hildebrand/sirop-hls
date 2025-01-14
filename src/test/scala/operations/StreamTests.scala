@@ -11,7 +11,7 @@ object StreamTests {
       .partialEval(StmLength(stm))
       .asInstanceOf[IntCst]
       .i
-    if (n < 0) then {
+    if ((n < 0)) {
       throw new IllegalArgumentException(s"Stream has negative length (${n})!")
     } else if (n == 0) {
       Seq()

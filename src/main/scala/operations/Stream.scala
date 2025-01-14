@@ -64,7 +64,7 @@ private def asStm2Stm(
             // make sense to have free variables hanging around here.)
             Tuple(
               seed.elems.map(e =>
-                if PartialEvalPass.contains(e, f.param) then DontCare else e
+                if (PartialEvalPass.contains(e, f.param)) DontCare else e
               ): _*
             ),
             x /* input stream */,
@@ -85,7 +85,7 @@ private def asStm2Stm(
                       // Replace all seed elements that depend on the input scalar
                       Tuple(
                         seed.elems.zipWithIndex.map((e, i) =>
-                          if PartialEvalPass.contains(e, f.param) then
+                          if (PartialEvalPass.contains(e, f.param))
                             substitute(e)(
                               Map(f.param -> StmNext(newAcc.__1).__1)
                             )
@@ -130,7 +130,7 @@ private def asStm2Stm(
   // We want to be able to reset `f` itself, but *not* the input stream.
   // TODO: does this issue occur in any cases other than the identity function?
   val identity: Function = (x: Expr) => x
-  val f2 = if f1 == identity then {
+  val f2 = if (f1 == identity) {
     val f2: Function = (s: Expr) =>
       StmBuild(
         outShape.getOrElse(1),
@@ -155,7 +155,7 @@ private def asStm2Stm(
     .asInstanceOf[Tuple]
     .elems
     .contains(f3.param)
-  val f4 = if usesInputStream then {
+  val f4 = if (usesInputStream) {
     f3
   } else {
     Function(
@@ -526,9 +526,9 @@ object StmScanInclusive {
       asStm2Stm(
         f.body.asInstanceOf[Function],
         inShape =
-          if stmShape.tail.isEmpty then None
+          if (stmShape.tail.isEmpty) None
           else Some(stmShape.tail.fold(IntCst(1))(Mul.apply)),
-        outShape = if stmShape.tail.isEmpty then None else Some(1)
+        outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
     val inner = StmCanonPass.canonicalize(
       PartialEvalPass.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
@@ -673,7 +673,7 @@ object StmPrepend {
       eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val p = Param()
-    val eStm = if eShape.isEmpty then {
+    val eStm = if (eShape.isEmpty) {
       StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
     } else {
       e
@@ -709,7 +709,7 @@ object StmAppend {
       // Ideally we would get this shape information from the type system
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val eStm = if stmShape.tail.isEmpty then {
+    val eStm = if (stmShape.tail.isEmpty) {
       StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
     } else {
       e

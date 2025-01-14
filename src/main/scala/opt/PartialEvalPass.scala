@@ -211,11 +211,11 @@ object PartialEvalPass {
             val f = partialEval(
               substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
             )
-            if f == DontCare then t
-            else if t == DontCare then f
-            else if t == f then t
-            else if t == True && f == False then cond
-            else if t == False && f == True then partialEval(Not(cond))
+            if (f == DontCare) t
+            else if (t == DontCare) f
+            else if (t == f) t
+            else if (t == True && f == False) cond
+            else if (t == False && f == True) partialEval(Not(cond))
             else {
               cond match {
                 // True branch is special case of false branch
@@ -228,7 +228,7 @@ object PartialEvalPass {
                   t
                 case _ =>
                   val x = IfThenElse(cond, t, f)
-                  if isBoolExpr(x).getOrElse(false) && !hasSideEffects(x) then {
+                  if (isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)) {
                     partialEval((cond && t) || (Not(cond) && f))
                   } else {
                     x

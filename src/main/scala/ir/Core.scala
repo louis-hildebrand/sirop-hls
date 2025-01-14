@@ -37,7 +37,7 @@ case class TupleAccess(t: Expr, i: Expr) extends Expr
 class Param() extends Expr
 case class Function(param: Param, body: Expr) extends Expr {
   override def equals(x: Any): Boolean = {
-    if !x.isInstanceOf[Function] then false
+    if (!x.isInstanceOf[Function]) false
     else {
       val that = x.asInstanceOf[Function]
       val sub = Map[Expr, Expr](this.param -> that.param)

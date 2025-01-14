@@ -230,8 +230,8 @@ class VectorTests extends AnyFunSuite {
     // Correctness
     assert2DVecEqual(Let(p, v, actual), expected)
     // Effective simplification
-    for i <- (0 until 4) do {
-      for j <- (0 until 3) do {
+    for (i <- (0 until 4)) {
+      for (j <- (0 until 3)) {
         assert(
           PartialEvalPass.partialEval(
             VecAccess(VecAccess(actual, i), j)

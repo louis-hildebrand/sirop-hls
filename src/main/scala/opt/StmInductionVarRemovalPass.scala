@@ -11,7 +11,7 @@ object StmInductionVarRemovalPass {
       seed.elems.indices
         .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
         .toMap
-    if inductionVarByIdx.isEmpty then {
+    if (inductionVarByIdx.isEmpty) {
       s
     } else {
       // TODO: it's a bit sketchy that partial evaluation is required here, isn't it?
@@ -139,7 +139,7 @@ object StmInductionVarRemovalPass {
         tryGetInductionVarByIdx(s, i)
       case Tuple(elems: _*) =>
         val elemFunctions = elems.map(e => tryGetInductionVar(s, e))
-        if elemFunctions.exists(e => e.isEmpty) then {
+        if (elemFunctions.exists(e => e.isEmpty)) {
           None
         } else {
           Some((t: Expr) =>

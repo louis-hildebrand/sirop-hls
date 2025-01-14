@@ -150,7 +150,7 @@ case class DotScalar(
       .map((label, c) => DotEdge.toParent(this, c, label = label))
       .toSet
   override def dot: String = {
-    val shape = if isConst then "none" else "ellipse"
+    val shape = if (isConst) "none" else "ellipse"
     s"$id [label=\"$label\", shape=\"$shape\"];"
   }
 }
@@ -342,9 +342,9 @@ object DotPrinter {
       keepDotFile: Boolean = false,
       nameByVar: Map[Param, String] = Map()
   ): Unit = {
-    val (dotPath, imgPath) = if path.endsWith(".dot") then {
+    val (dotPath, imgPath) = if (path.endsWith(".dot")) {
       (path, path.substring(0, path.length - 4) + ".png")
-    } else if path.endsWith(".png") then {
+    } else if (path.endsWith(".png")) {
       (path.substring(0, path.length - 4) + ".dot", path)
     } else {
       ???
@@ -356,7 +356,7 @@ object DotPrinter {
     val cmd =
       s"dot -T ${imgPath.substring(imgPath.length - 3, imgPath.length)} $dotPath -o $imgPath"
     cmd.!!
-    if !keepDotFile then {
+    if (!keepDotFile) {
       Files.delete(Paths.get(dotPath))
     }
   }

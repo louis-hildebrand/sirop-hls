@@ -15,7 +15,7 @@ object StmTracer {
       nextF: Function,
       step: Int
   ): Seq[String] = {
-    if n == 0 then {
+    if (n == 0) {
       Seq()
     } else {
       try {
@@ -38,7 +38,7 @@ object StmTracer {
              |     Next valid: ${PrettyPrinter.show(valid)(Map())}
              |""".stripMargin.stripTrailing
         summary +: trace(
-          if valid then n - 1 else n,
+          if (valid) n - 1 else n,
           nextAcc,
           nextF,
           step = step + 1
