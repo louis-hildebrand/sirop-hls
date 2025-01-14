@@ -2079,7 +2079,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount2D(3, 2)
 
     val expected = Seq((0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1))
-      .map((i, j) => Tuple(i, j))
+      .map({ case (i, j) => Tuple(i, j) })
     assertStreamEqual(StmJoin(s), expected)
   }
 

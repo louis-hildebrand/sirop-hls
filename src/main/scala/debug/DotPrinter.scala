@@ -144,10 +144,12 @@ case class DotScalar(
 ) extends DotNode {
   def isConst: Boolean = labeledChildren.isEmpty
   override val fullPath: String = id
-  override val dependencies: Seq[DotNode] = labeledChildren.map((_, c) => c)
+  override val dependencies: Seq[DotNode] = labeledChildren.map({ case (_, c) =>
+    c
+  })
   override def edges: Set[DotEdge] =
     labeledChildren
-      .map((label, c) => DotEdge.toParent(this, c, label = label))
+      .map({ case (label, c) => DotEdge.toParent(this, c, label = label) })
       .toSet
   override def dot: String = {
     val shape = if (isConst) "none" else "ellipse"
@@ -363,7 +365,9 @@ object DotPrinter {
 
   private def makeDotGraph(e: Expr, nameByVar: Map[Param, String]): String = {
     // TODO: Look for functions that are never called and add lines going in and coming out for clarity?
-    val params = nameByVar.map((p, name) => p -> DotParam(name, GlobalScope))
+    val params = nameByVar.map({ case (p, name) =>
+      p -> DotParam(name, GlobalScope)
+    })
     val resultNode = toDot(e, GlobalScope)(params)
     val topLevelNodes = resultNode.allDependencies + resultNode
     val nodesDot =

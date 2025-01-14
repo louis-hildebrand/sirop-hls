@@ -23,7 +23,7 @@ object StmInductionVarRemovalPass {
 
       val acc = s1.nextF.param
       val subs: Map[Expr, Expr] = inductionVarByIdx
-        .map((i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1))
+        .map({ case (i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1) })
       // Canonicalization is required for removing accumulator elements
       val s2 = StmCanonPass.canonicalize(
         StmBuild(

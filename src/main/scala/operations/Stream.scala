@@ -83,13 +83,13 @@ private object Helpers {
                       Tuple(
                         // Replace all seed elements that depend on the input scalar
                         Tuple(
-                          seed.elems.zipWithIndex.map((e, i) =>
+                          seed.elems.zipWithIndex.map({ case (e, i) =>
                             if (PartialEvalPass.contains(e, f.param))
                               substitute(e)(
                                 Map(f.param -> StmNext(newAcc.__1).__1)
                               )
                             else TupleAccess(newAcc.__0, i)
-                          ): _*
+                          }): _*
                         ),
                         StmNext(newAcc.__1).__0,
                         StmNext(newAcc.__1).__1,

@@ -43,19 +43,19 @@ object StmUtils {
     val acc = stm.nextF.param
     val invalid = Param()
     val subs: Map[Expr, Expr] = indexMap
-      .map((i, j) =>
+      .map({ case (i, j) =>
         j match {
           case None    => TupleAccess(acc, i) -> invalid
           case Some(j) => TupleAccess(acc, i) -> TupleAccess(acc, j)
         }
-      )
+      })
     val f = rearrangeTuple(
-      indexMap.flatMap((oldIdx, opt) =>
+      indexMap.flatMap({ case (oldIdx, opt) =>
         opt match {
           case None         => None
           case Some(newIdx) => Some(oldIdx -> newIdx)
         }
-      )
+      })
     )
     val s = StmBuild(
       stm.length,
@@ -84,10 +84,10 @@ object StmUtils {
   def rearrangeTuple(indexMap: Map[Int, Int])(e: Expr): Expr = {
     val t = e.asInstanceOf[Tuple]
     val newElems = indexMap
-      .map((oldIdx, newIdx) => newIdx -> t.elems(oldIdx))
+      .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
       .toSeq
       .sortBy((i, _) => i)
-      .map((_, e) => e)
+      .map({ case (_, e) => e })
     Tuple(newElems: _*)
   }
 

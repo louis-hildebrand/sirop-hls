@@ -117,7 +117,7 @@ object StmCanonPass {
             case _                        => false
           }
         )
-        .map((e, i) => i)
+        .map({ case (e, i) => i })
         .toSet
     )
     val acc = stm.nextF.param
@@ -143,9 +143,9 @@ object StmCanonPass {
       .toMap
     val sub = (body: Expr) =>
       PartialEvalPass.substitute(body)(
-        indexMap.map((oldIdx, newIdx) =>
+        indexMap.map({ case (oldIdx, newIdx) =>
           TupleAccess(acc, oldIdx) -> TupleAccess(acc, newIdx)
-        )
+        })
       )
     StmBuild(
       stm.length,
@@ -222,7 +222,7 @@ object StmCanonPass {
       val seed = stm.seed.asInstanceOf[Tuple]
       val z = Tuple(
         seed.elems.zipWithIndex
-          .map((e, i) => if (indices.contains(i)) e else Param()): _*
+          .map({ case (e, i) => if (indices.contains(i)) e else Param() }): _*
       )
       val acc =
         PartialEvalPass.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))
