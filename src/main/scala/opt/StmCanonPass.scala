@@ -172,7 +172,7 @@ object StmCanonPass {
     */
   private def moveIfThenElseOutsideTuple(e: Expr): Expr = {
     e match {
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         val newElems = elems.map(e => moveIfThenElseOutsideTuple(e))
         rewriteIfThenElseInTuple(Tuple(newElems: _*))
       case IfThenElse(cond, trueE, falseE) =>
@@ -261,7 +261,7 @@ object StmCanonPass {
       nextIdx: Int
   ): (Map[Expr, Expr], Int) = {
     e match {
-      case Tuple(elems: _*) if !elems.isEmpty =>
+      case Tuple(elems @ _*) if !elems.isEmpty =>
         // Inner node
         /* The programmer could refer directly to one of these inner nodes,
          * right? Maybe assume the expression is already rewritten in such a
@@ -291,12 +291,12 @@ object StmCanonPass {
     */
   private def flatten(e: Expr): Expr = {
     e match {
-      case Tuple(elems: _*) if !elems.isEmpty =>
+      case Tuple(elems @ _*) if !elems.isEmpty =>
         val flatElems = elems.map(e => flatten(e))
         val combinedElems = flatElems.flatMap(e =>
           e match {
-            case Tuple(elems: _*) if !elems.isEmpty => elems
-            case _                                  => Seq(e)
+            case Tuple(elems @ _*) if !elems.isEmpty => elems
+            case _                                   => Seq(e)
           }
         )
         Tuple(combinedElems: _*)

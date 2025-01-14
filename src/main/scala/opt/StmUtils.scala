@@ -106,7 +106,7 @@ object StmUtils {
         ???
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(cond, transformHead(f)(trueE), transformHead(f)(falseE))
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         Tuple(f(elems.head) +: elems.tail: _*)
       case DontCare => DontCare
     }

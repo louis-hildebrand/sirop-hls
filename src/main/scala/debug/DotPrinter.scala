@@ -417,7 +417,7 @@ object DotPrinter {
           Seq(("c", cond), ("t", trueVal), ("f", falseVal)),
           scope
         )
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         val tupScope = TableScope(DotNode.freshId(), parent = scope)
         DotTuple(
           elems.map(e => toDot(e, tupScope)),

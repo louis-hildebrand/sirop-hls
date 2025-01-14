@@ -137,7 +137,7 @@ object StmInductionVarRemovalPass {
     e match {
       case TupleAccess(a, IntCst(i)) if a == acc =>
         tryGetInductionVarByIdx(s, i)
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         val elemFunctions = elems.map(e => tryGetInductionVar(s, e))
         if (elemFunctions.exists(e => e.isEmpty)) {
           None

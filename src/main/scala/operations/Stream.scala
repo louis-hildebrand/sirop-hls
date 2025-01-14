@@ -391,14 +391,14 @@ object StmMap {
         val newInCtr = a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                _: _*
+                _ @_*
               ) if p == oldAcc =>
             // StmNext() called, so decrement the input counter.
             newAcc.__1 - 1
-          case Tuple(TupleAccess(p, IntCst(0)), _: _*) if p == oldAcc =>
+          case Tuple(TupleAccess(p, IntCst(0)), _ @_*) if p == oldAcc =>
             // StmNext() *not* called, so do *not* decrement the input counter.
             newAcc.__1
-          case Tuple(x, _: _*) =>
+          case Tuple(x, _ @_*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )
@@ -551,14 +551,14 @@ object StmScanInclusive {
         val newInCtr = a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                _: _*
+                _ @_*
               ) if p == oldAcc =>
             // StmNext() called, so decrement the input counter.
             newAcc.__2 - 1
-          case Tuple(TupleAccess(p, IntCst(0)), _: _*) if p == oldAcc =>
+          case Tuple(TupleAccess(p, IntCst(0)), _ @_*) if p == oldAcc =>
             // StmNext() *not* called, so do *not* decrement the input counter.
             newAcc.__2
-          case Tuple(x, _: _*) =>
+          case Tuple(x, _ @_*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )

@@ -59,7 +59,7 @@ object PrettyPrinter {
         }
       case FunCall(f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
-      case Tuple(elems: _*) =>
+      case Tuple(elems @ _*) =>
         // Include the trailing t to distinguish between a parenthesized
         // expression and a tuple of one element.
         "t(" + elems

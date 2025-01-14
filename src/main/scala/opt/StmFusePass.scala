@@ -92,7 +92,7 @@ object StmFusePass {
         a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                as: _*
+                as @ _*
               ) if p == oldAcc =>
             // CASE 1: StmNext() called.
             //         Update the inner accumulator.
@@ -129,13 +129,13 @@ object StmFusePass {
                 Tuple(Tuple(newAcc0, innerNext0), DontCare, False)
               )
             )
-          case Tuple(TupleAccess(p, IntCst(0)), as: _*) if p == oldAcc =>
+          case Tuple(TupleAccess(p, IntCst(0)), as @ _*) if p == oldAcc =>
             // HACK: Expand tuple manually, as above.
             val newAcc1 = tupleExpand(newAcc.__1, innerStmAccArity)
             // CASE 2: StmNext() not called, so leave the inner accumulator
             //         as-is.
             Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc1), e, valid)
-          case Tuple(x, _: _*) =>
+          case Tuple(x, _ @_*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )
