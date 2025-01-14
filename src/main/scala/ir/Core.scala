@@ -34,7 +34,12 @@ case class TupleAccess(t: Expr, i: Expr) extends Expr
 
 // Functions
 // cannot be a case class as the reference is used to distinguish between Params
-class Param() extends Expr
+class Param extends Expr
+object Param {
+  def apply(): Param = {
+    new Param()
+  }
+}
 case class Function(param: Param, body: Expr) extends Expr {
   override def equals(x: Any): Boolean = {
     if (!x.isInstanceOf[Function]) false
