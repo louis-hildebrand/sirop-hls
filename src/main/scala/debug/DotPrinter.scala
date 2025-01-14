@@ -125,7 +125,7 @@ case class DotParam(name: String, scope: Scope) extends DotNode {
   override val fullPath: String = id
   override val dependencies: Seq[DotNode] = Seq()
   override def edges: Set[DotEdge] = Set()
-  override val dot: String = s"$id [label=\"$name\", shape=\"septagon\"];"
+  override val dot: String = s"""$id [label="$name", shape="septagon"];"""
 }
 
 /** An expression that evaluates to a scalar. This could be a constant, a sum,
@@ -153,7 +153,7 @@ case class DotScalar(
       .toSet
   override def dot: String = {
     val shape = if (isConst) "none" else "ellipse"
-    s"$id [label=\"$label\", shape=\"$shape\"];"
+    s"""$id [label="$label", shape="$shape"];"""
   }
 }
 
@@ -169,7 +169,7 @@ case class InlinedScalarCell(contents: String, scope: TableScope)
   override val dependencies: Seq[DotNode] = Seq()
   override def edges: Set[DotEdge] = Set()
   override def dot: String =
-    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">$contents</TD></TR>"
+    s"""<TR><TD PORT="$id" BGCOLOR="white">$contents</TD></TR>"""
 }
 
 /** A table cell containing another table.
@@ -181,7 +181,7 @@ case class InlinedTableCell(table: DotTuple, outerScope: TableScope)
   override val dependencies: Seq[DotNode] = table.dependencies
   override def edges: Set[DotEdge] = table.edges
   override def dot: String =
-    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">${table.dotTable}</TD></TR>"
+    s"""<TR><TD PORT="$id" BGCOLOR="white">${table.dotTable}</TD></TR>"""
 }
 
 /** A table cell with an edge to its value.
@@ -191,7 +191,7 @@ case class PointerCell(value: DotNode, scope: TableScope) extends DotTableCell {
   override val dependencies: Seq[DotNode] = Seq(value)
   override def edges: Set[DotEdge] = Set(DotEdge.toParent(this, value))
   override def dot: String =
-    s"<TR><TD PORT=\"$id\" BGCOLOR=\"white\">.</TD></TR>"
+    s"""<TR><TD PORT="$id" BGCOLOR="white">.</TD></TR>"""
 }
 
 /** A node containing other nodes. This could represent a tuple or a vector.
@@ -221,10 +221,10 @@ case class DotTuple(
   override def edges: Set[DotEdge] = cells.flatMap(c => c.edges).toSet
   def dotTable: String = {
     val rows = cells.map(c => c.dot).mkString("\n")
-    s"<TABLE PORT=\"$id\" BGCOLOR=\"grey\">\n${indent(rows)}\n</TABLE>"
+    s"""<TABLE PORT="$id" BGCOLOR="grey">\n${indent(rows)}\n</TABLE>"""
   }
   override def dot: String = {
-    s"$id [shape=\"none\", label=<\n${indent(dotTable)}\n>];"
+    s"""$id [shape="none", label=<\n${indent(dotTable)}\n>];"""
   }
 }
 
@@ -253,8 +253,8 @@ case class DotFunction(
         .map(n => n.dot)
         .mkString("\n")
     s"""subgraph cluster_$id {
-       |    color=\"black\";
-       |    ${param.id} [label=\"\", shape=\"septagon\"];
+       |    color="black";
+       |    ${param.id} [label="", shape="septagon"];
        |${indent(nodesToDraw)}
        |}
        |""".stripMargin.stripTrailing
@@ -272,14 +272,14 @@ case class DotFunCall(f: DotFunction, arg: DotNode, scope: Scope)
   override val dependencies: Seq[DotNode] = Seq(f, arg)
   override def edges: Set[DotEdge] =
     Set(DotEdge.toParent(f.param, arg), DotEdge.toParent(this, f.body))
-  override def dot: String = s"$id [shape=\"point\"]"
+  override def dot: String = s"""$id [shape="point"]"""
 }
 
 case class DotRegister(scope: StreamScope) extends DotNode {
   override val fullPath: String = id
   override val dependencies: Seq[DotNode] = Seq()
   override def edges: Set[DotEdge] = Set()
-  override def dot: String = s"$id [label=\"reg\", shape=\"box\"];"
+  override def dot: String = s"""$id [label="reg", shape="box"];"""
 }
 
 case class DotStream(z: DotNode, f: DotFunction, innerScope: StreamScope)
@@ -303,7 +303,7 @@ case class DotStream(z: DotNode, f: DotFunction, innerScope: StreamScope)
 
   override def dot: String = {
     s"""subgraph cluster_$id {
-       |    color=\"black\"
+       |    color="black"
        |${indent(z.dot)}
        |${indent(f.dot)}
        |${indent(mux.dot)}
@@ -320,7 +320,7 @@ case class DotEdge(
     dir: String
 ) {
   val dot =
-    s"${source.fullPath} -> ${target.fullPath} [label=\"$label\", dir=\"$dir\", arrowhead=\"vee\", arrowtail=\"vee\"];"
+    s"""${source.fullPath} -> ${target.fullPath} [label="$label", dir="$dir", arrowhead="vee", arrowtail="vee"];"""
 }
 object DotEdge {
   def toParent(parent: DotNode, child: DotNode, label: String = ""): DotEdge = {
@@ -377,7 +377,7 @@ object DotPrinter {
       .sortBy(e => (e.source.id, e.target.id))
       .map(e => e.dot)
       .mkString("\n")
-    s"digraph {\n${indent("rankdir=\"LR\"")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
+    s"digraph {\n${indent("""rankdir="LR"""")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
   }
 
   private def toDot(
