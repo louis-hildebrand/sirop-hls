@@ -18,12 +18,13 @@ class StmCanonPassTests extends AnyFunSuite {
       VecBuild(3, (i: Expr) => IntCst(0)),
       (v: Expr) => Tuple(VecShiftLeft(v, 42), v, True)
     )
-    val canon = StmBuild(
+    val expected = StmBuild(
       2,
       Tuple(VecBuild(3, (i: Expr) => IntCst(0))),
       (v: Expr) => Tuple(Tuple(VecShiftLeft(v.__0, 42)), v.__0, True)
     )
-    assert(StmCanonPass.canonicalize(s) == canon)
+    val actual = StmCanonPass.canonicalize(s)
+    assert(actual == expected)
   }
 
   test("FlattenAccumulator") {
@@ -167,7 +168,7 @@ class StmCanonPassTests extends AnyFunSuite {
           True
         )
     )
-    val canon = StmBuild(
+    val expected = StmBuild(
       3,
       Tuple(StmCount(6), StmCount(8), 5, 7),
       (acc: Expr) =>
@@ -175,14 +176,15 @@ class StmCanonPassTests extends AnyFunSuite {
           Tuple(
             StmNext(acc.__0).__0,
             StmNext(acc.__1).__0,
-            acc.__2 - 1,
-            acc.__3 - 2
+            acc.__2 + -1,
+            acc.__3 + -2
           ),
           acc.__2 + StmNext(acc.__0).__1 + acc.__3 + StmNext(acc.__1).__1,
           True
         )
     )
-    assert(StmCanonPass.canonicalize(s) == canon)
+    val actual = StmCanonPass.canonicalize(s)
+    assert(actual == expected)
   }
 
   test("MoveIfThenElseOutsideTuple1") {
@@ -199,7 +201,7 @@ class StmCanonPassTests extends AnyFunSuite {
         IfThenElse(
           i.__0 % 2 === 0,
           Tuple(Tuple(i.__0 + 1), i.__0 / 2, True),
-          Tuple(Tuple(i.__0 + 1), (i.__0 - 1) / 2, True)
+          Tuple(Tuple(i.__0 + 1), (i.__0 + -1) / 2, True)
         )
     )
     assert(StmCanonPass.canonicalize(s) == canon)

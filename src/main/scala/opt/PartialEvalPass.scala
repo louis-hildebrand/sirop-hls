@@ -33,47 +33,34 @@ object PartialEvalPass {
 
       case Add(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
+          // TODO: Write fewer rules by guaranteeing a specific order of terms
+//          case (e, IntCst(n)) if !e1.isInstanceOf[IntCst] =>
+//            partialEval(IntCst(n) + e)
+//          case (Neg(e1), e2) if !e2.isInstanceOf[Neg] =>
+//            partialEval(Add(e2, Neg(e1)))
           case (e1: IntCst, e2: IntCst)       => e1.i + e2.i
           case (e, IntCst(0))                 => e
           case (IntCst(0), e)                 => e
-          case (e, IntCst(n)) if n < 0        => e - IntCst(-n)
-          case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a + b))
-          case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a + b))
-          case (IntCst(b), Add(e, IntCst(a))) => partialEval(e + (a + b))
           case (IntCst(b), Add(IntCst(a), e)) => partialEval(e + (a + b))
-          case (Sub(e, IntCst(a)), IntCst(b)) => partialEval(e + (b - a))
-          case (Sub(IntCst(a), e), IntCst(b)) => partialEval(IntCst(a + b) - e)
-          case (IntCst(b), Sub(e, IntCst(a))) => partialEval(e + (b - a))
-          case (IntCst(b), Sub(IntCst(a), e)) => partialEval(IntCst(a + b) - e)
+          case (IntCst(b), Add(e, IntCst(a))) => partialEval(e + (a + b))
+          case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a + b))
+          case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a + b))
           case (DontCare, _) | (_, DontCare)  => DontCare
           // TODO: I don't like these rules because they're really just associativity + cancelling, which are separate
           //       rules. Maybe I can at least generalize by recognizing polynomials and grouping like terms.
-          case (e1, Sub(e2, e3)) if e1 == e3 => e2
-          case (Sub(e1, e2), e3) if e2 == e3 => e1
-          case (e1 @ _, e2 @ _)              => Add(e1, e2)
+          case (e1, Add(e2, Neg(e3))) if e1 == e3 => e2
+          case (Add(e1, Neg(e2)), e3) if e2 == e3 => e1
+          case (Add(e1, e2), Neg(e3)) if e1 == e3 => e2
+          case (Add(e1, e2), Neg(e3)) if e2 == e3 => e1
+          case (e1, Neg(e2)) if e1 == e2          => 0
+          case (e1 @ _, e2 @ _)                   => Add(e1, e2)
         }
-      case Sub(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)       => e1.i - e2.i
-          case (x, y) if x == y               => 0
-          case (e, IntCst(0))                 => e
-          case (e, IntCst(n)) if n < 0        => e + IntCst(-n)
-          case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a - b))
-          case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a - b))
-          case (IntCst(b), Add(e, IntCst(a))) => partialEval(IntCst(b - a) - e)
-          case (IntCst(b), Add(IntCst(a), e)) => partialEval(IntCst(b - a) - e)
-          case (Sub(e, IntCst(a)), IntCst(b)) => partialEval(e - (a + b))
-          case (Sub(IntCst(a), e), IntCst(b)) => partialEval(IntCst(a - b) - e)
-          case (IntCst(b), Sub(e, IntCst(a))) => partialEval(IntCst(a + b) - e)
-          case (IntCst(b), Sub(IntCst(a), e)) => partialEval(e + (b - a))
-          case (Sub(x, y), z) if x == z       => partialEval(IntCst(0) - y)
-          case (x, Sub(y, z)) if x == y       => z
-          case (DontCare, _) | (_, DontCare)  => DontCare
-          // TODO: I don't like these rules because they're really just associativity + cancelling, which are separate
-          //       rules. Maybe I can at least generalize by recognizing polynomials and grouping like terms.
-          case (Add(e1, e2), e3) if e1 == e3 => e2
-          case (Add(e1, e2), e3) if e2 == e3 => e1
-          case (e1 @ _, e2 @ _)              => Sub(e1, e2)
+      case Neg(e: Expr) =>
+        partialEval(e) match {
+          case IntCst(n) => IntCst(-n)
+          case Neg(e)    => e
+          case DontCare  => DontCare
+          case e         => Neg(e)
         }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -81,6 +68,8 @@ object PartialEvalPass {
           case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
           case (e, IntCst(1))                  => e
           case (IntCst(1), e)                  => e
+          case (e, IntCst(c)) if c < 0         => Neg(IntCst(-c) * e)
+          case (IntCst(c), e) if c < 0         => Neg(IntCst(-c) * e)
           case (DontCare, _) | (_, DontCare)   => DontCare
           case (e1 @ _, e2 @ _)                => Mul(e1, e2)
         }
@@ -319,10 +308,10 @@ object PartialEvalPass {
       case FunCall(f, arg)   => ???
       case _: IntCst         => false
       case Add(x, y)         => hasSideEffects(x) || hasSideEffects(y)
-      case Sub(x, y)         => hasSideEffects(x) || hasSideEffects(y)
       case Mul(x, y)         => hasSideEffects(x) || hasSideEffects(y)
       case Div(x, y)         => hasSideEffects(x) || hasSideEffects(y)
       case Mod(x, y)         => hasSideEffects(x) || hasSideEffects(y)
+      case Neg(x)            => hasSideEffects(x)
       case True | False      => false
       case IfThenElse(cond, t, f) =>
         hasSideEffects(cond) || hasSideEffects(t) || hasSideEffects(f)

@@ -63,7 +63,7 @@ class StmFusePassTests extends AnyFunSuite {
         Tuple(
           Tuple(StmNext(acc.__0).__0), {
             val x = StmNext(acc.__0).__1
-            (x + 2) * (x + 3) * (x + 4) - 10
+            (x + 2) * (x + 3) * (x + 4) + -10
           },
           True
         )
@@ -133,7 +133,7 @@ class StmFusePassTests extends AnyFunSuite {
         IfThenElse(
           acc.__1 === 0,
           IfThenElse(
-            acc.__2 < (StmLength(p) - 1),
+            acc.__2 < (StmLength(p) + -1),
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
               StmNext(acc.__0).__1,
@@ -145,7 +145,7 @@ class StmFusePassTests extends AnyFunSuite {
               False
             )
           ),
-          Tuple(Tuple(acc.__0, acc.__1 - 1, acc.__2), 42, True)
+          Tuple(Tuple(acc.__0, acc.__1 + -1, acc.__2), 42, True)
         )
     )
     assert(actual == ideal)
@@ -174,7 +174,7 @@ class StmFusePassTests extends AnyFunSuite {
           IfThenElse(
             acc.__2 >= 1,
             Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1 - 1, acc.__2 + 1),
+              Tuple(StmNext(acc.__0).__0, acc.__1 + -1, acc.__2 + 1),
               StmNext(acc.__0).__1,
               True
             ),

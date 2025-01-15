@@ -400,10 +400,17 @@ object DotPrinter {
         throw new IllegalArgumentException(
           s"Missing name for free variable $p."
         )
+      case Add(x, Neg(y)) =>
+        val left = toDot(x, scope)
+        val right = toDot(y, scope)
+        DotScalar("-", Seq(("L", left), ("R", right)), scope)
       case e: BinOp =>
         val left = toDot(e.e1, scope)
         val right = toDot(e.e2, scope)
         DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)), scope)
+      case Neg(e) =>
+        val child = toDot(e, scope)
+        DotScalar("-", Seq(("", child)), scope)
       case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)
@@ -480,7 +487,6 @@ object DotPrinter {
   private def labelBinOp(e: BinOp): String = {
     e match {
       case _: Add      => "+"
-      case _: Sub      => "-"
       case _: Mul      => "*"
       case _: Div      => "/"
       case _: Mod      => "%"

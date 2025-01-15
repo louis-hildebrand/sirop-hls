@@ -5,8 +5,8 @@ package object ir {
     e1 match {
       case _ if e1 == e2                                  => true
       case DontCare | True | False | _: IntCst | _: Param => false
+      case Neg(x)                                         => contains(x, e2)
       case Add(x, y)      => contains(x, e2) || contains(y, e2)
-      case Sub(x, y)      => contains(x, e2) || contains(y, e2)
       case Mul(x, y)      => contains(x, e2) || contains(y, e2)
       case Div(x, y)      => contains(x, e2) || contains(y, e2)
       case Mod(x, y)      => contains(x, e2) || contains(y, e2)
@@ -55,10 +55,10 @@ package object ir {
             FunCall(substitute(f), substitute(arg))
 
           case Add(e1: Expr, e2: Expr) => Add(substitute(e1), substitute(e2))
-          case Sub(e1: Expr, e2: Expr) => Sub(substitute(e1), substitute(e2))
           case Mul(e1: Expr, e2: Expr) => Mul(substitute(e1), substitute(e2))
           case Div(e1: Expr, e2: Expr) => Div(substitute(e1), substitute(e2))
           case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1), substitute(e2))
+          case Neg(e)                  => Neg(substitute(e))
           case IntCst(_)               => e
 
           case True  => True

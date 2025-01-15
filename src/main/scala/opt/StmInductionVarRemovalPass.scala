@@ -60,14 +60,10 @@ object StmInductionVarRemovalPass {
       // Constant
       case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
         Some((t: Expr) => z)
-      // Up counter
+      // Counter
       case (z, Add(TupleAccess(a0, IntCst(i0)), delta))
           if a0 == acc && i0 == i =>
         Some((t: Expr) => z + t * delta)
-      // Down counter
-      case (z, Sub(TupleAccess(a0, IntCst(i0)), delta))
-          if a0 == acc && i0 == i =>
-        Some((t: Expr) => z - t * delta)
       // Monotonic bool (True --> False, up counter)
       case (
             True,
@@ -92,7 +88,7 @@ object StmInductionVarRemovalPass {
                 IfThenElse(
                   Equal(
                     j1,
-                    Sub(VecLength(TupleAccess(a1, IntCst(i1))), IntCst(1))
+                    Add(VecLength(TupleAccess(a1, IntCst(i1))), IntCst(-1))
                   ),
                   e,
                   VecAccess(TupleAccess(a2, IntCst(i2)), Add(j2, IntCst(1)))
@@ -172,12 +168,6 @@ object StmInductionVarRemovalPass {
         (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
           case (Some(f), Some(g)) =>
             Some((t: Expr) => FunCall(f, t) + FunCall(g, t))
-          case _ => None
-        }
-      case Sub(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) - FunCall(g, t))
           case _ => None
         }
       case Mul(x, y) =>

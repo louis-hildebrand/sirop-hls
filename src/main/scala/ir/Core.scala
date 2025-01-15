@@ -2,7 +2,7 @@ package ir
 
 sealed trait Expr {
   def +(that: Expr): Add = Add(this, that)
-  def -(that: Expr): Sub = Sub(this, that)
+  def -(that: Expr): Add = Add(this, Neg(that))
   def *(that: Expr): Mul = Mul(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
@@ -62,10 +62,10 @@ sealed trait BinOp extends Expr {
 sealed abstract class IntExpr extends Expr
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr with BinOp
-case class Sub(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Neg(e: Expr) extends IntExpr
 
 // Boolean expressions
 sealed abstract class BoolExpr extends Expr
