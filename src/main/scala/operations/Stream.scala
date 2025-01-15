@@ -1,7 +1,6 @@
 package operations
 
 import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
-import opt.PartialEvalPass.substitute
 import ir._
 
 private object Helpers {
@@ -63,7 +62,7 @@ private object Helpers {
               // make sense to have free variables hanging around here.)
               Tuple(
                 seed.elems.map(e =>
-                  if (PartialEvalPass.contains(e, f.param)) DontCare else e
+                  if (ir.contains(e, f.param)) DontCare else e
                 ): _*
               ),
               x /* input stream */,
@@ -84,7 +83,7 @@ private object Helpers {
                         // Replace all seed elements that depend on the input scalar
                         Tuple(
                           seed.elems.zipWithIndex.map({ case (e, i) =>
-                            if (PartialEvalPass.contains(e, f.param))
+                            if (ir.contains(e, f.param))
                               substitute(e)(
                                 Map(f.param -> StmNext(newAcc.__1).__1)
                               )

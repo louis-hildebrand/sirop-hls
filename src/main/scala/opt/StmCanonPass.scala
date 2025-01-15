@@ -57,7 +57,7 @@ object StmCanonPass {
   private def tupleAccumulator(stm: StmBuild): StmBuild = {
     val acc = stm.nextF.param
     val sub = (body: Expr) =>
-      PartialEvalPass.substitute(body)(Map(acc -> TupleAccess(acc, 0)))
+      ir.substitute(body)(Map(acc -> TupleAccess(acc, 0)))
     val tupleHead = (e: Expr) =>
       StmUtils.transformHead((e: Expr) => Tuple(e))(e)
     StmBuild(
@@ -96,7 +96,7 @@ object StmCanonPass {
       flatten(stm.seed),
       Function(
         p,
-        PartialEvalPass.substitute(flattenHead(stm.nextF.body))(tupleAccessMap)
+        ir.substitute(flattenHead(stm.nextF.body))(tupleAccessMap)
       )
     )
   }
@@ -126,7 +126,7 @@ object StmCanonPass {
     val subs: Map[Expr, Expr] =
       indicesToRemove.map(i => TupleAccess(acc, i) -> seed.elems(i)).toMap
     StmUtils.removeAccumulatorElemsByIndex(
-      PartialEvalPass.substitute(stm)(subs).asInstanceOf[StmBuild],
+      ir.substitute(stm)(subs).asInstanceOf[StmBuild],
       indicesToRemove.toSeq
     )
   }
@@ -145,7 +145,7 @@ object StmCanonPass {
       .map({ case ((_, oldIdx), newIdx) => oldIdx -> newIdx })
       .toMap
     val sub = (body: Expr) =>
-      PartialEvalPass.substitute(body)(
+      ir.substitute(body)(
         indexMap.map({ case (oldIdx, newIdx) =>
           TupleAccess(acc, oldIdx) -> TupleAccess(acc, newIdx)
         })

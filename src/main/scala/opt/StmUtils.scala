@@ -63,10 +63,10 @@ object StmUtils {
       f(seed),
       Function(
         acc,
-        PartialEvalPass.substitute(transformHead(f)(stm.nextF.body))(subs)
+        ir.substitute(transformHead(f)(stm.nextF.body))(subs)
       )
     )
-    if (PartialEvalPass.contains(s, invalid)) {
+    if (ir.contains(s, invalid)) {
       throw new IllegalArgumentException(
         "At least one of the removed accumulator elements were still in use!"
       )

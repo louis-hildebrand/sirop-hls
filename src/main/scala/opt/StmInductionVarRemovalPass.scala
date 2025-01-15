@@ -29,7 +29,7 @@ object StmInductionVarRemovalPass {
         StmBuild(
           s1.length,
           s1.seed,
-          Function(acc, PartialEvalPass.substitute(s1.nextF.body)(subs))
+          Function(acc, ir.substitute(s1.nextF.body)(subs))
         )
       )
 

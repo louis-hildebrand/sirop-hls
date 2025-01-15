@@ -1,7 +1,5 @@
 package ir
 
-import opt.PartialEvalPass
-
 import scala.language.implicitConversions
 
 sealed trait Expr {
@@ -46,7 +44,7 @@ case class Function(param: Param, body: Expr) extends Expr {
     else {
       val that = x.asInstanceOf[Function]
       val sub = Map[Expr, Expr](this.param -> that.param)
-      PartialEvalPass.substitute(this.body)(sub) == that.body
+      substitute(this.body)(sub) == that.body
     }
   }
 }
