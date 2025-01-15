@@ -1,7 +1,5 @@
 package ir
 
-import scala.language.implicitConversions
-
 sealed trait Expr {
   def +(that: Expr): Add = Add(this, that)
   def -(that: Expr): Sub = Sub(this, that)
