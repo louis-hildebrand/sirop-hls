@@ -301,33 +301,15 @@ object PartialEvalPass {
 
   private def hasSideEffects(e: Expr): Boolean = {
     e match {
-      case Tuple(elems @ _*) => elems.exists(e => hasSideEffects(e))
-      case TupleAccess(t, i) => hasSideEffects(t) || hasSideEffects(i)
-      case _: Param          => false
-      case _: Function       => false
-      case FunCall(f, arg)   => ???
-      case _: IntCst         => false
-      case Add(x, y)         => hasSideEffects(x) || hasSideEffects(y)
-      case Mul(x, y)         => hasSideEffects(x) || hasSideEffects(y)
-      case Div(x, y)         => hasSideEffects(x) || hasSideEffects(y)
-      case Mod(x, y)         => hasSideEffects(x) || hasSideEffects(y)
-      case Neg(x)            => hasSideEffects(x)
-      case True | False      => false
-      case IfThenElse(cond, t, f) =>
-        hasSideEffects(cond) || hasSideEffects(t) || hasSideEffects(f)
-      case Equal(x, y)    => hasSideEffects(x) || hasSideEffects(y)
-      case NotEqual(x, y) => hasSideEffects(x) || hasSideEffects(y)
-      case LessThan(x, y) => hasSideEffects(x) || hasSideEffects(y)
-      case Not(x)         => hasSideEffects(x)
-      case And(x, y)      => hasSideEffects(x) || hasSideEffects(y)
-      case Or(x, y)       => hasSideEffects(x) || hasSideEffects(y)
-      case DontCare       => false
-      case _: StmBuild    => ???
-      case _: StmLength   => false
-      case _: StmNext     => true
-      case _: VecBuild    => false
-      case _: VecAccess   => false
-      case _: VecLength   => false
+      case _: Function     => false
+      case _: StmLength    => false
+      case _: StmNext      => true
+      case _: VecBuild     => false
+      case _: VecAccess    => false
+      case _: VecLength    => false
+      case FunCall(f, arg) => ???
+      case _: StmBuild     => ???
+      case e               => e.children.exists(c => hasSideEffects(c))
     }
   }
 

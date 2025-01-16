@@ -382,27 +382,10 @@ object DotPrinter {
       e: Expr
   )(implicit boundVars: Set[Param]): Set[Param] = {
     e match {
-      case p: Param => if (boundVars.contains(p)) Set() else Set(p)
-      case True | False | _: IntCst | DontCare => Set()
-      case Tuple(elems @ _*) =>
-        elems.foldLeft(Set[Param]())((s1, e) => s1.union(findFreeVars(e)))
-      case TupleAccess(t, i)     => findFreeVars(t).union(findFreeVars(i))
+      case p: Param              => if (boundVars.contains(p)) Set() else Set(p)
       case Function(param, body) => findFreeVars(body)(boundVars + param)
-      case FunCall(f, arg)       => findFreeVars(f).union(findFreeVars(arg))
-      case op: BinOp => findFreeVars(op.e1).union(findFreeVars(op.e2))
-      case Neg(e)    => findFreeVars(e)
-      case Not(e)    => findFreeVars(e)
-      case IfThenElse(c, t, f) =>
-        findFreeVars(c).union(findFreeVars(t)).union(findFreeVars(f))
-      case StmBuild(length, seed, nextF) =>
-        findFreeVars(length)
-          .union(findFreeVars(seed))
-          .union(findFreeVars(nextF))
-      case StmNext(s)        => findFreeVars(s)
-      case StmLength(s)      => findFreeVars(s)
-      case VecBuild(len, f)  => findFreeVars(len).union(findFreeVars(f))
-      case VecAccess(vec, i) => findFreeVars(vec).union(findFreeVars(i))
-      case VecLength(v)      => findFreeVars(v)
+      case e =>
+        e.children.foldLeft(Set[Param]())((s, e) => s.union(findFreeVars(e)))
     }
   }
 
