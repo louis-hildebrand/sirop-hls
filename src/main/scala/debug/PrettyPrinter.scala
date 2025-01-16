@@ -41,21 +41,14 @@ object PrettyPrinter {
           case None       => p.toString
         }
       case Function(p, b) =>
-        val newParamName = chooseNewParamName(nameByParam.values.toSet)
-        val pStr =
-          show(p, collapseStm = collapseStm, evalVec = evalVec)(
-            nameByParam + (p -> newParamName)
-          )
-        val bStr =
-          show(b, collapseStm = collapseStm, evalVec = evalVec)(
-            nameByParam + (p -> newParamName)
-          )
+        val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
+        val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
-          s"""(${pStr} /* ${p.toString} */) =>
+          s"""(${pStr}) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
         } else {
-          s"(${pStr} /* ${p.toString} */) => ${bStr}"
+          s"(${pStr}) => ${bStr}"
         }
       case FunCall(f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
