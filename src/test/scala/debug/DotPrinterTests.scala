@@ -44,49 +44,48 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("FreeVar") {
-    val x = Param()
-    DotPrinter.save(x, "./img/FreeVar.dot", nameByVar = Map(x -> "x"))
+    val x = Param("x")
+    DotPrinter.save(x, "./img/FreeVar.dot")
   }
 
   test("SimpleTuple") {
-    val y = Param()
+    val y = Param("y")
     val e = Tuple(IntCst(42), True, y - 1)
-    DotPrinter.save(e, "./img/SimpleTuple.dot", nameByVar = Map(y -> "y"))
+    DotPrinter.save(e, "./img/SimpleTuple.dot")
   }
 
   test("NestedTuple") {
-    val y = Param()
+    val y = Param("y")
     val e = Tuple(
       IntCst(42),
       True,
       VecBuild(3, (i: Expr) => i * i),
       Tuple(IntCst(0), y + 2)
     )
-    DotPrinter.save(e, "./img/NestedTuple.dot", nameByVar = Map(y -> "y"))
+    DotPrinter.save(e, "./img/NestedTuple.dot")
   }
 
   test("SimpleVecBuild") {
-    val x = Param()
+    val x = Param("x")
     val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i))
-    DotPrinter.save(e, "./img/SimpleVecBuild.dot", nameByVar = Map(x -> "x"))
+    DotPrinter.save(e, "./img/SimpleVecBuild.dot")
   }
 
   test("NestedVecBuild") {
-    val x = Param()
+    val x = Param("x")
     val e = VecBuild(
       4,
       (i: Expr) => VecBuild(3, (j: Expr) => IfThenElse(i === j, x + i, i + j))
     )
-    DotPrinter.save(e, "./img/NestedVecBuild.dot", nameByVar = Map(x -> "x"))
+    DotPrinter.save(e, "./img/NestedVecBuild.dot")
   }
 
   test("VecAccessUnknownIndex") {
-    val i = Param()
+    val i = Param("i")
     val e = VecAccess(VecBuild(5, (j: Expr) => j), i)
     DotPrinter.save(
       e,
-      "./img/VecAccessUnknownIndex.dot",
-      nameByVar = Map(i -> "i")
+      "./img/VecAccessUnknownIndex.dot"
     )
   }
 
@@ -102,22 +101,17 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("Let") {
-    val x = Param()
-    val y = Param()
-    val z = Param()
+    val x = Param("x")
+    val y = Param("y")
+    val z = Param("z")
     val e = Let(x, 42, Let(y, x + 1, Let(z, x * x + y * y, z + 2)))
     DotPrinter.save(e, "./img/Let.dot")
   }
 
   test("StmRange") {
-    val n = Param()
-    val delta = Param()
+    val n = Param("n")
+    val delta = Param("delta")
     val e = StmRange(n, 0, delta)
-    DotPrinter.save(
-      e,
-      "./img/StmRange.dot",
-      nameByVar = Map(n -> "n", delta -> "delta"),
-      keepDotFile = true
-    )
+    DotPrinter.save(e, "./img/StmRange.dot")
   }
 }

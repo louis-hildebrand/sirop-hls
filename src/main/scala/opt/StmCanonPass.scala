@@ -87,7 +87,7 @@ object StmCanonPass {
     * seed will be (0, 1, 2) and `nextF` will be updated accordingly.
     */
   private def flattenAccumulator(stm: StmBuild): StmBuild = {
-    val p = Param()
+    val p = Param("acc")
     val (tupleAccessMap, _) =
       makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
     val flattenHead = (e: Expr) => StmUtils.transformHead(e => flatten(e))(e)
@@ -225,7 +225,8 @@ object StmCanonPass {
       val seed = stm.seed.asInstanceOf[Tuple]
       val z = Tuple(
         seed.elems.zipWithIndex
-          .map({ case (e, i) => if (indices.contains(i)) e else Param() }): _*
+          .map({ case (e, i) => if (indices.contains(i)) e else Param("p") }
+          ): _*
       )
       val acc =
         PartialEvalPass.partialEval(TupleAccess(FunCall(stm.nextF, z), 0))

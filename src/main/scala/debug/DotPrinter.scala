@@ -333,7 +333,7 @@ object DotEdge {
   }
 
   def toChild(parent: DotNode, child: DotNode, label: String = ""): DotEdge = {
-    DotEdge(source = child, target = parent, label = "", dir = "back")
+    DotEdge(source = child, target = parent, label = label, dir = "back")
   }
 }
 
@@ -341,8 +341,7 @@ object DotPrinter {
   def save(
       e: Expr,
       path: String,
-      keepDotFile: Boolean = false,
-      nameByVar: Map[Param, String] = Map()
+      keepDotFile: Boolean = false
   ): Unit = {
     val (dotPath, imgPath) = if (path.endsWith(".dot")) {
       (path, path.substring(0, path.length - 4) + ".png")
@@ -353,7 +352,7 @@ object DotPrinter {
     }
     Files.write(
       Paths.get(dotPath),
-      makeDotGraph(e, nameByVar).getBytes(StandardCharsets.UTF_8)
+      makeDotGraph(e).getBytes(StandardCharsets.UTF_8)
     )
     val cmd =
       s"dot -T ${imgPath.substring(imgPath.length - 3, imgPath.length)} $dotPath -o $imgPath"
@@ -363,11 +362,10 @@ object DotPrinter {
     }
   }
 
-  private def makeDotGraph(e: Expr, nameByVar: Map[Param, String]): String = {
+  private def makeDotGraph(e: Expr): String = {
     // TODO: Look for functions that are never called and add lines going in and coming out for clarity?
-    val params = nameByVar.map({ case (p, name) =>
-      p -> DotParam(name, GlobalScope)
-    })
+    val params =
+      findFreeVars(e)(Set()).map(p => p -> DotParam(p.name, GlobalScope)).toMap
     val resultNode = toDot(e, GlobalScope)(params)
     val topLevelNodes = resultNode.allDependencies + resultNode
     val nodesDot =
@@ -378,6 +376,34 @@ object DotPrinter {
       .map(e => e.dot)
       .mkString("\n")
     s"digraph {\n${indent("""rankdir="LR"""")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
+  }
+
+  private def findFreeVars(
+      e: Expr
+  )(implicit boundVars: Set[Param]): Set[Param] = {
+    e match {
+      case p: Param => if (boundVars.contains(p)) Set() else Set(p)
+      case True | False | _: IntCst | DontCare => Set()
+      case Tuple(elems @ _*) =>
+        elems.foldLeft(Set[Param]())((s1, e) => s1.union(findFreeVars(e)))
+      case TupleAccess(t, i)     => findFreeVars(t).union(findFreeVars(i))
+      case Function(param, body) => findFreeVars(body)(boundVars + param)
+      case FunCall(f, arg)       => findFreeVars(f).union(findFreeVars(arg))
+      case op: BinOp => findFreeVars(op.e1).union(findFreeVars(op.e2))
+      case Neg(e)    => findFreeVars(e)
+      case Not(e)    => findFreeVars(e)
+      case IfThenElse(c, t, f) =>
+        findFreeVars(c).union(findFreeVars(t)).union(findFreeVars(f))
+      case StmBuild(length, seed, nextF) =>
+        findFreeVars(length)
+          .union(findFreeVars(seed))
+          .union(findFreeVars(nextF))
+      case StmNext(s)        => findFreeVars(s)
+      case StmLength(s)      => findFreeVars(s)
+      case VecBuild(len, f)  => findFreeVars(len).union(findFreeVars(f))
+      case VecAccess(vec, i) => findFreeVars(vec).union(findFreeVars(i))
+      case VecLength(v)      => findFreeVars(v)
+    }
   }
 
   private def toDot(

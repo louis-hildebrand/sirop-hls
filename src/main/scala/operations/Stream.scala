@@ -28,7 +28,7 @@ private object Helpers {
     val f1 = (inShape, outShape) match {
       case (None, None) => {
         // scalar -> scalar (e.g., x => x + 1)
-        val x = Param()
+        val x = Param("s")
         Function(
           x /* stream */,
           StmBuild(
@@ -50,7 +50,7 @@ private object Helpers {
         // Canonicalize mainly to ensure flat accumulator for simplicity
         val s = StmCanonPass.canonicalize(f.body.asInstanceOf[StmBuild])
         val seed = s.seed.asInstanceOf[Tuple]
-        val x = Param()
+        val x = Param("s")
         Function(
           x /* stream */,
           StmBuild(
@@ -71,7 +71,7 @@ private object Helpers {
             ),
             (newAcc: Expr) =>
               substitute({
-                val innerNext = Param()
+                val innerNext = Param("innerNext")
                 Let(
                   innerNext,
                   FunCall(s.nextF, newAcc.__0),
@@ -335,7 +335,7 @@ object StmMap {
         StmBuild(
           n * numOut,
           Tuple(inner.seed, numIn, numOut), {
-            val newAcc = Param()
+            val newAcc = Param("acc")
             Function(
               newAcc,
               makeNextFBody(
@@ -502,7 +502,7 @@ object StmScanInclusive {
     StmBuild(
       stmShape.head,
       Tuple(inner.seed, z, numIn, 1), {
-        val newAcc = Param()
+        val newAcc = Param("acc")
         Function(
           newAcc,
           substitute(
@@ -637,7 +637,6 @@ object StmPrepend {
       // Ideally we would get this shape info from the type system
       eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val p = Param()
     val eStm = if (eShape.isEmpty) {
       StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
     } else {
@@ -816,22 +815,22 @@ object StmConcat {
       in2: Expr /* Stm<A; m> */,
       len1: Expr
   ): Expr /* Stm<A; n+m> */ = {
-    val p = Param()
+    val p = Param("next")
     StmBuild(
       StmLength(in1) + StmLength(in2),
       Tuple(in1, in2, len1),
-      (seed: Expr) =>
+      (acc: Expr) =>
         IfThenElse(
-          seed.__2 > 0,
+          acc.__2 > 0,
           Let(
             p,
-            StmNext(seed.__0),
-            Tuple(Tuple(p.__0, seed.__1, seed.__2 - 1), p.__1, True)
+            StmNext(acc.__0),
+            Tuple(Tuple(p.__0, acc.__1, acc.__2 - 1), p.__1, True)
           ),
           Let(
             p,
-            StmNext(seed.__1),
-            Tuple(Tuple(seed.__0, p.__0, seed.__2), p.__1, True)
+            StmNext(acc.__1),
+            Tuple(Tuple(acc.__0, p.__0, acc.__2), p.__1, True)
           )
         )
     )
@@ -967,7 +966,7 @@ object StmSlideV {
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
     val elemSize = stmShape.tail.fold(IntCst(1))(Mul.apply)
-    val v = Param()
+    val v = Param("v")
     StmBuild(
       n - m + 1,
       Tuple(

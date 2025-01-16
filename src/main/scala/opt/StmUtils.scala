@@ -5,7 +5,7 @@ import ir._
 object StmUtils {
 
   def appendAccumulator(stm: StmBuild, z: Expr, next: Function): StmBuild = {
-    val p = Param()
+    val p = Param("acc")
     StmBuild(
       stm.length,
       Tuple(stm.seed, z),
@@ -41,7 +41,7 @@ object StmUtils {
       )
       .toMap
     val acc = stm.nextF.param
-    val invalid = Param()
+    val invalid = Param("invalid")
     val subs: Map[Expr, Expr] = indexMap
       .map({ case (i, j) =>
         j match {

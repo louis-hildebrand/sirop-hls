@@ -6,8 +6,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ArithTests extends AnyFunSuite {
   test("Min") {
-    val x = Param()
-    val y = Param()
+    val x = Param("x")
+    val y = Param("y")
     val e = Min(x, y)
 
     val min = (xVal: Int, yVal: Int) =>
@@ -23,8 +23,8 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("Max") {
-    val x = Param()
-    val y = Param()
+    val x = Param("x")
+    val y = Param("y")
     val e = Max(x, y)
 
     val max = (xVal: Int, yVal: Int) =>
@@ -40,8 +40,8 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("CeilDiv") {
-    val x = Param()
-    val y = Param()
+    val x = Param("x")
+    val y = Param("y")
     val e = CeilDiv(x, y)
 
     val ceildiv = (xVal: Int, yVal: Int) =>

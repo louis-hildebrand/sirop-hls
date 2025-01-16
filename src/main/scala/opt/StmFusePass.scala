@@ -39,7 +39,7 @@ object StmFusePass {
       // This minimizes the need for updating the indices in tuple access
       // expressions.
       Tuple(Tuple(Tuple() +: outerSeed.elems.tail: _*), inputStm.seed), {
-        val acc = Param()
+        val acc = Param("acc")
         Function(
           acc,
           fuseFunctionBodies(
@@ -96,7 +96,7 @@ object StmFusePass {
               ) if p == oldAcc =>
             // CASE 1: StmNext() called.
             //         Update the inner accumulator.
-            val innerNext = Param()
+            val innerNext = Param("innerNext")
             // HACK: Expand all tuples manually.
             // Ideally this would be a canonicalization pass, but I think
             // figuring out the arity of a tuple-valued param requires input

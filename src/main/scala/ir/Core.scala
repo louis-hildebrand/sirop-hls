@@ -29,11 +29,16 @@ case class Tuple(elems: Expr*) extends Expr
 case class TupleAccess(t: Expr, i: Expr) extends Expr
 
 // Functions
-// cannot be a case class as the reference is used to distinguish between Params
-class Param extends Expr
-object Param {
-  def apply(): Param = {
-    new Param()
+case class Param(prefix: String, id: Int) extends Expr {
+  val name: String = s"${prefix}_$id"
+}
+case object Param {
+  private var nextId = 0
+
+  def apply(prefix: String = "p"): Param = {
+    val id = nextId
+    nextId += 1
+    new Param(prefix, id)
   }
 }
 case class Function(param: Param, body: Expr) extends Expr {
@@ -47,7 +52,7 @@ case class Function(param: Param, body: Expr) extends Expr {
   }
 }
 case class FunCall(f: Expr, arg: Expr) extends Expr
-object Let {
+case object Let {
   def apply(p: Param, v: Expr, in: Expr): Expr = {
     FunCall(Function(p, in), v)
   }
@@ -59,7 +64,7 @@ sealed trait BinOp extends Expr {
 }
 
 // Integer expressions
-sealed abstract class IntExpr extends Expr
+sealed trait IntExpr extends Expr
 case class IntCst(i: Int) extends IntExpr
 case class Add(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
@@ -68,7 +73,7 @@ case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Neg(e: Expr) extends IntExpr
 
 // Boolean expressions
-sealed abstract class BoolExpr extends Expr
+sealed trait BoolExpr extends Expr
 object True extends BoolExpr
 object False extends BoolExpr
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
@@ -86,7 +91,7 @@ case class And(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 
 // Useful for readability and possibly for optimization
-object DontCare extends Expr
+case object DontCare extends Expr
 
 // Streams
 case class StmBuild(
