@@ -1,8 +1,10 @@
 package ir
 
+import scala.math.Ordering.Implicits._
+
 sealed trait Expr {
-  def +(that: Expr): Add = Add(this, that)
-  def -(that: Expr): Add = Add(this, Neg(that))
+  def +(that: Expr): Expr = Sum(Seq(this, that))
+  def -(that: Expr): Expr = Sum(Seq(this, Neg(that)))
   def *(that: Expr): Mul = Mul(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
@@ -26,6 +28,66 @@ sealed trait Expr {
   def children: Seq[Expr]
 }
 
+// Define a consistent order for expressions to make the tests less brittle.
+// Where appropriate, the interpreter should keep things in this order so that a test doesn't break only due to an
+// insignificant change in the order of sub-expressions (e.g., for the terms within a sum).
+case object ExprOrdering extends Ordering[Expr] {
+  override def compare(x: Expr, y: Expr): Int = {
+    if (classScore(x) < classScore(y)) {
+      -1
+    } else {
+      (x, y) match {
+        case (p1: Param, p2: Param) => p1.name.compareTo(p2.name)
+        case (IntCst(a), IntCst(b)) => a.compareTo(b)
+        case (False, True)          => false.compareTo(true)
+        case (True, False)          => true.compareTo(false)
+        case _ =>
+          val comp = x.children
+            .zip(y.children)
+            .map({ case (xc, yc) => ExprOrdering.compare(xc, yc) })
+            .foldLeft(0)((acc, x) => if (acc != 0) acc else x)
+          if (comp != 0) {
+            comp
+          } else {
+            x.children.length.compareTo(y.children.length)
+          }
+      }
+    }
+  }
+
+  private def classScore(e: Expr): Int = {
+    e match {
+      case DontCare       => 0
+      case _: IntCst      => 1
+      case False          => 2
+      case True           => 3
+      case _: Param       => 4
+      case _: Sum         => 5
+      case _: Mul         => 6
+      case _: Div         => 7
+      case _: Mod         => 8
+      case _: Neg         => 9
+      case _: And         => 10
+      case _: Or          => 11
+      case _: Not         => 12
+      case _: Equal       => 13
+      case _: NotEqual    => 14
+      case _: LessThan    => 15
+      case _: TupleAccess => 16
+      case _: FunCall     => 17
+      case _: IfThenElse  => 18
+      case _: Tuple       => 19
+      case _: Function    => 20
+      case _: StmBuild    => 21
+      case _: StmNext     => 22
+      case _: StmLength   => 23
+      case _: VecBuild    => 24
+      case _: VecAccess   => 25
+      case _: VecLength   => 26
+    }
+  }
+}
+
 // Tuples
 case class Tuple(elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
@@ -39,6 +101,8 @@ case class Param(prefix: String, id: Int) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
+
+  override def toString: String = name
 }
 case object Param {
   private var nextId = 0
@@ -49,6 +113,7 @@ case object Param {
     new Param(prefix, id)
   }
 }
+
 case class Function(param: Param, body: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(param, body)
 
@@ -61,6 +126,7 @@ case class Function(param: Param, body: Expr) extends Expr {
     }
   }
 }
+
 case class FunCall(f: Expr, arg: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
 }
@@ -79,10 +145,53 @@ sealed trait BinOp extends Expr {
 
 // Integer expressions
 sealed trait IntExpr extends Expr
+
 case class IntCst(i: Int) extends IntExpr {
   override def children: Seq[Expr] = Seq()
 }
-case class Add(e1: Expr, e2: Expr) extends IntExpr with BinOp
+
+class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
+  val terms: Seq[Expr] =
+    unsortedTerms
+      // Flatten nested sums to represent associativity
+      .flatMap({
+        case s: Sum => s.terms
+        case Neg(s: Sum) =>
+          s.terms.map({
+            case Neg(e) => e
+            case e      => Neg(e)
+          })
+        case e => Set(e)
+      })
+      // Sort terms to represent commutativity
+      .sorted(ExprOrdering)
+
+  override def children: Seq[Expr] = terms
+
+  def canEqual(that: Any): Boolean = {
+    that.isInstanceOf[Sum]
+  }
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Sum =>
+        that.canEqual(this) && this.terms == that.terms
+      case _ => false
+    }
+  }
+  override def hashCode(): Int = {
+    this.terms.hashCode()
+  }
+}
+object Sum {
+  def apply(terms: Seq[Expr]): Sum = {
+    new Sum(terms)
+  }
+
+  def unapply(s: Sum): Option[Seq[Expr]] = {
+    Some(s.terms)
+  }
+}
+
 case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp

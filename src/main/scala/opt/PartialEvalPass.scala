@@ -31,30 +31,7 @@ object PartialEvalPass {
           case fun @ _  => FunCall(fun, partialEval(arg))
         }
 
-      case Add(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          // TODO: Write fewer rules by guaranteeing a specific order of terms
-//          case (e, IntCst(n)) if !e1.isInstanceOf[IntCst] =>
-//            partialEval(IntCst(n) + e)
-//          case (Neg(e1), e2) if !e2.isInstanceOf[Neg] =>
-//            partialEval(Add(e2, Neg(e1)))
-          case (e1: IntCst, e2: IntCst)       => e1.i + e2.i
-          case (e, IntCst(0))                 => e
-          case (IntCst(0), e)                 => e
-          case (IntCst(b), Add(IntCst(a), e)) => partialEval(e + (a + b))
-          case (IntCst(b), Add(e, IntCst(a))) => partialEval(e + (a + b))
-          case (Add(IntCst(a), e), IntCst(b)) => partialEval(e + (a + b))
-          case (Add(e, IntCst(a)), IntCst(b)) => partialEval(e + (a + b))
-          case (DontCare, _) | (_, DontCare)  => DontCare
-          // TODO: I don't like these rules because they're really just associativity + cancelling, which are separate
-          //       rules. Maybe I can at least generalize by recognizing polynomials and grouping like terms.
-          case (e1, Add(e2, Neg(e3))) if e1 == e3 => e2
-          case (Add(e1, Neg(e2)), e3) if e2 == e3 => e1
-          case (Add(e1, e2), Neg(e3)) if e1 == e3 => e2
-          case (Add(e1, e2), Neg(e3)) if e2 == e3 => e1
-          case (e1, Neg(e2)) if e1 == e2          => 0
-          case (e1 @ _, e2 @ _)                   => Add(e1, e2)
-        }
+      case Sum(terms) => simplifySum(terms.map(e => partialEval(e)))
       case Neg(e: Expr) =>
         partialEval(e) match {
           case IntCst(n) => IntCst(-n)
@@ -329,4 +306,55 @@ object PartialEvalPass {
     }
   }
 
+  private def simplifySum(terms: Seq[Expr]): Expr = {
+    val newTerms = if (terms.contains(DontCare)) {
+      Seq(DontCare)
+    } else {
+      // Flatten addition tree to maximise opportunities for the following simplifications
+      val flatTerms = terms.flatMap({
+        case Sum(terms)      => terms
+        case Neg(Sum(terms)) => terms.map(e => Neg(e))
+        case e               => Seq(e)
+      })
+      // Combine constants (which also eliminates zeros)
+      val const = flatTerms
+        .flatMap({
+          case IntCst(n) => Some(n)
+          case _         => None
+        })
+        .sum
+      val nonConstants = flatTerms.filter(e => !e.isInstanceOf[IntCst])
+      // Combine like terms
+      val coefficientsAndTerms = nonConstants.map({
+        case Mul(IntCst(c), e) => (c, e)
+        case Neg(e)            => (-1, e)
+        case e                 => (1, e)
+      })
+      val coefficientByTerm = coefficientsAndTerms
+        .groupBy({ case (_, e) => e })
+        .map({ case (e, coeffs) =>
+          e -> coeffs.map({ case (c, _) => c }).sum
+        })
+      val newTerms = coefficientByTerm.toSeq
+        .flatMap({
+          case (_, 0)          => None
+          case (e, 1)          => Some(e)
+          case (e, -1)         => Some(Neg(e))
+          case (e, c) if c < 0 => Some(Neg(Mul(IntCst(-c), e)))
+          case (e, c)          => Some(Mul(IntCst(c), e))
+        })
+      if (const == 0) {
+        newTerms
+      } else {
+        IntCst(const) +: newTerms
+      }
+    }
+    if (newTerms.isEmpty) {
+      IntCst(0)
+    } else if (newTerms.length == 1) {
+      newTerms.head
+    } else {
+      Sum(newTerms)
+    }
+  }
 }

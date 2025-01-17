@@ -37,7 +37,7 @@ object VecScan {
   ): Expr /* Vec<B; n> */ = {
     val n = VecLength(vec)
     // TODO: Would it be better to use a second shift register for accessing
-    // the input instead of accessing the input using counter as index?
+    //       the input instead of accessing the input using counter as index?
     Iterate(
       if (inclusive) n else n + -1,
       Tuple(0, VecBuild(n, (i: Expr) => z)),

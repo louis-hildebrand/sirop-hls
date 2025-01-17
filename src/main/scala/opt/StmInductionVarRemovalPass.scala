@@ -61,8 +61,9 @@ object StmInductionVarRemovalPass {
       case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
         Some((t: Expr) => z)
       // Counter
-      case (z, Add(TupleAccess(a0, IntCst(i0)), delta))
+      case (z, Sum(Seq(delta, TupleAccess(a0, IntCst(i0)))))
           if a0 == acc && i0 == i =>
+        // TODO: What if delta is another sum (e.g., k + 1)? Then this wouldn't match
         Some((t: Expr) => z + t * delta)
       // Monotonic bool (True --> False, up counter)
       case (
@@ -88,10 +89,14 @@ object StmInductionVarRemovalPass {
                 IfThenElse(
                   Equal(
                     j1,
-                    Add(VecLength(TupleAccess(a1, IntCst(i1))), IntCst(-1))
+                    // TODO: What if the VecLength has been partially evaluated to a constant?
+                    Sum(Seq(IntCst(-1), VecLength(TupleAccess(a1, IntCst(i1)))))
                   ),
                   e,
-                  VecAccess(TupleAccess(a2, IntCst(i2)), Add(j2, IntCst(1)))
+                  VecAccess(
+                    TupleAccess(a2, IntCst(i2)),
+                    Sum(Seq(IntCst(1), j2))
+                  )
                 )
               )
             )
@@ -164,11 +169,13 @@ object StmInductionVarRemovalPass {
           case _ => None
         }
       case IntCst(n) => Some((_: Expr) => IntCst(n))
-      case Add(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) + FunCall(g, t))
-          case _ => None
+      case Sum(terms) =>
+        val indVars = terms.map(e => tryGetInductionVar(s, e))
+        if (indVars.forall(e => e.isDefined)) {
+          val unwrappedVars = indVars.map(e => e.get)
+          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t))))
+        } else {
+          None
         }
       case Mul(x, y) =>
         (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
@@ -284,7 +291,7 @@ object StmInductionVarRemovalPass {
     cntrUpdateExpr match {
       case IfThenElse(
             TupleAccess(p0, i0),
-            Add(TupleAccess(p1, i1), IntCst(delta)),
+            Sum(Seq(IntCst(delta), TupleAccess(p1, i1))),
             TupleAccess(p2, i2)
           )
           if p0 == acc && i0 == IntCst(
@@ -293,7 +300,7 @@ object StmInductionVarRemovalPass {
             j
           ) && p2 == acc && i2 == IntCst(j) =>
         Some((cntrInit, delta))
-      case Add(TupleAccess(p0, i0), IntCst(delta))
+      case Sum(Seq(IntCst(delta), TupleAccess(p0, i0)))
           if p0 == acc && i0 == IntCst(j) =>
         Some((cntrInit, delta))
       case _ => None

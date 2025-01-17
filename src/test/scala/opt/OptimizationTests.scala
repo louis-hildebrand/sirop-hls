@@ -37,7 +37,7 @@ class OptimizationTests extends AnyFunSuite {
       StmBuild(
         n,
         0,
-        (i: Expr) => Tuple(i + 1, FunCall(f, i), True)
+        (i: Expr) => Tuple(1 + i, FunCall(f, i), True)
       )
     assert(actual == ideal)
   }

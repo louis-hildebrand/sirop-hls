@@ -50,7 +50,7 @@ class StmCanonPassTests extends AnyFunSuite {
           True
         )
     )
-    val canon = StmBuild(
+    val expected = StmBuild(
       3,
       Tuple(StmCount(3), 0, 1, 2, 3, 4),
       (acc: Expr) =>
@@ -72,7 +72,8 @@ class StmCanonPassTests extends AnyFunSuite {
           True
         )
     )
-    assert(StmCanonPass.canonicalize(s) == canon)
+    val actual = StmCanonPass.canonicalize(s)
+    assert(actual == expected)
   }
 
   test("EmptyAccumulator") {

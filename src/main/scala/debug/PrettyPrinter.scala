@@ -16,8 +16,7 @@ object PrettyPrinter {
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
-      case Add(x, Neg(y)) => s"${showWithParens(x)} - ${showWithParens(y)}"
-      case Add(x, y)      => s"${showWithParens(x)} + ${showWithParens(y)}"
+      case Sum(terms)     => terms.map(e => showWithParens(e)).mkString(" + ")
       case Neg(x)         => s"-${showWithParens(x)}"
       case Mul(x, y)      => s"${showWithParens(x)} * ${showWithParens(y)}"
       case Div(x, y)      => s"${showWithParens(x)} / ${showWithParens(y)}"

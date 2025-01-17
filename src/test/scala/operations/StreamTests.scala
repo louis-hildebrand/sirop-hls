@@ -7,11 +7,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
   def stm2Seq(stm: Expr): Seq[Expr] = {
-    val n = PartialEvalPass
-      .partialEval(StmLength(stm))
-      .asInstanceOf[IntCst]
-      .i
-    if ((n < 0)) {
+    val n = PartialEvalPass.partialEval(StmLength(stm)) match {
+      case IntCst(n) => n
+      case e =>
+        throw new IllegalArgumentException(
+          s"Stream length $e is not an integer"
+        )
+    }
+    if (n < 0) {
       throw new IllegalArgumentException(s"Stream has negative length (${n})!")
     } else if (n == 0) {
       Seq()

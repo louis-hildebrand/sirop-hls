@@ -30,7 +30,7 @@ package object ir {
           case FunCall(f: Expr, arg: Expr) =>
             FunCall(substitute(f), substitute(arg))
 
-          case Add(e1: Expr, e2: Expr) => Add(substitute(e1), substitute(e2))
+          case Sum(terms)              => Sum(terms.map(e => substitute(e)))
           case Mul(e1: Expr, e2: Expr) => Mul(substitute(e1), substitute(e2))
           case Div(e1: Expr, e2: Expr) => Div(substitute(e1), substitute(e2))
           case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1), substitute(e2))

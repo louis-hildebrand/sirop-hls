@@ -7,7 +7,13 @@ import org.scalatest.funsuite.AnyFunSuite
 object VectorTests {
   def vec2Seq(vec: Expr): Seq[Expr] = {
     val build = PartialEvalPass.partialEval(vec).asInstanceOf[VecBuild]
-    val len = build.len.asInstanceOf[IntCst].i
+    val len = build.len match {
+      case IntCst(n) => n
+      case e =>
+        throw new IllegalArgumentException(
+          s"Vector length $e is not an integer"
+        )
+    }
     (0 until len).map(i => PartialEvalPass.partialEval(VecAccess(build, i)))
   }
 
