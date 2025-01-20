@@ -113,14 +113,19 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  // TODO: Test x * y / x. Need to somehow specify that x != 0 though.
   test("Div") {
     val e = StmLength(Param())
 
     assert(pe(e / DontCare) == DontCare)
     assert(pe(DontCare / e) == DontCare)
+    // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
     assert(pe(e / IntCst(1)) == e)
     assert(pe(e / IntCst(-1)) == -1 * e)
+    assert(pe(IntCst(6) * e / IntCst(6)) == e)
+    assert(pe((IntCst(6) * e) / IntCst(3)) == 2 * e)
+    assert(pe((e * IntCst(15)) / IntCst(5)) == 3 * e)
+    assert(pe(IntCst(27) * e / IntCst(6)) == 9 * e / 2)
+    assert(pe(e * IntCst(27) / IntCst(6)) == 9 * e / 2)
   }
 
   test("Mod") {

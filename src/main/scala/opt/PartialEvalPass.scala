@@ -33,13 +33,7 @@ object PartialEvalPass {
 
       case Sum(terms)    => simplifySum(terms.map(e => partialEval(e)))
       case Prod(factors) => simplifyProd(factors.map(e => partialEval(e)))
-      case Div(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)      => e1.i / e2.i
-          case (e, IntCst(1))                => e
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1 @ _, e2 @ _)              => Div(e1, e2)
-        }
+      case Div(e1: Expr, e2: Expr) => simplifyDiv(e1, e2)
       case Mod(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)      => e1.i % e2.i
@@ -369,6 +363,34 @@ object PartialEvalPass {
       newFactors.head
     } else {
       Prod(newFactors)
+    }
+  }
+
+  private def simplifyDiv(e1: Expr, e2: Expr): Expr = {
+    val (numer, denom) = partialEval(e2) match {
+      case IntCst(c) if c < 0 => (partialEval(-1 * e1), IntCst(-c))
+      case e                  => (partialEval(e1), e)
+    }
+    (numer, denom) match {
+      case (e1: IntCst, e2: IntCst) => e1.i / e2.i
+      case (e, IntCst(1))           => e
+      case (Prod(factors), IntCst(c)) =>
+        val (newFactors, newDenom) =
+          factors.foldRight((Seq[Expr](), c))((e, acc) =>
+            e match {
+              case IntCst(c) =>
+                val gcd = BigInt(c).gcd(acc._2).toInt
+                (IntCst(c / gcd) +: acc._1, acc._2 / gcd)
+              case e => (e +: acc._1, acc._2)
+            }
+          )
+        val newNumer = partialEval(Prod(newFactors))
+        newDenom match {
+          case 1 => newNumer
+          case d => Div(newNumer, d)
+        }
+      case (DontCare, _) | (_, DontCare) => DontCare
+      case (e1 @ _, e2 @ _)              => Div(e1, e2)
     }
   }
 
