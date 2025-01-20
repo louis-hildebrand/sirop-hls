@@ -31,7 +31,7 @@ package object ir {
             FunCall(substitute(f), substitute(arg))
 
           case Sum(terms)              => Sum(terms.map(e => substitute(e)))
-          case Mul(e1: Expr, e2: Expr) => Mul(substitute(e1), substitute(e2))
+          case Prod(factors)           => Prod(factors.map(e => substitute(e)))
           case Div(e1: Expr, e2: Expr) => Div(substitute(e1), substitute(e2))
           case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1), substitute(e2))
           case IntCst(_)               => e

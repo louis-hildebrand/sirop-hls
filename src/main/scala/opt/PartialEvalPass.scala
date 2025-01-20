@@ -31,16 +31,8 @@ object PartialEvalPass {
           case fun @ _  => FunCall(fun, partialEval(arg))
         }
 
-      case Sum(terms) => simplifySum(terms.map(e => partialEval(e)))
-      case Mul(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)        => e1.i * e2.i
-          case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
-          case (e, IntCst(1))                  => e
-          case (IntCst(1), e)                  => e
-          case (DontCare, _) | (_, DontCare)   => DontCare
-          case (e1 @ _, e2 @ _)                => Mul(e1, e2)
-        }
+      case Sum(terms)    => simplifySum(terms.map(e => partialEval(e)))
+      case Prod(factors) => simplifyProd(factors.map(e => partialEval(e)))
       case Div(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)      => e1.i / e2.i
@@ -316,8 +308,8 @@ object PartialEvalPass {
       val nonConstants = flatTerms.filter(e => !e.isInstanceOf[IntCst])
       // Combine like terms
       val coefficientsAndTerms = nonConstants.map({
-        case Mul(IntCst(c), e) => (c, e)
-        case e                 => (1, e)
+        case Prod(factors) => coefficientAndRemaining(factors)
+        case e             => (1, e)
       })
       val coefficientByTerm = coefficientsAndTerms
         .groupBy({ case (_, e) => e })
@@ -326,9 +318,10 @@ object PartialEvalPass {
         })
       val newTerms = coefficientByTerm.toSeq
         .flatMap({
-          case (_, 0) => None
-          case (e, 1) => Some(e)
-          case (e, c) => Some(Mul(IntCst(c), e))
+          case (_, 0)             => None
+          case (e, 1)             => Some(e)
+          case (Prod(factors), c) => Some(Prod(IntCst(c) +: factors))
+          case (e, c)             => Some(Prod(Seq(IntCst(c), e)))
         })
       if (const == 0) {
         newTerms
@@ -343,5 +336,57 @@ object PartialEvalPass {
     } else {
       Sum(newTerms)
     }
+  }
+
+  private def simplifyProd(factors: Seq[Expr]): Expr = {
+    val newFactors = if (factors.contains(DontCare)) {
+      Seq(DontCare)
+    } else if (factors.contains(IntCst(0))) {
+      Seq(IntCst(0))
+    } else {
+      // Flatten multiplication tree to maximise opportunities for the following simplifications
+      val flatFactors = factors.flatMap({
+        case Prod(factors) => factors
+        case e             => Seq(e)
+      })
+      // Combine constants (which also eliminates ones)
+      val const = flatFactors
+        .flatMap({
+          case IntCst(n) => Some(n)
+          case _         => None
+        })
+        .product
+      val nonConstants = flatFactors.filter(e => !e.isInstanceOf[IntCst])
+      if (const == 1) {
+        nonConstants
+      } else {
+        IntCst(const) +: nonConstants
+      }
+    }
+    if (newFactors.isEmpty) {
+      IntCst(1)
+    } else if (newFactors.length == 1) {
+      newFactors.head
+    } else {
+      Prod(newFactors)
+    }
+  }
+
+  /** Given a list of factors, find the constant coefficient (or one) and the
+    * remaining term (or one).
+    */
+  private def coefficientAndRemaining(factors: Seq[Expr]): (Int, Expr) = {
+    val const = factors
+      .flatMap({
+        case IntCst(n) => Some(n)
+        case _         => None
+      })
+      .product
+    val nonConst = factors.filter(e => !e.isInstanceOf[IntCst]) match {
+      case Seq()   => IntCst(1)
+      case Seq(x)  => x
+      case factors => Prod(factors)
+    }
+    (const, nonConst)
   }
 }

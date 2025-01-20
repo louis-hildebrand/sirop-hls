@@ -4,8 +4,8 @@ import scala.math.Ordering.Implicits._
 
 sealed trait Expr {
   def +(that: Expr): Expr = Sum(Seq(this, that))
-  def -(that: Expr): Expr = Sum(Seq(this, Mul(-1, that)))
-  def *(that: Expr): Mul = Mul(this, that)
+  def -(that: Expr): Expr = Sum(Seq(this, Prod(Seq(-1, that))))
+  def *(that: Expr): Expr = Prod(Seq(this, that))
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
   def ===(that: Expr): Equal = Equal(this, that)
@@ -33,9 +33,12 @@ sealed trait Expr {
 // insignificant change in the order of sub-expressions (e.g., for the terms within a sum).
 case object ExprOrdering extends Ordering[Expr] {
   override def compare(x: Expr, y: Expr): Int = {
-    if (classScore(x) < classScore(y)) {
-      -1
+    val c = classScore(x).compareTo(classScore(y))
+    if (c != 0) {
+      c
     } else {
+      // The two objects must be from the same class since their class score
+      // is the same
       (x, y) match {
         case (p1: Param, p2: Param) => p1.name.compareTo(p2.name)
         case (IntCst(a), IntCst(b)) => a.compareTo(b)
@@ -63,7 +66,7 @@ case object ExprOrdering extends Ordering[Expr] {
       case True           => 3
       case _: Param       => 4
       case _: Sum         => 5
-      case _: Mul         => 6
+      case _: Prod        => 6
       case _: Div         => 7
       case _: Mod         => 8
       case _: And         => 9
@@ -135,6 +138,7 @@ case object Let {
   }
 }
 
+// TODO: Get rid of this
 sealed trait BinOp extends Expr {
   val e1: Expr
   val e2: Expr
@@ -155,7 +159,7 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
       // Flatten nested sums to represent associativity
       .flatMap({
         case s: Sum => s.terms
-        case e      => Set(e)
+        case e      => Seq(e)
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
@@ -175,6 +179,10 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
   override def hashCode(): Int = {
     this.terms.hashCode()
   }
+
+  override def toString: String = {
+    s"Sum(${this.terms})"
+  }
 }
 object Sum {
   def apply(terms: Seq[Expr]): Sum = {
@@ -186,7 +194,45 @@ object Sum {
   }
 }
 
-case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
+class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
+  val factors: Seq[Expr] =
+    unsortedFactors
+      // Flatten nested sums to represent associativity
+      .flatMap({
+        case p: Prod => p.factors
+        case e       => Seq(e)
+      })
+      // Sort terms to represent commutativity
+      .sorted(ExprOrdering)
+
+  override def children: Seq[Expr] = factors
+
+  def canEqual(that: Any): Boolean = {
+    that.isInstanceOf[Prod]
+  }
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Prod => that.canEqual(this) && this.factors == that.factors
+      case _          => false
+    }
+  }
+  override def hashCode(): Int = {
+    this.factors.hashCode()
+  }
+
+  override def toString: String = {
+    s"Prod(${this.factors})"
+  }
+}
+object Prod {
+  def apply(factors: Seq[Expr]): Prod = {
+    new Prod(factors)
+  }
+
+  def unapply(p: Prod): Option[Seq[Expr]] = {
+    Some(p.factors)
+  }
+}
 
 case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp

@@ -177,11 +177,13 @@ object StmInductionVarRemovalPass {
         } else {
           None
         }
-      case Mul(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) * FunCall(g, t))
-          case _ => None
+      case Prod(factors) =>
+        val indVars = factors.map(e => tryGetInductionVar(s, e))
+        if (indVars.forall(e => e.isDefined)) {
+          val unwrappedVars = indVars.map(e => e.get)
+          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t))))
+        } else {
+          None
         }
       case Div(x, y) =>
         (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {

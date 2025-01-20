@@ -17,7 +17,7 @@ object PrettyPrinter {
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
       case Sum(terms)     => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Mul(x, y)      => s"${showWithParens(x)} * ${showWithParens(y)}"
+      case Prod(factors)  => factors.map(e => showWithParens(e)).mkString(" * ")
       case Div(x, y)      => s"${showWithParens(x)} / ${showWithParens(y)}"
       case Mod(x, y)      => s"${showWithParens(x)} % ${showWithParens(y)}"
       case Equal(x, y)    => s"${showWithParens(x)} === ${showWithParens(y)}"

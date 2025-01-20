@@ -442,7 +442,7 @@ object StmAccess {
       shape: Seq[Expr]
   ): Expr /* A */ = {
     // NOTE: require 0 <= i < n
-    val perRow = shape.tail.fold(IntCst(1))((x, y) => Mul(x, y))
+    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
     StmBuild(
       perRow,
       Tuple(stm, 0, perRow),
@@ -492,13 +492,13 @@ object StmScanInclusive {
         f.body.asInstanceOf[Function],
         inShape =
           if (stmShape.tail.isEmpty) None
-          else Some(stmShape.tail.fold(IntCst(1))(Mul.apply)),
+          else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
         outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
     val inner = StmCanonPass.canonicalize(
       PartialEvalPass.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
     )
-    val numIn = stmShape.tail.fold(IntCst(1))(Mul.apply)
+    val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
     StmBuild(
       stmShape.head,
       Tuple(inner.seed, z, numIn, 1), {
@@ -643,8 +643,8 @@ object StmPrepend {
       e
     }
     StmBuild(
-      StmLength(stm) + eShape.fold(IntCst(1))(Mul.apply),
-      Tuple(eStm, stm, eShape.fold(IntCst(1))(Mul.apply)),
+      StmLength(stm) + eShape.fold(IntCst(1))((x, y) => x * y),
+      Tuple(eStm, stm, eShape.fold(IntCst(1))((x, y) => x * y)),
       (acc: Expr) => {
         IfThenElse(
           acc.__2 === 0,
@@ -679,8 +679,8 @@ object StmAppend {
       e
     }
     StmBuild(
-      stmShape.updated(0, stmShape.head + 1).fold(IntCst(1))(Mul.apply),
-      Tuple(stm, eStm, stmShape.fold(IntCst(1))(Mul.apply)),
+      stmShape.updated(0, stmShape.head + 1).fold(IntCst(1))((x, y) => x * y),
+      Tuple(stm, eStm, stmShape.fold(IntCst(1))((x, y) => x * y)),
       (acc: Expr) =>
         IfThenElse(
           acc.__2 === 0,
@@ -720,7 +720,7 @@ object StmPrefix {
       // Ideally we would get this shape information from the type system
       shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))(Mul.apply)
+    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
     StmBuild(
       k * perRow,
       Tuple(stm, 0, perRow),
@@ -757,7 +757,7 @@ object StmSuffix {
       // Ideally we would get this shape info from the type system
       shape: Seq[Expr]
   ): StmBuild /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))(Mul.apply)
+    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
     val n = shape.head
     StmBuild(
       k * perRow,
@@ -965,7 +965,7 @@ object StmSlideV {
       stmShape: Seq[Expr]
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
-    val elemSize = stmShape.tail.fold(IntCst(1))(Mul.apply)
+    val elemSize = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
     val v = Param("v")
     StmBuild(
       n - m + 1,
@@ -1030,7 +1030,7 @@ object StmSlideS {
       (v: Expr) => Vec2Stm(v, n = m),
       n = stmShape.head - m + 1,
       fInShape = None,
-      fOutShape = Some(m * stmShape.tail.fold(IntCst(1))(Mul.apply))
+      fOutShape = Some(m * stmShape.tail.fold(IntCst(1))((x, y) => x * y))
     )
   }
 }

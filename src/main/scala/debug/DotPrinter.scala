@@ -412,6 +412,9 @@ object DotPrinter {
       case Sum(terms) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("+", labeledTerms, scope)
+      case Prod(factors) =>
+        val labeledFactors = factors.map(e => ("", toDot(e, scope)))
+        DotScalar("*", labeledFactors, scope)
       case e: BinOp =>
         val left = toDot(e.e1, scope)
         val right = toDot(e.e2, scope)
@@ -491,8 +494,6 @@ object DotPrinter {
 
   private def labelBinOp(e: BinOp): String = {
     e match {
-      case _: Sum      => "+"
-      case _: Mul      => "*"
       case _: Div      => "/"
       case _: Mod      => "%"
       case _: And      => "&&"
