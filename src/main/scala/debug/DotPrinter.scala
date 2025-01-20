@@ -410,15 +410,12 @@ object DotPrinter {
           s"Missing name for free variable $p."
         )
       case Sum(terms) =>
-        val labeledTerms = terms.map(e => ("", toDot(e, scope))).toSeq
+        val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("+", labeledTerms, scope)
       case e: BinOp =>
         val left = toDot(e.e1, scope)
         val right = toDot(e.e2, scope)
         DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)), scope)
-      case Neg(e) =>
-        val child = toDot(e, scope)
-        DotScalar("-", Seq(("", child)), scope)
       case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)

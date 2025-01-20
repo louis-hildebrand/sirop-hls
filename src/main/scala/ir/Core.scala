@@ -4,7 +4,7 @@ import scala.math.Ordering.Implicits._
 
 sealed trait Expr {
   def +(that: Expr): Expr = Sum(Seq(this, that))
-  def -(that: Expr): Expr = Sum(Seq(this, Neg(that)))
+  def -(that: Expr): Expr = Sum(Seq(this, Mul(-1, that)))
   def *(that: Expr): Mul = Mul(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
@@ -66,24 +66,23 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Mul         => 6
       case _: Div         => 7
       case _: Mod         => 8
-      case _: Neg         => 9
-      case _: And         => 10
-      case _: Or          => 11
-      case _: Not         => 12
-      case _: Equal       => 13
-      case _: NotEqual    => 14
-      case _: LessThan    => 15
-      case _: TupleAccess => 16
-      case _: FunCall     => 17
-      case _: IfThenElse  => 18
-      case _: Tuple       => 19
-      case _: Function    => 20
-      case _: StmBuild    => 21
-      case _: StmNext     => 22
-      case _: StmLength   => 23
-      case _: VecBuild    => 24
-      case _: VecAccess   => 25
-      case _: VecLength   => 26
+      case _: And         => 9
+      case _: Or          => 10
+      case _: Not         => 11
+      case _: Equal       => 12
+      case _: NotEqual    => 13
+      case _: LessThan    => 14
+      case _: TupleAccess => 15
+      case _: FunCall     => 16
+      case _: IfThenElse  => 17
+      case _: Tuple       => 18
+      case _: Function    => 19
+      case _: StmBuild    => 20
+      case _: StmNext     => 21
+      case _: StmLength   => 22
+      case _: VecBuild    => 23
+      case _: VecAccess   => 24
+      case _: VecLength   => 25
     }
   }
 }
@@ -156,12 +155,7 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
       // Flatten nested sums to represent associativity
       .flatMap({
         case s: Sum => s.terms
-        case Neg(s: Sum) =>
-          s.terms.map({
-            case Neg(e) => e
-            case e      => Neg(e)
-          })
-        case e => Set(e)
+        case e      => Set(e)
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
@@ -193,11 +187,9 @@ object Sum {
 }
 
 case class Mul(e1: Expr, e2: Expr) extends IntExpr with BinOp
+
 case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
 case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
-case class Neg(e: Expr) extends IntExpr {
-  override def children: Seq[Expr] = Seq(e)
-}
 
 // Boolean expressions
 sealed trait BoolExpr extends Expr

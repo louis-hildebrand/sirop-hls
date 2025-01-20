@@ -32,21 +32,12 @@ object PartialEvalPass {
         }
 
       case Sum(terms) => simplifySum(terms.map(e => partialEval(e)))
-      case Neg(e: Expr) =>
-        partialEval(e) match {
-          case IntCst(n) => IntCst(-n)
-          case Neg(e)    => e
-          case DontCare  => DontCare
-          case e         => Neg(e)
-        }
       case Mul(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)        => e1.i * e2.i
           case (_, IntCst(0)) | (IntCst(0), _) => IntCst(0)
           case (e, IntCst(1))                  => e
           case (IntCst(1), e)                  => e
-          case (e, IntCst(c)) if c < 0         => Neg(IntCst(-c) * e)
-          case (IntCst(c), e) if c < 0         => Neg(IntCst(-c) * e)
           case (DontCare, _) | (_, DontCare)   => DontCare
           case (e1 @ _, e2 @ _)                => Mul(e1, e2)
         }
@@ -312,9 +303,8 @@ object PartialEvalPass {
     } else {
       // Flatten addition tree to maximise opportunities for the following simplifications
       val flatTerms = terms.flatMap({
-        case Sum(terms)      => terms
-        case Neg(Sum(terms)) => terms.map(e => Neg(e))
-        case e               => Seq(e)
+        case Sum(terms) => terms
+        case e          => Seq(e)
       })
       // Combine constants (which also eliminates zeros)
       val const = flatTerms
@@ -327,7 +317,6 @@ object PartialEvalPass {
       // Combine like terms
       val coefficientsAndTerms = nonConstants.map({
         case Mul(IntCst(c), e) => (c, e)
-        case Neg(e)            => (-1, e)
         case e                 => (1, e)
       })
       val coefficientByTerm = coefficientsAndTerms
@@ -337,11 +326,9 @@ object PartialEvalPass {
         })
       val newTerms = coefficientByTerm.toSeq
         .flatMap({
-          case (_, 0)          => None
-          case (e, 1)          => Some(e)
-          case (e, -1)         => Some(Neg(e))
-          case (e, c) if c < 0 => Some(Neg(Mul(IntCst(-c), e)))
-          case (e, c)          => Some(Mul(IntCst(c), e))
+          case (_, 0) => None
+          case (e, 1) => Some(e)
+          case (e, c) => Some(Mul(IntCst(c), e))
         })
       if (const == 0) {
         newTerms

@@ -96,10 +96,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(IntCst(0) * e) == IntCst(0))
     assert(pe(e * IntCst(1)) == e)
     assert(pe(IntCst(1) * e) == e)
-    assert(pe(IntCst(-1) * e) == Neg(e))
-    assert(pe(e * IntCst(-1)) == Neg(e))
-    assert(pe(IntCst(-3) * e) == Neg(IntCst(3) * e))
-    assert(pe(e * IntCst(-3)) == Neg(IntCst(3) * e))
     assert(pe(e * DontCare) == DontCare)
     assert(pe(DontCare * e) == DontCare)
   }
@@ -110,8 +106,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       TupleAccess(Tuple(VecAccess(VecBuild(5, (i: Expr) => i * i), 3), 2, 3), i)
 
-    val actual = pe((IntCst(42) * e) * IntCst(-1))
-    val expected = Neg(IntCst(42) * TupleAccess(Tuple(9, 2, 3), i))
+    val actual = pe((IntCst(42) * e) * IntCst(3))
+    val expected = IntCst(-126) * TupleAccess(Tuple(9, 2, 3), i)
     assert(actual == expected)
   }
 
@@ -122,7 +118,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(e / DontCare) == DontCare)
     assert(pe(DontCare / e) == DontCare)
     assert(pe(e / IntCst(1)) == e)
-    assert(pe(e / IntCst(-1)) == Neg(e))
+    assert(pe(e / IntCst(-1)) == Mul(-1, e))
   }
 
   test("Mod") {

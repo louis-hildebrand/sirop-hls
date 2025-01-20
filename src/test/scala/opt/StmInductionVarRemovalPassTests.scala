@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Counters") {
-    val n = Param()
+    val n = Param("n")
     val s = StmBuild(
       n,
       Tuple(
@@ -56,9 +56,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             Tuple(
               2 * (3 + acc.__0),
               (10 + acc.__0 * 4) / 3,
-              19 - 2 * acc.__0,
+              19 + -2 * acc.__0,
               acc.__0 * 3,
-              -2 - 6 * acc.__0
+              -2 + -6 * acc.__0
             ),
             True
           )
