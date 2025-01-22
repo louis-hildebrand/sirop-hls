@@ -52,56 +52,13 @@ object StmInductionVarRemovalPass {
   private def tryGetInductionVarByIdx(s: StmBuild, i: Int): Option[Function] = {
     val seed = s.seed.asInstanceOf[Tuple]
     val z = seed.elems(i)
-    val acc = s.nextF.param
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
-    (z, next) match {
-      // TODO: Why did I specifically restrict delta to be an int constant at first? Are there potential problems for
-      //       other kinds of expressions? Do I need to check that it's side effect-free (e.g., no `StmNext`)?
-      // Constant
-      case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
-        Some((t: Expr) => z)
-      // Counter
-      case (z, Sum(Seq(delta, TupleAccess(a0, IntCst(i0)))))
-          if a0 == acc && i0 == i =>
-        // TODO: What if delta is another sum (e.g., k + 1)? Then this wouldn't match
-        Some((t: Expr) => z + t * delta)
-      // Monotonic bool (True --> False, up counter)
-      case (
-            True,
-            And(
-              TupleAccess(a0, IntCst(i0)),
-              LessThan(TupleAccess(a1, IntCst(j)), k)
-            )
-          ) if a0 == acc && a1 == acc && i0 == i =>
-        tryGetMonotonicCounter(s, i, j) match {
-          case Some((i0, delta)) if delta > 0 =>
-            Some((t: Expr) => t < (CeilDiv(Max(0, k - i0), delta) + 1))
-          case _ => None
-        }
-      // VecShiftLeft
+    (z, next, s, i) match {
+      case Counter(z, delta) => Some((t: Expr) => z + t * delta)
+      case MonotonicBool(z, t0) =>
+        if (z) Some((t: Expr) => t < t0) else Some((t: Expr) => t >= t0)
       // TODO: watch out for infinite loops due to circular dependencies!
-      case (
-            VecBuild(n, f),
-            VecBuild(
-              VecLength(TupleAccess(a0, IntCst(i0))),
-              Function(
-                j0: Param,
-                IfThenElse(
-                  Equal(
-                    j1,
-                    // TODO: What if the VecLength has been partially evaluated to a constant?
-                    Sum(Seq(IntCst(-1), VecLength(TupleAccess(a1, IntCst(i1)))))
-                  ),
-                  e,
-                  VecAccess(
-                    TupleAccess(a2, IntCst(i2)),
-                    Sum(Seq(IntCst(1), j2))
-                  )
-                )
-              )
-            )
-          )
-          if a0 == acc && a1 == acc && a2 == acc && i0 == i && i1 == i && i2 == i && j1 == j0 && j2 == j0 =>
+      case LeftShiftRegister(n, f, e) =>
         tryGetInductionVar(s, e) match {
           case Some(g) =>
             Some((t: Expr) =>
@@ -117,7 +74,6 @@ object StmInductionVarRemovalPass {
             )
           case None => None
         }
-      // Unknown
       case _ => None
     }
   }
@@ -138,6 +94,12 @@ object StmInductionVarRemovalPass {
     e match {
       case TupleAccess(a, IntCst(i)) if a == acc =>
         tryGetInductionVarByIdx(s, i)
+      case TupleAccess(t, i) =>
+        (tryGetInductionVar(s, t), tryGetInductionVar(s, i)) match {
+          case (Some(f), Some(g)) =>
+            Some((t: Expr) => TupleAccess(FunCall(f, t), FunCall(g, t)))
+          case _ => None
+        }
       case Tuple(elems @ _*) =>
         val elemFunctions = elems.map(e => tryGetInductionVar(s, e))
         if (elemFunctions.exists(e => e.isEmpty)) {
@@ -146,12 +108,6 @@ object StmInductionVarRemovalPass {
           Some((t: Expr) =>
             Tuple(elemFunctions.map(f => FunCall(f.get, t)): _*)
           )
-        }
-      case TupleAccess(t, i) =>
-        (tryGetInductionVar(s, t), tryGetInductionVar(s, i)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => TupleAccess(FunCall(f, t), FunCall(g, t)))
-          case _ => None
         }
       case p: Param if p == acc =>
         // Maybe I could try getting *all* accumulator elements as induction variables
@@ -269,6 +225,68 @@ object StmInductionVarRemovalPass {
         }
     }
   }
+}
+
+object Counter {
+
+  /** A counter starting at <code>z</code> and changing by <code>delta</code> at
+    * each step.
+    *
+    * @return
+    *   <code>Some((z, delta))</code> if this is a counter, otherwise
+    *   <code>None</code>.
+    */
+  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr)] = {
+    val (z, next, stm, i) = args
+    val acc = stm.nextF.param
+    (z, next) match {
+      // TODO: Possibly need to check that delta has no side effects
+      // TODO: Need to check that delta is indeed constant within the stream (i.e., doesn't depend on acc)
+      // Constant
+      case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
+        Some((z, IntCst(0)))
+      // Counter
+      case (z, Sum(Seq(delta, TupleAccess(a0, IntCst(i0)))))
+          if a0 == acc && i0 == i =>
+        // TODO: What if delta is another sum (e.g., k + 1)? Then this wouldn't match
+        Some((z, delta))
+      case _ => None
+    }
+  }
+}
+
+object MonotonicBool {
+
+  /** A boolean that is <code>True</code> iff <code>t &lt; t0</code>, or one
+    * which is <code>False</code> iff <code>t &lt; t0</code>. Let <code>z</code>
+    * be the initial value of the boolean.
+    *
+    * @return
+    *   <code>Some((z, t0))</code> if this is a monotonic boolean, otherwise
+    *   <code>None</code>.
+    */
+  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Boolean, Expr)] = {
+    val (z, next, stm, i) = args
+    val acc = stm.nextF.param
+    (z, next) match {
+      // TODO: There are many more cases to handle
+      // True --> False, up counter
+      case (
+            True,
+            And(
+              TupleAccess(a0, IntCst(i0)),
+              LessThan(TupleAccess(a1, IntCst(j)), k)
+            )
+          ) if a0 == acc && a1 == acc && i0 == i =>
+        tryGetMonotonicCounter(stm, i, j) match {
+          case Some((i0, delta)) if delta > 0 =>
+            val t0 = CeilDiv(Max(0, k - i0), delta) + 1
+            Some((true, t0))
+          case _ => None
+        }
+      case _ => None
+    }
+  }
 
   /** @param s
     *   Stream.
@@ -305,6 +323,50 @@ object StmInductionVarRemovalPass {
       case Sum(Seq(IntCst(delta), TupleAccess(p0, i0)))
           if p0 == acc && i0 == IntCst(j) =>
         Some((cntrInit, delta))
+      case _ => None
+    }
+  }
+}
+
+object LeftShiftRegister {
+
+  /** A leftwards-shifting shift register (i.e., a <code>VecShiftLeft</code>) of
+    * size <code>n</code>, whose initial values are given by the function
+    * <code>f</code>, and whose new values are given by the expression
+    * <code>e</code>.
+    *
+    * @return
+    *   <code>Some((n, f, e))</code> if the given expression is a left shift
+    *   register, otherwise <code>None</code>.
+    */
+  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr, Expr)] = {
+    // TODO: Do I need to watch out for side effects and make sure `e` doesn't depend on `acc` and so on here too?
+    val (z, next, stm, i) = args
+    val acc = stm.nextF.param
+    (z, next) match {
+      case (
+            VecBuild(n, f),
+            VecBuild(
+              VecLength(TupleAccess(a0, IntCst(i0))),
+              Function(
+                j0: Param,
+                IfThenElse(
+                  Equal(
+                    j1,
+                    // TODO: What if the VecLength has been partially evaluated to a constant?
+                    Sum(Seq(IntCst(-1), VecLength(TupleAccess(a1, IntCst(i1)))))
+                  ),
+                  e,
+                  VecAccess(
+                    TupleAccess(a2, IntCst(i2)),
+                    Sum(Seq(IntCst(1), j2))
+                  )
+                )
+              )
+            )
+          )
+          if a0 == acc && a1 == acc && a2 == acc && i0 == i && i1 == i && i2 == i && j1 == j0 && j2 == j0 =>
+        Some((n, f, e))
       case _ => None
     }
   }
