@@ -2,42 +2,119 @@ package opt
 
 import ir._
 
-case class FactSet(rangeByParam: Map[Param, Range] = Map()) {
-  def lowerBound(x: Param, c: Int): FactSet = {
-    rangeByParam.get(x) match {
-      case None => FactSet(rangeByParam + (x -> ScalarRange(lower = Some(c))))
-      case Some(ScalarRange(None, u)) =>
-        FactSet(rangeByParam + (x -> ScalarRange(lower = Some(c), upper = u)))
-      case Some(ScalarRange(Some(l), u)) if c > l =>
-        FactSet(rangeByParam + (x -> ScalarRange(lower = Some(c), upper = u)))
-      case _ => this
+sealed trait IntOrInf {
+  def +(that: IntOrInf): IntOrInf = {
+    (this, that) match {
+      case (NegInf, PosInf) | (PosInf, NegInf) =>
+        throw new IllegalArgumentException(
+          "Infinity minus infinity is undefined."
+        )
+      case (NegInf, _) | (_, NegInf) => NegInf
+      case (PosInf, _) | (_, PosInf) => PosInf
+      case (Finite(x), Finite(y))    => Finite(x + y)
     }
   }
 
-  def upperBound(x: Param, c: Int): FactSet = {
-    rangeByParam.get(x) match {
-      case None => FactSet(rangeByParam + (x -> ScalarRange(upper = Some(c))))
-      case Some(ScalarRange(l, None)) =>
-        FactSet(rangeByParam + (x -> ScalarRange(lower = l, upper = Some(c))))
-      case Some(ScalarRange(l, Some(u))) if c < u =>
-        FactSet(rangeByParam + (x -> ScalarRange(lower = l, upper = Some(c))))
-      case _ => this
+  def *(that: IntOrInf): IntOrInf = {
+    (this, that) match {
+      case (NegInf, NegInf) | (PosInf, PosInf) => PosInf
+      case (NegInf, PosInf) | (PosInf, NegInf) => NegInf
+      case (Finite(0), _) | (Finite(0), _)     => Finite(0)
+      case (NegInf, Finite(c)) =>
+        if (c < 0) PosInf else NegInf
+      case (Finite(c), NegInf) =>
+        if (c < 0) PosInf else NegInf
+      case (PosInf, Finite(c)) =>
+        if (c < 0) NegInf else PosInf
+      case (Finite(c), PosInf) =>
+        if (c < 0) NegInf else PosInf
+      case (Finite(x), Finite(y)) => Finite(x * y)
+    }
+  }
+
+  def <(that: IntOrInf): Boolean = {
+    (this, that) match {
+      case (NegInf, NegInf)       => false
+      case (NegInf, _)            => true
+      case (Finite(_), NegInf)    => false
+      case (Finite(x), Finite(y)) => x < y
+      case (Finite(x), PosInf)    => true
+      case (PosInf, _)            => false
     }
   }
 }
-
-sealed trait Range
-case class ScalarRange(lower: Option[Int] = None, upper: Option[Int] = None)
-    extends Range {
-  def union(that: ScalarRange): ScalarRange = {
-    val lower = (this.lower, that.lower) match {
-      case (Some(a), Some(b)) => Some(math.min(a, b))
-      case _                  => None
-    }
-    val upper = (this.upper, that.upper) match {
-      case (Some(a), Some(b)) => Some(math.max(a, b))
-      case _                  => None
-    }
-    ScalarRange(lower, upper)
+object IntOrInf {
+  def min(x: IntOrInf, y: IntOrInf): IntOrInf = {
+    if (x < y) x else y
   }
+
+  def max(x: IntOrInf, y: IntOrInf): IntOrInf = {
+    if (x < y) y else x
+  }
+}
+case class Finite(c: Int) extends IntOrInf
+case object NegInf extends IntOrInf
+case object PosInf extends IntOrInf
+
+case class FactSet(rangeByParam: Map[Param, Range] = Map()) {
+
+  /** Update the range information for <code>x</code>.
+    *
+    * @param x
+    *   A variable
+    * @param r
+    *   A range
+    * @return
+    *   A fact set where the range of <code>x</code> is the intersection of the
+    *   old range with the new one.
+    */
+  def range(x: Param, r: Range): FactSet = {
+    val oldRange = rangeByParam.getOrElse(x, r.full())
+    val newRange = oldRange.intersect(r)
+    FactSet(rangeByParam + (x -> newRange))
+  }
+}
+
+sealed trait Range {
+  def union(that: Range): Range
+  def intersect(that: Range): Range
+  def full(): Range
+  def empty(): Range
+}
+case class ScalarRange(lower: IntOrInf, upper: IntOrInf) extends Range {
+  override def union(that: Range): ScalarRange = {
+    that match {
+      case that: ScalarRange =>
+        ScalarRange(
+          IntOrInf.min(this.lower, that.lower),
+          IntOrInf.max(this.upper, that.upper)
+        )
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Cannot take union of ${this.getClass.getSimpleName} with ${that.getClass.getSimpleName}."
+        )
+    }
+  }
+
+  override def intersect(that: Range): ScalarRange = {
+    that match {
+      case that: ScalarRange =>
+        ScalarRange(
+          IntOrInf.max(this.lower, that.lower),
+          IntOrInf.min(this.upper, that.upper)
+        )
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Cannot take intersection of ${this.getClass.getSimpleName} with ${that.getClass.getSimpleName}."
+        )
+    }
+  }
+
+  override def full(): ScalarRange = ScalarRange.full()
+
+  override def empty(): ScalarRange = ScalarRange.empty()
+}
+object ScalarRange {
+  def full(): ScalarRange = ScalarRange(NegInf, PosInf)
+  def empty(): ScalarRange = ScalarRange(PosInf, NegInf)
 }

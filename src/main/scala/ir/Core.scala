@@ -1,7 +1,5 @@
 package ir
 
-import scala.math.Ordering.Implicits._
-
 sealed trait Expr {
   def +(that: Expr): Expr = Sum(Seq(this, that))
   def -(that: Expr): Expr = Sum(Seq(this, Prod(Seq(-1, that))))

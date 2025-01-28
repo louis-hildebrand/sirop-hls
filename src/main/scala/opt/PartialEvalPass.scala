@@ -104,10 +104,9 @@ object PartialEvalPass {
           case (e1: IntCst, e2: IntCst)      => e1.i < e2.i
           case (DontCare, _) | (_, DontCare) => DontCare
           case (e1, e2) =>
-            tryGetRange(e1 - e2)(facts) match {
-              case Some(ScalarRange(_, Some(upper))) if upper < 0  => True
-              case Some(ScalarRange(Some(lower), _)) if lower >= 0 => False
-              // TODO: have a case for false as well
+            tryGetRange(partialEval(e1 - e2))(facts) match {
+              case Some(ScalarRange(_, Finite(upper))) if upper < 0  => True
+              case Some(ScalarRange(Finite(lower), _)) if lower >= 0 => False
               case _ => LessThan(e1, e2)
             }
         }
@@ -306,18 +305,18 @@ object PartialEvalPass {
         // partial evaluator will evaluate such function calls anyway so they
         // probably won't appear here
         None
-      case IntCst(c) => Some(ScalarRange(Some(c), Some(c)))
+      case IntCst(c)  => Some(ScalarRange(Finite(c), Finite(c)))
       case Sum(terms) =>
-        val termRanges = terms.map(tryGetRange)
-        val lower = termRanges.foldLeft[Option[Int]](Some(0))({
-          case (Some(acc), Some(ScalarRange(Some(l), _))) => Some(acc + l)
-          case _                                          => None
-        })
-        val upper = termRanges.foldLeft[Option[Int]](Some(0))({
-          case (Some(acc), Some(ScalarRange(_, Some(u)))) => Some(acc + u)
-          case _                                          => None
-        })
-        Some(ScalarRange(lower, upper))
+        //   If a1 <= x1 <= b1
+        //  and a2 <= x2 <= b2
+        // then a1 + a2 <= x1 + x2 <= b1 + b2
+        val termRanges = terms.map(e =>
+          tryGetRange(e).getOrElse(ScalarRange.full()).asInstanceOf[ScalarRange]
+        )
+        val r = termRanges.foldLeft(ScalarRange(0, 0))((acc, r) =>
+          ScalarRange(acc.lower + r.lower, acc.upper + r.upper)
+        )
+        Some(r)
       case Prod(Seq(IntCst(c), x)) =>
         tryGetRange(x) match {
           case Some(r: ScalarRange) =>
@@ -325,30 +324,14 @@ object PartialEvalPass {
               //   If a <= x <= b
               //  and c >= 0
               // then c * a <= c * x <= c * b
-              val lower = r.lower match {
-                case None    => None
-                case Some(a) => Some(c * a)
-              }
-              val upper = r.upper match {
-                case None    => None
-                case Some(b) => Some(c * b)
-              }
-              Some(ScalarRange(lower, upper))
+              Some(ScalarRange(r.lower * c, r.upper * c))
             } else {
               //   If a <= x <= b
               //  and c < 0
               // then c * b <= c * x <= c * a
-              val lower = r.upper match {
-                case None    => None
-                case Some(b) => Some(c * b)
-              }
-              val upper = r.lower match {
-                case None    => None
-                case Some(a) => Some(c * a)
-              }
-              Some(ScalarRange(lower, upper))
+              Some(ScalarRange(r.upper * c, r.lower * c))
             }
-          case _ => Some(ScalarRange())
+          case _ => Some(ScalarRange.full())
         }
       case Prod(factors) =>
         // TODO: Implement the general case?
@@ -365,9 +348,9 @@ object PartialEvalPass {
         // (infinite), rectangle not containing (0, 0), and so on.
         // Moreover, need to extend the result to more than two factors
         // (shouldn't be terribly hard, but it's extra tedium).
-        Some(ScalarRange())
-      case _: Div              => Some(ScalarRange())
-      case _: Mod              => Some(ScalarRange())
+        Some(ScalarRange.full())
+      case _: Div              => Some(ScalarRange.full())
+      case _: Mod              => Some(ScalarRange.full())
       case IfThenElse(_, t, f) =>
         // TODO: Should I be using the condition here?
         (tryGetRange(t), tryGetRange(f)) match {
@@ -378,11 +361,11 @@ object PartialEvalPass {
       case _: StmLength =>
         // If the partial evaluator didn't get rid of this, then what am I
         // supposed to do now?
-        None
+        Some(ScalarRange.full())
       case _: VecLength =>
         // If the partial evaluator didn't get rid of this, then what am I
         // supposed to do now?
-        None
+        Some(ScalarRange.full())
       case _: Tuple | _: Function | _: BoolExpr | DontCare | _: StmBuild |
           _: StmNext | _: VecBuild =>
         None

@@ -167,36 +167,42 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(e) == expected)
   }
 
-  test("InequalityWithKnownBounds:x>=0") {
+  test("ScalarInequality:x<x+1") {
     val x = Param()
-    val facts = FactSet().lowerBound(x, 0)
+    assert(PartialEvalPass.partialEval((x - 1) < x) == True)
+    assert(PartialEvalPass.partialEval(x < x) == False)
+  }
+
+  test("ScalarInequalityWithKnownBounds:x>=0") {
+    val x = Param()
+    val facts = FactSet().range(x, ScalarRange(0, PosInf))
     assert(PartialEvalPass.partialEval(x >= 0) == x >= 0)
     assert(PartialEvalPass.partialEval(x >= 1)(facts) == x >= 1)
     assert(PartialEvalPass.partialEval(x >= 0)(facts) == True)
     assert(PartialEvalPass.partialEval(x >= -1)(facts) == True)
   }
 
-  test("InequalityWithKnownBounds:x>8") {
+  test("ScalarInequalityWithKnownBounds:x>8") {
     val x = Param()
-    val facts = FactSet().lowerBound(x, 8)
+    val facts = FactSet().range(x, ScalarRange(8, PosInf))
     assert(PartialEvalPass.partialEval(x > 8) == x > 8)
     assert(PartialEvalPass.partialEval(x > 8)(facts) == x > 8)
     assert(PartialEvalPass.partialEval(x > 7)(facts) == True)
     assert(PartialEvalPass.partialEval(x > 6)(facts) == True)
   }
 
-  test("InequalityWithKnownBounds:x<=5") {
+  test("ScalarInequalityWithKnownBounds:x<=5") {
     val x = Param()
-    val facts = FactSet().upperBound(x, 5)
+    val facts = FactSet().range(x, ScalarRange(NegInf, 5))
     assert(PartialEvalPass.partialEval(x <= 5) == x <= 5)
     assert(PartialEvalPass.partialEval(x <= 4)(facts) == x <= 4)
     assert(PartialEvalPass.partialEval(x <= 5)(facts) == True)
     assert(PartialEvalPass.partialEval(x <= 6)(facts) == True)
   }
 
-  test("InequalityWithKnownBounds:x<3") {
+  test("ScalarInequalityWithKnownBounds:x<3") {
     val x = Param()
-    val facts = FactSet().upperBound(x, 3)
+    val facts = FactSet().range(x, ScalarRange(NegInf, 3))
     assert(PartialEvalPass.partialEval(x < 3) == x < 3)
     assert(PartialEvalPass.partialEval(x < 3)(facts) == x < 3)
     assert(PartialEvalPass.partialEval(x < 4)(facts) == True)
