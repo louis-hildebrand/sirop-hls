@@ -14,7 +14,6 @@ object StmInductionVarRemovalPass {
     if (inductionVarByIdx.isEmpty) {
       s
     } else {
-      // TODO: it's a bit sketchy that partial evaluation is required here, isn't it?
       val s1 = PartialEvalPass
         .partialEval(
           StmUtils.appendAccumulator(s, 0, (i: Expr) => i + 1)
@@ -230,7 +229,8 @@ object StmInductionVarRemovalPass {
 object Counter {
 
   /** A counter starting at <code>z</code> and changing by <code>delta</code> at
-    * each step.
+    * each step, where <code>delta</code> is constant within the stream (i.e.,
+    * does not depend on the accumulator).
     *
     * @return
     *   <code>Some((z, delta))</code> if this is a counter, otherwise
@@ -241,15 +241,33 @@ object Counter {
     val acc = stm.nextF.param
     (z, next) match {
       // TODO: Possibly need to check that delta has no side effects
-      // TODO: Need to check that delta is indeed constant within the stream (i.e., doesn't depend on acc)
       // Constant
       case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
         Some((z, IntCst(0)))
       // Counter
-      case (z, Sum(Seq(delta, TupleAccess(a0, IntCst(i0)))))
-          if a0 == acc && i0 == i =>
-        // TODO: What if delta is another sum (e.g., k + 1)? Then this wouldn't match
-        Some((z, delta))
+      case (z, Sum(terms)) =>
+        // Try to find the accumulator
+        val j = terms.zipWithIndex.foldLeft[Option[Int]](None)({
+          case (Some(j), _) => Some(j)
+          case (None, (TupleAccess(a0, IntCst(i0)), j))
+              if a0 == acc && i0 == i =>
+            Some(j)
+          case _ => None
+        })
+        j match {
+          case None => None
+          case Some(j) =>
+            val otherTerms = terms.zipWithIndex
+              .filter({ case (_, k) => k != j })
+              .map({ case (e, _) => e })
+            val delta = Sum(otherTerms)
+            val isConstantInStream = !ir.contains(delta, acc)
+            if (isConstantInStream) {
+              Some((z, delta))
+            } else {
+              None
+            }
+        }
       case _ => None
     }
   }
