@@ -3,7 +3,7 @@ package opt
 import ir._
 
 object PartialEvalPass {
-  def partialEval(e: Expr): Expr = {
+  def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
     e match {
 
       case t: Tuple => Tuple(t.elems.map(partialEval): _*)
@@ -103,7 +103,13 @@ object PartialEvalPass {
         (partialEval(e1), partialEval(e2)) match {
           case (e1: IntCst, e2: IntCst)      => e1.i < e2.i
           case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1 @ _, e2 @ _)              => LessThan(e1, e2)
+          case (e1, e2) =>
+            tryGetRange(e1 - e2)(facts) match {
+              case Some(ScalarRange(_, Some(upper))) if upper < 0  => True
+              case Some(ScalarRange(Some(lower), _)) if lower >= 0 => False
+              // TODO: have a case for false as well
+              case _ => LessThan(e1, e2)
+            }
         }
       case And(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -283,6 +289,103 @@ object PartialEvalPass {
     e match {
       case Or(x, y) => splitOr(x) ++ splitOr(y)
       case e        => Seq(e)
+    }
+  }
+
+  private def tryGetRange(
+      e: Expr
+  )(implicit facts: FactSet): Option[Range] = {
+    e match {
+      // TODO: Do I need to specially handle tuples and vectors?
+      case _: TupleAccess => None
+      case _: VecAccess   => None
+      case x: Param       => facts.rangeByParam.get(x)
+      case _: FunCall     =>
+        // If this is a call to a function literal, then we could look for
+        // bounds on the function body using facts about the argument, but the
+        // partial evaluator will evaluate such function calls anyway so they
+        // probably won't appear here
+        None
+      case IntCst(c) => Some(ScalarRange(Some(c), Some(c)))
+      case Sum(terms) =>
+        val termRanges = terms.map(tryGetRange)
+        val lower = termRanges.foldLeft[Option[Int]](Some(0))({
+          case (Some(acc), Some(ScalarRange(Some(l), _))) => Some(acc + l)
+          case _                                          => None
+        })
+        val upper = termRanges.foldLeft[Option[Int]](Some(0))({
+          case (Some(acc), Some(ScalarRange(_, Some(u)))) => Some(acc + u)
+          case _                                          => None
+        })
+        Some(ScalarRange(lower, upper))
+      case Prod(Seq(IntCst(c), x)) =>
+        tryGetRange(x) match {
+          case Some(r: ScalarRange) =>
+            if (c >= 0) {
+              //   If a <= x <= b
+              //  and c >= 0
+              // then c * a <= c * x <= c * b
+              val lower = r.lower match {
+                case None    => None
+                case Some(a) => Some(c * a)
+              }
+              val upper = r.upper match {
+                case None    => None
+                case Some(b) => Some(c * b)
+              }
+              Some(ScalarRange(lower, upper))
+            } else {
+              //   If a <= x <= b
+              //  and c < 0
+              // then c * b <= c * x <= c * a
+              val lower = r.upper match {
+                case None    => None
+                case Some(b) => Some(c * b)
+              }
+              val upper = r.lower match {
+                case None    => None
+                case Some(a) => Some(c * a)
+              }
+              Some(ScalarRange(lower, upper))
+            }
+          case _ => Some(ScalarRange())
+        }
+      case Prod(factors) =>
+        // TODO: Implement the general case?
+        // Suppose a1 <= x1 <= b1 and a2 <= x2 <= b2,
+        //   where a1, a2 < 0
+        //     and b1, b2 > 0
+        //
+        // Then [a1, b1] = {a1, -1} U {0} U {1, b1}
+        //  and [a2, b2] = {a2, -1} U {0} U {1, b2}
+        //
+        // Find bounds per quadrant and then take the union.
+        // It seems a bit gross to handle all the cases though :(
+        // Furthermore, need to consider upper or lower bounds being missing
+        // (infinite), rectangle not containing (0, 0), and so on.
+        // Moreover, need to extend the result to more than two factors
+        // (shouldn't be terribly hard, but it's extra tedium).
+        Some(ScalarRange())
+      case _: Div              => Some(ScalarRange())
+      case _: Mod              => Some(ScalarRange())
+      case IfThenElse(_, t, f) =>
+        // TODO: Should I be using the condition here?
+        (tryGetRange(t), tryGetRange(f)) match {
+          case (Some(r1: ScalarRange), Some(r2: ScalarRange)) =>
+            Some(r1.union(r2))
+          case _ => None
+        }
+      case _: StmLength =>
+        // If the partial evaluator didn't get rid of this, then what am I
+        // supposed to do now?
+        None
+      case _: VecLength =>
+        // If the partial evaluator didn't get rid of this, then what am I
+        // supposed to do now?
+        None
+      case _: Tuple | _: Function | _: BoolExpr | DontCare | _: StmBuild |
+          _: StmNext | _: VecBuild =>
+        None
     }
   }
 }
