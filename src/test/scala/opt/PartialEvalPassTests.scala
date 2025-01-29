@@ -208,4 +208,19 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(x < 4)(facts) == True)
     assert(PartialEvalPass.partialEval(x < 5)(facts) == True)
   }
+
+  test("TupleInequalityWithKnownBounds:acc.__1>=2") {
+    val acc = Param()
+    val facts =
+      FactSet().range(acc, TupleRange(Seq(None, Some(ScalarRange(2, PosInf)))))
+
+    assert(PartialEvalPass.partialEval(acc.__0 >= 2)(facts) == acc.__0 >= 2)
+    assert(PartialEvalPass.partialEval(acc.__0 >= 1)(facts) == acc.__0 >= 1)
+    assert(PartialEvalPass.partialEval(acc.__0 >= 0)(facts) == acc.__0 >= 0)
+
+    assert(PartialEvalPass.partialEval(acc.__1 >= 2) == acc.__1 >= 2)
+    assert(PartialEvalPass.partialEval(acc.__1 >= 3)(facts) == acc.__1 >= 3)
+    assert(PartialEvalPass.partialEval(acc.__1 >= 2)(facts) == True)
+    assert(PartialEvalPass.partialEval(acc.__1 >= 1)(facts) == True)
+  }
 }

@@ -296,10 +296,20 @@ object PartialEvalPass {
   )(implicit facts: FactSet): Option[Range] = {
     e match {
       // TODO: Do I need to specially handle tuples and vectors?
-      case _: TupleAccess => None
-      case _: VecAccess   => None
-      case x: Param       => facts.rangeByParam.get(x)
-      case _: FunCall     =>
+      case Tuple(elems @ _*) => Some(TupleRange(elems.map(e => tryGetRange(e))))
+      case TupleAccess(t, IntCst(i)) =>
+        tryGetRange(t) match {
+          case Some(TupleRange(elemRanges)) => elemRanges(i)
+          case _                            => None
+        }
+      case TupleAccess(t, i) =>
+        // In theory, I could take the union of all the element ranges.
+        // But this requires checking that they all have the same shape, and
+        // what are the odds that this scenario will ever happen?
+        None
+      case _: VecAccess => None
+      case x: Param     => facts.rangeByParam.get(x)
+      case _: FunCall   =>
         // If this is a call to a function literal, then we could look for
         // bounds on the function body using facts about the argument, but the
         // partial evaluator will evaluate such function calls anyway so they

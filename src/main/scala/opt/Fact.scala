@@ -69,8 +69,10 @@ case class FactSet(rangeByParam: Map[Param, Range] = Map()) {
     *   old range with the new one.
     */
   def range(x: Param, r: Range): FactSet = {
-    val oldRange = rangeByParam.getOrElse(x, r.full())
-    val newRange = oldRange.intersect(r)
+    val newRange = rangeByParam.get(x) match {
+      case None           => r
+      case Some(oldRange) => oldRange.intersect(r)
+    }
     FactSet(rangeByParam + (x -> newRange))
   }
 }
@@ -78,9 +80,8 @@ case class FactSet(rangeByParam: Map[Param, Range] = Map()) {
 sealed trait Range {
   def union(that: Range): Range
   def intersect(that: Range): Range
-  def full(): Range
-  def empty(): Range
 }
+
 case class ScalarRange(lower: IntOrInf, upper: IntOrInf) extends Range {
   override def union(that: Range): ScalarRange = {
     that match {
@@ -109,12 +110,62 @@ case class ScalarRange(lower: IntOrInf, upper: IntOrInf) extends Range {
         )
     }
   }
-
-  override def full(): ScalarRange = ScalarRange.full()
-
-  override def empty(): ScalarRange = ScalarRange.empty()
 }
 object ScalarRange {
   def full(): ScalarRange = ScalarRange(NegInf, PosInf)
   def empty(): ScalarRange = ScalarRange(PosInf, NegInf)
+}
+
+case class TupleRange(elemRanges: Seq[Option[Range]]) extends Range {
+  override def union(that: Range): Range = {
+    that match {
+      case that: TupleRange =>
+        if (this.elemRanges.length != that.elemRanges.length) {
+          throw new IllegalArgumentException(
+            s"Cannot take union of TupleRanges of length ${this.elemRanges.length} and ${that.elemRanges.length}."
+          )
+        } else {
+          TupleRange(
+            this.elemRanges
+              .zip(that.elemRanges)
+              .map({
+                case (Some(r1), Some(r2)) => Some(r1.union(r2))
+                case (Some(r1), None)     => Some(r1)
+                case (None, Some(r2))     => Some(r2)
+                case (None, None)         => None
+              })
+          )
+        }
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Cannot take union of ${this.getClass.getSimpleName} with ${that.getClass.getSimpleName}."
+        )
+    }
+  }
+
+  override def intersect(that: Range): Range = {
+    that match {
+      case that: TupleRange =>
+        if (this.elemRanges.length != that.elemRanges.length) {
+          throw new IllegalArgumentException(
+            s"Cannot take union of TupleRanges of length ${this.elemRanges.length} and ${that.elemRanges.length}."
+          )
+        } else {
+          TupleRange(
+            this.elemRanges
+              .zip(that.elemRanges)
+              .map({
+                case (Some(r1), Some(r2)) => Some(r1.intersect(r2))
+                case (Some(r1), None)     => Some(r1)
+                case (None, Some(r2))     => Some(r2)
+                case (None, None)         => None
+              })
+          )
+        }
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Cannot take intersection of ${this.getClass.getSimpleName} with ${that.getClass.getSimpleName}."
+        )
+    }
+  }
 }
