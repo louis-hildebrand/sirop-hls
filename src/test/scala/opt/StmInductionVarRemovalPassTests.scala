@@ -25,8 +25,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             acc.__4 + (-6),
             acc.__5 + delta + 1
           ),
-          Tuple(2 * acc.__0, acc.__1 / 3, acc.__2, acc.__3, acc.__4, acc.__5),
-          True
+          SSome(
+            Tuple(2 * acc.__0, acc.__1 / 3, acc.__2, acc.__3, acc.__4, acc.__5)
+          )
         )
     )
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
@@ -59,15 +60,16 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         (acc: Expr) =>
           Tuple(
             Tuple(acc.__0 + 1),
-            Tuple(
-              6 + 2 * acc.__0,
-              3 + (1 + acc.__0 * 4) / 3,
-              19 + (-2) * acc.__0,
-              acc.__0 * 3,
-              -2 + -6 * acc.__0,
-              1 + delta * acc.__0 + acc.__0
-            ),
-            True
+            SSome(
+              Tuple(
+                6 + 2 * acc.__0,
+                3 + (1 + acc.__0 * 4) / 3,
+                19 + (-2) * acc.__0,
+                acc.__0 * 3,
+                -2 + -6 * acc.__0,
+                1 + delta * acc.__0 + acc.__0
+              )
+            )
           )
       )
     assert(opt == ideal)
@@ -81,8 +83,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       (acc: Expr) =>
         Tuple(
           Tuple(acc.__0 + 1, acc.__0 + acc.__1, acc.__2 + 1),
-          acc.__1,
-          acc.__2 >= n
+          IfThenElse(acc.__2 >= n, SSome(acc.__1), NNone)
         )
     )
     val optimized = StmInductionVarRemovalPass.removeInductionVars(triangleSum)
@@ -95,15 +96,16 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // One counter can be removed, but not the sum
-    val ideal = StmBuild(
-      1,
-      Tuple(0, 0),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + acc.__1, acc.__1 + 1),
-          acc.__0,
-          acc.__1 >= n
-        ),
+    val ideal = StmCanonPass.canonicalize(
+      StmBuild(
+        1,
+        Tuple(0, 0),
+        (acc: Expr) =>
+          Tuple(
+            Tuple(acc.__0 + acc.__1, acc.__1 + 1),
+            IfThenElse(acc.__1 >= n, SSome(acc.__0), NNone)
+          ),
+      )
     )
     assert(optimized == ideal)
   }
@@ -117,8 +119,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       (acc: Expr) =>
         Tuple(
           Tuple(StmNext(acc.__0).__0, acc.__1 + StmNext(acc.__0).__1),
-          acc.__1,
-          True
+          SSome(acc.__1)
         )
     )
     val optimized = StmInductionVarRemovalPass.removeInductionVars(scan)
@@ -134,7 +135,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         StmBuild(
           n,
           0,
-          (i: Expr) => Tuple(i + 1, IfThenElse(i % 2 === 0, i, 1), True)
+          (i: Expr) => Tuple(i + 1, SSome(IfThenElse(i % 2 === 0, i, 1)))
         )
       val expected1 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s1, scan)))
       val actual1 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s1, optimized)))
@@ -154,8 +155,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       (acc: Expr) =>
         Tuple(
           Tuple(acc.__0 + 2, VecShiftLeft(acc.__1, acc.__0)),
-          VecShiftLeft(acc.__1, acc.__0),
-          True
+          SSome(VecShiftLeft(acc.__1, acc.__0))
         )
     )
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
@@ -184,21 +184,22 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         (acc: Expr) =>
           Tuple(
             Tuple(acc.__0 + 1),
-            PartialEvalPass.partialEval(
-              VecShiftLeft(
-                VecBuild(
-                  m,
-                  (i: Expr) =>
-                    IfThenElse(
-                      acc.__0 + i < m,
-                      acc.__0 + i,
-                      100 + (acc.__0 + i - m) * 2
-                    )
-                ),
-                100 + acc.__0 * 2
+            SSome(
+              PartialEvalPass.partialEval(
+                VecShiftLeft(
+                  VecBuild(
+                    m,
+                    (i: Expr) =>
+                      IfThenElse(
+                        acc.__0 + i < m,
+                        acc.__0 + i,
+                        100 + (acc.__0 + i - m) * 2
+                      )
+                  ),
+                  100 + acc.__0 * 2
+                )
               )
-            ),
-            True
+            )
           )
       )
     assert(opt == ideal)
@@ -220,8 +221,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             acc.__1 && (acc.__0 < k0),
             acc.__2 && (acc.__0 < k1)
           ),
-          Tuple(acc.__0, acc.__1, acc.__2),
-          Not(acc.__1) && (acc.__0 % 2 === 0)
+          IfThenElse(
+            Not(acc.__1) && (acc.__0 % 2 === 0),
+            SSome(Tuple(acc.__0, acc.__1, acc.__2)),
+            NNone
+          )
         )
     )
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
@@ -245,22 +249,28 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal =
+    val ideal = StmCanonPass.canonicalize(
       StmBuild(
         n,
         Tuple(0),
         (acc: Expr) =>
           Tuple(
             Tuple(acc.__0 + 1),
-            Tuple(
-              i0 + acc.__0 * 3,
-              acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1),
-              acc.__0 < (CeilDiv(Max(0, k1 - i0), delta) + 1)
-            ),
-            Not(acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1))
-              && ((i0 + acc.__0 * 3) % 2 === 0)
+            IfThenElse(
+              Not(acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1))
+                && ((i0 + acc.__0 * 3) % 2 === 0),
+              SSome(
+                Tuple(
+                  i0 + acc.__0 * 3,
+                  acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1),
+                  acc.__0 < (CeilDiv(Max(0, k1 - i0), delta) + 1)
+                )
+              ),
+              NNone
+            )
           )
       )
+    )
     assert(opt == ideal)
   }
 
@@ -278,8 +288,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             IfThenElse(acc.__1, acc.__0 + delta, acc.__0),
             acc.__1 && (acc.__0 < k)
           ),
-          Tuple(acc.__0, acc.__1),
-          True
+          SSome(Tuple(acc.__0, acc.__1))
         )
     )
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)

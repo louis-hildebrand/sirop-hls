@@ -22,12 +22,6 @@ object StmTracer {
         val next = PartialEvalPass.partialEval(FunCall(nextF, acc))
         val nextAcc = PartialEvalPass.partialEval(next.__0)
         val nextOut = PartialEvalPass.partialEval(next.__1)
-        val valid = PartialEvalPass.partialEval(next.__2) match {
-          case True  => true
-          case False => false
-          case e =>
-            throw new IllegalArgumentException(s"Unknown boolean value ${e}")
-        }
         val accStr =
           PrettyPrinter.show(acc, collapseStm = true, evalVec = true)(Map())
         val outStr = PrettyPrinter.show(nextOut, evalVec = true)(Map())
@@ -35,8 +29,15 @@ object StmTracer {
           s"""Step ${step}:
              |    Accumulator: ${accStr}
              |    Next output: ${outStr}
-             |     Next valid: ${PrettyPrinter.show(valid)(Map())}
              |""".stripMargin.stripTrailing
+        val valid = nextOut match {
+          case Tuple(_, True)  => true
+          case Tuple(_, False) => false
+          case e =>
+            throw new IllegalArgumentException(
+              s"Invalid stream output ${e}. Expected an Option (i.e., a tuple whose second element is a boolean)."
+            )
+        }
         summary +: trace(
           if (valid) n - 1 else n,
           nextAcc,

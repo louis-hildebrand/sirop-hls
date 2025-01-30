@@ -1,11 +1,6 @@
-import lift.arithmetic.{ArithExpr, SimplifiedExpr, simplifier => aes}
-
 import scala.language.implicitConversions
-import lift.{arithmetic => ae}
 
-import scala.collection.mutable
-
-package object ir {
+package object ir extends OptionType {
   def contains(e1: Expr, e2: Expr): Boolean = {
     e1 match {
       case _ if e1 == e2 => true

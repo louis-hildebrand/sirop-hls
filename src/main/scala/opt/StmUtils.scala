@@ -13,7 +13,7 @@ object StmUtils {
         Let(
           p,
           FunCall(stm.nextF, acc.__0),
-          Tuple(Tuple(p.__0, FunCall(next, acc.__1)), p.__1, p.__2)
+          Tuple(Tuple(p.__0, FunCall(next, acc.__1)), p.__1)
         )
     )
   }
@@ -26,8 +26,8 @@ object StmUtils {
     *   The stream with the given accumulator elements removed.
     */
   def removeAccumulatorElemsByIndex(
-      stm: StmBuild,
-      indicesToRemove: Seq[Int]
+                                     stm: StmBuild,
+                                     indicesToRemove: Seq[Int]
   ): StmBuild = {
     val seed = stm.seed.asInstanceOf[Tuple]
     // Need to adjust indices used to read accumulator.
@@ -99,7 +99,7 @@ object StmUtils {
   def transformHead(f: Expr => Expr)(e: Expr): Expr = {
     e match {
       case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild |
-          Tuple() =>
+           Tuple() =>
         throw new IllegalArgumentException(
           "Failed to transform due to an apparent type error."
         )

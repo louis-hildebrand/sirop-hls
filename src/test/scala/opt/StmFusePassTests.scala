@@ -30,7 +30,7 @@ class StmFusePassTests extends AnyFunSuite {
       StmBuild(
         3,
         Tuple(0),
-        (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0 + 5, True)
+        (acc: Expr) => Tuple(Tuple(acc.__0 + 1), SSome(acc.__0 + 5))
       )
     assert(actual == ideal)
   }
@@ -61,11 +61,11 @@ class StmFusePassTests extends AnyFunSuite {
       Tuple(p),
       (acc: Expr) =>
         Tuple(
-          Tuple(StmNext(acc.__0).__0), {
+          Tuple(StmNext(acc.__0).__0),
+          SSome({
             val x = StmNext(acc.__0).__1
             (x + 2) * (x + 3) * (x + 4) + -10
-          },
-          True
+          })
         )
     )
     assert(actual == ideal)
@@ -136,16 +136,14 @@ class StmFusePassTests extends AnyFunSuite {
             acc.__2 < (StmLength(p) + -1),
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              StmNext(acc.__0).__1,
-              True
+              SSome(StmNext(acc.__0).__1)
             ),
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              DontCare,
-              False
+              NNone
             )
           ),
-          Tuple(Tuple(acc.__0, acc.__1 + -1, acc.__2), 42, True)
+          Tuple(Tuple(acc.__0, acc.__1 + -1, acc.__2), SSome(42))
         )
     )
     assert(actual == ideal)
@@ -164,36 +162,35 @@ class StmFusePassTests extends AnyFunSuite {
     assert(stm2Seq(call(s)) == expectedElems)
     assert(stm2Seq(call(actual)) == expectedElems)
     // Successful fusion
-    val ideal = StmBuild(
-      5,
-      Tuple(p, 4, 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__1 === 0,
-          Tuple(Tuple(acc.__0, acc.__1, acc.__2), 42, True),
+    val ideal =
+      StmBuild(
+        5,
+        Tuple(p, 4, 0),
+        (acc: Expr) =>
           IfThenElse(
-            acc.__2 >= 1,
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1 + -1, acc.__2 + 1),
-              StmNext(acc.__0).__1,
-              True
-            ),
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              DontCare,
-              False
+            acc.__1 === 0,
+            Tuple(Tuple(acc.__0, acc.__1, acc.__2), SSome(42)),
+            IfThenElse(
+              acc.__2 >= 1,
+              Tuple(
+                Tuple(StmNext(acc.__0).__0, acc.__1 + -1, acc.__2 + 1),
+                SSome(StmNext(acc.__0).__1)
+              ),
+              Tuple(
+                Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
+                NNone
+              )
             )
           )
-        )
-    )
+      )
     assert(actual == ideal)
   }
 
   test("ZipCounters") {
     // [0, 1, 2, 3]
-    val c1 = StmBuild(4, 0, (i: Expr) => Tuple(i + 1, i, True))
+    val c1 = StmBuild(4, 0, (i: Expr) => Tuple(i + 1, SSome(i)))
     // [9, 11, 13, 15]
-    val c2 = StmBuild(4, 9, (i: Expr) => Tuple(i + 2, i, True))
+    val c2 = StmBuild(4, 9, (i: Expr) => Tuple(i + 2, SSome(i)))
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
     val s = StmZip(c1, c2)
 
@@ -204,12 +201,11 @@ class StmFusePassTests extends AnyFunSuite {
     // 1b) Successful fusion
     val ideal1 = StmBuild(
       4,
-      Tuple(StmBuild(4, 9, (i: Expr) => Tuple(i + 2, i, True)), 0),
+      Tuple(StmBuild(4, 9, (i: Expr) => Tuple(i + 2, SSome(i))), 0),
       (acc: Expr) =>
         Tuple(
           Tuple(StmNext(acc.__0).__0, acc.__1 + 1),
-          Tuple(acc.__1, StmNext(acc.__0).__1),
-          True
+          SSome(Tuple(acc.__1, StmNext(acc.__0).__1))
         )
     )
     assert(actual1 == ideal1)
@@ -226,7 +222,7 @@ class StmFusePassTests extends AnyFunSuite {
       4,
       Tuple(0, 9),
       (acc: Expr) =>
-        Tuple(Tuple(acc.__0 + 1, acc.__1 + 2), Tuple(acc.__0, acc.__1), True)
+        Tuple(Tuple(acc.__0 + 1, acc.__1 + 2), SSome(Tuple(acc.__0, acc.__1)))
     )
     assert(canon(fuse(fuse(s))) == ideal2)
   }

@@ -35,7 +35,7 @@ private object Helpers {
             1,
             x,
             (acc: Expr) =>
-              Tuple(StmNext(acc).__0, FunCall(f, StmNext(acc).__1), True)
+              Tuple(StmNext(acc).__0, SSome(FunCall(f, StmNext(acc).__1)))
           )
         )
       }
@@ -94,8 +94,7 @@ private object Helpers {
                         StmNext(newAcc.__1).__1,
                         False
                       ),
-                      DontCare,
-                      False
+                      NNone
                     ),
                     // Continue as usual
                     Tuple(
@@ -105,8 +104,7 @@ private object Helpers {
                         newAcc.__2,
                         newAcc.__3
                       ),
-                      innerNext.__1,
-                      innerNext.__2
+                      innerNext.__1
                     )
                   )
                 )
@@ -133,7 +131,7 @@ private object Helpers {
         StmBuild(
           outShape.getOrElse(1),
           s,
-          (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
+          (acc: Expr) => Tuple(StmNext(acc).__0, SSome(StmNext(acc).__1))
         )
       f2
     } else {
@@ -180,7 +178,7 @@ object StmDrain {
     StmBuild(
       0,
       stm,
-      (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, False)
+      (acc: Expr) => Tuple(StmNext(acc).__0, NNone)
     )
   }
 }
@@ -206,13 +204,11 @@ object Iterate {
           acc.__0 === 0,
           Tuple(
             Tuple(acc.__0, acc1Expanded),
-            acc1Expanded,
-            True
+            SSome(acc1Expanded)
           ),
           Tuple(
             Tuple(acc.__0 - 1, FunCall(f, acc.__1)),
-            acc1Expanded,
-            False
+            NNone
           )
         )
       }
@@ -229,7 +225,7 @@ object Iterate {
 //       something worth looking into.
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ =
-    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), c, True))
+    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(c)))
 }
 
 object StmCount {
@@ -255,7 +251,7 @@ object StmRange {
     *   + 2 * delta, ...]</code>.
     */
   def apply(n: Expr, z: Expr, delta: Expr): Expr = {
-    StmBuild(n, z, (acc: Expr) => Tuple(acc + delta, acc, True))
+    StmBuild(n, z, (acc: Expr) => Tuple(acc + delta, SSome(acc)))
   }
 }
 
@@ -264,7 +260,7 @@ object StmCst2D {
     StmBuild(
       n * m,
       Tuple(),
-      (_: Expr) => Tuple(Tuple(), c, True)
+      (_: Expr) => Tuple(Tuple(), SSome(c))
     )
   }
 }
@@ -281,8 +277,7 @@ object StmCount2D {
             Tuple(acc.__0 + 1, 0),
             Tuple(acc.__0, acc.__1 + 1)
           ),
-          Tuple(acc.__0, acc.__1),
-          True
+          SSome(Tuple(acc.__0, acc.__1))
         )
     )
   }
@@ -306,7 +301,9 @@ object StmMap {
     //       pretty gross
     val inner =
       StmCanonPass.canonicalize(
-        PartialEvalPass.partialEval(FunCall(stmF, input)).asInstanceOf[StmBuild]
+        PartialEvalPass
+          .partialEval(FunCall(stmF, input))
+          .asInstanceOf[StmBuild]
       )
     // TODO: Deal with multiple input streams?
     // TODO: This check, as well as things like reordering the accumulator, is NOT reliable as currently written (e.g.,
@@ -322,7 +319,7 @@ object StmMap {
     )
     n match {
       case IntCst(0) =>
-        StmBuild(0, Tuple(), (acc: Expr) => Tuple(Tuple(), DontCare, True))
+        StmBuild(0, Tuple(), (acc: Expr) => Tuple(Tuple(), NNone))
       case IntCst(1) =>
         // No need to reset
         inner
@@ -386,7 +383,7 @@ object StmMap {
         )
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
         ???
-      case Tuple(a, e, valid) =>
+      case Tuple(a, out) =>
         val newInCtr = a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
@@ -403,12 +400,12 @@ object StmMap {
             )
           case _ => ???
         }
-        val newOutCtr = IfThenElse(
-          valid,
+        val newOutCtr = OptionAccess(
+          out,
           // Output produced, so decrement the output counter.
-          newAcc.__2 - 1,
+          (_: Expr) => newAcc.__2 - 1,
           // No output produced, so do not decrement the output counter.
-          newAcc.__2
+          (_: Expr) => newAcc.__2
         )
         val newAccVal = IfThenElse(
           (newInCtr === 0) && (newOutCtr === 0),
@@ -421,7 +418,7 @@ object StmMap {
           // Don't reset anything
           Tuple(a, newInCtr, newOutCtr)
         )
-        Tuple(newAccVal, e, valid)
+        Tuple(newAccVal, out)
       case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
           _: Tuple =>
         throw new IllegalArgumentException(
@@ -453,8 +450,11 @@ object StmAccess {
             Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
             Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
           ),
-          StmNext(acc.__0).__1,
-          acc.__1 === i
+          IfThenElse(
+            acc.__1 === i,
+            SSome(StmNext(acc.__0).__1),
+            NNone
+          )
         )
     )
   }
@@ -501,7 +501,12 @@ object StmScanInclusive {
     val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
     StmBuild(
       stmShape.head,
-      Tuple(inner.seed, z, numIn, 1), {
+      Tuple(
+        inner.seed, /* Accumulator for the inner function */
+        z,
+        numIn, /* Input counter */
+        1 /* Output counter */
+      ), {
         val newAcc = Param("acc")
         Function(
           newAcc,
@@ -546,7 +551,7 @@ object StmScanInclusive {
             numIn = numIn
           )
         )
-      case Tuple(a, e, valid) =>
+      case Tuple(a, out) =>
         val newInCtr = a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
@@ -563,13 +568,14 @@ object StmScanInclusive {
             )
           case _ => ???
         }
-        val newOutCtr = IfThenElse(
-          valid,
+        val newOutCtr = OptionAccess(
+          out,
           // Output produced, so decrement the output counter.
-          newAcc.__3 - 1,
+          (_: Expr) => newAcc.__3 - 1,
           // No output produced, so do not decrement the output counter.
-          newAcc.__3
+          (_: Expr) => newAcc.__3
         )
+        val output = OptionAccess(out, (e: Expr) => e, (_: Expr) => newAcc.__1)
         val newAccVal =
           IfThenElse(
             (newInCtr === 0) && (newOutCtr === 0),
@@ -577,20 +583,20 @@ object StmScanInclusive {
             Tuple(
               // Never reset the input stream
               Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
-              IfThenElse(valid, e, newAcc.__1),
+              output,
               numIn,
               1
             ),
             // No reset
             Tuple(
               a,
-              IfThenElse(valid, e, newAcc.__1),
+              output,
               newInCtr,
               newOutCtr
             )
           )
         val newValid = (newInCtr === 0) && (newOutCtr === 0)
-        Tuple(newAccVal, IfThenElse(valid, e, newAcc.__1), newValid)
+        Tuple(newAccVal, IfThenElse(newValid, SSome(output), NNone))
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
         ???
       case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
@@ -625,7 +631,7 @@ object Vec2Stm {
   def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ =
     // TODO: Would it be better to use a shift register for accessing the
     //       input?
-    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, VecAccess(v, i), True))
+    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, SSome(VecAccess(v, i))))
 }
 
 /////////////////////////
@@ -638,7 +644,7 @@ object StmPrepend {
       eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val eStm = if (eShape.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
+      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
     } else {
       e
     }
@@ -651,14 +657,12 @@ object StmPrepend {
           // Read from stm
           Tuple(
             Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            StmNext(acc.__1).__1,
-            True
+            SSome(StmNext(acc.__1).__1)
           ),
           // Read from eStm
           Tuple(
             Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            StmNext(acc.__0).__1,
-            True
+            SSome(StmNext(acc.__0).__1)
           )
         )
       }
@@ -674,7 +678,7 @@ object StmAppend {
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val eStm = if (stmShape.tail.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), e, True))
+      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
     } else {
       e
     }
@@ -687,14 +691,12 @@ object StmAppend {
           // Take from eStm
           Tuple(
             Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            StmNext(acc.__1).__1,
-            True
+            SSome(StmNext(acc.__1).__1)
           ),
           // Take from stm
           Tuple(
             Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            StmNext(acc.__0).__1,
-            True
+            SSome(StmNext(acc.__0).__1)
           )
         )
     )
@@ -731,8 +733,11 @@ object StmPrefix {
             Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
             Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
           ),
-          StmNext(acc.__0).__1,
-          acc.__1 < k
+          IfThenElse(
+            acc.__1 < k,
+            SSome(StmNext(acc.__0).__1),
+            NNone
+          )
         )
     )
   }
@@ -769,8 +774,11 @@ object StmSuffix {
             Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
             Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
           ),
-          StmNext(acc.__0).__1,
-          acc.__1 >= n - k
+          IfThenElse(
+            acc.__1 >= n - k,
+            SSome(StmNext(acc.__0).__1),
+            NNone
+          )
         )
     )
   }
@@ -825,12 +833,12 @@ object StmConcat {
           Let(
             p,
             StmNext(acc.__0),
-            Tuple(Tuple(p.__0, acc.__1, acc.__2 - 1), p.__1, True)
+            Tuple(Tuple(p.__0, acc.__1, acc.__2 - 1), SSome(p.__1))
           ),
           Let(
             p,
             StmNext(acc.__1),
-            Tuple(Tuple(acc.__0, p.__0, acc.__2), p.__1, True)
+            Tuple(Tuple(acc.__0, p.__0, acc.__2), SSome(p.__1))
           )
         )
     )
@@ -849,8 +857,7 @@ object StmZip {
       (acc: Expr) =>
         Tuple(
           Tuple(StmNext(acc.__0).__0, StmNext(acc.__1).__0),
-          Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1),
-          True
+          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
         )
     )
   }
@@ -869,8 +876,7 @@ object StmZipAlternating {
       (acc: Expr) =>
         Tuple(
           Tuple(StmNext(acc.__1).__0, StmNext(acc.__0).__0),
-          Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1),
-          True
+          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
         )
     )
   }
@@ -909,8 +915,7 @@ object StmRepeat {
                 True
               )
             ),
-            VecAccess(acc.__1, acc.__2),
-            False
+            NNone
           ),
           // Shift register is full
           Tuple(
@@ -920,8 +925,7 @@ object StmRepeat {
               IfThenElse(acc.__2 === n - 1, 0, acc.__2 + 1),
               False
             ),
-            VecAccess(acc.__1, acc.__2),
-            True
+            SSome(VecAccess(acc.__1, acc.__2))
           )
         )
     )
@@ -988,8 +992,7 @@ object StmSlideV {
             // CASE 1: Shift register is full
             Tuple(
               Tuple(StmNext(acc.__0).__0, acc.__1, elemSize, v),
-              v,
-              True
+              SSome(v)
             ),
             // CASE 2: Shift register is not full yet
             Tuple(
@@ -1006,8 +1009,7 @@ object StmSlideV {
                   Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v)
                 )
               ),
-              v,
-              False
+              NNone
             )
           )
         )

@@ -9,7 +9,7 @@ object StmCanonPass {
       StmBuild(
         n,
         p,
-        (acc: Expr) => Tuple(StmNext(acc).__0, StmNext(acc).__1, True)
+        (acc: Expr) => Tuple(StmNext(acc).__0, SSome(StmNext(acc).__1))
       )
     )
   }
@@ -185,7 +185,8 @@ object StmCanonPass {
           moveIfThenElseOutsideTuple(falseE)
         )
       case DontCare => DontCare
-      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
+      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild |
+           _: VecBuild =>
         // Definitely will not evaluate to a tuple
         e
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
@@ -216,8 +217,8 @@ object StmCanonPass {
     */
   @tailrec
   private def findConstantAccumulatorElems(
-      stm: StmBuild,
-      indices: Set[Int]
+                                            stm: StmBuild,
+                                            indices: Set[Int]
   ): Set[Int] = {
     if (indices.isEmpty) {
       Set()

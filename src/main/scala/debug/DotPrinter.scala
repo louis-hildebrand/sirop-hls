@@ -292,7 +292,7 @@ case class DotStream(z: DotNode, f: DotFunction, innerScope: StreamScope)
   override val scope: Scope = innerScope.parent
   override def edges: Set[DotEdge] = {
     val tupleOut = f.body.asInstanceOf[DotTuple]
-    assert(tupleOut.cells.length == 3)
+    assert(tupleOut.cells.length == 2)
     val nextAccCell = tupleOut.cells.head
     (z.edges
       ++ f.edges

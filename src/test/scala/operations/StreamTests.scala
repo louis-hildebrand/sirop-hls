@@ -2,7 +2,6 @@ package operations
 
 import ir._
 import opt.PartialEvalPass
-//import opt.Optimizer
 import org.scalatest.funsuite.AnyFunSuite
 
 object StreamTests {
@@ -190,7 +189,7 @@ class StreamTests extends AnyFunSuite {
         StmBuild(
           Tuple(Tuple(3, 3)),
           i,
-          (acc: Expr) => Tuple(acc + 1, Tuple(i, acc), True)
+          (acc: Expr) => Tuple(acc + 1, SSome(Tuple(i, acc)))
         ),
       n = 3,
       fInShape = None,

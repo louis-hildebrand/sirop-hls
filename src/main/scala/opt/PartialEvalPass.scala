@@ -5,7 +5,6 @@ import ir._
 object PartialEvalPass {
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
     e match {
-
       case t: Tuple => Tuple(t.elems.map(partialEval): _*)
       case TupleAccess(t: Expr, i: Expr) =>
         (partialEval(t), partialEval(i)) match {
@@ -153,8 +152,8 @@ object PartialEvalPass {
       case StmLength(s) =>
         partialEval(s) match {
           case s: StmBuild => partialEval(s.length)
-          case DontCare    => DontCare
-          case s @ _       => StmLength(s)
+          case DontCare     => DontCare
+          case s @ _        => StmLength(s)
         }
 
       case StmNext(s: Expr) =>
@@ -167,12 +166,12 @@ object PartialEvalPass {
                   case next: Tuple =>
                     val n = next.elems.length
                     require(
-                      n == 3,
-                      s"The function in StmBuild returned a ${n}-tuple instead of a 3-tuple."
+                      n == 2,
+                      s"The function in StmBuild returned a ${n}-tuple instead of a 2-tuple."
                     )
-                    partialEval(next.__2) match {
-                      case True =>
-                        // return the new stream and the next element
+                    partialEval(next.__1) match {
+                      case Tuple(e, True) =>
+                        // return the new stream and element
                         Tuple(
                           StmBuild(
                             len - 1,
@@ -180,9 +179,9 @@ object PartialEvalPass {
                             // this function may have free parameters
                             partialEval(s.nextF).asInstanceOf[Function]
                           ),
-                          partialEval(next.__1)
+                          partialEval(e)
                         )
-                      case False =>
+                      case Tuple(_, False) =>
                         // skip this element, look for the next one
                         partialEval(
                           StmNext(
@@ -274,7 +273,7 @@ object PartialEvalPass {
       case _: VecAccess    => false
       case _: VecLength    => false
       case FunCall(f, arg) => ???
-      case _: StmBuild     => ???
+      case _: StmBuild    => ???
       case e               => e.children.exists(c => hasSideEffects(c))
     }
   }
@@ -381,7 +380,7 @@ object PartialEvalPass {
         // supposed to do now?
         Some(ScalarRange.full())
       case _: Tuple | _: Function | _: BoolExpr | DontCare | _: StmBuild |
-          _: StmNext | _: VecBuild =>
+           _: StmNext | _: VecBuild =>
         None
     }
   }

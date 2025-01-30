@@ -48,7 +48,10 @@ object StmInductionVarRemovalPass {
     *   A function that returns the value of the `i`-th accumulator element as a
     *   function of a simple up-counter.
     */
-  private def tryGetInductionVarByIdx(s: StmBuild, i: Int): Option[Function] = {
+  private def tryGetInductionVarByIdx(
+                                       s: StmBuild,
+                                       i: Int
+  ): Option[Function] = {
     val seed = s.seed.asInstanceOf[Tuple]
     val z = seed.elems(i)
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
@@ -202,7 +205,7 @@ object StmInductionVarRemovalPass {
           case _ => None
         }
       case DontCare     => Some((_: Expr) => DontCare)
-      case _: StmBuild  => None
+      case _: StmBuild => None
       case _: StmNext   => None
       case _: StmLength => None
       case VecBuild(n, f) =>
@@ -316,9 +319,9 @@ object MonotonicBool {
     *   `Some(z, delta)` if this is a counter, otherwise `None`
     */
   private def tryGetMonotonicCounter(
-      s: StmBuild,
-      i: Int,
-      j: Int
+                                      s: StmBuild,
+                                      i: Int,
+                                      j: Int
   ): Option[(Expr, Int)] = {
     val cntrInit = s.seed.asInstanceOf[Tuple].elems(j)
     val cntrUpdateExpr =
@@ -357,7 +360,9 @@ object LeftShiftRegister {
     *   <code>Some((n, f, e))</code> if the given expression is a left shift
     *   register, otherwise <code>None</code>.
     */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr, Expr)] = {
+  def unapply(
+      args: (Expr, Expr, StmBuild, Int)
+  ): Option[(Expr, Expr, Expr)] = {
     // TODO: Do I need to watch out for side effects and make sure `e` doesn't depend on `acc` and so on here too?
     val (z, next, stm, i) = args
     val acc = stm.nextF.param

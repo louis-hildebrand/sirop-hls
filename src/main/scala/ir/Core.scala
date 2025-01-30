@@ -136,7 +136,6 @@ case object Let {
   }
 }
 
-// TODO: Get rid of this
 sealed trait BinOp extends Expr {
   val e1: Expr
   val e2: Expr
@@ -237,10 +236,10 @@ case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
 
 // Boolean expressions
 sealed trait BoolExpr extends Expr
-object True extends BoolExpr {
+case object True extends BoolExpr {
   override def children: Seq[Expr] = Seq()
 }
-object False extends BoolExpr {
+case object False extends BoolExpr {
   override def children: Seq[Expr] = Seq()
 }
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
@@ -266,12 +265,26 @@ case object DontCare extends Expr {
   override def children: Seq[Expr] = Seq()
 }
 
+// Option<T>
+trait OptionType {
+  val NNone: Expr = Tuple(DontCare, False)
+}
+case object SSome {
+  def apply(e: Expr /* T */ ): Expr = Tuple(e, True)
+}
+case object OptionAccess {
+  def apply(
+      e: Expr /* Option<T> */,
+      s: Expr /* T -> V */,
+      n: Expr /* V */
+  ): Expr /* V */ = IfThenElse(e.__1, FunCall(s, e.__0), FunCall(n, Tuple()))
+}
+
 // Streams
 case class StmBuild(
     length: Expr,
     seed: Expr /*A*/,
-    // TODO: Use Option<B> instead of (B, Bool) in the final IR
-    nextF: Function /* A -> (A, B, Bool)*/
+    nextF: Function /* A -> (A, Option<B>)*/
 ) extends Expr {
   override def children: Seq[Expr] = Seq(length, seed, nextF)
 }

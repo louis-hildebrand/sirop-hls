@@ -37,7 +37,7 @@ class OptimizationTests extends AnyFunSuite {
       StmBuild(
         n,
         0,
-        (i: Expr) => Tuple(1 + i, FunCall(f, i), True)
+        (i: Expr) => Tuple(1 + i, SSome(FunCall(f, i)))
       )
     assert(actual == ideal)
   }
@@ -70,7 +70,7 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = StmBuild(
       1,
       Tuple(),
-      (acc: Expr) => Tuple(Tuple(), VecBuild(n, (_: Expr) => c), True)
+      (acc: Expr) => Tuple(Tuple(), SSome(VecBuild(n, (_: Expr) => c)))
     )
     // TODO: update `valid` expression as well and then remove the unnecessary counter
     // assert(v == ideal)
@@ -115,7 +115,7 @@ class OptimizationTests extends AnyFunSuite {
       1,
       Tuple(),
       (acc: Expr) =>
-        Tuple(Tuple(), VecBuild(n, (i: Expr) => z + i * delta), True)
+        Tuple(Tuple(), SSome(VecBuild(n, (i: Expr) => z + i * delta)))
     )
     // TODO: update `valid` expression as well and then remove the unnecessary counter
     // assert(v == ideal)
