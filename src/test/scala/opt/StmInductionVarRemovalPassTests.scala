@@ -60,12 +60,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           Tuple(
             Tuple(acc.__0 + 1),
             Tuple(
-              2 * (3 + acc.__0),
-              (10 + acc.__0 * 4) / 3,
-              19 + -2 * acc.__0,
+              6 + 2 * acc.__0,
+              3 + (1 + acc.__0 * 4) / 3,
+              19 + (-2) * acc.__0,
               acc.__0 * 3,
               -2 + -6 * acc.__0,
-              1 + (delta + 1) * acc.__0
+              1 + delta * acc.__0 + acc.__0
             ),
             True
           )

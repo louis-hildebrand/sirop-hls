@@ -32,17 +32,21 @@ object PartialEvalPass {
         }
 
       case Sum(terms) =>
-        ArithSimplifier.simplifySum(terms.map(e => partialEval(e)))
+        ArithSimplifier.simplifyArithmetic(
+          Sum(terms.map(e => partialEval(e)): _*)
+        )
       case Prod(factors) =>
-        ArithSimplifier.simplifyProd(factors.map(e => partialEval(e)))
+        ArithSimplifier.simplifyArithmetic(
+          Prod(factors.map(e => partialEval(e)): _*)
+        )
       case Div(e1: Expr, e2: Expr) =>
-        ArithSimplifier.simplifyDiv(partialEval(e1), partialEval(e2))
+        ArithSimplifier.simplifyArithmetic(
+          Div(partialEval(e1), partialEval(e2))
+        )
       case Mod(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)      => e1.i % e2.i
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1 @ _, e2 @ _)              => Mod(e1, e2)
-        }
+        ArithSimplifier.simplifyArithmetic(
+          Mod(partialEval(e1), partialEval(e2))
+        )
       case IntCst(_) => e
 
       case True  => True

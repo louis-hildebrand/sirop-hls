@@ -1,4 +1,9 @@
+import lift.arithmetic.{ArithExpr, SimplifiedExpr, simplifier => aes}
+
 import scala.language.implicitConversions
+import lift.{arithmetic => ae}
+
+import scala.collection.mutable
 
 package object ir {
   def contains(e1: Expr, e2: Expr): Boolean = {

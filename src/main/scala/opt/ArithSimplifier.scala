@@ -1,135 +1,138 @@
 package opt
 
 import ir._
+import lift.{arithmetic => ae}
+import lift.arithmetic.{simplifier => aes}
+
+import scala.collection.mutable
 
 object ArithSimplifier {
-  def simplifySum(terms: Seq[Expr]): Expr = {
-    val newTerms = if (terms.contains(DontCare)) {
-      Seq(DontCare)
-    } else {
-      // Flatten addition tree to maximise opportunities for the following simplifications
-      val flatTerms = terms.flatMap({
-        case Sum(terms) => terms
-        case e          => Seq(e)
-      })
-      // Combine constants (which also eliminates zeros)
-      val const = flatTerms
-        .flatMap({
-          case IntCst(n) => Some(n)
-          case _         => None
-        })
-        .sum
-      val nonConstants = flatTerms.filter(e => !e.isInstanceOf[IntCst])
-      // Combine like terms
-      val coefficientsAndTerms = nonConstants.map({
-        case Prod(factors) => coefficientAndRemaining(factors)
-        case e             => (1, e)
-      })
-      val coefficientByTerm = coefficientsAndTerms
-        .groupBy({ case (_, e) => e })
-        .map({ case (e, coeffs) =>
-          e -> coeffs.map({ case (c, _) => c }).sum
-        })
-      val newTerms = coefficientByTerm.toSeq
-        .flatMap({
-          case (_, 0)             => None
-          case (e, 1)             => Some(e)
-          case (Prod(factors), c) => Some(Prod(IntCst(c) +: factors: _*))
-          case (e, c)             => Some(Prod(IntCst(c), e))
-        })
-      if (const == 0) {
-        newTerms
-      } else {
-        IntCst(const) +: newTerms
-      }
-    }
-    if (newTerms.isEmpty) {
-      IntCst(0)
-    } else if (newTerms.length == 1) {
-      newTerms.head
-    } else {
-      Sum(newTerms: _*)
-    }
-  }
 
-  def simplifyProd(factors: Seq[Expr]): Expr = {
-    val newFactors = if (factors.contains(DontCare)) {
-      Seq(DontCare)
-    } else if (factors.contains(IntCst(0))) {
-      Seq(IntCst(0))
-    } else {
-      // Flatten multiplication tree to maximise opportunities for the following simplifications
-      val flatFactors = factors.flatMap({
-        case Prod(factors) => factors
-        case e             => Seq(e)
-      })
-      // Combine constants (which also eliminates ones)
-      val const = flatFactors
-        .flatMap({
-          case IntCst(n) => Some(n)
-          case _         => None
-        })
-        .product
-      val nonConstants = flatFactors.filter(e => !e.isInstanceOf[IntCst])
-      if (const == 1) {
-        nonConstants
-      } else {
-        IntCst(const) +: nonConstants
-      }
-    }
-    if (newFactors.isEmpty) {
-      IntCst(1)
-    } else if (newFactors.length == 1) {
-      newFactors.head
-    } else {
-      Prod(newFactors: _*)
-    }
-  }
-
-  def simplifyDiv(numerator: Expr, denominator: Expr): Expr = {
-    val (numer, denom) = denominator match {
-      case IntCst(c) if c < 0 =>
-        (simplifyProd(Seq(IntCst(-1), numerator)), IntCst(-c))
-      case _ => (numerator, denominator)
-    }
-    (numer, denom) match {
-      case (e1: IntCst, e2: IntCst) => e1.i / e2.i
-      case (e, IntCst(1))           => e
-      case (Prod(factors), IntCst(c)) =>
-        val (newFactors, newDenom) =
-          factors.foldRight((Seq[Expr](), c))((e, acc) =>
-            e match {
-              case IntCst(c) =>
-                val gcd = BigInt(c).gcd(acc._2).toInt
-                (IntCst(c / gcd) +: acc._1, acc._2 / gcd)
-              case e => (e +: acc._1, acc._2)
-            }
-          )
-        val newNumer = simplifyProd(newFactors)
-        newDenom match {
-          case 1 => newNumer
-          case d => Div(newNumer, d)
-        }
-      case (DontCare, _) | (_, DontCare) => DontCare
-      case (e1 @ _, e2 @ _)              => Div(e1, e2)
-    }
-  }
-
-  /** Given a list of factors, find the constant coefficient (or one) and the
-    * remaining term (or one).
+  /** An `ArithExpr` containing an expression that cannot be translated to any
+    * other kind of `ArithExpr` (e.g., a vector access).
+    *
+    * @param e
+    *   The expression inside the black box
+    * @param range
+    *   The range for the expression
     */
-  private def coefficientAndRemaining(factors: Seq[Expr]): (Int, Expr) = {
-    val const = factors
-      .flatMap({
-        case IntCst(n) => Some(n)
-        case _         => None
-      })
-      .product
-    val nonConst = factors.filter(e => !e.isInstanceOf[IntCst]) match {
-      case Seq()   => IntCst(1)
-      case Seq(x)  => x
-      case factors => Prod(factors: _*)
+  private case class BlackBox(
+      e: Expr,
+      override val range: ae.Range = ae.RangeUnknown
+  ) extends ae.ExtensibleVar("", ae.RangeUnknown, Some(BlackBox.identify(e)))
+      with ae.SimplifiedExpr {
+    override def copy(r: ae.Range): BlackBox = {
+      BlackBox(e, r)
     }
-    (const, nonConst)
+
+    override def cloneSimplified(): BlackBox = {
+      BlackBox(e, range)
+    }
+
+    override def visitAndRebuild(
+        f: ae.ArithExpr => ae.ArithExpr
+    ): ae.ArithExpr = {
+      f(BlackBox(e, range.visitAndRebuild(f)))
+    }
+  }
+  private object BlackBox {
+
+    /** Choose a unique identifier for the given expression. The identifier is
+      * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
+      * words, if another instance of the same expression (as determined by
+      * `equals` and `hashCode`) has previously been put in a BlackBox (and has
+      * not been garbage collected), then the same ID will be returned.
+      * Otherwise, the chosen ID will be different from all other
+      * previously-chosen IDs.
+      *
+      * @param e
+      *   An expression
+      * @return
+      *   A unique identifier for the given expression
+      */
+    def identify(e: Expr): Long = {
+      idByExpr.get(e) match {
+        case None =>
+          val id = getFreshId()
+          idByExpr.update(e, id)
+          id
+        case Some(id) => id
+      }
+    }
+
+    /** Store previously-generated IDs so that I can return the same one later.
+      * use a `WeakHashMap` because, if an expression is garbage collected, it
+      * presumably doesn't matter if the ID changes. This seems like a nasty
+      * hack, but the `id` is part of the public interface for `ExtensibleVar`
+      * so `BlackBox` must have one.
+      */
+    private val idByExpr = mutable.WeakHashMap[Expr, Long]()
+
+    private var nextId: Long = 0
+    private def getFreshId(): Long = {
+      nextId += 1
+      nextId
+    }
+  }
+
+  def simplifyArithmetic(e: Expr): Expr = {
+    fromArithExpr(toArithExpr(e)) match {
+      case None    => e
+      case Some(e) => e
+    }
+  }
+
+  private def toArithExpr(e: Expr): ae.ArithExpr with ae.SimplifiedExpr = {
+    e match {
+      case DontCare  => ae.?
+      case IntCst(n) => ae.Cst(n)
+      case Sum(terms) =>
+        val arithTerms = terms.map(toArithExpr).toList
+        aes.SimplifySum(arithTerms)
+      case Prod(factors) =>
+        val arithFactors = factors.map(toArithExpr).toList
+        aes.SimplifyProd(arithFactors)
+      case Div(n, d) => ae.IntDiv(toArithExpr(n), toArithExpr(d))
+      case Mod(n, d) => ae.Mod(toArithExpr(n), toArithExpr(d))
+      //      case IfThenElse(c, t, f) => ???
+      case e => new BlackBox(e)
+    }
+  }
+
+  private def fromArithExpr(a: ae.ArithExpr): Option[Expr] = {
+    a match {
+      case ae.?      => Some(DontCare)
+      case ae.Cst(c) => Some(IntCst(c.toInt))
+      case ae.Sum(terms) =>
+        val exprTerms = terms.map(fromArithExpr)
+        if (exprTerms.forall(e => e.isDefined)) {
+          Some(new Sum(exprTerms.map(e => e.get)))
+        } else {
+          None
+        }
+      case ae.Prod(factors) =>
+        val exprFactors = factors.map(fromArithExpr)
+        if (exprFactors.forall(e => e.isDefined)) {
+          Some(new Prod(exprFactors.map(e => e.get)))
+        } else {
+          None
+        }
+      case ae.IntDiv(n, d) =>
+        (fromArithExpr(n), fromArithExpr(d)) match {
+          case (Some(n), Some(d)) => Some(Div(n, d))
+          case _                  => None
+        }
+      case ae.Mod(dividend, divisor) =>
+        (fromArithExpr(dividend), fromArithExpr(divisor)) match {
+          case (Some(dividend), Some(divisor)) => Some(Mod(dividend, divisor))
+          case _                               => None
+        }
+      //      case AbsFunction(ae)                   => ???
+      //      case FloorFunction(ae)                 => ???
+      //      case CeilingFunction(ae)               => ???
+      //      case arithmetic.IfThenElse(test, t, e) => ???
+      case BlackBox(e, _) => Some(e)
+      case _              => None
+    }
   }
 }
