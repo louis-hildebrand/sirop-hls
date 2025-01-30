@@ -1,5 +1,7 @@
 package ir
 
+import java.util.concurrent.atomic.AtomicLong
+
 sealed trait Expr {
   def +(that: Expr): Expr = Sum(this, that)
   def -(that: Expr): Expr = Sum(this, Prod(-1, that))
@@ -97,7 +99,7 @@ case class TupleAccess(t: Expr, i: Expr) extends Expr {
 }
 
 // Functions
-case class Param(prefix: String, id: Int) extends Expr {
+case class Param(prefix: String, id: Long) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
@@ -105,12 +107,10 @@ case class Param(prefix: String, id: Int) extends Expr {
   override def toString: String = name
 }
 case object Param {
-  private var nextId = 0
+  private val idCtr = new AtomicLong()
 
   def apply(prefix: String = "p"): Param = {
-    val id = nextId
-    nextId += 1
-    new Param(prefix, id)
+    new Param(prefix, idCtr.incrementAndGet())
   }
 }
 

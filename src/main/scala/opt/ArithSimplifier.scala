@@ -4,6 +4,7 @@ import ir._
 import lift.{arithmetic => ae}
 import lift.arithmetic.{simplifier => aes}
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 object ArithSimplifier {
@@ -50,13 +51,15 @@ object ArithSimplifier {
       * @return
       *   A unique identifier for the given expression
       */
-    def identify(e: Expr): Long = {
-      idByExpr.get(e) match {
-        case None =>
-          val id = getFreshId()
-          idByExpr.update(e, id)
-          id
-        case Some(id) => id
+    private def identify(e: Expr): Long = {
+      this.synchronized {
+        idByExpr.get(e) match {
+          case None =>
+            val id = idCtr.incrementAndGet()
+            idByExpr.update(e, id)
+            id
+          case Some(id) => id
+        }
       }
     }
 
@@ -67,12 +70,7 @@ object ArithSimplifier {
       * so `BlackBox` must have one.
       */
     private val idByExpr = mutable.WeakHashMap[Expr, Long]()
-
-    private var nextId: Long = 0
-    private def getFreshId(): Long = {
-      nextId += 1
-      nextId
-    }
+    private val idCtr = new AtomicLong()
   }
 
   def simplifyArithmetic(e: Expr): Expr = {
