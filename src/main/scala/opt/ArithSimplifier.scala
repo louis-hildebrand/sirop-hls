@@ -34,8 +34,8 @@ object ArithSimplifier {
         .flatMap({
           case (_, 0)             => None
           case (e, 1)             => Some(e)
-          case (Prod(factors), c) => Some(Prod(IntCst(c) +: factors))
-          case (e, c)             => Some(Prod(Seq(IntCst(c), e)))
+          case (Prod(factors), c) => Some(Prod(IntCst(c) +: factors: _*))
+          case (e, c)             => Some(Prod(IntCst(c), e))
         })
       if (const == 0) {
         newTerms
@@ -48,7 +48,7 @@ object ArithSimplifier {
     } else if (newTerms.length == 1) {
       newTerms.head
     } else {
-      Sum(newTerms)
+      Sum(newTerms: _*)
     }
   }
 
@@ -82,7 +82,7 @@ object ArithSimplifier {
     } else if (newFactors.length == 1) {
       newFactors.head
     } else {
-      Prod(newFactors)
+      Prod(newFactors: _*)
     }
   }
 
@@ -128,7 +128,7 @@ object ArithSimplifier {
     val nonConst = factors.filter(e => !e.isInstanceOf[IntCst]) match {
       case Seq()   => IntCst(1)
       case Seq(x)  => x
-      case factors => Prod(factors)
+      case factors => Prod(factors: _*)
     }
     (const, nonConst)
   }

@@ -128,7 +128,7 @@ object StmInductionVarRemovalPass {
         val indVars = terms.map(e => tryGetInductionVar(s, e))
         if (indVars.forall(e => e.isDefined)) {
           val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t))))
+          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t)): _*))
         } else {
           None
         }
@@ -136,7 +136,7 @@ object StmInductionVarRemovalPass {
         val indVars = factors.map(e => tryGetInductionVar(s, e))
         if (indVars.forall(e => e.isDefined)) {
           val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t))))
+          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t)): _*))
         } else {
           None
         }
@@ -260,7 +260,7 @@ object Counter {
             val otherTerms = terms.zipWithIndex
               .filter({ case (_, k) => k != j })
               .map({ case (e, _) => e })
-            val delta = Sum(otherTerms)
+            val delta = Sum(otherTerms: _*)
             val isConstantInStream = !ir.contains(delta, acc)
             if (isConstantInStream) {
               Some((z, delta))

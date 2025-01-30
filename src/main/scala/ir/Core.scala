@@ -1,9 +1,9 @@
 package ir
 
 sealed trait Expr {
-  def +(that: Expr): Expr = Sum(Seq(this, that))
-  def -(that: Expr): Expr = Sum(Seq(this, Prod(Seq(-1, that))))
-  def *(that: Expr): Expr = Prod(Seq(this, that))
+  def +(that: Expr): Expr = Sum(this, that)
+  def -(that: Expr): Expr = Sum(this, Prod(-1, that))
+  def *(that: Expr): Expr = Prod(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
   def ===(that: Expr): Equal = Equal(this, that)
@@ -183,7 +183,7 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
   }
 }
 object Sum {
-  def apply(terms: Seq[Expr]): Sum = {
+  def apply(terms: Expr*): Sum = {
     new Sum(terms)
   }
 
@@ -223,7 +223,7 @@ class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
   }
 }
 object Prod {
-  def apply(factors: Seq[Expr]): Prod = {
+  def apply(factors: Expr*): Prod = {
     new Prod(factors)
   }
 
