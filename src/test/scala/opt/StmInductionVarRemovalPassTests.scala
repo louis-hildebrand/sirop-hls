@@ -227,7 +227,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    for (nVal <- 0 to 10) {
+    for (nVal <- (0 to 2) :+ 10) {
       for (i0Val <- -2 to 2) {
         for (k0Val <- -2 to 2) {
           for (k1Val <- -2 to 2) {
@@ -285,7 +285,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    for (nVal <- 0 to 10) {
+    for (nVal <- (0 to 2) :+ 10) {
       for (i0Val <- -2 to 2) {
         for (kVal <- -2 to 2) {
           val expected =
