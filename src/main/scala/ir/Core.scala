@@ -9,7 +9,7 @@ sealed trait Expr {
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
   def ===(that: Expr): Equal = Equal(this, that)
-  def !==(that: Expr): NotEqual = NotEqual(this, that)
+  def !==(that: Expr): Expr = Not(Equal(this, that))
   def <(that: Expr): LessThan = LessThan(this, that)
   def <=(that: Expr): Not = Not(this > that)
   def >(that: Expr): LessThan = that < this
@@ -73,19 +73,18 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Or          => 10
       case _: Not         => 11
       case _: Equal       => 12
-      case _: NotEqual    => 13
-      case _: LessThan    => 14
-      case _: TupleAccess => 15
-      case _: FunCall     => 16
-      case _: IfThenElse  => 17
-      case _: Tuple       => 18
-      case _: Function    => 19
-      case _: StmBuild    => 20
-      case _: StmNext     => 21
-      case _: StmLength   => 22
-      case _: VecBuild    => 23
-      case _: VecAccess   => 24
-      case _: VecLength   => 25
+      case _: LessThan    => 13
+      case _: TupleAccess => 14
+      case _: FunCall     => 15
+      case _: IfThenElse  => 16
+      case _: Tuple       => 17
+      case _: Function    => 18
+      case _: StmBuild    => 19
+      case _: StmNext     => 20
+      case _: StmLength   => 21
+      case _: VecBuild    => 22
+      case _: VecAccess   => 23
+      case _: VecLength   => 24
     }
   }
 }
@@ -251,7 +250,6 @@ case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
 }
 // Comparison operators
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp
-case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 // Logical operators
 case class Not(e: Expr) extends BoolExpr {

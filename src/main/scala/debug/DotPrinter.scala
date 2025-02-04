@@ -419,6 +419,10 @@ object DotPrinter {
         val left = toDot(e.e1, scope)
         val right = toDot(e.e2, scope)
         DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)), scope)
+      case Not(Equal(e1, e2)) =>
+        val left = toDot(e1, scope)
+        val right = toDot(e2, scope)
+        DotScalar("!=", Seq(("", left), ("", right)), scope)
       case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)
@@ -500,7 +504,6 @@ object DotPrinter {
       case _: Or       => "||"
       case _: LessThan => "<"
       case _: Equal    => "=="
-      case _: NotEqual => "!="
     }
   }
 }

@@ -49,8 +49,8 @@ object StmInductionVarRemovalPass {
     *   function of a simple up-counter.
     */
   private def tryGetInductionVarByIdx(
-                                       s: StmBuild,
-                                       i: Int
+      s: StmBuild,
+      i: Int
   ): Option[Function] = {
     val seed = s.seed.asInstanceOf[Tuple]
     val z = seed.elems(i)
@@ -175,12 +175,6 @@ object StmInductionVarRemovalPass {
             Some((t: Expr) => FunCall(f, t) === FunCall(g, t))
           case _ => None
         }
-      case NotEqual(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) !== FunCall(g, t))
-          case _ => None
-        }
       case LessThan(x, y) =>
         (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
           case (Some(f), Some(g)) =>
@@ -205,7 +199,7 @@ object StmInductionVarRemovalPass {
           case _ => None
         }
       case DontCare     => Some((_: Expr) => DontCare)
-      case _: StmBuild => None
+      case _: StmBuild  => None
       case _: StmNext   => None
       case _: StmLength => None
       case VecBuild(n, f) =>
@@ -319,9 +313,9 @@ object MonotonicBool {
     *   `Some(z, delta)` if this is a counter, otherwise `None`
     */
   private def tryGetMonotonicCounter(
-                                      s: StmBuild,
-                                      i: Int,
-                                      j: Int
+      s: StmBuild,
+      i: Int,
+      j: Int
   ): Option[(Expr, Int)] = {
     val cntrInit = s.seed.asInstanceOf[Tuple].elems(j)
     val cntrUpdateExpr =

@@ -76,7 +76,7 @@ object PartialEvalPass {
                     if partialEval(substitute(f)(Map(p -> r))) == t =>
                   f
                 // False branch is special case of true branch
-                case NotEqual(p: Param, r)
+                case Not(Equal(p: Param, r))
                     if partialEval(substitute(t)(Map(p -> r))) == f =>
                   t
                 case _ =>
@@ -88,12 +88,6 @@ object PartialEvalPass {
                   }
               }
             }
-        }
-      case NotEqual(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)      => e1.i != e2.i
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1 @ _, e2 @ _)              => NotEqual(e1, e2)
         }
       case Equal(e1: Expr, e2: Expr) =>
         // TODO: Add a case for when at least one of the arguments is an IfThenElse?
@@ -152,8 +146,8 @@ object PartialEvalPass {
       case StmLength(s) =>
         partialEval(s) match {
           case s: StmBuild => partialEval(s.length)
-          case DontCare     => DontCare
-          case s @ _        => StmLength(s)
+          case DontCare    => DontCare
+          case s @ _       => StmLength(s)
         }
 
       case StmNext(s: Expr) =>
@@ -228,7 +222,7 @@ object PartialEvalPass {
     e match {
       // Definitely evaluates to a bool
       case True | False | And(_, _) | Or(_, _) | Not(_) | Equal(_, _) |
-          NotEqual(_, _) | LessThan(_, _) =>
+          LessThan(_, _) =>
         Some(true)
       // Definitely not a bool
       case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function =>
@@ -273,7 +267,7 @@ object PartialEvalPass {
       case _: VecAccess    => false
       case _: VecLength    => false
       case FunCall(f, arg) => ???
-      case _: StmBuild    => ???
+      case _: StmBuild     => ???
       case e               => e.children.exists(c => hasSideEffects(c))
     }
   }
@@ -380,7 +374,7 @@ object PartialEvalPass {
         // supposed to do now?
         Some(ScalarRange.full())
       case _: Tuple | _: Function | _: BoolExpr | DontCare | _: StmBuild |
-           _: StmNext | _: VecBuild =>
+          _: StmNext | _: VecBuild =>
         None
     }
   }

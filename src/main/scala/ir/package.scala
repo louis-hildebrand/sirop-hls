@@ -40,8 +40,6 @@ package object ir extends OptionType {
           case False => False
           case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) =>
             IfThenElse(substitute(cond), substitute(trueE), substitute(falseE))
-          case NotEqual(e1: Expr, e2: Expr) =>
-            NotEqual(substitute(e1), substitute(e2))
           case Equal(e1: Expr, e2: Expr) =>
             Equal(substitute(e1), substitute(e2))
           case LessThan(e1: Expr, e2: Expr) =>
