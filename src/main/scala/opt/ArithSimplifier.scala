@@ -17,7 +17,7 @@ object ArithSimplifier {
     * @param range
     *   The range for the expression
     */
-  private case class BlackBox(
+  case class BlackBox(
       e: Expr,
       override val range: ae.Range = ae.RangeUnknown
   ) extends ae.ExtensibleVar("", ae.RangeUnknown, Some(BlackBox.identify(e)))
@@ -36,7 +36,7 @@ object ArithSimplifier {
       f(BlackBox(e, range.visitAndRebuild(f)))
     }
   }
-  private object BlackBox {
+  object BlackBox {
 
     /** Choose a unique identifier for the given expression. The identifier is
       * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
@@ -73,27 +73,83 @@ object ArithSimplifier {
     private val idCtr = new AtomicLong()
   }
 
-  def simplifyArithmetic(e: Expr): Expr = {
-    fromArithExpr(toArithExpr(e)) match {
+  def simplifyArithmetic(e: Expr)(facts: FactSet): Expr = {
+    val a = toArithExpr(e)(facts)
+    fromArithExpr(a) match {
       case None    => e
       case Some(e) => e
     }
   }
 
-  private def toArithExpr(e: Expr): ae.ArithExpr with ae.SimplifiedExpr = {
+  private def toArithExpr(
+      e: Expr
+  )(facts: FactSet): ae.ArithExpr with ae.SimplifiedExpr = {
     e match {
       case DontCare  => ae.?
       case IntCst(n) => ae.Cst(n)
       case Sum(terms) =>
-        val arithTerms = terms.map(toArithExpr).toList
+        val arithTerms = terms.map(e => toArithExpr(e)(facts)).toList
         aes.SimplifySum(arithTerms)
       case Prod(factors) =>
-        val arithFactors = factors.map(toArithExpr).toList
+        val arithFactors = factors.map(e => toArithExpr(e)(facts)).toList
         aes.SimplifyProd(arithFactors)
-      case Div(n, d) => ae.IntDiv(toArithExpr(n), toArithExpr(d))
-      case Mod(n, d) => ae.Mod(toArithExpr(n), toArithExpr(d))
-      //      case IfThenElse(c, t, f) => ???
-      case e => new BlackBox(e)
+      case Div(n, d) => ae.IntDiv(toArithExpr(n)(facts), toArithExpr(d)(facts))
+      case Mod(n, d) => ae.Mod(toArithExpr(n)(facts), toArithExpr(d)(facts))
+      case IfThenElse(c, t, f) =>
+        val pred = c match {
+          case LessThan(e1, e2) =>
+            Some(
+              ae.Predicate(
+                toArithExpr(e1)(facts),
+                toArithExpr(e2)(facts),
+                ae.Predicate.Operator.<
+              )
+            )
+          case Not(LessThan(e1, e2)) =>
+            Some(
+              ae.Predicate(
+                toArithExpr(e1)(facts),
+                toArithExpr(e2)(facts),
+                ae.Predicate.Operator.>=
+              )
+            )
+          case Equal(e1, e2) =>
+            Some(
+              ae.Predicate(
+                toArithExpr(e1)(facts),
+                toArithExpr(e2)(facts),
+                ae.Predicate.Operator.==
+              )
+            )
+          case Not(Equal(e1, e2)) =>
+            Some(
+              ae.Predicate(
+                toArithExpr(e1)(facts),
+                toArithExpr(e2)(facts),
+                ae.Predicate.Operator.!=
+              )
+            )
+          case _ => None
+        }
+        pred match {
+          case Some(p) =>
+            ae.IfThenElse(p, toArithExpr(t)(facts), toArithExpr(f)(facts))
+          case None => BlackBox(e)
+        }
+      case e =>
+        val range = facts.rangeByExpr.getOrElse(e, Range(None, None)) match {
+          case Range(None, None) => ae.RangeUnknown
+          case Range(None, Some(upper)) =>
+            ae.GoesToRange(toArithExpr(upper)(facts))
+          case Range(Some(lower), None) =>
+            ae.StartFromRange(toArithExpr(lower)(facts))
+          case Range(Some(lower), Some(upper)) =>
+            ae.ContinuousRange(
+              toArithExpr(lower)(facts),
+              toArithExpr(upper)(facts)
+            )
+        }
+        new BlackBox(e, range = range)
     }
   }
 
@@ -125,10 +181,28 @@ object ArithSimplifier {
           case (Some(dividend), Some(divisor)) => Some(Mod(dividend, divisor))
           case _                               => None
         }
+      case ae.IfThenElse(c, t, f) =>
+        (
+          fromArithExpr(c.lhs),
+          fromArithExpr(c.rhs),
+          fromArithExpr(t),
+          fromArithExpr(f)
+        ) match {
+          case (Some(lhs), Some(rhs), Some(t), Some(f)) =>
+            val cond = c.op match {
+              case ae.Predicate.Operator.<  => lhs < rhs
+              case ae.Predicate.Operator.>  => lhs > rhs
+              case ae.Predicate.Operator.<= => lhs <= rhs
+              case ae.Predicate.Operator.>= => lhs >= rhs
+              case ae.Predicate.Operator.!= => lhs !== rhs
+              case ae.Predicate.Operator.== => lhs === rhs
+            }
+            Some(IfThenElse(cond, t, f))
+          case _ => None
+        }
       //      case AbsFunction(ae)                   => ???
       //      case FloorFunction(ae)                 => ???
       //      case CeilingFunction(ae)               => ???
-      //      case arithmetic.IfThenElse(test, t, e) => ???
       case BlackBox(e, _) => Some(e)
       case _              => None
     }

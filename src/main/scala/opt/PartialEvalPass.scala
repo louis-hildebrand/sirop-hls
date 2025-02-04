@@ -2,6 +2,33 @@ package opt
 
 import ir._
 
+/** The range <code>[lower, upper)</code>.
+  *
+  * @param lower
+  *   Lower bound, inclusive
+  * @param upper
+  *   Upper bound, exclusive
+  */
+case class Range(lower: Option[Expr], upper: Option[Expr])
+
+case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
+
+  /** Update the range information for <code>x</code>.
+    *
+    * @param e
+    *   An expression. This could be a variable, a tuple access
+    *   (<code>acc._1</code>), etc. However, it must <i>not</i> be an arithmetic
+    *   expression (a sum, a product, etc.).
+    * @param r
+    *   A range
+    * @return
+    *   A fact set where the range of <code>x</code> is <code>r</code>.
+    */
+  def range(e: Expr, r: Range): FactSet = {
+    FactSet(rangeByExpr + (e -> r))
+  }
+}
+
 object PartialEvalPass {
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
     e match {
@@ -33,61 +60,69 @@ object PartialEvalPass {
       case Sum(terms) =>
         ArithSimplifier.simplifyArithmetic(
           Sum(terms.map(e => partialEval(e)): _*)
-        )
+        )(facts)
       case Prod(factors) =>
         ArithSimplifier.simplifyArithmetic(
           Prod(factors.map(e => partialEval(e)): _*)
-        )
+        )(facts)
       case Div(e1: Expr, e2: Expr) =>
         ArithSimplifier.simplifyArithmetic(
           Div(partialEval(e1), partialEval(e2))
-        )
+        )(facts)
       case Mod(e1: Expr, e2: Expr) =>
         ArithSimplifier.simplifyArithmetic(
           Mod(partialEval(e1), partialEval(e2))
-        )
+        )(facts)
       case IntCst(_) => e
 
       case True  => True
       case False => False
-      case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) =>
-        partialEval(cond) match {
-          case True     => partialEval(trueE)
-          case False    => partialEval(falseE)
-          case DontCare => DontCare
-          case cond     =>
-            // If (x0 && ... && xn) = True, then xi = True for each i
-            val t = partialEval(
-              substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
-            )
-            // If (x0 || ... || xn) = False, then xi = False for each i
-            val f = partialEval(
-              substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
-            )
-            if (f == DontCare) t
-            else if (t == DontCare) f
-            else if (t == f) t
-            else if (t == True && f == False) cond
-            else if (t == False && f == True) partialEval(Not(cond))
-            else {
-              cond match {
-                // True branch is special case of false branch
-                case Equal(p: Param, r)
-                    if partialEval(substitute(f)(Map(p -> r))) == t =>
-                  f
-                // False branch is special case of true branch
-                case Not(Equal(p: Param, r))
-                    if partialEval(substitute(t)(Map(p -> r))) == f =>
-                  t
-                case _ =>
-                  val x = IfThenElse(cond, t, f)
-                  if (isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)) {
-                    partialEval((cond && t) || (Not(cond) && f))
-                  } else {
-                    x
+      case ite: IfThenElse =>
+        ArithSimplifier.simplifyArithmetic(ite)(facts) match {
+          case IfThenElse(cond, trueE, falseE) =>
+            partialEval(cond) match {
+              case True     => partialEval(trueE)
+              case False    => partialEval(falseE)
+              case DontCare => DontCare
+              case cond     =>
+                // If (x0 && ... && xn) = True, then xi = True for each i
+                val t = partialEval(
+                  substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
+                )
+                // If (x0 || ... || xn) = False, then xi = False for each i
+                val f = partialEval(
+                  substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
+                )
+                if (f == DontCare) t
+                else if (t == DontCare) f
+                else if (t == f) t
+                else if (t == True && f == False) cond
+                else if (t == False && f == True) partialEval(Not(cond))
+                else {
+                  cond match {
+                    // True branch is special case of false branch
+                    case Equal(p: Param, r)
+                        if partialEval(substitute(f)(Map(p -> r))) == t =>
+                      f
+                    // False branch is special case of true branch
+                    case Not(Equal(p: Param, r))
+                        if partialEval(substitute(t)(Map(p -> r))) == f =>
+                      t
+                    case _ =>
+                      val x = IfThenElse(cond, t, f)
+                      if (
+                        isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)
+                      ) {
+                        partialEval((cond && t) || (Not(cond) && f))
+                      } else {
+                        x
+                      }
                   }
-              }
+                }
             }
+          case e =>
+            // There may be more simplification opportunities that were wrapped inside BlackBoxes
+            partialEval(e)
         }
       case Equal(e1: Expr, e2: Expr) =>
         // TODO: Add a case for when at least one of the arguments is an IfThenElse?
@@ -101,10 +136,10 @@ object PartialEvalPass {
           case (e1: IntCst, e2: IntCst)      => e1.i < e2.i
           case (DontCare, _) | (_, DontCare) => DontCare
           case (e1, e2) =>
-            tryGetRange(partialEval(e1 - e2))(facts) match {
-              case Some(ScalarRange(_, Finite(upper))) if upper < 0  => True
-              case Some(ScalarRange(Finite(lower), _)) if lower >= 0 => False
-              case _ => LessThan(e1, e2)
+            partialEval(e1 - e2) match {
+              case IntCst(c) if c < 0 => True
+              case IntCst(_)          => False
+              case _                  => LessThan(e1, e2)
             }
         }
       case And(e1: Expr, e2: Expr) =>
@@ -285,97 +320,6 @@ object PartialEvalPass {
     e match {
       case Or(x, y) => splitOr(x) ++ splitOr(y)
       case e        => Seq(e)
-    }
-  }
-
-  private def tryGetRange(
-      e: Expr
-  )(implicit facts: FactSet): Option[Range] = {
-    e match {
-      // TODO: Do I need to specially handle tuples and vectors?
-      case Tuple(elems @ _*) => Some(TupleRange(elems.map(e => tryGetRange(e))))
-      case TupleAccess(t, IntCst(i)) =>
-        tryGetRange(t) match {
-          case Some(TupleRange(elemRanges)) => elemRanges(i)
-          case _                            => None
-        }
-      case TupleAccess(t, i) =>
-        // In theory, I could take the union of all the element ranges.
-        // But this requires checking that they all have the same shape, and
-        // what are the odds that this scenario will ever happen?
-        None
-      case _: VecAccess => None
-      case x: Param     => facts.rangeByParam.get(x)
-      case _: FunCall   =>
-        // If this is a call to a function literal, then we could look for
-        // bounds on the function body using facts about the argument, but the
-        // partial evaluator will evaluate such function calls anyway so they
-        // probably won't appear here
-        None
-      case IntCst(c)  => Some(ScalarRange(Finite(c), Finite(c)))
-      case Sum(terms) =>
-        //   If a1 <= x1 <= b1
-        //  and a2 <= x2 <= b2
-        // then a1 + a2 <= x1 + x2 <= b1 + b2
-        val termRanges = terms.map(e =>
-          tryGetRange(e).getOrElse(ScalarRange.full()).asInstanceOf[ScalarRange]
-        )
-        val r = termRanges.foldLeft(ScalarRange(0, 0))((acc, r) =>
-          ScalarRange(acc.lower + r.lower, acc.upper + r.upper)
-        )
-        Some(r)
-      case Prod(Seq(IntCst(c), x)) =>
-        tryGetRange(x) match {
-          case Some(r: ScalarRange) =>
-            if (c >= 0) {
-              //   If a <= x <= b
-              //  and c >= 0
-              // then c * a <= c * x <= c * b
-              Some(ScalarRange(r.lower * c, r.upper * c))
-            } else {
-              //   If a <= x <= b
-              //  and c < 0
-              // then c * b <= c * x <= c * a
-              Some(ScalarRange(r.upper * c, r.lower * c))
-            }
-          case _ => Some(ScalarRange.full())
-        }
-      case Prod(factors) =>
-        // TODO: Implement the general case?
-        // Suppose a1 <= x1 <= b1 and a2 <= x2 <= b2,
-        //   where a1, a2 < 0
-        //     and b1, b2 > 0
-        //
-        // Then [a1, b1] = {a1, -1} U {0} U {1, b1}
-        //  and [a2, b2] = {a2, -1} U {0} U {1, b2}
-        //
-        // Find bounds per quadrant and then take the union.
-        // It seems a bit gross to handle all the cases though :(
-        // Furthermore, need to consider upper or lower bounds being missing
-        // (infinite), rectangle not containing (0, 0), and so on.
-        // Moreover, need to extend the result to more than two factors
-        // (shouldn't be terribly hard, but it's extra tedium).
-        Some(ScalarRange.full())
-      case _: Div              => Some(ScalarRange.full())
-      case _: Mod              => Some(ScalarRange.full())
-      case IfThenElse(_, t, f) =>
-        // TODO: Should I be using the condition here?
-        (tryGetRange(t), tryGetRange(f)) match {
-          case (Some(r1: ScalarRange), Some(r2: ScalarRange)) =>
-            Some(r1.union(r2))
-          case _ => None
-        }
-      case _: StmLength =>
-        // If the partial evaluator didn't get rid of this, then what am I
-        // supposed to do now?
-        Some(ScalarRange.full())
-      case _: VecLength =>
-        // If the partial evaluator didn't get rid of this, then what am I
-        // supposed to do now?
-        Some(ScalarRange.full())
-      case _: Tuple | _: Function | _: BoolExpr | DontCare | _: StmBuild |
-          _: StmNext | _: VecBuild =>
-        None
     }
   }
 }

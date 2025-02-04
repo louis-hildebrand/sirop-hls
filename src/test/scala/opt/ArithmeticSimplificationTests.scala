@@ -1,6 +1,8 @@
 package opt
 
 import ir._
+import lift.{arithmetic => ae}
+import opt.ArithSimplifier.BlackBox
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArithmeticSimplificationTests extends AnyFunSuite {
@@ -80,5 +82,30 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(pe((e * IntCst(15)) / IntCst(5)) == 3 * e)
     assert(pe(IntCst(27) * e / IntCst(6)) == 9 * e / 2)
     assert(pe(e * IntCst(27) / IntCst(6)) == 9 * e / 2)
+  }
+
+  test("IfThenElseWithBoundedVariable") {
+    val x = Param("x")
+    val y = Param("y")
+    val z = Param("z")
+    val a = Param("a")
+    val e = IfThenElse(x.__1 >= -2 + a, y, z)
+
+    val facts0 = FactSet()
+    assert(PartialEvalPass.partialEval(e)(facts0) == e)
+    val facts1 = FactSet().range(x.__1, Range(Some(a - 1), None))
+    assert(PartialEvalPass.partialEval(e)(facts1) == y)
+    val facts2 = FactSet().range(x.__1, Range(None, Some(a - 2)))
+    assert(PartialEvalPass.partialEval(e)(facts2) == z)
+  }
+
+  test("SimplifyBranchesOfIfThenElse") {
+    val i = IntCst(0)
+    val e = IfThenElse(
+      (i % 2) === 0,
+      Tuple(i, 2 + (2 * i)),
+      Tuple(2 + (2 * i), i)
+    )
+    assert(PartialEvalPass.partialEval(e) == Tuple(0, 2))
   }
 }
