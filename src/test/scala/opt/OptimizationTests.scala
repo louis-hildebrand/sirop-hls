@@ -49,12 +49,12 @@ class OptimizationTests extends AnyFunSuite {
     val n = Param()
     val c = Param()
     val s = StmCst(n, c)
-    val v =
-      StmCanonPass.canonicalize(
-        StmInductionVarRemovalPass.removeInductionVars(
-          StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-        )
-      )
+    val v = {
+      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v2 = StmCanonPass.canonicalize(v1)
+      StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+    }
 
     // Correctness
     val expected = (n: Int) => Seq((0 until n).map(_ => c))
@@ -87,12 +87,12 @@ class OptimizationTests extends AnyFunSuite {
     val z = Param()
     val delta = Param()
     val s = StmRange(n, z, delta)
-    val v =
-      StmCanonPass.canonicalize(
-        StmInductionVarRemovalPass.removeInductionVars(
-          StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-        )
-      )
+    val v = {
+      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v2 = StmCanonPass.canonicalize(v1)
+      StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+    }
 
     // Correctness
     val expected =

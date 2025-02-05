@@ -277,6 +277,11 @@ case object OptionAccess {
       n: Expr /* V */
   ): Expr /* V */ = IfThenElse(e.__1, FunCall(s, e.__0), FunCall(n, Tuple()))
 }
+case object IsNone {
+  def apply(e: Expr /* Option<T> */ ): Expr /* Bool */ = {
+    Not(e.__1)
+  }
+}
 
 // Streams
 case class StmBuild(
