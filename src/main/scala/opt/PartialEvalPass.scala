@@ -155,16 +155,21 @@ object PartialEvalPass {
       case DontCare => DontCare
 
       case s @ StmBuild(length, seed, f) =>
-        val accRanges = StmAccRangeAnalysis.findAccRanges(s)
+        // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
+        // evaluator is waaaay too slow. In many cases, it's not needed.
+        val accRanges = facts.rangeByExpr.get(s) match {
+          case Some(StmAccRange(accRanges)) => accRanges
+          case _                         => Seq()
+        }
         val acc = f.param
-        val facts =
-          accRanges.zipWithIndex.foldLeft(FactSet())({ case (facts, (r, i)) =>
+        val newFacts =
+          accRanges.zipWithIndex.foldLeft(facts)({ case (facts, (r, i)) =>
             facts.range(TupleAccess(acc, i), r)
           })
         StmBuild(
           partialEval(length),
           partialEval(seed),
-          partialEval(f)(facts).asInstanceOf[Function]
+          partialEval(f)(newFacts).asInstanceOf[Function]
         )
 
       case StmLength(s) =>

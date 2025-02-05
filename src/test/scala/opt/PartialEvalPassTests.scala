@@ -106,11 +106,12 @@ class PartialEvalPassTests extends AnyFunSuite {
           IfThenElse(acc.__0 >= z, SSome(acc.__0), NNone)
         )
     )
+    val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
       Tuple(z),
       (acc: Expr) => Tuple(Tuple(acc.__0 + 3), SSome(acc.__0))
     )
-    assert(PartialEvalPass.partialEval(s) == expected)
+    assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
 }

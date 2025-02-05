@@ -15,10 +15,12 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         Tuple(Tuple(acc.__0 + 1, acc.__1 + 9, 2 * acc.__2 + 2), SSome(acc.__0))
     )
 
-    val expectedRanges = Seq(
-      Range(Some(z), None),
-      Range(Some(-3), None),
-      Range(Some(2), None)
+    val expectedRanges = StmAccRange(
+      Seq(
+        ScalarRange(Some(z), None),
+        ScalarRange(Some(-3), None),
+        ScalarRange(Some(2), None)
+      )
     )
     assert(StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges)
   }
@@ -33,10 +35,12 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         Tuple(Tuple(acc.__0 - 1, acc.__1 - 9, 2 * acc.__2 + 2), SSome(acc.__0))
     )
 
-    val expectedRanges = Seq(
-      Range(None, Some(1 + z)),
-      Range(None, Some(4)),
-      Range(None, Some(-3))
+    val expectedRanges = StmAccRange(
+      Seq(
+        ScalarRange(None, Some(1 + z)),
+        ScalarRange(None, Some(4)),
+        ScalarRange(None, Some(-3))
+      )
     )
     assert(StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges)
   }
@@ -56,9 +60,11 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         )
     )
 
-    val expectedRanges = Seq(
-      Range(None, None),
-      Range(None, None)
+    val expectedRanges = StmAccRange(
+      Seq(
+        ScalarRange(None, None),
+        ScalarRange(None, None)
+      )
     )
     assert(StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges)
   }
@@ -73,6 +79,9 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
     )
 
-    assert(StmAccRangeAnalysis.findAccRanges(stm) == Seq(Range(None, None)))
+    val expectedRanges = StmAccRange(Seq(ScalarRange(None, None)))
+    assert(
+      StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges
+    )
   }
 }

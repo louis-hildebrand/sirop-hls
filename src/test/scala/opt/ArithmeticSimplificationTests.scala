@@ -93,9 +93,9 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().range(x.__1, Range(Some(a - 1), None))
+    val facts1 = FactSet().range(x.__1, ScalarRange(Some(a - 1), None))
     assert(PartialEvalPass.partialEval(e)(facts1) == y)
-    val facts2 = FactSet().range(x.__1, Range(None, Some(a - 2)))
+    val facts2 = FactSet().range(x.__1, ScalarRange(None, Some(a - 2)))
     assert(PartialEvalPass.partialEval(e)(facts2) == z)
   }
 
@@ -106,9 +106,9 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().range(a.__0, Range(Some(n - 1), None))
+    val facts1 = FactSet().range(a.__0, ScalarRange(Some(n - 1), None))
     assert(PartialEvalPass.partialEval(e)(facts1) == True)
-    val facts2 = FactSet().range(a.__0, Range(None, Some(n - 1)))
+    val facts2 = FactSet().range(a.__0, ScalarRange(None, Some(n - 1)))
     assert(PartialEvalPass.partialEval(e)(facts2) == False)
   }
 

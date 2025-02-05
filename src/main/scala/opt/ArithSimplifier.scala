@@ -142,18 +142,19 @@ object ArithSimplifier {
           case None => BlackBox(e)
         }
       case e =>
-        val range = facts.rangeByExpr.getOrElse(e, Range(None, None)) match {
-          case Range(None, None) => ae.RangeUnknown
-          case Range(None, Some(upper)) =>
-            ae.GoesToRange(toArithExpr(upper)(facts))
-          case Range(Some(lower), None) =>
-            ae.StartFromRange(toArithExpr(lower)(facts))
-          case Range(Some(lower), Some(upper)) =>
-            ae.ContinuousRange(
-              toArithExpr(lower)(facts),
-              toArithExpr(upper)(facts)
-            )
-        }
+        val range =
+          facts.rangeByExpr.getOrElse(e, ScalarRange(None, None)) match {
+            case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
+            case ScalarRange(None, Some(upper)) =>
+              ae.GoesToRange(toArithExpr(upper)(facts))
+            case ScalarRange(Some(lower), None) =>
+              ae.StartFromRange(toArithExpr(lower)(facts))
+            case ScalarRange(Some(lower), Some(upper)) =>
+              ae.ContinuousRange(
+                toArithExpr(lower)(facts),
+                toArithExpr(upper)(facts)
+              )
+          }
         new BlackBox(e, range = range)
     }
   }

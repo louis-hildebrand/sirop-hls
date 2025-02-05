@@ -14,15 +14,15 @@ object StmAccRangeAnalysis {
     * an empty sequence will be returned. It is a good idea to run the
     * canonicalization pass before using this analysis.
     */
-  def findAccRanges(stm: StmBuild): Seq[Range] = {
+  def findAccRanges(stm: StmBuild): StmAccRange = {
     stm.seed match {
       case Tuple(elems @ _*) =>
-        elems.indices.map(i => getRangeByIdx(stm, i))
-      case _ => Seq()
+        StmAccRange(elems.indices.map(i => getRangeByIdx(stm, i)))
+      case _ => StmAccRange(Seq())
     }
   }
 
-  private def getRangeByIdx(stm: StmBuild, i: Int): Range = {
+  private def getRangeByIdx(stm: StmBuild, i: Int): ScalarRange = {
     // TODO: This analysis could be strengthened. For example:
     //       (1) Constructing a dependency graph (possibly containing cycles) for accumulator elements, starting with
     //           elements with fewer dependencies, and using the ranges found for previous elements to help with the
@@ -40,7 +40,7 @@ object StmAccRangeAnalysis {
     // acc[i] >= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] >= z   (always true)
     //   (Ind. case) acc[i] >= z ==> next(acc[i]) >= z     (to be shown)
-    val rLow = Range(Some(z), None)
+    val rLow = ScalarRange(Some(z), None)
     val fLow = FactSet().range(TupleAccess(a, i), rLow)
     val isNonDecreasing = PartialEvalPass.partialEval(delta >= 0)(fLow) == True
     if (isNonDecreasing) {
@@ -51,13 +51,16 @@ object StmAccRangeAnalysis {
     //   (Base case) acc[i] = z at first, so acc[i] <= z   (always true)
     //   (Ind. case) acc[i] <= z ==> next(acc[i]) <= z     (to be shown)
     val rHi =
-      Range(None, Some(ArithSimplifier.simplifyArithmetic(z + 1)(FactSet())))
+      ScalarRange(
+        None,
+        Some(ArithSimplifier.simplifyArithmetic(z + 1)(FactSet()))
+      )
     val fHi = FactSet().range(TupleAccess(a, i), rHi)
     val isNonIncreasing = PartialEvalPass.partialEval(delta <= 0)(fHi) == True
     if (isNonIncreasing) {
       rHi
     } else {
-      Range(None, None)
+      ScalarRange(None, None)
     }
   }
 }
