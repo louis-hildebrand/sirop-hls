@@ -53,7 +53,8 @@ class OptimizationTests extends AnyFunSuite {
       val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
       val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
-      StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      PartialEvalPass.partialEval(v3).asInstanceOf[StmBuild]
     }
 
     // Correctness
@@ -91,7 +92,8 @@ class OptimizationTests extends AnyFunSuite {
       val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
       val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
-      StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      PartialEvalPass.partialEval(v3).asInstanceOf[StmBuild]
     }
 
     // Correctness

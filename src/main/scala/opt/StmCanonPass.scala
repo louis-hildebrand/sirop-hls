@@ -185,8 +185,7 @@ object StmCanonPass {
           moveIfThenElseOutsideTuple(falseE)
         )
       case DontCare => DontCare
-      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild |
-           _: VecBuild =>
+      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
         // Definitely will not evaluate to a tuple
         e
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
@@ -217,9 +216,12 @@ object StmCanonPass {
     */
   @tailrec
   private def findConstantAccumulatorElems(
-                                            stm: StmBuild,
-                                            indices: Set[Int]
+      stm: StmBuild,
+      indices: Set[Int]
   ): Set[Int] = {
+    // TODO: We could also find constant elements by adapting `StmAccRangeAnalysis` to look for both an upper and lower
+    //       bound. An element is constant if its upper and lower bounds coincide. Maybe it would be good to merge the
+    //       two somehow.
     if (indices.isEmpty) {
       Set()
     } else {

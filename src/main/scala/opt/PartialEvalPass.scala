@@ -2,15 +2,6 @@ package opt
 
 import ir._
 
-/** The range <code>[lower, upper)</code>.
-  *
-  * @param lower
-  *   Lower bound, inclusive
-  * @param upper
-  *   Upper bound, exclusive
-  */
-case class Range(lower: Option[Expr], upper: Option[Expr])
-
 case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
 
   /** Update the range information for <code>x</code>.
@@ -163,12 +154,17 @@ object PartialEvalPass {
 
       case DontCare => DontCare
 
-      case StmBuild(length, seed, f) =>
+      case s @ StmBuild(length, seed, f) =>
+        val accRanges = StmAccRangeAnalysis.findAccRanges(s)
+        val acc = f.param
+        val facts =
+          accRanges.zipWithIndex.foldLeft(FactSet())({ case (facts, (r, i)) =>
+            facts.range(TupleAccess(acc, i), r)
+          })
         StmBuild(
           partialEval(length),
           partialEval(seed),
-          // ensures any free Param in f gets substituted
-          partialEval(f).asInstanceOf[Function]
+          partialEval(f)(facts).asInstanceOf[Function]
         )
 
       case StmLength(s) =>

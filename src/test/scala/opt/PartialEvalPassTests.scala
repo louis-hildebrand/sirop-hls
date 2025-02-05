@@ -93,4 +93,24 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe((x - 1) < x) == True)
     assert(pe(x < x) == False)
   }
+
+  test("StmAccumulatorGreaterOrEqualToInitialVal") {
+    val n = Param("n")
+    val z = Param("z")
+    val s = StmBuild(
+      n,
+      Tuple(z),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + 3),
+          IfThenElse(acc.__0 >= z, SSome(acc.__0), NNone)
+        )
+    )
+    val expected = StmBuild(
+      n,
+      Tuple(z),
+      (acc: Expr) => Tuple(Tuple(acc.__0 + 3), SSome(acc.__0))
+    )
+    assert(PartialEvalPass.partialEval(s) == expected)
+  }
 }
