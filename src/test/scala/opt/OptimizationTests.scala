@@ -54,8 +54,11 @@ class OptimizationTests extends AnyFunSuite {
       val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
-      val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
-      PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+      val v4 = {
+        val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
+        PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+      }
+      StmAccRemovalPass.removeUnusedElems(v4)
     }
 
     // Correctness
@@ -72,13 +75,9 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = StmBuild(
       1,
       Tuple(),
-      (acc: Expr) => Tuple(Tuple(), SSome(VecBuild(n, (_: Expr) => c)))
+      (_: Expr) => Tuple(Tuple(), SSome(VecBuild(n, (_: Expr) => c)))
     )
-    // TODO: update `valid` expression as well and then remove the unnecessary counter
-    // assert(v == ideal)
-    assert(
-      v.seed.asInstanceOf[Tuple].elems.forall(e => !e.isInstanceOf[VecBuild])
-    )
+    assert(v == ideal)
   }
 
   /** The conversion of an arbitrary counter of unknown length into a vector can
@@ -94,8 +93,11 @@ class OptimizationTests extends AnyFunSuite {
       val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
-      val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
-      PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+      val v4 = {
+        val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
+        PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+      }
+      StmInductionVarRemovalPass.removeInductionVars(v4)
     }
 
     // Correctness

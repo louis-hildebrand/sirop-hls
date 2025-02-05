@@ -2,6 +2,11 @@ package opt
 
 import ir._
 
+object ElemStillInUseException
+    extends IllegalArgumentException(
+      "At least one of the provided accumulator elements are still in use!"
+    )
+
 object StmUtils {
 
   def appendAccumulator(stm: StmBuild, z: Expr, next: Function): StmBuild = {
@@ -26,8 +31,8 @@ object StmUtils {
     *   The stream with the given accumulator elements removed.
     */
   def removeAccumulatorElemsByIndex(
-                                     stm: StmBuild,
-                                     indicesToRemove: Seq[Int]
+      stm: StmBuild,
+      indicesToRemove: Seq[Int]
   ): StmBuild = {
     val seed = stm.seed.asInstanceOf[Tuple]
     // Need to adjust indices used to read accumulator.
@@ -67,9 +72,7 @@ object StmUtils {
       )
     )
     if (ir.contains(s, invalid)) {
-      throw new IllegalArgumentException(
-        "At least one of the removed accumulator elements were still in use!"
-      )
+      throw ElemStillInUseException
     }
     s
   }
@@ -99,7 +102,7 @@ object StmUtils {
   def transformHead(f: Expr => Expr)(e: Expr): Expr = {
     e match {
       case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild |
-           Tuple() =>
+          Tuple() =>
         throw new IllegalArgumentException(
           "Failed to transform due to an apparent type error."
         )
