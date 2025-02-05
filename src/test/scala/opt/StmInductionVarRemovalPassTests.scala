@@ -313,4 +313,52 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // TODO: we should be able to get rid of the bounded counter as well
     assert(opt.seed == Tuple(i0, 0))
   }
+
+  test("RemoveAllInductionVarsSuccessfully") {
+    val n = Param("n")
+    val delta = Param("delta")
+    val s = StmBuild(
+      n,
+      Tuple(
+        3 /* up counter (+1) */, 10 /* up counter (+4) */,
+        19 /* down counter (-2) */, 0 /* up counter (--3) */,
+        -2 /* down counter (+-6) */, 1 /* counter (+ delta + 1) */
+      ),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            acc.__1 + 4,
+            acc.__2 - 2,
+            acc.__3 - IntCst(-3),
+            acc.__4 + (-6),
+            acc.__5 + delta + 1
+          ),
+          SSome(
+            Tuple(2 * acc.__0, acc.__1 / 3, acc.__2, acc.__3, acc.__4, acc.__5)
+          )
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // tryRemoveAllInductionVars should return the same thing as removeInductionVars in this case
+    assert(
+      StmInductionVarRemovalPass.tryRemoveAllInductionVars(s).contains(opt)
+    )
+  }
+
+  test("RemoveAllInductionVarsUnsuccessfully") {
+    val s = Param("s")
+    val n = Param("n")
+    val stm = StmBuild(
+      n,
+      Tuple(3, s),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + 2, StmNext(acc.__1).__0),
+          SSome(StmNext(acc.__1).__1)
+        )
+    )
+    assert(StmInductionVarRemovalPass.tryRemoveAllInductionVars(stm).isEmpty)
+  }
 }

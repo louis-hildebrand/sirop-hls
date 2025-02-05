@@ -3,25 +3,61 @@ package opt
 import ir._
 import operations.{Max, CeilDiv}
 
+/** Induction variables are accumulator elements which can be expressed as a
+  * function of <code>t</code>, where <code>t</code> is a counter which starts
+  * at zero and counts up by one. This pass tries to remove those accumulator
+  * elements and instead compute them using <code>t</code>.
+  */
 object StmInductionVarRemovalPass {
+
+  /** Remove as many induction variables as possible from the given stream.
+    */
   def removeInductionVars(stm: StmBuild): StmBuild = {
     val s = StmCanonPass.canonicalize(stm)
-    val seed = s.seed.asInstanceOf[Tuple]
     val inductionVarByIdx: Map[Int, Function] =
-      seed.elems.indices
+      s.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .indices
         .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
         .toMap
-    if (inductionVarByIdx.isEmpty) {
-      s
+    removeInductionVars(s, inductionVarByIdx)
+  }
+
+  /** If all induction variables can be removed, then do so. But if any
+    * induction variables cannot be removed, return <code>None</code>.
+    */
+  def tryRemoveAllInductionVars(stm: StmBuild): Option[StmBuild] = {
+    val s = StmCanonPass.canonicalize(stm)
+    val maybeInductionVars =
+      s.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .indices
+        .map(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
+    if (maybeInductionVars.forall(x => x.isDefined)) {
+      val inductionVarByIdx = maybeInductionVars.map(x => x.get).toMap
+      Some(removeInductionVars(s, inductionVarByIdx))
+    } else {
+      None
+    }
+  }
+
+  private def removeInductionVars(
+      stm: StmBuild,
+      funByIdx: Map[Int, Function]
+  ): StmBuild = {
+    if (funByIdx.isEmpty) {
+      stm
     } else {
       val s1 = PartialEvalPass
         .partialEval(
-          StmUtils.appendAccumulator(s, 0, (i: Expr) => i + 1)
+          StmUtils.appendAccumulator(stm, 0, (i: Expr) => i + 1)
         )
         .asInstanceOf[StmBuild]
 
       val acc = s1.nextF.param
-      val subs: Map[Expr, Expr] = inductionVarByIdx
+      val subs: Map[Expr, Expr] = funByIdx
         .map({ case (i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1) })
       // Canonicalization is required for removing accumulator elements
       val s2 = StmCanonPass.canonicalize(
@@ -32,7 +68,7 @@ object StmInductionVarRemovalPass {
         )
       )
 
-      val indicesToRemove = inductionVarByIdx.keySet.toSeq
+      val indicesToRemove = funByIdx.keySet.toSeq
       StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
     }
   }
