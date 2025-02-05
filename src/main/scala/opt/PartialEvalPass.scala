@@ -132,16 +132,9 @@ object PartialEvalPass {
           case (e1 @ _, e2 @ _)              => Equal(e1, e2)
         }
       case LessThan(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (e1: IntCst, e2: IntCst)      => e1.i < e2.i
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1, e2) =>
-            partialEval(e1 - e2) match {
-              case IntCst(c) if c < 0 => True
-              case IntCst(_)          => False
-              case _                  => LessThan(e1, e2)
-            }
-        }
+        ArithSimplifier.simplifyArithmetic(
+          LessThan(partialEval(e1), partialEval(e2))
+        )(facts)
       case And(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
           case (False, _)                    => False

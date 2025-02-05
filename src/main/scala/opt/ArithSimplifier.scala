@@ -76,8 +76,10 @@ object ArithSimplifier {
   def simplifyArithmetic(e: Expr)(facts: FactSet): Expr = {
     val a = toArithExpr(e)(facts)
     fromArithExpr(a) match {
-      case None    => e
-      case Some(e) => e
+      case None => e
+      // TODO: This is a nasty hack to deal with LessThan(e1, e2). It would be better if ArithExpr supported booleans
+      case Some(IfThenElse(c, True, False)) => c
+      case Some(e)                          => e
     }
   }
 
@@ -95,6 +97,9 @@ object ArithSimplifier {
         aes.SimplifyProd(arithFactors)
       case Div(n, d) => ae.IntDiv(toArithExpr(n)(facts), toArithExpr(d)(facts))
       case Mod(n, d) => ae.Mod(toArithExpr(n)(facts), toArithExpr(d)(facts))
+      case lt: LessThan =>
+        // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
+        toArithExpr(IfThenElse(lt, True, False))(facts)
       case IfThenElse(c, t, f) =>
         val pred = c match {
           case LessThan(e1, e2) =>

@@ -99,6 +99,19 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(e)(facts2) == z)
   }
 
+  test("LessThanWithBoundedVariable") {
+    val a = Param("a")
+    val n = Param("n")
+    val e = a.__0 >= -1 + n
+
+    val facts0 = FactSet()
+    assert(PartialEvalPass.partialEval(e)(facts0) == e)
+    val facts1 = FactSet().range(a.__0, Range(Some(n - 1), None))
+    assert(PartialEvalPass.partialEval(e)(facts1) == True)
+    val facts2 = FactSet().range(a.__0, Range(None, Some(n - 1)))
+    assert(PartialEvalPass.partialEval(e)(facts2) == False)
+  }
+
   test("SimplifyBranchesOfIfThenElse") {
     val i = IntCst(0)
     val e = IfThenElse(
