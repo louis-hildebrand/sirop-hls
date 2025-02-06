@@ -228,7 +228,7 @@ object StmCst2D {
 }
 
 object StmCount2D {
-  def apply(n: Int, m: Int): Expr /* Stm<Stm<Int; m>; n> */ = {
+  def apply(n: Expr, m: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
     StmBuild(
       n * m,
       Tuple(0, 0),

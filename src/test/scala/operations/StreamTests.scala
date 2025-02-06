@@ -1523,9 +1523,6 @@ class StreamTests extends AnyFunSuite {
         .stm2Seq(Let(p, v1, actual))
         .map(v => VectorTests.vec2Seq(v)) == expected1
     )
-
-    // Effective simplification
-    // TODO: check that Vec2Stm and Stm2Vec basically cancel out
   }
 
   test("Stm2Vec2Stm") {
@@ -2402,17 +2399,20 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmTranspose") {
-    val p = Param()
-    val s = StmCount2D(4, 3)
+    val s = Param("s")
+    val n = Param("n")
+    val m = Param("m")
     val expected = Seq(
       Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0), Tuple(3, 0)),
       Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(3, 1)),
       Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2), Tuple(3, 2))
     )
-    val actual = StmTranspose(p, n = 4, m = 3)
+    val transposed = StmTranspose(s, n = n, m = m)
 
     // Correctness
-    assertStreamEqual(Let(p, s, actual), expected.flatten)
+    val actual =
+      Let(n, 4, Let(m, 3, Let(s, StmCount2D(4, 3), transposed)))
+    assertStreamEqual(actual, expected.flatten)
     // Performance
     // TODO: Look at how good the hardware is.
     //       It is possible to implement this without any vectors or memory.

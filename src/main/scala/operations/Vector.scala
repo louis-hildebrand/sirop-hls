@@ -223,10 +223,14 @@ object VecSplit {
 }
 
 object VecJoin {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): VecBuild /* Vec<A; n * m> */ = {
+  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<A; n * m> */ = {
     val n = VecLength(v)
     val m = IfThenElse(Equal(n, 0), 1, VecLength(VecAccess(v, 0)))
-    VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
+    IfThenElse(
+      m === 0,
+      VecBuild(0, (_: Expr) => DontCare),
+      VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
+    )
   }
 }
 

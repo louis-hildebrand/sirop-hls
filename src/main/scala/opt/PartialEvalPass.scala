@@ -315,7 +315,6 @@ object PartialEvalPass {
       case _: VecLength => false
       case _: StmLength => false
       case _: StmNext   => true
-      case _: StmBuild  => ???
       case e            => e.children.exists(c => hasSideEffects(c))
     }
   }
