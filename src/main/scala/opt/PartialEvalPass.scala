@@ -2,6 +2,8 @@ package opt
 
 import ir._
 
+import scala.annotation.tailrec
+
 case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
 
   /** Update the range information for <code>x</code>.
@@ -155,22 +157,38 @@ object PartialEvalPass {
       case DontCare => DontCare
 
       case s @ StmBuild(length, seed, f) =>
-        // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
-        // evaluator is waaaay too slow. In many cases, it's not needed.
-        val accRanges = facts.rangeByExpr.get(s) match {
-          case Some(StmAccRange(accRanges)) => accRanges
-          case _                         => Seq()
+        val len = partialEval(length)
+        val onlyElem = len match {
+          case IntCst(1) =>
+            // Maybe we can find the first element statically and just return it directly!
+            tryEvalStmNext(s) match {
+              case Some((_, out)) if !hasSideEffects(out) => Some(out)
+              case _                                      => None
+            }
+          case _ =>
+            None
         }
-        val acc = f.param
-        val newFacts =
-          accRanges.zipWithIndex.foldLeft(facts)({ case (facts, (r, i)) =>
-            facts.range(TupleAccess(acc, i), r)
-          })
-        StmBuild(
-          partialEval(length),
-          partialEval(seed),
-          partialEval(f)(newFacts).asInstanceOf[Function]
-        )
+        onlyElem match {
+          case Some(e) =>
+            StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
+          case None =>
+            // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
+            // evaluator is waaaay too slow. In many cases, it's not needed.
+            val accRanges = facts.rangeByExpr.get(s) match {
+              case Some(StmAccRange(accRanges)) => accRanges
+              case _                            => Seq()
+            }
+            val acc = f.param
+            val newFacts =
+              accRanges.zipWithIndex.foldLeft(facts)({ case (facts, (r, i)) =>
+                facts.range(TupleAccess(acc, i), r)
+              })
+            StmBuild(
+              len,
+              partialEval(seed),
+              partialEval(f)(newFacts).asInstanceOf[Function]
+            )
+        }
 
       case StmLength(s) =>
         partialEval(s) match {
@@ -182,46 +200,9 @@ object PartialEvalPass {
       case StmNext(s: Expr) =>
         partialEval(s) match {
           case s: StmBuild =>
-            s.length match {
-              case IntCst(len) =>
-                assert(len > 0, "Attempt to call StmNext() on an empty stream.")
-                partialEval(FunCall(s.nextF, s.seed)) match {
-                  case next: Tuple =>
-                    val n = next.elems.length
-                    require(
-                      n == 2,
-                      s"The function in StmBuild returned a ${n}-tuple instead of a 2-tuple."
-                    )
-                    partialEval(next.__1) match {
-                      case Tuple(e, True) =>
-                        // return the new stream and element
-                        Tuple(
-                          StmBuild(
-                            len - 1,
-                            partialEval(next.__0),
-                            // this function may have free parameters
-                            partialEval(s.nextF).asInstanceOf[Function]
-                          ),
-                          partialEval(e)
-                        )
-                      case Tuple(_, False) =>
-                        // skip this element, look for the next one
-                        partialEval(
-                          StmNext(
-                            StmBuild(
-                              s.length,
-                              partialEval(next.__0),
-                              // this function may have free parameters
-                              partialEval(s.nextF).asInstanceOf[Function]
-                            )
-                          )
-                        )
-                      case _ =>
-                        StmNext(s)
-                    }
-                  case _ => StmNext(s)
-                }
-              case _ => StmNext(s)
+            tryEvalStmNext(s) match {
+              case Some((nextStm, out)) => Tuple(nextStm, out)
+              case None                 => StmNext(s)
             }
           case s => StmNext(s)
         }
@@ -243,6 +224,48 @@ object PartialEvalPass {
           case DontCare      => DontCare
           case vec @ _       => VecLength(vec)
         }
+    }
+  }
+
+  @tailrec
+  private def tryEvalStmNext(s: StmBuild): Option[(StmBuild, Expr)] = {
+    s.length match {
+      case IntCst(len) =>
+        require(len > 0, "Attempt to call StmNext() on an empty stream.")
+        partialEval(FunCall(s.nextF, s.seed)) match {
+          case next: Tuple =>
+            val n = next.elems.length
+            require(
+              n == 2,
+              s"The function in StmBuild returned a ${n}-tuple instead of a 2-tuple."
+            )
+            partialEval(next.__1) match {
+              case Tuple(e, True) =>
+                // return the new stream and element
+                Some(
+                  StmBuild(
+                    len - 1,
+                    partialEval(next.__0),
+                    // this function may have free parameters
+                    partialEval(s.nextF).asInstanceOf[Function]
+                  ),
+                  partialEval(e)
+                )
+              case Tuple(_, False) =>
+                // skip this element, look for the next one
+                tryEvalStmNext(
+                  StmBuild(
+                    s.length,
+                    partialEval(next.__0),
+                    // this function may have free parameters
+                    partialEval(s.nextF).asInstanceOf[Function]
+                  )
+                )
+              case _ => None
+            }
+          case _ => None
+        }
+      case _ => None
     }
   }
 
@@ -289,15 +312,11 @@ object PartialEvalPass {
 
   private def hasSideEffects(e: Expr): Boolean = {
     e match {
-      case _: Function     => false
-      case _: StmLength    => false
-      case _: StmNext      => true
-      case _: VecBuild     => false
-      case _: VecAccess    => false
-      case _: VecLength    => false
-      case FunCall(f, arg) => ???
-      case _: StmBuild     => ???
-      case e               => e.children.exists(c => hasSideEffects(c))
+      case _: VecLength => false
+      case _: StmLength => false
+      case _: StmNext   => true
+      case _: StmBuild  => ???
+      case e            => e.children.exists(c => hasSideEffects(c))
     }
   }
 

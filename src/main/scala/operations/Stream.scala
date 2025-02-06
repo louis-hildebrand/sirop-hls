@@ -24,7 +24,7 @@ private object Helpers {
       f: Function,
       inShape: Option[Expr],
       outShape: Option[Expr]
-  ): Function = {
+  ): (Param, StmBuild) = {
     val f1 = (inShape, outShape) match {
       case (None, None) => {
         // scalar -> scalar (e.g., x => x + 1)
@@ -140,45 +140,9 @@ private object Helpers {
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    val f3 = Function(
+    (
       f2.param,
       StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
-    )
-    // StmMap(), StmScanInclusive(), etc. assume the function uses its input.
-    val usesInputStream = f3.body
-      .asInstanceOf[StmBuild]
-      .seed
-      .asInstanceOf[Tuple]
-      .elems
-      .contains(f3.param)
-    val f4 = if (usesInputStream) {
-      f3
-    } else {
-      Function(
-        f3.param,
-        StmFusePass.fuseCompletely(
-          StmConcat(
-            f3.body,
-            StmDrain(f3.param),
-            len1 = outShape.getOrElse(IntCst(1))
-          )
-        )
-      )
-    }
-    f4
-  }
-}
-
-// This is useful, for example, when StmMap() or StmFold() is called with a
-// function that ignores its input. Concatenate the output of that function
-// with this to get a new stream producer that has the same effect but empties
-// the input.
-object StmDrain {
-  def apply(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; 0> */ = {
-    StmBuild(
-      0,
-      stm,
-      (acc: Expr) => Tuple(StmNext(acc).__0, NNone)
     )
   }
 }
@@ -294,17 +258,10 @@ object StmMap {
       n: Expr,
       fInShape: Option[Expr],
       fOutShape: Option[Expr]
-  ): StmBuild /* Stm<B; n> */ = {
+  ): Expr /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
-    val stmF = Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
-    // TODO: Needing to partially evaluate to even define StmMap seems
-    //       pretty gross
-    val inner =
-      StmCanonPass.canonicalize(
-        PartialEvalPass
-          .partialEval(FunCall(stmF, input))
-          .asInstanceOf[StmBuild]
-      )
+    val (s, inner) =
+      Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     // TODO: Deal with multiple input streams?
     // TODO: This check, as well as things like reordering the accumulator, is NOT reliable as currently written (e.g.,
     //       it may fail if `input` is a `Param`). In the real compiler, we should do these things based on type, not
@@ -317,35 +274,46 @@ object StmMap {
         .forall(e => !e.isInstanceOf[StmBuild]),
       "Function in StmMap must not take more than one stream as input."
     )
-    n match {
-      case IntCst(0) =>
-        StmBuild(0, Tuple(), (acc: Expr) => Tuple(Tuple(), NNone))
-      case IntCst(1) =>
-        // No need to reset
-        inner
-      case n =>
-        // How many elements will the inner component read and produce before it
-        // must be reset?
-        val numIn = fInShape.getOrElse(IntCst(1))
-        val numOut = fOutShape.getOrElse(IntCst(1))
-        // Build a new stream by repeating the inner one once it's done
-        StmBuild(
-          n * numOut,
-          Tuple(inner.seed, numIn, numOut), {
-            val newAcc = Param("acc")
-            Function(
-              newAcc,
-              makeNextFBody(
-                oldBody = inner.nextF.body,
-                oldAcc = inner.nextF.param,
-                newAcc = newAcc,
-                oldSeed = inner.seed.asInstanceOf[Tuple],
-                numIn = numIn,
-                numOut = numOut
+    val usesInputStream = inner.seed
+      .asInstanceOf[Tuple]
+      .elems
+      .contains(s)
+    if (!usesInputStream) {
+      // In theory you could have something like StmMap(s, _ => 42) which doesn't actually depend on the input stream.
+      // In that case, you can just forget about the input stream.
+      StmRepeat(inner, n, inner.length)
+    } else {
+      // How many elements will the inner component read and produce before it must be reset?
+      val numIn = fInShape.getOrElse(IntCst(1))
+      val numOut = fOutShape.getOrElse(IntCst(1))
+      val map = n match {
+        // TODO: Why these special cases? Is it just to make the resulting stream easier to simplify?
+        case IntCst(0) =>
+          StmBuild(0, Tuple(), (_: Expr) => Tuple(Tuple(), NNone))
+        case IntCst(1) =>
+          // No need to reset
+          inner
+        case n =>
+          // Build a new stream by repeating the inner one once it's done
+          StmBuild(
+            n * numOut,
+            Tuple(inner.seed, numIn, numOut), {
+              val newAcc = Param("acc")
+              Function(
+                newAcc,
+                makeNextFBody(
+                  oldBody = inner.nextF.body,
+                  oldAcc = inner.nextF.param,
+                  newAcc = newAcc,
+                  oldSeed = inner.seed.asInstanceOf[Tuple],
+                  numIn = numIn,
+                  numOut = numOut
+                )
               )
-            )
-          }
-        )
+            }
+          )
+      }
+      ir.substitute(map)(Map(s -> input))
     }
   }
 
@@ -398,7 +366,10 @@ object StmMap {
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )
-          case _ => ???
+          case e =>
+            throw new IllegalArgumentException(
+              s"Expected the new accumulator value to be a tuple literal with at least one element, but found $e"
+            )
         }
         val newOutCtr = OptionAccess(
           out,
@@ -480,48 +451,77 @@ object StmFold {
 //       Or better yet, define an operator like StmReset that works for both cases?
 object StmScanInclusive {
   def apply(
-      stream: Expr /* Stream<A> */,
+      input: Expr /* Stream<A> */,
       z: Expr /* B */,
       f: Function /* B -> A -> B */,
       // Ideally we would get this shape info from the type system
       stmShape: Seq[Expr]
   ): Expr = {
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
-    val stmF =
+    val (s, inner) =
       Helpers.asStm2Stm(
+        // The function has the form (acc) => (elem) => newAcc.
+        // Take just the (elem) => newAcc part here, with acc being a free variable.
+        // Later, replace that free variable with the appropriate element in the StmScan accumulator.
         f.body.asInstanceOf[Function],
         inShape =
           if (stmShape.tail.isEmpty) None
           else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
         outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
-    val inner = StmCanonPass.canonicalize(
-      PartialEvalPass.partialEval(FunCall(stmF, stream)).asInstanceOf[StmBuild]
-    )
-    val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-    StmBuild(
-      stmShape.head,
-      Tuple(
-        inner.seed, /* Accumulator for the inner function */
-        z,
-        numIn, /* Input counter */
-        1 /* Output counter */
-      ), {
-        val newAcc = Param("acc")
-        Function(
-          newAcc,
-          substitute(
-            makeNextFBody(
-              oldBody = inner.nextF.body,
-              oldAcc = inner.nextF.param,
-              newAcc = newAcc,
-              oldSeed = inner.seed.asInstanceOf[Tuple],
-              numIn = numIn
-            )
-          )(Map(f.param -> newAcc.__1))
-        )
+    assert(inner.length == IntCst(1))
+    val usesInputStream = inner.seed
+      .asInstanceOf[Tuple]
+      .elems
+      .contains(s)
+    if (!usesInputStream) {
+      assert(inner.seed == Tuple())
+      val e = inner.nextF.body match {
+        case Tuple(Tuple(), Tuple(e, True)) => e
+        case _                              => ???
       }
-    )
+      StmBuild(
+        stmShape.head,
+        z, {
+          val newAcc = Param("acc")
+          val x = Param("acc")
+          Function(
+            newAcc,
+            Let(
+              x,
+              substitute(e)(Map(f.param -> newAcc)),
+              Tuple(x, SSome(x))
+            )
+          )
+        }
+      )
+    } else {
+      val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+      val scan = StmBuild(
+        stmShape.head,
+        Tuple(
+          inner.seed, /* Accumulator for the inner function */
+          z,
+          numIn, /* Input counter */
+          1 /* Output counter */
+        ), {
+          val newAcc = Param("acc")
+          Function(
+            newAcc,
+            substitute(
+              makeNextFBody(
+                oldBody = inner.nextF.body,
+                oldAcc = inner.nextF.param,
+                newAcc = newAcc,
+                oldSeed = inner.seed.asInstanceOf[Tuple],
+                numIn = numIn
+              )
+            )(Map(f.param -> newAcc.__1))
+          )
+        }
+      )
+      ir.substitute(scan)(Map(s -> input))
+    }
   }
 
   private def makeNextFBody(
@@ -566,7 +566,10 @@ object StmScanInclusive {
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
             )
-          case _ => ???
+          case e =>
+            throw new IllegalArgumentException(
+              s"Expected the new accumulator value to be a tuple literal with at least one element, but found $e"
+            )
         }
         val newOutCtr = OptionAccess(
           out,

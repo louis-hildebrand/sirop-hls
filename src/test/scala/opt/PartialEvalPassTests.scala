@@ -114,4 +114,33 @@ class PartialEvalPassTests extends AnyFunSuite {
     )
     assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
+
+  test("StmOneElement") {
+    val z = Param("z")
+    val s = StmBuild(
+      1,
+      Tuple(z, 0),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + acc.__1 + acc.__1, acc.__1 + acc.__0),
+          SSome(acc.__0)
+        )
+    )
+    val expected = StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(z)))
+    assert(PartialEvalPass.partialEval(s) == expected)
+  }
+
+  test("StmOneElementNotReducible") {
+    // I do NOT want this to be simplified to something like
+    //   StmCst(1, StmNext(s).__1)
+    // because then we're calling StmNext(s).__1 without a corresponding StmNext(s).__0
+    val s = Param("s")
+    val stm = StmBuild(
+      1,
+      Tuple(s),
+      (acc: Expr) =>
+        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+    )
+    assert(PartialEvalPass.partialEval(stm) == stm)
+  }
 }
