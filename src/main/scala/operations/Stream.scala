@@ -184,12 +184,10 @@ object Iterate {
 //////////////////////////
 // creating streams
 
-// TODO: It doesn't seem like using `StmRange(n, c, 0)` works here (e.g., StmFold:2D:DiscardInputAdd42 in StreamTests
-//       fails, seemingly due to the fact that, in that test, the "constant" is a param + a const). This may be
-//       something worth looking into.
 object StmCst {
-  def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ =
-    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(c)))
+  def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
+    StmRange(n, c, 0)
+  }
 }
 
 object StmCount {
