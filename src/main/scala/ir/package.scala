@@ -1,6 +1,6 @@
 import scala.language.implicitConversions
 
-package object ir {
+package object ir extends OptionType {
   def contains(e1: Expr, e2: Expr): Boolean = {
     e1 match {
       case _ if e1 == e2 => true
@@ -30,8 +30,8 @@ package object ir {
           case FunCall(f: Expr, arg: Expr) =>
             FunCall(substitute(f), substitute(arg))
 
-          case Sum(terms)              => Sum(terms.map(e => substitute(e)))
-          case Prod(factors)           => Prod(factors.map(e => substitute(e)))
+          case Sum(terms)    => Sum(terms.map(e => substitute(e)): _*)
+          case Prod(factors) => Prod(factors.map(e => substitute(e)): _*)
           case Div(e1: Expr, e2: Expr) => Div(substitute(e1), substitute(e2))
           case Mod(e1: Expr, e2: Expr) => Mod(substitute(e1), substitute(e2))
           case IntCst(_)               => e
@@ -40,8 +40,6 @@ package object ir {
           case False => False
           case IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) =>
             IfThenElse(substitute(cond), substitute(trueE), substitute(falseE))
-          case NotEqual(e1: Expr, e2: Expr) =>
-            NotEqual(substitute(e1), substitute(e2))
           case Equal(e1: Expr, e2: Expr) =>
             Equal(substitute(e1), substitute(e2))
           case LessThan(e1: Expr, e2: Expr) =>

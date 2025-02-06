@@ -2,6 +2,11 @@ package opt
 
 import ir._
 
+object ElemStillInUseException
+    extends IllegalArgumentException(
+      "At least one of the provided accumulator elements are still in use!"
+    )
+
 object StmUtils {
 
   def appendAccumulator(stm: StmBuild, z: Expr, next: Function): StmBuild = {
@@ -13,7 +18,7 @@ object StmUtils {
         Let(
           p,
           FunCall(stm.nextF, acc.__0),
-          Tuple(Tuple(p.__0, FunCall(next, acc.__1)), p.__1, p.__2)
+          Tuple(Tuple(p.__0, FunCall(next, acc.__1)), p.__1)
         )
     )
   }
@@ -67,9 +72,7 @@ object StmUtils {
       )
     )
     if (ir.contains(s, invalid)) {
-      throw new IllegalArgumentException(
-        "At least one of the removed accumulator elements were still in use!"
-      )
+      throw ElemStillInUseException
     }
     s
   }

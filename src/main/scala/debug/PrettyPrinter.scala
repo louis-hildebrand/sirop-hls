@@ -16,16 +16,16 @@ object PrettyPrinter {
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
-      case Sum(terms)     => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Prod(factors)  => factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)      => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)      => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case Equal(x, y)    => s"${showWithParens(x)} === ${showWithParens(y)}"
-      case NotEqual(x, y) => s"${showWithParens(x)} !== ${showWithParens(y)}"
-      case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
-      case And(x, y)      => s"${showWithParens(x)} && ${showWithParens(y)}"
-      case Or(x, y)       => s"${showWithParens(x)} || ${showWithParens(y)}"
-      case Not(x)         => s"!${showWithParens(x)}"
+      case Sum(terms)    => terms.map(e => showWithParens(e)).mkString(" + ")
+      case Prod(factors) => factors.map(e => showWithParens(e)).mkString(" * ")
+      case Div(x, y)     => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(x, y)     => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case Equal(x, y)   => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case Not(Equal(x, y)) => s"${showWithParens(x)} !== ${showWithParens(y)}"
+      case LessThan(x, y)   => s"${showWithParens(x)} < ${showWithParens(y)}"
+      case And(x, y)        => s"${showWithParens(x)} && ${showWithParens(y)}"
+      case Or(x, y)         => s"${showWithParens(x)} || ${showWithParens(y)}"
+      case Not(x)           => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
         s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
            |${indent(show(t, collapseStm = collapseStm, evalVec = evalVec))}

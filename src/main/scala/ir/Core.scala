@@ -1,13 +1,15 @@
 package ir
 
+import java.util.concurrent.atomic.AtomicLong
+
 sealed trait Expr {
-  def +(that: Expr): Expr = Sum(Seq(this, that))
-  def -(that: Expr): Expr = Sum(Seq(this, Prod(Seq(-1, that))))
-  def *(that: Expr): Expr = Prod(Seq(this, that))
+  def +(that: Expr): Expr = Sum(this, that)
+  def -(that: Expr): Expr = Sum(this, Prod(-1, that))
+  def *(that: Expr): Expr = Prod(this, that)
   def /(that: Expr): Div = Div(this, that)
   def %(that: Expr): Mod = Mod(this, that)
   def ===(that: Expr): Equal = Equal(this, that)
-  def !==(that: Expr): NotEqual = NotEqual(this, that)
+  def !==(that: Expr): Expr = Not(Equal(this, that))
   def <(that: Expr): LessThan = LessThan(this, that)
   def <=(that: Expr): Not = Not(this > that)
   def >(that: Expr): LessThan = that < this
@@ -71,19 +73,18 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Or          => 10
       case _: Not         => 11
       case _: Equal       => 12
-      case _: NotEqual    => 13
-      case _: LessThan    => 14
-      case _: TupleAccess => 15
-      case _: FunCall     => 16
-      case _: IfThenElse  => 17
-      case _: Tuple       => 18
-      case _: Function    => 19
-      case _: StmBuild    => 20
-      case _: StmNext     => 21
-      case _: StmLength   => 22
-      case _: VecBuild    => 23
-      case _: VecAccess   => 24
-      case _: VecLength   => 25
+      case _: LessThan    => 13
+      case _: TupleAccess => 14
+      case _: FunCall     => 15
+      case _: IfThenElse  => 16
+      case _: Tuple       => 17
+      case _: Function    => 18
+      case _: StmBuild    => 19
+      case _: StmNext     => 20
+      case _: StmLength   => 21
+      case _: VecBuild    => 22
+      case _: VecAccess   => 23
+      case _: VecLength   => 24
     }
   }
 }
@@ -97,7 +98,7 @@ case class TupleAccess(t: Expr, i: Expr) extends Expr {
 }
 
 // Functions
-case class Param(prefix: String, id: Int) extends Expr {
+case class Param(prefix: String, id: Long) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
@@ -105,12 +106,10 @@ case class Param(prefix: String, id: Int) extends Expr {
   override def toString: String = name
 }
 case object Param {
-  private var nextId = 0
+  private val idCtr = new AtomicLong()
 
   def apply(prefix: String = "p"): Param = {
-    val id = nextId
-    nextId += 1
-    new Param(prefix, id)
+    new Param(prefix, idCtr.incrementAndGet())
   }
 }
 
@@ -136,7 +135,6 @@ case object Let {
   }
 }
 
-// TODO: Get rid of this
 sealed trait BinOp extends Expr {
   val e1: Expr
   val e2: Expr
@@ -183,7 +181,7 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
   }
 }
 object Sum {
-  def apply(terms: Seq[Expr]): Sum = {
+  def apply(terms: Expr*): Sum = {
     new Sum(terms)
   }
 
@@ -223,7 +221,7 @@ class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
   }
 }
 object Prod {
-  def apply(factors: Seq[Expr]): Prod = {
+  def apply(factors: Expr*): Prod = {
     new Prod(factors)
   }
 
@@ -237,10 +235,10 @@ case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
 
 // Boolean expressions
 sealed trait BoolExpr extends Expr
-object True extends BoolExpr {
+case object True extends BoolExpr {
   override def children: Seq[Expr] = Seq()
 }
-object False extends BoolExpr {
+case object False extends BoolExpr {
   override def children: Seq[Expr] = Seq()
 }
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
@@ -252,7 +250,6 @@ case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
 }
 // Comparison operators
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp
-case class NotEqual(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 // Logical operators
 case class Not(e: Expr) extends BoolExpr {
@@ -266,12 +263,31 @@ case object DontCare extends Expr {
   override def children: Seq[Expr] = Seq()
 }
 
+// Option<T>
+trait OptionType {
+  val NNone: Expr = Tuple(DontCare, False)
+}
+case object SSome {
+  def apply(e: Expr /* T */ ): Expr = Tuple(e, True)
+}
+case object OptionAccess {
+  def apply(
+      e: Expr /* Option<T> */,
+      s: Expr /* T -> V */,
+      n: Expr /* V */
+  ): Expr /* V */ = IfThenElse(e.__1, FunCall(s, e.__0), FunCall(n, Tuple()))
+}
+case object IsNone {
+  def apply(e: Expr /* Option<T> */ ): Expr /* Bool */ = {
+    Not(e.__1)
+  }
+}
+
 // Streams
 case class StmBuild(
     length: Expr,
     seed: Expr /*A*/,
-    // TODO: Use Option<B> instead of (B, Bool) in the final IR
-    nextF: Function /* A -> (A, B, Bool)*/
+    nextF: Function /* A -> (A, Option<B>)*/
 ) extends Expr {
   override def children: Seq[Expr] = Seq(length, seed, nextF)
 }

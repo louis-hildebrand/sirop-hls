@@ -3,25 +3,61 @@ package opt
 import ir._
 import operations.{Max, CeilDiv}
 
+/** Induction variables are accumulator elements which can be expressed as a
+  * function of <code>t</code>, where <code>t</code> is a counter which starts
+  * at zero and counts up by one. This pass tries to remove those accumulator
+  * elements and instead compute them using <code>t</code>.
+  */
 object StmInductionVarRemovalPass {
+
+  /** Remove as many induction variables as possible from the given stream.
+    */
   def removeInductionVars(stm: StmBuild): StmBuild = {
     val s = StmCanonPass.canonicalize(stm)
-    val seed = s.seed.asInstanceOf[Tuple]
     val inductionVarByIdx: Map[Int, Function] =
-      seed.elems.indices
+      s.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .indices
         .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
         .toMap
-    if (inductionVarByIdx.isEmpty) {
-      s
+    removeInductionVars(s, inductionVarByIdx)
+  }
+
+  /** If all induction variables can be removed, then do so. But if any
+    * induction variables cannot be removed, return <code>None</code>.
+    */
+  def tryRemoveAllInductionVars(stm: StmBuild): Option[StmBuild] = {
+    val s = StmCanonPass.canonicalize(stm)
+    val maybeInductionVars =
+      s.seed
+        .asInstanceOf[Tuple]
+        .elems
+        .indices
+        .map(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
+    if (maybeInductionVars.forall(x => x.isDefined)) {
+      val inductionVarByIdx = maybeInductionVars.map(x => x.get).toMap
+      Some(removeInductionVars(s, inductionVarByIdx))
+    } else {
+      None
+    }
+  }
+
+  private def removeInductionVars(
+      stm: StmBuild,
+      funByIdx: Map[Int, Function]
+  ): StmBuild = {
+    if (funByIdx.isEmpty) {
+      stm
     } else {
       val s1 = PartialEvalPass
         .partialEval(
-          StmUtils.appendAccumulator(s, 0, (i: Expr) => i + 1)
+          StmUtils.appendAccumulator(stm, 0, (i: Expr) => i + 1)
         )
         .asInstanceOf[StmBuild]
 
       val acc = s1.nextF.param
-      val subs: Map[Expr, Expr] = inductionVarByIdx
+      val subs: Map[Expr, Expr] = funByIdx
         .map({ case (i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1) })
       // Canonicalization is required for removing accumulator elements
       val s2 = StmCanonPass.canonicalize(
@@ -32,7 +68,7 @@ object StmInductionVarRemovalPass {
         )
       )
 
-      val indicesToRemove = inductionVarByIdx.keySet.toSeq
+      val indicesToRemove = funByIdx.keySet.toSeq
       StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
     }
   }
@@ -48,7 +84,10 @@ object StmInductionVarRemovalPass {
     *   A function that returns the value of the `i`-th accumulator element as a
     *   function of a simple up-counter.
     */
-  private def tryGetInductionVarByIdx(s: StmBuild, i: Int): Option[Function] = {
+  private def tryGetInductionVarByIdx(
+      s: StmBuild,
+      i: Int
+  ): Option[Function] = {
     val seed = s.seed.asInstanceOf[Tuple]
     val z = seed.elems(i)
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
@@ -128,7 +167,7 @@ object StmInductionVarRemovalPass {
         val indVars = terms.map(e => tryGetInductionVar(s, e))
         if (indVars.forall(e => e.isDefined)) {
           val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t))))
+          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t)): _*))
         } else {
           None
         }
@@ -136,7 +175,7 @@ object StmInductionVarRemovalPass {
         val indVars = factors.map(e => tryGetInductionVar(s, e))
         if (indVars.forall(e => e.isDefined)) {
           val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t))))
+          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t)): _*))
         } else {
           None
         }
@@ -170,12 +209,6 @@ object StmInductionVarRemovalPass {
         (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
           case (Some(f), Some(g)) =>
             Some((t: Expr) => FunCall(f, t) === FunCall(g, t))
-          case _ => None
-        }
-      case NotEqual(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) !== FunCall(g, t))
           case _ => None
         }
       case LessThan(x, y) =>
@@ -260,7 +293,7 @@ object Counter {
             val otherTerms = terms.zipWithIndex
               .filter({ case (_, k) => k != j })
               .map({ case (e, _) => e })
-            val delta = Sum(otherTerms)
+            val delta = Sum(otherTerms: _*)
             val isConstantInStream = !ir.contains(delta, acc)
             if (isConstantInStream) {
               Some((z, delta))
@@ -357,7 +390,9 @@ object LeftShiftRegister {
     *   <code>Some((n, f, e))</code> if the given expression is a left shift
     *   register, otherwise <code>None</code>.
     */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr, Expr)] = {
+  def unapply(
+      args: (Expr, Expr, StmBuild, Int)
+  ): Option[(Expr, Expr, Expr)] = {
     // TODO: Do I need to watch out for side effects and make sure `e` doesn't depend on `acc` and so on here too?
     val (z, next, stm, i) = args
     val acc = stm.nextF.param

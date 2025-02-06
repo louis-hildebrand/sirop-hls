@@ -37,7 +37,7 @@ class OptimizationTests extends AnyFunSuite {
       StmBuild(
         n,
         0,
-        (i: Expr) => Tuple(1 + i, FunCall(f, i), True)
+        (i: Expr) => Tuple(1 + i, SSome(FunCall(f, i)))
       )
     assert(actual == ideal)
   }
@@ -49,12 +49,17 @@ class OptimizationTests extends AnyFunSuite {
     val n = Param()
     val c = Param()
     val s = StmCst(n, c)
-    val v =
-      StmCanonPass.canonicalize(
-        StmInductionVarRemovalPass.removeInductionVars(
-          StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-        )
-      )
+    val v = {
+      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v2 = StmCanonPass.canonicalize(v1)
+      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      val v4 = {
+        val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
+        PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+      }
+      StmAccRemovalPass.removeUnusedElems(v4)
+    }
 
     // Correctness
     val expected = (n: Int) => Seq((0 until n).map(_ => c))
@@ -70,13 +75,9 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = StmBuild(
       1,
       Tuple(),
-      (acc: Expr) => Tuple(Tuple(), VecBuild(n, (_: Expr) => c), True)
+      (_: Expr) => Tuple(Tuple(), SSome(VecBuild(n, (_: Expr) => c)))
     )
-    // TODO: update `valid` expression as well and then remove the unnecessary counter
-    // assert(v == ideal)
-    assert(
-      v.seed.asInstanceOf[Tuple].elems.forall(e => !e.isInstanceOf[VecBuild])
-    )
+    assert(v == ideal)
   }
 
   /** The conversion of an arbitrary counter of unknown length into a vector can
@@ -87,12 +88,14 @@ class OptimizationTests extends AnyFunSuite {
     val z = Param()
     val delta = Param()
     val s = StmRange(n, z, delta)
-    val v =
-      StmCanonPass.canonicalize(
-        StmInductionVarRemovalPass.removeInductionVars(
-          StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-        )
-      )
+    val v = {
+      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v2 = StmCanonPass.canonicalize(v1)
+      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
+      val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
+      PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+    }
 
     // Correctness
     val expected =
@@ -114,13 +117,9 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = StmBuild(
       1,
       Tuple(),
-      (acc: Expr) =>
-        Tuple(Tuple(), VecBuild(n, (i: Expr) => z + i * delta), True)
+      (_: Expr) =>
+        Tuple(Tuple(), SSome(VecBuild(n, (i: Expr) => z + i * delta)))
     )
-    // TODO: update `valid` expression as well and then remove the unnecessary counter
-    // assert(v == ideal)
-    assert(
-      v.seed.asInstanceOf[Tuple].elems.forall(e => !e.isInstanceOf[VecBuild])
-    )
+    assert(v == ideal)
   }
 }

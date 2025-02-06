@@ -6,9 +6,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmCanonPassTests extends AnyFunSuite {
   test("ScalarAccumulator") {
-    val s = StmBuild(6, 0, (i: Expr) => Tuple(i + 1, i, True))
+    val s = StmBuild(6, 0, (i: Expr) => Tuple(i + 1, SSome(i)))
     val canon =
-      StmBuild(6, Tuple(0), (i: Expr) => Tuple(Tuple(i.__0 + 1), i.__0, True))
+      StmBuild(6, Tuple(0), (i: Expr) => Tuple(Tuple(i.__0 + 1), SSome(i.__0)))
     assert(StmCanonPass.canonicalize(s) == canon)
   }
 
@@ -16,12 +16,12 @@ class StmCanonPassTests extends AnyFunSuite {
     val s = StmBuild(
       2,
       VecBuild(3, (i: Expr) => IntCst(0)),
-      (v: Expr) => Tuple(VecShiftLeft(v, 42), v, True)
+      (v: Expr) => Tuple(VecShiftLeft(v, 42), SSome(v))
     )
     val expected = StmBuild(
       2,
       Tuple(VecBuild(3, (i: Expr) => IntCst(0))),
-      (v: Expr) => Tuple(Tuple(VecShiftLeft(v.__0, 42)), v.__0, True)
+      (v: Expr) => Tuple(Tuple(VecShiftLeft(v.__0, 42)), SSome(v.__0))
     )
     val actual = StmCanonPass.canonicalize(s)
     assert(actual == expected)
@@ -41,13 +41,14 @@ class StmCanonPassTests extends AnyFunSuite {
               StmNext(acc.__1.__2).__0
             )
           ),
-          (acc.__0.__0
-            + acc.__0.__1
-            + acc.__1.__0
-            + acc.__1.__1.__0
-            + acc.__1.__1.__1
-            + StmNext(acc.__1.__2).__1),
-          True
+          SSome(
+            acc.__0.__0
+              + acc.__0.__1
+              + acc.__1.__0
+              + acc.__1.__1.__0
+              + acc.__1.__1.__1
+              + StmNext(acc.__1.__2).__1
+          )
         )
     )
     val expected = StmBuild(
@@ -63,13 +64,14 @@ class StmCanonPassTests extends AnyFunSuite {
             acc.__4 + 4,
             acc.__5 + 5
           ),
-          (acc.__1
-            + acc.__2
-            + acc.__3
-            + acc.__4
-            + acc.__5
-            + StmNext(acc.__0).__1),
-          True
+          SSome(
+            acc.__1
+              + acc.__2
+              + acc.__3
+              + acc.__4
+              + acc.__5
+              + StmNext(acc.__0).__1
+          )
         )
     )
     val actual = StmCanonPass.canonicalize(s)
@@ -80,9 +82,9 @@ class StmCanonPassTests extends AnyFunSuite {
     val s = StmBuild(
       5,
       Tuple(Tuple()),
-      (acc: Expr) => Tuple(Tuple(acc.__0), 42, True)
+      (acc: Expr) => Tuple(Tuple(acc.__0), SSome(42))
     )
-    val canon = StmBuild(5, Tuple(), (acc: Expr) => Tuple(Tuple(), 42, True))
+    val canon = StmBuild(5, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(42)))
     assert(StmCanonPass.canonicalize(s) == canon)
   }
 
@@ -95,14 +97,14 @@ class StmCanonPassTests extends AnyFunSuite {
       (acc: Expr) =>
         IfThenElse(
           acc.__0 - 1 === 0,
-          Tuple(Tuple(1, acc.__1 + 1), acc.__1, True),
-          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), acc.__1, True)
+          Tuple(Tuple(1, acc.__1 + 1), SSome(acc.__1)),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), SSome(acc.__1))
         )
     )
     val canon = StmBuild(
       1000,
       Tuple(1),
-      (acc: Expr) => Tuple(Tuple(acc.__0 + 1), acc.__0, True)
+      (acc: Expr) => Tuple(Tuple(acc.__0 + 1), SSome(acc.__0))
     )
     assert(PartialEvalPass.partialEval(StmCanonPass.canonicalize(s)) == canon)
   }
@@ -117,14 +119,14 @@ class StmCanonPassTests extends AnyFunSuite {
       (acc: Expr) =>
         IfThenElse(
           (acc.__0 - 1 === 0) && (acc.__1 + 2 === 4),
-          Tuple(Tuple(acc.__1 - 1, acc.__0 + 1), 42, True),
-          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), 42, True)
+          Tuple(Tuple(acc.__1 - 1, acc.__0 + 1), SSome(42)),
+          Tuple(Tuple(acc.__1 + 42, acc.__1 + 1), SSome(42))
         )
     )
     val canon = StmBuild(
       1000,
       Tuple(),
-      (acc: Expr) => Tuple(Tuple(), 42, True)
+      (_: Expr) => Tuple(Tuple(), SSome(42))
     )
     assert(PartialEvalPass.partialEval(StmCanonPass.canonicalize(s)) == canon)
   }
@@ -136,8 +138,7 @@ class StmCanonPassTests extends AnyFunSuite {
       (acc: Expr) =>
         Tuple(
           Tuple(acc.__0 + 1, acc.__1, acc.__2 + 2, acc.__3 + 3, Tuple()),
-          acc.__0 * acc.__2 * acc.__3,
-          True
+          SSome(acc.__0 * acc.__2 * acc.__3)
         )
     )
     val canon = StmBuild(
@@ -146,8 +147,7 @@ class StmCanonPassTests extends AnyFunSuite {
       (acc: Expr) =>
         Tuple(
           Tuple(acc.__0 + 1, acc.__1 + 2, acc.__2 + 3),
-          acc.__0 * acc.__1 * acc.__2,
-          True
+          SSome(acc.__0 * acc.__1 * acc.__2)
         )
     )
     assert(StmCanonPass.canonicalize(s) == canon)
@@ -165,8 +165,7 @@ class StmCanonPassTests extends AnyFunSuite {
             acc.__2 - 2,
             StmNext(acc.__3).__0
           ),
-          acc.__0 + StmNext(acc.__1).__1 + acc.__2 + StmNext(acc.__3).__1,
-          True
+          SSome(acc.__0 + StmNext(acc.__1).__1 + acc.__2 + StmNext(acc.__3).__1)
         )
     )
     val expected = StmBuild(
@@ -180,8 +179,7 @@ class StmCanonPassTests extends AnyFunSuite {
             acc.__2 + -1,
             acc.__3 + -2
           ),
-          acc.__2 + StmNext(acc.__0).__1 + acc.__3 + StmNext(acc.__1).__1,
-          True
+          SSome(acc.__2 + StmNext(acc.__0).__1 + acc.__3 + StmNext(acc.__1).__1)
         )
     )
     val actual = StmCanonPass.canonicalize(s)
@@ -193,7 +191,7 @@ class StmCanonPassTests extends AnyFunSuite {
       Tuple(Tuple(2, 2)),
       0,
       (i: Expr) =>
-        Tuple(i + 1, IfThenElse(i % 2 === 0, i / 2, (i - 1) / 2), True)
+        Tuple(i + 1, SSome(IfThenElse(i % 2 === 0, i / 2, (i - 1) / 2)))
     )
     val canon = StmBuild(
       Tuple(Tuple(2, 2)),
@@ -201,8 +199,8 @@ class StmCanonPassTests extends AnyFunSuite {
       (i: Expr) =>
         IfThenElse(
           i.__0 % 2 === 0,
-          Tuple(Tuple(i.__0 + 1), i.__0 / 2, True),
-          Tuple(Tuple(i.__0 + 1), (i.__0 + -1) / 2, True)
+          Tuple(Tuple(i.__0 + 1), SSome(i.__0 / 2)),
+          Tuple(Tuple(i.__0 + 1), SSome((i.__0 + -1) / 2))
         )
     )
     assert(StmCanonPass.canonicalize(s) == canon)
@@ -223,8 +221,7 @@ class StmCanonPassTests extends AnyFunSuite {
             ),
             Tuple(acc.__0, Tuple(), Tuple(acc.__2.__0, acc.__2.__1 + 1))
           ),
-          Tuple(acc.__0, acc.__2.__0, acc.__2.__1),
-          True
+          SSome(Tuple(acc.__0, acc.__2.__0, acc.__2.__1))
         )
     )
     val canon = StmBuild(
@@ -237,19 +234,16 @@ class StmCanonPassTests extends AnyFunSuite {
             acc.__1 === 2,
             Tuple(
               Tuple(acc.__0 + 1, 0, 0),
-              Tuple(acc.__0, acc.__1, acc.__2),
-              True
+              SSome(Tuple(acc.__0, acc.__1, acc.__2))
             ),
             Tuple(
               Tuple(acc.__0, acc.__1 + 1, 0),
-              Tuple(acc.__0, acc.__1, acc.__2),
-              True
+              SSome(Tuple(acc.__0, acc.__1, acc.__2))
             )
           ),
           Tuple(
             Tuple(acc.__0, acc.__1, acc.__2 + 1),
-            Tuple(acc.__0, acc.__1, acc.__2),
-            True
+            SSome(Tuple(acc.__0, acc.__1, acc.__2))
           )
         )
     )

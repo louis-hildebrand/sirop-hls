@@ -88,7 +88,7 @@ object StmFusePass {
       case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
         ???
       case DontCare => DontCare
-      case Tuple(a, e, valid) =>
+      case Tuple(a, out) =>
         a match {
           case Tuple(
                 TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
@@ -104,29 +104,35 @@ object StmFusePass {
             val innerNext0 = tupleExpand(innerNext.__0, innerStmAccArity)
             val newAcc0 = tupleExpand(newAcc.__0, outerStmAccArity)
             val subInnerNextData =
-              Map[Expr, Expr](StmNext(oldAcc.__0).__1 -> innerNext.__1)
+              Map[Expr, Expr](
+                StmNext(oldAcc.__0).__1 -> OptionAccess(
+                  innerNext.__1,
+                  (e: Expr) => e,
+                  (_: Expr) => DontCare
+                )
+              )
             Let(
               innerNext,
               FunCall(innerNextF, newAcc.__1),
-              IfThenElse(
-                innerNext.__2,
+              OptionAccess(
+                innerNext.__1,
                 // CASE 1a: Received next element from inner stream.
                 //          Update the outer accumulator.
-                Tuple(
+                (_: Expr) =>
                   Tuple(
                     Tuple(
-                      Tuple() +: as.map(a =>
-                        ir.substitute(a)(subInnerNextData)
-                      ): _*
+                      Tuple(
+                        Tuple() +: as.map(a =>
+                          ir.substitute(a)(subInnerNextData)
+                        ): _*
+                      ),
+                      innerNext0
                     ),
-                    innerNext0
+                    ir.substitute(out)(subInnerNextData)
                   ),
-                  ir.substitute(e)(subInnerNextData),
-                  ir.substitute(valid)(subInnerNextData)
-                ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.
-                Tuple(Tuple(newAcc0, innerNext0), DontCare, False)
+                (_: Expr) => Tuple(Tuple(newAcc0, innerNext0), NNone)
               )
             )
           case Tuple(TupleAccess(p, IntCst(0)), as @ _*) if p == oldAcc =>
@@ -134,7 +140,7 @@ object StmFusePass {
             val newAcc1 = tupleExpand(newAcc.__1, innerStmAccArity)
             // CASE 2: StmNext() not called, so leave the inner accumulator
             //         as-is.
-            Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc1), e, valid)
+            Tuple(Tuple(Tuple(Tuple() +: as: _*), newAcc1), out)
           case Tuple(x, _ @_*) =>
             throw new IllegalArgumentException(
               s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
