@@ -136,9 +136,11 @@ class OptimizationTests extends AnyFunSuite {
       fOutShape = Some(n)
     )
     val optimized = {
-      val s1 = StmFusePass.fuseCompletely(original)
+      val facts = FactSet().range(n, ScalarRange(Some(1), None))
+      val s0 = PartialEvalPass.partialEval(original)(facts)
+      val s1 = StmFusePass.fuseCompletely(s0)
       val s2 = StmInductionVarRemovalPass.removeInductionVars(s1)
-      PartialEvalPass.partialEval(s2)
+      PartialEvalPass.partialEval(s2)(facts)
     }
 
     // Correctness

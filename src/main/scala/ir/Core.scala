@@ -149,7 +149,7 @@ case class IntCst(i: Int) extends IntExpr {
   override def children: Seq[Expr] = Seq()
 }
 
-class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
+final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
   val terms: Seq[Expr] =
     unsortedTerms
       // Flatten nested sums to represent associativity
@@ -162,14 +162,10 @@ class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
 
   override def children: Seq[Expr] = terms
 
-  def canEqual(that: Any): Boolean = {
-    that.isInstanceOf[Sum]
-  }
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: Sum =>
-        that.canEqual(this) && this.terms == that.terms
-      case _ => false
+      case that: Sum => this.terms == that.terms
+      case _         => false
     }
   }
   override def hashCode(): Int = {
@@ -190,7 +186,7 @@ object Sum {
   }
 }
 
-class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
+final class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
   val factors: Seq[Expr] =
     unsortedFactors
       // Flatten nested sums to represent associativity
@@ -203,12 +199,9 @@ class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
 
   override def children: Seq[Expr] = factors
 
-  def canEqual(that: Any): Boolean = {
-    that.isInstanceOf[Prod]
-  }
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: Prod => that.canEqual(this) && this.factors == that.factors
+      case that: Prod => this.factors == that.factors
       case _          => false
     }
   }
@@ -241,13 +234,44 @@ case object True extends BoolExpr {
 case object False extends BoolExpr {
   override def children: Seq[Expr] = Seq()
 }
+
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
-case class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
-  override def children: Seq[Expr] = Seq(cond, trueE, falseE)
+final class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
+  val (c, t, f) = cond match {
+    case Not(c) => (c, falseE, trueE)
+    case c      => (c, trueE, falseE)
+  }
+
+  override def children: Seq[Expr] = Seq(c, t, f)
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: IfThenElse =>
+        this.c == that.c && this.t == that.t && this.f == that.f
+      case _ => false
+    }
+  }
+  override def hashCode(): Int = {
+    (this.c, this.t, this.f).hashCode()
+  }
+
+  override def toString: String = {
+    s"IfThenElse($c, $t, $f)"
+  }
 }
+object IfThenElse {
+  def apply(c: Expr, t: Expr, f: Expr): Expr = {
+    new IfThenElse(c, t, f)
+  }
+
+  def unapply(ite: IfThenElse): Option[(Expr, Expr, Expr)] = {
+    Some((ite.c, ite.t, ite.f))
+  }
+}
+
 // Comparison operators
 case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp

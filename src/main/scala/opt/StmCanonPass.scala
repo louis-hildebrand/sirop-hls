@@ -201,9 +201,9 @@ object StmCanonPass {
     } else {
       val ite = t.elems(i).asInstanceOf[IfThenElse]
       IfThenElse(
-        ite.cond,
-        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.trueE): _*)),
-        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.falseE): _*))
+        ite.c,
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.t): _*)),
+        rewriteIfThenElseInTuple(Tuple(t.elems.updated(i, ite.f): _*))
       )
     }
   }

@@ -22,4 +22,18 @@ class CoreTests extends AnyFunSuite {
     assert(x * y * z * w == Prod(z, x, y, w))
     assert(x * y * z * w * x != Prod(z, x, y, w))
   }
+
+  test("MakeIfThenElsePositive") {
+    val c = Param("c")
+    val t = Param("t")
+    val f = Param("f")
+
+    val e0 = IfThenElse(c, t, f).asInstanceOf[IfThenElse]
+    assert(e0.c == c)
+    assert(e0.t == t)
+    assert(e0.f == f)
+
+    val e1 = IfThenElse(Not(c), f, t)
+    assert(e0 == e1)
+  }
 }
