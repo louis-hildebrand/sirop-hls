@@ -121,4 +121,33 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     )
     assert(PartialEvalPass.partialEval(e) == Tuple(0, 2))
   }
+
+  /** The partial evaluator may check whether one branch is a special case of
+    * the other. But in some cases, this can lead to division by zero.
+    */
+  test("PossibleDivByZeroInFalseBranch") {
+    val x = Param("x")
+
+    val e0 = IfThenElse(x === 0, 1, 2 / x)
+    assert(PartialEvalPass.partialEval(e0) == e0)
+
+    val e1 = IfThenElse(x === 1, 1, 3 / (1 - x))
+    assert(PartialEvalPass.partialEval(e1) == e1)
+
+    val e2 = IfThenElse(x > 0, 10 / x, 0)
+    assert(PartialEvalPass.partialEval(e2) == e2)
+  }
+
+  test("PossibleDivByZeroInTrueBranch") {
+    val x = Param("x")
+
+    val e0 = IfThenElse(x !== 0, 2 / x, 1)
+    assert(PartialEvalPass.partialEval(e0) == e0)
+
+    val e1 = IfThenElse(x !== 1, 3 / (1 - x), 1)
+    assert(PartialEvalPass.partialEval(e1) == e1)
+
+    val e2 = IfThenElse(x <= 0, 0, 10 / x)
+    assert(PartialEvalPass.partialEval(e2) == e2)
+  }
 }

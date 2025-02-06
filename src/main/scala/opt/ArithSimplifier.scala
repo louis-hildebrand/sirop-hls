@@ -74,8 +74,13 @@ object ArithSimplifier {
   }
 
   def simplifyArithmetic(e: Expr)(facts: FactSet): Expr = {
-    val a = toArithExpr(e)(facts)
-    fromArithExpr(a) match {
+    val a =
+      try {
+        Some(toSimplifiedArithExpr(e)(facts))
+      } catch {
+        case _: ArithmeticException => None
+      }
+    a.flatMap(a => fromArithExpr(a)) match {
       case None => e
       // TODO: This is a nasty hack to deal with LessThan(e1, e2). It would be better if ArithExpr supported booleans
       case Some(IfThenElse(c, True, False)) => c
@@ -83,54 +88,63 @@ object ArithSimplifier {
     }
   }
 
-  private def toArithExpr(
+  private def toSimplifiedArithExpr(
       e: Expr
   )(facts: FactSet): ae.ArithExpr with ae.SimplifiedExpr = {
     e match {
       case DontCare  => ae.?
       case IntCst(n) => ae.Cst(n)
       case Sum(terms) =>
-        val arithTerms = terms.map(e => toArithExpr(e)(facts)).toList
+        val arithTerms = terms.map(e => toSimplifiedArithExpr(e)(facts)).toList
         aes.SimplifySum(arithTerms)
       case Prod(factors) =>
-        val arithFactors = factors.map(e => toArithExpr(e)(facts)).toList
+        val arithFactors =
+          factors.map(e => toSimplifiedArithExpr(e)(facts)).toList
         aes.SimplifyProd(arithFactors)
-      case Div(n, d) => ae.IntDiv(toArithExpr(n)(facts), toArithExpr(d)(facts))
-      case Mod(n, d) => ae.Mod(toArithExpr(n)(facts), toArithExpr(d)(facts))
+      case Div(n, d) =>
+        aes.SimplifyIntDiv(
+          toSimplifiedArithExpr(n)(facts),
+          toSimplifiedArithExpr(d)(facts)
+        )
+      case Mod(n, d) =>
+        aes.SimplifyMod(
+          toSimplifiedArithExpr(n)(facts),
+          toSimplifiedArithExpr(d)(facts)
+        )
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toArithExpr(IfThenElse(lt, True, False))(facts)
+        toSimplifiedArithExpr(IfThenElse(lt, True, False))(facts)
       case IfThenElse(c, t, f) =>
         val pred = c match {
           case LessThan(e1, e2) =>
             Some(
               ae.Predicate(
-                toArithExpr(e1)(facts),
-                toArithExpr(e2)(facts),
+                toSimplifiedArithExpr(e1)(facts),
+                toSimplifiedArithExpr(e2)(facts),
                 ae.Predicate.Operator.<
               )
             )
           case Not(LessThan(e1, e2)) =>
             Some(
               ae.Predicate(
-                toArithExpr(e1)(facts),
-                toArithExpr(e2)(facts),
+                toSimplifiedArithExpr(e1)(facts),
+                toSimplifiedArithExpr(e2)(facts),
                 ae.Predicate.Operator.>=
               )
             )
           case Equal(e1, e2) =>
             Some(
               ae.Predicate(
-                toArithExpr(e1)(facts),
-                toArithExpr(e2)(facts),
+                toSimplifiedArithExpr(e1)(facts),
+                toSimplifiedArithExpr(e2)(facts),
                 ae.Predicate.Operator.==
               )
             )
           case Not(Equal(e1, e2)) =>
             Some(
               ae.Predicate(
-                toArithExpr(e1)(facts),
-                toArithExpr(e2)(facts),
+                toSimplifiedArithExpr(e1)(facts),
+                toSimplifiedArithExpr(e2)(facts),
                 ae.Predicate.Operator.!=
               )
             )
@@ -138,7 +152,11 @@ object ArithSimplifier {
         }
         pred match {
           case Some(p) =>
-            ae.IfThenElse(p, toArithExpr(t)(facts), toArithExpr(f)(facts))
+            aes.SimplifyIfThenElse(
+              p,
+              toSimplifiedArithExpr(t)(facts),
+              toSimplifiedArithExpr(f)(facts)
+            )
           case None => BlackBox(e)
         }
       case e =>
@@ -146,13 +164,13 @@ object ArithSimplifier {
           facts.rangeByExpr.getOrElse(e, ScalarRange(None, None)) match {
             case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
             case ScalarRange(None, Some(upper)) =>
-              ae.GoesToRange(toArithExpr(upper)(facts))
+              ae.GoesToRange(toSimplifiedArithExpr(upper)(facts))
             case ScalarRange(Some(lower), None) =>
-              ae.StartFromRange(toArithExpr(lower)(facts))
+              ae.StartFromRange(toSimplifiedArithExpr(lower)(facts))
             case ScalarRange(Some(lower), Some(upper)) =>
               ae.ContinuousRange(
-                toArithExpr(lower)(facts),
-                toArithExpr(upper)(facts)
+                toSimplifiedArithExpr(lower)(facts),
+                toSimplifiedArithExpr(upper)(facts)
               )
           }
         new BlackBox(e, range = range)
