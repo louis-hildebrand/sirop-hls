@@ -129,11 +129,6 @@ case class Function(param: Param, body: Expr) extends Expr {
 case class FunCall(f: Expr, arg: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
 }
-case object Let {
-  def apply(p: Param, v: Expr, in: Expr): Expr = {
-    FunCall(Function(p, in), v)
-  }
-}
 
 sealed trait BinOp extends Expr {
   val e1: Expr
@@ -285,26 +280,6 @@ case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp
 // Useful for readability and possibly for optimization
 case object DontCare extends Expr {
   override def children: Seq[Expr] = Seq()
-}
-
-// Option<T>
-trait OptionType {
-  val NNone: Expr = Tuple(DontCare, False)
-}
-case object SSome {
-  def apply(e: Expr /* T */ ): Expr = Tuple(e, True)
-}
-case object OptionAccess {
-  def apply(
-      e: Expr /* Option<T> */,
-      s: Expr /* T -> V */,
-      n: Expr /* V */
-  ): Expr /* V */ = IfThenElse(e.__1, FunCall(s, e.__0), FunCall(n, Tuple()))
-}
-case object IsNone {
-  def apply(e: Expr /* Option<T> */ ): Expr /* Bool */ = {
-    Not(e.__1)
-  }
 }
 
 // Streams
