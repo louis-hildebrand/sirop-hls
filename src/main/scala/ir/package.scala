@@ -1,6 +1,6 @@
 import scala.language.implicitConversions
 
-package object ir extends OptionType {
+package object ir extends OptionType with Eval {
   def contains(e1: Expr, e2: Expr): Boolean = {
     e1 match {
       case _ if e1 == e2 => true

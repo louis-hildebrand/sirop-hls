@@ -2,6 +2,8 @@ package ir
 
 import java.util.concurrent.atomic.AtomicLong
 
+/** A node in the core IR.
+  */
 sealed trait Expr {
   def +(that: Expr): Expr = Sum(this, that)
   def -(that: Expr): Expr = Sum(this, Prod(-1, that))
