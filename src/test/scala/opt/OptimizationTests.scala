@@ -100,17 +100,19 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Correctness
-    val expected =
-      (n: Int, z: Int, delta: Int) =>
-        Seq((0 until n).map(i => IntCst(z + i * delta)))
-    val actual = (nVal: Int, zVal: Int, deltaVal: Int) =>
-      StreamTests
-        .stm2Seq(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
-        .map(v => VectorTests.vec2Seq(v))
-    for (n <- 0 to 10) {
-      for (z <- -5 to 5) {
-        for (delta <- -5 to 5) {
-          assert(actual(n, z, delta) == expected(n, z, delta))
+    for (nVal <- 0 to 10) {
+      for (zVal <- -5 to 5) {
+        for (deltaVal <- -5 to 5) {
+          val expected = {
+            val elems =
+              ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, s))))
+                .asInstanceOf[ExtStmLiteral]
+                .elems
+            ExtStmLiteral(ExtVecLiteral(elems: _*))
+          }
+          val actual =
+            ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
+          assert(ir.eval(actual) == expected)
         }
       }
     }
