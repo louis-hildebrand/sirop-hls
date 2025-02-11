@@ -21,16 +21,18 @@ class OptimizationTests extends AnyFunSuite {
     // Correctness
     val n0 = 2
     val f0 = (i: Expr) => i + 5
-    val expected0 = Seq(5, 6).map(n => IntCst(n))
+    val expected0 = ExtStmLiteral.ints(5, 6)
     val actual0 = (s: Expr) => Let(n, n0, Let(f, f0, s))
-    assert(StreamTests.stm2Seq(actual0(s)) == expected0)
-    assert(StreamTests.stm2Seq(actual0(actual)) == expected0)
+    assert(ir.eval(actual0(s)) == expected0)
+    assert(ir.eval(actual0(actual)) == expected0)
     val n1 = 15
     val f1 = (i: Expr) => (i + 1) * (i + 2) * (i + 3)
-    val expected1 = (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3)))
+    val expected1 = ExtStmLiteral(
+      (0 until n1).map(i => ExtIntCst((i + 1) * (i + 2) * (i + 3))): _*
+    )
     val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s))
-    assert(StreamTests.stm2Seq(actual1(s)) == expected1)
-    assert(StreamTests.stm2Seq(actual1(actual)) == expected1)
+    assert(ir.eval(actual1(s)) == expected1)
+    assert(ir.eval(actual1(actual)) == expected1)
 
     // Effective simplification
     val ideal =
@@ -144,17 +146,18 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Correctness
-    val c = Param("c")
     val examples = Seq(
-      StmCst(n, c),
+      StmCst(n, 42),
+      StmCst(n, 99),
+      StmCst(n, -1),
       StmRange(n, 1, 5),
       StmRepeat(StmCount(n), m = 3, n = n)
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = StreamTests.stm2Seq(Let(n, nVal, Let(s, stm, original)))
-        val actual = StreamTests.stm2Seq(Let(n, nVal, Let(s, stm, optimized)))
-        assert(actual == expected)
+        val expected = Let(n, nVal, Let(s, stm, original))
+        val actual = Let(n, nVal, Let(s, stm, optimized))
+        assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
@@ -184,13 +187,9 @@ class OptimizationTests extends AnyFunSuite {
     )
     for (vec <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = StreamTests
-          .stm2Seq(Let(n, nVal, Let(v, vec, original)))
-          .map(v => VectorTests.vec2Seq(v))
-        val actual = StreamTests
-          .stm2Seq(Let(n, nVal, Let(v, vec, optimized)))
-          .map(v => VectorTests.vec2Seq(v))
-        assert(actual == expected)
+        val expected = Let(n, nVal, Let(v, vec, original))
+        val actual = Let(n, nVal, Let(v, vec, optimized))
+        assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
@@ -238,22 +237,17 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Correctness
-    val c = Param("c")
     val examples = Seq(
-      StmCst2D(n, m, c),
+      StmCst2D(n, m, 42),
+      StmCst2D(n, m, -1),
       StmCount2D(n, m)
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
         for (mVal <- Seq(1, 2, 10)) {
-          val expected =
-            StreamTests.stm2Seq(
-              Let(n, nVal, Let(m, mVal, Let(s, stm, original)))
-            )
-          val actual = StreamTests.stm2Seq(
-            Let(n, nVal, Let(m, mVal, Let(s, stm, optimized)))
-          )
-          assert(actual == expected)
+          val expected = Let(n, nVal, Let(m, mVal, Let(s, stm, original)))
+          val actual = Let(n, nVal, Let(m, mVal, Let(s, stm, optimized)))
+          assert(ir.eval(actual) == ir.eval(expected))
         }
       }
     }

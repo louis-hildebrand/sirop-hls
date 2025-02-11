@@ -9,7 +9,6 @@ class StmFusePassTests extends AnyFunSuite {
     StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
   private val fuse = (e: Expr) => StmFusePass.fuse(e)
   private val fuseCompletely = (e: Expr) => StmFusePass.fuseCompletely(e)
-  private val stm2Seq = (e: Expr) => StreamTests.stm2Seq(e)
 
   test("CountFromFive") {
     val s = StmMap(
@@ -22,9 +21,9 @@ class StmFusePassTests extends AnyFunSuite {
     val actual = canon(fuse(s))
 
     // Correct behaviour
-    val expectedElems = Seq(5, 6, 7).map(n => IntCst(n))
-    assert(stm2Seq(s) == expectedElems)
-    assert(stm2Seq(actual) == expectedElems)
+    val expectedElems = ExtStmLiteral.ints(5, 6, 7)
+    assert(ir.eval(s) == expectedElems)
+    assert(ir.eval(actual) == expectedElems)
     // Successful fusion
     val ideal =
       StmBuild(
@@ -52,9 +51,9 @@ class StmFusePassTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example p, f, and g)
     val call = (e: Expr) => Let(p, StmCount(5), e)
-    val expectedElems = Seq(14, 50, 110, 200, 326).map(n => IntCst(n))
-    assert(stm2Seq(call(s)) == expectedElems)
-    assert(stm2Seq(call(actual)) == expectedElems)
+    val expectedElems = ExtStmLiteral.ints(14, 50, 110, 200, 326)
+    assert(ir.eval(call(s)) == expectedElems)
+    assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
     val ideal = StmBuild(
       5,
@@ -87,15 +86,18 @@ class StmFusePassTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example p, f, and g)
     val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
-    val expected = PartialEvalPass.partialEval(
-      FunCall(f, 0)
-        + FunCall(f, 1)
-        + FunCall(f, 2)
-        + FunCall(f, 3)
-        + FunCall(f, 4)
-    )
-    assert(stm2Seq(call(s)) == Seq(expected))
-    assert(stm2Seq(call(actual)) == Seq(expected))
+    val expected =
+      ExtStmLiteral(
+        ir.eval(
+          FunCall(f, 0)
+            + FunCall(f, 1)
+            + FunCall(f, 2)
+            + FunCall(f, 3)
+            + FunCall(f, 4)
+        )
+      )
+    assert(ir.eval(call(s)) == expected)
+    assert(ir.eval(call(actual)) == expected)
     // Successful fusion
     val ideal = canon(
       fuseCompletely(
@@ -122,9 +124,9 @@ class StmFusePassTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example p)
     val call = (e: Expr) => Let(p, StmCount(5), e)
-    val expectedElems = Seq(42, 0, 1, 2, 3).map(n => IntCst(n))
-    assert(stm2Seq(call(s)) == expectedElems)
-    assert(stm2Seq(call(actual)) == expectedElems)
+    val expectedElems = ExtStmLiteral.ints(42, 0, 1, 2, 3)
+    assert(ir.eval(call(s)) == expectedElems)
+    assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
     val ideal = StmBuild(
       StmLength(p),
@@ -158,9 +160,9 @@ class StmFusePassTests extends AnyFunSuite {
 
     // Correct behaviour
     val call = (e: Expr) => Let(p, StmCount(n), e)
-    val expectedElems = Seq(1, 2, 3, 4, 42).map(n => IntCst(n))
-    assert(stm2Seq(call(s)) == expectedElems)
-    assert(stm2Seq(call(actual)) == expectedElems)
+    val expectedElems = ExtStmLiteral.ints(1, 2, 3, 4, 42)
+    assert(ir.eval(call(s)) == expectedElems)
+    assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
     val ideal =
       StmBuild(
@@ -197,7 +199,7 @@ class StmFusePassTests extends AnyFunSuite {
     // 1) After one fusion
     val actual1 = canon(fuse(s))
     // 1a) Correct behaviour
-    assert(stm2Seq(actual1) == stm2Seq(s))
+    assert(ir.eval(actual1) == ir.eval(s))
     // 1b) Successful fusion
     val ideal1 = StmBuild(
       4,
@@ -214,9 +216,14 @@ class StmFusePassTests extends AnyFunSuite {
     val actual2 = canon(fuse(fuse(s)))
     // 2a) Correct behaviour
     val expectedElems =
-      Seq(Tuple(0, 9), Tuple(1, 11), Tuple(2, 13), Tuple(3, 15))
-    assert(stm2Seq(s) == expectedElems)
-    assert(stm2Seq(actual2) == expectedElems)
+      ExtStmLiteral(
+        ExtTupleVal(0, 9),
+        ExtTupleVal(1, 11),
+        ExtTupleVal(2, 13),
+        ExtTupleVal(3, 15)
+      )
+    assert(ir.eval(s) == expectedElems)
+    assert(ir.eval(actual2) == expectedElems)
     // 2b) Successful fusion
     val ideal2 = StmBuild(
       4,

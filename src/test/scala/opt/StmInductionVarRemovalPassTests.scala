@@ -33,23 +33,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    val expected = (n: Int) =>
-      (0 until n).map(i =>
-        Tuple(
-          IntCst(2 * (i + 3)),
-          IntCst((10 + 4 * i) / 3),
-          IntCst(19 - 2 * i),
-          IntCst(3 * i),
-          IntCst(-2 - 6 * i),
-          PartialEvalPass.partialEval(1 + (delta + 1) * i)
-        )
-      )
-    val actual = (nVal: Int) =>
-      StreamTests
-        .stm2Seq(Let(n, nVal, opt))
-        .map(e => PartialEvalPass.partialEval(e))
     for (nVal <- 0 to 15) {
-      assert(actual(nVal) == expected(nVal))
+      for (deltaVal <- Seq(-42, 0, 42)) {
+        val expected = Let(n, nVal, Let(delta, deltaVal, s))
+        val actual = Let(n, nVal, Let(delta, deltaVal, opt))
+        assert(ir.eval(expected) == ir.eval(actual))
+      }
     }
 
     // Effective simplification
@@ -90,9 +79,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     for (nVal <- 0 to 10) {
-      val actual = StreamTests.stm2Seq(Let(n, nVal, optimized))
-      val expected = StreamTests.stm2Seq(Let(n, nVal, triangleSum))
-      assert(actual == expected)
+      val actual = Let(n, nVal, optimized)
+      val expected = Let(n, nVal, triangleSum)
+      assert(ir.eval(actual) == ir.eval(expected))
     }
 
     // One counter can be removed, but not the sum
@@ -127,9 +116,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- 0 to 10) {
       val s0 = StmRange(n, 1, 2)
-      val expected0 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s0, scan)))
-      val actual0 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s0, optimized)))
-      assert(actual0 == expected0)
+      val expected0 = Let(n, nVal, Let(s, s0, scan))
+      val actual0 = Let(n, nVal, Let(s, s0, optimized))
+      assert(ir.eval(actual0) == ir.eval(expected0))
 
       val s1 =
         StmBuild(
@@ -137,9 +126,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           0,
           (i: Expr) => Tuple(i + 1, SSome(IfThenElse(i % 2 === 0, i, 1)))
         )
-      val expected1 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s1, scan)))
-      val actual1 = StreamTests.stm2Seq(Let(n, nVal, Let(s, s1, optimized)))
-      assert(actual1 == expected1)
+      val expected1 = Let(n, nVal, Let(s, s1, scan))
+      val actual1 = Let(n, nVal, Let(s, s1, optimized))
+      assert(ir.eval(actual1) == ir.eval(expected1))
     }
 
     // acc.__0 kind of looks like a counter, but the `delta` is not constant
@@ -161,18 +150,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    val actual = (nVal: Int, mVal: Int) =>
-      StreamTests
-        .stm2Seq(Let(n, nVal, Let(m, mVal, opt)))
-        .map(v => VectorTests.vec2Seq(v))
-    val c = (n: Int) => IntCst(n)
-    assert(actual(1, 2) == Seq(Seq(c(1), c(100))))
+    val actual =
+      (nVal: Int, mVal: Int) => ir.eval(Let(n, nVal, Let(m, mVal, opt)))
+    assert(actual(1, 2) == ExtStmLiteral(ExtVecLiteral.ints(1, 100)))
     assert(
-      actual(4, 3) == Seq(
-        Seq(c(1), c(2), c(100)),
-        Seq(c(2), c(100), c(102)),
-        Seq(c(100), c(102), c(104)),
-        Seq(c(102), c(104), c(106))
+      actual(4, 3) == ExtStmLiteral(
+        ExtVecLiteral(1, 2, 100),
+        ExtVecLiteral(2, 100, 102),
+        ExtVecLiteral(100, 102, 104),
+        ExtVecLiteral(102, 104, 106)
       )
     )
 
@@ -240,7 +226,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             val actual =
               Let(n, nVal, Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, opt))))
             assert(
-              StreamTests.stm2Seq(actual) == StreamTests.stm2Seq(expected),
+              ir.eval(actual) == ir.eval(expected),
               s"(for n = ${nVal}, i0 = ${i0Val}, k0 = ${k0Val}, k1 = ${k1Val})"
             )
           }
@@ -302,7 +288,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           val actual =
             Let(n, nVal, Let(i0, i0Val, Let(k, kVal, opt)))
           assert(
-            StreamTests.stm2Seq(actual) == StreamTests.stm2Seq(expected),
+            ir.eval(actual) == ir.eval(expected),
             s"(for n = ${nVal}, i0 = ${i0Val}, k = ${kVal})"
           )
         }

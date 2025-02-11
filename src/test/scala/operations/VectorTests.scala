@@ -5,6 +5,7 @@ import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 object VectorTests {
+  @deprecated
   def vec2Seq(vec: Expr): Seq[Expr] = {
     val build = PartialEvalPass.partialEval(vec).asInstanceOf[VecBuild]
     val len = build.len match {
@@ -17,16 +18,19 @@ object VectorTests {
     (0 until len).map(i => PartialEvalPass.partialEval(VecAccess(build, i)))
   }
 
+  @deprecated
   def vecVec2SeqSeq(vec: Expr): Seq[Seq[Expr]] =
     vec2Seq(vec).map(e => vec2Seq(e))
 }
 
 class VectorTests extends AnyFunSuite {
+  @deprecated
   @inline
   def assertVecEqual(actual: Expr, expectedElems: Seq[Expr]): Unit = {
     assert(VectorTests.vec2Seq(actual) == expectedElems)
   }
 
+  @deprecated
   @inline
   def assert2DVecEqual(actual: Expr, expected: Seq[Seq[Expr]]): Unit = {
     assert(VectorTests.vecVec2SeqSeq(actual) == expected)
@@ -93,8 +97,8 @@ class VectorTests extends AnyFunSuite {
 
   test("Stm2Vec") {
     val v = Stm2Vec(StmCount(3), n = 3)
-    val elems = StreamTests.stm2Seq(v).map(v => VectorTests.vec2Seq(v))
-    assert(elems == Seq(Seq(IntCst(0), IntCst(1), IntCst(2))))
+    val expected = ExtStmLiteral(ExtVecLiteral.ints(0, 1, 2))
+    assert(ir.eval(v) == expected)
   }
 
   test("VecPrepend") {
