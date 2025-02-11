@@ -14,17 +14,26 @@ object StmFusePass {
       PartialEvalPass.partialEval(stm).asInstanceOf[StmBuild]
     )
     s.seed.asInstanceOf[Tuple].elems.headOption match {
-      case Some(_: StmBuild) => fuseCompletely(fuse(s))
+      case Some(_: StmBuild) => fuseCompletely(fuseCanonicalWithFirst(s))
       case _                 => s
     }
   }
 
-  /** Fuse a `StmBuild` with its first stream input.
+  /** Fuse a <code>StmBuild</code> with its first input stream.
     */
-  def fuse(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
+  def fuseWithFirst(stm: Expr /* Stm<A; n> */ ): Expr /* Stm<A; n> */ = {
     val s = StmCanonPass.canonicalize(
       PartialEvalPass.partialEval(stm).asInstanceOf[StmBuild]
     )
+    fuseCanonicalWithFirst(s)
+  }
+
+  /** Fuse a `StmBuild` that is already in canonical form with its first stream
+    * input.
+    */
+  private def fuseCanonicalWithFirst(
+      s: StmBuild /* Stm<A; n> */
+  ): Expr /* Stm<A; n> */ = {
     val outerSeed = s.seed.asInstanceOf[Tuple]
     val inputStm = outerSeed.elems.head match {
       case s: StmBuild => StmCanonPass.canonicalize(s)

@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class StmFusePassTests extends AnyFunSuite {
   private val canon = (e: Expr) =>
     StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
-  private val fuse = (e: Expr) => StmFusePass.fuse(e)
+  private val fuse = (e: Expr) => StmFusePass.fuseWithFirst(e)
   private val fuseCompletely = (e: Expr) => StmFusePass.fuseCompletely(e)
 
   test("CountFromFive") {
