@@ -4,51 +4,108 @@ import scala.language.implicitConversions
 
 /** Node of an extended IR which includes values for vectors and streams.
   */
-sealed trait ExtExpr
+sealed trait ExtExpr {
+  def children: Seq[ExtExpr]
+}
 sealed trait Value extends ExtExpr
 
-case class ExtParam(name: String) extends ExtExpr
-case class ExtFunction(x: ExtParam, body: ExtExpr) extends Value
-case class ExtFunCall(f: ExtExpr, arg: ExtExpr) extends ExtExpr
+case class ExtParam(name: String) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq()
+}
+case class ExtFunction(x: ExtParam, body: ExtExpr) extends Value {
+  override def children: Seq[ExtExpr] = Seq(x, body)
+}
+case class ExtFunCall(f: ExtExpr, arg: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(f, arg)
+}
 
 // This is a value because `DontCare` can temporarily appear in, for example,
 // the output of the stream body (which contains an option and the `None`
 // variant includes `None`).
-case object ExtDontCare extends Value
+case object ExtDontCare extends Value {
+  override def children: Seq[ExtExpr] = Seq()
+}
 
-case class ExtIntCst(n: Int) extends Value
-case class ExtSum(terms: ExtExpr*) extends ExtExpr
-case class ExtProd(factors: ExtExpr*) extends ExtExpr
-case class ExtDiv(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
-case class ExtMod(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
+case class ExtIntCst(n: Int) extends Value {
+  override def children: Seq[ExtExpr] = Seq()
+}
+case class ExtSum(terms: ExtExpr*) extends ExtExpr {
+  override def children: Seq[ExtExpr] = terms
+}
+case class ExtProd(factors: ExtExpr*) extends ExtExpr {
+  override def children: Seq[ExtExpr] = factors
+}
+case class ExtDiv(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
+case class ExtMod(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
 
-case object ExtTrue extends Value
-case object ExtFalse extends Value
-case class ExtNot(e: ExtExpr) extends ExtExpr
-case class ExtAnd(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
-case class ExtOr(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
-case class ExtEqual(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
-case class ExtLessThan(e1: ExtExpr, e2: ExtExpr) extends ExtExpr
-case class ExtIfThenElse(c: ExtExpr, t: ExtExpr, f: ExtExpr) extends ExtExpr
+case object ExtTrue extends Value {
+  override def children: Seq[ExtExpr] = Seq()
+}
+case object ExtFalse extends Value {
+  override def children: Seq[ExtExpr] = Seq()
+}
+case class ExtNot(e: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e)
+}
+case class ExtAnd(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
+case class ExtOr(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
+case class ExtEqual(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
+case class ExtLessThan(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(e1, e2)
+}
+case class ExtIfThenElse(c: ExtExpr, t: ExtExpr, f: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(c, t, f)
+}
 
-case class ExtTuple(elems: ExtExpr*) extends ExtExpr
-case class ExtTupleAccess(t: ExtExpr, i: ExtExpr) extends ExtExpr
-case class ExtTupleVal(elems: Value*) extends Value
+case class ExtTuple(elems: ExtExpr*) extends ExtExpr {
+  override def children: Seq[ExtExpr] = elems
+}
+case class ExtTupleAccess(t: ExtExpr, i: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(t, i)
+}
+case class ExtTupleVal(elems: Value*) extends Value {
+  override def children: Seq[ExtExpr] = elems
+}
 
-case class ExtVecBuild(n: ExtExpr, f: ExtExpr) extends ExtExpr
-case class ExtVecAccess(v: ExtExpr, i: ExtExpr) extends ExtExpr
-case class ExtVecLength(v: ExtExpr) extends ExtExpr
-case class ExtVecLiteral(elems: Value*) extends Value
+case class ExtVecBuild(n: ExtExpr, f: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(n, f)
+}
+case class ExtVecAccess(v: ExtExpr, i: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(v, i)
+}
+case class ExtVecLength(v: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(v)
+}
+case class ExtVecLiteral(elems: Value*) extends Value {
+  override def children: Seq[ExtExpr] = elems
+}
 object ExtVecLiteral {
   def ints(elems: Int*): ExtVecLiteral = {
     ExtVecLiteral(elems.map(n => ExtIntCst(n)): _*)
   }
 }
 
-case class ExtStmBuild(n: ExtExpr, z: ExtExpr, f: ExtExpr) extends ExtExpr
-case class ExtStmNext(s: ExtExpr) extends ExtExpr
-case class ExtStmLength(s: ExtExpr) extends ExtExpr
+case class ExtStmBuild(n: ExtExpr, z: ExtExpr, f: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(n, z, f)
+}
+case class ExtStmNext(s: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(s)
+}
+case class ExtStmLength(s: ExtExpr) extends ExtExpr {
+  override def children: Seq[ExtExpr] = Seq(s)
+}
 case class ExtStmLiteral(elems: Value*) extends Value {
+  override def children: Seq[ExtExpr] = elems
   def flatten: ExtStmLiteral = {
     require(elems.forall(e => e.isInstanceOf[ExtStmLiteral]))
     ExtStmLiteral(elems.flatMap(e => e.asInstanceOf[ExtStmLiteral].elems): _*)
@@ -325,7 +382,11 @@ trait Eval {
   private def substitute(e1: ExtExpr)(e2: ExtExpr, x: ExtParam): ExtExpr = {
     e1 match {
       case y: ExtParam          => if (y == x) e2 else y
-      case ExtFunction(y, body) => ExtFunction(y, substitute(body)(e2, x))
+      case ExtFunction(y, body) =>
+        // Avoid variable capture
+        require(y != x)
+        require(!freeVars(e2).contains(y))
+        ExtFunction(y, substitute(body)(e2, x))
       case ExtFunCall(f, arg) =>
         ExtFunCall(substitute(f)(e2, x), substitute(arg)(e2, x))
 
@@ -385,6 +446,15 @@ trait Eval {
       case ExtStmLength(s) =>
         ExtStmLength(substitute(s)(e2, x))
       case v: ExtStmLiteral => v
+    }
+  }
+
+  private def freeVars(e: ExtExpr): Set[ExtParam] = {
+    e match {
+      case x: ExtParam          => Set(x)
+      case ExtFunction(y, body) => freeVars(body).diff(Set(y))
+      case e =>
+        e.children.foldLeft(Set[ExtParam]())((acc, e) => acc.union(freeVars(e)))
     }
   }
 }

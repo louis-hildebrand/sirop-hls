@@ -19,8 +19,9 @@ package object ir extends OptionType with Eval {
           case TupleAccess(t: Expr, i: Expr) =>
             TupleAccess(substitute(t), substitute(i))
 
-          case p: Param => p
+          case p: Param    => p
           case f: Function =>
+            // "Rename" to avoid variable capture
             val newParam = Param(f.param.prefix)
             Function(
               newParam,
