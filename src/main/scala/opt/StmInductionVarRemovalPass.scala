@@ -91,12 +91,31 @@ object StmInductionVarRemovalPass {
     val seed = s.seed.asInstanceOf[Tuple]
     val z = seed.elems(i)
     val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
+    tryGetInductionVar(s, i, 0, z, next)
+  }
+
+  /** Attempt to express the accumulator element at index i as a function of a
+    * simple up-counter, knowing that its initial value is <code>z</code> and it
+    * is updated by <code>next</code> (which probably contains a free variable
+    * for the accumulator). We are interested in finding a closed form knowing
+    * `t >= tMin`.
+    */
+  private def tryGetInductionVar(
+      s: StmBuild,
+      i: Int,
+      tMin: Expr,
+      z: Expr,
+      next: Expr
+  ): Option[Function] = {
     (z, next, s, i) match {
-      case Counter(z, delta) => Some((t: Expr) => z + t * delta)
+      case Constant(z)          => Some((_: Expr) => z)
+      case Counter(z, delta)    => Some((t: Expr) => z + (t - tMin) * delta)
       case MonotonicBool(z, t0) =>
+        // TODO: How to incorporate `tMin` here?
         if (z) Some((t: Expr) => t < t0) else Some((t: Expr) => t >= t0)
       // TODO: watch out for infinite loops due to circular dependencies!
       case LeftShiftRegister(n, f, e) =>
+        // TODO: How to incorporate `tMin` here?
         tryGetInductionVar(s, e) match {
           case Some(g) =>
             Some((t: Expr) =>
@@ -110,6 +129,21 @@ object StmInductionVarRemovalPass {
                   )
               )
             )
+          case None => None
+        }
+      case IfTimeLessThan(k, a, b) =>
+        tryGetInductionVar(s, i, tMin, z, a) match {
+          case Some(f) =>
+            // The time at which we switch from one side of the piecewise function to the other
+            val midpoint = IfThenElse(k >= tMin, k, tMin)
+            val valAtMidpoint = FunCall(f, midpoint)
+            tryGetInductionVar(s, i, midpoint, valAtMidpoint, b) match {
+              case Some(g) =>
+                Some((t: Expr) =>
+                  IfThenElse(t < k, FunCall(f, t), FunCall(g, t))
+                )
+              case None => None
+            }
           case None => None
         }
       case _ => None
@@ -127,7 +161,10 @@ object StmInductionVarRemovalPass {
     *   A function that returns the value of the `i`-th accumulator element as a
     *   function of a simple up-counter.
     */
-  private def tryGetInductionVar(s: StmBuild, e: Expr): Option[Function] = {
+  private[opt] def tryGetInductionVar(
+      s: StmBuild,
+      e: Expr
+  ): Option[Function] = {
     val acc = s.nextF.param
     e match {
       case TupleAccess(a, IntCst(i)) if a == acc =>
@@ -259,6 +296,24 @@ object StmInductionVarRemovalPass {
   }
 }
 
+object Constant {
+
+  /** An accumulator element that's unchanging. Even if a previous
+    * transformation removed constant accumulator elements, this can occur
+    * within one branch of a piecewise function. This is separate from
+    * <code>Counter</code> because a counter is necessarily an integer but a
+    * constant can be anything.
+    */
+  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[Expr] = {
+    val (z, next, stm, i) = args
+    val acc = stm.nextF.param
+    next match {
+      case TupleAccess(a0, IntCst(i0)) if a0 == acc && i0 == i => Some(z)
+      case _                                                   => None
+    }
+  }
+}
+
 object Counter {
 
   /** A counter starting at <code>z</code> and changing by <code>delta</code> at
@@ -273,11 +328,6 @@ object Counter {
     val (z, next, stm, i) = args
     val acc = stm.nextF.param
     (z, next) match {
-      // TODO: Possibly need to check that delta has no side effects
-      // Constant
-      case (z, TupleAccess(a0, IntCst(i0))) if a0 == acc && i0 == i =>
-        Some((z, IntCst(0)))
-      // Counter
       case (z, Sum(terms)) =>
         // Try to find the accumulator
         val j = terms.zipWithIndex.foldLeft[Option[Int]](None)({
@@ -396,7 +446,9 @@ object LeftShiftRegister {
     // TODO: Do I need to watch out for side effects and make sure `e` doesn't depend on `acc` and so on here too?
     val (z, next, stm, i) = args
     val acc = stm.nextF.param
-    (z, next) match {
+    // Partially evaluate because the initial value may be a function call that
+    // ends up returning a vector, for example
+    (PartialEvalPass.partialEval(z), next) match {
       case (
             VecBuild(n, f),
             VecBuild(
@@ -420,6 +472,58 @@ object LeftShiftRegister {
           )
           if a0 == acc && a1 == acc && a2 == acc && i0 == i && i1 == i && i2 == i && j1 == j0 && j2 == j0 =>
         Some((n, f, e))
+      case _ => None
+    }
+  }
+}
+
+object IfTimeLessThan {
+
+  /** An expression of the form <code>if (t &lt; k) then a else b</code>.
+    */
+  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr, Expr)] = {
+    val (_, next, stm, _) = args
+    next match {
+      case IfThenElse(c, a, b) =>
+        val f = StmInductionVarRemovalPass
+          .tryGetInductionVar(stm, c)
+          .map(f => PartialEvalPass.partialEval(f))
+        f match {
+          case Some(Function(t, LessThan(x, y))) =>
+            // Look at x - y to deal with things like 10 + t < 20, 5 < t, etc.
+            // Just matching LessThan(t, k) doesn't handle those cases.
+            PartialEvalPass.partialEval(x - y) match {
+              case p: Param if p == t =>
+                Some((0, a, b))
+              case Sum(terms) =>
+                val termsWithT = terms.filter(e => ir.contains(e, t))
+                termsWithT match {
+                  case Seq(_: Param) =>
+                    //     t + (e1 + e2 + ...) < 0
+                    // ==> t < -(e1 + e2 + ...)
+                    val termsWithoutT = terms.diff(termsWithT)
+                    // Do I need to watch out for side effects here (and in the
+                    // next case)?
+                    // Hopefully not, as `f` above should be a closed-form
+                    // expression for the condition
+                    Some(((-1) * Sum(termsWithoutT: _*), a, b))
+                  case Seq(Prod(Seq(IntCst(-1), _: Param))) =>
+                    //      -t + (e1 + e2 + ...) < 0
+                    //  ==> t > e1 + e2 + ...
+                    // And then
+                    //    if (t > e1 + e2 + ...) then a else b
+                    //  = if (t <= e1 + e2 + ...) then b else a
+                    //  = if (t < 1 + e1 + e2 + ...) then b else a
+                    val termsWithoutT = terms.diff(termsWithT)
+                    Some(Sum(IntCst(1) +: termsWithoutT: _*), b, a)
+                  // Maybe we have something like t % 2 < 1, which doesn't
+                  // match the pattern we're looking for
+                  case _ => None
+                }
+              case _ => None
+            }
+          case _ => None
+        }
       case _ => None
     }
   }

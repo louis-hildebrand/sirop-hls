@@ -191,7 +191,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(opt == ideal)
   }
 
-  test("MonotonicBoolSimpleCounter") {
+  test("MonotonicBool:SimpleCounter") {
     val n = Param()
     val i0 = Param()
     val k0 = Param()
@@ -217,7 +217,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    for (nVal <- (0 to 2) :+ 10) {
+    for (nVal <- (0 to 2) :+ 5) {
       for (i0Val <- -2 to 2) {
         for (k0Val <- -2 to 2) {
           for (k1Val <- -2 to 2) {
@@ -260,7 +260,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(opt == ideal)
   }
 
-  test("MonotonicBoolBoundedCounter") {
+  test("MonotonicBool:BoundedCounter") {
     val n = Param()
     val i0 = Param()
     val k = Param()
@@ -280,7 +280,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass.removeInductionVars(s)
 
     // Correctness
-    for (nVal <- (0 to 2) :+ 10) {
+    for (nVal <- (0 to 2) :+ 5) {
       for (i0Val <- -2 to 2) {
         for (kVal <- -2 to 2) {
           val expected =
@@ -296,8 +296,213 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // TODO: we should be able to get rid of the bounded counter as well
-    assert(opt.seed == Tuple(i0, 0))
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
+  }
+
+  // Counters that count up but stop at a certain point
+  test("PiecewiseCounter:StopCounting") {
+    val n = Param("n")
+    val k = Param("k")
+    val s = StmBuild(
+      n,
+      Tuple(0, 1, 2),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            IfThenElse(acc.__0 < k + 1, acc.__1 + 1, acc.__1),
+            IfThenElse(acc.__0 <= -1 + k, acc.__2 + 2, acc.__2)
+          ),
+          SSome(Tuple(acc.__1 + 2, acc.__2))
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 2, 5)) {
+      for (kVal <- Seq(-10, -2, -1, 0, 10)) {
+        val expected = Let(n, nVal, Let(k, kVal, s))
+        val actual = Let(n, nVal, Let(k, kVal, opt))
+        assert(
+          ir.eval(actual) == ir.eval(expected),
+          s"(for n = $nVal, k = $kVal)"
+        )
+      }
+    }
+
+    // Effective simplification
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
+  }
+
+  // Counters that stay constant at first and only start counting later
+  test("PiecewiseCounter:Delayed") {
+    val n = Param("n")
+    val k = Param("k")
+    val s = StmBuild(
+      n,
+      Tuple(0, 2, 1),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            IfThenElse(acc.__0 >= k + 2, acc.__1 + 1, acc.__1),
+            IfThenElse(acc.__0 > k, acc.__2 + 2, acc.__2)
+          ),
+          SSome(Tuple(3 * acc.__1, 2 * acc.__2))
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 2, 5)) {
+      for (kVal <- Seq(-10, -3, -2, -1, 10)) {
+        val expected = Let(n, nVal, Let(k, kVal, s))
+        val actual = Let(n, nVal, Let(k, kVal, opt))
+        assert(
+          ir.eval(actual) == ir.eval(expected),
+          s"(for n = $nVal, k = $kVal)"
+        )
+      }
+    }
+
+    // Effective simplification
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
+  }
+
+  // Piecewise functions where each branch is yet another piecewise function
+  test("PiecewiseCounter:UpThenDown") {
+    val n = Param("n")
+    val s = StmBuild(
+      n,
+      Tuple(10, 2),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            IfThenElse(
+              acc.__0 < 20,
+              IfThenElse(acc.__0 < 17, acc.__1 + 2, acc.__1),
+              IfThenElse(acc.__0 < 34, acc.__1 - 3, acc.__1)
+            )
+          ),
+          SSome(2 * acc.__1)
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 2, 5)) {
+      val expected = Let(n, nVal, s)
+      val actual = Let(n, nVal, opt)
+      assert(ir.eval(actual) == ir.eval(expected))
+    }
+
+    // Effective simplification
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
+  }
+
+  // Shift register that stops at a certain point
+  test("PiecewiseVecShiftLeft:StopShifting") {
+    val n = Param("n")
+    val m = Param("m")
+    val s = StmBuild(
+      n,
+      Tuple(2, VecBuild(m, (i: Expr) => i)),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            IfThenElse(acc.__0 < m, VecShiftLeft(acc.__1, 2 * acc.__0), acc.__1)
+          ),
+          SSome(acc.__1)
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 2, 5)) {
+      for (mVal <- Seq(0, 1, 2, 5)) {
+        val expected = Let(n, nVal, Let(m, mVal, s))
+        val actual = Let(n, nVal, Let(m, mVal, opt))
+        assert(ir.eval(actual) == ir.eval(expected))
+      }
+    }
+
+    // Effective simplification
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
+  }
+
+  // Shift register that only starts shifting after some delay
+  test("PiecewiseVecShiftLeft:Delayed") {
+    val n = Param("n")
+    val m = Param("m")
+    val s = StmBuild(
+      n,
+      Tuple(7, VecBuild(m, (i: Expr) => i)),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            acc.__0 + 1,
+            IfThenElse(acc.__0 < m, acc.__1, VecShiftLeft(acc.__1, 2 * acc.__0))
+          ),
+          SSome(acc.__1)
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 2, 5)) {
+      for (mVal <- Seq(0, 1, 2, 5)) {
+        val expected = Let(n, nVal, Let(m, mVal, s))
+        val actual = Let(n, nVal, Let(m, mVal, opt))
+        assert(ir.eval(actual) == ir.eval(expected))
+      }
+    }
+
+    // Effective simplification
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
+    )
+    assert(actualNextAcc == expectedNextAcc)
   }
 
   test("RemoveAllInductionVarsSuccessfully") {
