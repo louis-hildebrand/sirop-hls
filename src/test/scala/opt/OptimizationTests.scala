@@ -64,14 +64,17 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Correctness
-    val expected = (n: Int) => Seq((0 until n).map(_ => c))
-    val actual = (nVal: Int) =>
-      StreamTests.stm2Seq(Let(n, nVal, v)).map(v => VectorTests.vec2Seq(v))
-    assert(actual(0) == expected(0))
-    assert(actual(1) == expected(1))
-    assert(actual(2) == expected(2))
-    assert(actual(3) == expected(3))
-    assert(actual(15) == expected(15))
+    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0), Tuple(False, -99))
+    for (cVal <- cExamples) {
+      for (nVal <- Seq(0, 1, 2, 5)) {
+        val expected =
+          ExtStmLiteral(
+            ExtVecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)
+          )
+        val actual = Let(n, nVal, Let(c, cVal, v))
+        assert(ir.eval(actual) == expected)
+      }
+    }
 
     // Effective simplification
     val ideal = StmBuild(

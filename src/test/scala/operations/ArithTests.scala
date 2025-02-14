@@ -1,7 +1,6 @@
 package operations
 
 import ir._
-import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArithTests extends AnyFunSuite {
@@ -11,10 +10,9 @@ class ArithTests extends AnyFunSuite {
     val e = Min(x, y)
 
     val min = (xVal: Int, yVal: Int) =>
-      PartialEvalPass
-        .partialEval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[IntCst]
-        .i
+      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+        .asInstanceOf[ExtIntCst]
+        .n
     for (xVal <- -10 to 10) {
       for (yVal <- -10 to 10) {
         assert(min(xVal, yVal) == Math.min(xVal, yVal))
@@ -28,10 +26,9 @@ class ArithTests extends AnyFunSuite {
     val e = Max(x, y)
 
     val max = (xVal: Int, yVal: Int) =>
-      PartialEvalPass
-        .partialEval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[IntCst]
-        .i
+      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+        .asInstanceOf[ExtIntCst]
+        .n
     for (xVal <- -10 to 10) {
       for (yVal <- -10 to 10) {
         assert(max(xVal, yVal) == Math.max(xVal, yVal))
@@ -45,10 +42,9 @@ class ArithTests extends AnyFunSuite {
     val e = CeilDiv(x, y)
 
     val ceildiv = (xVal: Int, yVal: Int) =>
-      PartialEvalPass
-        .partialEval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[IntCst]
-        .i
+      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+        .asInstanceOf[ExtIntCst]
+        .n
     assert(ceildiv(0, 1) == 0)
     assert(ceildiv(0, 2) == 0)
     assert(ceildiv(0, 3) == 0)
