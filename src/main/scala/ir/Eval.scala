@@ -7,12 +7,11 @@ import scala.language.implicitConversions
 sealed trait ExtExpr {
   def children: Seq[ExtExpr]
 }
-sealed trait Value extends ExtExpr
 
 case class ExtParam(name: String) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq()
 }
-case class ExtFunction(x: ExtParam, body: ExtExpr) extends Value {
+case class ExtFunction(x: ExtParam, body: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(x, body)
 }
 case class ExtFunCall(f: ExtExpr, arg: ExtExpr) extends ExtExpr {
@@ -22,11 +21,11 @@ case class ExtFunCall(f: ExtExpr, arg: ExtExpr) extends ExtExpr {
 // This is a value because `DontCare` can temporarily appear in, for example,
 // the output of the stream body (which contains an option and the `None`
 // variant includes `None`).
-case object ExtDontCare extends Value {
+case object ExtDontCare extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq()
 }
 
-case class ExtIntCst(n: Int) extends Value {
+case class ExtIntCst(n: Int) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq()
 }
 case class ExtSum(terms: ExtExpr*) extends ExtExpr {
@@ -42,10 +41,10 @@ case class ExtMod(e1: ExtExpr, e2: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(e1, e2)
 }
 
-case object ExtTrue extends Value {
+case object ExtTrue extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq()
 }
-case object ExtFalse extends Value {
+case object ExtFalse extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq()
 }
 case class ExtNot(e: ExtExpr) extends ExtExpr {
@@ -73,9 +72,6 @@ case class ExtTuple(elems: ExtExpr*) extends ExtExpr {
 case class ExtTupleAccess(t: ExtExpr, i: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(t, i)
 }
-case class ExtTupleVal(elems: Value*) extends Value {
-  override def children: Seq[ExtExpr] = elems
-}
 
 case class ExtVecBuild(n: ExtExpr, f: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(n, f)
@@ -86,7 +82,7 @@ case class ExtVecAccess(v: ExtExpr, i: ExtExpr) extends ExtExpr {
 case class ExtVecLength(v: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(v)
 }
-case class ExtVecLiteral(elems: Value*) extends Value {
+case class ExtVecLiteral(elems: ExtExpr*) extends ExtExpr {
   override def children: Seq[ExtExpr] = elems
 }
 object ExtVecLiteral {
@@ -104,7 +100,7 @@ case class ExtStmNext(s: ExtExpr) extends ExtExpr {
 case class ExtStmLength(s: ExtExpr) extends ExtExpr {
   override def children: Seq[ExtExpr] = Seq(s)
 }
-case class ExtStmLiteral(elems: Value*) extends Value {
+case class ExtStmLiteral(elems: ExtExpr*) extends ExtExpr {
   override def children: Seq[ExtExpr] = elems
   def flatten: ExtStmLiteral = {
     require(elems.forall(e => e.isInstanceOf[ExtStmLiteral]))
@@ -116,7 +112,7 @@ object ExtStmLiteral {
     ExtStmLiteral(elems.map(n => ExtIntCst(n)): _*)
   }
 
-  val nil: ExtStmLiteral = ExtStmLiteral(Seq[Value](): _*)
+  val nil: ExtStmLiteral = ExtStmLiteral(Seq[ExtExpr](): _*)
 }
 
 trait Eval {
@@ -159,11 +155,42 @@ trait Eval {
     }
   }
 
-  def eval(e: Expr): Value = {
+  def eval(e: Expr): ExtExpr = {
     eval(toExtExpr(e))
   }
 
-  def eval(e: ExtExpr): Value = {
+  def eval(e: ExtExpr): ExtExpr = {
+    evalBigStepToplevel(e)
+  }
+
+  private def evalBigStepToplevel(e: ExtExpr): ExtExpr = {
+    evalBigStep(e) match {
+      case ExtStmBuild(n, z, f) =>
+        eval(n) match {
+          case ExtIntCst(0) => ExtStmLiteral.nil
+          case ExtIntCst(n) if n > 0 =>
+            evalBigStep(ExtStmNext(ExtStmBuild(n, z, f))) match {
+              case ExtTuple(tail, head) =>
+                val tailElems = evalBigStepToplevel(tail) match {
+                  case s: ExtStmLiteral => s.elems
+                  case v =>
+                    throw new IllegalArgumentException(
+                      s"Tail of stream evaluated to $v. It must evaluate to a stream literal."
+                    )
+                }
+                ExtStmLiteral(head +: tailElems: _*)
+              case _ => ???
+            }
+          case n =>
+            throw new IllegalArgumentException(
+              s"Stream length $n. Streams must have non-negative integer length."
+            )
+        }
+      case e => e
+    }
+  }
+
+  private def evalBigStep(e: ExtExpr): ExtExpr = {
     e match {
       case x: ExtParam =>
         throw new IllegalArgumentException(
@@ -171,9 +198,9 @@ trait Eval {
         )
       case f: ExtFunction => f
       case ExtFunCall(f, arg) =>
-        eval(f) match {
+        evalBigStep(f) match {
           case ExtFunction(x, body) =>
-            eval(substitute(body)(eval(arg), x))
+            evalBigStep(substitute(body)(evalBigStep(arg), x))
           case v =>
             throw new IllegalArgumentException(
               s"Left-hand side of function application evaluated to $v. It must evaluate to a function."
@@ -184,7 +211,7 @@ trait Eval {
 
       case ExtIntCst(n) => ExtIntCst(n)
       case ExtSum(terms @ _*) =>
-        val termValues = terms.map(e => eval(e))
+        val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[ExtIntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[ExtIntCst].n)
           ExtIntCst(xs.sum)
@@ -194,7 +221,7 @@ trait Eval {
           )
         }
       case ExtProd(factors @ _*) =>
-        val factorValues = factors.map(e => eval(e))
+        val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[ExtIntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[ExtIntCst].n)
           ExtIntCst(xs.product)
@@ -204,7 +231,7 @@ trait Eval {
           )
         }
       case ExtDiv(e1, e2) =>
-        (eval(e1), eval(e2)) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (ExtIntCst(n1), ExtIntCst(n2)) => ExtIntCst(n1 / n2)
           case (v1, v2) =>
             throw new IllegalArgumentException(
@@ -212,7 +239,7 @@ trait Eval {
             )
         }
       case ExtMod(e1, e2) =>
-        (eval(e1), eval(e2)) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (ExtIntCst(n1), ExtIntCst(n2)) => ExtIntCst(n1 % n2)
           case (v1, v2) =>
             throw new IllegalArgumentException(
@@ -223,7 +250,7 @@ trait Eval {
       case ExtTrue  => ExtTrue
       case ExtFalse => ExtFalse
       case ExtNot(e) =>
-        eval(e) match {
+        evalBigStep(e) match {
           case ExtFalse => ExtTrue
           case ExtTrue  => ExtFalse
           case v =>
@@ -233,7 +260,7 @@ trait Eval {
         }
       case ExtAnd(e1, e2) =>
         // TODO: Are And() and Or() short-circuiting? No, right?
-        (eval(e1), eval(e2)) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (ExtFalse, ExtFalse) => ExtFalse
           case (ExtFalse, ExtTrue)  => ExtFalse
           case (ExtTrue, ExtFalse)  => ExtFalse
@@ -244,7 +271,7 @@ trait Eval {
             )
         }
       case ExtOr(e1, e2) =>
-        (eval(e1), eval(e2)) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (ExtFalse, ExtFalse) => ExtFalse
           case (ExtFalse, ExtTrue)  => ExtTrue
           case (ExtTrue, ExtFalse)  => ExtTrue
@@ -254,9 +281,10 @@ trait Eval {
               s"Operands of Or evaluated to $v1 and $v2. They must each evaluate to a boolean."
             )
         }
-      case ExtEqual(e1, e2) => if (eval(e1) == eval(e2)) ExtTrue else ExtFalse
+      case ExtEqual(e1, e2) =>
+        if (evalBigStep(e1) == evalBigStep(e2)) ExtTrue else ExtFalse
       case ExtLessThan(e1, e2) =>
-        (eval(e1), eval(e2)) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (ExtIntCst(n1), ExtIntCst(n2)) =>
             if (n1 < n2) ExtTrue else ExtFalse
           case (v1, v2) =>
@@ -265,9 +293,9 @@ trait Eval {
             )
         }
       case ExtIfThenElse(c, t, f) =>
-        eval(c) match {
-          case ExtTrue  => eval(t)
-          case ExtFalse => eval(f)
+        evalBigStep(c) match {
+          case ExtTrue  => evalBigStep(t)
+          case ExtFalse => evalBigStep(f)
           case v =>
             throw new IllegalArgumentException(
               s"Condition of IfThenElse evaluated to $v. It must evaluate to a boolean."
@@ -275,11 +303,11 @@ trait Eval {
         }
 
       case ExtTuple(elems @ _*) =>
-        ExtTupleVal(elems.map(e => eval(e)): _*)
+        ExtTuple(elems.map(e => evalBigStep(e)): _*)
       case ExtTupleAccess(t, i) =>
-        eval(t) match {
-          case ExtTupleVal(elems @ _*) =>
-            eval(i) match {
+        evalBigStep(t) match {
+          case ExtTuple(elems @ _*) =>
+            evalBigStep(i) match {
               case ExtIntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -291,13 +319,12 @@ trait Eval {
               s"Tuple of tuple access evaluated to $v. It must evaluate to a tuple literal."
             )
         }
-      case v: ExtTupleVal => v
 
       case ExtVecBuild(n, f) =>
-        eval(n) match {
+        evalBigStep(n) match {
           case ExtIntCst(n) if n >= 0 =>
             ExtVecLiteral(
-              (0 until n).map(i => eval(ExtFunCall(f, ExtIntCst(i)))): _*
+              (0 until n).map(i => evalBigStep(ExtFunCall(f, ExtIntCst(i)))): _*
             )
           case n =>
             throw new IllegalArgumentException(
@@ -305,9 +332,9 @@ trait Eval {
             )
         }
       case ExtVecAccess(v, i) =>
-        eval(v) match {
+        evalBigStep(v) match {
           case ExtVecLiteral(elems @ _*) =>
-            eval(i) match {
+            evalBigStep(i) match {
               case ExtIntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -320,7 +347,7 @@ trait Eval {
             )
         }
       case ExtVecLength(v) =>
-        eval(v) match {
+        evalBigStep(v) match {
           case ExtVecLiteral(elems @ _*) => ExtIntCst(elems.length)
           case v =>
             throw new IllegalArgumentException(
@@ -330,43 +357,36 @@ trait Eval {
       case v: ExtVecLiteral => v
 
       case ExtStmBuild(n, z, f) =>
-        eval(n) match {
-          case ExtIntCst(0) => ExtStmLiteral.nil
-          case ExtIntCst(n) if n > 0 =>
-            eval(ExtFunCall(f, z)) match {
-              case ExtTupleVal(newZ, ExtTupleVal(v, ExtTrue)) =>
-                eval(ExtStmBuild(ExtIntCst(n - 1), newZ, f)) match {
-                  case s: ExtStmLiteral => ExtStmLiteral(v +: s.elems: _*)
-                  case _                => ???
-                }
-              case ExtTupleVal(newZ, ExtTupleVal(_, ExtFalse)) =>
-                eval(ExtStmBuild(ExtIntCst(n), newZ, f)) match {
-                  case s: ExtStmLiteral => s
-                  case _                => ???
-                }
+        ExtStmBuild(evalBigStep(n), evalBigStep(z), evalBigStep(f))
+      case ExtStmNext(s) =>
+        // TODO: What happens if the circuit tries to get the next element of an empty stream, but then discards that
+        //       value (e.g., we construct a tuple containing this but then access a different value)? Will it get stuck?
+        evalBigStep(s) match {
+          case ExtStmLiteral() | ExtStmBuild(ExtIntCst(0), _, _) =>
+            throw new IllegalArgumentException(
+              "Attempt to call StmNext on an empty stream."
+            )
+          case ExtStmBuild(ExtIntCst(n), z, f) if n > 0 =>
+            evalBigStep(ExtFunCall(f, z)) match {
+              case ExtTuple(newZ, ExtTuple(v, ExtTrue)) =>
+                ExtTuple(ExtStmBuild(n - 1, newZ, f), v)
+              case ExtTuple(newZ, ExtTuple(_, ExtFalse)) =>
+                evalBigStep(ExtStmNext(ExtStmBuild(n, newZ, f)))
               case v =>
                 throw new IllegalArgumentException(
                   s"Body of StmBuild returned $v. The function must return a 2-tuple where the second element is an option."
                 )
             }
-          case n =>
+          case ExtStmBuild(n, _, _) =>
             throw new IllegalArgumentException(
               s"Stream length $n. Streams must have non-negative integer length."
             )
-        }
-      case ExtStmNext(s) =>
-        // TODO: What happens if the circuit tries to get the next element of an empty stream, but then discards that
-        //       value (e.g., we construct a tuple containing this but then access a different value)? Will it get stuck?
-        eval(s) match {
-          case ExtStmLiteral() =>
-            throw new IllegalArgumentException(
-              "Attempt to call StmNext on an empty stream."
-            )
           case ExtStmLiteral(v, vs @ _*) =>
-            ExtTupleVal(ExtStmLiteral(vs: _*), v)
+            ExtTuple(ExtStmLiteral(vs: _*), v)
         }
       case ExtStmLength(s) =>
-        eval(s) match {
+        evalBigStep(s) match {
+          case ExtStmBuild(n, _, _)      => n
           case ExtStmLiteral(elems @ _*) => ExtIntCst(elems.length)
           case v =>
             throw new IllegalArgumentException(
@@ -425,7 +445,6 @@ trait Eval {
         ExtTuple(elems.map(e => substitute(e)(e2, x)): _*)
       case ExtTupleAccess(t, i) =>
         ExtTupleAccess(substitute(t)(e2, x), substitute(i)(e2, x))
-      case v: ExtTupleVal => v
 
       case ExtVecBuild(n, f) =>
         ExtVecBuild(substitute(n)(e2, x), substitute(f)(e2, x))

@@ -80,14 +80,14 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount2D(2, 3)
     val expected = ExtStmLiteral(
       ExtStmLiteral(
-        ExtTupleVal(0, 0),
-        ExtTupleVal(0, 1),
-        ExtTupleVal(0, 2)
+        ExtTuple(0, 0),
+        ExtTuple(0, 1),
+        ExtTuple(0, 2)
       ),
       ExtStmLiteral(
-        ExtTupleVal(1, 0),
-        ExtTupleVal(1, 1),
-        ExtTupleVal(1, 2)
+        ExtTuple(1, 0),
+        ExtTuple(1, 1),
+        ExtTuple(1, 2)
       )
     )
     assert(ir.eval(s) == expected.flatten)
@@ -476,9 +476,9 @@ class StreamTests extends AnyFunSuite {
         fOutShape = Some(2)
       )
     val expected = ExtStmLiteral(
-      ExtStmLiteral(ExtTupleVal(0, 0), ExtTupleVal(0, 1)),
-      ExtStmLiteral(ExtTupleVal(1, 0), ExtTupleVal(1, 1)),
-      ExtStmLiteral(ExtTupleVal(2, 0), ExtTupleVal(2, 1))
+      ExtStmLiteral(ExtTuple(0, 0), ExtTuple(0, 1)),
+      ExtStmLiteral(ExtTuple(1, 0), ExtTuple(1, 1)),
+      ExtStmLiteral(ExtTuple(2, 0), ExtTuple(2, 1))
     )
     assert(ir.eval(s) == expected.flatten)
   }
@@ -493,12 +493,12 @@ class StreamTests extends AnyFunSuite {
         fOutShape = Some(2)
       )
     val expected = ExtStmLiteral(
-      ExtTupleVal(0, 98),
-      ExtTupleVal(0, 99),
-      ExtTupleVal(1, 98),
-      ExtTupleVal(1, 99),
-      ExtTupleVal(2, 98),
-      ExtTupleVal(2, 99)
+      ExtTuple(0, 98),
+      ExtTuple(0, 99),
+      ExtTuple(1, 98),
+      ExtTuple(1, 99),
+      ExtTuple(2, 98),
+      ExtTuple(2, 99)
     )
     assert(ir.eval(s) == expected)
   }
@@ -833,16 +833,16 @@ class StreamTests extends AnyFunSuite {
     val expected = ExtStmLiteral(
       Seq(
         Seq(
-          Seq(ExtTupleVal(0, 0), ExtTupleVal(1, 0), ExtTupleVal(2, 0)),
-          Seq(ExtTupleVal(0, 1), ExtTupleVal(1, 1), ExtTupleVal(2, 1)),
-          Seq(ExtTupleVal(0, 2), ExtTupleVal(1, 2), ExtTupleVal(2, 2)),
-          Seq(ExtTupleVal(0, 3), ExtTupleVal(1, 3), ExtTupleVal(2, 3))
+          Seq(ExtTuple(0, 0), ExtTuple(1, 0), ExtTuple(2, 0)),
+          Seq(ExtTuple(0, 1), ExtTuple(1, 1), ExtTuple(2, 1)),
+          Seq(ExtTuple(0, 2), ExtTuple(1, 2), ExtTuple(2, 2)),
+          Seq(ExtTuple(0, 3), ExtTuple(1, 3), ExtTuple(2, 3))
         ),
         Seq(
-          Seq(ExtTupleVal(0, 0), ExtTupleVal(1, 0), ExtTupleVal(2, 0)),
-          Seq(ExtTupleVal(0, 1), ExtTupleVal(1, 1), ExtTupleVal(2, 1)),
-          Seq(ExtTupleVal(0, 2), ExtTupleVal(1, 2), ExtTupleVal(2, 2)),
-          Seq(ExtTupleVal(0, 3), ExtTupleVal(1, 3), ExtTupleVal(2, 3))
+          Seq(ExtTuple(0, 0), ExtTuple(1, 0), ExtTuple(2, 0)),
+          Seq(ExtTuple(0, 1), ExtTuple(1, 1), ExtTuple(2, 1)),
+          Seq(ExtTuple(0, 2), ExtTuple(1, 2), ExtTuple(2, 2)),
+          Seq(ExtTuple(0, 3), ExtTuple(1, 3), ExtTuple(2, 3))
         )
       ).flatten.flatten: _*
     )
@@ -2347,16 +2347,16 @@ class StreamTests extends AnyFunSuite {
     val expected = ExtStmLiteral(
       Seq(
         Seq(
-          Seq(ExtTupleVal(0, 0), ExtTupleVal(0, 1), ExtTupleVal(0, 2)),
-          Seq(ExtTupleVal(1, 0), ExtTupleVal(1, 1), ExtTupleVal(1, 2))
+          Seq(ExtTuple(0, 0), ExtTuple(0, 1), ExtTuple(0, 2)),
+          Seq(ExtTuple(1, 0), ExtTuple(1, 1), ExtTuple(1, 2))
         ),
         Seq(
-          Seq(ExtTupleVal(1, 0), ExtTupleVal(1, 1), ExtTupleVal(1, 2)),
-          Seq(ExtTupleVal(2, 0), ExtTupleVal(2, 1), ExtTupleVal(2, 2))
+          Seq(ExtTuple(1, 0), ExtTuple(1, 1), ExtTuple(1, 2)),
+          Seq(ExtTuple(2, 0), ExtTuple(2, 1), ExtTuple(2, 2))
         ),
         Seq(
-          Seq(ExtTupleVal(2, 0), ExtTupleVal(2, 1), ExtTupleVal(2, 2)),
-          Seq(ExtTupleVal(3, 0), ExtTupleVal(3, 1), ExtTupleVal(3, 2))
+          Seq(ExtTuple(2, 0), ExtTuple(2, 1), ExtTuple(2, 2)),
+          Seq(ExtTuple(3, 0), ExtTuple(3, 1), ExtTuple(3, 2))
         )
       ).flatten.flatten: _*
     )
@@ -2427,22 +2427,22 @@ class StreamTests extends AnyFunSuite {
     val expected = ExtStmLiteral(
       Seq(
         Seq(
-          ExtTupleVal(0, 0),
-          ExtTupleVal(1, 0),
-          ExtTupleVal(2, 0),
-          ExtTupleVal(3, 0)
+          ExtTuple(0, 0),
+          ExtTuple(1, 0),
+          ExtTuple(2, 0),
+          ExtTuple(3, 0)
         ),
         Seq(
-          ExtTupleVal(0, 1),
-          ExtTupleVal(1, 1),
-          ExtTupleVal(2, 1),
-          ExtTupleVal(3, 1)
+          ExtTuple(0, 1),
+          ExtTuple(1, 1),
+          ExtTuple(2, 1),
+          ExtTuple(3, 1)
         ),
         Seq(
-          ExtTupleVal(0, 2),
-          ExtTupleVal(1, 2),
-          ExtTupleVal(2, 2),
-          ExtTupleVal(3, 2)
+          ExtTuple(0, 2),
+          ExtTuple(1, 2),
+          ExtTuple(2, 2),
+          ExtTuple(3, 2)
         )
       ).flatten: _*
     )
@@ -2465,21 +2465,21 @@ class StreamTests extends AnyFunSuite {
     val expected = ExtStmLiteral(
       Seq(
         Seq(
-          ExtTupleVal(0, 0),
-          ExtTupleVal(0, 1),
-          ExtTupleVal(0, 2)
+          ExtTuple(0, 0),
+          ExtTuple(0, 1),
+          ExtTuple(0, 2)
         ),
         Seq(
-          ExtTupleVal(1, 0),
-          ExtTupleVal(1, 1),
-          ExtTupleVal(1, 2)
+          ExtTuple(1, 0),
+          ExtTuple(1, 1),
+          ExtTuple(1, 2)
         ),
         Seq(
-          ExtTupleVal(2, 0),
-          ExtTupleVal(2, 1),
-          ExtTupleVal(2, 2)
+          ExtTuple(2, 0),
+          ExtTuple(2, 1),
+          ExtTuple(2, 2)
         ),
-        Seq(ExtTupleVal(3, 0), ExtTupleVal(3, 1), ExtTupleVal(3, 2))
+        Seq(ExtTuple(3, 0), ExtTuple(3, 1), ExtTuple(3, 2))
       ).flatten: _*
     )
 

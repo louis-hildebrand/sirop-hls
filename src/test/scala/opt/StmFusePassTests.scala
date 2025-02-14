@@ -217,10 +217,10 @@ class StmFusePassTests extends AnyFunSuite {
     // 2a) Correct behaviour
     val expectedElems =
       ExtStmLiteral(
-        ExtTupleVal(0, 9),
-        ExtTupleVal(1, 11),
-        ExtTupleVal(2, 13),
-        ExtTupleVal(3, 15)
+        ExtTuple(0, 9),
+        ExtTuple(1, 11),
+        ExtTuple(2, 13),
+        ExtTuple(3, 15)
       )
     assert(ir.eval(s) == expectedElems)
     assert(ir.eval(actual2) == expectedElems)
