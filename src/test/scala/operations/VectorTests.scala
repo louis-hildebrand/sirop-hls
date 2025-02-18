@@ -97,7 +97,7 @@ class VectorTests extends AnyFunSuite {
 
   test("Stm2Vec") {
     val v = Stm2Vec(StmCount(3), n = 3)
-    val expected = ExtStmLiteral(ExtVecLiteral.ints(0, 1, 2))
+    val expected = StmLiteral(VecLiteral.ints(0, 1, 2))
     assert(ir.eval(v) == expected)
   }
 

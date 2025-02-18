@@ -152,13 +152,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     val actual =
       (nVal: Int, mVal: Int) => ir.eval(Let(n, nVal, Let(m, mVal, opt)))
-    assert(actual(1, 2) == ExtStmLiteral(ExtVecLiteral.ints(1, 100)))
+    assert(actual(1, 2) == StmLiteral(VecLiteral.ints(1, 100)))
     assert(
-      actual(4, 3) == ExtStmLiteral(
-        ExtVecLiteral(1, 2, 100),
-        ExtVecLiteral(2, 100, 102),
-        ExtVecLiteral(100, 102, 104),
-        ExtVecLiteral(102, 104, 106)
+      actual(4, 3) == StmLiteral(
+        VecLiteral(1, 2, 100),
+        VecLiteral(2, 100, 102),
+        VecLiteral(100, 102, 104),
+        VecLiteral(102, 104, 106)
       )
     )
 

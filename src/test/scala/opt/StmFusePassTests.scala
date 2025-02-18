@@ -21,7 +21,7 @@ class StmFusePassTests extends AnyFunSuite {
     val actual = canon(fuse(s))
 
     // Correct behaviour
-    val expectedElems = ExtStmLiteral.ints(5, 6, 7)
+    val expectedElems = StmLiteral.ints(5, 6, 7)
     assert(ir.eval(s) == expectedElems)
     assert(ir.eval(actual) == expectedElems)
     // Successful fusion
@@ -51,7 +51,7 @@ class StmFusePassTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example p, f, and g)
     val call = (e: Expr) => Let(p, StmCount(5), e)
-    val expectedElems = ExtStmLiteral.ints(14, 50, 110, 200, 326)
+    val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
@@ -87,7 +87,7 @@ class StmFusePassTests extends AnyFunSuite {
     // (Using one example p, f, and g)
     val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
     val expected =
-      ExtStmLiteral(
+      StmLiteral(
         ir.eval(
           FunCall(f, 0)
             + FunCall(f, 1)
@@ -124,7 +124,7 @@ class StmFusePassTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example p)
     val call = (e: Expr) => Let(p, StmCount(5), e)
-    val expectedElems = ExtStmLiteral.ints(42, 0, 1, 2, 3)
+    val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
@@ -160,7 +160,7 @@ class StmFusePassTests extends AnyFunSuite {
 
     // Correct behaviour
     val call = (e: Expr) => Let(p, StmCount(n), e)
-    val expectedElems = ExtStmLiteral.ints(1, 2, 3, 4, 42)
+    val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
     // Successful fusion
@@ -216,12 +216,7 @@ class StmFusePassTests extends AnyFunSuite {
     val actual2 = canon(fuse(fuse(s)))
     // 2a) Correct behaviour
     val expectedElems =
-      ExtStmLiteral(
-        ExtTuple(0, 9),
-        ExtTuple(1, 11),
-        ExtTuple(2, 13),
-        ExtTuple(3, 15)
-      )
+      StmLiteral(Tuple(0, 9), Tuple(1, 11), Tuple(2, 13), Tuple(3, 15))
     assert(ir.eval(s) == expectedElems)
     assert(ir.eval(actual2) == expectedElems)
     // 2b) Successful fusion

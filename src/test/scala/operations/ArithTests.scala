@@ -11,8 +11,8 @@ class ArithTests extends AnyFunSuite {
 
     val min = (xVal: Int, yVal: Int) =>
       ir.eval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[ExtIntCst]
-        .n
+        .asInstanceOf[IntCst]
+        .i
     for (xVal <- -10 to 10) {
       for (yVal <- -10 to 10) {
         assert(min(xVal, yVal) == Math.min(xVal, yVal))
@@ -27,8 +27,8 @@ class ArithTests extends AnyFunSuite {
 
     val max = (xVal: Int, yVal: Int) =>
       ir.eval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[ExtIntCst]
-        .n
+        .asInstanceOf[IntCst]
+        .i
     for (xVal <- -10 to 10) {
       for (yVal <- -10 to 10) {
         assert(max(xVal, yVal) == Math.max(xVal, yVal))
@@ -43,8 +43,8 @@ class ArithTests extends AnyFunSuite {
 
     val ceildiv = (xVal: Int, yVal: Int) =>
       ir.eval(Let(x, xVal, Let(y, yVal, e)))
-        .asInstanceOf[ExtIntCst]
-        .n
+        .asInstanceOf[IntCst]
+        .i
     assert(ceildiv(0, 1) == 0)
     assert(ceildiv(0, 2) == 0)
     assert(ceildiv(0, 3) == 0)

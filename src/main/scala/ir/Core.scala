@@ -62,31 +62,32 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
-      case DontCare       => 0
-      case _: IntCst      => 1
-      case False          => 2
-      case True           => 3
-      case _: Param       => 4
-      case _: Sum         => 5
-      case _: Prod        => 6
-      case _: Div         => 7
-      case _: Mod         => 8
-      case _: And         => 9
-      case _: Or          => 10
-      case _: Not         => 11
-      case _: Equal       => 12
-      case _: LessThan    => 13
-      case _: TupleAccess => 14
-      case _: FunCall     => 15
-      case _: IfThenElse  => 16
-      case _: Tuple       => 17
-      case _: Function    => 18
-      case _: StmBuild    => 19
-      case _: StmNext     => 20
-      case _: StmLength   => 21
-      case _: VecBuild    => 22
-      case _: VecAccess   => 23
-      case _: VecLength   => 24
+      case DontCare          => 0
+      case _: IntCst         => 1
+      case False             => 2
+      case True              => 3
+      case _: Param          => 4
+      case _: Sum            => 5
+      case _: Prod           => 6
+      case _: Div            => 7
+      case _: Mod            => 8
+      case _: And            => 9
+      case _: Or             => 10
+      case _: Not            => 11
+      case _: Equal          => 12
+      case _: LessThan       => 13
+      case _: TupleAccess    => 14
+      case _: FunCall        => 15
+      case _: IfThenElse     => 16
+      case _: Tuple          => 17
+      case _: Function       => 18
+      case _: StmBuild       => 19
+      case _: StmNext        => 20
+      case _: StmLength      => 21
+      case _: VecBuild       => 22
+      case _: VecAccess      => 23
+      case _: VecLength      => 24
+      case _: ExtensibleExpr => 25
     }
   }
 }
@@ -311,3 +312,6 @@ case class VecAccess(vec: Expr, i: Expr) extends Expr {
 case class VecLength(vec: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
 }
+
+// You can add new nodes to the IR by extending this
+trait ExtensibleExpr extends Expr

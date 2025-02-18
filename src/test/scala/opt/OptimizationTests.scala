@@ -21,14 +21,14 @@ class OptimizationTests extends AnyFunSuite {
     // Correctness
     val n0 = 2
     val f0 = (i: Expr) => i + 5
-    val expected0 = ExtStmLiteral.ints(5, 6)
+    val expected0 = StmLiteral.ints(5, 6)
     val actual0 = (s: Expr) => Let(n, n0, Let(f, f0, s))
     assert(ir.eval(actual0(s)) == expected0)
     assert(ir.eval(actual0(actual)) == expected0)
     val n1 = 15
     val f1 = (i: Expr) => (i + 1) * (i + 2) * (i + 3)
-    val expected1 = ExtStmLiteral(
-      (0 until n1).map(i => ExtIntCst((i + 1) * (i + 2) * (i + 3))): _*
+    val expected1 = StmLiteral(
+      (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
     )
     val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s))
     assert(ir.eval(actual1(s)) == expected1)
@@ -68,8 +68,8 @@ class OptimizationTests extends AnyFunSuite {
     for (cVal <- cExamples) {
       for (nVal <- Seq(0, 1, 2, 5)) {
         val expected =
-          ExtStmLiteral(
-            ExtVecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)
+          StmLiteral(
+            VecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)
           )
         val actual = Let(n, nVal, Let(c, cVal, v))
         assert(ir.eval(actual) == expected)
@@ -109,9 +109,9 @@ class OptimizationTests extends AnyFunSuite {
           val expected = {
             val elems =
               ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, s))))
-                .asInstanceOf[ExtStmLiteral]
+                .asInstanceOf[StmLiteral]
                 .elems
-            ExtStmLiteral(ExtVecLiteral(elems: _*))
+            StmLiteral(VecLiteral(elems: _*))
           }
           val actual =
             ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
