@@ -16,6 +16,7 @@ object Max {
 
 object CeilDiv {
   def apply(x: Expr, y: Expr): Expr = {
-    IfThenElse(x % y === 0, x / y, x / y + 1)
+    val q = Param("q")
+    Let(q, x / y, IfThenElse((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q))
   }
 }

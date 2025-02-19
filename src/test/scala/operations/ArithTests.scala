@@ -45,25 +45,12 @@ class ArithTests extends AnyFunSuite {
       ir.eval(Let(x, xVal, Let(y, yVal, e)))
         .asInstanceOf[IntCst]
         .i
-    assert(ceildiv(0, 1) == 0)
-    assert(ceildiv(0, 2) == 0)
-    assert(ceildiv(0, 3) == 0)
-    assert(ceildiv(0, 4) == 0)
-    assert(ceildiv(1, 1) == 1)
-    assert(ceildiv(1, 2) == 1)
-    assert(ceildiv(1, 3) == 1)
-    assert(ceildiv(1, 4) == 1)
-    assert(ceildiv(2, 1) == 2)
-    assert(ceildiv(2, 2) == 1)
-    assert(ceildiv(2, 3) == 1)
-    assert(ceildiv(2, 4) == 1)
-    assert(ceildiv(3, 1) == 3)
-    assert(ceildiv(3, 2) == 2)
-    assert(ceildiv(3, 3) == 1)
-    assert(ceildiv(3, 4) == 1)
-    assert(ceildiv(4, 1) == 4)
-    assert(ceildiv(4, 2) == 2)
-    assert(ceildiv(4, 3) == 2)
-    assert(ceildiv(4, 4) == 1)
+    for (x <- -4 to 4) {
+      for (y <- (-4 to 4).diff(Seq(0))) {
+        val expected = (x.toDouble / y.toDouble).ceil.toInt
+        val actual = ceildiv(x, y)
+        assert(actual == expected, s"(for x = $x, y = $y)")
+      }
+    }
   }
 }
