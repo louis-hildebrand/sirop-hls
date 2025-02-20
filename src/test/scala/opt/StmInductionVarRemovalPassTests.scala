@@ -192,10 +192,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   }
 
   test("MonotonicBool:SimpleCounter") {
-    val n = Param()
-    val i0 = Param()
-    val k0 = Param()
-    val k1 = Param()
+    val n = Param("n")
+    val i0 = Param("i0")
+    val k0 = Param("k0")
+    val k1 = Param("k1")
+    // TODO: Run multiple tests for different values of delta?
     val delta = 3
     val s = StmBuild(
       n,
@@ -235,35 +236,20 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCanonPass.canonicalize(
-      StmBuild(
-        n,
-        Tuple(0),
-        (acc: Expr) =>
-          Tuple(
-            Tuple(acc.__0 + 1),
-            IfThenElse(
-              Not(acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1))
-                && ((i0 + acc.__0 * 3) % 2 === 0),
-              SSome(
-                Tuple(
-                  i0 + acc.__0 * 3,
-                  acc.__0 < (CeilDiv(Max(0, k0 - i0), delta) + 1),
-                  acc.__0 < (CeilDiv(Max(0, k1 - i0), delta) + 1)
-                )
-              ),
-              NNone
-            )
-          )
-      )
+    // There should only be one accumulator left representing t
+    assert(opt.seed == Tuple(0))
+    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
+    val actualNextAcc = Function(
+      opt.nextF.param,
+      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
     )
-    assert(opt == ideal)
+    assert(actualNextAcc == expectedNextAcc)
   }
 
   test("MonotonicBool:BoundedCounter") {
-    val n = Param()
-    val i0 = Param()
-    val k = Param()
+    val n = Param("n")
+    val i0 = Param("i0")
+    val k = Param("k")
     val delta = 4
     val s = StmBuild(
       n,

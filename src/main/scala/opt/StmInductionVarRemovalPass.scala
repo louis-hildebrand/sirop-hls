@@ -13,34 +13,208 @@ object StmInductionVarRemovalPass {
   /** Remove as many induction variables as possible from the given stream.
     */
   def removeInductionVars(stm: StmBuild): StmBuild = {
+    // Canonicalize to flatten the accumulator and whatnot
     val s = StmCanonPass.canonicalize(stm)
-    val inductionVarByIdx: Map[Int, Function] =
-      s.seed
-        .asInstanceOf[Tuple]
-        .elems
-        .indices
-        .flatMap(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
-        .toMap
-    removeInductionVars(s, inductionVarByIdx)
+    val funcByIdx = findClosedForms(s)
+    removeInductionVars(s, funcByIdx)
   }
 
   /** If all induction variables can be removed, then do so. But if any
     * induction variables cannot be removed, return <code>None</code>.
     */
   def tryRemoveAllInductionVars(stm: StmBuild): Option[StmBuild] = {
+    // Canonicalize to flatten the accumulator and whatnot
     val s = StmCanonPass.canonicalize(stm)
-    val maybeInductionVars =
-      s.seed
-        .asInstanceOf[Tuple]
-        .elems
-        .indices
-        .map(i => tryGetInductionVarByIdx(s, i).map(f => i -> f))
-    if (maybeInductionVars.forall(x => x.isDefined)) {
-      val inductionVarByIdx = maybeInductionVars.map(x => x.get).toMap
-      Some(removeInductionVars(s, inductionVarByIdx))
+    val funcByIdx = findClosedForms(s)
+    val allElemsRemovable = s.seed
+      .asInstanceOf[Tuple]
+      .elems
+      .indices
+      .forall(i => funcByIdx.contains(i))
+    if (allElemsRemovable) {
+      Some(removeInductionVars(s, funcByIdx))
     } else {
       None
     }
+  }
+
+  private def findClosedForms(s: StmBuild): Map[Int, Function] = {
+    val seed = s.seed.asInstanceOf[Tuple]
+    val acc = s.nextF.param
+    val t = Param("t")
+    val initAndNextByIdx = seed.elems.indices.map(i => {
+      val z = seed.elems(i)
+      val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
+      (z, next)
+    })
+    // The dependency graph may be acyclic. To deal with that, combine elements
+    // of each strongly connected component into one tuple.
+    val g = dependencyGraph(initAndNextByIdx, acc).condensation()
+    var funcByIdx = Map[Int, Function]()
+    for (v <- g.topologicalOrder()) {
+      val dependencies = g.outNeighbours(v).flatten
+      val allDependenciesHaveClosedForm =
+        dependencies.forall(i => funcByIdx.contains(i))
+      // How can I find a closed form for an accumulator element if I can't
+      // find closed forms for all its dependencies?
+      if (allDependenciesHaveClosedForm) {
+        val (z, next, indices) = makeRecurrenceEquation(
+          equations = initAndNextByIdx.zipWithIndex
+            .filter({ case (_, i) => v.contains(i) })
+            .map({ case ((z, f), i) => i -> (z, f) })
+            .toMap,
+          dependencies = dependencies.map(i => i -> funcByIdx(i)).toMap,
+          acc = acc,
+          t = t
+        )
+        if (ir.contains(next, acc)) {
+          // The accumulator is still there, so maybe there are some
+          // non-static dependencies (e.g., TupleAccess(acc, i) where i
+          // cannot be partially evaluated to an int).
+          // Doesn't seem like there's much we can do in that case.
+        } else {
+          tryGetInductionVar(0, z, next) match {
+            case Some(f) =>
+              if (z.isInstanceOf[Tuple]) {
+                // Track each accumulator element separately, even though they
+                // were tupled together earlier
+                for ((iOld, iNew) <- indices.zipWithIndex) {
+                  val g = Function(
+                    t,
+                    PartialEvalPass.partialEval(
+                      TupleAccess(FunCall(f, t), iNew)
+                    )
+                  )
+                  funcByIdx += (iOld -> g)
+                }
+              } else {
+                funcByIdx += (v.head -> PartialEvalPass
+                  .partialEval(f)
+                  .asInstanceOf[Function])
+              }
+            case None => ()
+          }
+        }
+      }
+    }
+    funcByIdx
+  }
+
+  /** Construct the directed graph representing dependencies between accumulator
+    * elements. The graph may contain cycles.
+    */
+  private def dependencyGraph(
+      equationByIdx: Seq[(Expr, Expr)],
+      acc: Param
+  ): DiGraph[Int] = {
+    val nodes = equationByIdx.indices
+    val edges = nodes.flatMap(i => {
+      val (_, next) = equationByIdx(i)
+      getDependencies(next, acc)
+        // If we can't statically determine dependencies, assume it depends on
+        // all the accumulator elements
+        .getOrElse(nodes)
+        .map(j => (i, j))
+    })
+    DiGraph(nodes.toSet, edges.toSet)
+  }
+
+  /** Find which elements of the accumulator <code>e</code> depends on. Return
+    * <code>None</code> if the expression does depend on <code>acc</code> but we
+    * can't tell statically which indices are being accessed.
+    */
+  private def getDependencies(e: Expr, acc: Param): Option[Set[Int]] = {
+    e match {
+      case TupleAccess(a: Param, IntCst(j)) =>
+        if (a == acc) Some(Set(j)) else Some(Set())
+      case a: Param =>
+        if (a == acc)
+          // Maybe we got here via a `TupleAccess(acc, j)` where `j` is some
+          // expression that couldn't be partially evaluated to an int.
+          None
+        else
+          Some(Set())
+      case e =>
+        e.children.foldLeft[Option[Set[Int]]](Some(Set[Int]()))({
+          case (None, _) => None
+          case (Some(deps), e) =>
+            getDependencies(e, acc) match {
+              case Some(moreDeps) => Some(deps ++ moreDeps)
+              case None           => None
+            }
+        })
+    }
+  }
+
+  /** Make a recurrence equation only for the given indices, replacing each
+    * reference to another accumulator element with the closed-form function for
+    * that element. Return the initial element and the update function. If we're
+    * dealing with multiple indices (i.e., there's a circular dependency), then
+    * the recurrence variable will be a tuple. For convenience, if we're dealing
+    * with just on element, the recurrence variable will NOT be a tuple.
+    *
+    * @param equations
+    *   The original recurrence equation (which uses the full <code>acc</code>)
+    *   by index. This must contain ONLY the indices which will be part of the
+    *   simplified recurrence equation.
+    * @param dependencies
+    *   The value of each accumulator element that this one depends on, as a
+    *   function of <code>t</code>.
+    * @param acc
+    *   The input to the original stream's update function.
+    */
+  private def makeRecurrenceEquation(
+      equations: Map[Int, (Expr, Expr)],
+      dependencies: Map[Int, Function],
+      acc: Param,
+      t: Param
+  ): (Expr, Function, Seq[Int]) = {
+    // Sort so that patterns on multiple accumulator elements get them in a
+    // more predictable order
+    val indices =
+      equations.toSeq
+        .sortBy({ case (i, (z, _)) => z })(ExprOrdering)
+        .map({ case (i, _) => i })
+    // Initial value
+    val z = if (indices.length == 1) {
+      equations(indices.head)._1
+    } else {
+      Tuple(indices.map(i => equations(i)._1): _*)
+    }
+    // Update function
+    val nexts = indices.map(i => equations(i)._2)
+    val x = Param("x")
+    val subs = {
+      // Replace dependencies with their value as a function of t
+      val depSubs =
+        dependencies.foldLeft(Map[Expr, Expr]())({ case (subs, (i, f)) =>
+          subs + (TupleAccess(acc, i) -> PartialEvalPass.partialEval(
+            FunCall(f, t)
+          ))
+        })
+      // Use a new parameter to represent the recurrence variable
+      val recVarSubs =
+        if (indices.length == 1) {
+          val i = indices.head
+          Map(TupleAccess(acc, i) -> x)
+        } else {
+          indices
+            .map(i => TupleAccess(acc, i) -> TupleAccess(x, indices.indexOf(i)))
+            .toMap
+        }
+      depSubs ++ recVarSubs
+    }
+    val next =
+      Function(
+        t,
+        Function(
+          x,
+          ir.substitute(
+            if (indices.length == 1) nexts.head else Tuple(nexts: _*)
+          )(subs)
+        )
+      )
+    (z, next, indices)
   }
 
   private def removeInductionVars(
@@ -73,357 +247,163 @@ object StmInductionVarRemovalPass {
     }
   }
 
-  /** Attempt to express the accumulator element at index `i` as a function of a
-    * simple up-counter.
-    *
-    * @param s
-    *   Stream
-    * @param i
-    *   Index
-    * @return
-    *   A function that returns the value of the `i`-th accumulator element as a
-    *   function of a simple up-counter.
-    */
-  private def tryGetInductionVarByIdx(
-      s: StmBuild,
-      i: Int
-  ): Option[Function] = {
-    val seed = s.seed.asInstanceOf[Tuple]
-    val z = seed.elems(i)
-    val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
-    tryGetInductionVar(s, i, 0, z, next)
-  }
-
-  /** Attempt to express the accumulator element at index i as a function of a
-    * simple up-counter, knowing that its initial value is <code>z</code> and it
-    * is updated by <code>next</code> (which probably contains a free variable
-    * for the accumulator). We are interested in finding a closed form knowing
-    * `t >= tMin`.
+  /** Attempt to convert a recurrence equation of the form
+    * {{{
+    *   x(t0) = z
+    *   x(t + 1) = f(t, x(t)) for all t >= t0
+    * }}}
+    * to a function of <code>t</code>.
     */
   private def tryGetInductionVar(
-      s: StmBuild,
-      i: Int,
-      tMin: Expr,
+      t0: Expr,
       z: Expr,
-      next: Expr
+      next: Function
   ): Option[Function] = {
-    (z, next, s, i) match {
-      case Constant(z)          => Some((_: Expr) => z)
-      case Counter(z, delta)    => Some((t: Expr) => z + (t - tMin) * delta)
-      case MonotonicBool(z, t0) =>
-        // TODO: How to incorporate `tMin` here?
-        if (z) Some((t: Expr) => t < t0) else Some((t: Expr) => t >= t0)
-      // TODO: watch out for infinite loops due to circular dependencies!
-      case LeftShiftRegister(n, f, e) =>
-        // TODO: How to incorporate `tMin` here?
-        tryGetInductionVar(s, e) match {
-          case Some(g) =>
-            Some((t: Expr) =>
-              VecBuild(
-                n,
-                (i: Expr) =>
-                  IfThenElse(
-                    (t + i) < n,
-                    FunCall(f, t + i),
-                    FunCall(g, t + i - n)
-                  )
-              )
+    val t = next.param
+    (z, next) match {
+      case (z, Function(t, Function(x0, x1))) if x0 == x1 =>
+        Some(Function(t, z))
+      case Counter(delta) => Some(Function(t, z + (t - t0) * delta))
+      case LeftShiftRegister(n, f, g) =>
+        Some(
+          Function(
+            t,
+            VecBuild(
+              n,
+              (i: Expr) =>
+                IfThenElse(
+                  // Imagine the vector is a fixed, infinite tape and we're
+                  // moving to the right as time goes along.
+                  //   [f(0), f(1), ..., f(n - 1), g(0), g(1), ...]
+                  (t - t0 + i) < n,
+                  FunCall(f, t - t0 + i),
+                  FunCall(g, t - t0 + i - n)
+                )
             )
-          case None => None
-        }
-      case IfTimeLessThan(k, a, b) =>
-        tryGetInductionVar(s, i, tMin, z, a) match {
+          )
+        )
+      case Piecewise(k, f, g) =>
+        tryGetInductionVar(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
-            val midpoint = IfThenElse(k >= tMin, k, tMin)
-            val valAtMidpoint = FunCall(f, midpoint)
-            tryGetInductionVar(s, i, midpoint, valAtMidpoint, b) match {
+            val t1 = IfThenElse(k >= t0, k, t0)
+            val valAtT1 = FunCall(f, t1)
+            tryGetInductionVar(t1, valAtT1, g) match {
               case Some(g) =>
-                Some((t: Expr) =>
-                  IfThenElse(t < k, FunCall(f, t), FunCall(g, t))
+                Some(
+                  Function(
+                    t,
+                    IfThenElse(t < t1, FunCall(f, t), FunCall(g, t))
+                  )
                 )
               case None => None
             }
           case None => None
         }
-      case _ => None
-    }
-  }
-
-  /** Attempt to express the given expression as a function of a simple
-    * up-counter.
-    *
-    * @param s
-    *   Stream
-    * @param e
-    *   Expression
-    * @return
-    *   A function that returns the value of the `i`-th accumulator element as a
-    *   function of a simple up-counter.
-    */
-  private[opt] def tryGetInductionVar(
-      s: StmBuild,
-      e: Expr
-  ): Option[Function] = {
-    val acc = s.nextF.param
-    e match {
-      case TupleAccess(a, IntCst(i)) if a == acc =>
-        tryGetInductionVarByIdx(s, i)
-      case TupleAccess(t, i) =>
-        (tryGetInductionVar(s, t), tryGetInductionVar(s, i)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => TupleAccess(FunCall(f, t), FunCall(g, t)))
+      // TODO: Add similar cases (e.g., a counter that starts false and becomes true)?
+      case (True, Function(t, Function(acc, And(a, c)))) if a == acc =>
+        (t, acc, c) match {
+          case TimeLessThan(k) if !ir.contains(k, acc) =>
+            // Add one to account for the fact that the boolean will only
+            // change value at the next cycle.
+            // Use Max to account for the case where the condition is
+            // immediately false: the value at t = 0 will nevertheless be True.
+            Some(Function(t, t - t0 < 1 + Max(0, k)))
           case _ => None
         }
-      case Tuple(elems @ _*) =>
-        val elemFunctions = elems.map(e => tryGetInductionVar(s, e))
-        if (elemFunctions.exists(e => e.isEmpty)) {
-          None
-        } else {
-          Some((t: Expr) =>
-            Tuple(elemFunctions.map(f => FunCall(f.get, t)): _*)
-          )
-        }
-      case p: Param if p == acc =>
-        // Maybe I could try getting *all* accumulator elements as induction variables
-        None
-      case p: Param => Some((_: Expr) => p)
-      case Function(p, body) =>
-        tryGetInductionVar(s, body) match {
-          case Some(f) => Some((t: Expr) => Function(p, FunCall(f, t)))
-          case _       => None
-        }
-      case FunCall(f, x) =>
-        (tryGetInductionVar(s, f), tryGetInductionVar(s, x)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(FunCall(f, t), FunCall(g, t)))
-          case _ => None
-        }
-      case IntCst(n) => Some((_: Expr) => IntCst(n))
-      case Sum(terms) =>
-        val indVars = terms.map(e => tryGetInductionVar(s, e))
-        if (indVars.forall(e => e.isDefined)) {
-          val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Sum(unwrappedVars.map(f => FunCall(f, t)): _*))
-        } else {
-          None
-        }
-      case Prod(factors) =>
-        val indVars = factors.map(e => tryGetInductionVar(s, e))
-        if (indVars.forall(e => e.isDefined)) {
-          val unwrappedVars = indVars.map(e => e.get)
-          Some((t: Expr) => Prod(unwrappedVars.map(f => FunCall(f, t)): _*))
-        } else {
-          None
-        }
-      case Div(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) / FunCall(g, t))
-          case _ => None
-        }
-      case Mod(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) % FunCall(g, t))
-          case _ => None
-        }
-      case True  => Some((_: Expr) => True)
-      case False => Some((_: Expr) => False)
-      case IfThenElse(c, t, f) =>
-        (
-          tryGetInductionVar(s, c),
-          tryGetInductionVar(s, t),
-          tryGetInductionVar(s, f)
-        ) match {
-          case (Some(f), Some(g), Some(h)) =>
-            Some((t: Expr) =>
-              IfThenElse(FunCall(f, t), FunCall(g, t), FunCall(h, t))
+      case (
+            Tuple(True, i0),
+            Function(
+              t,
+              Function(
+                acc,
+                Tuple(
+                  And(TupleAccess(a0, IntCst(0)), bCond),
+                  boundedCtrUpdate @ IfThenElse(
+                    TupleAccess(a1, IntCst(0)),
+                    ctrUpdateIfTrue,
+                    TupleAccess(a2, IntCst(1))
+                  )
+                )
+              )
             )
-          case _ => None
+          ) if a0 == acc && a1 == acc && a2 == acc =>
+        // (1) Find closed form for counter if it was unbounded
+        val a = Param("a")
+        val ctrNext = Function(
+          t,
+          Function(a, ir.substitute(ctrUpdateIfTrue)(Map(acc.__1 -> a)))
+        )
+        if (!ir.contains(ctrNext, acc)) {
+          tryGetInductionVar(t0, i0, ctrNext) match {
+            case Some(f) =>
+              // (2) Find closed form for the boolean if the counter was unbounded
+              val bCondIfUnbounded = ir.substitute(bCond)(
+                Map(acc.__0 -> a, acc.__1 -> FunCall(f, t))
+              )
+              if (!ir.contains(bCondIfUnbounded, acc)) {
+                (t, a, bCondIfUnbounded) match {
+                  case TimeLessThan(k) =>
+                    // The boolean is equivalent to t < K (need to account for the fact that the accumulator only
+                    // changes at the next cycle and the condition may be false immediately)
+                    val K = 1 + Max(t0, k)
+                    // (3) Now find closed form for the bounded counter
+                    val boundedCtrNext = Function(
+                      t,
+                      Function(
+                        a,
+                        ir.substitute(boundedCtrUpdate)(
+                          Map(acc.__0 -> (t < K), acc.__1 -> a)
+                        )
+                      )
+                    )
+                    tryGetInductionVar(t0, i0, boundedCtrNext) match {
+                      case Some(h) =>
+                        Some(Function(t, Tuple(t < K, FunCall(h, t))))
+                      case None => None
+                    }
+                  case _ => None
+                }
+              } else {
+                None
+              }
+            case None => None
+          }
+        } else {
+          None
         }
-      case Equal(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) === FunCall(g, t))
-          case _ => None
-        }
-      case LessThan(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) < FunCall(g, t))
-          case _ => None
-        }
-      case Not(x) =>
-        tryGetInductionVar(s, x) match {
-          case Some(f) => Some((t: Expr) => Not(FunCall(f, t)))
-          case _       => None
-        }
-      case And(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) && FunCall(g, t))
-          case _ => None
-        }
-      case Or(x, y) =>
-        (tryGetInductionVar(s, x), tryGetInductionVar(s, y)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => FunCall(f, t) || FunCall(g, t))
-          case _ => None
-        }
-      case DontCare     => Some((_: Expr) => DontCare)
-      case _: StmBuild  => None
-      case _: StmNext   => None
-      case _: StmLength => None
-      case VecBuild(n, f) =>
-        (tryGetInductionVar(s, n), tryGetInductionVar(s, f)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => VecBuild(FunCall(f, t), FunCall(g, t)))
-          case _ => None
-        }
-      case VecAccess(v, i) =>
-        (tryGetInductionVar(s, v), tryGetInductionVar(s, i)) match {
-          case (Some(f), Some(g)) =>
-            Some((t: Expr) => VecAccess(FunCall(f, t), FunCall(g, t)))
-          case _ => None
-        }
-      case VecLength(v) =>
-        tryGetInductionVar(s, v) match {
-          case Some(f) => Some((t: Expr) => VecLength(FunCall(f, t)))
-          case _       => None
-        }
-    }
-  }
-}
-
-object Constant {
-
-  /** An accumulator element that's unchanging. Even if a previous
-    * transformation removed constant accumulator elements, this can occur
-    * within one branch of a piecewise function. This is separate from
-    * <code>Counter</code> because a counter is necessarily an integer but a
-    * constant can be anything.
-    */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[Expr] = {
-    val (z, next, stm, i) = args
-    val acc = stm.nextF.param
-    next match {
-      case TupleAccess(a0, IntCst(i0)) if a0 == acc && i0 == i => Some(z)
-      case _                                                   => None
+      case _ => None
     }
   }
 }
 
 object Counter {
 
-  /** A counter starting at <code>z</code> and changing by <code>delta</code> at
-    * each step, where <code>delta</code> is constant within the stream (i.e.,
-    * does not depend on the accumulator).
+  /** A counter which changes by <code>delta</code> at each step, where
+    * <code>delta</code> is constant within the stream (i.e., does not depend on
+    * the accumulator).
     *
     * @return
-    *   <code>Some((z, delta))</code> if this is a counter, otherwise
+    *   <code>Some(delta)</code> if this is a counter, otherwise
     *   <code>None</code>.
     */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr)] = {
-    val (z, next, stm, i) = args
-    val acc = stm.nextF.param
-    (z, next) match {
-      case (z, Sum(terms)) =>
-        // Try to find the accumulator
-        val j = terms.zipWithIndex.foldLeft[Option[Int]](None)({
-          case (Some(j), _) => Some(j)
-          case (None, (TupleAccess(a0, IntCst(i0)), j))
-              if a0 == acc && i0 == i =>
-            Some(j)
-          case _ => None
-        })
-        j match {
-          case None => None
-          case Some(j) =>
-            val otherTerms = terms.zipWithIndex
-              .filter({ case (_, k) => k != j })
-              .map({ case (e, _) => e })
+  def unapply(args: (Expr, Function)): Option[Expr] = {
+    val (_, next) = args
+    next match {
+      case Function(t, Function(acc, Sum(terms))) =>
+        val termsWithAcc = terms.filter(e => ir.contains(e, acc))
+        termsWithAcc match {
+          case Seq(a) if a == acc =>
+            val otherTerms = terms.diff(termsWithAcc)
             val delta = Sum(otherTerms: _*)
-            val isConstantInStream = !ir.contains(delta, acc)
-            if (isConstantInStream) {
-              Some((z, delta))
+            val isConstInStream = !ir.contains(delta, t)
+            if (isConstInStream) {
+              Some(delta)
             } else {
               None
             }
-        }
-      case _ => None
-    }
-  }
-}
-
-object MonotonicBool {
-
-  /** A boolean that is <code>True</code> iff <code>t &lt; t0</code>, or one
-    * which is <code>False</code> iff <code>t &lt; t0</code>. Let <code>z</code>
-    * be the initial value of the boolean.
-    *
-    * @return
-    *   <code>Some((z, t0))</code> if this is a monotonic boolean, otherwise
-    *   <code>None</code>.
-    */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Boolean, Expr)] = {
-    val (z, next, stm, i) = args
-    val acc = stm.nextF.param
-    (z, next) match {
-      // TODO: There are many more cases to handle
-      // True --> False, up counter
-      case (
-            True,
-            And(
-              TupleAccess(a0, IntCst(i0)),
-              LessThan(TupleAccess(a1, IntCst(j)), k)
-            )
-          ) if a0 == acc && a1 == acc && i0 == i =>
-        tryGetMonotonicCounter(stm, i, j) match {
-          case Some((i0, delta)) if delta > 0 =>
-            val t0 = CeilDiv(Max(0, k - i0), delta) + 1
-            Some((true, t0))
           case _ => None
         }
-      case _ => None
-    }
-  }
-
-  /** @param s
-    *   Stream.
-    * @param i
-    *   Index of a boolean that depends on this accumulator.
-    * @param j
-    *   Index of the counter.
-    * @return
-    *   `Some(z, delta)` if this is a counter, otherwise `None`
-    */
-  private def tryGetMonotonicCounter(
-      s: StmBuild,
-      i: Int,
-      j: Int
-  ): Option[(Expr, Int)] = {
-    val cntrInit = s.seed.asInstanceOf[Tuple].elems(j)
-    val cntrUpdateExpr =
-      PartialEvalPass.partialEval(
-        TupleAccess(s.nextF.body.__0, j)
-      )
-    val acc = s.nextF.param
-    cntrUpdateExpr match {
-      case IfThenElse(
-            TupleAccess(p0, i0),
-            Sum(Seq(IntCst(delta), TupleAccess(p1, i1))),
-            TupleAccess(p2, i2)
-          )
-          if p0 == acc && i0 == IntCst(
-            i
-          ) && p1 == acc && i1 == IntCst(
-            j
-          ) && p2 == acc && i2 == IntCst(j) =>
-        Some((cntrInit, delta))
-      case Sum(Seq(IntCst(delta), TupleAccess(p0, i0)))
-          if p0 == acc && i0 == IntCst(j) =>
-        Some((cntrInit, delta))
       case _ => None
     }
   }
@@ -432,99 +412,195 @@ object MonotonicBool {
 object LeftShiftRegister {
 
   /** A leftwards-shifting shift register (i.e., a <code>VecShiftLeft</code>) of
-    * size <code>n</code>, whose initial values are given by the function
-    * <code>f</code>, and whose new values are given by the expression
-    * <code>e</code>.
+    * size <code>n</code>, where the initial value at index <code>i</code> is
+    * <code>f(i)</code>, and the element inserted at time <code>t</code> is
+    * <code>g(t)</code>.
     *
     * @return
-    *   <code>Some((n, f, e))</code> if the given expression is a left shift
+    *   <code>Some((n, f, g))</code> if the given expression is a left shift
     *   register, otherwise <code>None</code>.
     */
-  def unapply(
-      args: (Expr, Expr, StmBuild, Int)
-  ): Option[(Expr, Expr, Expr)] = {
-    // TODO: Do I need to watch out for side effects and make sure `e` doesn't depend on `acc` and so on here too?
-    val (z, next, stm, i) = args
-    val acc = stm.nextF.param
+  def unapply(args: (Expr, Function)): Option[(Expr, Expr, Expr)] = {
+    val (z, next) = args
     // Partially evaluate because the initial value may be a function call that
     // ends up returning a vector, for example
     (PartialEvalPass.partialEval(z), next) match {
       case (
             VecBuild(n, f),
-            VecBuild(
-              VecLength(TupleAccess(a0, IntCst(i0))),
+            Function(
+              t,
               Function(
-                j0: Param,
-                IfThenElse(
-                  Equal(
-                    j1,
-                    // TODO: What if the VecLength has been partially evaluated to a constant?
-                    Sum(Seq(IntCst(-1), VecLength(TupleAccess(a1, IntCst(i1)))))
-                  ),
-                  e,
-                  VecAccess(
-                    TupleAccess(a2, IntCst(i2)),
-                    Sum(Seq(IntCst(1), j2))
+                acc,
+                VecBuild(
+                  // TODO: What if the VecLength has been partially evaluated to a constant?
+                  VecLength(a0),
+                  Function(
+                    i0: Param,
+                    IfThenElse(
+                      Equal(i1, Sum(Seq(IntCst(-1), VecLength(a1)))),
+                      e,
+                      VecAccess(a2, Sum(Seq(IntCst(1), i2)))
+                    )
                   )
                 )
               )
             )
           )
-          if a0 == acc && a1 == acc && a2 == acc && i0 == i && i1 == i && i2 == i && j1 == j0 && j2 == j0 =>
-        Some((n, f, e))
+          if a0 == acc && a1 == acc && a2 == acc && i1 == i0 && i2 == i0
+            && !ir.contains(e, acc) =>
+        // e may have t as a free variable
+        Some((n, f, Function(t, e)))
       case _ => None
+    }
+  }
+}
+
+object Piecewise {
+
+  /** A function of the form <code>h(t, x) = if (t < k) then f(t, x) else g(t,
+    * x)</code>
+    *
+    * @return
+    *   `(k, f, g)`
+    */
+  def unapply(args: (Expr, Function)): Option[(Expr, Function, Function)] = {
+    val (_, next) = args
+    next match {
+      case Function(t, Function(acc, e)) =>
+        (t, acc, e) match {
+          case IfTimeLessThan(k, a, b) =>
+            Some(
+              (k, Function(t, Function(acc, a)), Function(t, Function(acc, b)))
+            )
+          case _ => None
+        }
+      case _ => None
+    }
+  }
+}
+
+object TimeLessThan {
+  def unapply(args: (Param, Param, LessThan)): Option[Expr] = {
+    val (t, acc, lt) = args
+    (t, acc, IfThenElse(lt, True, False)) match {
+      case IfTimeLessThan(k, True, False) => Some(k)
+      case _                              => None
     }
   }
 }
 
 object IfTimeLessThan {
 
-  /** An expression of the form <code>if (t &lt; k) then a else b</code>.
+  /** An expression of the form <code>if (t &lt; k) then a else b</code>, where
+    * <code>k</code> neither depends on <code>t</code> nor <code>acc</code>.
+    *
+    * @return
+    *   <code>(k, a, b)</code>
     */
-  def unapply(args: (Expr, Expr, StmBuild, Int)): Option[(Expr, Expr, Expr)] = {
-    val (_, next, stm, _) = args
-    next match {
-      case IfThenElse(c, a, b) =>
-        val f = StmInductionVarRemovalPass
-          .tryGetInductionVar(stm, c)
-          .map(f => PartialEvalPass.partialEval(f))
-        f match {
-          case Some(Function(t, LessThan(x, y))) =>
-            // Look at x - y to deal with things like 10 + t < 20, 5 < t, etc.
-            // Just matching LessThan(t, k) doesn't handle those cases.
-            PartialEvalPass.partialEval(x - y) match {
-              case p: Param if p == t =>
-                Some((0, a, b))
-              case Sum(terms) =>
-                val termsWithT = terms.filter(e => ir.contains(e, t))
-                termsWithT match {
-                  case Seq(_: Param) =>
-                    //     t + (e1 + e2 + ...) < 0
-                    // ==> t < -(e1 + e2 + ...)
-                    val termsWithoutT = terms.diff(termsWithT)
-                    // Do I need to watch out for side effects here (and in the
-                    // next case)?
-                    // Hopefully not, as `f` above should be a closed-form
-                    // expression for the condition
-                    Some(((-1) * Sum(termsWithoutT: _*), a, b))
-                  case Seq(Prod(Seq(IntCst(-1), _: Param))) =>
-                    //      -t + (e1 + e2 + ...) < 0
-                    //  ==> t > e1 + e2 + ...
-                    // And then
-                    //    if (t > e1 + e2 + ...) then a else b
-                    //  = if (t <= e1 + e2 + ...) then b else a
-                    //  = if (t < 1 + e1 + e2 + ...) then b else a
-                    val termsWithoutT = terms.diff(termsWithT)
-                    Some(Sum(IntCst(1) +: termsWithoutT: _*), b, a)
-                  // Maybe we have something like t % 2 < 1, which doesn't
-                  // match the pattern we're looking for
-                  case _ => None
-                }
+  def unapply(args: (Param, Param, Expr)): Option[(Expr, Expr, Expr)] = {
+    val (t, acc, e) = args
+    (e, t) match {
+      case IfLessThan(k, a, b) =>
+        if (!ir.contains(k, acc)) Some((k, a, b)) else None
+      case _ => None
+    }
+  }
+}
+
+object IfLessThan {
+
+  /** An expression of the form <code>if (x &lt k) then a else b</code>, where
+    * <code>k</code> does not depend on <code>x</code>
+    *
+    * @return
+    *   <code>(k, a, b)</code>
+    */
+  def unapply(args: (Expr, Expr)): Option[(Expr, Expr, Expr)] = {
+    val (e, x) = args
+    e match {
+      case IfThenElse(LessThan(y, z), a, b) =>
+        // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
+        // Just matching LessThan(x, k) doesn't handle those cases.
+        (PartialEvalPass.partialEval(y - z), x) match {
+          case LinearFunctionOf(c0, c1) =>
+            // TODO: Use a more general approach to find the sign of a particular expression?
+            c1 match {
+              case IntCst(c1) if c1 > 0 =>
+                //     c0 + c1*x < 0
+                // iff c1*x < -c0
+                // iff x < ceil(-c0 / c1)  (since we're dealing with integers)
+                Some((CeilDiv(-1 * c0, c1), a, b))
+              case IntCst(c1) if c1 < 0 =>
+                //     c0 + c1*x < 0
+                // iff c1*x < -c0
+                // iff x > ceil(-c0 / c1)  (sign flips because c1 < 0)
+                // iff x >= 1 + ceil(-c0 / c1)
+                Some((1 + CeilDiv(-1 * c0, c1), b, a))
               case _ => None
             }
           case _ => None
         }
       case _ => None
+    }
+  }
+}
+
+object LinearFunctionOf {
+
+  /** An expression of the form <code>c0 + c1*x</code>, where neither
+    * <code>c0</code> nor <code>c1</code> depend on <code>x</code>.
+    *
+    * @return
+    *   <code>(c0, c1)</code>
+    */
+  def unapply(args: (Expr, Expr)): Option[(Expr, Expr)] = {
+    val (e, x) = args
+    e match {
+      case Sum(terms) =>
+        val termsWithX = terms.filter(e => ir.contains(e, x))
+        termsWithX match {
+          case Seq(termWithX) =>
+            (termWithX, x) match {
+              case ConstMultipleOf(c1) =>
+                val termsWithoutX = terms.diff(termsWithX)
+                val c0 = Sum(termsWithoutX: _*)
+                Some((c0, c1))
+            }
+          case _ => None
+        }
+      case e =>
+        (e, x) match {
+          case ConstMultipleOf(c1) => Some((0, c1))
+          case _                   => None
+        }
+    }
+  }
+}
+
+object ConstMultipleOf {
+
+  /** An expression of the form <code>k * x</code>, where <code>k</code> does
+    * not depend on <code>x</code>
+    *
+    * @return
+    *   The coefficient, <code>k</code>
+    */
+  def unapply(args: (Expr, Expr)): Option[Expr] = {
+    val (e, x) = args
+    e match {
+      case y if y == x => Some(1)
+      case Prod(factors) =>
+        val factorsWithX = factors.filter(e => ir.contains(e, x))
+        factorsWithX match {
+          case Seq(y) if y == x =>
+            val factorsWithoutX = factors.diff(factorsWithX)
+            val coeff = factorsWithoutX match {
+              case Seq(e) => e
+              case xs     => Prod(xs: _*)
+            }
+            Some(coeff)
+          case _ => None
+        }
     }
   }
 }
