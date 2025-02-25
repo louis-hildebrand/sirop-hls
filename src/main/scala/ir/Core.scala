@@ -28,6 +28,7 @@ sealed trait Expr {
   def __5: TupleAccess = TupleAccess(this, 5)
 
   def children: Seq[Expr]
+  def rebuild(newChildren: Seq[Expr]): Expr
 }
 
 // Define a consistent order for expressions to make the tests less brittle.
@@ -95,9 +96,14 @@ case object ExprOrdering extends Ordering[Expr] {
 // Tuples
 case class Tuple(elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
+  override def rebuild(newChildren: Seq[Expr]): Expr = Tuple(newChildren: _*)
 }
 case class TupleAccess(t: Expr, i: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(t, i)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.length == 2)
+    TupleAccess(newChildren.head, newChildren(1))
+  }
 }
 
 // Functions
@@ -105,6 +111,10 @@ case class Param(prefix: String, id: Long) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.isEmpty)
+    this
+  }
 
   override def toString: String = name
 }
@@ -118,6 +128,15 @@ case object Param {
 
 case class Function(param: Param, body: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(param, body)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x: Param, body: Expr) => Function(x, body)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 
   override def equals(x: Any): Boolean = {
     if (!x.isInstanceOf[Function]) false
@@ -131,6 +150,10 @@ case class Function(param: Param, body: Expr) extends Expr {
 
 case class FunCall(f: Expr, arg: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.length == 2)
+    FunCall(newChildren.head, newChildren(1))
+  }
 }
 
 sealed trait BinOp extends Expr {
@@ -145,6 +168,10 @@ sealed trait IntExpr extends Expr
 
 case class IntCst(i: Int) extends IntExpr {
   override def children: Seq[Expr] = Seq()
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.isEmpty)
+    this
+  }
 }
 
 final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
@@ -159,6 +186,7 @@ final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
       .sorted(ExprOrdering)
 
   override def children: Seq[Expr] = terms
+  override def rebuild(newChildren: Seq[Expr]): Expr = Sum(newChildren: _*)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -196,6 +224,7 @@ final class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
       .sorted(ExprOrdering)
 
   override def children: Seq[Expr] = factors
+  override def rebuild(newChildren: Seq[Expr]): Expr = Prod(newChildren: _*)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -221,16 +250,34 @@ object Prod {
   }
 }
 
-case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp
-case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp
+case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.length == 2)
+    Div(newChildren.head, newChildren(1))
+  }
+}
+case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.length == 2)
+    Mod(newChildren.head, newChildren(1))
+  }
+}
 
 // Boolean expressions
 sealed trait BoolExpr extends Expr
 case object True extends BoolExpr {
   override def children: Seq[Expr] = Seq()
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.isEmpty)
+    this
+  }
 }
 case object False extends BoolExpr {
   override def children: Seq[Expr] = Seq()
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    require(newChildren.isEmpty)
+    this
+  }
 }
 
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
@@ -244,6 +291,15 @@ final class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
   }
 
   override def children: Seq[Expr] = Seq(c, t, f)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(c, t, f) => IfThenElse(c, t, f)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -271,18 +327,76 @@ object IfThenElse {
 }
 
 // Comparison operators
-case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp
-case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp
+case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => Equal(e1, e2)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
+}
+case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => LessThan(e1, e2)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
+}
 // Logical operators
 case class Not(e: Expr) extends BoolExpr {
   override def children: Seq[Expr] = Seq(e)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => Not(e)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
-case class And(e1: Expr, e2: Expr) extends BoolExpr with BinOp
-case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp
+case class And(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => And(e1, e2)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
+}
+case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => Or(e1, e2)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
+}
 
 // Useful for readability and possibly for optimization
 case object DontCare extends Expr {
   override def children: Seq[Expr] = Seq()
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq() => this
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 
 // Streams
@@ -292,26 +406,82 @@ case class StmBuild(
     nextF: Function /* A -> (A, Option<B>)*/
 ) extends Expr {
   override def children: Seq[Expr] = Seq(length, seed, nextF)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, z, f: Function) => StmBuild(n, z, f)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 case class StmLength(stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmLength(s)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 // element only available for one clock cycle
 case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr {
   override def children: Seq[Expr] = Seq(stream)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmNext(s)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 
 // Vectors
 case class VecBuild(len: Expr, f: Expr /*Int => Expr*/ ) extends Expr {
   override def children: Seq[Expr] = Seq(len, f)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, f) => VecBuild(n, f)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 case class VecAccess(vec: Expr, i: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(vec, i)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, i) => VecAccess(v, i)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 case class VecLength(vec: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecLength(v)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
 }
 
 // You can add new nodes to the IR by extending this
-trait ExtensibleExpr extends Expr
+trait ExtensibleExpr extends Expr {
+  def partialEval(pe: Expr => Expr): Expr
+}

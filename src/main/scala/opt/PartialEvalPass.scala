@@ -228,6 +228,8 @@ object PartialEvalPass {
           case DontCare      => DontCare
           case vec @ _       => VecLength(vec)
         }
+
+      case e: ExtensibleExpr => e.partialEval(partialEval)
     }
   }
 

@@ -4,6 +4,10 @@ import scala.language.implicitConversions
 
 case class VecLiteral(elems: Expr*) extends ExtensibleExpr {
   override def children: Seq[Expr] = elems
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    VecLiteral(newChildren: _*)
+  }
+  override def partialEval(pe: Expr => Expr): Expr = this
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
@@ -13,6 +17,11 @@ object VecLiteral {
 
 case class StmLiteral(elems: Expr*) extends ExtensibleExpr {
   override def children: Seq[Expr] = elems
+
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    StmLiteral(newChildren: _*)
+  }
+  override def partialEval(pe: Expr => Expr): Expr = this
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
     StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)
@@ -68,7 +77,7 @@ trait Eval {
       case FunCall(f, arg) =>
         evalBigStep(f) match {
           case Function(x, body) =>
-            evalBigStep(substitute(body)(evalBigStep(arg), x))
+            evalBigStep(substitute(body)(Map(x -> evalBigStep(arg))))
           case v =>
             throw new IllegalArgumentException(
               s"Left-hand side of function application evaluated to $v. It must evaluate to a function."
@@ -268,86 +277,6 @@ trait Eval {
             )
         }
       case v: StmLiteral => v
-    }
-  }
-
-  /** Substitute <code>e2</code> for <code>x</code> in <code>e1</code>.
-    */
-  private def substitute(e1: Expr)(e2: Expr, x: Param): Expr = {
-    e1 match {
-      case y: Param          => if (y == x) e2 else y
-      case Function(y, body) =>
-        // Avoid variable capture
-        require(y != x)
-        require(!freeVars(e2).contains(y))
-        Function(y, substitute(body)(e2, x))
-      case FunCall(f, arg) =>
-        FunCall(substitute(f)(e2, x), substitute(arg)(e2, x))
-
-      case DontCare => DontCare
-
-      case IntCst(n) => IntCst(n)
-      case Sum(terms) =>
-        Sum(terms.map(e => substitute(e)(e2, x)): _*)
-      case Prod(factors) =>
-        Prod(factors.map(e => substitute(e)(e2, x)): _*)
-      case Div(a, b) =>
-        Div(substitute(a)(e2, x), substitute(b)(e2, x))
-      case Mod(a, b) =>
-        Mod(substitute(a)(e2, x), substitute(b)(e2, x))
-
-      case True  => True
-      case False => False
-      case Not(e) =>
-        Not(substitute(e)(e2, x))
-      case And(a, b) =>
-        And(substitute(a)(e2, x), substitute(b)(e2, x))
-      case Or(a, b) =>
-        Or(substitute(a)(e2, x), substitute(b)(e2, x))
-      case Equal(a, b) =>
-        Equal(substitute(a)(e2, x), substitute(b)(e2, x))
-      case LessThan(a, b) =>
-        LessThan(substitute(a)(e2, x), substitute(b)(e2, x))
-      case IfThenElse(c, t, f) =>
-        IfThenElse(
-          substitute(c)(e2, x),
-          substitute(t)(e2, x),
-          substitute(f)(e2, x)
-        )
-
-      case Tuple(elems @ _*) =>
-        Tuple(elems.map(e => substitute(e)(e2, x)): _*)
-      case TupleAccess(t, i) =>
-        TupleAccess(substitute(t)(e2, x), substitute(i)(e2, x))
-
-      case VecBuild(n, f) =>
-        VecBuild(substitute(n)(e2, x), substitute(f)(e2, x))
-      case VecAccess(v, i) =>
-        VecAccess(substitute(v)(e2, x), substitute(i)(e2, x))
-      case VecLength(v) =>
-        VecLength(substitute(v)(e2, x))
-      case v: VecLiteral => v
-
-      case StmBuild(n, z, f) =>
-        StmBuild(
-          substitute(n)(e2, x),
-          substitute(z)(e2, x),
-          substitute(f)(e2, x).asInstanceOf[Function]
-        )
-      case StmNext(s) =>
-        StmNext(substitute(s)(e2, x))
-      case StmLength(s) =>
-        StmLength(substitute(s)(e2, x))
-      case v: StmLiteral => v
-    }
-  }
-
-  private def freeVars(e: Expr): Set[Param] = {
-    e match {
-      case x: Param          => Set(x)
-      case Function(y, body) => freeVars(body).diff(Set(y))
-      case e =>
-        e.children.foldLeft(Set[Param]())((acc, e) => acc.union(freeVars(e)))
     }
   }
 }

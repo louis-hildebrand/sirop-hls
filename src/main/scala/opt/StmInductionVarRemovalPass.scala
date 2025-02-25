@@ -480,7 +480,7 @@ object Piecewise {
 }
 
 object TimeLessThan {
-  def unapply(args: (Param, Param, LessThan)): Option[Expr] = {
+  def unapply(args: (Param, Param, Expr)): Option[Expr] = {
     val (t, acc, lt) = args
     (t, acc, IfThenElse(lt, True, False)) match {
       case IfTimeLessThan(k, True, False) => Some(k)
