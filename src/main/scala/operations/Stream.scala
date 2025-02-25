@@ -186,7 +186,7 @@ object Iterate {
 
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
-    StmRange(n, c, 0)
+    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(c)))
   }
 }
 

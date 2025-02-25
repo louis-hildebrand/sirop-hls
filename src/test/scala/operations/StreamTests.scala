@@ -40,9 +40,15 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(IntCst(3)) == IntCst(3))
   }
 
-  test("StmCst") {
+  test("StmCst:Int") {
     val s = StmCst(4, 3)
     assert(ir.eval(s) == StmLiteral.ints(3, 3, 3, 3))
+  }
+
+  test("StmCst:Tuple") {
+    val c = Tuple(False, 99)
+    val s = StmCst(3, c)
+    assert(ir.eval(s) == StmLiteral(c, c, c))
   }
 
   test("StmCount") {
