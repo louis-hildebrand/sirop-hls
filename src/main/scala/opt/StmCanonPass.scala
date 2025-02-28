@@ -185,11 +185,12 @@ object StmCanonPass {
           moveIfThenElseOutsideTuple(falseE)
         )
       case DontCare => DontCare
-      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
+      case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild |
+          _: StmLiteral | _: VecBuild | _: VecLiteral | _: StmNextK |
+          _: StmNext =>
         // Definitely will not evaluate to a tuple
         e
-      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param |
-          _: ExtensibleExpr =>
+      case _: TupleAccess | _: VecAccess | _: FunCall | _: Param =>
         // TODO: not sure what to do here.
         e
     }

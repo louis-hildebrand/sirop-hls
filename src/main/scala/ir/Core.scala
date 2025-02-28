@@ -63,32 +63,34 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
-      case DontCare          => 0
-      case False             => 1
-      case True              => 2
-      case _: And            => 3
-      case _: Or             => 4
-      case _: Not            => 5
-      case _: Equal          => 6
-      case _: LessThan       => 7
-      case _: IntCst         => 8
-      case _: Sum            => 9
-      case _: Prod           => 10
-      case _: Div            => 11
-      case _: Mod            => 12
-      case _: Param          => 13
-      case _: TupleAccess    => 14
-      case _: FunCall        => 15
-      case _: IfThenElse     => 16
-      case _: Tuple          => 17
-      case _: Function       => 18
-      case _: StmBuild       => 19
-      case _: StmNext        => 20
-      case _: StmLength      => 21
-      case _: VecBuild       => 22
-      case _: VecAccess      => 23
-      case _: VecLength      => 24
-      case _: ExtensibleExpr => 25
+      case DontCare       => 0
+      case False          => 1
+      case True           => 2
+      case _: And         => 3
+      case _: Or          => 4
+      case _: Not         => 5
+      case _: Equal       => 6
+      case _: LessThan    => 7
+      case _: IntCst      => 8
+      case _: Sum         => 9
+      case _: Prod        => 10
+      case _: Div         => 11
+      case _: Mod         => 12
+      case _: Param       => 13
+      case _: TupleAccess => 14
+      case _: FunCall     => 15
+      case _: IfThenElse  => 16
+      case _: Tuple       => 17
+      case _: Function    => 18
+      case _: StmBuild    => 19
+      case _: StmNext     => 20
+      case _: StmLength   => 21
+      case _: VecBuild    => 22
+      case _: VecAccess   => 23
+      case _: VecLength   => 24
+      case _: VecLiteral  => 25
+      case _: StmLiteral  => 26
+      case _: StmNextK    => 27
     }
   }
 }
@@ -481,5 +483,49 @@ case class VecLength(vec: Expr) extends IntExpr {
   }
 }
 
-// You can add new nodes to the IR by extending this
-trait ExtensibleExpr extends Expr
+// ---------------------------------------------------------------------------------------------------------------------
+// Extra, non-synthesizable nodes
+// (Useful for evaluation and optimization)
+
+case class VecLiteral(elems: Expr*) extends Expr {
+  override def children: Seq[Expr] = elems
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    VecLiteral(newChildren: _*)
+  }
+}
+object VecLiteral {
+  def ints(elems: Int*): VecLiteral = {
+    VecLiteral(elems.map(n => IntCst(n)): _*)
+  }
+}
+
+case class StmLiteral(elems: Expr*) extends Expr {
+  override def children: Seq[Expr] = elems
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    StmLiteral(newChildren: _*)
+  }
+  def flatten: StmLiteral = {
+    require(elems.forall(e => e.isInstanceOf[StmLiteral]))
+    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)
+  }
+}
+object StmLiteral {
+  def ints(elems: Int*): StmLiteral = {
+    StmLiteral(elems.map(n => IntCst(n)): _*)
+  }
+
+  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)
+}
+
+case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ ) extends Expr {
+  override def children: Seq[Expr] = Seq(s, k)
+  override def rebuild(newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, i) => StmNextK(s, i)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
+  }
+}

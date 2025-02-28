@@ -2,36 +2,6 @@ package ir
 
 import scala.language.implicitConversions
 
-case class VecLiteral(elems: Expr*) extends ExtensibleExpr {
-  override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    VecLiteral(newChildren: _*)
-  }
-}
-object VecLiteral {
-  def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)
-  }
-}
-
-case class StmLiteral(elems: Expr*) extends ExtensibleExpr {
-  override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    StmLiteral(newChildren: _*)
-  }
-  def flatten: StmLiteral = {
-    require(elems.forall(e => e.isInstanceOf[StmLiteral]))
-    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)
-  }
-}
-object StmLiteral {
-  def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)
-  }
-
-  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)
-}
-
 trait Eval {
   def eval(e: Expr): Expr = {
     evalBigStepToplevel(e)
@@ -40,7 +10,7 @@ trait Eval {
   private def evalBigStepToplevel(e: Expr): Expr = {
     evalBigStep(e) match {
       case StmBuild(n, z, f) =>
-        eval(n) match {
+        n match {
           case IntCst(0) => StmLiteral.nil
           case IntCst(n) if n > 0 =>
             evalBigStep(StmNext(StmBuild(n, z, f))) match {
@@ -263,6 +233,32 @@ trait Eval {
             )
           case StmLiteral(v, vs @ _*) =>
             Tuple(StmLiteral(vs: _*), v)
+          case e =>
+            throw new IllegalArgumentException(
+              s"Stream of StmNext evaluated to $e. It must evaluate to some kind of stream."
+            )
+        }
+      case StmNextK(s, k) =>
+        evalBigStep(k) match {
+          case IntCst(k) if k >= 0 =>
+            evalBigStep(s) match {
+              case StmLiteral(vs @ _*) =>
+                StmLiteral(vs.drop(k): _*)
+              case s: StmBuild =>
+                k match {
+                  case 0 => s
+                  case _ =>
+                    evalBigStep(StmNextK(StmNext(s).__0, k - 1))
+                }
+              case s =>
+                throw new IllegalArgumentException(
+                  s"Stream in StmNextK evaluated to $s. It must evaluate to a stream literal."
+                )
+            }
+          case k =>
+            throw new IllegalArgumentException(
+              s"Index in StmNextK evaluated to $k. The index must be a non-negative integer."
+            )
         }
       case StmLength(s) =>
         evalBigStep(s) match {

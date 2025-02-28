@@ -201,7 +201,7 @@ object PartialEvalPass {
           case s @ _       => StmLength(s)
         }
 
-      case StmNext(s: Expr) =>
+      case StmNext(s) =>
         partialEval(s) match {
           case s: StmBuild =>
             tryEvalStmNext(s) match {
@@ -209,6 +209,13 @@ object PartialEvalPass {
               case None                 => StmNext(s)
             }
           case s => StmNext(s)
+        }
+      case StmNextK(s, k) =>
+        (partialEval(s), partialEval(k)) match {
+          // There are probably some cases where we want to convert StmNextK(s, k + 1) to StmNext(StmNextK(s, k)).__0
+          // and other times where we want to go the other way.
+          // Therefore, don't handle that here.
+          case (s, k) => StmNextK(s, k)
         }
 
       case VecBuild(len: Expr, f) =>
@@ -228,8 +235,6 @@ object PartialEvalPass {
           case DontCare      => DontCare
           case vec @ _       => VecLength(vec)
         }
-
-      case e: ExtensibleExpr => e.rebuild(e.children.map(e => partialEval(e)))
     }
   }
 
@@ -283,7 +288,8 @@ object PartialEvalPass {
           LessThan(_, _) =>
         Some(true)
       // Definitely not a bool
-      case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function =>
+      case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function |
+          _: StmNext | _: StmNextK | _: VecLiteral | _: StmLiteral =>
         Some(false)
       // Not sure
       case _: Param | DontCare => None
@@ -311,9 +317,7 @@ object PartialEvalPass {
             Some(false)
           case (Some(true), Some(false)) | (Some(false), Some(true)) => None
         }
-      case StmNext(_)        => None
-      case VecAccess(_, _)   => None
-      case _: ExtensibleExpr => None
+      case VecAccess(_, _) => None
     }
   }
 

@@ -76,10 +76,6 @@ object PrettyPrinter {
             s"StmBuild(${nStr}, ${zStr}, ${fStr})"
           }
         }
-      case StmNext(s) =>
-        s"StmNext(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
-      case StmLength(s) =>
-        s"StmLength(${show(s, collapseStm = collapseStm, evalVec = evalVec)})"
       case v @ VecBuild(n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
         elems match {
@@ -111,9 +107,11 @@ object PrettyPrinter {
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
-      case e: ExtensibleExpr =>
+      case e =>
         val name = e.getClass.getSimpleName
-        val children = e.children.map(e => show(e)).mkString(", ")
+        val sh = (e: Expr) =>
+          show(e, collapseStm = collapseStm, evalVec = evalVec)
+        val children = e.children.map(sh).mkString(", ")
         s"$name($children)"
     }
   }

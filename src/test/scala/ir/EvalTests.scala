@@ -1,0 +1,18 @@
+package ir
+
+import org.scalatest.funsuite.AnyFunSuite
+
+class EvalTests extends AnyFunSuite {
+  test("StmNextK") {
+    val s = Param("s")
+    val k = Param("k")
+    val e = 42 + StmNext(StmNextK(s, 1 + k)).__1
+
+    val s0 = StmBuild(3, -4, (i: Expr) => Tuple(i + 3, SSome(i)))
+    for (kVal <- -1 until 2) {
+      val expected = IntCst(42 + -4 + 3 * (kVal + 1))
+      val actual = ir.eval(Let(s, s0, Let(k, kVal, e)))
+      assert(actual == expected)
+    }
+  }
+}
