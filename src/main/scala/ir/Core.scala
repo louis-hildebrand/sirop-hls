@@ -33,8 +33,9 @@ sealed trait Expr {
   def contains(p: Expr => Boolean): Boolean = {
     p(this) || this.children.exists(e => e.contains(p))
   }
-
   def contains(e2: Expr): Boolean = this.contains(e => e == e2)
+  def contains[T <: Expr](cls: Class[T]): Boolean =
+    this.contains(e => cls.isInstance(e))
 
   def substitute(subs: Map[Expr, Expr]): Expr = {
     subs.get(this) match {

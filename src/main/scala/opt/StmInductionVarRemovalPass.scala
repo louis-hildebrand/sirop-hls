@@ -1,7 +1,9 @@
 package opt
 
 import ir._
-import operations.{Max, CeilDiv}
+import operations.{CeilDiv, Max}
+
+import scala.annotation.tailrec
 
 /** Induction variables are accumulator elements which can be expressed as a
   * function of <code>t</code>, where <code>t</code> is a counter which starts
@@ -26,13 +28,20 @@ object StmInductionVarRemovalPass {
     // Canonicalize to flatten the accumulator and whatnot
     val s = StmCanonPass.canonicalize(stm)
     val funcByIdx = findClosedForms(s)
-    val allElemsRemovable = s.seed
-      .asInstanceOf[Tuple]
-      .elems
-      .indices
-      .forall(i => funcByIdx.contains(i))
-    if (allElemsRemovable) {
-      Some(removeInductionVars(s, funcByIdx))
+    val updatedStm = removeInductionVars(s, funcByIdx)
+    val allRemoved = {
+      updatedStm.seed match {
+        case Tuple(IntCst(0)) =>
+          updatedStm.nextF match {
+            case Function(x, body) =>
+              val f = Function(x, PartialEvalPass.partialEval(body.__0.__0))
+              f == (((acc: Expr) => acc.__0 + 1): Expr)
+          }
+        case _ => false
+      }
+    }
+    if (allRemoved) {
+      Some(updatedStm)
     } else {
       None
     }
@@ -44,7 +53,8 @@ object StmInductionVarRemovalPass {
     val t = Param("t")
     val initAndNextByIdx = seed.elems.indices.map(i => {
       val z = seed.elems(i)
-      val next = PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
+      val next =
+        ExtendedPartialEvaluator.partialEval(TupleAccess(s.nextF.body.__0, i))
       (z, next)
     })
     // The dependency graph may be acyclic. To deal with that, combine elements
@@ -73,7 +83,7 @@ object StmInductionVarRemovalPass {
           // cannot be partially evaluated to an int).
           // Doesn't seem like there's much we can do in that case.
         } else {
-          tryGetInductionVar(0, z, next) match {
+          tryFindClosedForm(0, z, next) match {
             case Some(f) =>
               if (z.isInstanceOf[Tuple]) {
                 // Track each accumulator element separately, even though they
@@ -81,14 +91,14 @@ object StmInductionVarRemovalPass {
                 for ((iOld, iNew) <- indices.zipWithIndex) {
                   val g = Function(
                     t,
-                    PartialEvalPass.partialEval(
+                    ExtendedPartialEvaluator.partialEval(
                       TupleAccess(FunCall(f, t), iNew)
                     )
                   )
                   funcByIdx += (iOld -> g)
                 }
               } else {
-                funcByIdx += (v.head -> PartialEvalPass
+                funcByIdx += (v.head -> ExtendedPartialEvaluator
                   .partialEval(f)
                   .asInstanceOf[Function])
               }
@@ -188,7 +198,7 @@ object StmInductionVarRemovalPass {
       // Replace dependencies with their value as a function of t
       val depSubs =
         dependencies.foldLeft(Map[Expr, Expr]())({ case (subs, (i, f)) =>
-          subs + (TupleAccess(acc, i) -> PartialEvalPass.partialEval(
+          subs + (TupleAccess(acc, i) -> ExtendedPartialEvaluator.partialEval(
             FunCall(f, t)
           ))
         })
@@ -216,6 +226,7 @@ object StmInductionVarRemovalPass {
     (z, next, indices)
   }
 
+  @tailrec
   private def removeInductionVars(
       stm: StmBuild,
       funByIdx: Map[Int, Function]
@@ -223,26 +234,38 @@ object StmInductionVarRemovalPass {
     if (funByIdx.isEmpty) {
       stm
     } else {
-      val s1 = PartialEvalPass
-        .partialEval(
-          StmUtils.appendAccumulator(stm, 0, (i: Expr) => i + 1)
+      val anyContainsStmNextK = funByIdx
+        .exists({ case (_, f) => f.contains(classOf[StmNextK]) })
+      if (anyContainsStmNextK) {
+        // TODO: Try to remove them and backtrack if there's a StmNextK left *after* replacement?
+        removeInductionVars(
+          stm,
+          funByIdx.filter({ case (_, f) => !f.contains(classOf[StmNextK]) })
         )
-        .asInstanceOf[StmBuild]
+      } else {
+        val s1 = ExtendedPartialEvaluator
+          .partialEval(
+            StmUtils.appendAccumulator(stm, 0, (i: Expr) => i + 1)
+          )
+          .asInstanceOf[StmBuild]
 
-      val acc = s1.nextF.param
-      val subs: Map[Expr, Expr] = funByIdx
-        .map({ case (i, f) => TupleAccess(acc.__0, i) -> FunCall(f, acc.__1) })
-      // Canonicalization is required for removing accumulator elements
-      val s2 = StmCanonPass.canonicalize(
-        StmBuild(
-          s1.length,
-          s1.seed,
-          Function(acc, s1.nextF.body.substitute(subs))
+        val acc = s1.nextF.param
+        val subs: Map[Expr, Expr] = funByIdx
+          .map({ case (i, f) =>
+            TupleAccess(acc.__0, i) -> FunCall(f, acc.__1)
+          })
+        // Canonicalization is required for removing accumulator elements
+        val s2 = StmCanonPass.canonicalize(
+          StmBuild(
+            s1.length,
+            s1.seed,
+            Function(acc, s1.nextF.body.substitute(subs))
+          )
         )
-      )
 
-      val indicesToRemove = funByIdx.keySet.toSeq
-      StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
+        val indicesToRemove = funByIdx.keySet.toSeq
+        StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
+      }
     }
   }
 
@@ -253,7 +276,7 @@ object StmInductionVarRemovalPass {
     * }}}
     * to a function of <code>t</code>.
     */
-  private def tryGetInductionVar(
+  def tryFindClosedForm(
       t0: Expr,
       z: Expr,
       next: Function
@@ -281,13 +304,16 @@ object StmInductionVarRemovalPass {
             )
           )
         )
+      case (s, Function(t, Function(x0, TupleAccess(StmNext(x1), IntCst(0)))))
+          if x0 == x1 =>
+        Some(Function(t, StmNextK(s, t - t0)))
       case Piecewise(k, f, g) =>
-        tryGetInductionVar(t0, z, f) match {
+        tryFindClosedForm(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
             val t1 = Max(k, t0)
             val valAtT1 = FunCall(f, t1)
-            tryGetInductionVar(t1, valAtT1, g) match {
+            tryFindClosedForm(t1, valAtT1, g) match {
               case Some(g) =>
                 Some(
                   Function(
@@ -334,7 +360,7 @@ object StmInductionVarRemovalPass {
           Function(a, ctrUpdateIfTrue.substitute(acc.__1 -> a))
         )
         if (!ctrNext.contains(acc)) {
-          tryGetInductionVar(t0, i0, ctrNext) match {
+          tryFindClosedForm(t0, i0, ctrNext) match {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
               val bCondIfUnbounded = bCond.substitute(
@@ -356,7 +382,7 @@ object StmInductionVarRemovalPass {
                         )
                       )
                     )
-                    tryGetInductionVar(t0, i0, boundedCtrNext) match {
+                    tryFindClosedForm(t0, i0, boundedCtrNext) match {
                       case Some(h) =>
                         Some(Function(t, Tuple(t < K, FunCall(h, t))))
                       case None => None
@@ -372,6 +398,24 @@ object StmInductionVarRemovalPass {
           None
         }
       case _ => None
+    }
+  }
+}
+
+private object ExtendedPartialEvaluator {
+  def partialEval(e: Expr): Expr = {
+    // TODO: Repeat until we reach fixed point?
+    val e0 = PartialEvalPass.partialEval(e)
+    partialEvalWithNewRules(e0)
+  }
+
+  private def partialEvalWithNewRules(e: Expr): Expr = {
+    e match {
+      case StmNextK(s, IntCst(0)) => s
+      // TODO: Should I be going the other way (from StmNext to StmNextK)?
+      case StmNextK(s, IntCst(1))                          => StmNext(s).__0
+      case TupleAccess(StmNext(StmNextK(s, k)), IntCst(0)) => StmNextK(s, k + 1)
+      case e => e.rebuild(e.children.map(e => partialEvalWithNewRules(e)))
     }
   }
 }
@@ -423,7 +467,7 @@ object LeftShiftRegister {
     val (z, next) = args
     // Partially evaluate because the initial value may be a function call that
     // ends up returning a vector, for example
-    (PartialEvalPass.partialEval(z), next) match {
+    (ExtendedPartialEvaluator.partialEval(z), next) match {
       case (
             VecBuild(n, f),
             Function(
@@ -520,7 +564,7 @@ object IfLessThan {
       case IfThenElse(LessThan(y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
-        (PartialEvalPass.partialEval(y - z), x) match {
+        (ExtendedPartialEvaluator.partialEval(y - z), x) match {
           case LinearFunctionOf(c0, c1) =>
             // TODO: Use a more general approach to find the sign of a particular expression?
             c1 match {
@@ -564,6 +608,7 @@ object LinearFunctionOf {
                 val termsWithoutX = terms.diff(termsWithX)
                 val c0 = Sum(termsWithoutX: _*)
                 Some((c0, c1))
+              case _ => None
             }
           case _ => None
         }
@@ -600,6 +645,7 @@ object ConstMultipleOf {
             Some(coeff)
           case _ => None
         }
+      case _ => None
     }
   }
 }

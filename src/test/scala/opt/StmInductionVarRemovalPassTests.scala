@@ -5,6 +5,52 @@ import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
+  private def assertEquationsEqual(
+      closedEqn: Expr,
+      recursiveEqn: (Expr, Expr),
+      tMin: Int,
+      iterations: Int
+  ): Unit = {
+    require(iterations > 0)
+    val (z, rec) = recursiveEqn
+    (ir.eval(closedEqn), ir.eval(rec)) match {
+      case (g @ Function(t0, _), f @ Function(t1, Function(x, _))) =>
+        val closedFormVals = evalClosedFormEquation(g, tMin, iterations)
+        val recVals = evalRecursiveEquation(z, f, tMin, iterations)
+        assert(closedFormVals == recVals)
+      case _ =>
+        throw new IllegalArgumentException(s"Functions have the wrong format")
+    }
+  }
+
+  private def evalClosedFormEquation(
+      f: Expr,
+      tMin: Int,
+      iterations: Int
+  ): Seq[Expr] = {
+    (tMin until (tMin + iterations)).map(t => ir.eval(FunCall(f, t)))
+  }
+
+  private def evalRecursiveEquation(
+      z: Expr,
+      f: Expr,
+      tMin: Int,
+      iterations: Int
+  ): Seq[Expr] = {
+    if (iterations <= 0) {
+      Seq()
+    } else {
+      val tail =
+        evalRecursiveEquation(
+          FunCall(FunCall(f, tMin), z),
+          f,
+          tMin + 1,
+          iterations - 1
+        )
+      ir.eval(z) +: tail
+    }
+  }
+
   test("Counters") {
     val n = Param("n")
     val delta = Param("delta")
@@ -489,6 +535,188 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
     )
     assert(actualNextAcc == expectedNextAcc)
+  }
+
+  test("StmNext") {
+    val s = Param("s")
+    val t0 = 0
+    val n = 10
+    val recEqn =
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x).__0, x)
+    val result = StmInductionVarRemovalPass.tryFindClosedForm(t0, s, recEqn)
+
+    assert(result.isDefined)
+    val f = result.get
+
+    // Smoke test
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      assertEquationsEqual(
+        Let(s, sVal, f),
+        (sVal, recEqn),
+        t0,
+        // Check a few steps after we stop reading from the input stream
+        n + 2
+      )
+    }
+
+    // Effective simplification
+    // TODO: Move IfThenElse inside StmNextK?
+    val expected: Function =
+      (t: Expr) => IfThenElse(t < 10, StmNextK(s, t), StmNextK(s, 10))
+    assert(PartialEvalPass.partialEval(f) == expected)
+  }
+
+  test("ShiftRegisterWithStmNext") {
+    val n = 7
+    val t0 = 0
+    val s = Param("s")
+    val stmNextRecEqn =
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x).__0, x)
+    val stmNextFun =
+      StmInductionVarRemovalPass
+        .tryFindClosedForm(t0, s, stmNextRecEqn)
+        .map(f => PartialEvalPass.partialEval(f))
+        .get
+
+    val initialVec = VecBuild(n, (_: Expr) => DontCare)
+    val shiftRecEqn = (t: Expr) =>
+      (x: Expr) =>
+        IfThenElse(
+          t < n,
+          VecShiftLeft(x, StmNext(FunCall(stmNextFun, t)).__1),
+          x
+        )
+    val shiftEqn =
+      StmInductionVarRemovalPass.tryFindClosedForm(0, initialVec, shiftRecEqn)
+
+    assert(shiftEqn.isDefined)
+    val f = shiftEqn.get
+
+    // Smoke test
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      assertEquationsEqual(
+        Let(s, sVal, f),
+        (initialVec, Let(s, sVal, shiftRecEqn)),
+        t0,
+        // Check a few steps after the shift register freezes
+        n + 2
+      )
+    }
+
+    // Effective simplification
+    assume(false)
+    val expected: Function = (t: Expr) =>
+      IfThenElse(
+        t < n,
+        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, t + i - n)).__0),
+        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__0)
+      )
+    assert(PartialEvalPass.partialEval(f) == expected)
+  }
+
+  test("Stm2Vec2Stm") {
+    val n = Param("n")
+    val input = Param("s")
+    val s = StmBuild(
+      n,
+      Tuple(input, VecBuild(n, (_: Expr) => DontCare), 0),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__2 < n,
+          Tuple(
+            Tuple(
+              StmNext(acc.__0).__0,
+              VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
+              1 + acc.__2
+            ),
+            NNone
+          ),
+          Tuple(
+            Tuple(acc.__0, acc.__1, 1 + acc.__2),
+            SSome(VecAccess(acc.__1, acc.__2 - n))
+          )
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    val examples = Seq(
+      StmCst(n, 42),
+      StmCst(n, Tuple(99, True)),
+      StmCst(n, -1),
+      StmRange(n, 1, 5),
+      StmRepeat(StmCount(n), m = 3, n = n)
+    )
+    for (exampleStm <- examples) {
+      for (nVal <- Seq(0, 1, 2, 6)) {
+        val expected = Let(n, nVal, Let(input, exampleStm, s))
+        val actual = Let(n, nVal, Let(input, exampleStm, opt))
+        assert(ir.eval(actual) == ir.eval(expected))
+      }
+    }
+
+    // Effective simplification
+    assume(false)
+    val expected = StmBuild(
+      n,
+      Tuple(input),
+      (acc: Expr) =>
+        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+    )
+    assert(opt == expected)
+  }
+
+  test("Stm2ReversedVec2Stm") {
+    val n = Param("n")
+    val input = Param("s")
+    val s = StmBuild(
+      n,
+      Tuple(input, VecBuild(n, (_: Expr) => DontCare), 0),
+      (acc: Expr) =>
+        IfThenElse(
+          acc.__2 < n,
+          Tuple(
+            Tuple(
+              StmNext(acc.__0).__0,
+              VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
+              1 + acc.__2
+            ),
+            NNone
+          ),
+          Tuple(
+            Tuple(acc.__0, acc.__1, 1 + acc.__2),
+            SSome(VecAccess(acc.__1, -1 + 2 * n - acc.__2))
+          )
+        )
+    )
+    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+
+    // Correctness
+    val examples = Seq(
+      StmCst(n, 42),
+      StmCst(n, Tuple(99, True)),
+      StmCst(n, -1),
+      StmRange(n, 1, 5),
+      StmRepeat(StmCount(n), m = 3, n = n)
+    )
+    for (exampleStm <- examples) {
+      for (nVal <- Seq(1, 2, 6)) {
+        val expected = Let(n, nVal, Let(input, exampleStm, s))
+        val actual = Let(n, nVal, Let(input, exampleStm, opt))
+        assert(ir.eval(actual) == ir.eval(expected))
+      }
+    }
+
+    // Effective simplification
+    assert(opt == s)
   }
 
   test("RemoveAllInductionVarsSuccessfully") {
