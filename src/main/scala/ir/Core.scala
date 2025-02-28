@@ -471,11 +471,11 @@ case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
 }
 
 // Vectors
-case class VecBuild(len: Expr, f: Expr /*Int => Expr*/ ) extends Expr {
+case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr {
   override def children: Seq[Expr] = Seq(len, f)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, f) => VecBuild(n, f)
+      case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"

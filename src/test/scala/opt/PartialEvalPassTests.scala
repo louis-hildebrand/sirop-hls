@@ -143,4 +143,60 @@ class PartialEvalPassTests extends AnyFunSuite {
     )
     assert(PartialEvalPass.partialEval(stm) == stm)
   }
+
+  test("VecBuildIndexRange") {
+    val n = Param("n")
+    val v =
+      VecBuild(n, (i: Expr) => Tuple(i > -1, i < n + 1, i >= n, i < 0, i > 0))
+    val expected =
+      VecBuild(n, (i: Expr) => Tuple(True, True, False, False, i > 0))
+    assert(PartialEvalPass.partialEval(v) == expected)
+  }
+
+  test("IfThenElseCondition:x < 10 && x >= 0") {
+    val x = Param("x")
+    val e =
+      IfThenElse(
+        x < 10 && x >= 0,
+        Tuple(x < 11, x >= 10, x >= -1, x < 9),
+        Tuple(x < 9, x >= 10, x >= 11)
+      )
+    val expected =
+      IfThenElse(
+        x < 10 && x >= 0,
+        Tuple(True, False, True, x < 9),
+        Tuple(x < 9, x >= 10, x >= 11)
+      )
+    val actual = PartialEvalPass.partialEval(e)
+    assert(actual == expected)
+  }
+
+  // Used to debug an issue with StmInductionVarRemovalPass
+  test("VecBuildIndexRangeAndIfThenElseCondition") {
+    val s = Param("s")
+    val e = (t: Expr) =>
+      IfThenElse(
+        t < 7,
+        VecBuild(
+          7,
+          (i: Expr) =>
+            StmNext(
+              IfThenElse(
+                -7 + i + t < 7,
+                StmNextK(s, -7 + i + t),
+                StmNextK(s, 7)
+              )
+            ).__1
+        ),
+        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)).__1)
+      )
+    val expected: Expr = (t: Expr) =>
+      IfThenElse(
+        t < 7,
+        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, -7 + i + t)).__1),
+        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)).__1)
+      )
+    val actual = PartialEvalPass.partialEval(e)
+    assert(actual == expected)
+  }
 }

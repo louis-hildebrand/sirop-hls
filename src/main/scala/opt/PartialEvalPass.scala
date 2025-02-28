@@ -18,7 +18,47 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     *   A fact set where the range of <code>x</code> is <code>r</code>.
     */
   def range(e: Expr, r: Range): FactSet = {
-    FactSet(rangeByExpr + (e -> r))
+    val updatedRange = rangeByExpr.get(e) match {
+      case Some(oldRange) => oldRange.merge(r)
+      case _              => r
+    }
+    FactSet(rangeByExpr + (e -> updatedRange))
+  }
+
+  /** Construct a new fact set taking into account that <code>e</code> evaluates
+    * to <code>True</code>.
+    */
+  def isTrue(e: Expr): FactSet = {
+    e match {
+      case Not(e) => isFalse(e)
+      // If (x0 && ... && xn) = True, then xi = True for each i
+      case And(e1, e2) => this.isTrue(e1).isTrue(e2)
+      // TODO: Add some more cases?
+      case LessThan(x: Param, c: IntCst) =>
+        this.range(x, ScalarRange(None, Some(c)))
+      case LessThan(IntCst(c), x: Param) =>
+        this.range(x, ScalarRange(Some(c + 1), None))
+      case Equal(x: Param, IntCst(c)) =>
+        this.range(x, ScalarRange(Some(c), Some(c + 1)))
+      case _ => this
+    }
+  }
+
+  /** Construct a new fact set taking into account that <code>e</code> evaluates
+    * to <code>False</code>.
+    */
+  def isFalse(e: Expr): FactSet = {
+    e match {
+      case Not(e) => isTrue(e)
+      // If (x0 || ... || xn) = False, then xi = False for each i
+      case Or(e1, e2) => this.isFalse(e1).isFalse(e2)
+      // TODO: Add some more cases?
+      case LessThan(x: Param, c: IntCst) =>
+        this.range(x, ScalarRange(Some(c), None))
+      case LessThan(IntCst(c), x: Param) =>
+        this.range(x, ScalarRange(None, Some(c + 1)))
+      case _ => this
+    }
   }
 }
 
@@ -75,15 +115,15 @@ object PartialEvalPass {
               case True     => partialEval(trueE)
               case False    => partialEval(falseE)
               case DontCare => DontCare
-              case cond     =>
-                // If (x0 && ... && xn) = True, then xi = True for each i
-                val t = partialEval(
-                  trueE.substitute(splitAnd(cond).map(e => e -> True).toMap)
-                )
-                // If (x0 || ... || xn) = False, then xi = False for each i
-                val f = partialEval(
-                  falseE.substitute(splitOr(cond).map(e => e -> False).toMap)
-                )
+              case cond =>
+                val t = {
+                  val newFacts = facts.isTrue(cond)
+                  partialEval(trueE)(newFacts)
+                }
+                val f = {
+                  val newFacts = facts.isFalse(cond)
+                  partialEval(falseE)(newFacts)
+                }
                 if (f == DontCare) t
                 else if (t == DontCare) f
                 else if (t == f) t
@@ -216,11 +256,13 @@ object PartialEvalPass {
           case (s, k) => StmNextK(s, k)
         }
 
-      case VecBuild(len: Expr, f) =>
-        VecBuild(
-          partialEval(len),
-          partialEval(f) /* ensures any free Param in f gets substituted */
-        )
+      case VecBuild(n, f) =>
+        partialEval(n) match {
+          case n =>
+            val indexRange = ScalarRange(Some(0), Some(n))
+            val newFacts = facts.range(f.param, indexRange)
+            VecBuild(n, partialEval(f)(newFacts).asInstanceOf[Function])
+        }
       case VecAccess(vec: Expr, i: Expr) =>
         partialEval(vec) match {
           case vec: VecBuild => partialEval(FunCall(vec.f, partialEval(i)))

@@ -616,8 +616,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected: Function = (t: Expr) =>
       IfThenElse(
         t < n,
-        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, t + i - n)).__0),
-        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__0)
+        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, -n + t + i)).__1),
+        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__1)
       )
     assert(PartialEvalPass.partialEval(f) == expected)
   }
