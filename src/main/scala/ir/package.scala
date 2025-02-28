@@ -1,11 +1,12 @@
 import scala.language.implicitConversions
 
 package object ir extends OptionType with Eval {
+  def contains(e: Expr, p: Expr => Boolean): Boolean = {
+    p(e) || e.children.exists(e => contains(e, p))
+  }
+
   def contains(e1: Expr, e2: Expr): Boolean = {
-    e1 match {
-      case _ if e1 == e2 => true
-      case e             => e.children.exists(c => contains(c, e2))
-    }
+    contains(e1, e => e == e2)
   }
 
   def substitute(
