@@ -229,7 +229,7 @@ object PartialEvalPass {
           case vec @ _       => VecLength(vec)
         }
 
-      case e: ExtensibleExpr => e.partialEval(partialEval)
+      case e: ExtensibleExpr => e.rebuild(e.children.map(e => partialEval(e)))
     }
   }
 
@@ -311,8 +311,9 @@ object PartialEvalPass {
             Some(false)
           case (Some(true), Some(false)) | (Some(false), Some(true)) => None
         }
-      case StmNext(_)      => None
-      case VecAccess(_, _) => None
+      case StmNext(_)        => None
+      case VecAccess(_, _)   => None
+      case _: ExtensibleExpr => None
     }
   }
 

@@ -188,7 +188,8 @@ object StmCanonPass {
       case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild | _: VecBuild =>
         // Definitely will not evaluate to a tuple
         e
-      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
+      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param |
+          _: ExtensibleExpr =>
         // TODO: not sure what to do here.
         e
     }

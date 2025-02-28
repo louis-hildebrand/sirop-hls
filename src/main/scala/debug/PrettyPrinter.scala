@@ -111,6 +111,10 @@ object PrettyPrinter {
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
+      case e: ExtensibleExpr =>
+        val name = e.getClass.getSimpleName
+        val children = e.children.map(e => show(e)).mkString(", ")
+        s"$name($children)"
     }
   }
 

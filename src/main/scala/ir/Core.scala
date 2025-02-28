@@ -482,6 +482,4 @@ case class VecLength(vec: Expr) extends IntExpr {
 }
 
 // You can add new nodes to the IR by extending this
-trait ExtensibleExpr extends Expr {
-  def partialEval(pe: Expr => Expr): Expr
-}
+trait ExtensibleExpr extends Expr

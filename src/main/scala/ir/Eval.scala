@@ -7,7 +7,6 @@ case class VecLiteral(elems: Expr*) extends ExtensibleExpr {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     VecLiteral(newChildren: _*)
   }
-  override def partialEval(pe: Expr => Expr): Expr = this
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
@@ -17,11 +16,9 @@ object VecLiteral {
 
 case class StmLiteral(elems: Expr*) extends ExtensibleExpr {
   override def children: Seq[Expr] = elems
-
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     StmLiteral(newChildren: _*)
   }
-  override def partialEval(pe: Expr => Expr): Expr = this
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
     StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)

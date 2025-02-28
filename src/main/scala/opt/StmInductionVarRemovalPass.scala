@@ -286,7 +286,7 @@ object StmInductionVarRemovalPass {
         tryGetInductionVar(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
-            val t1 = IfThenElse(k >= t0, k, t0)
+            val t1 = Max(k, t0)
             val valAtT1 = FunCall(f, t1)
             tryGetInductionVar(t1, valAtT1, g) match {
               case Some(g) =>
@@ -457,8 +457,8 @@ object LeftShiftRegister {
 
 object Piecewise {
 
-  /** A function of the form <code>h(t, x) = if (t < k) then f(t, x) else g(t,
-    * x)</code>
+  /** A function of the form <code>h(t, x) = if (t &lt; k) then f(t, x) else
+    * g(t, x)</code>
     *
     * @return
     *   `(k, f, g)`
