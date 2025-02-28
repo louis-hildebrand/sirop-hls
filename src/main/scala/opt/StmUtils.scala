@@ -68,10 +68,10 @@ object StmUtils {
       f(seed),
       Function(
         acc,
-        ir.substitute(transformHead(f)(stm.nextF.body))(subs)
+        transformHead(f)(stm.nextF.body).substitute(subs)
       )
     )
-    if (ir.contains(s, invalid)) {
+    if (s.contains(invalid)) {
       throw ElemStillInUseException
     }
     s

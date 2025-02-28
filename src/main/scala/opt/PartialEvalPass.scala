@@ -42,10 +42,8 @@ object PartialEvalPass {
       case Function(p, body) => Function(p, partialEval(body))
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
-          case fun: Function =>
-            partialEval(
-              substitute(fun.body)(Map(fun.param -> partialEval(arg)))
-            )
+          case Function(x, body) =>
+            partialEval(body.substitute(x -> partialEval(arg)))
           case DontCare => DontCare
           case fun @ _  => FunCall(fun, partialEval(arg))
         }
@@ -80,11 +78,11 @@ object PartialEvalPass {
               case cond     =>
                 // If (x0 && ... && xn) = True, then xi = True for each i
                 val t = partialEval(
-                  substitute(trueE)(splitAnd(cond).map(e => e -> True).toMap)
+                  trueE.substitute(splitAnd(cond).map(e => e -> True).toMap)
                 )
                 // If (x0 || ... || xn) = False, then xi = False for each i
                 val f = partialEval(
-                  substitute(falseE)(splitOr(cond).map(e => e -> False).toMap)
+                  falseE.substitute(splitOr(cond).map(e => e -> False).toMap)
                 )
                 if (f == DontCare) t
                 else if (t == DontCare) f
@@ -95,11 +93,11 @@ object PartialEvalPass {
                   cond match {
                     // True branch is special case of false branch
                     case Equal(p: Param, r)
-                        if partialEval(substitute(f)(Map(p -> r))) == t =>
+                        if partialEval(f.substitute(p -> r)) == t =>
                       f
                     // False branch is special case of true branch
                     case Not(Equal(p: Param, r))
-                        if partialEval(substitute(t)(Map(p -> r))) == f =>
+                        if partialEval(t.substitute(p -> r)) == f =>
                       t
                     case _ =>
                       val x = IfThenElse(cond, t, f)

@@ -67,7 +67,7 @@ object StmInductionVarRemovalPass {
           acc = acc,
           t = t
         )
-        if (ir.contains(next, acc)) {
+        if (next.contains(acc)) {
           // The accumulator is still there, so maybe there are some
           // non-static dependencies (e.g., TupleAccess(acc, i) where i
           // cannot be partially evaluated to an int).
@@ -209,9 +209,8 @@ object StmInductionVarRemovalPass {
         t,
         Function(
           x,
-          ir.substitute(
-            if (indices.length == 1) nexts.head else Tuple(nexts: _*)
-          )(subs)
+          (if (indices.length == 1) nexts.head else Tuple(nexts: _*))
+            .substitute(subs)
         )
       )
     (z, next, indices)
@@ -238,7 +237,7 @@ object StmInductionVarRemovalPass {
         StmBuild(
           s1.length,
           s1.seed,
-          Function(acc, ir.substitute(s1.nextF.body)(subs))
+          Function(acc, s1.nextF.body.substitute(subs))
         )
       )
 
@@ -303,7 +302,7 @@ object StmInductionVarRemovalPass {
       // TODO: Add similar cases (e.g., a counter that starts false and becomes true)?
       case (True, Function(t, Function(acc, And(a, c)))) if a == acc =>
         (t, acc, c) match {
-          case TimeLessThan(k) if !ir.contains(k, acc) =>
+          case TimeLessThan(k) if !k.contains(acc) =>
             // Add one to account for the fact that the boolean will only
             // change value at the next cycle.
             // Use Max to account for the case where the condition is
@@ -332,16 +331,16 @@ object StmInductionVarRemovalPass {
         val a = Param("a")
         val ctrNext = Function(
           t,
-          Function(a, ir.substitute(ctrUpdateIfTrue)(Map(acc.__1 -> a)))
+          Function(a, ctrUpdateIfTrue.substitute(acc.__1 -> a))
         )
-        if (!ir.contains(ctrNext, acc)) {
+        if (!ctrNext.contains(acc)) {
           tryGetInductionVar(t0, i0, ctrNext) match {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
-              val bCondIfUnbounded = ir.substitute(bCond)(
-                Map(acc.__0 -> a, acc.__1 -> FunCall(f, t))
+              val bCondIfUnbounded = bCond.substitute(
+                Map[Expr, Expr](acc.__0 -> a, acc.__1 -> FunCall(f, t))
               )
-              if (!ir.contains(bCondIfUnbounded, acc)) {
+              if (!bCondIfUnbounded.contains(acc)) {
                 (t, a, bCondIfUnbounded) match {
                   case TimeLessThan(k) =>
                     // The boolean is equivalent to t < K (need to account for the fact that the accumulator only
@@ -352,8 +351,8 @@ object StmInductionVarRemovalPass {
                       t,
                       Function(
                         a,
-                        ir.substitute(boundedCtrUpdate)(
-                          Map(acc.__0 -> (t < K), acc.__1 -> a)
+                        boundedCtrUpdate.substitute(
+                          Map[Expr, Expr](acc.__0 -> (t < K), acc.__1 -> a)
                         )
                       )
                     )
@@ -391,12 +390,12 @@ object Counter {
     val (_, next) = args
     next match {
       case Function(t, Function(acc, Sum(terms))) =>
-        val termsWithAcc = terms.filter(e => ir.contains(e, acc))
+        val termsWithAcc = terms.filter(e => e.contains(acc))
         termsWithAcc match {
           case Seq(a) if a == acc =>
             val otherTerms = terms.diff(termsWithAcc)
             val delta = Sum(otherTerms: _*)
-            val isConstInStream = !ir.contains(delta, t)
+            val isConstInStream = !delta.contains(t)
             if (isConstInStream) {
               Some(delta)
             } else {
@@ -447,7 +446,7 @@ object LeftShiftRegister {
             )
           )
           if a0 == acc && a1 == acc && a2 == acc && i1 == i0 && i2 == i0
-            && !ir.contains(e, acc) =>
+            && !e.contains(acc) =>
         // e may have t as a free variable
         Some((n, f, Function(t, e)))
       case _ => None
@@ -501,7 +500,7 @@ object IfTimeLessThan {
     val (t, acc, e) = args
     (e, t) match {
       case IfLessThan(k, a, b) =>
-        if (!ir.contains(k, acc)) Some((k, a, b)) else None
+        if (!k.contains(acc)) Some((k, a, b)) else None
       case _ => None
     }
   }
@@ -557,7 +556,7 @@ object LinearFunctionOf {
     val (e, x) = args
     e match {
       case Sum(terms) =>
-        val termsWithX = terms.filter(e => ir.contains(e, x))
+        val termsWithX = terms.filter(e => e.contains(x))
         termsWithX match {
           case Seq(termWithX) =>
             (termWithX, x) match {
@@ -590,7 +589,7 @@ object ConstMultipleOf {
     e match {
       case y if y == x => Some(1)
       case Prod(factors) =>
-        val factorsWithX = factors.filter(e => ir.contains(e, x))
+        val factorsWithX = factors.filter(e => e.contains(x))
         factorsWithX match {
           case Seq(y) if y == x =>
             val factorsWithoutX = factors.diff(factorsWithX)

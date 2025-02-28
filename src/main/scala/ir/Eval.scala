@@ -44,7 +44,7 @@ trait Eval {
       case FunCall(f, arg) =>
         evalBigStep(f) match {
           case Function(x, body) =>
-            evalBigStep(substitute(body)(Map(x -> evalBigStep(arg))))
+            evalBigStep(body.substitute(x -> evalBigStep(arg)))
           case v =>
             throw new IllegalArgumentException(
               s"Left-hand side of function application evaluated to $v. It must evaluate to a function."

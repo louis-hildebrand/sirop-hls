@@ -1,33 +1,6 @@
 import scala.language.implicitConversions
 
 package object ir extends OptionType with Eval {
-  def contains(e: Expr, p: Expr => Boolean): Boolean = {
-    p(e) || e.children.exists(e => contains(e, p))
-  }
-
-  def contains(e1: Expr, e2: Expr): Boolean = {
-    contains(e1, e => e == e2)
-  }
-
-  def substitute(
-      e: Expr
-  )(implicit substitutions: Map[Expr, Expr]): Expr = {
-    substitutions.get(e) match {
-      case Some(v) => v
-      case None =>
-        e match {
-          case f: Function =>
-            // "Rename" to avoid variable capture
-            val newParam = Param(f.param.prefix)
-            Function(
-              newParam,
-              substitute(f.body)(substitutions + ((f.param, newParam)))
-            )
-          case e => e.rebuild(e.children.map(e => substitute(e)))
-        }
-    }
-  }
-
   implicit def int2IntCst(i: Int): IntCst = IntCst(i)
 
   implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False

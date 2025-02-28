@@ -62,53 +62,56 @@ private object Helpers {
               // make sense to have free variables hanging around here.)
               Tuple(
                 seed.elems.map(e =>
-                  if (ir.contains(e, f.param)) DontCare else e
+                  if (e.contains(f.param)) DontCare else e
                 ): _*
               ),
               x /* input stream */,
               DontCare /* element from input stream (initial value unused) */,
               True /* whether the element is yet to be read from x */
             ),
-            (newAcc: Expr) =>
-              substitute({
-                val innerNext = Param("innerNext")
-                Let(
-                  innerNext,
-                  FunCall(s.nextF, newAcc.__0),
-                  IfThenElse(
-                    newAcc.__3,
-                    // First read from input stream
+            (newAcc: Expr) => {
+              val innerNext = Param("innerNext")
+              val e = Let(
+                innerNext,
+                FunCall(s.nextF, newAcc.__0),
+                IfThenElse(
+                  newAcc.__3,
+                  // First read from input stream
+                  Tuple(
                     Tuple(
+                      // Replace all seed elements that depend on the input scalar
                       Tuple(
-                        // Replace all seed elements that depend on the input scalar
-                        Tuple(
-                          seed.elems.zipWithIndex.map({ case (e, i) =>
-                            if (ir.contains(e, f.param))
-                              substitute(e)(
-                                Map(f.param -> StmNext(newAcc.__1).__1)
-                              )
-                            else TupleAccess(newAcc.__0, i)
-                          }): _*
-                        ),
-                        StmNext(newAcc.__1).__0,
-                        StmNext(newAcc.__1).__1,
-                        False
+                        seed.elems.zipWithIndex.map({ case (e, i) =>
+                          if (e.contains(f.param))
+                            e.substitute(f.param -> StmNext(newAcc.__1).__1)
+                          else TupleAccess(newAcc.__0, i)
+                        }): _*
                       ),
-                      NNone
+                      StmNext(newAcc.__1).__0,
+                      StmNext(newAcc.__1).__1,
+                      False
                     ),
-                    // Continue as usual
+                    NNone
+                  ),
+                  // Continue as usual
+                  Tuple(
                     Tuple(
-                      Tuple(
-                        innerNext.__0,
-                        newAcc.__1,
-                        newAcc.__2,
-                        newAcc.__3
-                      ),
-                      innerNext.__1
-                    )
+                      innerNext.__0,
+                      newAcc.__1,
+                      newAcc.__2,
+                      newAcc.__3
+                    ),
+                    innerNext.__1
                   )
                 )
-              })(Map(s.nextF.param -> newAcc.__0, f.param -> newAcc.__2))
+              )
+              e.substitute(
+                Map[Expr, Expr](
+                  s.nextF.param -> newAcc.__0,
+                  f.param -> newAcc.__2
+                )
+              )
+            }
           )
         )
       }
@@ -311,7 +314,7 @@ object StmMap {
             }
           )
       }
-      ir.substitute(map)(Map(s -> input))
+      map.substitute(s -> input)
     }
   }
 
@@ -394,7 +397,7 @@ object StmMap {
           "Could not make StmMap body due to an apparent type error."
         )
     }
-    substitute(e)(Map(oldAcc -> newAcc.__0))
+    e.substitute(oldAcc -> newAcc.__0)
   }
 }
 
@@ -487,7 +490,7 @@ object StmScanInclusive {
             newAcc,
             Let(
               x,
-              substitute(e)(Map(f.param -> newAcc)),
+              e.substitute(f.param -> newAcc),
               Tuple(x, SSome(x))
             )
           )
@@ -506,19 +509,17 @@ object StmScanInclusive {
           val newAcc = Param("acc")
           Function(
             newAcc,
-            substitute(
-              makeNextFBody(
-                oldBody = inner.nextF.body,
-                oldAcc = inner.nextF.param,
-                newAcc = newAcc,
-                oldSeed = inner.seed.asInstanceOf[Tuple],
-                numIn = numIn
-              )
-            )(Map(f.param -> newAcc.__1))
+            makeNextFBody(
+              oldBody = inner.nextF.body,
+              oldAcc = inner.nextF.param,
+              newAcc = newAcc,
+              oldSeed = inner.seed.asInstanceOf[Tuple],
+              numIn = numIn
+            ).substitute(f.param -> newAcc.__1)
           )
         }
       )
-      ir.substitute(scan)(Map(s -> input))
+      scan.substitute(s -> input)
     }
   }
 
@@ -606,7 +607,7 @@ object StmScanInclusive {
           "Could not make StmFold body due to an apparent type error."
         )
     }
-    substitute(e)(Map(oldAcc -> newAcc.__0))
+    e.substitute(oldAcc -> newAcc.__0)
   }
 }
 

@@ -132,12 +132,12 @@ object StmFusePass {
                     Tuple(
                       Tuple(
                         Tuple() +: as.map(a =>
-                          ir.substitute(a)(subInnerNextData)
+                          a.substitute(subInnerNextData)
                         ): _*
                       ),
                       innerNext0
                     ),
-                    ir.substitute(out)(subInnerNextData)
+                    out.substitute(subInnerNextData)
                   ),
                 // CASE 1b: Inner stream did not produce element yet
                 //          Leave the outer accumulator as-is.
@@ -162,7 +162,7 @@ object StmFusePass {
           "Could not fuse function bodies due to an apparent type error."
         )
     }
-    ir.substitute(e)(Map(oldAcc -> TupleAccess(newAcc, 0)))
+    e.substitute(oldAcc -> TupleAccess(newAcc, 0))
   }
 
   /** Expand an expression that evaluates to a tuple. For example, `acc.__0` may

@@ -29,6 +29,31 @@ sealed trait Expr {
 
   def children: Seq[Expr]
   def rebuild(newChildren: Seq[Expr]): Expr
+
+  def contains(p: Expr => Boolean): Boolean = {
+    p(this) || this.children.exists(e => e.contains(p))
+  }
+
+  def contains(e2: Expr): Boolean = this.contains(e => e == e2)
+
+  def substitute(subs: Map[Expr, Expr]): Expr = {
+    subs.get(this) match {
+      case Some(v) => v
+      case None =>
+        this match {
+          case f: Function =>
+            // "Rename" to avoid variable capture
+            val newParam = Param(f.param.prefix)
+            Function(
+              newParam,
+              f.body.substitute(subs + ((f.param, newParam)))
+            )
+          case e => e.rebuild(e.children.map(e => e.substitute(subs)))
+        }
+    }
+  }
+
+  def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
 }
 
 // Define a consistent order for expressions to make the tests less brittle.
@@ -144,8 +169,7 @@ case class Function(param: Param, body: Expr) extends Expr {
     if (!x.isInstanceOf[Function]) false
     else {
       val that = x.asInstanceOf[Function]
-      val sub = Map[Expr, Expr](this.param -> that.param)
-      substitute(this.body)(sub) == that.body
+      this.body.substitute(this.param -> that.param) == that.body
     }
   }
 }
