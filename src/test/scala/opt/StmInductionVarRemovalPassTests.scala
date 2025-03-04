@@ -594,7 +594,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmInductionVarRemovalPass.tryFindClosedForm(0, initialVec, shiftRecEqn)
 
     assert(shiftEqn.isDefined)
-    val f = shiftEqn.get
+    val f = PartialEvalPass.partialEval(shiftEqn.get)(FactSet())
 
     // Smoke test
     val stmExamples = Seq(
@@ -612,14 +612,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    assume(false)
     val expected: Function = (t: Expr) =>
       IfThenElse(
         t < n,
         VecBuild(n, (i: Expr) => StmNext(StmNextK(s, -n + t + i)).__1),
         VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__1)
       )
-    assert(PartialEvalPass.partialEval(f) == expected)
+    assert(f == expected)
   }
 
   test("Stm2Vec2Stm") {
