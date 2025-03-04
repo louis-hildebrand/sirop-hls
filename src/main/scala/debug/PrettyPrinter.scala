@@ -116,13 +116,71 @@ object PrettyPrinter {
     }
   }
 
-  @tailrec
-  private def chooseNewParamName(takenNames: Set[String], i: Int = 0): String =
-    if (!takenNames.contains(s"p${i}")) {
-      s"p${i}"
-    } else {
-      chooseNewParamName(takenNames, i + 1)
+  /** Produce Scala code that I can copy and paste (e.g., to take some large
+    * expression and use it in a test case).
+    */
+  def showScala(e: Expr): String = {
+    e match {
+      case Tuple(elems @ _*) =>
+        val children = elems.map(e => showScala(e))
+        s"Tuple(${children.mkString(",")})"
+      case TupleAccess(t, i) =>
+        i match {
+          case IntCst(i) if 0 <= i && i <= 5 =>
+            s"${showScalaWithParens(t)}.__$i"
+          case _ =>
+            s"TupleAccess(${showScala(t)},${showScala(i)})"
+        }
+      case p: Param => p.name
+      case Function(param, body) =>
+        s"(${param.name}: Expr) => ${showScala(body)}"
+      case FunCall(f, arg) =>
+        s"(${showScala(f)})(${showScala(arg)})"
+      case IntCst(i) => i.toString
+      case Sum(terms) =>
+        s"Sum(${terms.map(e => showScala(e)).mkString(",")})"
+      case Prod(factors) =>
+        s"Prod(${factors.map(e => showScala(e)).mkString(",")})"
+      case Div(x, y) =>
+        s"Div(${showScala(x)},${showScala(y)})"
+      case Mod(x, y) =>
+        s"Mod(${showScala(x)},${showScala(y)})"
+      case True  => "True"
+      case False => "False"
+      case Equal(x, y) =>
+        s"Equal(${showScala(x)},${showScala(y)})"
+      case LessThan(x, y) =>
+        s"LessThan(${showScala(x)},${showScala(y)})"
+      case Not(e) => s"Not(${showScala(e)})"
+      case And(x, y) =>
+        s"And(${showScala(x)},${showScala(y)})"
+      case Or(x, y) =>
+        s"Or(${showScala(x)},${showScala(y)})"
+      case IfThenElse(c, t, f) =>
+        s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
+      case DontCare => "DontCare"
+      case StmBuild(n, z, f) =>
+        s"StmBuild(${showScala(n)},${showScala(z)},${showScala(f)})"
+      case StmLiteral(elems @ _*) =>
+        val children = elems.map(e => showScala(e))
+        s"StmLiteral(${children.mkString(",")})"
+      case StmNext(s) =>
+        s"StmNext(${showScala(s)})"
+      case StmNextK(s, k) =>
+        s"StmNextK(${showScala(s)},${showScala(k)})"
+      case StmLength(s) =>
+        s"StmLength(${showScala(s)})"
+      case VecBuild(n, f) =>
+        s"VecBuild(${showScala(n)},${showScala(f)})"
+      case VecLiteral(elems @ _*) =>
+        val children = elems.map(e => showScala(e))
+        s"VecLiteral(${children.mkString(",")})"
+      case VecAccess(v, i) =>
+        s"VecAccess(${showScala(v)},${showScala(i)})"
+      case VecLength(v) =>
+        s"VecLength(${showScala(v)})"
     }
+  }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
 
@@ -134,6 +192,11 @@ object PrettyPrinter {
     } else {
       show(e)
     }
+  }
+
+  private def showScalaWithParens(e: Expr): String = {
+    val str = showScala(e)
+    if (shouldParenthesize(e)) s"($str)" else str
   }
 
   private def shouldParenthesize(e: Expr): Boolean = {
