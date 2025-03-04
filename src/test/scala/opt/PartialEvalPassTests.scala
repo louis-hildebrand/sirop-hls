@@ -32,6 +32,73 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(e) == expected)
   }
 
+  test("ReusedParam:FreeAndBoundTupleVar") {
+    val x = Param("x")
+    val e =
+      Tuple(
+        x.__0 >= 1,
+        FunCall(Function(x, x.__0 >= 1), Tuple(x.__1, x.__0)),
+        x.__0 >= 1
+      )
+    val facts = FactSet().range(x.__0, ScalarRange(Some(1), None))
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    val expected = Tuple(True, x.__1 >= 1, True)
+    assert(actual == expected)
+  }
+
+  test("ReusedParam:NestedScalarFunctions") {
+    val y = Param("y")
+    val e =
+      Function(
+        y,
+        IfThenElse(y > 42, Function(y, y > 10), (_: Expr) => y > 45)
+      )
+    val actual = PartialEvalPass.partialEval(e)
+    val expected: Function =
+      (y: Expr) => IfThenElse(y > 42, (z: Expr) => z > 10, (_: Expr) => False)
+    assert(actual == expected)
+  }
+
+  test("ReusedParam:StmAccumulator") {
+    val acc = Param("acc")
+    val s = StmBuild(
+      10,
+      Tuple(0),
+      Function(
+        acc,
+        Tuple(acc.__0 + 1, SSome(Tuple(acc.__0 >= 0, acc.__0 < 4)))
+      )
+    )
+    val e = Tuple(acc.__0 < 4, s)
+    val facts =
+      FactSet()
+        // Inside the stream, acc.__0 >= 0
+        .range(s, StmAccRange(Seq(ScalarRange(Some(0), None))))
+        // Outside the stream, acc.__0 < 4
+        .range(acc.__0, ScalarRange(None, Some(4)))
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    val expected = Tuple(
+      True,
+      StmBuild(
+        10,
+        Tuple(0),
+        (acc: Expr) => Tuple(acc.__0 + 1, SSome(Tuple(True, acc.__0 < 4)))
+      )
+    )
+    assert(actual == expected)
+  }
+
+  test("ReusedParam:VecIndex") {
+    val i = Param("i")
+    val e =
+      Tuple(i > 1, VecBuild(7, Function(i, Tuple(i >= 0, i < 7, i > 2))), i > 2)
+    val facts = FactSet().range(i, ScalarRange(Some(3), None))
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    val expected =
+      Tuple(True, VecBuild(7, (i: Expr) => Tuple(True, True, i > 2)), True)
+    assert(actual == expected)
+  }
+
   test("VecScanUnfolded") {
     val a = Param()
     val b = Param()

@@ -25,6 +25,13 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     FactSet(rangeByExpr + (e -> updatedRange))
   }
 
+  /** Construct a new fact set in which the range of <code>e</code> is entirely
+    * unknown.
+    */
+  def clearRange(e: Expr): FactSet = {
+    FactSet(rangeByExpr.filter({ case (k, _) => !k.contains(e) }))
+  }
+
   /** Construct a new fact set taking into account that <code>e</code> evaluates
     * to <code>True</code>.
     */
@@ -78,8 +85,9 @@ object PartialEvalPass {
           case (tuple @ _, index @ _)        => TupleAccess(tuple, index)
         }
 
-      case p: Param          => p
-      case Function(p, body) => Function(p, partialEval(body))
+      case p: Param => p
+      case Function(p, body) =>
+        Function(p, partialEval(body)(facts.clearRange(p)))
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
           case Function(x, body) =>
@@ -222,13 +230,14 @@ object PartialEvalPass {
             }
             val acc = f.param
             val newFacts =
-              accRanges.zipWithIndex.foldLeft(facts)({ case (facts, (r, i)) =>
-                facts.range(TupleAccess(acc, i), r)
+              accRanges.zipWithIndex.foldLeft(facts.clearRange(acc))({
+                case (facts, (r, i)) =>
+                  facts.range(TupleAccess(acc, i), r)
               })
             StmBuild(
               len,
               partialEval(seed),
-              partialEval(f)(newFacts).asInstanceOf[Function]
+              Function(f.param, partialEval(f.body)(newFacts))
             )
         }
 
@@ -260,8 +269,8 @@ object PartialEvalPass {
         partialEval(n) match {
           case n =>
             val indexRange = ScalarRange(Some(0), Some(n))
-            val newFacts = facts.range(f.param, indexRange)
-            VecBuild(n, partialEval(f)(newFacts).asInstanceOf[Function])
+            val newFacts = facts.clearRange(f.param).range(f.param, indexRange)
+            VecBuild(n, Function(f.param, partialEval(f.body)(newFacts)))
         }
       case VecAccess(vec: Expr, i: Expr) =>
         partialEval(vec) match {
