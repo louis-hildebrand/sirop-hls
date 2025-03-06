@@ -132,31 +132,34 @@ object PartialEvalPass {
                   val newFacts = facts.isFalse(cond)
                   partialEval(falseE)(newFacts)
                 }
-                if (f == DontCare) t
-                else if (t == DontCare) f
-                else if (t == f) t
-                else if (t == True && f == False) cond
-                else if (t == False && f == True) partialEval(Not(cond))
-                else {
-                  cond match {
-                    // True branch is special case of false branch
-                    case Equal(p: Param, r)
-                        if partialEval(f.substitute(p -> r)) == t =>
-                      f
-                    // False branch is special case of true branch
-                    case Not(Equal(p: Param, r))
-                        if partialEval(t.substitute(p -> r)) == f =>
-                      t
-                    case _ =>
-                      val x = IfThenElse(cond, t, f)
-                      if (
-                        isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)
-                      ) {
-                        partialEval((cond && t) || (Not(cond) && f))
-                      } else {
-                        x
-                      }
-                  }
+                (t, f) match {
+                  case (_, DontCare) => t
+                  case (DontCare, _) => f
+                  case _ if t == f   => t
+                  case (True, False) => cond
+                  case (False, True) => partialEval(Not(cond))
+                  case (StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
+                    partialEval(StmNextK(s0, IfThenElse(cond, k0, k1)))
+                  case _ =>
+                    cond match {
+                      // True branch is special case of false branch
+                      case Equal(p: Param, r)
+                          if partialEval(f.substitute(p -> r)) == t =>
+                        f
+                      // False branch is special case of true branch
+                      case Not(Equal(p: Param, r))
+                          if partialEval(t.substitute(p -> r)) == f =>
+                        t
+                      case _ =>
+                        val x = IfThenElse(cond, t, f)
+                        if (
+                          isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)
+                        ) {
+                          partialEval((cond && t) || (Not(cond) && f))
+                        } else {
+                          x
+                        }
+                    }
                 }
             }
           case e =>

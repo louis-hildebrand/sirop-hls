@@ -564,9 +564,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // TODO: Move IfThenElse inside StmNextK?
-    val expected: Function =
-      (t: Expr) => IfThenElse(t < 10, StmNextK(s, t), StmNextK(s, 10))
+    val expected: Function = (t: Expr) => StmNextK(s, IfThenElse(t < 10, t, 10))
     assert(PartialEvalPass.partialEval(f) == expected)
   }
 
