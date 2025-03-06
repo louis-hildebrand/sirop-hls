@@ -18,7 +18,7 @@ object StmInductionVarRemovalPass {
     // Canonicalize to flatten the accumulator and whatnot
     val s = StmCanonPass.canonicalize(stm)
     val funcByIdx = findClosedForms(s)
-    removeInductionVars(s, funcByIdx)
+    replaceInductionVars(s, funcByIdx)
   }
 
   /** If all induction variables can be removed, then do so. But if any
@@ -28,7 +28,7 @@ object StmInductionVarRemovalPass {
     // Canonicalize to flatten the accumulator and whatnot
     val s = StmCanonPass.canonicalize(stm)
     val funcByIdx = findClosedForms(s)
-    val updatedStm = removeInductionVars(s, funcByIdx)
+    val updatedStm = replaceInductionVars(s, funcByIdx)
     val allRemoved = {
       updatedStm.seed match {
         case Tuple(IntCst(0)) =>
@@ -226,46 +226,73 @@ object StmInductionVarRemovalPass {
     (z, next, indices)
   }
 
-  @tailrec
-  private def removeInductionVars(
+  private def replaceInductionVars(
       stm: StmBuild,
       funByIdx: Map[Int, Function]
   ): StmBuild = {
     if (funByIdx.isEmpty) {
       stm
     } else {
-      val anyContainsStmNextK = funByIdx
-        .exists({ case (_, f) => f.contains(classOf[StmNextK]) })
-      if (anyContainsStmNextK) {
-        // TODO: Try to remove them and backtrack if there's a StmNextK left *after* replacement?
-        removeInductionVars(
-          stm,
-          funByIdx.filter({ case (_, f) => !f.contains(classOf[StmNextK]) })
-        )
-      } else {
-        val s1 = ExtendedPartialEvaluator
-          .partialEval(
-            StmUtils.appendAccumulator(stm, 0, (i: Expr) => i + 1)
-          )
-          .asInstanceOf[StmBuild]
+      val t = funByIdx.head._2.param
 
-        val acc = s1.nextF.param
-        val subs: Map[Expr, Expr] = funByIdx
-          .map({ case (i, f) =>
-            TupleAccess(acc.__0, i) -> FunCall(f, acc.__1)
-          })
-        // Canonicalization is required for removing accumulator elements
-        val s2 = StmCanonPass.canonicalize(
-          StmBuild(
-            s1.length,
-            s1.seed,
-            Function(acc, s1.nextF.body.substitute(subs))
-          )
-        )
-
-        val indicesToRemove = funByIdx.keySet.toSeq
-        StmUtils.removeAccumulatorElemsByIndex(s2, indicesToRemove)
+      // Try to replace the existing elements
+      var s = stm
+      var indicesToRemove = Set[Int]()
+      var newAccumulatorElems = Map[Param, (Expr, Function)]()
+      for ((i, f) <- funByIdx) {
+        val g =
+          if (f.param == t) f else Function(t, f.body.substitute(f.param -> t))
+        replaceInductionVar(s, i, g, t) match {
+          case Some((newStm, newRecEqns)) =>
+            s = newStm
+            indicesToRemove += i
+            newAccumulatorElems ++= newRecEqns
+          case None => ()
+        }
       }
+
+      // Remove elements that were successfully replaced
+      s = StmUtils.removeAccumulatorElemsByIndex(s, indicesToRemove.toSeq)
+
+      // Add new elements as required (e.g., the counter for t, input streams
+      // for elements whose closed form included StmNextK)
+      if (s.contains(t)) {
+        newAccumulatorElems += (t -> (0, (t: Expr) => t + 1))
+      }
+      for ((x, (z, f)) <- newAccumulatorElems) {
+        s = StmUtils.appendAccumulator(s, z, f)
+        // Don't just do s.substitute(...) because the substitute() method will rename the parameter of the function
+        // to avoid variable capture.
+        // But in this case, we *do* want acc to be captured!
+        val acc = s.nextF.param
+        s = StmBuild(
+          s.length,
+          s.seed,
+          Function(acc, s.nextF.body.substitute(x -> acc.__1))
+        )
+      }
+
+      StmCanonPass.canonicalize(s)
+    }
+  }
+
+  private def replaceInductionVar(
+      stm: StmBuild,
+      i: Int,
+      f: Function,
+      t: Param
+  ): Option[(StmBuild, Map[Param, (Expr, Function)])] = {
+    if (!f.contains(classOf[StmNextK])) {
+      // Easy: just replace TupleAccess(acc, i) with newVal
+      val acc = stm.nextF.param
+      val s = stm
+        .substitute(TupleAccess(acc, i) -> FunCall(f, t))
+        .asInstanceOf[StmBuild]
+      Some((s, Map()))
+    } else {
+      // Need to be careful that the stream is still synthesizable after this!
+      // TODO
+      None
     }
   }
 
