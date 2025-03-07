@@ -2,6 +2,7 @@ package opt
 
 import ir._
 import lift.{arithmetic => ae}
+import operations.Min
 import opt.ArithSimplifier.BlackBox
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -149,5 +150,17 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
     val e2 = IfThenElse(x <= 0, 0, 10 / x)
     assert(PartialEvalPass.partialEval(e2) == e2)
+  }
+
+  test("MinMinusMinGreaterOrEqualToZero") {
+    val t = Param("t")
+    val e = (Min(-4 + t, 5) - Min(-5 + t, 5)) >= 0
+    assert(PartialEvalPass.partialEval(e) == True)
+  }
+
+  test("MinMinusMinLessOrEqualToOne") {
+    val t = Param("t")
+    val e = (Min(-4 + t, 5) - Min(-5 + t, 5)) <= 1
+    assert(PartialEvalPass.partialEval(e) == True)
   }
 }

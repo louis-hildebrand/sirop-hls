@@ -75,14 +75,14 @@ object PartialEvalPass {
       case t: Tuple => Tuple(t.elems.map(partialEval): _*)
       case TupleAccess(t: Expr, i: Expr) =>
         (partialEval(t), partialEval(i)) match {
+          case (DontCare, _) | (_, DontCare) => DontCare
           case (tuple: Tuple, index: IntCst) =>
             partialEval(tuple.elems(index.i))
           case (IfThenElse(c, t, f), i) =>
             // Move TupleAccess inside IfThenElse in the hope that it'll
             // encounter a Tuple(...)
             partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (tuple @ _, index @ _)        => TupleAccess(tuple, index)
+          case (tuple @ _, index @ _) => TupleAccess(tuple, index)
         }
 
       case p: Param => p
@@ -126,11 +126,17 @@ object PartialEvalPass {
               case cond =>
                 val t = {
                   val newFacts = facts.isTrue(cond)
-                  partialEval(trueE)(newFacts)
+                  val t = splitAnd(cond).foldLeft(trueE)({ case (acc, c) =>
+                    acc.substitute(c -> True)
+                  })
+                  partialEval(t)(newFacts)
                 }
                 val f = {
                   val newFacts = facts.isFalse(cond)
-                  partialEval(falseE)(newFacts)
+                  val f = splitOr(cond).foldLeft(falseE)({ case (acc, c) =>
+                    acc.substitute(c -> False)
+                  })
+                  partialEval(f)(newFacts)
                 }
                 (t, f) match {
                   case (_, DontCare) => t
@@ -276,10 +282,14 @@ object PartialEvalPass {
             VecBuild(n, Function(f.param, partialEval(f.body)(newFacts)))
         }
       case VecAccess(vec: Expr, i: Expr) =>
-        partialEval(vec) match {
-          case vec: VecBuild => partialEval(FunCall(vec.f, partialEval(i)))
-          case DontCare      => DontCare
-          case vec @ _       => VecAccess(vec, partialEval(i))
+        (partialEval(vec), partialEval(i)) match {
+          case (IfThenElse(c, t, f), i) =>
+            // Move VecAccess inside IfThenElse in the hope that it'll
+            // encounter a VecBuild(...)
+            partialEval(IfThenElse(c, VecAccess(t, i), VecAccess(f, i)))
+          case (v: VecBuild, i)              => partialEval(FunCall(v.f, i))
+          case (DontCare, _) | (_, DontCare) => DontCare
+          case (v, i)                        => VecAccess(v, i)
         }
       case VecLength(vec: Expr) =>
         partialEval(vec) match {

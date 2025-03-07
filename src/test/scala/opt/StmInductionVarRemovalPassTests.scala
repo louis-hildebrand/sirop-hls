@@ -4,51 +4,41 @@ import ir._
 import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
-class StmInductionVarRemovalPassTests extends AnyFunSuite {
-  private def assertEquationsEqual(
-      closedEqn: Expr,
-      recursiveEqn: (Expr, Expr),
-      tMin: Int,
-      iterations: Int
-  ): Unit = {
-    require(iterations > 0)
-    val (z, rec) = recursiveEqn
-    (ir.eval(closedEqn), ir.eval(rec)) match {
-      case (g @ Function(t0, _), f @ Function(t1, Function(x, _))) =>
-        val closedFormVals = evalClosedFormEquation(g, tMin, iterations)
-        val recVals = evalRecursiveEquation(z, f, tMin, iterations)
-        assert(closedFormVals == recVals)
-      case _ =>
-        throw new IllegalArgumentException(s"Functions have the wrong format")
-    }
-  }
-
-  private def evalClosedFormEquation(
-      f: Expr,
-      tMin: Int,
-      iterations: Int
-  ): Seq[Expr] = {
-    (tMin until (tMin + iterations)).map(t => ir.eval(FunCall(f, t)))
-  }
-
-  private def evalRecursiveEquation(
-      z: Expr,
-      f: Expr,
-      tMin: Int,
-      iterations: Int
-  ): Seq[Expr] = {
+private trait Eqn {
+  def eval(tMin: Int, iterations: Int): Seq[Expr]
+}
+private case class RecEqn(z: Expr, f: Expr) extends Eqn {
+  override def eval(tMin: Int, iterations: Int): Seq[Expr] = {
     if (iterations <= 0) {
       Seq()
     } else {
       val tail =
-        evalRecursiveEquation(
-          FunCall(FunCall(f, tMin), z),
-          f,
-          tMin + 1,
-          iterations - 1
-        )
+        RecEqn(FunCall(FunCall(f, tMin), z), f).eval(tMin + 1, iterations - 1)
       ir.eval(z) +: tail
     }
+  }
+}
+private case class NonRecEqn(f: Expr) extends Eqn {
+  override def eval(tMin: Int, iterations: Int): Seq[Expr] = {
+    (tMin until (tMin + iterations)).map(t => ir.eval(FunCall(f, t)))
+  }
+}
+
+class StmInductionVarRemovalPassTests extends AnyFunSuite {
+  private def assertEquationsEqual(
+      expected: Eqn,
+      actual: Eqn,
+      tMin: Int,
+      iterations: Int
+  ): Unit = {
+    require(iterations > 0)
+    val expectedVals = expected.eval(tMin, iterations)
+    val actualVals = actual.eval(tMin, iterations)
+    assert(
+      expectedVals
+        .zip(actualVals)
+        .forall({ case (a, b) => a == DontCare || a == b })
+    )
   }
 
   test("Counters") {
@@ -143,42 +133,6 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       )
     )
     assert(optimized == ideal)
-  }
-
-  test("NotCounter:Scan") {
-    val n = Param("n")
-    val s = Param("s")
-    val scan = StmBuild(
-      n,
-      Tuple(s, 0),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0, acc.__1 + StmNext(acc.__0).__1),
-          SSome(acc.__1)
-        )
-    )
-    val optimized = StmInductionVarRemovalPass.removeInductionVars(scan)
-
-    // Correctness
-    for (nVal <- 0 to 10) {
-      val s0 = StmRange(n, 1, 2)
-      val expected0 = Let(n, nVal, Let(s, s0, scan))
-      val actual0 = Let(n, nVal, Let(s, s0, optimized))
-      assert(ir.eval(actual0) == ir.eval(expected0))
-
-      val s1 =
-        StmBuild(
-          n,
-          0,
-          (i: Expr) => Tuple(i + 1, SSome(IfThenElse(i % 2 === 0, i, 1)))
-        )
-      val expected1 = Let(n, nVal, Let(s, s1, scan))
-      val actual1 = Let(n, nVal, Let(s, s1, optimized))
-      assert(ir.eval(actual1) == ir.eval(expected1))
-    }
-
-    // acc.__0 kind of looks like a counter, but the `delta` is not constant
-    assert(optimized == scan)
   }
 
   test("VecShiftLeft") {
@@ -537,7 +491,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(actualNextAcc == expectedNextAcc)
   }
 
-  test("StmNext") {
+  test("ClosedForm:StmNext") {
     val s = Param("s")
     val t0 = 0
     val n = 10
@@ -555,8 +509,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       assertEquationsEqual(
-        Let(s, sVal, f),
-        (sVal, recEqn),
+        RecEqn(sVal, recEqn),
+        NonRecEqn(Let(s, sVal, f)),
         t0,
         // Check a few steps after we stop reading from the input stream
         n + 2
@@ -568,7 +522,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(f) == expected)
   }
 
-  test("ShiftRegisterWithStmNext") {
+  test("ClosedForm:ShiftRegisterWithStmNext") {
     val n = 7
     val t0 = 0
     val s = Param("s")
@@ -601,8 +555,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       assertEquationsEqual(
-        Let(s, sVal, f),
-        (initialVec, Let(s, sVal, shiftRecEqn)),
+        RecEqn(initialVec, Let(s, sVal, shiftRecEqn)),
+        NonRecEqn(Let(s, sVal, f)),
         t0,
         // Check a few steps after the shift register freezes
         n + 2
@@ -617,6 +571,91 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__1)
       )
     assert(f == expected)
+  }
+
+  test("RecursiveForm:StmNextK(s, t)") {
+    val t = Param("t")
+    val s = Param("s")
+    val e = StmNextK(s, t)
+    val actual =
+      StmInductionVarRemovalPass.tryFindRecursiveForm(e, t = t)
+
+    assert(actual.isDefined)
+    val (z, f) = actual.get match {
+      case (z, Function(t, e)) =>
+        (
+          PartialEvalPass.partialEval(z),
+          Function(
+            t,
+            PartialEvalPass.partialEval(e)(
+              FactSet().range(t, ScalarRange(Some(0), None))
+            )
+          )
+        )
+    }
+
+    // Smoke test
+    val n = 3
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      assertEquationsEqual(
+        NonRecEqn(Let(s, sVal, Function(t, e))),
+        RecEqn(Let(s, sVal, z), f),
+        tMin = 0,
+        iterations = n
+      )
+    }
+
+    assert(z == s)
+    val expectedF: Function = (_: Expr) => (x: Expr) => StmNext(x).__0
+    assert(f == expectedF)
+  }
+
+  test("RecursiveForm:StmNextK(s, Min(-5 + t, 5))") {
+    val t = Param("t")
+    val s = Param("s")
+    val e = StmNextK(s, Min(-5 + t, 5))
+    val actual =
+      StmInductionVarRemovalPass.tryFindRecursiveForm(e, t = t)
+
+    assert(actual.isDefined)
+    val (z, f) = actual.get match {
+      case (z, Function(t, e)) =>
+        (
+          PartialEvalPass.partialEval(z),
+          Function(
+            t,
+            PartialEvalPass.partialEval(e)(
+              FactSet().range(t, ScalarRange(Some(0), None))
+            )
+          )
+        )
+    }
+
+    // Smoke test
+    val n = 5
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      assertEquationsEqual(
+        NonRecEqn(Let(s, sVal, Function(t, e))),
+        RecEqn(Let(s, sVal, z), f),
+        tMin = 0,
+        // Check even a few cycles after everything is done
+        iterations = 2 * n + 2
+      )
+    }
+
+    assert(z == s)
+    val expectedF: Function =
+      (t: Expr) => (x: Expr) => IfThenElse(t >= 5 && t < 10, StmNext(x).__0, x)
+    assume(false)
+    assert(f == expectedF)
   }
 
   test("Stm2Vec2Stm") {

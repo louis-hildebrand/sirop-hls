@@ -71,10 +71,32 @@ object StmUtils {
         transformHead(f)(stm.nextF.body).substitute(subs)
       )
     )
+    // TODO: Will this catch tuple accesses where the index is non-static?
     if (s.contains(invalid)) {
       throw ElemStillInUseException
     }
     s
+  }
+
+  def replaceAccumulatorElemWithUnit(stm: StmBuild, i: Int): StmBuild = {
+    val acc = stm.nextF.param
+    val newSeed = Tuple(
+      stm.seed.asInstanceOf[Tuple].elems.updated(i, Tuple()): _*
+    )
+    val newNextF =
+      Function(acc, stm.nextF.body.substitute(TupleAccess(acc, i) -> Tuple()))
+
+    // Check that the old element is no longer being referenced
+    val invalid = Param("invalid")
+    val testSeed = Tuple(
+      stm.seed.asInstanceOf[Tuple].elems.updated(i, invalid): _*
+    )
+    val e = PartialEvalPass.partialEval(FunCall(newNextF, testSeed))
+    if (e.contains(invalid)) {
+      throw ElemStillInUseException
+    } else {
+      StmBuild(stm.length, newSeed, newNextF)
+    }
   }
 
   /** Create a new tuple by taking elements from the given tuple in a specific

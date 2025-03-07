@@ -235,32 +235,35 @@ object StmInductionVarRemovalPass {
     } else {
       val t = funByIdx.head._2.param
 
-      // Try to replace the existing elements
+      // Try to replace the existing elements with their closed form
       var s = stm
-      var indicesToRemove = Set[Int]()
+      var indicesToRemove = Seq[Int]()
       var newAccumulatorElems = Map[Param, (Expr, Function)]()
       for ((i, f) <- funByIdx) {
+        val tmp = Param("tmp")
+        val acc = s.nextF.param
+        val newStm =
+          StmUtils.replaceAccumulatorElemWithUnit(
+            s.substitute(TupleAccess(acc, i) -> tmp).asInstanceOf[StmBuild],
+            i = i
+          )
         val g =
           if (f.param == t) f else Function(t, f.body.substitute(f.param -> t))
-        replaceInductionVar(s, i, g, t) match {
+        replaceInductionVar(newStm, tmp, g) match {
           case Some((newStm, newRecEqns)) =>
             s = newStm
-            indicesToRemove += i
+            indicesToRemove = indicesToRemove :+ i
             newAccumulatorElems ++= newRecEqns
           case None => ()
         }
       }
 
-      // Remove elements that were successfully replaced
-      s = StmUtils.removeAccumulatorElemsByIndex(s, indicesToRemove.toSeq)
+      s = StmUtils.removeAccumulatorElemsByIndex(s, indicesToRemove)
 
       // Add new elements as required (e.g., the counter for t, input streams
       // for elements whose closed form included StmNextK)
-      if (s.contains(t)) {
-        newAccumulatorElems += (t -> (0, (t: Expr) => t + 1))
-      }
-      for ((x, (z, f)) <- newAccumulatorElems) {
-        s = StmUtils.appendAccumulator(s, z, f)
+      for ((x, (z, Function(t, e))) <- newAccumulatorElems) {
+        s = StmUtils.appendAccumulator(s, z, e.asInstanceOf[Function])
         // Don't just do s.substitute(...) because the substitute() method will rename the parameter of the function
         // to avoid variable capture.
         // But in this case, we *do* want acc to be captured!
@@ -271,28 +274,91 @@ object StmInductionVarRemovalPass {
           Function(acc, s.nextF.body.substitute(x -> acc.__1))
         )
       }
+      if (s.contains(t)) {
+        s = StmUtils.appendAccumulator(s, 0, (x: Expr) => x + 1)
+        val acc = s.nextF.param
+        s = StmBuild(
+          s.length,
+          s.seed,
+          Function(acc, s.nextF.body.substitute(t -> acc.__1))
+        )
+      }
 
       StmCanonPass.canonicalize(s)
     }
   }
 
+  /** Replace one accumulator element with its closed form.
+    *
+    * @param stm
+    *   A stream
+    * @param x
+    *   A variable representing uses of the accumulator element to be removed
+    * @param f
+    *   A function (whose parameter MUST be t!)
+    */
   private def replaceInductionVar(
       stm: StmBuild,
-      i: Int,
-      f: Function,
-      t: Param
+      x: Param,
+      f: Function
   ): Option[(StmBuild, Map[Param, (Expr, Function)])] = {
-    if (!f.contains(classOf[StmNextK])) {
-      // Easy: just replace TupleAccess(acc, i) with newVal
-      val acc = stm.nextF.param
-      val s = stm
-        .substitute(TupleAccess(acc, i) -> FunCall(f, t))
-        .asInstanceOf[StmBuild]
+    val s = stm.substitute(x -> f.body).asInstanceOf[StmBuild]
+    if (!s.contains(classOf[StmNextK])) {
       Some((s, Map()))
-    } else {
-      // Need to be careful that the stream is still synthesizable after this!
-      // TODO
+    } else if (s.nextF.body.isInstanceOf[StmNextK]) {
+      // Don't bother in this case: there's no point in trying to find a closed
+      // form for a stream-valued accumulator element
       None
+    } else {
+      val acc = s.nextF.param
+      val t = f.param
+      replaceStmNextK(s.nextF.body, t, acc) match {
+        case Some((e, newAccElems)) =>
+          val newStm = StmBuild(s.length, s.seed, Function(acc, e))
+          // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
+          //       StmNext(acc).__0)?
+          Some((newStm, newAccElems))
+        case None => None
+      }
+    }
+  }
+
+  /** Get rid of every occurrence of StmNextK in the given expression.
+    *
+    * @return
+    *   The new expression with some free variables, along with recursive
+    *   formulas for those free variables
+    */
+  private def replaceStmNextK(
+      e: Expr,
+      t: Param,
+      acc: Param
+  ): Option[(Expr, Map[Param, (Expr, Function)])] = {
+    e match {
+      case s: StmNextK =>
+        if (s.contains(acc)) {
+          // TODO: What to do in this case?
+          None
+        } else {
+          tryFindRecursiveForm(s, t) match {
+            case Some((z, f)) =>
+              val r = Param("r")
+              Some((r, Map(r -> (z, f))))
+            case None => None
+          }
+        }
+      case e =>
+        val childResults = e.children.map(c => replaceStmNextK(c, t, acc))
+        if (childResults.exists(x => x.isEmpty)) {
+          None
+        } else {
+          val unwrappedChildResults = childResults.map(x => x.get)
+          val newChildren = unwrappedChildResults.map(x => x._1)
+          val newAccElems = unwrappedChildResults
+            .map(x => x._2)
+            .foldLeft(Map[Param, (Expr, Function)]())(_ ++ _)
+          Some((e.rebuild(newChildren), newAccElems))
+        }
     }
   }
 
@@ -427,8 +493,46 @@ object StmInductionVarRemovalPass {
       case _ => None
     }
   }
+
+  /** Attempt to convert a <code>StmNextK</code> into a recurrence equation
+    * involving only <code>StmNext</code>. The recurrence equation will be a
+    * function of the form <code>f(t, x(t))</code>.
+    */
+  def tryFindRecursiveForm(
+      nxt: StmNextK,
+      t: Param
+  ): Option[(Expr, Function)] = {
+    nxt match {
+      case StmNextK(s, k) =>
+        // Need to show that, when t = 0, k <= 0
+        // (i.e., want the initial value to be s)
+        val k0 = k.substitute(t -> IntCst(0))
+        PartialEvalPass.partialEval(k0 <= 0) match {
+          case True =>
+            // Need to show that k(t + 1) - k(t) in {0, 1}
+            // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
+            val nextK = k.substitute(t -> (t + 1))
+            val deltaK = PartialEvalPass.partialEval(nextK - k)
+            val facts = FactSet().range(t, ScalarRange(Some(0), None))
+            val pe = (e: Expr) => PartialEvalPass.partialEval(e)(facts)
+            pe(deltaK >= 0 && deltaK <= 1) match {
+              case True =>
+                val nextF = Function(
+                  t,
+                  (acc: Expr) =>
+                    IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc).__0)
+                )
+                Some((s, nextF))
+              case _ => None
+            }
+          case _ => None
+        }
+    }
+
+  }
 }
 
+// TODO: Get rid of this?
 private object ExtendedPartialEvaluator {
   def partialEval(e: Expr): Expr = {
     // TODO: Repeat until we reach fixed point?

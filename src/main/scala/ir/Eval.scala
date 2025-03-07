@@ -265,7 +265,6 @@ trait Eval {
         evalBigStep(k) match {
           case DontCare           => DontCare
           case IntCst(k) if k < 0 =>
-            // Undefined behaviour
             // May occur temporarily during optimizations - for example, if you have something like
             // if (k >= 0) then StmNextK(s, k) else DontCare, which the partial evaluator may simplify to just
             // StmNextK(s, k)
