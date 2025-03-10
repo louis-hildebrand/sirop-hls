@@ -152,6 +152,13 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(e2) == e2)
   }
 
+  test("MinLessThanOrEqualToMin") {
+    val t = Param("t")
+    val e = Min(-5 + t, 5) <= Min(-4 + t, 5)
+    val actual = PartialEvalPass.partialEval(e)
+    assert(actual == True)
+  }
+
   test("MinMinusMinGreaterOrEqualToZero") {
     val t = Param("t")
     val e = (Min(-4 + t, 5) - Min(-5 + t, 5)) >= 0

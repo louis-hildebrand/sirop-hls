@@ -111,6 +111,9 @@ object ArithSimplifier {
           toSimplifiedArithExpr(n)(facts),
           toSimplifiedArithExpr(d)(facts)
         )
+      case eq: Equal =>
+        // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
+        toSimplifiedArithExpr(IfThenElse(eq, True, False))(facts)
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
         toSimplifiedArithExpr(IfThenElse(lt, True, False))(facts)
