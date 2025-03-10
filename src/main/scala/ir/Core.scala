@@ -292,20 +292,15 @@ case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp {
 
 // Boolean expressions
 sealed trait BoolExpr extends Expr
-case object True extends BoolExpr {
+sealed trait BoolCst extends BoolExpr {
   override def children: Seq[Expr] = Seq()
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
     this
   }
 }
-case object False extends BoolExpr {
-  override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    require(newChildren.isEmpty)
-    this
-  }
-}
+case object True extends BoolCst
+case object False extends BoolCst
 
 // This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
 // False is interpreted as 0 and True as 1.
@@ -389,17 +384,54 @@ case class Not(e: Expr) extends BoolExpr {
     }
   }
 }
-case class And(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(e1, e2) => And(e1, e2)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+final class And(unsortedTerms: Expr*) extends BoolExpr {
+  val terms: Seq[Expr] =
+    unsortedTerms
+      // Flatten nested ANDs to represent associativity
+      .flatMap({
+        case a: And => a.terms
+        case e      => Seq(e)
+      })
+      // Deduplicate to represent the fact that x && x == x
+      .distinct
+      // Sort terms to represent commutativity
+      .sorted(ExprOrdering)
+
+  def remove(c: Expr): Expr = {
+    terms.filter(e => e != c) match {
+      case Seq()  => True
+      case Seq(e) => e
+      case terms  => And(terms: _*)
     }
   }
+
+  override def children: Seq[Expr] = terms
+  override def rebuild(newChildren: Seq[Expr]): Expr = And(newChildren: _*)
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: And => this.terms == that.terms
+      case _         => false
+    }
+  }
+  override def hashCode(): Int = {
+    this.terms.hashCode()
+  }
+
+  override def toString: String = {
+    s"And(${this.terms.mkString(",")})"
+  }
 }
+object And {
+  def apply(terms: Expr*): And = {
+    new And(terms: _*)
+  }
+
+  def unapplySeq(a: And): Option[Seq[Expr]] = {
+    Some(a.terms)
+  }
+}
+
 case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {

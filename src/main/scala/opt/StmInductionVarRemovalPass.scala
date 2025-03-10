@@ -419,8 +419,9 @@ object StmInductionVarRemovalPass {
           case None => None
         }
       // TODO: Add similar cases (e.g., a counter that starts false and becomes true)?
-      case (True, Function(t, Function(acc, And(a, c)))) if a == acc =>
-        (t, acc, c) match {
+      case (True, Function(t, Function(acc, and @ And(terms @ _*))))
+          if terms.contains(acc) =>
+        (t, acc, and.remove(acc)) match {
           case TimeLessThan(k) if !k.contains(acc) =>
             // Add one to account for the fact that the boolean will only
             // change value at the next cycle.
@@ -436,16 +437,17 @@ object StmInductionVarRemovalPass {
               Function(
                 acc,
                 Tuple(
-                  And(TupleAccess(a0, IntCst(0)), bCond),
+                  and @ And(terms @ _*),
                   boundedCtrUpdate @ IfThenElse(
-                    TupleAccess(a1, IntCst(0)),
+                    TupleAccess(a0, IntCst(0)),
                     ctrUpdateIfTrue,
-                    TupleAccess(a2, IntCst(1))
+                    TupleAccess(a1, IntCst(1))
                   )
                 )
               )
             )
-          ) if a0 == acc && a1 == acc && a2 == acc =>
+          ) if a0 == acc && a1 == acc && terms.contains(acc.__0) =>
+        val bCond = and.remove(acc.__0)
         // (1) Find closed form for counter if it was unbounded
         val a = Param("a")
         val ctrNext = Function(

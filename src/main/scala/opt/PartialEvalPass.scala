@@ -39,7 +39,8 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     e match {
       case Not(e) => isFalse(e)
       // If (x0 && ... && xn) = True, then xi = True for each i
-      case And(e1, e2) => this.isTrue(e1).isTrue(e2)
+      case And(terms @ _*) =>
+        terms.foldLeft(this)({ case (acc, e) => acc.isTrue(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
@@ -252,30 +253,34 @@ object PartialEvalPass {
           case ite: IfThenElse => partialEval(ite)
           case e               => ArithSimplifier.simplifyArithmetic(e)(facts)
         }
-      case And(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (False, _) | (_, False)       => False
-          case (True, e)                     => e
-          case (e, True)                     => e
-          case (LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-              if e1 == e2 =>
-            LessThan(e1, math.min(c1, c2))
-          case (LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-              if e1 == e2 =>
-            LessThan(math.min(c1, c2), e1)
-          case (e1, e2) =>
-            val newChildren = Seq(e1, e2)
-            m match {
-              case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x && y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier
-                  .simplifyArithmetic(e.rebuild(newChildren))(facts)
+      case And(terms @ _*) =>
+        val newChildren = terms.map(e => partialEval(e))
+        val e = m match {
+          case MoveUp =>
+            mergeIfThenElses(newChildren, x => y => x && y) match {
+              case ite: IfThenElse => Left(partialEval(ite))
+              case e               => Right(e)
             }
+          case HeuristicMotion => Right(And(newChildren: _*))
+        }
+        e match {
+          case Left(e) => e
+          case Right(And(terms @ _*)) =>
+            val nonTrue = terms.filter(e => e != True)
+            nonTrue match {
+              case Seq()                         => True
+              case Seq(e)                        => e
+              case _ if terms.contains(DontCare) => DontCare
+              case _ if terms.contains(False)    => False
+              case Seq(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+                  if e1 == e2 =>
+                LessThan(e1, math.min(c1, c2))
+              case Seq(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+                  if e1 == e2 =>
+                LessThan(math.max(c1, c2), e1)
+              case _ => And(nonTrue: _*)
+            }
+          case Right(e) => e
         }
       case Or(e1: Expr, e2: Expr) =>
         (partialEval(e1), partialEval(e2)) match {
@@ -288,7 +293,7 @@ object PartialEvalPass {
             LessThan(e1, math.max(c1, c2))
           case (LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
               if e1 == e2 =>
-            LessThan(math.max(c1, c2), e1)
+            LessThan(math.min(c1, c2), e1)
           case (e1, e2) =>
             val newChildren = Seq(e1, e2)
             m match {
@@ -491,8 +496,7 @@ object PartialEvalPass {
   private def isBoolExpr(e: Expr): Option[Boolean] = {
     e match {
       // Definitely evaluates to a bool
-      case True | False | And(_, _) | Or(_, _) | Not(_) | Equal(_, _) |
-          LessThan(_, _) =>
+      case True | False | _: And | _: Or | _: Not | _: Equal | LessThan(_, _) =>
         Some(true)
       // Definitely not a bool
       case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function |
@@ -540,8 +544,8 @@ object PartialEvalPass {
   private def splitAnd(e: Expr): Seq[Expr] = {
     // TODO: Convert to POS form first?
     e match {
-      case And(x, y) => splitAnd(x) ++ splitAnd(y)
-      case e         => Seq(e)
+      case And(terms @ _*) => terms
+      case e               => Seq(e)
     }
   }
 

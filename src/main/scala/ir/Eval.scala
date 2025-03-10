@@ -115,18 +115,17 @@ trait Eval {
               s"Operand of Not evaluated to $v. It must evaluate to a boolean."
             )
         }
-      case And(e1, e2) =>
+      case And(terms @ _*) =>
         // TODO: Are And() and Or() short-circuiting? No, right?
-        (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (False, False)                => False
-          case (False, True)                 => False
-          case (True, False)                 => False
-          case (True, True)                  => True
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of And evaluated to $v1 and $v2. They must each evaluate to a boolean."
-            )
+        val termValues = terms.map(e => evalBigStep(e))
+        if (termValues.contains(DontCare)) {
+          DontCare
+        } else if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
+          if (termValues.contains(False)) False else True
+        } else {
+          throw new IllegalArgumentException(
+            s"Terms of And evaluated to $termValues. They must all evaluate to booleans."
+          )
         }
       case Or(e1, e2) =>
         (evalBigStep(e1), evalBigStep(e2)) match {
