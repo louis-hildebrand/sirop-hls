@@ -422,6 +422,9 @@ object DotPrinter {
       case And(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("&&", labeledTerms, scope)
+      case Or(terms @ _*) =>
+        val labeledTerms = terms.map(e => ("", toDot(e, scope)))
+        DotScalar("||", labeledTerms, scope)
       case Not(Equal(e1, e2)) =>
         val left = toDot(e1, scope)
         val right = toDot(e2, scope)
@@ -503,7 +506,6 @@ object DotPrinter {
     e match {
       case _: Div      => "/"
       case _: Mod      => "%"
-      case _: Or       => "||"
       case _: LessThan => "<"
       case _: Equal    => "=="
     }

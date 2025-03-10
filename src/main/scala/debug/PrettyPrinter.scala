@@ -26,7 +26,7 @@ object PrettyPrinter {
       case Not(LessThan(x, y)) =>
         s"${showWithParens(x)} >= ${showWithParens(y)}"
       case And(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" && ")
-      case Or(x, y)        => s"${showWithParens(x)} || ${showWithParens(y)}"
+      case Or(terms @ _*)  => terms.map(e => showWithParens(e)).mkString(" || ")
       case Not(x)          => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
         s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
@@ -156,8 +156,8 @@ object PrettyPrinter {
       case Not(e) => s"Not(${showScala(e)})"
       case And(terms @ _*) =>
         s"And(${terms.map(e => showScala(e)).mkString(",")})"
-      case Or(x, y) =>
-        s"Or(${showScala(x)},${showScala(y)})"
+      case Or(terms @ _*) =>
+        s"Or(${terms.map(e => showScala(e)).mkString(",")})"
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
       case DontCare => "DontCare"

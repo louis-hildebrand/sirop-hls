@@ -68,7 +68,8 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     e match {
       case Not(e) => isTrue(e)
       // If (x0 || ... || xn) = False, then xi = False for each i
-      case Or(e1, e2) => this.isFalse(e1).isFalse(e2)
+      case Or(terms @ _*) =>
+        terms.foldLeft(this)({ case (acc, e) => acc.isFalse(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
@@ -265,47 +266,49 @@ object PartialEvalPass {
         }
         e match {
           case Left(e) => e
-          case Right(And(terms @ _*)) =>
-            val nonTrue = terms.filter(e => e != True)
-            nonTrue match {
-              case Seq()                         => True
-              case Seq(e)                        => e
-              case _ if terms.contains(DontCare) => DontCare
-              case _ if terms.contains(False)    => False
-              case Seq(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+          case Right(and: And) =>
+            and.remove(True) match {
+              case And()                                       => True
+              case And(e)                                      => e
+              case And(terms @ _*) if terms.contains(DontCare) => DontCare
+              case And(terms @ _*) if terms.contains(False)    => False
+              case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
                   if e1 == e2 =>
                 LessThan(e1, math.min(c1, c2))
-              case Seq(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+              case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
                   if e1 == e2 =>
                 LessThan(math.max(c1, c2), e1)
-              case _ => And(nonTrue: _*)
+              case e => e
             }
           case Right(e) => e
         }
-      case Or(e1: Expr, e2: Expr) =>
-        (partialEval(e1), partialEval(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (True, _) | (_, True)         => True
-          case (False, e)                    => e
-          case (e, False)                    => e
-          case (LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-              if e1 == e2 =>
-            LessThan(e1, math.max(c1, c2))
-          case (LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-              if e1 == e2 =>
-            LessThan(math.min(c1, c2), e1)
-          case (e1, e2) =>
-            val newChildren = Seq(e1, e2)
-            m match {
-              case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x || y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier
-                  .simplifyArithmetic(e.rebuild(newChildren))(facts)
+      case Or(terms @ _*) =>
+        val newChildren = terms.map(e => partialEval(e))
+        val e = m match {
+          case MoveUp =>
+            mergeIfThenElses(newChildren, x => y => x || y) match {
+              case ite: IfThenElse => Left(partialEval(ite))
+              case e               => Right(e)
             }
+          case HeuristicMotion => Right(Or(newChildren: _*))
+        }
+        e match {
+          case Left(e) => e
+          case Right(or: Or) =>
+            or.remove(False) match {
+              case Or()                                       => False
+              case Or(e)                                      => e
+              case Or(terms @ _*) if terms.contains(DontCare) => DontCare
+              case Or(terms @ _*) if terms.contains(True)     => True
+              case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+                  if e1 == e2 =>
+                LessThan(e1, math.max(c1, c2))
+              case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+                  if e1 == e2 =>
+                LessThan(math.min(c1, c2), e1)
+              case e => e
+            }
+          case Right(e) => e
         }
       case Not(e: Expr) =>
         partialEval(e) match {
@@ -552,8 +555,8 @@ object PartialEvalPass {
   private def splitOr(e: Expr): Seq[Expr] = {
     // TODO: Convert to SOP form first?
     e match {
-      case Or(x, y) => splitOr(x) ++ splitOr(y)
-      case e        => Seq(e)
+      case Or(terms @ _*) => terms
+      case e              => Seq(e)
     }
   }
 }

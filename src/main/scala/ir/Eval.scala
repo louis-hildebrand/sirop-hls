@@ -127,17 +127,16 @@ trait Eval {
             s"Terms of And evaluated to $termValues. They must all evaluate to booleans."
           )
         }
-      case Or(e1, e2) =>
-        (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (False, False)                => False
-          case (False, True)                 => True
-          case (True, False)                 => True
-          case (True, True)                  => True
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of Or evaluated to $v1 and $v2. They must each evaluate to a boolean."
-            )
+      case Or(terms @ _*) =>
+        val termValues = terms.map(e => evalBigStep(e))
+        if (termValues.contains(DontCare)) {
+          DontCare
+        } else if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
+          if (termValues.contains(True)) True else False
+        } else {
+          throw new IllegalArgumentException(
+            s"Terms of Or evaluated to $termValues. They must all evaluate to booleans."
+          )
         }
       case Equal(e1, e2) =>
         (evalBigStep(e1), evalBigStep(e2)) match {

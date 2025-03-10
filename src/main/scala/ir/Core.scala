@@ -432,15 +432,51 @@ object And {
   }
 }
 
-case class Or(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(e1, e2) => Or(e1, e2)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+final class Or(unsortedTerms: Expr*) extends BoolExpr {
+  val terms: Seq[Expr] =
+    unsortedTerms
+      // Flatten nested ORs to represent associativity
+      .flatMap({
+        case a: Or => a.terms
+        case e     => Seq(e)
+      })
+      // Deduplicate to represent the fact that x || x == x
+      .distinct
+      // Sort terms to represent commutativity
+      .sorted(ExprOrdering)
+
+  def remove(c: Expr): Expr = {
+    terms.filter(e => e != c) match {
+      case Seq()  => False
+      case Seq(e) => e
+      case terms  => Or(terms: _*)
     }
+  }
+
+  override def children: Seq[Expr] = terms
+  override def rebuild(newChildren: Seq[Expr]): Expr = Or(newChildren: _*)
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Or => this.terms == that.terms
+      case _        => false
+    }
+  }
+  override def hashCode(): Int = {
+    this.terms.hashCode()
+  }
+
+  override def toString: String = {
+    s"Or(${this.terms.mkString(",")})"
+  }
+}
+object Or {
+  def apply(terms: Expr*): Or = {
+    new Or(terms: _*)
+  }
+
+  def unapplySeq(a: Or): Option[Seq[Expr]] = {
+    Some(a.terms)
   }
 }
 
