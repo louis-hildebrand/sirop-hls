@@ -258,6 +258,12 @@ object PartialEvalPass {
           case (False, _) | (_, False)       => False
           case (True, e)                     => e
           case (e, True)                     => e
+          case (LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+              if e1 == e2 =>
+            LessThan(e1, math.min(c1, c2))
+          case (LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+              if e1 == e2 =>
+            LessThan(math.min(c1, c2), e1)
           case (e1, e2) =>
             val newChildren = Seq(e1, e2)
             m match {
@@ -277,6 +283,12 @@ object PartialEvalPass {
           case (True, _) | (_, True)         => True
           case (False, e)                    => e
           case (e, False)                    => e
+          case (LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+              if e1 == e2 =>
+            LessThan(e1, math.max(c1, c2))
+          case (LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+              if e1 == e2 =>
+            LessThan(math.max(c1, c2), e1)
           case (e1, e2) =>
             val newChildren = Seq(e1, e2)
             m match {
