@@ -54,7 +54,7 @@ object StmInductionVarRemovalPass {
     val initAndNextByIdx = seed.elems.indices.map(i => {
       val z = seed.elems(i)
       val next =
-        ExtendedPartialEvaluator.partialEval(TupleAccess(s.nextF.body.__0, i))
+        PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
       (z, next)
     })
     // The dependency graph may be acyclic. To deal with that, combine elements
@@ -91,14 +91,14 @@ object StmInductionVarRemovalPass {
                 for ((iOld, iNew) <- indices.zipWithIndex) {
                   val g = Function(
                     t,
-                    ExtendedPartialEvaluator.partialEval(
+                    PartialEvalPass.partialEval(
                       TupleAccess(FunCall(f, t), iNew)
                     )
                   )
                   funcByIdx += (iOld -> g)
                 }
               } else {
-                funcByIdx += (v.head -> ExtendedPartialEvaluator
+                funcByIdx += (v.head -> PartialEvalPass
                   .partialEval(f)
                   .asInstanceOf[Function])
               }
@@ -198,7 +198,7 @@ object StmInductionVarRemovalPass {
       // Replace dependencies with their value as a function of t
       val depSubs =
         dependencies.foldLeft(Map[Expr, Expr]())({ case (subs, (i, f)) =>
-          subs + (TupleAccess(acc, i) -> ExtendedPartialEvaluator.partialEval(
+          subs + (TupleAccess(acc, i) -> PartialEvalPass.partialEval(
             FunCall(f, t)
           ))
         })
@@ -534,27 +534,9 @@ object StmInductionVarRemovalPass {
         } else {
           None
         }
+      case _ => None
     }
 
-  }
-}
-
-// TODO: Get rid of this?
-private object ExtendedPartialEvaluator {
-  def partialEval(e: Expr): Expr = {
-    // TODO: Repeat until we reach fixed point?
-    val e0 = PartialEvalPass.partialEval(e)
-    partialEvalWithNewRules(e0)
-  }
-
-  private def partialEvalWithNewRules(e: Expr): Expr = {
-    e match {
-      case StmNextK(s, IntCst(0)) => s
-      // TODO: Should I be going the other way (from StmNext to StmNextK)?
-      case StmNextK(s, IntCst(1))                          => StmNext(s).__0
-      case TupleAccess(StmNext(StmNextK(s, k)), IntCst(0)) => StmNextK(s, k + 1)
-      case e => e.rebuild(e.children.map(e => partialEvalWithNewRules(e)))
-    }
   }
 }
 
@@ -605,7 +587,7 @@ object LeftShiftRegister {
     val (z, next) = args
     // Partially evaluate because the initial value may be a function call that
     // ends up returning a vector, for example
-    (ExtendedPartialEvaluator.partialEval(z), next) match {
+    (PartialEvalPass.partialEval(z), next) match {
       case (
             VecBuild(n, f),
             Function(
@@ -702,7 +684,7 @@ object IfLessThan {
       case IfThenElse(LessThan(y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
-        (ExtendedPartialEvaluator.partialEval(y - z), x) match {
+        (PartialEvalPass.partialEval(y - z), x) match {
           case LinearFunctionOf(c0, c1) =>
             // TODO: Use a more general approach to find the sign of a particular expression?
             c1 match {
