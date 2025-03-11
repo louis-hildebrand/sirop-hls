@@ -160,23 +160,66 @@ object ArithSimplifier {
               toSimplifiedArithExpr(t)(facts),
               toSimplifiedArithExpr(f)(facts)
             )
-          case None => BlackBox(e)
+          case None => BlackBox(e, range = findRange(e)(facts))
+        }
+      case and: And =>
+        // Don't bother looking up a range for any of these black boxes, since
+        // the operands of And should be booleans, not integers
+        and.remove(True) match {
+          case And(terms @ _*) if terms.contains(DontCare) =>
+            BlackBox(DontCare)
+          case And(terms @ _*) if terms.contains(False) =>
+            BlackBox(False)
+          // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b
+          case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+              if e1 == e2 =>
+            BlackBox(LessThan(e1, math.min(c1, c2)))
+          case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+              if e1 == e2 =>
+            BlackBox(LessThan(math.max(c1, c2), e1))
+          case e => BlackBox(e)
+        }
+      case or: Or =>
+        // Don't bother looking up a range for any of these black boxes, since
+        // the operands of Or should be booleans, not integers
+        or.remove(False) match {
+          case Or(terms @ _*) if terms.contains(DontCare) =>
+            BlackBox(DontCare)
+          case Or(terms @ _*) if terms.contains(True) =>
+            BlackBox(True)
+          case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+              if e1 == e2 =>
+            BlackBox(LessThan(e1, math.max(c1, c2)))
+          case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+              if e1 == e2 =>
+            BlackBox(LessThan(math.min(c1, c2), e1))
+          case e => BlackBox(e)
+        }
+      case Not(e) =>
+        e match {
+          case True     => BlackBox(False)
+          case False    => BlackBox(True)
+          case DontCare => BlackBox(DontCare)
+          case Not(e)   => BlackBox(e)
+          case e        => BlackBox(Not(e))
         }
       case e =>
-        val range =
-          facts.rangeByExpr.getOrElse(e, ScalarRange(None, None)) match {
-            case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
-            case ScalarRange(None, Some(upper)) =>
-              ae.GoesToRange(toSimplifiedArithExpr(upper)(facts))
-            case ScalarRange(Some(lower), None) =>
-              ae.StartFromRange(toSimplifiedArithExpr(lower)(facts))
-            case ScalarRange(Some(lower), Some(upper)) =>
-              ae.ContinuousRange(
-                toSimplifiedArithExpr(lower)(facts),
-                toSimplifiedArithExpr(upper)(facts)
-              )
-          }
-        new BlackBox(e, range = range)
+        BlackBox(e, range = findRange(e)(facts))
+    }
+  }
+
+  private def findRange(e: Expr)(facts: FactSet): ae.Range = {
+    facts.rangeByExpr.getOrElse(e, ScalarRange(None, None)) match {
+      case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
+      case ScalarRange(None, Some(upper)) =>
+        ae.GoesToRange(toSimplifiedArithExpr(upper)(facts))
+      case ScalarRange(Some(lower), None) =>
+        ae.StartFromRange(toSimplifiedArithExpr(lower)(facts))
+      case ScalarRange(Some(lower), Some(upper)) =>
+        ae.ContinuousRange(
+          toSimplifiedArithExpr(lower)(facts),
+          toSimplifiedArithExpr(upper)(facts)
+        )
     }
   }
 

@@ -254,68 +254,30 @@ object PartialEvalPass {
           case ite: IfThenElse => partialEval(ite)
           case e               => ArithSimplifier.simplifyArithmetic(e)(facts)
         }
-      case And(terms @ _*) =>
-        val newChildren = terms.map(e => partialEval(e))
-        val e = m match {
+      case _: And =>
+        val newChildren = e.children.map(e => partialEval(e))
+        m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x && y) match {
-              case ite: IfThenElse => Left(partialEval(ite))
-              case e               => Right(e)
+              case ite: IfThenElse => partialEval(ite)
+              case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
-          case HeuristicMotion => Right(And(newChildren: _*))
+          case HeuristicMotion =>
+            ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
-        e match {
-          case Left(e) => e
-          case Right(and: And) =>
-            and.remove(True) match {
-              case And()                                       => True
-              case And(e)                                      => e
-              case And(terms @ _*) if terms.contains(DontCare) => DontCare
-              case And(terms @ _*) if terms.contains(False)    => False
-              case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-                  if e1 == e2 =>
-                LessThan(e1, math.min(c1, c2))
-              case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-                  if e1 == e2 =>
-                LessThan(math.max(c1, c2), e1)
-              case e => e
-            }
-          case Right(e) => e
-        }
-      case Or(terms @ _*) =>
-        val newChildren = terms.map(e => partialEval(e))
-        val e = m match {
+      case _: Or =>
+        val newChildren = e.children.map(e => partialEval(e))
+        m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x || y) match {
-              case ite: IfThenElse => Left(partialEval(ite))
-              case e               => Right(e)
+              case ite: IfThenElse => partialEval(ite)
+              case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
-          case HeuristicMotion => Right(Or(newChildren: _*))
-        }
-        e match {
-          case Left(e) => e
-          case Right(or: Or) =>
-            or.remove(False) match {
-              case Or()                                       => False
-              case Or(e)                                      => e
-              case Or(terms @ _*) if terms.contains(DontCare) => DontCare
-              case Or(terms @ _*) if terms.contains(True)     => True
-              case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-                  if e1 == e2 =>
-                LessThan(e1, math.max(c1, c2))
-              case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-                  if e1 == e2 =>
-                LessThan(math.min(c1, c2), e1)
-              case e => e
-            }
-          case Right(e) => e
+          case HeuristicMotion =>
+            ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case Not(e: Expr) =>
         partialEval(e) match {
-          case True                => False
-          case False               => True
-          case DontCare            => DontCare
-          case Not(e)              => e
           case IfThenElse(c, t, f) =>
             // Move the IfThenElse up in every case because
             //  (1) the Not() may cancel with something further down and
@@ -451,6 +413,21 @@ object PartialEvalPass {
           op(e1)(e2)
       }
     })
+  }
+
+  /** Check whether <code>a</code> implies <code>b</code>.
+    *
+    * @return
+    *   <code>Some(true)</code> if <code>a</code> implies <code>b</code>,
+    *   <code>Some(false)</code> if <code>a</code> implies the negation of
+    *   <code>b</code>, and <code>None</code> if we can't tell.
+    */
+  private def implies(a: Expr, b: Expr)(facts: FactSet): Option[Boolean] = {
+    partialEval(b)(facts.isTrue(a)) match {
+      case True  => Some(true)
+      case False => Some(false)
+      case _     => None
+    }
   }
 
   @tailrec
