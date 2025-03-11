@@ -121,18 +121,24 @@ object StmCanonPass {
     * seed will be (0, 1, 2) and `nextF` will be updated accordingly.
     */
   private def flattenAccumulator(stm: StmBuild): StmBuild = {
-    val p = Param("acc")
+    val newAcc = Param("acc")
+    val oldAcc = stm.nextF.param
     val (tupleAccessMap, _) =
-      makeTupleAccessMap(stm.seed, stm.nextF.param, p, Seq(), 0)
+      makeTupleAccessMap(stm.seed, oldAcc = oldAcc, newAcc = newAcc, Seq(), 0)
     val flattenHead = (e: Expr) => StmUtils.transformHead(e => flatten(e))(e)
-    StmBuild(
+    val s = StmBuild(
       stm.length,
       flatten(stm.seed),
       Function(
-        p,
+        newAcc,
         flattenHead(stm.nextF.body).substitute(tupleAccessMap)
       )
     )
+    assert(
+      !s.contains(oldAcc),
+      "after flattening, the old accumulator should be all gone"
+    )
+    s
   }
 
   private def removeConstantAccumulatorElems(stm: StmBuild): StmBuild = {

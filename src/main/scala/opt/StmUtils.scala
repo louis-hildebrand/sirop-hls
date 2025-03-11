@@ -125,7 +125,6 @@ object StmUtils {
   def rearrangeTuple(indexMap: Map[Int, Int])(e: Expr): Expr = {
     e match {
       case t: Tuple =>
-        val t = e.asInstanceOf[Tuple]
         val newElems = indexMap
           .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
           .toSeq

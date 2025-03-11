@@ -138,12 +138,12 @@ object StmInductionVarRemovalPass {
       case TupleAccess(a: Param, IntCst(j)) =>
         if (a == acc) Some(Set(j)) else Some(Set())
       case a: Param =>
-        if (a == acc)
-          // Maybe we got here via a `TupleAccess(acc, j)` where `j` is some
-          // expression that couldn't be partially evaluated to an int.
-          None
-        else
-          Some(Set())
+        // All occurrences of the accumulator should be expanded, so we should
+        // never encounter the accumulator outside a TupleAccess.
+        // Furthermore, the index in a TupleAccess must be an IntCst.
+        // Therefore, we should only see `acc` via the case above.
+        assert(a != acc)
+        Some(Set())
       case e =>
         e.children.foldLeft[Option[Set[Int]]](Some(Set[Int]()))({
           case (None, _) => None
