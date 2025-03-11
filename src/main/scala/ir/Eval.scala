@@ -1,8 +1,17 @@
 package ir
 
+import scala.annotation.tailrec
 import scala.language.implicitConversions
 
+class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
+
 trait Eval {
+
+  /** If a stream takes this many steps without producing a valid element,
+    * assume it is stuck in an infinite loop.
+    */
+  private val MaxStepsWithoutValid = 100000
+
   def eval(e: Expr): Expr = {
     evalBigStepToplevel(e)
   }
@@ -232,33 +241,7 @@ trait Eval {
           evalBigStep(f).asInstanceOf[Function]
         )
       case StmNext(s) =>
-        // TODO: What happens if the circuit tries to get the next element of an empty stream, but then discards that
-        //       value (e.g., we construct a tuple containing this but then access a different value)? Will it get stuck?
-        evalBigStep(s) match {
-          case DontCare                                 => DontCare
-          case StmLiteral() | StmBuild(IntCst(0), _, _) => DontCare
-          case StmBuild(IntCst(n), z, f) if n > 0 =>
-            evalBigStep(FunCall(f, z)) match {
-              case Tuple(newZ, Tuple(v, True)) =>
-                Tuple(StmBuild(n - 1, newZ, f), v)
-              case Tuple(newZ, Tuple(_, False)) =>
-                evalBigStep(StmNext(StmBuild(n, newZ, f)))
-              case v =>
-                throw new IllegalArgumentException(
-                  s"Body of StmBuild returned $v. The function must return a 2-tuple where the second element is an option."
-                )
-            }
-          case StmBuild(n, _, _) =>
-            throw new IllegalArgumentException(
-              s"Stream length $n. Streams must have non-negative integer length."
-            )
-          case StmLiteral(v, vs @ _*) =>
-            Tuple(StmLiteral(vs: _*), v)
-          case e =>
-            throw new IllegalArgumentException(
-              s"Stream of StmNext evaluated to $e. It must evaluate to some kind of stream."
-            )
-        }
+        evalStmNext(s)(0)
       case StmNextK(s, k) =>
         evalBigStep(k) match {
           case DontCare           => DontCare
@@ -298,6 +281,45 @@ trait Eval {
             )
         }
       case v: StmLiteral => v
+    }
+  }
+
+  @tailrec
+  private def evalStmNext(s: Expr)(stepsWithoutValid: Int = 0): Expr = {
+    // TODO: What happens if the circuit tries to get the next element of an empty stream, but then discards that
+    //       value (e.g., we construct a tuple containing this but then access a different value)? Will it get stuck?
+    if (stepsWithoutValid >= MaxStepsWithoutValid) {
+      throw new InfiniteLoopError(
+        s"A stream has taken $MaxStepsWithoutValid steps without producing a valid element."
+          + " Is it stuck in an infinite loop?"
+          + s" The stream is $s."
+      )
+    } else {
+      evalBigStep(s) match {
+        case DontCare                                 => DontCare
+        case StmLiteral() | StmBuild(IntCst(0), _, _) => DontCare
+        case StmBuild(IntCst(n), z, f) if n > 0 =>
+          evalBigStep(FunCall(f, z)) match {
+            case Tuple(newZ, Tuple(v, True)) =>
+              Tuple(StmBuild(n - 1, newZ, f), v)
+            case Tuple(newZ, Tuple(_, False)) =>
+              evalStmNext(StmBuild(n, newZ, f))(stepsWithoutValid + 1)
+            case v =>
+              throw new IllegalArgumentException(
+                s"Body of StmBuild returned $v. The function must return a 2-tuple where the second element is an option."
+              )
+          }
+        case StmBuild(n, _, _) =>
+          throw new IllegalArgumentException(
+            s"Stream length $n. Streams must have non-negative integer length."
+          )
+        case StmLiteral(v, vs @ _*) =>
+          Tuple(StmLiteral(vs: _*), v)
+        case e =>
+          throw new IllegalArgumentException(
+            s"Stream of StmNext evaluated to $e. It must evaluate to some kind of stream."
+          )
+      }
     }
   }
 }

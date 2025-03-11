@@ -15,4 +15,22 @@ class EvalTests extends AnyFunSuite {
       assert(actual == expected)
     }
   }
+
+  test("ObviousInfiniteLoop") {
+    val s = StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), NNone))
+    assertThrows[InfiniteLoopError](ir.eval(s))
+  }
+
+  test("LessObviousInfiniteLoop") {
+    val s = StmBuild(
+      1,
+      Tuple(0),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(acc.__0 + 2),
+          IfThenElse((acc.__0 * acc.__0) % 2 === 1, SSome(acc.__0), NNone)
+        )
+    )
+    assertThrows[InfiniteLoopError](ir.eval(s))
+  }
 }
