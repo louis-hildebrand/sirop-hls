@@ -163,46 +163,15 @@ object ArithSimplifier {
           case None => BlackBox(e, range = findRange(e)(facts))
         }
       case and: And =>
-        // Don't bother looking up a range for any of these black boxes, since
-        // the operands of And should be booleans, not integers
-        and.remove(True) match {
-          case And(terms @ _*) if terms.contains(DontCare) =>
-            BlackBox(DontCare)
-          case And(terms @ _*) if terms.contains(False) =>
-            BlackBox(False)
-          // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b
-          case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-              if e1 == e2 =>
-            BlackBox(LessThan(e1, math.min(c1, c2)))
-          case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-              if e1 == e2 =>
-            BlackBox(LessThan(math.max(c1, c2), e1))
-          case e => BlackBox(e)
-        }
+        // Don't bother looking up a range for this black box, since the
+        // operands of And should be booleans, not integers
+        BlackBox(simplifyAnd(and))
       case or: Or =>
-        // Don't bother looking up a range for any of these black boxes, since
-        // the operands of Or should be booleans, not integers
-        or.remove(False) match {
-          case Or(terms @ _*) if terms.contains(DontCare) =>
-            BlackBox(DontCare)
-          case Or(terms @ _*) if terms.contains(True) =>
-            BlackBox(True)
-          case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
-              if e1 == e2 =>
-            BlackBox(LessThan(e1, math.max(c1, c2)))
-          case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
-              if e1 == e2 =>
-            BlackBox(LessThan(math.min(c1, c2), e1))
-          case e => BlackBox(e)
-        }
-      case Not(e) =>
-        e match {
-          case True     => BlackBox(False)
-          case False    => BlackBox(True)
-          case DontCare => BlackBox(DontCare)
-          case Not(e)   => BlackBox(e)
-          case e        => BlackBox(Not(e))
-        }
+        // Don't bother looking up a range for this black box, since the
+        // operands of And should be booleans, not integers
+        BlackBox(simplifyOr(or))
+      case not: Not =>
+        BlackBox(simplifyNot(not))
       case e =>
         BlackBox(e, range = findRange(e)(facts))
     }
@@ -276,5 +245,62 @@ object ArithSimplifier {
       case BlackBox(e, _) => Some(e)
       case _              => None
     }
+  }
+
+  private def simplifyAnd(and: And): Expr = {
+    and.remove(True) match {
+      case And(terms @ _*) if terms.contains(DontCare) =>
+        DontCare
+      case And(terms @ _*) if terms.contains(False) =>
+        False
+      // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
+      case And(terms @ _*) if hasContradictoryTerms(terms) =>
+        False
+      case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+          if e1 == e2 =>
+        LessThan(e1, math.min(c1, c2))
+      case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+          if e1 == e2 =>
+        LessThan(math.max(c1, c2), e1)
+      case e => e
+    }
+  }
+
+  private def simplifyOr(or: Or): Expr = {
+    or.remove(False) match {
+      case Or(terms @ _*) if terms.contains(DontCare) =>
+        DontCare
+      case Or(terms @ _*) if terms.contains(True) =>
+        True
+      // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
+      case Or(terms @ _*) if hasContradictoryTerms(terms) =>
+        True
+      case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2))) if e1 == e2 =>
+        LessThan(e1, math.max(c1, c2))
+      case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2)) if e1 == e2 =>
+        LessThan(math.min(c1, c2), e1)
+      case e => e
+    }
+  }
+
+  private def simplifyNot(not: Not): Expr = {
+    not match {
+      case Not(DontCare) => DontCare
+      case Not(True)     => False
+      case Not(False)    => True
+      case Not(Not(e))   => e
+      case Not(And(terms @ _*)) =>
+        simplifyOr(Or(terms.map(e => simplifyNot(Not(e))): _*))
+      case Not(Or(terms @ _*)) =>
+        simplifyAnd(And(terms.map(e => simplifyNot(Not(e))): _*))
+      case _ => not
+    }
+  }
+
+  private def hasContradictoryTerms(terms: Seq[Expr]): Boolean = {
+    terms.exists({
+      case Not(e) => terms.contains(e)
+      case _      => false
+    })
   }
 }
