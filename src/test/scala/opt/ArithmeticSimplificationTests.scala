@@ -38,13 +38,13 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   // The non-arithmetic terms within a sum are also simplified
   test("SimplifiableBlackBoxInsideAdd") {
-    val i = Param()
-    val e3 =
-      TupleAccess(Tuple(VecAccess(VecBuild(5, (i: Expr) => i * i), 3), 2, 3), i)
+    val i = Param("i")
+    val f = Param("f")
+    val e3 = VecAccess(FunCall(f, Tuple(0, 10, 20).__1), i)
     val e4 = Param()
 
     val actual = pe((e3 + e4 + IntCst(42)) - e4)
-    val expected = IntCst(42) + TupleAccess(Tuple(9, 2, 3), i)
+    val expected = IntCst(42) + VecAccess(FunCall(f, 10), i)
     assert(actual == expected)
   }
 
@@ -62,12 +62,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   // The non-arithmetic terms within a product are also simplified
   test("SimplifiableBlackBoxInsideMul") {
-    val i = Param()
-    val e =
-      TupleAccess(Tuple(VecAccess(VecBuild(5, (i: Expr) => i * i), 3), 2, 3), i)
+    val i = Param("i")
+    val f = Param("f")
+    val e = VecAccess(FunCall(f, Tuple(0, 10, 20).__1), i)
 
     val actual = pe((IntCst(42) * e) * IntCst(3))
-    val expected = IntCst(126) * TupleAccess(Tuple(9, 2, 3), i)
+    val expected = IntCst(126) * VecAccess(FunCall(f, 10), i)
     assert(actual == expected)
   }
 

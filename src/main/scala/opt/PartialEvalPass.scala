@@ -104,19 +104,19 @@ object PartialEvalPass {
       case t: Tuple =>
         // TODO: Move up?
         Tuple(t.elems.map(partialEval): _*)
-      case TupleAccess(t: Expr, i: Expr) =>
-        (partialEval(t), partialEval(i)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (tuple: Tuple, index: IntCst) =>
-            partialEval(tuple.elems(index.i))
-          case (IfThenElse(c, t, f), i) =>
+      case TupleAccess(t: Expr, IntCst(i)) =>
+        partialEval(t) match {
+          case DontCare => DontCare
+          case tuple: Tuple =>
+            partialEval(tuple.elems(i))
+          case IfThenElse(c, t, f) =>
             // Move TupleAccess inside IfThenElse in the hope that it'll
             // encounter a Tuple(...).
             // This seems reasonable even if m == MoveDown, since this is a
             // unary operation; therefore, the expression is not likely to grow
             // *that* large.
             partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
-          case (tuple @ _, index @ _) => TupleAccess(tuple, index)
+          case t => TupleAccess(t, i)
         }
 
       case p: Param => p

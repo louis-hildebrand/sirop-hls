@@ -126,11 +126,16 @@ case class Tuple(elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(newChildren: Seq[Expr]): Expr = Tuple(newChildren: _*)
 }
-case class TupleAccess(t: Expr, i: Expr) extends Expr {
+case class TupleAccess(t: Expr, i: IntCst) extends Expr {
   override def children: Seq[Expr] = Seq(t, i)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
-    require(newChildren.length == 2)
-    TupleAccess(newChildren.head, newChildren(1))
+    newChildren match {
+      case Seq(t, i: IntCst) => TupleAccess(t, i)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Wrong arguments passed to rebuild: $newChildren"
+        )
+    }
   }
 }
 
