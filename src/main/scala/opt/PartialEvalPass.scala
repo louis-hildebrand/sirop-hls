@@ -392,6 +392,37 @@ object PartialEvalPass {
     }
   }
 
+  def isSmaller(e1: Expr, e2: Expr)(
+      facts: FactSet = FactSet()
+  ): Option[Boolean] = {
+    // TODO: Maybe this could be optimized by immediately returning `None` in
+    //       cases where the partial evaluator won't return `True` or `False`
+    partialEval(e1 < e2)(facts, MoveUp) match {
+      case True  => Some(true)
+      case False => Some(false)
+      case _     => None
+    }
+  }
+
+  def isSmallerOrEqual(e1: Expr, e2: Expr)(
+      facts: FactSet = FactSet()
+  ): Option[Boolean] = {
+    // x <= y <==> !(x > y) <==> !(y < x)
+    isSmaller(e2, e1)(facts).map(b => !b)
+  }
+
+  def isGreater(e1: Expr, e2: Expr)(
+      facts: FactSet = FactSet()
+  ): Option[Boolean] = {
+    isSmaller(e2, e1)(facts)
+  }
+
+  def isGreaterOrEqual(e1: Expr, e2: Expr)(
+      facts: FactSet = FactSet()
+  ): Option[Boolean] = {
+    isSmallerOrEqual(e2, e1)(facts)
+  }
+
   private def mergeIfThenElses(
       exprs: Seq[Expr],
       op: Expr => Expr => Expr

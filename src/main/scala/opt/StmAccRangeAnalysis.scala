@@ -42,7 +42,8 @@ object StmAccRangeAnalysis {
     //   (Ind. case) acc[i] >= z ==> next(acc[i]) >= z     (to be shown)
     val rLow = ScalarRange(Some(z), None)
     val fLow = FactSet().range(TupleAccess(a, i), rLow)
-    val isNonDecreasing = PartialEvalPass.partialEval(delta >= 0)(fLow) == True
+    val isNonDecreasing =
+      PartialEvalPass.isGreaterOrEqual(delta, 0)(fLow).getOrElse(false)
     if (isNonDecreasing) {
       return rLow
     }
@@ -56,7 +57,8 @@ object StmAccRangeAnalysis {
         Some(ArithSimplifier.simplifyArithmetic(z + 1)(FactSet()))
       )
     val fHi = FactSet().range(TupleAccess(a, i), rHi)
-    val isNonIncreasing = PartialEvalPass.partialEval(delta <= 0)(fHi) == True
+    val isNonIncreasing =
+      PartialEvalPass.isSmallerOrEqual(delta, 0)(fHi).getOrElse(false)
     if (isNonIncreasing) {
       rHi
     } else {

@@ -509,25 +509,30 @@ object StmInductionVarRemovalPass {
         // Need to show that, when t = 0, k <= 0
         // (i.e., want the initial value to be s)
         val k0 = k.substitute(t -> IntCst(0))
-        PartialEvalPass.partialEval(k0 <= 0) match {
-          case True =>
-            // Need to show that k(t + 1) - k(t) in {0, 1}
-            // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
-            val nextK = k.substitute(t -> (t + 1))
-            val deltaK = PartialEvalPass.partialEval(nextK - k)
-            val facts = FactSet().range(t, ScalarRange(Some(0), None))
-            val pe = (e: Expr) => PartialEvalPass.partialEval(e)(facts)
-            pe(deltaK >= 0 && deltaK <= 1) match {
-              case True =>
-                val nextF = Function(
-                  t,
-                  (acc: Expr) =>
-                    IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc).__0)
-                )
-                Some((s, nextF))
-              case _ => None
-            }
-          case _ => None
+        if (PartialEvalPass.isSmallerOrEqual(k0, 0)().getOrElse(false)) {
+          // Need to show that k(t + 1) - k(t) in {0, 1}
+          // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
+          val nextK = k.substitute(t -> (t + 1))
+          val deltaK = PartialEvalPass.partialEval(nextK - k)
+          val facts = FactSet().range(t, ScalarRange(Some(0), None))
+          val isDeltaZeroOrOne = (
+            PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
+              || PartialEvalPass
+                .isSmallerOrEqual(deltaK, 0)(facts)
+                .getOrElse(false)
+          )
+          if (isDeltaZeroOrOne) {
+            val nextF = Function(
+              t,
+              (acc: Expr) =>
+                IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc).__0)
+            )
+            Some((s, nextF))
+          } else {
+            None
+          }
+        } else {
+          None
         }
     }
 
