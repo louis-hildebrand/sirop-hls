@@ -53,7 +53,7 @@ class OptimizationTests extends AnyFunSuite {
     val s = StmCst(n, c)
     val v = {
       val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
       val v4 = {
@@ -95,7 +95,7 @@ class OptimizationTests extends AnyFunSuite {
     val s = StmRange(n, z, delta)
     val v = {
       val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
-      val v1 = StmInductionVarRemovalPass.removeInductionVars(v0)
+      val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)
       val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
@@ -146,7 +146,7 @@ class OptimizationTests extends AnyFunSuite {
       val facts = FactSet().range(n, ScalarRange(Some(1), None))
       val s0 = PartialEvalPass.partialEval(original)(facts)
       val s1 = StmFusePass.fuseCompletely(s0)
-      val s2 = StmInductionVarRemovalPass.removeInductionVars(s1)
+      val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
       PartialEvalPass.partialEval(s2)(facts)
     }
 
@@ -180,9 +180,9 @@ class OptimizationTests extends AnyFunSuite {
     val original = Stm2Vec(Vec2Stm(v, n = n), n = n)
     val optimized = {
       val s1 = StmFusePass.fuseCompletely(original)
-      val s2 = StmInductionVarRemovalPass.removeInductionVars(s1)
+      val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
       val s3 = StmDelayRemovalPass.skipFirstCycles(s2, n - 1)
-      StmInductionVarRemovalPass.removeInductionVars(s3)
+      StmInductionVarRemovalPass().removeInductionVars(s3)
     }
 
     // Correctness
@@ -237,7 +237,7 @@ class OptimizationTests extends AnyFunSuite {
     val optimized = {
       val s0 = PartialEvalPass.partialEval(original).asInstanceOf[StmBuild]
       val s1 = StmFusePass.fuseCompletely(s0)
-      val s2 = StmInductionVarRemovalPass.removeInductionVars(s1)
+      val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
       PartialEvalPass.partialEval(s2)
     }
 

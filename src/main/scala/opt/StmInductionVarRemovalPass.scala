@@ -10,7 +10,7 @@ import scala.annotation.tailrec
   * at zero and counts up by one. This pass tries to remove those accumulator
   * elements and instead compute them using <code>t</code>.
   */
-object StmInductionVarRemovalPass {
+class StmInductionVarRemovalPass(facts: FactSet) {
 
   /** Remove as many induction variables as possible from the given stream.
     */
@@ -504,7 +504,8 @@ object StmInductionVarRemovalPass {
       nxt: StmNextK,
       t: Param
   ): Option[(Expr, Function)] = {
-    nxt match {
+    val facts = this.facts.range(t, ScalarRange(Some(0), None))
+    PartialEvalPass.partialEval(nxt)(facts) match {
       case StmNextK(s, k) =>
         // Need to show that, when t = 0, k <= 0
         // (i.e., want the initial value to be s)
@@ -513,12 +514,11 @@ object StmInductionVarRemovalPass {
           // Need to show that k(t + 1) - k(t) in {0, 1}
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.substitute(t -> (t + 1))
-          val deltaK = PartialEvalPass.partialEval(nextK - k)
-          val facts = FactSet().range(t, ScalarRange(Some(0), None))
+          val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
           val isDeltaZeroOrOne = (
             PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
-              || PartialEvalPass
-                .isSmallerOrEqual(deltaK, 0)(facts)
+              && PartialEvalPass
+                .isSmallerOrEqual(deltaK, 1)(facts)
                 .getOrElse(false)
           )
           if (isDeltaZeroOrOne) {
@@ -537,6 +537,12 @@ object StmInductionVarRemovalPass {
       case _ => None
     }
 
+  }
+}
+
+object StmInductionVarRemovalPass {
+  def apply(facts: FactSet = FactSet()): StmInductionVarRemovalPass = {
+    new StmInductionVarRemovalPass(facts)
   }
 }
 

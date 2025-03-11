@@ -66,7 +66,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- 0 to 15) {
@@ -111,7 +111,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           IfThenElse(acc.__2 >= n, SSome(acc.__1), NNone)
         )
     )
-    val optimized = StmInductionVarRemovalPass.removeInductionVars(triangleSum)
+    val optimized =
+      StmInductionVarRemovalPass().removeInductionVars(triangleSum)
 
     // Correctness
     for (nVal <- 0 to 10) {
@@ -147,7 +148,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(VecShiftLeft(acc.__1, acc.__0))
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     val actual =
@@ -215,7 +216,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- (0 to 2) :+ 5) {
@@ -263,7 +264,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(Tuple(acc.__0, acc.__1))
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- (0 to 2) :+ 5) {
@@ -309,7 +310,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(Tuple(acc.__1 + 2, acc.__2))
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
@@ -351,7 +352,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(Tuple(3 * acc.__1, 2 * acc.__2))
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
@@ -395,7 +396,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(2 * acc.__1)
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
@@ -431,7 +432,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(acc.__1)
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
@@ -469,7 +470,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(acc.__1)
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
@@ -497,7 +498,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = 10
     val recEqn =
       (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x).__0, x)
-    val result = StmInductionVarRemovalPass.tryFindClosedForm(t0, s, recEqn)
+    val result = StmInductionVarRemovalPass().tryFindClosedForm(t0, s, recEqn)
 
     assert(result.isDefined)
     val f = result.get
@@ -529,7 +530,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val stmNextRecEqn =
       (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x).__0, x)
     val stmNextFun =
-      StmInductionVarRemovalPass
+      StmInductionVarRemovalPass()
         .tryFindClosedForm(t0, s, stmNextRecEqn)
         .map(f => PartialEvalPass.partialEval(f))
         .get
@@ -543,7 +544,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           x
         )
     val shiftEqn =
-      StmInductionVarRemovalPass.tryFindClosedForm(0, initialVec, shiftRecEqn)
+      StmInductionVarRemovalPass().tryFindClosedForm(0, initialVec, shiftRecEqn)
 
     assert(shiftEqn.isDefined)
     val f = PartialEvalPass.partialEval(shiftEqn.get)(FactSet())
@@ -578,7 +579,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s = Param("s")
     val e = StmNextK(s, t)
     val actual =
-      StmInductionVarRemovalPass.tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
@@ -619,7 +620,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s = Param("s")
     val e = StmNextK(s, Min(-5 + t, 5))
     val actual =
-      StmInductionVarRemovalPass.tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
@@ -681,7 +682,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val opt = StmInductionVarRemovalPass(facts).removeInductionVars(s)
 
     // Correctness
     val examples = Seq(
@@ -733,7 +735,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
     val examples = Seq(
@@ -780,11 +782,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val opt = StmInductionVarRemovalPass.removeInductionVars(s)
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // tryRemoveAllInductionVars should return the same thing as removeInductionVars in this case
     assert(
-      StmInductionVarRemovalPass.tryRemoveAllInductionVars(s).contains(opt)
+      StmInductionVarRemovalPass().tryRemoveAllInductionVars(s).contains(opt)
     )
   }
 
@@ -800,6 +802,6 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           SSome(StmNext(acc.__1).__1)
         )
     )
-    assert(StmInductionVarRemovalPass.tryRemoveAllInductionVars(stm).isEmpty)
+    assert(StmInductionVarRemovalPass().tryRemoveAllInductionVars(stm).isEmpty)
   }
 }

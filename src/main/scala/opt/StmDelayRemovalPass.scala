@@ -4,7 +4,7 @@ import ir._
 
 object StmDelayRemovalPass {
   def skipFirstCycles(stm: StmBuild, c: Expr): StmBuild = {
-    StmInductionVarRemovalPass.tryRemoveAllInductionVars(stm) match {
+    StmInductionVarRemovalPass().tryRemoveAllInductionVars(stm) match {
       case None =>
         stm
       case Some(s) =>
