@@ -34,7 +34,24 @@ object StmUtils {
       stm: StmBuild,
       indicesToRemove: Seq[Int]
   ): StmBuild = {
+    assert(
+      stm.seed.isInstanceOf[Tuple],
+      "the stream seed must be a literal tuple"
+    )
     val seed = stm.seed.asInstanceOf[Tuple]
+    val acc = stm.nextF.param
+    val s = StmBuild(
+      stm.length,
+      seed,
+      Function(
+        acc,
+        StmCanonPass.expandTupleVar(stm.nextF.body, acc, n = seed.elems.length)
+      )
+    )
+    assert(
+      StmCanonPass.allExpanded(s, acc),
+      "all occurrences of the accumulator should be expanded"
+    )
     // Need to adjust indices used to read accumulator.
     // For each element removed, you need to decrement the indices of all
     // following elements by one.
@@ -45,7 +62,6 @@ object StmUtils {
            else Some(i - indicesToRemove.count(j => j < i)))
       )
       .toMap
-    val acc = stm.nextF.param
     val invalid = Param("invalid")
     val subs: Map[Expr, Expr] = indexMap
       .map({ case (i, j) =>
@@ -63,19 +79,18 @@ object StmUtils {
           }
         })
       )(e)
-    val s = StmBuild(
-      stm.length,
+    val out = StmBuild(
+      s.length,
       f(seed),
       Function(
         acc,
-        transformHead(f)(stm.nextF.body).substitute(subs)
+        transformHead(f)(s.nextF.body).substitute(subs)
       )
     )
-    // TODO: Will this catch tuple accesses where the index is non-static?
-    if (s.contains(invalid)) {
+    if (out.contains(invalid)) {
       throw ElemStillInUseException
     }
-    s
+    out
   }
 
   def replaceAccumulatorElemWithUnit(stm: StmBuild, i: Int): StmBuild = {
@@ -108,13 +123,22 @@ object StmUtils {
     *   Expression to permute (must be a tuple)
     */
   def rearrangeTuple(indexMap: Map[Int, Int])(e: Expr): Expr = {
-    val t = e.asInstanceOf[Tuple]
-    val newElems = indexMap
-      .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
-      .toSeq
-      .sortBy({ case (i, _) => i })
-      .map({ case (_, e) => e })
-    Tuple(newElems: _*)
+    e match {
+      case t: Tuple =>
+        val t = e.asInstanceOf[Tuple]
+        val newElems = indexMap
+          .map({ case (oldIdx, newIdx) => newIdx -> t.elems(oldIdx) })
+          .toSeq
+          .sortBy({ case (i, _) => i })
+          .map({ case (_, e) => e })
+        Tuple(newElems: _*)
+      case IfThenElse(c, t, f) =>
+        IfThenElse(c, rearrangeTuple(indexMap)(t), rearrangeTuple(indexMap)(f))
+      case e =>
+        throw new IllegalArgumentException(
+          s"Unable to rearrange tuple elements for expression $e, which does not appear to be a tuple."
+        )
+    }
   }
 
   /** Given an expression that must evaluate to a tuple, construct a new

@@ -45,6 +45,41 @@ object StmCanonPass {
     PartialEvalPass.partialEval(s4).asInstanceOf[StmBuild]
   }
 
+  /** Replace <code>x</code> with a literal tuple. For example, if <code>n ==
+    * 2</code>, then replace <code>x</code> with <code>Tuple(x.0, x.1)</code>.
+    */
+  def expandTupleVar(e: Expr, x: Param, n: Int): Expr = {
+    e match {
+      case TupleAccess(_: Param, _) =>
+        // Already expanded: no need to expand again
+        e
+      case y: Param if x == y =>
+        // Expand
+        Tuple((0 until n).map(i => TupleAccess(x, i)): _*)
+      case Function(y, _) if y == x =>
+        // Similarly to the substitute() method, treat `y` as a new variable
+        e
+      case _ => e.rebuild(e.children.map(e => expandTupleVar(e, x, n)))
+    }
+  }
+
+  /** Check whether the variable <code>x</code> ever occurs without being the
+    * direct child of a <code>TupleAccess</code>. For example, the expression
+    * <code>1 + TupleAccess(x, 0)</code> is fine but <code>IfThenElse(e1,
+    * Tuple(x.0 + 1, x.1 + 1), x)</code> is not.
+    */
+  def allExpanded(e: Expr, x: Param): Boolean = {
+    e match {
+      case TupleAccess(_: Param, _) => true
+      case y: Param if x == y       => false
+      case Function(y, _) if x == y =>
+        // Treat `y` as a new variable. All occurrences of `x` in the body
+        // actually refer to `y`, not to `x` in the outer scope
+        true
+      case e => e.children.forall(e => allExpanded(e, x))
+    }
+  }
+
   // -------------------------------------------------------------------------------------------------------------------
   // Canonicalization steps
   // -------------------------------------------------------------------------------------------------------------------
