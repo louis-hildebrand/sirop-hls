@@ -234,7 +234,7 @@ object PartialEvalPass {
             // There may be more simplification opportunities that were wrapped inside BlackBoxes
             partialEval(e)
         }
-      case Equal(e1: Expr, e2: Expr) =>
+      case Equal(e1, e2) =>
         // For Equal() and LessThan(), move IfThenElse up so that we can deal with things like
         // Min(t - 5, 5) < Min(t - 4, 5). This may cause the expression to explode in size, but since these are
         // booleans I imagine we'll often find opportunities for simplification (e.g., both branches being True, both
@@ -243,11 +243,12 @@ object PartialEvalPass {
         // an IfThenElse and avoid this transformation if the cap is exceeded.
         val newChildren =
           Seq(partialEval(e1)(facts, MoveUp), partialEval(e2)(facts, MoveUp))
-        mergeIfThenElses(newChildren, x => y => x === y) match {
+        val merged = mergeIfThenElses(newChildren, x => y => x === y)
+        merged match {
           case ite: IfThenElse => partialEval(ite)
           case e               => ArithSimplifier.simplifyArithmetic(e)(facts)
         }
-      case LessThan(e1: Expr, e2: Expr) =>
+      case LessThan(e1, e2) =>
         val newChildren =
           Seq(partialEval(e1)(facts, MoveUp), partialEval(e2)(facts, MoveUp))
         mergeIfThenElses(newChildren, x => y => x < y) match {
@@ -276,7 +277,7 @@ object PartialEvalPass {
           case HeuristicMotion =>
             ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
-      case Not(e: Expr) =>
+      case Not(e) =>
         partialEval(e) match {
           case IfThenElse(c, t, f) =>
             // Move the IfThenElse up in every case because

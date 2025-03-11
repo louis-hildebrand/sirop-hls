@@ -81,10 +81,8 @@ object ArithSimplifier {
         case _: ArithmeticException => None
       }
     a.flatMap(a => fromArithExpr(a)) match {
-      case None => e
-      // TODO: This is a nasty hack to deal with LessThan(e1, e2). It would be better if ArithExpr supported booleans
-      case Some(IfThenElse(c, True, False)) => c
-      case Some(e)                          => e
+      case None    => e
+      case Some(e) => e
     }
   }
 
@@ -228,15 +226,22 @@ object ArithSimplifier {
           fromArithExpr(f)
         ) match {
           case (Some(lhs), Some(rhs), Some(t), Some(f)) =>
-            val cond = c.op match {
+            val cond = simplifyBoolExpr(c.op match {
               case ae.Predicate.Operator.<  => lhs < rhs
               case ae.Predicate.Operator.>  => lhs > rhs
               case ae.Predicate.Operator.<= => lhs <= rhs
               case ae.Predicate.Operator.>= => lhs >= rhs
               case ae.Predicate.Operator.!= => lhs !== rhs
               case ae.Predicate.Operator.== => lhs === rhs
+            })
+            // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
+            (t, f) match {
+              case (False, False) => Some(False)
+              case (False, True)  => Some(Not(cond))
+              case (True, False)  => Some(cond)
+              case (True, True)   => Some(True)
+              case (t, f)         => Some(IfThenElse(cond, t, f))
             }
-            Some(IfThenElse(cond, t, f))
           case _ => None
         }
       //      case AbsFunction(ae)                   => ???
@@ -244,6 +249,26 @@ object ArithSimplifier {
       //      case CeilingFunction(ae)               => ???
       case BlackBox(e, _) => Some(e)
       case _              => None
+    }
+  }
+
+  private def simplifyBoolExpr(e: Expr): Expr = {
+    e.rebuild(e.children.map(e => simplifyBoolExpr(e))) match {
+      case eq: Equal => simplifyEqual(eq)
+      case and: And  => simplifyAnd(and)
+      case or: Or    => simplifyOr(or)
+      case not: Not  => simplifyNot(not)
+      case e         => e
+    }
+  }
+
+  private def simplifyEqual(eq: Equal): Expr = {
+    eq match {
+      case Equal(c, True)  => c
+      case Equal(True, c)  => c
+      case Equal(c, False) => Not(c)
+      case Equal(False, c) => Not(c)
+      case _               => eq
     }
   }
 
