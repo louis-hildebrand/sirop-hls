@@ -95,11 +95,10 @@ object StmUtils {
 
   def replaceAccumulatorElemWithUnit(stm: StmBuild, i: Int): StmBuild = {
     val acc = stm.nextF.param
-    val newSeed = Tuple(
-      stm.seed.asInstanceOf[Tuple].elems.updated(i, Tuple()): _*
-    )
+    val update = (t: Tuple) => Tuple(t.elems.updated(i, Tuple()): _*)
+    val newSeed = update(stm.seed.asInstanceOf[Tuple])
     val newNextF =
-      Function(acc, stm.nextF.body.substitute(TupleAccess(acc, i) -> Tuple()))
+      Function(acc, transformHead(transformTuple(update))(stm.nextF.body))
 
     // Check that the old element is no longer being referenced
     val invalid = Param("invalid")
@@ -109,9 +108,9 @@ object StmUtils {
     val e = PartialEvalPass.partialEval(FunCall(newNextF, testSeed))
     if (e.contains(invalid)) {
       throw ElemStillInUseException
-    } else {
-      StmBuild(stm.length, newSeed, newNextF)
     }
+
+    StmBuild(stm.length, newSeed, newNextF)
   }
 
   /** Create a new tuple by taking elements from the given tuple in a specific
@@ -145,19 +144,22 @@ object StmUtils {
     * remaining elements unchanged.
     */
   def transformHead(f: Expr => Expr)(e: Expr): Expr = {
+    transformTuple(t => Tuple(f(t.elems.head) +: t.elems.tail: _*))(e)
+  }
+
+  private def transformTuple(f: Tuple => Expr)(e: Expr): Expr = {
     e match {
+      case t: Tuple => f(t)
+      case DontCare => DontCare
+      case IfThenElse(cond, trueE, falseE) =>
+        IfThenElse(cond, transformTuple(f)(trueE), transformTuple(f)(falseE))
       case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild |
           Tuple() =>
         throw new IllegalArgumentException(
-          "Failed to transform due to an apparent type error."
+          s"Failed to transform due to an apparent type error (expected tuple, found $e)."
         )
       case _: TupleAccess | _: VecAccess | _: Param | _: FunCall | _: StmNext =>
         ???
-      case IfThenElse(cond, trueE, falseE) =>
-        IfThenElse(cond, transformHead(f)(trueE), transformHead(f)(falseE))
-      case Tuple(elems @ _*) =>
-        Tuple(f(elems.head) +: elems.tail: _*)
-      case DontCare => DontCare
     }
   }
 }
