@@ -77,33 +77,27 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           acc = acc,
           t = t
         )
-        if (next.contains(acc)) {
-          // The accumulator is still there, so maybe there are some
-          // non-static dependencies (e.g., TupleAccess(acc, i) where i
-          // cannot be partially evaluated to an int).
-          // Doesn't seem like there's much we can do in that case.
-        } else {
-          tryFindClosedForm(0, z, next) match {
-            case Some(f) =>
-              if (z.isInstanceOf[Tuple]) {
-                // Track each accumulator element separately, even though they
-                // were tupled together earlier
-                for ((iOld, iNew) <- indices.zipWithIndex) {
-                  val g = Function(
-                    t,
-                    PartialEvalPass.partialEval(
-                      TupleAccess(FunCall(f, t), iNew)
-                    )
+        assert(!next.contains(acc))
+        tryFindClosedForm(0, z, next) match {
+          case Some(f) =>
+            if (z.isInstanceOf[Tuple]) {
+              // Track each accumulator element separately, even though they
+              // were tupled together earlier
+              for ((iOld, iNew) <- indices.zipWithIndex) {
+                val g = Function(
+                  t,
+                  PartialEvalPass.partialEval(
+                    TupleAccess(FunCall(f, t), iNew)
                   )
-                  funcByIdx += (iOld -> g)
-                }
-              } else {
-                funcByIdx += (v.head -> PartialEvalPass
-                  .partialEval(f)
-                  .asInstanceOf[Function])
+                )
+                funcByIdx += (iOld -> g)
               }
-            case None => ()
-          }
+            } else {
+              funcByIdx += (v.head -> PartialEvalPass
+                .partialEval(f)
+                .asInstanceOf[Function])
+            }
+          case None => ()
         }
       }
     }
@@ -302,24 +296,30 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       x: Param,
       f: Function
   ): Option[(StmBuild, Map[Param, (Expr, Function)])] = {
-    val s = stm.substitute(x -> f.body).asInstanceOf[StmBuild]
-    if (!s.contains(classOf[StmNextK])) {
-      Some((s, Map()))
-    } else if (s.nextF.body.isInstanceOf[StmNextK]) {
+    if (f.body.isInstanceOf[StmNextK]) {
       // Don't bother in this case: there's no point in trying to find a closed
       // form for a stream-valued accumulator element
       None
     } else {
-      val acc = s.nextF.param
-      val t = f.param
-      replaceStmNextK(s.nextF.body, t, acc) match {
-        case Some((e, newAccElems)) =>
-          val newStm = StmBuild(s.length, s.seed, Function(acc, e))
-          // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
-          //       StmNext(acc).__0)?
-          // TODO: Ensure that the input stream is still fully consumed?
-          Some((newStm, newAccElems))
-        case None => None
+      val s = PartialEvalPass
+        .partialEval(
+          stm.substitute(x -> f.body).asInstanceOf[StmBuild]
+        )(this.facts)
+        .asInstanceOf[StmBuild]
+      if (!s.contains(classOf[StmNextK])) {
+        Some((s, Map()))
+      } else {
+        val acc = s.nextF.param
+        val t = f.param
+        replaceStmNextK(s.nextF.body, t, acc) match {
+          case Some((e, newAccElems)) =>
+            val newStm = StmBuild(s.length, s.seed, Function(acc, e))
+            // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
+            //       StmNext(acc).__0)?
+            // TODO: Ensure that the input stream is still fully consumed?
+            Some((newStm, newAccElems))
+          case None => None
+        }
       }
     }
   }
@@ -506,13 +506,43 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       t: Param
   ): Option[(Expr, Function)] = {
     val facts = this.facts.range(t, ScalarRange(Some(0), None))
-    PartialEvalPass.partialEval(nxt)(facts) match {
-      case StmNextK(s, k) =>
-        // Need to show that, when t = 0, k <= 0
-        // (i.e., want the initial value to be s)
-        val k0 = k.substitute(t -> IntCst(0))
-        if (PartialEvalPass.isSmallerOrEqual(k0, 0)().getOrElse(false)) {
-          // Need to show that k(t + 1) - k(t) in {0, 1}
+
+    def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
+      e match {
+        case IfThenElse(c, lhs, rhs) =>
+          (t, Param(), c) match {
+            case TimeLessThan(k) =>
+              findRec(lhs, t0) match {
+                case Some((z0, f0)) =>
+                  findRec(rhs, k) match {
+                    case Some((z1, f1)) =>
+                      val expectedZ1 = lhs.substitute(t -> k)
+                      val isContinuous = PartialEvalPass
+                        .isEqual(z1, expectedZ1)(facts)
+                        .getOrElse(false)
+                      if (isContinuous) {
+                        val f =
+                          Function(
+                            t,
+                            (x: Expr) =>
+                              IfThenElse(
+                                c,
+                                FunCall(FunCall(f0, t), x),
+                                FunCall(FunCall(f1, t), x)
+                              )
+                          )
+                        Some((z0, f))
+                      } else {
+                        None
+                      }
+                    case _ => None
+                  }
+                case _ => None
+              }
+            case _ => None
+          }
+        case next @ StmNextK(_, k) =>
+          // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.substitute(t -> (t + 1))
           val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
@@ -523,21 +553,44 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 .getOrElse(false)
           )
           if (isDeltaZeroOrOne) {
+            val z = next.substitute(t -> t0)
             val nextF = Function(
               t,
               (acc: Expr) =>
                 IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc).__0)
             )
-            Some((s, nextF))
+            Some((z, nextF))
           } else {
             None
           }
+        case _ => None
+      }
+    }
+
+    val e = PartialEvalPass.partialEval(nxt)(facts, MoveUp)
+    findRec(e, t0 = 0) match {
+      case Some((z_, f_)) =>
+        val z = PartialEvalPass.partialEval(z_)(facts)
+        // Start reading the stream from the beginning: can't start from the middle
+        // TODO: Is this condition really necessary? Maybe I can get away with
+        //       just checking that the new z is valid (e.g., it doesn't
+        //       contain StmNextK, it's not DontCare)
+        val initOk = z match {
+          case s if s == nxt.s => true
+          case StmNextK(s, k) =>
+            s == nxt.s && PartialEvalPass
+              .isSmallerOrEqual(k, 0)(facts)
+              .getOrElse(false)
+          case _ => false
+        }
+        if (initOk) {
+          val f = PartialEvalPass.partialEval(f_)(facts)
+          Some((nxt.s, f.asInstanceOf[Function]))
         } else {
           None
         }
       case _ => None
     }
-
   }
 }
 

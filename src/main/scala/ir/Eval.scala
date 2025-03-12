@@ -252,6 +252,7 @@ trait Eval {
             DontCare
           case IntCst(k) if k >= 0 =>
             evalBigStep(s) match {
+              case DontCare => DontCare
               case StmLiteral(vs @ _*) =>
                 StmLiteral(vs.drop(k): _*)
               case s: StmBuild =>

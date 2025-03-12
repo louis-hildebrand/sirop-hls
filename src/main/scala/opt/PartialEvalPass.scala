@@ -353,11 +353,19 @@ object PartialEvalPass {
           case s => StmNext(s)
         }
       case StmNextK(s, k) =>
-        (partialEval(s), partialEval(k)) match {
+        val peStm = partialEval(s)
+        partialEval(k) match {
+          case IfThenElse(c, t, f) if m == MoveUp =>
+            IfThenElse(
+              c,
+              partialEval(StmNextK(peStm, t)),
+              partialEval(StmNextK(peStm, f))
+            )
+          case IntCst(0) => peStm
           // There are probably some cases where we want to convert StmNextK(s, k + 1) to StmNext(StmNextK(s, k)).__0
           // and other times where we want to go the other way.
           // Therefore, don't handle that here.
-          case (s, k) => StmNextK(s, k)
+          case k => StmNextK(peStm, k)
         }
 
       case VecBuild(n, f) =>
@@ -389,6 +397,16 @@ object PartialEvalPass {
           case (v: VecBuild, i) => partialEval(FunCall(v.f, i))
           case (v, i)           => VecAccess(v, i)
         }
+    }
+  }
+
+  def isEqual(e1: Expr, e2: Expr)(
+      facts: FactSet = FactSet()
+  ): Option[Boolean] = {
+    partialEval(e1 === e2)(facts, MoveUp) match {
+      case True  => Some(true)
+      case False => Some(false)
+      case _     => None
     }
   }
 

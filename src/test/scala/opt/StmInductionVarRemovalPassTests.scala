@@ -37,7 +37,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(
       expectedVals
         .zip(actualVals)
-        .forall({ case (a, b) => a == DontCare || a == b })
+        .forall({ case (a, b) => a == DontCare || a == b }),
+      s"Expected values $expectedVals but found $actualVals"
     )
   }
 
@@ -655,7 +656,100 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(z == s)
     val expectedF: Function =
       (t: Expr) =>
-        (x: Expr) => IfThenElse(-5 + t >= 5 || -5 + t < 0, x, StmNext(x).__0)
+        (x: Expr) =>
+          IfThenElse(-5 + t < 5, IfThenElse(-5 + t < 0, x, StmNext(x).__0), x)
+    assert(f == expectedF)
+  }
+
+  test("RecursiveForm:StmNextK(s, Min(t, n))") {
+    val t = Param("t")
+    val n = Param("n")
+    val s = Param("s")
+    val e = StmNextK(s, Min(t, n))
+    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val actual =
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
+
+    assert(actual.isDefined)
+    val (z, f) = actual.get match {
+      case (z, Function(t, e)) =>
+        (
+          PartialEvalPass.partialEval(z),
+          Function(
+            t,
+            PartialEvalPass.partialEval(e)(
+              facts.range(t, ScalarRange(Some(0), None))
+            )
+          )
+        )
+    }
+
+    // Smoke test
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      for (nVal <- Seq(1, 2, 5)) {
+        assertEquationsEqual(
+          NonRecEqn(Let(n, nVal, Let(s, sVal, Function(t, e)))),
+          RecEqn(Let(n, nVal, Let(s, sVal, z)), Let(n, nVal, f)),
+          tMin = 0,
+          // Check even a few cycles after everything is done
+          iterations = 2 * nVal + 2
+        )
+      }
+    }
+
+    assert(z == s)
+    val expectedF: Function =
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x).__0, x)
+    assert(f == expectedF)
+  }
+
+  test("RecursiveForm:StmNextK(s, t - n)") {
+    val t = Param("t")
+    val n = Param("n")
+    val s = Param("s")
+    val e = StmNextK(s, t - n)
+    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val actual =
+      StmInductionVarRemovalPass(facts).tryFindRecursiveForm(e, t = t)
+
+    assert(actual.isDefined)
+    val (z, f) = actual.get match {
+      case (z, Function(t, e)) =>
+        (
+          PartialEvalPass.partialEval(z),
+          Function(
+            t,
+            PartialEvalPass.partialEval(e)(
+              facts.range(t, ScalarRange(Some(0), None))
+            )
+          )
+        )
+    }
+
+    // Smoke test
+    val stmExamples = Seq(
+      StmCst(n, Tuple(True, False)),
+      StmRange(n, 9, 8)
+    )
+    for (sVal <- stmExamples) {
+      for (nVal <- Seq(1, 2, 5)) {
+        assertEquationsEqual(
+          NonRecEqn(Let(n, nVal, Let(s, sVal, Function(t, e)))),
+          RecEqn(Let(n, nVal, Let(s, sVal, z)), Let(n, nVal, f)),
+          tMin = 0,
+          // Check even a few cycles after everything is done
+          iterations = 2 * nVal + 2
+        )
+      }
+    }
+
+    assert(z == s)
+    val expectedF: Function =
+      (t: Expr) => (x: Expr) => IfThenElse(t - n < 0, x, StmNext(x).__0)
     assert(f == expectedF)
   }
 
@@ -702,12 +796,18 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    assume(false)
     val expected = StmBuild(
       n,
-      Tuple(input),
+      Tuple(input, input, 0),
       (acc: Expr) =>
-        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+        IfThenElse(
+          acc.__2 < n,
+          Tuple(Tuple(StmNext(acc.__0).__0, acc.__1, 1 + acc.__2), NNone),
+          Tuple(
+            Tuple(acc.__0, StmNext(acc.__1).__0, 1 + acc.__2),
+            SSome(StmNext(acc.__1).__1)
+          )
+        )
     )
     assert(opt == expected)
   }
