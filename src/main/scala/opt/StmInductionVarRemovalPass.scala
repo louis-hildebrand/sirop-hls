@@ -317,6 +317,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val newStm = StmBuild(s.length, s.seed, Function(acc, e))
           // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
           //       StmNext(acc).__0)?
+          // TODO: Ensure that the input stream is still fully consumed?
           Some((newStm, newAccElems))
         case None => None
       }
