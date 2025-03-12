@@ -189,14 +189,42 @@ object PartialEvalPass {
                 val t = {
                   val newFacts = facts.isTrue(cond)
                   val t = splitAnd(cond).foldLeft(trueE)({ case (acc, c) =>
-                    acc.substitute(c -> True)
+                    // TODO: Ideally, this canonicalization of moving everything
+                    //       to the left would happen in general, not just here.
+                    //       At the moment, this is also quite brittle because
+                    //       it only works one way:
+                    //         * The expression
+                    //               if (x < y) then
+                    //                 if (x - y < 0) then e1 else e2
+                    //               else e3
+                    //           should be successfully simplified
+                    //         * The expression
+                    //               if (x - y < 0) then
+                    //                 if (x < y) then e1 else e2
+                    //               else e3
+                    //           may not :(
+                    //       Unfortunately, ArithExpr works better with x < y
+                    //       than x - y < 0 (at least as of 2025-03-12).
+                    val condVariants = c match {
+                      case LessThan(x, y) => Seq(c, LessThan(x - y, 0))
+                      case _              => Seq(c)
+                    }
+                    val subs = condVariants.map(c => c -> True).toMap
+                    acc.substitute(subs)
                   })
                   partialEval(t)(newFacts, m)
                 }
                 val f = {
                   val newFacts = facts.isFalse(cond)
                   val f = splitOr(cond).foldLeft(falseE)({ case (acc, c) =>
-                    acc.substitute(c -> False)
+                    // TODO: See TODO comment above (ideally do this
+                    //       canonicalization everywhere, not just here)
+                    val condVariants = c match {
+                      case LessThan(x, y) => Seq(c, LessThan(x - y, 0))
+                      case _              => Seq(c)
+                    }
+                    val subs = condVariants.map(c => c -> False).toMap
+                    acc.substitute(subs)
                   })
                   partialEval(f)(newFacts, m)
                 }
