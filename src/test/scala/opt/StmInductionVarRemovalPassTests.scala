@@ -193,6 +193,66 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(opt == ideal)
   }
 
+  test("NextDoesntDependOnCurrent") {
+    val n = Param("n")
+    val f = Param("f")
+    val z = Param("z")
+    val s = StmBuild(
+      n,
+      Tuple(0, z),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(
+            1 + acc.__0,
+            VecBuild(n, (i: Expr) => FunCall(FunCall(f, acc.__0), i))
+          ),
+          SSome(acc.__1)
+        )
+    )
+
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
+
+    // Correctness
+    val nExamples = Seq(1, 2, 5)
+    val fExamples: Seq[Function] =
+      Seq(
+        (t: Expr) => (i: Expr) => Tuple(0, False),
+        (t: Expr) => (i: Expr) => i + 1,
+        (t: Expr) => (i: Expr) => 2 * t,
+        (t: Expr) =>
+          (i: Expr) => StmNext(StmNextK(StmCount(n), 1 - n + t + i)).__1
+      )
+    val zExamples = Seq(DontCare, VecBuild(n, (_: Expr) => DontCare))
+    for (nVal <- nExamples) {
+      for (fVal <- fExamples) {
+        for (zVal <- zExamples) {
+          val expected = Let(n, nVal, Let(f, fVal, Let(z, zVal, s)))
+          val actual = Let(n, nVal, Let(f, fVal, Let(z, zVal, opt)))
+          assert(ir.eval(expected) == ir.eval(actual))
+        }
+      }
+    }
+
+    // Effective simplification
+    val ideal =
+      StmBuild(
+        n,
+        Tuple(0),
+        (acc: Expr) =>
+          IfThenElse(
+            acc.__0 === 0,
+            Tuple(Tuple(1 + acc.__0), SSome(z)),
+            Tuple(
+              Tuple(1 + acc.__0),
+              SSome(
+                VecBuild(n, (i: Expr) => FunCall(FunCall(f, -1 + acc.__0), i))
+              )
+            )
+          )
+      )
+    assert(opt == ideal)
+  }
+
   test("MonotonicBool:SimpleCounter") {
     val n = Param("n")
     val i0 = Param("i0")
@@ -855,53 +915,5 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Effective simplification
     assert(opt == s)
-  }
-
-  test("RemoveAllInductionVarsSuccessfully") {
-    val n = Param("n")
-    val delta = Param("delta")
-    val s = StmBuild(
-      n,
-      Tuple(
-        3 /* up counter (+1) */, 10 /* up counter (+4) */,
-        19 /* down counter (-2) */, 0 /* up counter (--3) */,
-        -2 /* down counter (+-6) */, 1 /* counter (+ delta + 1) */
-      ),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            acc.__1 + 4,
-            acc.__2 - 2,
-            acc.__3 - IntCst(-3),
-            acc.__4 + (-6),
-            acc.__5 + delta + 1
-          ),
-          SSome(
-            Tuple(2 * acc.__0, acc.__1 / 3, acc.__2, acc.__3, acc.__4, acc.__5)
-          )
-        )
-    )
-    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
-
-    // tryRemoveAllInductionVars should return the same thing as removeInductionVars in this case
-    assert(
-      StmInductionVarRemovalPass().tryRemoveAllInductionVars(s).contains(opt)
-    )
-  }
-
-  test("RemoveAllInductionVarsUnsuccessfully") {
-    val s = Param("s")
-    val n = Param("n")
-    val stm = StmBuild(
-      n,
-      Tuple(3, s),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + 2, StmNext(acc.__1).__0),
-          SSome(StmNext(acc.__1).__1)
-        )
-    )
-    assert(StmInductionVarRemovalPass().tryRemoveAllInductionVars(stm).isEmpty)
   }
 }

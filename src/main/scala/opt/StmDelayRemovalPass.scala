@@ -3,23 +3,28 @@ package opt
 import ir._
 
 object StmDelayRemovalPass {
-  def skipFirstCycles(stm: StmBuild, c: Expr): StmBuild = {
-    StmInductionVarRemovalPass().tryRemoveAllInductionVars(stm) match {
+  def skipFirstCycles(stm: StmBuild, c: Expr)(
+      facts: FactSet = FactSet()
+  ): StmBuild = {
+    // Necessary conditions:
+    //  (1) Need to know the value of the accumulator after c cycles
+    //  (2) For the first c cycles, there is no valid output
+    val indVarRemover = StmInductionVarRemovalPass(facts)
+    indVarRemover.tryFindAccumulatorAtTime(stm, c) match {
       case None =>
         stm
-      case Some(s) =>
-        assert(s.seed.isInstanceOf[Tuple])
-        assert(s.seed.asInstanceOf[Tuple].elems.length == 1)
-        val a = Param("a")
-        val bounds = FactSet().range(a.__0, ScalarRange(None, Some(c)))
-        val isTransformationValid =
-          PartialEvalPass.partialEval(IsNone(FunCall(s.nextF, a).__1))(
-            bounds
-          ) == True
-        if (isTransformationValid) {
-          StmBuild(s.length, Tuple(c), s.nextF)
-        } else {
-          stm
+      case Some(newSeed) =>
+        indVarRemover.tryFindClosedFormForOutput(stm) match {
+          case None => stm
+          case Some(Function(t, e)) =>
+            val facts = FactSet().range(t, ScalarRange(Some(0), Some(c)))
+            val noOutputInFirstCycles =
+              PartialEvalPass.partialEval(IsNone(e))(facts) == True
+            if (noOutputInFirstCycles) {
+              StmBuild(stm.length, newSeed, stm.nextF)
+            } else {
+              stm
+            }
         }
     }
   }

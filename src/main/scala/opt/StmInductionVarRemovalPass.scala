@@ -21,29 +21,59 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     replaceInductionVars(s, funcByIdx)
   }
 
-  /** If all induction variables can be removed, then do so. But if any
-    * induction variables cannot be removed, return <code>None</code>.
+  /** Try to find the value of the given stream's accumulator at time
+    * <code>t</code>. The stream must already be in canonical form. In
+    * particular, its accumulator must be a flat tuple.
     */
-  def tryRemoveAllInductionVars(stm: StmBuild): Option[StmBuild] = {
-    // Canonicalize to flatten the accumulator and whatnot
-    val s = StmCanonPass.canonicalize(stm)
+  def tryFindAccumulatorAtTime(s: StmBuild, c: Expr): Option[Expr] = {
     val funcByIdx = findClosedForms(s)
-    val updatedStm = replaceInductionVars(s, funcByIdx)
-    val allRemoved = {
-      updatedStm.seed match {
-        case Tuple(IntCst(0)) =>
-          updatedStm.nextF match {
-            case Function(x, body) =>
-              val f = Function(x, PartialEvalPass.partialEval(body.__0.__0))
-              f == (((acc: Expr) => acc.__0 + 1): Expr)
-          }
-        case _ => false
+
+    // Need the new seed to be synthesizable, so can't have any StmNextK's.
+    // But we can get rid of StmNextK if k <= 0, so try to do that.
+    def removeStmNextK(e: Expr): Expr = {
+      e match {
+        case StmNextK(s, k) =>
+          val isKNonPositive =
+            PartialEvalPass.isSmallerOrEqual(k, 0)(this.facts).getOrElse(false)
+          if (isKNonPositive) s else e
+        case e => e.rebuild(e.children.map(c => removeStmNextK(c)))
       }
     }
-    if (allRemoved) {
-      Some(updatedStm)
+
+    val seed = s.seed.asInstanceOf[Tuple]
+    val allElemsHaveClosedForm =
+      seed.elems.indices.forall(i => funcByIdx.isDefinedAt(i))
+    if (allElemsHaveClosedForm) {
+      val valAtT = Tuple(
+        seed.elems.indices.map(i => {
+          val e1 = FunCall(funcByIdx(i), c)
+          val e2 = removeStmNextK(e1)
+          PartialEvalPass.partialEval(e2)(this.facts)
+        }): _*
+      )
+      // TODO: Is this a sufficient condition?
+      if (valAtT.contains(classOf[StmNextK])) None else Some(valAtT)
     } else {
       None
+    }
+  }
+
+  /** Try to find an expression for the <code>Option&lt;T&gt;</code> output of
+    * this stream as a function of <code>t</code>. The stream must already be in
+    * canonical form. In particular, its accumulator must be a flat tuple.
+    */
+  def tryFindClosedFormForOutput(s: StmBuild): Option[Function] = {
+    val funcByIdx = findClosedForms(s)
+    val acc = s.nextF.param
+    val t = Param("t")
+    val subs = funcByIdx.foldLeft(Map[Expr, Expr]())({ case (m, (i, f)) =>
+      m + (TupleAccess(acc, i) -> FunCall(f, t))
+    })
+    val out = PartialEvalPass.partialEval(s.nextF.body.substitute(subs).__1)
+    if (out.contains(acc)) {
+      None
+    } else {
+      Some(Function(t, out))
     }
   }
 
@@ -208,13 +238,16 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         }
       depSubs ++ recVarSubs
     }
+    val facts = this.facts.range(t, ScalarRange(Some(0), None))
     val next =
       Function(
         t,
         Function(
           x,
-          (if (indices.length == 1) nexts.head else Tuple(nexts: _*))
-            .substitute(subs)
+          PartialEvalPass.partialEval(
+            (if (indices.length == 1) nexts.head else Tuple(nexts: _*))
+              .substitute(subs)
+          )(facts)
         )
       )
     (z, next, indices)
@@ -378,7 +411,12 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     val t = next.param
     (z, next) match {
       case (z, Function(t, Function(x0, x1))) if x0 == x1 =>
+        // Identity
         Some(Function(t, z))
+      case (z, Function(t, Function(x, e))) if !e.contains(x) =>
+        //     x_{t+1} = f(t) for t >= 0
+        // ==> x_t = f(t - 1) for t >= 1
+        Some(Function(t, IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))))
       case Counter(delta) => Some(Function(t, z + (t - t0) * delta))
       case LeftShiftRegister(n, f, g) =>
         Some(
