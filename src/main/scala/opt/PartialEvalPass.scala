@@ -401,7 +401,15 @@ object PartialEvalPass {
           case n =>
             val indexRange = ScalarRange(Some(0), Some(n))
             val newFacts = facts.clearRange(f.param).range(f.param, indexRange)
-            VecBuild(n, Function(f.param, partialEval(f.body)(newFacts, m)))
+            val newF = Function(f.param, partialEval(f.body)(newFacts))
+            (n, newF) match {
+              case (
+                    VecLength(x0: Param),
+                    Function(i0, VecAccess(x1: Param, i1: Param))
+                  ) if x0 == x1 && i0 == i1 =>
+                x0
+              case _ => VecBuild(n, newF)
+            }
         }
       case VecLength(v) =>
         partialEval(v) match {

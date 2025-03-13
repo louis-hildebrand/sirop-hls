@@ -223,13 +223,69 @@ class OptimizationTests extends AnyFunSuite {
     assert(optimized == ideal)
   }
 
+  test("VecReverse(VecReverse(v))") {
+    val v = Param("v")
+    val original = VecReverse(VecReverse(v))
+    val optimized = PartialEvalPass.partialEval(original)
+    assert(optimized == v)
+  }
+
+  test("StmReverse(StmReverse(s))") {
+    val n = Param("n")
+    val s = Param("s")
+    val original = StmReverse(StmReverse(s, n = n), n = n)
+    val optimized = {
+      val facts = FactSet().range(n, ScalarRange(Some(1), None))
+      val s0 = PartialEvalPass.partialEval(original)(facts)
+      val s1 = StmFusePass.fuseCompletely(s0)
+      val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
+      // TODO: It should be able to do both in one step
+      val s3 = StmAccRemovalPass.removeUnusedElems(s2)
+      val s4 = StmAccRemovalPass.removeUnusedElems(s3)
+      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n)(facts)
+      val s6 = PartialEvalPass
+        .partialEval(s5)(
+          facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
+        )
+        .asInstanceOf[StmBuild]
+      val s7 = StmAccRemovalPass.removeUnusedElems(s6)
+      s7
+    }
+
+    // Correctness
+    val examples = Seq(
+      StmCst(n, 42),
+      StmCst(n, 99),
+      StmCst(n, -1),
+      StmRange(n, 1, 5),
+      StmRepeat(StmCount(n), m = 3, n = n)
+    )
+    for (stm <- examples) {
+      for (nVal <- Seq(1, 2, 10)) {
+        val expected = Let(n, nVal, Let(s, stm, original))
+        val actual = Let(n, nVal, Let(s, stm, optimized))
+        assert(ir.eval(actual) == ir.eval(expected))
+      }
+    }
+
+    // TODO: Effective simplification
+    assume(false)
+    val identity = StmBuild(
+      n,
+      Tuple(s),
+      (acc: Expr) =>
+        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+    )
+    assert(optimized == identity)
+  }
+
   /** VecTranspose(VecTranspose(v)) --> v
     */
   test("VecTranspose(VecTranspose(v))") {
     val v = Param("v")
     val tt = VecTranspose(VecTranspose(v))
     val optimized = PartialEvalPass.partialEval(tt)
-    // TODO: I need some way to essentially eta-reduce a VecBuild
+    // TODO: I need some way to essentially eta-reduce a 2D VecBuild
     assume(false)
     assert(optimized == v)
   }
