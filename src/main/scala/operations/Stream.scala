@@ -934,6 +934,24 @@ object StmRepeat {
   }
 }
 
+// TODO: How should this work for "multi-dimensional" streams?
+object StmReverse {
+  def apply(
+      stm: Expr /* Stm<A; n> */,
+      // Ideally we would get this shape info from the type system
+      n: Expr
+  ): Expr /* Stm<A; n> */ = {
+    val v = Stm2Vec(stm, n = n)
+    StmMap(
+      v,
+      (v: Expr) => Vec2Stm(VecReverse(v), n = n),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(n)
+    )
+  }
+}
+
 object StmSplit {
   def apply(
       stm: Expr /* Stm<A; n> */,

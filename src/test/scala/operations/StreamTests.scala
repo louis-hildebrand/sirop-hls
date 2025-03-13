@@ -2089,6 +2089,12 @@ class StreamTests extends AnyFunSuite {
     assertStreamEqual(StmRepeat(s, 3, n = 24), expected ++ expected ++ expected)
   }
 
+  test("StmReverse:1D") {
+    val n = 5
+    val s = StmCount(n)
+    assert(ir.eval(StmReverse(s, n = n)) == StmLiteral(4, 3, 2, 1, 0))
+  }
+
   test("StmSplit:1D-2D") {
     val s = StmCount(6)
 

@@ -208,6 +208,13 @@ object VecRepeat {
   }
 }
 
+object VecReverse {
+  def apply(v: Expr /* Vec<A; n> */ ): Expr /* Vec<A; n> */ = {
+    val n = VecLength(v)
+    VecBuild(n, (i: Expr) => VecAccess(v, n - i - 1))
+  }
+}
+
 object VecSplit {
   def apply(
       vec: Expr /* Vec<A; n> */,

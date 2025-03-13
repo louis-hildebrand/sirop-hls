@@ -180,6 +180,11 @@ class VectorTests extends AnyFunSuite {
     assert2DVecEqual(v2, expected)
   }
 
+  test("VecReverse") {
+    val v = VecBuild(4, (i: Expr) => (i + 1) * (i + 1))
+    assert(ir.eval(VecReverse(v)) == VecLiteral(16, 9, 4, 1))
+  }
+
   test("VecSplit") {
     val v = VecBuild(6, (i: Expr) => i * i)
     val split = VecSplit(v, 3)
