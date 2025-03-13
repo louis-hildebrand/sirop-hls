@@ -32,16 +32,22 @@ case class ScalarRange(lower: Option[Expr], upper: Option[Expr]) extends Range {
 
 /** Ranges of the elements in the accumulator of a stream.
   */
-case class StmAccRange(elemRanges: Seq[ScalarRange]) extends Range {
+case class StmAccRange(elemRanges: Map[Param, ScalarRange]) extends Range {
   override def merge(that: Range): StmAccRange = {
     that match {
-      case StmAccRange(newRanges) if (newRanges.length == elemRanges.length) =>
+      case StmAccRange(newRanges) if (newRanges.size == elemRanges.size) =>
+        if (elemRanges.keySet != newRanges.keySet) {
+          throw new IllegalArgumentException("Range parameter set mismatch")
+        }
+        val zipped = (elemRanges.keySet
+          .union(newRanges.keySet))
+          .map(x => x -> (elemRanges(x), newRanges(x)))
+          .toMap
         StmAccRange(
-          elemRanges
-            .zip(newRanges)
-            .map({ case (r0, r1) => r0.merge(r1) })
+          zipped
+            .map({ case (x, (r0, r1)) => x -> r0.merge(r1) })
         )
-      case _ => throw new IllegalArgumentException(s"Range type mismatch")
+      case _ => throw new IllegalArgumentException("Range type mismatch")
     }
   }
 }

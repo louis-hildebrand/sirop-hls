@@ -60,23 +60,21 @@ object PrettyPrinter {
           .mkString(", ") + ")"
       case TupleAccess(t, i) =>
         s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
-      case StmBuild(n, z, f) =>
+      case StmBuild(n, out, equations) =>
         if (collapseStm) {
-          s"StmBuild(${show(n, collapseStm = collapseStm, evalVec = evalVec)}, ...)"
+          val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
+          s"StmBuild(${nStr}, ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
-          val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
-          if (isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr)) {
-            s"""StmBuild(
-               |${indent(nStr)},
-               |${indent(zStr)},
-               |${indent(fStr)}
-               |)
-               |""".stripMargin.stripTrailing
-          } else {
-            s"StmBuild(${nStr}, ${zStr}, ${fStr})"
-          }
+          val outStr = show(out, collapseStm = collapseStm, evalVec = evalVec)
+          val recStrings = equations.map({ case (x, (z, next)) =>
+            val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
+            val nextStr =
+              show(next, collapseStm = collapseStm, evalVec = evalVec)
+            s"${show(x)}: $zStr, $nextStr"
+          })
+          val inside = s"$nStr\n$outStr\n${recStrings.mkString("\n")}"
+          s"StmBuild(\n${indent(inside)}\n)"
         }
       case v @ VecBuild(n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
@@ -161,8 +159,12 @@ object PrettyPrinter {
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
       case DontCare => "DontCare"
-      case StmBuild(n, z, f) =>
-        s"StmBuild(${showScala(n)},${showScala(z)},${showScala(f)})"
+      case StmBuild(n, out, eqns) =>
+        val equationsStr =
+          s"Map(${eqns.map({ case (x, (z, next)) =>
+              s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
+            })})"
+        s"StmBuild(${showScala(n)},${showScala(out)},$equationsStr)"
       case StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"

@@ -234,8 +234,8 @@ object PartialEvalPass {
 
       case DontCare => DontCare
 
-      case s @ StmBuild(length, seed, f) =>
-        val len = partialEval(length)
+      case s @ StmBuild(n, out, equations) =>
+        val len = partialEval(n)
         val onlyElem = len match {
           case IntCst(1) =>
             // Maybe we can find the first element statically and just return it directly!
@@ -247,30 +247,31 @@ object PartialEvalPass {
             None
         }
         onlyElem match {
-          case Some(e) =>
-            StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
-          case None =>
+          case Some(e) => StmBuild(1, SSome(e), Map[Param, (Expr, Expr)]())
+          case None    =>
             // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
             // evaluator is waaaay too slow. In many cases, it's not needed.
             val accRanges = facts.rangeByExpr.get(s) match {
               case Some(StmAccRange(accRanges)) => accRanges
-              case _                            => Seq()
+              case _                            => Map()
             }
-            val acc = f.param
             val newFacts =
-              accRanges.zipWithIndex.foldLeft(facts.clearRange(acc))({
-                case (facts, (r, i)) =>
-                  facts.range(TupleAccess(acc, i), r)
+              accRanges.foldLeft(facts)({ case (facts, (x, r)) =>
+                facts.range(x, r)
               })
             StmBuild(
               len,
-              partialEval(seed),
-              Function(f.param, partialEval(f.body)(newFacts, m))
+              partialEval(out),
+              equations.map({ case (x, (z, next)) =>
+                // The recurrence variables shouldn't occur free in z, so use
+                // the old facts for z
+                x -> (partialEval(z)(facts), partialEval(next)(newFacts))
+              })
             )
         }
       case StmLength(s) =>
         partialEval(s) match {
-          case s: StmBuild         => partialEval(s.length)
+          case s: StmBuild         => partialEval(s.n)
           case DontCare            => DontCare
           case IfThenElse(c, t, f) =>
             // Move the IfThenElse up in every case because
@@ -432,7 +433,7 @@ object PartialEvalPass {
 
   @tailrec
   private def tryEvalStmNext(s: StmBuild): Option[(StmBuild, Expr)] = {
-    s.length match {
+    s.n match {
       case IntCst(len) =>
         require(len > 0, "Attempt to call StmNext() on an empty stream.")
         partialEval(FunCall(s.nextF, s.seed)) match {
@@ -458,7 +459,7 @@ object PartialEvalPass {
                 // skip this element, look for the next one
                 tryEvalStmNext(
                   StmBuild(
-                    s.length,
+                    s.n,
                     partialEval(next.__0),
                     // this function may have free parameters
                     partialEval(s.nextF).asInstanceOf[Function]

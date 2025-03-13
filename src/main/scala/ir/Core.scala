@@ -501,21 +501,46 @@ case object DontCare extends Expr {
 
 // Streams
 case class StmBuild(
-    length: Expr,
-    seed: Expr /*A*/,
-    nextF: Function /* A -> (A, Option<B>)*/
+    n: Expr /* Int */,
+    output: Expr /* Option<B> */,
+    equations: Map[Param, (Expr, Expr)] /* (A, A) */
 ) extends Expr {
-  override def children: Seq[Expr] = Seq(length, seed, nextF)
+  override def children: Seq[Expr] = {
+    Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
+      Seq(x, z, next)
+    })
+  }
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, z, f: Function) => StmBuild(n, z, f)
+      case Seq(n, output, eqns @ _*) if eqns.length % 3 == 0 =>
+        val equations = (0 until eqns.length / 3)
+          .map(i => {
+            val x = eqns(3 * i).asInstanceOf[Param]
+            val z = eqns(3 * i + 1)
+            val next = eqns(3 * i + 2)
+            x -> (z, next)
+          })
+          .toMap
+        StmBuild(n, output, equations)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
+
+  @deprecated
+  def seed: Tuple = ???
+  @deprecated
+  def nextF: Function = ???
 }
+object StmBuild {
+  @deprecated
+  def apply(n: Expr, z: Expr, f: Expr): StmBuild = {
+    ???
+  }
+}
+
 case class StmLength(stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(newChildren: Seq[Expr]): Expr = {

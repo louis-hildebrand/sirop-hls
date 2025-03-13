@@ -234,11 +234,13 @@ trait Eval {
         }
       case v: VecLiteral => v
 
-      case StmBuild(n, z, f) =>
+      case StmBuild(n, out, equations) =>
         StmBuild(
           evalBigStep(n),
-          evalBigStep(z),
-          evalBigStep(f).asInstanceOf[Function]
+          out,
+          equations.map({ case (x, (z, next)) =>
+            x -> (evalBigStep(z), next)
+          })
         )
       case StmNext(s) =>
         evalStmNext(s)(0)
@@ -299,15 +301,24 @@ trait Eval {
       evalBigStep(s) match {
         case DontCare                                 => DontCare
         case StmLiteral() | StmBuild(IntCst(0), _, _) => DontCare
-        case StmBuild(IntCst(n), z, f) if n > 0 =>
-          evalBigStep(FunCall(f, z)) match {
-            case Tuple(newZ, Tuple(v, True)) =>
-              Tuple(StmBuild(n - 1, newZ, f), v)
-            case Tuple(newZ, Tuple(_, False)) =>
-              evalStmNext(StmBuild(n, newZ, f))(stepsWithoutValid + 1)
+        case StmBuild(IntCst(n), out, equations) if n > 0 =>
+          val currentValByVar: Map[Expr, Expr] =
+            equations.map({ case (x, (z, _)) => x -> z }).toMap
+          val evaluatedOutput = evalBigStep(out.substitute(currentValByVar))
+          val nextEquations = equations.map({ case (x, (_, next)) =>
+            val evaluatedNext = evalBigStep(next.substitute(currentValByVar))
+            x -> (evaluatedNext, next)
+          })
+          evaluatedOutput match {
+            case Tuple(v, True) =>
+              Tuple(StmBuild(n - 1, out, nextEquations), v)
+            case Tuple(_, False) =>
+              evalStmNext(StmBuild(n, out, nextEquations))(
+                stepsWithoutValid + 1
+              )
             case v =>
               throw new IllegalArgumentException(
-                s"Body of StmBuild returned $v. The function must return a 2-tuple where the second element is an option."
+                s"Output of StmBuild evaluated to $v. It must evaluate to an option (i.e., a tuple whose second element is a boolean)."
               )
           }
         case StmBuild(n, _, _) =>

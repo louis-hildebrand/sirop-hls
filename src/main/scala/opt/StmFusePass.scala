@@ -43,7 +43,7 @@ object StmFusePass {
         )
     }
     StmBuild(
-      s.length,
+      s.n,
       // Replace the inner stream with an empty tuple in the new seed.
       // This minimizes the need for updating the indices in tuple access
       // expressions.

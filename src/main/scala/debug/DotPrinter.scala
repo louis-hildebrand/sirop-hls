@@ -495,10 +495,7 @@ object DotPrinter {
           scope
         )
       case StmBuild(n, z, f) =>
-        val stmScope = StreamScope(DotNode.freshId(), parent = scope)
-        val zDot = toDot(z, stmScope)
-        val fDot = toDot(f, stmScope).asInstanceOf[DotFunction]
-        DotStream(zDot, fDot, stmScope)
+        ???
     }
   }
 

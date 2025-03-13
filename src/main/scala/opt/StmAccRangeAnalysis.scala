@@ -15,11 +15,7 @@ object StmAccRangeAnalysis {
     * canonicalization pass before using this analysis.
     */
   def findAccRanges(stm: StmBuild): StmAccRange = {
-    stm.seed match {
-      case Tuple(elems @ _*) =>
-        StmAccRange(elems.indices.map(i => getRangeByIdx(stm, i)))
-      case _ => StmAccRange(Seq())
-    }
+    ???
   }
 
   private def getRangeByIdx(stm: StmBuild, i: Int): ScalarRange = {

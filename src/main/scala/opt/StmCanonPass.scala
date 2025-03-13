@@ -95,7 +95,7 @@ object StmCanonPass {
     val tupleHead = (e: Expr) =>
       StmUtils.transformHead((e: Expr) => Tuple(e))(e)
     StmBuild(
-      stm.length,
+      stm.n,
       Tuple(stm.seed),
       Function(acc, sub(tupleHead(stm.nextF.body)))
     )
@@ -111,7 +111,7 @@ object StmCanonPass {
     */
   private def moveIfThenElseOutsideTupleInStmBody(stm: StmBuild): StmBuild = {
     StmBuild(
-      stm.length,
+      stm.n,
       stm.seed,
       Function(stm.nextF.param, moveIfThenElseOutsideTuple(stm.nextF.body))
     )
@@ -127,7 +127,7 @@ object StmCanonPass {
       makeTupleAccessMap(stm.seed, oldAcc = oldAcc, newAcc = newAcc, Seq(), 0)
     val flattenHead = (e: Expr) => StmUtils.transformHead(e => flatten(e))(e)
     val s = StmBuild(
-      stm.length,
+      stm.n,
       flatten(stm.seed),
       Function(
         newAcc,
@@ -191,7 +191,7 @@ object StmCanonPass {
         }): Map[Expr, Expr]
       )
     StmBuild(
-      stm.length,
+      stm.n,
       StmUtils.rearrangeTuple(indexMap)(stm.seed),
       Function(
         acc,

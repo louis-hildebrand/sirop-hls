@@ -60,29 +60,26 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:StmAccumulator") {
-    val acc = Param("acc")
+    val a = Param("a")
     val s = StmBuild(
       10,
-      Tuple(0),
-      Function(
-        acc,
-        Tuple(acc.__0 + 1, SSome(Tuple(acc.__0 >= 0, acc.__0 < 4)))
-      )
+      SSome(Tuple(a >= 0, a < 4)),
+      Map(a -> (IntCst(0), a + 1))
     )
-    val e = Tuple(acc.__0 < 4, s)
+    val e = Tuple(a < 4, s)
     val facts =
       FactSet()
-        // Inside the stream, acc.__0 >= 0
-        .range(s, StmAccRange(Seq(ScalarRange(Some(0), None))))
-        // Outside the stream, acc.__0 < 4
-        .lt(acc.__0, 4)
+        // Inside the stream, a >= 0
+        .range(s, StmAccRange(Map(a -> ScalarRange(Some(0), None))))
+        // Outside the stream, a < 4
+        .lt(a, 4)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = Tuple(
       True,
       StmBuild(
         10,
-        Tuple(0),
-        (acc: Expr) => Tuple(acc.__0 + 1, SSome(Tuple(True, acc.__0 < 4)))
+        SSome(Tuple(True, a < 4)),
+        Map(a -> (IntCst(0), a + 1))
       )
     )
     assert(actual == expected)

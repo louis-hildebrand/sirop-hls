@@ -21,7 +21,7 @@ object StmDelayRemovalPass {
             val noOutputInFirstCycles =
               PartialEvalPass.partialEval(IsNone(e))(facts) == True
             if (noOutputInFirstCycles) {
-              StmBuild(stm.length, newSeed, stm.nextF)
+              StmBuild(stm.n, newSeed, stm.nextF)
             } else {
               stm
             }

@@ -296,7 +296,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         // But in this case, we *do* want acc to be captured!
         val acc = s.nextF.param
         s = StmBuild(
-          s.length,
+          s.n,
           s.seed,
           Function(acc, s.nextF.body.substitute(x -> acc.__1))
         )
@@ -305,7 +305,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         s = StmUtils.appendAccumulator(s, 0, (x: Expr) => x + 1)
         val acc = s.nextF.param
         s = StmBuild(
-          s.length,
+          s.n,
           s.seed,
           Function(acc, s.nextF.body.substitute(t -> acc.__1))
         )
@@ -346,7 +346,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         val t = f.param
         replaceStmNextK(s.nextF.body, t, acc) match {
           case Some((e, newAccElems)) =>
-            val newStm = StmBuild(s.length, s.seed, Function(acc, e))
+            val newStm = StmBuild(s.n, s.seed, Function(acc, e))
             // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
             //       StmNext(acc).__0)?
             // TODO: Ensure that the input stream is still fully consumed?

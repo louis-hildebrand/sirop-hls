@@ -54,7 +54,7 @@ private object Helpers {
         Function(
           x /* stream */,
           StmBuild(
-            s.length,
+            s.n,
             Tuple(
               // Replace all seed elements that depend on the input scalar
               // (Maybe not strictly necessary in the interpreter since these
@@ -132,7 +132,7 @@ private object Helpers {
     val f2 = if (f1 == identity) {
       val f2: Function = (s: Expr) =>
         StmBuild(
-          outShape.getOrElse(1),
+          outShape.getOrElse(IntCst(1)),
           s,
           (acc: Expr) => Tuple(StmNext(acc).__0, SSome(StmNext(acc).__1))
         )
@@ -189,7 +189,7 @@ object Iterate {
 
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
-    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(c)))
+    StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())
   }
 }
 
@@ -216,7 +216,8 @@ object StmRange {
     *   + 2 * delta, ...]</code>.
     */
   def apply(n: Expr, z: Expr, delta: Expr): Expr = {
-    StmBuild(n, z, (acc: Expr) => Tuple(acc + delta, SSome(acc)))
+    val a = Param("a")
+    StmBuild(n, SSome(a), Map(a -> (z, a + delta)))
   }
 }
 
@@ -282,7 +283,7 @@ object StmMap {
     if (!usesInputStream) {
       // In theory you could have something like StmMap(s, _ => 42) which doesn't actually depend on the input stream.
       // In that case, you can just forget about the input stream.
-      StmRepeat(inner, n, inner.length)
+      StmRepeat(inner, n, inner.n)
     } else {
       // How many elements will the inner component read and produce before it must be reset?
       val numIn = fInShape.getOrElse(IntCst(1))
@@ -470,7 +471,7 @@ object StmScanInclusive {
           else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
         outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
-    assert(inner.length == IntCst(1))
+    assert(inner.n == IntCst(1))
     val usesInputStream = inner.seed
       .asInstanceOf[Tuple]
       .elems
@@ -872,14 +873,15 @@ object StmZipAlternating {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<A; n> */
   ): Expr /* Stm<(A, A); n> */ = {
+    val r0 = Param("a")
+    val r1 = Param("b")
     StmBuild(
       StmLength(a),
-      Tuple(a, b),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__1).__0, StmNext(acc.__0).__0),
-          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
-        )
+      SSome(Tuple(StmNext(r0).__1, StmNext(r1).__1)),
+      Map(
+        r0 -> (a, StmNext(b).__0),
+        r1 -> (b, StmNext(a).__0)
+      )
     )
   }
 }

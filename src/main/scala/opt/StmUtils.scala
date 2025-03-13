@@ -12,7 +12,7 @@ object StmUtils {
   def appendAccumulator(stm: StmBuild, z: Expr, next: Function): StmBuild = {
     val p = Param("acc")
     StmBuild(
-      stm.length,
+      stm.n,
       Tuple(stm.seed, z),
       (acc: Expr) =>
         Let(
@@ -41,7 +41,7 @@ object StmUtils {
     val seed = stm.seed.asInstanceOf[Tuple]
     val acc = stm.nextF.param
     val s = StmBuild(
-      stm.length,
+      stm.n,
       seed,
       Function(
         acc,
@@ -80,7 +80,7 @@ object StmUtils {
         })
       )(e)
     val out = StmBuild(
-      s.length,
+      s.n,
       f(seed),
       Function(
         acc,
@@ -110,7 +110,7 @@ object StmUtils {
       throw ElemStillInUseException
     }
 
-    StmBuild(stm.length, newSeed, newNextF)
+    StmBuild(stm.n, newSeed, newNextF)
   }
 
   /** Create a new tuple by taking elements from the given tuple in a specific
