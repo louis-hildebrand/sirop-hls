@@ -4,36 +4,16 @@ import ir._
 import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
-private trait Eqn {
-  def eval(tMin: Int, iterations: Int): Seq[Expr]
-}
-private case class RecEqn(z: Expr, f: Expr) extends Eqn {
-  override def eval(tMin: Int, iterations: Int): Seq[Expr] = {
-    if (iterations <= 0) {
-      Seq()
-    } else {
-      val tail =
-        RecEqn(FunCall(FunCall(f, tMin), z), f).eval(tMin + 1, iterations - 1)
-      ir.eval(z) +: tail
-    }
-  }
-}
-private case class NonRecEqn(f: Expr) extends Eqn {
-  override def eval(tMin: Int, iterations: Int): Seq[Expr] = {
-    (tMin until (tMin + iterations)).map(t => ir.eval(FunCall(f, t)))
-  }
-}
-
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
   private def assertEquationsEqual(
-      expected: Eqn,
-      actual: Eqn,
+      expected: Formula,
+      actual: Formula,
       tMin: Int,
       iterations: Int
   ): Unit = {
     require(iterations > 0)
-    val expectedVals = expected.eval(tMin, iterations)
-    val actualVals = actual.eval(tMin, iterations)
+    val expectedVals = expected.evalSeq(tMin, iterations)
+    val actualVals = actual.evalSeq(tMin, iterations)
     assert(
       expectedVals
         .zip(actualVals)
@@ -570,9 +550,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
+      val timeFunc = ir.eval(Let(s, sVal, f)).asInstanceOf[Function]
       assertEquationsEqual(
-        RecEqn(sVal, recEqn),
-        NonRecEqn(Let(s, sVal, f)),
+        TimeRecurrence(sVal, recEqn),
+        FunctionOfTime(timeFunc),
         t0,
         // Check a few steps after we stop reading from the input stream
         n + 2
@@ -616,9 +597,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
+      val recFunc = ir.eval(Let(s, sVal, shiftRecEqn)).asInstanceOf[Function]
+      val timeFunc = ir.eval(Let(s, sVal, f)).asInstanceOf[Function]
       assertEquationsEqual(
-        RecEqn(initialVec, Let(s, sVal, shiftRecEqn)),
-        NonRecEqn(Let(s, sVal, f)),
+        TimeRecurrence(initialVec, recFunc),
+        FunctionOfTime(timeFunc),
         t0,
         // Check a few steps after the shift register freezes
         n + 2
@@ -658,9 +641,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
+      val timeFunc =
+        ir.eval(Let(s, sVal, Function(t, e))).asInstanceOf[Function]
       assertEquationsEqual(
-        NonRecEqn(Let(s, sVal, Function(t, e))),
-        RecEqn(Let(s, sVal, z), f),
+        FunctionOfTime(timeFunc),
+        TimeRecurrence(Let(s, sVal, z), f),
         tMin = 0,
         iterations = n
       )
@@ -694,9 +679,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
+      val timeFunc =
+        ir.eval(Let(s, sVal, Function(t, e))).asInstanceOf[Function]
       assertEquationsEqual(
-        NonRecEqn(Let(s, sVal, Function(t, e))),
-        RecEqn(Let(s, sVal, z), f),
+        FunctionOfTime(timeFunc),
+        TimeRecurrence(Let(s, sVal, z), f),
         tMin = 0,
         // Check even a few cycles after everything is done
         iterations = 2 * n + 2
@@ -736,9 +723,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
+        val timeFunc =
+          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, e))))
+            .asInstanceOf[Function]
+        val recFunc = ir.eval(Let(n, nVal, f)).asInstanceOf[Function]
         assertEquationsEqual(
-          NonRecEqn(Let(n, nVal, Let(s, sVal, Function(t, e)))),
-          RecEqn(Let(n, nVal, Let(s, sVal, z)), Let(n, nVal, f)),
+          FunctionOfTime(timeFunc),
+          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)), recFunc),
           tMin = 0,
           // Check even a few cycles after everything is done
           iterations = 2 * nVal + 2
@@ -777,9 +768,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
+        val timeFunc = ir
+          .eval(Let(n, nVal, Let(s, sVal, Function(t, e))))
+          .asInstanceOf[Function]
+        val recFunc = ir.eval(Let(n, nVal, f)).asInstanceOf[Function]
         assertEquationsEqual(
-          NonRecEqn(Let(n, nVal, Let(s, sVal, Function(t, e)))),
-          RecEqn(Let(n, nVal, Let(s, sVal, z)), Let(n, nVal, f)),
+          FunctionOfTime(timeFunc),
+          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)), recFunc),
           tMin = 0,
           // Check even a few cycles after everything is done
           iterations = 2 * nVal + 2
