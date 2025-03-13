@@ -23,6 +23,20 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     FactSet(rangeByExpr + (e -> updatedRange))
   }
 
+  /** <code>x</code> is greater than or equal to <code>y</code>.
+    */
+  def geq(x: Expr, y: Expr): FactSet = range(x, ScalarRange(Some(y), None))
+
+  /** <code>x</code> is strictly less than <code>y</code>.
+    */
+  def lt(x: Expr, y: Expr): FactSet = range(x, ScalarRange(None, Some(y)))
+
+  /** <code>e</code> is greater than or equal to <code>lowerInclusive</code> but
+    * strictly less than <code>upperExclusive</code>.
+    */
+  def between(e: Expr, lowerInclusive: Expr, upperExclusive: Expr): FactSet =
+    geq(e, lowerInclusive).lt(e, upperExclusive)
+
   /** Construct a new fact set in which the range of <code>e</code> is entirely
     * unknown.
     */

@@ -314,8 +314,7 @@ object PartialEvalPass {
       case VecBuild(n, f) =>
         partialEval(n) match {
           case n =>
-            val indexRange = ScalarRange(Some(0), Some(n))
-            val newFacts = facts.clearRange(f.param).range(f.param, indexRange)
+            val newFacts = facts.clearRange(f.param).between(f.param, 0, n)
             val newF = Function(f.param, partialEval(f.body)(newFacts))
             (n, newF) match {
               case (

@@ -40,7 +40,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         FunCall(Function(x, x.__0 >= 1), Tuple(x.__1, x.__0)),
         x.__0 >= 1
       )
-    val facts = FactSet().range(x.__0, ScalarRange(Some(1), None))
+    val facts = FactSet().geq(x.__0, 1)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = Tuple(True, x.__1 >= 1, True)
     assert(actual == expected)
@@ -75,7 +75,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         // Inside the stream, acc.__0 >= 0
         .range(s, StmAccRange(Seq(ScalarRange(Some(0), None))))
         // Outside the stream, acc.__0 < 4
-        .range(acc.__0, ScalarRange(None, Some(4)))
+        .lt(acc.__0, 4)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = Tuple(
       True,
@@ -92,7 +92,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val i = Param("i")
     val e =
       Tuple(i > 1, VecBuild(7, Function(i, Tuple(i >= 0, i < 7, i > 2))), i > 2)
-    val facts = FactSet().range(i, ScalarRange(Some(3), None))
+    val facts = FactSet().geq(i, 3)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected =
       Tuple(True, VecBuild(7, (i: Expr) => Tuple(True, True, i > 2)), True)

@@ -238,7 +238,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         }
       depSubs ++ recVarSubs
     }
-    val facts = this.facts.range(t, ScalarRange(Some(0), None))
+    val facts = this.facts.geq(t, 0)
     val next =
       Function(
         t,
@@ -543,7 +543,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       nxt: StmNextK,
       t: Param
   ): Option[(Expr, Function)] = {
-    val facts = this.facts.range(t, ScalarRange(Some(0), None))
+    val facts = this.facts.geq(t, 0)
 
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
       e match {

@@ -647,12 +647,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            PartialEvalPass.partialEval(e)(
-              FactSet().range(t, ScalarRange(Some(0), None))
-            )
-          )
+          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))
         )
     }
 
@@ -688,12 +683,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            PartialEvalPass.partialEval(e)(
-              FactSet().range(t, ScalarRange(Some(0), None))
-            )
-          )
+          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))
         )
     }
 
@@ -726,7 +716,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = Param("n")
     val s = Param("s")
     val e = StmNextK(s, Min(t, n))
-    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val facts = FactSet().geq(n, 1)
     val actual =
       StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
 
@@ -735,12 +725,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            PartialEvalPass.partialEval(e)(
-              facts.range(t, ScalarRange(Some(0), None))
-            )
-          )
+          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))
         )
     }
 
@@ -772,7 +757,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = Param("n")
     val s = Param("s")
     val e = StmNextK(s, t - n)
-    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val facts = FactSet().geq(n, 1)
     val actual =
       StmInductionVarRemovalPass(facts).tryFindRecursiveForm(e, t = t)
 
@@ -781,12 +766,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            PartialEvalPass.partialEval(e)(
-              facts.range(t, ScalarRange(Some(0), None))
-            )
-          )
+          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))
         )
     }
 
@@ -836,7 +816,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )
         )
     )
-    val facts = FactSet().range(n, ScalarRange(Some(1), None))
+    val facts = FactSet().geq(n, 1)
     val opt = StmInductionVarRemovalPass(facts).removeInductionVars(s)
 
     // Correctness

@@ -143,7 +143,7 @@ class OptimizationTests extends AnyFunSuite {
       fOutShape = Some(n)
     )
     val optimized = {
-      val facts = FactSet().range(n, ScalarRange(Some(1), None))
+      val facts = FactSet().geq(n, 1)
       val s0 = PartialEvalPass.partialEval(original)(facts)
       val s1 = StmFusePass.fuseCompletely(s0)
       val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
@@ -235,7 +235,7 @@ class OptimizationTests extends AnyFunSuite {
     val s = Param("s")
     val original = StmReverse(StmReverse(s, n = n), n = n)
     val optimized = {
-      val facts = FactSet().range(n, ScalarRange(Some(1), None))
+      val facts = FactSet().geq(n, 1)
       val s0 = PartialEvalPass.partialEval(original)(facts)
       val s1 = StmFusePass.fuseCompletely(s0)
       val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
