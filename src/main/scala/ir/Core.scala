@@ -529,6 +529,11 @@ case class StmBuild(
     }
   }
 
+  def seedByVar: Map[Param, Expr] =
+    equations.map({ case (x, (v, _)) => x -> v })
+  def nextByVar: Map[Param, Expr] =
+    equations.map({ case (x, (_, next)) => x -> next })
+
   @deprecated
   def seed: Tuple = ???
   @deprecated

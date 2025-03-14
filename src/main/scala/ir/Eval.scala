@@ -301,9 +301,8 @@ trait Eval {
       evalBigStep(s) match {
         case DontCare                                 => DontCare
         case StmLiteral() | StmBuild(IntCst(0), _, _) => DontCare
-        case StmBuild(IntCst(n), out, equations) if n > 0 =>
-          val currentValByVar: Map[Expr, Expr] =
-            equations.map({ case (x, (z, _)) => x -> z }).toMap
+        case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
+          val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
           val nextEquations = equations.map({ case (x, (_, next)) =>
             val evaluatedNext = evalBigStep(next.substitute(currentValByVar))
             x -> (evaluatedNext, next)
