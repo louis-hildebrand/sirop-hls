@@ -16,7 +16,7 @@ trait Eval {
     evalBigStepToplevel(e)
   }
 
-  private def evalBigStepToplevel(e: Expr): Expr = {
+  def evalBigStepToplevel(e: Expr): Expr = {
     evalBigStep(e) match {
       case StmBuild(n, z, f) =>
         n match {
@@ -43,7 +43,7 @@ trait Eval {
     }
   }
 
-  private def evalBigStep(e: Expr): Expr = {
+  def evalBigStep(e: Expr): Expr = {
     e match {
       case x: Param =>
         throw new IllegalArgumentException(
@@ -304,11 +304,11 @@ trait Eval {
         case StmBuild(IntCst(n), out, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] =
             equations.map({ case (x, (z, _)) => x -> z }).toMap
-          val evaluatedOutput = evalBigStep(out.substitute(currentValByVar))
           val nextEquations = equations.map({ case (x, (_, next)) =>
             val evaluatedNext = evalBigStep(next.substitute(currentValByVar))
             x -> (evaluatedNext, next)
           })
+          val evaluatedOutput = evalBigStep(out.substitute(currentValByVar))
           evaluatedOutput match {
             case Tuple(v, True) =>
               Tuple(StmBuild(n - 1, out, nextEquations), v)

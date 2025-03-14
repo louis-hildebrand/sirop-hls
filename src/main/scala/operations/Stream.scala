@@ -150,7 +150,6 @@ private object Helpers {
   }
 }
 
-// High-level function
 object Iterate {
   def apply(
       n: Expr /* Int */,
@@ -159,33 +158,23 @@ object Iterate {
       // TODO: Ideally we would get this shape information from the type system,
       zSize: Option[Int]
   ): Expr = {
+    val i = Param("i")
+    val acc = Param("acc")
+    val accExpanded = zSize match {
+      case Some(n) => Helpers.expandTuple(acc, n)
+      case None    => acc
+    }
     val s = StmBuild(
       1,
-      Tuple(n, z),
-      (acc: Expr) => {
-        val acc1Expanded = zSize match {
-          case Some(n) => Helpers.expandTuple(acc.__1, n)
-          case None    => acc.__1
-        }
-        IfThenElse(
-          acc.__0 === 0,
-          Tuple(
-            Tuple(acc.__0, acc1Expanded),
-            SSome(acc1Expanded)
-          ),
-          Tuple(
-            Tuple(acc.__0 - 1, FunCall(f, acc.__1)),
-            NNone
-          )
-        )
-      }
+      IfThenElse(i === 0, SSome(accExpanded), NNone),
+      Map[Param, (Expr, Expr)](
+        i -> (n, IfThenElse(i === 0, 0, i - 1)),
+        acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)))
+      )
     )
     StmNext(s).__1
   }
 }
-
-//////////////////////////
-// creating streams
 
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
@@ -223,34 +212,24 @@ object StmRange {
 
 object StmCst2D {
   def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    StmBuild(
-      n * m,
-      Tuple(),
-      (_: Expr) => Tuple(Tuple(), SSome(c))
-    )
+    StmBuild(n * m, SSome(c), Map[Param, (Expr, Expr)]())
   }
 }
 
 object StmCount2D {
   def apply(n: Expr, m: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       n * m,
-      Tuple(0, 0),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__1 === m - 1,
-            Tuple(acc.__0 + 1, 0),
-            Tuple(acc.__0, acc.__1 + 1)
-          ),
-          SSome(Tuple(acc.__0, acc.__1))
-        )
+      SSome(Tuple(i, j)),
+      Map[Param, (Expr, Expr)](
+        i -> (0, IfThenElse(j === m - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === m - 1, 0, j + 1))
+      )
     )
   }
 }
-
-//////////////////////////
-// manipulating streams
 
 object StmMap {
   def apply(
@@ -402,33 +381,26 @@ object StmMap {
   }
 }
 
-//////////////////////////
-// reductions
 object StmAccess {
   def apply(
       stm: Expr /* Stm<A; n> */,
-      i: Expr /* Int */,
+      k: Expr /* Int */,
       // TODO: Ideally we would get this shape info from the type system
       shape: Seq[Expr]
   ): Expr /* A */ = {
-    // NOTE: require 0 <= i < n
+    // NOTE: require 0 <= k < n
     val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
+    val s = Param("s") // input stream
+    val i = Param("i") // index of current row
+    val j = Param("j") // index within row
     StmBuild(
       perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 === i,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i === k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
   }
 }
@@ -631,14 +603,17 @@ object StmScanExclusive {
 }
 
 object Vec2Stm {
-  def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ =
-    // TODO: Would it be better to use a shift register for accessing the
-    //       input?
-    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, SSome(VecAccess(v, i))))
+  def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ = {
+    // Alternatively, you could implement Vec2Stm using a shift register
+    val i = Param("i")
+    StmBuild(
+      n,
+      SSome(VecAccess(v, i)),
+      Map[Param, (Expr, Expr)](i -> (0, i + 1))
+    )
+  }
 }
 
-/////////////////////////
-// dropping/adding elements
 object StmPrepend {
   def apply(
       stm: Expr /* Stm<A; n> */,
@@ -646,30 +621,8 @@ object StmPrepend {
       // Ideally we would get this shape info from the type system
       eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val eStm = if (eShape.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
-    } else {
-      e
-    }
-    StmBuild(
-      StmLength(stm) + eShape.fold(IntCst(1))((x, y) => x * y),
-      Tuple(eStm, stm, eShape.fold(IntCst(1))((x, y) => x * y)),
-      (acc: Expr) => {
-        IfThenElse(
-          acc.__2 === 0,
-          // Read from stm
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          ),
-          // Read from eStm
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            SSome(StmNext(acc.__0).__1)
-          )
-        )
-      }
-    )
+    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    StmConcat(eStm, stm)
   }
 }
 
@@ -678,31 +631,10 @@ object StmAppend {
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape information from the type system
-      stmShape: Seq[Expr]
+      eShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val eStm = if (stmShape.tail.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
-    } else {
-      e
-    }
-    StmBuild(
-      stmShape.updated(0, stmShape.head + 1).fold(IntCst(1))((x, y) => x * y),
-      Tuple(stm, eStm, stmShape.fold(IntCst(1))((x, y) => x * y)),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 === 0,
-          // Take from eStm
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          ),
-          // Take from stm
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            SSome(StmNext(acc.__0).__1)
-          )
-        )
-    )
+    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    StmConcat(stm, eStm)
   }
 }
 
@@ -725,23 +657,18 @@ object StmPrefix {
       // Ideally we would get this shape information from the type system
       shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
+    val perRow = shape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       k * perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 < k,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i < k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
   }
 }
@@ -765,25 +692,21 @@ object StmSuffix {
       // Ideally we would get this shape info from the type system
       shape: Seq[Expr]
   ): StmBuild /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
     val n = shape.head
+    val perRow = shape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       k * perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 >= n - k,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i >= n - k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
+
   }
 }
 
@@ -798,7 +721,9 @@ object StmShiftLeft {
     StmAppend(
       StmSuffix(stm, n - 1, shape = stmShape),
       e,
-      stmShape = stmShape.updated(0, n - 1)
+      // Assume shape of e matches shape of elements of stream (type system
+      // should probably check this)
+      eShape = stmShape.tail
     )
   }
 }
@@ -818,32 +743,24 @@ object StmShiftRight {
   }
 }
 
-/////////////////////////
-// concat
 object StmConcat {
   def apply(
       in1: Expr /* Stm<A; n> */,
-      in2: Expr /* Stm<A; m> */,
-      len1: Expr
+      in2: Expr /* Stm<A; m> */
   ): Expr /* Stm<A; n+m> */ = {
-    val p = Param("next")
+    val n = StmLength(in1)
+    val m = StmLength(in2)
+    val s0 = Param("s0")
+    val s1 = Param("s1")
+    val i = Param("i")
     StmBuild(
-      StmLength(in1) + StmLength(in2),
-      Tuple(in1, in2, len1),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 > 0,
-          Let(
-            p,
-            StmNext(acc.__0),
-            Tuple(Tuple(p.__0, acc.__1, acc.__2 - 1), SSome(p.__1))
-          ),
-          Let(
-            p,
-            StmNext(acc.__1),
-            Tuple(Tuple(acc.__0, p.__0, acc.__2), SSome(p.__1))
-          )
-        )
+      n + m,
+      SSome(IfThenElse(i === n, StmNext(s1).__1, StmNext(s0).__1)),
+      Map[Param, (Expr, Expr)](
+        i -> (0, IfThenElse(i === n, i, i + 1)),
+        s0 -> (in1, IfThenElse(i === n, s0, StmNext(s0).__0)),
+        s1 -> (in2, IfThenElse(i === n, StmNext(s1).__0, s1))
+      )
     )
   }
 }
@@ -854,14 +771,15 @@ object StmZip {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<B; n> */
   ): Expr /* Stm<(A, B); n> */ = {
+    val s0 = Param("s0")
+    val s1 = Param("s1")
     StmBuild(
       StmLength(a),
-      Tuple(a, b),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0, StmNext(acc.__1).__0),
-          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
-        )
+      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
+      Map[Param, (Expr, Expr)](
+        s0 -> (a, StmNext(s0).__0),
+        s1 -> (b, StmNext(s1).__0)
+      )
     )
   }
 }
@@ -873,21 +791,19 @@ object StmZipAlternating {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<A; n> */
   ): Expr /* Stm<(A, A); n> */ = {
-    val r0 = Param("a")
-    val r1 = Param("b")
+    val s0 = Param("a")
+    val s1 = Param("b")
     StmBuild(
       StmLength(a),
-      SSome(Tuple(StmNext(r0).__1, StmNext(r1).__1)),
+      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
       Map(
-        r0 -> (a, StmNext(b).__0),
-        r1 -> (b, StmNext(a).__0)
+        s0 -> (a, StmNext(s1).__0),
+        s1 -> (b, StmNext(s0).__0)
       )
     )
   }
 }
 
-////////////////////////
-// repeat
 object StmRepeat {
   def apply(
       stm: Expr /* Stm<A; n> */,

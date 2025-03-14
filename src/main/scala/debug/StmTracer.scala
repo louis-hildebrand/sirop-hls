@@ -5,7 +5,7 @@ import ir._
 
 object StmTracer {
   def trace(stm: StmBuild): Seq[String] = {
-    val n = PartialEvalPass.partialEval(StmLength(stm)).asInstanceOf[IntCst].i
+    val n = PartialEvalPass.partialEval(stm.n).asInstanceOf[IntCst].i
     trace(n, stm.equations.toSeq, stm.output, step = 0)
   }
 
@@ -25,22 +25,31 @@ object StmTracer {
           collapseStm = true,
           evalVec = true
         )(Map())
-        val (nextEquations, nextOut, nextOutValid) =
-          ir.eval(StmNext(StmBuild(n, output, equations.toMap))) match {
-            case Tuple(
-                  StmBuild(_, _, nextEquations),
-                  out @ Tuple(_, valid @ (True | False))
-                ) =>
+        val (nextEquations, nextOut, nextOutValid) = {
+          val currentValByVar: Map[Expr, Expr] =
+            equations.map({ case (x, (z, _)) => x -> z }).toMap
+          val nextEquations = equations
+            .map({ case (x, (_, next)) =>
+              val evaluatedNext = evalBigStep(next.substitute(currentValByVar))
+              x -> (evaluatedNext, next)
+            })
+            .toMap
+          val evaluatedOutput = evalBigStep(output.substitute(currentValByVar))
+          evaluatedOutput match {
+            case Tuple(v, valid: BoolCst) =>
               (
+                // IMPORTANT: keep same order of accumulator elements
                 equations.map({ case (x, _) => (x, nextEquations(x)) }),
-                out,
+                v,
                 valid == True
               )
             case e =>
               throw new IllegalArgumentException(
-                s"StmNext evaluated to $e. Expected it to evaluate to a 2-tuple."
+                s"Output of StmNext evaluated to $e."
+                  + " Expected it to evaluate to an option (i.e., a 2-tuple whose second element is a boolean)."
               )
           }
+        }
         val outStr = PrettyPrinter.show(nextOut, evalVec = true)(Map())
         val summary =
           s"""Step $step:

@@ -155,7 +155,7 @@ class StmFusePassTests extends AnyFunSuite {
     val p = Param()
     val n = 5
     val s =
-      StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42, stmShape = Seq(4))
+      StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42, eShape = Seq())
     val actual = canon(fuseCompletely(s))
 
     // Correct behaviour
