@@ -59,4 +59,143 @@ class CoreTests extends AnyFunSuite {
     assert(f != g)
     assert(g != f)
   }
+
+  test("StmBuildEqual:NoAccumulatorVars") {
+    val s1 = StmBuild(3, SSome(True), Map[Param, (Expr, Expr)]())
+    val s2 = StmBuild(3, SSome(True), Map[Param, (Expr, Expr)]())
+    assert(s1 == s2)
+    assert(s2 == s1)
+    assert(s1.hashCode == s2.hashCode)
+  }
+
+  test("StmBuildEqual:OneAccumulatorVar") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 = StmBuild(n, SSome(i), Map[Param, (Expr, Expr)](i -> (z, i + 1)))
+    val s2 = StmBuild(n, SSome(j), Map[Param, (Expr, Expr)](j -> (z, j + 1)))
+    assert(s1 == s2)
+    assert(s2 == s1)
+    assert(s1.hashCode == s2.hashCode)
+  }
+
+  test("StmBuildEqual:TwoAccumulatorVars") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 =
+      StmBuild(
+        n,
+        SSome(j - i),
+        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
+      )
+    val s2 =
+      StmBuild(
+        n,
+        SSome(i - j),
+        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
+      )
+    assert(s1 == s2)
+    assert(s2 == s1)
+    assert(s1.hashCode == s2.hashCode)
+  }
+
+  test("StmBuildNotEqual:DifferentLengths") {
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 = StmBuild(i, SSome(i), Map[Param, (Expr, Expr)](i -> (z, i + 1)))
+    val s2 = StmBuild(j, SSome(j), Map[Param, (Expr, Expr)](j -> (z, j + 1)))
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuildNotEqual:DifferentOutputs1") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 = StmBuild(n, SSome(i), Map[Param, (Expr, Expr)](i -> (z, i + 1)))
+    val s2 = StmBuild(n, SSome(i), Map[Param, (Expr, Expr)](j -> (z, j + 1)))
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuildNotEqual:DifferentOutputs2") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 =
+      StmBuild(
+        n,
+        SSome(i - j),
+        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
+      )
+    val s2 =
+      StmBuild(
+        n,
+        SSome(i - j),
+        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
+      )
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuildNotEqual:DifferentSeeds") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val s1 = StmBuild(n, SSome(i), Map[Param, (Expr, Expr)](i -> (i, i + 1)))
+    val s2 = StmBuild(n, SSome(j), Map[Param, (Expr, Expr)](j -> (j, j + 1)))
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuildNotEqual:DifferentStructures") {
+    val n = Param("n")
+    val i = Param("i")
+    val j = Param("j")
+    val z = Param("z")
+    val s1 = StmBuild(
+      n,
+      SSome(i),
+      Map[Param, (Expr, Expr)](
+        i -> (z, i + 1),
+        j -> (z, j - 1)
+      )
+    )
+    val s2 = StmBuild(
+      n,
+      SSome(j),
+      Map[Param, (Expr, Expr)](
+        i -> (z, j + 1),
+        j -> (z, i - 1)
+      )
+    )
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("RenameStmBuildVars") {
+    val n = Param("n")
+    val z = Param("z")
+    val a = Param("a")
+    val r0 = Param("r0")
+    val r1 = Param("r1")
+    val original = StmBuild(
+      n,
+      z + a + r0 * r1,
+      Map[Param, (Expr, Expr)](
+        a -> (z, a + 1),
+        r0 -> (1, a * 2),
+        r1 -> (z, a - 1)
+      )
+    )
+    val renamed = original.renameAccVars
+    assert(original == renamed)
+    assert(original.accVars.intersect(renamed.accVars).isEmpty)
+  }
 }

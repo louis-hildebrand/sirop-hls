@@ -1,5 +1,6 @@
 package ir
 
+import java.util.Objects
 import java.util.concurrent.atomic.AtomicLong
 
 /** A node in the core IR.
@@ -148,6 +149,8 @@ case class Param(prefix: String, id: Long) extends Expr {
     require(newChildren.isEmpty)
     this
   }
+
+  def freshCopy: Param = Param(this.prefix)
 
   override def toString: String = name
 }
@@ -546,10 +549,121 @@ case class StmBuild(
     }
   }
 
-  def seedByVar: Map[Param, Expr] =
+  lazy val accVars: Set[Param] = equations.keySet
+  lazy val seedByVar: Map[Param, Expr] =
     equations.map({ case (x, (v, _)) => x -> v })
-  def nextByVar: Map[Param, Expr] =
+  lazy val nextByVar: Map[Param, Expr] =
     equations.map({ case (x, (_, next)) => x -> next })
+
+  /** Construct a new <code>StmBuild</code> that is equivalent to this one but
+    * where all the accumulator variables have been replaced by fresh variables.
+    */
+  def renameAccVars: StmBuild = {
+    val replacements = accVars.map(x => x -> x.freshCopy).toMap
+    val subs: Map[Expr, Expr] = replacements.toMap
+    val newOutput = output.substitute(subs)
+    val newEquations = replacements.map({ case (x, y) =>
+      val oldSeed = seedByVar(x)
+      val newNext = nextByVar(x).substitute(subs)
+      y -> (oldSeed, newNext)
+    })
+    StmBuild(n, newOutput, newEquations)
+  }
+
+  /** Checks for structural equality, ignoring order of equations and names of
+    * accumulator variables.
+    */
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: StmBuild =>
+        if (this eq that) {
+          true
+        } else if (this.n != that.n) {
+          false
+        } else if (this.seedByVar.values.toSet != that.seedByVar.values.toSet) {
+          false
+        } else if (this.equations.size != that.equations.size) {
+          false
+        } else if (this.hashCode != that.hashCode) {
+          false
+        } else {
+          assert(this.accVars.size == that.accVars.size)
+          existsVarRenamingThatMakesEqual(
+            domain = this.accVars.toSeq,
+            codomain = that.accVars.toSeq,
+            map = Map(),
+            inverse = Map(),
+            that
+          )
+        }
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    // This implementation should be correct, but it may cause excessive
+    // collisions since it maps all variables to the same one variable.
+    val subs: Map[Expr, Expr] =
+      this.accVars.map(x => x -> StmBuild.HashCodeParam).toMap
+    val len = this.n
+    val out = this.output.substitute(subs)
+    val eqns = this.equations.toSeq.map({ case (_, (z, next)) =>
+      (StmBuild.HashCodeParam, (z, next.substitute(subs)))
+    })
+    // Be careful not to remove equations due to the fact that they'll all use
+    // the same param now!
+    assert(eqns.size == this.equations.size)
+    Objects.hash(len, out, eqns)
+  }
+
+  /** Basically just brute-force check through all the possible mappings from
+    * one set of variables to the other. This has at least O(n!) runtime (where
+    * n is the number of accumulator variables)! D: However, in practice,
+    * StmBuilds usually don't have <i>that</i> many accumulators and different
+    * accumulators have different seeds, so it shouldn't be too bad.
+    */
+  private def existsVarRenamingThatMakesEqual(
+      domain: Seq[Param],
+      codomain: Seq[Param],
+      map: Map[Param, Param],
+      inverse: Map[Param, Param],
+      that: StmBuild
+  ): Boolean = {
+    if (map.size == domain.size) {
+      // We have a full candidate mapping, so check equality
+      assert(domain.forall(x => inverse(map(x)) == x))
+      assert(codomain.forall(y => map(inverse(y)) == y))
+      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param() })
+      // Need to use separate substitutions in case one of the streams refers
+      // to a free variable and that same variable happens to be bound in the
+      // other stream
+      val thisSubs: Map[Expr, Expr] =
+        freshVarByPair.map({ case ((x, _), fresh) => x -> fresh })
+      val thatSubs: Map[Expr, Expr] =
+        freshVarByPair.map({ case ((_, y), fresh) => y -> fresh })
+      val eqnsMatch = map.forall({ case (x, y) =>
+        (this.nextByVar(x).substitute(thisSubs)
+          == that.nextByVar(y).substitute(thatSubs))
+      })
+      val outputsMatch =
+        this.output.substitute(thisSubs) == that.output.substitute(thatSubs)
+      eqnsMatch && outputsMatch
+    } else {
+      // Don't have a full candidate mapping yet, so recurse
+      val x = domain(map.size)
+      codomain.exists(y => {
+        (!inverse.isDefinedAt(y)
+        && this.seedByVar(x) == that.seedByVar(y)
+        && existsVarRenamingThatMakesEqual(
+          domain,
+          codomain,
+          map + (x -> y),
+          inverse + (y -> x),
+          that
+        ))
+      })
+    }
+  }
 
   @deprecated
   def seed: Tuple = ???
@@ -561,6 +675,12 @@ object StmBuild {
   def apply(n: Expr, z: Expr, f: Expr): StmBuild = {
     ???
   }
+
+  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
+    * that bound variable names don't affect the hash code. <i>It MUST NOT be
+    * used for anything else</i>.
+    */
+  private val HashCodeParam = Param("hashCode")
 }
 
 case class StmLength(stream: Expr) extends IntExpr {
