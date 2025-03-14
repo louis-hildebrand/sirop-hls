@@ -172,12 +172,29 @@ case class Function(param: Param, body: Expr) extends Expr {
   }
 
   override def equals(x: Any): Boolean = {
-    if (!x.isInstanceOf[Function]) false
-    else {
-      val that = x.asInstanceOf[Function]
-      this.body.substitute(this.param -> that.param) == that.body
+    x match {
+      case that: Function =>
+        val fresh = Param()
+        (this.body.substitute(this.param -> fresh)
+          == that.body.substitute(that.param -> fresh))
+      case _ => false
     }
   }
+
+  override def hashCode(): Int = {
+    // This implementation should be correct, but it may cause excessive
+    // collisions when dealing with nested functions. For example,
+    // x => y => x - y and x => y => y - x will be assigned the same hash code.
+    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
+  }
+}
+object Function {
+
+  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
+    * that the bound variable name doesn't affect the hash code. <i>It MUST NOT
+    * be used for anything else</i>.
+    */
+  private val HashCodeParam = Param("hashCode")
 }
 
 case class FunCall(f: Expr, arg: Expr) extends Expr {

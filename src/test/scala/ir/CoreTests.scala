@@ -36,4 +36,27 @@ class CoreTests extends AnyFunSuite {
     val e1 = IfThenElse(Not(c), f, t)
     assert(e0 == e1)
   }
+
+  test("FunctionsEqual") {
+    val f = {
+      val x = Param("x")
+      Function(x, (x + 1) * (x + 2))
+    }
+    val g = {
+      val y = Param("y")
+      Function(y, (y + 1) * (y + 2))
+    }
+    assert(f == g)
+    assert(g == f)
+    assert(f.hashCode() == g.hashCode())
+  }
+
+  test("FunctionsNotEqual") {
+    val x = Param("x")
+    val f = Function(x, (x + 1) * (x + 2))
+    val y = Param("y")
+    val g = Function(y, (y + 1) * (x + 2))
+    assert(f != g)
+    assert(g != f)
+  }
 }
