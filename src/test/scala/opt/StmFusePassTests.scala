@@ -7,8 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class StmFusePassTests extends AnyFunSuite {
   private val canon = (e: Expr) =>
     StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
-  private val fuse = (e: Expr) => StmFusePass.fuseWithFirst(e)
-  private val fuseCompletely = (e: Expr) => StmFusePass.fuseCompletely(e)
+  private val fuseCompletely = (e: StmBuild) => StmFusePass.fuseCompletely(e)
 
   test("CountFromFive") {
     val s = StmMap(
@@ -18,7 +17,7 @@ class StmFusePassTests extends AnyFunSuite {
       fInShape = None,
       fOutShape = None
     )
-    val actual = canon(fuse(s))
+    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
 
     // Correct behaviour
     val expectedElems = StmLiteral.ints(5, 6, 7)
@@ -46,7 +45,7 @@ class StmFusePassTests extends AnyFunSuite {
         fInShape = None,
         fOutShape = None
       )
-    val actual = canon(fuse(s))
+    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
 
     // Correct behaviour
     // (Using one example p, f, and g)
@@ -119,7 +118,7 @@ class StmFusePassTests extends AnyFunSuite {
       42,
       eShape = Seq()
     )
-    val actual = canon(fuseCompletely(s))
+    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
 
     // Correct behaviour
     // (Using one example p)
@@ -156,7 +155,7 @@ class StmFusePassTests extends AnyFunSuite {
     val n = 5
     val s =
       StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42, eShape = Seq())
-    val actual = canon(fuseCompletely(s))
+    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
 
     // Correct behaviour
     val call = (e: Expr) => Let(p, StmCount(n), e)
@@ -189,31 +188,39 @@ class StmFusePassTests extends AnyFunSuite {
   }
 
   test("ZipCounters") {
+    val i = Param("i")
     // [0, 1, 2, 3]
-    val c1 = StmBuild(4, 0, (i: Expr) => Tuple(i + 1, SSome(i)))
+    val c1 = StmBuild(4, SSome(i), Map[Param, (Expr, Expr)](i -> (0, i + 1)))
     // [9, 11, 13, 15]
-    val c2 = StmBuild(4, 9, (i: Expr) => Tuple(i + 2, SSome(i)))
+    val c2 = StmBuild(4, SSome(i), Map[Param, (Expr, Expr)](i -> (9, i + 2)))
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
     val s = StmZip(c1, c2)
 
+    val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
+    val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1
+
+    val i1 = Param("i")
+    val i2 = Param("i")
+
     // 1) After one fusion
-    val actual1 = canon(fuse(s))
+    val actual1 = PartialEvalPass.partialEval(StmFusePass.fuseWith(s, x1))
     // 1a) Correct behaviour
     assert(ir.eval(actual1) == ir.eval(s))
     // 1b) Successful fusion
     val ideal1 = StmBuild(
       4,
-      Tuple(StmBuild(4, 9, (i: Expr) => Tuple(i + 2, SSome(i))), 0),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0, acc.__1 + 1),
-          SSome(Tuple(acc.__1, StmNext(acc.__0).__1))
-        )
+      SSome(Tuple(i1, StmNext(x2).__1)),
+      Map[Param, (Expr, Expr)](
+        x2 -> s.equations(x2),
+        i1 -> (0, i1 + 1)
+      )
     )
     assert(actual1 == ideal1)
 
     // 2) After two fusions
-    val actual2 = canon(fuse(fuse(s)))
+    val actual2 = PartialEvalPass.partialEval(
+      StmFusePass.fuseWith(StmFusePass.fuseWith(s, x1), x2)
+    )
     // 2a) Correct behaviour
     val expectedElems =
       StmLiteral(Tuple(0, 9), Tuple(1, 11), Tuple(2, 13), Tuple(3, 15))
@@ -222,10 +229,12 @@ class StmFusePassTests extends AnyFunSuite {
     // 2b) Successful fusion
     val ideal2 = StmBuild(
       4,
-      Tuple(0, 9),
-      (acc: Expr) =>
-        Tuple(Tuple(acc.__0 + 1, acc.__1 + 2), SSome(Tuple(acc.__0, acc.__1)))
+      SSome(Tuple(i1, i2)),
+      Map[Param, (Expr, Expr)](
+        i1 -> (0, i1 + 1),
+        i2 -> (9, i2 + 2)
+      )
     )
-    assert(canon(fuse(fuse(s))) == ideal2)
+    assert(actual2 == ideal2)
   }
 }

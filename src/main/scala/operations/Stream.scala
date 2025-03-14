@@ -145,7 +145,9 @@ private object Helpers {
     // just the last producer.
     (
       f2.param,
-      StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
+      StmCanonPass.canonicalize(
+        StmFusePass.fuseCompletely(f2.body.asInstanceOf[StmBuild])
+      )
     )
   }
 }
@@ -770,7 +772,7 @@ object StmZip {
   def apply(
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<B; n> */
-  ): Expr /* Stm<(A, B); n> */ = {
+  ): StmBuild /* Stm<(A, B); n> */ = {
     val s0 = Param("s0")
     val s1 = Param("s1")
     StmBuild(
