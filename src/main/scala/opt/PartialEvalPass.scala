@@ -93,8 +93,10 @@ object PartialEvalPass {
 
       case True  => True
       case False => False
-      case ite: IfThenElse =>
-        ArithSimplifier.simplifyArithmetic(ite)(facts) match {
+      case IfThenElse(c, t, f) =>
+        val peIfThenElse =
+          IfThenElse(partialEval(c), partialEval(t), partialEval(f))
+        ArithSimplifier.simplifyArithmetic(peIfThenElse)(facts) match {
           case IfThenElse(cond, trueE, falseE) =>
             partialEval(cond) match {
               case True     => partialEval(trueE)
@@ -240,8 +242,9 @@ object PartialEvalPass {
           case IntCst(1) =>
             // Maybe we can find the first element statically and just return it directly!
             tryEvalStmNext(s) match {
-              case Some((_, out)) if !hasSideEffects(out) => Some(out)
-              case _                                      => None
+              case Some((_, out)) if !hasSideEffects(out) =>
+                Some(partialEval(out))
+              case _ => None
             }
           case _ =>
             None
@@ -432,44 +435,38 @@ object PartialEvalPass {
   }
 
   @tailrec
-  private def tryEvalStmNext(s: StmBuild): Option[(StmBuild, Expr)] = {
-    s.n match {
-      case IntCst(len) =>
-        require(len > 0, "Attempt to call StmNext() on an empty stream.")
-        partialEval(FunCall(s.nextF, s.seed)) match {
-          case next: Tuple =>
-            val n = next.elems.length
-            require(
-              n == 2,
-              s"The function in StmBuild returned a ${n}-tuple instead of a 2-tuple."
-            )
-            partialEval(next.__1) match {
-              case Tuple(e, True) =>
-                // return the new stream and element
-                Some(
-                  StmBuild(
-                    len - 1,
-                    partialEval(next.__0),
-                    // this function may have free parameters
-                    partialEval(s.nextF).asInstanceOf[Function]
-                  ),
-                  partialEval(e)
-                )
-              case Tuple(_, False) =>
-                // skip this element, look for the next one
-                tryEvalStmNext(
-                  StmBuild(
-                    s.n,
-                    partialEval(next.__0),
-                    // this function may have free parameters
-                    partialEval(s.nextF).asInstanceOf[Function]
-                  )
-                )
-              case _ => None
-            }
-          case _ => None
-        }
-      case _ => None
+  private def tryEvalStmNext(
+      s: StmBuild,
+      stepsWithoutValid: Int = 0
+  ): Option[(StmBuild, Expr)] = {
+    if (stepsWithoutValid >= 100) {
+      None
+    } else {
+      s.n match {
+        case IntCst(n) if n > 0 =>
+          val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
+          partialEval(s.output.substitute(currentValByVar)) match {
+            case Tuple(e, True) =>
+              val nextEquations = s.equations.map({ case (x, (_, next)) =>
+                val evaluatedNext =
+                  partialEval(next.substitute(currentValByVar))
+                x -> (evaluatedNext, next)
+              })
+              Some(StmBuild(n - 1, s.output, nextEquations), e)
+            case Tuple(_, False) =>
+              val nextEquations = s.equations.map({ case (x, (_, next)) =>
+                val evaluatedNext =
+                  partialEval(next.substitute(currentValByVar))
+                x -> (evaluatedNext, next)
+              })
+              tryEvalStmNext(
+                StmBuild(s.n, s.output, nextEquations),
+                stepsWithoutValid = stepsWithoutValid + 1
+              )
+            case _ => None
+          }
+        case _ => None
+      }
     }
   }
 
