@@ -895,62 +895,79 @@ object StmSlideV {
     *
     * NOTE: `m` must be such that 1 &le; m &le; n.
     *
-    * @param stm
+    * @param input
     *   A stream of length n.
     * @param m
     *   Window size.
     */
   def apply(
-      stm: Expr /* Stm<A; n> */,
+      input: Expr /* Stm<A; n> */,
       m: Int,
       // Ideally we would get this shape info from the type system
       stmShape: Seq[Expr]
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
-    val elemSize = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+    val elemSize = stmShape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     val v = Param("v")
     StmBuild(
       n - m + 1,
-      Tuple(
-        stm,
-        // Number of window elements left to load
-        m - 1,
-        // How many pieces of data left to load in the current window?
-        // This will always be 1 if `stm` is flat, but may be greater than 1
-        // if `stm` is multi-dimensional.
-        elemSize,
-        VecBuild(m * elemSize, (i: Expr) => DontCare)
+      IfThenElse(
+        i === 0 && j === 1,
+        // CASE 1: Shift register is full.
+        //         Produce output.
+        SSome(VecShiftLeft(v, StmNext(s).__1)),
+        // CASE 2: Shift register is not full yet.
+        //         Wait until it is.
+        NNone
       ),
-      (acc: Expr) =>
-        Let(
-          v,
-          VecShiftLeft(acc.__3, StmNext(acc.__0).__1),
+      Map[Param, (Expr, Expr)](
+        s -> (input, StmNext(s).__0),
+        // Number of window elements left to load
+        i -> (
+          m - 1,
           IfThenElse(
-            (acc.__1 === 0) && (acc.__2 === 1),
-            // CASE 1: Shift register is full
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1, elemSize, v),
-              SSome(v)
-            ),
-            // CASE 2: Shift register is not full yet
-            Tuple(
-              IfThenElse(
-                acc.__1 === 0,
-                // CASE 2a: Initial loading is done, just loading the next
-                //          element. Note that each element may be a stream,
-                //          so this may take multiple cycles.
-                Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v),
-                // CASE 2b: Initial loading still in progress.
-                IfThenElse(
-                  acc.__2 === 1,
-                  Tuple(StmNext(acc.__0).__0, acc.__1 - 1, elemSize, v),
-                  Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v)
-                )
-              ),
-              NNone
+            i === 0 && j === 1,
+            // CASE 1: Shift register is full.
+            i,
+            // CASE 2: Shift register is not full yet.
+            IfThenElse(
+              i === 0,
+              // CASE 2a: Initial loading is done, just loading the next elem
+              //          (may take multiple cycles for nested streams).
+              i,
+              // CASE 2b: Initial loading still in progress.
+              IfThenElse(j === 1, i - 1, i)
             )
           )
+        ),
+        // How many pieces of data left to load in the current window element?
+        // This will be 1 if `stm` is flat but may be greater than 1
+        // if `stm` is multi-dimensional.
+        j -> (
+          elemSize,
+          IfThenElse(
+            i === 0 && j === 1,
+            // CASE 1: Shift register is full.
+            elemSize,
+            // CASE 2: Shift register is not full yet.
+            IfThenElse(
+              i === 0,
+              // CASE 2a: Initial loading is done, just loading the next elem
+              //          (may take multiple cycles for nested streams).
+              j - 1,
+              // CASE 2b: Initial loading still in progress.
+              IfThenElse(j === 1, elemSize, j - 1)
+            )
+          )
+        ),
+        v -> (
+          VecBuild(m * elemSize, (_: Expr) => DontCare),
+          VecShiftLeft(v, StmNext(s).__1)
         )
+      )
     )
   }
 }
