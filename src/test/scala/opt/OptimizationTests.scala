@@ -6,6 +6,87 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {
 
+  /** The optimizer can perform map-map fusion.
+    */
+  test("MapMap") {
+    val p = Param()
+    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val g = (x: Expr) => x - 10
+    val s =
+      StmMap(
+        StmMap(p, f, n = 5, fInShape = None, fOutShape = None),
+        g,
+        n = 5,
+        fInShape = None,
+        fOutShape = None
+      )
+    val actual = StmFusePass.fuseCompletely(s.asInstanceOf[StmBuild])
+
+    // Correct behaviour
+    // (Using one example p, f, and g)
+    val call = (e: Expr) => Let(p, StmCount(5), e)
+    val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
+    assert(ir.eval(call(s)) == expectedElems)
+    assert(ir.eval(call(actual)) == expectedElems)
+    // Successful fusion
+    val ideal = StmBuild(
+      5,
+      Tuple(p),
+      (acc: Expr) =>
+        Tuple(
+          Tuple(StmNext(acc.__0).__0),
+          SSome({
+            val x = StmNext(acc.__0).__1
+            (x + 2) * (x + 3) * (x + 4) + -10
+          })
+        )
+    )
+    assert(actual == ideal)
+  }
+
+  /** The optimizer can perform map-fold fusion.
+    */
+  test("MapFold") {
+    val p = Param()
+    val n = Param()
+    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val s =
+      StmFold(
+        StmMap(p, f, n = n, fInShape = None, fOutShape = None),
+        0,
+        (acc: Expr) => (x: Expr) => acc + x,
+        stmShape = Seq(n)
+      )
+    val actual = StmFusePass.fuseCompletely(s)
+
+    // Correct behaviour
+    // (Using one example p, f, and g)
+    val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
+    val expected =
+      StmLiteral(
+        ir.eval(
+          FunCall(f, 0)
+            + FunCall(f, 1)
+            + FunCall(f, 2)
+            + FunCall(f, 3)
+            + FunCall(f, 4)
+        )
+      )
+    assert(ir.eval(call(s)) == expected)
+    assert(ir.eval(call(actual)) == expected)
+    // Successful fusion
+    val ideal =
+      StmFusePass.fuseCompletely(
+        StmFold(
+          p,
+          0,
+          (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
+          stmShape = Seq(n)
+        )
+      )
+    assert(actual == ideal)
+  }
+
   /** The conversion of a vector with statically-known `f` but unknown `n` to a
     * stream can be optimized (no vector in the final result, just compute the
     * `i`th element directly).

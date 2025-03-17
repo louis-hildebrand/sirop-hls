@@ -5,186 +5,104 @@ import operations._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmFusePassTests extends AnyFunSuite {
-  private val canon = (e: Expr) =>
-    StmCanonPass.canonicalize(e.asInstanceOf[StmBuild])
   private val fuseCompletely = (e: StmBuild) => StmFusePass.fuseCompletely(e)
 
-  test("CountFromFive") {
-    val s = StmMap(
-      StmCount(3),
-      (x: Expr) => x + 5,
-      n = 3,
-      fInShape = None,
-      fOutShape = None
+  test("MapPlusFive") {
+    val s = Param("s")
+    val original = StmBuild(
+      3,
+      SSome(StmNext(s).__1 + 5),
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(3), StmNext(s).__0)
+      )
     )
-    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
+    val fused = fuseCompletely(original)
 
     // Correct behaviour
     val expectedElems = StmLiteral.ints(5, 6, 7)
-    assert(ir.eval(s) == expectedElems)
-    assert(ir.eval(actual) == expectedElems)
+    assert(ir.eval(original) == expectedElems)
+    assert(ir.eval(fused) == expectedElems)
     // Successful fusion
+    val i = Param("i")
     val ideal =
       StmBuild(
         3,
-        Tuple(0),
-        (acc: Expr) => Tuple(Tuple(acc.__0 + 1), SSome(acc.__0 + 5))
-      )
-    assert(actual == ideal)
-  }
-
-  test("MapMap") {
-    val p = Param()
-    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
-    val g = (x: Expr) => x - 10
-    val s =
-      StmMap(
-        StmMap(p, f, n = 5, fInShape = None, fOutShape = None),
-        g,
-        n = 5,
-        fInShape = None,
-        fOutShape = None
-      )
-    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
-
-    // Correct behaviour
-    // (Using one example p, f, and g)
-    val call = (e: Expr) => Let(p, StmCount(5), e)
-    val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
-    assert(ir.eval(call(s)) == expectedElems)
-    assert(ir.eval(call(actual)) == expectedElems)
-    // Successful fusion
-    val ideal = StmBuild(
-      5,
-      Tuple(p),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0),
-          SSome({
-            val x = StmNext(acc.__0).__1
-            (x + 2) * (x + 3) * (x + 4) + -10
-          })
-        )
-    )
-    assert(actual == ideal)
-  }
-
-  test("MapFold") {
-    val p = Param()
-    val n = Param()
-    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
-    val s =
-      StmFold(
-        StmMap(p, f, n = n, fInShape = None, fOutShape = None),
-        0,
-        (acc: Expr) => (x: Expr) => acc + x,
-        stmShape = Seq(n)
-      )
-    val actual = canon(fuseCompletely(s))
-
-    // Correct behaviour
-    // (Using one example p, f, and g)
-    val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
-    val expected =
-      StmLiteral(
-        ir.eval(
-          FunCall(f, 0)
-            + FunCall(f, 1)
-            + FunCall(f, 2)
-            + FunCall(f, 3)
-            + FunCall(f, 4)
+        SSome(i + 5),
+        Map[Param, (Expr, Expr)](
+          i -> (0, i + 1)
         )
       )
-    assert(ir.eval(call(s)) == expected)
-    assert(ir.eval(call(actual)) == expected)
-    // Successful fusion
-    val ideal = canon(
-      fuseCompletely(
-        StmFold(
-          p,
-          0,
-          (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
-          stmShape = Seq(n)
-        )
-      )
-    )
-    assert(actual == ideal)
+    assert(PartialEvalPass.partialEval(fused) == ideal)
   }
 
   test("StmShiftRight") {
-    val p = Param()
-    val s = StmPrepend(
-      StmPrefix(p, StmLength(p) - 1, shape = Seq(5)),
+    val input = Param("input")
+    val original = StmPrepend(
+      StmPrefix(input, StmLength(input) - 1, shape = Seq(5)),
       42,
       eShape = Seq()
     )
-    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
+    val fused = fuseCompletely(original.asInstanceOf[StmBuild])
 
     // Correct behaviour
-    // (Using one example p)
-    val call = (e: Expr) => Let(p, StmCount(5), e)
+    // (Using one example input)
+    val call = (e: Expr) => Let(input, StmCount(5), e)
     val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
-    assert(ir.eval(call(s)) == expectedElems)
-    assert(ir.eval(call(actual)) == expectedElems)
+    assert(ir.eval(call(original)) == expectedElems)
+    assert(ir.eval(call(fused)) == expectedElems)
     // Successful fusion
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     val ideal = StmBuild(
-      StmLength(p),
-      Tuple(p, 1, 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__1 === 0,
-          IfThenElse(
-            acc.__2 < (StmLength(p) + -1),
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              SSome(StmNext(acc.__0).__1)
-            ),
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-              NNone
-            )
-          ),
-          Tuple(Tuple(acc.__0, acc.__1 + -1, acc.__2), SSome(42))
-        )
+      StmLength(input),
+      IfThenElse(
+        i === 1,
+        IfThenElse(j < -1 + StmLength(input), SSome(StmNext(s).__1), NNone),
+        SSome(42)
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (input, IfThenElse(i === 1, StmNext(s).__0, s)),
+        i -> (0, IfThenElse(i === 1, i, i + 1)),
+        j -> (0, IfThenElse(i === 1, j + 1, j))
+      )
     )
-    assert(actual == ideal)
+    val fusedAndSimplified = PartialEvalPass.partialEval(fused)
+    assert(fusedAndSimplified == ideal)
   }
 
   test("StmShiftLeft") {
-    val p = Param()
+    val input = Param("input")
     val n = 5
-    val s =
-      StmAppend(StmSuffix(p, n - 1, shape = Seq(5)), 42, eShape = Seq())
-    val actual = canon(fuseCompletely(s.asInstanceOf[StmBuild]))
+    val original =
+      StmAppend(StmSuffix(input, n - 1, shape = Seq(5)), 42, eShape = Seq())
+    val fused = fuseCompletely(original.asInstanceOf[StmBuild])
 
     // Correct behaviour
-    val call = (e: Expr) => Let(p, StmCount(n), e)
+    val call = (e: Expr) => Let(input, StmCount(n), e)
     val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
-    assert(ir.eval(call(s)) == expectedElems)
-    assert(ir.eval(call(actual)) == expectedElems)
+    assert(ir.eval(call(original)) == expectedElems)
+    assert(ir.eval(call(fused)) == expectedElems)
     // Successful fusion
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     val ideal =
       StmBuild(
-        5,
-        Tuple(p, 4, 0),
-        (acc: Expr) =>
-          IfThenElse(
-            acc.__1 === 0,
-            Tuple(Tuple(acc.__0, acc.__1, acc.__2), SSome(42)),
-            IfThenElse(
-              acc.__2 >= 1,
-              Tuple(
-                Tuple(StmNext(acc.__0).__0, acc.__1 + -1, acc.__2 + 1),
-                SSome(StmNext(acc.__0).__1)
-              ),
-              Tuple(
-                Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 + 1),
-                NNone
-              )
-            )
-          )
+        n,
+        IfThenElse(
+          i === 4,
+          SSome(42),
+          IfThenElse(j < 1, NNone, SSome(StmNext(s).__1))
+        ),
+        Map[Param, (Expr, Expr)](
+          s -> (input, IfThenElse(i === 4, s, StmNext(s).__0)),
+          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1))),
+          j -> (0, IfThenElse(i === 4, j, j + 1))
+        )
       )
-    assert(actual == ideal)
+    val fusedAndSimplified = PartialEvalPass.partialEval(fused)
+    assert(fusedAndSimplified == ideal)
   }
 
   test("ZipCounters") {
