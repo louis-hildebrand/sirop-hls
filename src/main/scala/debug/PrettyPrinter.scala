@@ -63,7 +63,7 @@ object PrettyPrinter {
       case StmBuild(n, out, equations) =>
         if (collapseStm) {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          s"StmBuild(${nStr}, ...)"
+          s"StmBuild(${nStr}; ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
           val outStr = show(out, collapseStm = collapseStm, evalVec = evalVec)
@@ -71,11 +71,14 @@ object PrettyPrinter {
             val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
             val nextStr =
               show(next, collapseStm = collapseStm, evalVec = evalVec)
-            s"${show(x)}: $zStr, $nextStr"
+            s"${show(x)}: (\n${indent(zStr)},\n${indent(nextStr)}\n)"
           })
-          val inside = s"$nStr\n$outStr\n${recStrings.mkString("\n")}"
+          val inside = s"$nStr;\n$outStr;\n${recStrings.mkString(";\n")}"
           s"StmBuild(\n${indent(inside)}\n)"
         }
+      case StmLength(s) =>
+        val stmStr = show(s, collapseStm = true)
+        s"StmLength($stmStr)"
       case v @ VecBuild(n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
         elems match {
