@@ -1,6 +1,6 @@
 package operations
 
-import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
+import opt.StmCanonPass
 import ir._
 
 private object Helpers {
@@ -145,9 +145,7 @@ private object Helpers {
     // just the last producer.
     (
       f2.param,
-      StmCanonPass.canonicalize(
-        StmFusePass.fuseCompletely(f2.body.asInstanceOf[StmBuild])
-      )
+      StmCanonPass.canonicalize(f2.body.asInstanceOf[StmBuild].fuseCompletely())
     )
   }
 }

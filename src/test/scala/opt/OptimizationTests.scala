@@ -20,7 +20,7 @@ class OptimizationTests extends AnyFunSuite {
         fInShape = None,
         fOutShape = None
       )
-    val actual = StmFusePass.fuseCompletely(s.asInstanceOf[StmBuild])
+    val actual = s.asInstanceOf[StmBuild].fuseCompletely()
 
     // Correct behaviour
     // (Using one example p, f, and g)
@@ -57,7 +57,7 @@ class OptimizationTests extends AnyFunSuite {
         (acc: Expr) => (x: Expr) => acc + x,
         stmShape = Seq(n)
       )
-    val actual = StmFusePass.fuseCompletely(s)
+    val actual = s.fuseCompletely()
 
     // Correct behaviour
     // (Using one example p, f, and g)
@@ -76,14 +76,12 @@ class OptimizationTests extends AnyFunSuite {
     assert(ir.eval(call(actual)) == expected)
     // Successful fusion
     val ideal =
-      StmFusePass.fuseCompletely(
-        StmFold(
-          p,
-          0,
-          (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
-          stmShape = Seq(n)
-        )
-      )
+      StmFold(
+        p,
+        0,
+        (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
+        stmShape = Seq(n)
+      ).fuseCompletely()
     assert(actual == ideal)
   }
 
@@ -133,7 +131,7 @@ class OptimizationTests extends AnyFunSuite {
     val c = Param()
     val s = StmCst(n, c)
     val v = {
-      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -175,7 +173,7 @@ class OptimizationTests extends AnyFunSuite {
     val delta = Param()
     val s = StmRange(n, z, delta)
     val v = {
-      val v0 = StmFusePass.fuseCompletely(Stm2Vec(s, n = StmLength(s)))
+      val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmCanonPass.canonicalize(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -227,7 +225,7 @@ class OptimizationTests extends AnyFunSuite {
       val facts = FactSet().geq(n, 1)
       val s0 =
         PartialEvalPass.partialEval(original)(facts).asInstanceOf[StmBuild]
-      val s1 = StmFusePass.fuseCompletely(s0)
+      val s1 = s0.fuseCompletely()
       val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
       // TODO: It should be able to do both in one step
       val s3 = StmAccRemovalPass.removeUnusedElems(s2)
@@ -275,7 +273,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = Param("v")
     val original = Stm2Vec(Vec2Stm(v, n = n), n = n)
     val optimized = {
-      val s1 = StmFusePass.fuseCompletely(original)
+      val s1 = original.fuseCompletely()
       val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
       val s3 = StmDelayRemovalPass.skipFirstCycles(s2, n - 1)()
       StmInductionVarRemovalPass().removeInductionVars(s3)
@@ -320,7 +318,7 @@ class OptimizationTests extends AnyFunSuite {
       val facts = FactSet().geq(n, 1)
       val s0 =
         PartialEvalPass.partialEval(original)(facts).asInstanceOf[StmBuild]
-      val s1 = StmFusePass.fuseCompletely(s0)
+      val s1 = s0.fuseCompletely()
       val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
       // TODO: It should be able to do both in one step
       val s3 = StmAccRemovalPass.removeUnusedElems(s2)
@@ -389,7 +387,7 @@ class OptimizationTests extends AnyFunSuite {
     }
     val optimized = {
       val s0 = PartialEvalPass.partialEval(original).asInstanceOf[StmBuild]
-      val s1 = StmFusePass.fuseCompletely(s0)
+      val s1 = s0.fuseCompletely()
       val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
       PartialEvalPass.partialEval(s2)
     }
