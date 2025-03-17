@@ -3,6 +3,7 @@ package opt
 import scala.annotation.tailrec
 import ir._
 
+// TODO: Delete this
 object StmCanonPass {
   def canonicalIdentityStream(n: Expr, p: Param): StmBuild = {
     StmCanonPass.canonicalize(

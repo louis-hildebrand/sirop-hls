@@ -570,6 +570,25 @@ case class StmBuild(
     StmBuild(n, newOutput, newEquations)
   }
 
+  def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
+    if (replacements.keys.exists(x => !accVars.contains(x))) {
+      val xs = replacements.keys.filter(x => !accVars.contains(x)).toSeq
+      throw new IllegalArgumentException(
+        s"Cannot replace variables $xs because they are not part of the stream."
+          + s" The stream is $this."
+      )
+    } else {
+      val subs: Map[Expr, Expr] = replacements.toMap
+      StmBuild(
+        this.n,
+        this.output.substitute(subs),
+        this.equations
+          .filter({ case (x, _) => !replacements.contains(x) })
+          .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
+      )
+    }
+  }
+
   /** Checks for structural equality, ignoring order of equations and names of
     * accumulator variables.
     */
@@ -607,13 +626,16 @@ case class StmBuild(
       this.accVars.map(x => x -> StmBuild.HashCodeParam).toMap
     val len = this.n
     val out = this.output.substitute(subs)
-    val eqns = this.equations.toSeq.map({ case (_, (z, next)) =>
-      (StmBuild.HashCodeParam, (z, next.substitute(subs)))
-    })
+    val eqns = this.equations.toSeq
+      .map({ case (_, (z, next)) =>
+        (z, next.substitute(subs))
+      })
+    val eqnsBag =
+      eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
     // Be careful not to remove equations due to the fact that they'll all use
     // the same param now!
-    assert(eqns.size == this.equations.size)
-    Objects.hash(len, out, eqns)
+    assert(eqnsBag.values.sum == this.equations.size)
+    Objects.hash(len, out, eqnsBag)
   }
 
   /** Basically just brute-force check through all the possible mappings from

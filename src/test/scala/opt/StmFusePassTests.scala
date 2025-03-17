@@ -67,7 +67,8 @@ class StmFusePassTests extends AnyFunSuite {
         j -> (0, IfThenElse(i === 1, j + 1, j))
       )
     )
-    val fusedAndSimplified = PartialEvalPass.partialEval(fused)
+    val fusedAndSimplified =
+      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
     assert(fusedAndSimplified == ideal)
   }
 
@@ -101,7 +102,8 @@ class StmFusePassTests extends AnyFunSuite {
           j -> (0, IfThenElse(i === 4, j, j + 1))
         )
       )
-    val fusedAndSimplified = PartialEvalPass.partialEval(fused)
+    val fusedAndSimplified =
+      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
     assert(fusedAndSimplified == ideal)
   }
 

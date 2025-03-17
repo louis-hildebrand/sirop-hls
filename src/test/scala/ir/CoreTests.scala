@@ -102,6 +102,34 @@ class CoreTests extends AnyFunSuite {
     assert(s1.hashCode == s2.hashCode)
   }
 
+  test("StmBuildEqual:ThreeAccumulatorVars") {
+    val n = Param("n")
+    val a = Param("a")
+    val c = Param("c")
+    val d = Param("d")
+    val s1 = StmBuild(
+      n,
+      SSome(a * c * d),
+      Map[Param, (Expr, Expr)](
+        a -> (0, a + 1),
+        c -> (1, c + 2),
+        d -> (2, d + 3)
+      )
+    )
+    val s2 = StmBuild(
+      n,
+      SSome(a * c * d),
+      Map[Param, (Expr, Expr)](
+        a -> (0, a + 1),
+        d -> (2, d + 3),
+        c -> (1, c + 2)
+      )
+    )
+    assert(s1 == s2)
+    assert(s2 == s1)
+    assert(s1.hashCode == s2.hashCode)
+  }
+
   test("StmBuildNotEqual:DifferentLengths") {
     val i = Param("i")
     val j = Param("j")
