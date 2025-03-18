@@ -685,6 +685,18 @@ case class StmBuild(
     }
   }
 
+  def addOutputCounter(outCtr: Param): StmBuild = {
+    val s = if (this.equations.contains(outCtr)) this.renameVars else this
+    val z = IntCst(0)
+    val next =
+      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)
+    StmBuild(
+      s.n,
+      s.output,
+      s.equations + (outCtr -> (z, next))
+    )
+  }
+
   /** Construct a boolean expression <code>c</code> such that, in
     * <code>stm</code>, the accumulator variable <code>x</code> is updated to
     * <code>StmNext(x).0</code> iff <code>c</code> evaluates to true.

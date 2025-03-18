@@ -377,4 +377,37 @@ class CoreTests extends AnyFunSuite {
     )
     assert(actual2 == ideal2)
   }
+
+  test("StmBuild:AddOutputCounter") {
+    val n = Param("n")
+    val out = Param("out")
+    val outCtr = Param("out_ctr")
+    val s = StmBuild(
+      n,
+      out,
+      Map[Param, (Expr, Expr)](outCtr -> (10, outCtr * 2))
+    )
+
+    val actual = s.addOutputCounter(outCtr)
+
+    // The existing bound variable should be renamed
+    val i = Param("i")
+    val expectedOutCtrSeed = IntCst(0)
+    val expectedOutCtrNext = OptionAccess(
+      out,
+      (_: Expr) => outCtr + 1,
+      (_: Expr) => outCtr
+    )
+    val expected = StmBuild(
+      n,
+      out,
+      Map[Param, (Expr, Expr)](
+        i -> (10, i * 2),
+        outCtr -> (expectedOutCtrSeed, expectedOutCtrNext)
+      )
+    )
+    assert(actual == expected)
+    assert(actual.seedByVar(outCtr) == expectedOutCtrSeed)
+    assert(actual.nextByVar(outCtr) == expectedOutCtrNext)
+  }
 }
