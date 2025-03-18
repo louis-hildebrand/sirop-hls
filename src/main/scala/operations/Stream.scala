@@ -1,6 +1,7 @@
 package operations
 
 import ir._
+import opt.PartialEvalPass
 
 private object Helpers {
   def expandTuple(t: Expr, n: Int): Tuple = {
@@ -215,14 +216,10 @@ object StmMap {
     val (s, innerStm) =
       Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
     assert(
-      innerStm.freeVars() - s == f.freeVars(),
-      "no new free variables should have been introduced by asStm2Stm"
-    )
-    assert(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
       "the input stream should appear no more than once in the inner StmBuild"
     )
-    if (!innerStm.seedByVar.values.exists(z => z == s)) {
+    val map = if (!innerStm.seedByVar.values.exists(z => z == s)) {
       // In theory you could have something like
       //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
       // which doesn't actually use the input stream at all.
@@ -250,10 +247,6 @@ object StmMap {
               inCtr
             )
             .addOutputCounter(outCtr)
-          assert(
-            innerWithCtrs.freeVars() - s == f.freeVars(),
-            "no new free variables should have been introduced by adding I/O counters"
-          )
           // Want to reset depending on the *next* values of the in/out counters.
           val shouldReset = (
             (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
@@ -267,19 +260,22 @@ object StmMap {
                 // Never reset the input stream
                 x -> (z, next)
               } else {
-                val nextOrReset = IfThenElse(shouldReset, z, next)
-                x -> (z, nextOrReset)
+                x -> (z, IfThenElse(shouldReset, z, next))
               }
             })
           )
-          assert(
-            outerStm.freeVars() - s == f.freeVars(),
-            "no new free variables should have been introduced by resetting"
-          )
           outerStm
       }
-      map.substitute(s -> input)
+      val ret = map.substitute(s -> input)
+      assert(
+        ret.freeVars() == input.freeVars() ++ f.freeVars(),
+        s"the set of free variables should be unchanged by StmMap (expected ${input
+            .freeVars() ++ f.freeVars()}, got ${ret.freeVars()})"
+      )
+      ret
     }
+    // Simplification is NOT required, but it makes the tests run much faster
+    opt.PartialEvalPass.partialEval(map)
   }
 }
 
@@ -334,7 +330,7 @@ object StmScanInclusive {
       stmShape: Seq[Expr]
   ): Expr = {
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
-    val (s, inner) =
+    val (s, innerStm) =
       Helpers.asStm2Stm(
         // The function has the form (acc) => (elem) => newAcc.
         // Take just the (elem) => newAcc part here, with acc being a free variable.
@@ -345,144 +341,52 @@ object StmScanInclusive {
           else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
         outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
-    assert(inner.n == IntCst(1))
-    val usesInputStream = inner.seed
-      .asInstanceOf[Tuple]
-      .elems
-      .contains(s)
-    if (!usesInputStream) {
-      assert(inner.seed == Tuple())
-      val e = inner.nextF.body match {
-        case Tuple(Tuple(), Tuple(e, True)) => e
-        case _                              => ???
-      }
-      StmBuild(
-        stmShape.head,
-        z, {
-          val newAcc = Param("acc")
-          val x = Param("acc")
-          Function(
-            newAcc,
-            Let(
-              x,
-              e.substitute(f.param -> newAcc),
-              Tuple(x, SSome(x))
-            )
-          )
-        }
+    assert(
+      innerStm.n == IntCst(1),
+      "the function in StmScan should return a scalar or a stream of length 1"
+    )
+    assert(
+      innerStm.seedByVar.count({ case (_, z) => z == s }) == 1,
+      "the input stream should appear exactly once in the inner StmBuild"
+    )
+    val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+    val outputsUntilReset = IntCst(1)
+    val inCtr = Param("in_ctr")
+    val outCtr = Param("out_ctr")
+    val innerWithCtrs = innerStm
+      .addInputCounter(
+        innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
+        inCtr
       )
-    } else {
-      val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-      val scan = StmBuild(
-        stmShape.head,
-        Tuple(
-          inner.seed, /* Accumulator for the inner function */
-          z,
-          numIn, /* Input counter */
-          1 /* Output counter */
-        ), {
-          val newAcc = Param("acc")
-          Function(
-            newAcc,
-            makeNextFBody(
-              oldBody = inner.nextF.body,
-              oldAcc = inner.nextF.param,
-              newAcc = newAcc,
-              oldSeed = inner.seed.asInstanceOf[Tuple],
-              numIn = numIn
-            ).substitute(f.param -> newAcc.__1)
-          )
+      .addOutputCounter(outCtr)
+    // Want to reset depending on the *next* values of the in/out counters.
+    val shouldReset = (
+      (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
+        && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
+    )
+    val acc = Param("acc")
+    val nextAcc =
+      OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)
+    val outerStm = StmBuild(
+      stmShape.head,
+      IfThenElse(shouldReset, SSome(nextAcc), NNone),
+      innerWithCtrs.equations.map({ case (x, (z, next)) =>
+        if (z == s) {
+          // Never reset the input stream
+          x -> (z, next)
+        } else {
+          x -> (z, IfThenElse(shouldReset, z, next))
         }
-      )
-      scan.substitute(s -> input)
-    }
-  }
-
-  private def makeNextFBody(
-      oldBody: Expr,
-      oldAcc: Param,
-      newAcc: Param,
-      oldSeed: Tuple,
-      numIn: Expr
-  ): Expr = {
-    val e = oldBody match {
-      case DontCare => DontCare
-      case IfThenElse(cond, trueE, falseE) =>
-        IfThenElse(
-          cond,
-          makeNextFBody(
-            oldBody = trueE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn
-          ),
-          makeNextFBody(
-            oldBody = falseE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn
-          )
-        )
-      case Tuple(a, out) =>
-        val newInCtr = a match {
-          case Tuple(
-                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                _ @_*
-              ) if p == oldAcc =>
-            // StmNext() called, so decrement the input counter.
-            newAcc.__2 - 1
-          case Tuple(TupleAccess(p, IntCst(0)), _ @_*) if p == oldAcc =>
-            // StmNext() *not* called, so do *not* decrement the input counter.
-            newAcc.__2
-          case Tuple(x, _ @_*) =>
-            throw new IllegalArgumentException(
-              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
-            )
-          case e =>
-            throw new IllegalArgumentException(
-              s"Expected the new accumulator value to be a tuple literal with at least one element, but found $e"
-            )
-        }
-        val newOutCtr = OptionAccess(
-          out,
-          // Output produced, so decrement the output counter.
-          (_: Expr) => newAcc.__3 - 1,
-          // No output produced, so do not decrement the output counter.
-          (_: Expr) => newAcc.__3
-        )
-        val output = OptionAccess(out, (e: Expr) => e, (_: Expr) => newAcc.__1)
-        val newAccVal =
-          IfThenElse(
-            (newInCtr === 0) && (newOutCtr === 0),
-            // Reset
-            Tuple(
-              // Never reset the input stream
-              Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
-              output,
-              numIn,
-              1
-            ),
-            // No reset
-            Tuple(
-              a,
-              output,
-              newInCtr,
-              newOutCtr
-            )
-          )
-        val newValid = (newInCtr === 0) && (newOutCtr === 0)
-        Tuple(newAccVal, IfThenElse(newValid, SSome(output), NNone))
-      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
-        ???
-      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
-          _: Tuple =>
-        throw new IllegalArgumentException(
-          "Could not make StmFold body due to an apparent type error."
-        )
-    }
-    e.substitute(oldAcc -> newAcc.__0)
+      }) + (acc -> (z, nextAcc))
+    )
+    val scan = outerStm.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
+    assert(
+      scan.freeVars() == input.freeVars() ++ z.freeVars() ++ f.freeVars(),
+      s"the set of free variables should be unchanged by StmScan (expected ${input
+          .freeVars() ++ z.freeVars() ++ f.freeVars()} but got ${scan.freeVars()})"
+    )
+    // Simplification is NOT required, but it makes the tests run much faster
+    PartialEvalPass.partialEval(scan)
   }
 }
 

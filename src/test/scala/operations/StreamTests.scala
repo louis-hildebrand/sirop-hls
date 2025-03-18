@@ -388,12 +388,14 @@ class StreamTests extends AnyFunSuite {
       fInShape = Some(4),
       fOutShape = Some(4)
     )
-    val expected = Seq(
-      Seq(0, 1, 3, 6),
-      Seq(10, 21, 33, 46),
-      Seq(20, 41, 63, 86)
-    ).map(xs => xs.map(x => IntCst(x)))
-    assertStreamEqual(actual, expected.flatten)
+    val expected = StmLiteral.ints(
+      Seq(
+        Seq(0, 1, 3, 6),
+        Seq(10, 21, 33, 46),
+        Seq(20, 41, 63, 86)
+      ).flatten: _*
+    )
+    assert(ir.eval(actual) == expected)
   }
 
   test("StmMap:2D-2D:StmScanExclusive") {
@@ -427,12 +429,14 @@ class StreamTests extends AnyFunSuite {
       fInShape = Some(4),
       fOutShape = Some(4)
     )
-    val expected = Seq(
-      Seq(0, 0, 1, 3),
-      Seq(0, 10, 21, 33),
-      Seq(0, 20, 41, 63)
-    ).map(xs => xs.map(x => IntCst(x)))
-    assertStreamEqual(actual, expected.flatten)
+    val expected = StmLiteral.ints(
+      Seq(
+        Seq(0, 0, 1, 3),
+        Seq(0, 10, 21, 33),
+        Seq(0, 20, 41, 63)
+      ).flatten: _*
+    )
+    assert(ir.eval(actual) == expected)
   }
 
   test("StmMap:2D-2D:StmPrepend") {
