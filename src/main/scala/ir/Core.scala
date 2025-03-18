@@ -560,7 +560,16 @@ case class StmBuild(
     * where all the accumulator variables have been replaced by fresh variables.
     */
   def renameVars: StmBuild = {
-    val replacements = accVars.map(x => x -> x.freshCopy).toMap
+    this.renameVars(accVars.map(x => x -> x.freshCopy).toMap)
+  }
+
+  /** Rename all the bound variables in this stream using the given
+    * substitutions.
+    *
+    * @param replacements
+    *   A map from old variables to new variables.
+    */
+  private def renameVars(replacements: Map[Param, Param]): StmBuild = {
     val subs: Map[Expr, Expr] = replacements.toMap
     val newOutput = output.substitute(subs)
     val newEquations = replacements.map({ case (x, y) =>
@@ -685,6 +694,13 @@ case class StmBuild(
     }
   }
 
+  /** Add a new equation to this stream whose value is the number of valid
+    * outputs that this stream has <i>previously</i> produced.
+    *
+    * @param outCtr
+    *   The variable to use for the new equation. If the variable already
+    *   appears bound in this stream, then the bound variable will be renamed.
+    */
   def addOutputCounter(outCtr: Param): StmBuild = {
     val s = if (this.equations.contains(outCtr)) this.renameVars else this
     val z = IntCst(0)
@@ -694,6 +710,33 @@ case class StmBuild(
       s.n,
       s.output,
       s.equations + (outCtr -> (z, next))
+    )
+  }
+
+  /** Add a new equation to this stream whose value is the number of inputs that
+    * this stream has <i>previously</i> read from the input stream represented
+    * by <code>x</code>.
+    *
+    * @param x
+    *   The input stream.
+    * @param inCtr
+    *   The variable to use for the new equation. If the variable already
+    *   appears bound in this stream, then the bound variable will be renamed.
+    */
+  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
+    val (renamed, newX) = {
+      val replacements = this.accVars.map(x => x -> x.freshCopy).toMap
+      val renamed = this.renameVars(replacements)
+      val newX = replacements(x)
+      (renamed, newX)
+    }
+    val z = IntCst(0)
+    val stmNextCalled = stmNextCallCondition(renamed, newX)
+    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)
+    StmBuild(
+      renamed.n,
+      renamed.output,
+      renamed.equations + (inCtr -> (z, next))
     )
   }
 

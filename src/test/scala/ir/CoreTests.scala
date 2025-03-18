@@ -407,7 +407,75 @@ class CoreTests extends AnyFunSuite {
       )
     )
     assert(actual == expected)
+    // The new stream must use the exact parameter `outCtr`, not a fresh one
     assert(actual.seedByVar(outCtr) == expectedOutCtrSeed)
     assert(actual.nextByVar(outCtr) == expectedOutCtrNext)
+  }
+
+  test("StmBuild:AddInputCounter") {
+    val n = Param("n")
+    val f = Param("f")
+    val g = Param("g")
+    val input = Param("input")
+    val i = Param("i")
+    val inCtr = Param("in_ctr")
+    val s = Param("s")
+    val original =
+      StmBuild(
+        n,
+        IfThenElse(FunCall(f, i), SSome(StmNext(s).__1), NNone),
+        Map[Param, (Expr, Expr)](
+          i -> (3, i + 1),
+          s -> (
+            input,
+            IfThenElse(
+              FunCall(f, i),
+              StmNext(s).__0,
+              IfThenElse(FunCall(g, inCtr), StmNext(s).__0, s)
+            )
+          ),
+          inCtr -> (1, inCtr + 2)
+        )
+      )
+
+    val actual = PartialEvalPass
+      .partialEval(original.addInputCounter(s, inCtr))
+      .asInstanceOf[StmBuild]
+
+    // The existing bound variable should be renamed
+    // I need to find the new parameters representing `i` and `inCtr` so that
+    // I can check that the new input counter is updated correctly.
+    val freshI = actual.seedByVar.find({ case (_, z) => z == IntCst(3) }).get._1
+    // Call this one `j` to avoid confusion
+    val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1) }).get._1
+    val expectedInCtrSeed = IntCst(0)
+    val expectedInCtrNext =
+      IfThenElse(
+        (Not(FunCall(f, freshI)) && FunCall(g, j)) || FunCall(f, freshI),
+        inCtr + 1,
+        inCtr
+      )
+    val expected =
+      StmBuild(
+        n,
+        IfThenElse(FunCall(f, freshI), SSome(StmNext(s).__1), NNone),
+        Map[Param, (Expr, Expr)](
+          freshI -> (3, freshI + 1),
+          s -> (
+            input,
+            IfThenElse(
+              FunCall(f, freshI),
+              StmNext(s).__0,
+              IfThenElse(FunCall(g, j), StmNext(s).__0, s)
+            )
+          ),
+          j -> (1, j + 2),
+          inCtr -> (0, expectedInCtrNext)
+        )
+      )
+    // The new stream must use the exact parameter `inCtr`, not a fresh one
+    assert(actual.seedByVar(inCtr) == expectedInCtrSeed)
+    assert(actual.nextByVar(inCtr) == expectedInCtrNext)
+    assert(actual == expected)
   }
 }
