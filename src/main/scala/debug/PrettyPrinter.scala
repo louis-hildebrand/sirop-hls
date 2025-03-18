@@ -79,6 +79,11 @@ object PrettyPrinter {
       case StmLength(s) =>
         val stmStr = show(s, collapseStm = true)
         s"StmLength($stmStr)"
+      case VecLiteral(elems @ _*) =>
+        val sh = (e: Expr) =>
+          show(e, collapseStm = collapseStm, evalVec = evalVec)
+        val children = e.children.map(sh).mkString(", ")
+        s"[$children]"
       case v @ VecBuild(n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
         elems match {

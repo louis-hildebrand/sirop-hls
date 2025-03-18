@@ -19,12 +19,11 @@ object StmTracer {
       Seq()
     } else {
       try {
-        val currentAccValues = equations.map({ case (_, (z, _)) => z })
-        val accStr = PrettyPrinter.show(
-          Tuple(currentAccValues: _*),
-          collapseStm = true,
-          evalVec = true
-        )(Map())
+        val accStr = equations.map({ case (x, (z, _)) =>
+          val zStr =
+            PrettyPrinter.show(z, collapseStm = true, evalVec = true)(Map())
+          s"${x.name} = $zStr"
+        })
         val (nextEquations, nextOut, nextOutValid) = {
           val currentValByVar: Map[Expr, Expr] =
             equations.map({ case (x, (z, _)) => x -> z }).toMap
