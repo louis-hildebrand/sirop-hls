@@ -57,6 +57,32 @@ sealed trait Expr {
   }
 
   def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
+
+  def freeVars(): Set[Param] = {
+    this match {
+      case x: Param       => Set(x)
+      case Function(x, e) => e.freeVars() - x
+      case stm @ StmBuild(n, out, eqns) =>
+        (
+          // Free variables in the stream length and seeds are definitely free,
+          // even if they are bound by the stream
+          n.freeVars()
+            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
+              fvs ++ z.freeVars()
+            })
+            // There may be bound variables in the output and "next" functions
+            ++ (
+              (out.freeVars()
+                ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                  fvs ++ next.freeVars()
+                }))
+                .diff(stm.accVars)
+            )
+        )
+      case e =>
+        e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
+    }
+  }
 }
 
 // Define a consistent order for expressions to make the tests less brittle.
@@ -618,7 +644,7 @@ case class StmBuild(
     */
   def fuseWith(x: Param): StmBuild = {
     val consumerStm = this
-    consumerStm.seedByVar.get(x) match {
+    val fused = consumerStm.seedByVar.get(x) match {
       case Some(e: StmBuild) =>
         // Rename accumulator variables in case some of them are also being
         // used by the consumer stream
@@ -649,8 +675,8 @@ case class StmBuild(
         val newEquations = {
           val newConsumerEquations =
             (consumerStm.equations - x)
-              .map({ case (x, (z, next)) =>
-                x -> (z, IfThenElse(
+              .map({ case (y, (z, next)) =>
+                y -> (z, IfThenElse(
                   c,
                   // CASE 1: Consumer is reading from producer.
                   OptionAccess(
@@ -660,11 +686,13 @@ case class StmBuild(
                     (v: Expr) => next.substitute(StmNext(x).__1 -> v),
                     // CASE 1b: Producer did NOT yield a valid value.
                     //          Wait until it does and do not update accumulators.
-                    (_: Expr) => x
+                    (_: Expr) => y
                   ),
                   // CASE 2: Consumer is not reading from producer.
-                  //         Update as usual.
-                  next
+                  //         Update as usual. It is NOT valid to access the
+                  //         value of the producer stream in this case, so
+                  //         assume it never happens.
+                  next.substitute(StmNext(x).__1 -> DontCare)
                 ))
               })
           val newProducerEquations =
@@ -692,6 +720,15 @@ case class StmBuild(
             + s" The stream is $consumerStm."
         )
     }
+    assert(
+      !fused.contains(x),
+      s"the stream variable ${x.name} should have been removed completely by fusion"
+    )
+    assert(
+      fused.freeVars() == this.freeVars(),
+      "fusion should not have changed the set of free variables"
+    )
+    fused
   }
 
   /** Add a new equation to this stream whose value is the number of valid

@@ -262,7 +262,7 @@ class CoreTests extends AnyFunSuite {
     val original = StmPrepend(
       StmPrefix(input, StmLength(input) - 1, shape = Seq(5)),
       42,
-      eShape = Seq()
+      stmShape = Seq(4)
     )
     val fused = original.asInstanceOf[StmBuild].fuseCompletely()
 
@@ -277,7 +277,7 @@ class CoreTests extends AnyFunSuite {
     val i = Param("i")
     val j = Param("j")
     val ideal = StmBuild(
-      StmLength(input),
+      5,
       IfThenElse(
         i === 1,
         IfThenElse(j < -1 + StmLength(input), SSome(StmNext(s).__1), NNone),
@@ -298,7 +298,7 @@ class CoreTests extends AnyFunSuite {
     val input = Param("input")
     val n = 5
     val original =
-      StmAppend(StmSuffix(input, n - 1, shape = Seq(5)), 42, eShape = Seq())
+      StmAppend(StmSuffix(input, n - 1, shape = Seq(5)), 42, stmShape = Seq(4))
     val fused = original.asInstanceOf[StmBuild].fuseCompletely()
 
     // Correct behaviour
