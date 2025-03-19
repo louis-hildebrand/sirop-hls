@@ -39,6 +39,71 @@ class CoreTests extends AnyFunSuite {
     assert(e0 == e1)
   }
 
+  test("Substitute:Function") {
+    val x = Param("x")
+    val x2 = Param("x2")
+    val y = Param("y")
+    val e = Tuple(
+      StmNext(y).__1,
+      Function(x, Tuple(StmNext(y).__1 + 2, Function(y, StmNext(y).__1 * 3)))
+    )
+    val actual = e.substitute(StmNext(y).__1 -> x % 2)
+    val expected = Tuple(
+      x % 2,
+      // (1) Need to rename the variable in the outer function to avoid
+      //     variable capture.
+      // (2) Must NOT replace the StmNext(y).__1 in the innermost function
+      //     because that occurrence of y is referring to the function
+      //     parameter, not y in the global scope.
+      Function(x2, Tuple(x % 2 + 2, Function(y, StmNext(y).__1 * 3)))
+    )
+    assert(actual == expected)
+  }
+
+  test("Substitute:StmBuild") {
+    val x = Param("x")
+    val x2 = Param("x2")
+    val y = Param("y")
+    val y2 = Param("y2")
+    val z = Param("z")
+    val stm = StmBuild(
+      x.__1 + z + 1,
+      SSome(Tuple(z, 2 * x.__1 + 1)),
+      Map[Param, (Expr, Expr)](
+        x -> (
+          Tuple(True, False),
+          IfThenElse(
+            x.__1,
+            Tuple(True, False),
+            Tuple(False, True)
+          )
+        ),
+        y -> (x.__1 / 2 + z, y + 2 + z)
+      )
+    )
+    val e = Tuple(2 * x.__1 * z, stm)
+    val actual = e.substitute(Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)))
+    val expected = Tuple(
+      2 * y * 99,
+      StmBuild(
+        y + IntCst(99) + IntCst(1),
+        SSome(Tuple(99, 2 * x2.__1 + 1)),
+        Map[Param, (Expr, Expr)](
+          x2 -> (
+            Tuple(True, False),
+            IfThenElse(
+              x2.__1,
+              Tuple(True, False),
+              Tuple(False, True)
+            )
+          ),
+          y2 -> (y / 2 + IntCst(99), y2 + 2 + IntCst(99))
+        )
+      )
+    )
+    assert(actual == expected)
+  }
+
   test("Function:Equals") {
     val f = {
       val x = Param("x")

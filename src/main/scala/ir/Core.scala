@@ -31,6 +31,7 @@ sealed trait Expr {
 
   def children: Seq[Expr]
   def rebuild(newChildren: Seq[Expr]): Expr
+  def map(f: Expr => Expr): Expr = rebuild(children.map(f))
 
   def contains(p: Expr => Boolean): Boolean = {
     p(this) || this.children.exists(e => e.contains(p))
@@ -45,11 +46,24 @@ sealed trait Expr {
       case None =>
         this match {
           case f: Function =>
-            // "Rename" to avoid variable capture
-            val newParam = Param(f.param.prefix)
-            Function(
-              newParam,
-              f.body.substitute(subs + ((f.param, newParam)))
+            // Rename both
+            //   (1) to avoid variable capture and
+            //   (2) in case f.param appears free in the old value of a
+            //       substitution (i.e., the value to be replaced)
+            val renamed = f.renameVar
+            Function(renamed.param, renamed.body.substitute(subs))
+          case s: StmBuild =>
+            // Rename both
+            //   (1) to avoid variable capture and
+            //   (2) in case an accumulator variable appears free in the old
+            //       value of a substitution (i.e., the value to be replaced)
+            val renamed = s.renameVars
+            StmBuild(
+              renamed.n.substitute(subs),
+              renamed.output.substitute(subs),
+              renamed.equations.map({ case (x, (z, next)) =>
+                x -> (z.substitute(subs), next.substitute(subs))
+              })
             )
           case e => e.rebuild(e.children.map(e => e.substitute(subs)))
         }
@@ -199,6 +213,13 @@ case class Function(param: Param, body: Expr) extends Expr {
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
+  }
+
+  /** Construct a new function in which the bound variable has a fresh name.
+    */
+  def renameVar: Function = {
+    val newParam = this.param.freshCopy
+    Function(newParam, this.body.substitute(this.param -> newParam))
   }
 
   override def equals(x: Any): Boolean = {
@@ -598,10 +619,9 @@ case class StmBuild(
   private def renameVars(replacements: Map[Param, Param]): StmBuild = {
     val subs: Map[Expr, Expr] = replacements.toMap
     val newOutput = output.substitute(subs)
-    val newEquations = replacements.map({ case (x, y) =>
-      val oldSeed = seedByVar(x)
-      val newNext = nextByVar(x).substitute(subs)
-      y -> (oldSeed, newNext)
+    val newEquations = equations.map({ case (x, (z, next)) =>
+      val y = replacements(x)
+      y -> (z, next.substitute(subs))
     })
     StmBuild(n, newOutput, newEquations)
   }

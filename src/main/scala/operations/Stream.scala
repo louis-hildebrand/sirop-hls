@@ -379,7 +379,20 @@ object StmScanInclusive {
         }
       }) + (acc -> (z, nextAcc))
     )
-    val scan = outerStm.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
+    assert(
+      !outerStm.n.contains(s)
+        && !outerStm.output.contains(s)
+        && !outerStm.nextByVar.values.toSeq.exists(nxt => nxt.contains(s)),
+      "the input stream must only occur in the seed of the StmBuild"
+    )
+    // It is safe to do this "naive" substitution because
+    //  (1) `s` definitely only occurs in the seed (where it is free), so the
+    //      naive substitution behaves like the usual one
+    //  (2) we want to replace f.param with the *bound* variable acc, so alpha
+    //      renaming is NOT what we want here
+    val scan = outerStm.map(e =>
+      e.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
+    )
     assert(
       scan.freeVars() == input.freeVars() ++ z.freeVars() ++ f.freeVars(),
       s"the set of free variables should be unchanged by StmScan (expected ${input
