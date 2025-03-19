@@ -629,43 +629,21 @@ object StmRepeat {
       // Ideally we would get this shape info from the type system
       n: Expr
   ): Expr /* Stm<Stm<A; n>; m> */ = {
-    // TODO: Implement using Stm2Vec instead?
-    StmBuild(
-      n * m,
-      Tuple(stm, VecBuild(n, (_: Expr) => DontCare), 0, True),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__3,
-          // First fill shift register
-          Tuple(
-            IfThenElse(
-              acc.__2 === n - 1,
-              Tuple(
-                StmNext(acc.__0).__0,
-                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-                0,
-                False
-              ),
-              Tuple(
-                StmNext(acc.__0).__0,
-                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-                acc.__2 + 1,
-                True
-              )
-            ),
-            NNone
-          ),
-          // Shift register is full
-          Tuple(
-            Tuple(
-              acc.__0,
-              acc.__1,
-              IfThenElse(acc.__2 === n - 1, 0, acc.__2 + 1),
-              False
-            ),
-            SSome(VecAccess(acc.__1, acc.__2))
+    val v = Stm2Vec(stm, n = n)
+    val i = Param("i")
+    StmMap(
+      v,
+      (v: Expr) =>
+        StmBuild(
+          n * m,
+          SSome(VecAccess(v, i)),
+          Map[Param, (Expr, Expr)](
+            i -> (0, IfThenElse(i + 1 === n, 0, i + 1))
           )
-        )
+        ),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(n * m)
     )
   }
 }

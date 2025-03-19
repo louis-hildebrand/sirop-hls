@@ -2033,10 +2033,18 @@ class StreamTests extends AnyFunSuite {
   test("StmRepeat:1D") {
     val s = StmCount(3)
     val expected = Seq(IntCst(0), IntCst(1), IntCst(2))
-    assertStreamEqual(StmRepeat(s, 0, n = 3), Seq())
-    assertStreamEqual(StmRepeat(s, 1, n = 3), expected)
-    assertStreamEqual(StmRepeat(s, 2, n = 3), expected ++ expected)
-    assertStreamEqual(StmRepeat(s, 3, n = 3), expected ++ expected ++ expected)
+
+    val actual0 = StmRepeat(s, 0, n = 3)
+    assert(ir.eval(actual0) == StmLiteral())
+
+    val actual1 = StmRepeat(s, 1, n = 3)
+    assert(ir.eval(actual1) == StmLiteral(expected: _*))
+
+    val actual2 = StmRepeat(s, 2, n = 3)
+    assert(ir.eval(actual2) == StmLiteral(expected ++ expected: _*))
+
+    val actual3 = StmRepeat(s, 3, n = 3)
+    assert(ir.eval(actual3) == StmLiteral(expected ++ expected ++ expected: _*))
   }
 
   test("StmRepeat:2D") {
