@@ -225,7 +225,6 @@ object StmCanonPass {
           moveIfThenElseOutsideTuple(trueE),
           moveIfThenElseOutsideTuple(falseE)
         )
-      case DontCare => DontCare
       case _: BoolExpr | _: IntExpr | _: Function | _: StmBuild |
           _: StmLiteral | _: VecBuild | _: VecLiteral | _: StmNextK |
           _: StmNext =>

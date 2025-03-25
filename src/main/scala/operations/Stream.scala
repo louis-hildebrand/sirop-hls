@@ -73,10 +73,10 @@ private object Helpers {
           // Whether we still need to read from the input stream
           isFirstStep -> (True, False),
           // Register for the value from the input stream
-          y -> (DontCare, IfThenElse(isFirstStep, StmNext(s).__1, y))
+          y -> (Default, IfThenElse(isFirstStep, StmNext(s).__1, y))
         )
         val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
-          x -> (DontCare, next.substitute(subs))
+          x -> (Default, next.substitute(subs))
         })
         val newF = Function(
           input /* stream */,
@@ -773,7 +773,7 @@ object StmSlideV {
           )
         ),
         v -> (
-          VecBuild(m * elemSize, (_: Expr) => DontCare),
+          VecBuild(m * elemSize, (_: Expr) => Default),
           VecShiftLeft(v, StmNext(s).__1)
         )
       )

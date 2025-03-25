@@ -17,7 +17,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(
       expectedVals
         .zip(actualVals)
-        .forall({ case (a, b) => a == DontCare || a == b }),
+        .forall({ case (x, y) => x == y }),
       s"Expected values $expectedVals but found $actualVals"
     )
   }
@@ -202,7 +202,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         (t: Expr) =>
           (i: Expr) => StmNext(StmNextK(StmCount(n), 1 - n + t + i)).__1
       )
-    val zExamples = Seq(DontCare, VecBuild(n, (_: Expr) => DontCare))
+    val zExamples = Seq(Default, VecBuild(n, (_: Expr) => Default))
     for (nVal <- nExamples) {
       for (fVal <- fExamples) {
         for (zVal <- zExamples) {
@@ -577,7 +577,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         .map(f => PartialEvalPass.partialEval(f))
         .get
 
-    val initialVec = VecBuild(n, (_: Expr) => DontCare)
+    val initialVec = VecBuild(n, (_: Expr) => Default)
     val shiftRecEqn = (t: Expr) =>
       (x: Expr) =>
         IfThenElse(
@@ -793,7 +793,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val input = Param("s")
     val s = StmBuild(
       n,
-      Tuple(input, VecBuild(n, (_: Expr) => DontCare), 0),
+      Tuple(input, VecBuild(n, (_: Expr) => Default), 0),
       (acc: Expr) =>
         IfThenElse(
           acc.__2 < n,
@@ -852,7 +852,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val input = Param("s")
     val s = StmBuild(
       n,
-      Tuple(input, VecBuild(n, (_: Expr) => DontCare), 0),
+      Tuple(input, VecBuild(n, (_: Expr) => Default), 0),
       (acc: Expr) =>
         IfThenElse(
           acc.__2 < n,

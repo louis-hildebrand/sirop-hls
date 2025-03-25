@@ -14,10 +14,6 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(e, "./img/IntCst.dot")
   }
 
-  test("DontCare") {
-    DotPrinter.save(DontCare, "./img/DontCare.dot")
-  }
-
   test("ArithBinOp") {
     val e = ((((IntCst(1) + 2) - 3) * 4) / 5) % 6
     DotPrinter.save(e, "./img/ArithBinOp.dot")

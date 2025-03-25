@@ -16,37 +16,22 @@ object PartialEvalPass {
       m: IfThenElseMotion = HeuristicMotion
   ): Expr = {
     e match {
-      case t: Tuple =>
-        // TODO: Move up?
-        Tuple(t.elems.map(partialEval): _*)
-      case TupleAccess(t: Expr, IntCst(i)) =>
-        partialEval(t) match {
-          case DontCare => DontCare
-          case tuple: Tuple =>
-            partialEval(tuple.elems(i))
-          case IfThenElse(c, t, f) =>
-            // Move TupleAccess inside IfThenElse in the hope that it'll
-            // encounter a Tuple(...).
-            // This seems reasonable even if m == MoveDown, since this is a
-            // unary operation; therefore, the expression is not likely to grow
-            // *that* large.
-            partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
-          case t => TupleAccess(t, i)
-        }
-
-      case p: Param => p
-      case Function(p, body) =>
-        Function(p, partialEval(body)(facts.clearRange(p), m))
+      case x: Param => x
+      case Function(x, body) =>
+        Function(x, partialEval(body)(facts.clearRange(x), m))
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
           case Function(x, body) =>
-            partialEval(body.substitute(x -> partialEval(arg)))
-          case DontCare => DontCare
-          case fun @ _  => FunCall(fun, partialEval(arg))
+            val a = partialEval(arg)
+            partialEval(body.substitute(x -> a))
+          case f => FunCall(f, partialEval(arg))
         }
 
+      case Default => Default
+
+      case IntCst(_) => e
       case Sum(terms) =>
-        val newChildren = terms.map(e => partialEval(e))
+        val newChildren = terms.map(e => partialEval(e).defaultToInt)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x + y) match {
@@ -57,7 +42,7 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(Sum(newChildren: _*))(facts)
         }
       case Prod(factors) =>
-        val newChildren = factors.map(e => partialEval(e))
+        val newChildren = factors.map(e => partialEval(e).defaultToInt)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x * y) match {
@@ -68,7 +53,7 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(Prod(newChildren: _*))(facts)
         }
       case _: Div =>
-        val newChildren = e.children.map(e => partialEval(e))
+        val newChildren = e.children.map(e => partialEval(e).defaultToInt)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x / y) match {
@@ -79,7 +64,7 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case _: Mod =>
-        val newChildren = e.children.map(e => partialEval(e))
+        val newChildren = e.children.map(e => partialEval(e).defaultToInt)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x % y) match {
@@ -89,7 +74,6 @@ object PartialEvalPass {
           case HeuristicMotion =>
             ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
-      case IntCst(_) => e
 
       case True  => True
       case False => False
@@ -98,10 +82,9 @@ object PartialEvalPass {
           IfThenElse(partialEval(c), partialEval(t), partialEval(f))
         ArithSimplifier.simplifyArithmetic(peIfThenElse)(facts) match {
           case IfThenElse(cond, trueE, falseE) =>
-            partialEval(cond) match {
-              case True     => partialEval(trueE)
-              case False    => partialEval(falseE)
-              case DontCare => DontCare
+            partialEval(cond).defaultToBool match {
+              case True  => partialEval(trueE)
+              case False => partialEval(falseE)
               case cond =>
                 val t = {
                   val newFacts = facts.isTrue(cond)
@@ -146,8 +129,6 @@ object PartialEvalPass {
                   partialEval(f)(newFacts, m)
                 }
                 (t, f) match {
-                  case (_, DontCare) => t
-                  case (DontCare, _) => f
                   case _ if t == f   => t
                   case (True, False) => cond
                   case (False, True) => partialEval(Not(cond))
@@ -194,14 +175,16 @@ object PartialEvalPass {
           case e               => ArithSimplifier.simplifyArithmetic(e)(facts)
         }
       case LessThan(e1, e2) =>
-        val newChildren =
-          Seq(partialEval(e1)(facts, MoveUp), partialEval(e2)(facts, MoveUp))
+        val newChildren = Seq(
+          partialEval(e1)(facts, MoveUp).defaultToInt,
+          partialEval(e2)(facts, MoveUp).defaultToInt
+        )
         mergeIfThenElses(newChildren, x => y => x < y) match {
           case ite: IfThenElse => partialEval(ite)
           case e               => ArithSimplifier.simplifyArithmetic(e)(facts)
         }
       case _: And =>
-        val newChildren = e.children.map(e => partialEval(e))
+        val newChildren = e.children.map(e => partialEval(e).defaultToBool)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x && y) match {
@@ -212,7 +195,7 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case _: Or =>
-        val newChildren = e.children.map(e => partialEval(e))
+        val newChildren = e.children.map(e => partialEval(e).defaultToBool)
         m match {
           case MoveUp =>
             mergeIfThenElses(newChildren, x => y => x || y) match {
@@ -223,7 +206,7 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case Not(e) =>
-        partialEval(e) match {
+        partialEval(e).defaultToBool match {
           case IfThenElse(c, t, f) =>
             // Move the IfThenElse up in every case because
             //  (1) the Not() may cancel with something further down and
@@ -234,10 +217,63 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(Not(e))(facts)
         }
 
-      case DontCare => DontCare
+      case t: Tuple =>
+        // TODO: Move up?
+        Tuple(t.elems.map(partialEval): _*)
+      case TupleAccess(t: Expr, IntCst(i)) =>
+        partialEval(t) match {
+          case Default => Default
+          case tuple: Tuple =>
+            partialEval(tuple.elems(i))
+          case IfThenElse(c, t, f) =>
+            // Move TupleAccess inside IfThenElse in the hope that it'll
+            // encounter a Tuple(...).
+            // This seems reasonable even if m == HeuristicMotion, since this
+            // is essentially a unary operation; therefore, the expression is
+            // not likely to grow *that* large.
+            partialEval(IfThenElse(c, TupleAccess(t, i), TupleAccess(f, i)))
+          case t => TupleAccess(t, i)
+        }
+
+      case VecBuild(n, f) =>
+        partialEval(n).defaultToInt match {
+          case n =>
+            val newFacts = facts.clearRange(f.param).between(f.param, 0, n)
+            val newF = Function(f.param, partialEval(f.body)(newFacts))
+            (n, newF) match {
+              case (
+                    VecLength(x0: Param),
+                    Function(i0, VecAccess(x1: Param, i1: Param))
+                  ) if x0 == x1 && i0 == i1 =>
+                x0
+              case _ => VecBuild(n, newF)
+            }
+        }
+      case VecLength(v) =>
+        partialEval(v) match {
+          case Default             => Default.int
+          case VecBuild(n, _)      => partialEval(n)
+          case IfThenElse(c, t, f) =>
+            // Move the IfThenElse up in every case because
+            //  (1) the VecLength() may cancel with something further down and
+            //  (2) since this is a unary operator, the expression is unlikely
+            //      to grow *that* big.
+            partialEval(IfThenElse(c, VecLength(t), VecLength(f)))
+          case v => VecLength(v)
+        }
+      case VecAccess(v, i: Expr) =>
+        (partialEval(v), partialEval(i).defaultToInt) match {
+          case (Default, _)             => Default
+          case (IfThenElse(c, t, f), i) =>
+            // Move VecAccess inside IfThenElse in the hope that it'll
+            // encounter a VecBuild(...)
+            partialEval(IfThenElse(c, VecAccess(t, i), VecAccess(f, i)))
+          case (v: VecBuild, i) => partialEval(FunCall(v.f, i))
+          case (v, i)           => VecAccess(v, i)
+        }
 
       case s @ StmBuild(n, out, equations) =>
-        val len = partialEval(n)
+        val len = partialEval(n).defaultToInt
         val onlyElem = len match {
           case IntCst(1) =>
             // Maybe we can find the first element statically and just return it directly!
@@ -274,8 +310,8 @@ object PartialEvalPass {
         }
       case StmLength(s) =>
         partialEval(s) match {
+          case Default             => Default.int
           case s: StmBuild         => partialEval(s.n)
-          case DontCare            => DontCare
           case IfThenElse(c, t, f) =>
             // Move the IfThenElse up in every case because
             //  (1) the StmLength() may cancel with something further down and
@@ -301,7 +337,7 @@ object PartialEvalPass {
         }
       case StmNextK(s, k) =>
         val peStm = partialEval(s)
-        partialEval(k) match {
+        partialEval(k).defaultToInt match {
           case IfThenElse(c, t, f) if m == MoveUp =>
             IfThenElse(
               c,
@@ -313,43 +349,6 @@ object PartialEvalPass {
           // and other times where we want to go the other way.
           // Therefore, don't handle that here.
           case k => StmNextK(peStm, k)
-        }
-
-      case VecBuild(n, f) =>
-        partialEval(n) match {
-          case n =>
-            val newFacts = facts.clearRange(f.param).between(f.param, 0, n)
-            val newF = Function(f.param, partialEval(f.body)(newFacts))
-            (n, newF) match {
-              case (
-                    VecLength(x0: Param),
-                    Function(i0, VecAccess(x1: Param, i1: Param))
-                  ) if x0 == x1 && i0 == i1 =>
-                x0
-              case _ => VecBuild(n, newF)
-            }
-        }
-      case VecLength(v) =>
-        partialEval(v) match {
-          case VecBuild(n, _)      => partialEval(n)
-          case DontCare            => DontCare
-          case IfThenElse(c, t, f) =>
-            // Move the IfThenElse up in every case because
-            //  (1) the VecLength() may cancel with something further down and
-            //  (2) since this is a unary operator, the expression is unlikely
-            //      to grow *that* big.
-            partialEval(IfThenElse(c, VecLength(t), VecLength(f)))
-          case v => VecLength(v)
-        }
-      case VecAccess(vec: Expr, i: Expr) =>
-        (partialEval(vec), partialEval(i)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (IfThenElse(c, t, f), i)      =>
-            // Move VecAccess inside IfThenElse in the hope that it'll
-            // encounter a VecBuild(...)
-            partialEval(IfThenElse(c, VecAccess(t, i), VecAccess(f, i)))
-          case (v: VecBuild, i) => partialEval(FunCall(v.f, i))
-          case (v, i)           => VecAccess(v, i)
         }
     }
   }
@@ -481,7 +480,7 @@ object PartialEvalPass {
           _: StmNext | _: StmNextK | _: VecLiteral | _: StmLiteral =>
         Some(false)
       // Not sure
-      case _: Param | DontCare => None
+      case _: Param | Default => None
       case TupleAccess(Tuple(elems @ _*), _) =>
         val isBool = elems.map(e => isBoolExpr(e))
         val atLeastOneTrue = isBool.exists(p => p.getOrElse(false))

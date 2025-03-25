@@ -150,7 +150,6 @@ object StmUtils {
   private def transformTuple(f: Tuple => Expr)(e: Expr): Expr = {
     e match {
       case t: Tuple => f(t)
-      case DontCare => DontCare
       case IfThenElse(cond, trueE, falseE) =>
         IfThenElse(cond, transformTuple(f)(trueE), transformTuple(f)(falseE))
       case _: IntExpr | _: BoolExpr | _: Function | _: VecBuild | _: StmBuild |

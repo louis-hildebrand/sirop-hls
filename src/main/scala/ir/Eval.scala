@@ -52,28 +52,21 @@ trait Eval {
       case f: Function => f
       case FunCall(f, arg) =>
         evalBigStep(f) match {
-          case DontCare => DontCare
           case Function(x, body) =>
-            evalBigStep(arg) match {
-              case DontCare => DontCare
-              case a        => evalBigStep(body.substitute(x -> a))
-            }
+            val a = evalBigStep(arg)
+            evalBigStep(body.substitute(x -> a))
           case v =>
             throw new IllegalArgumentException(
               s"Left-hand side of function application evaluated to $v. It must evaluate to a function."
             )
         }
 
-      // DontCare may be returned from a function (e.g., if the function returns `Option<T>`), so don't throw an
-      // exception if you encounter it
-      case DontCare => DontCare
+      case Default => Default
 
       case IntCst(n) => IntCst(n)
       case Sum(terms) =>
-        val termValues = terms.map(e => evalBigStep(e))
-        if (termValues.contains(DontCare)) {
-          DontCare
-        } else if (termValues.forall(e => e.isInstanceOf[IntCst])) {
+        val termValues = terms.map(e => evalBigStep(e).defaultToInt)
+        if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
           IntCst(xs.sum)
         } else {
@@ -82,10 +75,8 @@ trait Eval {
           )
         }
       case Prod(factors) =>
-        val factorValues = factors.map(e => evalBigStep(e))
-        if (factorValues.contains(DontCare)) {
-          DontCare
-        } else if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
+        val factorValues = factors.map(e => evalBigStep(e).defaultToInt)
+        if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
           IntCst(xs.product)
         } else {
@@ -94,18 +85,24 @@ trait Eval {
           )
         }
       case Div(e1, e2) =>
-        (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (IntCst(n1), IntCst(n2))      => IntCst(n1 / n2)
+        val numer = evalBigStep(e1).defaultToInt
+        val denom = evalBigStep(e2).defaultToInt
+        (numer, denom) match {
+          case (IntCst(_), IntCst(0)) =>
+            throw new IllegalArgumentException("Division by zero.")
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Div evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
         }
       case Mod(e1, e2) =>
-        (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (IntCst(n1), IntCst(n2))      => IntCst(n1 % n2)
+        val numer = evalBigStep(e1).defaultToInt
+        val denom = evalBigStep(e2).defaultToInt
+        (numer, denom) match {
+          case (IntCst(_), IntCst(0)) =>
+            throw new IllegalArgumentException("Modulo by zero.")
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -115,10 +112,9 @@ trait Eval {
       case True  => True
       case False => False
       case Not(e) =>
-        evalBigStep(e) match {
-          case DontCare => DontCare
-          case False    => True
-          case True     => False
+        evalBigStep(e).defaultToBool match {
+          case False => True
+          case True  => False
           case v =>
             throw new IllegalArgumentException(
               s"Operand of Not evaluated to $v. It must evaluate to a boolean."
@@ -126,10 +122,8 @@ trait Eval {
         }
       case And(terms @ _*) =>
         // TODO: Are And() and Or() short-circuiting? No, right?
-        val termValues = terms.map(e => evalBigStep(e))
-        if (termValues.contains(DontCare)) {
-          DontCare
-        } else if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
+        val termValues = terms.map(e => evalBigStep(e).defaultToBool)
+        if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
           if (termValues.contains(False)) False else True
         } else {
           throw new IllegalArgumentException(
@@ -137,10 +131,8 @@ trait Eval {
           )
         }
       case Or(terms @ _*) =>
-        val termValues = terms.map(e => evalBigStep(e))
-        if (termValues.contains(DontCare)) {
-          DontCare
-        } else if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
+        val termValues = terms.map(e => evalBigStep(e).defaultToBool)
+        if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
           if (termValues.contains(True)) True else False
         } else {
           throw new IllegalArgumentException(
@@ -149,12 +141,26 @@ trait Eval {
         }
       case Equal(e1, e2) =>
         (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
-          case (e1, e2)                      => e1 == e2
+          case (Default, Default) => True
+          // Bool
+          case (v1: BoolCst, v2) => v1 == v2.defaultToBool
+          case (v1, v2: BoolCst) => v1.defaultToBool == v2
+          // Int
+          case (v1: IntCst, v2) => v1 == v2.defaultToInt
+          case (v1, v2: IntCst) => v1.defaultToInt == v2
+          // Tuple
+          case (v1: Tuple, v2) => evalTupleEqual(v1, v2)
+          case (v1, v2: Tuple) => evalTupleEqual(v2, v1)
+          // Vector
+          case (v1: VecLiteral, v2) => evalVecEqual(v1, v2)
+          case (v1, v2: VecLiteral) => evalVecEqual(v2, v1)
+          // It doesn't really make sense to compare functions or streams in
+          // hardware
+          case (e1, e2) =>
+            throw new IllegalArgumentException(s"Cannot compare $e1 with $e2.")
         }
       case LessThan(e1, e2) =>
-        (evalBigStep(e1), evalBigStep(e2)) match {
-          case (DontCare, _) | (_, DontCare) => DontCare
+        (evalBigStep(e1).defaultToInt, evalBigStep(e2).defaultToInt) match {
           case (IntCst(n1), IntCst(n2)) =>
             if (n1 < n2) True else False
           case (v1, v2) =>
@@ -163,26 +169,21 @@ trait Eval {
             )
         }
       case IfThenElse(c, t, f) =>
-        evalBigStep(c) match {
-          case DontCare => DontCare
-          case True     => evalBigStep(t)
-          case False    => evalBigStep(f)
+        evalBigStep(c).defaultToBool match {
+          case True  => evalBigStep(t)
+          case False => evalBigStep(f)
           case v =>
             throw new IllegalArgumentException(
               s"Condition of IfThenElse evaluated to $v. It must evaluate to a boolean."
             )
         }
 
-      case Tuple(elems @ _*) =>
-        // Don't evaluate the whole thing to DontCare if one of the elements is DontCare.
-        // For example, None is represented by (DontCare, False) and it's important for the False to stay.
-        Tuple(elems.map(e => evalBigStep(e)): _*)
+      case Tuple(elems @ _*) => Tuple(elems.map(e => evalBigStep(e)): _*)
       case TupleAccess(t, i) =>
         evalBigStep(t) match {
-          case DontCare => DontCare
+          case Default => Default
           case Tuple(elems @ _*) =>
-            evalBigStep(i) match {
-              case DontCare  => DontCare
+            evalBigStep(i).defaultToInt match {
               case IntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -196,7 +197,7 @@ trait Eval {
         }
 
       case VecBuild(n, f) =>
-        evalBigStep(n) match {
+        evalBigStep(n).defaultToInt match {
           case IntCst(n) if n >= 0 =>
             VecLiteral(
               (0 until n).map(i => evalBigStep(FunCall(f, IntCst(i)))): _*
@@ -208,10 +209,9 @@ trait Eval {
         }
       case VecAccess(v, i) =>
         evalBigStep(v) match {
-          case DontCare => DontCare
+          case Default => Default
           case VecLiteral(elems @ _*) =>
-            evalBigStep(i) match {
-              case DontCare  => DontCare
+            evalBigStep(i).defaultToInt match {
               case IntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -225,7 +225,7 @@ trait Eval {
         }
       case VecLength(v) =>
         evalBigStep(v) match {
-          case DontCare               => DontCare
+          case Default                => Default.int
           case VecLiteral(elems @ _*) => IntCst(elems.length)
           case v =>
             throw new IllegalArgumentException(
@@ -236,7 +236,7 @@ trait Eval {
 
       case StmBuild(n, out, equations) =>
         StmBuild(
-          evalBigStep(n),
+          evalBigStep(n).defaultToInt,
           out,
           equations.map({ case (x, (z, next)) =>
             x -> (evalBigStep(z), next)
@@ -245,16 +245,11 @@ trait Eval {
       case StmNext(s) =>
         evalStmNext(s)(0)
       case StmNextK(s, k) =>
-        evalBigStep(k) match {
-          case DontCare           => DontCare
-          case IntCst(k) if k < 0 =>
-            // May occur temporarily during optimizations - for example, if you have something like
-            // if (k >= 0) then StmNextK(s, k) else DontCare, which the partial evaluator may simplify to just
-            // StmNextK(s, k)
-            DontCare
+        evalBigStep(k).defaultToInt match {
+          case IntCst(k) if k < 0 => Default
           case IntCst(k) if k >= 0 =>
             evalBigStep(s) match {
-              case DontCare => DontCare
+              case Default => Default
               case StmLiteral(vs @ _*) =>
                 StmLiteral(vs.drop(k): _*)
               case s: StmBuild =>
@@ -275,7 +270,7 @@ trait Eval {
         }
       case StmLength(s) =>
         evalBigStep(s) match {
-          case DontCare               => DontCare
+          case Default                => Default.int
           case StmBuild(n, _, _)      => n
           case StmLiteral(elems @ _*) => IntCst(elems.length)
           case v =>
@@ -284,6 +279,40 @@ trait Eval {
             )
         }
       case v: StmLiteral => v
+    }
+  }
+
+  private def evalTupleEqual(v1: Tuple, v2: Expr): Expr = {
+    val v2Elems = v2 match {
+      case Tuple(elems @ _*) => elems
+      case _ =>
+        v1.elems.indices.map(i => evalBigStep(TupleAccess(v2, i)))
+    }
+    if (v1.elems.length != v2Elems.length) {
+      False
+    } else {
+      evalBigStep(
+        v1.elems
+          .zip(v2Elems)
+          .foldLeft(True: Expr)({ case (a, (e1, e2)) => a && (e1 === e2) })
+      )
+    }
+  }
+
+  private def evalVecEqual(v1: VecLiteral, v2: Expr): Expr = {
+    val v2Elems = v2 match {
+      case VecLiteral(elems @ _*) => elems
+      case _ =>
+        v1.elems.indices.map(i => evalBigStep(VecAccess(v2, i)))
+    }
+    if (v1.elems.length != v2Elems.length) {
+      False
+    } else {
+      evalBigStep(
+        v1.elems
+          .zip(v2Elems)
+          .foldLeft(True: Expr)({ case (a, (e1, e2)) => a && (e1 === e2) })
+      )
     }
   }
 
@@ -299,8 +328,9 @@ trait Eval {
       )
     } else {
       evalBigStep(s) match {
-        case DontCare                                 => DontCare
-        case StmLiteral() | StmBuild(IntCst(0), _, _) => DontCare
+        case Default => Default
+        case StmLiteral() | StmBuild(IntCst(0), _, _) =>
+          Tuple(StmLiteral(), Default)
         case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
           val nextEquations = equations.map({ case (x, (_, next)) =>

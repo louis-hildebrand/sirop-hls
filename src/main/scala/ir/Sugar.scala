@@ -8,7 +8,7 @@ case object Let {
 
 // Option<T>
 trait OptionType {
-  val NNone: Expr = Tuple(DontCare, False)
+  val NNone: Expr = Tuple(Default, False)
 }
 case object SSome {
   def apply(e: Expr /* T */ ): Expr = Tuple(e, True)
@@ -27,7 +27,7 @@ case object OptionAccess {
 }
 case object OptionUnwrapUnsafe {
   def apply(e: Expr /* Option<T> */ ): Expr /* T */ = {
-    OptionAccess(e, (v: Expr) => v, (_: Expr) => DontCare)
+    e.__0
   }
 }
 case object IsNone {

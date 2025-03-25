@@ -97,6 +97,26 @@ sealed trait Expr {
         e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
     }
   }
+
+  /** If this expression is <code>Default</code>, replace it with the default
+    * integer.
+    */
+  def defaultToInt: Expr = {
+    this match {
+      case Default => Default.int
+      case e       => e
+    }
+  }
+
+  /** If this expression is <code>Default</code>, replace it with the default
+    * boolean.
+    */
+  def defaultToBool: Expr = {
+    this match {
+      case Default => Default.bool
+      case e       => e
+    }
+  }
 }
 
 // Define a consistent order for expressions to make the tests less brittle.
@@ -131,7 +151,7 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
-      case DontCare       => 0
+      case Default        => 0
       case False          => 1
       case True           => 2
       case _: And         => 3
@@ -553,17 +573,18 @@ object Or {
   }
 }
 
-// Useful for readability and possibly for optimization
-case object DontCare extends Expr {
+// Default value for a given datatype (zero for int, false for bool, tuple of
+// defaults for a tuple, etc.).
+// Note that this should NOT be used for functions or streams.
+case object Default extends Expr {
+  def int: IntCst = IntCst(0)
+  def bool: BoolCst = False
+
   override def children: Seq[Expr] = Seq()
+
   override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq() => this
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
-    }
+    require(newChildren.isEmpty)
+    this
   }
 }
 
@@ -709,10 +730,8 @@ case class StmBuild(
                     (_: Expr) => y
                   ),
                   // CASE 2: Consumer is not reading from producer.
-                  //         Update as usual. It is NOT valid to access the
-                  //         value of the producer stream in this case, so
-                  //         assume it never happens.
-                  next.substitute(StmNext(x).__1 -> DontCare)
+                  //         Update as usual.
+                  next.substitute(StmNext(x).__1 -> Default)
                 ))
               })
           val newProducerEquations =

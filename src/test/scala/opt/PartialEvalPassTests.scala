@@ -113,14 +113,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(VecAccess(v2, 2)) == z + a + b + c)
   }
 
-  test("Mod") {
-    val e = VecLength(Param())
-
-    assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
-    assert(pe(DontCare % e) == DontCare)
-    assert(pe(e % DontCare) == DontCare)
-  }
-
   test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
     val n = Param("n")
     val i = Param("i")
