@@ -25,29 +25,33 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Counters") {
     val n = Param("n")
     val delta = Param("delta")
+    val a0 = Param("a")
+    val a1 = Param("a")
+    val a2 = Param("a")
+    val a3 = Param("a")
+    val a4 = Param("a")
+    val a5 = Param("a")
     val s = StmBuild(
       n,
-      Tuple(
-        3 /* up counter (+1) */, 10 /* up counter (+4) */,
-        19 /* down counter (-2) */, 0 /* up counter (--3) */,
-        -2 /* down counter (+-6) */, 1 /* counter (+ delta + 1) */
-      ),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            acc.__1 + 4,
-            acc.__2 - 2,
-            acc.__3 - IntCst(-3),
-            acc.__4 + (-6),
-            acc.__5 + delta + 1
-          ),
-          SSome(
-            Tuple(2 * acc.__0, acc.__1 / 3, acc.__2, acc.__3, acc.__4, acc.__5)
-          )
-        )
+      SSome(Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)),
+      Map[Param, (Expr, Expr)](
+        // up counter (+1)
+        a0 -> (3, a0 + 1),
+        // up counter (+4)
+        a1 -> (10, a1 + 4),
+        // down counter (-2)
+        a2 -> (19, a2 - 2),
+        // up counter (--3)
+        a3 -> (0, a3 - IntCst(-3)),
+        // down counter (+-6)
+        a4 -> (-2, a4 + IntCst(-6)),
+        // counter (+ delta + 1)
+        a5 -> (1, a5 + delta + 1)
+      )
     )
-    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
+    val opt = PartialEvalPass.partialEval(
+      StmInductionVarRemovalPass().removeInductionVars(s)
+    )
 
     // Correctness
     for (nVal <- 0 to 15) {
@@ -59,41 +63,41 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal =
-      StmBuild(
-        n,
-        Tuple(0),
-        (acc: Expr) =>
-          Tuple(
-            Tuple(acc.__0 + 1),
-            SSome(
-              Tuple(
-                6 + 2 * acc.__0,
-                3 + (1 + acc.__0 * 4) / 3,
-                19 + (-2) * acc.__0,
-                acc.__0 * 3,
-                -2 + -6 * acc.__0,
-                1 + delta * acc.__0 + acc.__0
-              )
-            )
-          )
-      )
+    val t = Param("t")
+    val ideal = StmBuild(
+      n,
+      SSome(
+        Tuple(
+          6 + 2 * t,
+          3 + (1 + 4 * t) / 3,
+          19 + (-2) * t,
+          3 * t,
+          -2 + (-6) * t,
+          1 + delta * t + t
+        )
+      ),
+      Map[Param, (Expr, Expr)](t -> (0, t + 1))
+    )
     assert(opt == ideal)
   }
 
   test("NotCounter:TriangleSum") {
     val n = Param("n")
+    val i = Param("a")
+    val sum = Param("a")
+    val t = Param("t")
     val triangleSum = StmBuild(
       1,
-      Tuple(0 /* i */, 0 /* sum of i's */, 0 /* t */ ),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + 1, acc.__0 + acc.__1, acc.__2 + 1),
-          IfThenElse(acc.__2 >= n, SSome(acc.__1), NNone)
-        )
+      IfThenElse(t >= n, SSome(sum), NNone),
+      Map[Param, (Expr, Expr)](
+        i -> (0, i + 1),
+        sum -> (0, sum + i),
+        t -> (0, t + 1)
+      )
     )
-    val optimized =
+    val optimized = PartialEvalPass.partialEval(
       StmInductionVarRemovalPass().removeInductionVars(triangleSum)
+    )
 
     // Correctness
     for (nVal <- 0 to 10) {
@@ -103,15 +107,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // One counter can be removed, but not the sum
-    val ideal = StmCanonPass.canonicalize(
-      StmBuild(
-        1,
-        Tuple(0, 0),
-        (acc: Expr) =>
-          Tuple(
-            Tuple(acc.__0 + acc.__1, acc.__1 + 1),
-            IfThenElse(acc.__1 >= n, SSome(acc.__0), NNone)
-          ),
+    val ideal = StmBuild(
+      1,
+      IfThenElse(t >= n, SSome(sum), NNone),
+      Map[Param, (Expr, Expr)](
+        sum -> (0, sum + t),
+        t -> (0, t + 1)
       )
     )
     assert(optimized == ideal)
@@ -120,14 +121,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("VecShiftLeft") {
     val n = Param()
     val m = Param()
+    val i = Param("a")
+    val v = Param("a")
     val s = StmBuild(
       n,
-      Tuple(100, VecBuild(m, (i: Expr) => i)),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + 2, VecShiftLeft(acc.__1, acc.__0)),
-          SSome(VecShiftLeft(acc.__1, acc.__0))
-        )
+      SSome(VecShiftLeft(v, i)),
+      Map[Param, (Expr, Expr)](
+        i -> (100, i + 2),
+        v -> (VecBuild(m, (j: Expr) => j), VecShiftLeft(v, i))
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -145,49 +147,25 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
 
     // Effective simplification
-    val ideal =
-      StmBuild(
-        n,
-        Tuple(0),
-        (acc: Expr) =>
-          Tuple(
-            Tuple(acc.__0 + 1),
-            SSome(
-              PartialEvalPass.partialEval(
-                VecShiftLeft(
-                  VecBuild(
-                    m,
-                    (i: Expr) =>
-                      IfThenElse(
-                        acc.__0 + i < m,
-                        acc.__0 + i,
-                        100 + (acc.__0 + i - m) * 2
-                      )
-                  ),
-                  100 + acc.__0 * 2
-                )
-              )
-            )
-          )
-      )
-    assert(opt == ideal)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("NextDoesntDependOnCurrent") {
     val n = Param("n")
     val f = Param("f")
     val z = Param("z")
+    val a0 = Param("a")
+    val a1 = Param("a1")
     val s = StmBuild(
       n,
-      Tuple(0, z),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            1 + acc.__0,
-            VecBuild(n, (i: Expr) => FunCall(FunCall(f, acc.__0), i))
-          ),
-          SSome(acc.__1)
-        )
+      SSome(a1),
+      Map[Param, (Expr, Expr)](
+        a0 -> (0, a0 + 1),
+        a1 -> (z, VecBuild(n, (j: Expr) => FunCall(FunCall(f, a0), j)))
+      )
     )
 
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
@@ -214,23 +192,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal =
-      StmBuild(
-        n,
-        Tuple(0),
-        (acc: Expr) =>
-          IfThenElse(
-            acc.__0 === 0,
-            Tuple(Tuple(1 + acc.__0), SSome(z)),
-            Tuple(
-              Tuple(1 + acc.__0),
-              SSome(
-                VecBuild(n, (i: Expr) => FunCall(FunCall(f, -1 + acc.__0), i))
-              )
-            )
-          )
-      )
-    assert(opt == ideal)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("MonotonicBool:SimpleCounter") {
@@ -240,22 +205,17 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val k1 = Param("k1")
     // TODO: Run multiple tests for different values of delta?
     val delta = 3
+    val i = Param("a")
+    val b0 = Param("a")
+    val b1 = Param("a")
     val s = StmBuild(
       n,
-      Tuple(i0, True, True),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + delta,
-            acc.__1 && (acc.__0 < k0),
-            acc.__2 && (acc.__0 < k1)
-          ),
-          IfThenElse(
-            Not(acc.__1) && (acc.__0 % 2 === 0),
-            SSome(Tuple(acc.__0, acc.__1, acc.__2)),
-            NNone
-          )
-        )
+      IfThenElse(Not(b1) && (i % 2 === 0), SSome(Tuple(i, b0, b1)), NNone),
+      Map[Param, (Expr, Expr)](
+        i -> (i0, i + delta),
+        b0 -> (True, b0 && i < k0),
+        b1 -> (True, b1 && i < k1)
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -278,14 +238,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("MonotonicBool:BoundedCounter") {
@@ -293,17 +249,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val i0 = Param("i0")
     val k = Param("k")
     val delta = 4
+    val i = Param("i")
+    val b = Param("b")
     val s = StmBuild(
       n,
-      Tuple(i0, True),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            IfThenElse(acc.__1, acc.__0 + delta, acc.__0),
-            acc.__1 && (acc.__0 < k)
-          ),
-          SSome(Tuple(acc.__0, acc.__1))
-        )
+      SSome(Tuple(i, b)),
+      Map[Param, (Expr, Expr)](
+        i -> (i0, IfThenElse(b, i + delta, i)),
+        b -> (True, b && i < k)
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -324,32 +278,27 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Counters that count up but stop at a certain point
   test("PiecewiseCounter:StopCounting") {
     val n = Param("n")
     val k = Param("k")
+    val a0 = Param("a")
+    val a1 = Param("a")
+    val a2 = Param("a")
     val s = StmBuild(
       n,
-      Tuple(0, 1, 2),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            IfThenElse(acc.__0 < k + 1, acc.__1 + 1, acc.__1),
-            IfThenElse(acc.__0 <= -1 + k, acc.__2 + 2, acc.__2)
-          ),
-          SSome(Tuple(acc.__1 + 2, acc.__2))
-        )
+      SSome(Tuple(a1 + 2, a2)),
+      Map[Param, (Expr, Expr)](
+        a0 -> (0, a0 + 1),
+        a1 -> (1, IfThenElse(a0 < k + 1, a1 + 1, a1)),
+        a2 -> (2, IfThenElse(a0 <= -1 + k, a2 + 2, a2))
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -366,32 +315,27 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Counters that stay constant at first and only start counting later
   test("PiecewiseCounter:Delayed") {
     val n = Param("n")
     val k = Param("k")
+    val a0 = Param("a")
+    val a1 = Param("a")
+    val a2 = Param("a")
     val s = StmBuild(
       n,
-      Tuple(0, 2, 1),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            IfThenElse(acc.__0 >= k + 2, acc.__1 + 1, acc.__1),
-            IfThenElse(acc.__0 > k, acc.__2 + 2, acc.__2)
-          ),
-          SSome(Tuple(3 * acc.__1, 2 * acc.__2))
-        )
+      SSome(Tuple(3 * a1, 2 * a2)),
+      Map[Param, (Expr, Expr)](
+        a0 -> (0, a0 + 1),
+        a1 -> (2, IfThenElse(a0 >= k + 2, a1 + 1, a1)),
+        a2 -> (1, IfThenElse(a0 > k, a2 + 2, a2))
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -408,34 +352,28 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Piecewise functions where each branch is yet another piecewise function
   test("PiecewiseCounter:UpThenDown") {
     val n = Param("n")
+    val a0 = Param("a")
+    val a1 = Param("a")
     val s = StmBuild(
       n,
-      Tuple(10, 2),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            IfThenElse(
-              acc.__0 < 20,
-              IfThenElse(acc.__0 < 17, acc.__1 + 2, acc.__1),
-              IfThenElse(acc.__0 < 34, acc.__1 - 3, acc.__1)
-            )
-          ),
-          SSome(2 * acc.__1)
-        )
+      SSome(2 * a1),
+      Map[Param, (Expr, Expr)](
+        a0 -> (10, a0 + 1),
+        a1 -> (2, IfThenElse(
+          a0 < 20,
+          IfThenElse(a0 < 17, a1 + 2, a1),
+          IfThenElse(a0 < 34, a1 - 3, a1)
+        ))
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -447,31 +385,28 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Shift register that stops at a certain point
   test("PiecewiseVecShiftLeft:StopShifting") {
     val n = Param("n")
     val m = Param("m")
+    val i = Param("i")
+    val v = Param("v")
     val s = StmBuild(
       n,
-      Tuple(2, VecBuild(m, (i: Expr) => i)),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            IfThenElse(acc.__0 < m, VecShiftLeft(acc.__1, 2 * acc.__0), acc.__1)
-          ),
-          SSome(acc.__1)
+      SSome(v),
+      Map[Param, (Expr, Expr)](
+        i -> (2, i + 1),
+        v -> (
+          VecBuild(m, (j: Expr) => j),
+          IfThenElse(i < m, VecShiftLeft(v, 2 * i), v)
         )
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -485,31 +420,28 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Shift register that only starts shifting after some delay
   test("PiecewiseVecShiftLeft:Delayed") {
     val n = Param("n")
     val m = Param("m")
+    val i = Param("i")
+    val v = Param("v")
     val s = StmBuild(
       n,
-      Tuple(7, VecBuild(m, (i: Expr) => i)),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(
-            acc.__0 + 1,
-            IfThenElse(acc.__0 < m, acc.__1, VecShiftLeft(acc.__1, 2 * acc.__0))
-          ),
-          SSome(acc.__1)
+      SSome(v),
+      Map[Param, (Expr, Expr)](
+        i -> (7, i + 1),
+        v -> (
+          VecBuild(m, (j: Expr) => j),
+          IfThenElse(i < m, v, VecShiftLeft(v, 3 * i + 1))
         )
+      )
     )
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -523,14 +455,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator left representing t
-    assert(opt.seed == Tuple(0))
-    val expectedNextAcc: Expr = (acc: Expr) => acc.__0 + 1
-    val actualNextAcc = Function(
-      opt.nextF.param,
-      PartialEvalPass.partialEval(opt.nextF.body.__0.__0)
-    )
-    assert(actualNextAcc == expectedNextAcc)
+    // There should only be one accumulator variable left representing t
+    assert(opt.equations.size == 1)
+    val t = opt.accVars.head
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("ClosedForm:StmNext") {
@@ -790,29 +718,26 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   test("Stm2Vec2Stm") {
     val n = Param("n")
-    val input = Param("s")
-    val s = StmBuild(
+    val input = Param("input")
+    val t = Param("t")
+    val s = Param("s")
+    val v = Param("v")
+    val original = StmBuild(
       n,
-      Tuple(input, VecBuild(n, (_: Expr) => Default), 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 < n,
-          Tuple(
-            Tuple(
-              StmNext(acc.__0).__0,
-              VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-              1 + acc.__2
-            ),
-            NNone
-          ),
-          Tuple(
-            Tuple(acc.__0, acc.__1, 1 + acc.__2),
-            SSome(VecAccess(acc.__1, acc.__2 - n))
-          )
+      IfThenElse(t < n, NNone, SSome(VecAccess(v, t - n))),
+      Map[Param, (Expr, Expr)](
+        t -> (0, t + 1),
+        s -> (input, IfThenElse(t < n, StmNext(s).__0, s)),
+        v -> (
+          VecBuild(n, (_: Expr) => Default),
+          IfThenElse(t < n, VecShiftLeft(v, StmNext(s).__1), v)
         )
+      )
     )
     val facts = FactSet().geq(n, 1)
-    val opt = StmInductionVarRemovalPass(facts).removeInductionVars(s)
+    val opt = PartialEvalPass.partialEval(
+      StmInductionVarRemovalPass(facts).removeInductionVars(original)
+    )
 
     // Correctness
     val examples = Seq(
@@ -824,53 +749,48 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(0, 1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, s))
+        val expected = Let(n, nVal, Let(input, exampleStm, original))
         val actual = Let(n, nVal, Let(input, exampleStm, opt))
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
     // Effective simplification
+    val s0 = Param("s")
+    val s1 = Param("s")
     val expected = StmBuild(
       n,
-      Tuple(input, input, 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 < n,
-          Tuple(Tuple(StmNext(acc.__0).__0, acc.__1, 1 + acc.__2), NNone),
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, 1 + acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          )
-        )
+      IfThenElse(t < n, NNone, SSome(StmNext(s1).__1)),
+      Map[Param, (Expr, Expr)](
+        s0 -> (input, IfThenElse(t < n, StmNext(s0).__0, s0)),
+        s1 -> (input, IfThenElse(t < n, s1, StmNext(s1).__0)),
+        t -> (0, t + 1)
+      )
     )
     assert(opt == expected)
   }
 
   test("Stm2ReversedVec2Stm") {
     val n = Param("n")
-    val input = Param("s")
-    val s = StmBuild(
+    val input = Param("input")
+    val s = Param("s")
+    val v = Param("v")
+    val t = Param("t")
+    val original = StmBuild(
       n,
-      Tuple(input, VecBuild(n, (_: Expr) => Default), 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 < n,
-          Tuple(
-            Tuple(
-              StmNext(acc.__0).__0,
-              VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-              1 + acc.__2
-            ),
-            NNone
-          ),
-          Tuple(
-            Tuple(acc.__0, acc.__1, 1 + acc.__2),
-            SSome(VecAccess(acc.__1, -1 + 2 * n - acc.__2))
-          )
+      IfThenElse(t < n, NNone, SSome(VecAccess(v, -1 + 2 * n - t))),
+      Map[Param, (Expr, Expr)](
+        t -> (0, t + 1),
+        s -> (input, IfThenElse(t < n, StmNext(s).__0, s)),
+        v -> (
+          VecBuild(n, (_: Expr) => Default),
+          IfThenElse(t < n, VecShiftLeft(v, StmNext(s).__1), v)
         )
+      )
     )
-    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
+    val opt = PartialEvalPass.partialEval(
+      StmInductionVarRemovalPass().removeInductionVars(original)
+    )
 
     // Correctness
     val examples = Seq(
@@ -882,13 +802,14 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, s))
+        val expected = Let(n, nVal, Let(input, exampleStm, original))
         val actual = Let(n, nVal, Let(input, exampleStm, opt))
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
-    // Effective simplification
-    assert(opt == s)
+    // Cannot remove induction variable here because we're reading from the
+    // input stream in reverse
+    assert(opt == original)
   }
 }
