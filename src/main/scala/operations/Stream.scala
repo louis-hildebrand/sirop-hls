@@ -219,7 +219,8 @@ object StmMap {
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
       "the input stream should appear no more than once in the inner StmBuild"
     )
-    val map = if (!innerStm.seedByVar.values.exists(z => z == s)) {
+    val usesInputStream = innerStm.seedByVar.values.exists(z => z == s)
+    val map = if (!usesInputStream) {
       // In theory you could have something like
       //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
       // which doesn't actually use the input stream at all.
@@ -346,24 +347,31 @@ object StmScanInclusive {
       "the function in StmScan should return a scalar or a stream of length 1"
     )
     assert(
-      innerStm.seedByVar.count({ case (_, z) => z == s }) == 1,
-      "the input stream should appear exactly once in the inner StmBuild"
+      innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
+      "the input stream should appear at most once in the inner StmBuild"
     )
-    val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-    val outputsUntilReset = IntCst(1)
-    val inCtr = Param("in_ctr")
-    val outCtr = Param("out_ctr")
-    val innerWithCtrs = innerStm
-      .addInputCounter(
-        innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
-        inCtr
-      )
-      .addOutputCounter(outCtr)
-    // Want to reset depending on the *next* values of the in/out counters.
-    val shouldReset = (
-      (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
-        && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
-    )
+    val (innerWithCtrs, shouldReset) = {
+      val outputsUntilReset = IntCst(1)
+      val outCtr = Param("out_ctr")
+      val withOutCtr = innerStm.addOutputCounter(outCtr)
+      val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
+      if (usesInputStream) {
+        val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+        val inCtr = Param("in_ctr")
+        val withCtrs = withOutCtr
+          .addInputCounter(
+            innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
+            inCtr
+          )
+        // Want to reset depending on the *next* values of the in/out counters.
+        val shouldReset = ((withCtrs.nextByVar(inCtr) === inputsUntilReset)
+          && (withCtrs.nextByVar(outCtr) === outputsUntilReset))
+        (withCtrs, shouldReset)
+      } else {
+        val shouldReset = withOutCtr.nextByVar(outCtr) === outputsUntilReset
+        (withOutCtr, shouldReset)
+      }
+    }
     val acc = Param("acc")
     val nextAcc =
       OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)
