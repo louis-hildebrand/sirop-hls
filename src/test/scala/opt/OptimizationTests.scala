@@ -144,7 +144,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmCanonPass.canonicalize(v1)
+      val v2 = StmSimplifier.simplify(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
       val v4 = {
         val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
@@ -186,7 +186,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmCanonPass.canonicalize(v1)
+      val v2 = StmSimplifier.simplify(v1)
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
       val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
       PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
