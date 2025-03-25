@@ -273,13 +273,13 @@ object PartialEvalPass {
         }
 
       case s @ StmBuild(n, out, equations) =>
-        val len = partialEval(n).defaultToInt
+        val len = partialEval(n)(facts).defaultToInt
         val onlyElem = len match {
           case IntCst(1) =>
             // Maybe we can find the first element statically and just return it directly!
             tryEvalStmNext(s) match {
               case Some((_, out)) if !hasSideEffects(out) =>
-                Some(partialEval(out))
+                Some(partialEval(out)(facts))
               case _ => None
             }
           case _ =>
@@ -294,13 +294,16 @@ object PartialEvalPass {
               case Some(StmAccRange(accRanges)) => accRanges
               case _                            => Map()
             }
-            val newFacts =
-              accRanges.foldLeft(facts)({ case (facts, (x, r)) =>
+            val clearedFacts =
+              s.accVars
+                .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
+            val newFacts = accRanges
+              .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
                 facts.range(x, r)
               })
             StmBuild(
               len,
-              partialEval(out),
+              partialEval(out)(newFacts),
               equations.map({ case (x, (z, next)) =>
                 // The recurrence variables shouldn't occur free in z, so use
                 // the old facts for z

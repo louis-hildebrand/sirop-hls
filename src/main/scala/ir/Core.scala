@@ -592,7 +592,7 @@ case object Default extends Expr {
 case class StmBuild(
     n: Expr /* Int */,
     output: Expr /* Option<B> */,
-    equations: Map[Param, (Expr, Expr)] /* (A, A) */
+    equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
 ) extends Expr {
   override def children: Seq[Expr] = {
     Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>

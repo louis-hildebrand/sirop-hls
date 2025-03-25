@@ -153,36 +153,38 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")
     val z = Param("z")
+    val a = Param("a")
     val s = StmBuild(
       n,
-      Tuple(z),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + 3),
-          IfThenElse(acc.__0 >= z, SSome(acc.__0), NNone)
-        )
+      IfThenElse(a >= z, SSome(a), NNone),
+      Map[Param, (Expr, Expr)](
+        a -> (z, IfThenElse(a >= z, a + 3, a - 1))
+      )
     )
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
-      Tuple(z),
-      (acc: Expr) => Tuple(Tuple(acc.__0 + 3), SSome(acc.__0))
+      SSome(a),
+      Map[Param, (Expr, Expr)](
+        a -> (z, a + 3)
+      )
     )
     assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
 
   test("StmOneElement") {
     val z = Param("z")
+    val a0 = Param("a")
+    val a1 = Param("a")
     val s = StmBuild(
       1,
-      Tuple(z, 0),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + acc.__1 + acc.__1, acc.__1 + acc.__0),
-          SSome(acc.__0)
-        )
+      SSome(a0),
+      Map[Param, (Expr, Expr)](
+        a0 -> (z, a0 + a1 + a1),
+        a1 -> (0, a1 + a0)
+      )
     )
-    val expected = StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(z)))
+    val expected = StmBuild(1, SSome(z))
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
@@ -191,11 +193,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     //   StmCst(1, StmNext(s).__1)
     // because then we're calling StmNext(s).__1 without a corresponding StmNext(s).__0
     val s = Param("s")
+    val a = Param("a")
     val stm = StmBuild(
       1,
-      Tuple(s),
-      (acc: Expr) =>
-        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+      SSome(StmNext(a).__1),
+      Map[Param, (Expr, Expr)](
+        a -> (s, StmNext(a).__0)
+      )
     )
     assert(PartialEvalPass.partialEval(stm) == stm)
   }
