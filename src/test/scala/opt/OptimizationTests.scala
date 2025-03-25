@@ -22,7 +22,7 @@ class OptimizationTests extends AnyFunSuite {
       )
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      StmSimplifier.simplify(s1)
+      StmSimplifier.simplify(s1)()
     }
     val actual = optimize(s.asInstanceOf[StmBuild])
 
@@ -62,7 +62,7 @@ class OptimizationTests extends AnyFunSuite {
       )
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      StmSimplifier.simplify(s1)
+      StmSimplifier.simplify(s1)()
     }
     val actual = optimize(s)
 
@@ -125,12 +125,12 @@ class OptimizationTests extends AnyFunSuite {
     assert(ir.eval(actual1(actual)) == expected1)
 
     // Effective simplification
-    val ideal =
-      StmBuild(
-        n,
-        0,
-        (i: Expr) => Tuple(1 + i, SSome(FunCall(f, i)))
-      )
+    val i = Param("i")
+    val ideal = StmBuild(
+      n,
+      SSome(FunCall(f, i)),
+      Map[Param, (Expr, Expr)](i -> (0, i + 1))
+    )
     assert(actual == ideal)
   }
 
@@ -144,7 +144,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmSimplifier.simplify(v1)
+      val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
       val v4 = {
         val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
@@ -167,11 +167,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmBuild(
-      1,
-      Tuple(),
-      (_: Expr) => Tuple(Tuple(), SSome(VecBuild(n, (_: Expr) => c)))
-    )
+    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c))
     assert(v == ideal)
   }
 
@@ -186,7 +182,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmSimplifier.simplify(v1)
+      val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
       val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
       PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
@@ -211,12 +207,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmBuild(
-      1,
-      Tuple(),
-      (_: Expr) =>
-        Tuple(Tuple(), SSome(VecBuild(n, (i: Expr) => z + i * delta)))
-    )
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta))
     assert(v == ideal)
   }
 
@@ -231,24 +222,15 @@ class OptimizationTests extends AnyFunSuite {
       n = 1,
       fInShape = None,
       fOutShape = Some(n)
-    )
+    ).asInstanceOf[StmBuild]
     val optimized = {
       val facts = FactSet().geq(n, 1)
-      val s0 =
-        PartialEvalPass.partialEval(original)(facts).asInstanceOf[StmBuild]
-      val s1 = s0.fuseCompletely()
-      val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
-      // TODO: It should be able to do both in one step
-      val s3 = StmAccRemovalPass.removeUnusedElems(s2)
-      val s4 = StmAccRemovalPass.removeUnusedElems(s3)
-      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n)(facts)
-      val s6 = PartialEvalPass
-        .partialEval(s5)(
-          facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
-        )
-        .asInstanceOf[StmBuild]
-      val s7 = StmAccRemovalPass.removeUnusedElems(s6)
-      s7
+      val s1 = original.fuseCompletely()
+      val s2 = StmSimplifier.simplify(s1)(facts)
+      val s3 = StmInductionVarRemovalPass().removeInductionVars(s2)
+      val s4 = StmSimplifier.simplify(s3)(facts)
+      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)()
+      StmSimplifier.simplify(s5)(facts)
     }
 
     // Correctness
@@ -268,11 +250,11 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
+    val a = Param("a")
     val identity = StmBuild(
       n,
-      Tuple(s),
-      (acc: Expr) =>
-        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+      SSome(StmNext(a).__1),
+      Map[Param, (Expr, Expr)](a -> (s, StmNext(a).__0))
     )
     assert(optimized == identity)
   }
@@ -285,9 +267,11 @@ class OptimizationTests extends AnyFunSuite {
     val original = Stm2Vec(Vec2Stm(v, n = n), n = n)
     val optimized = {
       val s1 = original.fuseCompletely()
-      val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
-      val s3 = StmDelayRemovalPass.skipFirstCycles(s2, n - 1)()
-      StmInductionVarRemovalPass().removeInductionVars(s3)
+      val s2 = StmSimplifier.simplify(s1)()
+      val s3 = StmInductionVarRemovalPass().removeInductionVars(s2)
+      val s4 = StmSimplifier.simplify(s3)()
+      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)()
+      StmSimplifier.simplify(s5)()
     }
 
     // Correctness
@@ -305,12 +289,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     // TODO: It would be even better if I could essentially eta-reduce the vector
-    val ideal = StmBuild(
-      1,
-      Tuple(),
-      (_: Expr) =>
-        Tuple(Tuple(), SSome(VecBuild(n, (i: Expr) => VecAccess(v, i))))
-    )
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)))
     assert(optimized == ideal)
   }
 
@@ -362,11 +341,11 @@ class OptimizationTests extends AnyFunSuite {
 
     // TODO: Effective simplification
     assume(false)
+    val a = Param("a")
     val identity = StmBuild(
       n,
-      Tuple(s),
-      (acc: Expr) =>
-        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+      SSome(StmNext(a).__1),
+      Map[Param, (Expr, Expr)](a -> (s, StmNext(a).__0))
     )
     assert(optimized == identity)
   }

@@ -11,9 +11,9 @@ object StmSimplifier {
     * elements.
     */
   @tailrec
-  def simplify(s: StmBuild): StmBuild = {
+  def simplify(s: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     val simplified = {
-      val s1 = PartialEvalPass.partialEval(s).asInstanceOf[StmBuild]
+      val s1 = PartialEvalPass.partialEval(s)(facts).asInstanceOf[StmBuild]
       val s2 = StmAccRemovalPass.removeUnusedElems(s1)
       val s3 = StmAccRemovalPass.removeConstantVars(s2)
       s3
@@ -23,7 +23,7 @@ object StmSimplifier {
     } else {
       // New partial evaluation opportunities may have been revealed by
       // inlining constant-valued accumulator elements
-      simplify(simplified)
+      simplify(simplified)(facts)
     }
   }
 }
