@@ -9,37 +9,39 @@ class OptimizationTests extends AnyFunSuite {
   /** The optimizer can perform map-map fusion.
     */
   test("MapMap") {
-    val p = Param()
+    val input = Param("input")
     val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
     val g = (x: Expr) => x - 10
     val s =
       StmMap(
-        StmMap(p, f, n = 5, fInShape = None, fOutShape = None),
+        StmMap(input, f, n = 5, fInShape = None, fOutShape = None),
         g,
         n = 5,
         fInShape = None,
         fOutShape = None
       )
-    val actual = s.asInstanceOf[StmBuild].fuseCompletely()
+    val optimize = (s: StmBuild) => {
+      val s1 = s.fuseCompletely()
+      StmSimplifier.simplify(s1)
+    }
+    val actual = optimize(s.asInstanceOf[StmBuild])
 
     // Correct behaviour
-    // (Using one example p, f, and g)
-    val call = (e: Expr) => Let(p, StmCount(5), e)
+    // (Using one example input, f, and g)
+    val call = (e: Expr) => Let(input, StmCount(5), e)
     val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
-    // Successful fusion
-    val ideal = StmBuild(
-      5,
-      Tuple(p),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0),
-          SSome({
-            val x = StmNext(acc.__0).__1
-            (x + 2) * (x + 3) * (x + 4) + -10
-          })
-        )
+    // Successful fusion:
+    // map(map(s, f), g) should simplify to the same thing as map(s, g . f)
+    val ideal = optimize(
+      StmMap(
+        input,
+        (x: Expr) => FunCall(g, FunCall(f, x)),
+        n = 5,
+        fInShape = None,
+        fOutShape = None
+      ).asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
   }
@@ -47,25 +49,31 @@ class OptimizationTests extends AnyFunSuite {
   /** The optimizer can perform map-fold fusion.
     */
   test("MapFold") {
-    val p = Param()
-    val n = Param()
+    val input = Param("input")
+    val n = Param("n")
     val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val z = Param("z")
     val s =
       StmFold(
-        StmMap(p, f, n = n, fInShape = None, fOutShape = None),
-        0,
+        StmMap(input, f, n = n, fInShape = None, fOutShape = None),
+        z,
         (acc: Expr) => (x: Expr) => acc + x,
         stmShape = Seq(n)
       )
-    val actual = s.fuseCompletely()
+    val optimize = (s: StmBuild) => {
+      val s1 = s.fuseCompletely()
+      StmSimplifier.simplify(s1)
+    }
+    val actual = optimize(s)
 
     // Correct behaviour
-    // (Using one example p, f, and g)
-    val call = (e: Expr) => Let(n, 5, Let(p, StmCount(n), e))
+    // (Using one example input, f, g, and z)
+    val call = (e: Expr) => Let(n, 5, Let(input, StmCount(n), Let(z, 42, e)))
     val expected =
       StmLiteral(
         ir.eval(
-          FunCall(f, 0)
+          42
+            + FunCall(f, 0)
             + FunCall(f, 1)
             + FunCall(f, 2)
             + FunCall(f, 3)
@@ -74,14 +82,17 @@ class OptimizationTests extends AnyFunSuite {
       )
     assert(ir.eval(call(s)) == expected)
     assert(ir.eval(call(actual)) == expected)
-    // Successful fusion
-    val ideal =
+    // Successful fusion:
+    // fold(map(s, f), z, a => x => g(a, x)) should simplify to the same thing
+    // as fold(s, z, a => x => g(a, f(x))
+    val ideal = optimize(
       StmFold(
-        p,
-        0,
+        input,
+        z,
         (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
         stmShape = Seq(n)
-      ).fuseCompletely()
+      )
+    )
     assert(actual == ideal)
   }
 

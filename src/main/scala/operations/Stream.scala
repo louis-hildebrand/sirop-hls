@@ -268,10 +268,17 @@ object StmMap {
           outerStm
       }
       val ret = map.substitute(s -> input)
+      val originalFreeVars =
+        (
+          input.freeVars()
+            ++ f.freeVars()
+            ++ n.freeVars()
+            ++ fInShape.toSet.flatMap((e: Expr) => e.freeVars())
+            ++ fOutShape.toSet.flatMap((e: Expr) => e.freeVars())
+        )
       assert(
-        ret.freeVars() == input.freeVars() ++ f.freeVars(),
-        s"the set of free variables should be unchanged by StmMap (expected ${input
-            .freeVars() ++ f.freeVars()}, got ${ret.freeVars()})"
+        ret.freeVars() == originalFreeVars,
+        s"the set of free variables should be unchanged by StmMap (expected ${originalFreeVars}, got ${ret.freeVars()})"
       )
       ret
     }
@@ -401,10 +408,15 @@ object StmScanInclusive {
     val scan = outerStm.map(e =>
       e.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
     )
+    val originalFreeVars = (
+      input.freeVars()
+        ++ z.freeVars()
+        ++ f.freeVars()
+        ++ stmShape.flatMap(e => e.freeVars())
+    )
     assert(
-      scan.freeVars() == input.freeVars() ++ z.freeVars() ++ f.freeVars(),
-      s"the set of free variables should be unchanged by StmScan (expected ${input
-          .freeVars() ++ z.freeVars() ++ f.freeVars()} but got ${scan.freeVars()})"
+      scan.freeVars() == originalFreeVars,
+      s"the set of free variables should be unchanged by StmScan (expected ${originalFreeVars} but got ${scan.freeVars()})"
     )
     // Simplification is NOT required, but it makes the tests run much faster
     PartialEvalPass.partialEval(scan)
