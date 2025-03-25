@@ -38,13 +38,13 @@ object StmAccRemovalPass {
     * a flat tuple).
     */
   def removeUnusedElems(stm: StmBuild): StmBuild = {
-    // TODO: Repeat this pass until no more elements can be removed?
-    stm.seed match {
-      case Tuple(elems @ _*) =>
-        val indicesToRemove = elems.indices.filter(i => isElemUnused(stm, i))
-        StmUtils.removeAccumulatorElemsByIndex(stm, indicesToRemove)
-      case _ => stm
-    }
+    val usedElems =
+      stm.accVarDependencies.transitiveDependencies(stm.outputDependencies)
+    StmBuild(
+      stm.n,
+      stm.output,
+      stm.equations.filter({ case (x, _) => usedElems.contains(x) })
+    )
   }
 
   /** @param stm
@@ -80,16 +80,6 @@ object StmAccRemovalPass {
       } else {
         findConstantAccumulatorElems(stm, candidates = constantVars)
       }
-    }
-  }
-
-  private def isElemUnused(stm: StmBuild, i: Int): Boolean = {
-    // TODO: this seems a bit hacky
-    try {
-      StmUtils.removeAccumulatorElemsByIndex(stm, Seq(i))
-      true
-    } catch {
-      case ElemStillInUseException => false
     }
   }
 }

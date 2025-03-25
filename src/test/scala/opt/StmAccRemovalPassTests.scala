@@ -7,61 +7,57 @@ import org.scalatest.funsuite.AnyFunSuite
 class StmAccRemovalPassTests extends AnyFunSuite {
   test("RemoveUnusedCounters") {
     val n = Param("n")
+    val a0 = Param("a")
+    val a1 = Param("a")
+    val a2 = Param("a")
+    val a3 = Param("a")
+    val a4 = Param("a")
     val stm = StmBuild(
       n,
-      Tuple(0, 1, 2, 3),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(0, acc.__1 + 1, acc.__2 + acc.__3, acc.__3 + 2),
-          SSome(Tuple(acc.__2))
-        )
+      SSome(Tuple(a2)),
+      Map[Param, (Expr, Expr)](
+        a0 -> (0, 0),
+        a1 -> (1, a1 + 1),
+        a2 -> (2, a2 + a3),
+        a3 -> (3, a3 + a4),
+        a4 -> (4, a4 * a2 + 2)
+      )
     )
     val expected = StmBuild(
       n,
-      Tuple(2, 3),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + acc.__1, acc.__1 + 2),
-          SSome(Tuple(acc.__0))
-        )
+      SSome(Tuple(a2)),
+      Map[Param, (Expr, Expr)](
+        a2 -> (2, a2 + a3),
+        a3 -> (3, a3 + a4),
+        a4 -> (4, a4 * a2 + 2)
+      )
     )
-    assert(StmAccRemovalPass.removeUnusedElems(stm) == expected)
+    val actual = StmAccRemovalPass.removeUnusedElems(stm)
+    assert(actual == expected)
   }
 
   test("RemoveUnusedStream") {
     val n = Param("n")
     val s = Param("s")
+    val a0 = Param("a")
+    val a1 = Param("a")
+    val a2 = Param("a")
     val original = StmBuild(
       n,
-      Tuple(s, s, 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 < n,
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1, 1 + acc.__2),
-            NNone
-          ),
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, 1 + acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          )
-        )
+      IfThenElse(a2 < n, NNone, SSome(StmNext(a1).__1)),
+      Map[Param, (Expr, Expr)](
+        a0 -> (s, IfThenElse(a2 < n, StmNext(a0).__0, a0)),
+        a1 -> (s, IfThenElse(a2 < n, a1, StmNext(a1).__0)),
+        a2 -> (0, a2 + 1)
+      )
     )
     val expected = StmBuild(
       n,
-      Tuple(s, 0),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__1 < n,
-          Tuple(
-            Tuple(acc.__0, 1 + acc.__1),
-            NNone
-          ),
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, 1 + acc.__1),
-            SSome(StmNext(acc.__0).__1)
-          )
-        )
+      IfThenElse(a2 < n, NNone, SSome(StmNext(a1).__1)),
+      Map[Param, (Expr, Expr)](
+        a1 -> (s, IfThenElse(a2 < n, a1, StmNext(a1).__0)),
+        a2 -> (0, a2 + 1)
+      )
     )
     assert(StmAccRemovalPass.removeUnusedElems(original) == expected)
   }
