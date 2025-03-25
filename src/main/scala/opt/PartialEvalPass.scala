@@ -347,7 +347,7 @@ object PartialEvalPass {
               partialEval(StmNextK(peStm, t)),
               partialEval(StmNextK(peStm, f))
             )
-          case IntCst(0) => peStm
+          case IntCst(k) if k <= 0 => peStm
           // There are probably some cases where we want to convert StmNextK(s, k + 1) to StmNext(StmNextK(s, k)).__0
           // and other times where we want to go the other way.
           // Therefore, don't handle that here.

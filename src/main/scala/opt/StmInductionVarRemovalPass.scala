@@ -14,19 +14,19 @@ class StmInductionVarRemovalPass(facts: FactSet) {
 
   /** Remove as many induction variables as possible from the given stream.
     */
-  def removeInductionVars(stm: StmBuild): StmBuild = {
-    // Canonicalize to flatten the accumulator and whatnot
-    val s = StmCanonPass.canonicalize(stm)
+  def removeInductionVars(s: StmBuild): StmBuild = {
     val funcByIdx = findClosedForms(s)
     replaceInductionVars(s, funcByIdx)
   }
 
   /** Try to find the value of the given stream's accumulator at time
-    * <code>t</code>. The stream must already be in canonical form. In
-    * particular, its accumulator must be a flat tuple.
+    * <code>t</code>.
     */
-  def tryFindAccumulatorAtTime(s: StmBuild, c: Expr): Option[Expr] = {
-    val funcByIdx = findClosedForms(s)
+  def tryFindAccumulatorAtTime(
+      s: StmBuild,
+      c: Expr
+  ): Option[Map[Param, Expr]] = {
+    val closedFormByVar = findClosedForms(s)
 
     // Need the new seed to be synthesizable, so can't have any StmNextK's.
     // But we can get rid of StmNextK if k <= 0, so try to do that.
@@ -40,19 +40,21 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       }
     }
 
-    val seed = s.seed.asInstanceOf[Tuple]
     val allElemsHaveClosedForm =
-      seed.elems.indices.forall(i => funcByIdx.isDefinedAt(i))
+      s.accVars.forall(x => closedFormByVar.isDefinedAt(x))
     if (allElemsHaveClosedForm) {
-      val valAtT = Tuple(
-        seed.elems.indices.map(i => {
-          val e1 = FunCall(funcByIdx(i), c)
+      val seedsAtT = s.accVars
+        .map(x => {
+          val e1 = FunCall(closedFormByVar(x), c)
           val e2 = removeStmNextK(e1)
-          PartialEvalPass.partialEval(e2)(this.facts)
-        }): _*
-      )
+          x -> PartialEvalPass.partialEval(e2)(this.facts)
+        })
+        .toMap
       // TODO: Is this a sufficient condition?
-      if (valAtT.contains(classOf[StmNextK])) None else Some(valAtT)
+      val noStmNextK = seedsAtT.forall({ case (_, z) =>
+        !z.contains(classOf[StmNextK])
+      })
+      if (noStmNextK) Some(seedsAtT) else None
     } else {
       None
     }
@@ -63,297 +65,159 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     * canonical form. In particular, its accumulator must be a flat tuple.
     */
   def tryFindClosedFormForOutput(s: StmBuild): Option[Function] = {
-    val funcByIdx = findClosedForms(s)
-    val acc = s.nextF.param
+    val closedFormByVar = findClosedForms(s)
     val t = Param("t")
-    val subs = funcByIdx.foldLeft(Map[Expr, Expr]())({ case (m, (i, f)) =>
-      m + (TupleAccess(acc, i) -> FunCall(f, t))
-    })
-    val out = PartialEvalPass.partialEval(s.nextF.body.substitute(subs).__1)
-    if (out.contains(acc)) {
-      None
-    } else {
-      Some(Function(t, out))
-    }
+    val subs: Map[Expr, Expr] =
+      closedFormByVar.map({ case (x, f) => x -> FunCall(f, t) })
+    val out = s.output.substitute(subs)
+    val allVarsRemoved = out.freeVars().intersect(s.accVars).isEmpty
+    if (allVarsRemoved) Some(Function(t, out)) else None
   }
 
-  private def findClosedForms(s: StmBuild): Map[Int, Function] = {
-    val seed = s.seed.asInstanceOf[Tuple]
-    val acc = s.nextF.param
+  private def findClosedForms(s: StmBuild): Map[Param, Function] = {
     val t = Param("t")
-    val initAndNextByIdx = seed.elems.indices.map(i => {
-      val z = seed.elems(i)
-      val next =
-        PartialEvalPass.partialEval(TupleAccess(s.nextF.body.__0, i))
-      (z, next)
-    })
-    // The dependency graph may be acyclic. To deal with that, combine elements
-    // of each strongly connected component into one tuple.
-    val g = dependencyGraph(initAndNextByIdx, acc).condensation()
-    var funcByIdx = Map[Int, Function]()
+    // The dependency graph may have cycles. To deal with that, combine
+    // elements of each strongly connected component into one tuple.
+    val g = s.accVarDependencies.condensation()
+    var closedFormByVar = Map[Param, Function]()
     for (v <- g.topologicalOrder()) {
       val dependencies = g.outNeighbours(v).flatten
       val allDependenciesHaveClosedForm =
-        dependencies.forall(i => funcByIdx.contains(i))
-      // How can I find a closed form for an accumulator element if I can't
-      // find closed forms for all its dependencies?
-      if (allDependenciesHaveClosedForm) {
-        val (z, next, indices) = makeRecurrenceEquation(
-          equations = initAndNextByIdx.zipWithIndex
-            .filter({ case (_, i) => v.contains(i) })
-            .map({ case ((z, f), i) => i -> (z, f) })
-            .toMap,
-          dependencies = dependencies.map(i => i -> funcByIdx(i)).toMap,
-          acc = acc,
-          t = t
-        )
-        assert(!next.contains(acc))
-        tryFindClosedForm(0, z, next) match {
-          case Some(f) =>
-            if (z.isInstanceOf[Tuple]) {
-              // Track each accumulator element separately, even though they
-              // were tupled together earlier
-              for ((iOld, iNew) <- indices.zipWithIndex) {
+        dependencies.forall(i => closedFormByVar.contains(i))
+      if (!allDependenciesHaveClosedForm) {
+        // How can I find a closed form for an accumulator element if I can't
+        // find closed forms for all its dependencies?
+      } else {
+        val subs: Map[Expr, Expr] =
+          closedFormByVar.map({ case (x, f) => x -> FunCall(f, t) })
+        val equations =
+          s.equations
+            .filter({ case (x, _) => v.contains(x) })
+            .map({ case (x, (z, next)) =>
+              // Replace other accumulator vars by their closed form
+              x -> (z, next.substitute(subs))
+            })
+        if (v.size == 1) {
+          // For simplicity of the recurrence-solving code, don't wrap this one
+          // recurrence in a tuple
+          val (x, (z, nextExpr)) = equations.head
+          assert(x == v.head)
+          assert(
+            (nextExpr.freeVars().intersect(s.accVars) - x).isEmpty,
+            "all dependencies should have been removed"
+          )
+          val next = Function(t, Function(x, nextExpr))
+          tryFindClosedForm(0, z, next) match {
+            case Some(f) =>
+              val peF = PartialEvalPass.partialEval(f).asInstanceOf[Function]
+              closedFormByVar += (x -> peF)
+            case None => ()
+          }
+        } else {
+          // Combine the recurrence equations into one equation and then split
+          // the solution afterwards
+          val (z, next, paramByIndex) = mergeRecurrenceEquations(
+            equations = s.equations.filter({ case (x, _) => v.contains(x) }),
+            t = t
+          )
+          tryFindClosedForm(0, z, next) match {
+            case Some(f) =>
+              for ((i, x) <- paramByIndex) {
                 val g = Function(
                   t,
-                  PartialEvalPass.partialEval(
-                    TupleAccess(FunCall(f, t), iNew)
-                  )
+                  PartialEvalPass.partialEval(TupleAccess(FunCall(f, t), i))
                 )
-                funcByIdx += (iOld -> g)
+                closedFormByVar += (x -> g)
               }
-            } else {
-              funcByIdx += (v.head -> PartialEvalPass
-                .partialEval(f)
-                .asInstanceOf[Function])
-            }
-          case None => ()
+            case None => ()
+          }
         }
       }
     }
-    funcByIdx
+    closedFormByVar
   }
 
-  /** Construct the directed graph representing dependencies between accumulator
-    * elements. The graph may contain cycles.
+  /** Merge the given recurrence equations into one equation which deals with a
+    * tuple.
     */
-  private def dependencyGraph(
-      equationByIdx: Seq[(Expr, Expr)],
-      acc: Param
-  ): DiGraph[Int] = {
-    val nodes = equationByIdx.indices
-    val edges = nodes.flatMap(i => {
-      val (_, next) = equationByIdx(i)
-      getDependencies(next, acc)
-        // If we can't statically determine dependencies, assume it depends on
-        // all the accumulator elements
-        .getOrElse(nodes)
-        .map(j => (i, j))
-    })
-    DiGraph(nodes.toSet, edges.toSet)
-  }
-
-  /** Find which elements of the accumulator <code>e</code> depends on. Return
-    * <code>None</code> if the expression does depend on <code>acc</code> but we
-    * can't tell statically which indices are being accessed.
-    */
-  private def getDependencies(e: Expr, acc: Param): Option[Set[Int]] = {
-    e match {
-      case TupleAccess(a: Param, IntCst(j)) =>
-        if (a == acc) Some(Set(j)) else Some(Set())
-      case a: Param =>
-        // All occurrences of the accumulator should be expanded, so we should
-        // never encounter the accumulator outside a TupleAccess.
-        // Furthermore, the index in a TupleAccess must be an IntCst.
-        // Therefore, we should only see `acc` via the case above.
-        assert(a != acc)
-        Some(Set())
-      case e =>
-        e.children.foldLeft[Option[Set[Int]]](Some(Set[Int]()))({
-          case (None, _) => None
-          case (Some(deps), e) =>
-            getDependencies(e, acc) match {
-              case Some(moreDeps) => Some(deps ++ moreDeps)
-              case None           => None
-            }
-        })
-    }
-  }
-
-  /** Make a recurrence equation only for the given indices, replacing each
-    * reference to another accumulator element with the closed-form function for
-    * that element. Return the initial element and the update function. If we're
-    * dealing with multiple indices (i.e., there's a circular dependency), then
-    * the recurrence variable will be a tuple. For convenience, if we're dealing
-    * with just on element, the recurrence variable will NOT be a tuple.
-    *
-    * @param equations
-    *   The original recurrence equation (which uses the full <code>acc</code>)
-    *   by index. This must contain ONLY the indices which will be part of the
-    *   simplified recurrence equation.
-    * @param dependencies
-    *   The value of each accumulator element that this one depends on, as a
-    *   function of <code>t</code>.
-    * @param acc
-    *   The input to the original stream's update function.
-    */
-  private def makeRecurrenceEquation(
-      equations: Map[Int, (Expr, Expr)],
-      dependencies: Map[Int, Function],
-      acc: Param,
+  private def mergeRecurrenceEquations(
+      equations: Map[Param, (Expr, Expr)],
       t: Param
-  ): (Expr, Function, Seq[Int]) = {
+  ): (Expr, Function, Map[Int, Param]) = {
     // Sort so that patterns on multiple accumulator elements get them in a
     // more predictable order
-    val indices =
+    val paramByIndex =
       equations.toSeq
-        .sortBy({ case (i, (z, _)) => z })(ExprOrdering)
-        .map({ case (i, _) => i })
-    // Initial value
-    val z = if (indices.length == 1) {
-      equations(indices.head)._1
-    } else {
-      Tuple(indices.map(i => equations(i)._1): _*)
-    }
-    // Update function
-    val nexts = indices.map(i => equations(i)._2)
-    val x = Param("x")
-    val subs = {
-      // Replace dependencies with their value as a function of t
-      val depSubs =
-        dependencies.foldLeft(Map[Expr, Expr]())({ case (subs, (i, f)) =>
-          subs + (TupleAccess(acc, i) -> PartialEvalPass.partialEval(
-            FunCall(f, t)
-          ))
-        })
-      // Use a new parameter to represent the recurrence variable
-      val recVarSubs =
-        if (indices.length == 1) {
-          val i = indices.head
-          Map(TupleAccess(acc, i) -> x)
-        } else {
-          indices
-            .map(i => TupleAccess(acc, i) -> TupleAccess(x, indices.indexOf(i)))
-            .toMap
-        }
-      depSubs ++ recVarSubs
-    }
-    val facts = this.facts.geq(t, 0)
-    val next =
+        .sortBy({ case (_, (z, _)) => z })(ExprOrdering)
+        .zipWithIndex
+        .map({ case ((x, _), i) => i -> x })
+        .toMap
+    val z = Tuple((0 until equations.size).map(i => {
+      val x = paramByIndex(i)
+      equations(x)._1
+    }): _*)
+    val acc = Param("acc")
+    val subs: Map[Expr, Expr] =
+      paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i) })
+    val next = Function(
+      t,
       Function(
-        t,
-        Function(
-          x,
-          PartialEvalPass.partialEval(
-            (if (indices.length == 1) nexts.head else Tuple(nexts: _*))
-              .substitute(subs)
-          )(facts)
-        )
+        acc,
+        Tuple((0 until equations.size).map(i => {
+          val x = paramByIndex(i)
+          equations(x)._2.substitute(subs)
+        }): _*)
       )
-    (z, next, indices)
+    )
+    (z, next, paramByIndex)
   }
 
+  /** Replace each accumulator variable with its closed form, if it has one.
+    */
   private def replaceInductionVars(
       stm: StmBuild,
-      funByIdx: Map[Int, Function]
+      closedFormByVar: Map[Param, Function]
   ): StmBuild = {
-    if (funByIdx.isEmpty) {
+    if (closedFormByVar.isEmpty) {
       stm
     } else {
-      val t = funByIdx.head._2.param
+      val t = Param("t")
 
       // Try to replace the existing elements with their closed form
       var s = stm
-      var indicesToRemove = Seq[Int]()
-      var newAccumulatorElems = Map[Param, (Expr, Function)]()
-      for ((i, f) <- funByIdx) {
-        val tmp = Param("tmp")
-        val acc = s.nextF.param
-        val newStm =
-          StmUtils.replaceAccumulatorElemWithUnit(
-            s.substitute(TupleAccess(acc, i) -> tmp).asInstanceOf[StmBuild],
-            i = i
-          )
-        val g =
-          if (f.param == t) f else Function(t, f.body.substitute(f.param -> t))
-        replaceInductionVar(newStm, tmp, g) match {
-          case Some((newStm, newRecEqns)) =>
-            s = newStm
-            indicesToRemove = indicesToRemove :+ i
-            newAccumulatorElems ++= newRecEqns
-          case None => ()
+      var newAccVars = Map[Param, (Expr, Function)]()
+      for ((x, f) <- closedFormByVar) {
+        val newStm = PartialEvalPass
+          .partialEval(s.replaceVar(x, FunCall(f, t)))(this.facts)
+          .asInstanceOf[StmBuild]
+        assert(!newStm.freeVars().contains(f.param))
+        if (!newStm.contains(classOf[StmNextK])) {
+          s = newStm
+        } else if (f.body.isInstanceOf[StmNextK]) {
+          // No point in trying to replace a stream-valued expression with its
+          // closed form
+        } else {
+          replaceStmNextK(newStm, t) match {
+            case Some((withoutStmNextK: StmBuild, newRecEqns)) =>
+              assert(!withoutStmNextK.contains(classOf[StmNextK]))
+              // TODO: Check that the stream is still synthesizable
+              //       (e.g., every StmNext(acc).__1 has a corresponding
+              //       StmNext(acc).__0)?
+              // TODO: Ensure that the input stream is still fully consumed?
+              s = withoutStmNextK
+              newAccVars ++= newRecEqns
+            case _ => ()
+          }
         }
       }
-
-      s = StmUtils.removeAccumulatorElemsByIndex(s, indicesToRemove)
 
       // Add new elements as required (e.g., the counter for t, input streams
       // for elements whose closed form included StmNextK)
-      for ((x, (z, Function(t, e))) <- newAccumulatorElems) {
-        s = StmUtils.appendAccumulator(s, z, e.asInstanceOf[Function])
-        // Don't just do s.substitute(...) because the substitute() method will rename the parameter of the function
-        // to avoid variable capture.
-        // But in this case, we *do* want acc to be captured!
-        val acc = s.nextF.param
-        s = StmBuild(
-          s.n,
-          s.seed,
-          Function(acc, s.nextF.body.substitute(x -> acc.__1))
-        )
+      for ((x, (z, Function(t, f))) <- newAccVars) {
+        s = s.addAccumulator(x, z, FunCall(f, x))
       }
-      if (s.contains(t)) {
-        s = StmUtils.appendAccumulator(s, 0, (x: Expr) => x + 1)
-        val acc = s.nextF.param
-        s = StmBuild(
-          s.n,
-          s.seed,
-          Function(acc, s.nextF.body.substitute(t -> acc.__1))
-        )
-      }
-
-      StmCanonPass.canonicalize(s)
-    }
-  }
-
-  /** Replace one accumulator element with its closed form.
-    *
-    * @param stm
-    *   A stream
-    * @param x
-    *   A variable representing uses of the accumulator element to be removed
-    * @param f
-    *   A function (whose parameter MUST be t!)
-    */
-  private def replaceInductionVar(
-      stm: StmBuild,
-      x: Param,
-      f: Function
-  ): Option[(StmBuild, Map[Param, (Expr, Function)])] = {
-    if (f.body.isInstanceOf[StmNextK]) {
-      // Don't bother in this case: there's no point in trying to find a closed
-      // form for a stream-valued accumulator element
-      None
-    } else {
-      val s = PartialEvalPass
-        .partialEval(
-          stm.substitute(x -> f.body).asInstanceOf[StmBuild]
-        )(this.facts)
-        .asInstanceOf[StmBuild]
-      if (!s.contains(classOf[StmNextK])) {
-        Some((s, Map()))
-      } else {
-        val acc = s.nextF.param
-        val t = f.param
-        replaceStmNextK(s.nextF.body, t, acc) match {
-          case Some((e, newAccElems)) =>
-            val newStm = StmBuild(s.n, s.seed, Function(acc, e))
-            // TODO: Check that the stream is still synthesizable (e.g., every StmNext(acc).__1 has a corresponding
-            //       StmNext(acc).__0)?
-            // TODO: Ensure that the input stream is still fully consumed?
-            Some((newStm, newAccElems))
-          case None => None
-        }
-      }
+      s = s.addAccumulator(t, 0, t + 1)
+      s
     }
   }
 
@@ -365,24 +229,18 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     */
   private def replaceStmNextK(
       e: Expr,
-      t: Param,
-      acc: Param
+      t: Param
   ): Option[(Expr, Map[Param, (Expr, Function)])] = {
     e match {
       case s: StmNextK =>
-        if (s.contains(acc)) {
-          // TODO: What to do in this case?
-          None
-        } else {
-          tryFindRecursiveForm(s, t) match {
-            case Some((z, f)) =>
-              val r = Param("r")
-              Some((r, Map(r -> (z, f))))
-            case None => None
-          }
+        tryFindRecursiveForm(s, t) match {
+          case Some((z, f)) =>
+            val r = Param("r")
+            Some((r, Map(r -> (z, f))))
+          case None => None
         }
       case e =>
-        val childResults = e.children.map(c => replaceStmNextK(c, t, acc))
+        val childResults = e.children.map(c => replaceStmNextK(c, t))
         if (childResults.exists(x => x.isEmpty)) {
           None
         } else {

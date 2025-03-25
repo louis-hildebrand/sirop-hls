@@ -678,6 +678,8 @@ case class StmBuild(
     }
   }
 
+  def replaceVar(x: Param, e: Expr): StmBuild = replaceVars(Map(x -> e))
+
   /** Fuse a `StmBuild` with its statically-known stream inputs until it has no
     * more statically-known stream inputs. Note that this requires the stream
     * inputs to each have their own variable in <code>stm</code>; they cannot be
@@ -798,11 +800,7 @@ case class StmBuild(
     val z = IntCst(0)
     val next =
       OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)
-    StmBuild(
-      s.n,
-      s.output,
-      s.equations + (outCtr -> (z, next))
-    )
+    s.addAccumulator(outCtr, z, next)
   }
 
   /** Add a new equation to this stream whose value is the number of inputs that
@@ -824,10 +822,17 @@ case class StmBuild(
     val z = IntCst(0)
     val stmNextCalled = stmNextCallCondition(s, x)
     val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)
+    s.addAccumulator(inCtr, z, next)
+  }
+
+  /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
+    * variable may capture free variables in this stream.
+    */
+  def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     StmBuild(
-      s.n,
-      s.output,
-      s.equations + (inCtr -> (z, next))
+      this.n,
+      this.output,
+      this.equations + (x -> (z, next))
     )
   }
 

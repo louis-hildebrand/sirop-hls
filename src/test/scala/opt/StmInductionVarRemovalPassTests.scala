@@ -540,7 +540,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected: Function = (t: Expr) =>
       IfThenElse(
         t < n,
-        VecBuild(n, (i: Expr) => StmNext(StmNextK(s, -n + t + i)).__1),
+        VecBuild(
+          n,
+          (i: Expr) =>
+            IfThenElse(i + t < 7, Default, StmNext(StmNextK(s, -n + t + i)).__1)
+        ),
         VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)).__1)
       )
     assert(f == expected)
@@ -763,7 +767,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       IfThenElse(t < n, NNone, SSome(StmNext(s1).__1)),
       Map[Param, (Expr, Expr)](
         s0 -> (input, IfThenElse(t < n, StmNext(s0).__0, s0)),
-        s1 -> (input, IfThenElse(t < n, s1, StmNext(s1).__0)),
+        s1 -> (input, IfThenElse(-1 * n + t < 0, s1, StmNext(s1).__0)),
         t -> (0, t + 1)
       )
     )

@@ -246,18 +246,15 @@ trait Eval {
         evalStmNext(s)(0)
       case StmNextK(s, k) =>
         evalBigStep(k).defaultToInt match {
-          case IntCst(k) if k < 0 => Default
-          case IntCst(k) if k >= 0 =>
+          case IntCst(k) if k <= 0 =>
+            evalBigStep(s)
+          case IntCst(k) if k > 0 =>
             evalBigStep(s) match {
               case Default => Default
               case StmLiteral(vs @ _*) =>
                 StmLiteral(vs.drop(k): _*)
               case s: StmBuild =>
-                k match {
-                  case 0 => s
-                  case _ =>
-                    evalBigStep(StmNextK(StmNext(s).__0, k - 1))
-                }
+                evalBigStep(StmNextK(StmNext(s).__0, k - 1))
               case s =>
                 throw new IllegalArgumentException(
                   s"Stream in StmNextK evaluated to $s. It must evaluate to a stream literal."
