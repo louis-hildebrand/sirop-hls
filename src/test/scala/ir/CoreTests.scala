@@ -543,4 +543,56 @@ class CoreTests extends AnyFunSuite {
     assert(actual.nextByVar(inCtr) == expectedInCtrNext)
     assert(actual == expected)
   }
+
+  test("StmBuild:Dependencies") {
+    val a = Param("a")
+    val b = Param("b")
+    val c = Param("c")
+    val outside = Param("outside")
+    val s = StmBuild(
+      5,
+      SSome(Tuple(a, b, FunCall(Function(c, c), 42), outside)),
+      Map[Param, (Expr, Expr)](
+        a -> (b, a + 1 + outside),
+        b -> (0, b + c + FunCall(Function(a, a), 1)),
+        c -> (1, b * b)
+      )
+    )
+    val expectedDependencies = {
+      DiGraph(
+        nodes = Set(a, b, c),
+        edges = Set(
+          // `a` does NOT depend on `b` because the occurrence of `b` in the seed
+          // of `a` is a free variable
+          (a, a),
+          // `b` does NOT depend on `a` because the occurrence of `a` in
+          // `Function(a, a)` is bound
+          (b, b),
+          (b, c),
+          (c, b)
+        )
+      )
+    }
+    assert(s.accVarDependencies == expectedDependencies)
+  }
+
+  test("StmBuild:OutputDependencies") {
+    val a = Param("a")
+    val b = Param("b")
+    val c = Param("c")
+    val outside = Param("outside")
+    val s = StmBuild(
+      5,
+      SSome(Tuple(a, b, FunCall(Function(c, c), 42), outside)),
+      Map[Param, (Expr, Expr)](
+        a -> (b, a + 1 + outside),
+        b -> (0, b + c + FunCall(Function(a, a), 1)),
+        c -> (1, b * b)
+      )
+    )
+    // The output does NOT depend on `c` because the occurrence of `c` in
+    // `Function(c, c)` is bound
+    val expectedDependencies = Set(a, b)
+    assert(s.outputDependencies == expectedDependencies)
+  }
 }

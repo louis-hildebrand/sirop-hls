@@ -854,6 +854,23 @@ case class StmBuild(
     }
   }
 
+  /** Find the direct dependencies between accumulator variables in this stream.
+    */
+  def accVarDependencies: DiGraph[Param] = {
+    val edges = this.nextByVar.toSeq
+      .flatMap({ case (x, next) =>
+        next.freeVars().intersect(this.accVars).map(y => (x, y))
+      })
+      .toSet
+    DiGraph(nodes = this.accVars, edges = edges)
+  }
+
+  /** Find the accumulator variables that the output of this stream depends on.
+    */
+  def outputDependencies: Set[Param] = {
+    this.output.freeVars().intersect(this.accVars)
+  }
+
   /** Checks for structural equality, ignoring order of equations and names of
     * accumulator variables.
     */
