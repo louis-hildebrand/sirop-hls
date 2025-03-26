@@ -14,9 +14,10 @@ object StmSimplifier {
   def simplify(s: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     val simplified = {
       val s1 = PartialEvalPass.partialEval(s)(facts).asInstanceOf[StmBuild]
-      val s2 = StmAccRemovalPass.removeUnusedElems(s1)
+      val s2 = StmAccRemovalPass.removeUnusedVars(s1)
       val s3 = StmAccRemovalPass.removeConstantVars(s2)
-      s3
+      val s4 = StmAccRemovalPass.deduplicateVars(s3)
+      s4
     }
     if (simplified == s) {
       simplified

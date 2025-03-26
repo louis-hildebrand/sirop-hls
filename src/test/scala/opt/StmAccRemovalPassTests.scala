@@ -32,7 +32,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a4 -> (4, a4 * a2 + 2)
       )
     )
-    val actual = StmAccRemovalPass.removeUnusedElems(stm)
+    val actual = StmAccRemovalPass.removeUnusedVars(stm)
     assert(actual == expected)
   }
 
@@ -59,7 +59,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a2 -> (0, a2 + 1)
       )
     )
-    assert(StmAccRemovalPass.removeUnusedElems(original) == expected)
+    assert(StmAccRemovalPass.removeUnusedVars(original) == expected)
   }
 
   test("RemoveConstantVars:EmptyStream") {
@@ -145,5 +145,38 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )
     val actual = StmAccRemovalPass.removeConstantVars(s)
     assert(actual == expected)
+  }
+
+  test("RemoveDuplicateVars") {
+    val n = Param("n")
+    val input = Param("input")
+    val s0 = Param("s")
+    val s1 = Param("s")
+    val i0 = Param("i")
+    val i1 = Param("i")
+    val j = Param("j")
+    val original = StmBuild(
+      n,
+      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1, i0, i1)),
+      Map[Param, (Expr, Expr)](
+        s0 -> (input, IfThenElse(i0 < n, StmNext(s0).__0, s0)),
+        s1 -> (input, IfThenElse(i0 < n, StmNext(s1).__0, s1)),
+        i0 -> (0, i0 + 2),
+        i1 -> (0, i1 + 2),
+        j -> (1, j * 2)
+      )
+    )
+
+    val optimized = StmAccRemovalPass.deduplicateVars(original)
+    val expected = StmBuild(
+      n,
+      SSome(Tuple(StmNext(s0).__1, StmNext(s0).__1, i0, i0)),
+      Map[Param, (Expr, Expr)](
+        s0 -> (input, IfThenElse(i0 < n, StmNext(s0).__0, s0)),
+        i0 -> (0, i0 + 2),
+        j -> (1, j * 2)
+      )
+    )
+    assert(optimized == expected)
   }
 }

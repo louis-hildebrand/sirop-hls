@@ -150,7 +150,7 @@ class OptimizationTests extends AnyFunSuite {
         val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
         PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
       }
-      StmAccRemovalPass.removeUnusedElems(v4)
+      StmAccRemovalPass.removeUnusedVars(v4)
     }
 
     // Correctness
@@ -311,15 +311,15 @@ class OptimizationTests extends AnyFunSuite {
       val s1 = s0.fuseCompletely()
       val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
       // TODO: It should be able to do both in one step
-      val s3 = StmAccRemovalPass.removeUnusedElems(s2)
-      val s4 = StmAccRemovalPass.removeUnusedElems(s3)
+      val s3 = StmAccRemovalPass.removeUnusedVars(s2)
+      val s4 = StmAccRemovalPass.removeUnusedVars(s3)
       val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n)(facts)
       val s6 = PartialEvalPass
         .partialEval(s5)(
           facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
         )
         .asInstanceOf[StmBuild]
-      val s7 = StmAccRemovalPass.removeUnusedElems(s6)
+      val s7 = StmAccRemovalPass.removeUnusedVars(s6)
       s7
     }
 

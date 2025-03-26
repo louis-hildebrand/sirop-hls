@@ -37,7 +37,7 @@ object StmAccRemovalPass {
     * assumes the stream is already in canonical form (e.g., the accumulator is
     * a flat tuple).
     */
-  def removeUnusedElems(stm: StmBuild): StmBuild = {
+  def removeUnusedVars(stm: StmBuild): StmBuild = {
     val usedElems =
       stm.accVarDependencies.transitiveDependencies(stm.outputDependencies)
     StmBuild(
@@ -45,6 +45,43 @@ object StmAccRemovalPass {
       stm.output,
       stm.equations.filter({ case (x, _) => usedElems.contains(x) })
     )
+  }
+
+  def deduplicateVars(stm: StmBuild): StmBuild = {
+    val varEquivClasses = stm.equations
+      .groupBy({ case (x, (z, next)) =>
+        // Deliberately capture x because, for example, the following are
+        // duplicates:
+        //   x: (0, x + 1)
+        //   y: (0, y + 1)
+        (z, Function(x, next))
+      })
+      .values
+      .map(m => m.keySet)
+      .toSeq
+    val replacements: Map[Param, Expr] =
+      varEquivClasses
+        .flatMap(xs =>
+          if (xs.size <= 1) {
+            // No duplicates
+            Set[(Param, Param)]()
+          } else {
+            // Choose any variable to be the representative
+            val x = xs.head
+            (xs - x).map(y => y -> x)
+          }
+        )
+        .toMap
+    val newStm = stm.replaceVars(replacements)
+    // Will this incorrectly leave behind any occurrences of the removed
+    // variables?
+    // No, because the substitutions should have eliminated all of them
+    // without introducing any new occurrences.
+    assert(
+      newStm.freeVars() == stm.freeVars(),
+      "deduplicating accumulator variables should not have changed the set of free variables"
+    )
+    newStm
   }
 
   /** @param stm
