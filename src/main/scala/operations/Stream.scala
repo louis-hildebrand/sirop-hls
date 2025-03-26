@@ -1,7 +1,7 @@
 package operations
 
-import opt.{PartialEvalPass, StmCanonPass, StmFusePass}
 import ir._
+import opt.PartialEvalPass
 
 private object Helpers {
   def expandTuple(t: Expr, n: Int): Tuple = {
@@ -26,131 +26,102 @@ private object Helpers {
       outShape: Option[Expr]
   ): (Param, StmBuild) = {
     val f1 = (inShape, outShape) match {
-      case (None, None) => {
+      case (None, None) =>
         // scalar -> scalar (e.g., x => x + 1)
         val x = Param("s")
+        val s = Param("s")
         Function(
           x /* stream */,
           StmBuild(
             1,
-            x,
-            (acc: Expr) =>
-              Tuple(StmNext(acc).__0, SSome(FunCall(f, StmNext(acc).__1)))
+            SSome(f.body.substitute(f.param -> StmNext(s).__1)),
+            Map[Param, (Expr, Expr)](s -> (x, StmNext(s).__0))
           )
         )
-      }
-      case (None, Some(_)) => {
+      case (None, Some(_)) =>
         // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
         // The scalar input to the original function (`f.param`) can appear in
         // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
         // StmCst), or even both (if you have something weird like a
         // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
         // zipped together).
-        // TODO: Deal with things like IfThenElse as well?
-        // Canonicalize mainly to ensure flat accumulator for simplicity
-        val s = StmCanonPass.canonicalize(f.body.asInstanceOf[StmBuild])
-        val seed = s.seed.asInstanceOf[Tuple]
-        val x = Param("s")
-        Function(
-          x /* stream */,
+        // In the first cycle, whenever `f.param` appears, directly read the
+        // value from the stream instead.
+        // Also save that value in a new accumulator variable.
+        // In subsequent cycles, whenever `f.param` appears, read from the
+        // new accumulator variable.
+        val stm = f.body.asInstanceOf[StmBuild]
+        val input = Param("input")
+        val s = Param("s")
+        val isFirstStep = Param("is_first_step")
+        val y = Param("y")
+        val subs = (
+          stm.seedByVar
+            .map({ case (x, z) =>
+              x -> IfThenElse(
+                isFirstStep,
+                z.substitute(f.param -> StmNext(s).__1),
+                x
+              )
+            })
+            .foldLeft(Map[Expr, Expr]())(_ + _)
+            + (f.param -> IfThenElse(isFirstStep, StmNext(s).__1, y))
+        )
+        val equationsToAdd = Map[Param, (Expr, Expr)](
+          // Input stream
+          s -> (input, IfThenElse(isFirstStep, StmNext(s).__0, s)),
+          // Whether we still need to read from the input stream
+          isFirstStep -> (True, False),
+          // Register for the value from the input stream
+          y -> (Default, IfThenElse(isFirstStep, StmNext(s).__1, y))
+        )
+        val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
+          x -> (Default, next.substitute(subs))
+        })
+        val newF = Function(
+          input /* stream */,
           StmBuild(
-            s.length,
-            Tuple(
-              // Replace all seed elements that depend on the input scalar
-              // (Maybe not strictly necessary in the interpreter since these
-              // values are unused anyway, but in the compiler it wouldn't
-              // make sense to have free variables hanging around here.)
-              Tuple(
-                seed.elems.map(e =>
-                  if (e.contains(f.param)) DontCare else e
-                ): _*
-              ),
-              x /* input stream */,
-              DontCare /* element from input stream (initial value unused) */,
-              True /* whether the element is yet to be read from x */
-            ),
-            (newAcc: Expr) => {
-              val innerNext = Param("innerNext")
-              val e = Let(
-                innerNext,
-                FunCall(s.nextF, newAcc.__0),
-                IfThenElse(
-                  newAcc.__3,
-                  // First read from input stream
-                  Tuple(
-                    Tuple(
-                      // Replace all seed elements that depend on the input scalar
-                      Tuple(
-                        seed.elems.zipWithIndex.map({ case (e, i) =>
-                          if (e.contains(f.param))
-                            e.substitute(f.param -> StmNext(newAcc.__1).__1)
-                          else TupleAccess(newAcc.__0, i)
-                        }): _*
-                      ),
-                      StmNext(newAcc.__1).__0,
-                      StmNext(newAcc.__1).__1,
-                      False
-                    ),
-                    NNone
-                  ),
-                  // Continue as usual
-                  Tuple(
-                    Tuple(
-                      innerNext.__0,
-                      newAcc.__1,
-                      newAcc.__2,
-                      newAcc.__3
-                    ),
-                    innerNext.__1
-                  )
-                )
-              )
-              e.substitute(
-                Map[Expr, Expr](
-                  s.nextF.param -> newAcc.__0,
-                  f.param -> newAcc.__2
-                )
-              )
-            }
+            stm.n,
+            stm.output.substitute(subs),
+            updatedOldEquations ++ equationsToAdd
           )
         )
-      }
+        assert(!newF.contains(f.param))
+        newF
       case (Some(_), None) => {
         throw new IllegalArgumentException(
           "Reducing a stream to a scalar is forbidden."
         )
       }
-      case (Some(_), Some(_)) => {
+      case (Some(_), Some(_)) =>
         // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
         f
-      }
     }
     // We need to be careful about the identity function.
     // We want to be able to reset `f` itself, but *not* the input stream.
     // TODO: does this issue occur in any cases other than the identity function?
     val identity: Function = (x: Expr) => x
     val f2 = if (f1 == identity) {
-      val f2: Function = (s: Expr) =>
+      val x = Param("s")
+      val s = Param("s")
+      Function(
+        x,
         StmBuild(
-          outShape.getOrElse(1),
-          s,
-          (acc: Expr) => Tuple(StmNext(acc).__0, SSome(StmNext(acc).__1))
+          outShape.getOrElse(IntCst(1)),
+          SSome(StmNext(s).__1),
+          Map[Param, (Expr, Expr)](s -> (x, StmNext(s).__0))
         )
-      f2
+      )
     } else {
       f1
     }
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (
-      f2.param,
-      StmCanonPass.canonicalize(StmFusePass.fuseCompletely(f2.body))
-    )
+    (f2.param, f2.body.asInstanceOf[StmBuild].fuseCompletely())
   }
 }
 
-// High-level function
 object Iterate {
   def apply(
       n: Expr /* Int */,
@@ -159,37 +130,27 @@ object Iterate {
       // TODO: Ideally we would get this shape information from the type system,
       zSize: Option[Int]
   ): Expr = {
+    val i = Param("i")
+    val acc = Param("acc")
+    val accExpanded = zSize match {
+      case Some(n) => Helpers.expandTuple(acc, n)
+      case None    => acc
+    }
     val s = StmBuild(
       1,
-      Tuple(n, z),
-      (acc: Expr) => {
-        val acc1Expanded = zSize match {
-          case Some(n) => Helpers.expandTuple(acc.__1, n)
-          case None    => acc.__1
-        }
-        IfThenElse(
-          acc.__0 === 0,
-          Tuple(
-            Tuple(acc.__0, acc1Expanded),
-            SSome(acc1Expanded)
-          ),
-          Tuple(
-            Tuple(acc.__0 - 1, FunCall(f, acc.__1)),
-            NNone
-          )
-        )
-      }
+      IfThenElse(i === 0, SSome(accExpanded), NNone),
+      Map[Param, (Expr, Expr)](
+        i -> (n, IfThenElse(i === 0, 0, i - 1)),
+        acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)))
+      )
     )
     StmNext(s).__1
   }
 }
 
-//////////////////////////
-// creating streams
-
 object StmCst {
   def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
-    StmBuild(n, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(c)))
+    StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())
   }
 }
 
@@ -216,40 +177,31 @@ object StmRange {
     *   + 2 * delta, ...]</code>.
     */
   def apply(n: Expr, z: Expr, delta: Expr): Expr = {
-    StmBuild(n, z, (acc: Expr) => Tuple(acc + delta, SSome(acc)))
+    val a = Param("a")
+    StmBuild(n, SSome(a), Map(a -> (z, a + delta)))
   }
 }
 
 object StmCst2D {
   def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    StmBuild(
-      n * m,
-      Tuple(),
-      (_: Expr) => Tuple(Tuple(), SSome(c))
-    )
+    StmBuild(n * m, SSome(c), Map[Param, (Expr, Expr)]())
   }
 }
 
 object StmCount2D {
   def apply(n: Expr, m: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       n * m,
-      Tuple(0, 0),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__1 === m - 1,
-            Tuple(acc.__0 + 1, 0),
-            Tuple(acc.__0, acc.__1 + 1)
-          ),
-          SSome(Tuple(acc.__0, acc.__1))
-        )
+      SSome(Tuple(i, j)),
+      Map[Param, (Expr, Expr)](
+        i -> (0, IfThenElse(j === m - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === m - 1, 0, j + 1))
+      )
     )
   }
 }
-
-//////////////////////////
-// manipulating streams
 
 object StmMap {
   def apply(
@@ -261,173 +213,100 @@ object StmMap {
       fOutShape: Option[Expr]
   ): Expr /* Stm<B; n> */ = {
     // Instantiate `f` as a function from stream to stream
-    val (s, inner) =
+    val (s, innerStm) =
       Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
-    // TODO: Deal with multiple input streams?
-    // TODO: This check, as well as things like reordering the accumulator, is NOT reliable as currently written (e.g.,
-    //       it may fail if `input` is a `Param`). In the real compiler, we should do these things based on type, not
-    //       based on syntactic form.
     assert(
-      inner.seed
-        .asInstanceOf[Tuple]
-        .elems
-        .drop(1)
-        .forall(e => !e.isInstanceOf[StmBuild]),
-      "Function in StmMap must not take more than one stream as input."
+      innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
+      "the input stream should appear no more than once in the inner StmBuild"
     )
-    val usesInputStream = inner.seed
-      .asInstanceOf[Tuple]
-      .elems
-      .contains(s)
-    if (!usesInputStream) {
-      // In theory you could have something like StmMap(s, _ => 42) which doesn't actually depend on the input stream.
-      // In that case, you can just forget about the input stream.
-      StmRepeat(inner, n, inner.length)
+    val usesInputStream = innerStm.seedByVar.values.exists(z => z == s)
+    val map = if (!usesInputStream) {
+      // In theory you could have something like
+      //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
+      // which doesn't actually use the input stream at all.
+      // In this case, there's no need for resetting the stream and all that.
+      StmRepeat(innerStm, n, innerStm.n)
     } else {
       // How many elements will the inner component read and produce before it must be reset?
-      val numIn = fInShape.getOrElse(IntCst(1))
-      val numOut = fOutShape.getOrElse(IntCst(1))
+      val inputsUntilReset = fInShape.getOrElse(IntCst(1))
+      val outputsUntilReset = fOutShape.getOrElse(IntCst(1))
       val map = n match {
-        // TODO: Why these special cases? Is it just to make the resulting stream easier to simplify?
+        // TODO: Why these special cases? Is it just to make the resulting stream
+        //       easier to simplify? Should I add something similar in the
+        //       partial evaluator?
         case IntCst(0) =>
-          StmBuild(0, Tuple(), (_: Expr) => Tuple(Tuple(), NNone))
+          StmBuild(0, NNone, Map[Param, (Expr, Expr)]())
         case IntCst(1) =>
           // No need to reset
-          inner
+          innerStm
         case n =>
-          // Build a new stream by repeating the inner one once it's done
-          StmBuild(
-            n * numOut,
-            Tuple(inner.seed, numIn, numOut), {
-              val newAcc = Param("acc")
-              Function(
-                newAcc,
-                makeNextFBody(
-                  oldBody = inner.nextF.body,
-                  oldAcc = inner.nextF.param,
-                  newAcc = newAcc,
-                  oldSeed = inner.seed.asInstanceOf[Tuple],
-                  numIn = numIn,
-                  numOut = numOut
-                )
-              )
-            }
+          val inCtr = Param("in_ctr")
+          val outCtr = Param("out_ctr")
+          val innerWithCtrs = innerStm
+            .addInputCounter(
+              innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
+              inCtr
+            )
+            .addOutputCounter(outCtr)
+          // Want to reset depending on the *next* values of the in/out counters.
+          val shouldReset = (
+            (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
+              && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
           )
+          val outerStm = StmBuild(
+            n * outputsUntilReset,
+            innerWithCtrs.output,
+            innerWithCtrs.equations.map({ case (x, (z, next)) =>
+              if (z == s) {
+                // Never reset the input stream
+                x -> (z, next)
+              } else {
+                x -> (z, IfThenElse(shouldReset, z, next))
+              }
+            })
+          )
+          outerStm
       }
-      map.substitute(s -> input)
+      val ret = map.substitute(s -> input)
+      val originalFreeVars =
+        (
+          input.freeVars()
+            ++ f.freeVars()
+            ++ n.freeVars()
+            ++ fInShape.toSet.flatMap((e: Expr) => e.freeVars())
+            ++ fOutShape.toSet.flatMap((e: Expr) => e.freeVars())
+        )
+      assert(
+        ret.freeVars() == originalFreeVars,
+        s"the set of free variables should be unchanged by StmMap (expected ${originalFreeVars}, got ${ret.freeVars()})"
+      )
+      ret
     }
-  }
-
-  private def makeNextFBody(
-      oldBody: Expr,
-      oldAcc: Param,
-      newAcc: Param,
-      oldSeed: Tuple,
-      numIn: Expr,
-      numOut: Expr
-  ): Expr = {
-    // Assume there is exactly one input stream and it can be found at
-    // oldAcc.__0
-    val e = oldBody match {
-      case DontCare => DontCare
-      case IfThenElse(cond, trueE, falseE) =>
-        IfThenElse(
-          cond,
-          makeNextFBody(
-            oldBody = trueE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn,
-            numOut = numOut
-          ),
-          makeNextFBody(
-            oldBody = falseE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn,
-            numOut = numOut
-          )
-        )
-      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
-        ???
-      case Tuple(a, out) =>
-        val newInCtr = a match {
-          case Tuple(
-                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                _ @_*
-              ) if p == oldAcc =>
-            // StmNext() called, so decrement the input counter.
-            newAcc.__1 - 1
-          case Tuple(TupleAccess(p, IntCst(0)), _ @_*) if p == oldAcc =>
-            // StmNext() *not* called, so do *not* decrement the input counter.
-            newAcc.__1
-          case Tuple(x, _ @_*) =>
-            throw new IllegalArgumentException(
-              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
-            )
-          case e =>
-            throw new IllegalArgumentException(
-              s"Expected the new accumulator value to be a tuple literal with at least one element, but found $e"
-            )
-        }
-        val newOutCtr = OptionAccess(
-          out,
-          // Output produced, so decrement the output counter.
-          (_: Expr) => newAcc.__2 - 1,
-          // No output produced, so do not decrement the output counter.
-          (_: Expr) => newAcc.__2
-        )
-        val newAccVal = IfThenElse(
-          (newInCtr === 0) && (newOutCtr === 0),
-          // Reset all accumulator elements except the input stream, reset counters
-          Tuple(
-            Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
-            numIn,
-            numOut
-          ),
-          // Don't reset anything
-          Tuple(a, newInCtr, newOutCtr)
-        )
-        Tuple(newAccVal, out)
-      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
-          _: Tuple =>
-        throw new IllegalArgumentException(
-          "Could not make StmMap body due to an apparent type error."
-        )
-    }
-    e.substitute(oldAcc -> newAcc.__0)
+    // Simplification is NOT required, but it makes the tests run much faster
+    opt.PartialEvalPass.partialEval(map)
   }
 }
 
-//////////////////////////
-// reductions
 object StmAccess {
   def apply(
       stm: Expr /* Stm<A; n> */,
-      i: Expr /* Int */,
+      k: Expr /* Int */,
       // TODO: Ideally we would get this shape info from the type system
       shape: Seq[Expr]
   ): Expr /* A */ = {
-    // NOTE: require 0 <= i < n
+    // NOTE: require 0 <= k < n
     val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
+    val s = Param("s") // input stream
+    val i = Param("i") // index of current row
+    val j = Param("j") // index within row
     StmBuild(
       perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 === i,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i === k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
   }
 }
@@ -459,7 +338,7 @@ object StmScanInclusive {
       stmShape: Seq[Expr]
   ): Expr = {
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
-    val (s, inner) =
+    val (s, innerStm) =
       Helpers.asStm2Stm(
         // The function has the form (acc) => (elem) => newAcc.
         // Take just the (elem) => newAcc part here, with acc being a free variable.
@@ -470,144 +349,77 @@ object StmScanInclusive {
           else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
         outShape = if (stmShape.tail.isEmpty) None else Some(1)
       )
-    assert(inner.length == IntCst(1))
-    val usesInputStream = inner.seed
-      .asInstanceOf[Tuple]
-      .elems
-      .contains(s)
-    if (!usesInputStream) {
-      assert(inner.seed == Tuple())
-      val e = inner.nextF.body match {
-        case Tuple(Tuple(), Tuple(e, True)) => e
-        case _                              => ???
+    assert(
+      innerStm.n == IntCst(1),
+      "the function in StmScan should return a scalar or a stream of length 1"
+    )
+    assert(
+      innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
+      "the input stream should appear at most once in the inner StmBuild"
+    )
+    val (innerWithCtrs, shouldReset) = {
+      val outputsUntilReset = IntCst(1)
+      val outCtr = Param("out_ctr")
+      val withOutCtr = innerStm.addOutputCounter(outCtr)
+      val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
+      if (usesInputStream) {
+        val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+        val inCtr = Param("in_ctr")
+        val withCtrs = withOutCtr
+          .addInputCounter(
+            innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
+            inCtr
+          )
+        // Want to reset depending on the *next* values of the in/out counters.
+        val shouldReset = ((withCtrs.nextByVar(inCtr) === inputsUntilReset)
+          && (withCtrs.nextByVar(outCtr) === outputsUntilReset))
+        (withCtrs, shouldReset)
+      } else {
+        val shouldReset = withOutCtr.nextByVar(outCtr) === outputsUntilReset
+        (withOutCtr, shouldReset)
       }
-      StmBuild(
-        stmShape.head,
-        z, {
-          val newAcc = Param("acc")
-          val x = Param("acc")
-          Function(
-            newAcc,
-            Let(
-              x,
-              e.substitute(f.param -> newAcc),
-              Tuple(x, SSome(x))
-            )
-          )
-        }
-      )
-    } else {
-      val numIn = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-      val scan = StmBuild(
-        stmShape.head,
-        Tuple(
-          inner.seed, /* Accumulator for the inner function */
-          z,
-          numIn, /* Input counter */
-          1 /* Output counter */
-        ), {
-          val newAcc = Param("acc")
-          Function(
-            newAcc,
-            makeNextFBody(
-              oldBody = inner.nextF.body,
-              oldAcc = inner.nextF.param,
-              newAcc = newAcc,
-              oldSeed = inner.seed.asInstanceOf[Tuple],
-              numIn = numIn
-            ).substitute(f.param -> newAcc.__1)
-          )
-        }
-      )
-      scan.substitute(s -> input)
     }
-  }
-
-  private def makeNextFBody(
-      oldBody: Expr,
-      oldAcc: Param,
-      newAcc: Param,
-      oldSeed: Tuple,
-      numIn: Expr
-  ): Expr = {
-    val e = oldBody match {
-      case DontCare => DontCare
-      case IfThenElse(cond, trueE, falseE) =>
-        IfThenElse(
-          cond,
-          makeNextFBody(
-            oldBody = trueE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn
-          ),
-          makeNextFBody(
-            oldBody = falseE,
-            oldAcc = oldAcc,
-            newAcc = newAcc,
-            oldSeed = oldSeed,
-            numIn = numIn
-          )
-        )
-      case Tuple(a, out) =>
-        val newInCtr = a match {
-          case Tuple(
-                TupleAccess(StmNext(TupleAccess(p, IntCst(0))), IntCst(0)),
-                _ @_*
-              ) if p == oldAcc =>
-            // StmNext() called, so decrement the input counter.
-            newAcc.__2 - 1
-          case Tuple(TupleAccess(p, IntCst(0)), _ @_*) if p == oldAcc =>
-            // StmNext() *not* called, so do *not* decrement the input counter.
-            newAcc.__2
-          case Tuple(x, _ @_*) =>
-            throw new IllegalArgumentException(
-              s"I can't tell whether StmNext() is being called in ${x} (where oldAcc = ${oldAcc})."
-            )
-          case e =>
-            throw new IllegalArgumentException(
-              s"Expected the new accumulator value to be a tuple literal with at least one element, but found $e"
-            )
+    val acc = Param("acc")
+    val nextAcc =
+      OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)
+    val outerStm = StmBuild(
+      stmShape.head,
+      IfThenElse(shouldReset, SSome(nextAcc), NNone),
+      innerWithCtrs.equations.map({ case (x, (z, next)) =>
+        if (z == s) {
+          // Never reset the input stream
+          x -> (z, next)
+        } else {
+          x -> (z, IfThenElse(shouldReset, z, next))
         }
-        val newOutCtr = OptionAccess(
-          out,
-          // Output produced, so decrement the output counter.
-          (_: Expr) => newAcc.__3 - 1,
-          // No output produced, so do not decrement the output counter.
-          (_: Expr) => newAcc.__3
-        )
-        val output = OptionAccess(out, (e: Expr) => e, (_: Expr) => newAcc.__1)
-        val newAccVal =
-          IfThenElse(
-            (newInCtr === 0) && (newOutCtr === 0),
-            // Reset
-            Tuple(
-              // Never reset the input stream
-              Tuple(a.asInstanceOf[Tuple].elems.head +: oldSeed.elems.tail: _*),
-              output,
-              numIn,
-              1
-            ),
-            // No reset
-            Tuple(
-              a,
-              output,
-              newInCtr,
-              newOutCtr
-            )
-          )
-        val newValid = (newInCtr === 0) && (newOutCtr === 0)
-        Tuple(newAccVal, IfThenElse(newValid, SSome(output), NNone))
-      case _: TupleAccess | _: VecAccess | _: StmNext | _: FunCall | _: Param =>
-        ???
-      case _: IntExpr | _: BoolExpr | _: VecBuild | _: StmBuild | _: Function |
-          _: Tuple =>
-        throw new IllegalArgumentException(
-          "Could not make StmFold body due to an apparent type error."
-        )
-    }
-    e.substitute(oldAcc -> newAcc.__0)
+      }) + (acc -> (z, nextAcc))
+    )
+    assert(
+      !outerStm.n.contains(s)
+        && !outerStm.output.contains(s)
+        && !outerStm.nextByVar.values.toSeq.exists(nxt => nxt.contains(s)),
+      "the input stream must only occur in the seed of the StmBuild"
+    )
+    // It is safe to do this "naive" substitution because
+    //  (1) `s` definitely only occurs in the seed (where it is free), so the
+    //      naive substitution behaves like the usual one
+    //  (2) we want to replace f.param with the *bound* variable acc, so alpha
+    //      renaming is NOT what we want here
+    val scan = outerStm.map(e =>
+      e.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
+    )
+    val originalFreeVars = (
+      input.freeVars()
+        ++ z.freeVars()
+        ++ f.freeVars()
+        ++ stmShape.flatMap(e => e.freeVars())
+    )
+    assert(
+      scan.freeVars() == originalFreeVars,
+      s"the set of free variables should be unchanged by StmScan (expected ${originalFreeVars} but got ${scan.freeVars()})"
+    )
+    // Simplification is NOT required, but it makes the tests run much faster
+    PartialEvalPass.partialEval(scan)
   }
 }
 
@@ -630,45 +442,27 @@ object StmScanExclusive {
 }
 
 object Vec2Stm {
-  def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ =
-    // TODO: Would it be better to use a shift register for accessing the
-    //       input?
-    StmBuild(n, 0, (i: Expr) => Tuple(i + 1, SSome(VecAccess(v, i))))
+  def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ = {
+    // Alternatively, you could implement Vec2Stm using a shift register
+    val i = Param("i")
+    StmBuild(
+      n,
+      SSome(VecAccess(v, i)),
+      Map[Param, (Expr, Expr)](i -> (0, i + 1))
+    )
+  }
 }
 
-/////////////////////////
-// dropping/adding elements
 object StmPrepend {
   def apply(
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
       // Ideally we would get this shape info from the type system
-      eShape: Seq[Expr]
+      stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val eStm = if (eShape.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
-    } else {
-      e
-    }
-    StmBuild(
-      StmLength(stm) + eShape.fold(IntCst(1))((x, y) => x * y),
-      Tuple(eStm, stm, eShape.fold(IntCst(1))((x, y) => x * y)),
-      (acc: Expr) => {
-        IfThenElse(
-          acc.__2 === 0,
-          // Read from stm
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          ),
-          // Read from eStm
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            SSome(StmNext(acc.__0).__1)
-          )
-        )
-      }
-    )
+    val eShape = stmShape.tail
+    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    StmConcat(eStm, stm, stm1Shape = IntCst(1) +: eShape, stm2Shape = stmShape)
   }
 }
 
@@ -679,29 +473,9 @@ object StmAppend {
       // Ideally we would get this shape information from the type system
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
-    val eStm = if (stmShape.tail.isEmpty) {
-      StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(e)))
-    } else {
-      e
-    }
-    StmBuild(
-      stmShape.updated(0, stmShape.head + 1).fold(IntCst(1))((x, y) => x * y),
-      Tuple(stm, eStm, stmShape.fold(IntCst(1))((x, y) => x * y)),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 === 0,
-          // Take from eStm
-          Tuple(
-            Tuple(acc.__0, StmNext(acc.__1).__0, acc.__2),
-            SSome(StmNext(acc.__1).__1)
-          ),
-          // Take from stm
-          Tuple(
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1),
-            SSome(StmNext(acc.__0).__1)
-          )
-        )
-    )
+    val eShape = stmShape.tail
+    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    StmConcat(stm, eStm, stm1Shape = stmShape, stm2Shape = IntCst(1) +: eShape)
   }
 }
 
@@ -724,23 +498,18 @@ object StmPrefix {
       // Ideally we would get this shape information from the type system
       shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
+    val perRow = shape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       k * perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 < k,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i < k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
   }
 }
@@ -764,25 +533,21 @@ object StmSuffix {
       // Ideally we would get this shape info from the type system
       shape: Seq[Expr]
   ): StmBuild /* Stm<A; k> */ = {
-    val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
     val n = shape.head
+    val perRow = shape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     StmBuild(
       k * perRow,
-      Tuple(stm, 0, perRow),
-      (acc: Expr) =>
-        Tuple(
-          IfThenElse(
-            acc.__2 === 1,
-            Tuple(StmNext(acc.__0).__0, acc.__1 + 1, perRow),
-            Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1)
-          ),
-          IfThenElse(
-            acc.__1 >= n - k,
-            SSome(StmNext(acc.__0).__1),
-            NNone
-          )
-        )
+      IfThenElse(i >= n - k, SSome(StmNext(s).__1), NNone),
+      Map[Param, (Expr, Expr)](
+        s -> (stm, StmNext(s).__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+      )
     )
+
   }
 }
 
@@ -809,40 +574,44 @@ object StmShiftRight {
       // Ideally we would get this shape information from the type system
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n> */ = {
+    val n = stmShape.head
     StmPrepend(
-      StmPrefix(stm, stmShape.head - 1, shape = stmShape),
+      StmPrefix(stm, n - 1, shape = stmShape),
       e,
-      eShape = stmShape.tail
+      stmShape = stmShape.updated(0, n - 1)
     )
   }
 }
 
-/////////////////////////
-// concat
 object StmConcat {
   def apply(
-      in1: Expr /* Stm<A; n> */,
-      in2: Expr /* Stm<A; m> */,
-      len1: Expr
+      stm1: Expr /* Stm<A; n1> */,
+      stm2: Expr /* Stm<A; n2> */,
+      // Ideally we would get this shape information from the type system
+      stm1Shape: Seq[Expr],
+      stm2Shape: Seq[Expr]
   ): Expr /* Stm<A; n+m> */ = {
-    val p = Param("next")
+    require(
+      stm1Shape.length == stm2Shape.length,
+      "the streams being concatenated should each have the same number of dimensions"
+    )
+    require(
+      stm1Shape.tail == stm2Shape.tail,
+      "the streams being concatenated should have the same size in each dimension except the first"
+    )
+    val n1 = stm1Shape.fold(IntCst(1))(_ * _)
+    val n2 = stm2Shape.fold(IntCst(1))(_ * _)
+    val s0 = Param("s0")
+    val s1 = Param("s1")
+    val i = Param("i")
     StmBuild(
-      StmLength(in1) + StmLength(in2),
-      Tuple(in1, in2, len1),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__2 > 0,
-          Let(
-            p,
-            StmNext(acc.__0),
-            Tuple(Tuple(p.__0, acc.__1, acc.__2 - 1), SSome(p.__1))
-          ),
-          Let(
-            p,
-            StmNext(acc.__1),
-            Tuple(Tuple(acc.__0, p.__0, acc.__2), SSome(p.__1))
-          )
-        )
+      n1 + n2,
+      SSome(IfThenElse(i === n1, StmNext(s1).__1, StmNext(s0).__1)),
+      Map[Param, (Expr, Expr)](
+        i -> (0, IfThenElse(i === n1, i, i + 1)),
+        s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0).__0)),
+        s1 -> (stm2, IfThenElse(i === n1, StmNext(s1).__0, s1))
+      )
     )
   }
 }
@@ -852,15 +621,16 @@ object StmZip {
   def apply(
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<B; n> */
-  ): Expr /* Stm<(A, B); n> */ = {
+  ): StmBuild /* Stm<(A, B); n> */ = {
+    val s0 = Param("s0")
+    val s1 = Param("s1")
     StmBuild(
       StmLength(a),
-      Tuple(a, b),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__0).__0, StmNext(acc.__1).__0),
-          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
-        )
+      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
+      Map[Param, (Expr, Expr)](
+        s0 -> (a, StmNext(s0).__0),
+        s1 -> (b, StmNext(s1).__0)
+      )
     )
   }
 }
@@ -872,20 +642,19 @@ object StmZipAlternating {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<A; n> */
   ): Expr /* Stm<(A, A); n> */ = {
+    val s0 = Param("a")
+    val s1 = Param("b")
     StmBuild(
       StmLength(a),
-      Tuple(a, b),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(StmNext(acc.__1).__0, StmNext(acc.__0).__0),
-          SSome(Tuple(StmNext(acc.__0).__1, StmNext(acc.__1).__1))
-        )
+      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
+      Map(
+        s0 -> (a, StmNext(s1).__0),
+        s1 -> (b, StmNext(s0).__0)
+      )
     )
   }
 }
 
-////////////////////////
-// repeat
 object StmRepeat {
   def apply(
       stm: Expr /* Stm<A; n> */,
@@ -893,43 +662,21 @@ object StmRepeat {
       // Ideally we would get this shape info from the type system
       n: Expr
   ): Expr /* Stm<Stm<A; n>; m> */ = {
-    // TODO: Implement using Stm2Vec instead?
-    StmBuild(
-      n * m,
-      Tuple(stm, VecBuild(n, (_: Expr) => DontCare), 0, True),
-      (acc: Expr) =>
-        IfThenElse(
-          acc.__3,
-          // First fill shift register
-          Tuple(
-            IfThenElse(
-              acc.__2 === n - 1,
-              Tuple(
-                StmNext(acc.__0).__0,
-                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-                0,
-                False
-              ),
-              Tuple(
-                StmNext(acc.__0).__0,
-                VecShiftLeft(acc.__1, StmNext(acc.__0).__1),
-                acc.__2 + 1,
-                True
-              )
-            ),
-            NNone
-          ),
-          // Shift register is full
-          Tuple(
-            Tuple(
-              acc.__0,
-              acc.__1,
-              IfThenElse(acc.__2 === n - 1, 0, acc.__2 + 1),
-              False
-            ),
-            SSome(VecAccess(acc.__1, acc.__2))
+    val v = Stm2Vec(stm, n = n)
+    val i = Param("i")
+    StmMap(
+      v,
+      (v: Expr) =>
+        StmBuild(
+          n * m,
+          SSome(VecAccess(v, i)),
+          Map[Param, (Expr, Expr)](
+            i -> (0, IfThenElse(i + 1 === n, 0, i + 1))
           )
-        )
+        ),
+      n = 1,
+      fInShape = None,
+      fOutShape = Some(n * m)
     )
   }
 }
@@ -977,62 +724,79 @@ object StmSlideV {
     *
     * NOTE: `m` must be such that 1 &le; m &le; n.
     *
-    * @param stm
+    * @param input
     *   A stream of length n.
     * @param m
     *   Window size.
     */
   def apply(
-      stm: Expr /* Stm<A; n> */,
+      input: Expr /* Stm<A; n> */,
       m: Int,
       // Ideally we would get this shape info from the type system
       stmShape: Seq[Expr]
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
-    val elemSize = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
+    val elemSize = stmShape.tail.fold(IntCst(1))(_ * _)
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
     val v = Param("v")
     StmBuild(
       n - m + 1,
-      Tuple(
-        stm,
-        // Number of window elements left to load
-        m - 1,
-        // How many pieces of data left to load in the current window?
-        // This will always be 1 if `stm` is flat, but may be greater than 1
-        // if `stm` is multi-dimensional.
-        elemSize,
-        VecBuild(m * elemSize, (i: Expr) => DontCare)
+      IfThenElse(
+        i === 0 && j === 1,
+        // CASE 1: Shift register is full.
+        //         Produce output.
+        SSome(VecShiftLeft(v, StmNext(s).__1)),
+        // CASE 2: Shift register is not full yet.
+        //         Wait until it is.
+        NNone
       ),
-      (acc: Expr) =>
-        Let(
-          v,
-          VecShiftLeft(acc.__3, StmNext(acc.__0).__1),
+      Map[Param, (Expr, Expr)](
+        s -> (input, StmNext(s).__0),
+        // Number of window elements left to load
+        i -> (
+          m - 1,
           IfThenElse(
-            (acc.__1 === 0) && (acc.__2 === 1),
-            // CASE 1: Shift register is full
-            Tuple(
-              Tuple(StmNext(acc.__0).__0, acc.__1, elemSize, v),
-              SSome(v)
-            ),
-            // CASE 2: Shift register is not full yet
-            Tuple(
-              IfThenElse(
-                acc.__1 === 0,
-                // CASE 2a: Initial loading is done, just loading the next
-                //          element. Note that each element may be a stream,
-                //          so this may take multiple cycles.
-                Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v),
-                // CASE 2b: Initial loading still in progress.
-                IfThenElse(
-                  acc.__2 === 1,
-                  Tuple(StmNext(acc.__0).__0, acc.__1 - 1, elemSize, v),
-                  Tuple(StmNext(acc.__0).__0, acc.__1, acc.__2 - 1, v)
-                )
-              ),
-              NNone
+            i === 0 && j === 1,
+            // CASE 1: Shift register is full.
+            i,
+            // CASE 2: Shift register is not full yet.
+            IfThenElse(
+              i === 0,
+              // CASE 2a: Initial loading is done, just loading the next elem
+              //          (may take multiple cycles for nested streams).
+              i,
+              // CASE 2b: Initial loading still in progress.
+              IfThenElse(j === 1, i - 1, i)
             )
           )
+        ),
+        // How many pieces of data left to load in the current window element?
+        // This will be 1 if `stm` is flat but may be greater than 1
+        // if `stm` is multi-dimensional.
+        j -> (
+          elemSize,
+          IfThenElse(
+            i === 0 && j === 1,
+            // CASE 1: Shift register is full.
+            elemSize,
+            // CASE 2: Shift register is not full yet.
+            IfThenElse(
+              i === 0,
+              // CASE 2a: Initial loading is done, just loading the next elem
+              //          (may take multiple cycles for nested streams).
+              j - 1,
+              // CASE 2b: Initial loading still in progress.
+              IfThenElse(j === 1, elemSize, j - 1)
+            )
+          )
+        ),
+        v -> (
+          VecBuild(m * elemSize, (_: Expr) => Default),
+          VecShiftLeft(v, StmNext(s).__1)
         )
+      )
     )
   }
 }

@@ -10,9 +10,9 @@ object PrettyPrinter {
       implicit nameByParam: Map[Param, String]
   ): String = {
     e match {
-      case True      => "True"
-      case False     => "False"
-      case DontCare  => "DontCare"
+      case True      => "true"
+      case False     => "false"
+      case Default   => "default"
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
@@ -60,24 +60,30 @@ object PrettyPrinter {
           .mkString(", ") + ")"
       case TupleAccess(t, i) =>
         s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
-      case StmBuild(n, z, f) =>
+      case StmBuild(n, out, equations) =>
         if (collapseStm) {
-          s"StmBuild(${show(n, collapseStm = collapseStm, evalVec = evalVec)}, ...)"
+          val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
+          s"StmBuild(${nStr}; ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
-          val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
-          if (isMultiline(nStr) || isMultiline(zStr) || isMultiline(fStr)) {
-            s"""StmBuild(
-               |${indent(nStr)},
-               |${indent(zStr)},
-               |${indent(fStr)}
-               |)
-               |""".stripMargin.stripTrailing
-          } else {
-            s"StmBuild(${nStr}, ${zStr}, ${fStr})"
-          }
+          val outStr = show(out, collapseStm = collapseStm, evalVec = evalVec)
+          val recStrings = equations.map({ case (x, (z, next)) =>
+            val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
+            val nextStr =
+              show(next, collapseStm = collapseStm, evalVec = evalVec)
+            s"${show(x)}: (\n${indent(zStr)},\n${indent(nextStr)}\n)"
+          })
+          val inside = s"$nStr;\n$outStr;\n${recStrings.mkString(";\n")}"
+          s"StmBuild(\n${indent(inside)}\n)"
         }
+      case StmLength(s) =>
+        val stmStr = show(s, collapseStm = true)
+        s"StmLength($stmStr)"
+      case VecLiteral(elems @ _*) =>
+        val sh = (e: Expr) =>
+          show(e, collapseStm = collapseStm, evalVec = evalVec)
+        val children = e.children.map(sh).mkString(", ")
+        s"[$children]"
       case v @ VecBuild(n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
         elems match {
@@ -160,9 +166,13 @@ object PrettyPrinter {
         s"Or(${terms.map(e => showScala(e)).mkString(",")})"
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
-      case DontCare => "DontCare"
-      case StmBuild(n, z, f) =>
-        s"StmBuild(${showScala(n)},${showScala(z)},${showScala(f)})"
+      case Default => "Default"
+      case StmBuild(n, out, eqns) =>
+        val equationsStr =
+          s"Map(${eqns.map({ case (x, (z, next)) =>
+              s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
+            })})"
+        s"StmBuild(${showScala(n)},${showScala(out)},$equationsStr)"
       case StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"

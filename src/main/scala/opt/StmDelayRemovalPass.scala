@@ -13,7 +13,8 @@ object StmDelayRemovalPass {
     indVarRemover.tryFindAccumulatorAtTime(stm, c) match {
       case None =>
         stm
-      case Some(newSeed) =>
+      case Some(seedByVar) =>
+        assert(seedByVar.keySet == stm.accVars)
         indVarRemover.tryFindClosedFormForOutput(stm) match {
           case None => stm
           case Some(Function(t, e)) =>
@@ -21,7 +22,9 @@ object StmDelayRemovalPass {
             val noOutputInFirstCycles =
               PartialEvalPass.partialEval(IsNone(e))(facts) == True
             if (noOutputInFirstCycles) {
-              StmBuild(stm.length, newSeed, stm.nextF)
+              val newEquations =
+                seedByVar.map({ case (x, z) => x -> (z, stm.nextByVar(x)) })
+              StmBuild(stm.n, stm.output, newEquations)
             } else {
               stm
             }

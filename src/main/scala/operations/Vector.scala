@@ -62,7 +62,7 @@ object Stm2Vec {
   ): StmBuild =
     StmFold(
       s,
-      VecBuild(n, (i: Expr) => DontCare),
+      VecBuild(n, (_: Expr) => Default),
       (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
       stmShape = Seq(n)
     )
@@ -235,7 +235,7 @@ object VecJoin {
     val m = IfThenElse(Equal(n, 0), 1, VecLength(VecAccess(v, 0)))
     IfThenElse(
       m === 0,
-      VecBuild(0, (_: Expr) => DontCare),
+      VecBuild(0, (_: Expr) => Default),
       VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
     )
   }

@@ -60,29 +60,26 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:StmAccumulator") {
-    val acc = Param("acc")
+    val a = Param("a")
     val s = StmBuild(
       10,
-      Tuple(0),
-      Function(
-        acc,
-        Tuple(acc.__0 + 1, SSome(Tuple(acc.__0 >= 0, acc.__0 < 4)))
-      )
+      SSome(Tuple(a >= 0, a < 4)),
+      Map(a -> (IntCst(0), a + 1))
     )
-    val e = Tuple(acc.__0 < 4, s)
+    val e = Tuple(a < 4, s)
     val facts =
       FactSet()
-        // Inside the stream, acc.__0 >= 0
-        .range(s, StmAccRange(Seq(ScalarRange(Some(0), None))))
-        // Outside the stream, acc.__0 < 4
-        .lt(acc.__0, 4)
+        // Inside the stream, a >= 0
+        .range(s, StmAccRange(Map(a -> ScalarRange(Some(0), None))))
+        // Outside the stream, a < 4
+        .lt(a, 4)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = Tuple(
       True,
       StmBuild(
         10,
-        Tuple(0),
-        (acc: Expr) => Tuple(acc.__0 + 1, SSome(Tuple(True, acc.__0 < 4)))
+        SSome(Tuple(True, a < 4)),
+        Map(a -> (IntCst(0), a + 1))
       )
     )
     assert(actual == expected)
@@ -114,14 +111,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(VecAccess(v2, 0)) == z + a)
     assert(pe(VecAccess(v2, 1)) == z + a + b)
     assert(pe(VecAccess(v2, 2)) == z + a + b + c)
-  }
-
-  test("Mod") {
-    val e = VecLength(Param())
-
-    assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
-    assert(pe(DontCare % e) == DontCare)
-    assert(pe(e % DontCare) == DontCare)
   }
 
   test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
@@ -164,36 +153,38 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")
     val z = Param("z")
+    val a = Param("a")
     val s = StmBuild(
       n,
-      Tuple(z),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + 3),
-          IfThenElse(acc.__0 >= z, SSome(acc.__0), NNone)
-        )
+      IfThenElse(a >= z, SSome(a), NNone),
+      Map[Param, (Expr, Expr)](
+        a -> (z, IfThenElse(a >= z, a + 3, a - 1))
+      )
     )
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
-      Tuple(z),
-      (acc: Expr) => Tuple(Tuple(acc.__0 + 3), SSome(acc.__0))
+      SSome(a),
+      Map[Param, (Expr, Expr)](
+        a -> (z, a + 3)
+      )
     )
     assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
 
   test("StmOneElement") {
     val z = Param("z")
+    val a0 = Param("a")
+    val a1 = Param("a")
     val s = StmBuild(
       1,
-      Tuple(z, 0),
-      (acc: Expr) =>
-        Tuple(
-          Tuple(acc.__0 + acc.__1 + acc.__1, acc.__1 + acc.__0),
-          SSome(acc.__0)
-        )
+      SSome(a0),
+      Map[Param, (Expr, Expr)](
+        a0 -> (z, a0 + a1 + a1),
+        a1 -> (0, a1 + a0)
+      )
     )
-    val expected = StmBuild(1, Tuple(), (_: Expr) => Tuple(Tuple(), SSome(z)))
+    val expected = StmBuild(1, SSome(z))
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
@@ -202,11 +193,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     //   StmCst(1, StmNext(s).__1)
     // because then we're calling StmNext(s).__1 without a corresponding StmNext(s).__0
     val s = Param("s")
+    val a = Param("a")
     val stm = StmBuild(
       1,
-      Tuple(s),
-      (acc: Expr) =>
-        Tuple(Tuple(StmNext(acc.__0).__0), SSome(StmNext(acc.__0).__1))
+      SSome(StmNext(a).__1),
+      Map[Param, (Expr, Expr)](
+        a -> (s, StmNext(a).__0)
+      )
     )
     assert(PartialEvalPass.partialEval(stm) == stm)
   }

@@ -1,6 +1,8 @@
 package ir
 
+import java.util.Objects
 import java.util.concurrent.atomic.AtomicLong
+import scala.annotation.tailrec
 
 /** A node in the core IR.
   */
@@ -29,6 +31,7 @@ sealed trait Expr {
 
   def children: Seq[Expr]
   def rebuild(newChildren: Seq[Expr]): Expr
+  def map(f: Expr => Expr): Expr = rebuild(children.map(f))
 
   def contains(p: Expr => Boolean): Boolean = {
     p(this) || this.children.exists(e => e.contains(p))
@@ -38,23 +41,86 @@ sealed trait Expr {
     this.contains(e => cls.isInstance(e))
 
   def substitute(subs: Map[Expr, Expr]): Expr = {
-    subs.get(this) match {
-      case Some(v) => v
-      case None =>
-        this match {
-          case f: Function =>
-            // "Rename" to avoid variable capture
-            val newParam = Param(f.param.prefix)
-            Function(
-              newParam,
-              f.body.substitute(subs + ((f.param, newParam)))
-            )
-          case e => e.rebuild(e.children.map(e => e.substitute(subs)))
-        }
+    if (subs.isEmpty) {
+      this
+    } else {
+      subs.get(this) match {
+        case Some(v) => v
+        case None =>
+          this match {
+            case f: Function =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case f.param appears free in the old value of a
+              //       substitution (i.e., the value to be replaced)
+              val renamed = f.renameVar
+              Function(renamed.param, renamed.body.substitute(subs))
+            case s: StmBuild =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case an accumulator variable appears free in the old
+              //       value of a substitution (i.e., the value to be replaced)
+              val renamed = s.renameVars
+              StmBuild(
+                renamed.n.substitute(subs),
+                renamed.output.substitute(subs),
+                renamed.equations.map({ case (x, (z, next)) =>
+                  x -> (z.substitute(subs), next.substitute(subs))
+                })
+              )
+            case e => e.rebuild(e.children.map(e => e.substitute(subs)))
+          }
+      }
     }
   }
 
   def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
+
+  def freeVars(): Set[Param] = {
+    this match {
+      case x: Param       => Set(x)
+      case Function(x, e) => e.freeVars() - x
+      case stm @ StmBuild(n, out, eqns) =>
+        (
+          // Free variables in the stream length and seeds are definitely free,
+          // even if they are bound by the stream
+          n.freeVars()
+            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
+              fvs ++ z.freeVars()
+            })
+            // There may be bound variables in the output and "next" functions
+            ++ (
+              (out.freeVars()
+                ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                  fvs ++ next.freeVars()
+                }))
+                .diff(stm.accVars)
+            )
+        )
+      case e =>
+        e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
+    }
+  }
+
+  /** If this expression is <code>Default</code>, replace it with the default
+    * integer.
+    */
+  def defaultToInt: Expr = {
+    this match {
+      case Default => Default.int
+      case e       => e
+    }
+  }
+
+  /** If this expression is <code>Default</code>, replace it with the default
+    * boolean.
+    */
+  def defaultToBool: Expr = {
+    this match {
+      case Default => Default.bool
+      case e       => e
+    }
+  }
 }
 
 // Define a consistent order for expressions to make the tests less brittle.
@@ -89,7 +155,7 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
-      case DontCare       => 0
+      case Default        => 0
       case False          => 1
       case True           => 2
       case _: And         => 3
@@ -149,6 +215,8 @@ case class Param(prefix: String, id: Long) extends Expr {
     this
   }
 
+  def freshCopy: Param = Param(this.prefix)
+
   override def toString: String = name
 }
 case object Param {
@@ -171,13 +239,37 @@ case class Function(param: Param, body: Expr) extends Expr {
     }
   }
 
+  /** Construct a new function in which the bound variable has a fresh name.
+    */
+  def renameVar: Function = {
+    val newParam = this.param.freshCopy
+    Function(newParam, this.body.substitute(this.param -> newParam))
+  }
+
   override def equals(x: Any): Boolean = {
-    if (!x.isInstanceOf[Function]) false
-    else {
-      val that = x.asInstanceOf[Function]
-      this.body.substitute(this.param -> that.param) == that.body
+    x match {
+      case that: Function =>
+        val fresh = Param()
+        (this.body.substitute(this.param -> fresh)
+          == that.body.substitute(that.param -> fresh))
+      case _ => false
     }
   }
+
+  override def hashCode(): Int = {
+    // This implementation should be correct, but it may cause excessive
+    // collisions when dealing with nested functions. For example,
+    // x => y => x - y and x => y => y - x will be assigned the same hash code.
+    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
+  }
+}
+object Function {
+
+  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
+    * that the bound variable name doesn't affect the hash code. <i>It MUST NOT
+    * be used for anything else</i>.
+    */
+  private val HashCodeParam = Param("hashCode")
 }
 
 case class FunCall(f: Expr, arg: Expr) extends Expr {
@@ -485,37 +577,416 @@ object Or {
   }
 }
 
-// Useful for readability and possibly for optimization
-case object DontCare extends Expr {
+// Default value for a given datatype (zero for int, false for bool, tuple of
+// defaults for a tuple, etc.).
+// Note that this should NOT be used for functions or streams.
+case object Default extends Expr {
+  def int: IntCst = IntCst(0)
+  def bool: BoolCst = False
+
   override def children: Seq[Expr] = Seq()
+
   override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq() => this
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
-    }
+    require(newChildren.isEmpty)
+    this
   }
 }
 
 // Streams
 case class StmBuild(
-    length: Expr,
-    seed: Expr /*A*/,
-    nextF: Function /* A -> (A, Option<B>)*/
+    n: Expr /* Int */,
+    output: Expr /* Option<B> */,
+    equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
 ) extends Expr {
-  override def children: Seq[Expr] = Seq(length, seed, nextF)
+  override def children: Seq[Expr] = {
+    Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
+      Seq(x, z, next)
+    })
+  }
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, z, f: Function) => StmBuild(n, z, f)
+      case Seq(n, output, eqns @ _*) if eqns.length % 3 == 0 =>
+        val equations = (0 until eqns.length / 3)
+          .map(i => {
+            val x = eqns(3 * i).asInstanceOf[Param]
+            val z = eqns(3 * i + 1)
+            val next = eqns(3 * i + 2)
+            x -> (z, next)
+          })
+          .toMap
+        StmBuild(n, output, equations)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
+
+  lazy val accVars: Set[Param] = equations.keySet
+  lazy val seedByVar: Map[Param, Expr] =
+    equations.map({ case (x, (v, _)) => x -> v })
+  lazy val nextByVar: Map[Param, Expr] =
+    equations.map({ case (x, (_, next)) => x -> next })
+
+  /** Construct a new <code>StmBuild</code> that is equivalent to this one but
+    * where all the accumulator variables have been replaced by fresh variables.
+    */
+  def renameVars: StmBuild = {
+    this.renameVars(accVars.map(x => x -> x.freshCopy).toMap)
+  }
+
+  /** Construct a new <code>StmBuild</code> that is equivalent to this one but
+    * where the accumulator variable <code>x</code> has been replaced by a fresh
+    * variable.
+    */
+  def renameVar(x: Param): StmBuild = {
+    renameVars(Map(x -> x.freshCopy))
+  }
+
+  /** Rename all the bound variables in this stream using the given
+    * substitutions.
+    *
+    * @param replacements
+    *   A map from old variables to new variables.
+    */
+  private def renameVars(replacements: Map[Param, Param]): StmBuild = {
+    require(
+      replacements.keys.forall(x => this.accVars.contains(x)),
+      "all the variables to be replaced must appear in this stream"
+    )
+    val subs: Map[Expr, Expr] = replacements.toMap
+    val newOutput = output.substitute(subs)
+    val newEquations = equations.map({ case (x, (z, next)) =>
+      val y = replacements.getOrElse(x, x)
+      y -> (z, next.substitute(subs))
+    })
+    StmBuild(n, newOutput, newEquations)
+  }
+
+  def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
+    if (replacements.keys.exists(x => !accVars.contains(x))) {
+      val xs = replacements.keys.filter(x => !accVars.contains(x)).toSeq
+      throw new IllegalArgumentException(
+        s"Cannot replace variables $xs because they are not part of the stream."
+          + s" The stream is $this."
+      )
+    } else {
+      val subs: Map[Expr, Expr] = replacements.toMap
+      StmBuild(
+        this.n,
+        this.output.substitute(subs),
+        this.equations
+          .filter({ case (x, _) => !replacements.contains(x) })
+          .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
+      )
+    }
+  }
+
+  def replaceVar(x: Param, e: Expr): StmBuild = replaceVars(Map(x -> e))
+
+  /** Fuse a `StmBuild` with its statically-known stream inputs until it has no
+    * more statically-known stream inputs. Note that this requires the stream
+    * inputs to each have their own variable in <code>stm</code>; they cannot be
+    * in a tuple.
+    */
+  @tailrec
+  final def fuseCompletely(): StmBuild = {
+    this.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {
+      case Some((x, _)) => this.fuseWith(x).fuseCompletely()
+      case _            => this
+    }
+  }
+
+  /** Fuse a <code>StmBuild</code> with the input stream represented by variable
+    * <code>x</code> (which must be one of the accumulator variables in the
+    * stream).
+    */
+  def fuseWith(x: Param): StmBuild = {
+    val consumerStm = this
+    val fused = consumerStm.seedByVar.get(x) match {
+      case Some(e: StmBuild) =>
+        // Rename accumulator variables in case some of them are also being
+        // used by the consumer stream
+        val producerStm = e.renameVars
+        val c = stmNextCallCondition(consumerStm, x)
+        val newOutput =
+          IfThenElse(
+            c,
+            // CASE 1: Consumer is reading from producer.
+            OptionAccess(
+              producerStm.output,
+              // CASE 1a: Producer yielded a valid value. Proceed as usual.
+              (v: Expr) => consumerStm.output.substitute(StmNext(x).__1 -> v),
+              // CASE 1b: Producer did NOT yield a valid value.
+              //          The consumer cannot proceed.
+              (_: Expr) => NNone
+            ),
+            // CASE 2: Consumer is not reading from producer.
+            //         Proceed as usual.
+            //         It's safe to unwrap the Option<T> here because, if it
+            //         is being accessed here at all, it means the consumer is
+            //         reading a value from the producer without updating the
+            //         consumer, which is not allowed.
+            consumerStm.output.substitute(
+              StmNext(x).__1 -> OptionUnwrapUnsafe(producerStm.output)
+            )
+          )
+        val newEquations = {
+          val newConsumerEquations =
+            (consumerStm.equations - x)
+              .map({ case (y, (z, next)) =>
+                y -> (z, IfThenElse(
+                  c,
+                  // CASE 1: Consumer is reading from producer.
+                  OptionAccess(
+                    producerStm.output,
+                    // CASE 1a: Producer yielded a valid value.
+                    //          Update the accumulators in the consumer.
+                    (v: Expr) => next.substitute(StmNext(x).__1 -> v),
+                    // CASE 1b: Producer did NOT yield a valid value.
+                    //          Wait until it does and do not update accumulators.
+                    (_: Expr) => y
+                  ),
+                  // CASE 2: Consumer is not reading from producer.
+                  //         Update as usual.
+                  next.substitute(StmNext(x).__1 -> Default)
+                ))
+              })
+          val newProducerEquations =
+            producerStm.equations.map({ case (x, (z, next)) =>
+              x -> (z, IfThenElse(
+                c,
+                // CASE 1: Consumer is reading from producer.
+                //         Update accumulators.
+                next,
+                // CASE 2: Consumer is not reading from input.
+                //         Producer does nothing.
+                x
+              ))
+            })
+          newConsumerEquations ++ newProducerEquations
+        }
+        StmBuild(consumerStm.n, newOutput, newEquations)
+      case Some(e) =>
+        throw new IllegalArgumentException(
+          s"Expected the initial value of $x to be a StmBuild, but found $e"
+        )
+      case None =>
+        throw new IllegalArgumentException(
+          s"Stream does not contain accumulator variable $x."
+            + s" The stream is $consumerStm."
+        )
+    }
+    assert(
+      !fused.contains(x),
+      s"the stream variable ${x.name} should have been removed completely by fusion"
+    )
+    assert(
+      fused.freeVars() == this.freeVars(),
+      "fusion should not have changed the set of free variables"
+    )
+    fused
+  }
+
+  /** Add a new equation to this stream whose value is the number of valid
+    * outputs that this stream has <i>previously</i> produced.
+    *
+    * @param outCtr
+    *   The variable to use for the new equation. If the variable already
+    *   appears bound in this stream, then the bound variable will be renamed.
+    */
+  def addOutputCounter(outCtr: Param): StmBuild = {
+    val s =
+      if (this.equations.contains(outCtr))
+        this.renameVar(outCtr)
+      else
+        this
+    val z = IntCst(0)
+    val next =
+      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)
+    s.addAccumulator(outCtr, z, next)
+  }
+
+  /** Add a new equation to this stream whose value is the number of inputs that
+    * this stream has <i>previously</i> read from the input stream represented
+    * by <code>x</code>.
+    *
+    * @param x
+    *   The input stream.
+    * @param inCtr
+    *   The variable to use for the new equation. If the variable already
+    *   appears bound in this stream, then the bound variable will be renamed.
+    */
+  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
+    val s =
+      if (this.equations.contains(inCtr))
+        this.renameVar(inCtr)
+      else
+        this
+    val z = IntCst(0)
+    val stmNextCalled = stmNextCallCondition(s, x)
+    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)
+    s.addAccumulator(inCtr, z, next)
+  }
+
+  /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
+    * variable may capture free variables in this stream.
+    */
+  def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
+    StmBuild(
+      this.n,
+      this.output,
+      this.equations + (x -> (z, next))
+    )
+  }
+
+  /** Construct a boolean expression <code>c</code> such that, in
+    * <code>stm</code>, the accumulator variable <code>x</code> is updated to
+    * <code>StmNext(x).0</code> iff <code>c</code> evaluates to true.
+    */
+  private def stmNextCallCondition(stm: StmBuild, x: Param): Expr = {
+    stmNextCallCondition(stm.nextByVar(x), x)
+  }
+
+  private def stmNextCallCondition(e: Expr, x: Param): Expr = {
+    e match {
+      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
+      case y if y == x                                  => False
+      case IfThenElse(c, t, f) =>
+        val ct = stmNextCallCondition(t, x)
+        val cf = stmNextCallCondition(f, x)
+        (c && ct) || (Not(c) && cf)
+      case e =>
+        throw new IllegalArgumentException(
+          s"Illegal update to a stream-valued accumulator element: $e."
+        )
+    }
+  }
+
+  /** Find the direct dependencies between accumulator variables in this stream.
+    */
+  def accVarDependencies: DiGraph[Param] = {
+    val edges = this.nextByVar.toSeq
+      .flatMap({ case (x, next) =>
+        next.freeVars().intersect(this.accVars).map(y => (x, y))
+      })
+      .toSet
+    DiGraph(nodes = this.accVars, edges = edges)
+  }
+
+  /** Find the accumulator variables that the output of this stream depends on.
+    */
+  def outputDependencies: Set[Param] = {
+    this.output.freeVars().intersect(this.accVars)
+  }
+
+  /** Checks for structural equality, ignoring order of equations and names of
+    * accumulator variables.
+    */
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: StmBuild =>
+        if (this eq that) {
+          true
+        } else if (this.n != that.n) {
+          false
+        } else if (this.seedByVar.values.toSet != that.seedByVar.values.toSet) {
+          false
+        } else if (this.equations.size != that.equations.size) {
+          false
+        } else if (this.hashCode != that.hashCode) {
+          false
+        } else {
+          assert(this.accVars.size == that.accVars.size)
+          existsVarRenamingThatMakesEqual(
+            domain = this.accVars.toSeq,
+            codomain = that.accVars.toSeq,
+            map = Map(),
+            inverse = Map(),
+            that
+          )
+        }
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    // This implementation should be correct, but it may cause excessive
+    // collisions since it maps all variables to the same one variable.
+    val subs: Map[Expr, Expr] =
+      this.accVars.map(x => x -> StmBuild.HashCodeParam).toMap
+    val len = this.n
+    val out = this.output.substitute(subs)
+    val eqns = this.equations.toSeq
+      .map({ case (_, (z, next)) =>
+        (z, next.substitute(subs))
+      })
+    val eqnsBag =
+      eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
+    // Be careful not to remove equations due to the fact that they'll all use
+    // the same param now!
+    assert(eqnsBag.values.sum == this.equations.size)
+    Objects.hash(len, out, eqnsBag)
+  }
+
+  /** Basically just brute-force check through all the possible mappings from
+    * one set of variables to the other. This has at least O(n!) runtime (where
+    * n is the number of accumulator variables)! D: However, in practice,
+    * StmBuilds usually don't have <i>that</i> many accumulators and different
+    * accumulators have different seeds, so it shouldn't be too bad.
+    */
+  private def existsVarRenamingThatMakesEqual(
+      domain: Seq[Param],
+      codomain: Seq[Param],
+      map: Map[Param, Param],
+      inverse: Map[Param, Param],
+      that: StmBuild
+  ): Boolean = {
+    if (map.size == domain.size) {
+      // We have a full candidate mapping, so check equality
+      assert(domain.forall(x => inverse(map(x)) == x))
+      assert(codomain.forall(y => map(inverse(y)) == y))
+      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param() })
+      // Need to use separate substitutions in case one of the streams refers
+      // to a free variable and that same variable happens to be bound in the
+      // other stream
+      val thisSubs: Map[Expr, Expr] =
+        freshVarByPair.map({ case ((x, _), fresh) => x -> fresh })
+      val thatSubs: Map[Expr, Expr] =
+        freshVarByPair.map({ case ((_, y), fresh) => y -> fresh })
+      val eqnsMatch = map.forall({ case (x, y) =>
+        (this.nextByVar(x).substitute(thisSubs)
+          == that.nextByVar(y).substitute(thatSubs))
+      })
+      val outputsMatch =
+        this.output.substitute(thisSubs) == that.output.substitute(thatSubs)
+      eqnsMatch && outputsMatch
+    } else {
+      // Don't have a full candidate mapping yet, so recurse
+      val x = domain(map.size)
+      codomain.exists(y => {
+        (!inverse.isDefinedAt(y)
+        && this.seedByVar(x) == that.seedByVar(y)
+        && existsVarRenamingThatMakesEqual(
+          domain,
+          codomain,
+          map + (x -> y),
+          inverse + (y -> x),
+          that
+        ))
+      })
+    }
+  }
 }
+object StmBuild {
+
+  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
+    * that bound variable names don't affect the hash code. <i>It MUST NOT be
+    * used for anything else</i>.
+    */
+  private val HashCodeParam = Param("hashCode")
+}
+
 case class StmLength(stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(newChildren: Seq[Expr]): Expr = {

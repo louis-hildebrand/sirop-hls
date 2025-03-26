@@ -8,7 +8,7 @@ case object Let {
 
 // Option<T>
 trait OptionType {
-  val NNone: Expr = Tuple(DontCare, False)
+  val NNone: Expr = Tuple(Default, False)
 }
 case object SSome {
   def apply(e: Expr /* T */ ): Expr = Tuple(e, True)
@@ -16,9 +16,19 @@ case object SSome {
 case object OptionAccess {
   def apply(
       e: Expr /* Option<T> */,
-      s: Expr /* T -> V */,
-      n: Expr /* V */
-  ): Expr /* V */ = IfThenElse(e.__1, FunCall(s, e.__0), FunCall(n, Tuple()))
+      s: Function /* T -> V */,
+      n: Function /* Unit -> V */
+  ): Expr /* V */ =
+    IfThenElse(
+      e.__1,
+      s.body.substitute(s.param -> e.__0),
+      n.body.substitute(n.param -> Tuple())
+    )
+}
+case object OptionUnwrapUnsafe {
+  def apply(e: Expr /* Option<T> */ ): Expr /* T */ = {
+    e.__0
+  }
 }
 case object IsNone {
   def apply(e: Expr /* Option<T> */ ): Expr /* Bool */ = {

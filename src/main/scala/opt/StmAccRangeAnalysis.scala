@@ -15,14 +15,10 @@ object StmAccRangeAnalysis {
     * canonicalization pass before using this analysis.
     */
   def findAccRanges(stm: StmBuild): StmAccRange = {
-    stm.seed match {
-      case Tuple(elems @ _*) =>
-        StmAccRange(elems.indices.map(i => getRangeByIdx(stm, i)))
-      case _ => StmAccRange(Seq())
-    }
+    StmAccRange(stm.accVars.map(x => x -> getRange(stm, x)).toMap)
   }
 
-  private def getRangeByIdx(stm: StmBuild, i: Int): ScalarRange = {
+  private def getRange(stm: StmBuild, x: Param): ScalarRange = {
     // TODO: This analysis could be strengthened. For example:
     //       (1) Constructing a dependency graph (possibly containing cycles) for accumulator elements, starting with
     //           elements with fewer dependencies, and using the ranges found for previous elements to help with the
@@ -33,36 +29,34 @@ object StmAccRangeAnalysis {
     //       (2) Looking for both upper and lower bounds. Maybe this one could even be combined with the function in
     //           `StmCanonPass` which identifies constant accumulator elements.
 
-    val z = PartialEvalPass.partialEval(TupleAccess(stm.seed, i))
-    val a = Param("a")
-    val delta = TupleAccess(FunCall(stm.nextF, a).__0, i) - TupleAccess(a, i)
+    val z = stm.seedByVar(x)
+    val delta = stm.nextByVar(x) - x
 
     // acc[i] >= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] >= z   (always true)
     //   (Ind. case) acc[i] >= z ==> next(acc[i]) >= z     (to be shown)
-    val rLow = ScalarRange(Some(z), None)
-    val fLow = FactSet().range(TupleAccess(a, i), rLow)
+    val fLow = FactSet().geq(x, z)
     val isNonDecreasing =
       PartialEvalPass.isGreaterOrEqual(delta, 0)(fLow).getOrElse(false)
-    if (isNonDecreasing) {
-      return rLow
+    val lower = if (isNonDecreasing) {
+      Some(z)
+    } else {
+      None
     }
 
     // acc[i] <= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] <= z   (always true)
     //   (Ind. case) acc[i] <= z ==> next(acc[i]) <= z     (to be shown)
-    val rHi =
-      ScalarRange(
-        None,
-        Some(ArithSimplifier.simplifyArithmetic(z + 1)(FactSet()))
-      )
-    val fHi = FactSet().range(TupleAccess(a, i), rHi)
+    val zPlusOne = ArithSimplifier.simplifyArithmetic(z + 1)(FactSet())
+    val fHi = FactSet().lt(x, zPlusOne)
     val isNonIncreasing =
       PartialEvalPass.isSmallerOrEqual(delta, 0)(fHi).getOrElse(false)
-    if (isNonIncreasing) {
-      rHi
+    val upper = if (isNonIncreasing) {
+      Some(zPlusOne)
     } else {
-      ScalarRange(None, None)
+      None
     }
+
+    ScalarRange(lower, upper)
   }
 }

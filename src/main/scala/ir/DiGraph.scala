@@ -1,5 +1,6 @@
-package opt
+package ir
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
@@ -83,6 +84,16 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
         case Some((v, _)) => v +: this.remove(v).topologicalOrder()
         case None => throw new IllegalArgumentException(s"graph has a cycle")
       }
+    }
+  }
+
+  @tailrec
+  final def transitiveDependencies(xs: Set[T]): Set[T] = {
+    val newXs = xs.union(xs.flatMap(x => outNeighbours(x)))
+    if (newXs == xs) {
+      newXs
+    } else {
+      transitiveDependencies(newXs)
     }
   }
 }

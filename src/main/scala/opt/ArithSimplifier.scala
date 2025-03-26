@@ -90,7 +90,6 @@ object ArithSimplifier {
       e: Expr
   )(facts: FactSet): ae.ArithExpr with ae.SimplifiedExpr = {
     e match {
-      case DontCare  => ae.?
       case IntCst(n) => ae.Cst(n)
       case Sum(terms) =>
         val arithTerms = terms.map(e => toSimplifiedArithExpr(e)(facts)).toList
@@ -192,7 +191,6 @@ object ArithSimplifier {
 
   private def fromArithExpr(a: ae.ArithExpr): Option[Expr] = {
     a match {
-      case ae.?      => Some(DontCare)
       case ae.Cst(c) => Some(IntCst(c.toInt))
       case ae.Sum(terms) =>
         val exprTerms = terms.map(fromArithExpr)
@@ -274,8 +272,6 @@ object ArithSimplifier {
 
   private def simplifyAnd(and: And): Expr = {
     and.remove(True) match {
-      case And(terms @ _*) if terms.contains(DontCare) =>
-        DontCare
       case And(terms @ _*) if terms.contains(False) =>
         False
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
@@ -293,8 +289,6 @@ object ArithSimplifier {
 
   private def simplifyOr(or: Or): Expr = {
     or.remove(False) match {
-      case Or(terms @ _*) if terms.contains(DontCare) =>
-        DontCare
       case Or(terms @ _*) if terms.contains(True) =>
         True
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
@@ -310,10 +304,9 @@ object ArithSimplifier {
 
   private def simplifyNot(not: Not): Expr = {
     not match {
-      case Not(DontCare) => DontCare
-      case Not(True)     => False
-      case Not(False)    => True
-      case Not(Not(e))   => e
+      case Not(True)   => False
+      case Not(False)  => True
+      case Not(Not(e)) => e
       case Not(And(terms @ _*)) =>
         simplifyOr(Or(terms.map(e => simplifyNot(Not(e))): _*))
       case Not(Or(terms @ _*)) =>
