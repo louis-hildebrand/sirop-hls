@@ -41,32 +41,36 @@ sealed trait Expr {
     this.contains(e => cls.isInstance(e))
 
   def substitute(subs: Map[Expr, Expr]): Expr = {
-    subs.get(this) match {
-      case Some(v) => v
-      case None =>
-        this match {
-          case f: Function =>
-            // Rename both
-            //   (1) to avoid variable capture and
-            //   (2) in case f.param appears free in the old value of a
-            //       substitution (i.e., the value to be replaced)
-            val renamed = f.renameVar
-            Function(renamed.param, renamed.body.substitute(subs))
-          case s: StmBuild =>
-            // Rename both
-            //   (1) to avoid variable capture and
-            //   (2) in case an accumulator variable appears free in the old
-            //       value of a substitution (i.e., the value to be replaced)
-            val renamed = s.renameVars
-            StmBuild(
-              renamed.n.substitute(subs),
-              renamed.output.substitute(subs),
-              renamed.equations.map({ case (x, (z, next)) =>
-                x -> (z.substitute(subs), next.substitute(subs))
-              })
-            )
-          case e => e.rebuild(e.children.map(e => e.substitute(subs)))
-        }
+    if (subs.isEmpty) {
+      this
+    } else {
+      subs.get(this) match {
+        case Some(v) => v
+        case None =>
+          this match {
+            case f: Function =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case f.param appears free in the old value of a
+              //       substitution (i.e., the value to be replaced)
+              val renamed = f.renameVar
+              Function(renamed.param, renamed.body.substitute(subs))
+            case s: StmBuild =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case an accumulator variable appears free in the old
+              //       value of a substitution (i.e., the value to be replaced)
+              val renamed = s.renameVars
+              StmBuild(
+                renamed.n.substitute(subs),
+                renamed.output.substitute(subs),
+                renamed.equations.map({ case (x, (z, next)) =>
+                  x -> (z.substitute(subs), next.substitute(subs))
+                })
+              )
+            case e => e.rebuild(e.children.map(e => e.substitute(subs)))
+          }
+      }
     }
   }
 

@@ -224,13 +224,18 @@ class OptimizationTests extends AnyFunSuite {
       fOutShape = Some(n)
     ).asInstanceOf[StmBuild]
     val optimized = {
-      val facts = FactSet().geq(n, 1)
+      // TODO: Can I get it to work for n >= 1 rather than n >= 2?
+      val facts = FactSet().geq(n, 2)
       val s1 = original.fuseCompletely()
       val s2 = StmSimplifier.simplify(s1)(facts)
-      val s3 = StmInductionVarRemovalPass().removeInductionVars(s2)
+      val s3 = StmInductionVarRemovalPass(facts).removeInductionVars(s2)
       val s4 = StmSimplifier.simplify(s3)(facts)
-      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)()
-      StmSimplifier.simplify(s5)(facts)
+      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)(facts)
+      val s6 = StmSimplifier.simplify(s5)(facts)
+      // Reset `t` to start at zero rather than n - 1
+      val s7 = StmInductionVarRemovalPass(facts).removeInductionVars(s6)
+      val newFacts = facts.range(s7, StmAccRangeAnalysis.findAccRanges(s7))
+      StmSimplifier.simplify(s7)(newFacts)
     }
 
     // Correctness

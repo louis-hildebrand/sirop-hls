@@ -106,10 +106,19 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             (nextExpr.freeVars().intersect(s.accVars) - x).isEmpty,
             "all dependencies should have been removed"
           )
-          val next = Function(t, Function(x, nextExpr))
+          val next = Function(
+            t,
+            Function(
+              x,
+              PartialEvalPass.partialEval(nextExpr)(this.facts.geq(t, 0))
+            )
+          )
           tryFindClosedForm(0, z, next) match {
             case Some(f) =>
-              val peF = PartialEvalPass.partialEval(f).asInstanceOf[Function]
+              val peF =
+                PartialEvalPass
+                  .partialEval(f)(this.facts)
+                  .asInstanceOf[Function]
               closedFormByVar += (x -> peF)
             case None => ()
           }
@@ -125,7 +134,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               for ((i, x) <- paramByIndex) {
                 val g = Function(
                   t,
-                  PartialEvalPass.partialEval(TupleAccess(FunCall(f, t), i))
+                  PartialEvalPass
+                    .partialEval(TupleAccess(FunCall(f, t), i))(this.facts)
                 )
                 closedFormByVar += (x -> g)
               }
@@ -183,10 +193,20 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     } else {
       val t = Param("t")
 
+      // Process the closed forms without StmNextK first because they should
+      // always work regardless of order.
+      // The ones with StmNextK may depend on others.
+      // TODO: I should probably also sort the ones with StmNextK amongst
+      //       themselves.
+      //       Maybe do it in topological order or reverse topological order
+      //       or something?
+      val closedFormsInOrder = closedFormByVar.toSeq
+        .sortBy({ case (_, f) => f.contains(classOf[StmNextK]) })
+
       // Try to replace the existing elements with their closed form
       var s = stm
       var newAccVars = Map[Param, (Expr, Function)]()
-      for ((x, f) <- closedFormByVar) {
+      for ((x, f) <- closedFormsInOrder) {
         val newStm = PartialEvalPass
           .partialEval(s.replaceVar(x, FunCall(f, t)))(this.facts)
           .asInstanceOf[StmBuild]
@@ -441,7 +461,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.substitute(t -> (t + 1))
-          val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
+          val deltaK = PartialEvalPass.partialEval(nextK - k)(this.facts)
           val isDeltaZeroOrOne = (
             PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
               && PartialEvalPass
@@ -463,10 +483,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       }
     }
 
-    val e = PartialEvalPass.partialEval(nxt)(facts, MoveUp)
+    val e = PartialEvalPass.partialEval(nxt)(this.facts, MoveUp)
     findRec(e, t0 = 0) match {
       case Some((z_, f_)) =>
-        val z = PartialEvalPass.partialEval(z_)(facts)
+        val z = PartialEvalPass.partialEval(z_)(this.facts)
         // Start reading the stream from the beginning: can't start from the middle
         // TODO: Is this condition really necessary? Maybe I can get away with
         //       just checking that the new z is valid (e.g., it doesn't
@@ -480,7 +500,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           case _ => false
         }
         if (initOk) {
-          val f = PartialEvalPass.partialEval(f_)(facts)
+          val f = PartialEvalPass.partialEval(f_)(this.facts)
           Some((nxt.s, f.asInstanceOf[Function]))
         } else {
           None

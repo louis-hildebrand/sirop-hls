@@ -190,4 +190,22 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(pe(1 < 2) == True)
     assert(pe(1 < 1) == False)
   }
+
+  test("ParamMinusOneLessThan") {
+    val n = Param("n")
+    val b = Param("b")
+    val facts = FactSet().geq(n, 1)
+    val e = ((-1 + n) >= 0) && b
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    assert(actual == b)
+  }
+
+  test("ParamMinusOneEqual") {
+    val n = Param("n")
+    val b = Param("b")
+    val facts = FactSet().geq(n, 2)
+    val e = ((-1 + n) === 0) || b
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    assert(actual == b)
+  }
 }
