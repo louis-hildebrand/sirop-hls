@@ -977,17 +977,8 @@ case class StmBuild(
       })
     }
   }
-
-  @deprecated
-  def seed: Tuple = ???
-  @deprecated
-  def nextF: Function = ???
 }
 object StmBuild {
-  @deprecated
-  def apply(n: Expr, z: Expr, f: Expr): StmBuild = {
-    ???
-  }
 
   /** Parameter to be used in the definition of <code>hashCode</code> to ensure
     * that bound variable names don't affect the hash code. <i>It MUST NOT be
