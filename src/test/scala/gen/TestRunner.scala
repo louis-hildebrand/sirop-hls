@@ -1,7 +1,10 @@
 package gen
 
-import java.nio.file.Paths
-import sys.process._
+import ir._
+
+import java.nio.file.{Files, Path, Paths}
+import scala.reflect.io.Directory
+import scala.sys.process._
 
 sealed trait TestResult
 case object TestPassed extends TestResult
@@ -15,10 +18,15 @@ object TestRunner {
   private val VHDL_DIR =
     Paths.get(System.getProperty("user.dir")).resolve("vhdl")
   private val RUN_TEST_SH = VHDL_DIR.resolve("run_test.sh")
+  private val VHDL_TEST_DIR = VHDL_DIR.resolve("auto_tests")
 
-  def runTest(dir: String): TestResult = {
+  def testExistingProject(dir: String): TestResult = {
     val fullDir = VHDL_DIR.resolve(dir)
-    val cmd = s"$RUN_TEST_SH $fullDir"
+    testExistingProject(fullDir)
+  }
+
+  def testExistingProject(dir: Path): TestResult = {
+    val cmd = s"$RUN_TEST_SH $dir"
     cmd.! match {
       case 0 => TestPassed
       case 4 => DesignCompileFailed
@@ -27,5 +35,14 @@ object TestRunner {
       case 7 => SimulationFailed
       case _ => UnknownFailure
     }
+  }
+
+  def testExpr(s: StmBuild): TestResult = {
+    new Directory(VHDL_TEST_DIR.toFile).deleteRecursively()
+    Files.createDirectory(VHDL_TEST_DIR)
+    VhdlGenerator.makeVhdl(s, VHDL_TEST_DIR)
+    val expected = ir.eval(s).asInstanceOf[StmLiteral]
+    TestbenchGenerator.makeTestbench(expected, VHDL_TEST_DIR)
+    testExistingProject(VHDL_TEST_DIR)
   }
 }

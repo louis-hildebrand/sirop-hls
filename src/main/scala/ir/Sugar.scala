@@ -35,3 +35,8 @@ case object IsNone {
     Not(e.__1)
   }
 }
+case object IsSome {
+  def apply(e: Expr /* Option<T> */ ): Expr /* Bool */ = {
+    e.__1
+  }
+}

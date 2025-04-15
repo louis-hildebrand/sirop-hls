@@ -155,7 +155,7 @@ object StmCst {
 }
 
 object StmCount {
-  def apply(n: Expr): Expr /* Stm<Int; n> */ = StmRange(n, 0, 1)
+  def apply(n: Expr): StmBuild /* Stm<Int; n> */ = StmRange(n, 0, 1)
 }
 
 object StmCountFrom {
@@ -176,7 +176,7 @@ object StmRange {
     *   The stream of length <code>n</code> with elements <code>[z, z + delta, z
     *   + 2 * delta, ...]</code>.
     */
-  def apply(n: Expr, z: Expr, delta: Expr): Expr = {
+  def apply(n: Expr, z: Expr, delta: Expr): StmBuild = {
     val a = Param("a")
     StmBuild(n, SSome(a), Map(a -> (z, a + delta)))
   }
