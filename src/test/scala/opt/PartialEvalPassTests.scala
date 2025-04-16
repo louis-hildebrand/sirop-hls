@@ -37,7 +37,10 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       Tuple(
         x.__0 >= 1,
-        FunCall(Function(x, x.__0 >= 1), Tuple(x.__1, x.__0)),
+        FunCall(
+          Function(x, TyTuple(TyInt, TyInt), x.__0 >= 1),
+          Tuple(x.__1, x.__0)
+        ),
         x.__0 >= 1
       )
     val facts = FactSet().geq(x.__0, 1)
@@ -51,7 +54,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       Function(
         y,
-        IfThenElse(y > 42, Function(y, y > 10), (_: Expr) => y > 45)
+        TyInt,
+        IfThenElse(y > 42, Function(y, TyInt, y > 10), (_: Expr) => y > 45)
       )
     val actual = PartialEvalPass.partialEval(e)
     val expected: Function =
@@ -88,7 +92,11 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("ReusedParam:VecIndex") {
     val i = Param("i")
     val e =
-      Tuple(i > 1, VecBuild(7, Function(i, Tuple(i >= 0, i < 7, i > 2))), i > 2)
+      Tuple(
+        i > 1,
+        VecBuild(7, Function(i, TyInt, Tuple(i >= 0, i < 7, i > 2))),
+        i > 2
+      )
     val facts = FactSet().geq(i, 3)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected =

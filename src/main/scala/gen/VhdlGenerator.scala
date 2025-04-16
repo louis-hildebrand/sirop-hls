@@ -243,10 +243,10 @@ object VhdlGenerator {
       case Or(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
-      case Tuple(elems @ _*)     => ???
-      case TupleAccess(t, i)     => ???
-      case Function(param, body) => ???
-      case FunCall(f, arg)       => ???
+      case Tuple(elems @ _*) => ???
+      case TupleAccess(t, i) => ???
+      case Function(x, _, e) => ???
+      case FunCall(f, arg)   => ???
       case Default =>
         typ match {
           case MyInt  => ("0", Seq())

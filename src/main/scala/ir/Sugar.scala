@@ -2,7 +2,7 @@ package ir
 
 case object Let {
   def apply(p: Param, v: Expr, in: Expr): Expr = {
-    FunCall(Function(p, in), v)
+    FunCall(Function(p, Missing, in), v)
   }
 }
 

@@ -54,7 +54,7 @@ sealed trait Expr {
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
               val renamed = f.renameVar
-              Function(renamed.param, renamed.body.substitute(subs))
+              Function(renamed.param, f.inputTyp, renamed.body.substitute(subs))
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
@@ -78,8 +78,8 @@ sealed trait Expr {
 
   def freeVars(): Set[Param] = {
     this match {
-      case x: Param       => Set(x)
-      case Function(x, e) => e.freeVars() - x
+      case x: Param          => Set(x)
+      case Function(x, _, e) => e.freeVars() - x
       case stm @ StmBuild(n, out, eqns) =>
         (
           // Free variables in the stream length and seeds are definitely free,
@@ -105,6 +105,7 @@ sealed trait Expr {
   /** If this expression is <code>Default</code>, replace it with the default
     * integer.
     */
+  @deprecated
   def defaultToInt: Expr = {
     this match {
       case Default => Default.int
@@ -115,6 +116,7 @@ sealed trait Expr {
   /** If this expression is <code>Default</code>, replace it with the default
     * boolean.
     */
+  @deprecated
   def defaultToBool: Expr = {
     this match {
       case Default => Default.bool
@@ -227,11 +229,11 @@ case object Param {
   }
 }
 
-case class Function(param: Param, body: Expr) extends Expr {
+case class Function(param: Param, inputTyp: Type, body: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(param, body)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, body: Expr) => Function(x, body)
+      case Seq(x: Param, body: Expr) => Function(x, inputTyp, body)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -243,14 +245,15 @@ case class Function(param: Param, body: Expr) extends Expr {
     */
   def renameVar: Function = {
     val newParam = this.param.freshCopy
-    Function(newParam, this.body.substitute(this.param -> newParam))
+    Function(newParam, inputTyp, this.body.substitute(this.param -> newParam))
   }
 
   override def equals(x: Any): Boolean = {
     x match {
       case that: Function =>
         val fresh = Param()
-        (this.body.substitute(this.param -> fresh)
+        (this.inputTyp == that.inputTyp
+        && this.body.substitute(this.param -> fresh)
           == that.body.substitute(that.param -> fresh))
       case _ => false
     }
@@ -260,7 +263,10 @@ case class Function(param: Param, body: Expr) extends Expr {
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
+    (
+      this.inputTyp,
+      this.body.substitute(this.param -> Function.HashCodeParam)
+    ).hashCode
   }
 }
 object Function {

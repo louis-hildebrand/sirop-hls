@@ -40,11 +40,12 @@ object PrettyPrinter {
           case Some(name) => name
           case None       => p.toString
         }
-      case Function(p, b) =>
+      case Function(p, t, b) =>
         val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
+        val tStr = show(t)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
-          s"""(${pStr}) =>
+          s"""(${pStr} : $tStr) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
         } else {
@@ -124,6 +125,20 @@ object PrettyPrinter {
     }
   }
 
+  def show(t: Type): String = {
+    t match {
+      case Missing         => "?"
+      case TyInt           => "Int"
+      case TyBool          => "Bool"
+      case TyArrow(t1, t2) => s"($t1) -> ($t2)"
+      case TyTuple(ts @ _*) =>
+        val tsStr = ts.map(t => show(t)).mkString(", ")
+        s"($tsStr)"
+      case TyVec(t, n) => s"Vec[${show(t)}, ${show(n)(Map())}]"
+      case TyStm(t, n) => s"Stm[${show(t)}, ${show(n)(Map())}]"
+    }
+  }
+
   /** Produce Scala code that I can copy and paste (e.g., to take some large
     * expression and use it in a test case).
     */
@@ -140,8 +155,8 @@ object PrettyPrinter {
             s"TupleAccess(${showScala(t)},${showScala(i)})"
         }
       case p: Param => p.name
-      case Function(param, body) =>
-        s"(${param.name}: Expr) => ${showScala(body)}"
+      case Function(param, inTyp, body) =>
+        s"(${param.name}: Expr) => (${???}, ${showScala(body)})"
       case FunCall(f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})"
       case IntCst(i) => i.toString

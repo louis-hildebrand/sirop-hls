@@ -71,7 +71,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       closedFormByVar.map({ case (x, f) => x -> FunCall(f, t) })
     val out = s.output.substitute(subs)
     val allVarsRemoved = out.freeVars().intersect(s.accVars).isEmpty
-    if (allVarsRemoved) Some(Function(t, out)) else None
+    if (allVarsRemoved) Some(Function(t, TyInt, out)) else None
   }
 
   private def findClosedForms(s: StmBuild): Map[Param, Function] = {
@@ -108,8 +108,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           )
           val next = Function(
             t,
+            TyInt,
             Function(
               x,
+              Missing,
               PartialEvalPass.partialEval(nextExpr)(this.facts.geq(t, 0))
             )
           )
@@ -134,6 +136,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               for ((i, x) <- paramByIndex) {
                 val g = Function(
                   t,
+                  TyInt,
                   PartialEvalPass
                     .partialEval(TupleAccess(FunCall(f, t), i))(this.facts)
                 )
@@ -171,8 +174,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i) })
     val next = Function(
       t,
+      TyInt,
       Function(
         acc,
+        Missing,
         Tuple((0 until equations.size).map(i => {
           val x = paramByIndex(i)
           equations(x)._2.substitute(subs)
@@ -233,7 +238,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
 
       // Add new elements as required (e.g., the counter for t, input streams
       // for elements whose closed form included StmNextK)
-      for ((x, (z, Function(t, f))) <- newAccVars) {
+      for ((x, (z, Function(t, _, f))) <- newAccVars) {
         s = s.addAccumulator(x, z, FunCall(f, x))
       }
       s = s.addAccumulator(t, 0, t + 1)
@@ -288,18 +293,21 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   ): Option[Function] = {
     val t = next.param
     (z, next) match {
-      case (z, Function(t, Function(x0, x1))) if x0 == x1 =>
+      case (z, Function(t, _, Function(x0, _, x1))) if x0 == x1 =>
         // Identity
-        Some(Function(t, z))
-      case (z, Function(t, Function(x, e))) if !e.contains(x) =>
+        Some(Function(t, TyInt, z))
+      case (z, Function(t, _, Function(x, _, e))) if !e.contains(x) =>
         //     x_{t+1} = f(t) for t >= 0
         // ==> x_t = f(t - 1) for t >= 1
-        Some(Function(t, IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))))
-      case Counter(delta) => Some(Function(t, z + (t - t0) * delta))
+        Some(
+          Function(t, TyInt, IfThenElse(t === 0, z, e.substitute(t -> (t - 1))))
+        )
+      case Counter(delta) => Some(Function(t, TyInt, z + (t - t0) * delta))
       case LeftShiftRegister(n, f, g) =>
         Some(
           Function(
             t,
+            TyInt,
             VecBuild(
               n,
               (i: Expr) =>
@@ -314,9 +322,11 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             )
           )
         )
-      case (s, Function(t, Function(x0, TupleAccess(StmNext(x1), IntCst(0)))))
-          if x0 == x1 =>
-        Some(Function(t, StmNextK(s, t - t0)))
+      case (
+            s,
+            Function(t, _, Function(x0, _, TupleAccess(StmNext(x1), IntCst(0))))
+          ) if x0 == x1 =>
+        Some(Function(t, TyInt, StmNextK(s, t - t0)))
       case Piecewise(k, f, g) =>
         tryFindClosedForm(t0, z, f) match {
           case Some(f) =>
@@ -328,6 +338,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 Some(
                   Function(
                     t,
+                    TyInt,
                     IfThenElse(t < t1, FunCall(f, t), FunCall(g, t))
                   )
                 )
@@ -336,23 +347,27 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           case None => None
         }
       // TODO: Add similar cases (e.g., a counter that starts false and becomes true)?
-      case (True, Function(t, Function(acc, and @ And(terms @ _*))))
-          if terms.contains(acc) =>
+      case (
+            True,
+            Function(t, _, Function(acc, _, and @ And(terms @ _*)))
+          ) if terms.contains(acc) =>
         (t, acc, and.remove(acc)) match {
           case TimeLessThan(k) if !k.contains(acc) =>
             // Add one to account for the fact that the boolean will only
             // change value at the next cycle.
             // Use Max to account for the case where the condition is
             // immediately false: the value at t = 0 will nevertheless be True.
-            Some(Function(t, t - t0 < 1 + Max(0, k)))
+            Some(Function(t, TyInt, t - t0 < 1 + Max(0, k)))
           case _ => None
         }
       case (
             Tuple(True, i0),
             Function(
               t,
+              _,
               Function(
                 acc,
+                _,
                 Tuple(
                   and @ And(terms @ _*),
                   boundedCtrUpdate @ IfThenElse(
@@ -369,7 +384,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         val a = Param("a")
         val ctrNext = Function(
           t,
-          Function(a, ctrUpdateIfTrue.substitute(acc.__1 -> a))
+          TyInt,
+          Function(a, TyInt, ctrUpdateIfTrue.substitute(acc.__1 -> a))
         )
         if (!ctrNext.contains(acc)) {
           tryFindClosedForm(t0, i0, ctrNext) match {
@@ -387,8 +403,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                     // (3) Now find closed form for the bounded counter
                     val boundedCtrNext = Function(
                       t,
+                      TyInt,
                       Function(
                         a,
+                        TyInt,
                         boundedCtrUpdate.substitute(
                           Map[Expr, Expr](acc.__0 -> (t < K), acc.__1 -> a)
                         )
@@ -396,7 +414,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                     )
                     tryFindClosedForm(t0, i0, boundedCtrNext) match {
                       case Some(h) =>
-                        Some(Function(t, Tuple(t < K, FunCall(h, t))))
+                        Some(Function(t, TyInt, Tuple(t < K, FunCall(h, t))))
                       case None => None
                     }
                   case _ => None
@@ -440,6 +458,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                         val f =
                           Function(
                             t,
+                            TyInt,
                             (x: Expr) =>
                               IfThenElse(
                                 c,
@@ -472,6 +491,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             val z = next.substitute(t -> t0)
             val nextF = Function(
               t,
+              TyInt,
               (acc: Expr) =>
                 IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc).__0)
             )
@@ -529,7 +549,7 @@ object Counter {
   def unapply(args: (Expr, Function)): Option[Expr] = {
     val (_, next) = args
     next match {
-      case Function(t, Function(acc, Sum(terms))) =>
+      case Function(t, _, Function(acc, _, Sum(terms))) =>
         val termsWithAcc = terms.filter(e => e.contains(acc))
         termsWithAcc match {
           case Seq(a) if a == acc =>
@@ -568,13 +588,16 @@ object LeftShiftRegister {
             VecBuild(n, f),
             Function(
               t,
+              _,
               Function(
                 acc,
+                _,
                 VecBuild(
                   // TODO: What if the VecLength has been partially evaluated to a constant?
                   VecLength(a0),
                   Function(
                     i0: Param,
+                    _,
                     IfThenElse(
                       Equal(i1, Sum(Seq(IntCst(-1), VecLength(a1)))),
                       e,
@@ -588,7 +611,7 @@ object LeftShiftRegister {
           if a0 == acc && a1 == acc && a2 == acc && i1 == i0 && i2 == i0
             && !e.contains(acc) =>
         // e may have t as a free variable
-        Some((n, f, Function(t, e)))
+        Some((n, f, Function(t, TyInt, e)))
       case _ => None
     }
   }
@@ -605,11 +628,15 @@ object Piecewise {
   def unapply(args: (Expr, Function)): Option[(Expr, Function, Function)] = {
     val (_, next) = args
     next match {
-      case Function(t, Function(acc, e)) =>
+      case Function(t, _, Function(acc, _, e)) =>
         (t, acc, e) match {
           case IfTimeLessThan(k, a, b) =>
             Some(
-              (k, Function(t, Function(acc, a)), Function(t, Function(acc, b)))
+              (
+                k,
+                Function(t, TyInt, Function(acc, Missing, a)),
+                Function(t, TyInt, Function(acc, Missing, b))
+              )
             )
           case _ => None
         }

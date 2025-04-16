@@ -7,7 +7,7 @@ package object ir extends OptionType with Eval {
 
   implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
     val p = Param("x")
-    Function(p, sl(p))
+    Function(p, Missing, sl(p))
   }
 
   implicit def scalaBinaryLambdaToFunction(
@@ -15,6 +15,6 @@ package object ir extends OptionType with Eval {
   ): Function = {
     val p1 = Param("x")
     val p2 = Param("y")
-    Function(p1, Function(p2, sl(p1)(p2)))
+    Function(p1, Missing, Function(p2, Missing, sl(p1)(p2)))
   }
 }

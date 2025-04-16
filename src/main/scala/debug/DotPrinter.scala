@@ -364,8 +364,7 @@ object DotPrinter {
 
   private def makeDotGraph(e: Expr): String = {
     // TODO: Look for functions that are never called and add lines going in and coming out for clarity?
-    val params =
-      findFreeVars(e)(Set()).map(p => p -> DotParam(p.name, GlobalScope)).toMap
+    val params = e.freeVars().map(p => p -> DotParam(p.name, GlobalScope)).toMap
     val resultNode = toDot(e, GlobalScope)(params)
     val topLevelNodes = resultNode.allDependencies + resultNode
     val nodesDot =
@@ -376,17 +375,6 @@ object DotPrinter {
       .map(e => e.dot)
       .mkString("\n")
     s"digraph {\n${indent("""rankdir="LR"""")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
-  }
-
-  private def findFreeVars(
-      e: Expr
-  )(implicit boundVars: Set[Param]): Set[Param] = {
-    e match {
-      case p: Param              => if (boundVars.contains(p)) Set() else Set(p)
-      case Function(param, body) => findFreeVars(body)(boundVars + param)
-      case e =>
-        e.children.foldLeft(Set[Param]())((s, e) => s.union(findFreeVars(e)))
-    }
   }
 
   private def toDot(
@@ -480,7 +468,7 @@ object DotPrinter {
           case None =>
             DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i, scope))), scope)
         }
-      case Function(p, body) =>
+      case Function(p, _, body) =>
         val funcScope = FunctionScope(DotNode.freshId(), parent = scope)
         val pDot = DotParam("", funcScope)
         DotFunction(

@@ -17,7 +17,7 @@ object StmDelayRemovalPass {
         assert(seedByVar.keySet == stm.accVars)
         indVarRemover.tryFindClosedFormForOutput(stm) match {
           case None => stm
-          case Some(Function(t, e)) =>
+          case Some(Function(t, _, e)) =>
             val facts = FactSet().between(t, 0, c)
             val noOutputInFirstCycles =
               PartialEvalPass.partialEval(IsNone(e))(facts) == True
