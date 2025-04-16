@@ -16,18 +16,19 @@ object PrettyPrinter {
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
-      case Sum(terms)    => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Prod(factors) => factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)     => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)     => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case Equal(x, y)   => s"${showWithParens(x)} === ${showWithParens(y)}"
-      case Not(Equal(x, y)) => s"${showWithParens(x)} !== ${showWithParens(y)}"
-      case LessThan(x, y)   => s"${showWithParens(x)} < ${showWithParens(y)}"
-      case Not(LessThan(x, y)) =>
+      case Sum(terms)     => terms.map(e => showWithParens(e)).mkString(" + ")
+      case Prod(factors)  => factors.map(e => showWithParens(e)).mkString(" * ")
+      case Div(_, x, y)   => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(_, x, y)   => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case Equal(_, x, y) => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case Not(_, Equal(_, x, y)) =>
+        s"${showWithParens(x)} !== ${showWithParens(y)}"
+      case LessThan(_, x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
+      case Not(_, LessThan(_, x, y)) =>
         s"${showWithParens(x)} >= ${showWithParens(y)}"
       case And(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" && ")
       case Or(terms @ _*)  => terms.map(e => showWithParens(e)).mkString(" || ")
-      case Not(x)          => s"!${showWithParens(x)}"
+      case Not(_, x)       => s"!${showWithParens(x)}"
       case IfThenElse(c, t, f) =>
         s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
            |${indent(show(t, collapseStm = collapseStm, evalVec = evalVec))}
@@ -40,7 +41,7 @@ object PrettyPrinter {
           case Some(name) => name
           case None       => p.toString
         }
-      case Function(p, t, b) =>
+      case Function(_, p, t, b) =>
         val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
         val tStr = show(t)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
@@ -51,17 +52,17 @@ object PrettyPrinter {
         } else {
           s"(${pStr}) => ${bStr}"
         }
-      case FunCall(f, a) =>
+      case FunCall(_, f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
-      case Tuple(elems @ _*) =>
+      case Tuple(_, elems @ _*) =>
         // Include the trailing t to distinguish between a parenthesized
         // expression and a tuple of one element.
         "t(" + elems
           .map(e => show(e, collapseStm = collapseStm, evalVec = evalVec))
           .mkString(", ") + ")"
-      case TupleAccess(t, i) =>
+      case TupleAccess(_, t, i) =>
         s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
-      case StmBuild(n, out, equations) =>
+      case StmBuild(_, n, out, equations) =>
         if (collapseStm) {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
           s"StmBuild(${nStr}; ...)"
@@ -77,15 +78,15 @@ object PrettyPrinter {
           val inside = s"$nStr;\n$outStr;\n${recStrings.mkString(";\n")}"
           s"StmBuild(\n${indent(inside)}\n)"
         }
-      case StmLength(s) =>
+      case StmLength(_, s) =>
         val stmStr = show(s, collapseStm = true)
         s"StmLength($stmStr)"
-      case VecLiteral(elems @ _*) =>
+      case VecLiteral(_, elems @ _*) =>
         val sh = (e: Expr) =>
           show(e, collapseStm = collapseStm, evalVec = evalVec)
         val children = e.children.map(sh).mkString(", ")
         s"[$children]"
-      case v @ VecBuild(n, f) =>
+      case v @ VecBuild(_, n, f) =>
         val elems = if (evalVec) tryEvalVec(v) else None
         elems match {
           case Some(elems) =>
@@ -112,9 +113,9 @@ object PrettyPrinter {
               s"VecBuild(${nStr}, ${fStr})"
             }
         }
-      case VecAccess(v, i) =>
+      case VecAccess(_, v, i) =>
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
-      case VecLength(v) =>
+      case VecLength(_, v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
       case e =>
         val name = e.getClass.getSimpleName
@@ -144,10 +145,10 @@ object PrettyPrinter {
     */
   def showScala(e: Expr): String = {
     e match {
-      case Tuple(elems @ _*) =>
+      case Tuple(_, elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"Tuple(${children.mkString(",")})"
-      case TupleAccess(t, i) =>
+      case TupleAccess(_, t, i) =>
         i match {
           case IntCst(i) if 0 <= i && i <= 5 =>
             s"${showScalaWithParens(t)}.__$i"
@@ -155,26 +156,26 @@ object PrettyPrinter {
             s"TupleAccess(${showScala(t)},${showScala(i)})"
         }
       case p: Param => p.name
-      case Function(param, inTyp, body) =>
-        s"(${param.name}: Expr) => (${???}, ${showScala(body)})"
-      case FunCall(f, arg) =>
+      case Function(_, param, inTyp, body) =>
+        s"(${param.name}: Expr) => (${showScala(inTyp)}, ${showScala(body)})"
+      case FunCall(_, f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})"
       case IntCst(i) => i.toString
       case Sum(terms) =>
         s"Sum(${terms.map(e => showScala(e)).mkString(",")})"
       case Prod(factors) =>
         s"Prod(${factors.map(e => showScala(e)).mkString(",")})"
-      case Div(x, y) =>
+      case Div(_, x, y) =>
         s"Div(${showScala(x)},${showScala(y)})"
-      case Mod(x, y) =>
+      case Mod(_, x, y) =>
         s"Mod(${showScala(x)},${showScala(y)})"
       case True  => "True"
       case False => "False"
-      case Equal(x, y) =>
+      case Equal(_, x, y) =>
         s"Equal(${showScala(x)},${showScala(y)})"
-      case LessThan(x, y) =>
+      case LessThan(_, x, y) =>
         s"LessThan(${showScala(x)},${showScala(y)})"
-      case Not(e) => s"Not(${showScala(e)})"
+      case Not(_, e) => s"Not(${showScala(e)})"
       case And(terms @ _*) =>
         s"And(${terms.map(e => showScala(e)).mkString(",")})"
       case Or(terms @ _*) =>
@@ -182,31 +183,35 @@ object PrettyPrinter {
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
       case Default => "Default"
-      case StmBuild(n, out, eqns) =>
+      case StmBuild(_, n, out, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
             })})"
         s"StmBuild(${showScala(n)},${showScala(out)},$equationsStr)"
-      case StmLiteral(elems @ _*) =>
+      case StmLiteral(_, elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"
-      case StmNext(s) =>
+      case StmNext(_, s) =>
         s"StmNext(${showScala(s)})"
-      case StmNextK(s, k) =>
+      case StmNextK(_, s, k) =>
         s"StmNextK(${showScala(s)},${showScala(k)})"
-      case StmLength(s) =>
+      case StmLength(_, s) =>
         s"StmLength(${showScala(s)})"
-      case VecBuild(n, f) =>
+      case VecBuild(_, n, f) =>
         s"VecBuild(${showScala(n)},${showScala(f)})"
-      case VecLiteral(elems @ _*) =>
+      case VecLiteral(_, elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"VecLiteral(${children.mkString(",")})"
-      case VecAccess(v, i) =>
+      case VecAccess(_, v, i) =>
         s"VecAccess(${showScala(v)},${showScala(i)})"
-      case VecLength(v) =>
+      case VecLength(_, v) =>
         s"VecLength(${showScala(v)})"
     }
+  }
+
+  private def showScala(t: Type): String = {
+    t.toString
   }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1

@@ -35,7 +35,7 @@ object StmTracer {
             .toMap
           val evaluatedOutput = evalBigStep(output.substitute(currentValByVar))
           evaluatedOutput match {
-            case Tuple(v, valid: BoolCst) =>
+            case Tuple(_, v, valid: BoolCst) =>
               (
                 // IMPORTANT: keep same order of accumulator elements
                 equations.map({ case (x, _) => (x, nextEquations(x)) }),

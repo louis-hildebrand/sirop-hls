@@ -98,12 +98,12 @@ object ArithSimplifier {
         val arithFactors =
           factors.map(e => toSimplifiedArithExpr(e)(facts)).toList
         aes.SimplifyProd(arithFactors)
-      case Div(n, d) =>
+      case Div(_, n, d) =>
         aes.SimplifyIntDiv(
           toSimplifiedArithExpr(n)(facts),
           toSimplifiedArithExpr(d)(facts)
         )
-      case Mod(n, d) =>
+      case Mod(_, n, d) =>
         aes.SimplifyMod(
           toSimplifiedArithExpr(n)(facts),
           toSimplifiedArithExpr(d)(facts)
@@ -116,7 +116,7 @@ object ArithSimplifier {
         toSimplifiedArithExpr(IfThenElse(lt, True, False))(facts)
       case IfThenElse(c, t, f) =>
         val pred = c match {
-          case LessThan(e1, e2) =>
+          case LessThan(_, e1, e2) =>
             Some(
               ae.Predicate(
                 toSimplifiedArithExpr(e1)(facts),
@@ -124,7 +124,7 @@ object ArithSimplifier {
                 ae.Predicate.Operator.<
               )
             )
-          case Not(LessThan(e1, e2)) =>
+          case Not(_, LessThan(_, e1, e2)) =>
             Some(
               ae.Predicate(
                 toSimplifiedArithExpr(e1)(facts),
@@ -132,7 +132,7 @@ object ArithSimplifier {
                 ae.Predicate.Operator.>=
               )
             )
-          case Equal(e1, e2) =>
+          case Equal(_, e1, e2) =>
             Some(
               ae.Predicate(
                 toSimplifiedArithExpr(e1)(facts),
@@ -140,7 +140,7 @@ object ArithSimplifier {
                 ae.Predicate.Operator.==
               )
             )
-          case Not(Equal(e1, e2)) =>
+          case Not(_, Equal(_, e1, e2)) =>
             Some(
               ae.Predicate(
                 toSimplifiedArithExpr(e1)(facts),
@@ -195,14 +195,14 @@ object ArithSimplifier {
       case ae.Sum(terms) =>
         val exprTerms = terms.map(fromArithExpr)
         if (exprTerms.forall(e => e.isDefined)) {
-          Some(new Sum(exprTerms.map(e => e.get)))
+          Some(Sum(exprTerms.map(e => e.get): _*))
         } else {
           None
         }
       case ae.Prod(factors) =>
         val exprFactors = factors.map(fromArithExpr)
         if (exprFactors.forall(e => e.isDefined)) {
-          Some(new Prod(exprFactors.map(e => e.get)))
+          Some(Prod(exprFactors.map(e => e.get): _*))
         } else {
           None
         }
@@ -262,11 +262,11 @@ object ArithSimplifier {
 
   private def simplifyEqual(eq: Equal): Expr = {
     eq match {
-      case Equal(c, True)  => c
-      case Equal(True, c)  => c
-      case Equal(c, False) => Not(c)
-      case Equal(False, c) => Not(c)
-      case _               => eq
+      case Equal(_, c, True)  => c
+      case Equal(_, True, c)  => c
+      case Equal(_, c, False) => Not(c)
+      case Equal(_, False, c) => Not(c)
+      case _                  => eq
     }
   }
 
@@ -277,10 +277,10 @@ object ArithSimplifier {
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
       case And(terms @ _*) if hasContradictoryTerms(terms) =>
         False
-      case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+      case And(LessThan(_, e1, IntCst(c1)), LessThan(_, e2, IntCst(c2)))
           if e1 == e2 =>
         LessThan(e1, math.min(c1, c2))
-      case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+      case And(LessThan(_, IntCst(c1), e1), LessThan(_, IntCst(c2), e2))
           if e1 == e2 =>
         LessThan(math.max(c1, c2), e1)
       case e => e
@@ -294,9 +294,11 @@ object ArithSimplifier {
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
       case Or(terms @ _*) if hasContradictoryTerms(terms) =>
         True
-      case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2))) if e1 == e2 =>
+      case Or(LessThan(_, e1, IntCst(c1)), LessThan(_, e2, IntCst(c2)))
+          if e1 == e2 =>
         LessThan(e1, math.max(c1, c2))
-      case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2)) if e1 == e2 =>
+      case Or(LessThan(_, IntCst(c1), e1), LessThan(_, IntCst(c2), e2))
+          if e1 == e2 =>
         LessThan(math.min(c1, c2), e1)
       case e => e
     }
@@ -304,12 +306,12 @@ object ArithSimplifier {
 
   private def simplifyNot(not: Not): Expr = {
     not match {
-      case Not(True)   => False
-      case Not(False)  => True
-      case Not(Not(e)) => e
-      case Not(And(terms @ _*)) =>
+      case Not(_, True)      => False
+      case Not(_, False)     => True
+      case Not(_, Not(_, e)) => e
+      case Not(_, And(terms @ _*)) =>
         simplifyOr(Or(terms.map(e => simplifyNot(Not(e))): _*))
-      case Not(Or(terms @ _*)) =>
+      case Not(_, Or(terms @ _*)) =>
         simplifyAnd(And(terms.map(e => simplifyNot(Not(e))): _*))
       case _ => not
     }
@@ -317,8 +319,8 @@ object ArithSimplifier {
 
   private def hasContradictoryTerms(terms: Seq[Expr]): Boolean = {
     terms.exists({
-      case Not(e) => terms.contains(e)
-      case _      => false
+      case Not(_, e) => terms.contains(e)
+      case _         => false
     })
   }
 }

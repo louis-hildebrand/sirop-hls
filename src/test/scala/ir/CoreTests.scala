@@ -119,7 +119,7 @@ class CoreTests extends AnyFunSuite {
     }
     val g = {
       val y = Param("y")
-      Function(y, TyInt, (y + 1) * (y + 2))
+      Function(y, Missing, (y + 1) * (y + 2))
     }
     assert(f == g)
     assert(g == f)
@@ -131,14 +131,6 @@ class CoreTests extends AnyFunSuite {
     val f = Function(x, TyInt, (x + 1) * (x + 2))
     val y = Param("y")
     val g = Function(y, TyInt, (y + 1) * (x + 2))
-    assert(f != g)
-    assert(g != f)
-  }
-
-  test("Function:NotEquals:DifferentType") {
-    val x = Param("x")
-    val f = Function(x, TyInt, x)
-    val g = Function(x, TyBool, x)
     assert(f != g)
     assert(g != f)
   }

@@ -3,8 +3,6 @@ package opt
 import ir._
 import operations.{CeilDiv, Max}
 
-import scala.annotation.tailrec
-
 /** Induction variables are accumulator elements which can be expressed as a
   * function of <code>t</code>, where <code>t</code> is a counter which starts
   * at zero and counts up by one. This pass tries to remove those accumulator
@@ -32,7 +30,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     // But we can get rid of StmNextK if k <= 0, so try to do that.
     def removeStmNextK(e: Expr): Expr = {
       e match {
-        case StmNextK(s, k) =>
+        case StmNextK(_, s, k) =>
           val isKNonPositive =
             PartialEvalPass.isSmallerOrEqual(k, 0)(this.facts).getOrElse(false)
           if (isKNonPositive) s else e
@@ -238,7 +236,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
 
       // Add new elements as required (e.g., the counter for t, input streams
       // for elements whose closed form included StmNextK)
-      for ((x, (z, Function(t, _, f))) <- newAccVars) {
+      for ((x, (z, Function(_, t, _, f))) <- newAccVars) {
         s = s.addAccumulator(x, z, FunCall(f, x))
       }
       s = s.addAccumulator(t, 0, t + 1)
@@ -293,10 +291,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   ): Option[Function] = {
     val t = next.param
     (z, next) match {
-      case (z, Function(t, _, Function(x0, _, x1))) if x0 == x1 =>
+      case (z, Function(_, t, _, Function(_, x0, _, x1))) if x0 == x1 =>
         // Identity
         Some(Function(t, TyInt, z))
-      case (z, Function(t, _, Function(x, _, e))) if !e.contains(x) =>
+      case (z, Function(_, t, _, Function(_, x, _, e))) if !e.contains(x) =>
         //     x_{t+1} = f(t) for t >= 0
         // ==> x_t = f(t - 1) for t >= 1
         Some(
@@ -324,7 +322,12 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         )
       case (
             s,
-            Function(t, _, Function(x0, _, TupleAccess(StmNext(x1), IntCst(0))))
+            Function(
+              _,
+              t,
+              _,
+              Function(_, x0, _, TupleAccess(_, StmNext(_, x1), IntCst(0)))
+            )
           ) if x0 == x1 =>
         Some(Function(t, TyInt, StmNextK(s, t - t0)))
       case Piecewise(k, f, g) =>
@@ -349,7 +352,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       // TODO: Add similar cases (e.g., a counter that starts false and becomes true)?
       case (
             True,
-            Function(t, _, Function(acc, _, and @ And(terms @ _*)))
+            Function(_, t, _, Function(_, acc, _, and @ And(terms @ _*)))
           ) if terms.contains(acc) =>
         (t, acc, and.remove(acc)) match {
           case TimeLessThan(k) if !k.contains(acc) =>
@@ -361,19 +364,22 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           case _ => None
         }
       case (
-            Tuple(True, i0),
+            Tuple(_, True, i0),
             Function(
+              _,
               t,
               _,
               Function(
+                _,
                 acc,
                 _,
                 Tuple(
+                  _,
                   and @ And(terms @ _*),
                   boundedCtrUpdate @ IfThenElse(
-                    TupleAccess(a0, IntCst(0)),
+                    TupleAccess(_, a0, IntCst(0)),
                     ctrUpdateIfTrue,
-                    TupleAccess(a1, IntCst(1))
+                    TupleAccess(_, a1, IntCst(1))
                   )
                 )
               )
@@ -476,7 +482,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               }
             case _ => None
           }
-        case next @ StmNextK(_, k) =>
+        case next @ StmNextK(_, _, k) =>
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.substitute(t -> (t + 1))
@@ -513,7 +519,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         //       contain StmNextK, it's not DontCare)
         val initOk = z match {
           case s if s == nxt.s => true
-          case StmNextK(s, k) =>
+          case StmNextK(_, s, k) =>
             s == nxt.s && PartialEvalPass
               .isSmallerOrEqual(k, 0)(facts)
               .getOrElse(false)
@@ -549,7 +555,7 @@ object Counter {
   def unapply(args: (Expr, Function)): Option[Expr] = {
     val (_, next) = args
     next match {
-      case Function(t, _, Function(acc, _, Sum(terms))) =>
+      case Function(_, t, _, Function(_, acc, _, Sum(terms))) =>
         val termsWithAcc = terms.filter(e => e.contains(acc))
         termsWithAcc match {
           case Seq(a) if a == acc =>
@@ -585,23 +591,27 @@ object LeftShiftRegister {
     // ends up returning a vector, for example
     (PartialEvalPass.partialEval(z), next) match {
       case (
-            VecBuild(n, f),
+            VecBuild(_, n, f),
             Function(
+              _,
               t,
               _,
               Function(
+                _,
                 acc,
                 _,
                 VecBuild(
+                  _,
                   // TODO: What if the VecLength has been partially evaluated to a constant?
-                  VecLength(a0),
+                  VecLength(_, a0),
                   Function(
+                    _,
                     i0: Param,
                     _,
                     IfThenElse(
-                      Equal(i1, Sum(Seq(IntCst(-1), VecLength(a1)))),
+                      Equal(_, i1, Sum(Seq(IntCst(-1), VecLength(_, a1)))),
                       e,
-                      VecAccess(a2, Sum(Seq(IntCst(1), i2)))
+                      VecAccess(_, a2, Sum(Seq(IntCst(1), i2)))
                     )
                   )
                 )
@@ -628,7 +638,7 @@ object Piecewise {
   def unapply(args: (Expr, Function)): Option[(Expr, Function, Function)] = {
     val (_, next) = args
     next match {
-      case Function(t, _, Function(acc, _, e)) =>
+      case Function(_, t, _, Function(_, acc, _, e)) =>
         (t, acc, e) match {
           case IfTimeLessThan(k, a, b) =>
             Some(
@@ -684,7 +694,7 @@ object IfLessThan {
   def unapply(args: (Expr, Expr)): Option[(Expr, Expr, Expr)] = {
     val (e, x) = args
     e match {
-      case IfThenElse(LessThan(y, z), a, b) =>
+      case IfThenElse(LessThan(_, y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
         (PartialEvalPass.partialEval(y - z), x) match {

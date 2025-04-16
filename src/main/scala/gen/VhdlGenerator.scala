@@ -209,10 +209,10 @@ object VhdlGenerator {
         val (vhdlFactors, signals) =
           factors.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
-      case Div(e1, e2) => ???
-      case Mod(e1, e2) => ???
-      case True        => ("true", Seq())
-      case False       => ("false", Seq())
+      case Div(_, e1, e2) => ???
+      case Mod(_, e1, e2) => ???
+      case True           => ("true", Seq())
+      case False          => ("false", Seq())
       case IfThenElse(c, t, f) =>
         val (cVhdl, cSignals) = makeVhdlExpr(c, MyBool)
         val (tVhdl, tSignals) = makeVhdlExpr(t, typ)
@@ -226,15 +226,15 @@ object VhdlGenerator {
           cond = None
         )
         (sigName, sig +: (cSignals ++ tSignals ++ fSignals))
-      case Equal(e1, e2) =>
+      case Equal(_, e1, e2) =>
         val (e1Vhdl, e1Signals) = makeVhdlExpr(e1, MyInt)
         val (e2Vhdl, e2Signals) = makeVhdlExpr(e2, MyInt)
         (s"($e1Vhdl) = ($e2Vhdl)", e1Signals ++ e2Signals)
-      case LessThan(e1, e2) =>
+      case LessThan(_, e1, e2) =>
         val (e1Vhdl, e1Signals) = makeVhdlExpr(e1, MyInt)
         val (e2Vhdl, e2Signals) = makeVhdlExpr(e2, MyInt)
         (s"($e1Vhdl) < ($e2Vhdl)", e1Signals ++ e2Signals)
-      case Not(e) =>
+      case Not(_, e) =>
         val (vhdlE, signals) = makeVhdlExpr(e, typ)
         (s"not ($vhdlE)", signals)
       case And(terms @ _*) =>
@@ -243,22 +243,22 @@ object VhdlGenerator {
       case Or(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
-      case Tuple(elems @ _*) => ???
-      case TupleAccess(t, i) => ???
-      case Function(x, _, e) => ???
-      case FunCall(f, arg)   => ???
+      case Tuple(_, elems @ _*) => ???
+      case TupleAccess(_, t, i) => ???
+      case Function(_, x, _, e) => ???
+      case FunCall(_, f, arg)   => ???
       case Default =>
         typ match {
           case MyInt  => ("0", Seq())
           case MyBool => ("false", Seq())
         }
-      case StmBuild(n, output, equations) => ???
-      case StmNext(stream)                => ???
-      case VecBuild(len, f)               => ???
-      case VecAccess(vec, i)              => ???
-      case VecLiteral(elems @ _*)         => ???
-      case StmLiteral(elems @ _*)         => ???
-      case StmNextK(s, k)                 => ???
+      case StmBuild(_, n, output, equations) => ???
+      case StmNext(_, stream)                => ???
+      case VecBuild(_, len, f)               => ???
+      case VecAccess(_, vec, i)              => ???
+      case VecLiteral(_, elems @ _*)         => ???
+      case StmLiteral(_, elems @ _*)         => ???
+      case StmNextK(_, s, k)                 => ???
     }
   }
 

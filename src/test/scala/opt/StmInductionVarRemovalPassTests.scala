@@ -559,7 +559,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(_, t, _, e)) =>
         (
           PartialEvalPass.partialEval(z),
           Function(
@@ -601,7 +601,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(_, t, _, e)) =>
         (
           PartialEvalPass.partialEval(z),
           Function(
@@ -649,7 +649,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(_, t, _, e)) =>
         (
           PartialEvalPass.partialEval(z),
           Function(t, TyInt, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))
@@ -694,7 +694,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(_, t, _, e)) =>
         (
           PartialEvalPass.partialEval(z),
           Function(t, TyInt, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))

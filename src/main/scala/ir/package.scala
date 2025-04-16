@@ -10,6 +10,14 @@ package object ir extends OptionType with Eval {
     Function(p, Missing, sl(p))
   }
 
+  implicit def scalaUnaryLambdaToAnnotatedFunction(
+      sl: Expr => (Type, Expr)
+  ): Function = {
+    val x = Param("x")
+    val (t, e) = sl(x)
+    Function(x, t, e)
+  }
+
   implicit def scalaBinaryLambdaToFunction(
       sl: Expr => Expr => Expr
   ): Function = {

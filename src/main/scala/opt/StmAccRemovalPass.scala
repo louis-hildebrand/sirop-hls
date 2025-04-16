@@ -20,7 +20,7 @@ object StmAccRemovalPass {
         .filter({ case (_, z) =>
           z match {
             case _: IntCst | True | False => true
-            case Tuple()                  => true
+            case Tuple(_)                  => true
             case _                        => false
           }
         })

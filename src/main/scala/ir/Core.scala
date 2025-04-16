@@ -29,6 +29,13 @@ sealed trait Expr {
   def __4: TupleAccess = TupleAccess(this, 4)
   def __5: TupleAccess = TupleAccess(this, 5)
 
+  /** The type of this node.
+    *
+    * If this node has a type other than <code>Missing</code>, then all its
+    * children must also have types other than <code>Missing</code>.
+    */
+  val typ: Type
+
   def children: Seq[Expr]
   def rebuild(newChildren: Seq[Expr]): Expr
   def map(f: Expr => Expr): Expr = rebuild(children.map(f))
@@ -78,9 +85,9 @@ sealed trait Expr {
 
   def freeVars(): Set[Param] = {
     this match {
-      case x: Param          => Set(x)
-      case Function(x, _, e) => e.freeVars() - x
-      case stm @ StmBuild(n, out, eqns) =>
+      case x: Param             => Set(x)
+      case Function(_, x, _, e) => e.freeVars() - x
+      case stm @ StmBuild(_, n, out, eqns) =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
@@ -190,11 +197,15 @@ case object ExprOrdering extends Ordering[Expr] {
 }
 
 // Tuples
-case class Tuple(elems: Expr*) extends Expr {
+case class Tuple(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = Tuple(newChildren: _*)
+  override def rebuild(newChildren: Seq[Expr]): Expr =
+    Tuple(newChildren: _*)
 }
-case class TupleAccess(t: Expr, i: IntCst) extends Expr {
+case object Tuple {
+  def apply(elems: Expr*): Tuple = new Tuple(Missing, elems: _*)
+}
+case class TupleAccess(typ: Type, t: Expr, i: IntCst) extends Expr {
   override def children: Seq[Expr] = Seq(t, i)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -206,9 +217,12 @@ case class TupleAccess(t: Expr, i: IntCst) extends Expr {
     }
   }
 }
+case object TupleAccess {
+  def apply(t: Expr, i: IntCst): TupleAccess = new TupleAccess(Missing, t, i)
+}
 
 // Functions
-case class Param(prefix: String, id: Long) extends Expr {
+case class Param(typ: Type, prefix: String, id: Long) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
@@ -225,11 +239,26 @@ case object Param {
   private val idCtr = new AtomicLong()
 
   def apply(prefix: String = "p"): Param = {
-    new Param(prefix, idCtr.incrementAndGet())
+    new Param(Missing, prefix, idCtr.incrementAndGet())
   }
 }
 
-case class Function(param: Param, inputTyp: Type, body: Expr) extends Expr {
+case class Function(typ: Type, param: Param, inputTyp: Type, body: Expr)
+    extends Expr {
+  // NOTE: it doesn't work to have a field called `outputTyp` and let `typ`
+  //       always be `TyArrow(inputTyp, outputTyp)` because this may lead to
+  //       violations of the constraint that a typed node has typed children.
+  if (typ != Missing) {
+    assert(
+      typ.isInstanceOf[TyArrow],
+      "the type of a function must be an arrow type"
+    )
+    assert(
+      typ.asInstanceOf[TyArrow].t1 == inputTyp,
+      "the input type of a function must agree with its type annotation"
+    )
+  }
+
   override def children: Seq[Expr] = Seq(param, body)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -245,15 +274,19 @@ case class Function(param: Param, inputTyp: Type, body: Expr) extends Expr {
     */
   def renameVar: Function = {
     val newParam = this.param.freshCopy
-    Function(newParam, inputTyp, this.body.substitute(this.param -> newParam))
+    Function(
+      typ,
+      newParam,
+      inputTyp,
+      this.body.substitute(this.param -> newParam)
+    )
   }
 
   override def equals(x: Any): Boolean = {
     x match {
       case that: Function =>
         val fresh = Param()
-        (this.inputTyp == that.inputTyp
-        && this.body.substitute(this.param -> fresh)
+        (this.body.substitute(this.param -> fresh)
           == that.body.substitute(that.param -> fresh))
       case _ => false
     }
@@ -263,10 +296,7 @@ case class Function(param: Param, inputTyp: Type, body: Expr) extends Expr {
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    (
-      this.inputTyp,
-      this.body.substitute(this.param -> Function.HashCodeParam)
-    ).hashCode
+    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
   }
 }
 object Function {
@@ -276,14 +306,20 @@ object Function {
     * be used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")
+
+  def apply(param: Param, inputTyp: Type, body: Expr): Function =
+    Function(Missing, param, inputTyp, body)
 }
 
-case class FunCall(f: Expr, arg: Expr) extends Expr {
+case class FunCall(typ: Type, f: Expr, arg: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     FunCall(newChildren.head, newChildren(1))
   }
+}
+case object FunCall {
+  def apply(f: Expr, arg: Expr): FunCall = new FunCall(Missing, f, arg)
 }
 
 sealed trait BinOp extends Expr {
@@ -294,9 +330,13 @@ sealed trait BinOp extends Expr {
 }
 
 // Integer expressions
+// Unfortunately, cannot say that this node always has type Int.
+// If we do, then the type checker will not visit the children, which may lead
+// to type errors being missed.
 sealed trait IntExpr extends Expr
 
 case class IntCst(i: Int) extends IntExpr {
+  val typ: Type = TyInt
   override def children: Seq[Expr] = Seq()
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
@@ -304,7 +344,7 @@ case class IntCst(i: Int) extends IntExpr {
   }
 }
 
-final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
+final class Sum(val typ: Type, unsortedTerms: Seq[Expr]) extends IntExpr {
   val terms: Seq[Expr] =
     unsortedTerms
       // Flatten nested sums to represent associativity
@@ -334,7 +374,7 @@ final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
 }
 object Sum {
   def apply(terms: Expr*): Sum = {
-    new Sum(terms)
+    new Sum(Missing, terms)
   }
 
   def unapply(s: Sum): Option[Seq[Expr]] = {
@@ -342,7 +382,7 @@ object Sum {
   }
 }
 
-final class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
+final class Prod(val typ: Type, unsortedFactors: Seq[Expr]) extends IntExpr {
   val factors: Seq[Expr] =
     unsortedFactors
       // Flatten nested sums to represent associativity
@@ -372,7 +412,7 @@ final class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
 }
 object Prod {
   def apply(factors: Expr*): Prod = {
-    new Prod(factors)
+    new Prod(Missing, factors)
   }
 
   def unapply(p: Prod): Option[Seq[Expr]] = {
@@ -380,22 +420,33 @@ object Prod {
   }
 }
 
-case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp {
+case class Div(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Div(newChildren.head, newChildren(1))
   }
 }
-case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp {
+case object Div {
+  def apply(e1: Expr, e2: Expr): Div = Div(Missing, e1, e2)
+}
+
+case class Mod(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Mod(newChildren.head, newChildren(1))
   }
 }
+case object Mod {
+  def apply(e1: Expr, e2: Expr): Mod = Mod(Missing, e1, e2)
+}
 
 // Boolean expressions
+// Unfortunately, cannot say that this node always has type Int.
+// If we do, then the type checker will not visit the children, which may lead
+// to type errors being missed.
 sealed trait BoolExpr extends Expr
 sealed trait BoolCst extends BoolExpr {
+  val typ: Type = TyBool
   override def children: Seq[Expr] = Seq()
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
@@ -409,10 +460,11 @@ case object False extends BoolCst
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
-final class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
+final class IfThenElse(val typ: Type, cond: Expr, trueE: Expr, falseE: Expr)
+    extends Expr {
   val (c, t, f) = cond match {
-    case Not(c) => (c, falseE, trueE)
-    case c      => (c, trueE, falseE)
+    case Not(_, c) => (c, falseE, trueE)
+    case c         => (c, trueE, falseE)
   }
 
   override def children: Seq[Expr] = Seq(c, t, f)
@@ -443,7 +495,7 @@ final class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
 }
 object IfThenElse {
   def apply(c: Expr, t: Expr, f: Expr): Expr = {
-    new IfThenElse(c, t, f)
+    new IfThenElse(Missing, c, t, f)
   }
 
   def unapply(ite: IfThenElse): Option[(Expr, Expr, Expr)] = {
@@ -452,7 +504,7 @@ object IfThenElse {
 }
 
 // Comparison operators
-case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+case class Equal(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e1, e2) => Equal(e1, e2)
@@ -463,7 +515,11 @@ case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
     }
   }
 }
-case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+case object Equal {
+  def apply(e1: Expr, e2: Expr): Equal = Equal(Missing, e1, e2)
+}
+
+case class LessThan(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e1, e2) => LessThan(e1, e2)
@@ -474,8 +530,12 @@ case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
     }
   }
 }
+case object LessThan {
+  def apply(e1: Expr, e2: Expr): LessThan = LessThan(Missing, e1, e2)
+}
+
 // Logical operators
-case class Not(e: Expr) extends BoolExpr {
+case class Not(typ: Type, e: Expr) extends BoolExpr {
   override def children: Seq[Expr] = Seq(e)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -487,7 +547,11 @@ case class Not(e: Expr) extends BoolExpr {
     }
   }
 }
-final class And(unsortedTerms: Expr*) extends BoolExpr {
+case object Not {
+  def apply(e: Expr): Not = Not(Missing, e)
+}
+
+final class And(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   val terms: Seq[Expr] =
     unsortedTerms
       // Flatten nested ANDs to represent associativity
@@ -527,7 +591,7 @@ final class And(unsortedTerms: Expr*) extends BoolExpr {
 }
 object And {
   def apply(terms: Expr*): And = {
-    new And(terms: _*)
+    new And(Missing, terms: _*)
   }
 
   def unapplySeq(a: And): Option[Seq[Expr]] = {
@@ -535,7 +599,7 @@ object And {
   }
 }
 
-final class Or(unsortedTerms: Expr*) extends BoolExpr {
+final class Or(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   val terms: Seq[Expr] =
     unsortedTerms
       // Flatten nested ORs to represent associativity
@@ -575,7 +639,7 @@ final class Or(unsortedTerms: Expr*) extends BoolExpr {
 }
 object Or {
   def apply(terms: Expr*): Or = {
-    new Or(terms: _*)
+    new Or(Missing, terms: _*)
   }
 
   def unapplySeq(a: Or): Option[Seq[Expr]] = {
@@ -586,7 +650,9 @@ object Or {
 // Default value for a given datatype (zero for int, false for bool, tuple of
 // defaults for a tuple, etc.).
 // Note that this should NOT be used for functions or streams.
+@deprecated
 case object Default extends Expr {
+  lazy val typ: Type = ???
   def int: IntCst = IntCst(0)
   def bool: BoolCst = False
 
@@ -600,9 +666,10 @@ case object Default extends Expr {
 
 // Streams
 case class StmBuild(
+    typ: Type,
     n: Expr /* Int */,
     output: Expr /* Option<B> */,
-    equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
+    equations: Map[Param, (Expr, Expr)] /* (A, A) */
 ) extends Expr {
   override def children: Seq[Expr] = {
     Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
@@ -666,7 +733,7 @@ case class StmBuild(
       val y = replacements.getOrElse(x, x)
       y -> (z, next.substitute(subs))
     })
-    StmBuild(n, newOutput, newEquations)
+    StmBuild(typ, n, newOutput, newEquations)
   }
 
   def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
@@ -679,6 +746,7 @@ case class StmBuild(
     } else {
       val subs: Map[Expr, Expr] = replacements.toMap
       StmBuild(
+        typ,
         this.n,
         this.output.substitute(subs),
         this.equations
@@ -772,7 +840,7 @@ case class StmBuild(
             })
           newConsumerEquations ++ newProducerEquations
         }
-        StmBuild(consumerStm.n, newOutput, newEquations)
+        StmBuild(typ, consumerStm.n, newOutput, newEquations)
       case Some(e) =>
         throw new IllegalArgumentException(
           s"Expected the initial value of $x to be a StmBuild, but found $e"
@@ -840,6 +908,7 @@ case class StmBuild(
     */
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     StmBuild(
+      typ,
       this.n,
       this.output,
       this.equations + (x -> (z, next))
@@ -856,8 +925,8 @@ case class StmBuild(
 
   private def stmNextCallCondition(e: Expr, x: Param): Expr = {
     e match {
-      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
-      case y if y == x                                  => False
+      case TupleAccess(_, StmNext(_, y), IntCst(0)) if y == x => True
+      case y if y == x                                        => False
       case IfThenElse(c, t, f) =>
         val ct = stmNextCallCondition(t, x)
         val cf = stmNextCallCondition(f, x)
@@ -991,9 +1060,15 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")
+
+  def apply(
+      n: Expr /* Int */,
+      output: Expr /* Option<B> */,
+      equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
+  ): StmBuild = new StmBuild(Missing, n, output, equations)
 }
 
-case class StmLength(stream: Expr) extends IntExpr {
+case class StmLength(typ: Type, stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -1005,8 +1080,12 @@ case class StmLength(stream: Expr) extends IntExpr {
     }
   }
 }
+case object StmLength {
+  def apply(s: Expr): StmLength = StmLength(Missing, s)
+}
+
 // element only available for one clock cycle
-case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
+case class StmNext(typ: Type, stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
@@ -1019,9 +1098,13 @@ case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     }
   }
 }
+case object StmNext {
+  def apply(s: Expr): StmNext = new StmNext(Missing, s)
+}
 
 // Vectors
-case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr {
+case class VecBuild(typ: Type, len: Expr, f: Function /*Int => Expr*/ )
+    extends Expr {
   override def children: Seq[Expr] = Seq(len, f)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -1033,7 +1116,11 @@ case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr {
     }
   }
 }
-case class VecAccess(vec: Expr, i: Expr) extends Expr {
+case object VecBuild {
+  def apply(n: Expr, f: Function): VecBuild = new VecBuild(Missing, n, f)
+}
+
+case class VecAccess(typ: Type, vec: Expr, i: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(vec, i)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -1045,7 +1132,11 @@ case class VecAccess(vec: Expr, i: Expr) extends Expr {
     }
   }
 }
-case class VecLength(vec: Expr) extends IntExpr {
+case object VecAccess {
+  def apply(v: Expr, i: Expr): VecAccess = new VecAccess(Missing, v, i)
+}
+
+case class VecLength(typ: Type, vec: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -1057,24 +1148,29 @@ case class VecLength(vec: Expr) extends IntExpr {
     }
   }
 }
+case object VecLength {
+  def apply(v: Expr): VecLength = VecLength(Missing, v)
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Extra, non-synthesizable nodes
 // (Useful for evaluation and optimization)
 
-case class VecLiteral(elems: Expr*) extends Expr {
+case class VecLiteral(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     VecLiteral(newChildren: _*)
   }
 }
 object VecLiteral {
+  def apply(elems: Expr*): VecLiteral = new VecLiteral(Missing, elems: _*)
+
   def ints(elems: Int*): VecLiteral = {
     VecLiteral(elems.map(n => IntCst(n)): _*)
   }
 }
 
-case class StmLiteral(elems: Expr*) extends Expr {
+case class StmLiteral(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     StmLiteral(newChildren: _*)
@@ -1085,6 +1181,8 @@ case class StmLiteral(elems: Expr*) extends Expr {
   }
 }
 object StmLiteral {
+  def apply(elems: Expr*): StmLiteral = StmLiteral(Missing, elems: _*)
+
   def ints(elems: Int*): StmLiteral = {
     StmLiteral(elems.map(n => IntCst(n)): _*)
   }
@@ -1092,7 +1190,8 @@ object StmLiteral {
   val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)
 }
 
-case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ ) extends Expr {
+case class StmNextK(typ: Type, s: Expr /* Stm<A; n> */, k: Expr /* Int */ )
+    extends Expr {
   override def children: Seq[Expr] = Seq(s, k)
   override def rebuild(newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -1103,4 +1202,7 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ ) extends Expr {
         )
     }
   }
+}
+case object StmNextK {
+  def apply(s: Expr, k: Expr): StmNextK = StmNextK(Missing, s, k)
 }
