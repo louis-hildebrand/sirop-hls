@@ -5,18 +5,21 @@ import ir._
 import java.nio.file.{Files, Path}
 
 object TestbenchGenerator {
-  def makeTestbench(out: StmLiteral, dir: Path): Unit = {
+  def makeTestbench(out: StmLiteral, bitWidth: Int, dir: Path): Unit = {
     val testSteps = out.elems.zipWithIndex
-      .map({
-        case (IntCst(expected), i) =>
-          s"""        expected <= std_logic_vector(to_signed($expected, expected'length));
-             |        wait until rising_edge(clk) and data_valid = '1';
-             |        assert(data = expected) report "Wrong `data` at step $i.";
-             |""".stripMargin
-        case _ => ???
+      .map({ case (v, i) =>
+        val expected = v match {
+          case IntCst(k) => s"std_logic_vector(to_signed($k, expected'length))"
+          case True      => "\"1\""
+          case False     => "\"0\""
+          case _         => ???
+        }
+        s"""    expected <= ${expected};
+           |    wait until rising_edge(clk) and data_valid = '1';
+           |    assert(data = expected) report "Wrong `data` at step $i.";
+           |""".stripMargin
       })
       .mkString("\n\n")
-    // TODO: Implement this properly
     val str =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -31,10 +34,10 @@ object TestbenchGenerator {
          |    constant CLK_CYCLE  : time := 20 ns;
          |    signal   test_done  : boolean := false;
          |    signal   clk        : std_logic := '0';
-         |    signal   data       : std_logic_vector(31 downto 0);
+         |    signal   data       : std_logic_vector(${bitWidth - 1} downto 0);
          |    signal   data_valid : std_logic;
          |    signal   data_ready : std_logic := '0';
-         |    signal   expected   : std_logic_vector(31 downto 0);
+         |    signal   expected   : std_logic_vector(${bitWidth - 1} downto 0);
          |
          |begin
          |
@@ -55,7 +58,7 @@ object TestbenchGenerator {
          |    process
          |    begin
          |        -- What happens if the consumer is not ready?
-         |        expected <= std_logic_vector(to_signed(0, expected'length));
+         |        expected <= (others => '0');
          |        data_ready <= '0';
          |        wait until rising_edge(clk) and data_valid = '1';
          |        assert(data = expected) report "Wrong `data` when data_ready = '0'.";

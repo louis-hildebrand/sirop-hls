@@ -149,7 +149,7 @@ object Iterate {
 }
 
 object StmCst {
-  def apply(n: Expr, c: Expr): Expr /* Stm<Int; n> */ = {
+  def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
     StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())
   }
 }

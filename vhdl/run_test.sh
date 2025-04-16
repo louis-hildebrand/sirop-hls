@@ -35,6 +35,10 @@ if [[ "$#" -lt 1 ]]; then
 fi
 PROJ_DIR="$1"
 
+function compile {
+  vcom -2008 "$1"
+}
+
 function run_simulation {
     timeout "$TIMEOUT" vsim -c -do "run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
 }
@@ -48,7 +52,7 @@ function main {
     for f in design/*.vhd; do
         echo ""
         echo "Compiling design file $f..."
-        vcom "$f" || {
+        compile "$f" || {
             echoerr "Failed to compile design file $f."
             exit "$DESIGN_COMPILE_FAILED"
         }
@@ -56,7 +60,7 @@ function main {
     for f in test/*.vhd; do
         echo ""
         echo "Compiling testbench $f..."
-        vcom "$f" || {
+        compile "$f" || {
             echoerr "Failed to compile testbench $f."
             exit "$TESTBENCH_COMPILE_FAILED"
         }
