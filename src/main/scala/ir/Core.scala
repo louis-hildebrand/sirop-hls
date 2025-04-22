@@ -37,7 +37,9 @@ sealed trait Expr {
   val typ: Type
 
   def children: Seq[Expr]
-  def rebuild(newChildren: Seq[Expr]): Expr
+  def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
+  def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
+  def rebuild(typ: Type): Expr = rebuild(typ, this.children)
   def map(f: Expr => Expr): Expr = rebuild(children.map(f))
 
   def contains(p: Expr => Boolean): Boolean = {
@@ -199,17 +201,17 @@ case object ExprOrdering extends Ordering[Expr] {
 // Tuples
 case class Tuple(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr =
-    Tuple(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    Tuple(typ, newChildren: _*)
 }
 case object Tuple {
   def apply(elems: Expr*): Tuple = new Tuple(Missing, elems: _*)
 }
 case class TupleAccess(typ: Type, t: Expr, i: IntCst) extends Expr {
   override def children: Seq[Expr] = Seq(t, i)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(t, i: IntCst) => TupleAccess(t, i)
+      case Seq(t, i: IntCst) => TupleAccess(typ, t, i)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -226,9 +228,9 @@ case class Param(typ: Type, prefix: String, id: Long) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
-    this
+    Param(typ, this.prefix, this.id)
   }
 
   def freshCopy: Param = Param(this.prefix)
@@ -260,9 +262,9 @@ case class Function(typ: Type, param: Param, inputTyp: Type, body: Expr)
   }
 
   override def children: Seq[Expr] = Seq(param, body)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, body: Expr) => Function(x, inputTyp, body)
+      case Seq(x: Param, body: Expr) => Function(typ, x, inputTyp, body)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -313,9 +315,9 @@ object Function {
 
 case class FunCall(typ: Type, f: Expr, arg: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    FunCall(newChildren.head, newChildren(1))
+    FunCall(typ, newChildren.head, newChildren(1))
   }
 }
 case object FunCall {
@@ -338,7 +340,8 @@ sealed trait IntExpr extends Expr
 case class IntCst(i: Int) extends IntExpr {
   val typ: Type = TyInt
   override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == TyInt || typ == Missing)
     require(newChildren.isEmpty)
     this
   }
@@ -356,7 +359,8 @@ final class Sum(val typ: Type, unsortedTerms: Seq[Expr]) extends IntExpr {
       .sorted(ExprOrdering)
 
   override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = Sum(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    new Sum(typ, newChildren)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -394,7 +398,8 @@ final class Prod(val typ: Type, unsortedFactors: Seq[Expr]) extends IntExpr {
       .sorted(ExprOrdering)
 
   override def children: Seq[Expr] = factors
-  override def rebuild(newChildren: Seq[Expr]): Expr = Prod(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    new Prod(typ, newChildren)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -421,9 +426,9 @@ object Prod {
 }
 
 case class Div(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Div(newChildren.head, newChildren(1))
+    Div(typ, newChildren.head, newChildren(1))
   }
 }
 case object Div {
@@ -431,9 +436,9 @@ case object Div {
 }
 
 case class Mod(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Mod(newChildren.head, newChildren(1))
+    Mod(typ, newChildren.head, newChildren(1))
   }
 }
 case object Mod {
@@ -448,7 +453,8 @@ sealed trait BoolExpr extends Expr
 sealed trait BoolCst extends BoolExpr {
   val typ: Type = TyBool
   override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == TyBool || typ == Missing)
     require(newChildren.isEmpty)
     this
   }
@@ -468,9 +474,9 @@ final class IfThenElse(val typ: Type, cond: Expr, trueE: Expr, falseE: Expr)
   }
 
   override def children: Seq[Expr] = Seq(c, t, f)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(c, t, f) => IfThenElse(c, t, f)
+      case Seq(c, t, f) => new IfThenElse(typ, c, t, f)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -505,9 +511,9 @@ object IfThenElse {
 
 // Comparison operators
 case class Equal(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => Equal(e1, e2)
+      case Seq(e1, e2) => Equal(typ, e1, e2)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -520,9 +526,9 @@ case object Equal {
 }
 
 case class LessThan(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => LessThan(e1, e2)
+      case Seq(e1, e2) => LessThan(typ, e1, e2)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -537,9 +543,9 @@ case object LessThan {
 // Logical operators
 case class Not(typ: Type, e: Expr) extends BoolExpr {
   override def children: Seq[Expr] = Seq(e)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => Not(e)
+      case Seq(e) => Not(typ, e)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -573,7 +579,8 @@ final class And(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   }
 
   override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = And(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    new And(typ, newChildren: _*)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -621,7 +628,8 @@ final class Or(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   }
 
   override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = Or(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    new Or(typ, newChildren: _*)
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -658,7 +666,7 @@ case object Default extends Expr {
 
   override def children: Seq[Expr] = Seq()
 
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
     this
   }
@@ -676,7 +684,7 @@ case class StmBuild(
       Seq(x, z, next)
     })
   }
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, output, eqns @ _*) if eqns.length % 3 == 0 =>
         val equations = (0 until eqns.length / 3)
@@ -687,7 +695,7 @@ case class StmBuild(
             x -> (z, next)
           })
           .toMap
-        StmBuild(n, output, equations)
+        StmBuild(typ, n, output, equations)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1070,9 +1078,9 @@ object StmBuild {
 
 case class StmLength(typ: Type, stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmLength(s)
+      case Seq(s) => StmLength(typ, s)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1088,9 +1096,9 @@ case object StmLength {
 case class StmNext(typ: Type, stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
     extends Expr {
   override def children: Seq[Expr] = Seq(stream)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNext(s)
+      case Seq(s) => StmNext(typ, s)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1106,9 +1114,9 @@ case object StmNext {
 case class VecBuild(typ: Type, len: Expr, f: Function /*Int => Expr*/ )
     extends Expr {
   override def children: Seq[Expr] = Seq(len, f)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])
+      case Seq(n, f) => VecBuild(typ, n, f.asInstanceOf[Function])
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1122,9 +1130,9 @@ case object VecBuild {
 
 case class VecAccess(typ: Type, vec: Expr, i: Expr) extends Expr {
   override def children: Seq[Expr] = Seq(vec, i)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v, i) => VecAccess(v, i)
+      case Seq(v, i) => VecAccess(typ, v, i)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1138,9 +1146,9 @@ case object VecAccess {
 
 case class VecLength(typ: Type, vec: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v) => VecLength(v)
+      case Seq(v) => VecLength(typ, v)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -1158,8 +1166,8 @@ case object VecLength {
 
 case class VecLiteral(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    VecLiteral(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    VecLiteral(typ, newChildren: _*)
   }
 }
 object VecLiteral {
@@ -1172,8 +1180,8 @@ object VecLiteral {
 
 case class StmLiteral(typ: Type, elems: Expr*) extends Expr {
   override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    StmLiteral(newChildren: _*)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    StmLiteral(typ, newChildren: _*)
   }
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
@@ -1193,7 +1201,7 @@ object StmLiteral {
 case class StmNextK(typ: Type, s: Expr /* Stm<A; n> */, k: Expr /* Int */ )
     extends Expr {
   override def children: Seq[Expr] = Seq(s, k)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s, i) => StmNextK(s, i)
       case _ =>
