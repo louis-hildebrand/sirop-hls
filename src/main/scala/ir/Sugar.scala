@@ -7,8 +7,10 @@ case object Let {
 }
 
 // Option<T>
-trait OptionType {
-  val NNone: Expr = Tuple(Default, False)
+case object NNone {
+  @deprecated
+  def apply(): Expr = Tuple(Default, False)
+  def apply(typ: Type /* T */ ): Expr = Tuple(Default(typ), False)
 }
 case object SSome {
   def apply(e: Expr /* T */ ): Expr = Tuple(e, True)

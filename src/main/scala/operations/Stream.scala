@@ -141,7 +141,7 @@ object Iterate {
     }
     val s = StmBuild(
       1,
-      IfThenElse(i === 0, SSome(accExpanded), NNone),
+      IfThenElse(i === 0, SSome(accExpanded), NNone()),
       Map[Param, (Expr, Expr)](
         i -> (n, IfThenElse(i === 0, 0, i - 1)),
         acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)))
@@ -238,7 +238,7 @@ object StmMap {
         //       easier to simplify? Should I add something similar in the
         //       partial evaluator?
         case IntCst(0) =>
-          StmBuild(0, NNone, Map[Param, (Expr, Expr)]())
+          StmBuild(0, NNone(), Map[Param, (Expr, Expr)]())
         case IntCst(1) =>
           // No need to reset
           innerStm
@@ -304,7 +304,7 @@ object StmAccess {
     val j = Param("j") // index within row
     StmBuild(
       perRow,
-      IfThenElse(i === k, SSome(StmNext(s).__1), NNone),
+      IfThenElse(i === k, SSome(StmNext(s).__1), NNone()),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s).__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -387,7 +387,7 @@ object StmScanInclusive {
       OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)
     val outerStm = StmBuild(
       stmShape.head,
-      IfThenElse(shouldReset, SSome(nextAcc), NNone),
+      IfThenElse(shouldReset, SSome(nextAcc), NNone()),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
@@ -507,7 +507,7 @@ object StmPrefix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i < k, SSome(StmNext(s).__1), NNone),
+      IfThenElse(i < k, SSome(StmNext(s).__1), NNone()),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s).__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -543,7 +543,7 @@ object StmSuffix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i >= n - k, SSome(StmNext(s).__1), NNone),
+      IfThenElse(i >= n - k, SSome(StmNext(s).__1), NNone()),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s).__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -753,7 +753,7 @@ object StmSlideV {
         SSome(VecShiftLeft(v, StmNext(s).__1)),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
-        NNone
+        NNone()
       ),
       Map[Param, (Expr, Expr)](
         s -> (input, StmNext(s).__0),

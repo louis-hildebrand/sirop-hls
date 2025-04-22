@@ -353,7 +353,7 @@ class CoreTests extends AnyFunSuite {
       5,
       IfThenElse(
         i === 1,
-        IfThenElse(j < -1 + StmLength(input), SSome(StmNext(s).__1), NNone),
+        IfThenElse(j < -1 + StmLength(input), SSome(StmNext(s).__1), NNone()),
         SSome(42)
       ),
       Map[Param, (Expr, Expr)](
@@ -389,7 +389,7 @@ class CoreTests extends AnyFunSuite {
         IfThenElse(
           i === 4,
           SSome(42),
-          IfThenElse(j < 1, NNone, SSome(StmNext(s).__1))
+          IfThenElse(j < 1, NNone(), SSome(StmNext(s).__1))
         ),
         Map[Param, (Expr, Expr)](
           s -> (input, IfThenElse(i === 4, s, StmNext(s).__0)),
@@ -496,7 +496,7 @@ class CoreTests extends AnyFunSuite {
     val original =
       StmBuild(
         n,
-        IfThenElse(FunCall(f, i), SSome(StmNext(s).__1), NNone),
+        IfThenElse(FunCall(f, i), SSome(StmNext(s).__1), NNone()),
         Map[Param, (Expr, Expr)](
           i -> (3, i + 1),
           s -> (
@@ -531,7 +531,7 @@ class CoreTests extends AnyFunSuite {
     val expected =
       StmBuild(
         n,
-        IfThenElse(FunCall(f, freshI), SSome(StmNext(s).__1), NNone),
+        IfThenElse(FunCall(f, freshI), SSome(StmNext(s).__1), NNone()),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (

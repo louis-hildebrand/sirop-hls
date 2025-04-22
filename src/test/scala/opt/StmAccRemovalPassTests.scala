@@ -44,7 +44,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")
     val original = StmBuild(
       n,
-      IfThenElse(a2 < n, NNone, SSome(StmNext(a1).__1)),
+      IfThenElse(a2 < n, NNone(), SSome(StmNext(a1).__1)),
       Map[Param, (Expr, Expr)](
         a0 -> (s, IfThenElse(a2 < n, StmNext(a0).__0, a0)),
         a1 -> (s, IfThenElse(a2 < n, a1, StmNext(a1).__0)),
@@ -53,7 +53,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )
     val expected = StmBuild(
       n,
-      IfThenElse(a2 < n, NNone, SSome(StmNext(a1).__1)),
+      IfThenElse(a2 < n, NNone(), SSome(StmNext(a1).__1)),
       Map[Param, (Expr, Expr)](
         a1 -> (s, IfThenElse(a2 < n, a1, StmNext(a1).__0)),
         a2 -> (0, a2 + 1)

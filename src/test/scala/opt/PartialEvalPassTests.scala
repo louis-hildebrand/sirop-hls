@@ -164,7 +164,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a), NNone),
+      IfThenElse(a >= z, SSome(a), NNone()),
       Map[Param, (Expr, Expr)](
         a -> (z, IfThenElse(a >= z, a + 3, a - 1))
       )

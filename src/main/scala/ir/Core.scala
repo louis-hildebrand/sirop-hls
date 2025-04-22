@@ -664,6 +664,19 @@ case object Default extends Expr {
   def int: IntCst = IntCst(0)
   def bool: BoolCst = False
 
+  def apply(typ: Type): Expr = {
+    typ match {
+      case TyInt            => IntCst(0)
+      case TyBool           => False
+      case TyTuple(ts @ _*) => Tuple(ts.map(t => apply(t)): _*)
+      case TyVec(t, n)      => VecBuild(n, (_: Expr) => apply(t))
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot construct default value for type $t."
+        )
+    }
+  }
+
   override def children: Seq[Expr] = Seq()
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -801,7 +814,7 @@ case class StmBuild(
               (v: Expr) => consumerStm.output.substitute(StmNext(x).__1 -> v),
               // CASE 1b: Producer did NOT yield a valid value.
               //          The consumer cannot proceed.
-              (_: Expr) => NNone
+              (_: Expr) => NNone()
             ),
             // CASE 2: Consumer is not reading from producer.
             //         Proceed as usual.
@@ -1076,6 +1089,7 @@ object StmBuild {
   ): StmBuild = new StmBuild(Missing, n, output, equations)
 }
 
+// TODO: Lower this after type checking?
 case class StmLength(typ: Type, stream: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -1144,6 +1158,7 @@ case object VecAccess {
   def apply(v: Expr, i: Expr): VecAccess = new VecAccess(Missing, v, i)
 }
 
+// TODO: Lower this after type checking?
 case class VecLength(typ: Type, vec: Expr) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
