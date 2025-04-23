@@ -206,7 +206,7 @@ class StreamTests extends AnyFunSuite {
         val acc = Param("acc")
         StmBuild(
           3,
-          SSome(Tuple(i, acc)()),
+          SSome(Tuple(i, acc)())(),
           Map[Param, (Expr, Expr)](
             acc -> (i, acc + 3)
           )
@@ -354,7 +354,7 @@ class StreamTests extends AnyFunSuite {
       Seq(2, 3, 4),
       Seq(3, 4, 5)
     ).map(xs => xs.map(x => IntCst(x)))
-    assertStreamEqual(Let(p, StmCount2D(4, 3), s), expected.flatten)
+    assertStreamEqual(Let(p, StmCount2D(4, 3), s)(), expected.flatten)
   }
 
   test("StmMap:2D-2D:StmScanInclusive") {
@@ -1684,10 +1684,10 @@ class StreamTests extends AnyFunSuite {
     // Correctness
     val v0 = VecBuild(6, (i: Expr) => i + 2)()
     val expected0 = StmLiteral(VecLiteral(2, 3, 4, 5, 6, 7)())()
-    assert(ir.eval(Let(p, v0, actual)) == expected0)
+    assert(ir.eval(Let(p, v0, actual)()) == expected0)
     val v1 = VecBuild(6, (i: Expr) => i * i)()
     val expected1 = StmLiteral(VecLiteral(0, 1, 4, 9, 16, 25)())()
-    assert(ir.eval(Let(p, v1, actual)) == expected1)
+    assert(ir.eval(Let(p, v1, actual)()) == expected1)
   }
 
   test("Stm2Vec2Stm") {
@@ -1703,10 +1703,10 @@ class StreamTests extends AnyFunSuite {
     // Correctness
     val s0 = StmCount(6)
     val expected0 = Seq(0, 1, 2, 3, 4, 5).map(n => IntCst(n))
-    assertStreamEqual(Let(p, s0, actual), expected0)
+    assertStreamEqual(Let(p, s0, actual)(), expected0)
     val s1 = StmCst(6, 42)
     val expected1 = Seq(42, 42, 42, 42, 42, 42).map(n => IntCst(n))
-    assertStreamEqual(Let(p, s1, actual), expected1)
+    assertStreamEqual(Let(p, s1, actual)(), expected1)
 
     // Effective simplification
     // TODO: Check that Sm2Vec and Vec2Stm cancel out
@@ -2245,7 +2245,7 @@ class StreamTests extends AnyFunSuite {
     val a = StmCount(4)
     val b = {
       val b = Param("b")
-      StmBuild(4, SSome(b), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
+      StmBuild(4, SSome(b)(), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val expected =
       StmLiteral(
@@ -2385,10 +2385,10 @@ class StreamTests extends AnyFunSuite {
     val elems = (0 until 6).map(x => IntCst(x))
 
     // Correctness
-    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 1))), elems)
-    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 2))), elems)
-    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 3))), elems)
-    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 6))), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 1)))(), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 2)))(), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 3)))(), elems)
+    assertStreamEqual(Let(p, s, StmJoin(StmSplit(p, 6)))(), elems)
     // Efficiency
     assert(StmJoin(StmSplit(p, 1)) == p)
     assert(StmJoin(StmSplit(p, 2)) == p)
@@ -2409,7 +2409,7 @@ class StreamTests extends AnyFunSuite {
     )
 
     // Correctness
-    assertStreamEqual(Let(p, s, StmSplit(StmJoin(p), 2)), expected)
+    assertStreamEqual(Let(p, s, StmSplit(StmJoin(p), 2))(), expected)
     // Efficiency
     assert(StmSplit(StmJoin(p), 2) == p)
   }
@@ -2643,7 +2643,7 @@ class StreamTests extends AnyFunSuite {
 
     // Correctness
     val actual =
-      Let(n, 4, Let(m, 3, Let(s, StmCount2D(4, 3), transposed)))
+      Let(n, 4, Let(m, 3, Let(s, StmCount2D(4, 3), transposed)())())()
     assert(ir.eval(actual) == expected)
     // Performance
     // TODO: Look at how good the hardware is.
@@ -2665,7 +2665,7 @@ class StreamTests extends AnyFunSuite {
     )()
 
     // Correctness
-    assert(ir.eval(Let(p, input, s)) == expected)
+    assert(ir.eval(Let(p, input, s)()) == expected)
     // Performance
     // TODO: Look at how good the hardware is.
     //       It is possible to implement this without any vectors or memory in

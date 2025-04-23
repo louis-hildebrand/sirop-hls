@@ -36,7 +36,7 @@ private object Helpers {
           Missing,
           StmBuild(
             1,
-            SSome(f.body.substitute(f.param -> StmNext(s)().__1)),
+            SSome(f.body.substitute(f.param -> StmNext(s)().__1))(),
             Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
           )()
         )()
@@ -112,7 +112,7 @@ private object Helpers {
         Missing,
         StmBuild(
           outShape.getOrElse(IntCst(1)),
-          SSome(StmNext(s)().__1),
+          SSome(StmNext(s)().__1)(),
           Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
         )()
       )()
@@ -142,7 +142,7 @@ object Iterate {
     }
     val s = StmBuild(
       1,
-      IfThenElse(i === 0, SSome(accExpanded), NNone(???)),
+      IfThenElse(i === 0, SSome(accExpanded)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         i -> (n, IfThenElse(i === 0, 0, i - 1)),
         acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)()))
@@ -154,7 +154,7 @@ object Iterate {
 
 object StmCst {
   def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
-    StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())()
+    StmBuild(n, SSome(c)(), Map[Param, (Expr, Expr)]())()
   }
 }
 
@@ -182,13 +182,13 @@ object StmRange {
     */
   def apply(n: Expr, z: Expr, delta: Expr): StmBuild = {
     val a = Param("a")
-    StmBuild(n, SSome(a), Map(a -> (z, a + delta)))()
+    StmBuild(n, SSome(a)(), Map(a -> (z, a + delta)))()
   }
 }
 
 object StmCst2D {
   def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    StmBuild(n * m, SSome(c), Map[Param, (Expr, Expr)]())()
+    StmBuild(n * m, SSome(c)(), Map[Param, (Expr, Expr)]())()
   }
 }
 
@@ -198,7 +198,7 @@ object StmCount2D {
     val j = Param("j")
     StmBuild(
       n * m,
-      SSome(Tuple(i, j)()),
+      SSome(Tuple(i, j)())(),
       Map[Param, (Expr, Expr)](
         i -> (0, IfThenElse(j === m - 1, i + 1, i)),
         j -> (0, IfThenElse(j === m - 1, 0, j + 1))
@@ -303,7 +303,7 @@ object StmAccess {
     val j = Param("j") // index within row
     StmBuild(
       perRow,
-      IfThenElse(i === k, SSome(StmNext(s)().__1), NNone(???)),
+      IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -383,10 +383,10 @@ object StmScanInclusive {
     }
     val acc = Param("acc")
     val nextAcc =
-      OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)
+      OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)()
     val outerStm = StmBuild(
       stmShape.head,
-      IfThenElse(shouldReset, SSome(nextAcc), NNone(???)),
+      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(???)),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
@@ -449,7 +449,7 @@ object Vec2Stm {
     val i = Param("i")
     StmBuild(
       n,
-      SSome(VecAccess(v, i)()),
+      SSome(VecAccess(v, i)())(),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
     )()
   }
@@ -506,7 +506,7 @@ object StmPrefix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i < k, SSome(StmNext(s)().__1), NNone(???)),
+      IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -542,7 +542,7 @@ object StmSuffix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i >= n - k, SSome(StmNext(s)().__1), NNone(???)),
+      IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
@@ -607,7 +607,7 @@ object StmConcat {
     val i = Param("i")
     StmBuild(
       n1 + n2,
-      SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1)),
+      SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1))(),
       Map[Param, (Expr, Expr)](
         i -> (0, IfThenElse(i === n1, i, i + 1)),
         s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0)().__0)),
@@ -627,7 +627,7 @@ object StmZip {
     val s1 = Param("s1")
     StmBuild(
       StmLength(a)(),
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)()),
+      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
       Map[Param, (Expr, Expr)](
         s0 -> (a, StmNext(s0)().__0),
         s1 -> (b, StmNext(s1)().__0)
@@ -647,7 +647,7 @@ object StmZipAlternating {
     val s1 = Param("b")
     StmBuild(
       StmLength(a)(),
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)()),
+      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
       Map(
         s0 -> (a, StmNext(s1)().__0),
         s1 -> (b, StmNext(s0)().__0)
@@ -670,7 +670,7 @@ object StmRepeat {
       (v: Expr) =>
         StmBuild(
           n * m,
-          SSome(VecAccess(v, i)()),
+          SSome(VecAccess(v, i)())(),
           Map[Param, (Expr, Expr)](
             i -> (0, IfThenElse(i + 1 === n, 0, i + 1))
           )
@@ -748,7 +748,7 @@ object StmSlideV {
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
         //         Produce output.
-        SSome(VecShiftLeft(v, StmNext(s)().__1)),
+        SSome(VecShiftLeft(v, StmNext(s)().__1))(),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
         NNone(???)

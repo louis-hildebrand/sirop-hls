@@ -282,7 +282,7 @@ object PartialEvalPass {
             None
         }
         onlyElem match {
-          case Some(e) => StmBuild(1, SSome(e), Map[Param, (Expr, Expr)]())()
+          case Some(e) => StmBuild(1, SSome(e)(), Map[Param, (Expr, Expr)]())()
           case None    =>
             // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
             // evaluator is waaaay too slow. In many cases, it's not needed.

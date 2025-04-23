@@ -67,7 +67,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")
     val s = StmBuild(
       10,
-      SSome(Tuple(a >= 0, a < 4)()),
+      SSome(Tuple(a >= 0, a < 4)())(),
       Map(a -> (IntCst(0), a + 1))
     )()
     val e = Tuple(a < 4, s)()
@@ -82,7 +82,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       True,
       StmBuild(
         10,
-        SSome(Tuple(True, a < 4)()),
+        SSome(Tuple(True, a < 4)())(),
         Map(a -> (IntCst(0), a + 1))
       )()
     )()
@@ -168,7 +168,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a), NNone(???)),
+      IfThenElse(a >= z, SSome(a)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         a -> (z, IfThenElse(a >= z, a + 3, a - 1))
       )
@@ -176,7 +176,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
-      SSome(a),
+      SSome(a)(),
       Map[Param, (Expr, Expr)](
         a -> (z, a + 3)
       )
@@ -190,13 +190,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a1 = Param("a")
     val s = StmBuild(
       1,
-      SSome(a0),
+      SSome(a0)(),
       Map[Param, (Expr, Expr)](
         a0 -> (z, a0 + a1 + a1),
         a1 -> (0, a1 + a0)
       )
     )()
-    val expected = StmBuild(1, SSome(z))()
+    val expected = StmBuild(1, SSome(z)())()
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
@@ -208,7 +208,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")
     val stm = StmBuild(
       1,
-      SSome(StmNext(a)().__1),
+      SSome(StmNext(a)().__1)(),
       Map[Param, (Expr, Expr)](
         a -> (s, StmNext(a)().__0)
       )

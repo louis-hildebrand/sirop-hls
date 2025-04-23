@@ -226,7 +226,7 @@ class VectorTests extends AnyFunSuite {
     val actual = VecTranspose(VecTranspose(x))
 
     // Correctness
-    assert(ir.eval(Let(x, v, actual)) == expected)
+    assert(ir.eval(Let(x, v, actual)()) == expected)
     // Effective simplification
     for (i <- (0 until 4)) {
       for (j <- (0 until 3)) {

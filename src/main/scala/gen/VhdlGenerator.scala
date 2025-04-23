@@ -99,8 +99,8 @@ private case class VhdlComponent(
 
 object VhdlGenerator {
   def makeVhdl(s: StmBuild, dir: Path): Int = {
-    val valid = PartialEvalPass.partialEval(IsSome(s.output))
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output))
+    val valid = PartialEvalPass.partialEval(IsSome(s.output)())
+    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
     val (typeByVar, outType) = findTypes(s)
     val bitWidth = getBitWidth(outType)
 
@@ -211,8 +211,8 @@ object VhdlGenerator {
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
       case Div(e1, e2) => ???
       case Mod(e1, e2) => ???
-      case True           => ("true", Seq())
-      case False          => ("false", Seq())
+      case True        => ("true", Seq())
+      case False       => ("false", Seq())
       case IfThenElse(c, t, f) =>
         val (cVhdl, cSignals) = makeVhdlExpr(c, MyBool)
         val (tVhdl, tSignals) = makeVhdlExpr(t, typ)
@@ -288,7 +288,7 @@ object VhdlGenerator {
           )
       }
     })
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output))
+    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
     val outType = findType(data, typeByVar) match {
       case Some(t) => t
       case None =>

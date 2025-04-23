@@ -33,7 +33,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a5 = Param("a")
     val s = StmBuild(
       n,
-      SSome(Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)()),
+      SSome(Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)())(),
       Map[Param, (Expr, Expr)](
         // up counter (+1)
         a0 -> (3, a0 + 1),
@@ -56,8 +56,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- 0 to 15) {
       for (deltaVal <- Seq(-42, 0, 42)) {
-        val expected = Let(n, nVal, Let(delta, deltaVal, s))
-        val actual = Let(n, nVal, Let(delta, deltaVal, opt))
+        val expected = Let(n, nVal, Let(delta, deltaVal, s)())()
+        val actual = Let(n, nVal, Let(delta, deltaVal, opt)())()
         assert(ir.eval(expected) == ir.eval(actual))
       }
     }
@@ -75,7 +75,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           -2 + (-6) * t,
           1 + delta * t + t
         )()
-      ),
+      )(),
       Map[Param, (Expr, Expr)](t -> (0, t + 1))
     )()
     assert(opt == ideal)
@@ -88,7 +88,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")
     val triangleSum = StmBuild(
       1,
-      IfThenElse(t >= n, SSome(sum), NNone(???)),
+      IfThenElse(t >= n, SSome(sum)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
         sum -> (0, sum + i),
@@ -101,15 +101,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     for (nVal <- 0 to 10) {
-      val actual = Let(n, nVal, optimized)
-      val expected = Let(n, nVal, triangleSum)
+      val actual = Let(n, nVal, optimized)()
+      val expected = Let(n, nVal, triangleSum)()
       assert(ir.eval(actual) == ir.eval(expected))
     }
 
     // One counter can be removed, but not the sum
     val ideal = StmBuild(
       1,
-      IfThenElse(t >= n, SSome(sum), NNone(???)),
+      IfThenElse(t >= n, SSome(sum)(), NNone(???)),
       Map[Param, (Expr, Expr)](
         sum -> (0, sum + t),
         t -> (0, t + 1)
@@ -125,7 +125,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("a")
     val s = StmBuild(
       n,
-      SSome(VecShiftLeft(v, i)),
+      SSome(VecShiftLeft(v, i))(),
       Map[Param, (Expr, Expr)](
         i -> (100, i + 2),
         v -> (VecBuild(m, (j: Expr) => j)(), VecShiftLeft(v, i))
@@ -135,7 +135,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val actual =
-      (nVal: Int, mVal: Int) => ir.eval(Let(n, nVal, Let(m, mVal, opt)))
+      (nVal: Int, mVal: Int) => ir.eval(Let(n, nVal, Let(m, mVal, opt)())())
     assert(actual(1, 2) == StmLiteral(VecLiteral.ints(1, 100))())
     assert(
       actual(4, 3) == StmLiteral(
@@ -161,7 +161,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a1 = Param("a1")
     val s = StmBuild(
       n,
-      SSome(a1),
+      SSome(a1)(),
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (z, VecBuild(n, (j: Expr) => FunCall(FunCall(f, a0)(), j)())())
@@ -188,8 +188,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (nVal <- nExamples) {
       for (fVal <- fExamples) {
         for (zVal <- zExamples) {
-          val expected = Let(n, nVal, Let(f, fVal, Let(z, zVal, s)))
-          val actual = Let(n, nVal, Let(f, fVal, Let(z, zVal, opt)))
+          val expected = Let(n, nVal, Let(f, fVal, Let(z, zVal, s)())())()
+          val actual = Let(n, nVal, Let(f, fVal, Let(z, zVal, opt)())())()
           assert(ir.eval(expected) == ir.eval(actual))
         }
       }
@@ -216,7 +216,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       n,
       IfThenElse(
         Not(b1)() && (i % 2 === 0),
-        SSome(Tuple(i, b0, b1)()),
+        SSome(Tuple(i, b0, b1)())(),
         NNone(???)
       ),
       Map[Param, (Expr, Expr)](
@@ -233,9 +233,17 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         for (k0Val <- -2 to 2) {
           for (k1Val <- -2 to 2) {
             val expected =
-              Let(n, nVal, Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, s))))
+              Let(
+                n,
+                nVal,
+                Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, s)())())()
+              )()
             val actual =
-              Let(n, nVal, Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, opt))))
+              Let(
+                n,
+                nVal,
+                Let(i0, i0Val, Let(k0, k0Val, Let(k1, k1Val, opt)())())()
+              )()
             assert(
               ir.eval(actual) == ir.eval(expected),
               s"(for n = ${nVal}, i0 = ${i0Val}, k0 = ${k0Val}, k1 = ${k1Val})"
@@ -261,7 +269,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val b = Param("b")
     val s = StmBuild(
       n,
-      SSome(Tuple(i, b)()),
+      SSome(Tuple(i, b)())(),
       Map[Param, (Expr, Expr)](
         i -> (i0, IfThenElse(b, i + delta, i)),
         b -> (True, b && i < k)
@@ -274,9 +282,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       for (i0Val <- -2 to 2) {
         for (kVal <- -2 to 2) {
           val expected =
-            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, s)))
+            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, s)())())()
           val actual =
-            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, opt)))
+            Let(n, nVal, Let(i0, i0Val, Let(k, kVal, opt)())())()
           assert(
             ir.eval(actual) == ir.eval(expected),
             s"(for n = ${nVal}, i0 = ${i0Val}, k = ${kVal})"
@@ -301,7 +309,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")
     val s = StmBuild(
       n,
-      SSome(Tuple(a1 + 2, a2)()),
+      SSome(Tuple(a1 + 2, a2)())(),
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (1, IfThenElse(a0 < k + 1, a1 + 1, a1)),
@@ -313,8 +321,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (kVal <- Seq(-10, -2, -1, 0, 10)) {
-        val expected = Let(n, nVal, Let(k, kVal, s))
-        val actual = Let(n, nVal, Let(k, kVal, opt))
+        val expected = Let(n, nVal, Let(k, kVal, s)())()
+        val actual = Let(n, nVal, Let(k, kVal, opt)())()
         assert(
           ir.eval(actual) == ir.eval(expected),
           s"(for n = $nVal, k = $kVal)"
@@ -338,7 +346,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")
     val s = StmBuild(
       n,
-      SSome(Tuple(3 * a1, 2 * a2)()),
+      SSome(Tuple(3 * a1, 2 * a2)())(),
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (2, IfThenElse(a0 >= k + 2, a1 + 1, a1)),
@@ -350,8 +358,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (kVal <- Seq(-10, -3, -2, -1, 10)) {
-        val expected = Let(n, nVal, Let(k, kVal, s))
-        val actual = Let(n, nVal, Let(k, kVal, opt))
+        val expected = Let(n, nVal, Let(k, kVal, s)())()
+        val actual = Let(n, nVal, Let(k, kVal, opt)())()
         assert(
           ir.eval(actual) == ir.eval(expected),
           s"(for n = $nVal, k = $kVal)"
@@ -373,7 +381,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a1 = Param("a")
     val s = StmBuild(
       n,
-      SSome(2 * a1),
+      SSome(2 * a1)(),
       Map[Param, (Expr, Expr)](
         a0 -> (10, a0 + 1),
         a1 -> (2, IfThenElse(
@@ -387,8 +395,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
-      val expected = Let(n, nVal, s)
-      val actual = Let(n, nVal, opt)
+      val expected = Let(n, nVal, s)()
+      val actual = Let(n, nVal, opt)()
       assert(ir.eval(actual) == ir.eval(expected))
     }
 
@@ -407,7 +415,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")
     val s = StmBuild(
       n,
-      SSome(v),
+      SSome(v)(),
       Map[Param, (Expr, Expr)](
         i -> (2, i + 1),
         v -> (
@@ -421,8 +429,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (mVal <- Seq(0, 1, 2, 5)) {
-        val expected = Let(n, nVal, Let(m, mVal, s))
-        val actual = Let(n, nVal, Let(m, mVal, opt))
+        val expected = Let(n, nVal, Let(m, mVal, s)())()
+        val actual = Let(n, nVal, Let(m, mVal, opt)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -442,7 +450,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")
     val s = StmBuild(
       n,
-      SSome(v),
+      SSome(v)(),
       Map[Param, (Expr, Expr)](
         i -> (7, i + 1),
         v -> (
@@ -456,8 +464,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (mVal <- Seq(0, 1, 2, 5)) {
-        val expected = Let(n, nVal, Let(m, mVal, s))
-        val actual = Let(n, nVal, Let(m, mVal, opt))
+        val expected = Let(n, nVal, Let(m, mVal, s)())()
+        val actual = Let(n, nVal, Let(m, mVal, opt)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -486,7 +494,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
-      val timeFunc = ir.eval(Let(s, sVal, f)).asInstanceOf[Function]
+      val timeFunc = ir.eval(Let(s, sVal, f)()).asInstanceOf[Function]
       assertEquationsEqual(
         TimeRecurrence(sVal, recEqn),
         FunctionOfTime(timeFunc),
@@ -534,8 +542,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmRange(n, 9, 8)
     )
     for (sVal <- stmExamples) {
-      val recFunc = ir.eval(Let(s, sVal, shiftRecEqn)).asInstanceOf[Function]
-      val timeFunc = ir.eval(Let(s, sVal, f)).asInstanceOf[Function]
+      val recFunc = ir.eval(Let(s, sVal, shiftRecEqn)()).asInstanceOf[Function]
+      val timeFunc = ir.eval(Let(s, sVal, f)()).asInstanceOf[Function]
       assertEquationsEqual(
         TimeRecurrence(initialVec, recFunc),
         FunctionOfTime(timeFunc),
@@ -591,10 +599,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       val timeFunc =
-        ir.eval(Let(s, sVal, Function(t, TyInt, e)())).asInstanceOf[Function]
+        ir.eval(Let(s, sVal, Function(t, TyInt, e)())()).asInstanceOf[Function]
       assertEquationsEqual(
         FunctionOfTime(timeFunc),
-        TimeRecurrence(Let(s, sVal, z), f),
+        TimeRecurrence(Let(s, sVal, z)(), f),
         tMin = 0,
         iterations = n
       )
@@ -633,10 +641,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       val timeFunc =
-        ir.eval(Let(s, sVal, Function(t, TyInt, e)())).asInstanceOf[Function]
+        ir.eval(Let(s, sVal, Function(t, TyInt, e)())()).asInstanceOf[Function]
       assertEquationsEqual(
         FunctionOfTime(timeFunc),
-        TimeRecurrence(Let(s, sVal, z), f),
+        TimeRecurrence(Let(s, sVal, z)(), f),
         tMin = 0,
         // Check even a few cycles after everything is done
         iterations = 2 * n + 2
@@ -677,12 +685,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
         val timeFunc =
-          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())))
+          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())())())
             .asInstanceOf[Function]
-        val recFunc = ir.eval(Let(n, nVal, f)).asInstanceOf[Function]
+        val recFunc = ir.eval(Let(n, nVal, f)()).asInstanceOf[Function]
         assertEquationsEqual(
           FunctionOfTime(timeFunc),
-          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)), recFunc),
+          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)())(), recFunc),
           tMin = 0,
           // Check even a few cycles after everything is done
           iterations = 2 * nVal + 2
@@ -722,12 +730,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
         val timeFunc = ir
-          .eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())))
+          .eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())())())
           .asInstanceOf[Function]
-        val recFunc = ir.eval(Let(n, nVal, f)).asInstanceOf[Function]
+        val recFunc = ir.eval(Let(n, nVal, f)()).asInstanceOf[Function]
         assertEquationsEqual(
           FunctionOfTime(timeFunc),
-          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)), recFunc),
+          TimeRecurrence(Let(n, nVal, Let(s, sVal, z)())(), recFunc),
           tMin = 0,
           // Check even a few cycles after everything is done
           iterations = 2 * nVal + 2
@@ -749,7 +757,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")
     val original = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, t - n)())),
+      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, t - n)())()),
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
         s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)),
@@ -774,8 +782,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(0, 1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, original))
-        val actual = Let(n, nVal, Let(input, exampleStm, opt))
+        val expected = Let(n, nVal, Let(input, exampleStm, original)())()
+        val actual = Let(n, nVal, Let(input, exampleStm, opt)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -785,7 +793,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s1 = Param("s")
     val expected = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(StmNext(s1)().__1)),
+      IfThenElse(t < n, NNone(???), SSome(StmNext(s1)().__1)()),
       Map[Param, (Expr, Expr)](
         s0 -> (input, IfThenElse(t < n, StmNext(s0)().__0, s0)),
         s1 -> (input, IfThenElse(-1 * n + t < 0, s1, StmNext(s1)().__0)),
@@ -803,7 +811,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")
     val original = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, -1 + 2 * n - t)())),
+      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, -1 + 2 * n - t)())()),
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
         s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)),
@@ -827,8 +835,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, original))
-        val actual = Let(n, nVal, Let(input, exampleStm, opt))
+        val expected = Let(n, nVal, Let(input, exampleStm, original)())()
+        val actual = Let(n, nVal, Let(input, exampleStm, opt)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }

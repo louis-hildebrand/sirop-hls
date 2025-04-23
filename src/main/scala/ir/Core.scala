@@ -782,7 +782,7 @@ case class StmBuild(
               // CASE 1b: Producer did NOT yield a valid value.
               //          The consumer cannot proceed.
               (_: Expr) => NNone(consumerTyp.t)
-            ),
+            )(),
             // CASE 2: Consumer is not reading from producer.
             //         Proceed as usual.
             //         It's safe to unwrap the Option<T> here because, if it
@@ -790,7 +790,7 @@ case class StmBuild(
             //         reading a value from the producer without updating the
             //         consumer, which is not allowed.
             consumerStm.output.substitute(
-              StmNext(x)().__1 -> OptionUnwrapUnsafe(producerStm.output)
+              StmNext(x)().__1 -> OptionUnwrapUnsafe(producerStm.output)()
             )
           )
         val producerTyp = {
@@ -819,7 +819,7 @@ case class StmBuild(
                     // CASE 1b: Producer did NOT yield a valid value.
                     //          Wait until it does and do not update accumulators.
                     (_: Expr) => y
-                  )
+                  )()
                     // Need to immediately lower in case this is a stream-valued
                     // accumulator: don't want to introduce an invalid stream
                     // update expression
@@ -886,7 +886,7 @@ case class StmBuild(
         this
     val z = IntCst(0)
     val next =
-      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)
+      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)()
     s.addAccumulator(outCtr, z, next)
   }
 

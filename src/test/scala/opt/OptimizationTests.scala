@@ -28,7 +28,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example input, f, and g)
-    val call = (e: Expr) => Let(input, StmCount(5), e)
+    val call = (e: Expr) => Let(input, StmCount(5), e)()
     val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
@@ -68,7 +68,8 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example input, f, g, and z)
-    val call = (e: Expr) => Let(n, 5, Let(input, StmCount(n), Let(z, 42, e)))
+    val call =
+      (e: Expr) => Let(n, 5, Let(input, StmCount(n), Let(z, 42, e)())())()
     val expected =
       StmLiteral(
         ir.eval(
@@ -107,7 +108,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example input)
-    val call = (e: Expr) => Let(input, StmCount(5), e)
+    val call = (e: Expr) => Let(input, StmCount(5), e)()
     val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
@@ -121,10 +122,10 @@ class OptimizationTests extends AnyFunSuite {
         i === 1,
         IfThenElse(
           j < -1 + StmLength(input)(),
-          SSome(StmNext(s)().__1),
+          SSome(StmNext(s)().__1)(),
           NNone(???)
         ),
-        SSome(42)
+        SSome(42)()
       ),
       Map[Param, (Expr, Expr)](
         s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)),
@@ -145,7 +146,7 @@ class OptimizationTests extends AnyFunSuite {
     val fused = original.asInstanceOf[StmBuild].fuseCompletely()
 
     // Correct behaviour
-    val call = (e: Expr) => Let(input, StmCount(n), e)
+    val call = (e: Expr) => Let(input, StmCount(n), e)()
     val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
@@ -158,8 +159,8 @@ class OptimizationTests extends AnyFunSuite {
         n,
         IfThenElse(
           i === 4,
-          SSome(42),
-          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1))
+          SSome(42)(),
+          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1)())
         ),
         Map[Param, (Expr, Expr)](
           s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)),
@@ -188,7 +189,7 @@ class OptimizationTests extends AnyFunSuite {
     val n0 = 2
     val f0 = (i: Expr) => i + 5
     val expected0 = StmLiteral.ints(5, 6)
-    val actual0 = (s: Expr) => Let(n, n0, Let(f, f0, s))
+    val actual0 = (s: Expr) => Let(n, n0, Let(f, f0, s)())()
     assert(ir.eval(actual0(s)) == expected0)
     assert(ir.eval(actual0(actual)) == expected0)
     val n1 = 15
@@ -196,7 +197,7 @@ class OptimizationTests extends AnyFunSuite {
     val expected1 = StmLiteral(
       (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
     )()
-    val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s))
+    val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s)())()
     assert(ir.eval(actual1(s)) == expected1)
     assert(ir.eval(actual1(actual)) == expected1)
 
@@ -204,7 +205,7 @@ class OptimizationTests extends AnyFunSuite {
     val i = Param("i")
     val ideal = StmBuild(
       n,
-      SSome(FunCall(f, i)()),
+      SSome(FunCall(f, i)())(),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
     )()
     assert(actual == ideal)
@@ -237,7 +238,7 @@ class OptimizationTests extends AnyFunSuite {
           StmLiteral(
             VecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)()
           )()
-        val actual = Let(n, nVal, Let(c, cVal, v))
+        val actual = Let(n, nVal, Let(c, cVal, v)())()
         assert(ir.eval(actual) == expected)
       }
     }
@@ -270,13 +271,13 @@ class OptimizationTests extends AnyFunSuite {
         for (deltaVal <- -5 to 5) {
           val expected = {
             val elems =
-              ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, s))))
+              ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, s)())())())
                 .asInstanceOf[StmLiteral]
                 .elems
             StmLiteral(VecLiteral(elems: _*)())()
           }
           val actual =
-            ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
+            ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v)())())())
           assert(ir.eval(actual) == expected)
         }
       }
@@ -324,8 +325,8 @@ class OptimizationTests extends AnyFunSuite {
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, nVal, Let(s, stm, original))
-        val actual = Let(n, nVal, Let(s, stm, optimized))
+        val expected = Let(n, nVal, Let(s, stm, original)())()
+        val actual = Let(n, nVal, Let(s, stm, optimized)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -334,7 +335,7 @@ class OptimizationTests extends AnyFunSuite {
     val a = Param("a")
     val identity = StmBuild(
       n,
-      SSome(StmNext(a)().__1),
+      SSome(StmNext(a)().__1)(),
       Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
     )()
     assert(optimized == identity)
@@ -362,8 +363,8 @@ class OptimizationTests extends AnyFunSuite {
     )
     for (vec <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, nVal, Let(v, vec, original))
-        val actual = Let(n, nVal, Let(v, vec, optimized))
+        val expected = Let(n, nVal, Let(v, vec, original)())()
+        val actual = Let(n, nVal, Let(v, vec, optimized)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -414,8 +415,8 @@ class OptimizationTests extends AnyFunSuite {
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, nVal, Let(s, stm, original))
-        val actual = Let(n, nVal, Let(s, stm, optimized))
+        val expected = Let(n, nVal, Let(s, stm, original)())()
+        val actual = Let(n, nVal, Let(s, stm, optimized)())()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -425,7 +426,7 @@ class OptimizationTests extends AnyFunSuite {
     val a = Param("a")
     val identity = StmBuild(
       n,
-      SSome(StmNext(a)().__1),
+      SSome(StmNext(a)().__1)(),
       Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
     )()
     assert(optimized == identity)
@@ -472,8 +473,8 @@ class OptimizationTests extends AnyFunSuite {
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
         for (mVal <- Seq(1, 2, 10)) {
-          val expected = Let(n, nVal, Let(m, mVal, Let(s, stm, original)))
-          val actual = Let(n, nVal, Let(m, mVal, Let(s, stm, optimized)))
+          val expected = Let(n, nVal, Let(m, mVal, Let(s, stm, original)())())()
+          val actual = Let(n, nVal, Let(m, mVal, Let(s, stm, optimized)())())()
           assert(ir.eval(actual) == ir.eval(expected))
         }
       }

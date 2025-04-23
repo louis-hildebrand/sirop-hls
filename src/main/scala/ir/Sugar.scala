@@ -1,11 +1,12 @@
 package ir
 
-case class Let(typ: Type, x: Param, v: Expr, in: Expr) extends SyntaxSugar {
+case class Let(x: Param, v: Expr, in: Expr)(val typ: Type = Missing)
+    extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(x, v, in)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, v, in) => Let(typ, x, v, in)
+      case Seq(x: Param, v, in) => Let(x, v, in)(typ)
       case _                    => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -18,25 +19,12 @@ case class Let(typ: Type, x: Param, v: Expr, in: Expr) extends SyntaxSugar {
     val newV = tc(v)(context)
     val newIn = tc(in)(context + (x -> newV.typ))
     val newX = x.rebuild(newV.typ).asInstanceOf[Param]
-    Let(newIn.typ, newX, newV, newIn)
+    Let(newX, newV, newIn)(newIn.typ)
   }
 
   override def lower(): Expr = {
     FunCall(Function(x, v.typ, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Let => (this.x, this.v, this.in) == (that.x, that.v, that.in)
-      case _         => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.x, this.v, this.in).hashCode
-  }
-}
-case object Let {
-  def apply(x: Param, v: Expr, in: Expr): Let = Let(Missing, x, v, in)
 }
 
 // Default value for a given datatype (zero for int, false for bool, tuple of
@@ -61,16 +49,6 @@ case class Default(typ: Type) extends SyntaxSugar {
   }
 
   override def lower(): Expr = Default.getDefault(this.typ)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Default => this.typ == that.typ
-      case _             => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.typ.hashCode
-  }
 }
 case object Default {
   private def getDefault(typ: Type): Expr = {
@@ -124,13 +102,13 @@ case class NNone(innerTyp: Type) extends SyntaxSugar {
   }
 }
 
-case class SSome(typ: Type, e: Expr /* T */ ) /* Option<T> */
+case class SSome(e: Expr /* T */ )(val typ: Type = Missing) /* Option<T> */
     extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(e)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => SSome(typ, e)
+      case Seq(e) => SSome(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -147,34 +125,20 @@ case class SSome(typ: Type, e: Expr /* T */ ) /* Option<T> */
   override def lower(): Expr = {
     Tuple(e, True)(this.typ)
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: SSome => this.e == that.e
-      case _           => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.e.hashCode
-  }
-}
-case object SSome {
-  def apply(e: Expr): Expr = SSome(Missing, e)
 }
 
 case class OptionAccess(
-    typ: Type,
     e: Expr /* Option<T> */,
     s: Function /* T -> V */,
     n: Function /* () -> V */
-) /* V */
+)(val typ: Type = Missing) /* V */
     extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(e, s, n)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e, s: Function, n: Function) =>
-        OptionAccess(typ, e, s, n)
+        OptionAccess(e, s, n)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -232,30 +196,15 @@ case class OptionAccess(
       )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: OptionAccess =>
-        (this.e, this.s, this.n) == (that.e, that.s, that.n)
-      case _ => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.e, this.s, this.n).hashCode
-  }
-}
-case object OptionAccess {
-  def apply(e: Expr, s: Function, n: Function): Expr = {
-    OptionAccess(Missing, e, s, n)
-  }
 }
 
-case class OptionUnwrapUnsafe(typ: Type, e: Expr) extends SyntaxSugar {
+case class OptionUnwrapUnsafe(e: Expr)(val typ: Type = Missing)
+    extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(e)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => OptionUnwrapUnsafe(typ, e)
+      case Seq(e) => OptionUnwrapUnsafe(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -287,27 +236,14 @@ case class OptionUnwrapUnsafe(typ: Type, e: Expr) extends SyntaxSugar {
       e.__0
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: OptionUnwrapUnsafe => this.e == that.e
-      case _                        => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.e.hashCode
-  }
-}
-case object OptionUnwrapUnsafe {
-  def apply(e: Expr): OptionUnwrapUnsafe = OptionUnwrapUnsafe(Missing, e)
 }
 
-case class IsNone(typ: Type, e: Expr) extends SyntaxSugar {
+case class IsNone(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(e)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => IsNone(typ, e)
+      case Seq(e) => IsNone(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -328,29 +264,14 @@ case class IsNone(typ: Type, e: Expr) extends SyntaxSugar {
   override def lower(): Expr = {
     Not(TupleAccess(e, 1)(TyBool))(TyBool)
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: IsNone => this.e == that.e
-      case _            => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.e.hashCode
-  }
-}
-case object IsNone {
-  def apply(e: Expr): Expr = {
-    IsNone(Missing, e)
-  }
 }
 
-case class IsSome(typ: Type, e: Expr) extends SyntaxSugar {
+case class IsSome(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
   override def children: Seq[Expr] = Seq(e)
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => IsSome(typ, e)
+      case Seq(e) => IsSome(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -370,20 +291,5 @@ case class IsSome(typ: Type, e: Expr) extends SyntaxSugar {
 
   override def lower(): Expr = {
     TupleAccess(e, 1)(TyBool)
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: IsSome => this.e == that.e
-      case _            => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.e.hashCode
-  }
-}
-case object IsSome {
-  def apply(e: Expr): Expr = {
-    IsSome(Missing, e)
   }
 }
