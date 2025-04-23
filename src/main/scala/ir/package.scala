@@ -7,7 +7,7 @@ package object ir extends Eval {
 
   implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
     val p = Param("x")()
-    Function(p, Missing, sl(p))()
+    Function(p, sl(p))()
   }
 
   implicit def scalaUnaryLambdaToAnnotatedFunction(
@@ -15,7 +15,7 @@ package object ir extends Eval {
   ): Function = {
     val x = Param("x")()
     val (t, e) = sl(x)
-    Function(x, t, e)()
+    Function(x.rebuild(t), e)()
   }
 
   implicit def scalaBinaryLambdaToFunction(
@@ -23,6 +23,6 @@ package object ir extends Eval {
   ): Function = {
     val p1 = Param("x")()
     val p2 = Param("y")()
-    Function(p1, Missing, Function(p2, Missing, sl(p1)(p2))())()
+    Function(p1, Function(p2, sl(p1)(p2))())()
   }
 }

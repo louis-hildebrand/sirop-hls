@@ -41,9 +41,9 @@ object PrettyPrinter {
           case Some(name) => name
           case None       => p.toString
         }
-      case Function(p, t, b) =>
+      case Function(p, b) =>
         val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
-        val tStr = show(t)
+        val tStr = show(p.typ)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
           s"""(${pStr} : $tStr) =>
@@ -156,8 +156,8 @@ object PrettyPrinter {
             s"TupleAccess(${showScala(t)},${showScala(i)})"
         }
       case p: Param => p.name
-      case Function(param, inTyp, body) =>
-        s"(${param.name}: Expr) => (${showScala(inTyp)}, ${showScala(body)})"
+      case Function(param, body) =>
+        s"{ val ${param.name} = Param(${param.prefix})(${param.typ}) ; Function(${param.name}, ${showScala(body)}) }"
       case FunCall(f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})"
       case IntCst(i) => i.toString

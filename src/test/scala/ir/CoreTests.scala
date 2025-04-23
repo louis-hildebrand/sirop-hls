@@ -56,10 +56,9 @@ class CoreTests extends AnyFunSuite {
       StmNext(y)().__1,
       Function(
         x,
-        Missing,
         Tuple(
           StmNext(y)().__1 + 2,
-          Function(y, Missing, StmNext(y)().__1 * 3)()
+          Function(y, StmNext(y)().__1 * 3)()
         )()
       )()
     )()
@@ -71,11 +70,7 @@ class CoreTests extends AnyFunSuite {
       // (2) Must NOT replace the StmNext(y).__1 in the innermost function
       //     because that occurrence of y is referring to the function
       //     parameter, not y in the global scope.
-      Function(
-        x2,
-        Missing,
-        Tuple(x % 2 + 2, Function(y, Missing, StmNext(y)().__1 * 3)())()
-      )()
+      Function(x2, Tuple(x % 2 + 2, Function(y, StmNext(y)().__1 * 3)())())()
     )()
     assert(actual == expected)
   }
@@ -126,12 +121,12 @@ class CoreTests extends AnyFunSuite {
 
   test("Function:Equals") {
     val f = {
-      val x = Param("x")()
-      Function(x, TyInt, (x + 1) * (x + 2))()
+      val x = Param("x")(TyInt)
+      Function(x, (x + 1) * (x + 2))()
     }
     val g = {
       val y = Param("y")()
-      Function(y, Missing, (y + 1) * (y + 2))()
+      Function(y, (y + 1) * (y + 2))()
     }
     assert(f == g)
     assert(g == f)
@@ -139,10 +134,10 @@ class CoreTests extends AnyFunSuite {
   }
 
   test("Function:NotEquals:DifferentBody") {
-    val x = Param("x")()
-    val f = Function(x, TyInt, (x + 1) * (x + 2))()
-    val y = Param("y")()
-    val g = Function(y, TyInt, (y + 1) * (x + 2))()
+    val x = Param("x")(TyInt)
+    val f = Function(x, (x + 1) * (x + 2))()
+    val y = Param("y")(TyInt)
+    val g = Function(y, (y + 1) * (x + 2))()
     assert(f != g)
     assert(g != f)
   }
@@ -541,10 +536,10 @@ class CoreTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
-      SSome(Tuple(a, b, FunCall(Function(c, Missing, c)(), 42)(), outside)())(),
+      SSome(Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)())(),
       Map[Param, (Expr, Expr)](
         a -> (b, a + 1 + outside),
-        b -> (0, b + c + FunCall(Function(a, Missing, a)(), 1)()),
+        b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
         c -> (1, b * b)
       )
     )()
@@ -573,10 +568,10 @@ class CoreTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
-      SSome(Tuple(a, b, FunCall(Function(c, Missing, c)(), 42)(), outside)())(),
+      SSome(Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)())(),
       Map[Param, (Expr, Expr)](
         a -> (b, a + 1 + outside),
-        b -> (0, b + c + FunCall(Function(a, Missing, a)(), 1)()),
+        b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
         c -> (1, b * b)
       )
     )()

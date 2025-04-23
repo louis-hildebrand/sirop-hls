@@ -39,7 +39,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
         (t.t1, t.t2)
       }
       val i = Param("i")(TyInt)
-      val g = Function(i, TyInt, FunCall(f, VecAccess(v, i)(t1))(t2))(
+      val g = Function(i, FunCall(f, VecAccess(v, i)(t1))(t2))(
         TyArrow(TyInt, t2)
       )
       VecBuild(VecLength(v)(TyInt), g)(this.typ)
@@ -187,7 +187,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
       val n = this.v.typ.asInstanceOf[TyVec].n
       val i = Param("i")(TyInt)
       val f =
-        Function(i, TyInt, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t))())(
+        Function(i, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t))())(
           TyArrow(TyInt, t)
         )
       VecBuild(n + 1, f)(this.typ)
@@ -234,10 +234,9 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     } else {
       val t = this.v.typ.asInstanceOf[TyVec].t
       val n = this.v.typ.asInstanceOf[TyVec].n
-      // TODO: yuck, let Param take a type annotation as input
-      val i = Param("i")().rebuild(TyInt).asInstanceOf[Param]
+      val i = Param("i")(TyInt).rebuild(TyInt)
       val f =
-        Function(i, TyInt, IfThenElse(i === n, e, VecAccess(v, i)(t))())(
+        Function(i, IfThenElse(i === n, e, VecAccess(v, i)(t))())(
           TyArrow(TyInt, t)
         )
       VecBuild(n + 1, f)(this.typ)

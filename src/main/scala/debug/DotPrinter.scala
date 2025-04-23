@@ -466,7 +466,7 @@ object DotPrinter {
           case None =>
             DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i, scope))), scope)
         }
-      case Function(p, _, body) =>
+      case Function(p, body) =>
         val funcScope = FunctionScope(DotNode.freshId(), parent = scope)
         val pDot = DotParam("", funcScope)
         DotFunction(

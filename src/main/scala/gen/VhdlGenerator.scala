@@ -245,7 +245,7 @@ object VhdlGenerator {
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
       case Tuple(elems @ _*)              => ???
       case TupleAccess(t, i)              => ???
-      case Function(x, _, e)              => ???
+      case Function(x, e)              => ???
       case FunCall(f, arg)                => ???
       case StmBuild(n, output, equations) => ???
       case StmNext(stream)                => ???

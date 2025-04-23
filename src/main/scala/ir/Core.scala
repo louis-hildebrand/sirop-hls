@@ -55,10 +55,14 @@ sealed trait Expr {
           case Some(t) => x.rebuild(t)
           case None    => throw new TypeError(s"Free variable: $x.")
         }
-      case Function(x, t, body) =>
+      case Function(x, body) =>
+        val t = x.typ match {
+          case Missing =>
+            throw new TypeError(s"Missing function input type annotation.")
+          case t => t
+        }
         val newBody = body.tchk(context + (x -> t))
-        val newX = x.rebuild(t).asInstanceOf[Param]
-        Function(newX, t, newBody)(TyArrow(t, newBody.typ))
+        Function(x, newBody)(TyArrow(t, newBody.typ))
       case fc @ FunCall(f, arg) =>
         val newF = f.tchk
         val newArg = arg.tchk
@@ -211,8 +215,9 @@ sealed trait Expr {
           case t     => throw new TypeError(s"Length of VecBuild has type $t.")
         }
         val newF = f match {
-          case Function(x, Missing, e) => Function(x, TyInt, e)().tchk
-          case f                       => f.tchk
+          case Function(x, e) if x.typ == Missing =>
+            Function(x.rebuild(TyInt).asInstanceOf[Param], e)().tchk
+          case f => f.tchk
         }
         // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
         val vecT = newF.typ match {
@@ -367,11 +372,7 @@ sealed trait Expr {
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
               val renamed = f.renameVar
-              Function(
-                renamed.param,
-                f.inputTyp,
-                renamed.body.substitute(subs)
-              )()
+              Function(renamed.param, renamed.body.substitute(subs))()
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
@@ -395,8 +396,8 @@ sealed trait Expr {
 
   def freeVars(): Set[Param] = {
     this match {
-      case x: Param          => Set(x)
-      case Function(x, _, e) => e.freeVars() - x
+      case x: Param       => Set(x)
+      case Function(x, e) => e.freeVars() - x
       case stm @ StmBuild(n, out, eqns) =>
         (
           // Free variables in the stream length and seeds are definitely free,
@@ -507,10 +508,13 @@ case class Param(prefix: String, id: Long)(val typ: Type) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Param = {
     require(newChildren.isEmpty)
     Param(this.prefix, this.id)(typ)
   }
+  override def rebuild(newChildren: Seq[Expr]): Param =
+    rebuild(Missing, newChildren)
+  override def rebuild(typ: Type): Param = rebuild(typ, this.children)
 
   def freshCopy: Param = Param(this.prefix)(this.typ)
 
@@ -524,27 +528,13 @@ case object Param {
   }
 }
 
-case class Function(param: Param, inputTyp: Type, body: Expr)(
+case class Function(param: Param, body: Expr)(
     val typ: Type = Missing
 ) extends Expr {
-  // NOTE: it doesn't work to have a field called `outputTyp` and let `typ`
-  //       always be `TyArrow(inputTyp, outputTyp)` because this may lead to
-  //       violations of the constraint that a typed node has typed children.
-  if (typ != Missing) {
-    assert(
-      typ.isInstanceOf[TyArrow],
-      "the type of a function must be an arrow type"
-    )
-    assert(
-      typ.asInstanceOf[TyArrow].t1 == inputTyp,
-      "the input type of a function must agree with its type annotation"
-    )
-  }
-
   override def children: Seq[Expr] = Seq(param, body)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, body: Expr) => Function(x, inputTyp, body)(typ)
+      case Seq(x: Param, body: Expr) => Function(x, body)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -553,11 +543,8 @@ case class Function(param: Param, inputTyp: Type, body: Expr)(
     */
   def renameVar: Function = {
     val newParam = this.param.freshCopy
-    Function(
-      newParam,
-      inputTyp,
-      this.body.substitute(this.param -> newParam)
-    )(typ)
+    assert(newParam.typ == this.param.typ)
+    Function(newParam, this.body.substitute(this.param -> newParam))(typ)
   }
 
   override def equals(x: Any): Boolean = {

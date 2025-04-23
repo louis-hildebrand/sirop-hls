@@ -90,6 +90,11 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](x.tchk(Map()))
   }
 
+  test("Function:NonUniqueType") {
+    val f: Function = (x: Expr) => x
+    assertThrows[TypeError](f.tchk(Map()))
+  }
+
   test("FunCall:NotFunction") {
     val e = FunCall(IntCst(42), IntCst(43))()
     assertThrows[TypeError](e.tchk(Map()))

@@ -33,7 +33,6 @@ private object Helpers {
         val s = Param("s")()
         Function(
           x /* stream */,
-          Missing,
           StmBuild(
             1,
             SSome(f.body.substitute(f.param -> StmNext(s)().__1))(),
@@ -82,7 +81,6 @@ private object Helpers {
         })
         val newF = Function(
           input /* stream */,
-          Missing,
           StmBuild(
             stm.n,
             stm.output.substitute(subs),
@@ -109,7 +107,6 @@ private object Helpers {
       val s = Param("s")()
       Function(
         x,
-        Missing,
         StmBuild(
           outShape.getOrElse(IntCst(1)),
           SSome(StmNext(s)().__1)(),

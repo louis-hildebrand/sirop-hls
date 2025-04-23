@@ -19,7 +19,7 @@ case class Let(x: Param, v: Expr, in: Expr)(val typ: Type = Missing)
   }
 
   override def lower(): Expr = {
-    FunCall(Function(x, v.typ, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
+    FunCall(Function(x, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
   }
 }
 
@@ -133,13 +133,13 @@ case class OptionAccess(
       case TyTuple(t, TyBool) => t
       case t => throw new TypeError(s"Target of OptionAccess has type $t.")
     }
-    val newS = Function(s.param, innerTyp, s.body)().tchk(context)
+    val newS = Function(s.param.rebuild(innerTyp), s.body)().tchk(context)
     val sOut = newS.typ match {
       case TyArrow(_, t2) => t2
       case _ =>
         throw new TypeError(s"`Some` branch of OptionAccess is not a function.")
     }
-    val newN = Function(n.param, TyTuple(), n.body)().tchk(context)
+    val newN = Function(n.param.rebuild(TyTuple()), n.body)().tchk(context)
     val nOut = newN.typ match {
       case TyArrow(_, t2) => t2
       case _ =>

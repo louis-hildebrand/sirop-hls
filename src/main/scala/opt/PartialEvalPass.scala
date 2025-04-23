@@ -17,11 +17,11 @@ object PartialEvalPass {
   ): Expr = {
     e match {
       case x: Param => x
-      case Function(x, t, body) =>
-        Function(x, t, partialEval(body)(facts.clearRange(x), m))()
+      case Function(x, body) =>
+        Function(x, partialEval(body)(facts.clearRange(x), m))()
       case FunCall(f: Expr, arg: Expr) =>
         partialEval(f) match {
-          case Function(x, _, body) =>
+          case Function(x, body) =>
             val a = partialEval(arg)
             partialEval(body.substitute(x -> a))
           case f => FunCall(f, partialEval(arg))()
@@ -239,11 +239,11 @@ object PartialEvalPass {
           case n =>
             val newFacts = facts.clearRange(f.param).between(f.param, 0, n)
             val newF =
-              Function(f.param, f.inputTyp, partialEval(f.body)(newFacts))()
+              Function(f.param, partialEval(f.body)(newFacts))()
             (n, newF) match {
               case (
                     VecLength(x0: Param),
-                    Function(i0, _, VecAccess(x1: Param, i1: Param))
+                    Function(i0, VecAccess(x1: Param, i1: Param))
                   ) if x0 == x1 && i0 == i1 =>
                 x0
               case _ => VecBuild(n, newF)()
@@ -494,9 +494,9 @@ object PartialEvalPass {
           case (true, false)  => Some(true)
           case (true, true)   => None
         }
-      case TupleAccess(_, _)                => None
-      case FunCall(Function(p, _, body), _) => isBoolExpr(body)
-      case FunCall(_, _)                    => None
+      case TupleAccess(_, _)             => None
+      case FunCall(Function(p, body), _) => isBoolExpr(body)
+      case FunCall(_, _)                 => None
       case IfThenElse(_, t, f) =>
         (isBoolExpr(t), isBoolExpr(f)) match {
           case (None, None) => None

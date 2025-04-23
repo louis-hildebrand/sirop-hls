@@ -54,7 +54,7 @@ object StmAccRemovalPass {
         // duplicates:
         //   x: (0, x + 1)
         //   y: (0, y + 1)
-        (z, Function(x, Missing, next)())
+        (z, Function(x, next)())
       })
       .values
       .map(m => m.keySet)

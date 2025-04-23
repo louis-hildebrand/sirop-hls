@@ -580,14 +580,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            TyInt,
-            PartialEvalPass.partialEval(e)(FactSet().geq(t, 0))
-          )()
+          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))()
         )
     }
 
@@ -599,7 +595,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       val timeFunc =
-        ir.eval(Let(s, sVal, Function(t, TyInt, e)())()).asInstanceOf[Function]
+        ir.eval(Let(s, sVal, Function(t, e)())()).asInstanceOf[Function]
       assertEquationsEqual(
         FunctionOfTime(timeFunc),
         TimeRecurrence(Let(s, sVal, z)(), f),
@@ -622,14 +618,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(
-            t,
-            TyInt,
-            PartialEvalPass.partialEval(e)(FactSet().geq(t, 0))
-          )()
+          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))()
         )
     }
 
@@ -641,7 +633,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       val timeFunc =
-        ir.eval(Let(s, sVal, Function(t, TyInt, e)())()).asInstanceOf[Function]
+        ir.eval(Let(s, sVal, Function(t, e)())()).asInstanceOf[Function]
       assertEquationsEqual(
         FunctionOfTime(timeFunc),
         TimeRecurrence(Let(s, sVal, z)(), f),
@@ -674,10 +666,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(t, TyInt, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
+          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
         )
     }
 
@@ -689,7 +681,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
         val timeFunc =
-          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())())())
+          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, e)())())())
             .asInstanceOf[Function]
         val recFunc = ir.eval(Let(n, nVal, f)()).asInstanceOf[Function]
         assertEquationsEqual(
@@ -719,10 +711,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
-      case (z, Function(t, _, e)) =>
+      case (z, Function(t, e)) =>
         (
           PartialEvalPass.partialEval(z),
-          Function(t, TyInt, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
+          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
         )
     }
 
@@ -734,7 +726,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
         val timeFunc = ir
-          .eval(Let(n, nVal, Let(s, sVal, Function(t, TyInt, e)())())())
+          .eval(Let(n, nVal, Let(s, sVal, Function(t, e)())())())
           .asInstanceOf[Function]
         val recFunc = ir.eval(Let(n, nVal, f)()).asInstanceOf[Function]
         assertEquationsEqual(

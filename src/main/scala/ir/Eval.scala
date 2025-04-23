@@ -52,7 +52,7 @@ trait Eval {
       case f: Function => f
       case FunCall(f, arg) =>
         evalBigStep(f) match {
-          case Function(x, _, body) =>
+          case Function(x, body) =>
             val a = evalBigStep(arg)
             evalBigStep(body.substitute(x -> a))
           case v =>
