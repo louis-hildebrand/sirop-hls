@@ -3,28 +3,108 @@ package operations
 import ir._
 import opt.PartialEvalPass
 
-object VecMap {
-  def apply(input: VecBuild, f: Expr => Expr): VecBuild =
-    VecBuild(VecLength(input)(), (i: Expr) => f(VecAccess(input, i)()))()
+case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
+    val typ: Type = Missing
+) /* Vec<B; n> */
+    extends SyntaxSugar {
+  override def children: Seq[Expr] = Seq(v, f)
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, f) => VecMap(v, f)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      tc: Expr => Map[Param, Type] => Expr,
+      err: String => Nothing
+  ): Expr = {
+    val newV = tc(v)(context)
+    newV.typ match {
+      case TyVec(t1, n) =>
+        val newF = tc(f)(context)
+        newF.typ match {
+          case TyArrow(t, t2) if t.isCompatibleWith(t1) =>
+            this.rebuild(TyVec(t2, n), Seq(newV, newF))
+          case t => err(s"Function of VecMap has type $t.")
+        }
+      case t => err(s"Vector of VecMap has type $t.")
+    }
+  }
+
+  override def lower(): Expr = {
+    if (this.typ == Missing) {
+      VecBuild(VecLength(v)(), (i: Expr) => FunCall(f, VecAccess(v, i)())())()
+    } else {
+      val (t1, t2) = {
+        val t = f.typ.asInstanceOf[TyArrow]
+        (t.t1, t.t2)
+      }
+      // TODO: yuck, let Param take a type annotation as input
+      val i = Param("i").rebuild(TyInt).asInstanceOf[Param]
+      val g = Function(i, TyInt, FunCall(f, VecAccess(v, i)(t1))(t2))(
+        TyArrow(TyInt, t2)
+      )
+      VecBuild(VecLength(v)(TyInt), g)(this.typ)
+    }
+  }
 }
 
-object VecFold {
-  def apply(
-      vec: Expr /* Vec<A> */,
-      z: Expr /*B*/,
-      f: Function /*A -> B -> B*/
-  ): Expr /* B */ = {
+case class VecFold(
+    v: Expr /* Vec<T1; n> */,
+    z: Expr /* T2 */,
+    f: Expr /* T1 -> T2 -> T2 */
+)(val typ: Type = Missing) /* T2 */
+    extends SyntaxSugar {
+  override def children: Seq[Expr] = Seq(v, z, f)
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, z, f) => VecFold(v, z, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      tc: Expr => Map[Param, Type] => Expr,
+      err: String => Nothing
+  ): Expr = {
+    val newV = tc(v)(context)
+    val t1 = newV.typ match {
+      case TyVec(t, _) => t
+      case t           => err(s"Vector in VecFold has type $t.")
+    }
+    val newZ = tc(z)(context)
+    val t2 = newZ.typ
+    val newF = tc(f)(context)
+    newF.typ match {
+      case TyArrow(t3, TyArrow(t4, t5))
+          if t3.isCompatibleWith(t1) && t4.isCompatibleWith(t2) && t5
+            .isCompatibleWith(t2) =>
+        ()
+      case t =>
+        err(
+          s"Function in VecFold has type $t. Expected ${TyArrow(t1, TyArrow(t2, t2))}."
+        )
+    }
+    this.rebuild(t2, Seq(newV, newZ, newF))
+  }
+
+  override def lower(): Expr = {
+    // TODO: Implement this properly (preserving type!) once Iterate() works
     Iterate(
-      VecLength(vec)(),
+      VecLength(v)(TyInt),
       Tuple(z, 0)(),
       (acc: Expr) =>
         Tuple(
-          FunCall(FunCall(f, VecAccess(vec, acc.__1)())(), acc.__0)(),
+          FunCall(FunCall(f, VecAccess(v, acc.__1)())(), acc.__0)(),
           acc.__1 + 1
         )(),
-      // TODO: this assumes `z` in `VecFold` is not a tuple (which happens to be the case in all tests so far)
       zSize = Some(2)
-    ).__0
+    ).__0.lowerAll()
   }
 }
 
@@ -76,29 +156,106 @@ object Vec2Tuple {
   }
 }
 
-object VecPrepend {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n + 1> */ = {
-    val n = VecLength(vec)()
-    VecBuild(
-      n + 1,
-      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())
-    )()
+case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
+    val typ: Type = Missing
+) /* Vec<A; n+1> */
+    extends SyntaxSugar {
+  override def children: Seq[Expr] = Seq(v, e)
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecPrepend(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      tc: Expr => Map[Param, Type] => Expr,
+      err: String => Nothing
+  ): Expr = {
+    val newV = tc(v)(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t           => err(s"Vector of VecPrepend has type $t.")
+    }
+    val newE = tc(e)(context)
+    if (newE.typ.isCompatibleWith(t)) {
+      this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
+    } else {
+      err(s"Element of VecPrepend has type ${newE.typ}. Expected $t.")
+    }
+  }
+
+  override def lower(): Expr = {
+    if (this.typ == Missing) {
+      VecBuild(
+        VecLength(v)() + 1,
+        (i: Expr) => IfThenElse(i === 0, e, VecAccess(v, i + -1)())
+      )()
+    } else {
+      val t = this.v.typ.asInstanceOf[TyVec].t
+      val n = this.v.typ.asInstanceOf[TyVec].n
+      // TODO: yuck, let Param take a type annotation as input
+      val i = Param("i").rebuild(TyInt).asInstanceOf[Param]
+      val f =
+        Function(i, TyInt, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t)))(
+          TyArrow(TyInt, t)
+        )
+      VecBuild(n + 1, f)(this.typ)
+    }
   }
 }
 
-object VecAppend {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n + 1> */ = {
-    val n = VecLength(vec)()
-    VecBuild(
-      n + 1,
-      (i: Expr) => IfThenElse(i === n, e, VecAccess(vec, i)())
-    )()
+case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
+    val typ: Type = Missing
+) /* Vec<A; n+1> */
+    extends SyntaxSugar {
+  override def children: Seq[Expr] = Seq(v, e)
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecAppend(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      tc: Expr => Map[Param, Type] => Expr,
+      err: String => Nothing
+  ): Expr = {
+    val newV = tc(v)(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t           => err(s"Vector of VecAppend has type $t.")
+    }
+    val newE = tc(e)(context)
+    if (newE.typ.isCompatibleWith(t)) {
+      this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
+    } else {
+      err(s"Element of VecAppend has type ${newE.typ}. Expected $t.")
+    }
+  }
+
+  override def lower(): Expr = {
+    if (this.typ == Missing) {
+      val n = VecLength(v)()
+      VecBuild(
+        n + 1,
+        (i: Expr) => IfThenElse(i === n, e, VecAccess(v, i)())
+      )()
+    } else {
+      val t = this.v.typ.asInstanceOf[TyVec].t
+      val n = this.v.typ.asInstanceOf[TyVec].n
+      // TODO: yuck, let Param take a type annotation as input
+      val i = Param("i").rebuild(TyInt).asInstanceOf[Param]
+      val f =
+        Function(i, TyInt, IfThenElse(i === n, e, VecAccess(v, i)(t)))(
+          TyArrow(TyInt, t)
+        )
+      VecBuild(n + 1, f)(this.typ)
+    }
   }
 }
 

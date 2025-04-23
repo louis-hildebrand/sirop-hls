@@ -5,6 +5,7 @@ import scala.annotation.tailrec
 
 // TODO: Delete all the unnecessary equals() and hashCode() methods
 // TODO: Why are some of these classes so complex? Surely I can move the normalization code to the factory method.
+// TODO: Why not just make typecheck() a method in the Expr class?
 
 class BadRebuildError(e: Expr, args: Seq[Expr])
     extends IllegalArgumentException(
@@ -68,6 +69,10 @@ sealed trait Expr {
       case s: SyntaxSugar => s.lower()
       case e              => e
     }
+    // This is required because lowering may be syntax-directed (i.e., an
+    // expression may need to be typed before it can be lowered) and it is no
+    // good if you type check an expression but then the type is removed while
+    // lowering its children.
     assert(fullyDesugared.typ == this.typ, "lowering must preserve type")
     fullyDesugared
   }
@@ -1184,6 +1189,12 @@ trait SyntaxSugar extends Expr {
   ): Expr
 
   /** Desugar this node assuming its children have already been desugared.
+    *
+    * If this expression has already been type checked, this method <i>MUST</i>
+    * preserve the type. This method <i>MAY</i> assume that the expression has
+    * already been type checked, but it is acceptable to gracefully handle the
+    * case where it has not yet been type checked. (This would make it easier to
+    * test expressions where lowering does not require the type.)
     */
   def lower(): Expr
 }

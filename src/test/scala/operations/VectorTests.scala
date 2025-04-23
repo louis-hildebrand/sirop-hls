@@ -3,8 +3,11 @@ package operations
 import ir._
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
+import typecheck.Typechecker
 
 class VectorTests extends AnyFunSuite {
+  def tc(e: Expr, ctx: Map[Param, Type] = Map()): Expr =
+    Typechecker.typecheck(e)(ctx)
 
   test("BuildV_and_Access") {
     val cstVec = VecBuild(2, (i: Expr) => IntCst(7))()
@@ -12,38 +15,29 @@ class VectorTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(VecAccess(cstVec, 1)()) == IntCst(7))
 
     val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)()
-    assert(
-      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 0)()) == IntCst(1)
-    )
-    assert(
-      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 1)()) == IntCst(2)
-    )
-    assert(
-      PartialEvalPass.partialEval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3)
-    )
+    assert(ir.eval(VecAccess(oneTwoThreeVec, 0)()) == IntCst(1))
+    assert(ir.eval(VecAccess(oneTwoThreeVec, 1)()) == IntCst(2))
+    assert(ir.eval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3))
   }
 
   test("Map_and_Access") {
     val v0 = VecBuild(3, (i: Expr) => i + 1)()
-    val v1 = VecMap(v0, (x: Expr) => x * x)
-    assert(PartialEvalPass.partialEval(VecAccess(v1, 0)()) == IntCst(1))
-    assert(PartialEvalPass.partialEval(VecAccess(v1, 1)()) == IntCst(4))
-    assert(PartialEvalPass.partialEval(VecAccess(v1, 2)()) == IntCst(9))
+    val v1 = VecMap(v0, (x: Expr) => x * x)()
+    assert(ir.eval(VecAccess(v1, 0)()) == IntCst(1))
+    assert(ir.eval(VecAccess(v1, 1)()) == IntCst(4))
+    assert(ir.eval(VecAccess(v1, 2)()) == IntCst(9))
   }
 
   test("Fold") {
     val oneTwoThreeVec = VecBuild(3, (i: Expr) => i + 1)()
-    assert(
-      PartialEvalPass.partialEval(
-        VecFold(oneTwoThreeVec, 7, (e1: Expr) => (e2: Expr) => e1 + e2)
-      ) == IntCst(13)
-    )
+    val sum = VecFold(oneTwoThreeVec, 7, (e1: Expr) => (e2: Expr) => e1 + e2)()
+    assert(ir.eval(sum) == IntCst(13))
   }
 
   test("SumRows") {
     val v = VecBuild(3, (i: Expr) => VecBuild(2, (j: Expr) => i + j)())()
     val v2 =
-      VecMap(v, (v: Expr) => VecFold(v, 0, (x: Expr) => (y: Expr) => x + y))
+      VecMap(v, (v: Expr) => VecFold(v, 0, (x: Expr) => (y: Expr) => x + y)())()
     assert(ir.eval(v2) == VecLiteral(1, 3, 5)())
   }
 
@@ -74,13 +68,19 @@ class VectorTests extends AnyFunSuite {
   test("VecPrepend") {
     val v = VecBuild(3, (i: Expr) => i + 5)()
     val e = IntCst(42)
-    assert(ir.eval(VecPrepend(v, e)) == VecLiteral(42, 5, 6, 7)())
+    val actual = VecPrepend(v, e)()
+    val expected = VecLiteral(42, 5, 6, 7)()
+    assert(ir.eval(actual) == expected)
+    assert(ir.eval(tc(actual)) == expected)
   }
 
   test("VecAppend") {
     val v = VecBuild(3, (i: Expr) => i + 5)()
     val e = IntCst(42)
-    assert(ir.eval(VecAppend(v, e)) == VecLiteral(5, 6, 7, 42)())
+    val actual = VecAppend(v, e)()
+    val expected = VecLiteral(5, 6, 7, 42)()
+    assert(ir.eval(actual) == expected)
+    assert(ir.eval(tc(actual)) == expected)
   }
 
   test("VecPrefix") {

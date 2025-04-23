@@ -87,7 +87,7 @@ class DotPrinterTests extends AnyFunSuite {
 
   test("VecMap") {
     val v = VecBuild(3, (i: Expr) => 1 + i * i)()
-    val e = VecMap(VecBuild(3, (i: Expr) => 1 + i * i)(), (x: Expr) => 2 * x)
+    val e = VecMap(VecBuild(3, (i: Expr) => 1 + i * i)(), (x: Expr) => 2 * x)()
     DotPrinter.save(e, "./img/VecMap.dot")
   }
 
