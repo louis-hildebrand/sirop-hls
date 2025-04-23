@@ -411,11 +411,11 @@ object DotPrinter {
       case Or(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("||", labeledTerms, scope)
-      case Not(_, Equal(_, e1, e2)) =>
+      case Not(Equal(e1, e2)) =>
         val left = toDot(e1, scope)
         val right = toDot(e2, scope)
         DotScalar("!=", Seq(("", left), ("", right)), scope)
-      case Not(_, e) =>
+      case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)
       case IfThenElse(c, t, f) =>
@@ -428,18 +428,18 @@ object DotPrinter {
           Seq(("c", cond), ("t", trueVal), ("f", falseVal)),
           scope
         )
-      case Tuple(_, _, elems @ _*) =>
+      case Tuple(_, elems @ _*) =>
         val tupScope = TableScope(DotNode.freshId(), parent = scope)
         DotTuple(
           elems.map(e => toDot(e, tupScope)),
           innerScope = tupScope
         )
-      case VecBuild(_, n, f) =>
+      case VecBuild(n, f) =>
         PartialEvalPass.partialEval(n) match {
           case IntCst(n) =>
             val vecScope = TableScope(DotNode.freshId(), parent = scope)
             val children = (0 until n)
-              .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
+              .map(i => PartialEvalPass.partialEval(FunCall(f, i)()))
               .map(e => toDot(e, vecScope))
             DotTuple(children, innerScope = vecScope)
           case _ =>
@@ -447,7 +447,7 @@ object DotPrinter {
               "Only VecBuild with a constant length is supported."
             )
         }
-      case VecAccess(_, v, i) =>
+      case VecAccess(v, i) =>
         // TODO: Convert vector to tuple ahead of time to avoid code duplication?
         val vDot = toDot(v, scope)
         val dot = vDot match {
@@ -466,7 +466,7 @@ object DotPrinter {
           case None =>
             DotScalar("v[]", Seq(("v", vDot), ("i", toDot(i, scope))), scope)
         }
-      case Function(_, p, _, body) =>
+      case Function(p, _, body) =>
         val funcScope = FunctionScope(DotNode.freshId(), parent = scope)
         val pDot = DotParam("", funcScope)
         DotFunction(
@@ -474,13 +474,13 @@ object DotPrinter {
           toDot(body, funcScope)(params + (p -> pDot)),
           innerScope = funcScope
         )
-      case FunCall(_, f, a) =>
+      case FunCall(f, a) =>
         DotFunCall(
           toDot(f, scope).asInstanceOf[DotFunction],
           toDot(a, scope),
           scope
         )
-      case StmBuild(_, n, z, f) =>
+      case StmBuild(n, z, f) =>
         ???
     }
   }

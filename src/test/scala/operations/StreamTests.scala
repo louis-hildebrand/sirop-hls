@@ -10,7 +10,7 @@ object StreamTests {
     */
   @deprecated
   def stm2Seq(stm: Expr): Seq[Expr] = {
-    val n = PartialEvalPass.partialEval(StmLength(stm)) match {
+    val n = PartialEvalPass.partialEval(StmLength(stm)()) match {
       case IntCst(n) => n
       case e =>
         throw new IllegalArgumentException(
@@ -22,7 +22,7 @@ object StreamTests {
     } else if (n == 0) {
       Seq()
     } else {
-      val next = PartialEvalPass.partialEval(StmNext(stm))
+      val next = PartialEvalPass.partialEval(StmNext(stm)())
       PartialEvalPass.partialEval(next.__1) +: stm2Seq(next.__0)
     }
   }
@@ -32,7 +32,7 @@ class StreamTests extends AnyFunSuite {
 
   @inline
   def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
-    val expected = StmLiteral(expectedSeq: _*)
+    val expected = StmLiteral(expectedSeq: _*)()
     assert(ir.eval(stream) == expected)
   }
 
@@ -42,9 +42,9 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmCst:Tuple") {
-    val c = Tuple(False, 99)
+    val c = Tuple(False, 99)()
     val s = StmCst(3, c)
-    assert(ir.eval(s) == StmLiteral(c, c, c))
+    assert(ir.eval(s) == StmLiteral(c, c, c)())
   }
 
   test("StmCount") {
@@ -73,7 +73,7 @@ class StreamTests extends AnyFunSuite {
       StmLiteral.ints(42, 42, 42, 42),
       StmLiteral.ints(42, 42, 42, 42),
       StmLiteral.ints(42, 42, 42, 42)
-    )
+    )()
     assert(ir.eval(s) == expected.flatten)
   }
 
@@ -81,16 +81,16 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount2D(2, 3)
     val expected = StmLiteral(
       StmLiteral(
-        Tuple(0, 0),
-        Tuple(0, 1),
-        Tuple(0, 2)
-      ),
+        Tuple(0, 0)(),
+        Tuple(0, 1)(),
+        Tuple(0, 2)()
+      )(),
       StmLiteral(
-        Tuple(1, 0),
-        Tuple(1, 1),
-        Tuple(1, 2)
-      )
-    )
+        Tuple(1, 0)(),
+        Tuple(1, 1)(),
+        Tuple(1, 2)()
+      )()
+    )()
     assert(ir.eval(s) == expected.flatten)
   }
 
@@ -107,8 +107,8 @@ class StreamTests extends AnyFunSuite {
       (n: Int) =>
         Iterate(
           n,
-          Tuple(-10),
-          (x: Expr) => Tuple(x.__0 + 2),
+          Tuple(-10)(),
+          (x: Expr) => Tuple(x.__0 + 2)(),
           zSize = Some(1)
         ).__0
     assert(ir.eval(e(0)) == IntCst(-10))
@@ -206,20 +206,20 @@ class StreamTests extends AnyFunSuite {
         val acc = Param("acc")
         StmBuild(
           3,
-          SSome(Tuple(i, acc)),
+          SSome(Tuple(i, acc)()),
           Map[Param, (Expr, Expr)](
             acc -> (i, acc + 3)
           )
-        )
+        )()
       },
       n = 3,
       fInShape = None,
       fOutShape = Some(3)
     )
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 3), Tuple(0, 6)),
-      Seq(Tuple(1, 1), Tuple(1, 4), Tuple(1, 7)),
-      Seq(Tuple(2, 2), Tuple(2, 5), Tuple(2, 8))
+      Seq(Tuple(0, 0)(), Tuple(0, 3)(), Tuple(0, 6)()),
+      Seq(Tuple(1, 1)(), Tuple(1, 4)(), Tuple(1, 7)()),
+      Seq(Tuple(2, 2)(), Tuple(2, 5)(), Tuple(2, 8)())
     )
     assertStreamEqual(s, expected.flatten)
   }
@@ -278,7 +278,8 @@ class StreamTests extends AnyFunSuite {
       fInShape = Some(3),
       fOutShape = Some(1)
     )
-    val expected = Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(3, 1))
+    val expected =
+      Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)(), Tuple(3, 1)())
     assertStreamEqual(s, expected)
   }
 
@@ -291,12 +292,12 @@ class StreamTests extends AnyFunSuite {
       fOutShape = Some(1)
     )
     val expected = StmLiteral(
-      VecLiteral(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-      VecLiteral(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-      VecLiteral(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-      VecLiteral(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2)),
-      VecLiteral(Tuple(4, 0), Tuple(4, 1), Tuple(4, 2))
-    )
+      VecLiteral(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)())(),
+      VecLiteral(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())(),
+      VecLiteral(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())(),
+      VecLiteral(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())(),
+      VecLiteral(Tuple(4, 0)(), Tuple(4, 1)(), Tuple(4, 2)())()
+    )()
 
     assert(ir.eval(s) == expected)
   }
@@ -331,7 +332,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmMap:2D-2D:StmMap") {
-    val p = Param()
+    val p = Param("p")
     val s = StmMap(
       p,
       (s: Expr) =>
@@ -484,10 +485,10 @@ class StreamTests extends AnyFunSuite {
         fOutShape = Some(2)
       )
     val expected = StmLiteral(
-      StmLiteral(Tuple(0, 0), Tuple(0, 1)),
-      StmLiteral(Tuple(1, 0), Tuple(1, 1)),
-      StmLiteral(Tuple(2, 0), Tuple(2, 1))
-    )
+      StmLiteral(Tuple(0, 0)(), Tuple(0, 1)())(),
+      StmLiteral(Tuple(1, 0)(), Tuple(1, 1)())(),
+      StmLiteral(Tuple(2, 0)(), Tuple(2, 1)())()
+    )()
     assert(ir.eval(s) == expected.flatten)
   }
 
@@ -501,29 +502,53 @@ class StreamTests extends AnyFunSuite {
         fOutShape = Some(2)
       )
     val expected = StmLiteral(
-      Tuple(0, 98),
-      Tuple(0, 99),
-      Tuple(1, 98),
-      Tuple(1, 99),
-      Tuple(2, 98),
-      Tuple(2, 99)
-    )
+      Tuple(0, 98)(),
+      Tuple(0, 99)(),
+      Tuple(1, 98)(),
+      Tuple(1, 99)(),
+      Tuple(2, 98)(),
+      Tuple(2, 99)()
+    )()
     assert(ir.eval(s) == expected)
   }
 
   test("StmMap:2D-2D:StmShiftLeft") {
     val s = StmMap(
       StmCount2D(4, 5),
-      (s: Expr) => StmShiftLeft(s, Tuple(100, 101), stmShape = Seq(5)),
+      (s: Expr) => StmShiftLeft(s, Tuple(100, 101)(), stmShape = Seq(5)),
       n = 4,
       fInShape = Some(5),
       fOutShape = Some(5)
     )
     val expected = Seq(
-      Seq(Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4), Tuple(100, 101)),
-      Seq(Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4), Tuple(100, 101)),
-      Seq(Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4), Tuple(100, 101)),
-      Seq(Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4), Tuple(100, 101))
+      Seq(
+        Tuple(0, 1)(),
+        Tuple(0, 2)(),
+        Tuple(0, 3)(),
+        Tuple(0, 4)(),
+        Tuple(100, 101)()
+      ),
+      Seq(
+        Tuple(1, 1)(),
+        Tuple(1, 2)(),
+        Tuple(1, 3)(),
+        Tuple(1, 4)(),
+        Tuple(100, 101)()
+      ),
+      Seq(
+        Tuple(2, 1)(),
+        Tuple(2, 2)(),
+        Tuple(2, 3)(),
+        Tuple(2, 4)(),
+        Tuple(100, 101)()
+      ),
+      Seq(
+        Tuple(3, 1)(),
+        Tuple(3, 2)(),
+        Tuple(3, 3)(),
+        Tuple(3, 4)(),
+        Tuple(100, 101)()
+      )
     )
     assertStreamEqual(s, expected.flatten)
   }
@@ -531,16 +556,40 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:2D-2D:StmShiftRight") {
     val s = StmMap(
       StmCount2D(4, 5),
-      (s: Expr) => StmShiftRight(s, Tuple(100, 101), stmShape = Seq(5)),
+      (s: Expr) => StmShiftRight(s, Tuple(100, 101)(), stmShape = Seq(5)),
       n = 4,
       fInShape = Some(5),
       fOutShape = Some(5)
     )
     val expected = Seq(
-      Seq(Tuple(100, 101), Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-      Seq(Tuple(100, 101), Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-      Seq(Tuple(100, 101), Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-      Seq(Tuple(100, 101), Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3))
+      Seq(
+        Tuple(100, 101)(),
+        Tuple(0, 0)(),
+        Tuple(0, 1)(),
+        Tuple(0, 2)(),
+        Tuple(0, 3)()
+      ),
+      Seq(
+        Tuple(100, 101)(),
+        Tuple(1, 0)(),
+        Tuple(1, 1)(),
+        Tuple(1, 2)(),
+        Tuple(1, 3)()
+      ),
+      Seq(
+        Tuple(100, 101)(),
+        Tuple(2, 0)(),
+        Tuple(2, 1)(),
+        Tuple(2, 2)(),
+        Tuple(2, 3)()
+      ),
+      Seq(
+        Tuple(100, 101)(),
+        Tuple(3, 0)(),
+        Tuple(3, 1)(),
+        Tuple(3, 2)(),
+        Tuple(3, 3)()
+      )
     )
     assertStreamEqual(s, expected.flatten)
   }
@@ -592,9 +641,21 @@ class StreamTests extends AnyFunSuite {
       fOutShape = Some(3)
     )
     val expected = Seq(
-      Seq(Tuple(0, Tuple(0, 0)), Tuple(1, Tuple(0, 1)), Tuple(2, Tuple(0, 2))),
-      Seq(Tuple(0, Tuple(1, 0)), Tuple(1, Tuple(1, 1)), Tuple(2, Tuple(1, 2))),
-      Seq(Tuple(0, Tuple(2, 0)), Tuple(1, Tuple(2, 1)), Tuple(2, Tuple(2, 2)))
+      Seq(
+        Tuple(0, Tuple(0, 0)())(),
+        Tuple(1, Tuple(0, 1)())(),
+        Tuple(2, Tuple(0, 2)())()
+      ),
+      Seq(
+        Tuple(0, Tuple(1, 0)())(),
+        Tuple(1, Tuple(1, 1)())(),
+        Tuple(2, Tuple(1, 2)())()
+      ),
+      Seq(
+        Tuple(0, Tuple(2, 0)())(),
+        Tuple(1, Tuple(2, 1)())(),
+        Tuple(2, Tuple(2, 2)())()
+      )
     )
     assertStreamEqual(s, expected.flatten)
   }
@@ -608,9 +669,21 @@ class StreamTests extends AnyFunSuite {
       fOutShape = Some(3)
     )
     val expected = Seq(
-      Seq(Tuple(Tuple(0, 0), 0), Tuple(Tuple(0, 1), 1), Tuple(Tuple(0, 2), 2)),
-      Seq(Tuple(Tuple(1, 0), 0), Tuple(Tuple(1, 1), 1), Tuple(Tuple(1, 2), 2)),
-      Seq(Tuple(Tuple(2, 0), 0), Tuple(Tuple(2, 1), 1), Tuple(Tuple(2, 2), 2))
+      Seq(
+        Tuple(Tuple(0, 0)(), 0)(),
+        Tuple(Tuple(0, 1)(), 1)(),
+        Tuple(Tuple(0, 2)(), 2)()
+      ),
+      Seq(
+        Tuple(Tuple(1, 0)(), 0)(),
+        Tuple(Tuple(1, 1)(), 1)(),
+        Tuple(Tuple(1, 2)(), 2)()
+      ),
+      Seq(
+        Tuple(Tuple(2, 0)(), 0)(),
+        Tuple(Tuple(2, 1)(), 1)(),
+        Tuple(Tuple(2, 2)(), 2)()
+      )
     )
     assertStreamEqual(s, expected.flatten)
   }
@@ -625,24 +698,24 @@ class StreamTests extends AnyFunSuite {
     )
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3))
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)())
       ),
       Seq(
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3))
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)())
       ),
       Seq(
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3))
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)())
       ),
       Seq(
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3))
+        Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)(), Tuple(3, 3)()),
+        Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)(), Tuple(3, 3)()),
+        Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)(), Tuple(3, 3)())
       )
     )
     assertStreamEqual(s, expected.flatten.flatten)
@@ -657,8 +730,8 @@ class StreamTests extends AnyFunSuite {
       fOutShape = Some(3)
     )
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
     )
     // TODO: this is failing because StmMap is restarting the StmCount2D rather than the identity function!
     // But the test passes if we replace (s: Expr) => s by
@@ -688,22 +761,22 @@ class StreamTests extends AnyFunSuite {
     val expected = StmLiteral(
       Seq(
         Seq(
-          VecLiteral(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-          VecLiteral(Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-          VecLiteral(Tuple(0, 2), Tuple(0, 3), Tuple(0, 4))
+          VecLiteral(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)())(),
+          VecLiteral(Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)())(),
+          VecLiteral(Tuple(0, 2)(), Tuple(0, 3)(), Tuple(0, 4)())()
         ),
         Seq(
-          VecLiteral(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-          VecLiteral(Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-          VecLiteral(Tuple(1, 2), Tuple(1, 3), Tuple(1, 4))
+          VecLiteral(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())(),
+          VecLiteral(Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)())(),
+          VecLiteral(Tuple(1, 2)(), Tuple(1, 3)(), Tuple(1, 4)())()
         ),
         Seq(
-          VecLiteral(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-          VecLiteral(Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-          VecLiteral(Tuple(2, 2), Tuple(2, 3), Tuple(2, 4))
+          VecLiteral(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())(),
+          VecLiteral(Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)())(),
+          VecLiteral(Tuple(2, 2)(), Tuple(2, 3)(), Tuple(2, 4)())()
         )
       ).flatten: _*
-    )
+    )()
     val actual = StmMap(
       s,
       (s: Expr) => StmSlideV(s, 3, stmShape = Seq(5)),
@@ -768,7 +841,7 @@ class StreamTests extends AnyFunSuite {
           (j: Expr) =>
             StmMap(
               StmCount(4),
-              (k: Expr) => Tuple(i, j, k),
+              (k: Expr) => Tuple(i, j, k)(),
               n = 4,
               fInShape = None,
               fOutShape = None
@@ -783,14 +856,44 @@ class StreamTests extends AnyFunSuite {
     )
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0, 0), Tuple(0, 0, 1), Tuple(0, 0, 2), Tuple(0, 0, 3)),
-        Seq(Tuple(0, 1, 0), Tuple(0, 1, 1), Tuple(0, 1, 2), Tuple(0, 1, 3)),
-        Seq(Tuple(0, 2, 0), Tuple(0, 2, 1), Tuple(0, 2, 2), Tuple(0, 2, 3))
+        Seq(
+          Tuple(0, 0, 0)(),
+          Tuple(0, 0, 1)(),
+          Tuple(0, 0, 2)(),
+          Tuple(0, 0, 3)()
+        ),
+        Seq(
+          Tuple(0, 1, 0)(),
+          Tuple(0, 1, 1)(),
+          Tuple(0, 1, 2)(),
+          Tuple(0, 1, 3)()
+        ),
+        Seq(
+          Tuple(0, 2, 0)(),
+          Tuple(0, 2, 1)(),
+          Tuple(0, 2, 2)(),
+          Tuple(0, 2, 3)()
+        )
       ),
       Seq(
-        Seq(Tuple(1, 0, 0), Tuple(1, 0, 1), Tuple(1, 0, 2), Tuple(1, 0, 3)),
-        Seq(Tuple(1, 1, 0), Tuple(1, 1, 1), Tuple(1, 1, 2), Tuple(1, 1, 3)),
-        Seq(Tuple(1, 2, 0), Tuple(1, 2, 1), Tuple(1, 2, 2), Tuple(1, 2, 3))
+        Seq(
+          Tuple(1, 0, 0)(),
+          Tuple(1, 0, 1)(),
+          Tuple(1, 0, 2)(),
+          Tuple(1, 0, 3)()
+        ),
+        Seq(
+          Tuple(1, 1, 0)(),
+          Tuple(1, 1, 1)(),
+          Tuple(1, 1, 2)(),
+          Tuple(1, 1, 3)()
+        ),
+        Seq(
+          Tuple(1, 2, 0)(),
+          Tuple(1, 2, 1)(),
+          Tuple(1, 2, 2)(),
+          Tuple(1, 2, 3)()
+        )
       )
     )
     assertStreamEqual(s, expected.flatten.flatten)
@@ -800,19 +903,19 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount2D(3, 5)
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-        Seq(Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-        Seq(Tuple(0, 2), Tuple(0, 3), Tuple(0, 4))
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+        Seq(Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+        Seq(Tuple(0, 2)(), Tuple(0, 3)(), Tuple(0, 4)())
       ),
       Seq(
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-        Seq(Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-        Seq(Tuple(1, 2), Tuple(1, 3), Tuple(1, 4))
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+        Seq(Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+        Seq(Tuple(1, 2)(), Tuple(1, 3)(), Tuple(1, 4)())
       ),
       Seq(
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-        Seq(Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-        Seq(Tuple(2, 2), Tuple(2, 3), Tuple(2, 4))
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+        Seq(Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
+        Seq(Tuple(2, 2)(), Tuple(2, 3)(), Tuple(2, 4)())
       )
     )
     val actual = StmMap(
@@ -843,19 +946,19 @@ class StreamTests extends AnyFunSuite {
     val expected = StmLiteral(
       Seq(
         Seq(
-          Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0)),
-          Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1)),
-          Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2)),
-          Seq(Tuple(0, 3), Tuple(1, 3), Tuple(2, 3))
+          Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)()),
+          Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)()),
+          Seq(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)()),
+          Seq(Tuple(0, 3)(), Tuple(1, 3)(), Tuple(2, 3)())
         ),
         Seq(
-          Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0)),
-          Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1)),
-          Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2)),
-          Seq(Tuple(0, 3), Tuple(1, 3), Tuple(2, 3))
+          Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)()),
+          Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)()),
+          Seq(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)()),
+          Seq(Tuple(0, 3)(), Tuple(1, 3)(), Tuple(2, 3)())
         )
       ).flatten.flatten: _*
-    )
+    )()
     val actual = StmMap(
       s,
       (s: Expr) => StmTranspose(s, n = 3, m = 4),
@@ -869,15 +972,15 @@ class StreamTests extends AnyFunSuite {
   test("StmAccess:1D") {
     val n = 3
     val s = StmRange(n, 5, 2)
-    assert(ir.eval(StmAccess(s, 0, shape = Seq(n))) == StmLiteral(5))
-    assert(ir.eval(StmAccess(s, 1, shape = Seq(n))) == StmLiteral(7))
-    assert(ir.eval(StmAccess(s, 2, shape = Seq(n))) == StmLiteral(9))
+    assert(ir.eval(StmAccess(s, 0, shape = Seq(n))) == StmLiteral(5)())
+    assert(ir.eval(StmAccess(s, 1, shape = Seq(n))) == StmLiteral(7)())
+    assert(ir.eval(StmAccess(s, 2, shape = Seq(n))) == StmLiteral(9)())
   }
 
   test("StmAccess:2D") {
     val s = StmCount2D(4, 5)
 
-    val row = (i: Int) => StmLiteral((0 until 5).map(j => Tuple(i, j)): _*)
+    val row = (i: Int) => StmLiteral((0 until 5).map(j => Tuple(i, j)()): _*)()
 
     assert(ir.eval(StmAccess(s, 0, shape = Seq(4, 5))) == row(0))
     assert(ir.eval(StmAccess(s, 1, shape = Seq(4, 5))) == row(1))
@@ -894,7 +997,7 @@ class StreamTests extends AnyFunSuite {
           (j: Expr) =>
             StmMap(
               StmCount(4),
-              (k: Expr) => Tuple(i, j, k),
+              (k: Expr) => Tuple(i, j, k)(),
               n = 4,
               fInShape = None,
               fOutShape = None
@@ -909,32 +1012,77 @@ class StreamTests extends AnyFunSuite {
     )
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0, 0), Tuple(0, 0, 1), Tuple(0, 0, 2), Tuple(0, 0, 3)),
-        Seq(Tuple(0, 1, 0), Tuple(0, 1, 1), Tuple(0, 1, 2), Tuple(0, 1, 3)),
-        Seq(Tuple(0, 2, 0), Tuple(0, 2, 1), Tuple(0, 2, 2), Tuple(0, 2, 3))
+        Seq(
+          Tuple(0, 0, 0)(),
+          Tuple(0, 0, 1)(),
+          Tuple(0, 0, 2)(),
+          Tuple(0, 0, 3)()
+        ),
+        Seq(
+          Tuple(0, 1, 0)(),
+          Tuple(0, 1, 1)(),
+          Tuple(0, 1, 2)(),
+          Tuple(0, 1, 3)()
+        ),
+        Seq(
+          Tuple(0, 2, 0)(),
+          Tuple(0, 2, 1)(),
+          Tuple(0, 2, 2)(),
+          Tuple(0, 2, 3)()
+        )
       ),
       Seq(
-        Seq(Tuple(1, 0, 0), Tuple(1, 0, 1), Tuple(1, 0, 2), Tuple(1, 0, 3)),
-        Seq(Tuple(1, 1, 0), Tuple(1, 1, 1), Tuple(1, 1, 2), Tuple(1, 1, 3)),
-        Seq(Tuple(1, 2, 0), Tuple(1, 2, 1), Tuple(1, 2, 2), Tuple(1, 2, 3))
+        Seq(
+          Tuple(1, 0, 0)(),
+          Tuple(1, 0, 1)(),
+          Tuple(1, 0, 2)(),
+          Tuple(1, 0, 3)()
+        ),
+        Seq(
+          Tuple(1, 1, 0)(),
+          Tuple(1, 1, 1)(),
+          Tuple(1, 1, 2)(),
+          Tuple(1, 1, 3)()
+        ),
+        Seq(
+          Tuple(1, 2, 0)(),
+          Tuple(1, 2, 1)(),
+          Tuple(1, 2, 2)(),
+          Tuple(1, 2, 3)()
+        )
       ),
       Seq(
-        Seq(Tuple(2, 0, 0), Tuple(2, 0, 1), Tuple(2, 0, 2), Tuple(2, 0, 3)),
-        Seq(Tuple(2, 1, 0), Tuple(2, 1, 1), Tuple(2, 1, 2), Tuple(2, 1, 3)),
-        Seq(Tuple(2, 2, 0), Tuple(2, 2, 1), Tuple(2, 2, 2), Tuple(2, 2, 3))
+        Seq(
+          Tuple(2, 0, 0)(),
+          Tuple(2, 0, 1)(),
+          Tuple(2, 0, 2)(),
+          Tuple(2, 0, 3)()
+        ),
+        Seq(
+          Tuple(2, 1, 0)(),
+          Tuple(2, 1, 1)(),
+          Tuple(2, 1, 2)(),
+          Tuple(2, 1, 3)()
+        ),
+        Seq(
+          Tuple(2, 2, 0)(),
+          Tuple(2, 2, 1)(),
+          Tuple(2, 2, 2)(),
+          Tuple(2, 2, 3)()
+        )
       )
     )
     assert(
       ir.eval(StmAccess(s, 0, shape = Seq(3, 3, 4)))
-        == StmLiteral(expected.head.flatten: _*)
+        == StmLiteral(expected.head.flatten: _*)()
     )
     assert(
       ir.eval(StmAccess(s, 1, shape = Seq(3, 3, 4)))
-        == StmLiteral(expected(1).flatten: _*)
+        == StmLiteral(expected(1).flatten: _*)()
     )
     assert(
       ir.eval(StmAccess(s, 2, shape = Seq(3, 3, 4)))
-        == StmLiteral(expected(2).flatten: _*)
+        == StmLiteral(expected(2).flatten: _*)()
     )
   }
 
@@ -1297,7 +1445,7 @@ class StreamTests extends AnyFunSuite {
           ),
       stmShape = Seq(3, 2, 2)
     )
-    assert(ir.eval(prod) == StmLiteral(IntCst(207360)))
+    assert(ir.eval(prod) == StmLiteral(IntCst(207360))())
   }
 
   test("StmScanInclusive:1D:Sum") {
@@ -1503,12 +1651,13 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Vec2Stm:1D") {
-    val v = VecBuild(5, (i: Expr) => i + 1)
+    val v = VecBuild(5, (i: Expr) => i + 1)()
     assert(ir.eval(Vec2Stm(v, n = 5)) == StmLiteral.ints(1, 2, 3, 4, 5))
   }
 
   test("Vec2Stm:2D") {
-    val v = VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)))
+    val v =
+      VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)())())()
     val s = StmMap(
       Vec2Stm(v, n = 4),
       (v: Expr) => Vec2Stm(v, n = 3),
@@ -1519,30 +1668,30 @@ class StreamTests extends AnyFunSuite {
 
     val expected = StmLiteral(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+        Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())
       ).flatten: _*
-    )
+    )()
     assert(ir.eval(s) == expected)
   }
 
   test("Vec2Stm2Vec") {
-    val p = Param()
+    val p = Param("p")
     val actual = Stm2Vec(Vec2Stm(p, n = 6), n = 6)
 
     // Correctness
-    val v0 = VecBuild(6, (i: Expr) => i + 2)
-    val expected0 = StmLiteral(VecLiteral(2, 3, 4, 5, 6, 7))
+    val v0 = VecBuild(6, (i: Expr) => i + 2)()
+    val expected0 = StmLiteral(VecLiteral(2, 3, 4, 5, 6, 7)())()
     assert(ir.eval(Let(p, v0, actual)) == expected0)
-    val v1 = VecBuild(6, (i: Expr) => i * i)
-    val expected1 = StmLiteral(VecLiteral(0, 1, 4, 9, 16, 25))
+    val v1 = VecBuild(6, (i: Expr) => i * i)()
+    val expected1 = StmLiteral(VecLiteral(0, 1, 4, 9, 16, 25)())()
     assert(ir.eval(Let(p, v1, actual)) == expected1)
   }
 
   test("Stm2Vec2Stm") {
-    val p = Param()
+    val p = Param("p")
     val actual = StmMap(
       Stm2Vec(p, n = 6),
       (v: Expr) => Vec2Stm(v, n = 6),
@@ -1571,17 +1720,17 @@ class StreamTests extends AnyFunSuite {
 
   test("StmPrepend:2D") {
     val s0 = StmCount2D(3, 3)
-    val s1 = StmCst(3, Tuple(42, 42))
+    val s1 = StmCst(3, Tuple(42, 42)())
 
     val actual = StmPrepend(s0, s1, stmShape = Seq(3, 3))
     val expected = StmLiteral(
       Seq(
-        Seq(Tuple(42, 42), Tuple(42, 42), Tuple(42, 42)),
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2))
+        Seq(Tuple(42, 42)(), Tuple(42, 42)(), Tuple(42, 42)()),
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())
       ).flatten: _*
-    )
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -1611,7 +1760,7 @@ class StreamTests extends AnyFunSuite {
     ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
     assert(
       ir.eval(StmPrepend(s0, s1, stmShape = Seq(2, 2, 2)))
-        == StmLiteral(expected.flatten.flatten: _*)
+        == StmLiteral(expected.flatten.flatten: _*)()
     )
   }
 
@@ -1625,16 +1774,16 @@ class StreamTests extends AnyFunSuite {
 
   test("StmAppend:2D") {
     val s0 = StmCount2D(3, 3)
-    val s1 = StmCst(3, Tuple(42, 42))
+    val s1 = StmCst(3, Tuple(42, 42)())
 
     val expected = StmLiteral(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-        Seq(Tuple(42, 42), Tuple(42, 42), Tuple(42, 42))
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+        Seq(Tuple(42, 42)(), Tuple(42, 42)(), Tuple(42, 42)())
       ).flatten: _*
-    )
+    )()
     assert(ir.eval(StmAppend(s0, s1, stmShape = Seq(3, 3))) == expected)
   }
 
@@ -1670,27 +1819,27 @@ class StreamTests extends AnyFunSuite {
 
   test("StmPrefix:1D") {
     val s = StmCount(3)
-    assert(ir.eval(StmPrefix(s, 0, shape = Seq(3))) == StmLiteral())
-    assert(ir.eval(StmPrefix(s, 1, shape = Seq(3))) == StmLiteral(0))
-    assert(ir.eval(StmPrefix(s, 2, shape = Seq(3))) == StmLiteral(0, 1))
-    assert(ir.eval(StmPrefix(s, 3, shape = Seq(3))) == StmLiteral(0, 1, 2))
+    assert(ir.eval(StmPrefix(s, 0, shape = Seq(3))) == StmLiteral()())
+    assert(ir.eval(StmPrefix(s, 1, shape = Seq(3))) == StmLiteral(0)())
+    assert(ir.eval(StmPrefix(s, 2, shape = Seq(3))) == StmLiteral(0, 1)())
+    assert(ir.eval(StmPrefix(s, 3, shape = Seq(3))) == StmLiteral(0, 1, 2)())
   }
 
   test("StmPrefix:2D") {
     val s = StmCount2D(2, 3)
 
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
     )
-    assert(ir.eval(StmPrefix(s, 0, shape = Seq(2, 3))) == StmLiteral())
+    assert(ir.eval(StmPrefix(s, 0, shape = Seq(2, 3))) == StmLiteral()())
     assert(
       ir.eval(StmPrefix(s, 1, shape = Seq(2, 3)))
-        == StmLiteral(expected.slice(0, 1).flatten: _*)
+        == StmLiteral(expected.slice(0, 1).flatten: _*)()
     )
     assert(
       ir.eval(StmPrefix(s, 2, shape = Seq(2, 3)))
-        == StmLiteral(expected.slice(0, 2).flatten: _*)
+        == StmLiteral(expected.slice(0, 2).flatten: _*)()
     )
   }
 
@@ -1705,57 +1854,105 @@ class StreamTests extends AnyFunSuite {
 
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+        Seq(
+          Tuple(0, 0)(),
+          Tuple(0, 1)(),
+          Tuple(0, 2)(),
+          Tuple(0, 3)(),
+          Tuple(0, 4)()
+        ),
+        Seq(
+          Tuple(1, 0)(),
+          Tuple(1, 1)(),
+          Tuple(1, 2)(),
+          Tuple(1, 3)(),
+          Tuple(1, 4)()
+        ),
+        Seq(
+          Tuple(2, 0)(),
+          Tuple(2, 1)(),
+          Tuple(2, 2)(),
+          Tuple(2, 3)(),
+          Tuple(2, 4)()
+        ),
+        Seq(
+          Tuple(3, 0)(),
+          Tuple(3, 1)(),
+          Tuple(3, 2)(),
+          Tuple(3, 3)(),
+          Tuple(3, 4)()
+        )
       ),
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+        Seq(
+          Tuple(0, 0)(),
+          Tuple(0, 1)(),
+          Tuple(0, 2)(),
+          Tuple(0, 3)(),
+          Tuple(0, 4)()
+        ),
+        Seq(
+          Tuple(1, 0)(),
+          Tuple(1, 1)(),
+          Tuple(1, 2)(),
+          Tuple(1, 3)(),
+          Tuple(1, 4)()
+        ),
+        Seq(
+          Tuple(2, 0)(),
+          Tuple(2, 1)(),
+          Tuple(2, 2)(),
+          Tuple(2, 3)(),
+          Tuple(2, 4)()
+        ),
+        Seq(
+          Tuple(3, 0)(),
+          Tuple(3, 1)(),
+          Tuple(3, 2)(),
+          Tuple(3, 3)(),
+          Tuple(3, 4)()
+        )
       )
     )
-    assert(ir.eval(StmPrefix(s, 0, shape = Seq(2, 4, 5))) == StmLiteral())
+    assert(ir.eval(StmPrefix(s, 0, shape = Seq(2, 4, 5))) == StmLiteral()())
     assert(
       ir.eval(StmPrefix(s, 1, shape = Seq(2, 4, 5)))
-        == StmLiteral(expected.slice(0, 1).flatten.flatten: _*)
+        == StmLiteral(expected.slice(0, 1).flatten.flatten: _*)()
     )
     assert(
       ir.eval(StmPrefix(s, 2, shape = Seq(2, 4, 5)))
-        == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)
+        == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)()
     )
   }
 
   test("StmSuffix:1D") {
     val s = StmCount(3)
-    assert(ir.eval(StmSuffix(s, 0, shape = Seq(3))) == StmLiteral())
-    assert(ir.eval(StmSuffix(s, 1, shape = Seq(3))) == StmLiteral(2))
-    assert(ir.eval(StmSuffix(s, 2, shape = Seq(3))) == StmLiteral(1, 2))
-    assert(ir.eval(StmSuffix(s, 3, shape = Seq(3))) == StmLiteral(0, 1, 2))
+    assert(ir.eval(StmSuffix(s, 0, shape = Seq(3))) == StmLiteral()())
+    assert(ir.eval(StmSuffix(s, 1, shape = Seq(3))) == StmLiteral(2)())
+    assert(ir.eval(StmSuffix(s, 2, shape = Seq(3))) == StmLiteral(1, 2)())
+    assert(ir.eval(StmSuffix(s, 3, shape = Seq(3))) == StmLiteral(0, 1, 2)())
   }
 
   test("StmSuffix:2D") {
     val s = StmCount2D(3, 2)
 
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 1)),
-      Seq(Tuple(1, 0), Tuple(1, 1)),
-      Seq(Tuple(2, 0), Tuple(2, 1))
+      Seq(Tuple(0, 0)(), Tuple(0, 1)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)()),
+      Seq(Tuple(2, 0)(), Tuple(2, 1)())
     )
-    assert(ir.eval(StmSuffix(s, 0, shape = Seq(3, 2))) == StmLiteral())
+    assert(ir.eval(StmSuffix(s, 0, shape = Seq(3, 2))) == StmLiteral()())
     assert(
       ir.eval(StmSuffix(s, 1, shape = Seq(3, 2)))
-        == StmLiteral(expected.slice(2, 3).flatten: _*)
+        == StmLiteral(expected.slice(2, 3).flatten: _*)()
     )
     assert(
       ir.eval(StmSuffix(s, 2, shape = Seq(3, 2)))
-        == StmLiteral(expected.slice(1, 3).flatten: _*)
+        == StmLiteral(expected.slice(1, 3).flatten: _*)()
     )
     assert(
       ir.eval(StmSuffix(s, 3, shape = Seq(3, 2)))
-        == StmLiteral(expected.slice(0, 3).flatten: _*)
+        == StmLiteral(expected.slice(0, 3).flatten: _*)()
     )
   }
 
@@ -1770,53 +1967,101 @@ class StreamTests extends AnyFunSuite {
 
     val expected = Seq(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+        Seq(
+          Tuple(0, 0)(),
+          Tuple(0, 1)(),
+          Tuple(0, 2)(),
+          Tuple(0, 3)(),
+          Tuple(0, 4)()
+        ),
+        Seq(
+          Tuple(1, 0)(),
+          Tuple(1, 1)(),
+          Tuple(1, 2)(),
+          Tuple(1, 3)(),
+          Tuple(1, 4)()
+        ),
+        Seq(
+          Tuple(2, 0)(),
+          Tuple(2, 1)(),
+          Tuple(2, 2)(),
+          Tuple(2, 3)(),
+          Tuple(2, 4)()
+        ),
+        Seq(
+          Tuple(3, 0)(),
+          Tuple(3, 1)(),
+          Tuple(3, 2)(),
+          Tuple(3, 3)(),
+          Tuple(3, 4)()
+        )
       ),
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3), Tuple(0, 4)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3), Tuple(1, 4)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3), Tuple(2, 4)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2), Tuple(3, 3), Tuple(3, 4))
+        Seq(
+          Tuple(0, 0)(),
+          Tuple(0, 1)(),
+          Tuple(0, 2)(),
+          Tuple(0, 3)(),
+          Tuple(0, 4)()
+        ),
+        Seq(
+          Tuple(1, 0)(),
+          Tuple(1, 1)(),
+          Tuple(1, 2)(),
+          Tuple(1, 3)(),
+          Tuple(1, 4)()
+        ),
+        Seq(
+          Tuple(2, 0)(),
+          Tuple(2, 1)(),
+          Tuple(2, 2)(),
+          Tuple(2, 3)(),
+          Tuple(2, 4)()
+        ),
+        Seq(
+          Tuple(3, 0)(),
+          Tuple(3, 1)(),
+          Tuple(3, 2)(),
+          Tuple(3, 3)(),
+          Tuple(3, 4)()
+        )
       )
     )
-    assert(ir.eval(StmSuffix(s, 0, shape = Seq(2, 4, 5))) == StmLiteral())
+    assert(ir.eval(StmSuffix(s, 0, shape = Seq(2, 4, 5))) == StmLiteral()())
     assert(
       ir.eval(StmSuffix(s, 1, shape = Seq(2, 4, 5)))
-        == StmLiteral(expected.slice(1, 2).flatten.flatten: _*)
+        == StmLiteral(expected.slice(1, 2).flatten.flatten: _*)()
     )
     assert(
       ir.eval(StmSuffix(s, 2, shape = Seq(2, 4, 5)))
-        == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)
+        == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)()
     )
   }
 
   test("StmShiftLeft:1D") {
     val s = StmCount(3)
     val actual = StmShiftLeft(s, 42, stmShape = Seq(3))
-    assert(ir.eval(actual) == StmLiteral(1, 2, 42))
+    assert(ir.eval(actual) == StmLiteral(1, 2, 42)())
   }
 
   test("StmShiftLeft:2D") {
     val s0 = StmCount2D(3, 4)
     val s1 = StmMap(
       StmCount(4),
-      (j: Expr) => Tuple(99, j),
+      (j: Expr) => Tuple(99, j)(),
       n = 4,
       fInShape = None,
       fOutShape = None
     )
 
     val expected = Seq(
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-      Seq(Tuple(99, 0), Tuple(99, 1), Tuple(99, 2), Tuple(99, 3))
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+      Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
+      Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)())
     )
     assert(
       ir.eval(StmShiftLeft(s0, s1, stmShape = Seq(3, 4)))
-        == StmLiteral(expected.flatten: _*)
+        == StmLiteral(expected.flatten: _*)()
     )
   }
 
@@ -1846,7 +2091,7 @@ class StreamTests extends AnyFunSuite {
     ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
     assert(
       ir.eval(StmShiftLeft(s0, s1, stmShape = Seq(2, 4, 5)))
-        == StmLiteral(expected.flatten.flatten: _*)
+        == StmLiteral(expected.flatten.flatten: _*)()
     )
   }
 
@@ -1854,7 +2099,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount(3)
     assert(
       ir.eval(StmShiftRight(s, 42, stmShape = Seq(3)))
-        == StmLiteral(42, 0, 1)
+        == StmLiteral(42, 0, 1)()
     )
   }
 
@@ -1862,20 +2107,20 @@ class StreamTests extends AnyFunSuite {
     val s0 = StmCount2D(3, 4)
     val s1 = StmMap(
       StmCount(4),
-      (j: Expr) => Tuple(99, j),
+      (j: Expr) => Tuple(99, j)(),
       n = 4,
       fInShape = None,
       fOutShape = None
     )
 
     val expected = Seq(
-      Seq(Tuple(99, 0), Tuple(99, 1), Tuple(99, 2), Tuple(99, 3)),
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3))
+      Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)()),
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)())
     )
     assert(
       ir.eval(StmShiftRight(s0, s1, stmShape = Seq(3, 4)))
-        == StmLiteral(expected.flatten: _*)
+        == StmLiteral(expected.flatten: _*)()
     )
   }
 
@@ -1905,7 +2150,7 @@ class StreamTests extends AnyFunSuite {
     ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
     assert(
       ir.eval(StmShiftRight(s0, s1, stmShape = Seq(2, 4, 5)))
-        == StmLiteral(expected.flatten.flatten: _*)
+        == StmLiteral(expected.flatten.flatten: _*)()
     )
   }
 
@@ -1941,17 +2186,17 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmConcat:2D") {
-    val s0 = StmCst2D(2, 2, Tuple(99, 99))
+    val s0 = StmCst2D(2, 2, Tuple(99, 99)())
     val s1 = StmCount2D(3, 2)
     val actual = StmConcat(s0, s1, stm1Shape = Seq(2, 2), stm2Shape = Seq(3, 2))
     val expected = Seq(
-      Seq(Tuple(99, 99), Tuple(99, 99)),
-      Seq(Tuple(99, 99), Tuple(99, 99)),
-      Seq(Tuple(0, 0), Tuple(0, 1)),
-      Seq(Tuple(1, 0), Tuple(1, 1)),
-      Seq(Tuple(2, 0), Tuple(2, 1))
+      Seq(Tuple(99, 99)(), Tuple(99, 99)()),
+      Seq(Tuple(99, 99)(), Tuple(99, 99)()),
+      Seq(Tuple(0, 0)(), Tuple(0, 1)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)()),
+      Seq(Tuple(2, 0)(), Tuple(2, 1)())
     )
-    assert(ir.eval(actual) == StmLiteral(expected.flatten: _*))
+    assert(ir.eval(actual) == StmLiteral(expected.flatten: _*)())
   }
 
   test("StmConcat:3D") {
@@ -1993,22 +2238,22 @@ class StreamTests extends AnyFunSuite {
         Seq(1, 1)
       )
     ).map(xss => xss.map(xs => xs.map(x => IntCst(x))))
-    assert(ir.eval(actual) == StmLiteral(expected.flatten.flatten: _*))
+    assert(ir.eval(actual) == StmLiteral(expected.flatten.flatten: _*)())
   }
 
   test("StmZip:1D") {
     val a = StmCount(4)
     val b = {
       val b = Param("b")
-      StmBuild(4, SSome(b), Map[Param, (Expr, Expr)](b -> (True, Not(b))))
+      StmBuild(4, SSome(b), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val expected =
       StmLiteral(
-        Tuple(0, True),
-        Tuple(1, False),
-        Tuple(2, True),
-        Tuple(3, False)
-      )
+        Tuple(0, True)(),
+        Tuple(1, False)(),
+        Tuple(2, True)(),
+        Tuple(3, False)()
+      )()
     assert(ir.eval(StmZip(a, b)) == expected)
   }
 
@@ -2017,7 +2262,12 @@ class StreamTests extends AnyFunSuite {
     val b = StmCountFrom(5, 4)
     assert(
       ir.eval(StmZipAlternating(a, b))
-        == StmLiteral(Tuple(0, 5), Tuple(6, 1), Tuple(2, 7), Tuple(8, 3))
+        == StmLiteral(
+          Tuple(0, 5)(),
+          Tuple(6, 1)(),
+          Tuple(2, 7)(),
+          Tuple(8, 3)()
+        )()
     )
   }
 
@@ -2026,23 +2276,25 @@ class StreamTests extends AnyFunSuite {
     val expected = Seq(IntCst(0), IntCst(1), IntCst(2))
 
     val actual0 = StmRepeat(s, 0, n = 3)
-    assert(ir.eval(actual0) == StmLiteral())
+    assert(ir.eval(actual0) == StmLiteral()())
 
     val actual1 = StmRepeat(s, 1, n = 3)
-    assert(ir.eval(actual1) == StmLiteral(expected: _*))
+    assert(ir.eval(actual1) == StmLiteral(expected: _*)())
 
     val actual2 = StmRepeat(s, 2, n = 3)
-    assert(ir.eval(actual2) == StmLiteral(expected ++ expected: _*))
+    assert(ir.eval(actual2) == StmLiteral(expected ++ expected: _*)())
 
     val actual3 = StmRepeat(s, 3, n = 3)
-    assert(ir.eval(actual3) == StmLiteral(expected ++ expected ++ expected: _*))
+    assert(
+      ir.eval(actual3) == StmLiteral(expected ++ expected ++ expected: _*)()
+    )
   }
 
   test("StmRepeat:2D") {
     val s = StmCount2D(2, 3)
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
     ).flatten
     assertStreamEqual(StmRepeat(s, 0, n = 6), Seq())
     assertStreamEqual(StmRepeat(s, 1, n = 6), expected)
@@ -2079,7 +2331,7 @@ class StreamTests extends AnyFunSuite {
   test("StmReverse:1D") {
     val n = 5
     val s = StmCount(n)
-    assert(ir.eval(StmReverse(s, n = n)) == StmLiteral(4, 3, 2, 1, 0))
+    assert(ir.eval(StmReverse(s, n = n)) == StmLiteral(4, 3, 2, 1, 0)())
   }
 
   test("StmSplit:1D-2D") {
@@ -2096,7 +2348,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount2D(3, 2)
 
     val expected = Seq((0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1))
-      .map({ case (i, j) => Tuple(i, j) })
+      .map({ case (i, j) => Tuple(i, j)() })
     assertStreamEqual(StmJoin(s), expected)
   }
 
@@ -2116,19 +2368,19 @@ class StreamTests extends AnyFunSuite {
       fOutShape = Some(12)
     )
     val expected = Seq(
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3)),
-      Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2), Tuple(0, 3)),
-      Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2), Tuple(1, 3)),
-      Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2), Tuple(2, 3))
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+      Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
+      Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
+      Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
+      Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)())
     )
     assertStreamEqual(StmJoin(s), expected.flatten)
     assertStreamEqual(StmJoin(StmJoin(s)), expected.flatten)
   }
 
   test("StmSplitJoin") {
-    val p = Param()
+    val p = Param("p")
     val s = StmCount(6)
     val elems = (0 until 6).map(x => IntCst(x))
 
@@ -2145,15 +2397,15 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmJoinSplit") {
-    val p = Param()
+    val p = Param("p")
     val s = StmCount2D(3, 2)
     val expected = Seq(
-      Tuple(0, 0),
-      Tuple(0, 1),
-      Tuple(1, 0),
-      Tuple(1, 1),
-      Tuple(2, 0),
-      Tuple(2, 1)
+      Tuple(0, 0)(),
+      Tuple(0, 1)(),
+      Tuple(1, 0)(),
+      Tuple(1, 1)(),
+      Tuple(2, 0)(),
+      Tuple(2, 1)()
     )
 
     // Correctness
@@ -2165,7 +2417,8 @@ class StreamTests extends AnyFunSuite {
   test("StmSlideV:1D:UnitWindow") {
     val s = StmCount(3)
     val actual = StmSlideV(s, 1, stmShape = Seq(3))
-    val expected = StmLiteral(VecLiteral(0), VecLiteral(1), VecLiteral(2))
+    val expected =
+      StmLiteral(VecLiteral(0)(), VecLiteral(1)(), VecLiteral(2)())()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2173,10 +2426,10 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount(4)
     val actual = StmSlideV(s, 2, stmShape = Seq(4))
     val expected = StmLiteral(
-      VecLiteral(IntCst(0), IntCst(1)),
-      VecLiteral(IntCst(1), IntCst(2)),
-      VecLiteral(IntCst(2), IntCst(3))
-    )
+      VecLiteral(IntCst(0), IntCst(1))(),
+      VecLiteral(IntCst(1), IntCst(2))(),
+      VecLiteral(IntCst(2), IntCst(3))()
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2184,8 +2437,8 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount(5)
     val actual = StmSlideV(s, 5, stmShape = Seq(5))
     val expected = StmLiteral(
-      VecLiteral(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4))
-    )
+      VecLiteral(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4))()
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2195,23 +2448,23 @@ class StreamTests extends AnyFunSuite {
     val expected = StmLiteral(
       VecLiteral(
         Seq(
-          Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-          Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+          Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
         ).flatten: _*
-      ),
+      )(),
       VecLiteral(
         Seq(
-          Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-          Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2))
+          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())
         ).flatten: _*
-      ),
+      )(),
       VecLiteral(
         Seq(
-          Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-          Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+          Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())
         ).flatten: _*
-      )
-    )
+      )()
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2252,7 +2505,7 @@ class StreamTests extends AnyFunSuite {
             Seq(IntCst(5), IntCst(5), IntCst(5), IntCst(5))
           )
         ).flatten.flatten: _*
-      ),
+      )(),
       // Window 1
       VecLiteral(
         Seq(
@@ -2269,14 +2522,14 @@ class StreamTests extends AnyFunSuite {
             Seq(IntCst(10), IntCst(10), IntCst(10), IntCst(10))
           )
         ).flatten.flatten: _*
-      )
-    )
+      )()
+    )()
     assert(ir.eval(actual) == expected)
   }
 
   test("StmSlideS:1D:UnitWindow") {
     val actual = StmSlideS(StmCount(3), 1, stmShape = Seq(3))
-    val expected = StmLiteral(0, 1, 2)
+    val expected = StmLiteral(0, 1, 2)()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2284,7 +2537,7 @@ class StreamTests extends AnyFunSuite {
     val actual = StmSlideS(StmCount(4), 2, stmShape = Seq(4))
 
     // Correctness
-    val expected = StmLiteral(0, 1, 1, 2, 2, 3)
+    val expected = StmLiteral(0, 1, 1, 2, 2, 3)()
     assert(ir.eval(actual) == expected)
     // Performance
     // TODO: Look at how good the hardware is.
@@ -2293,7 +2546,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmSlideS:1D:SameSize") {
     val actual = StmSlideS(StmCount(5), 5, stmShape = Seq(5))
-    val expected = StmLiteral(0, 1, 2, 3, 4)
+    val expected = StmLiteral(0, 1, 2, 3, 4)()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2302,19 +2555,19 @@ class StreamTests extends AnyFunSuite {
     val expected = StmLiteral(
       Seq(
         Seq(
-          Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-          Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2))
+          Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
         ),
         Seq(
-          Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-          Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2))
+          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())
         ),
         Seq(
-          Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-          Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+          Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())
         )
       ).flatten.flatten: _*
-    )
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2371,7 +2624,7 @@ class StreamTests extends AnyFunSuite {
           )
         ).flatten.flatten
       ).flatten: _*
-    )
+    )()
     assert(ir.eval(actual) == expected)
   }
 
@@ -2381,11 +2634,11 @@ class StreamTests extends AnyFunSuite {
     val m = Param("m")
     val expected = StmLiteral(
       Seq(
-        Seq(Tuple(0, 0), Tuple(1, 0), Tuple(2, 0), Tuple(3, 0)),
-        Seq(Tuple(0, 1), Tuple(1, 1), Tuple(2, 1), Tuple(3, 1)),
-        Seq(Tuple(0, 2), Tuple(1, 2), Tuple(2, 2), Tuple(3, 2))
+        Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)(), Tuple(3, 0)()),
+        Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)(), Tuple(3, 1)()),
+        Seq(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)(), Tuple(3, 2)())
       ).flatten: _*
-    )
+    )()
     val transposed = StmTranspose(s, n = n, m = m)
 
     // Correctness
@@ -2399,17 +2652,17 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmTransposeTranspose") {
-    val p = Param()
+    val p = Param("p")
     val input = StmCount2D(4, 3)
     val s = StmTranspose(StmTranspose(p, n = 4, m = 3), n = 3, m = 4)
     val expected = StmLiteral(
       Seq(
-        Seq(Tuple(0, 0), Tuple(0, 1), Tuple(0, 2)),
-        Seq(Tuple(1, 0), Tuple(1, 1), Tuple(1, 2)),
-        Seq(Tuple(2, 0), Tuple(2, 1), Tuple(2, 2)),
-        Seq(Tuple(3, 0), Tuple(3, 1), Tuple(3, 2))
+        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
+        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
+        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
+        Seq(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())
       ).flatten: _*
-    )
+    )()
 
     // Correctness
     assert(ir.eval(Let(p, input, s)) == expected)

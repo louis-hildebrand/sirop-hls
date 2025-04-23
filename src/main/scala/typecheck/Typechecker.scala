@@ -14,7 +14,7 @@ object Typechecker {
           case Some(t) => x.rebuild(t)
           case None    => throw new TypeError(s"Free variable: $x.")
         }
-      case Function(_, x, t, body) =>
+      case Function(x, t, body) =>
         val inTyp = t match {
           case Missing =>
             funInTyp match {
@@ -28,8 +28,8 @@ object Typechecker {
         }
         val newBody = typecheck(body)(context + (x -> inTyp))
         val newX = x.rebuild(inTyp).asInstanceOf[Param]
-        new Function(TyArrow(inTyp, newBody.typ), newX, inTyp, newBody)
-      case fc @ FunCall(_, f, arg) =>
+        Function(newX, inTyp, newBody)(TyArrow(inTyp, newBody.typ))
+      case fc @ FunCall(f, arg) =>
         val newF = typecheck(f)
         val newArg = typecheck(arg)
         newF.typ match {
@@ -64,7 +64,7 @@ object Typechecker {
           }
         }
         p.rebuild(TyInt, newFactors)
-      case d @ Div(_, e1, e2) =>
+      case d @ Div(e1, e2) =>
         val newLhs = typecheck(e1)
         newLhs.typ match {
           case TyInt => ()
@@ -76,7 +76,7 @@ object Typechecker {
           case t => throw new TypeError(s"Expected type $TyInt but found $t.")
         }
         d.rebuild(TyInt, Seq(newLhs, newRhs))
-      case m @ Mod(_, e1, e2) =>
+      case m @ Mod(e1, e2) =>
         val newLhs = typecheck(e1)
         newLhs.typ match {
           case TyInt => ()
@@ -122,14 +122,14 @@ object Typechecker {
           }
         }
         or.rebuild(TyBool, newTerms)
-      case n @ Not(_, e) =>
+      case n @ Not(e) =>
         val newE = typecheck(e)
         newE.typ match {
           case TyBool => ()
           case t => throw new TypeError(s"Expected type $TyBool but found $t.")
         }
         n.rebuild(TyBool, Seq(newE))
-      case eq @ Equal(_, e1, e2) =>
+      case eq @ Equal(e1, e2) =>
         val newE1 = typecheck(e1)
         newE1.typ match {
           case _: TyStm | _: TyArrow =>
@@ -149,7 +149,7 @@ object Typechecker {
             s"Left-hand side of Equals has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
           )
         }
-      case lt @ LessThan(_, e1, e2) =>
+      case lt @ LessThan(e1, e2) =>
         val newLhs = typecheck(e1)
         newLhs.typ match {
           case TyInt => ()
@@ -162,10 +162,10 @@ object Typechecker {
         }
         lt.rebuild(TyBool, Seq(newLhs, newRhs))
 
-      case t @ Tuple(_, elems @ _*) =>
+      case t @ Tuple(elems @ _*) =>
         val newElems = elems.map(e => typecheck(e))
         t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
-      case ta @ TupleAccess(_, t, IntCst(i)) =>
+      case ta @ TupleAccess(t, IntCst(i)) =>
         val newT = typecheck(t)
         newT.typ match {
           case TyTuple(ts @ _*) =>
@@ -174,7 +174,7 @@ object Typechecker {
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
 
-      case vb @ VecBuild(_, n, f) =>
+      case vb @ VecBuild(n, f) =>
         val newN = typecheck(n)
         newN.typ match {
           case TyInt => ()
@@ -187,7 +187,7 @@ object Typechecker {
           case t => throw new TypeError(s"Function of VecBuild has type $t.")
         }
         vb.rebuild(TyVec(vecT, newN), Seq(newN, newF))
-      case va @ VecAccess(_, v, i) =>
+      case va @ VecAccess(v, i) =>
         val newV = typecheck(v)
         val vecT = newV.typ match {
           case TyVec(t, _) => t
@@ -201,7 +201,7 @@ object Typechecker {
             throw new TypeError(s"Right-hand side of VecAccess has type $t.")
         }
         va.rebuild(vecT, Seq(newV, newI))
-      case vl @ VecLength(_, v) =>
+      case vl @ VecLength(v) =>
         val newV = typecheck(v)
         newV.typ match {
           case _: TyVec => ()
@@ -244,15 +244,15 @@ object Typechecker {
           case TyTuple(t, TyBool) => t
           case t => throw new TypeError(s"Output of StmBuild has type $t.")
         }
-        StmBuild(TyStm(stmT, newN), newN, newOutput, newEquations)
-      case sn @ StmNext(_, s) =>
+        StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
+      case sn @ StmNext(s) =>
         val newS = typecheck(s)
         newS.typ match {
           case TyStm(t, n) =>
             sn.rebuild(TyTuple(TyStm(t, n - 1), t), Seq(newS))
           case t => throw new TypeError(s"Argument of StmNext has type $t.")
         }
-      case sn @ StmNextK(_, s, k) =>
+      case sn @ StmNextK(s, k) =>
         val newK = typecheck(k)
         newK.typ match {
           case TyInt => ()
@@ -264,7 +264,7 @@ object Typechecker {
             sn.rebuild(TyStm(t, n - k), Seq(newS, newK))
           case t => throw new TypeError(s"Stream of StmNext has type $t.")
         }
-      case sl @ StmLength(_, s) =>
+      case sl @ StmLength(s) =>
         val newS = typecheck(s)
         newS.typ match {
           case _: TyStm => sl.rebuild(TyInt, Seq(newS))

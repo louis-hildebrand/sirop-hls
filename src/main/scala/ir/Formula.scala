@@ -13,7 +13,7 @@ trait Formula {
   */
 case class FunctionOfTime(f: Function) extends Formula {
   override def evalSeq(tMin: Int, iterations: Int): Seq[Expr] = {
-    (tMin until (tMin + iterations)).map(t => eval(FunCall(f, t)))
+    (tMin until (tMin + iterations)).map(t => eval(FunCall(f, t)()))
   }
 }
 
@@ -32,7 +32,7 @@ case class Recurrence(z: Expr, f: Function) extends Formula {
   }
 
   def step(): Recurrence = {
-    Recurrence(FunCall(f, z), f)
+    Recurrence(FunCall(f, z)(), f)
   }
 }
 
@@ -47,7 +47,7 @@ case class TimeRecurrence(z: Expr, f: Function) extends Formula {
       Seq()
     } else {
       val tail =
-        TimeRecurrence(FunCall(FunCall(f, tMin), z), f)
+        TimeRecurrence(FunCall(FunCall(f, tMin)(), z)(), f)
           .evalSeq(tMin + 1, iterations - 1)
       ir.eval(z) +: tail
     }

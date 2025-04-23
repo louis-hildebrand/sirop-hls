@@ -17,7 +17,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall") {
-    val original = FunCall((x: Expr) => (TyInt, x < 42), 42)
+    val original = FunCall((x: Expr) => (TyInt, x < 42), 42)()
     val checked = Typechecker.typecheck(original)(Map())
     assert(checked.typ == TyBool)
     assertAllNodesHaveType(checked)
@@ -29,9 +29,9 @@ class TypecheckerTests extends AnyFunSuite {
         (
           TyTuple(TyInt, TyBool),
           Tuple(
-            Or(x.__1, Not(x.__1), And(x.__1, x.__0 === 2, x.__0 < 6)),
+            Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)),
             x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
-          )
+          )()
         )
     val checked = Typechecker.typecheck(original)(Map())
     assert(
@@ -42,8 +42,8 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("Vector") {
     val n = Param("n")
-    val v = VecBuild(n, (i: Expr) => Tuple(i + 1, i % 2 === 0))
-    val original = VecAccess(v, VecLength(v) - 1)
+    val v = VecBuild(n, (i: Expr) => Tuple(i + 1, i % 2 === 0)())()
+    val original = VecAccess(v, VecLength(v)() - 1)()
     val checked = Typechecker.typecheck(original)(Map(n -> TyInt))
     assert(checked.typ == TyTuple(TyInt, TyBool))
     assertAllNodesHaveType(checked)
@@ -59,9 +59,9 @@ class TypecheckerTests extends AnyFunSuite {
         IfThenElse(b, SSome(a), NNone(TyInt)),
         Map[Param, (Expr, Expr)](
           a -> (0, IfThenElse(b, a + 2, a + 1)),
-          b -> (False, Not(b) || (a % 4 === 0))
+          b -> (False, Not(b)() || (a % 4 === 0))
         )
-      )
+      )()
     val checked = Typechecker.typecheck(original)(Map(n -> TyInt))
     assert(checked.typ == TyStm(TyInt, n.rebuild(TyInt)))
     assertAllNodesHaveType(checked)
@@ -76,10 +76,10 @@ class TypecheckerTests extends AnyFunSuite {
       n,
       SSome(a),
       Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(a % 2 === 0, StmNext(s).__0, s)),
-        a -> (0, IfThenElse(a % 2 === 0, a + StmNext(s).__1, a + 1))
+        s -> (input, IfThenElse(a % 2 === 0, StmNext(s)().__0, s)),
+        a -> (0, IfThenElse(a % 2 === 0, a + StmNext(s)().__1, a + 1))
       )
-    )
+    )()
     val checked =
       Typechecker.typecheck(original)(Map(n -> TyInt, input -> TyStm(TyInt, n)))
     assert(checked.typ == TyStm(TyInt, n.rebuild(TyInt)))
@@ -92,13 +92,13 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall:NotFunction") {
-    val e = FunCall(IntCst(42), IntCst(43))
+    val e = FunCall(IntCst(42), IntCst(43))()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("FunCall:WrongArgType") {
     val f = Param("f")
-    val e = FunCall(f, True)
+    val e = FunCall(f, True)()
     assertThrows[TypeError](
       Typechecker.typecheck(e)(Map(f -> TyArrow(TyInt, TyBool)))
     )
@@ -130,7 +130,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IfThenElse:IncompatibleBranches") {
-    val e = IfThenElse(True, Tuple(42, 43), Tuple(True, 99))
+    val e = IfThenElse(True, Tuple(42, 43)(), Tuple(True, 99)())
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
@@ -156,7 +156,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("Not:WrongInput") {
     val x = Param("x")
-    assertThrows[TypeError](Typechecker.typecheck(Not(x))(Map(x -> TyInt)))
+    assertThrows[TypeError](Typechecker.typecheck(Not(x)())(Map(x -> TyInt)))
   }
 
   test("Equal:DifferentTypes") {
@@ -187,46 +187,46 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("VecBuild:NonIntLength") {
-    val e = VecBuild(True, (i: Expr) => i)
+    val e = VecBuild(True, (i: Expr) => i)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("VecBuild:WrongFunctionType") {
     val y = Param("y")
     val f = (x: Expr) => (TyBool, x && y)
-    val e = VecBuild(42, f)
+    val e = VecBuild(42, f)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map(y -> TyBool)))
   }
 
   test("VecAccess:NonVecTarget") {
-    val e = VecAccess(42, 43)
+    val e = VecAccess(42, 43)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("VecAccess:NonIntIndex") {
     val v = Param("v")
-    val e = VecAccess(v, True)
+    val e = VecAccess(v, True)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map(v -> TyVec(TyInt, 2))))
   }
 
   test("VecLength:NonVecTarget") {
-    val e = VecLength(42)
+    val e = VecLength(42)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("StmBuild:NonIntLength") {
-    val e = StmBuild(True, SSome(5))
+    val e = StmBuild(True, SSome(5))()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("StmBuild:NonOptionOutput") {
-    val e = StmBuild(42, Tuple(43, 44))
+    val e = StmBuild(42, Tuple(43, 44)())()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("StmBuild:NextWrongType") {
     val a = Param("a")
-    val e = StmBuild(2, SSome(5), Map[Param, (Expr, Expr)](a -> (0, True)))
+    val e = StmBuild(2, SSome(5), Map[Param, (Expr, Expr)](a -> (0, True)))()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
@@ -236,19 +236,19 @@ class TypecheckerTests extends AnyFunSuite {
       3,
       SSome(4),
       Map[Param, (Expr, Expr)](
-        a -> (VecBuild(10, (i: Expr) => i), VecBuild(11, (i: Expr) => i))
+        a -> (VecBuild(10, (i: Expr) => i)(), VecBuild(11, (i: Expr) => i)())
       )
-    )
+    )()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("StmNext:NonStmTarget") {
-    val e = StmNext(42)
+    val e = StmNext(42)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("StmLength:NonStmTarget") {
-    val e = StmLength(42)
+    val e = StmLength(42)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 }

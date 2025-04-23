@@ -4,8 +4,9 @@ import ir._
 import opt.PartialEvalPass
 
 private object Helpers {
+  @deprecated
   def expandTuple(t: Expr, n: Int): Tuple = {
-    Tuple((0 until n).map(i => TupleAccess(t, i)): _*)
+    Tuple((0 until n).map(i => TupleAccess(t, i)()): _*)()
   }
 
   /** Convert the given function into a function from stream to stream.
@@ -35,10 +36,10 @@ private object Helpers {
           Missing,
           StmBuild(
             1,
-            SSome(f.body.substitute(f.param -> StmNext(s).__1)),
-            Map[Param, (Expr, Expr)](s -> (x, StmNext(s).__0))
-          )
-        )
+            SSome(f.body.substitute(f.param -> StmNext(s)().__1)),
+            Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
+          )()
+        )()
       case (None, Some(_)) =>
         // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
         // The scalar input to the original function (`f.param`) can appear in
@@ -61,20 +62,20 @@ private object Helpers {
             .map({ case (x, z) =>
               x -> IfThenElse(
                 isFirstStep,
-                z.substitute(f.param -> StmNext(s).__1),
+                z.substitute(f.param -> StmNext(s)().__1),
                 x
               )
             })
             .foldLeft(Map[Expr, Expr]())(_ + _)
-            + (f.param -> IfThenElse(isFirstStep, StmNext(s).__1, y))
+            + (f.param -> IfThenElse(isFirstStep, StmNext(s)().__1, y))
         )
         val equationsToAdd = Map[Param, (Expr, Expr)](
           // Input stream
-          s -> (input, IfThenElse(isFirstStep, StmNext(s).__0, s)),
+          s -> (input, IfThenElse(isFirstStep, StmNext(s)().__0, s)),
           // Whether we still need to read from the input stream
           isFirstStep -> (True, False),
           // Register for the value from the input stream
-          y -> (Default(???), IfThenElse(isFirstStep, StmNext(s).__1, y))
+          y -> (Default(???), IfThenElse(isFirstStep, StmNext(s)().__1, y))
         )
         val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
           x -> (Default(???), next.substitute(subs))
@@ -86,8 +87,8 @@ private object Helpers {
             stm.n,
             stm.output.substitute(subs),
             updatedOldEquations ++ equationsToAdd
-          )
-        )
+          )()
+        )()
         assert(!newF.contains(f.param))
         newF
       case (Some(_), None) => {
@@ -111,10 +112,10 @@ private object Helpers {
         Missing,
         StmBuild(
           outShape.getOrElse(IntCst(1)),
-          SSome(StmNext(s).__1),
-          Map[Param, (Expr, Expr)](s -> (x, StmNext(s).__0))
-        )
-      )
+          SSome(StmNext(s)().__1),
+          Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
+        )()
+      )()
     } else {
       f1
     }
@@ -144,16 +145,16 @@ object Iterate {
       IfThenElse(i === 0, SSome(accExpanded), NNone(???)),
       Map[Param, (Expr, Expr)](
         i -> (n, IfThenElse(i === 0, 0, i - 1)),
-        acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)))
+        acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)()))
       )
-    )
-    StmNext(s).__1
+    )()
+    StmNext(s)().__1
   }
 }
 
 object StmCst {
   def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
-    StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())
+    StmBuild(n, SSome(c), Map[Param, (Expr, Expr)]())()
   }
 }
 
@@ -181,13 +182,13 @@ object StmRange {
     */
   def apply(n: Expr, z: Expr, delta: Expr): StmBuild = {
     val a = Param("a")
-    StmBuild(n, SSome(a), Map(a -> (z, a + delta)))
+    StmBuild(n, SSome(a), Map(a -> (z, a + delta)))()
   }
 }
 
 object StmCst2D {
   def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    StmBuild(n * m, SSome(c), Map[Param, (Expr, Expr)]())
+    StmBuild(n * m, SSome(c), Map[Param, (Expr, Expr)]())()
   }
 }
 
@@ -197,12 +198,12 @@ object StmCount2D {
     val j = Param("j")
     StmBuild(
       n * m,
-      SSome(Tuple(i, j)),
+      SSome(Tuple(i, j)()),
       Map[Param, (Expr, Expr)](
         i -> (0, IfThenElse(j === m - 1, i + 1, i)),
         j -> (0, IfThenElse(j === m - 1, 0, j + 1))
       )
-    )
+    )()
   }
 }
 
@@ -265,7 +266,7 @@ object StmMap {
                 x -> (z, IfThenElse(shouldReset, z, next))
               }
             })
-          )
+          )()
           outerStm
       }
       val ret = map.substitute(s -> input)
@@ -302,13 +303,13 @@ object StmAccess {
     val j = Param("j") // index within row
     StmBuild(
       perRow,
-      IfThenElse(i === k, SSome(StmNext(s).__1), NNone(???)),
+      IfThenElse(i === k, SSome(StmNext(s)().__1), NNone(???)),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s).__0),
+        s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
         j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
       )
-    )
+    )()
   }
 }
 
@@ -394,7 +395,7 @@ object StmScanInclusive {
           x -> (z, IfThenElse(shouldReset, z, next))
         }
       }) + (acc -> (z, nextAcc))
-    )
+    )()
     assert(
       !outerStm.n.contains(s)
         && !outerStm.output.contains(s)
@@ -448,9 +449,9 @@ object Vec2Stm {
     val i = Param("i")
     StmBuild(
       n,
-      SSome(VecAccess(v, i)),
+      SSome(VecAccess(v, i)()),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )
+    )()
   }
 }
 
@@ -505,13 +506,13 @@ object StmPrefix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i < k, SSome(StmNext(s).__1), NNone(???)),
+      IfThenElse(i < k, SSome(StmNext(s)().__1), NNone(???)),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s).__0),
+        s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
         j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
       )
-    )
+    )()
   }
 }
 
@@ -541,14 +542,13 @@ object StmSuffix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i >= n - k, SSome(StmNext(s).__1), NNone(???)),
+      IfThenElse(i >= n - k, SSome(StmNext(s)().__1), NNone(???)),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s).__0),
+        s -> (stm, StmNext(s)().__0),
         i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
         j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
       )
-    )
-
+    )()
   }
 }
 
@@ -607,13 +607,13 @@ object StmConcat {
     val i = Param("i")
     StmBuild(
       n1 + n2,
-      SSome(IfThenElse(i === n1, StmNext(s1).__1, StmNext(s0).__1)),
+      SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1)),
       Map[Param, (Expr, Expr)](
         i -> (0, IfThenElse(i === n1, i, i + 1)),
-        s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0).__0)),
-        s1 -> (stm2, IfThenElse(i === n1, StmNext(s1).__0, s1))
+        s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0)().__0)),
+        s1 -> (stm2, IfThenElse(i === n1, StmNext(s1)().__0, s1))
       )
-    )
+    )()
   }
 }
 
@@ -626,13 +626,13 @@ object StmZip {
     val s0 = Param("s0")
     val s1 = Param("s1")
     StmBuild(
-      StmLength(a),
-      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
+      StmLength(a)(),
+      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)()),
       Map[Param, (Expr, Expr)](
-        s0 -> (a, StmNext(s0).__0),
-        s1 -> (b, StmNext(s1).__0)
+        s0 -> (a, StmNext(s0)().__0),
+        s1 -> (b, StmNext(s1)().__0)
       )
-    )
+    )()
   }
 }
 
@@ -646,13 +646,13 @@ object StmZipAlternating {
     val s0 = Param("a")
     val s1 = Param("b")
     StmBuild(
-      StmLength(a),
-      SSome(Tuple(StmNext(s0).__1, StmNext(s1).__1)),
+      StmLength(a)(),
+      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)()),
       Map(
-        s0 -> (a, StmNext(s1).__0),
-        s1 -> (b, StmNext(s0).__0)
+        s0 -> (a, StmNext(s1)().__0),
+        s1 -> (b, StmNext(s0)().__0)
       )
-    )
+    )()
   }
 }
 
@@ -670,11 +670,11 @@ object StmRepeat {
       (v: Expr) =>
         StmBuild(
           n * m,
-          SSome(VecAccess(v, i)),
+          SSome(VecAccess(v, i)()),
           Map[Param, (Expr, Expr)](
             i -> (0, IfThenElse(i + 1 === n, 0, i + 1))
           )
-        ),
+        )(),
       n = 1,
       fInShape = None,
       fOutShape = Some(n * m)
@@ -748,13 +748,13 @@ object StmSlideV {
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
         //         Produce output.
-        SSome(VecShiftLeft(v, StmNext(s).__1)),
+        SSome(VecShiftLeft(v, StmNext(s)().__1)),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
         NNone(???)
       ),
       Map[Param, (Expr, Expr)](
-        s -> (input, StmNext(s).__0),
+        s -> (input, StmNext(s)().__0),
         // Number of window elements left to load
         i -> (
           m - 1,
@@ -794,11 +794,11 @@ object StmSlideV {
           )
         ),
         v -> (
-          VecBuild(m * elemSize, (_: Expr) => Default(???)),
-          VecShiftLeft(v, StmNext(s).__1)
+          VecBuild(m * elemSize, (_: Expr) => Default(???))(),
+          VecShiftLeft(v, StmNext(s)().__1)
         )
       )
-    )
+    )()
   }
 }
 

@@ -25,7 +25,7 @@ case class Let(typ: Type, x: Param, v: Expr, in: Expr) extends SyntaxSugar {
   }
 
   override def lower(): Expr = {
-    FunCall(in.typ, Function(TyArrow(v.typ, in.typ), x, v.typ, in), v)
+    FunCall(Function(x, v.typ, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
   }
 
   override def equals(obj: Any): Boolean = {
@@ -80,8 +80,8 @@ case object Default {
     typ match {
       case TyInt            => IntCst(0)
       case TyBool           => False
-      case TyTuple(ts @ _*) => Tuple(typ, ts.map(t => getDefault(t)): _*)
-      case TyVec(t, n)      => VecBuild(typ, n, (_: Expr) => getDefault(t))
+      case TyTuple(ts @ _*) => Tuple(ts.map(t => getDefault(t)): _*)(typ)
+      case TyVec(t, n)      => VecBuild(n, (_: Expr) => getDefault(t))(typ)
       case t =>
         throw new IllegalArgumentException(
           s"Cannot construct default value for type $t."
@@ -113,7 +113,7 @@ case class NNone(innerTyp: Type) extends SyntaxSugar {
   }
 
   override def lower(): Expr = {
-    Tuple(this.typ, Default(innerTyp), False)
+    Tuple(Default(innerTyp), False)(this.typ)
   }
 
   override def equals(obj: Any): Boolean = {
@@ -151,7 +151,7 @@ case class SSome(typ: Type, e: Expr /* T */ ) /* Option<T> */
   }
 
   override def lower(): Expr = {
-    Tuple(this.typ, e, True)
+    Tuple(e, True)(this.typ)
   }
 
   override def equals(obj: Any): Boolean = {
@@ -198,12 +198,12 @@ case class OptionAccess(
       case TyTuple(t, TyBool) => t
       case t                  => err(s"Target of OptionAccess has type $t.")
     }
-    val newS = tc(Function(s.param, innerTyp, s.body))(context)
+    val newS = tc(Function(s.param, innerTyp, s.body)())(context)
     val sOut = newS.typ match {
       case TyArrow(_, t2) => t2
       case _ => err(s"`Some` branch of OptionAccess is not a function.")
     }
-    val newN = tc(Function(n.param, TyTuple(), n.body))(context)
+    val newN = tc(Function(n.param, TyTuple(), n.body)())(context)
     val nOut = newN.typ match {
       case TyArrow(_, t2) => t2
       case _ => err(s"`None` branch of OptionAccess is not a function.")
@@ -229,15 +229,15 @@ case class OptionAccess(
       assert(e.typ.isInstanceOf[TyTuple])
       IfThenElse(
         this.typ,
-        TupleAccess(TyBool, e, 1),
-        s.body.substitute(s.param -> TupleAccess(innerTyp, e, 0)),
-        n.body.substitute(n.param -> Tuple(TyTuple()))
+        TupleAccess(e, 1)(TyBool),
+        s.body.substitute(s.param -> TupleAccess(e, 0)(innerTyp)),
+        n.body.substitute(n.param -> Tuple()(TyTuple()))
       )
     } else {
       IfThenElse(
         e.__1,
         s.body.substitute(s.param -> e.__0),
-        n.body.substitute(n.param -> Tuple())
+        n.body.substitute(n.param -> Tuple()())
       )
     }
   }
@@ -294,7 +294,7 @@ case class OptionUnwrapUnsafe(typ: Type, e: Expr) extends SyntaxSugar {
             s"Target of OptionAccess has type $t."
           )
       }
-      TupleAccess(innerTyp, e, 0)
+      TupleAccess(e, 0)(innerTyp)
     } else {
       e.__0
     }
@@ -341,7 +341,7 @@ case class IsNone(typ: Type, e: Expr) extends SyntaxSugar {
   }
 
   override def lower(): Expr = {
-    Not(TyBool, TupleAccess(TyBool, e, 1))
+    Not(TupleAccess(e, 1)(TyBool))(TyBool)
   }
 
   override def equals(obj: Any): Boolean = {
@@ -387,7 +387,7 @@ case class IsSome(typ: Type, e: Expr) extends SyntaxSugar {
   }
 
   override def lower(): Expr = {
-    TupleAccess(TyBool, e, 1)
+    TupleAccess(e, 1)(TyBool)
   }
 
   override def equals(obj: Any): Boolean = {

@@ -20,7 +20,7 @@ object StmAccRemovalPass {
         .filter({ case (_, z) =>
           z match {
             case _: IntCst | True | False => true
-            case Tuple(_)                  => true
+            case Tuple()                  => true
             case _                        => false
           }
         })
@@ -44,7 +44,7 @@ object StmAccRemovalPass {
       stm.n,
       stm.output,
       stm.equations.filter({ case (x, _) => usedElems.contains(x) })
-    )
+    )()
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
@@ -54,7 +54,7 @@ object StmAccRemovalPass {
         // duplicates:
         //   x: (0, x + 1)
         //   y: (0, y + 1)
-        (z, Function(x, Missing, next))
+        (z, Function(x, Missing, next)())
       })
       .values
       .map(m => m.keySet)

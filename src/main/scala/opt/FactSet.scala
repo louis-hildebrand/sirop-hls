@@ -49,12 +49,12 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     */
   def isTrue(e: Expr): FactSet = {
     e match {
-      case Not(_, e) => isFalse(e)
+      case Not(e) => isFalse(e)
       // If (x0 && ... && xn) = True, then xi = True for each i
       case And(terms @ _*) =>
         terms.foldLeft(this)({ case (acc, e) => acc.isTrue(e) })
       // TODO: Add some more cases?
-      case LessThan(_, e1, e2) =>
+      case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
           case Sum(Seq(IntCst(c), x: Param)) =>
             // c + x < 0 <==> x < -c
@@ -67,7 +67,7 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
             this.range(x, ScalarRange(None, Some(0)))
           case _ => this
         }
-      case Equal(_, x: Param, IntCst(c)) =>
+      case Equal(x: Param, IntCst(c)) =>
         this.range(x, ScalarRange(Some(c), Some(c + 1)))
       case _ => this
     }
@@ -78,12 +78,12 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     */
   def isFalse(e: Expr): FactSet = {
     e match {
-      case Not(_, e) => isTrue(e)
+      case Not(e) => isTrue(e)
       // If (x0 || ... || xn) = False, then xi = False for each i
       case Or(terms @ _*) =>
         terms.foldLeft(this)({ case (acc, e) => acc.isFalse(e) })
       // TODO: Add some more cases?
-      case LessThan(_, e1, e2) =>
+      case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
           case Sum(Seq(IntCst(c), x: Param)) =>
             // !(c + x < 0) <==> c + x >= 0 <==> x >= -c

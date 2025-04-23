@@ -37,7 +37,7 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = optimize(
       StmMap(
         input,
-        (x: Expr) => FunCall(g, FunCall(f, x)),
+        (x: Expr) => FunCall(g, FunCall(f, x)())(),
         n = 5,
         fInShape = None,
         fOutShape = None
@@ -73,13 +73,13 @@ class OptimizationTests extends AnyFunSuite {
       StmLiteral(
         ir.eval(
           42
-            + FunCall(f, 0)
-            + FunCall(f, 1)
-            + FunCall(f, 2)
-            + FunCall(f, 3)
-            + FunCall(f, 4)
+            + FunCall(f, 0)()
+            + FunCall(f, 1)()
+            + FunCall(f, 2)()
+            + FunCall(f, 3)()
+            + FunCall(f, 4)()
         )
-      )
+      )()
     assert(ir.eval(call(s)) == expected)
     assert(ir.eval(call(actual)) == expected)
     // Successful fusion:
@@ -99,7 +99,7 @@ class OptimizationTests extends AnyFunSuite {
   test("FuseStmShiftRight") {
     val input = Param("input")
     val original = StmPrepend(
-      StmPrefix(input, StmLength(input) - 1, shape = Seq(5)),
+      StmPrefix(input, StmLength(input)() - 1, shape = Seq(5)),
       42,
       stmShape = Seq(4)
     )
@@ -120,18 +120,18 @@ class OptimizationTests extends AnyFunSuite {
       IfThenElse(
         i === 1,
         IfThenElse(
-          j < -1 + StmLength(input),
-          SSome(StmNext(s).__1),
+          j < -1 + StmLength(input)(),
+          SSome(StmNext(s)().__1),
           NNone(???)
         ),
         SSome(42)
       ),
       Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(i === 1, StmNext(s).__0, s)),
+        s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)),
         i -> (0, IfThenElse(i === 1, i, i + 1)),
         j -> (0, IfThenElse(i === 1, j + 1, j))
       )
-    )
+    )()
     val fusedAndSimplified =
       PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
     assert(fusedAndSimplified == ideal)
@@ -159,14 +159,14 @@ class OptimizationTests extends AnyFunSuite {
         IfThenElse(
           i === 4,
           SSome(42),
-          IfThenElse(j < 1, NNone(???), SSome(StmNext(s).__1))
+          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1))
         ),
         Map[Param, (Expr, Expr)](
-          s -> (input, IfThenElse(i === 4, s, StmNext(s).__0)),
+          s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)),
           i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1))),
           j -> (0, IfThenElse(i === 4, j, j + 1))
         )
-      )
+      )()
     val fusedAndSimplified =
       PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
     assert(fusedAndSimplified == ideal)
@@ -177,10 +177,10 @@ class OptimizationTests extends AnyFunSuite {
     * `i`th element directly).
     */
   test("Vec2Stm(VecBuild(n, f))") {
-    val f = Param()
-    val n = Param()
-    val v = VecBuild(n, (i: Expr) => FunCall(f, i))
-    val s = Vec2Stm(v, n = VecLength(v))
+    val f = Param("f")
+    val n = Param("n")
+    val v = VecBuild(n, (i: Expr) => FunCall(f, i)())()
+    val s = Vec2Stm(v, n = VecLength(v)())
     // This optimization is basically free just from partial evaluation.
     val actual = PartialEvalPass.partialEval(s)
 
@@ -195,7 +195,7 @@ class OptimizationTests extends AnyFunSuite {
     val f1 = (i: Expr) => (i + 1) * (i + 2) * (i + 3)
     val expected1 = StmLiteral(
       (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
-    )
+    )()
     val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s))
     assert(ir.eval(actual1(s)) == expected1)
     assert(ir.eval(actual1(actual)) == expected1)
@@ -204,9 +204,9 @@ class OptimizationTests extends AnyFunSuite {
     val i = Param("i")
     val ideal = StmBuild(
       n,
-      SSome(FunCall(f, i)),
+      SSome(FunCall(f, i)()),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )
+    )()
     assert(actual == ideal)
   }
 
@@ -214,11 +214,11 @@ class OptimizationTests extends AnyFunSuite {
     * optimized (no delay, just return the vector directly).
     */
   test("Stm2Vec(StmCst(n, c))") {
-    val n = Param()
-    val c = Param()
+    val n = Param("n")
+    val c = Param("c")
     val s = StmCst(n, c)
     val v = {
-      val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
+      val v0 = Stm2Vec(s, n = StmLength(s)()).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -230,20 +230,20 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Correctness
-    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0), Tuple(False, -99))
+    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0), Tuple(False, -99)())
     for (cVal <- cExamples) {
       for (nVal <- Seq(0, 1, 2, 5)) {
         val expected =
           StmLiteral(
-            VecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)
-          )
+            VecLiteral((0 until nVal).map(_ => ir.eval(cVal)): _*)()
+          )()
         val actual = Let(n, nVal, Let(c, cVal, v))
         assert(ir.eval(actual) == expected)
       }
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c))
+    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c)())
     assert(v == ideal)
   }
 
@@ -251,12 +251,12 @@ class OptimizationTests extends AnyFunSuite {
     * be optimized (no delay, just return the vector directly).
     */
   test("Stm2Vec(StmRange(n, z, delta))") {
-    val n = Param()
-    val z = Param()
-    val delta = Param()
+    val n = Param("n")
+    val z = Param("z")
+    val delta = Param("delta")
     val s = StmRange(n, z, delta)
     val v = {
-      val v0 = Stm2Vec(s, n = StmLength(s)).fuseCompletely()
+      val v0 = Stm2Vec(s, n = StmLength(s)()).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -273,7 +273,7 @@ class OptimizationTests extends AnyFunSuite {
               ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, s))))
                 .asInstanceOf[StmLiteral]
                 .elems
-            StmLiteral(VecLiteral(elems: _*))
+            StmLiteral(VecLiteral(elems: _*)())()
           }
           val actual =
             ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v))))
@@ -283,7 +283,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta))
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta)())
     assert(v == ideal)
   }
 
@@ -334,9 +334,9 @@ class OptimizationTests extends AnyFunSuite {
     val a = Param("a")
     val identity = StmBuild(
       n,
-      SSome(StmNext(a).__1),
-      Map[Param, (Expr, Expr)](a -> (s, StmNext(a).__0))
-    )
+      SSome(StmNext(a)().__1),
+      Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
+    )()
     assert(optimized == identity)
   }
 
@@ -357,8 +357,8 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      VecBuild(n, (i: Expr) => i),
-      VecBuild(n, (i: Expr) => i * i + 1)
+      VecBuild(n, (i: Expr) => i)(),
+      VecBuild(n, (i: Expr) => i * i + 1)()
     )
     for (vec <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
@@ -370,7 +370,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     // TODO: It would be even better if I could essentially eta-reduce the vector
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)))
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)())())
     assert(optimized == ideal)
   }
 
@@ -425,9 +425,9 @@ class OptimizationTests extends AnyFunSuite {
     val a = Param("a")
     val identity = StmBuild(
       n,
-      SSome(StmNext(a).__1),
-      Map[Param, (Expr, Expr)](a -> (s, StmNext(a).__0))
-    )
+      SSome(StmNext(a)().__1),
+      Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
+    )()
     assert(optimized == identity)
   }
 

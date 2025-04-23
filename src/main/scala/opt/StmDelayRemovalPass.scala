@@ -17,14 +17,14 @@ object StmDelayRemovalPass {
         assert(seedByVar.keySet == stm.accVars)
         indVarRemover.tryFindClosedFormForOutput(stm) match {
           case None => stm
-          case Some(Function(_, t, _, e)) =>
+          case Some(Function(t, _, e)) =>
             val facts = FactSet().between(t, 0, c)
             val noOutputInFirstCycles =
               PartialEvalPass.partialEval(IsNone(e))(facts) == True
             if (noOutputInFirstCycles) {
               val newEquations =
                 seedByVar.map({ case (x, z) => x -> (z, stm.nextByVar(x)) })
-              StmBuild(stm.n, stm.output, newEquations)
+              StmBuild(stm.n, stm.output, newEquations)()
             } else {
               stm
             }

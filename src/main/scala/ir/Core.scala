@@ -1,8 +1,10 @@
 package ir
 
-import java.util.Objects
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
+
+// TODO: Delete all the unnecessary equals() and hashCode() methods
+// TODO: Why are some of these classes so complex? Surely I can move the normalization code to the factory method.
 
 /** A node in the core IR.
   */
@@ -10,24 +12,24 @@ sealed trait Expr {
   def +(that: Expr): Expr = Sum(this, that)
   def -(that: Expr): Expr = Sum(this, Prod(-1, that))
   def *(that: Expr): Expr = Prod(this, that)
-  def /(that: Expr): Div = Div(this, that)
-  def %(that: Expr): Mod = Mod(this, that)
-  def ===(that: Expr): Equal = Equal(this, that)
-  def !==(that: Expr): Expr = Not(Equal(this, that))
-  def <(that: Expr): LessThan = LessThan(this, that)
-  def <=(that: Expr): Not = Not(this > that)
+  def /(that: Expr): Div = Div(this, that)()
+  def %(that: Expr): Mod = Mod(this, that)()
+  def ===(that: Expr): Equal = Equal(this, that)()
+  def !==(that: Expr): Expr = Not(Equal(this, that)())()
+  def <(that: Expr): LessThan = LessThan(this, that)()
+  def <=(that: Expr): Not = Not(this > that)()
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
   def &&(that: Expr): And = And(this, that)
   def ||(that: Expr): Or = Or(this, that)
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
-  def __0: TupleAccess = TupleAccess(this, 0)
-  def __1: TupleAccess = TupleAccess(this, 1)
-  def __2: TupleAccess = TupleAccess(this, 2)
-  def __3: TupleAccess = TupleAccess(this, 3)
-  def __4: TupleAccess = TupleAccess(this, 4)
-  def __5: TupleAccess = TupleAccess(this, 5)
+  def __0: TupleAccess = TupleAccess(this, 0)()
+  def __1: TupleAccess = TupleAccess(this, 1)()
+  def __2: TupleAccess = TupleAccess(this, 2)()
+  def __3: TupleAccess = TupleAccess(this, 3)()
+  def __4: TupleAccess = TupleAccess(this, 4)()
+  def __5: TupleAccess = TupleAccess(this, 5)()
 
   /** The type of this node.
     *
@@ -90,7 +92,11 @@ sealed trait Expr {
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
               val renamed = f.renameVar
-              Function(renamed.param, f.inputTyp, renamed.body.substitute(subs))
+              Function(
+                renamed.param,
+                f.inputTyp,
+                renamed.body.substitute(subs)
+              )()
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
@@ -103,7 +109,7 @@ sealed trait Expr {
                 renamed.equations.map({ case (x, (z, next)) =>
                   x -> (z.substitute(subs), next.substitute(subs))
                 })
-              )
+              )()
             case e => e.rebuild(e.typ, e.children.map(e => e.substitute(subs)))
           }
       }
@@ -114,9 +120,9 @@ sealed trait Expr {
 
   def freeVars(): Set[Param] = {
     this match {
-      case x: Param             => Set(x)
-      case Function(_, x, _, e) => e.freeVars() - x
-      case stm @ StmBuild(_, n, out, eqns) =>
+      case x: Param          => Set(x)
+      case Function(x, _, e) => e.freeVars() - x
+      case stm @ StmBuild(n, out, eqns) =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
@@ -204,85 +210,52 @@ case object ExprOrdering extends Ordering[Expr] {
 }
 
 // Tuples
-case class Tuple(typ: Type, elems: Expr*) extends Expr {
+case class Tuple(elems: Expr*)(val typ: Type = Missing) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
-    Tuple(typ, newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Tuple => this.elems == that.elems
-      case _           => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.elems.hashCode
-  }
-}
-case object Tuple {
-  def apply(elems: Expr*): Tuple = new Tuple(Missing, elems: _*)
+    Tuple(newChildren: _*)(typ)
 }
 
-case class TupleAccess(typ: Type, t: Expr, i: IntCst) extends Expr {
+case class TupleAccess(t: Expr, i: IntCst)(val typ: Type = Missing)
+    extends Expr {
   override def children: Seq[Expr] = Seq(t, i)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(t, i: IntCst) => TupleAccess(typ, t, i)
+      case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: TupleAccess => this.t == that.t && this.i == that.i
-      case _                 => false
-    }
-  }
-  override def hashCode(): Int = {
-    Objects.hash(this.t, this.i)
-  }
-}
-case object TupleAccess {
-  def apply(t: Expr, i: IntCst): TupleAccess = new TupleAccess(Missing, t, i)
 }
 
 // Functions
-case class Param(typ: Type, prefix: String, id: Long) extends Expr {
+case class Param(prefix: String, id: Long)(val typ: Type = Missing)
+    extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
-    Param(typ, this.prefix, this.id)
+    Param(this.prefix, this.id)(typ)
   }
 
   def freshCopy: Param = Param(this.prefix)
 
   override def toString: String = name
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Param => this.name == that.name
-      case _           => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.name.hashCode
-  }
 }
 case object Param {
   private val idCtr = new AtomicLong()
 
-  def apply(prefix: String = "p"): Param = {
-    new Param(Missing, prefix, idCtr.incrementAndGet())
+  def apply(prefix: String): Param = {
+    new Param(prefix, idCtr.incrementAndGet())(Missing)
   }
 }
 
-case class Function(typ: Type, param: Param, inputTyp: Type, body: Expr)
-    extends Expr {
+case class Function(param: Param, inputTyp: Type, body: Expr)(
+    val typ: Type = Missing
+) extends Expr {
   // NOTE: it doesn't work to have a field called `outputTyp` and let `typ`
   //       always be `TyArrow(inputTyp, outputTyp)` because this may lead to
   //       violations of the constraint that a typed node has typed children.
@@ -300,7 +273,7 @@ case class Function(typ: Type, param: Param, inputTyp: Type, body: Expr)
   override def children: Seq[Expr] = Seq(param, body)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, body: Expr) => Function(typ, x, inputTyp, body)
+      case Seq(x: Param, body: Expr) => Function(x, inputTyp, body)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -313,17 +286,16 @@ case class Function(typ: Type, param: Param, inputTyp: Type, body: Expr)
   def renameVar: Function = {
     val newParam = this.param.freshCopy
     Function(
-      typ,
       newParam,
       inputTyp,
       this.body.substitute(this.param -> newParam)
-    )
+    )(typ)
   }
 
   override def equals(x: Any): Boolean = {
     x match {
       case that: Function =>
-        val fresh = Param()
+        val fresh = Param("p")
         (this.body.substitute(this.param -> fresh)
           == that.body.substitute(that.param -> fresh))
       case _ => false
@@ -343,30 +315,14 @@ object Function {
     * be used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")
-
-  def apply(param: Param, inputTyp: Type, body: Expr): Function =
-    Function(Missing, param, inputTyp, body)
 }
 
-case class FunCall(typ: Type, f: Expr, arg: Expr) extends Expr {
+case class FunCall(f: Expr, arg: Expr)(val typ: Type = Missing) extends Expr {
   override def children: Seq[Expr] = Seq(f, arg)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    FunCall(typ, newChildren.head, newChildren(1))
+    FunCall(newChildren.head, newChildren(1))(typ)
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: FunCall => this.f == that.f && this.arg == that.arg
-      case _             => false
-    }
-  }
-  override def hashCode(): Int = {
-    Objects.hash(this.f, this.arg)
-  }
-}
-case object FunCall {
-  def apply(f: Expr, arg: Expr): FunCall = new FunCall(Missing, f, arg)
 }
 
 sealed trait BinOp extends Expr {
@@ -392,6 +348,7 @@ case class IntCst(i: Int) extends IntExpr {
   }
 }
 
+// TODO: Move `typ` to a second argument list for consistency with other classes?
 final class Sum(val typ: Type, unsortedTerms: Seq[Expr]) extends IntExpr {
   val terms: Seq[Expr] =
     unsortedTerms
@@ -431,6 +388,7 @@ object Sum {
   }
 }
 
+// TODO: Move `typ` to a second argument list for consistency with other classes?
 final class Prod(val typ: Type, unsortedFactors: Seq[Expr]) extends IntExpr {
   val factors: Seq[Expr] =
     unsortedFactors
@@ -470,44 +428,22 @@ object Prod {
   }
 }
 
-case class Div(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
+case class Div(e1: Expr, e2: Expr)(val typ: Type = Missing)
+    extends IntExpr
+    with BinOp {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Div(typ, newChildren.head, newChildren(1))
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Div => this.e1 == that.e1 && this.e2 == that.e2
-      case _         => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.e1, this.e2).hashCode
+    Div(newChildren.head, newChildren(1))(typ)
   }
 }
-case object Div {
-  def apply(e1: Expr, e2: Expr): Div = Div(Missing, e1, e2)
-}
 
-case class Mod(typ: Type, e1: Expr, e2: Expr) extends IntExpr with BinOp {
+case class Mod(e1: Expr, e2: Expr)(val typ: Type = Missing)
+    extends IntExpr
+    with BinOp {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Mod(typ, newChildren.head, newChildren(1))
+    Mod(newChildren.head, newChildren(1))(typ)
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Mod => (this.e1, this.e2) == (that.e1, that.e2)
-      case _         => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.e1, this.e2).hashCode
-  }
-}
-case object Mod {
-  def apply(e1: Expr, e2: Expr): Mod = Mod(Missing, e1, e2)
 }
 
 // Boolean expressions
@@ -531,11 +467,12 @@ case object False extends BoolCst
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
+// TODO: Move `typ` to a second argument list for consistency with other classes?
 final class IfThenElse(val typ: Type, cond: Expr, trueE: Expr, falseE: Expr)
     extends Expr {
   val (c, t, f) = cond match {
-    case Not(_, c) => (c, falseE, trueE)
-    case c         => (c, trueE, falseE)
+    case Not(c) => (c, falseE, trueE)
+    case c      => (c, trueE, falseE)
   }
 
   override def children: Seq[Expr] = Seq(c, t, f)
@@ -579,83 +516,49 @@ object IfThenElse {
 }
 
 // Comparison operators
-case class Equal(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+case class Equal(e1: Expr, e2: Expr)(val typ: Type = Missing)
+    extends BoolExpr
+    with BinOp {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => Equal(typ, e1, e2)
+      case Seq(e1, e2) => Equal(e1, e2)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Equal => (this.e1, this.e2) == (that.e1, that.e2)
-      case _           => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.e1, this.e2).hashCode
-  }
-}
-case object Equal {
-  def apply(e1: Expr, e2: Expr): Equal = Equal(Missing, e1, e2)
 }
 
-case class LessThan(typ: Type, e1: Expr, e2: Expr) extends BoolExpr with BinOp {
+case class LessThan(e1: Expr, e2: Expr)(val typ: Type = Missing)
+    extends BoolExpr
+    with BinOp {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => LessThan(typ, e1, e2)
+      case Seq(e1, e2) => LessThan(e1, e2)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: LessThan => (this.e1, this.e2) == (that.e1, that.e2)
-      case _              => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.e1, this.e2).hashCode
-  }
-}
-case object LessThan {
-  def apply(e1: Expr, e2: Expr): LessThan = LessThan(Missing, e1, e2)
 }
 
 // Logical operators
-case class Not(typ: Type, e: Expr) extends BoolExpr {
+case class Not(e: Expr)(val typ: Type = Missing) extends BoolExpr {
   override def children: Seq[Expr] = Seq(e)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => Not(typ, e)
+      case Seq(e) => Not(e)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Not => this.e == that.e
-      case _         => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.e.hashCode
-  }
-}
-case object Not {
-  def apply(e: Expr): Not = Not(Missing, e)
 }
 
+// TODO: Move `typ` to a second argument list for consistency with other classes?
 final class And(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   val terms: Seq[Expr] =
     unsortedTerms
@@ -705,6 +608,7 @@ object And {
   }
 }
 
+// TODO: Move `typ` to a second argument list for consistency with other classes?
 final class Or(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
   val terms: Seq[Expr] =
     unsortedTerms
@@ -756,11 +660,11 @@ object Or {
 
 // Streams
 case class StmBuild(
-    typ: Type,
     n: Expr /* Int */,
     output: Expr /* Option<B> */,
-    equations: Map[Param, (Expr, Expr)] /* (A, A) */
-) extends Expr {
+    equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
+)(val typ: Type = Missing)
+    extends Expr {
   override def children: Seq[Expr] = {
     Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
       Seq(x, z, next)
@@ -777,7 +681,7 @@ case class StmBuild(
             x -> (z, next)
           })
           .toMap
-        StmBuild(typ, n, output, equations)
+        StmBuild(n, output, equations)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
@@ -823,7 +727,7 @@ case class StmBuild(
       val y = replacements.getOrElse(x, x)
       y -> (z, next.substitute(subs))
     })
-    StmBuild(typ, n, newOutput, newEquations)
+    StmBuild(n, newOutput, newEquations)(typ)
   }
 
   def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
@@ -836,13 +740,12 @@ case class StmBuild(
     } else {
       val subs: Map[Expr, Expr] = replacements.toMap
       StmBuild(
-        typ,
         this.n,
         this.output.substitute(subs),
         this.equations
           .filter({ case (x, _) => !replacements.contains(x) })
           .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
-      )
+      )(typ)
     }
   }
 
@@ -891,7 +794,7 @@ case class StmBuild(
             OptionAccess(
               producerStm.output,
               // CASE 1a: Producer yielded a valid value. Proceed as usual.
-              (v: Expr) => consumerStm.output.substitute(StmNext(x).__1 -> v),
+              (v: Expr) => consumerStm.output.substitute(StmNext(x)().__1 -> v),
               // CASE 1b: Producer did NOT yield a valid value.
               //          The consumer cannot proceed.
               (_: Expr) => NNone(consumerTyp.t)
@@ -903,7 +806,7 @@ case class StmBuild(
             //         reading a value from the producer without updating the
             //         consumer, which is not allowed.
             consumerStm.output.substitute(
-              StmNext(x).__1 -> OptionUnwrapUnsafe(producerStm.output)
+              StmNext(x)().__1 -> OptionUnwrapUnsafe(producerStm.output)
             )
           )
         val producerTyp = {
@@ -928,7 +831,7 @@ case class StmBuild(
                     producerStm.output,
                     // CASE 1a: Producer yielded a valid value.
                     //          Update the accumulators in the consumer.
-                    (v: Expr) => next.substitute(StmNext(x).__1 -> v),
+                    (v: Expr) => next.substitute(StmNext(x)().__1 -> v),
                     // CASE 1b: Producer did NOT yield a valid value.
                     //          Wait until it does and do not update accumulators.
                     (_: Expr) => y
@@ -945,7 +848,7 @@ case class StmBuild(
                   //         Update as usual.
                   //         If the consumer *does* try to get output from the
                   //         producer at this point, return the default value.
-                  next.substitute(StmNext(x).__1 -> Default(producerTyp.t))
+                  next.substitute(StmNext(x)().__1 -> Default(producerTyp.t))
                 ))
               })
           val newProducerEquations =
@@ -962,7 +865,7 @@ case class StmBuild(
             })
           newConsumerEquations ++ newProducerEquations
         }
-        StmBuild(typ, consumerStm.n, newOutput, newEquations)
+        StmBuild(consumerStm.n, newOutput, newEquations)(typ)
       case Some(e) =>
         throw new IllegalArgumentException(
           s"Expected the initial value of $x to be a StmBuild, but found $e"
@@ -1030,11 +933,10 @@ case class StmBuild(
     */
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     StmBuild(
-      typ,
       this.n,
       this.output,
       this.equations + (x -> (z, next))
-    )
+    )(typ)
   }
 
   /** Construct a boolean expression <code>c</code> such that, in
@@ -1047,12 +949,12 @@ case class StmBuild(
 
   private def stmNextCallCondition(e: Expr, x: Param): Expr = {
     e match {
-      case TupleAccess(_, StmNext(_, y), IntCst(0)) if y == x => True
-      case y if y == x                                        => False
+      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
+      case y if y == x                                  => False
       case IfThenElse(c, t, f) =>
         val ct = stmNextCallCondition(t, x)
         val cf = stmNextCallCondition(f, x)
-        (c && ct) || (Not(c) && cf)
+        (c && ct) || (Not(c)() && cf)
       case e =>
         throw new IllegalArgumentException(
           s"Illegal update to a stream-valued accumulator element: $e."
@@ -1143,7 +1045,7 @@ case class StmBuild(
       // We have a full candidate mapping, so check equality
       assert(domain.forall(x => inverse(map(x)) == x))
       assert(codomain.forall(y => map(inverse(y)) == y))
-      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param() })
+      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param("p") })
       // Need to use separate substitutions in case one of the streams refers
       // to a free variable and that same variable happens to be bound in the
       // other stream
@@ -1182,233 +1084,129 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")
-
-  def apply(
-      n: Expr /* Int */,
-      output: Expr /* Option<B> */,
-      equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
-  ): StmBuild = new StmBuild(Missing, n, output, equations)
 }
 
 // TODO: Make this syntax sugar?
-case class StmLength(typ: Type, stream: Expr) extends IntExpr {
+case class StmLength(stream: Expr)(val typ: Type = Missing) extends IntExpr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmLength(typ, s)
+      case Seq(s) => StmLength(s)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: StmLength => this.stream == that.stream
-      case _               => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.stream.hashCode
-  }
-}
-case object StmLength {
-  def apply(s: Expr): StmLength = StmLength(Missing, s)
 }
 
 // element only available for one clock cycle
-case class StmNext(typ: Type, stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
+case class StmNext(stream: Expr /* Stream<A>*/ )(
+    val typ: Type = Missing
+) /* (Stream<A>, A) */
     extends Expr {
   override def children: Seq[Expr] = Seq(stream)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNext(typ, s)
+      case Seq(s) => StmNext(s)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: StmNext => this.stream == that.stream
-      case _             => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.stream.hashCode
-  }
-}
-case object StmNext {
-  def apply(s: Expr): StmNext = new StmNext(Missing, s)
 }
 
 // Vectors
-case class VecBuild(typ: Type, len: Expr, f: Function /*Int => Expr*/ )
-    extends Expr {
+case class VecBuild(len: Expr, f: Function /*Int => Expr*/ )(
+    val typ: Type = Missing
+) extends Expr {
   override def children: Seq[Expr] = Seq(len, f)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, f) => VecBuild(typ, n, f.asInstanceOf[Function])
+      case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: VecBuild => (this.len, this.f) == (that.len, that.f)
-      case _              => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.len, this.f).hashCode
-  }
-}
-case object VecBuild {
-  def apply(n: Expr, f: Function): VecBuild = new VecBuild(Missing, n, f)
 }
 
-case class VecAccess(typ: Type, vec: Expr, i: Expr) extends Expr {
+case class VecAccess(vec: Expr, i: Expr)(val typ: Type = Missing) extends Expr {
   override def children: Seq[Expr] = Seq(vec, i)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v, i) => VecAccess(typ, v, i)
+      case Seq(v, i) => VecAccess(v, i)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: VecAccess => (this.vec, this.i) == (that.vec, that.i)
-      case _               => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.vec, this.i).hashCode
-  }
-}
-case object VecAccess {
-  def apply(v: Expr, i: Expr): VecAccess = new VecAccess(Missing, v, i)
 }
 
 // TODO: Lower this after type checking?
-case class VecLength(typ: Type, vec: Expr) extends IntExpr {
+case class VecLength(vec: Expr)(val typ: Type = Missing) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v) => VecLength(typ, v)
+      case Seq(v) => VecLength(v)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: VecLength => this.vec == that.vec
-      case _               => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.vec.hashCode
-  }
-}
-case object VecLength {
-  def apply(v: Expr): VecLength = VecLength(Missing, v)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Extra, non-synthesizable nodes
 // (Useful for evaluation and optimization)
 
-case class VecLiteral(typ: Type, elems: Expr*) extends Expr {
+case class VecLiteral(elems: Expr*)(val typ: Type = Missing) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    VecLiteral(typ, newChildren: _*)
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: VecLiteral => this.elems == that.elems
-      case _                => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.elems.hashCode
+    VecLiteral(newChildren: _*)(typ)
   }
 }
 object VecLiteral {
-  def apply(elems: Expr*): VecLiteral = new VecLiteral(Missing, elems: _*)
-
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)
+    VecLiteral(elems.map(n => IntCst(n)): _*)()
   }
 }
 
-case class StmLiteral(typ: Type, elems: Expr*) extends Expr {
+case class StmLiteral(elems: Expr*)(val typ: Type = Missing) extends Expr {
   override def children: Seq[Expr] = elems
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    StmLiteral(typ, newChildren: _*)
+    StmLiteral(newChildren: _*)(typ)
   }
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
-    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: StmLiteral => this.elems == that.elems
-      case _                => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.elems.hashCode
+    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
   }
 }
 object StmLiteral {
-  def apply(elems: Expr*): StmLiteral = StmLiteral(Missing, elems: _*)
-
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)
+    StmLiteral(elems.map(n => IntCst(n)): _*)()
   }
 
-  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)
+  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)()
 }
 
-case class StmNextK(typ: Type, s: Expr /* Stm<A; n> */, k: Expr /* Int */ )
-    extends Expr {
+case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
+    val typ: Type = Missing
+) extends Expr {
   override def children: Seq[Expr] = Seq(s, k)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, i) => StmNextK(s, i)
+      case Seq(s, i) => StmNextK(s, i)(typ)
       case _ =>
         throw new IllegalArgumentException(
           s"Wrong arguments passed to rebuild: $newChildren"
         )
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: StmNextK => (this.s, this.k) == (that.s, that.k)
-      case _              => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.s, this.k).hashCode
-  }
-}
-case object StmNextK {
-  def apply(s: Expr, k: Expr): StmNextK = StmNextK(Missing, s, k)
 }
 
 trait SyntaxSugar extends Expr {

@@ -10,8 +10,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
 
   test(s"Sum") {
-    val e1 = VecAccess(Param(), Param()).__1
-    val e2 = StmLength(Param())
+    val e1 = VecAccess(Param("p"), Param("p"))().__1
+    val e2 = StmLength(Param("p"))()
 
     assert(pe(IntCst(1) + IntCst(2)) == IntCst(3))
     assert(pe(e1 + IntCst(0)) == e1)
@@ -38,16 +38,16 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("SimplifiableBlackBoxInsideAdd") {
     val i = Param("i")
     val f = Param("f")
-    val e3 = VecAccess(FunCall(f, Tuple(0, 10, 20).__1), i)
-    val e4 = Param()
+    val e3 = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
+    val e4 = Param("p")
 
     val actual = pe((e3 + e4 + IntCst(42)) - e4)
-    val expected = IntCst(42) + VecAccess(FunCall(f, 10), i)
+    val expected = IntCst(42) + VecAccess(FunCall(f, 10)(), i)()
     assert(actual == expected)
   }
 
   test("Mul") {
-    val e = VecAccess(Param(), Param())
+    val e = VecAccess(Param("p"), Param("p"))()
 
     assert(pe(IntCst(4) * IntCst(9)) == IntCst(36))
     assert(pe(e * IntCst(0)) == IntCst(0))
@@ -60,15 +60,15 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("SimplifiableBlackBoxInsideMul") {
     val i = Param("i")
     val f = Param("f")
-    val e = VecAccess(FunCall(f, Tuple(0, 10, 20).__1), i)
+    val e = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
 
     val actual = pe((IntCst(42) * e) * IntCst(3))
-    val expected = IntCst(126) * VecAccess(FunCall(f, 10), i)
+    val expected = IntCst(126) * VecAccess(FunCall(f, 10)(), i)()
     assert(actual == expected)
   }
 
   test("Div") {
-    val e = StmLength(Param())
+    val e = StmLength(Param("p"))()
 
     // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
     assert(pe(e / IntCst(1)) == e)
@@ -80,7 +80,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("Mod") {
-    val e = VecLength(Param())
+    val e = VecLength(Param("p"))()
 
     assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
     assert(pe(IntCst(0) % e) == IntCst(0))
@@ -118,10 +118,10 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val i = IntCst(0)
     val e = IfThenElse(
       (i % 2) === 0,
-      Tuple(i, 2 + (2 * i)),
-      Tuple(2 + (2 * i), i)
+      Tuple(i, 2 + (2 * i))(),
+      Tuple(2 + (2 * i), i)()
     )
-    assert(PartialEvalPass.partialEval(e) == Tuple(0, 2))
+    assert(PartialEvalPass.partialEval(e) == Tuple(0, 2)())
   }
 
   /** The partial evaluator may check whether one branch is a special case of
