@@ -64,18 +64,18 @@ private object Helpers {
                 isFirstStep,
                 z.substitute(f.param -> StmNext(s)().__1),
                 x
-              )
+              )()
             })
             .foldLeft(Map[Expr, Expr]())(_ + _)
-            + (f.param -> IfThenElse(isFirstStep, StmNext(s)().__1, y))
+            + (f.param -> IfThenElse(isFirstStep, StmNext(s)().__1, y)())
         )
         val equationsToAdd = Map[Param, (Expr, Expr)](
           // Input stream
-          s -> (input, IfThenElse(isFirstStep, StmNext(s)().__0, s)),
+          s -> (input, IfThenElse(isFirstStep, StmNext(s)().__0, s)()),
           // Whether we still need to read from the input stream
           isFirstStep -> (True, False),
           // Register for the value from the input stream
-          y -> (Default(???), IfThenElse(isFirstStep, StmNext(s)().__1, y))
+          y -> (Default(???), IfThenElse(isFirstStep, StmNext(s)().__1, y)())
         )
         val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
           x -> (Default(???), next.substitute(subs))
@@ -142,10 +142,14 @@ object Iterate {
     }
     val s = StmBuild(
       1,
-      IfThenElse(i === 0, SSome(accExpanded)(), NNone(???)),
+      IfThenElse(i === 0, SSome(accExpanded)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
-        i -> (n, IfThenElse(i === 0, 0, i - 1)),
-        acc -> (z, IfThenElse(i === 0, accExpanded, FunCall(f, accExpanded)()))
+        i -> (n, IfThenElse(i === 0, 0, i - 1)()),
+        acc -> (z, IfThenElse(
+          i === 0,
+          accExpanded,
+          FunCall(f, accExpanded)()
+        )())
       )
     )()
     StmNext(s)().__1
@@ -200,8 +204,8 @@ object StmCount2D {
       n * m,
       SSome(Tuple(i, j)())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(j === m - 1, i + 1, i)),
-        j -> (0, IfThenElse(j === m - 1, 0, j + 1))
+        i -> (0, IfThenElse(j === m - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === m - 1, 0, j + 1)())
       )
     )()
   }
@@ -263,7 +267,7 @@ object StmMap {
                 // Never reset the input stream
                 x -> (z, next)
               } else {
-                x -> (z, IfThenElse(shouldReset, z, next))
+                x -> (z, IfThenElse(shouldReset, z, next)())
               }
             })
           )()
@@ -303,11 +307,11 @@ object StmAccess {
     val j = Param("j") // index within row
     StmBuild(
       perRow,
-      IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(???)),
+      IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
     )()
   }
@@ -386,13 +390,13 @@ object StmScanInclusive {
       OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)()
     val outerStm = StmBuild(
       stmShape.head,
-      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(???)),
+      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(???))(),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
           x -> (z, next)
         } else {
-          x -> (z, IfThenElse(shouldReset, z, next))
+          x -> (z, IfThenElse(shouldReset, z, next)())
         }
       }) + (acc -> (z, nextAcc))
     )()
@@ -506,11 +510,11 @@ object StmPrefix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(???)),
+      IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
     )()
   }
@@ -542,11 +546,11 @@ object StmSuffix {
     val j = Param("j")
     StmBuild(
       k * perRow,
-      IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(???)),
+      IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1))
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
     )()
   }
@@ -607,11 +611,11 @@ object StmConcat {
     val i = Param("i")
     StmBuild(
       n1 + n2,
-      SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1))(),
+      SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1)())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(i === n1, i, i + 1)),
-        s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0)().__0)),
-        s1 -> (stm2, IfThenElse(i === n1, StmNext(s1)().__0, s1))
+        i -> (0, IfThenElse(i === n1, i, i + 1)()),
+        s0 -> (stm1, IfThenElse(i === n1, s0, StmNext(s0)().__0)()),
+        s1 -> (stm2, IfThenElse(i === n1, StmNext(s1)().__0, s1)())
       )
     )()
   }
@@ -672,7 +676,7 @@ object StmRepeat {
           n * m,
           SSome(VecAccess(v, i)())(),
           Map[Param, (Expr, Expr)](
-            i -> (0, IfThenElse(i + 1 === n, 0, i + 1))
+            i -> (0, IfThenElse(i + 1 === n, 0, i + 1)())
           )
         )(),
       n = 1,
@@ -752,7 +756,7 @@ object StmSlideV {
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
         NNone(???)
-      ),
+      )(),
       Map[Param, (Expr, Expr)](
         s -> (input, StmNext(s)().__0),
         // Number of window elements left to load
@@ -769,9 +773,9 @@ object StmSlideV {
               //          (may take multiple cycles for nested streams).
               i,
               // CASE 2b: Initial loading still in progress.
-              IfThenElse(j === 1, i - 1, i)
-            )
-          )
+              IfThenElse(j === 1, i - 1, i)()
+            )()
+          )()
         ),
         // How many pieces of data left to load in the current window element?
         // This will be 1 if `stm` is flat but may be greater than 1
@@ -789,9 +793,9 @@ object StmSlideV {
               //          (may take multiple cycles for nested streams).
               j - 1,
               // CASE 2b: Initial loading still in progress.
-              IfThenElse(j === 1, elemSize, j - 1)
-            )
-          )
+              IfThenElse(j === 1, elemSize, j - 1)()
+            )()
+          )()
         ),
         v -> (
           VecBuild(m * elemSize, (_: Expr) => Default(???))(),

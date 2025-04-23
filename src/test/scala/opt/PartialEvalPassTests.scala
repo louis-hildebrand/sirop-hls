@@ -25,9 +25,9 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       IfThenElse(
         acc.__3,
-        IfThenElse(Not(LessThan(acc.__4, 5)())(), False, True),
+        IfThenElse(Not(LessThan(acc.__4, 5)())(), False, True)(),
         False
-      )
+      )()
     val expected = acc.__3 && LessThan(acc.__4, 5)()
     assert(PartialEvalPass.partialEval(e) == expected)
   }
@@ -55,11 +55,11 @@ class PartialEvalPassTests extends AnyFunSuite {
       Function(
         y,
         TyInt,
-        IfThenElse(y > 42, Function(y, TyInt, y > 10)(), (_: Expr) => y > 45)
+        IfThenElse(y > 42, Function(y, TyInt, y > 10)(), (_: Expr) => y > 45)()
       )()
     val actual = PartialEvalPass.partialEval(e)
     val expected: Function =
-      (y: Expr) => IfThenElse(y > 42, (z: Expr) => z > 10, (_: Expr) => False)
+      (y: Expr) => IfThenElse(y > 42, (z: Expr) => z > 10, (_: Expr) => False)()
     assert(actual == expected)
   }
 
@@ -116,7 +116,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val v =
       VecBuild(
         3,
-        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c))
+        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())()
       )()
     val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
     val pe = (e: Expr) => PartialEvalPass.partialEval(e)
@@ -135,7 +135,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       i === (n - 1),
       z + acc.__0 * delta,
       z + ((acc.__0 + (i + 1)) - n) * delta
-    )
+    )()
     val actual = PartialEvalPass.partialEval(e)
     val expected = z + delta * acc.__0 + delta * i + delta - delta * n
     assert(actual == expected)
@@ -151,7 +151,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       i !== (n - 1),
       z + ((acc.__0 + (i + 1)) - n) * delta,
       z + acc.__0 * delta
-    )
+    )()
     val expected = z + delta * acc.__0 + delta * i + delta - delta * n
     assert(PartialEvalPass.partialEval(e) == expected)
   }
@@ -168,9 +168,9 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a)(), NNone(???)),
+      IfThenElse(a >= z, SSome(a)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
-        a -> (z, IfThenElse(a >= z, a + 3, a - 1))
+        a -> (z, IfThenElse(a >= z, a + 3, a - 1)())
       )
     )()
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
@@ -235,13 +235,13 @@ class PartialEvalPassTests extends AnyFunSuite {
         x < 10 && x >= 0,
         Tuple(x < 11, x >= 10, x >= -1, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
-      )
+      )()
     val expected =
       IfThenElse(
         x < 10 && x >= 0,
         Tuple(True, False, True, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
-      )
+      )()
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }
@@ -260,17 +260,17 @@ class PartialEvalPassTests extends AnyFunSuite {
                 -7 + i + t < 7,
                 StmNextK(s, -7 + i + t)(),
                 StmNextK(s, 7)()
-              )
+              )()
             )().__1
         )(),
         VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)())().__1)()
-      )
+      )()
     val expected: Expr = (t: Expr) =>
       IfThenElse(
         t < 7,
         VecBuild(7, (i: Expr) => StmNext(StmNextK(s, -7 + i + t)())().__1)(),
         VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)())().__1)()
-      )
+      )()
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }

@@ -91,7 +91,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val y = Param("y")
     val z = Param("z")
     val a = Param("a")
-    val e = IfThenElse(x.__1 >= -2 + a, y, z)
+    val e = IfThenElse(x.__1 >= -2 + a, y, z)()
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
@@ -120,7 +120,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
       (i % 2) === 0,
       Tuple(i, 2 + (2 * i))(),
       Tuple(2 + (2 * i), i)()
-    )
+    )()
     assert(PartialEvalPass.partialEval(e) == Tuple(0, 2)())
   }
 
@@ -130,26 +130,26 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("PossibleDivByZeroInFalseBranch") {
     val x = Param("x")
 
-    val e0 = IfThenElse(x === 0, 1, 2 / x)
+    val e0 = IfThenElse(x === 0, 1, 2 / x)()
     assert(PartialEvalPass.partialEval(e0) == e0)
 
-    val e1 = IfThenElse(x === 1, 1, 3 / (1 - x))
+    val e1 = IfThenElse(x === 1, 1, 3 / (1 - x))()
     assert(PartialEvalPass.partialEval(e1) == e1)
 
-    val e2 = IfThenElse(x > 0, 10 / x, 0)
+    val e2 = IfThenElse(x > 0, 10 / x, 0)()
     assert(PartialEvalPass.partialEval(e2) == e2)
   }
 
   test("PossibleDivByZeroInTrueBranch") {
     val x = Param("x")
 
-    val e0 = IfThenElse(x !== 0, 2 / x, 1)
+    val e0 = IfThenElse(x !== 0, 2 / x, 1)()
     assert(PartialEvalPass.partialEval(e0) == e0)
 
-    val e1 = IfThenElse(x !== 1, 3 / (1 - x), 1)
+    val e1 = IfThenElse(x !== 1, 3 / (1 - x), 1)()
     assert(PartialEvalPass.partialEval(e1) == e1)
 
-    val e2 = IfThenElse(x <= 0, 0, 10 / x)
+    val e2 = IfThenElse(x <= 0, 0, 10 / x)()
     assert(PartialEvalPass.partialEval(e2) == e2)
   }
 
@@ -175,7 +175,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("IfThenElse(a < b, True, False) === False") {
     val a = Param("a")
     val b = Param("b")
-    val e = IfThenElse(a < b, True, False) === False
+    val e = IfThenElse(a < b, True, False)() === False
     val actual = pe(e)
     val expected = a >= b
     assert(actual == expected)

@@ -88,7 +88,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")
     val triangleSum = StmBuild(
       1,
-      IfThenElse(t >= n, SSome(sum)(), NNone(???)),
+      IfThenElse(t >= n, SSome(sum)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
         sum -> (0, sum + i),
@@ -109,7 +109,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // One counter can be removed, but not the sum
     val ideal = StmBuild(
       1,
-      IfThenElse(t >= n, SSome(sum)(), NNone(???)),
+      IfThenElse(t >= n, SSome(sum)(), NNone(???))(),
       Map[Param, (Expr, Expr)](
         sum -> (0, sum + t),
         t -> (0, t + 1)
@@ -218,7 +218,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         Not(b1)() && (i % 2 === 0),
         SSome(Tuple(i, b0, b1)())(),
         NNone(???)
-      ),
+      )(),
       Map[Param, (Expr, Expr)](
         i -> (i0, i + delta),
         b0 -> (True, b0 && i < k0),
@@ -271,7 +271,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       n,
       SSome(Tuple(i, b)())(),
       Map[Param, (Expr, Expr)](
-        i -> (i0, IfThenElse(b, i + delta, i)),
+        i -> (i0, IfThenElse(b, i + delta, i)()),
         b -> (True, b && i < k)
       )
     )()
@@ -312,8 +312,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       SSome(Tuple(a1 + 2, a2)())(),
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
-        a1 -> (1, IfThenElse(a0 < k + 1, a1 + 1, a1)),
-        a2 -> (2, IfThenElse(a0 <= -1 + k, a2 + 2, a2))
+        a1 -> (1, IfThenElse(a0 < k + 1, a1 + 1, a1)()),
+        a2 -> (2, IfThenElse(a0 <= -1 + k, a2 + 2, a2)())
       )
     )()
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
@@ -349,8 +349,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       SSome(Tuple(3 * a1, 2 * a2)())(),
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
-        a1 -> (2, IfThenElse(a0 >= k + 2, a1 + 1, a1)),
-        a2 -> (1, IfThenElse(a0 > k, a2 + 2, a2))
+        a1 -> (2, IfThenElse(a0 >= k + 2, a1 + 1, a1)()),
+        a2 -> (1, IfThenElse(a0 > k, a2 + 2, a2)())
       )
     )()
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
@@ -386,9 +386,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         a0 -> (10, a0 + 1),
         a1 -> (2, IfThenElse(
           a0 < 20,
-          IfThenElse(a0 < 17, a1 + 2, a1),
-          IfThenElse(a0 < 34, a1 - 3, a1)
-        ))
+          IfThenElse(a0 < 17, a1 + 2, a1)(),
+          IfThenElse(a0 < 34, a1 - 3, a1)()
+        )())
       )
     )()
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
@@ -420,7 +420,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (2, i + 1),
         v -> (
           VecBuild(m, (j: Expr) => j)(),
-          IfThenElse(i < m, VecShiftLeft(v, 2 * i), v)
+          IfThenElse(i < m, VecShiftLeft(v, 2 * i), v)()
         )
       )
     )()
@@ -455,7 +455,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (7, i + 1),
         v -> (
           VecBuild(m, (j: Expr) => j)(),
-          IfThenElse(i < m, v, VecShiftLeft(v, 3 * i + 1))
+          IfThenElse(i < m, v, VecShiftLeft(v, 3 * i + 1))()
         )
       )
     )()
@@ -482,7 +482,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t0 = 0
     val n = 10
     val recEqn =
-      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)()
     val result = StmInductionVarRemovalPass().tryFindClosedForm(t0, s, recEqn)
 
     assert(result.isDefined)
@@ -506,7 +506,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Effective simplification
     val expected: Function =
-      (t: Expr) => StmNextK(s, IfThenElse(t < 10, t, 10))()
+      (t: Expr) => StmNextK(s, IfThenElse(t < 10, t, 10)())()
     assert(PartialEvalPass.partialEval(f) == expected)
   }
 
@@ -515,7 +515,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t0 = 0
     val s = Param("s")
     val stmNextRecEqn =
-      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)()
     val stmNextFun =
       StmInductionVarRemovalPass()
         .tryFindClosedForm(t0, s, stmNextRecEqn)
@@ -529,7 +529,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           t < n,
           VecShiftLeft(x, StmNext(FunCall(stmNextFun, t)())().__1),
           x
-        )
+        )()
     val shiftEqn =
       StmInductionVarRemovalPass().tryFindClosedForm(0, initialVec, shiftRecEqn)
 
@@ -564,10 +564,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               i + t < 7,
               Default(???),
               StmNext(StmNextK(s, -n + t + i)())().__1
-            )
+            )()
         )(),
         VecBuild(n, (i: Expr) => StmNext(StmNextK(s, i)())().__1)()
-      )
+      )()
     assert(f == expected)
   }
 
@@ -655,7 +655,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expectedF: Function =
       (t: Expr) =>
         (x: Expr) =>
-          IfThenElse(-5 + t < 5, IfThenElse(-5 + t < 0, x, StmNext(x)().__0), x)
+          IfThenElse(
+            -5 + t < 5,
+            IfThenElse(-5 + t < 0, x, StmNext(x)().__0)(),
+            x
+          )()
     assert(f == expectedF)
   }
 
@@ -700,7 +704,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(z == s)
     val expectedF: Function =
-      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)
+      (t: Expr) => (x: Expr) => IfThenElse(t < n, StmNext(x)().__0, x)()
     assert(f == expectedF)
   }
 
@@ -745,7 +749,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(z == s)
     val expectedF: Function =
-      (t: Expr) => (x: Expr) => IfThenElse(t - n < 0, x, StmNext(x)().__0)
+      (t: Expr) => (x: Expr) => IfThenElse(t - n < 0, x, StmNext(x)().__0)()
     assert(f == expectedF)
   }
 
@@ -757,13 +761,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")
     val original = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, t - n)())()),
+      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, t - n)())())(),
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
-        s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)),
+        s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)()),
         v -> (
           VecBuild(n, (_: Expr) => Default(???))(),
-          IfThenElse(t < n, VecShiftLeft(v, StmNext(s)().__1), v)
+          IfThenElse(t < n, VecShiftLeft(v, StmNext(s)().__1), v)()
         )
       )
     )()
@@ -793,10 +797,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s1 = Param("s")
     val expected = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(StmNext(s1)().__1)()),
+      IfThenElse(t < n, NNone(???), SSome(StmNext(s1)().__1)())(),
       Map[Param, (Expr, Expr)](
-        s0 -> (input, IfThenElse(t < n, StmNext(s0)().__0, s0)),
-        s1 -> (input, IfThenElse(-1 * n + t < 0, s1, StmNext(s1)().__0)),
+        s0 -> (input, IfThenElse(t < n, StmNext(s0)().__0, s0)()),
+        s1 -> (input, IfThenElse(-1 * n + t < 0, s1, StmNext(s1)().__0)()),
         t -> (0, t + 1)
       )
     )()
@@ -811,13 +815,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")
     val original = StmBuild(
       n,
-      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, -1 + 2 * n - t)())()),
+      IfThenElse(t < n, NNone(???), SSome(VecAccess(v, -1 + 2 * n - t)())())(),
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
-        s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)),
+        s -> (input, IfThenElse(t < n, StmNext(s)().__0, s)()),
         v -> (
           VecBuild(n, (_: Expr) => Default(???))(),
-          IfThenElse(t < n, VecShiftLeft(v, StmNext(s)().__1), v)
+          IfThenElse(t < n, VecShiftLeft(v, StmNext(s)().__1), v)()
         )
       )
     )()

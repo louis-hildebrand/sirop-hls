@@ -3,8 +3,6 @@ package ir
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 
-// TODO: Delete all the unnecessary equals() and hashCode() methods
-// TODO: Why are some of these classes so complex? Surely I can move the normalization code to the factory method.
 // TODO: Why not just make typecheck() a method in the Expr class?
 
 class BadRebuildError(e: Expr, args: Seq[Expr])
@@ -15,9 +13,9 @@ class BadRebuildError(e: Expr, args: Seq[Expr])
 /** A node in the core IR.
   */
 sealed trait Expr {
-  def +(that: Expr): Expr = Sum(this, that)
-  def -(that: Expr): Expr = Sum(this, Prod(-1, that))
-  def *(that: Expr): Expr = Prod(this, that)
+  def +(that: Expr): Expr = Sum(this, that)()
+  def -(that: Expr): Expr = Sum(this, Prod(-1, that)())()
+  def *(that: Expr): Expr = Prod(this, that)()
   def /(that: Expr): Div = Div(this, that)()
   def %(that: Expr): Mod = Mod(this, that)()
   def ===(that: Expr): Equal = Equal(this, that)()
@@ -26,8 +24,8 @@ sealed trait Expr {
   def <=(that: Expr): Not = Not(this > that)()
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
-  def &&(that: Expr): And = And(this, that)
-  def ||(that: Expr): Or = Or(this, that)
+  def &&(that: Expr): And = And(this, that)()
+  def ||(that: Expr): Or = Or(this, that)()
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
   def __0: TupleAccess = TupleAccess(this, 0)()
@@ -352,10 +350,16 @@ case class IntCst(i: Int) extends IntExpr {
   }
 }
 
-// TODO: Move `typ` to a second argument list for consistency with other classes?
-final class Sum(val typ: Type, unsortedTerms: Seq[Expr]) extends IntExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
+case class Sum(terms: Expr*)(val typ: Type) extends IntExpr {
+  override def children: Seq[Expr] = terms
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Sum(newChildren: _*)(typ)
+  }
+}
+case object Sum {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Sum = {
+    val terms = unsortedTerms
       // Flatten nested sums to represent associativity
       .flatMap({
         case s: Sum => s.terms
@@ -363,72 +367,29 @@ final class Sum(val typ: Type, unsortedTerms: Seq[Expr]) extends IntExpr {
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
-
-  override def children: Seq[Expr] = terms
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
-    new Sum(typ, newChildren)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Sum => this.terms == that.terms
-      case _         => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"Sum(${this.terms})"
-  }
-}
-object Sum {
-  def apply(terms: Expr*): Sum = {
-    new Sum(Missing, terms)
-  }
-
-  def unapply(s: Sum): Option[Seq[Expr]] = {
-    Some(s.terms)
+    new Sum(terms: _*)(typ)
   }
 }
 
-// TODO: Move `typ` to a second argument list for consistency with other classes?
-final class Prod(val typ: Type, unsortedFactors: Seq[Expr]) extends IntExpr {
-  val factors: Seq[Expr] =
-    unsortedFactors
-      // Flatten nested sums to represent associativity
-      .flatMap({
-        case p: Prod => p.factors
-        case e       => Seq(e)
-      })
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
-
+case class Prod(factors: Expr*)(val typ: Type) extends IntExpr {
   override def children: Seq[Expr] = factors
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
-    new Prod(typ, newChildren)
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Prod => this.factors == that.factors
-      case _          => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.factors.hashCode()
-  }
-
-  override def toString: String = {
-    s"Prod(${this.factors})"
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Prod(newChildren: _*)(typ)
   }
 }
-object Prod {
-  def apply(factors: Expr*): Prod = {
-    new Prod(Missing, factors)
-  }
-
-  def unapply(p: Prod): Option[Seq[Expr]] = {
-    Some(p.factors)
+case object Prod {
+  def apply(unsortedFactors: Expr*)(typ: Type = Missing): Prod = {
+    val factors: Seq[Expr] =
+      unsortedFactors
+        // Flatten nested sums to represent associativity
+        .flatMap({
+          case p: Prod => p.factors
+          case e       => Seq(e)
+        })
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    new Prod(factors: _*)(typ)
   }
 }
 
@@ -471,48 +432,24 @@ case object False extends BoolCst
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
-// TODO: Move `typ` to a second argument list for consistency with other classes?
-final class IfThenElse(val typ: Type, cond: Expr, trueE: Expr, falseE: Expr)
-    extends Expr {
-  val (c, t, f) = cond match {
-    case Not(c) => (c, falseE, trueE)
-    case c      => (c, trueE, falseE)
-  }
-
+case class IfThenElse(c: Expr, t: Expr, f: Expr)(val typ: Type) extends Expr {
   override def children: Seq[Expr] = Seq(c, t, f)
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(c, t, f) => new IfThenElse(typ, c, t, f)
+      case Seq(c, t, f) => IfThenElse(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: IfThenElse =>
-        this.c == that.c && this.t == that.t && this.f == that.f
-      case _ => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.c, this.t, this.f).hashCode()
-  }
-
-  override def toString: String = {
-    s"IfThenElse($c, $t, $f)"
-  }
 }
-object IfThenElse {
-  def apply(typ: Type, c: Expr, t: Expr, f: Expr): Expr = {
-    new IfThenElse(typ, c, t, f)
-  }
-
-  def apply(c: Expr, t: Expr, f: Expr): Expr = {
-    IfThenElse(Missing, c, t, f)
-  }
-
-  def unapply(ite: IfThenElse): Option[(Expr, Expr, Expr)] = {
-    Some((ite.c, ite.t, ite.f))
+case object IfThenElse {
+  def apply(c: Expr, t: Expr, f: Expr)(
+      typ: Type = Missing
+  ): IfThenElse = {
+    c match {
+      case Not(c) => new IfThenElse(c, f, t)(typ)
+      case c      => new IfThenElse(c, t, f)(typ)
+    }
   }
 }
 
@@ -550,103 +487,67 @@ case class Not(e: Expr)(val typ: Type = Missing) extends BoolExpr {
   }
 }
 
-// TODO: Move `typ` to a second argument list for consistency with other classes?
-final class And(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
-      // Flatten nested ANDs to represent associativity
-      .flatMap({
-        case a: And => a.terms
-        case e      => Seq(e)
-      })
-      // Deduplicate to represent the fact that x && x == x
-      .distinct
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
+case class And(terms: Expr*)(val typ: Type) extends BoolExpr {
+  override def children: Seq[Expr] = terms
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    And(newChildren: _*)(typ)
+  }
 
   def remove(c: Expr): Expr = {
     terms.filter(e => e != c) match {
       case Seq()  => True
       case Seq(e) => e
-      case terms  => And(terms: _*)
+      case terms  => And(terms: _*)(this.typ)
     }
   }
+}
+case object And {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): And = {
+    val terms: Seq[Expr] =
+      unsortedTerms
+        // Flatten nested ANDs to represent associativity
+        .flatMap({
+          case a: And => a.terms
+          case e      => Seq(e)
+        })
+        // Deduplicate to represent the fact that x && x == x
+        .distinct
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    new And(terms: _*)(typ)
+  }
+}
 
+case class Or(terms: Expr*)(val typ: Type) extends BoolExpr {
   override def children: Seq[Expr] = terms
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
-    new And(typ, newChildren: _*)
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: And => this.terms == that.terms
-      case _         => false
-    }
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Or(newChildren: _*)(typ)
   }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"And(${this.terms.mkString(",")})"
-  }
-}
-object And {
-  def apply(terms: Expr*): And = {
-    new And(Missing, terms: _*)
-  }
-
-  def unapplySeq(a: And): Option[Seq[Expr]] = {
-    Some(a.terms)
-  }
-}
-
-// TODO: Move `typ` to a second argument list for consistency with other classes?
-final class Or(val typ: Type, unsortedTerms: Expr*) extends BoolExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
-      // Flatten nested ORs to represent associativity
-      .flatMap({
-        case a: Or => a.terms
-        case e     => Seq(e)
-      })
-      // Deduplicate to represent the fact that x || x == x
-      .distinct
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
 
   def remove(c: Expr): Expr = {
     terms.filter(e => e != c) match {
       case Seq()  => False
       case Seq(e) => e
-      case terms  => Or(terms: _*)
+      case terms  => Or(terms: _*)(this.typ)
     }
-  }
-
-  override def children: Seq[Expr] = terms
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
-    new Or(typ, newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Or => this.terms == that.terms
-      case _        => false
-    }
-  }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"Or(${this.terms.mkString(",")})"
   }
 }
-object Or {
-  def apply(terms: Expr*): Or = {
-    new Or(Missing, terms: _*)
-  }
-
-  def unapplySeq(a: Or): Option[Seq[Expr]] = {
-    Some(a.terms)
+case object Or {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Or = {
+    val terms: Seq[Expr] =
+      unsortedTerms
+        // Flatten nested ORs to represent associativity
+        .flatMap({
+          case a: Or => a.terms
+          case e     => Seq(e)
+        })
+        // Deduplicate to represent the fact that x || x == x
+        .distinct
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    new Or(terms: _*)(typ)
   }
 }
 
@@ -797,7 +698,7 @@ case class StmBuild(
             consumerStm.output.substitute(
               StmNext(x)().__1 -> OptionUnwrapUnsafe(producerStm.output)()
             )
-          )
+          )()
         val producerTyp = {
           assert(
             producerStm.typ != Missing,
@@ -838,7 +739,7 @@ case class StmBuild(
                   //         If the consumer *does* try to get output from the
                   //         producer at this point, return the default value.
                   next.substitute(StmNext(x)().__1 -> Default(producerTyp.t))
-                ))
+                )())
               })
           val newProducerEquations =
             producerStm.equations.map({ case (x, (z, next)) =>
@@ -850,7 +751,7 @@ case class StmBuild(
                 // CASE 2: Consumer is not reading from input.
                 //         Producer does nothing.
                 x
-              ))
+              )())
             })
           newConsumerEquations ++ newProducerEquations
         }
@@ -913,7 +814,7 @@ case class StmBuild(
         this
     val z = IntCst(0)
     val stmNextCalled = stmNextCallCondition(s, x)
-    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)
+    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)()
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -1123,7 +1024,7 @@ case class VecAccess(vec: Expr, i: Expr)(val typ: Type = Missing) extends Expr {
   }
 }
 
-// TODO: Lower this after type checking?
+// TODO: Make this syntax sugar?
 case class VecLength(vec: Expr)(val typ: Type = Missing) extends IntExpr {
   override def children: Seq[Expr] = Seq(vec)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {

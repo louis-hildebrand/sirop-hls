@@ -301,7 +301,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           Function(
             t,
             TyInt,
-            IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))
+            IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))()
           )()
         )
       case Counter(delta) => Some(Function(t, TyInt, z + (t - t0) * delta)())
@@ -320,7 +320,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                   (t - t0 + i) < n,
                   FunCall(f, t - t0 + i)(),
                   FunCall(g, t - t0 + i - n)()
-                )
+                )()
             )()
           )()
         )
@@ -345,7 +345,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                   Function(
                     t,
                     TyInt,
-                    IfThenElse(t < t1, FunCall(f, t)(), FunCall(g, t)())
+                    IfThenElse(t < t1, FunCall(f, t)(), FunCall(g, t)())()
                   )()
                 )
               case None => None
@@ -473,7 +473,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                                 c,
                                 FunCall(FunCall(f0, t)(), x)(),
                                 FunCall(FunCall(f1, t)(), x)()
-                              )
+                              )()
                           )()
                         Some((z0, f))
                       } else {
@@ -502,7 +502,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               t,
               TyInt,
               (acc: Expr) =>
-                IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)
+                IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
             )()
             Some((z, nextF))
           } else {
@@ -558,12 +558,12 @@ object Counter {
   def unapply(args: (Expr, Function)): Option[Expr] = {
     val (_, next) = args
     next match {
-      case Function(t, _, Function(acc, _, Sum(terms))) =>
+      case Function(t, _, Function(acc, _, Sum(terms @ _*))) =>
         val termsWithAcc = terms.filter(e => e.contains(acc))
         termsWithAcc match {
           case Seq(a) if a == acc =>
             val otherTerms = terms.diff(termsWithAcc)
-            val delta = Sum(otherTerms: _*)
+            val delta = Sum(otherTerms: _*)()
             val isConstInStream = !delta.contains(t)
             if (isConstInStream) {
               Some(delta)
@@ -608,9 +608,9 @@ object LeftShiftRegister {
                     i0: Param,
                     _,
                     IfThenElse(
-                      Equal(i1, Sum(Seq(IntCst(-1), VecLength(a1)))),
+                      Equal(i1, Sum(IntCst(-1), VecLength(a1))),
                       e,
-                      VecAccess(a2, Sum(Seq(IntCst(1), i2)))
+                      VecAccess(a2, Sum(IntCst(1), i2))
                     )
                   )
                 )
@@ -657,7 +657,7 @@ object Piecewise {
 object TimeLessThan {
   def unapply(args: (Param, Param, Expr)): Option[Expr] = {
     val (t, acc, lt) = args
-    (t, acc, IfThenElse(lt, True, False)) match {
+    (t, acc, IfThenElse(lt, True, False)()) match {
       case IfTimeLessThan(k, True, False) => Some(k)
       case _                              => None
     }
@@ -731,14 +731,14 @@ object LinearFunctionOf {
   def unapply(args: (Expr, Expr)): Option[(Expr, Expr)] = {
     val (e, x) = args
     e match {
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val termsWithX = terms.filter(e => e.contains(x))
         termsWithX match {
           case Seq(termWithX) =>
             (termWithX, x) match {
               case ConstMultipleOf(c1) =>
                 val termsWithoutX = terms.diff(termsWithX)
-                val c0 = Sum(termsWithoutX: _*)
+                val c0 = Sum(termsWithoutX: _*)()
                 Some((c0, c1))
               case _ => None
             }
@@ -765,14 +765,14 @@ object ConstMultipleOf {
     val (e, x) = args
     e match {
       case y if y == x => Some(1)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val factorsWithX = factors.filter(e => e.contains(x))
         factorsWithX match {
           case Seq(y) if y == x =>
             val factorsWithoutX = factors.diff(factorsWithX)
             val coeff = factorsWithoutX match {
               case Seq(e) => e
-              case xs     => Prod(xs: _*)
+              case xs     => Prod(xs: _*)()
             }
             Some(coeff)
           case _ => None

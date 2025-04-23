@@ -35,7 +35,7 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("IfThenElse") {
-    val e = IfThenElse(1 === 2, 3, 4)
+    val e = IfThenElse(1 === 2, 3, 4)()
     DotPrinter.save(e, "./img/IfThenElse.dot")
   }
 
@@ -63,7 +63,7 @@ class DotPrinterTests extends AnyFunSuite {
 
   test("SimpleVecBuild") {
     val x = Param("x")
-    val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i))()
+    val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i)())()
     DotPrinter.save(e, "./img/SimpleVecBuild.dot")
   }
 
@@ -71,7 +71,8 @@ class DotPrinterTests extends AnyFunSuite {
     val x = Param("x")
     val e = VecBuild(
       4,
-      (i: Expr) => VecBuild(3, (j: Expr) => IfThenElse(i === j, x + i, i + j))()
+      (i: Expr) =>
+        VecBuild(3, (j: Expr) => IfThenElse(i === j, x + i, i + j)())()
     )()
     DotPrinter.save(e, "./img/NestedVecBuild.dot")
   }

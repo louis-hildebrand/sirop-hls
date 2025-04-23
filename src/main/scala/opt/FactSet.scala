@@ -56,10 +56,10 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
-          case Sum(Seq(IntCst(c), x: Param)) =>
+          case Sum(IntCst(c), x: Param) =>
             // c + x < 0 <==> x < -c
             this.range(x, ScalarRange(None, Some(-c)))
-          case Sum(Seq(IntCst(c), Prod(Seq(IntCst(-1), x: Param)))) =>
+          case Sum(IntCst(c), Prod(IntCst(-1), x: Param)) =>
             // c - x < 0 <==> x > c ==> x >= c + 1
             this.range(x, ScalarRange(Some(c + 1), None))
           case x: Param =>
@@ -85,10 +85,10 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
         PartialEvalPass.partialEval(e1 - e2)(this) match {
-          case Sum(Seq(IntCst(c), x: Param)) =>
+          case Sum(IntCst(c), x: Param) =>
             // !(c + x < 0) <==> c + x >= 0 <==> x >= -c
             this.range(x, ScalarRange(Some(-c), None))
-          case Sum(Seq(IntCst(c), Prod(Seq(IntCst(-1), x: Param)))) =>
+          case Sum(IntCst(c), Prod(IntCst(-1), x: Param)) =>
             // !(c - x < 0) <==> c - x >= 0 <==> x <= c <==> x < c + 1
             this.range(x, ScalarRange(None, Some(c + 1)))
           case x: Param =>

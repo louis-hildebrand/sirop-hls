@@ -191,7 +191,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     if (this.typ == Missing) {
       VecBuild(
         VecLength(v)() + 1,
-        (i: Expr) => IfThenElse(i === 0, e, VecAccess(v, i + -1)())
+        (i: Expr) => IfThenElse(i === 0, e, VecAccess(v, i + -1)())()
       )()
     } else {
       val t = this.v.typ.asInstanceOf[TyVec].t
@@ -199,7 +199,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
       // TODO: yuck, let Param take a type annotation as input
       val i = Param("i").rebuild(TyInt).asInstanceOf[Param]
       val f =
-        Function(i, TyInt, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t)))(
+        Function(i, TyInt, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t))())(
           TyArrow(TyInt, t)
         )
       VecBuild(n + 1, f)(this.typ)
@@ -243,7 +243,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
       val n = VecLength(v)()
       VecBuild(
         n + 1,
-        (i: Expr) => IfThenElse(i === n, e, VecAccess(v, i)())
+        (i: Expr) => IfThenElse(i === n, e, VecAccess(v, i)())()
       )()
     } else {
       val t = this.v.typ.asInstanceOf[TyVec].t
@@ -251,7 +251,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
       // TODO: yuck, let Param take a type annotation as input
       val i = Param("i").rebuild(TyInt).asInstanceOf[Param]
       val f =
-        Function(i, TyInt, IfThenElse(i === n, e, VecAccess(v, i)(t)))(
+        Function(i, TyInt, IfThenElse(i === n, e, VecAccess(v, i)(t))())(
           TyArrow(TyInt, t)
         )
       VecBuild(n + 1, f)(this.typ)
@@ -298,7 +298,7 @@ object VecShiftLeft {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())
+      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())()
     )()
   }
 }
@@ -311,7 +311,7 @@ object VecShiftRight {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())
+      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())()
     )()
   }
 }
@@ -325,7 +325,8 @@ object VecConcat {
     val m = VecLength(v2)()
     VecBuild(
       n + m,
-      (i: Expr) => IfThenElse(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())
+      (i: Expr) =>
+        IfThenElse(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
     )()
   }
 }
@@ -354,7 +355,7 @@ object VecZipAlternating {
           (i % 2) === 0,
           Tuple(VecAccess(a, i)(), VecAccess(b, i)())(),
           Tuple(VecAccess(b, i)(), VecAccess(a, i)())()
-        )
+        )()
     )()
   }
 }
@@ -392,12 +393,12 @@ object VecSplit {
 object VecJoin {
   def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<A; n * m> */ = {
     val n = VecLength(v)()
-    val m = IfThenElse(n === 0, 1, VecLength(VecAccess(v, 0)())())
+    val m = IfThenElse(n === 0, 1, VecLength(VecAccess(v, 0)())())()
     IfThenElse(
       m === 0,
       VecBuild(0, (_: Expr) => Default(???))(),
       VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m)(), i % m)())()
-    )
+    )()
   }
 }
 

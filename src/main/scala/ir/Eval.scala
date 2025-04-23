@@ -62,7 +62,7 @@ trait Eval {
         }
 
       case IntCst(n) => IntCst(n)
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
@@ -72,7 +72,7 @@ trait Eval {
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
           )
         }
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)

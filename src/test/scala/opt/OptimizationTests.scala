@@ -124,13 +124,13 @@ class OptimizationTests extends AnyFunSuite {
           j < -1 + StmLength(input)(),
           SSome(StmNext(s)().__1)(),
           NNone(???)
-        ),
+        )(),
         SSome(42)()
-      ),
+      )(),
       Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)),
-        i -> (0, IfThenElse(i === 1, i, i + 1)),
-        j -> (0, IfThenElse(i === 1, j + 1, j))
+        s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)()),
+        i -> (0, IfThenElse(i === 1, i, i + 1)()),
+        j -> (0, IfThenElse(i === 1, j + 1, j)())
       )
     )()
     val fusedAndSimplified =
@@ -160,12 +160,12 @@ class OptimizationTests extends AnyFunSuite {
         IfThenElse(
           i === 4,
           SSome(42)(),
-          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1)())
-        ),
+          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1)())()
+        )(),
         Map[Param, (Expr, Expr)](
-          s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)),
-          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1))),
-          j -> (0, IfThenElse(i === 4, j, j + 1))
+          s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)()),
+          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1)())()),
+          j -> (0, IfThenElse(i === 4, j, j + 1)())
         )
       )()
     val fusedAndSimplified =

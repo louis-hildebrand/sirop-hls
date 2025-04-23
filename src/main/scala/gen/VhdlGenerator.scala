@@ -202,10 +202,10 @@ object VhdlGenerator {
     e match {
       case x: Param  => (x.name, Seq())
       case IntCst(n) => (n.toString, Seq())
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" + "), signals.flatten)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val (vhdlFactors, signals) =
           factors.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
@@ -254,6 +254,9 @@ object VhdlGenerator {
       case VecLiteral(elems @ _*)         => ???
       case StmLiteral(elems @ _*)         => ???
       case StmNextK(s, k)                 => ???
+      case _: StmLength                   => ???
+      case _: VecLength                   => ???
+      case _: SyntaxSugar                 => ???
     }
   }
 

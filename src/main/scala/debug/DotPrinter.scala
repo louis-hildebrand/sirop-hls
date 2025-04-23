@@ -395,10 +395,10 @@ object DotPrinter {
         throw new IllegalArgumentException(
           s"Missing name for free variable $p."
         )
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("+", labeledTerms, scope)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val labeledFactors = factors.map(e => ("", toDot(e, scope)))
         DotScalar("*", labeledFactors, scope)
       case e: BinOp =>

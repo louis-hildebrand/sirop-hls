@@ -30,7 +30,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val i = Param("i")
       StmBuild(
         5,
-        IfThenElse(b, SSome(i)(), NNone(TyInt)),
+        IfThenElse(b, SSome(i)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
       )().lowerAll().asInstanceOf[StmBuild]
     }

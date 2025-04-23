@@ -28,7 +28,7 @@ object PartialEvalPass {
         }
 
       case IntCst(_) => e
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val newChildren = terms.map(e => partialEval(e))
         m match {
           case MoveUp =>
@@ -37,9 +37,9 @@ object PartialEvalPass {
               case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case HeuristicMotion =>
-            ArithSimplifier.simplifyArithmetic(Sum(newChildren: _*))(facts)
+            ArithSimplifier.simplifyArithmetic(Sum(newChildren: _*)())(facts)
         }
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val newChildren = factors.map(e => partialEval(e))
         m match {
           case MoveUp =>
@@ -48,7 +48,7 @@ object PartialEvalPass {
               case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case HeuristicMotion =>
-            ArithSimplifier.simplifyArithmetic(Prod(newChildren: _*))(facts)
+            ArithSimplifier.simplifyArithmetic(Prod(newChildren: _*)())(facts)
         }
       case _: Div =>
         val newChildren = e.children.map(e => partialEval(e))
@@ -77,7 +77,7 @@ object PartialEvalPass {
       case False => False
       case IfThenElse(c, t, f) =>
         val peIfThenElse =
-          IfThenElse(partialEval(c), partialEval(t), partialEval(f))
+          IfThenElse(partialEval(c), partialEval(t), partialEval(f))()
         ArithSimplifier.simplifyArithmetic(peIfThenElse)(facts) match {
           case IfThenElse(cond, trueE, falseE) =>
             partialEval(cond) match {
@@ -131,7 +131,7 @@ object PartialEvalPass {
                   case (True, False) => cond
                   case (False, True) => partialEval(Not(cond)())
                   case (StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                    partialEval(StmNextK(s0, IfThenElse(cond, k0, k1))())
+                    partialEval(StmNextK(s0, IfThenElse(cond, k0, k1)())())
                   case _ =>
                     cond match {
                       // True branch is special case of false branch
@@ -143,7 +143,7 @@ object PartialEvalPass {
                           if partialEval(t.substitute(p -> r)) == f =>
                         t
                       case _ =>
-                        val x = IfThenElse(cond, t, f)
+                        val x = IfThenElse(cond, t, f)()
                         if (
                           isBoolExpr(x).getOrElse(false) && !hasSideEffects(x)
                         ) {
@@ -210,7 +210,7 @@ object PartialEvalPass {
             //  (1) the Not() may cancel with something further down and
             //  (2) since this is a unary operator, the expression is unlikely
             //      to grow *that* big.
-            partialEval(IfThenElse(c, Not(t)(), Not(f)()))
+            partialEval(IfThenElse(c, Not(t)(), Not(f)())())
           case e =>
             ArithSimplifier.simplifyArithmetic(Not(e)())(facts)
         }
@@ -228,7 +228,9 @@ object PartialEvalPass {
             // This seems reasonable even if m == HeuristicMotion, since this
             // is essentially a unary operation; therefore, the expression is
             // not likely to grow *that* large.
-            partialEval(IfThenElse(c, TupleAccess(t, i)(), TupleAccess(f, i)()))
+            partialEval(
+              IfThenElse(c, TupleAccess(t, i)(), TupleAccess(f, i)())()
+            )
           case t => TupleAccess(t, i)()
         }
 
@@ -255,7 +257,7 @@ object PartialEvalPass {
             //  (1) the VecLength() may cancel with something further down and
             //  (2) since this is a unary operator, the expression is unlikely
             //      to grow *that* big.
-            partialEval(IfThenElse(c, VecLength(t)(), VecLength(f)()))
+            partialEval(IfThenElse(c, VecLength(t)(), VecLength(f)())())
           case v => VecLength(v)()
         }
       case VecAccess(v, i: Expr) =>
@@ -263,7 +265,7 @@ object PartialEvalPass {
           case (IfThenElse(c, t, f), i) =>
             // Move VecAccess inside IfThenElse in the hope that it'll
             // encounter a VecBuild(...)
-            partialEval(IfThenElse(c, VecAccess(t, i)(), VecAccess(f, i)()))
+            partialEval(IfThenElse(c, VecAccess(t, i)(), VecAccess(f, i)())())
           case (v: VecBuild, i) => partialEval(FunCall(v.f, i)())
           case (v, i)           => VecAccess(v, i)()
         }
@@ -315,7 +317,7 @@ object PartialEvalPass {
             //  (1) the StmLength() may cancel with something further down and
             //  (2) since this is a unary operator, the expression is unlikely
             //      to grow *that* big.
-            partialEval(IfThenElse(c, StmLength(t)(), StmLength(f)()))
+            partialEval(IfThenElse(c, StmLength(t)(), StmLength(f)())())
           case s @ _ => StmLength(s)()
         }
       case StmNext(s) =>
@@ -330,7 +332,7 @@ object PartialEvalPass {
             //  (1) the StmNext() may cancel with something further down and
             //  (2) since this is a unary operator, the expression is unlikely
             //      to grow *that* big.
-            partialEval(IfThenElse(c, StmNext(t)(), StmNext(f)()))
+            partialEval(IfThenElse(c, StmNext(t)(), StmNext(f)())())
           case s => StmNext(s)()
         }
       case StmNextK(s, k) =>
@@ -341,7 +343,7 @@ object PartialEvalPass {
               c,
               partialEval(StmNextK(peStm, t)()),
               partialEval(StmNextK(peStm, f)())
-            )
+            )()
           case IntCst(k) if k <= 0 => peStm
           // There are probably some cases where we want to convert StmNextK(s, k + 1) to StmNext(StmNextK(s, k)).__0
           // and other times where we want to go the other way.
@@ -349,7 +351,8 @@ object PartialEvalPass {
           case k => StmNextK(peStm, k)()
         }
 
-      case _: SyntaxSugar => e.map(partialEval)
+      case _: VecLiteral | _: StmLiteral | _: SyntaxSugar => e.map(partialEval)
+
     }
   }
 
@@ -401,17 +404,17 @@ object PartialEvalPass {
     exprs.tail.foldLeft(exprs.head)({ case (acc, e) =>
       (acc, e) match {
         case (IfThenElse(c1, t1, f1), IfThenElse(c2, t2, f2)) if (c1 == c2) =>
-          IfThenElse(c1, op(t1)(t2), op(f1)(f2))
+          IfThenElse(c1, op(t1)(t2), op(f1)(f2))()
         case (IfThenElse(c1, t1, f1), IfThenElse(c2, t2, f2)) =>
           IfThenElse(
             c1,
-            IfThenElse(c2, op(t1)(t2), op(t1)(f2)),
-            IfThenElse(c2, op(f1)(t2), op(f1)(f2))
-          )
+            IfThenElse(c2, op(t1)(t2), op(t1)(f2))(),
+            IfThenElse(c2, op(f1)(t2), op(f1)(f2))()
+          )()
         case (e1, IfThenElse(c, t, f)) =>
-          IfThenElse(c, op(e1)(t), op(e1)(f))
+          IfThenElse(c, op(e1)(t), op(e1)(f))()
         case (IfThenElse(c, t, f), e2) =>
-          IfThenElse(c, op(t)(e2), op(f)(e2))
+          IfThenElse(c, op(t)(e2), op(f)(e2))()
         case (e1, e2) =>
           op(e1)(e2)
       }

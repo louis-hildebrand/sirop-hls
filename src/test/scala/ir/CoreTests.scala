@@ -14,8 +14,8 @@ class CoreTests extends AnyFunSuite {
     val z = Param("z")
     val w = Param("w")
 
-    assert(x + y + z + w == Sum(z, x, y, w))
-    assert(x + y + z + w + x != Sum(z, x, y, w))
+    assert(x + y + z + w == Sum(z, x, y, w)())
+    assert(x + y + z + w + x != Sum(z, x, y, w)())
   }
 
   test("Prod:Flatten") {
@@ -24,8 +24,8 @@ class CoreTests extends AnyFunSuite {
     val z = Param("z")
     val w = Param("w")
 
-    assert(x * y * z * w == Prod(z, x, y, w))
-    assert(x * y * z * w * x != Prod(z, x, y, w))
+    assert(x * y * z * w == Prod(z, x, y, w)())
+    assert(x * y * z * w * x != Prod(z, x, y, w)())
   }
 
   test("IfThenElse:MakeCondPositive") {
@@ -33,12 +33,12 @@ class CoreTests extends AnyFunSuite {
     val t = Param("t")
     val f = Param("f")
 
-    val e0 = IfThenElse(c, t, f).asInstanceOf[IfThenElse]
+    val e0 = IfThenElse(c, t, f)()
     assert(e0.c == c)
     assert(e0.t == t)
     assert(e0.f == f)
 
-    val e1 = IfThenElse(Not(c)(), f, t)
+    val e1 = IfThenElse(Not(c)(), f, t)()
     assert(e0 == e1)
   }
 
@@ -98,7 +98,7 @@ class CoreTests extends AnyFunSuite {
             x.__1,
             Tuple(True, False)(),
             Tuple(False, True)()
-          )
+          )()
         ),
         y -> (x.__1 / 2 + z, y + 2 + z)
       )
@@ -117,7 +117,7 @@ class CoreTests extends AnyFunSuite {
               x2.__1,
               Tuple(True, False)(),
               Tuple(False, True)()
-            )
+            )()
           ),
           y2 -> (y / 2 + IntCst(99), y2 + 2 + IntCst(99))
         )
@@ -473,7 +473,11 @@ class CoreTests extends AnyFunSuite {
       .typecheck(
         StmBuild(
           n,
-          IfThenElse(FunCall(f, i)(), SSome(StmNext(s)().__1)(), NNone(TyInt)),
+          IfThenElse(
+            FunCall(f, i)(),
+            SSome(StmNext(s)().__1)(),
+            NNone(TyInt)
+          )(),
           Map[Param, (Expr, Expr)](
             i -> (3, i + 1),
             s -> (
@@ -481,8 +485,8 @@ class CoreTests extends AnyFunSuite {
               IfThenElse(
                 FunCall(f, i)(),
                 StmNext(s)().__0,
-                IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)
-              )
+                IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
+              )()
             ),
             inCtr -> (1, inCtr + 2)
           )
@@ -507,7 +511,7 @@ class CoreTests extends AnyFunSuite {
           || FunCall(f, freshI)(),
         inCtr + 1,
         inCtr
-      )
+      )()
     val expected =
       StmBuild(
         n,
@@ -515,7 +519,7 @@ class CoreTests extends AnyFunSuite {
           FunCall(f, freshI)(),
           SSome(StmNext(s)().__1)(),
           NNone(TyInt)
-        ),
+        )(),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (
@@ -523,8 +527,8 @@ class CoreTests extends AnyFunSuite {
             IfThenElse(
               FunCall(f, freshI)(),
               StmNext(s)().__0,
-              IfThenElse(FunCall(g, j)(), StmNext(s)().__0, s)
-            )
+              IfThenElse(FunCall(g, j)(), StmNext(s)().__0, s)()
+            )()
           ),
           j -> (1, j + 2),
           inCtr -> (0, expectedInCtrNext)

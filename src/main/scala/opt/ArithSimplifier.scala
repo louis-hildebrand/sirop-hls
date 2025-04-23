@@ -91,10 +91,10 @@ object ArithSimplifier {
   )(facts: FactSet): ae.ArithExpr with ae.SimplifiedExpr = {
     e match {
       case IntCst(n) => ae.Cst(n)
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val arithTerms = terms.map(e => toSimplifiedArithExpr(e)(facts)).toList
         aes.SimplifySum(arithTerms)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val arithFactors =
           factors.map(e => toSimplifiedArithExpr(e)(facts)).toList
         aes.SimplifyProd(arithFactors)
@@ -110,10 +110,10 @@ object ArithSimplifier {
         )
       case eq: Equal =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(IfThenElse(eq, True, False))(facts)
+        toSimplifiedArithExpr(IfThenElse(eq, True, False)())(facts)
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(IfThenElse(lt, True, False))(facts)
+        toSimplifiedArithExpr(IfThenElse(lt, True, False)())(facts)
       case IfThenElse(c, t, f) =>
         val pred = c match {
           case LessThan(e1, e2) =>
@@ -195,14 +195,14 @@ object ArithSimplifier {
       case ae.Sum(terms) =>
         val exprTerms = terms.map(fromArithExpr)
         if (exprTerms.forall(e => e.isDefined)) {
-          Some(Sum(exprTerms.map(e => e.get): _*))
+          Some(Sum(exprTerms.map(e => e.get): _*)())
         } else {
           None
         }
       case ae.Prod(factors) =>
         val exprFactors = factors.map(fromArithExpr)
         if (exprFactors.forall(e => e.isDefined)) {
-          Some(Prod(exprFactors.map(e => e.get): _*))
+          Some(Prod(exprFactors.map(e => e.get): _*)())
         } else {
           None
         }
@@ -238,7 +238,7 @@ object ArithSimplifier {
               case (False, True)  => Some(Not(cond)())
               case (True, False)  => Some(cond)
               case (True, True)   => Some(True)
-              case (t, f)         => Some(IfThenElse(cond, t, f))
+              case (t, f)         => Some(IfThenElse(cond, t, f)())
             }
           case _ => None
         }
@@ -308,9 +308,9 @@ object ArithSimplifier {
       case Not(False)  => True
       case Not(Not(e)) => e
       case Not(And(terms @ _*)) =>
-        simplifyOr(Or(terms.map(e => simplifyNot(Not(e)())): _*))
+        simplifyOr(Or(terms.map(e => simplifyNot(Not(e)())): _*)())
       case Not(Or(terms @ _*)) =>
-        simplifyAnd(And(terms.map(e => simplifyNot(Not(e)())): _*))
+        simplifyAnd(And(terms.map(e => simplifyNot(Not(e)())): _*)())
       case _ => not
     }
   }

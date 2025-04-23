@@ -29,7 +29,7 @@ class TypecheckerTests extends AnyFunSuite {
         (
           TyTuple(TyInt, TyBool),
           Tuple(
-            Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)),
+            Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
             x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
           )()
         )
@@ -56,9 +56,9 @@ class TypecheckerTests extends AnyFunSuite {
     val original =
       StmBuild(
         n,
-        IfThenElse(b, SSome(a)(), NNone(TyInt)),
+        IfThenElse(b, SSome(a)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](
-          a -> (0, IfThenElse(b, a + 2, a + 1)),
+          a -> (0, IfThenElse(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
         )
       )()
@@ -76,8 +76,8 @@ class TypecheckerTests extends AnyFunSuite {
       n,
       SSome(a)(),
       Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(a % 2 === 0, StmNext(s)().__0, s)),
-        a -> (0, IfThenElse(a % 2 === 0, a + StmNext(s)().__1, a + 1))
+        s -> (input, IfThenElse(a % 2 === 0, StmNext(s)().__0, s)()),
+        a -> (0, IfThenElse(a % 2 === 0, a + StmNext(s)().__1, a + 1)())
       )
     )()
     val checked =
@@ -125,12 +125,12 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IfThenElse:NonBoolCondition") {
-    val e = IfThenElse(IntCst(42), False, True)
+    val e = IfThenElse(IntCst(42), False, True)()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 
   test("IfThenElse:IncompatibleBranches") {
-    val e = IfThenElse(True, Tuple(42, 43)(), Tuple(True, 99)())
+    val e = IfThenElse(True, Tuple(42, 43)(), Tuple(True, 99)())()
     assertThrows[TypeError](Typechecker.typecheck(e)(Map()))
   }
 

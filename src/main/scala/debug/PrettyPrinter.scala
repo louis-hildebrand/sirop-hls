@@ -15,11 +15,12 @@ object PrettyPrinter {
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
-      case Sum(terms)    => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Prod(factors) => factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)     => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)     => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case Equal(x, y)   => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case Sum(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" + ")
+      case Prod(factors @ _*) =>
+        factors.map(e => showWithParens(e)).mkString(" * ")
+      case Div(x, y)   => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(x, y)   => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case Equal(x, y) => s"${showWithParens(x)} === ${showWithParens(y)}"
       case Not(Equal(x, y)) =>
         s"${showWithParens(x)} !== ${showWithParens(y)}"
       case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
@@ -160,9 +161,9 @@ object PrettyPrinter {
       case FunCall(f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})"
       case IntCst(i) => i.toString
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         s"Sum(${terms.map(e => showScala(e)).mkString(",")})"
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         s"Prod(${factors.map(e => showScala(e)).mkString(",")})"
       case Div(x, y) =>
         s"Div(${showScala(x)},${showScala(y)})"
@@ -205,6 +206,10 @@ object PrettyPrinter {
         s"VecAccess(${showScala(v)},${showScala(i)})"
       case VecLength(v) =>
         s"VecLength(${showScala(v)})"
+      case e: SyntaxSugar =>
+        val name = e.getClass.getSimpleName
+        val children = e.children.map(showScala).mkString(", ")
+        s"$name($children)"
     }
   }
 

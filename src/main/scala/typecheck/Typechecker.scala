@@ -48,7 +48,7 @@ object Typechecker {
         }
 
       case n: IntCst => n.rebuild(TyInt)
-      case s @ Sum(terms) =>
+      case s @ Sum(terms @ _*) =>
         val newTerms = terms.map(e => typecheck(e))
         for ((t, i) <- newTerms.zipWithIndex) {
           if (t.typ != TyInt) {
@@ -56,7 +56,7 @@ object Typechecker {
           }
         }
         s.rebuild(TyInt, newTerms)
-      case p @ Prod(factors) =>
+      case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => typecheck(e))
         for ((t, i) <- newFactors.zipWithIndex) {
           if (t.typ != TyInt) {

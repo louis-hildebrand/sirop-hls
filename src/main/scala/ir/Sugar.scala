@@ -183,17 +183,16 @@ case class OptionAccess(
       }
       assert(e.typ.isInstanceOf[TyTuple])
       IfThenElse(
-        this.typ,
         TupleAccess(e, 1)(TyBool),
         s.body.substitute(s.param -> TupleAccess(e, 0)(innerTyp)),
         n.body.substitute(n.param -> Tuple()(TyTuple()))
-      )
+      )(this.typ)
     } else {
       IfThenElse(
         e.__1,
         s.body.substitute(s.param -> e.__0),
         n.body.substitute(n.param -> Tuple()())
-      )
+      )()
     }
   }
 }
