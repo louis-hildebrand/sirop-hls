@@ -11,13 +11,9 @@ case class Let(x: Param, v: Expr, in: Expr)(val typ: Type = Missing)
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newV = tc(v)(context)
-    val newIn = tc(in)(context + (x -> newV.typ))
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    val newIn = in.tchk(context + (x -> newV.typ))
     val newX = x.rebuild(newV.typ).asInstanceOf[Param]
     Let(newX, newV, newIn)(newIn.typ)
   }
@@ -38,11 +34,7 @@ case class Default(typ: Type) extends SyntaxSugar {
     this
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
+  override def typecheck(context: Map[Param, Type]): Expr = {
     // Check that the requested type indeed has a default
     Default.getDefault(this.typ)
     this
@@ -79,11 +71,7 @@ case class NNone(innerTyp: Type) extends SyntaxSugar {
     this
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
+  override def typecheck(context: Map[Param, Type]): Expr = {
     this
   }
 
@@ -113,12 +101,8 @@ case class SSome(e: Expr /* T */ )(val typ: Type = Missing) /* Option<T> */
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newE = tc(e)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newE = e.tchk(context)
     rebuild(TyTuple(newE.typ, TyBool), Seq(newE))
   }
 
@@ -143,30 +127,28 @@ case class OptionAccess(
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newE = tc(e)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newE = e.tchk(context)
     val innerTyp = newE.typ match {
       case TyTuple(t, TyBool) => t
-      case t                  => err(s"Target of OptionAccess has type $t.")
+      case t => throw new TypeError(s"Target of OptionAccess has type $t.")
     }
-    val newS = tc(Function(s.param, innerTyp, s.body)())(context)
+    val newS = Function(s.param, innerTyp, s.body)().tchk(context)
     val sOut = newS.typ match {
       case TyArrow(_, t2) => t2
-      case _ => err(s"`Some` branch of OptionAccess is not a function.")
+      case _ =>
+        throw new TypeError(s"`Some` branch of OptionAccess is not a function.")
     }
-    val newN = tc(Function(n.param, TyTuple(), n.body)())(context)
+    val newN = Function(n.param, TyTuple(), n.body)().tchk(context)
     val nOut = newN.typ match {
       case TyArrow(_, t2) => t2
-      case _ => err(s"`None` branch of OptionAccess is not a function.")
+      case _ =>
+        throw new TypeError(s"`None` branch of OptionAccess is not a function.")
     }
     if (sOut.isCompatibleWith(nOut)) {
       rebuild(sOut, Seq(newE, newS, newN))
     } else {
-      err(
+      throw new TypeError(
         s"The `Some` branch of OptionAccess produces type $sOut but the `None` branch produces type $nOut."
       )
     }
@@ -208,15 +190,12 @@ case class OptionUnwrapUnsafe(e: Expr)(val typ: Type = Missing)
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newE = tc(e)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newE = e.tchk(context)
     val t = newE.typ match {
       case TyTuple(t, TyBool) => t
-      case t => err(s"Target of OptionUnwrapUnsafe has type $t.")
+      case t =>
+        throw new TypeError(s"Target of OptionUnwrapUnsafe has type $t.")
     }
     rebuild(t, Seq(newE))
   }
@@ -247,17 +226,13 @@ case class IsNone(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newE = tc(e)(context)
-    val t = newE.typ match {
-      case TyTuple(t, TyBool) => t
-      case t                  => err(s"Target of IsNone has type $t.")
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newE = e.tchk(context)
+    newE.typ match {
+      case TyTuple(_, TyBool) => ()
+      case t => throw new TypeError(s"Target of IsNone has type $t.")
     }
-    rebuild(t, Seq(newE))
+    this.rebuild(TyBool, Seq(newE))
   }
 
   override def lower(): Expr = {
@@ -275,17 +250,13 @@ case class IsSome(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newE = tc(e)(context)
-    val t = newE.typ match {
-      case TyTuple(t, TyBool) => t
-      case t                  => err(s"Target of IsSome has type $t.")
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newE = e.tchk(context)
+    newE.typ match {
+      case TyTuple(_, TyBool) => ()
+      case t => throw new TypeError(s"Target of IsSome has type $t.")
     }
-    rebuild(t, Seq(newE))
+    this.rebuild(TyBool, Seq(newE))
   }
 
   override def lower(): Expr = {

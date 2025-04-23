@@ -3,12 +3,8 @@ package operations
 import ir._
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
-import typecheck.Typechecker
 
 class VectorTests extends AnyFunSuite {
-  def tc(e: Expr, ctx: Map[Param, Type] = Map()): Expr =
-    Typechecker.typecheck(e)(ctx)
-
   test("BuildV_and_Access") {
     val cstVec = VecBuild(2, (i: Expr) => IntCst(7))()
     assert(PartialEvalPass.partialEval(VecAccess(cstVec, 0)()) == IntCst(7))
@@ -71,7 +67,7 @@ class VectorTests extends AnyFunSuite {
     val actual = VecPrepend(v, e)()
     val expected = VecLiteral(42, 5, 6, 7)()
     assert(ir.eval(actual) == expected)
-    assert(ir.eval(tc(actual)) == expected)
+    assert(ir.eval(actual.tchk(Map())) == expected)
   }
 
   test("VecAppend") {
@@ -80,7 +76,7 @@ class VectorTests extends AnyFunSuite {
     val actual = VecAppend(v, e)()
     val expected = VecLiteral(5, 6, 7, 42)()
     assert(ir.eval(actual) == expected)
-    assert(ir.eval(tc(actual)) == expected)
+    assert(ir.eval(actual.tchk(Map())) == expected)
   }
 
   test("VecPrefix") {

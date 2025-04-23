@@ -3,7 +3,6 @@ package ir
 import operations._
 import opt.{PartialEvalPass, StmAccRemovalPass}
 import org.scalatest.funsuite.AnyFunSuite
-import typecheck.Typechecker
 
 class CoreTests extends AnyFunSuite {
   private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lowerAll())
@@ -45,8 +44,7 @@ class CoreTests extends AnyFunSuite {
   test("Substitute:StmNext") {
     val s = Param("s")
     val v = Param("v")
-    val e =
-      Typechecker.typecheck(5 + StmNext(s)().__1)(Map(s -> TyStm(TyInt, 2)))
+    val e = (5 + StmNext(s)().__1).tchk(Map(s -> TyStm(TyInt, 2)))
     assert(e.substitute(StmNext(s)().__1 -> v) == 5 + v)
   }
 
@@ -225,7 +223,7 @@ class CoreTests extends AnyFunSuite {
     val i = Param("i")
     val untyped =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
-    val typed = Typechecker.typecheck(untyped)(Map())
+    val typed = untyped.tchk(Map())
     assert(typed.hashCode == untyped.hashCode)
     assert(typed == untyped)
     assert(untyped == typed)
@@ -336,16 +334,14 @@ class CoreTests extends AnyFunSuite {
 
   test("StmBuild:Fuse:MapPlusFive") {
     val s = Param("s")
-    val original = Typechecker
-      .typecheck(
-        StmBuild(
-          3,
-          SSome(StmNext(s)().__1 + 5)(),
-          Map[Param, (Expr, Expr)](
-            s -> (StmCount(3), StmNext(s)().__0)
-          )
-        )()
-      )(Map(s -> TyStm(TyInt, 3)))
+    val original = StmBuild(
+      3,
+      SSome(StmNext(s)().__1 + 5)(),
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(3), StmNext(s)().__0)
+      )
+    )()
+      .tchk(Map(s -> TyStm(TyInt, 3)))
       .asInstanceOf[StmBuild]
     val fused = original.fuseCompletely()
 
@@ -374,7 +370,7 @@ class CoreTests extends AnyFunSuite {
     val c2 =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (9, i + 2)))()
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
-    val s = Typechecker.typecheck(StmZip(c1, c2))(Map()).asInstanceOf[StmBuild]
+    val s = StmZip(c1, c2).tchk(Map()).asInstanceOf[StmBuild]
 
     val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
     val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1
@@ -469,29 +465,27 @@ class CoreTests extends AnyFunSuite {
       g -> TyArrow(TyInt, TyBool),
       input -> TyStm(TyInt, n)
     )
-    val original = Typechecker
-      .typecheck(
-        StmBuild(
-          n,
+    val original = StmBuild(
+      n,
+      IfThenElse(
+        FunCall(f, i)(),
+        SSome(StmNext(s)().__1)(),
+        NNone(TyInt)
+      )(),
+      Map[Param, (Expr, Expr)](
+        i -> (3, i + 1),
+        s -> (
+          input,
           IfThenElse(
             FunCall(f, i)(),
-            SSome(StmNext(s)().__1)(),
-            NNone(TyInt)
-          )(),
-          Map[Param, (Expr, Expr)](
-            i -> (3, i + 1),
-            s -> (
-              input,
-              IfThenElse(
-                FunCall(f, i)(),
-                StmNext(s)().__0,
-                IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
-              )()
-            ),
-            inCtr -> (1, inCtr + 2)
-          )
-        )()
-      )(context)
+            StmNext(s)().__0,
+            IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
+          )()
+        ),
+        inCtr -> (1, inCtr + 2)
+      )
+    )()
+      .tchk(context)
       .asInstanceOf[StmBuild]
 
     val actual = PartialEvalPass

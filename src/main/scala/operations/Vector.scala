@@ -16,21 +16,17 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newV = tc(v)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
     newV.typ match {
       case TyVec(t1, n) =>
-        val newF = tc(f)(context)
+        val newF = f.tchk(context)
         newF.typ match {
           case TyArrow(t, t2) if t.isCompatibleWith(t1) =>
             this.rebuild(TyVec(t2, n), Seq(newV, newF))
-          case t => err(s"Function of VecMap has type $t.")
+          case t => throw new TypeError(s"Function of VecMap has type $t.")
         }
-      case t => err(s"Vector of VecMap has type $t.")
+      case t => throw new TypeError(s"Vector of VecMap has type $t.")
     }
   }
 
@@ -67,26 +63,22 @@ case class VecFold(
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newV = tc(v)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
     val t1 = newV.typ match {
       case TyVec(t, _) => t
-      case t           => err(s"Vector in VecFold has type $t.")
+      case t           => throw new TypeError(s"Vector in VecFold has type $t.")
     }
-    val newZ = tc(z)(context)
+    val newZ = z.tchk(context)
     val t2 = newZ.typ
-    val newF = tc(f)(context)
+    val newF = f.tchk(context)
     newF.typ match {
       case TyArrow(t3, TyArrow(t4, t5))
           if t3.isCompatibleWith(t1) && t4.isCompatibleWith(t2) && t5
             .isCompatibleWith(t2) =>
         ()
       case t =>
-        err(
+        throw new TypeError(
           s"Function in VecFold has type $t. Expected ${TyArrow(t1, TyArrow(t2, t2))}."
         )
     }
@@ -169,21 +161,19 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newV = tc(v)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
-      case t           => err(s"Vector of VecPrepend has type $t.")
+      case t => throw new TypeError(s"Vector of VecPrepend has type $t.")
     }
-    val newE = tc(e)(context)
+    val newE = e.tchk(context)
     if (newE.typ.isCompatibleWith(t)) {
       this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
     } else {
-      err(s"Element of VecPrepend has type ${newE.typ}. Expected $t.")
+      throw new TypeError(
+        s"Element of VecPrepend has type ${newE.typ}. Expected $t."
+      )
     }
   }
 
@@ -220,21 +210,19 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(
-      context: Map[Param, Type],
-      tc: Expr => Map[Param, Type] => Expr,
-      err: String => Nothing
-  ): Expr = {
-    val newV = tc(v)(context)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
-      case t           => err(s"Vector of VecAppend has type $t.")
+      case t => throw new TypeError(s"Vector of VecAppend has type $t.")
     }
-    val newE = tc(e)(context)
+    val newE = e.tchk(context)
     if (newE.typ.isCompatibleWith(t)) {
       this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
     } else {
-      err(s"Element of VecAppend has type ${newE.typ}. Expected $t.")
+      throw new TypeError(
+        s"Element of VecAppend has type ${newE.typ}. Expected $t."
+      )
     }
   }
 
