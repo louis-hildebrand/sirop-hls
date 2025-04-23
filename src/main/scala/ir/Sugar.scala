@@ -6,10 +6,7 @@ case class Let(typ: Type, x: Param, v: Expr, in: Expr) extends SyntaxSugar {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(x: Param, v, in) => Let(typ, x, v, in)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _                    => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -134,10 +131,7 @@ case class SSome(typ: Type, e: Expr /* T */ ) /* Option<T> */
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => SSome(typ, e)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -181,10 +175,7 @@ case class OptionAccess(
     newChildren match {
       case Seq(e, s: Function, n: Function) =>
         OptionAccess(typ, e, s, n)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -265,10 +256,7 @@ case class OptionUnwrapUnsafe(typ: Type, e: Expr) extends SyntaxSugar {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => OptionUnwrapUnsafe(typ, e)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -320,10 +308,7 @@ case class IsNone(typ: Type, e: Expr) extends SyntaxSugar {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => IsNone(typ, e)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -366,10 +351,7 @@ case class IsSome(typ: Type, e: Expr) extends SyntaxSugar {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => IsSome(typ, e)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 

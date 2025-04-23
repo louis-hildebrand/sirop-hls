@@ -6,6 +6,11 @@ import scala.annotation.tailrec
 // TODO: Delete all the unnecessary equals() and hashCode() methods
 // TODO: Why are some of these classes so complex? Surely I can move the normalization code to the factory method.
 
+class BadRebuildError(e: Expr, args: Seq[Expr])
+    extends IllegalArgumentException(
+      s"Wrong arguments passed to rebuild: node $e, args $args"
+    )
+
 /** A node in the core IR.
   */
 sealed trait Expr {
@@ -222,10 +227,7 @@ case class TupleAccess(t: Expr, i: IntCst)(val typ: Type = Missing)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _                 => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -274,10 +276,7 @@ case class Function(param: Param, inputTyp: Type, body: Expr)(
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(x: Param, body: Expr) => Function(x, inputTyp, body)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -479,10 +478,7 @@ final class IfThenElse(val typ: Type, cond: Expr, trueE: Expr, falseE: Expr)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(c, t, f) => new IfThenElse(typ, c, t, f)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _            => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -522,10 +518,7 @@ case class Equal(e1: Expr, e2: Expr)(val typ: Type = Missing)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e1, e2) => Equal(e1, e2)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _           => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -536,10 +529,7 @@ case class LessThan(e1: Expr, e2: Expr)(val typ: Type = Missing)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e1, e2) => LessThan(e1, e2)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _           => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -550,10 +540,7 @@ case class Not(e: Expr)(val typ: Type = Missing) extends BoolExpr {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => Not(e)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -682,10 +669,7 @@ case class StmBuild(
           })
           .toMap
         StmBuild(n, output, equations)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -1092,10 +1076,7 @@ case class StmLength(stream: Expr)(val typ: Type = Missing) extends IntExpr {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s) => StmLength(s)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1109,10 +1090,7 @@ case class StmNext(stream: Expr /* Stream<A>*/ )(
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s) => StmNext(s)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1125,10 +1103,7 @@ case class VecBuild(len: Expr, f: Function /*Int => Expr*/ )(
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1138,10 +1113,7 @@ case class VecAccess(vec: Expr, i: Expr)(val typ: Type = Missing) extends Expr {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, i) => VecAccess(v, i)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1152,10 +1124,7 @@ case class VecLength(vec: Expr)(val typ: Type = Missing) extends IntExpr {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v) => VecLength(v)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1201,10 +1170,7 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s, i) => StmNextK(s, i)(typ)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 }
