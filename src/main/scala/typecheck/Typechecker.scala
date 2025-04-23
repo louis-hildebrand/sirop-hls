@@ -34,7 +34,7 @@ object Typechecker {
         val newArg = typecheck(arg)
         newF.typ match {
           case TyArrow(t1, t2) =>
-            if (isCompatible(newArg.typ, t1)) {
+            if (newArg.typ.isCompatibleWith(t1)) {
               fc.rebuild(t2, Seq(newF, newArg))
             } else {
               throw new TypeError(
@@ -99,7 +99,7 @@ object Typechecker {
         }
         val newT = typecheck(t)
         val newF = typecheck(f)
-        if (isCompatible(newT.typ, newF.typ)) {
+        if (newT.typ.isCompatibleWith(newF.typ)) {
           ite.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
@@ -142,7 +142,7 @@ object Typechecker {
             throw new TypeError(s"Cannot compare value of type ${newE2.typ}.")
           case _ => ()
         }
-        if (isCompatible(newE1.typ, newE2.typ)) {
+        if (newE1.typ.isCompatibleWith(newE2.typ)) {
           eq.rebuild(TyBool, Seq(newE1, newE2))
         } else {
           throw new TypeError(
@@ -173,8 +173,6 @@ object Typechecker {
           case t =>
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
-
-      case Default => ???
 
       case vb @ VecBuild(_, n, f) =>
         val newN = typecheck(n)
@@ -226,7 +224,7 @@ object Typechecker {
         val newNextByVar = s.nextByVar.map({ case (x, next) =>
           val newNext = typecheck(next)(newContext)
           val initTyp = newSeedByVar(x).typ
-          if (isCompatible(initTyp, newNext.typ)) {
+          if (initTyp.isCompatibleWith(newNext.typ)) {
             x -> newNext
           } else {
             throw new TypeError(
@@ -273,30 +271,13 @@ object Typechecker {
           case t => throw new TypeError(s"Argument of StmNext has type $t.")
         }
       case StmLiteral(typ, elems @ _*) => ???
-    }
-  }
 
-  /** Check whether two types are "compatible," i.e., will have the same shape
-    * in hardware.
-    */
-  private def isCompatible(t1: Type, t2: Type): Boolean = {
-    (t1, t2) match {
-      case (TyBool, TyBool) => true
-      case (TyInt, TyInt)   => true
-      case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
-        isCompatible(t1, t3) && isCompatible(t2, t4)
-      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
-        (ts1.length == ts2.length
-        && ts1
-          .zip(ts2)
-          .forall({ case (t1, t2) => isCompatible(t1, t2) }))
-      case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        // TODO: Improve check for equality of lengths?
-        isCompatible(t1, t2) && n1 == n2
-      case (TyStm(t1, _), TyStm(t2, _)) =>
-        // Two streams are compatible even if they have different lengths!
-        isCompatible(t1, t2)
-      case _ => false
+      case s: SyntaxSugar =>
+        s.typecheck(
+          context,
+          tc = e => ctx => typecheck(e)(ctx),
+          err = msg => throw new TypeError(msg)
+        )
     }
   }
 }

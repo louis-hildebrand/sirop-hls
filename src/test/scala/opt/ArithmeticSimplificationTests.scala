@@ -27,8 +27,6 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(pe((IntCst(8) - e1) + IntCst(3)) == IntCst(11) - e1)
     assert(pe(IntCst(3) + (e1 - IntCst(4))) == IntCst(-1) + e1)
     assert(pe(IntCst(2) + (IntCst(1) - e1)) == IntCst(3) - e1)
-    assert(pe(e1 + Default) == e1)
-    assert(pe(Default + e1) == e1)
     assert(pe(e1 + (e2 - e1)) == e2)
     assert(pe(e2 + (e1 - e2)) == e1)
     assert(pe((e2 - e1) + e1) == e2)
@@ -56,8 +54,6 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(pe(IntCst(0) * e) == IntCst(0))
     assert(pe(e * IntCst(1)) == e)
     assert(pe(IntCst(1) * e) == e)
-    assert(pe(e * Default) == IntCst(0))
-    assert(pe(Default * e) == IntCst(0))
   }
 
   // The non-arithmetic terms within a product are also simplified
@@ -74,7 +70,6 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("Div") {
     val e = StmLength(Param())
 
-    assert(pe(Default / e) == IntCst(0))
     // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
     assert(pe(e / IntCst(1)) == e)
     assert(pe(IntCst(6) * e / IntCst(6)) == e)
@@ -88,7 +83,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = VecLength(Param())
 
     assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
-    assert(pe(Default % e) == IntCst(0))
+    assert(pe(IntCst(0) % e) == IntCst(0))
   }
 
   test("IfThenElseWithBoundedVariable") {

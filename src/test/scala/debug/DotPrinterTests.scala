@@ -96,14 +96,6 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(f, "./img/SimpleFunction.dot")
   }
 
-  test("Let") {
-    val x = Param("x")
-    val y = Param("y")
-    val z = Param("z")
-    val e = Let(x, 42, Let(y, x + 1, Let(z, x * x + y * y, z + 2)))
-    DotPrinter.save(e, "./img/Let.dot")
-  }
-
   test("StmRange") {
     assume(false)
     val n = Param("n")

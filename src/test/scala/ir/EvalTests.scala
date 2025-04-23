@@ -22,7 +22,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("ObviousInfiniteLoop") {
-    val s = StmBuild(1, NNone(), Map[Param, (Expr, Expr)]())
+    val s = StmBuild(1, NNone(TyInt), Map[Param, (Expr, Expr)]())
     assertThrows[InfiniteLoopError](ir.eval(s))
   }
 
@@ -30,7 +30,7 @@ class EvalTests extends AnyFunSuite {
     val a = Param("a")
     val s = StmBuild(
       1,
-      IfThenElse((a * a) % 2 === 1, SSome(a), NNone()),
+      IfThenElse((a * a) % 2 === 1, SSome(a), NNone(TyInt)),
       Map[Param, (Expr, Expr)](
         a -> (0, a + 2)
       )

@@ -12,7 +12,6 @@ object PrettyPrinter {
     e match {
       case True      => "true"
       case False     => "false"
-      case Default   => "default"
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
@@ -182,7 +181,6 @@ object PrettyPrinter {
         s"Or(${terms.map(e => showScala(e)).mkString(",")})"
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
-      case Default => "Default"
       case StmBuild(_, n, out, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>

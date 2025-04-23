@@ -388,8 +388,6 @@ object DotPrinter {
         DotScalar("T", Seq(), scope)
       case False =>
         DotScalar("F", Seq(), scope)
-      case Default =>
-        DotScalar("default", Seq(), scope)
       case p: Param if params.contains(p) =>
         // TODO: What if this parameter is for a non-scalar?
         params(p)

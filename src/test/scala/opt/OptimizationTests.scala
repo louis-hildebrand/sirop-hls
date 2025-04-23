@@ -96,6 +96,82 @@ class OptimizationTests extends AnyFunSuite {
     assert(actual == ideal)
   }
 
+  test("FuseStmShiftRight") {
+    val input = Param("input")
+    val original = StmPrepend(
+      StmPrefix(input, StmLength(input) - 1, shape = Seq(5)),
+      42,
+      stmShape = Seq(4)
+    )
+    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
+
+    // Correct behaviour
+    // (Using one example input)
+    val call = (e: Expr) => Let(input, StmCount(5), e)
+    val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
+    assert(ir.eval(call(original)) == expectedElems)
+    assert(ir.eval(call(fused)) == expectedElems)
+    // Successful fusion
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
+    val ideal = StmBuild(
+      5,
+      IfThenElse(
+        i === 1,
+        IfThenElse(
+          j < -1 + StmLength(input),
+          SSome(StmNext(s).__1),
+          NNone(???)
+        ),
+        SSome(42)
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (input, IfThenElse(i === 1, StmNext(s).__0, s)),
+        i -> (0, IfThenElse(i === 1, i, i + 1)),
+        j -> (0, IfThenElse(i === 1, j + 1, j))
+      )
+    )
+    val fusedAndSimplified =
+      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
+    assert(fusedAndSimplified == ideal)
+  }
+
+  test("FuseStmShiftLeft") {
+    val input = Param("input")
+    val n = 5
+    val original =
+      StmAppend(StmSuffix(input, n - 1, shape = Seq(5)), 42, stmShape = Seq(4))
+    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
+
+    // Correct behaviour
+    val call = (e: Expr) => Let(input, StmCount(n), e)
+    val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
+    assert(ir.eval(call(original)) == expectedElems)
+    assert(ir.eval(call(fused)) == expectedElems)
+    // Successful fusion
+    val s = Param("s")
+    val i = Param("i")
+    val j = Param("j")
+    val ideal =
+      StmBuild(
+        n,
+        IfThenElse(
+          i === 4,
+          SSome(42),
+          IfThenElse(j < 1, NNone(???), SSome(StmNext(s).__1))
+        ),
+        Map[Param, (Expr, Expr)](
+          s -> (input, IfThenElse(i === 4, s, StmNext(s).__0)),
+          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1))),
+          j -> (0, IfThenElse(i === 4, j, j + 1))
+        )
+      )
+    val fusedAndSimplified =
+      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
+    assert(fusedAndSimplified == ideal)
+  }
+
   /** The conversion of a vector with statically-known `f` but unknown `n` to a
     * stream can be optimized (no vector in the final result, just compute the
     * `i`th element directly).

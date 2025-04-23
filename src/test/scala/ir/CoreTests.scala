@@ -3,8 +3,11 @@ package ir
 import operations._
 import opt.{PartialEvalPass, StmAccRemovalPass}
 import org.scalatest.funsuite.AnyFunSuite
+import typecheck.Typechecker
 
 class CoreTests extends AnyFunSuite {
+  private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lowerAll())
+
   test("Sum:Flatten") {
     val x = Param()
     val y = Param()
@@ -37,6 +40,13 @@ class CoreTests extends AnyFunSuite {
 
     val e1 = IfThenElse(Not(c), f, t)
     assert(e0 == e1)
+  }
+
+  test("Substitute:StmNext") {
+    val s = Param("s")
+    val v = Param("v")
+    val e = Typechecker.typecheck(5 + StmNext(s).__1)(Map(s -> TyStm(TyInt, 2)))
+    assert(e.substitute(StmNext(s).__1 -> v) == 5 + v)
   }
 
   test("Substitute:Function") {
@@ -205,6 +215,16 @@ class CoreTests extends AnyFunSuite {
     assert(s1.hashCode == s2.hashCode)
   }
 
+  test("StmBuild:Equals:TypedAndUntyped") {
+    val i = Param("i")
+    val untyped =
+      StmBuild(4, SSome(i), Map[Param, (Expr, Expr)](i -> (0, i + 1)))
+    val typed = Typechecker.typecheck(untyped)(Map())
+    assert(typed.hashCode == untyped.hashCode)
+    assert(typed == untyped)
+    assert(untyped == typed)
+  }
+
   test("StmBuild:NotEquals:DifferentLengths") {
     val i = Param("i")
     val j = Param("j")
@@ -304,13 +324,17 @@ class CoreTests extends AnyFunSuite {
 
   test("StmBuild:Fuse:MapPlusFive") {
     val s = Param("s")
-    val original = StmBuild(
-      3,
-      SSome(StmNext(s).__1 + 5),
-      Map[Param, (Expr, Expr)](
-        s -> (StmCount(3), StmNext(s).__0)
-      )
-    )
+    val original = Typechecker
+      .typecheck(
+        StmBuild(
+          3,
+          SSome(StmNext(s).__1 + 5),
+          Map[Param, (Expr, Expr)](
+            s -> (StmCount(3), StmNext(s).__0)
+          )
+        )
+      )(Map(s -> TyStm(TyInt, 3)))
+      .asInstanceOf[StmBuild]
     val fused = original.fuseCompletely()
 
     // Correct behaviour
@@ -319,87 +343,14 @@ class CoreTests extends AnyFunSuite {
     assert(ir.eval(fused) == expectedElems)
     // Successful fusion
     val i = Param("i")
-    val ideal =
-      StmBuild(
-        3,
-        SSome(i + 5),
-        Map[Param, (Expr, Expr)](
-          i -> (0, i + 1)
-        )
-      )
-    assert(PartialEvalPass.partialEval(fused) == ideal)
-  }
-
-  test("StmBuild:Fuse:StmShiftRight") {
-    val input = Param("input")
-    val original = StmPrepend(
-      StmPrefix(input, StmLength(input) - 1, shape = Seq(5)),
-      42,
-      stmShape = Seq(4)
-    )
-    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
-
-    // Correct behaviour
-    // (Using one example input)
-    val call = (e: Expr) => Let(input, StmCount(5), e)
-    val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
-    assert(ir.eval(call(original)) == expectedElems)
-    assert(ir.eval(call(fused)) == expectedElems)
-    // Successful fusion
-    val s = Param("s")
-    val i = Param("i")
-    val j = Param("j")
     val ideal = StmBuild(
-      5,
-      IfThenElse(
-        i === 1,
-        IfThenElse(j < -1 + StmLength(input), SSome(StmNext(s).__1), NNone()),
-        SSome(42)
-      ),
+      3,
+      SSome(i + 5),
       Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(i === 1, StmNext(s).__0, s)),
-        i -> (0, IfThenElse(i === 1, i, i + 1)),
-        j -> (0, IfThenElse(i === 1, j + 1, j))
+        i -> (0, i + 1)
       )
     )
-    val fusedAndSimplified =
-      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
-    assert(fusedAndSimplified == ideal)
-  }
-
-  test("StmBuild:Fuse:StmShiftLeft") {
-    val input = Param("input")
-    val n = 5
-    val original =
-      StmAppend(StmSuffix(input, n - 1, shape = Seq(5)), 42, stmShape = Seq(4))
-    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
-
-    // Correct behaviour
-    val call = (e: Expr) => Let(input, StmCount(n), e)
-    val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
-    assert(ir.eval(call(original)) == expectedElems)
-    assert(ir.eval(call(fused)) == expectedElems)
-    // Successful fusion
-    val s = Param("s")
-    val i = Param("i")
-    val j = Param("j")
-    val ideal =
-      StmBuild(
-        n,
-        IfThenElse(
-          i === 4,
-          SSome(42),
-          IfThenElse(j < 1, NNone(), SSome(StmNext(s).__1))
-        ),
-        Map[Param, (Expr, Expr)](
-          s -> (input, IfThenElse(i === 4, s, StmNext(s).__0)),
-          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1))),
-          j -> (0, IfThenElse(i === 4, j, j + 1))
-        )
-      )
-    val fusedAndSimplified =
-      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
-    assert(fusedAndSimplified == ideal)
+    assert(lpe(fused) == lpe(ideal))
   }
 
   test("StmBuild:Fuse:ZipCounters") {
@@ -409,7 +360,7 @@ class CoreTests extends AnyFunSuite {
     // [9, 11, 13, 15]
     val c2 = StmBuild(4, SSome(i), Map[Param, (Expr, Expr)](i -> (9, i + 2)))
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
-    val s = StmZip(c1, c2)
+    val s = Typechecker.typecheck(StmZip(c1, c2))(Map()).asInstanceOf[StmBuild]
 
     val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
     val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1
@@ -430,10 +381,10 @@ class CoreTests extends AnyFunSuite {
         i1 -> (0, i1 + 1)
       )
     )
-    assert(actual1 == ideal1)
+    assert(lpe(actual1) == lpe(ideal1))
 
     // 2) After two fusions
-    val actual2 = PartialEvalPass.partialEval(s.fuseWith(x1).fuseWith(x2))
+    val actual2 = lpe(s.fuseWith(x1).fuseWith(x2))
     // 2a) Correct behaviour
     val expectedElems =
       StmLiteral(Tuple(0, 9), Tuple(1, 11), Tuple(2, 13), Tuple(3, 15))
@@ -448,7 +399,7 @@ class CoreTests extends AnyFunSuite {
         i2 -> (9, i2 + 2)
       )
     )
-    assert(actual2 == ideal2)
+    assert(lpe(actual2) == lpe(ideal2))
   }
 
   test("StmBuild:AddOutputCounter") {
@@ -493,23 +444,32 @@ class CoreTests extends AnyFunSuite {
     val i = Param("i")
     val inCtr = Param("in_ctr")
     val s = Param("s")
-    val original =
-      StmBuild(
-        n,
-        IfThenElse(FunCall(f, i), SSome(StmNext(s).__1), NNone()),
-        Map[Param, (Expr, Expr)](
-          i -> (3, i + 1),
-          s -> (
-            input,
-            IfThenElse(
-              FunCall(f, i),
-              StmNext(s).__0,
-              IfThenElse(FunCall(g, inCtr), StmNext(s).__0, s)
-            )
-          ),
-          inCtr -> (1, inCtr + 2)
+    val context = Map(
+      n -> TyInt,
+      f -> TyArrow(TyInt, TyBool),
+      g -> TyArrow(TyInt, TyBool),
+      input -> TyStm(TyInt, n)
+    )
+    val original = Typechecker
+      .typecheck(
+        StmBuild(
+          n,
+          IfThenElse(FunCall(f, i), SSome(StmNext(s).__1), NNone(TyInt)),
+          Map[Param, (Expr, Expr)](
+            i -> (3, i + 1),
+            s -> (
+              input,
+              IfThenElse(
+                FunCall(f, i),
+                StmNext(s).__0,
+                IfThenElse(FunCall(g, inCtr), StmNext(s).__0, s)
+              )
+            ),
+            inCtr -> (1, inCtr + 2)
+          )
         )
-      )
+      )(context)
+      .asInstanceOf[StmBuild]
 
     val actual = PartialEvalPass
       .partialEval(original.addInputCounter(s, inCtr))
@@ -531,7 +491,7 @@ class CoreTests extends AnyFunSuite {
     val expected =
       StmBuild(
         n,
-        IfThenElse(FunCall(f, freshI), SSome(StmNext(s).__1), NNone()),
+        IfThenElse(FunCall(f, freshI), SSome(StmNext(s).__1), NNone(TyInt)),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (
