@@ -503,8 +503,7 @@ case class TupleAccess(t: Expr, i: IntCst)(val typ: Type = Missing)
 }
 
 // Functions
-case class Param(prefix: String, id: Long)(val typ: Type = Missing)
-    extends Expr {
+case class Param(prefix: String, id: Long)(val typ: Type) extends Expr {
   val name: String = s"${prefix}_$id"
 
   override def children: Seq[Expr] = Seq()
@@ -513,15 +512,15 @@ case class Param(prefix: String, id: Long)(val typ: Type = Missing)
     Param(this.prefix, this.id)(typ)
   }
 
-  def freshCopy: Param = Param(this.prefix)
+  def freshCopy: Param = Param(this.prefix)(this.typ)
 
   override def toString: String = name
 }
 case object Param {
   private val idCtr = new AtomicLong()
 
-  def apply(prefix: String): Param = {
-    new Param(prefix, idCtr.incrementAndGet())(Missing)
+  def apply(prefix: String)(typ: Type = Missing): Param = {
+    new Param(prefix, idCtr.incrementAndGet())(typ)
   }
 }
 
@@ -564,7 +563,7 @@ case class Function(param: Param, inputTyp: Type, body: Expr)(
   override def equals(x: Any): Boolean = {
     x match {
       case that: Function =>
-        val fresh = Param("p")
+        val fresh = Param("p")()
         (this.body.substitute(this.param -> fresh)
           == that.body.substitute(that.param -> fresh))
       case _ => false
@@ -583,7 +582,7 @@ object Function {
     * that the bound variable name doesn't affect the hash code. <i>It MUST NOT
     * be used for anything else</i>.
     */
-  private val HashCodeParam = Param("hashCode")
+  private val HashCodeParam = Param("hashCode")()
 }
 
 case class FunCall(f: Expr, arg: Expr)(val typ: Type = Missing) extends Expr {
@@ -1202,7 +1201,7 @@ case class StmBuild(
       // We have a full candidate mapping, so check equality
       assert(domain.forall(x => inverse(map(x)) == x))
       assert(codomain.forall(y => map(inverse(y)) == y))
-      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param("p") })
+      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param("p")() })
       // Need to use separate substitutions in case one of the streams refers
       // to a free variable and that same variable happens to be bound in the
       // other stream
@@ -1240,7 +1239,7 @@ object StmBuild {
     * that bound variable names don't affect the hash code. <i>It MUST NOT be
     * used for anything else</i>.
     */
-  private val HashCodeParam = Param("hashCode")
+  private val HashCodeParam = Param("hashCode")()
 }
 
 // TODO: Make this syntax sugar?

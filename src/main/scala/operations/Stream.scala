@@ -29,8 +29,8 @@ private object Helpers {
     val f1 = (inShape, outShape) match {
       case (None, None) =>
         // scalar -> scalar (e.g., x => x + 1)
-        val x = Param("s")
-        val s = Param("s")
+        val x = Param("s")()
+        val s = Param("s")()
         Function(
           x /* stream */,
           Missing,
@@ -53,10 +53,10 @@ private object Helpers {
         // In subsequent cycles, whenever `f.param` appears, read from the
         // new accumulator variable.
         val stm = f.body.asInstanceOf[StmBuild]
-        val input = Param("input")
-        val s = Param("s")
-        val isFirstStep = Param("is_first_step")
-        val y = Param("y")
+        val input = Param("input")()
+        val s = Param("s")()
+        val isFirstStep = Param("is_first_step")()
+        val y = Param("y")()
         val subs = (
           stm.seedByVar
             .map({ case (x, z) =>
@@ -105,8 +105,8 @@ private object Helpers {
     // TODO: does this issue occur in any cases other than the identity function?
     val identity: Function = (x: Expr) => x
     val f2 = if (f1 == identity) {
-      val x = Param("s")
-      val s = Param("s")
+      val x = Param("s")()
+      val s = Param("s")()
       Function(
         x,
         Missing,
@@ -134,8 +134,8 @@ object Iterate {
       // TODO: Ideally we would get this shape information from the type system,
       zSize: Option[Int]
   ): Expr = {
-    val i = Param("i")
-    val acc = Param("acc")
+    val i = Param("i")()
+    val acc = Param("acc")()
     val accExpanded = zSize match {
       case Some(n) => Helpers.expandTuple(acc, n)
       case None    => acc
@@ -185,7 +185,7 @@ object StmRange {
     *   + 2 * delta, ...]</code>.
     */
   def apply(n: Expr, z: Expr, delta: Expr): StmBuild = {
-    val a = Param("a")
+    val a = Param("a")()
     StmBuild(n, SSome(a)(), Map(a -> (z, a + delta)))()
   }
 }
@@ -198,8 +198,8 @@ object StmCst2D {
 
 object StmCount2D {
   def apply(n: Expr, m: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    val i = Param("i")
-    val j = Param("j")
+    val i = Param("i")()
+    val j = Param("j")()
     StmBuild(
       n * m,
       SSome(Tuple(i, j)())(),
@@ -246,8 +246,8 @@ object StmMap {
           // No need to reset
           innerStm
         case n =>
-          val inCtr = Param("in_ctr")
-          val outCtr = Param("out_ctr")
+          val inCtr = Param("in_ctr")()
+          val outCtr = Param("out_ctr")()
           val innerWithCtrs = innerStm
             .addInputCounter(
               innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
@@ -302,9 +302,9 @@ object StmAccess {
   ): Expr /* A */ = {
     // NOTE: require 0 <= k < n
     val perRow = shape.tail.fold(IntCst(1))((x, y) => x * y)
-    val s = Param("s") // input stream
-    val i = Param("i") // index of current row
-    val j = Param("j") // index within row
+    val s = Param("s")() // input stream
+    val i = Param("i")() // index of current row
+    val j = Param("j")() // index within row
     StmBuild(
       perRow,
       IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(???))(),
@@ -365,12 +365,12 @@ object StmScanInclusive {
     )
     val (innerWithCtrs, shouldReset) = {
       val outputsUntilReset = IntCst(1)
-      val outCtr = Param("out_ctr")
+      val outCtr = Param("out_ctr")()
       val withOutCtr = innerStm.addOutputCounter(outCtr)
       val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
       if (usesInputStream) {
         val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-        val inCtr = Param("in_ctr")
+        val inCtr = Param("in_ctr")()
         val withCtrs = withOutCtr
           .addInputCounter(
             innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
@@ -385,7 +385,7 @@ object StmScanInclusive {
         (withOutCtr, shouldReset)
       }
     }
-    val acc = Param("acc")
+    val acc = Param("acc")()
     val nextAcc =
       OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)()
     val outerStm = StmBuild(
@@ -450,7 +450,7 @@ object StmScanExclusive {
 object Vec2Stm {
   def apply(v: Expr /* Vec<A; n> */, n: Expr): StmBuild /* Stm<A; n> */ = {
     // Alternatively, you could implement Vec2Stm using a shift register
-    val i = Param("i")
+    val i = Param("i")()
     StmBuild(
       n,
       SSome(VecAccess(v, i)())(),
@@ -505,9 +505,9 @@ object StmPrefix {
       shape: Seq[Expr]
   ): Expr /* Stm<A; k> */ = {
     val perRow = shape.tail.fold(IntCst(1))(_ * _)
-    val s = Param("s")
-    val i = Param("i")
-    val j = Param("j")
+    val s = Param("s")()
+    val i = Param("i")()
+    val j = Param("j")()
     StmBuild(
       k * perRow,
       IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(???))(),
@@ -541,9 +541,9 @@ object StmSuffix {
   ): StmBuild /* Stm<A; k> */ = {
     val n = shape.head
     val perRow = shape.tail.fold(IntCst(1))(_ * _)
-    val s = Param("s")
-    val i = Param("i")
-    val j = Param("j")
+    val s = Param("s")()
+    val i = Param("i")()
+    val j = Param("j")()
     StmBuild(
       k * perRow,
       IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(???))(),
@@ -606,9 +606,9 @@ object StmConcat {
     )
     val n1 = stm1Shape.fold(IntCst(1))(_ * _)
     val n2 = stm2Shape.fold(IntCst(1))(_ * _)
-    val s0 = Param("s0")
-    val s1 = Param("s1")
-    val i = Param("i")
+    val s0 = Param("s0")()
+    val s1 = Param("s1")()
+    val i = Param("i")()
     StmBuild(
       n1 + n2,
       SSome(IfThenElse(i === n1, StmNext(s1)().__1, StmNext(s0)().__1)())(),
@@ -627,8 +627,8 @@ object StmZip {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<B; n> */
   ): StmBuild /* Stm<(A, B); n> */ = {
-    val s0 = Param("s0")
-    val s1 = Param("s1")
+    val s0 = Param("s0")()
+    val s1 = Param("s1")()
     StmBuild(
       StmLength(a)(),
       SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
@@ -647,8 +647,8 @@ object StmZipAlternating {
       a: Expr /* Stm<A; n> */,
       b: Expr /* Stm<A; n> */
   ): Expr /* Stm<(A, A); n> */ = {
-    val s0 = Param("a")
-    val s1 = Param("b")
+    val s0 = Param("a")()
+    val s1 = Param("b")()
     StmBuild(
       StmLength(a)(),
       SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
@@ -668,7 +668,7 @@ object StmRepeat {
       n: Expr
   ): Expr /* Stm<Stm<A; n>; m> */ = {
     val v = Stm2Vec(stm, n = n)
-    val i = Param("i")
+    val i = Param("i")()
     StmMap(
       v,
       (v: Expr) =>
@@ -742,10 +742,10 @@ object StmSlideV {
   ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
     val n = stmShape.head
     val elemSize = stmShape.tail.fold(IntCst(1))(_ * _)
-    val s = Param("s")
-    val i = Param("i")
-    val j = Param("j")
-    val v = Param("v")
+    val s = Param("s")()
+    val i = Param("i")()
+    val j = Param("j")()
+    val v = Param("v")()
     StmBuild(
       n - m + 1,
       IfThenElse(

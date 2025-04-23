@@ -40,18 +40,18 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("FreeVar") {
-    val x = Param("x")
+    val x = Param("x")()
     DotPrinter.save(x, "./img/FreeVar.dot")
   }
 
   test("SimpleTuple") {
-    val y = Param("y")
+    val y = Param("y")()
     val e = Tuple(IntCst(42), True, y - 1)()
     DotPrinter.save(e, "./img/SimpleTuple.dot")
   }
 
   test("NestedTuple") {
-    val y = Param("y")
+    val y = Param("y")()
     val e = Tuple(
       IntCst(42),
       True,
@@ -62,13 +62,13 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("SimpleVecBuild") {
-    val x = Param("x")
+    val x = Param("x")()
     val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i)())()
     DotPrinter.save(e, "./img/SimpleVecBuild.dot")
   }
 
   test("NestedVecBuild") {
-    val x = Param("x")
+    val x = Param("x")()
     val e = VecBuild(
       4,
       (i: Expr) =>
@@ -78,7 +78,7 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("VecAccessUnknownIndex") {
-    val i = Param("i")
+    val i = Param("i")()
     val e = VecAccess(VecBuild(5, (j: Expr) => j)(), i)()
     DotPrinter.save(
       e,
@@ -99,8 +99,8 @@ class DotPrinterTests extends AnyFunSuite {
 
   test("StmRange") {
     assume(false)
-    val n = Param("n")
-    val delta = Param("delta")
+    val n = Param("n")()
+    val delta = Param("delta")()
     val e = StmRange(n, 0, delta)
     DotPrinter.save(e, "./img/StmRange.dot")
   }

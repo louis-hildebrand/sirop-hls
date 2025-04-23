@@ -26,8 +26,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithBoolVars") {
     val s = {
-      val b = Param("b")
-      val i = Param("i")
+      val b = Param("b")()
+      val i = Param("i")()
       StmBuild(
         5,
         IfThenElse(b, SSome(i)(), NNone(TyInt))(),

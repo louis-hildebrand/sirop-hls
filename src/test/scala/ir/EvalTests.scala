@@ -8,11 +8,11 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("StmNextK") {
-    val s = Param("s")
-    val k = Param("k")
+    val s = Param("s")()
+    val k = Param("k")()
     val e = 42 + StmNext(StmNextK(s, 1 + k)())().__1
 
-    val i = Param("i")
+    val i = Param("i")()
     val s0 =
       StmBuild(3, SSome(i)(), Map[Param, (Expr, Expr)](i -> (-4, i + 3)))()
     for (kVal <- -1 until 2) {
@@ -28,7 +28,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("LessObviousInfiniteLoop") {
-    val a = Param("a")
+    val a = Param("a")()
     val s = StmBuild(
       1,
       IfThenElse((a * a) % 2 === 1, SSome(a)(), NNone(TyInt))(),

@@ -6,14 +6,14 @@ package object ir extends Eval {
   implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
 
   implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
-    val p = Param("x")
+    val p = Param("x")()
     Function(p, Missing, sl(p))()
   }
 
   implicit def scalaUnaryLambdaToAnnotatedFunction(
       sl: Expr => (Type, Expr)
   ): Function = {
-    val x = Param("x")
+    val x = Param("x")()
     val (t, e) = sl(x)
     Function(x, t, e)()
   }
@@ -21,8 +21,8 @@ package object ir extends Eval {
   implicit def scalaBinaryLambdaToFunction(
       sl: Expr => Expr => Expr
   ): Function = {
-    val p1 = Param("x")
-    val p2 = Param("y")
+    val p1 = Param("x")()
+    val p2 = Param("y")()
     Function(p1, Missing, Function(p2, Missing, sl(p1)(p2))())()
   }
 }

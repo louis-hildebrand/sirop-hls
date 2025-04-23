@@ -40,7 +40,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Vector") {
-    val n = Param("n")
+    val n = Param("n")()
     val v = VecBuild(n, (i: Expr) => Tuple(i + 1, i % 2 === 0)())()
     val original = VecAccess(v, VecLength(v)() - 1)()
     val checked = original.tchk(Map(n -> TyInt))
@@ -49,9 +49,9 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("SimpleStream") {
-    val n = Param("n")
-    val b = Param("b")
-    val a = Param("a")
+    val n = Param("n")()
+    val b = Param("b")()
+    val a = Param("a")()
     val original =
       StmBuild(
         n,
@@ -67,10 +67,10 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StreamWithStreamInput") {
-    val n = Param("n")
-    val input = Param("input")
-    val s = Param("s")
-    val a = Param("a")
+    val n = Param("n")()
+    val input = Param("input")()
+    val s = Param("s")()
+    val a = Param("a")()
     val original = StmBuild(
       n,
       SSome(a)(),
@@ -86,7 +86,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FreeVar") {
-    val x = Param("x")
+    val x = Param("x")()
     assertThrows[TypeError](x.tchk(Map()))
   }
 
@@ -96,7 +96,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall:WrongArgType") {
-    val f = Param("f")
+    val f = Param("f")()
     val e = FunCall(f, True)()
     assertThrows[TypeError](e.tchk(Map(f -> TyArrow(TyInt, TyBool))))
   }
@@ -132,7 +132,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("And:WrongTerms") {
-    val b = Param("b")
+    val b = Param("b")()
     assertThrows[TypeError](
       (b && IntCst(1)).tchk(Map(b -> TyBool))
     )
@@ -142,7 +142,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Or:WrongTerms") {
-    val b = Param("b")
+    val b = Param("b")()
     assertThrows[TypeError](
       (b || IntCst(1)).tchk(Map(b -> TyBool))
     )
@@ -152,7 +152,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Not:WrongInput") {
-    val x = Param("x")
+    val x = Param("x")()
     assertThrows[TypeError](Not(x)().tchk(Map(x -> TyInt)))
   }
 
@@ -162,14 +162,14 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Equal:Streams") {
-    val s = Param("s")
+    val s = Param("s")()
     assertThrows[TypeError](
       (s === s).tchk(Map(s -> TyStm(TyInt, 1)))
     )
   }
 
   test("Equal:Functions") {
-    val f = Param("f")
+    val f = Param("f")()
     assertThrows[TypeError](
       (f === f).tchk(Map(f -> TyArrow(TyInt, TyInt)))
     )
@@ -189,7 +189,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("VecBuild:WrongFunctionType") {
-    val y = Param("y")
+    val y = Param("y")()
     val f = (x: Expr) => (TyBool, x && y)
     val e = VecBuild(42, f)()
     assertThrows[TypeError](e.tchk(Map(y -> TyBool)))
@@ -201,7 +201,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("VecAccess:NonIntIndex") {
-    val v = Param("v")
+    val v = Param("v")()
     val e = VecAccess(v, True)()
     assertThrows[TypeError](e.tchk(Map(v -> TyVec(TyInt, 2))))
   }
@@ -222,13 +222,13 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StmBuild:NextWrongType") {
-    val a = Param("a")
+    val a = Param("a")()
     val e = StmBuild(2, SSome(5)(), Map[Param, (Expr, Expr)](a -> (0, True)))()
     assertThrows[TypeError](e.tchk(Map()))
   }
 
   test("StmBuild:NextWrongShape") {
-    val a = Param("a")
+    val a = Param("a")()
     val e = StmBuild(
       3,
       SSome(4)(),

@@ -203,7 +203,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount(3),
       (i: Expr) => {
-        val acc = Param("acc")
+        val acc = Param("acc")()
         StmBuild(
           3,
           SSome(Tuple(i, acc)())(),
@@ -332,7 +332,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmMap:2D-2D:StmMap") {
-    val p = Param("p")
+    val p = Param("p")()
     val s = StmMap(
       p,
       (s: Expr) =>
@@ -1678,7 +1678,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Vec2Stm2Vec") {
-    val p = Param("p")
+    val p = Param("p")()
     val actual = Stm2Vec(Vec2Stm(p, n = 6), n = 6)
 
     // Correctness
@@ -1691,7 +1691,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Stm2Vec2Stm") {
-    val p = Param("p")
+    val p = Param("p")()
     val actual = StmMap(
       Stm2Vec(p, n = 6),
       (v: Expr) => Vec2Stm(v, n = 6),
@@ -2244,7 +2244,7 @@ class StreamTests extends AnyFunSuite {
   test("StmZip:1D") {
     val a = StmCount(4)
     val b = {
-      val b = Param("b")
+      val b = Param("b")()
       StmBuild(4, SSome(b)(), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val expected =
@@ -2380,7 +2380,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmSplitJoin") {
-    val p = Param("p")
+    val p = Param("p")()
     val s = StmCount(6)
     val elems = (0 until 6).map(x => IntCst(x))
 
@@ -2397,7 +2397,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmJoinSplit") {
-    val p = Param("p")
+    val p = Param("p")()
     val s = StmCount2D(3, 2)
     val expected = Seq(
       Tuple(0, 0)(),
@@ -2629,9 +2629,9 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmTranspose") {
-    val s = Param("s")
-    val n = Param("n")
-    val m = Param("m")
+    val s = Param("s")()
+    val n = Param("n")()
+    val m = Param("m")()
     val expected = StmLiteral(
       Seq(
         Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)(), Tuple(3, 0)()),
@@ -2652,7 +2652,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmTransposeTranspose") {
-    val p = Param("p")
+    val p = Param("p")()
     val input = StmCount2D(4, 3)
     val s = StmTranspose(StmTranspose(p, n = 4, m = 3), n = 3, m = 4)
     val expected = StmLiteral(

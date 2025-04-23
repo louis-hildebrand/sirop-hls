@@ -210,7 +210,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecTransposeTranspose") {
-    val x = Param("x")
+    val x = Param("x")()
     val v =
       VecBuild(4, (i: Expr) => VecBuild(3, (j: Expr) => Tuple(i, j)())())()
     val expected = VecLiteral(

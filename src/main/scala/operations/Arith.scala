@@ -16,7 +16,7 @@ object Max {
 
 object CeilDiv {
   def apply(x: Expr, y: Expr): Expr = {
-    val q = Param("q")
+    val q = Param("q")()
     Let(
       q,
       x / y,

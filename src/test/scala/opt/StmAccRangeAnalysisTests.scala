@@ -6,11 +6,11 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRangeAnalysisTests extends AnyFunSuite {
   test("RangeForNonDecreasingElem") {
-    val n = Param("n")
-    val z = Param("z")
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
+    val n = Param("n")()
+    val z = Param("z")()
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
     val stm =
       StmBuild(
         n,
@@ -33,11 +33,11 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
   }
 
   test("RangeForNonIncreasingElem") {
-    val n = Param("n")
-    val z = Param("z")
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
+    val n = Param("n")()
+    val z = Param("z")()
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
     val stm = StmBuild(
       n,
       SSome(a)(),
@@ -59,9 +59,9 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
   }
 
   test("IncreasingAndDecreasing") {
-    val n = Param("n")
-    val a = Param("a")
-    val b = Param("b")
+    val n = Param("n")()
+    val a = Param("a")()
+    val b = Param("b")()
     val stm = StmBuild(
       n,
       SSome(Tuple(a, b)())(),
@@ -81,9 +81,9 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
   }
 
   test("StreamAccumulator") {
-    val s = Param("s")
-    val n = Param("n")
-    val a = Param("a")
+    val s = Param("s")()
+    val n = Param("n")()
+    val a = Param("a")()
     val stm = StmBuild(
       n,
       SSome(StmNext(a)().__1)(),

@@ -10,8 +10,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
 
   test(s"Sum") {
-    val e1 = VecAccess(Param("p"), Param("p"))().__1
-    val e2 = StmLength(Param("p"))()
+    val e1 = VecAccess(Param("p")(), Param("p")())().__1
+    val e2 = StmLength(Param("p")())()
 
     assert(pe(IntCst(1) + IntCst(2)) == IntCst(3))
     assert(pe(e1 + IntCst(0)) == e1)
@@ -36,10 +36,10 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   // The non-arithmetic terms within a sum are also simplified
   test("SimplifiableBlackBoxInsideAdd") {
-    val i = Param("i")
-    val f = Param("f")
+    val i = Param("i")()
+    val f = Param("f")()
     val e3 = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
-    val e4 = Param("p")
+    val e4 = Param("p")()
 
     val actual = pe((e3 + e4 + IntCst(42)) - e4)
     val expected = IntCst(42) + VecAccess(FunCall(f, 10)(), i)()
@@ -47,7 +47,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("Mul") {
-    val e = VecAccess(Param("p"), Param("p"))()
+    val e = VecAccess(Param("p")(), Param("p")())()
 
     assert(pe(IntCst(4) * IntCst(9)) == IntCst(36))
     assert(pe(e * IntCst(0)) == IntCst(0))
@@ -58,8 +58,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   // The non-arithmetic terms within a product are also simplified
   test("SimplifiableBlackBoxInsideMul") {
-    val i = Param("i")
-    val f = Param("f")
+    val i = Param("i")()
+    val f = Param("f")()
     val e = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
 
     val actual = pe((IntCst(42) * e) * IntCst(3))
@@ -68,7 +68,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("Div") {
-    val e = StmLength(Param("p"))()
+    val e = StmLength(Param("p")())()
 
     // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
     assert(pe(e / IntCst(1)) == e)
@@ -80,17 +80,17 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("Mod") {
-    val e = VecLength(Param("p"))()
+    val e = VecLength(Param("p")())()
 
     assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
     assert(pe(IntCst(0) % e) == IntCst(0))
   }
 
   test("IfThenElseWithBoundedVariable") {
-    val x = Param("x")
-    val y = Param("y")
-    val z = Param("z")
-    val a = Param("a")
+    val x = Param("x")()
+    val y = Param("y")()
+    val z = Param("z")()
+    val a = Param("a")()
     val e = IfThenElse(x.__1 >= -2 + a, y, z)()
 
     val facts0 = FactSet()
@@ -102,8 +102,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("LessThanWithBoundedVariable") {
-    val a = Param("a")
-    val n = Param("n")
+    val a = Param("a")()
+    val n = Param("n")()
     val e = a.__0 >= -1 + n
 
     val facts0 = FactSet()
@@ -128,7 +128,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     * the other. But in some cases, this can lead to division by zero.
     */
   test("PossibleDivByZeroInFalseBranch") {
-    val x = Param("x")
+    val x = Param("x")()
 
     val e0 = IfThenElse(x === 0, 1, 2 / x)()
     assert(PartialEvalPass.partialEval(e0) == e0)
@@ -141,7 +141,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("PossibleDivByZeroInTrueBranch") {
-    val x = Param("x")
+    val x = Param("x")()
 
     val e0 = IfThenElse(x !== 0, 2 / x, 1)()
     assert(PartialEvalPass.partialEval(e0) == e0)
@@ -154,27 +154,27 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("MinLessThanOrEqualToMin") {
-    val t = Param("t")
+    val t = Param("t")()
     val e = Min(-5 + t, 5) <= Min(-4 + t, 5)
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == True)
   }
 
   test("MinMinusMinGreaterOrEqualToZero") {
-    val t = Param("t")
+    val t = Param("t")()
     val e = (Min(-4 + t, 5) - Min(-5 + t, 5)) >= 0
     assert(PartialEvalPass.partialEval(e) == True)
   }
 
   test("MinMinusMinLessOrEqualToOne") {
-    val t = Param("t")
+    val t = Param("t")()
     val e = (Min(-4 + t, 5) - Min(-5 + t, 5)) <= 1
     assert(PartialEvalPass.partialEval(e) == True)
   }
 
   test("IfThenElse(a < b, True, False) === False") {
-    val a = Param("a")
-    val b = Param("b")
+    val a = Param("a")()
+    val b = Param("b")()
     val e = IfThenElse(a < b, True, False)() === False
     val actual = pe(e)
     val expected = a >= b
@@ -187,8 +187,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("ParamMinusOneLessThan") {
-    val n = Param("n")
-    val b = Param("b")
+    val n = Param("n")()
+    val b = Param("b")()
     val facts = FactSet().geq(n, 1)
     val e = ((-1 + n) >= 0) && b
     val actual = PartialEvalPass.partialEval(e)(facts)
@@ -196,8 +196,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("ParamMinusOneEqual") {
-    val n = Param("n")
-    val b = Param("b")
+    val n = Param("n")()
+    val b = Param("b")()
     val facts = FactSet().geq(n, 2)
     val e = ((-1 + n) === 0) || b
     val actual = PartialEvalPass.partialEval(e)(facts)

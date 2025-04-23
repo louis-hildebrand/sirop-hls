@@ -6,12 +6,12 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRemovalPassTests extends AnyFunSuite {
   test("RemoveUnusedCounters") {
-    val n = Param("n")
-    val a0 = Param("a")
-    val a1 = Param("a")
-    val a2 = Param("a")
-    val a3 = Param("a")
-    val a4 = Param("a")
+    val n = Param("n")()
+    val a0 = Param("a")()
+    val a1 = Param("a")()
+    val a2 = Param("a")()
+    val a3 = Param("a")()
+    val a4 = Param("a")()
     val stm = StmBuild(
       n,
       SSome(Tuple(a2)())(),
@@ -37,11 +37,11 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   }
 
   test("RemoveUnusedStream") {
-    val n = Param("n")
-    val s = Param("s")
-    val a0 = Param("a")
-    val a1 = Param("a")
-    val a2 = Param("a")
+    val n = Param("n")()
+    val s = Param("s")()
+    val a0 = Param("a")()
+    val a1 = Param("a")()
+    val a2 = Param("a")()
     val original = StmBuild(
       n,
       IfThenElse(a2 < n, NNone(???), SSome(StmNext(a1)().__1)())(),
@@ -72,9 +72,9 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   }
 
   test("RemoveConstantVars:OneInt") {
-    val n = Param("n")
-    val a = Param("a")
-    val b = Param("b")
+    val n = Param("n")()
+    val a = Param("a")()
+    val b = Param("b")()
     val s = StmBuild(
       n,
       SSome(Tuple(a, b)())(),
@@ -96,9 +96,9 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   }
 
   test("RemoveConstantVars:TwoInts") {
-    val n = Param("n")
-    val a = Param("a")
-    val b = Param("b")
+    val n = Param("n")()
+    val a = Param("a")()
+    val b = Param("b")()
     val s = StmBuild(
       n,
       SSome(Tuple(a, b)())(),
@@ -117,12 +117,12 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   }
 
   test("RemoveConstantVars:EmptyTuples") {
-    val n = Param("n")
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
-    val d = Param("d")
-    val e = Param("e")
+    val n = Param("n")()
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
+    val d = Param("d")()
+    val e = Param("e")()
     val s = StmBuild(
       n,
       SSome(a * c * d)(),
@@ -148,13 +148,13 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   }
 
   test("RemoveDuplicateVars") {
-    val n = Param("n")
-    val input = Param("input")
-    val s0 = Param("s")
-    val s1 = Param("s")
-    val i0 = Param("i")
-    val i1 = Param("i")
-    val j = Param("j")
+    val n = Param("n")()
+    val input = Param("input")()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val i0 = Param("i")()
+    val i1 = Param("i")()
+    val j = Param("j")()
     val original = StmBuild(
       n,
       SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1, i0, i1)())(),

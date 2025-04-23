@@ -9,7 +9,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   // Used to debug issue with StmFold
   test("FunCall") {
-    val x = Param("x")
+    val x = Param("x")()
     val e = FunCall(
       (y: Expr) => Tuple(StmNext(y.__1)().__1 + y.__0, StmNext(y.__1)().__0)(),
       x
@@ -21,7 +21,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   // Used to debug a case where partial evaluator left behind a Not(Not(...))
   test("NotNot") {
-    val acc = Param("acc")
+    val acc = Param("acc")()
     val e =
       IfThenElse(
         acc.__3,
@@ -33,7 +33,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
-    val x = Param("x")
+    val x = Param("x")()
     val e =
       Tuple(
         x.__0 >= 1,
@@ -50,7 +50,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:NestedScalarFunctions") {
-    val y = Param("y")
+    val y = Param("y")()
     val e =
       Function(
         y,
@@ -64,7 +64,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:StmAccumulator") {
-    val a = Param("a")
+    val a = Param("a")()
     val s = StmBuild(
       10,
       SSome(Tuple(a >= 0, a < 4)())(),
@@ -90,7 +90,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ReusedParam:VecIndex") {
-    val i = Param("i")
+    val i = Param("i")()
     val e =
       Tuple(
         i > 1,
@@ -109,10 +109,10 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("VecScanUnfolded") {
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
-    val z = Param("z")
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
+    val z = Param("z")()
     val v =
       VecBuild(
         3,
@@ -126,11 +126,11 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
-    val n = Param("n")
-    val i = Param("i")
-    val acc = Param("acc")
-    val z = Param("z")
-    val delta = Param("delta")
+    val n = Param("n")()
+    val i = Param("i")()
+    val acc = Param("acc")()
+    val z = Param("z")()
+    val delta = Param("delta")()
     val e = IfThenElse(
       i === (n - 1),
       z + acc.__0 * delta,
@@ -142,11 +142,11 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("IfThenElseFalseBranchSpecialCaseOfTrueBranch") {
-    val n = Param("n")
-    val i = Param("i")
-    val acc = Param("acc")
-    val z = Param("z")
-    val delta = Param("delta")
+    val n = Param("n")()
+    val i = Param("i")()
+    val acc = Param("acc")()
+    val z = Param("z")()
+    val delta = Param("delta")()
     val e = IfThenElse(
       i !== (n - 1),
       z + ((acc.__0 + (i + 1)) - n) * delta,
@@ -157,15 +157,15 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ScalarInequality:x<x+1") {
-    val x = Param("x")
+    val x = Param("x")()
     assert(pe((x - 1) < x) == True)
     assert(pe(x < x) == False)
   }
 
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
-    val n = Param("n")
-    val z = Param("z")
-    val a = Param("a")
+    val n = Param("n")()
+    val z = Param("z")()
+    val a = Param("a")()
     val s = StmBuild(
       n,
       IfThenElse(a >= z, SSome(a)(), NNone(???))(),
@@ -185,9 +185,9 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("StmOneElement") {
-    val z = Param("z")
-    val a0 = Param("a")
-    val a1 = Param("a")
+    val z = Param("z")()
+    val a0 = Param("a")()
+    val a1 = Param("a")()
     val s = StmBuild(
       1,
       SSome(a0)(),
@@ -204,8 +204,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     // I do NOT want this to be simplified to something like
     //   StmCst(1, StmNext(s)().__1)
     // because then we're calling StmNext(s)().__1 without a corresponding StmNext(s)().__0
-    val s = Param("s")
-    val a = Param("a")
+    val s = Param("s")()
+    val a = Param("a")()
     val stm = StmBuild(
       1,
       SSome(StmNext(a)().__1)(),
@@ -217,7 +217,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("VecBuildIndexRange") {
-    val n = Param("n")
+    val n = Param("n")()
     val v =
       VecBuild(
         n,
@@ -229,7 +229,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("IfThenElseCondition:x < 10 && x >= 0") {
-    val x = Param("x")
+    val x = Param("x")()
     val e =
       IfThenElse(
         x < 10 && x >= 0,
@@ -248,7 +248,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   // Used to debug an issue with StmInductionVarRemovalPass
   test("VecBuildIndexRangeAndIfThenElseCondition") {
-    val s = Param("s")
+    val s = Param("s")()
     val e = (t: Expr) =>
       IfThenElse(
         t < 7,

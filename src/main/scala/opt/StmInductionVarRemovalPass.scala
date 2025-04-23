@@ -64,7 +64,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     */
   def tryFindClosedFormForOutput(s: StmBuild): Option[Function] = {
     val closedFormByVar = findClosedForms(s)
-    val t = Param("t")
+    val t = Param("t")()
     val subs: Map[Expr, Expr] =
       closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)() })
     val out = s.output.substitute(subs)
@@ -73,7 +73,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   }
 
   private def findClosedForms(s: StmBuild): Map[Param, Function] = {
-    val t = Param("t")
+    val t = Param("t")()
     // The dependency graph may have cycles. To deal with that, combine
     // elements of each strongly connected component into one tuple.
     val g = s.accVarDependencies.condensation()
@@ -167,7 +167,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       val x = paramByIndex(i)
       equations(x)._1
     }): _*)()
-    val acc = Param("acc")
+    val acc = Param("acc")()
     val subs: Map[Expr, Expr] =
       paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i)() })
     val next = Function(
@@ -194,7 +194,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     if (closedFormByVar.isEmpty) {
       stm
     } else {
-      val t = Param("t")
+      val t = Param("t")()
 
       // Process the closed forms without StmNextK first because they should
       // always work regardless of order.
@@ -258,7 +258,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       case s: StmNextK =>
         tryFindRecursiveForm(s, t) match {
           case Some((z, f)) =>
-            val r = Param("r")
+            val r = Param("r")()
             Some((r, Map(r -> (z, f))))
           case None => None
         }
@@ -388,7 +388,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           ) if a0 == acc && a1 == acc && terms.contains(acc.__0) =>
         val bCond = and.remove(acc.__0)
         // (1) Find closed form for counter if it was unbounded
-        val a = Param("a")
+        val a = Param("a")()
         val ctrNext = Function(
           t,
           TyInt,
@@ -453,7 +453,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
       e match {
         case IfThenElse(c, lhs, rhs) =>
-          (t, Param("p"), c) match {
+          (t, Param("p")(), c) match {
             case TimeLessThan(k) =>
               findRec(lhs, t0) match {
                 case Some((z0, f0)) =>

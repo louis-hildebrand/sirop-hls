@@ -217,7 +217,7 @@ object VhdlGenerator {
         val (cVhdl, cSignals) = makeVhdlExpr(c, MyBool)
         val (tVhdl, tSignals) = makeVhdlExpr(t, typ)
         val (fVhdl, fSignals) = makeVhdlExpr(f, typ)
-        val sigName = Param("ite").name
+        val sigName = Param("ite")().name
         val sig = Signal(
           sigName,
           typ = makeVhdlType(typ),
