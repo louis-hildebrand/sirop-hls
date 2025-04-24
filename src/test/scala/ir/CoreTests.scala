@@ -41,18 +41,37 @@ class CoreTests extends AnyFunSuite {
     assert(e0 == e1)
   }
 
+  test("Substitute:RemoveType") {
+    val x = Param("x")(TyInt)
+    val y = Param("y")(TyBool)
+    val z = Param("z")()
+    val e = Tuple(x, y)(TyTuple(TyInt, TyBool))
+    val subbed = e.substitute(x -> (y && z))
+    assert(subbed == Tuple(y && z, y)())
+    assert(subbed.typ != TyTuple(TyInt, TyBool))
+  }
+
   test("Substitute:StmNext") {
     val s = Param("s")()
     val v = Param("v")()
-    val e = (5 + StmNext(s)().__1).tchk(Map(s -> TyStm(TyInt, 2)))
-    assert(e.substitute(StmNext(s)().__1 -> v) == 5 + v)
+
+    val untyped = 5 + StmNext(s)().__1
+    assert(untyped.substitute(StmNext(s)().__1 -> v) == 5 + v)
+
+    val typed = untyped.tchk(Map(s -> TyStm(TyInt, 2)))
+    assert(typed.substitute(StmNext(s)().__1 -> v) == 5 + v)
+
+    val subbedSameType =
+      typed.subPreserveType(StmNext(s)().__1 -> v.rebuild(TyInt))
+    assert(subbedSameType == 5 + v)
+    assert(subbedSameType.typ == TyInt)
   }
 
   test("Substitute:Function") {
-    val x = Param("x")()
-    val x2 = Param("x2")()
-    val y = Param("y")()
-    val e = Tuple(
+    val x = Param("x")(TyInt)
+    val x2 = Param("x2")(TyInt)
+    val y = Param("y")(TyStm(TyInt, 5))
+    val untyped = Tuple(
       StmNext(y)().__1,
       Function(
         x,
@@ -62,7 +81,7 @@ class CoreTests extends AnyFunSuite {
         )()
       )()
     )()
-    val actual = e.substitute(StmNext(y)().__1 -> x % 2)
+    val subs = Map[Expr, Expr](StmNext(y)().__1 -> Mod(x, 2)(TyInt))
     val expected = Tuple(
       x % 2,
       // (1) Need to rename the variable in the outer function to avoid
@@ -72,7 +91,17 @@ class CoreTests extends AnyFunSuite {
       //     parameter, not y in the global scope.
       Function(x2, Tuple(x % 2 + 2, Function(y, StmNext(y)().__1 * 3)())())()
     )()
-    assert(actual == expected)
+
+    val actual0 = untyped.substitute(subs)
+    assert(actual0 == expected)
+
+    val typed = untyped.tchk(Map(x -> x.typ, x2 -> x2.typ, y -> y.typ))
+    val actual1 = typed.substitute(subs)
+    assert(actual1 == expected)
+
+    val actual2 = typed.subPreserveType(subs)
+    assert(actual2 == expected)
+    assert(actual2.typ != Missing)
   }
 
   test("Substitute:StmBuild") {
@@ -81,9 +110,16 @@ class CoreTests extends AnyFunSuite {
     val y = Param("y")()
     val y2 = Param("y2")()
     val z = Param("z")()
+    val context = Map(
+      x -> TyTuple(TyInt, TyInt),
+      x2 -> TyTuple(TyInt, TyInt),
+      y -> TyInt,
+      y2 -> TyInt,
+      z -> TyInt
+    )
     val stm = StmBuild(
       x.__1 + z + 1,
-      SSome(Tuple(z, 2 * x.__1 + 1)())(),
+      SSome(Tuple(z, x.__1 && x.__1)())(),
       Map[Param, (Expr, Expr)](
         x -> (
           Tuple(True, False)(),
@@ -96,13 +132,13 @@ class CoreTests extends AnyFunSuite {
         y -> (x.__1 / 2 + z, y + 2 + z)
       )
     )()
-    val e = Tuple(2 * x.__1 * z, stm)()
-    val actual = e.substitute(Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)))
+    val untyped = Tuple(2 * x.__1 * z, stm)()
+    val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99))
     val expected = Tuple(
       2 * y * 99,
       StmBuild(
         y + IntCst(99) + IntCst(1),
-        SSome(Tuple(99, 2 * x2.__1 + 1)())(),
+        SSome(Tuple(99, x2.__1 && x2.__1)())(),
         Map[Param, (Expr, Expr)](
           x2 -> (
             Tuple(True, False)(),
@@ -116,7 +152,17 @@ class CoreTests extends AnyFunSuite {
         )
       )()
     )()
-    assert(actual == expected)
+
+    val actual0 = untyped.substitute(subs)
+    assert(actual0 == expected)
+
+    val typed = untyped.tchk(context)
+    val actual1 = typed.substitute(subs)
+    assert(actual1 == expected)
+
+    val actual2 = typed.subPreserveType(subs)
+    assert(actual2 == expected)
+    assert(actual2.typ != Missing)
   }
 
   test("Function:Equals") {

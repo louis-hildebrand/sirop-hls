@@ -32,4 +32,20 @@ case object TyBool extends Type
 case class TyArrow(t1: Type, t2: Type) extends Type
 case class TyTuple(ts: Type*) extends Type
 case class TyVec(t: Type, n: Expr) extends Type
-case class TyStm(t: Type, n: Expr) extends Type
+
+/** @param t
+  *   The type of the <i>unwrapped</i> elements produced by the stream. In other
+  *   words, this is the type seen by consumers of the stream (usually
+  *   <i>not</i> an <code>Option</code> type).
+  * @param n
+  *   The length of the stream.
+  */
+case class TyStm(t: Type, n: Expr) extends Type {
+
+  /** If this is a stream of type <code>Stm&lt;T; n&gt;</code>, then
+    * <code>tOpt</code> is <code>Option&lt;T&gt;</code>. That is,
+    * <code>tOpt</code> is the type of the output expression inside the
+    * <code>StmBuild</code> itself.
+    */
+  val tOpt: Type = TyTuple(t, TyBool)
+}

@@ -4,11 +4,9 @@ import ir._
 import opt.PartialEvalPass
 
 case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
-    val typ: Type = Missing
+    typ: Type = Missing
 ) /* Vec<B; n> */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(v, f)
-
+    extends SyntaxSugar(v, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, f) => VecMap(v, f)(typ)
@@ -51,10 +49,8 @@ case class VecFold(
     v: Expr /* Vec<T1; n> */,
     z: Expr /* T2 */,
     f: Expr /* T1 -> T2 -> T2 */
-)(val typ: Type = Missing) /* T2 */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(v, z, f)
-
+)(typ: Type = Missing) /* T2 */
+    extends SyntaxSugar(v, z, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, z, f) => VecFold(v, z, f)(typ)
@@ -111,7 +107,7 @@ object VecScan {
     //       the input instead of accessing the input using counter as index?
     Iterate(
       if (inclusive) n else n + -1,
-      Tuple(0, VecBuild(n, (i: Expr) => z)())(),
+      Tuple(0, VecBuild(n, (_: Expr) => z)())(),
       (acc: Expr) =>
         Tuple(
           acc.__0 + 1,
@@ -148,11 +144,9 @@ object Vec2Tuple {
 }
 
 case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
-    val typ: Type = Missing
+    typ: Type = Missing
 ) /* Vec<A; n+1> */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(v, e)
-
+    extends SyntaxSugar(v, e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, e) => VecPrepend(v, e)(typ)
@@ -196,11 +190,9 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
 }
 
 case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
-    val typ: Type = Missing
+    typ: Type = Missing
 ) /* Vec<A; n+1> */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(v, e)
-
+    extends SyntaxSugar(v, e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, e) => VecAppend(v, e)(typ)
@@ -350,7 +342,7 @@ object VecRepeat {
       vec: Expr /* Vec<A; n> */,
       m: Expr
   ): Expr /* Vec<Vec<A; n>, m> */ = {
-    VecBuild(m, (i: Expr) => vec)()
+    VecBuild(m, (_: Expr) => vec)()
   }
 }
 

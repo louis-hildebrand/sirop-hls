@@ -1,9 +1,7 @@
 package ir
 
-case class Let(x: Param, v: Expr, in: Expr)(val typ: Type = Missing)
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(x, v, in)
-
+case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(x, v, in)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(x: Param, v, in) => Let(x, v, in)(typ)
@@ -14,21 +12,23 @@ case class Let(x: Param, v: Expr, in: Expr)(val typ: Type = Missing)
   override def typecheck(context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     val newIn = in.tchk(context + (x -> newV.typ))
-    val newX = x.rebuild(newV.typ).asInstanceOf[Param]
+    val newX = x.rebuild(newV.typ)
     Let(newX, newV, newIn)(newIn.typ)
   }
 
   override def lower(): Expr = {
-    FunCall(Function(x, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
+    if (this.typ != Missing) {
+      FunCall(Function(x, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
+    } else {
+      FunCall(Function(x, in)(), v)()
+    }
   }
 }
 
 // Default value for a given datatype (zero for int, false for bool, tuple of
 // defaults for a tuple, etc.).
 // Note that this should NOT be used for functions or streams.
-case class Default(typ: Type) extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq()
-
+case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
     this
@@ -60,11 +60,8 @@ case object Default {
 // Option<T>
 // ---------------------------------------------------------------------------------------------------------------------
 
-case class NNone(innerTyp: Type) extends SyntaxSugar {
-  val typ: Type = TyTuple(innerTyp, TyBool)
-
-  override def children: Seq[Expr] = Seq()
-
+case class NNone(innerTyp: Type)
+    extends SyntaxSugar()(TyTuple(innerTyp, TyBool)) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ == Missing || typ == TyTuple(innerTyp, TyBool))
     require(newChildren.isEmpty)
@@ -90,10 +87,8 @@ case class NNone(innerTyp: Type) extends SyntaxSugar {
   }
 }
 
-case class SSome(e: Expr /* T */ )(val typ: Type = Missing) /* Option<T> */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(e)
-
+case class SSome(e: Expr /* T */ )(typ: Type = Missing) /* Option<T> */
+    extends SyntaxSugar(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => SSome(e)(typ)
@@ -115,10 +110,8 @@ case class OptionAccess(
     e: Expr /* Option<T> */,
     s: Function /* T -> V */,
     n: Function /* () -> V */
-)(val typ: Type = Missing) /* V */
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(e, s, n)
-
+)(typ: Type = Missing) /* V */
+    extends SyntaxSugar(e, s, n)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e, s: Function, n: Function) =>
@@ -166,8 +159,8 @@ case class OptionAccess(
       assert(e.typ.isInstanceOf[TyTuple])
       IfThenElse(
         TupleAccess(e, 1)(TyBool),
-        s.body.substitute(s.param -> TupleAccess(e, 0)(innerTyp)),
-        n.body.substitute(n.param -> Tuple()(TyTuple()))
+        s.body.subPreserveType(s.param -> TupleAccess(e, 0)(innerTyp)),
+        n.body.subPreserveType(n.param -> Tuple()(TyTuple()))
       )(this.typ)
     } else {
       IfThenElse(
@@ -179,10 +172,8 @@ case class OptionAccess(
   }
 }
 
-case class OptionUnwrapUnsafe(e: Expr)(val typ: Type = Missing)
-    extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(e)
-
+case class OptionUnwrapUnsafe(e: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => OptionUnwrapUnsafe(e)(typ)
@@ -216,9 +207,7 @@ case class OptionUnwrapUnsafe(e: Expr)(val typ: Type = Missing)
   }
 }
 
-case class IsNone(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(e)
-
+case class IsNone(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => IsNone(e)(typ)
@@ -240,9 +229,7 @@ case class IsNone(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
   }
 }
 
-case class IsSome(e: Expr)(val typ: Type = Missing) extends SyntaxSugar {
-  override def children: Seq[Expr] = Seq(e)
-
+case class IsSome(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(e) => IsSome(e)(typ)
