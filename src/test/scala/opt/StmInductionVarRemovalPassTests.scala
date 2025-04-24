@@ -178,7 +178,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         (t: Expr) => (i: Expr) => i + 1,
         (t: Expr) => (i: Expr) => 2 * t,
         (t: Expr) =>
-          (i: Expr) => StmNext(StmNextK(StmCount(n), 1 - n + t + i)())().__1
+          (i: Expr) => StmNext(StmNextK(StmCount(n)(), 1 - n + t + i)())().__1
       )
     val zExamples = Seq(
       Default(TyInt),
@@ -490,8 +490,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       val timeFunc = ir.eval(Let(s, sVal, f)()).asInstanceOf[Function]
@@ -538,8 +538,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       val recFunc = ir.eval(Let(s, sVal, shiftRecEqn)()).asInstanceOf[Function]
@@ -590,8 +590,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Smoke test
     val n = 3
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       val timeFunc =
@@ -628,8 +628,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Smoke test
     val n = 5
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       val timeFunc =
@@ -675,8 +675,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
@@ -720,8 +720,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)()),
-      StmRange(n, 9, 8)
+      StmCst(n, Tuple(True, False)())(),
+      StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
@@ -770,11 +770,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42),
-      StmCst(n, Tuple(99, True)()),
-      StmCst(n, -1),
-      StmRange(n, 1, 5),
-      StmRepeat(StmCount(n), m = 3, n = n)
+      StmCst(n, 42)(),
+      StmCst(n, Tuple(99, True)())(),
+      StmCst(n, -1)(),
+      StmRange(n, 1, 5)(),
+      StmRepeat(StmCount(n)(), m = 3, n = n)
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(0, 1, 2, 6)) {
@@ -823,11 +823,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42),
-      StmCst(n, Tuple(99, True)()),
-      StmCst(n, -1),
-      StmRange(n, 1, 5),
-      StmRepeat(StmCount(n), m = 3, n = n)
+      StmCst(n, 42)(),
+      StmCst(n, Tuple(99, True)())(),
+      StmCst(n, -1)(),
+      StmRange(n, 1, 5)(),
+      StmRepeat(StmCount(n)(), m = 3, n = n)
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {

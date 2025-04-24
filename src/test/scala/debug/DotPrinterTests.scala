@@ -101,7 +101,7 @@ class DotPrinterTests extends AnyFunSuite {
     assume(false)
     val n = Param("n")()
     val delta = Param("delta")()
-    val e = StmRange(n, 0, delta)
+    val e = StmRange(n, 0, delta)()
     DotPrinter.save(e, "./img/StmRange.dot")
   }
 }

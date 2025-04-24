@@ -48,7 +48,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example input, f, and g)
-    val call = (e: Expr) => Let(input, StmCount(5), e)()
+    val call = (e: Expr) => Let(input, StmCount(5)(), e)()
     val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
@@ -89,7 +89,7 @@ class OptimizationTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example input, f, g, and z)
     val call =
-      (e: Expr) => Let(n, 5, Let(input, StmCount(n), Let(z, 42, e)())())()
+      (e: Expr) => Let(n, 5, Let(input, StmCount(n)(), Let(z, 42, e)())())()
     val expected =
       StmLiteral(
         ir.eval(
@@ -128,7 +128,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correct behaviour
     // (Using one example input)
-    val call = (e: Expr) => Let(input, StmCount(5), e)()
+    val call = (e: Expr) => Let(input, StmCount(5)(), e)()
     val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
@@ -166,7 +166,7 @@ class OptimizationTests extends AnyFunSuite {
     val fused = original.asInstanceOf[StmBuild].fuseCompletely()
 
     // Correct behaviour
-    val call = (e: Expr) => Let(input, StmCount(n), e)()
+    val call = (e: Expr) => Let(input, StmCount(n)(), e)()
     val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
@@ -234,10 +234,10 @@ class OptimizationTests extends AnyFunSuite {
   /** The conversion of a constant stream of unknown length into a vector can be
     * optimized (no delay, just return the vector directly).
     */
-  test("Stm2Vec(StmCst(n, c))") {
+  test("Stm2Vec(StmCst(n, c)") {
     val n = Param("n")()
     val c = Param("c")()
-    val s = StmCst(n, c)
+    val s = StmCst(n, c)()
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)()).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
@@ -264,7 +264,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c)())
+    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c)())()
     assert(v == ideal)
   }
 
@@ -275,7 +275,7 @@ class OptimizationTests extends AnyFunSuite {
     val n = Param("n")()
     val z = Param("z")()
     val delta = Param("delta")()
-    val s = StmRange(n, z, delta)
+    val s = StmRange(n, z, delta)()
     val v = {
       val v0 = Stm2Vec(s, n = StmLength(s)()).fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
@@ -304,7 +304,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta)())
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta)())()
     assert(v == ideal)
   }
 
@@ -337,11 +337,11 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42),
-      StmCst(n, 99),
-      StmCst(n, -1),
-      StmRange(n, 1, 5),
-      StmRepeat(StmCount(n), m = 3, n = n)
+      StmCst(n, 42)(),
+      StmCst(n, 99)(),
+      StmCst(n, -1)(),
+      StmRange(n, 1, 5)(),
+      StmRepeat(StmCount(n)(), m = 3, n = n)
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
@@ -391,7 +391,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     // TODO: It would be even better if I could essentially eta-reduce the vector
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)())())
+    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)())())()
     assert(optimized == ideal)
   }
 
@@ -427,11 +427,11 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42),
-      StmCst(n, 99),
-      StmCst(n, -1),
-      StmRange(n, 1, 5),
-      StmRepeat(StmCount(n), m = 3, n = n)
+      StmCst(n, 42)(),
+      StmCst(n, 99)(),
+      StmCst(n, -1)(),
+      StmRange(n, 1, 5)(),
+      StmRepeat(StmCount(n)(), m = 3, n = n)
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
@@ -486,9 +486,9 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst2D(n, m, 42),
-      StmCst2D(n, m, -1),
-      StmCount2D(n, m)
+      StmCst2D(n, m, 42)(),
+      StmCst2D(n, m, -1)(),
+      StmCount2D(n, m)()
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {

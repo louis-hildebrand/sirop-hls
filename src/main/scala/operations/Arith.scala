@@ -2,6 +2,7 @@ package operations
 
 import ir._
 
+// TODO: Reimplement these as syntax sugar as well?
 object Min {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
     IfThenElse(x < y, x, y)()

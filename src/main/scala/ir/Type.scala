@@ -47,5 +47,8 @@ case class TyStm(t: Type, n: Expr) extends Type {
     * <code>tOpt</code> is the type of the output expression inside the
     * <code>StmBuild</code> itself.
     */
-  val tOpt: Type = TyTuple(t, TyBool)
+  val tOpt: Type = TyOption(t)
+}
+case object TyOption {
+  def apply(t: Type): Type = TyTuple(t, TyBool)
 }

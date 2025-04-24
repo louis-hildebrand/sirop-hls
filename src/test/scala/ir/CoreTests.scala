@@ -379,7 +379,7 @@ class CoreTests extends AnyFunSuite {
       3,
       SSome(StmNext(s)().__1 + 5)(),
       Map[Param, (Expr, Expr)](
-        s -> (StmCount(3), StmNext(s)().__0)
+        s -> (StmCount(3)(), StmNext(s)().__0)
       )
     )()
       .tchk(Map(s -> TyStm(TyInt, 3)))

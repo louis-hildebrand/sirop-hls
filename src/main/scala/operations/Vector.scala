@@ -81,17 +81,9 @@ case class VecFold(
   }
 
   override def lower(): Expr = {
-    // TODO: Implement this properly (preserving type!) once Iterate() works
-    Iterate(
-      VecLength(v)(TyInt),
-      Tuple(z, 0)(),
-      (acc: Expr) =>
-        Tuple(
-          FunCall(FunCall(f, VecAccess(v, acc.__1)())(), acc.__0)(),
-          acc.__1 + 1
-        )(),
-      zSize = Some(2)
-    ).__0.lowerAll()
+    // TODO: Implement this Vec2Stm
+    requireType()
+    ???
   }
 }
 
@@ -102,22 +94,8 @@ object VecScan {
       f: Expr => Expr => Expr /* A -> B -> B */,
       inclusive: Boolean
   ): Expr /* Vec<B; n> */ = {
-    val n = VecLength(vec)()
-    // TODO: Would it be better to use a second shift register for accessing
-    //       the input instead of accessing the input using counter as index?
-    Iterate(
-      if (inclusive) n else n + -1,
-      Tuple(0, VecBuild(n, (_: Expr) => z)())(),
-      (acc: Expr) =>
-        Tuple(
-          acc.__0 + 1,
-          VecShiftLeft(
-            acc.__1,
-            f(VecAccess(vec, acc.__0)())(VecAccess(acc.__1, n + -1)())
-          )
-        )(),
-      zSize = Some(2)
-    ).__1
+    // TODO: Implement using Vec2Stm
+    ???
   }
 }
 

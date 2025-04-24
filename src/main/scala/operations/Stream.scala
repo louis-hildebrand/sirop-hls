@@ -123,88 +123,177 @@ private object Helpers {
   }
 }
 
-object Iterate {
-  def apply(
-      n: Expr /* Int */,
-      z: Expr /* A */,
-      f: Function /* A -> A */,
-      // TODO: Ideally we would get this shape information from the type system,
-      zSize: Option[Int]
-  ): Expr = {
-    val i = Param("i")()
-    val acc = Param("acc")()
-    val accExpanded = zSize match {
-      case Some(n) => Helpers.expandTuple(acc, n)
-      case None    => acc
+case class Iterate(
+    n: Expr /* Int */,
+    z: Expr /* A */,
+    f: Expr /* A -> A */
+)(typ: Type = Missing) /* Stm<A; 1> */
+    extends SyntaxSugar(n, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, z, f) => Iterate(n, z, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
     }
-    val s = StmBuild(
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    val newZ = z.tchk(context)
+    val t = newZ.typ
+    val newF = f.tchk(context).expectTypeCompatibleWith(TyArrow(t, t))
+    this.rebuild(TyStm(t, 1), Seq(newN, newZ, newF))
+  }
+
+  override def lower(): Expr = {
+    requireType()
+    val i = Param("i")(TyInt)
+    val t = z.typ
+    val acc = Param("acc")(t)
+    StmBuild(
       1,
-      IfThenElse(i === 0, SSome(accExpanded)(), NNone(???))(),
+      IfThenElse(
+        Equal(i, 0)(TyBool),
+        SSome(acc)(TyOption(t)),
+        NNone(t)
+      )(TyOption(t)),
       Map[Param, (Expr, Expr)](
-        i -> (n, IfThenElse(i === 0, 0, i - 1)()),
-        acc -> (z, IfThenElse(
-          i === 0,
-          accExpanded,
-          FunCall(f, accExpanded)()
-        )())
+        i -> (n, Sum(i, -1)(TyInt)),
+        acc -> (z, FunCall(f, acc)(t))
       )
-    )()
-    StmNext(s)().__1
+    )(this.typ).lowerAll()
   }
 }
 
-object StmCst {
-  def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
-    StmBuild(n, SSome(c)(), Map[Param, (Expr, Expr)]())()
+case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n, c)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, c) => StmCst(n, c)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    val newC = c.tchk(context)
+    this.rebuild(TyStm(newC.typ, newN), Seq(newN, newC))
+  }
+
+  override def lower(): Expr = {
+    if (this.typ == Missing) {
+      StmBuild(n, SSome(c)())()
+    } else {
+      StmBuild(n, SSome(c)(TyOption(c.typ)))(this.typ)
+    }
   }
 }
+//object StmCst {
+//  def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
+//    StmBuild(n, SSome(c)(), Map[Param, (Expr, Expr)]())()
+//  }
+//}
 
 object StmCount {
-  def apply(n: Expr): StmBuild /* Stm<Int; n> */ = StmRange(n, 0, 1)
+  def apply(n: Expr)(typ: Type = Missing): Expr /* Stm<Int; n> */ =
+    StmRange(n, 0, 1)(typ)
 }
 
 object StmCountFrom {
-  def apply(start: Expr, n: Expr): Expr = StmRange(n, start, 1)
+  def apply(start: Expr, n: Expr)(typ: Type = Missing): Expr =
+    StmRange(n, start, 1)(typ)
 }
 
-object StmRange {
+/** An arbitrary counter, a bit like Python's <code>range()</code>.
+  *
+  * @param n
+  *   Length of the stream.
+  * @param z
+  *   Initial value of the stream.
+  * @param delta
+  *   Difference between consecutive elements.
+  * @return
+  *   The stream of length <code>n</code> with elements <code>[z, z + delta, z +
+  *   2 * delta, ...]</code>.
+  */
+case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n, z, delta)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, z, delta) => StmRange(n, z, delta)(typ)
+      case _                => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-  /** An arbitrary counter, a bit like Python's <code>range()</code>.
-    *
-    * @param n
-    *   Length of the stream.
-    * @param z
-    *   Initial value of the stream.
-    * @param delta
-    *   Difference between consecutive elements.
-    * @return
-    *   The stream of length <code>n</code> with elements <code>[z, z + delta, z
-    *   + 2 * delta, ...]</code>.
-    */
-  def apply(n: Expr, z: Expr, delta: Expr): StmBuild = {
-    val a = Param("a")()
-    StmBuild(n, SSome(a)(), Map(a -> (z, a + delta)))()
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    val newZ = z.tchk(context).expectType(TyInt)
+    val newDelta = delta.tchk(context).expectType(TyInt)
+    this.rebuild(TyStm(TyInt, newN), Seq(newN, newZ, newDelta))
+  }
+
+  override def lower(): Expr = {
+    val a = Param("a")(TyInt)
+    StmBuild(
+      n,
+      SSome(a)(TyOption(TyInt)),
+      Map[Param, (Expr, Expr)](a -> (z, a + delta))
+    )(this.typ)
   }
 }
 
-object StmCst2D {
-  def apply(n: Expr, m: Expr, c: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    StmBuild(n * m, SSome(c)(), Map[Param, (Expr, Expr)]())()
+case class StmCst2D(
+    n: Expr /* Int */,
+    m: Expr /* Int */,
+    c: Expr /* T */
+)(typ: Type = Missing) /* Stm<T; n*m> */
+    extends SyntaxSugar(n, m, c)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, m, c) => StmCst2D(n, m, c)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    val newM = m.tchk(context).expectType(TyInt)
+    val newC = c.tchk(context)
+    this.rebuild(TyStm(newC.typ, newN * newM), Seq(newN, newM, newC))
+  }
+
+  override def lower(): Expr = {
+    StmBuild(n * m, SSome(c)(c.typ))(this.typ)
   }
 }
 
-object StmCount2D {
-  def apply(n: Expr, m: Expr): Expr /* Stm<Stm<Int; m>; n> */ = {
-    val i = Param("i")()
-    val j = Param("j")()
+case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n, m)(typ) /* Stm<(Int, Int); n*m> */ {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, m) => StmCount2D(n, m)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    val newM = m.tchk(context).expectType(TyInt)
+    this.rebuild(TyStm(TyInt, newN * newM), Seq(newN, newM))
+  }
+
+  override def lower(): Expr = {
+    requireType()
+    val tup = TyTuple(TyInt, TyInt)
+    val i = Param("i")(TyInt)
+    val j = Param("j")(TyInt)
     StmBuild(
       n * m,
-      SSome(Tuple(i, j)())(),
+      SSome(Tuple(i, j)(tup))(TyOption(tup)),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(j === m - 1, i + 1, i)()),
-        j -> (0, IfThenElse(j === m - 1, 0, j + 1)())
+        i -> (0, IfThenElse(Equal(j, m - 1)(TyBool), i + 1, i)(TyInt)),
+        j -> (0, IfThenElse(Equal(j, m - 1)(TyBool), 0, j + 1)(TyInt))
       )
-    )()
+    )(this.typ)
   }
 }
 
@@ -464,7 +553,7 @@ object StmPrepend {
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val eShape = stmShape.tail
-    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    val eStm = if (eShape.isEmpty) StmCst(1, e)() else e
     StmConcat(eStm, stm, stm1Shape = IntCst(1) +: eShape, stm2Shape = stmShape)
   }
 }
@@ -477,7 +566,7 @@ object StmAppend {
       stmShape: Seq[Expr]
   ): Expr /* Stm<A; n+1> */ = {
     val eShape = stmShape.tail
-    val eStm = if (eShape.isEmpty) StmCst(1, e) else e
+    val eStm = if (eShape.isEmpty) StmCst(1, e)() else e
     StmConcat(stm, eStm, stm1Shape = stmShape, stm2Shape = IntCst(1) +: eShape)
   }
 }

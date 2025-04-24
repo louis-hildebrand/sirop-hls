@@ -313,6 +313,20 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  def expectTypeCompatibleWith(t: Type): Expr = {
+    if (!this.typ.isCompatibleWith(t)) {
+      throw new TypeError(s"Expected type $t but found ${this.typ}.")
+    }
+    this
+  }
+
+  def expectType(t: Type): Expr = {
+    if (this.typ != t) {
+      throw new TypeError(s"Expected type $t but found ${this.typ}.")
+    }
+    this
+  }
+
   if (this.typ != Missing) {
     // This allows the type checker to completely skip expressions that already
     // have a type
@@ -662,7 +676,12 @@ case object Sum {
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
-    new Sum(terms: _*)(typ)
+    val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
+      TyInt
+    } else {
+      typ
+    }
+    new Sum(terms: _*)(newTyp)
   }
 }
 
@@ -682,23 +701,46 @@ case object Prod {
         })
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
-    new Prod(factors: _*)(typ)
+    val newTyp = if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
+      TyInt
+    } else {
+      typ
+    }
+    new Prod(factors: _*)(newTyp)
   }
 }
 
-case class Div(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends IntExpr(e1, e2)(typ) {
+case class Div(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Div(newChildren.head, newChildren(1))(typ)
   }
 }
+case object Div {
+  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Div = {
+    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
+      TyInt
+    } else {
+      typ
+    }
+    new Div(e1, e2)(newTyp)
+  }
+}
 
-case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends IntExpr(e1, e2)(typ) {
+case class Mod(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Mod(newChildren.head, newChildren(1))(typ)
+  }
+}
+case object Mod {
+  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Mod = {
+    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
+      TyInt
+    } else {
+      typ
+    }
+    new Mod(e1, e2)(newTyp)
   }
 }
 
@@ -1414,4 +1456,11 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * test expressions where lowering does not require the type.)
     */
   def lower(): Expr
+
+  protected def requireType(): Unit = {
+    require(
+      this.typ != Missing,
+      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
+    )
+  }
 }
