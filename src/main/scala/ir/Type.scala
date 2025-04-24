@@ -2,6 +2,22 @@ package ir
 
 sealed trait Type {
 
+  /** This type, but where all streams are made one-dimensional.
+    */
+  def flat: Type = {
+    this match {
+      case Missing | TyInt | TyBool => this
+      case TyArrow(t1, t2)          => TyArrow(t1.flat, t2.flat)
+      case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.flat): _*)
+      case TyVec(t, n)              => TyVec(t.flat, n)
+      case TyStm(t, n) =>
+        t.flat match {
+          case TyStm(t, m) => TyStm(t, n * m)
+          case t           => TyStm(t, n)
+        }
+    }
+  }
+
   /** Check whether two types are "compatible," i.e., will have the same shape
     * in hardware.
     */

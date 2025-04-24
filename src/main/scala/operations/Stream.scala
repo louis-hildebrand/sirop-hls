@@ -144,8 +144,11 @@ case class Iterate(
     this.rebuild(TyStm(t, 1), Seq(newN, newZ, newF))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
     requireType()
+    val n = this.n.lower()
+    val z = this.z.lower()
+    val f = this.f.lower()
     val i = Param("i")(TyInt)
     val t = z.typ
     val acc = Param("acc")(t)
@@ -160,7 +163,7 @@ case class Iterate(
         i -> (n, Sum(i, -1)(TyInt)),
         acc -> (z, FunCall(f, acc)(t))
       )
-    )(this.typ).lowerAll()
+    )(this.typ.flat).lower()
   }
 }
 
@@ -179,11 +182,13 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     this.rebuild(TyStm(newC.typ, newN), Seq(newN, newC))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val n = this.n.lower()
+    val c = this.c.lower()
     if (this.typ == Missing) {
       StmBuild(n, SSome(c)())()
     } else {
-      StmBuild(n, SSome(c)(TyOption(c.typ)))(this.typ)
+      StmBuild(n, SSome(c)(TyOption(c.typ)))(this.typ.flat)
     }
   }
 }
@@ -231,13 +236,16 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     this.rebuild(TyStm(TyInt, newN), Seq(newN, newZ, newDelta))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val n = this.n.lower()
+    val z = this.z.lower()
+    val delta = this.delta.lower()
     val a = Param("a")(TyInt)
     StmBuild(
       n,
       SSome(a)(TyOption(TyInt)),
       Map[Param, (Expr, Expr)](a -> (z, a + delta))
-    )(this.typ)
+    )(this.typ.flat)
   }
 }
 
@@ -245,7 +253,7 @@ case class StmCst2D(
     n: Expr /* Int */,
     m: Expr /* Int */,
     c: Expr /* T */
-)(typ: Type = Missing) /* Stm<T; n*m> */
+)(typ: Type = Missing) /* Stm<Stm<T; m>; n> */
     extends SyntaxSugar(n, m, c)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -261,13 +269,16 @@ case class StmCst2D(
     this.rebuild(TyStm(newC.typ, newN * newM), Seq(newN, newM, newC))
   }
 
-  override def lower(): Expr = {
-    StmBuild(n * m, SSome(c)(c.typ))(this.typ)
+  override def lowerSyntaxSugar(): Expr = {
+    val n = this.n.lower()
+    val m = this.m.lower()
+    val c = this.c.lower()
+    StmBuild(n * m, SSome(c)(c.typ))(this.typ.flat)
   }
 }
 
 case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, m)(typ) /* Stm<(Int, Int); n*m> */ {
+    extends SyntaxSugar(n, m)(typ) /* Stm<Stm<(Int, Int); m>; n> */ {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, m) => StmCount2D(n, m)(typ)
@@ -281,8 +292,10 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     this.rebuild(TyStm(TyInt, newN * newM), Seq(newN, newM))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
     requireType()
+    val n = this.n.lower()
+    val m = this.m.lower()
     val tup = TyTuple(TyInt, TyInt)
     val i = Param("i")(TyInt)
     val j = Param("j")(TyInt)
@@ -293,7 +306,7 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
         i -> (0, IfThenElse(Equal(j, m - 1)(TyBool), i + 1, i)(TyInt)),
         j -> (0, IfThenElse(Equal(j, m - 1)(TyBool), 0, j + 1)(TyInt))
       )
-    )(this.typ)
+    )(this.typ.flat)
   }
 }
 

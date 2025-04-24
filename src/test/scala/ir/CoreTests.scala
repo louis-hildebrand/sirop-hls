@@ -5,7 +5,7 @@ import opt.{PartialEvalPass, StmAccRemovalPass}
 import org.scalatest.funsuite.AnyFunSuite
 
 class CoreTests extends AnyFunSuite {
-  private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lowerAll())
+  private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lower())
 
   test("Sum:Flatten") {
     val x = Param("x")()
@@ -379,7 +379,7 @@ class CoreTests extends AnyFunSuite {
       3,
       SSome(StmNext(s)().__1 + 5)(),
       Map[Param, (Expr, Expr)](
-        s -> (StmCount(3)(), StmNext(s)().__0)
+        s -> (StmCount(3)().lower(), StmNext(s)().__0)
       )
     )()
       .tchk(Map(s -> TyStm(TyInt, 3)))
@@ -399,7 +399,9 @@ class CoreTests extends AnyFunSuite {
         i -> (0, i + 1)
       )
     )()
-    assert(lpe(fused) == lpe(ideal))
+    val simplFused = lpe(fused)
+    val simplIdeal = lpe(ideal)
+    assert(simplFused == simplIdeal)
   }
 
   test("StmBuild:Fuse:ZipCounters") {

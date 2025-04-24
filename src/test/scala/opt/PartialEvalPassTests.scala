@@ -177,7 +177,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         a0 -> (z, a0 + a1 + a1),
         a1 -> (0, a1 + a0)
       )
-    )().lowerAll()
+    )().lower()
     val expected = StmBuild(1, SSome(z)())()
     assert(PartialEvalPass.partialEval(s) == expected)
   }

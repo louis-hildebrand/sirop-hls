@@ -269,7 +269,7 @@ trait Eval {
         }
       case v: StmLiteral => v
 
-      case s: SyntaxSugar => evalBigStep(s.lowerAll())
+      case s: SyntaxSugar => evalBigStep(s.lower())
     }
   }
 

@@ -345,19 +345,20 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   /** Remove all syntax sugar from this expression and its children. This is
     * guaranteed to preserve type annotations.
     */
-  def lowerAll(): Expr = {
-    val withDesugaredChildren =
-      rebuild(this.typ, this.children.map(e => e.lowerAll()))
-    val fullyDesugared = withDesugaredChildren match {
-      case s: SyntaxSugar => s.lower()
-      case e              => e
+  def lower(): Expr = {
+    val desugared = this match {
+      case s: SyntaxSugar => s.lowerSyntaxSugar()
+      case e              => e.rebuild(e.typ, e.children.map(e => e.lower()))
     }
     // This is required because lowering may be syntax-directed (i.e., an
     // expression may need to be typed before it can be lowered) and it is no
     // good if you type check an expression but then the type is removed while
     // lowering its children.
-    assert(fullyDesugared.typ == this.typ, "lowering must preserve type")
-    fullyDesugared
+    assert(
+      desugared.typ == this.typ.flat,
+      "lowering must yield an expression whose type is the original, but flattened"
+    )
+    desugared
   }
 
   def contains(p: Expr => Boolean): Boolean = {
@@ -604,6 +605,8 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  override def lower(): Function = super.lower().asInstanceOf[Function]
 
   /** Construct a new function in which the bound variable has a fresh name.
     */
@@ -1096,7 +1099,7 @@ case class StmBuild(
                     //       define StmBuild in such a way that it's not (e.g.,
                     //       by letting the update expression for a stream
                     //       input be a bool)?
-                    .lowerAll(),
+                    .lower(),
                   // CASE 2: Consumer is not reading from producer.
                   //         Update as usual.
                   //         If the consumer *does* try to get output from the
@@ -1447,15 +1450,16 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
 
   def typecheck(context: Map[Param, Type]): Expr
 
-  /** Desugar this node assuming its children have already been desugared.
+  /** Remove syntax sugar from this node and its children.
     *
     * If this expression has already been type checked, this method <i>MUST</i>
-    * preserve the type. This method <i>MAY</i> assume that the expression has
-    * already been type checked, but it is acceptable to gracefully handle the
-    * case where it has not yet been type checked. (This would make it easier to
-    * test expressions where lowering does not require the type.)
+    * return the flattened version of that same type. This method <i>MAY</i>
+    * assume that the expression has already been type checked, but it is
+    * acceptable to gracefully handle the case where it has not yet been type
+    * checked. (This would make it easier to test expressions where lowering
+    * does not require the type.)
     */
-  def lower(): Expr
+  def lowerSyntaxSugar(): Expr
 
   protected def requireType(): Unit = {
     require(

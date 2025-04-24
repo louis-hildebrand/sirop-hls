@@ -16,7 +16,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     Let(newX, newV, newIn)(newIn.typ)
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val v = this.v.lower()
+    val in = this.in.lower()
     if (this.typ != Missing) {
       FunCall(Function(x, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
     } else {
@@ -40,7 +42,7 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def lower(): Expr = Default.getDefault(this.typ)
+  override def lowerSyntaxSugar(): Expr = Default.getDefault(this.typ)
 }
 case object Default {
   private def getDefault(typ: Type): Expr = {
@@ -72,8 +74,8 @@ case class NNone(innerTyp: Type)
     this
   }
 
-  override def lower(): Expr = {
-    Tuple(Default(innerTyp), False)(this.typ)
+  override def lowerSyntaxSugar(): Expr = {
+    Tuple(Default(innerTyp), False)(this.typ.flat)
   }
 
   override def equals(obj: Any): Boolean = {
@@ -101,8 +103,8 @@ case class SSome(e: Expr /* T */ )(typ: Type = Missing) /* Option<T> */
     rebuild(TyTuple(newE.typ, TyBool), Seq(newE))
   }
 
-  override def lower(): Expr = {
-    Tuple(e, True)(this.typ)
+  override def lowerSyntaxSugar(): Expr = {
+    Tuple(e, True)(this.typ.flat)
   }
 }
 
@@ -147,7 +149,10 @@ case class OptionAccess(
     }
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val e = this.e.lower()
+    val s = this.s.lower()
+    val n = this.n.lower()
     if (this.typ != Missing) {
       val innerTyp = e.typ match {
         case TyTuple(t, TyBool) => t
@@ -191,19 +196,9 @@ case class OptionUnwrapUnsafe(e: Expr)(typ: Type = Missing)
     rebuild(t, Seq(newE))
   }
 
-  override def lower(): Expr = {
-    if (this.typ != Missing) {
-      val innerTyp = e.typ match {
-        case TyTuple(t, TyBool) => t
-        case t =>
-          throw new IllegalArgumentException(
-            s"Target of OptionAccess has type $t."
-          )
-      }
-      TupleAccess(e, 0)(innerTyp)
-    } else {
-      e.__0
-    }
+  override def lowerSyntaxSugar(): Expr = {
+    val e = this.e.lower()
+    TupleAccess(e, 0)(this.typ.flat)
   }
 }
 
@@ -224,7 +219,8 @@ case class IsNone(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
     this.rebuild(TyBool, Seq(newE))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val e = this.e.lower()
     Not(TupleAccess(e, 1)(TyBool))(TyBool)
   }
 }
@@ -246,7 +242,8 @@ case class IsSome(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
     this.rebuild(TyBool, Seq(newE))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val e = this.e.lower()
     TupleAccess(e, 1)(TyBool)
   }
 }

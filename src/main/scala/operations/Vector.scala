@@ -28,7 +28,9 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     }
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val v = this.v.lower()
+    val f = this.f.lower()
     if (this.typ == Missing) {
       VecBuild(VecLength(v)(), (i: Expr) => FunCall(f, VecAccess(v, i)())())()
     } else {
@@ -40,7 +42,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
       val g = Function(i, FunCall(f, VecAccess(v, i)(t1))(t2))(
         TyArrow(TyInt, t2)
       )
-      VecBuild(VecLength(v)(TyInt), g)(this.typ)
+      VecBuild(VecLength(v)(TyInt), g)(this.typ.flat)
     }
   }
 }
@@ -80,7 +82,7 @@ case class VecFold(
     this.rebuild(t2, Seq(newV, newZ, newF))
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
     // TODO: Implement this Vec2Stm
     requireType()
     ???
@@ -148,21 +150,24 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val v = this.v.lower()
+    val e = this.e.lower()
     if (this.typ == Missing) {
       VecBuild(
         VecLength(v)() + 1,
         (i: Expr) => IfThenElse(i === 0, e, VecAccess(v, i + -1)())()
       )()
     } else {
-      val t = this.v.typ.asInstanceOf[TyVec].t
-      val n = this.v.typ.asInstanceOf[TyVec].n
+      val t = v.typ.asInstanceOf[TyVec].t
+      val n = v.typ.asInstanceOf[TyVec].n
       val i = Param("i")(TyInt)
       val f =
-        Function(i, IfThenElse(i === 0, e, VecAccess(v, i - 1)(t))())(
-          TyArrow(TyInt, t)
-        )
-      VecBuild(n + 1, f)(this.typ)
+        Function(
+          i,
+          IfThenElse(Equal(i, 0)(TyBool), e, VecAccess(v, i - 1)(t))(t)
+        )(TyArrow(TyInt, t))
+      VecBuild(n + 1, f)(this.typ.flat)
     }
   }
 }
@@ -194,7 +199,9 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def lower(): Expr = {
+  override def lowerSyntaxSugar(): Expr = {
+    val v = this.v.lower()
+    val e = this.e.lower()
     if (this.typ == Missing) {
       val n = VecLength(v)()
       VecBuild(
@@ -202,13 +209,14 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
         (i: Expr) => IfThenElse(i === n, e, VecAccess(v, i)())()
       )()
     } else {
-      val t = this.v.typ.asInstanceOf[TyVec].t
-      val n = this.v.typ.asInstanceOf[TyVec].n
+      val t = v.typ.asInstanceOf[TyVec].t
+      val n = v.typ.asInstanceOf[TyVec].n
       val i = Param("i")(TyInt).rebuild(TyInt)
       val f =
-        Function(i, IfThenElse(i === n, e, VecAccess(v, i)(t))())(
-          TyArrow(TyInt, t)
-        )
+        Function(
+          i,
+          IfThenElse(Equal(i, n)(TyBool), e, VecAccess(v, i)(t))(t)
+        )(TyArrow(TyInt, t))
       VecBuild(n + 1, f)(this.typ)
     }
   }
