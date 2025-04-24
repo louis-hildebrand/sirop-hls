@@ -6,6 +6,26 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {
 
+  /** The optimizer can "unwrap" a VecScan to a sum, provided the vector has a
+    * statically-known length.
+    */
+  test("VecScanUnfolded") {
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
+    val z = Param("z")()
+    val v =
+      VecBuild(
+        3,
+        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())()
+      )()
+    val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
+    val pe = (e: Expr) => PartialEvalPass.partialEval(e)
+    assert(pe(VecAccess(v2, 0)()) == z + a)
+    assert(pe(VecAccess(v2, 1)()) == z + a + b)
+    assert(pe(VecAccess(v2, 2)()) == z + a + b + c)
+  }
+
   /** The optimizer can perform map-map fusion.
     */
   test("MapMap") {

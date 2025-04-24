@@ -107,23 +107,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecScanUnfolded") {
-    val a = Param("a")()
-    val b = Param("b")()
-    val c = Param("c")()
-    val z = Param("z")()
-    val v =
-      VecBuild(
-        3,
-        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())()
-      )()
-    val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
-    val pe = (e: Expr) => PartialEvalPass.partialEval(e)
-    assert(pe(VecAccess(v2, 0)()) == z + a)
-    assert(pe(VecAccess(v2, 1)()) == z + a + b)
-    assert(pe(VecAccess(v2, 2)()) == z + a + b + c)
-  }
-
   test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
     val n = Param("n")()
     val i = Param("i")()
@@ -167,7 +150,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a)(), NNone(???))(),
+      IfThenElse(a >= z, SSome(a)(), NNone(TyInt))(),
       Map[Param, (Expr, Expr)](
         a -> (z, IfThenElse(a >= z, a + 3, a - 1)())
       )
@@ -194,7 +177,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         a0 -> (z, a0 + a1 + a1),
         a1 -> (0, a1 + a0)
       )
-    )()
+    )().lowerAll()
     val expected = StmBuild(1, SSome(z)())()
     assert(PartialEvalPass.partialEval(s) == expected)
   }
