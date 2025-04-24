@@ -89,7 +89,7 @@ case class NNone(innerTyp: Type)
   }
 }
 
-case class SSome(e: Expr /* T */ )(typ: Type = Missing) /* Option<T> */
+case class SSome(e: Expr /* T */ )(typ: Type) /* Option<T> */
     extends SyntaxSugar(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -105,6 +105,16 @@ case class SSome(e: Expr /* T */ )(typ: Type = Missing) /* Option<T> */
 
   override def lowerSyntaxSugar(): Expr = {
     Tuple(e, True)(this.typ.flat)
+  }
+}
+case object SSome {
+  def apply(e: Expr)(typ: Type = Missing): SSome = {
+    val newTyp = if (typ == Missing && e.typ != Missing) {
+      TyOption(e.typ)
+    } else {
+      typ
+    }
+    new SSome(e)(newTyp)
   }
 }
 

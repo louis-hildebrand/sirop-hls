@@ -330,10 +330,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   if (this.typ != Missing) {
     // This allows the type checker to completely skip expressions that already
     // have a type
-    assert(
-      this.children.forall(e => e.typ != Missing),
-      "a typed node must have typed children"
-    )
+    for ((e, i) <- this.children.zipWithIndex) {
+      assert(
+        e.typ != Missing,
+        s"a typed node must have typed children, but child $i in ${this.getClass.getSimpleName} is untyped"
+      )
+    }
   }
 
   // TODO: Re-run the type checker (just on this node) to confirm that it is still well-typed?
@@ -563,13 +565,21 @@ case class Tuple(elems: Expr*)(typ: Type = Missing)
     Tuple(newChildren: _*)(typ)
 }
 
-case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
-    extends Expr(t, i)(typ) {
+case class TupleAccess(t: Expr, i: IntCst)(typ: Type) extends Expr(t, i)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
     }
+  }
+}
+case object TupleAccess {
+  def apply(t: Expr, i: IntCst)(typ: Type = Missing): TupleAccess = {
+    val newTyp = (typ, t.typ) match {
+      case (Missing, TyTuple(ts @ _*)) => ts(i.i)
+      case _                           => typ
+    }
+    new TupleAccess(t, i)(newTyp)
   }
 }
 

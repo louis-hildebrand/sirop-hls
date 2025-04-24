@@ -101,18 +101,39 @@ object VecScan {
   }
 }
 
-object Stm2Vec {
-  def apply(
-      s: Expr,
-      // Ideally we would get this shape info from the type system
-      n: Expr
-  ): StmBuild =
+case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
+    typ: Type = Missing
+) /* Stm<Vec<A; n>; 1> */
+    extends SyntaxSugar(s)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => Stm2Vec(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = s.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) => this.rebuild(TyVec(t, n), Seq(newS))
+      case t           => throw new TypeError(s"Stream in Stm2Vec has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val s = this.s.lower()
+    val (t, n) = {
+      val vt = this.typ.asInstanceOf[TyVec]
+      (vt.t, vt.n)
+    }
     StmFold(
       s,
-      VecBuild(n, (_: Expr) => Default(???))(),
+      VecBuild(n, (_: Expr) => Default(t))(),
       (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
       stmShape = Seq(n)
     )
+  }
 }
 
 object Vec2Tuple {
