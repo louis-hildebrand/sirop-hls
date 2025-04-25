@@ -774,7 +774,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmCst(n, Tuple(99, True)())(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3, n = n)
+      StmRepeat(StmCount(n)(), m = 3)()
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(0, 1, 2, 6)) {
@@ -827,7 +827,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmCst(n, Tuple(99, True)())(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3, n = n)
+      StmRepeat(StmCount(n)(), m = 3)()
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {

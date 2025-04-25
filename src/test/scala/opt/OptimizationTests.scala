@@ -32,14 +32,7 @@ class OptimizationTests extends AnyFunSuite {
     val input = Param("input")()
     val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
     val g = (x: Expr) => x - 10
-    val s =
-      StmMap(
-        StmMap(input, f, n = 5, fInShape = None, fOutShape = None),
-        g,
-        n = 5,
-        fInShape = None,
-        fOutShape = None
-      )
+    val s = StmMap(StmMap(input, f)(), g)()
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
       StmSimplifier.simplify(s1)()
@@ -55,13 +48,8 @@ class OptimizationTests extends AnyFunSuite {
     // Successful fusion:
     // map(map(s, f), g) should simplify to the same thing as map(s, g . f)
     val ideal = optimize(
-      StmMap(
-        input,
-        (x: Expr) => FunCall(g, FunCall(f, x)())(),
-        n = 5,
-        fInShape = None,
-        fOutShape = None
-      ).asInstanceOf[StmBuild]
+      StmMap(input, (x: Expr) => FunCall(g, FunCall(f, x)())())()
+        .asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
   }
@@ -75,11 +63,10 @@ class OptimizationTests extends AnyFunSuite {
     val z = Param("z")()
     val s =
       StmFold(
-        StmMap(input, f, n = n, fInShape = None, fOutShape = None),
+        StmMap(input, f)(),
         z,
-        (acc: Expr) => (x: Expr) => acc + x,
-        stmShape = Seq(n)
-      ).tchk(Map()).lower().asInstanceOf[StmBuild]
+        (acc: Expr) => (x: Expr) => acc + x
+      )().tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
       StmSimplifier.simplify(s1)()
@@ -110,9 +97,8 @@ class OptimizationTests extends AnyFunSuite {
       StmFold(
         input,
         z,
-        (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4),
-        stmShape = Seq(n)
-      ).tchk(Map()).lower().asInstanceOf[StmBuild]
+        (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4)
+      )().tchk().lower().asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
   }
@@ -158,7 +144,7 @@ class OptimizationTests extends AnyFunSuite {
     val input = Param("input")()
     val n = 5
     val original =
-      StmAppend(StmSuffix(input, n - 1)(), 42, stmShape = Seq(4))
+      StmAppend(StmSuffix(input, n - 1)(), 42)()
     val fused = original.asInstanceOf[StmBuild].fuseCompletely()
 
     // Correct behaviour
@@ -236,7 +222,7 @@ class OptimizationTests extends AnyFunSuite {
     val s = StmCst(n, c)()
     val v = {
       val v0 =
-        Stm2Vec(s)().tchk(Map()).lower().asInstanceOf[StmBuild].fuseCompletely()
+        Stm2Vec(s)().tchk().lower().asInstanceOf[StmBuild].fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -275,7 +261,7 @@ class OptimizationTests extends AnyFunSuite {
     val s = StmRange(n, z, delta)()
     val v = {
       val v0 =
-        Stm2Vec(s)().tchk(Map()).lower().asInstanceOf[StmBuild].fuseCompletely()
+        Stm2Vec(s)().tchk().lower().asInstanceOf[StmBuild].fuseCompletely()
       val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
       val v2 = StmSimplifier.simplify(v1)()
       val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
@@ -311,13 +297,8 @@ class OptimizationTests extends AnyFunSuite {
   test("Vec2Stm(Stm2Vec(s))") {
     val n = Param("n")()
     val s = Param("s")()
-    val original = StmMap(
-      Stm2Vec(s)(),
-      (v: Expr) => Vec2Stm(v)(),
-      n = 1,
-      fInShape = None,
-      fOutShape = Some(n)
-    ).asInstanceOf[StmBuild]
+    val original =
+      StmMap(Stm2Vec(s)(), (v: Expr) => Vec2Stm(v)())().asInstanceOf[StmBuild]
     val optimized = {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
@@ -339,7 +320,7 @@ class OptimizationTests extends AnyFunSuite {
       StmCst(n, 99)(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3, n = n)
+      StmRepeat(StmCount(n)(), m = 3)()
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
@@ -365,7 +346,7 @@ class OptimizationTests extends AnyFunSuite {
     val n = Param("n")()
     val v = Param("v")()
     val original =
-      Stm2Vec(Vec2Stm(v)())().tchk(Map()).lower().asInstanceOf[StmBuild]
+      Stm2Vec(Vec2Stm(v)())().tchk().lower().asInstanceOf[StmBuild]
     val optimized = {
       val s1 = original.fuseCompletely()
       val s2 = StmSimplifier.simplify(s1)()
@@ -430,7 +411,7 @@ class OptimizationTests extends AnyFunSuite {
       StmCst(n, 99)(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3, n = n)
+      StmRepeat(StmCount(n)(), m = 3)()
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {

@@ -23,6 +23,21 @@ class TypeTests extends AnyFunSuite {
     assert(f == expected)
   }
 
+  test("IsCompatibleWith:VecLength") {
+    val n = Param("n")(TyInt)
+    val v = Param("v")(TyVec(TyInt, n))
+    val vLen = VecLength(v)(TyInt)
+    assert(TyVec(TyInt, n) ~= TyVec(TyInt, vLen))
+    assert(TyVec(TyInt, vLen) ~= TyVec(TyInt, n))
+
+    val w = Param("w")(TyVec(TyInt, vLen))
+    val wLen = VecLength(w)(TyInt)
+    assert(TyVec(TyInt, n) ~= TyVec(TyInt, wLen))
+    assert(TyVec(TyInt, wLen) ~= TyVec(TyInt, n))
+    assert(TyVec(TyInt, vLen) ~= TyVec(TyInt, wLen))
+    assert(TyVec(TyInt, wLen) ~= TyVec(TyInt, vLen))
+  }
+
   test("Flatten:NonStreams") {
     val t = TyTuple(
       Missing,

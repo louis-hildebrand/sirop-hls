@@ -13,33 +13,35 @@ private object Helpers {
     *
     * @param f
     *   The original function, which could be (1) scalar to scalar, (2) scalar
-    *   to stream, (3) stream to scalar, or (4) stream to stream.
-    * @param inShape
-    *   Shape of the input to `f`. `Some(n)` means `f` takes a stream of `n`
-    *   scalars. `None` means `f` takes one scalar.
-    * @param outShape
-    *   Shape of the output of `f`. `Some(n)` means `f` returns a stream of `n`
-    *   scalars. `None` means `f` returns one scalar.
+    *   to stream, or (3) stream to stream.
     */
-  def asStm2Stm(
-      f: Function,
-      inShape: Option[Expr],
-      outShape: Option[Expr]
-  ): (Param, StmBuild) = {
-    val f1 = (inShape, outShape) match {
-      case (None, None) =>
-        // scalar -> scalar (e.g., x => x + 1)
-        val x = Param("s")()
-        val s = Param("s")()
-        Function(
-          x /* stream */,
-          StmBuild(
-            1,
-            SSome(f.body.substitute(f.param -> StmNext(s)().__1))(),
-            Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
-          )()
-        )()
-      case (None, Some(_)) =>
+  def asStm2Stm(f: Function): (Param, StmBuild) = {
+    val f0 = f.lower()
+    val f1 = f0.typ match {
+      case TyArrow(TyStm(t1, n1), _: TyStm) =>
+        // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
+        // We need to be careful about the identity function.
+        // We want to be able to reset `f` itself, but *not* the input stream.
+        val identity: Function = (x: Expr) => x
+        if (f0 == identity) {
+          val s2 = Param("s2")(TyStm(t1, n1))
+          TyStm(t1, n1) ::+ (s1 =>
+            StmBuild(
+              n1,
+              SSome(StmNext(s2)(TyTuple(s1.typ, t1)).__1)(),
+              Map[Param, (Expr, Expr)](
+                s2 -> (s1, StmNext(s2)(TyTuple(s1.typ, t1)).__0)
+              )
+            )(s1.typ)
+          )
+        } else {
+          assert(
+            f0.body.isInstanceOf[StmBuild],
+            "the function in AsStm2Stm should return a StmBuild"
+          )
+          f0
+        }
+      case TyArrow(t1, TyStm(t2, n)) =>
         // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
         // The scalar input to the original function (`f.param`) can appear in
         // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
@@ -51,75 +53,92 @@ private object Helpers {
         // Also save that value in a new accumulator variable.
         // In subsequent cycles, whenever `f.param` appears, read from the
         // new accumulator variable.
-        val stm = f.body.asInstanceOf[StmBuild]
-        val input = Param("input")()
-        val s = Param("s")()
-        val isFirstStep = Param("is_first_step")()
-        val y = Param("y")()
+        // Existing accumulators whose *seed* depends on `f.param` can only be
+        // initialized after the first cycle.
+        // If *those* accumulators are needed in the first cycle, inline the
+        // seed (but with `f.param` being read from the stream).
+        // This does not make sense for input streams: Default[Stm[...]] is
+        // not defined, it doesn't make sense to inline a stream in this way,
+        // and it doesn't make sense to conjure up a stream out of nowhere
+        // after the first cycle).
+        // Try to get rid of input streams by fusion.
+        val stm = f0.body.asInstanceOf[StmBuild].fuseCompletely()
+        for (x <- stm.accVars) {
+          if (!Default.hasDefault(x.typ)) {
+            throw new IllegalArgumentException(
+              s"Accumulator $x with type ${x.typ} has no default."
+            )
+          }
+        }
+        val input = Param("input")(TyStm(t1, 1))
+        val s = Param("s")(TyStm(t1, 1))
+        val isFirstStep = Param("is_first_step")(TyBool)
+        val y = Param("y")(t1)
+        val next = StmNext(s)(TyTuple(TyStm(t1, 0), t1))
+        val yFromStmOrReg = IfThenElse(isFirstStep, next.__1, y)(t1)
         val subs = (
           stm.seedByVar
             .map({ case (x, z) =>
               x -> IfThenElse(
                 isFirstStep,
-                z.substitute(f.param -> StmNext(s)().__1),
+                z.subPreserveType(f0.param -> next.__1),
                 x
-              )()
+              )(x.typ)
             })
             .foldLeft(Map[Expr, Expr]())(_ + _)
-            + (f.param -> IfThenElse(isFirstStep, StmNext(s)().__1, y)())
+            + (f0.param -> yFromStmOrReg)
         )
-        val equationsToAdd = Map[Param, (Expr, Expr)](
-          // Input stream
-          s -> (input, IfThenElse(isFirstStep, StmNext(s)().__0, s)()),
-          // Whether we still need to read from the input stream
-          isFirstStep -> (True, False),
-          // Register for the value from the input stream
-          y -> (Default(???), IfThenElse(isFirstStep, StmNext(s)().__1, y)())
-        )
-        val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
-          x -> (Default(???), next.substitute(subs))
-        })
+        val newOutput = stm.output.subPreserveType(subs)
+        val newEquations = {
+          val equationsToAdd = Map[Param, (Expr, Expr)](
+            // Input stream
+            s -> (input, IfThenElse(isFirstStep, next.__0, s)(s.typ)),
+            // Whether we still need to read from the input stream
+            isFirstStep -> (True, False),
+            // Register for the value from the input stream
+            y -> (Default(t1), yFromStmOrReg)
+          )
+          val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
+            assert(
+              !x.typ.isInstanceOf[TyStm],
+              "the stream must not take any other streams as input"
+            )
+            x -> (Default(x.typ), next.subPreserveType(subs))
+          })
+          updatedOldEquations ++ equationsToAdd
+        }
         val newF = Function(
-          input /* stream */,
-          StmBuild(
-            stm.n,
-            stm.output.substitute(subs),
-            updatedOldEquations ++ equationsToAdd
-          )()
-        )()
-        assert(!newF.contains(f.param))
+          input,
+          StmBuild(stm.n, newOutput, newEquations)(TyStm(t2, n))
+        )(TyArrow(TyStm(t1, 1), TyStm(t2, n)))
+        assert(!newF.contains(f0.param))
         newF
-      case (Some(_), None) => {
+      case TyArrow(_: TyStm, _) =>
         throw new IllegalArgumentException(
           "Reducing a stream to a scalar is forbidden."
         )
-      }
-      case (Some(_), Some(_)) =>
-        // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
-        f
-    }
-    // We need to be careful about the identity function.
-    // We want to be able to reset `f` itself, but *not* the input stream.
-    // TODO: does this issue occur in any cases other than the identity function?
-    val identity: Function = (x: Expr) => x
-    val f2 = if (f1 == identity) {
-      val x = Param("s")()
-      val s = Param("s")()
-      Function(
-        x,
-        StmBuild(
-          outShape.getOrElse(IntCst(1)),
-          SSome(StmNext(s)().__1)(),
-          Map[Param, (Expr, Expr)](s -> (x, StmNext(s)().__0))
-        )()
-      )()
-    } else {
-      f1
+      case TyArrow(t1, t2) =>
+        // scalar -> scalar (e.g., x => x + 1)
+        val s1 = Param("s1")(TyStm(t1, 1))
+        val s2 = Param("s2")(TyStm(t1, 1))
+        val next = StmNext(s2)(TyTuple(TyStm(t1, 0), t1))
+        Function(
+          s1,
+          StmBuild(
+            1,
+            SSome(f0.body.subPreserveType(f0.param -> next.__1))(),
+            Map[Param, (Expr, Expr)](s2 -> (s1, next.__0))
+          )(TyStm(t2, 1))
+        )(TyArrow(TyStm(t1, 1), TyStm(t2, 1)))
+      case t =>
+        throw new IllegalArgumentException(
+          s"Function in AsStm2Stm has type $t."
+        )
     }
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (f2.param, f2.body.asInstanceOf[StmBuild].fuseCompletely())
+    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
   }
 }
 
@@ -187,13 +206,8 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     val n = this.n.lower()
     val c = this.c.lower()
     c.typ match {
-      case TyStm(_, m) => StmRepeat(c, m, n).lower()
-      case t           => StmBuild(n, SSome(c)())(TyStm(t, n))
-    }
-    if (this.typ == Missing) {
-      StmBuild(n, SSome(c)())()
-    } else {
-      StmBuild(n, SSome(c)(TyOption(c.typ)))(this.typ.flat)
+      case _: TyStm => StmRepeat(c, n)().tchk().lower()
+      case _        => StmBuild(n, SSome(c)())().tchk()
     }
   }
 }
@@ -319,18 +333,45 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   }
 }
 
-object StmMap {
-  def apply(
-      input: Expr /* Stm<A; n> */,
-      f: Function /* A -> B */,
-      // TODO: Ideally we would get this shape info from the type system
-      n: Expr,
-      fInShape: Option[Expr],
-      fOutShape: Option[Expr]
-  ): Expr /* Stm<B; n> */ = {
+case class StmMap(
+    input: Expr /* Stm<A; n> */,
+    f: Function /* A -> B */
+)(typ: Type = Missing) /* Stm<B; n> */
+    extends SyntaxSugar(input, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, f: Function) => StmMap(s, f)(typ)
+      case _                   => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = input.tchk(context)
+    val (t1, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t           => throw new TypeError(s"Stream in StmMap has type $t.")
+    }
+    val newF = f.tchk(context)
+    val t2 = newF.typ match {
+      case TyArrow(t, t2) if t.isCompatibleWith(t1) => t2
+      case t =>
+        throw new TypeError(
+          s"Function in StmMap has type $t. Expected a function whose input type is $t1."
+        )
+    }
+    this.rebuild(TyStm(t2, n), Seq(newS, newF))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val input = this.input.lower()
+    // TODO: Doesn't asStm2Stm already take care of this?
+    val f = this.f.lower()
+    val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
-    val (s, innerStm) =
-      Helpers.asStm2Stm(f, inShape = fInShape, outShape = fOutShape)
+    val (s, innerStm) = Helpers.asStm2Stm(f)
+    assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
+    val innerStmElemTyp = innerStm.typ.asInstanceOf[TyStm].t
     assert(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
       "the input stream should appear no more than once in the inner StmBuild"
@@ -341,11 +382,17 @@ object StmMap {
       //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
       // which doesn't actually use the input stream at all.
       // In this case, there's no need for resetting the stream and all that.
-      StmRepeat(innerStm, n, innerStm.n)
+      StmRepeat(innerStm, n)().tchk().lower()
     } else {
       // How many elements will the inner component read and produce before it must be reset?
-      val inputsUntilReset = fInShape.getOrElse(IntCst(1))
-      val outputsUntilReset = fOutShape.getOrElse(IntCst(1))
+      val inputsUntilReset = f.typ.asInstanceOf[TyArrow].t1 match {
+        case TyStm(_, n) => n
+        case _           => IntCst(1)
+      }
+      val outputsUntilReset = f.typ.asInstanceOf[TyArrow].t2 match {
+        case TyStm(_, n) => n
+        case _           => IntCst(1)
+      }
       val map = n match {
         // TODO: Why this special case? Is it just to make the resulting stream
         //       easier to simplify? Should I add something similar in the
@@ -364,8 +411,10 @@ object StmMap {
             .addOutputCounter(outCtr)
           // Want to reset depending on the *next* values of the in/out counters.
           val shouldReset = (
-            (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
-              && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
+            Equal(innerWithCtrs.nextByVar(inCtr), inputsUntilReset)(TyBool)
+              && Equal(innerWithCtrs.nextByVar(outCtr), outputsUntilReset)(
+                TyBool
+              )
           )
           val outerStm = StmBuild(
             n * outputsUntilReset,
@@ -375,36 +424,29 @@ object StmMap {
                 // Never reset the input stream
                 x -> (z, next)
               } else {
-                x -> (z, IfThenElse(shouldReset, z, next)())
+                x -> (z, IfThenElse(shouldReset, z, next)(z.typ))
               }
             })
-          )()
+          )(TyStm(innerStmElemTyp, n * outputsUntilReset))
           outerStm
       }
-      val ret = map.substitute(s -> input)
+      val ret = map.subPreserveType(s -> input)
       val originalFreeVars =
-        (
-          input.freeVars()
-            ++ f.freeVars()
-            ++ n.freeVars()
-            ++ fInShape.toSet.flatMap((e: Expr) => e.freeVars())
-            ++ fOutShape.toSet.flatMap((e: Expr) => e.freeVars())
-        )
+        (input.freeVars() ++ f.freeVars() ++ n.freeVars())
       assert(
         ret.freeVars() == originalFreeVars,
         s"the set of free variables should be unchanged by StmMap (expected ${originalFreeVars}, got ${ret.freeVars()})"
       )
       ret
     }
-    // Simplification is NOT required, but it makes the tests run much faster
-    opt.PartialEvalPass.partialEval(map)
+    map
   }
 }
 
 case class StmAccess(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
-)(typ: Type = Missing) /* A */
+)(typ: Type = Missing) /* Stm<A; 1> */
     extends SyntaxSugar(stm, k)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -420,7 +462,7 @@ case class StmAccess(
       case t => throw new TypeError(s"Expected a stream but found $t.")
     }
     val newK = k.tchk(context).expectType(TyInt)
-    this.rebuild(t, Seq(newS, newK))
+    this.rebuild(TyStm(t, 1), Seq(newS, newK))
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -447,43 +489,111 @@ case class StmAccess(
         i -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), i + 1, i)(TyInt)),
         j -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), 0, j + 1)(TyInt))
       )
-    )(this.typ.flat)
+    )(TyStm(t, 1))
   }
 }
 
-object StmFold {
-  def apply(
-      stream: Expr /* Stm<A; n> */,
-      z: Expr /* B */,
-      f: Function /* B -> A -> B */,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<B; 1> */ = {
-    StmSuffix(StmScanInclusive(stream, z, f, stmShape = stmShape), 1)()
+case class StmFold(
+    stream: Expr /* Stm<A; n> */,
+    z: Expr /* B */,
+    f: Function /* B -> A -> B */
+)(typ: Type = Missing) /* Stm<B; 1> */
+    extends SyntaxSugar(stream, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, z, f: Function) => StmFold(s, z, f)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stream.tchk(context)
+    val (t1, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t           => throw new TypeError(s"Stream in StmFold has type $t.")
+    }
+    val newZ = z.tchk(context)
+    val t2 = newZ.typ
+    val newF = f.tchk(context)
+    newF.typ match {
+      case TyArrow(t3, TyArrow(t4, t5))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case TyArrow(t3, TyArrow(t4, TyStm(t5, IntCst(1))))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case t =>
+        throw new TypeError(
+          s"Function in StmScan has type $t. Expected ${TyArrow(t2, TyArrow(t1, t2))}."
+        )
+    }
+    this.rebuild(TyStm(t2, 1), Seq(newS, newZ, newF))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    StmSuffix(StmScanInclusive(stream, z, f)(), 1)().tchk().lower()
   }
 }
 
 // TODO: Add special cases for n = 0 and n = 1, like in StmMap?
 //       Or better yet, define an operator like StmReset that works for both cases?
-object StmScanInclusive {
-  def apply(
-      input: Expr /* Stream<A> */,
-      z: Expr /* B */,
-      f: Function /* B -> A -> B */,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr = {
+case class StmScanInclusive(
+    input: Expr /* Stm<A; n> */,
+    z: Expr /* B */,
+    f: Function /* B -> A -> B */
+)(typ: Type = Missing) /* Stm<B; n> */
+    extends SyntaxSugar(input, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, z, f: Function) => StmScanInclusive(s, z, f)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = input.tchk(context)
+    val (t1, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in StmScanInclusive has type $t.")
+    }
+    val newZ = z.tchk(context)
+    val t2 = newZ.typ
+    val newF = f.tchk(context)
+    newF.typ match {
+      case TyArrow(t3, TyArrow(t4, t5))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case TyArrow(t3, TyArrow(t4, TyStm(t5, IntCst(1))))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case t =>
+        throw new TypeError(
+          s"Function in StmScanInclusive has type $t. Expected ${TyArrow(t2, TyArrow(t1, t2))}."
+        )
+    }
+    this.rebuild(TyStm(t2, n), Seq(newS, newZ, newF))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    // IMPORTANT: use the original input here, not the flattened version
+    val n = this.input.typ.asInstanceOf[TyStm].n
+    val inputsUntilReset = this.input.typ.asInstanceOf[TyStm].t match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)
+    }
+    val input = this.input.lower()
+    val z = this.z.lower()
+    val elemType = z.typ
+    // TODO: Need to lower f as well? Or does asStm2Stm already take care of it?
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val (s, innerStm) =
       Helpers.asStm2Stm(
         // The function has the form (acc) => (elem) => newAcc.
         // Take just the (elem) => newAcc part here, with acc being a free variable.
         // Later, replace that free variable with the appropriate element in the StmScan accumulator.
-        f.body.asInstanceOf[Function],
-        inShape =
-          if (stmShape.tail.isEmpty) None
-          else Some(stmShape.tail.fold(IntCst(1))((x, y) => x * y)),
-        outShape = if (stmShape.tail.isEmpty) None else Some(1)
+        f.body.asInstanceOf[Function]
       )
     assert(
       innerStm.n == IntCst(1),
@@ -495,41 +605,50 @@ object StmScanInclusive {
     )
     val (innerWithCtrs, shouldReset) = {
       val outputsUntilReset = IntCst(1)
-      val outCtr = Param("out_ctr")()
+      val outCtr = Param("out_ctr")(TyInt)
       val withOutCtr = innerStm.addOutputCounter(outCtr)
       val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
       if (usesInputStream) {
-        val inputsUntilReset = stmShape.tail.fold(IntCst(1))((x, y) => x * y)
-        val inCtr = Param("in_ctr")()
+        val inCtr = Param("in_ctr")(TyInt)
         val withCtrs = withOutCtr
           .addInputCounter(
             innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
             inCtr
           )
         // Want to reset depending on the *next* values of the in/out counters.
-        val shouldReset = ((withCtrs.nextByVar(inCtr) === inputsUntilReset)
-          && (withCtrs.nextByVar(outCtr) === outputsUntilReset))
+        val shouldReset =
+          (Equal(withCtrs.nextByVar(inCtr), inputsUntilReset)(TyBool)
+            && Equal(withCtrs.nextByVar(outCtr), outputsUntilReset)(TyBool))
         (withCtrs, shouldReset)
       } else {
-        val shouldReset = withOutCtr.nextByVar(outCtr) === outputsUntilReset
+        val shouldReset =
+          Equal(withOutCtr.nextByVar(outCtr), outputsUntilReset)(TyBool)
         (withOutCtr, shouldReset)
       }
     }
-    val acc = Param("acc")()
+    val acc = Param("acc")(elemType)
     val nextAcc =
-      OptionAccess(innerWithCtrs.output, (v: Expr) => v, (_: Expr) => acc)()
+      OptionAccess(
+        innerWithCtrs.output,
+        elemType ::+ (v => v),
+        TyTuple() ::+ (_ => acc)
+      )(elemType)
     val outerStm = StmBuild(
-      stmShape.head,
-      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(???))(),
+      n,
+      IfThenElse(
+        shouldReset,
+        SSome(nextAcc)(),
+        NNone(elemType)
+      )(TyOption(elemType)),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
           x -> (z, next)
         } else {
-          x -> (z, IfThenElse(shouldReset, z, next)())
+          x -> (z, IfThenElse(shouldReset, z, next)(elemType))
         }
       }) + (acc -> (z, nextAcc))
-    )()
+    )(TyStm(elemType, n))
     assert(
       !outerStm.n.contains(s)
         && !outerStm.output.contains(s)
@@ -541,39 +660,62 @@ object StmScanInclusive {
     //      naive substitution behaves like the usual one
     //  (2) we want to replace f.param with the *bound* variable acc, so alpha
     //      renaming is NOT what we want here
-    val scan = outerStm.map(e =>
-      e.substitute(Map[Expr, Expr](s -> input, f.param -> acc))
+    val scan = outerStm.rebuild(
+      outerStm.typ,
+      outerStm.children.map(e =>
+        e.subPreserveType(Map[Expr, Expr](s -> input, f.param -> acc))
+      )
     )
-    val originalFreeVars = (
-      input.freeVars()
-        ++ z.freeVars()
-        ++ f.freeVars()
-        ++ stmShape.flatMap(e => e.freeVars())
-    )
+    val originalFreeVars = input.freeVars() ++ z.freeVars() ++ f.freeVars()
     assert(
       scan.freeVars() == originalFreeVars,
       s"the set of free variables should be unchanged by StmScan (expected ${originalFreeVars} but got ${scan.freeVars()})"
     )
-    // Simplification is NOT required, but it makes the tests run much faster
-    PartialEvalPass.partialEval(scan)
+    scan.lower()
   }
 }
 
-object StmScanExclusive {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      z: Expr /* B */,
-      f: Expr => Expr => Expr /* B -> A -> B */,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Vec<B; n> */ = {
+case class StmScanExclusive(
+    stm: Expr /* Stm<A; n> */,
+    z: Expr /* B */,
+    f: Function /* B -> A -> B */
+)(typ: Type = Missing) /* Stm<B; n> */
+    extends SyntaxSugar(stm, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, z, f: Function) => StmScanExclusive(s, z, f)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    val (t1, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in StmScanExclusive has type $t.")
+    }
+    val newZ = z.tchk(context)
+    val t2 = newZ.typ
+    val newF = f.tchk(context)
+    newF.typ match {
+      case TyArrow(t3, TyArrow(t4, t5))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case TyArrow(t3, TyArrow(t4, TyStm(t5, IntCst(1))))
+          if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
+        ()
+      case t =>
+        throw new TypeError(
+          s"Function in StmScanExclusive has type $t. Expected ${TyArrow(t2, TyArrow(t1, t2))}."
+        )
+    }
+    this.rebuild(TyStm(t2, n), Seq(newS, newZ, newF))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
     // Maybe it would be better to first take prefix of input stream, scan,
     // and then prepend
-    StmShiftRight(
-      StmScanInclusive(stm, z, f, stmShape = stmShape),
-      z,
-      stmShape = Seq(stmShape.head)
-    )
+    StmShiftRight(StmScanInclusive(stm, z, f)(), z)().tchk().lower()
   }
 }
 
@@ -637,21 +779,34 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    val t = this.typ.asInstanceOf[TyStm].t
-    StmConcat(StmCst(1, e)(TyStm(t, 1)), stm)(this.typ).lower()
+    StmConcat(StmCst(1, e)(), stm)().tchk().lower()
   }
 }
 
-object StmAppend {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      e: Expr /* A */,
-      // Ideally we would get this shape information from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<A; n+1> */ = {
-    val eShape = stmShape.tail
-    val eStm = if (eShape.isEmpty) StmCst(1, e)() else e
-    StmConcat(stm, eStm)()
+case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
+    typ: Type = Missing
+) /* Stm<A; n+1> */
+    extends SyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, e) => StmAppend(s, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    val (t, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in StmAppend has type $t.")
+    }
+    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    StmConcat(stm, StmCst(1, e)())().tchk().lower()
   }
 }
 
@@ -772,23 +927,38 @@ case class StmSuffix(
   }
 }
 
-object StmShiftLeft {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      e: Expr /* A */,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<A; n> */ = {
-    val n = stmShape.head
-    StmAppend(
-      StmSuffix(stm, n - 1)(),
-      e,
-      stmShape = stmShape.updated(0, n - 1)
-    )
+case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
+    typ: Type = Missing
+) /* Stm<A; n> */
+    extends SyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, e) => StmShiftLeft(s, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    val (t, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in StmShiftLeft has type $t.")
+    }
+    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    this.rebuild(TyStm(t, n), Seq(newS, newE))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = this.typ.asInstanceOf[TyStm].n
+    StmAppend(StmSuffix(stm, n - 1)(), e)().tchk().lower()
   }
 }
 
-object StmShiftRight {
+case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
+    typ: Type = Missing
+) /* Stm<A; n> */
+    extends SyntaxSugar(stm, e)(typ) {
   def apply(
       stm: Expr /* Stm<A; n> */,
       e: Expr /* A */,
@@ -797,6 +967,29 @@ object StmShiftRight {
   ): Expr /* Stm<A; n> */ = {
     val n = stmShape.head
     StmPrepend(StmPrefix(stm, n - 1)(), e)()
+  }
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, e) => StmShiftRight(s, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    val (t, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in StmShiftRight has type $t.")
+    }
+    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    this.rebuild(TyStm(t, n), Seq(newS, newE))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = this.typ.asInstanceOf[TyStm].n
+    StmPrepend(StmPrefix(stm, n - 1)(), e)().tchk().lower()
   }
 }
 
@@ -906,29 +1099,47 @@ object StmZipAlternating {
   }
 }
 
-object StmRepeat {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      m: Expr,
-      // Ideally we would get this shape info from the type system
-      n: Expr
-  ): Expr /* Stm<Stm<A; n>; m> */ = {
-    val v = Stm2Vec(stm)()
-    val i = Param("i")()
+case class StmRepeat(
+    stm: Expr /* Stm<A; n> */,
+    m: Expr /* Int */
+)(typ: Type = Missing) /* Stm<Stm<A; n>; m> */
+    extends SyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, m) => StmRepeat(s, m)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newM = m.tchk(context).expectType(TyInt)
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) =>
+        this.rebuild(TyStm(TyStm(t, n), m), Seq(newS, newM))
+      case t => throw new TypeError(s"Stream in StmRepeat has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    // TODO: What about nested streams?
+    requireType()
+    val t = this.stm.typ.asInstanceOf[TyStm].t
+    val n = this.stm.typ.asInstanceOf[TyStm].n
+    val i = Param("i")(TyInt)
+    // TODO: Can I just call tchk() instead of manually putting type annotations?
     StmMap(
-      v,
-      (v: Expr) =>
+      Stm2Vec(stm)(),
+      TyVec(t, n) ::+ (v =>
         StmBuild(
           n * m,
           SSome(VecAccess(v, i)())(),
           Map[Param, (Expr, Expr)](
             i -> (0, IfThenElse(i + 1 === n, 0, i + 1)())
           )
-        )(),
-      n = 1,
-      fInShape = None,
-      fOutShape = Some(n * m)
-    )
+        )()
+      )
+    )().tchk().lower()
   }
 }
 
@@ -940,24 +1151,34 @@ object StmReverse {
       n: Expr
   ): Expr /* Stm<A; n> */ = {
     val v = Stm2Vec(stm)()
-    StmMap(
-      v,
-      (v: Expr) => Vec2Stm(VecReverse(v))(),
-      n = 1,
-      fInShape = None,
-      fOutShape = Some(n)
-    )
+    StmMap(v, (v: Expr) => Vec2Stm(VecReverse(v))())()
   }
 }
 
-object StmSplit {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      m: Expr
-  ): Expr /* Stm<Stm<A; m>; n/m> */ = {
-    // Should there be some kind of assertion to check that n is divisible by
-    // m? Or will that be handled in the higher-level IR?
-    stm
+case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
+    typ: Type = Missing
+) /* Stm<Stm<A; m>; n/m> */
+    extends SyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, m) => StmSplit(s, m)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newM = m.tchk(context).expectType(TyInt)
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) =>
+        this.rebuild(TyStm(TyStm(t, newM), n / newM), Seq(newS, newM))
+      case t => throw new TypeError(s"Stream in StmSplit has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    // Lowering must produce a flat stream, so leave it as-is
+    this.stm.lower()
   }
 }
 
@@ -1062,13 +1283,7 @@ object StmSlideS {
     // TODO: Optimize this version specifically by producing elements while
     //       the shift register is still filling up?
     val s = StmSlideV(stm, m, stmShape = stmShape)
-    StmMap(
-      s,
-      (v: Expr) => Vec2Stm(v)(),
-      n = stmShape.head - m + 1,
-      fInShape = None,
-      fOutShape = Some(m * stmShape.tail.fold(IntCst(1))((x, y) => x * y))
-    )
+    StmMap(s, (v: Expr) => Vec2Stm(v)())()
   }
 }
 
@@ -1081,10 +1296,7 @@ object StmTranspose {
   ): Expr /* Stm<Stm<A; n>; m> */ = {
     StmMap(
       Stm2Vec(stm)(),
-      (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m))))(),
-      n = 1,
-      fInShape = None,
-      fOutShape = Some(n * m)
-    )
+      (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m))))()
+    )()
   }
 }

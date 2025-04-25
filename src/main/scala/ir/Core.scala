@@ -45,7 +45,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     *   A new expression that is equal to this one but has a type annotation
     *   that is not <code>Missing</code>
     */
-  def tchk(implicit context: Map[Param, Type]): Expr = {
+  def tchk(implicit context: Map[Param, Type] = Map()): Expr = {
     this match {
       case e if e.typ != Missing => e
 
@@ -327,12 +327,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     this
   }
 
-  if (this.typ != Missing) {
+  protected def requireType(): Unit = {
+    require(
+      this.typ != Missing,
+      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
+    )
+  }
+
+  def hasType: Boolean = this.typ != Missing
+
+  if (this.hasType) {
     // This allows the type checker to completely skip expressions that already
     // have a type
     for ((e, i) <- this.children.zipWithIndex) {
       assert(
-        e.typ != Missing,
+        e.hasType,
         s"a typed node must have typed children, but child $i in ${this.getClass.getSimpleName} is untyped"
       )
     }
@@ -357,8 +366,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      desugared.typ == this.typ.flat,
-      "lowering must yield an expression whose type is the original, but flattened"
+      !this.hasType || desugared.typ.isCompatibleWith(this.typ.flat),
+      s"lowering must yield an expression whose type is the original, but flattened (expected ${this.typ.flat} but found ${desugared.typ})"
     )
     desugared
   }
@@ -454,10 +463,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
       }
     }
-    if (this.typ != Missing) {
+    if (this.hasType) {
       assert(
-        out.typ == this.typ,
-        "the type should be preserved after substitution"
+        out.typ.isCompatibleWith(this.typ),
+        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ})"
       )
     }
     out
@@ -1163,15 +1172,16 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addOutputCounter(outCtr: Param): StmBuild = {
+  def addOutputCounter(p: Param): StmBuild = {
+    requireType()
+    val outCtr = p.rebuild(TyInt)
     val s =
       if (this.equations.contains(outCtr))
         this.renameVar(outCtr)
       else
         this
     val z = IntCst(0)
-    val next =
-      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)()
+    val next = IfThenElse(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1185,7 +1195,9 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
+  def addInputCounter(x: Param, p: Param): StmBuild = {
+    requireType()
+    val inCtr = p.rebuild(TyInt)
     val s =
       if (this.equations.contains(inCtr))
         this.renameVar(inCtr)
@@ -1193,7 +1205,7 @@ case class StmBuild(
         this
     val z = IntCst(0)
     val stmNextCalled = stmNextCallCondition(s, x)
-    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)()
+    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -1202,7 +1214,10 @@ case class StmBuild(
     */
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     val newEquations = this.equations + (x -> (z, next))
-    StmBuild(this.n, this.output, newEquations)()
+    val isTyped = (x.hasType && z.hasType && next.hasType
+      && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
+    val t = if (isTyped) this.typ else Missing
+    StmBuild(this.n, this.output, newEquations)(t)
   }
 
   /** Construct a boolean expression <code>c</code> such that, in
@@ -1470,11 +1485,4 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * does not require the type.)
     */
   def lowerSyntaxSugar(): Expr
-
-  protected def requireType(): Unit = {
-    require(
-      this.typ != Missing,
-      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
-    )
-  }
 }

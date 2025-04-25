@@ -115,7 +115,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
   override def typecheck(context: Map[Param, Type]): Expr = {
     val newS = s.tchk(context)
     newS.typ match {
-      case TyStm(t, n) => this.rebuild(TyVec(t, n), Seq(newS))
+      case TyStm(t, n) => this.rebuild(TyStm(TyVec(t, n), 1), Seq(newS))
       case t           => throw new TypeError(s"Stream in Stm2Vec has type $t.")
     }
   }
@@ -123,16 +123,16 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val s = this.s.lower()
-    val (t, n) = {
-      val vt = this.typ.asInstanceOf[TyVec]
-      (vt.t, vt.n)
+    val (t, n) = this.typ match {
+      case TyStm(TyVec(t, n), IntCst(1)) => (t, n)
+      case t =>
+        throw new IllegalArgumentException(s"Stm2Vec has wrong type $t.")
     }
     StmFold(
       s,
-      VecBuild(n, (_: Expr) => Default(t))(),
-      (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
-      stmShape = Seq(n)
-    )
+      VecBuild(n, TyInt ::+ (_ => Default(t)))(),
+      TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)))
+    )().tchk()
   }
 }
 

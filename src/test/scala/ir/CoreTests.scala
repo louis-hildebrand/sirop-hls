@@ -264,7 +264,7 @@ class CoreTests extends AnyFunSuite {
     val i = Param("i")()
     val untyped =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
-    val typed = untyped.tchk(Map())
+    val typed = untyped.tchk()
     assert(typed.hashCode == untyped.hashCode)
     assert(typed == untyped)
     assert(untyped == typed)
@@ -413,7 +413,7 @@ class CoreTests extends AnyFunSuite {
     val c2 =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (9, i + 2)))()
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
-    val s = StmZip(c1, c2).tchk(Map()).asInstanceOf[StmBuild]
+    val s = StmZip(c1, c2).tchk().asInstanceOf[StmBuild]
 
     val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
     val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1
@@ -461,25 +461,21 @@ class CoreTests extends AnyFunSuite {
   }
 
   test("StmBuild:AddOutputCounter") {
-    val n = Param("n")()
-    val out = Param("out")()
-    val outCtr = Param("out_ctr")()
+    val n = Param("n")(TyInt)
+    val out = Param("out")(TyTuple(TyTuple(TyInt, TyBool), TyBool))
+    val outCtr = Param("out_ctr")(TyInt)
     val s = StmBuild(
       n,
       out,
       Map[Param, (Expr, Expr)](outCtr -> (10, outCtr * 2))
-    )()
+    )().tchk().asInstanceOf[StmBuild]
 
     val actual = s.addOutputCounter(outCtr)
 
     // The existing bound variable should be renamed
     val i = Param("i")()
     val expectedOutCtrSeed = IntCst(0)
-    val expectedOutCtrNext = OptionAccess(
-      out,
-      (_: Expr) => outCtr + 1,
-      (_: Expr) => outCtr
-    )()
+    val expectedOutCtrNext = IfThenElse(IsSome(out)(), outCtr + 1, outCtr)()
     val expected = StmBuild(
       n,
       out,

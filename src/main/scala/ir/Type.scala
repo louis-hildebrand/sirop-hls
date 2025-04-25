@@ -1,5 +1,7 @@
 package ir
 
+import scala.annotation.tailrec
+
 sealed trait Type {
   def ::+(f: Expr => Expr): Function = {
     val x = Param("x")(this)
@@ -42,11 +44,32 @@ sealed trait Type {
           .forall({ case (t1, t2) => t1.isCompatibleWith(t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
         // TODO: Improve check for equality of lengths?
-        t1.isCompatibleWith(t2) && n1 == n2
+        t1.isCompatibleWith(t2) && sameLen(n1, n2)
       case (TyStm(t1, _), TyStm(t2, _)) =>
         // Two streams are compatible even if they have different lengths!
         t1.isCompatibleWith(t2)
       case _ => false
+    }
+  }
+
+  /** Check whether two types are "compatible," i.e., will have the same shape
+    * in hardware.
+    */
+  def ~=(that: Type): Boolean = this.isCompatibleWith(that)
+
+  private def sameLen(e1: Expr, e2: Expr): Boolean = {
+    normalizeLen(e1) == normalizeLen(e2)
+  }
+
+  @tailrec
+  private def normalizeLen(e: Expr): Expr = {
+    e match {
+      case VecLength(v) =>
+        v.typ match {
+          case TyVec(_, n) => normalizeLen(n)
+          case _           => e
+        }
+      case e => e
     }
   }
 }
@@ -73,6 +96,10 @@ case class TyStm(t: Type, n: Expr) extends Type {
     */
   val tOpt: Type = TyOption(t)
 }
+
 case object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)
+}
+case object Int2 {
+  def apply(): Type = TyTuple(TyInt, TyInt)
 }

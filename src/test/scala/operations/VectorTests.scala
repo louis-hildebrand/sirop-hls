@@ -56,7 +56,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("Stm2Vec") {
-    val v = Stm2Vec(StmCount(3)())()
+    val v = Stm2Vec(StmCount(3)())().tchk()
     val expected = StmLiteral(VecLiteral.ints(0, 1, 2))()
     assert(ir.eval(v) == expected)
   }
@@ -67,7 +67,7 @@ class VectorTests extends AnyFunSuite {
     val actual = VecPrepend(v, e)()
     val expected = VecLiteral(42, 5, 6, 7)()
     assert(ir.eval(actual) == expected)
-    assert(ir.eval(actual.tchk(Map())) == expected)
+    assert(ir.eval(actual.tchk()) == expected)
   }
 
   test("VecAppend") {
@@ -76,7 +76,7 @@ class VectorTests extends AnyFunSuite {
     val actual = VecAppend(v, e)()
     val expected = VecLiteral(5, 6, 7, 42)()
     assert(ir.eval(actual) == expected)
-    assert(ir.eval(actual.tchk(Map())) == expected)
+    assert(ir.eval(actual.tchk()) == expected)
   }
 
   test("VecPrefix") {

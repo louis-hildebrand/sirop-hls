@@ -45,16 +45,27 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   override def lowerSyntaxSugar(): Expr = Default.getDefault(this.typ)
 }
 case object Default {
+  def hasDefault(typ: Type): Boolean = {
+    getDefaultOpt(typ).isDefined
+  }
+
   private def getDefault(typ: Type): Expr = {
-    typ match {
-      case TyInt            => IntCst(0)
-      case TyBool           => False
-      case TyTuple(ts @ _*) => Tuple(ts.map(t => getDefault(t)): _*)(typ)
-      case TyVec(t, n)      => VecBuild(n, (_: Expr) => getDefault(t))(typ)
-      case t =>
+    getDefaultOpt(typ) match {
+      case Some(v) => v
+      case None =>
         throw new IllegalArgumentException(
-          s"Cannot construct default value for type $t."
+          s"Cannot construct default value for type $typ."
         )
+    }
+  }
+
+  private def getDefaultOpt(typ: Type): Option[Expr] = {
+    typ match {
+      case TyInt            => Some(IntCst(0))
+      case TyBool           => Some(False)
+      case TyTuple(ts @ _*) => Some(Tuple(ts.map(t => getDefault(t)): _*)(typ))
+      case TyVec(t, n) => Some(VecBuild(n, TyInt ::+ (_ => getDefault(t)))(typ))
+      case _           => None
     }
   }
 }
@@ -231,7 +242,8 @@ case class IsNone(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
-    Not(TupleAccess(e, 1)(TyBool))(TyBool)
+    val t = if (e.hasType) TyBool else Missing
+    Not(TupleAccess(e, 1)(t))(t)
   }
 }
 
@@ -254,6 +266,7 @@ case class IsSome(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
-    TupleAccess(e, 1)(TyBool)
+    val t = if (e.hasType) TyBool else Missing
+    TupleAccess(e, 1)(t)
   }
 }

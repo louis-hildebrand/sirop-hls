@@ -117,6 +117,7 @@ object PrettyPrinter {
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
+      case Default(t) => s"Default[${show(t)}]"
       case e =>
         val name = e.getClass.getSimpleName
         val sh = (e: Expr) =>
@@ -206,6 +207,7 @@ object PrettyPrinter {
         s"VecAccess(${showScala(v)},${showScala(i)})"
       case VecLength(v) =>
         s"VecLength(${showScala(v)})"
+      case Default(t) => s"Default(${showScala(t)})"
       case e: SyntaxSugar =>
         val name = e.getClass.getSimpleName
         val children = e.children.map(showScala).mkString(", ")
