@@ -9,14 +9,14 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IdentityFunction") {
-    val original: Expr = (x: Expr) => (TyInt, x)
+    val original: Expr = TyInt ::+ (x => x)
     val checked = original.tchk(Map())
     assert(checked.typ == TyArrow(TyInt, TyInt))
     assertAllNodesHaveType(checked)
   }
 
   test("FunCall") {
-    val original = FunCall((x: Expr) => (TyInt, x < 42), 42)()
+    val original = FunCall(TyInt ::+ (x => x < 42), 42)()
     val checked = original.tchk(Map())
     assert(checked.typ == TyBool)
     assertAllNodesHaveType(checked)
@@ -24,14 +24,12 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("IntAndBoolFunction") {
     val original: Expr =
-      (x: Expr) =>
-        (
-          TyTuple(TyInt, TyBool),
-          Tuple(
-            Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
-            x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
-          )()
-        )
+      TyTuple(TyInt, TyBool) ::+ (x =>
+        Tuple(
+          Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
+          x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
+        )()
+      )
     val checked = original.tchk(Map())
     assert(
       checked.typ == TyArrow(TyTuple(TyInt, TyBool), TyTuple(TyBool, TyInt))
@@ -195,7 +193,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("VecBuild:WrongFunctionType") {
     val y = Param("y")()
-    val f = (x: Expr) => (TyBool, x && y)
+    val f = TyBool ::+ (x => x && y)
     val e = VecBuild(42, f)()
     assertThrows[TypeError](e.tchk(Map(y -> TyBool)))
   }

@@ -3,6 +3,26 @@ package ir
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
+  test("AnnotatedFunction:TypedBody") {
+    val f = TyInt ::+ (i => 2 * (i + 5))
+    val expected = {
+      val i = Param("i")()
+      Function(i, Prod(2, Sum(i, 5)())())()
+    }
+    assert(f == expected)
+    assert(f.typ == TyArrow(TyInt, TyInt))
+  }
+
+  test("AnnotatedFunction:UntypedBody") {
+    val v = Param("v")()
+    val f = TyInt ::+ (i => VecAccess(v, i)())
+    val expected = {
+      val i = Param("i")()
+      Function(i, VecAccess(v, i)())()
+    }
+    assert(f == expected)
+  }
+
   test("Flatten:NonStreams") {
     val t = TyTuple(
       Missing,

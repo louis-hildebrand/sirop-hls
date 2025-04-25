@@ -5,19 +5,13 @@ package object ir extends Eval {
 
   implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
 
+  @deprecated
   implicit def scalaUnaryLambdaToFunction(sl: Expr => Expr): Function = {
     val p = Param("x")()
     Function(p, sl(p))()
   }
 
-  implicit def scalaUnaryLambdaToAnnotatedFunction(
-      sl: Expr => (Type, Expr)
-  ): Function = {
-    val x = Param("x")()
-    val (t, e) = sl(x)
-    Function(x.rebuild(t), e)()
-  }
-
+  @deprecated
   implicit def scalaBinaryLambdaToFunction(
       sl: Expr => Expr => Expr
   ): Function = {

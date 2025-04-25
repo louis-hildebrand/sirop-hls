@@ -1,6 +1,14 @@
 package ir
 
 sealed trait Type {
+  def ::+(f: Expr => Expr): Function = {
+    val x = Param("x")(this)
+    val body = f(x)
+    val t =
+      if (body.typ != Missing) TyArrow(this, body.typ)
+      else Missing
+    Function(x, f(x))(t)
+  }
 
   /** This type, but where all streams are made one-dimensional.
     */
