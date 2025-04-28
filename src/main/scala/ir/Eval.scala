@@ -1,6 +1,7 @@
 package ir
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
@@ -13,7 +14,7 @@ trait Eval {
   private val MaxStepsWithoutValid = 100000
 
   def eval(e: Expr): Expr = {
-    evalBigStepToplevel(e)
+    evalBigStepToplevel(e.lower())
   }
 
   def evalBigStepToplevel(e: Expr): Expr = {
@@ -218,14 +219,6 @@ trait Eval {
               s"Vector of vector access evaluated to $v. It must evaluate to a vector."
             )
         }
-      case VecLength(v) =>
-        evalBigStep(v) match {
-          case VecLiteral(elems @ _*) => IntCst(elems.length)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Vector of vector length evaluated to $v. It must evaluate to a vector."
-            )
-        }
       case v: VecLiteral => v
 
       case StmBuild(n, out, equations) =>
@@ -258,18 +251,12 @@ trait Eval {
               s"Index in StmNextK evaluated to $k. The index must be a non-negative integer."
             )
         }
-      case StmLength(s) =>
-        evalBigStep(s) match {
-          case StmBuild(n, _, _)      => n
-          case StmLiteral(elems @ _*) => IntCst(elems.length)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Stream of stream length evaluated to $v. It must evaluate to a stream."
-            )
-        }
       case v: StmLiteral => v
 
-      case s: SyntaxSugar => evalBigStep(s.lower())
+      case s: SyntaxSugar =>
+        throw new IllegalArgumentException(
+          s"There should be no more syntax sugar after lowering. Found $s."
+        )
     }
   }
 

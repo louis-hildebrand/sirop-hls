@@ -4,10 +4,6 @@ import ir._
 import opt.PartialEvalPass
 
 private object Helpers {
-  @deprecated
-  def expandTuple(t: Expr, n: Int): Tuple = {
-    Tuple((0 until n).map(i => TupleAccess(t, i)()): _*)()
-  }
 
   /** Convert the given function into a function from stream to stream.
     *
@@ -173,16 +169,12 @@ case class Iterate(
     val acc = Param("acc")(t)
     StmBuild(
       1,
-      IfThenElse(
-        Equal(i, 0)(TyBool),
-        SSome(acc)(TyOption(t)),
-        NNone(t)
-      )(TyOption(t)),
+      IfThenElse(i === 0, SSome(acc)(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        i -> (n, Sum(i, -1)(TyInt)),
+        i -> (n, Sum(i, -1)()),
         acc -> (z, FunCall(f, acc)(t))
       )
-    )(this.typ.flat).lower()
+    )().tchk().lower()
   }
 }
 
@@ -205,26 +197,30 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     requireType()
     val n = this.n.lower()
     val c = this.c.lower()
-    c.typ match {
-      case _: TyStm => StmRepeat(c, n)().tchk().lower()
-      case _        => StmBuild(n, SSome(c)())().tchk()
+    val out = c.typ match {
+      case _: TyStm => StmRepeat(c, n)()
+      case _        => StmBuild(n, SSome(c)())()
     }
+    out.tchk().lower()
   }
 }
-//object StmCst {
-//  def apply(n: Expr, c: Expr): StmBuild /* Stm<Int; n> */ = {
-//    StmBuild(n, SSome(c)(), Map[Param, (Expr, Expr)]())()
-//  }
-//}
 
-object StmCount {
-  def apply(n: Expr)(typ: Type = Missing): Expr /* Stm<Int; n> */ =
-    StmRange(n, 0, 1)(typ)
-}
+case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n) => StmCount(n)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-object StmCountFrom {
-  def apply(start: Expr, n: Expr)(typ: Type = Missing): Expr =
-    StmRange(n, start, 1)(typ)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newN = n.tchk(context).expectType(TyInt)
+    this.rebuild(TyStm(TyInt, newN), Seq(newN))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    StmRange(n, 0, 1)().tchk().lower()
+  }
 }
 
 /** An arbitrary counter, a bit like Python's <code>range()</code>.
@@ -262,9 +258,9 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val a = Param("a")(TyInt)
     StmBuild(
       n,
-      SSome(a)(TyOption(TyInt)),
+      SSome(a)(),
       Map[Param, (Expr, Expr)](a -> (z, a + delta))
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
@@ -293,7 +289,7 @@ case class StmCst2D(
     val n = this.n.lower()
     val m = this.m.lower()
     val c = this.c.lower()
-    StmBuild(n * m, SSome(c)(c.typ))(this.typ.flat)
+    StmBuild(n * m, SSome(c)())().tchk().lower()
   }
 }
 
@@ -319,17 +315,16 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     requireType()
     val n = this.n.lower()
     val m = this.m.lower()
-    val tup = TyTuple(TyInt, TyInt)
     val i = Param("i")(TyInt)
     val j = Param("j")(TyInt)
     StmBuild(
       n * m,
-      SSome(Tuple(i, j)(tup))(TyOption(tup)),
+      SSome(Tuple(i, j)())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(Equal(j, m - 1)(TyBool), i + 1, i)(TyInt)),
-        j -> (0, IfThenElse(Equal(j, m - 1)(TyBool), 0, j + 1)(TyInt))
+        i -> (0, IfThenElse(j === m - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === m - 1, 0, j + 1)())
       )
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
@@ -382,7 +377,7 @@ case class StmMap(
       //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
       // which doesn't actually use the input stream at all.
       // In this case, there's no need for resetting the stream and all that.
-      StmRepeat(innerStm, n)().tchk().lower()
+      StmRepeat(innerStm, n)()
     } else {
       // How many elements will the inner component read and produce before it must be reset?
       val inputsUntilReset = f.typ.asInstanceOf[TyArrow].t1 match {
@@ -424,10 +419,10 @@ case class StmMap(
                 // Never reset the input stream
                 x -> (z, next)
               } else {
-                x -> (z, IfThenElse(shouldReset, z, next)(z.typ))
+                x -> (z, IfThenElse(shouldReset, z, next)())
               }
             })
-          )(TyStm(innerStmElemTyp, n * outputsUntilReset))
+          )()
           outerStm
       }
       val ret = map.subPreserveType(s -> input)
@@ -439,7 +434,7 @@ case class StmMap(
       )
       ret
     }
-    map
+    map.tchk().lower()
   }
 }
 
@@ -479,17 +474,13 @@ case class StmAccess(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       perRow,
-      IfThenElse(
-        Equal(i, k)(TyBool),
-        SSome(StmNext(s)(TyTuple(s.typ, t)).__1)(),
-        NNone(t)
-      )(TyOption(t)),
+      IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)(TyTuple(s.typ, t)).__0),
-        i -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), i + 1, i)(TyInt)),
-        j -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), 0, j + 1)(TyInt))
+        s -> (stm, StmNext(s)().__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
-    )(TyStm(t, 1))
+    )().tchk().lower()
   }
 }
 
@@ -617,12 +608,11 @@ case class StmScanInclusive(
           )
         // Want to reset depending on the *next* values of the in/out counters.
         val shouldReset =
-          (Equal(withCtrs.nextByVar(inCtr), inputsUntilReset)(TyBool)
-            && Equal(withCtrs.nextByVar(outCtr), outputsUntilReset)(TyBool))
+          (withCtrs.nextByVar(inCtr) === inputsUntilReset
+            && withCtrs.nextByVar(outCtr) === outputsUntilReset)
         (withCtrs, shouldReset)
       } else {
-        val shouldReset =
-          Equal(withOutCtr.nextByVar(outCtr), outputsUntilReset)(TyBool)
+        val shouldReset = withOutCtr.nextByVar(outCtr) === outputsUntilReset
         (withOutCtr, shouldReset)
       }
     }
@@ -632,23 +622,19 @@ case class StmScanInclusive(
         innerWithCtrs.output,
         elemType ::+ (v => v),
         TyTuple() ::+ (_ => acc)
-      )(elemType)
+      )()
     val outerStm = StmBuild(
       n,
-      IfThenElse(
-        shouldReset,
-        SSome(nextAcc)(),
-        NNone(elemType)
-      )(TyOption(elemType)),
+      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(elemType))(),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
           x -> (z, next)
         } else {
-          x -> (z, IfThenElse(shouldReset, z, next)(elemType))
+          x -> (z, IfThenElse(shouldReset, z, next)())
         }
       }) + (acc -> (z, nextAcc))
-    )(TyStm(elemType, n))
+    )()
     assert(
       !outerStm.n.contains(s)
         && !outerStm.output.contains(s)
@@ -661,17 +647,17 @@ case class StmScanInclusive(
     //  (2) we want to replace f.param with the *bound* variable acc, so alpha
     //      renaming is NOT what we want here
     val scan = outerStm.rebuild(
-      outerStm.typ,
       outerStm.children.map(e =>
         e.subPreserveType(Map[Expr, Expr](s -> input, f.param -> acc))
       )
     )
-    val originalFreeVars = input.freeVars() ++ z.freeVars() ++ f.freeVars()
+    val originalFreeVars =
+      input.freeVars() ++ z.freeVars() ++ f.freeVars() ++ n.freeVars()
     assert(
       scan.freeVars() == originalFreeVars,
       s"the set of free variables should be unchanged by StmScan (expected ${originalFreeVars} but got ${scan.freeVars()})"
     )
-    scan.lower()
+    scan.tchk().lower()
   }
 }
 
@@ -752,7 +738,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
       n,
       SSome(VecAccess(v, i)(t))(),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
@@ -854,17 +840,13 @@ case class StmPrefix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      IfThenElse(
-        LessThan(i, k)(TyBool),
-        SSome(StmNext(s)(TyTuple(s.typ, t)).__1)(),
-        NNone(t)
-      )(TyOption(t)),
+      IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)(TyTuple(s.typ, t)).__0),
-        i -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), i + 1, i)(TyInt)),
-        j -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), 0, j + 1)(TyInt))
+        s -> (stm, StmNext(s)().__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
@@ -913,17 +895,13 @@ case class StmSuffix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      IfThenElse(
-        !LessThan(i, n - k)(TyBool),
-        SSome(StmNext(s)(TyTuple(s.typ, t)).__1)(),
-        NNone(t)
-      )(TyOption(t)),
+      IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)(TyTuple(s.typ, t)).__0),
-        i -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), i + 1, i)(TyInt)),
-        j -> (0, IfThenElse(Equal(j, perRow - 1)(TyBool), 0, j + 1)(TyInt))
+        s -> (stm, StmNext(s)().__0),
+        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
+        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
       )
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
@@ -1028,7 +1006,6 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     requireType()
     val stm1 = this.stm1.lower()
     val stm2 = this.stm2.lower()
-    val t = this.typ.asInstanceOf[TyStm].t
     val n1 = stm1.typ.asInstanceOf[TyStm].n
     val n2 = stm2.typ.asInstanceOf[TyStm].n
     val s1 = Param("s1")(stm1.typ)
@@ -1036,38 +1013,53 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val i = Param("i")(TyInt)
     StmBuild(
       n1 + n2,
-      SSome(
-        IfThenElse(
-          Equal(i, n1)(TyBool),
-          StmNext(s2)(TyTuple(s1.typ, t)).__1,
-          StmNext(s1)(TyTuple(s2.typ, t)).__1
-        )(t)
-      )(),
+      SSome(IfThenElse(i === n1, StmNext(s2)().__1, StmNext(s1)().__1)())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(Equal(i, n1)(TyBool), i, i + 1)(TyInt)),
-        s1 -> (stm1, IfThenElse(
-          Equal(i, n1)(TyBool),
-          s1,
-          StmNext(s1)(TyTuple(s1.typ, t)).__0
-        )(s1.typ)),
-        s2 -> (stm2, IfThenElse(
-          Equal(i, n1)(TyBool),
-          StmNext(s2)(TyTuple(s2.typ, t)).__0,
-          s2
-        )(s2.typ))
+        i -> (0, IfThenElse(i === n1, i, i + 1)()),
+        s1 -> (stm1, IfThenElse(i === n1, s1, StmNext(s1)().__0)()),
+        s2 -> (stm2, IfThenElse(i === n1, StmNext(s2)().__0, s2)())
       )
-    )(this.typ.flat)
+    )().tchk().lower()
   }
 }
 
-// TODO: Disallow applying this to multi-dimensional streams?
-object StmZip {
-  def apply(
-      a: Expr /* Stm<A; n> */,
-      b: Expr /* Stm<B; n> */
-  ): StmBuild /* Stm<(A, B); n> */ = {
-    val s0 = Param("s0")()
-    val s1 = Param("s1")()
+case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
+    typ: Type = Missing
+) /* Stm<(A, B); n> */
+    extends SyntaxSugar(a, b)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(a, b) => StmZip(a, b)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newA = a.tchk(context)
+    val (t1, n) = newA.typ match {
+      case TyStm(t1, n) if Default.hasDefault(t1) => (t1, n)
+      case t =>
+        throw new TypeError(
+          s"First stream in StmZip has type $t. Expected a non-nested stream."
+        )
+    }
+    val newB = b.tchk(context)
+    val t2 = newB.typ match {
+      case TyStm(t2, _) if Default.hasDefault(t2) => t2
+      case t =>
+        throw new TypeError(
+          s"Second stream in StmZip has type $t. Expected a non-nested stream."
+        )
+    }
+    this.rebuild(TyStm(TyTuple(t1, t2), n), Seq(newA, newB))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val a = this.a.lower()
+    val b = this.b.lower()
+    val s0 = Param("s0")(a.typ)
+    val s1 = Param("s1")(b.typ)
     StmBuild(
       StmLength(a)(),
       SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
@@ -1075,27 +1067,7 @@ object StmZip {
         s0 -> (a, StmNext(s0)().__0),
         s1 -> (b, StmNext(s1)().__0)
       )
-    )()
-  }
-}
-
-// Not particularly useful, just a strange case to be used to test the compiler
-// TODO: Disallow applying this to multi-dimensional streams?
-object StmZipAlternating {
-  def apply(
-      a: Expr /* Stm<A; n> */,
-      b: Expr /* Stm<A; n> */
-  ): Expr /* Stm<(A, A); n> */ = {
-    val s0 = Param("a")()
-    val s1 = Param("b")()
-    StmBuild(
-      StmLength(a)(),
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
-      Map(
-        s0 -> (a, StmNext(s1)().__0),
-        s1 -> (b, StmNext(s0)().__0)
-      )
-    )()
+    )().tchk().lower()
   }
 }
 
@@ -1127,7 +1099,6 @@ case class StmRepeat(
     val t = this.stm.typ.asInstanceOf[TyStm].t
     val n = this.stm.typ.asInstanceOf[TyStm].n
     val i = Param("i")(TyInt)
-    // TODO: Can I just call tchk() instead of manually putting type annotations?
     StmMap(
       Stm2Vec(stm)(),
       TyVec(t, n) ::+ (v =>
@@ -1143,15 +1114,37 @@ case class StmRepeat(
   }
 }
 
-// TODO: How should this work for "multi-dimensional" streams?
-object StmReverse {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      // Ideally we would get this shape info from the type system
-      n: Expr
-  ): Expr /* Stm<A; n> */ = {
-    val v = Stm2Vec(stm)()
-    StmMap(v, (v: Expr) => Vec2Stm(VecReverse(v))())()
+case class StmReverse(stm: Expr /* Stm<A; n> */ )(
+    typ: Type = Missing
+) /* Stm<A; n> */
+    extends SyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmReverse(s)()
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) =>
+        this.rebuild(TyStm(t, n), Seq(newS))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmReverse has type $t. Expected a stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    // TODO: What about nested streams?
+    val stm = this.stm.lower()
+    val t = stm.typ.asInstanceOf[TyStm].t
+    val n = stm.typ.asInstanceOf[TyStm].n
+    StmMap(Stm2Vec(stm)(), TyVec(t, n) ::+ (v => Vec2Stm(VecReverse(v))()))()
+      .tchk()
+      .lower()
   }
 }
 
@@ -1182,38 +1175,84 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 }
 
-object StmJoin {
-  def apply(stm: Expr /* Stm<Stm<A; m>; n> */ ): Expr /* Stm<A; m*n> */ = {
-    stm
+case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
+    typ: Type = Missing
+) /* Stm<A; m*n> */
+    extends SyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmJoin(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(TyStm(t, m), n) =>
+        this.rebuild(TyStm(t, m * n), Seq(newS))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmJoin has type $t. Expected a nested stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    // The stream is already flattened during lowering, so there is nothing
+    // more to do here
+    this.stm.lower()
   }
 }
 
-object StmSlideV {
+/** Return a stream of "windows" from a stream. Note that if the input stream is
+  * multidimensional, the inner dimensions will be converted to vectors and
+  * flattened.
+  *
+  * NOTE: `m` must be such that 1 &le; m &le; n.
+  *
+  * @param input
+  *   A stream of length n.
+  * @param m
+  *   Window size.
+  */
+case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
+    typ: Type = Missing
+) /* Stm<Vec<A; m>; n-m+1> */
+    extends SyntaxSugar(input, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, m) => StmSlideV(s, m)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-  /** Return a stream of "windows" from a stream. Note that if the input stream
-    * is multidimensional, the inner dimensions will be converted to vectors and
-    * flattened.
-    *
-    * NOTE: `m` must be such that 1 &le; m &le; n.
-    *
-    * @param input
-    *   A stream of length n.
-    * @param m
-    *   Window size.
-    */
-  def apply(
-      input: Expr /* Stm<A; n> */,
-      m: Int,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<Vec<A; m>, n-m+1> */ = {
-    val n = stmShape.head
-    val elemSize = stmShape.tail.fold(IntCst(1))(_ * _)
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newM = m.tchk(context).expectType(TyInt)
+    val newS = input.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) if Default.hasDefault(t) =>
+        this.rebuild(TyStm(TyVec(t, newM), n - newM + 1), Seq(newS, newM))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmSlideV has type $t. Expected a non-nested stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val input = this.input.lower()
+    val n = this.input.typ.asInstanceOf[TyStm].n
+    val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.flat match {
+      case TyStm(t, n) => (t, n)
+      case t           => (t, IntCst(1))
+    }
     val s = Param("s")()
     val i = Param("i")()
     val j = Param("j")()
     val v = Param("v")()
-    StmBuild(
+    val lowered = StmBuild(
       n - m + 1,
       IfThenElse(
         i === 0 && j === 1,
@@ -1222,7 +1261,7 @@ object StmSlideV {
         SSome(VecShiftLeft(v, StmNext(s)().__1))(),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
-        NNone(???)
+        NNone(TyVec(t, m * elemSize))
       )(),
       Map[Param, (Expr, Expr)](
         s -> (input, StmNext(s)().__0),
@@ -1265,38 +1304,85 @@ object StmSlideV {
           )()
         ),
         v -> (
-          VecBuild(m * elemSize, (_: Expr) => Default(???))(),
+          VecBuild(m * elemSize, (_: Expr) => Default(t))(),
           VecShiftLeft(v, StmNext(s)().__1)
         )
       )
     )()
+    lowered.tchk().lower()
   }
 }
 
-object StmSlideS {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      m: Int,
-      // Ideally we would get this shape info from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<Stm<A; m>; n-m+1> */ = {
+/** Similar to <code>StmSlideS</code>, but produces a nested stream rather than
+  * a stream of vectors.
+  */
+case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
+    typ: Type = Missing
+) /* Stm<Stm<A; m>; n-m+1> */
+    extends SyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(stm, m) => StmSlideS(stm, m)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newM = m.tchk(context).expectType(TyInt)
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) if Default.hasDefault(t) =>
+        this.rebuild(TyStm(TyStm(t, newM), n - newM + 1), Seq(newS, newM))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmSlideS has typ $t. Expected a stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
     // TODO: Optimize this version specifically by producing elements while
     //       the shift register is still filling up?
-    val s = StmSlideV(stm, m, stmShape = stmShape)
-    StmMap(s, (v: Expr) => Vec2Stm(v)())()
+    requireType()
+    val t = this.stm.typ.asInstanceOf[TyStm].t
+    StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
+      .tchk()
+      .lower()
   }
 }
 
-object StmTranspose {
-  def apply(
-      stm: Expr /* Stm<Stm<A; m>; n> */,
-      // Ideally we would get this shape info from the type system
-      n: Expr,
-      m: Expr
-  ): Expr /* Stm<Stm<A; n>; m> */ = {
+case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
+    typ: Type = Missing
+) /* Stm<Stm<A; n>; m> */
+    extends SyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmTranspose(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    newS.typ match {
+      case TyStm(TyStm(t, m), n) if Default.hasDefault(t) =>
+        this.rebuild(TyStm(TyStm(t, n), m), Seq(newS))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmTranspose has type $t. Expected a two-dimensional stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val m = this.stm.typ.asInstanceOf[TyStm].t.asInstanceOf[TyStm].n
+    val stm = this.stm.lower() // flat stream
+    val t = stm.typ.asInstanceOf[TyStm].t
+    val n = stm.typ.asInstanceOf[TyStm].n
     StmMap(
-      Stm2Vec(stm)(),
-      (v: Expr) => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m = m))))()
-    )()
+      Stm2Vec(stm)(), // flat vector
+      TyVec(t, n) ::+ (v => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)))())())
+    )().tchk().lower()
   }
 }

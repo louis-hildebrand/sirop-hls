@@ -42,7 +42,8 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def lowerSyntaxSugar(): Expr = Default.getDefault(this.typ)
+  override def lowerSyntaxSugar(): Expr =
+    Default.getDefault(this.typ).tchk().lower()
 }
 case object Default {
   def hasDefault(typ: Type): Boolean = {
@@ -86,7 +87,7 @@ case class NNone(innerTyp: Type)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    Tuple(Default(innerTyp), False)(this.typ.flat)
+    Tuple(Default(innerTyp), False)(this.typ.flat).lower()
   }
 
   override def equals(obj: Any): Boolean = {
@@ -115,6 +116,7 @@ case class SSome(e: Expr /* T */ )(typ: Type) /* Option<T> */
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    val e = this.e.lower()
     Tuple(e, True)(this.typ.flat)
   }
 }

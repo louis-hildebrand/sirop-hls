@@ -103,6 +103,18 @@ class OptimizationTests extends AnyFunSuite {
     assert(actual == ideal)
   }
 
+  /** StmSplit and StmJoin cancel out.
+    */
+  test("StmSplitJoin") {
+    ???
+  }
+
+  /** StmJoin and StmSplit cancel out.
+    */
+  test("StmJoinSplit") {
+    ???
+  }
+
   test("FuseStmShiftRight") {
     val input = Param("input")()
     val original = StmPrepend(StmPrefix(input, StmLength(input)() - 1)(), 42)()
@@ -385,7 +397,7 @@ class OptimizationTests extends AnyFunSuite {
   test("StmReverse(StmReverse(s))") {
     val n = Param("n")()
     val s = Param("s")()
-    val original = StmReverse(StmReverse(s, n = n), n = n)
+    val original = StmReverse(StmReverse(s)())()
     val optimized = {
       val facts = FactSet().geq(n, 1)
       val s0 =
@@ -453,8 +465,8 @@ class OptimizationTests extends AnyFunSuite {
     val m = Param("m")()
     val s = Param("s")()
     val original = {
-      val t = StmTranspose(s, n, m)
-      val tt = StmTranspose(t, m, n)
+      val t = StmTranspose(s)()
+      val tt = StmTranspose(t)()
       tt
     }
     val optimized = {

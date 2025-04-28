@@ -1,5 +1,7 @@
 package ir
 
+import opt.PartialEvalPass
+
 import scala.annotation.tailrec
 
 sealed trait Type {
@@ -58,7 +60,9 @@ sealed trait Type {
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
 
   private def sameLen(e1: Expr, e2: Expr): Boolean = {
-    normalizeLen(e1) == normalizeLen(e2)
+    val e1Normalized = normalizeLen(e1)
+    val e2Normalized = normalizeLen(e2)
+    e1Normalized == e2Normalized
   }
 
   @tailrec
@@ -67,9 +71,11 @@ sealed trait Type {
       case VecLength(v) =>
         v.typ match {
           case TyVec(_, n) => normalizeLen(n)
-          case _           => e
+          // TODO: It is very sketchy to have the type checker depend on an
+          //       optimization pass
+          case _ => PartialEvalPass.partialEval(e)
         }
-      case e => e
+      case e => PartialEvalPass.partialEval(e)
     }
   }
 }

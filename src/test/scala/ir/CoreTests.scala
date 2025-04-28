@@ -409,11 +409,15 @@ class CoreTests extends AnyFunSuite {
     // [0, 1, 2, 3]
     val c1 =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
+        .tchk()
+        .lower()
     // [9, 11, 13, 15]
     val c2 =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (9, i + 2)))()
+        .tchk()
+        .lower()
     // [(0, 9), (1, 11), (2, 13), (3, 15)]
-    val s = StmZip(c1, c2).tchk().asInstanceOf[StmBuild]
+    val s = StmZip(c1, c2)().tchk().lower().asInstanceOf[StmBuild]
 
     val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
     val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1

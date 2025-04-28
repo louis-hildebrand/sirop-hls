@@ -132,7 +132,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
       s,
       VecBuild(n, TyInt ::+ (_ => Default(t)))(),
       TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)))
-    )().tchk()
+    )().tchk().lower()
   }
 }
 
@@ -374,15 +374,40 @@ object VecSplit {
   }
 }
 
-object VecJoin {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<A; n * m> */ = {
-    val n = VecLength(v)()
-    val m = IfThenElse(n === 0, 1, VecLength(VecAccess(v, 0)())())()
-    IfThenElse(
-      m === 0,
-      VecBuild(0, (_: Expr) => Default(???))(),
-      VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m)(), i % m)())()
-    )()
+case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
+    typ: Type = Missing
+) /* Vec<A; n*m> */
+    extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecJoin(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case TyVec(TyVec(t, m), n) => this.rebuild(TyVec(t, n * m), Seq(newV))
+      case t =>
+        throw new TypeError(
+          s"Vector in VecJoin has type $t. Expected a nested vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v = this.v.lower()
+    val t = this.typ.asInstanceOf[TyVec].t
+    val (n, m) = this.v.typ match {
+      case TyVec(TyVec(t, m), n) => (n, m)
+      case t => throw new TypeError(s"Vector in VecJoin has type $t.")
+    }
+    VecBuild(
+      n * m,
+      TyInt ::+ (i => VecAccess(VecAccess(v, i / m)(), i % m)())
+    )().tchk().lower()
   }
 }
 

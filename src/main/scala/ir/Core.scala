@@ -359,7 +359,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def lower(): Expr = {
     val desugared = this match {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
-      case e              => e.rebuild(e.typ, e.children.map(e => e.lower()))
+      case e => e.rebuild(e.typ.flat, e.children.map(e => e.lower()))
     }
     // This is required because lowering may be syntax-directed (i.e., an
     // expression may need to be typed before it can be lowered) and it is no
@@ -367,7 +367,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // lowering its children.
     assert(
       !this.hasType || desugared.typ.isCompatibleWith(this.typ.flat),
-      s"lowering must yield an expression whose type is the original, but flattened (expected ${this.typ.flat} but found ${desugared.typ})"
+      s"lowering must yield an expression whose type is the original, but flattened (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.flat} but found ${desugared.typ})"
+    )
+    assert(
+      !desugared.contains(classOf[SyntaxSugar]),
+      s"lowering must yield an expression without any syntax sugar (after attempting to lower ${this.getClass.getSimpleName}, which yielded $desugared)"
     )
     desugared
   }
@@ -1370,17 +1374,6 @@ object StmBuild {
   private val HashCodeParam = Param("hashCode")()
 }
 
-// TODO: Make this syntax sugar?
-case class StmLength(stream: Expr)(typ: Type = Missing)
-    extends IntExpr(stream)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s) => StmLength(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
 // element only available for one clock cycle
 case class StmNext(stream: Expr /* Stream<A>*/ )(typ: Type = Missing)
 /* (Stream<A>, A) */
@@ -1411,16 +1404,6 @@ case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
     newChildren match {
       case Seq(v, i) => VecAccess(v, i)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
-// TODO: Make this syntax sugar?
-case class VecLength(vec: Expr)(typ: Type = Missing) extends IntExpr(vec)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(v) => VecLength(v)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1485,4 +1468,54 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * does not require the type.)
     */
   def lowerSyntaxSugar(): Expr
+}
+
+case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmLength(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = s.tchk(context)
+    newS.typ match {
+      case _: TyStm => this.rebuild(TyInt, Seq(newS))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmLength has type $t. Expected a stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    s.typ.asInstanceOf[TyStm].n.lower()
+  }
+}
+
+case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecLength(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case _: TyVec => this.rebuild(TyInt, Seq(newV))
+      case t =>
+        throw new TypeError(
+          s"Vector in VecLength has type $t. Expected a stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    v.typ.asInstanceOf[TyVec].n.lower()
+  }
 }

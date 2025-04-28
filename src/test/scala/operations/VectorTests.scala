@@ -178,7 +178,7 @@ class VectorTests extends AnyFunSuite {
     //  [2, 3]]
     val v = VecBuild(3, (i: Expr) => VecBuild(2, (j: Expr) => i + j)())()
     // [0, 1, 1, 2, 2, 3]
-    val joined = VecJoin(v)
+    val joined = VecJoin(v)().tchk()
     assert(ir.eval(joined) == VecLiteral(0, 1, 1, 2, 2, 3)())
   }
 
