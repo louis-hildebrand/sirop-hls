@@ -19,7 +19,7 @@ class OptimizationTests extends AnyFunSuite {
         3,
         TyInt ::+ (i => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())())
       )()
-    val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
+    val v2 = VecScanInclusive(v, z, TyInt ::+ (x => TyInt ::+ (a => a + x)))
     val pe = (e: Expr) => PartialEvalPass.partialEval(e)
     assert(pe(VecAccess(v2, 0)()) == z + a)
     assert(pe(VecAccess(v2, 1)()) == z + a + b)

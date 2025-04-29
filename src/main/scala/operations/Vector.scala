@@ -29,37 +29,26 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    requireType()
     val v = this.v.lower()
     val f = this.f.lower()
-    if (this.typ == Missing) {
-      VecBuild(
-        VecLength(v)(),
-        TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
-      )()
-    } else {
-      val (t1, t2) = {
-        val t = f.typ.asInstanceOf[TyArrow]
-        (t.t1, t.t2)
-      }
-      val i = Param("i")(TyInt)
-      val g = Function(i, FunCall(f, VecAccess(v, i)(t1))(t2))(
-        TyArrow(TyInt, t2)
-      )
-      VecBuild(VecLength(v)(TyInt), g)(this.typ.flat)
-    }
+    VecBuild(
+      VecLength(v)(),
+      TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
+    )().tchk().lower()
   }
 }
 
 case class VecFold(
     v: Expr /* Vec<T1; n> */,
     z: Expr /* T2 */,
-    f: Expr /* T1 -> T2 -> T2 */
-)(typ: Type = Missing) /* T2 */
+    f: Function /* T1 -> T2 -> T2 */
+)(typ: Type = Missing) /* Stm<T2; 1> */
     extends SyntaxSugar(v, z, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v, z, f) => VecFold(v, z, f)(typ)
-      case _            => throw new BadRebuildError(this, newChildren)
+      case Seq(v, z, f: Function) => VecFold(v, z, f)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -82,25 +71,32 @@ case class VecFold(
           s"Function in VecFold has type $t. Expected ${TyArrow(t1, TyArrow(t2, t2))}."
         )
     }
-    this.rebuild(t2, Seq(newV, newZ, newF))
+    this.rebuild(TyStm(t2, 1), Seq(newV, newZ, newF))
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    // TODO: Implement this Vec2Stm
     requireType()
-    ???
+    StmFold(Vec2Stm(v)(), z, f)().tchk().lower()
   }
 }
 
-object VecScan {
+object VecScanInclusive {
   def apply(
-      vec: Expr /* Vec<A; n> */,
+      v: Expr /* Vec<A; n> */,
       z: Expr /* B */,
-      f: Expr => Expr => Expr /* A -> B -> B */,
-      inclusive: Boolean
-  ): Expr /* Vec<B; n> */ = {
-    // TODO: Implement using Vec2Stm
-    ???
+      f: Function /* B -> A -> B */
+  ): Expr /* Stm<Vec<B; n>; 1> */ = {
+    Stm2Vec(StmScanInclusive(Vec2Stm(v)(), z, f)())()
+  }
+}
+
+object VecScanExclusive {
+  def apply(
+      v: Expr /* Vec<A; n> */,
+      z: Expr /* B */,
+      f: Function /* B -> A -> B */
+  ): Expr /* Stm<Vec<B; n>; 1> */ = {
+    Stm2Vec(StmScanExclusive(Vec2Stm(v)(), z, f)())()
   }
 }
 
@@ -175,24 +171,10 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    val v = this.v.lower()
-    val e = this.e.lower()
-    if (this.typ == Missing) {
-      VecBuild(
-        VecLength(v)() + 1,
-        TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(v, i + -1)())())
-      )()
-    } else {
-      val t = v.typ.asInstanceOf[TyVec].t
-      val n = v.typ.asInstanceOf[TyVec].n
-      val i = Param("i")(TyInt)
-      val f =
-        Function(
-          i,
-          IfThenElse(Equal(i, 0)(TyBool), e, VecAccess(v, i - 1)(t))(t)
-        )(TyArrow(TyInt, t))
-      VecBuild(n + 1, f)(this.typ.flat)
-    }
+    VecBuild(
+      VecLength(v)() + 1,
+      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(v, i + -1)())())
+    )().tchk().lower()
   }
 }
 
@@ -224,25 +206,11 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    val v = this.v.lower()
-    val e = this.e.lower()
-    if (this.typ == Missing) {
-      val n = VecLength(v)()
-      VecBuild(
-        n + 1,
-        TyInt ::+ (i => IfThenElse(i === n, e, VecAccess(v, i)())())
-      )()
-    } else {
-      val t = v.typ.asInstanceOf[TyVec].t
-      val n = v.typ.asInstanceOf[TyVec].n
-      val i = Param("i")(TyInt).rebuild(TyInt)
-      val f =
-        Function(
-          i,
-          IfThenElse(Equal(i, n)(TyBool), e, VecAccess(v, i)(t))(t)
-        )(TyArrow(TyInt, t))
-      VecBuild(n + 1, f)(this.typ)
-    }
+    val n = VecLength(v)()
+    VecBuild(
+      n + 1,
+      TyInt ::+ (i => IfThenElse(i === n, e, VecAccess(v, i)())())
+    )().tchk().lower()
   }
 }
 
@@ -330,25 +298,6 @@ object VecZip {
     )()
 }
 
-// Not particularly useful, just the Vec counterpart to StmZipAlternating
-object VecZipAlternating {
-  def apply(
-      a: Expr /* Vec<A; n> */,
-      b: Expr /* Vec<A; n> */
-  ): Expr /* Vec<(A, A); n> */ = {
-    VecBuild(
-      VecLength(a)(),
-      TyInt ::+ (i =>
-        IfThenElse(
-          (i % 2) === 0,
-          Tuple(VecAccess(a, i)(), VecAccess(b, i)())(),
-          Tuple(VecAccess(b, i)(), VecAccess(a, i)())()
-        )()
-      )
-    )()
-  }
-}
-
 object VecRepeat {
   def apply(
       vec: Expr /* Vec<A; n> */,
@@ -407,7 +356,7 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
     requireType()
     val v = this.v.lower()
     val (n, m) = this.v.typ match {
-      case TyVec(TyVec(t, m), n) => (n, m)
+      case TyVec(TyVec(_, m), n) => (n, m)
       case t => throw new TypeError(s"Vector in VecJoin has type $t.")
     }
     VecBuild(
@@ -431,7 +380,7 @@ object VecSlide {
 }
 
 object VecTranspose {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* */ = {
+  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<Vec<A; n>; m> */ = {
     val n = VecLength(v)()
     val m = VecLength(VecAccess(v, 0)())()
     VecBuild(
