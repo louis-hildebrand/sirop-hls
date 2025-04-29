@@ -1,7 +1,6 @@
 package operations
 
 import ir._
-import opt.PartialEvalPass
 
 private object Helpers {
 
@@ -366,7 +365,6 @@ case class StmMap(
     // Instantiate `f` as a function from stream to stream
     val (s, innerStm) = Helpers.asStm2Stm(f)
     assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
-    val innerStmElemTyp = innerStm.typ.asInstanceOf[TyStm].t
     assert(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
       "the input stream should appear no more than once in the inner StmBuild"
@@ -427,10 +425,10 @@ case class StmMap(
       }
       val ret = map.subPreserveType(s -> input)
       val originalFreeVars =
-        (input.freeVars() ++ f.freeVars() ++ n.freeVars())
+        input.freeVars() ++ f.freeVars() ++ n.freeVars()
       assert(
         ret.freeVars() == originalFreeVars,
-        s"the set of free variables should be unchanged by StmMap (expected ${originalFreeVars}, got ${ret.freeVars()})"
+        s"the set of free variables should be unchanged by StmMap (expected $originalFreeVars, got ${ret.freeVars()})"
       )
       ret
     }
@@ -499,8 +497,8 @@ case class StmFold(
 
   override def typecheck(context: Map[Param, Type]): Expr = {
     val newS = stream.tchk(context)
-    val (t1, n) = newS.typ match {
-      case TyStm(t, n) => (t, n)
+    val t1 = newS.typ match {
+      case TyStm(t, _) => t
       case t           => throw new TypeError(s"Stream in StmFold has type $t.")
     }
     val newZ = z.tchk(context)
@@ -655,7 +653,7 @@ case class StmScanInclusive(
       input.freeVars() ++ z.freeVars() ++ f.freeVars() ++ n.freeVars()
     assert(
       scan.freeVars() == originalFreeVars,
-      s"the set of free variables should be unchanged by StmScan (expected ${originalFreeVars} but got ${scan.freeVars()})"
+      s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars()})"
     )
     scan.tchk().lower()
   }

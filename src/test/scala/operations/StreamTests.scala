@@ -1,41 +1,9 @@
 package operations
 
 import ir._
-import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
-object StreamTests {
-
-  /** Use <code>ir.eval</code> directly instead.
-    */
-  @deprecated
-  def stm2Seq(stm: Expr): Seq[Expr] = {
-    val n = PartialEvalPass.partialEval(StmLength(stm)()) match {
-      case IntCst(n) => n
-      case e =>
-        throw new IllegalArgumentException(
-          s"Stream length $e is not an integer"
-        )
-    }
-    if (n < 0) {
-      throw new IllegalArgumentException(s"Stream has negative length ($n)!")
-    } else if (n == 0) {
-      Seq()
-    } else {
-      val next = PartialEvalPass.partialEval(StmNext(stm)())
-      PartialEvalPass.partialEval(next.__1) +: stm2Seq(next.__0)
-    }
-  }
-}
-
 class StreamTests extends AnyFunSuite {
-  @inline
-  @deprecated
-  def assertStreamEqual(stream: Expr, expectedSeq: Seq[Expr]): Unit = {
-    val expected = StmLiteral(expectedSeq: _*)()
-    assert(ir.eval(stream) == expected)
-  }
-
   test("StmCst:Int") {
     val s = StmCst(4, 3)()
     assert(ir.eval(s.tchk()) == StmLiteral(3, 3, 3, 3)())
@@ -1898,11 +1866,11 @@ class StreamTests extends AnyFunSuite {
   test("StmSplit:1D-2D") {
     val s = StmCount(6)()
 
-    val expected = (0 until 6).map(n => IntCst(n))
-    assertStreamEqual(StmSplit(s, 1)(), expected)
-    assertStreamEqual(StmSplit(s, 2)(), expected)
-    assertStreamEqual(StmSplit(s, 3)(), expected)
-    assertStreamEqual(StmSplit(s, 6)(), expected)
+    val expected = StmLiteral(0, 1, 2, 3, 4, 5)()
+    assert(ir.eval(StmSplit(s, 1)().tchk()) == expected)
+    assert(ir.eval(StmSplit(s, 2)().tchk()) == expected)
+    assert(ir.eval(StmSplit(s, 3)().tchk()) == expected)
+    assert(ir.eval(StmSplit(s, 6)().tchk()) == expected)
   }
 
   test("StmJoin:2D-1D") {
