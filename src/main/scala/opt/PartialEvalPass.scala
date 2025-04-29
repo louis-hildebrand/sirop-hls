@@ -15,7 +15,7 @@ object PartialEvalPass {
       facts: FactSet = FactSet(),
       m: IfThenElseMotion = HeuristicMotion
   ): Expr = {
-    e match {
+    val pe = e match {
       case x: Param => x
       case Function(x, body) =>
         Function(x, partialEval(body)(facts.clearRange(x), m))()
@@ -37,7 +37,7 @@ object PartialEvalPass {
               case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case HeuristicMotion =>
-            ArithSimplifier.simplifyArithmetic(Sum(newChildren: _*)())(facts)
+            ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case Prod(factors @ _*) =>
         val newChildren = factors.map(e => partialEval(e))
@@ -48,7 +48,7 @@ object PartialEvalPass {
               case e => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case HeuristicMotion =>
-            ArithSimplifier.simplifyArithmetic(Prod(newChildren: _*)())(facts)
+            ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(facts)
         }
       case _: Div =>
         val newChildren = e.children.map(e => partialEval(e))
@@ -354,6 +354,13 @@ object PartialEvalPass {
       case _: VecLiteral | _: StmLiteral | _: SyntaxSugar => e.map(partialEval)
 
     }
+    if (pe.isInstanceOf[Param] && e.hasType) {
+      assert(
+        pe.hasType,
+        "the partial evaluator should not erase type annotations on variables"
+      )
+    }
+    pe
   }
 
   def isEqual(e1: Expr, e2: Expr)(

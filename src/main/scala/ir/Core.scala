@@ -410,6 +410,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                   x -> (z.substitute(subs), next.substitute(subs))
                 })
               )()
+            case x: Param =>
+              // Don't erase the type annotation for variables
+              x
             case e =>
               e.rebuild(Missing, e.children.map(e => e.substitute(subs)))
           }
@@ -600,8 +603,11 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
     require(newChildren.isEmpty)
     Param(this.prefix, this.id)(typ)
   }
-  override def rebuild(newChildren: Seq[Expr]): Param =
-    rebuild(Missing, newChildren)
+  override def rebuild(newChildren: Seq[Expr]): Param = {
+    // Keep the same type by default
+    rebuild(this.typ, newChildren)
+  }
+
   override def rebuild(typ: Type): Param = rebuild(typ, this.children)
 
   def freshCopy: Param = Param(this.prefix)(this.typ)

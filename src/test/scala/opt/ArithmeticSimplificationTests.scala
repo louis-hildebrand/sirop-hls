@@ -203,4 +203,20 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == b)
   }
+
+  test("TypePreservation1") {
+    val t = Param("t")(TyInt)
+    val e = (-5 + t) < 5
+    val actual = PartialEvalPass.partialEval(e)()
+    assert(actual == e)
+    assert(actual.tchk().typ == TyBool)
+  }
+
+  test("TypePreservation2") {
+    val t = Param("t")(TyInt)
+    val e = IfThenElse(-5 + t < 5, -5 + t, 5)()
+    val actual = PartialEvalPass.partialEval(e)
+    assert(actual == e)
+    assert(actual.tchk().typ == TyInt)
+  }
 }

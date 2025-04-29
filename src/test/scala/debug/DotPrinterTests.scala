@@ -92,7 +92,7 @@ class DotPrinterTests extends AnyFunSuite {
       VecMap(
         VecBuild(3, TyInt ::+ (i => 1 + i * i))(),
         TyInt ::+ (x => 2 * x)
-      )()
+      )().tchk().lower()
     DotPrinter.save(e, "./img/VecMap.dot")
   }
 

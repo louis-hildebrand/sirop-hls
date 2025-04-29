@@ -81,8 +81,9 @@ object ArithSimplifier {
         case _: ArithmeticException => None
       }
     a.flatMap(a => fromArithExpr(a)) match {
-      case None    => e
-      case Some(e) => e
+      case None => e
+      case Some(e) =>
+        e
     }
   }
 
@@ -245,13 +246,14 @@ object ArithSimplifier {
       //      case AbsFunction(ae)                   => ???
       //      case FloorFunction(ae)                 => ???
       //      case CeilingFunction(ae)               => ???
-      case BlackBox(e, _) => Some(e)
-      case _              => None
+      case BlackBox(e, _) =>
+        Some(e)
+      case _ => None
     }
   }
 
   private def simplifyBoolExpr(e: Expr): Expr = {
-    e.rebuild(e.children.map(e => simplifyBoolExpr(e))) match {
+    e.rebuild(e.typ, e.children.map(e => simplifyBoolExpr(e))) match {
       case eq: Equal => simplifyEqual(eq)
       case and: And  => simplifyAnd(and)
       case or: Or    => simplifyOr(or)
