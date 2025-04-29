@@ -1094,10 +1094,11 @@ case class StmRepeat(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    // TODO: What about nested streams?
     requireType()
-    val t = this.stm.typ.asInstanceOf[TyStm].t
-    val n = this.stm.typ.asInstanceOf[TyStm].n
+    val stm = this.stm.lower()
+    val m = this.m.lower()
+    val t = stm.typ.asInstanceOf[TyStm].t
+    val n = stm.typ.asInstanceOf[TyStm].n
     val i = Param("i")(TyInt)
     StmMap(
       Stm2Vec(stm)(),
@@ -1138,13 +1139,19 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    // TODO: What about nested streams?
-    val stm = this.stm.lower()
+    val stm = this.stm.lower() // flat stream
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
-    StmMap(Stm2Vec(stm)(), TyVec(t, n) ::+ (v => Vec2Stm(VecReverse(v))()))()
-      .tchk()
-      .lower()
+    val elemSize = this.stm.typ.asInstanceOf[TyStm].t.flat match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)
+    }
+    StmMap(
+      Stm2Vec(stm)() /* flat vector */,
+      TyVec(t, n) ::+ (v =>
+        Vec2Stm(VecJoin(VecReverse(VecSplit(v, elemSize)))())()
+      )
+    )().tchk().lower()
   }
 }
 
