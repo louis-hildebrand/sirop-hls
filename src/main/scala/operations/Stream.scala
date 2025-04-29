@@ -17,7 +17,7 @@ private object Helpers {
         // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
         // We need to be careful about the identity function.
         // We want to be able to reset `f` itself, but *not* the input stream.
-        val identity: Function = (x: Expr) => x
+        val identity: Function = Missing ::+ (x => x)
         if (f0 == identity) {
           val s2 = Param("s2")(TyStm(t1, n1))
           TyStm(t1, n1) ::+ (s1 =>
@@ -1309,7 +1309,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
           )()
         ),
         v -> (
-          VecBuild(m * elemSize, (_: Expr) => Default(t))(),
+          VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
           VecShiftLeft(v, StmNext(s)().__1)
         )
       )

@@ -17,7 +17,7 @@ class OptimizationTests extends AnyFunSuite {
     val v =
       VecBuild(
         3,
-        (i: Expr) => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())()
+        TyInt ::+ (i => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())())
       )()
     val v2 = VecScan(v, z, (x: Expr) => (a: Expr) => a + x, inclusive = true)
     val pe = (e: Expr) => PartialEvalPass.partialEval(e)
@@ -30,8 +30,8 @@ class OptimizationTests extends AnyFunSuite {
     */
   test("MapMap") {
     val input = Param("input")()
-    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
-    val g = (x: Expr) => x - 10
+    val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
+    val g = TyInt ::+ (x => x - 10)
     val s = StmMap(StmMap(input, f)(), g)()
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
@@ -48,7 +48,7 @@ class OptimizationTests extends AnyFunSuite {
     // Successful fusion:
     // map(map(s, f), g) should simplify to the same thing as map(s, g . f)
     val ideal = optimize(
-      StmMap(input, (x: Expr) => FunCall(g, FunCall(f, x)())())()
+      StmMap(input, TyInt ::+ (x => FunCall(g, FunCall(f, x)())()))()
         .asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
@@ -59,13 +59,13 @@ class OptimizationTests extends AnyFunSuite {
   test("MapFold") {
     val input = Param("input")()
     val n = Param("n")()
-    val f = (x: Expr) => (x + 2) * (x + 3) * (x + 4)
+    val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val z = Param("z")()
     val s =
       StmFold(
         StmMap(input, f)(),
         z,
-        (acc: Expr) => (x: Expr) => acc + x
+        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
       )().tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
@@ -97,7 +97,7 @@ class OptimizationTests extends AnyFunSuite {
       StmFold(
         input,
         z,
-        (acc: Expr) => (x: Expr) => acc + (x + 2) * (x + 3) * (x + 4)
+        TyInt ::+ (acc => TyInt ::+ (x => acc + (x + 2) * (x + 3) * (x + 4)))
       )().tchk().lower().asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
@@ -194,20 +194,20 @@ class OptimizationTests extends AnyFunSuite {
   test("Vec2Stm(VecBuild(n, f))") {
     val f = Param("f")()
     val n = Param("n")()
-    val v = VecBuild(n, (i: Expr) => FunCall(f, i)())()
+    val v = VecBuild(n, TyInt ::+ (i => FunCall(f, i)()))()
     val s = Vec2Stm(v)()
     // This optimization is basically free just from partial evaluation.
     val actual = PartialEvalPass.partialEval(s)
 
     // Correctness
     val n0 = 2
-    val f0 = (i: Expr) => i + 5
+    val f0 = TyInt ::+ (i => i + 5)
     val expected0 = StmLiteral.ints(5, 6)
     val actual0 = (s: Expr) => Let(n, n0, Let(f, f0, s)())()
     assert(ir.eval(actual0(s)) == expected0)
     assert(ir.eval(actual0(actual)) == expected0)
     val n1 = 15
-    val f1 = (i: Expr) => (i + 1) * (i + 2) * (i + 3)
+    val f1 = TyInt ::+ (i => (i + 1) * (i + 2) * (i + 3))
     val expected1 = StmLiteral(
       (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
     )()
@@ -259,7 +259,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (_: Expr) => c)())()
+    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (_ => c))())()
     assert(v == ideal)
   }
 
@@ -300,7 +300,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => z + i * delta)())()
+    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (i => z + i * delta))())()
     assert(v == ideal)
   }
 
@@ -310,7 +310,8 @@ class OptimizationTests extends AnyFunSuite {
     val n = Param("n")()
     val s = Param("s")()
     val original =
-      StmMap(Stm2Vec(s)(), (v: Expr) => Vec2Stm(v)())().asInstanceOf[StmBuild]
+      StmMap(Stm2Vec(s)(), TyVec(TyInt, n) ::+ (v => Vec2Stm(v)()))()
+        .asInstanceOf[StmBuild]
     val optimized = {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
@@ -370,8 +371,8 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      VecBuild(n, (i: Expr) => i)(),
-      VecBuild(n, (i: Expr) => i * i + 1)()
+      VecBuild(n, TyInt ::+ (i => i))(),
+      VecBuild(n, TyInt ::+ (i => i * i + 1))()
     )
     for (vec <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
@@ -383,7 +384,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     // TODO: It would be even better if I could essentially eta-reduce the vector
-    val ideal = StmCst(1, VecBuild(n, (i: Expr) => VecAccess(v, i)())())()
+    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (i => VecAccess(v, i)()))())()
     assert(optimized == ideal)
   }
 

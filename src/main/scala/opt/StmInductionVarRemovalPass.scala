@@ -305,7 +305,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             t,
             VecBuild(
               n,
-              (i: Expr) =>
+              TyInt ::+ (i =>
                 IfThenElse(
                   // Imagine the vector is a fixed, infinite tape and we're
                   // moving to the right as time goes along.
@@ -314,6 +314,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                   FunCall(f, t - t0 + i)(),
                   FunCall(g, t - t0 + i - n)()
                 )()
+              )
             )()
           )()
         )
@@ -447,12 +448,13 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                         val f =
                           Function(
                             t,
-                            (x: Expr) =>
+                            (??? : Type) ::+ (x =>
                               IfThenElse(
                                 c,
                                 FunCall(FunCall(f0, t)(), x)(),
                                 FunCall(FunCall(f1, t)(), x)()
                               )()
+                            )
                           )()
                         Some((z0, f))
                       } else {
@@ -479,8 +481,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             val z = next.substitute(t -> t0)
             val nextF = Function(
               t,
-              (acc: Expr) =>
+              (??? : Type) ::+ (acc =>
                 IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
+              )
             )()
             Some((z, nextF))
           } else {

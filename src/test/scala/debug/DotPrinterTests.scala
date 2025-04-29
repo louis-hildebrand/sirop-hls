@@ -55,7 +55,7 @@ class DotPrinterTests extends AnyFunSuite {
     val e = Tuple(
       IntCst(42),
       True,
-      VecBuild(3, (i: Expr) => i * i)(),
+      VecBuild(3, TyInt ::+ (i => i * i))(),
       Tuple(IntCst(0), y + 2)()
     )()
     DotPrinter.save(e, "./img/NestedTuple.dot")
@@ -63,7 +63,7 @@ class DotPrinterTests extends AnyFunSuite {
 
   test("SimpleVecBuild") {
     val x = Param("x")()
-    val e = VecBuild(4, (i: Expr) => IfThenElse(i === 0, x + 1, i * i)())()
+    val e = VecBuild(4, TyInt ::+ (i => IfThenElse(i === 0, x + 1, i * i)()))()
     DotPrinter.save(e, "./img/SimpleVecBuild.dot")
   }
 
@@ -71,15 +71,16 @@ class DotPrinterTests extends AnyFunSuite {
     val x = Param("x")()
     val e = VecBuild(
       4,
-      (i: Expr) =>
-        VecBuild(3, (j: Expr) => IfThenElse(i === j, x + i, i + j)())()
+      TyInt ::+ (i =>
+        VecBuild(3, TyInt ::+ (j => IfThenElse(i === j, x + i, i + j)()))()
+      )
     )()
     DotPrinter.save(e, "./img/NestedVecBuild.dot")
   }
 
   test("VecAccessUnknownIndex") {
     val i = Param("i")()
-    val e = VecAccess(VecBuild(5, (j: Expr) => j)(), i)()
+    val e = VecAccess(VecBuild(5, TyInt ::+ (j => j))(), i)()
     DotPrinter.save(
       e,
       "./img/VecAccessUnknownIndex.dot"
@@ -87,13 +88,16 @@ class DotPrinterTests extends AnyFunSuite {
   }
 
   test("VecMap") {
-    val v = VecBuild(3, (i: Expr) => 1 + i * i)()
-    val e = VecMap(VecBuild(3, (i: Expr) => 1 + i * i)(), (x: Expr) => 2 * x)()
+    val e =
+      VecMap(
+        VecBuild(3, TyInt ::+ (i => 1 + i * i))(),
+        TyInt ::+ (x => 2 * x)
+      )()
     DotPrinter.save(e, "./img/VecMap.dot")
   }
 
   test("SimpleFunction") {
-    val f = (x: Expr) => x - 1
+    val f = TyInt ::+ (x => x - 1)
     DotPrinter.save(f, "./img/SimpleFunction.dot")
   }
 

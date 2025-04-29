@@ -213,11 +213,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case TyInt => ()
           case t     => throw new TypeError(s"Length of VecBuild has type $t.")
         }
-        val newF = f match {
-          case Function(x, e) if x.typ == Missing =>
-            Function(x.rebuild(TyInt), e)().tchk
-          case f => f.tchk
-        }
+        val newF = f.tchk
         // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
         val vecT = newF.typ match {
           case TyArrow(TyInt, t) => t

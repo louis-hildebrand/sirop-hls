@@ -2,16 +2,18 @@ package opt
 
 import org.scalatest.funsuite.AnyFunSuite
 import ir._
-import operations._
 
 class PartialEvalPassTests extends AnyFunSuite {
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
 
   // Used to debug issue with StmFold
   test("FunCall") {
-    val x = Param("x")()
+    val ttup = TyTuple(TyInt, TyStm(TyInt, 5))
+    val x = Param("x")(ttup)
     val e = FunCall(
-      (y: Expr) => Tuple(StmNext(y.__1)().__1 + y.__0, StmNext(y.__1)().__0)(),
+      ttup ::+ (y =>
+        Tuple(StmNext(y.__1)().__1 + y.__0, StmNext(y.__1)().__0)()
+      ),
       x
     )()
     val expected =
@@ -54,11 +56,12 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       Function(
         y,
-        IfThenElse(y > 42, Function(y, y > 10)(), (_: Expr) => y > 45)()
+        IfThenElse(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
       )()
     val actual = PartialEvalPass.partialEval(e)
-    val expected: Function =
-      (y: Expr) => IfThenElse(y > 42, (z: Expr) => z > 10, (_: Expr) => False)()
+    val expected = TyInt ::+ (y =>
+      IfThenElse(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
+    )
     assert(actual == expected)
   }
 
@@ -101,7 +104,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val expected =
       Tuple(
         True,
-        VecBuild(7, (i: Expr) => Tuple(True, True, i > 2)())(),
+        VecBuild(7, TyInt ::+ (i => Tuple(True, True, i > 2)()))(),
         True
       )()
     assert(actual == expected)
@@ -203,10 +206,10 @@ class PartialEvalPassTests extends AnyFunSuite {
     val v =
       VecBuild(
         n,
-        (i: Expr) => Tuple(i > -1, i < n + 1, i >= n, i < 0, i > 0)()
+        TyInt ::+ (i => Tuple(i > -1, i < n + 1, i >= n, i < 0, i > 0)())
       )()
     val expected =
-      VecBuild(n, (i: Expr) => Tuple(True, True, False, False, i > 0)())()
+      VecBuild(n, TyInt ::+ (i => Tuple(True, True, False, False, i > 0)()))()
     assert(PartialEvalPass.partialEval(v) == expected)
   }
 
@@ -231,12 +234,12 @@ class PartialEvalPassTests extends AnyFunSuite {
   // Used to debug an issue with StmInductionVarRemovalPass
   test("VecBuildIndexRangeAndIfThenElseCondition") {
     val s = Param("s")()
-    val e = (t: Expr) =>
+    val e = TyInt ::+ (t =>
       IfThenElse(
         t < 7,
         VecBuild(
           7,
-          (i: Expr) =>
+          TyInt ::+ (i =>
             StmNext(
               IfThenElse(
                 -7 + i + t < 7,
@@ -244,15 +247,21 @@ class PartialEvalPassTests extends AnyFunSuite {
                 StmNextK(s, 7)()
               )()
             )().__1
+          )
         )(),
-        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)())().__1)()
+        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
       )()
-    val expected: Expr = (t: Expr) =>
+    )
+    val expected = TyInt ::+ (t =>
       IfThenElse(
         t < 7,
-        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, -7 + i + t)())().__1)(),
-        VecBuild(7, (i: Expr) => StmNext(StmNextK(s, i)())().__1)()
+        VecBuild(
+          7,
+          TyInt ::+ (i => StmNext(StmNextK(s, -7 + i + t)())().__1)
+        )(),
+        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
       )()
+    )
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }

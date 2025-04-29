@@ -32,7 +32,10 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     val v = this.v.lower()
     val f = this.f.lower()
     if (this.typ == Missing) {
-      VecBuild(VecLength(v)(), (i: Expr) => FunCall(f, VecAccess(v, i)())())()
+      VecBuild(
+        VecLength(v)(),
+        TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
+      )()
     } else {
       val (t1, t2) = {
         val t = f.typ.asInstanceOf[TyArrow]
@@ -177,7 +180,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     if (this.typ == Missing) {
       VecBuild(
         VecLength(v)() + 1,
-        (i: Expr) => IfThenElse(i === 0, e, VecAccess(v, i + -1)())()
+        TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(v, i + -1)())())
       )()
     } else {
       val t = v.typ.asInstanceOf[TyVec].t
@@ -227,7 +230,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
       val n = VecLength(v)()
       VecBuild(
         n + 1,
-        (i: Expr) => IfThenElse(i === n, e, VecAccess(v, i)())()
+        TyInt ::+ (i => IfThenElse(i === n, e, VecAccess(v, i)())())
       )()
     } else {
       val t = v.typ.asInstanceOf[TyVec].t
@@ -254,7 +257,7 @@ object VecPrefix {
     require(kVal >= 0)
     require(kVal <= nVal)
 
-    VecBuild(k, (i: Expr) => VecAccess(vec, i)())()
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i)()))()
   }
 }
 
@@ -270,7 +273,7 @@ object VecSuffix {
     require(kVal <= nVal)
 
     val n = VecLength(vec)()
-    VecBuild(k, (i: Expr) => VecAccess(vec, i + (n - k))())()
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i + (n - k))()))()
   }
 }
 
@@ -282,7 +285,7 @@ object VecShiftLeft {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())()
+      TyInt ::+ (i => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())())
     )()
   }
 }
@@ -295,7 +298,7 @@ object VecShiftRight {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())()
+      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())())
     )()
   }
 }
@@ -309,8 +312,9 @@ object VecConcat {
     val m = VecLength(v2)()
     VecBuild(
       n + m,
-      (i: Expr) =>
+      TyInt ::+ (i =>
         IfThenElse(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
+      )
     )()
   }
 }
@@ -322,7 +326,7 @@ object VecZip {
   ): VecBuild /* Vec<(A, B); n> */ =
     VecBuild(
       VecLength(a)(),
-      (i: Expr) => Tuple(VecAccess(a, i)(), VecAccess(b, i)())()
+      TyInt ::+ (i => Tuple(VecAccess(a, i)(), VecAccess(b, i)())())
     )()
 }
 
@@ -334,12 +338,13 @@ object VecZipAlternating {
   ): Expr /* Vec<(A, A); n> */ = {
     VecBuild(
       VecLength(a)(),
-      (i: Expr) =>
+      TyInt ::+ (i =>
         IfThenElse(
           (i % 2) === 0,
           Tuple(VecAccess(a, i)(), VecAccess(b, i)())(),
           Tuple(VecAccess(b, i)(), VecAccess(a, i)())()
         )()
+      )
     )()
   }
 }
@@ -349,14 +354,14 @@ object VecRepeat {
       vec: Expr /* Vec<A; n> */,
       m: Expr
   ): Expr /* Vec<Vec<A; n>, m> */ = {
-    VecBuild(m, (_: Expr) => vec)()
+    VecBuild(m, TyInt ::+ (_ => vec))()
   }
 }
 
 object VecReverse {
   def apply(v: Expr /* Vec<A; n> */ ): Expr /* Vec<A; n> */ = {
     val n = VecLength(v)()
-    VecBuild(n, (i: Expr) => VecAccess(v, n - i - 1)())()
+    VecBuild(n, TyInt ::+ (i => VecAccess(v, n - i - 1)()))()
   }
 }
 
@@ -369,7 +374,9 @@ object VecSplit {
     // n must be divisible by m
     VecBuild(
       n / m,
-      (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i * m + j)())()
+      TyInt ::+ (i =>
+        VecBuild(m, TyInt ::+ (j => VecAccess(vec, i * m + j)()))()
+      )
     )()
   }
 }
@@ -399,7 +406,6 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val v = this.v.lower()
-    val t = this.typ.asInstanceOf[TyVec].t
     val (n, m) = this.v.typ match {
       case TyVec(TyVec(t, m), n) => (n, m)
       case t => throw new TypeError(s"Vector in VecJoin has type $t.")
@@ -419,7 +425,7 @@ object VecSlide {
     val n = VecLength(vec)()
     VecBuild(
       n + -m + 1,
-      (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i + j)())()
+      TyInt ::+ (i => VecBuild(m, TyInt ::+ (j => VecAccess(vec, i + j)()))())
     )()
   }
 }
@@ -430,7 +436,9 @@ object VecTranspose {
     val m = VecLength(VecAccess(v, 0)())()
     VecBuild(
       m,
-      (i: Expr) => VecBuild(n, (j: Expr) => VecAccess(VecAccess(v, j)(), i)())()
+      TyInt ::+ (i =>
+        VecBuild(n, TyInt ::+ (j => VecAccess(VecAccess(v, j)(), i)()))()
+      )
     )()
   }
 }

@@ -39,7 +39,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("Vector") {
     val n = Param("n")()
-    val v = VecBuild(n, (i: Expr) => Tuple(i + 1, i % 2 === 0)())()
+    val v = VecBuild(n, TyInt ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
     val original = VecAccess(v, VecLength(v)() - 1)()
     val checked = original.tchk(Map(n -> TyInt))
     assert(checked.typ == TyTuple(TyInt, TyBool))
@@ -89,7 +89,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Function:NonUniqueType") {
-    val f: Function = (x: Expr) => x
+    val f: Function = Missing ::+ (x => x)
     assertThrows[TypeError](f.tchk())
   }
 
@@ -187,7 +187,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("VecBuild:NonIntLength") {
-    val e = VecBuild(True, (i: Expr) => i)()
+    val e = VecBuild(True, TyInt ::+ (i => i))()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -236,7 +236,8 @@ class TypecheckerTests extends AnyFunSuite {
       3,
       SSome(4)(),
       Map[Param, (Expr, Expr)](
-        a -> (VecBuild(10, (i: Expr) => i)(), VecBuild(11, (i: Expr) => i)())
+        a -> (VecBuild(10, TyInt ::+ (i => i))(),
+        VecBuild(11, TyInt ::+ (i => i))())
       )
     )()
     assertThrows[TypeError](e.tchk())

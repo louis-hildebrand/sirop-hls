@@ -1269,7 +1269,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Vec2Stm:1D") {
-    val v = VecBuild(5, (i: Expr) => i + 1)()
+    val v = VecBuild(5, TyInt ::+ (i => i + 1))()
     assert(ir.eval(Vec2Stm(v)().tchk()) == StmLiteral.ints(1, 2, 3, 4, 5))
   }
 
