@@ -1119,7 +1119,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     extends SyntaxSugar(stm)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmReverse(s)()
+      case Seq(s) => StmReverse(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }

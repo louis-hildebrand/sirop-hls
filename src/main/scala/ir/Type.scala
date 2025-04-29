@@ -65,9 +65,8 @@ sealed trait Type {
     e1Normalized == e2Normalized
   }
 
-  @tailrec
   private def normalizeLen(e: Expr): Expr = {
-    e match {
+    val norm = e match {
       case VecLength(v) =>
         v.typ match {
           case TyVec(_, n) => normalizeLen(n)
@@ -76,6 +75,11 @@ sealed trait Type {
           case _ => PartialEvalPass.partialEval(e)
         }
       case e => PartialEvalPass.partialEval(e)
+    }
+    if (norm == e) {
+      e
+    } else {
+      normalizeLen(norm)
     }
   }
 }

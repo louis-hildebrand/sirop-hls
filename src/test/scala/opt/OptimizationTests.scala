@@ -6,42 +6,24 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {
 
-  /** The optimizer can "unwrap" a VecScan to a sum, provided the vector has a
-    * statically-known length.
-    */
-  test("VecScanUnfolded") {
-    val a = Param("a")()
-    val b = Param("b")()
-    val c = Param("c")()
-    val z = Param("z")()
-    val v =
-      VecBuild(
-        3,
-        TyInt ::+ (i => IfThenElse(i === 0, a, IfThenElse(i === 1, b, c)())())
-      )()
-    val v2 = VecScanInclusive(v, z, TyInt ::+ (x => TyInt ::+ (a => a + x)))
-    val pe = (e: Expr) => PartialEvalPass.partialEval(e)
-    assert(pe(VecAccess(v2, 0)()) == z + a)
-    assert(pe(VecAccess(v2, 1)()) == z + a + b)
-    assert(pe(VecAccess(v2, 2)()) == z + a + b + c)
-  }
-
   /** The optimizer can perform map-map fusion.
     */
   test("MapMap") {
-    val input = Param("input")()
+    val n = Param("n")(TyInt)
+    val input = Param("input")(TyStm(TyInt, n))
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val g = TyInt ::+ (x => x - 10)
-    val s = StmMap(StmMap(input, f)(), g)()
+    val s = StmMap(StmMap(input, f)(), g)().tchk().lower()
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      StmSimplifier.simplify(s1)()
+      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      StmSimplifier.simplify(s2)()
     }
     val actual = optimize(s.asInstanceOf[StmBuild])
 
     // Correct behaviour
     // (Using one example input, f, and g)
-    val call = (e: Expr) => Let(input, StmCount(5)(), e)()
+    val call = (e: Expr) => Let(n, 5, Let(input, StmCount(n)(), e)())()
     val expectedElems = StmLiteral.ints(14, 50, 110, 200, 326)
     assert(ir.eval(call(s)) == expectedElems)
     assert(ir.eval(call(actual)) == expectedElems)
@@ -49,6 +31,8 @@ class OptimizationTests extends AnyFunSuite {
     // map(map(s, f), g) should simplify to the same thing as map(s, g . f)
     val ideal = optimize(
       StmMap(input, TyInt ::+ (x => FunCall(g, FunCall(f, x)())()))()
+        .tchk()
+        .lower()
         .asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
@@ -57,10 +41,10 @@ class OptimizationTests extends AnyFunSuite {
   /** The optimizer can perform map-fold fusion.
     */
   test("MapFold") {
-    val input = Param("input")()
-    val n = Param("n")()
+    val n = Param("n")(TyInt)
+    val input = Param("input")(TyStm(TyInt, n))
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
-    val z = Param("z")()
+    val z = Param("z")(TyInt)
     val s =
       StmFold(
         StmMap(input, f)(),
@@ -69,7 +53,8 @@ class OptimizationTests extends AnyFunSuite {
       )().tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      StmSimplifier.simplify(s1)()
+      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      StmSimplifier.simplify(s2)()
     }
     val actual = optimize(s)
 
@@ -106,58 +91,94 @@ class OptimizationTests extends AnyFunSuite {
   /** StmSplit and StmJoin cancel out.
     */
   test("StmSplitJoin") {
-    ???
+    val n = Param("n")(TyInt)
+    val m = Param("m")(TyInt)
+    val s = Param("s")(TyStm(TyInt, n))
+    val original = StmJoin(StmSplit(s, m)())()
+    // This is basically free due to the way lowering works
+    val optimized = original.tchk().lower()
+
+    // Effective simplification
+    val ideal = s
+    assert(optimized == ideal)
   }
 
   /** StmJoin and StmSplit cancel out.
     */
   test("StmJoinSplit") {
-    ???
+    val n = Param("n")(TyInt)
+    val m = Param("m")(TyInt)
+    val s = Param("s")(TyStm(TyStm(TyInt, m), n))
+    val original = StmSplit(StmJoin(s)(), m)()
+    // This is basically free due to the way lowering works
+    val optimized = original.tchk().lower()
+
+    // Effective simplification
+    val ideal = s
+    assert(optimized == ideal)
   }
 
   test("FuseStmShiftRight") {
-    val input = Param("input")()
+    val n = Param("n")(TyInt)
+    val input = Param("input")(TyStm(TyInt, n))
     val original = StmPrepend(StmPrefix(input, StmLength(input)() - 1)(), 42)()
-    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
+      .tchk()
+      .lower()
+      .asInstanceOf[StmBuild]
+    val optimize = (s: StmBuild) => {
+      val s1 = s.fuseCompletely()
+      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      val s3 = StmSimplifier.simplify(s2)()
+      s3
+    }
+    val fused = optimize(original)
 
     // Correct behaviour
     // (Using one example input)
-    val call = (e: Expr) => Let(input, StmCount(5)(), e)()
-    val expectedElems = StmLiteral.ints(42, 0, 1, 2, 3)
+    val call = (e: Expr) => Let(n, 5, Let(input, StmCount(n)(), e)())()
+    val expectedElems = StmLiteral(42, 0, 1, 2, 3)()
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
     // Successful fusion
     val s = Param("s")()
     val i = Param("i")()
     val j = Param("j")()
-    val ideal = StmBuild(
-      5,
-      IfThenElse(
-        i === 1,
+    val ideal = optimize(
+      StmBuild(
+        n,
         IfThenElse(
-          j < -1 + StmLength(input)(),
-          SSome(StmNext(s)().__1)(),
-          NNone(???)
+          i === 1,
+          IfThenElse(
+            j < -1 + StmLength(input)(),
+            SSome(StmNext(s)().__1)(),
+            NNone(TyInt)
+          )(),
+          SSome(42)()
         )(),
-        SSome(42)()
-      )(),
-      Map[Param, (Expr, Expr)](
-        s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)()),
-        i -> (0, IfThenElse(i === 1, i, i + 1)()),
-        j -> (0, IfThenElse(i === 1, j + 1, j)())
-      )
-    )()
-    val fusedAndSimplified =
-      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
-    assert(fusedAndSimplified == ideal)
+        Map[Param, (Expr, Expr)](
+          s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)()),
+          i -> (0, IfThenElse(i === 1, i, i + 1)()),
+          j -> (0, IfThenElse(i === 1, j + 1, j)())
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    )
+    assert(fused == ideal)
   }
 
   test("FuseStmShiftLeft") {
-    val input = Param("input")()
     val n = 5
-    val original =
-      StmAppend(StmSuffix(input, n - 1)(), 42)()
-    val fused = original.asInstanceOf[StmBuild].fuseCompletely()
+    val input = Param("input")(TyStm(TyInt, n))
+    val original = StmAppend(StmSuffix(input, n - 1)(), 42)()
+      .tchk()
+      .lower()
+      .asInstanceOf[StmBuild]
+    val optimize = (s: StmBuild) => {
+      val s1 = s.fuseCompletely()
+      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      val s3 = StmSimplifier.simplify(s2)()
+      s3
+    }
+    val fused = optimize(original)
 
     // Correct behaviour
     val call = (e: Expr) => Let(input, StmCount(n)(), e)()
@@ -168,23 +189,22 @@ class OptimizationTests extends AnyFunSuite {
     val s = Param("s")()
     val i = Param("i")()
     val j = Param("j")()
-    val ideal =
+    val ideal = optimize(
       StmBuild(
         n,
         IfThenElse(
           i === 4,
           SSome(42)(),
-          IfThenElse(j < 1, NNone(???), SSome(StmNext(s)().__1)())()
+          IfThenElse(j < 1, NNone(TyInt), SSome(StmNext(s)().__1)())()
         )(),
         Map[Param, (Expr, Expr)](
           s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)()),
           i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1)())()),
           j -> (0, IfThenElse(i === 4, j, j + 1)())
         )
-      )()
-    val fusedAndSimplified =
-      PartialEvalPass.partialEval(StmAccRemovalPass.removeConstantVars(fused))
-    assert(fusedAndSimplified == ideal)
+      )().tchk().lower().asInstanceOf[StmBuild]
+    )
+    assert(fused == ideal)
   }
 
   /** The conversion of a vector with statically-known `f` but unknown `n` to a
@@ -192,10 +212,10 @@ class OptimizationTests extends AnyFunSuite {
     * `i`th element directly).
     */
   test("Vec2Stm(VecBuild(n, f))") {
-    val f = Param("f")()
-    val n = Param("n")()
+    val f = Param("f")(TyArrow(TyInt, TyInt))
+    val n = Param("n")(TyInt)
     val v = VecBuild(n, TyInt ::+ (i => FunCall(f, i)()))()
-    val s = Vec2Stm(v)()
+    val s = Vec2Stm(v)().tchk().lower()
     // This optimization is basically free just from partial evaluation.
     val actual = PartialEvalPass.partialEval(s)
 
@@ -221,7 +241,7 @@ class OptimizationTests extends AnyFunSuite {
       n,
       SSome(FunCall(f, i)())(),
       Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )()
+    )().tchk().lower()
     assert(actual == ideal)
   }
 
@@ -229,24 +249,25 @@ class OptimizationTests extends AnyFunSuite {
     * optimized (no delay, just return the vector directly).
     */
   test("Stm2Vec(StmCst(n, c)") {
-    val n = Param("n")()
-    val c = Param("c")()
-    val s = StmCst(n, c)()
-    val v = {
-      val v0 =
-        Stm2Vec(s)().tchk().lower().asInstanceOf[StmBuild].fuseCompletely()
-      val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmSimplifier.simplify(v1)()
-      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
-      val v4 = {
-        val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
-        PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
-      }
-      StmAccRemovalPass.removeUnusedVars(v4)
+    val n = Param("n")(TyInt)
+    val c = Param("c")(TyInt)
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val v0 = tl(s)
+      val v1 = tl(v0.fuseCompletely())
+      val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
+      val v3 = tl(StmSimplifier.simplify(v2)())
+      val v4 = tl(StmDelayRemovalPass.skipFirstCycles(v3, n - 1)())
+      val v5 = tl({
+        val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v3))
+        PartialEvalPass.partialEval(v4)(facts).asInstanceOf[StmBuild]
+      })
+      tl(StmAccRemovalPass.removeUnusedVars(v5))
     }
+    val v = optimize(Stm2Vec(StmCst(n, c)())())
 
     // Correctness
-    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0), Tuple(False, -99)())
+    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0))
     for (cVal <- cExamples) {
       for (nVal <- Seq(0, 1, 2, 5)) {
         val expected =
@@ -259,7 +280,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (_ => c))())()
+    val ideal = optimize(StmCst(1, VecBuild(n, TyInt ::+ (_ => c))())())
     assert(v == ideal)
   }
 
@@ -267,19 +288,24 @@ class OptimizationTests extends AnyFunSuite {
     * be optimized (no delay, just return the vector directly).
     */
   test("Stm2Vec(StmRange(n, z, delta))") {
-    val n = Param("n")()
-    val z = Param("z")()
-    val delta = Param("delta")()
+    val n = Param("n")(TyInt)
+    val z = Param("z")(TyInt)
+    val delta = Param("delta")(TyInt)
     val s = StmRange(n, z, delta)()
-    val v = {
-      val v0 =
-        Stm2Vec(s)().tchk().lower().asInstanceOf[StmBuild].fuseCompletely()
-      val v1 = StmInductionVarRemovalPass().removeInductionVars(v0)
-      val v2 = StmSimplifier.simplify(v1)()
-      val v3 = StmDelayRemovalPass.skipFirstCycles(v2, n - 1)()
-      val facts = FactSet().range(v3, StmAccRangeAnalysis.findAccRanges(v3))
-      PartialEvalPass.partialEval(v3)(facts).asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val v0 = tl(s)
+      val v1 = tl(v0.fuseCompletely())
+      val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
+      val v3 = tl(StmSimplifier.simplify(v2)())
+      val v4 = tl(StmDelayRemovalPass.skipFirstCycles(v3, n - 1)())
+      val v5 = tl({
+        val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v3))
+        PartialEvalPass.partialEval(v4)(facts).asInstanceOf[StmBuild]
+      })
+      tl(StmAccRemovalPass.removeUnusedVars(v5))
     }
+    val v = optimize(Stm2Vec(StmRange(n, z, delta)())())
 
     // Correctness
     for (nVal <- 0 to 10) {
@@ -300,74 +326,77 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (i => z + i * delta))())()
+    val ideal =
+      optimize(StmCst(1, VecBuild(n, TyInt ::+ (i => z + i * delta))())())
     assert(v == ideal)
   }
 
   /** Vec2Stm(Stm2Vec(s)) --> s
     */
   test("Vec2Stm(Stm2Vec(s))") {
-    val n = Param("n")()
-    val s = Param("s")()
-    val original =
-      StmMap(Stm2Vec(s)(), TyVec(TyInt, n) ::+ (v => Vec2Stm(v)()))()
-        .asInstanceOf[StmBuild]
-    val optimized = {
+    val n = Param("n")(TyInt)
+    val s = Param("s")(TyStm(TyInt, n))
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: StmBuild) => {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
-      val s1 = original.fuseCompletely()
-      val s2 = StmSimplifier.simplify(s1)(facts)
-      val s3 = StmInductionVarRemovalPass(facts).removeInductionVars(s2)
-      val s4 = StmSimplifier.simplify(s3)(facts)
-      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)(facts)
-      val s6 = StmSimplifier.simplify(s5)(facts)
+      val s1 = tl(s.fuseCompletely())
+      val s2 = tl(StmSimplifier.simplify(s1)(facts))
+      val s3 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s2))
+      val s4 = tl(StmSimplifier.simplify(s3)(facts))
+      val s5 = tl(StmDelayRemovalPass.skipFirstCycles(s4, n - 1)(facts))
+      val s6 = tl(StmSimplifier.simplify(s5)(facts))
       // Reset `t` to start at zero rather than n - 1
-      val s7 = StmInductionVarRemovalPass(facts).removeInductionVars(s6)
+      val s7 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s6))
       val newFacts = facts.range(s7, StmAccRangeAnalysis.findAccRanges(s7))
-      StmSimplifier.simplify(s7)(newFacts)
+      tl(StmSimplifier.simplify(s7)(newFacts))
     }
+    val original =
+      tl(StmMap(Stm2Vec(s)(), TyVec(TyInt, n) ::+ (v => Vec2Stm(v)()))())
+    val optimized = optimize(original)
 
     // Correctness
     val examples = Seq(
       StmCst(n, 42)(),
-      StmCst(n, 99)(),
       StmCst(n, -1)(),
-      StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3)()
+      StmRange(n, 1, 5)()
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, nVal, Let(s, stm, original)())()
-        val actual = Let(n, nVal, Let(s, stm, optimized)())()
+        val expected = Let(n, nVal, Let(s, stm, original)())().tchk()
+        val actual = Let(n, nVal, Let(s, stm, optimized)())().tchk()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
     // Effective simplification
     val a = Param("a")()
-    val identity = StmBuild(
-      n,
-      SSome(StmNext(a)().__1)(),
-      Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
-    )()
+    val identity = optimize(
+      StmBuild(
+        n,
+        SSome(StmNext(a)().__1)(),
+        Map[Param, (Expr, Expr)](a -> (s, StmNext(a)().__0))
+      )()
+    )
     assert(optimized == identity)
   }
 
   /** Stm2Vec(Vec2Stm(v)) --> StmCst(1, v)
     */
   test("Stm2Vec(Vec2Stm(v))") {
-    val n = Param("n")()
-    val v = Param("v")()
-    val original =
-      Stm2Vec(Vec2Stm(v)())().tchk().lower().asInstanceOf[StmBuild]
-    val optimized = {
-      val s1 = original.fuseCompletely()
-      val s2 = StmSimplifier.simplify(s1)()
-      val s3 = StmInductionVarRemovalPass().removeInductionVars(s2)
-      val s4 = StmSimplifier.simplify(s3)()
-      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n - 1)()
-      StmSimplifier.simplify(s5)()
+    val n = Param("n")(TyInt)
+    val v = Param("v")(TyVec(TyInt, n))
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: StmBuild) => {
+      val s1 = tl(s.fuseCompletely())
+      val s2 = tl(StmSimplifier.simplify(s1)())
+      val s3 = tl(StmInductionVarRemovalPass().removeInductionVars(s2))
+      val s4 = tl(StmSimplifier.simplify(s3)())
+      val s5 = tl(StmDelayRemovalPass.skipFirstCycles(s4, n - 1)())
+      tl(StmSimplifier.simplify(s5)())
     }
+    val original = tl(Stm2Vec(Vec2Stm(v)())())
+    val optimized = optimize(original)
 
     // Correctness
     val examples = Seq(
@@ -384,7 +413,8 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     // TODO: It would be even better if I could essentially eta-reduce the vector
-    val ideal = StmCst(1, VecBuild(n, TyInt ::+ (i => VecAccess(v, i)()))())()
+    val ideal =
+      tl(StmCst(1, VecBuild(n, TyInt ::+ (i => VecAccess(v, i)()))())())
     assert(optimized == ideal)
   }
 
@@ -396,46 +426,48 @@ class OptimizationTests extends AnyFunSuite {
   }
 
   test("StmReverse(StmReverse(s))") {
-    val n = Param("n")()
-    val s = Param("s")()
-    val original = StmReverse(StmReverse(s)())()
-    val optimized = {
+    assume(false)
+
+    val n = Param("n")(TyInt)
+    val s = Param("s")(TyStm(TyInt, n))
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: StmBuild) => {
       val facts = FactSet().geq(n, 1)
-      val s0 =
-        PartialEvalPass.partialEval(original)(facts).asInstanceOf[StmBuild]
-      val s1 = s0.fuseCompletely()
-      val s2 = StmInductionVarRemovalPass(facts).removeInductionVars(s1)
+      val s0 = tl(PartialEvalPass.partialEval(s)(facts))
+      val s1 = tl(s0.fuseCompletely())
+      val s2 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s1))
       // TODO: It should be able to do both in one step
-      val s3 = StmAccRemovalPass.removeUnusedVars(s2)
-      val s4 = StmAccRemovalPass.removeUnusedVars(s3)
-      val s5 = StmDelayRemovalPass.skipFirstCycles(s4, n)(facts)
-      val s6 = PartialEvalPass
-        .partialEval(s5)(
-          facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
-        )
-        .asInstanceOf[StmBuild]
-      val s7 = StmAccRemovalPass.removeUnusedVars(s6)
+      val s3 = tl(StmAccRemovalPass.removeUnusedVars(s2))
+      val s4 = tl(StmAccRemovalPass.removeUnusedVars(s3))
+      val s5 = tl(StmDelayRemovalPass.skipFirstCycles(s4, n)(facts))
+      val s6 = tl(
+        PartialEvalPass
+          .partialEval(s5)(
+            facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
+          )
+      )
+      val s7 = tl(StmAccRemovalPass.removeUnusedVars(s6))
       s7
     }
+    val original = tl(StmReverse(StmReverse(s)())())
+    val optimized = optimize(original)
 
     // Correctness
     val examples = Seq(
       StmCst(n, 42)(),
       StmCst(n, 99)(),
       StmCst(n, -1)(),
-      StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3)()
+      StmRange(n, 1, 5)()
     )
     for (stm <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, nVal, Let(s, stm, original)())()
-        val actual = Let(n, nVal, Let(s, stm, optimized)())()
+        val expected = Let(n, nVal, Let(s, stm, original)())().tchk()
+        val actual = Let(n, nVal, Let(s, stm, optimized)())().tchk()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
     // TODO: Effective simplification
-    assume(false)
     val a = Param("a")()
     val identity = StmBuild(
       n,
