@@ -479,43 +479,11 @@ object PartialEvalPass {
     }
   }
 
-  @deprecated
   private def isBoolExpr(e: Expr): Option[Boolean] = {
-    e match {
-      // Definitely evaluates to a bool
-      case True | False | _: And | _: Or | _: Not | _: Equal | _: LessThan =>
-        Some(true)
-      // Definitely not a bool
-      case _: Tuple | _: StmBuild | _: VecBuild | _: IntExpr | _: Function |
-          _: StmNext | _: StmNextK | _: VecLiteral | _: StmLiteral =>
-        Some(false)
-      // Not sure
-      case _: Param | _: SyntaxSugar => None
-      case TupleAccess(Tuple(elems @ _*), _) =>
-        val isBool = elems.map(e => isBoolExpr(e))
-        val atLeastOneTrue = isBool.exists(p => p.getOrElse(false))
-        val atLeastOneFalse = isBool.exists(p => !p.getOrElse(true))
-        (atLeastOneTrue, atLeastOneFalse) match {
-          case (false, false) => None
-          case (false, true)  => Some(false)
-          case (true, false)  => Some(true)
-          case (true, true)   => None
-        }
-      case TupleAccess(_, _)             => None
-      case FunCall(Function(p, body), _) => isBoolExpr(body)
-      case FunCall(_, _)                 => None
-      case IfThenElse(_, t, f) =>
-        (isBoolExpr(t), isBoolExpr(f)) match {
-          case (None, None) => None
-          case (None, Some(true)) | (Some(true), None) |
-              (Some(true), Some(true)) =>
-            Some(true)
-          case (None, Some(false)) | (Some(false), None) |
-              (Some(false), Some(false)) =>
-            Some(false)
-          case (Some(true), Some(false)) | (Some(false), Some(true)) => None
-        }
-      case _: VecAccess => None
+    try {
+      Some(e.tchk().typ == TyBool)
+    } catch {
+      case _: TypeError => None
     }
   }
 

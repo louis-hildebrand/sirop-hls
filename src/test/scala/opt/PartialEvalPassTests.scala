@@ -23,7 +23,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   // Used to debug a case where partial evaluator left behind a Not(Not(...))
   test("NotNot") {
-    val acc = Param("acc")()
+    val acc = Param("acc")(TyTuple(TyInt, TyInt, TyInt, TyBool, TyInt))
     val e =
       IfThenElse(
         acc.__3,
