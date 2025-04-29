@@ -6,6 +6,17 @@ import scala.language.implicitConversions
 
 class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
 
+class EmptyStreamError
+    extends IllegalArgumentException("Attempt to read from an empty stream.")
+
+// TODO: Also use this value when there's a StmNext(s).__1 without a
+//       corresponding StmNext(s).__0?
+case object EmptyStreamValue extends SyntaxSugar()(Missing) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = ???
+  override def typecheck(context: Map[Param, Type]): Expr = ???
+  override def lowerSyntaxSugar(): Expr = ???
+}
+
 trait Eval {
 
   /** If a stream takes this many steps without producing a valid element,
@@ -253,6 +264,7 @@ trait Eval {
         }
       case v: StmLiteral => v
 
+      case EmptyStreamValue => throw new EmptyStreamError
       case s: SyntaxSugar =>
         throw new IllegalArgumentException(
           s"There should be no more syntax sugar after lowering. Found $s."
@@ -307,9 +319,7 @@ trait Eval {
     } else {
       evalBigStep(s) match {
         case StmLiteral() | StmBuild(IntCst(0), _, _) =>
-          throw new IllegalArgumentException(
-            s"Attempt to read from empty stream."
-          )
+          Tuple(StmLiteral()(), EmptyStreamValue)()
         case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
           val nextEquations = equations.map({ case (x, (_, next)) =>
