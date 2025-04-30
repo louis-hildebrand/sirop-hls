@@ -6,6 +6,45 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {
 
+  /** The optimizer can create a reduction tree for VecFold, *provided* the
+    * length is a static constant.
+    */
+  test("VecFoldReductionTree") {
+    val n = 3
+    val v = Param("v")(TyVec(TyInt, n))
+    val z = Param("z")(TyInt)
+    val original = VecFold(v, z, TyInt ::+ (acc => TyInt ::+ (x => acc + x)))()
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val s0 = tl(s)
+      val s1 = tl(s0.fuseCompletely())
+      val s2 = tl(StmSimplifier.simplify(s1)())
+      s2
+    }
+    val optimized = optimize(original)
+
+    // Correctness
+    val vExamples = Seq(
+      VecBuild(n, TyInt ::+ (i => i))(),
+      VecBuild(n, TyInt ::+ (i => i * (i + 1)))()
+    )
+    val zExamples = Seq(IntCst(0), IntCst(-3), IntCst(42))
+    for (vVal <- vExamples) {
+      for (zVal <- zExamples) {
+        val expected = ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
+        val actual = ir.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
+        assert(actual == expected)
+      }
+    }
+
+    // Effective simplification
+    val ideal =
+      StmCst(1, z + VecAccess(v, 0)() + VecAccess(v, 1)() + VecAccess(v, 2)())()
+        .tchk()
+        .lower()
+    assert(optimized == ideal)
+  }
+
   /** The optimizer can perform map-map fusion.
     */
   test("MapMap") {
