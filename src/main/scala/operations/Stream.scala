@@ -359,7 +359,6 @@ case class StmMap(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val input = this.input.lower()
-    // TODO: Doesn't asStm2Stm already take care of this?
     val f = this.f.lower()
     val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
