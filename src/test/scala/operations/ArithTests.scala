@@ -5,12 +5,12 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ArithTests extends AnyFunSuite {
   test("Min") {
-    val x = Param("x")
-    val y = Param("y")
+    val x = Param("x")()
+    val y = Param("y")()
     val e = Min(x, y)
 
     val min = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+      ir.eval(Let(x, xVal, Let(y, yVal, e)())())
         .asInstanceOf[IntCst]
         .i
     for (xVal <- -10 to 10) {
@@ -21,12 +21,12 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("Max") {
-    val x = Param("x")
-    val y = Param("y")
+    val x = Param("x")()
+    val y = Param("y")()
     val e = Max(x, y)
 
     val max = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+      ir.eval(Let(x, xVal, Let(y, yVal, e)())())
         .asInstanceOf[IntCst]
         .i
     for (xVal <- -10 to 10) {
@@ -37,12 +37,12 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("CeilDiv") {
-    val x = Param("x")
-    val y = Param("y")
+    val x = Param("x")()
+    val y = Param("y")()
     val e = CeilDiv(x, y)
 
     val ceildiv = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, xVal, Let(y, yVal, e)))
+      ir.eval(Let(x, xVal, Let(y, yVal, e)())())
         .asInstanceOf[IntCst]
         .i
     for (x <- -4 to 4) {

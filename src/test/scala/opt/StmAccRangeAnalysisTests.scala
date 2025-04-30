@@ -6,21 +6,21 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRangeAnalysisTests extends AnyFunSuite {
   test("RangeForNonDecreasingElem") {
-    val n = Param("n")
-    val z = Param("z")
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
+    val n = Param("n")()
+    val z = Param("z")()
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
     val stm =
       StmBuild(
         n,
-        SSome(a),
+        SSome(a)(),
         Map[Param, (Expr, Expr)](
           a -> (z, a + 1),
           b -> (-3, b + 9),
           c -> (2, 2 * c + 2)
         )
-      )
+      )()
 
     val expectedRanges = StmAccRange(
       Map(
@@ -29,24 +29,25 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         c -> ScalarRange(Some(2), None)
       )
     )
-    assert(StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges)
+    val actualRanges = StmAccRangeAnalysis.findAccRanges(stm)
+    assert(actualRanges == expectedRanges)
   }
 
   test("RangeForNonIncreasingElem") {
-    val n = Param("n")
-    val z = Param("z")
-    val a = Param("a")
-    val b = Param("b")
-    val c = Param("c")
+    val n = Param("n")()
+    val z = Param("z")()
+    val a = Param("a")()
+    val b = Param("b")()
+    val c = Param("c")()
     val stm = StmBuild(
       n,
-      SSome(a),
+      SSome(a)(),
       Map[Param, (Expr, Expr)](
         a -> (z, a - 1),
         b -> (3, b - 9),
         c -> (-4, 2 * c + 2)
       )
-    )
+    )()
 
     val expectedRanges = StmAccRange(
       Map(
@@ -59,17 +60,17 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
   }
 
   test("IncreasingAndDecreasing") {
-    val n = Param("n")
-    val a = Param("a")
-    val b = Param("b")
+    val n = Param("n")()
+    val a = Param("a")()
+    val b = Param("b")()
     val stm = StmBuild(
       n,
-      SSome(Tuple(a, b)),
+      SSome(Tuple(a, b)())(),
       Map[Param, (Expr, Expr)](
-        a -> (3, IfThenElse(a % 2 === 0, a + 1, a - 3)),
+        a -> (3, IfThenElse(a % 2 === 0, a + 1, a - 3)()),
         b -> (1, b * -2)
       )
-    )
+    )()
 
     val expectedRanges = StmAccRange(
       Map(
@@ -81,14 +82,14 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
   }
 
   test("StreamAccumulator") {
-    val s = Param("s")
-    val n = Param("n")
-    val a = Param("a")
+    val s = Param("s")()
+    val n = Param("n")()
+    val a = Param("a")()
     val stm = StmBuild(
       n,
-      SSome(StmNext(a).__1),
-      Map(a -> (s, StmNext(a).__0))
-    )
+      SSome(StmNext(a)().__1)(),
+      Map(a -> (s, StmNext(a)().__0))
+    )()
 
     val expectedRanges = StmAccRange(Map(a -> ScalarRange(None, None)))
     assert(

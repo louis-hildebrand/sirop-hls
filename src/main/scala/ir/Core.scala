@@ -1,37 +1,375 @@
 package ir
 
-import java.util.Objects
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 
-/** A node in the core IR.
+class BadRebuildError(e: Expr, args: Seq[Expr])
+    extends IllegalArgumentException(
+      s"Wrong arguments passed to rebuild: node $e, args $args"
+    )
+
+/** A node in the IR.
+  *
+  * @param typ
+  *   The type of this node. If this node has a type other than
+  *   <code>Missing</code>, then all its children must also have types other
+  *   than <code>Missing</code>.
   */
-sealed trait Expr {
-  def +(that: Expr): Expr = Sum(this, that)
-  def -(that: Expr): Expr = Sum(this, Prod(-1, that))
-  def *(that: Expr): Expr = Prod(this, that)
-  def /(that: Expr): Div = Div(this, that)
-  def %(that: Expr): Mod = Mod(this, that)
-  def ===(that: Expr): Equal = Equal(this, that)
-  def !==(that: Expr): Expr = Not(Equal(this, that))
-  def <(that: Expr): LessThan = LessThan(this, that)
-  def <=(that: Expr): Not = Not(this > that)
+sealed abstract class Expr(val children: Expr*)(val typ: Type) {
+  def +(that: Expr): Expr = Sum(this, that)()
+  def -(that: Expr): Expr = Sum(this, Prod(-1, that)())()
+  def *(that: Expr): Expr = Prod(this, that)()
+  def /(that: Expr): Div = Div(this, that)()
+  def %(that: Expr): Mod = Mod(this, that)()
+  def ===(that: Expr): Equal = Equal(this, that)()
+  def !==(that: Expr): Expr = Not(Equal(this, that)())()
+  def <(that: Expr): LessThan = LessThan(this, that)()
+  def <=(that: Expr): Not = Not(this > that)()
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
-  def &&(that: Expr): And = And(this, that)
-  def ||(that: Expr): Or = Or(this, that)
+  def unary_! : Not = Not(this)()
+  def &&(that: Expr): Expr = And(this, that)()
+  def ||(that: Expr): Expr = Or(this, that)()
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
-  def __0: TupleAccess = TupleAccess(this, 0)
-  def __1: TupleAccess = TupleAccess(this, 1)
-  def __2: TupleAccess = TupleAccess(this, 2)
-  def __3: TupleAccess = TupleAccess(this, 3)
-  def __4: TupleAccess = TupleAccess(this, 4)
-  def __5: TupleAccess = TupleAccess(this, 5)
+  def __0: TupleAccess = TupleAccess(this, 0)()
+  def __1: TupleAccess = TupleAccess(this, 1)()
+  def __2: TupleAccess = TupleAccess(this, 2)()
+  def __3: TupleAccess = TupleAccess(this, 3)()
+  def __4: TupleAccess = TupleAccess(this, 4)()
+  def __5: TupleAccess = TupleAccess(this, 5)()
 
-  def children: Seq[Expr]
-  def rebuild(newChildren: Seq[Expr]): Expr
+  /** Type check this expression and annotate this node with its type.
+    *
+    * @return
+    *   A new expression that is equal to this one but has a type annotation
+    *   that is not <code>Missing</code>
+    */
+  def tchk(implicit context: Map[Param, Type] = Map()): Expr = {
+    this match {
+      case e if e.typ != Missing => e
+
+      case x: Param =>
+        context.get(x) match {
+          case Some(t) => x.rebuild(t)
+          case None    => throw new TypeError(s"Free variable: $x.")
+        }
+      case Function(x, body) =>
+        val t = x.typ match {
+          case Missing =>
+            throw new TypeError(s"Missing function input type annotation.")
+          case t => t
+        }
+        val newBody = body.tchk(context + (x -> t))
+        Function(x, newBody)(TyArrow(t, newBody.typ))
+      case fc @ FunCall(f, arg) =>
+        val newF = f.tchk
+        val newArg = arg.tchk
+        newF.typ match {
+          case TyArrow(t1, t2) =>
+            if (newArg.typ.isCompatibleWith(t1)) {
+              fc.rebuild(t2, Seq(newF, newArg))
+            } else {
+              throw new TypeError(
+                s"Left-hand side of function call expects input of type $t1, but ${newArg.typ} was provided."
+              )
+            }
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of function call has type $t. It should be a function."
+            )
+        }
+
+      case n: IntCst => n.rebuild(TyInt)
+      case s @ Sum(terms @ _*) =>
+        val newTerms = terms.map(e => e.tchk)
+        for ((t, i) <- newTerms.zipWithIndex) {
+          if (t.typ != TyInt) {
+            throw new TypeError(s"Term $i of sum has type ${t.typ}.")
+          }
+        }
+        s.rebuild(TyInt, newTerms)
+      case p @ Prod(factors @ _*) =>
+        val newFactors = factors.map(e => e.tchk)
+        for ((t, i) <- newFactors.zipWithIndex) {
+          if (t.typ != TyInt) {
+            throw new TypeError(s"Term $i of product has type ${t.typ}.")
+          }
+        }
+        p.rebuild(TyInt, newFactors)
+      case d @ Div(e1, e2) =>
+        val newLhs = e1.tchk
+        newLhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        val newRhs = e2.tchk
+        newRhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        d.rebuild(TyInt, Seq(newLhs, newRhs))
+      case m @ Mod(e1, e2) =>
+        val newLhs = e1.tchk
+        newLhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        val newRhs = e2.tchk
+        newRhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        m.rebuild(TyInt, Seq(newLhs, newRhs))
+
+      case True  => True
+      case False => False
+      case ite @ IfThenElse(c, t, f) =>
+        val newC = c.tchk
+        newC.typ match {
+          case TyBool => ()
+          case t => throw new TypeError(s"Expected type $TyBool but found $t.")
+        }
+        val newT = t.tchk
+        val newF = f.tchk
+        if (newT.typ.isCompatibleWith(newF.typ)) {
+          ite.rebuild(newT.typ, Seq(newC, newT, newF))
+        } else {
+          throw new TypeError(
+            s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
+          )
+        }
+      case a @ And(terms @ _*) =>
+        val newTerms = terms.map(e => e.tchk)
+        for ((t, i) <- newTerms.zipWithIndex) {
+          if (t.typ != TyBool) {
+            throw new TypeError(s"Term $i of AND has type ${t.typ}.")
+          }
+        }
+        a.rebuild(TyBool, newTerms)
+      case or @ Or(terms @ _*) =>
+        val newTerms = terms.map(e => e.tchk)
+        for ((t, i) <- newTerms.zipWithIndex) {
+          if (t.typ != TyBool) {
+            throw new TypeError(s"Term $i of OR has type ${t.typ}.")
+          }
+        }
+        or.rebuild(TyBool, newTerms)
+      case n @ Not(e) =>
+        val newE = e.tchk
+        newE.typ match {
+          case TyBool => ()
+          case t => throw new TypeError(s"Expected type $TyBool but found $t.")
+        }
+        n.rebuild(TyBool, Seq(newE))
+      case eq @ Equal(e1, e2) =>
+        val newE1 = e1.tchk
+        newE1.typ match {
+          case _: TyStm | _: TyArrow =>
+            throw new TypeError(s"Cannot compare value of type ${newE1.typ}.")
+          case _ => ()
+        }
+        val newE2 = e2.tchk
+        newE2.typ match {
+          case _: TyStm | _: TyArrow =>
+            throw new TypeError(s"Cannot compare value of type ${newE2.typ}.")
+          case _ => ()
+        }
+        if (newE1.typ.isCompatibleWith(newE2.typ)) {
+          eq.rebuild(TyBool, Seq(newE1, newE2))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of Equals has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
+          )
+        }
+      case lt @ LessThan(e1, e2) =>
+        val newLhs = e1.tchk
+        newLhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        val newRhs = e2.tchk
+        newRhs.typ match {
+          case TyInt => ()
+          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        }
+        lt.rebuild(TyBool, Seq(newLhs, newRhs))
+
+      case t @ Tuple(elems @ _*) =>
+        val newElems = elems.map(e => e.tchk)
+        t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
+      case ta @ TupleAccess(t, IntCst(i)) =>
+        val newT = t.tchk
+        newT.typ match {
+          case TyTuple(ts @ _*) =>
+            ta.rebuild(ts(i), Seq(newT, IntCst(i)))
+          case t =>
+            throw new TypeError(s"Left-hand side of tuple access has type $t.")
+        }
+
+      case vb @ VecBuild(n, f) =>
+        val newN = n.tchk
+        newN.typ match {
+          case TyInt => ()
+          case t     => throw new TypeError(s"Length of VecBuild has type $t.")
+        }
+        val newF = f.tchk
+        // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
+        val vecT = newF.typ match {
+          case TyArrow(TyInt, t) => t
+          case t => throw new TypeError(s"Function of VecBuild has type $t.")
+        }
+        vb.rebuild(TyVec(vecT, newN), Seq(newN, newF))
+      case va @ VecAccess(v, i) =>
+        val newV = v.tchk
+        val vecT = newV.typ match {
+          case TyVec(t, _) => t
+          case t =>
+            throw new TypeError(s"Left-hand side of VecAccess has type $t.")
+        }
+        val newI = i.tchk
+        newI.typ match {
+          case TyInt => ()
+          case t =>
+            throw new TypeError(s"Right-hand side of VecAccess has type $t.")
+        }
+        va.rebuild(vecT, Seq(newV, newI))
+      case vl @ VecLength(v) =>
+        val newV = v.tchk
+        newV.typ match {
+          case _: TyVec => ()
+          case t =>
+            throw new TypeError(s"Argument of VecLength has type $t.")
+        }
+        vl.rebuild(TyInt, Seq(newV))
+      case _: VecLiteral => ???
+
+      case s: StmBuild =>
+        val newN = s.n.tchk
+        newN.typ match {
+          case TyInt => ()
+          case t     => throw new TypeError(s"Length of StmBuild has type $t.")
+        }
+        val newSeedByVar = s.seedByVar.map({ case (x, z) => x -> z.tchk })
+        val newContext = newSeedByVar.foldLeft(context)({ case (ctx, (x, z)) =>
+          ctx + (x -> z.typ)
+        })
+        val newNextByVar = s.nextByVar.map({ case (x, next) =>
+          val newNext = next.tchk(newContext)
+          val initTyp = newSeedByVar(x).typ
+          if (initTyp.isCompatibleWith(newNext.typ)) {
+            x -> newNext
+          } else {
+            throw new TypeError(
+              s"Next value for accumulator $x has type ${newNext.typ} but the initial value has type $initTyp."
+            )
+          }
+        })
+        val newEquations = s.accVars
+          .map(x => {
+            val z = newSeedByVar(x)
+            val newX = x.rebuild(z.typ)
+            newX -> (z, newNextByVar(x))
+          })
+          .toMap
+        val newOutput = s.output.tchk(newContext)
+        val stmT = newOutput.typ match {
+          case TyTuple(t, TyBool) => t
+          case t => throw new TypeError(s"Output of StmBuild has type $t.")
+        }
+        StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
+      case sn @ StmNext(s) =>
+        val newS = s.tchk
+        newS.typ match {
+          case TyStm(t, n) =>
+            sn.rebuild(TyTuple(TyStm(t, n - 1), t), Seq(newS))
+          case t => throw new TypeError(s"Argument of StmNext has type $t.")
+        }
+      case sn @ StmNextK(s, k) =>
+        val newK = k.tchk
+        newK.typ match {
+          case TyInt => ()
+          case t     => throw new TypeError(s"Index of StmNextK has type $t.")
+        }
+        val newS = s.tchk
+        newS.typ match {
+          case TyStm(t, n) =>
+            sn.rebuild(TyStm(t, n - k), Seq(newS, newK))
+          case t => throw new TypeError(s"Stream of StmNext has type $t.")
+        }
+      case sl @ StmLength(s) =>
+        val newS = s.tchk
+        newS.typ match {
+          case _: TyStm => sl.rebuild(TyInt, Seq(newS))
+          case t => throw new TypeError(s"Argument of StmNext has type $t.")
+        }
+      case StmLiteral(typ, elems @ _*) => ???
+
+      case s: SyntaxSugar => s.typecheck(context)
+    }
+  }
+
+  def expectTypeCompatibleWith(t: Type): Expr = {
+    if (!this.typ.isCompatibleWith(t)) {
+      throw new TypeError(s"Expected type $t but found ${this.typ}.")
+    }
+    this
+  }
+
+  def expectType(t: Type): Expr = {
+    if (this.typ != t) {
+      throw new TypeError(s"Expected type $t but found ${this.typ}.")
+    }
+    this
+  }
+
+  protected def requireType(): Unit = {
+    require(
+      this.typ != Missing,
+      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
+    )
+  }
+
+  def hasType: Boolean = this.typ != Missing
+
+  if (this.hasType) {
+    // This allows the type checker to completely skip expressions that already
+    // have a type
+    for ((e, i) <- this.children.zipWithIndex) {
+      assert(
+        e.hasType,
+        s"a typed node must have typed children, but child $i in ${this.getClass.getSimpleName} is untyped"
+      )
+    }
+  }
+
+  def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
+  def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
+  def rebuild(typ: Type): Expr = rebuild(typ, children)
   def map(f: Expr => Expr): Expr = rebuild(children.map(f))
+
+  /** Remove all syntax sugar from this expression and its children. This is
+    * guaranteed to preserve type annotations.
+    */
+  def lower(): Expr = {
+    val desugared = this match {
+      case s: SyntaxSugar => s.lowerSyntaxSugar()
+      case e => e.rebuild(e.typ.flat, e.children.map(e => e.lower()))
+    }
+    // This is required because lowering may be syntax-directed (i.e., an
+    // expression may need to be typed before it can be lowered) and it is no
+    // good if you type check an expression but then the type is removed while
+    // lowering its children.
+    assert(
+      !this.hasType || desugared.typ.isCompatibleWith(this.typ.flat),
+      s"lowering must yield an expression whose type is the original, but flattened (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.flat} but found ${desugared.typ})"
+    )
+    assert(
+      !desugared.contains(classOf[SyntaxSugar]),
+      s"lowering must yield an expression without any syntax sugar (after attempting to lower ${this.getClass.getSimpleName}, which yielded $desugared)"
+    )
+    desugared
+  }
 
   def contains(p: Expr => Boolean): Boolean = {
     p(this) || this.children.exists(e => e.contains(p))
@@ -40,6 +378,9 @@ sealed trait Expr {
   def contains[T <: Expr](cls: Class[T]): Boolean =
     this.contains(e => cls.isInstance(e))
 
+  /** Perform all the given substitutions on this expression. Substitutions does
+    * <i>not</i> necessarily preserve type annotations.
+    */
   def substitute(subs: Map[Expr, Expr]): Expr = {
     if (subs.isEmpty) {
       this
@@ -54,7 +395,7 @@ sealed trait Expr {
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
               val renamed = f.renameVar
-              Function(renamed.param, renamed.body.substitute(subs))
+              Function(renamed.param, renamed.body.substitute(subs))()
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
@@ -67,14 +408,75 @@ sealed trait Expr {
                 renamed.equations.map({ case (x, (z, next)) =>
                   x -> (z.substitute(subs), next.substitute(subs))
                 })
-              )
-            case e => e.rebuild(e.children.map(e => e.substitute(subs)))
+              )()
+            case x: Param =>
+              // Don't erase the type annotation for variables
+              x
+            case e =>
+              e.rebuild(Missing, e.children.map(e => e.substitute(subs)))
           }
       }
     }
   }
 
+  /** Perform all the given substitutions on this expression. Substitutions does
+    * <i>not</i> necessarily preserve type annotations.
+    */
   def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
+
+  /** Perform a substitution while preserving all type annotations.
+    */
+  def subPreserveType(subs: Map[Expr, Expr]): Expr = {
+    val out = if (subs.isEmpty) {
+      this
+    } else {
+      subs.get(this) match {
+        case Some(v) =>
+          // For convenience, automatically preserve the type if you're
+          // replacing with a variable (which seems fairly common)
+          v match {
+            case x: Param => x.rebuild(this.typ)
+            case e        => e
+          }
+        case None =>
+          this match {
+            case f: Function =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case f.param appears free in the old value of a
+              //       substitution (i.e., the value to be replaced)
+              val renamed = f.renameVar
+              Function(renamed.param, renamed.body.subPreserveType(subs))(f.typ)
+            case s: StmBuild =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case an accumulator variable appears free in the old
+              //       value of a substitution (i.e., the value to be replaced)
+              val renamed = s.renameVars
+              StmBuild(
+                renamed.n.subPreserveType(subs),
+                renamed.output.subPreserveType(subs),
+                renamed.equations.map({ case (x, (z, next)) =>
+                  x -> (z.subPreserveType(subs), next.subPreserveType(subs))
+                })
+              )(s.typ)
+            case e =>
+              e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
+          }
+      }
+    }
+    if (this.hasType) {
+      assert(
+        out.typ.isCompatibleWith(this.typ),
+        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ})"
+      )
+    }
+    out
+  }
+
+  /** Perform a substitution while preserving all type annotations.
+    */
+  def subPreserveType(sub: (Expr, Expr)): Expr = subPreserveType(Map(sub))
 
   def freeVars(): Set[Param] = {
     this match {
@@ -99,26 +501,6 @@ sealed trait Expr {
         )
       case e =>
         e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
-    }
-  }
-
-  /** If this expression is <code>Default</code>, replace it with the default
-    * integer.
-    */
-  def defaultToInt: Expr = {
-    this match {
-      case Default => Default.int
-      case e       => e
-    }
-  }
-
-  /** If this expression is <code>Default</code>, replace it with the default
-    * boolean.
-    */
-  def defaultToBool: Expr = {
-    this match {
-      case Default => Default.bool
-      case e       => e
     }
   }
 }
@@ -155,7 +537,6 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
-      case Default        => 0
       case False          => 1
       case True           => 2
       case _: And         => 3
@@ -183,79 +564,91 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: VecLiteral  => 25
       case _: StmLiteral  => 26
       case _: StmNextK    => 27
+      case _: SyntaxSugar => 28
     }
   }
 }
 
 // Tuples
-case class Tuple(elems: Expr*) extends Expr {
-  override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = Tuple(newChildren: _*)
+case class Tuple(elems: Expr*)(typ: Type = Missing)
+    extends Expr(elems: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
+    Tuple(newChildren: _*)(typ)
 }
-case class TupleAccess(t: Expr, i: IntCst) extends Expr {
-  override def children: Seq[Expr] = Seq(t, i)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+
+case class TupleAccess(t: Expr, i: IntCst)(typ: Type) extends Expr(t, i)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(t, i: IntCst) => TupleAccess(t, i)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
+      case _                 => throw new BadRebuildError(this, newChildren)
     }
+  }
+}
+case object TupleAccess {
+  def apply(t: Expr, i: IntCst)(typ: Type = Missing): TupleAccess = {
+    val newTyp = (typ, t.typ) match {
+      case (Missing, TyTuple(ts @ _*)) => ts(i.i)
+      case _                           => typ
+    }
+    new TupleAccess(t, i)(newTyp)
   }
 }
 
 // Functions
-case class Param(prefix: String, id: Long) extends Expr {
+case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
   val name: String = s"${prefix}_$id"
 
-  override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Param = {
     require(newChildren.isEmpty)
-    this
+    Param(this.prefix, this.id)(typ)
+  }
+  override def rebuild(newChildren: Seq[Expr]): Param = {
+    // Keep the same type by default
+    rebuild(this.typ, newChildren)
   }
 
-  def freshCopy: Param = Param(this.prefix)
+  override def rebuild(typ: Type): Param = rebuild(typ, this.children)
+
+  def freshCopy: Param = Param(this.prefix)(this.typ)
 
   override def toString: String = name
 }
 case object Param {
   private val idCtr = new AtomicLong()
 
-  def apply(prefix: String = "p"): Param = {
-    new Param(prefix, idCtr.incrementAndGet())
+  def apply(prefix: String)(typ: Type = Missing): Param = {
+    new Param(prefix, idCtr.incrementAndGet())(typ)
   }
 }
 
-case class Function(param: Param, body: Expr) extends Expr {
-  override def children: Seq[Expr] = Seq(param, body)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class Function(param: Param, body: Expr)(typ: Type = Missing)
+    extends Expr(param, body)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(x: Param, body: Expr) => Function(x, body)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(x: Param, body: Expr) => Function(x, body)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  override def lower(): Function = super.lower().asInstanceOf[Function]
 
   /** Construct a new function in which the bound variable has a fresh name.
     */
   def renameVar: Function = {
     val newParam = this.param.freshCopy
-    Function(newParam, this.body.substitute(this.param -> newParam))
+    assert(newParam.typ == this.param.typ)
+    Function(newParam, this.body.subPreserveType(this.param -> newParam))(typ)
   }
 
   override def equals(x: Any): Boolean = {
     x match {
       case that: Function =>
-        val fresh = Param()
+        val fresh = Param("p")()
         (this.body.substitute(this.param -> fresh)
           == that.body.substitute(that.param -> fresh))
       case _ => false
     }
   }
-
   override def hashCode(): Int = {
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
@@ -269,38 +662,42 @@ object Function {
     * that the bound variable name doesn't affect the hash code. <i>It MUST NOT
     * be used for anything else</i>.
     */
-  private val HashCodeParam = Param("hashCode")
+  private val HashCodeParam = Param("hashCode")()
 }
 
-case class FunCall(f: Expr, arg: Expr) extends Expr {
-  override def children: Seq[Expr] = Seq(f, arg)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
+    extends Expr(f, arg)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    FunCall(newChildren.head, newChildren(1))
+    FunCall(newChildren.head, newChildren(1))(typ)
   }
 }
 
-sealed trait BinOp extends Expr {
-  val e1: Expr
-  val e2: Expr
-
-  override def children: Seq[Expr] = Seq(e1, e2)
-}
-
 // Integer expressions
-sealed trait IntExpr extends Expr
+// Unfortunately, cannot say that this node always has type Int.
+// If we do, then the type checker will not visit the children, which may lead
+// to type errors being missed.
+sealed abstract class IntExpr(children: Expr*)(typ: Type)
+    extends Expr(children: _*)(typ)
 
-case class IntCst(i: Int) extends IntExpr {
-  override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class IntCst(i: Int) extends IntExpr()(TyInt) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == TyInt || typ == Missing)
     require(newChildren.isEmpty)
     this
   }
 }
 
-final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
+case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "Sum must have at least one term.")
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Sum(newChildren: _*)(typ)
+  }
+}
+case object Sum {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
+    val terms = unsortedTerms
       // Flatten nested sums to represent associativity
       .flatMap({
         case s: Sum => s.terms
@@ -308,90 +705,96 @@ final class Sum(unsortedTerms: Seq[Expr]) extends IntExpr {
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
-
-  override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = Sum(newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Sum => this.terms == that.terms
-      case _         => false
+    terms match {
+      case Seq()  => 0
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
+          TyInt
+        } else {
+          typ
+        }
+        new Sum(terms: _*)(newTyp)
     }
   }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"Sum(${this.terms})"
-  }
-}
-object Sum {
-  def apply(terms: Expr*): Sum = {
-    new Sum(terms)
-  }
-
-  def unapply(s: Sum): Option[Seq[Expr]] = {
-    Some(s.terms)
-  }
 }
 
-final class Prod(unsortedFactors: Seq[Expr]) extends IntExpr {
-  val factors: Seq[Expr] =
-    unsortedFactors
-      // Flatten nested sums to represent associativity
-      .flatMap({
-        case p: Prod => p.factors
-        case e       => Seq(e)
-      })
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
+case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
+  require(factors.nonEmpty, "Prod must have at least one factor.")
 
-  override def children: Seq[Expr] = factors
-  override def rebuild(newChildren: Seq[Expr]): Expr = Prod(newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Prod => this.factors == that.factors
-      case _          => false
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Prod(newChildren: _*)(typ)
+  }
+}
+case object Prod {
+  def apply(unsortedFactors: Expr*)(typ: Type = Missing): Expr = {
+    val factors: Seq[Expr] =
+      unsortedFactors
+        // Flatten nested sums to represent associativity
+        .flatMap({
+          case p: Prod => p.factors
+          case e       => Seq(e)
+        })
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    factors match {
+      case Seq()  => IntCst(1)
+      case Seq(e) => e
+      case factors =>
+        val newTyp =
+          if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
+            TyInt
+          } else {
+            typ
+          }
+        new Prod(factors: _*)(newTyp)
     }
   }
-  override def hashCode(): Int = {
-    this.factors.hashCode()
-  }
-
-  override def toString: String = {
-    s"Prod(${this.factors})"
-  }
-}
-object Prod {
-  def apply(factors: Expr*): Prod = {
-    new Prod(factors)
-  }
-
-  def unapply(p: Prod): Option[Seq[Expr]] = {
-    Some(p.factors)
-  }
 }
 
-case class Div(e1: Expr, e2: Expr) extends IntExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class Div(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Div(newChildren.head, newChildren(1))
+    Div(newChildren.head, newChildren(1))(typ)
   }
 }
-case class Mod(e1: Expr, e2: Expr) extends IntExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case object Div {
+  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Div = {
+    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
+      TyInt
+    } else {
+      typ
+    }
+    new Div(e1, e2)(newTyp)
+  }
+}
+
+case class Mod(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
-    Mod(newChildren.head, newChildren(1))
+    Mod(newChildren.head, newChildren(1))(typ)
+  }
+}
+case object Mod {
+  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Mod = {
+    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
+      TyInt
+    } else {
+      typ
+    }
+    new Mod(e1, e2)(newTyp)
   }
 }
 
 // Boolean expressions
-sealed trait BoolExpr extends Expr
-sealed trait BoolCst extends BoolExpr {
-  override def children: Seq[Expr] = Seq()
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+// Unfortunately, cannot say that this node always has type Int.
+// If we do, then the type checker will not visit the children, which may lead
+// to type errors being missed.
+sealed abstract class BoolExpr(children: Expr*)(typ: Type)
+    extends Expr(children: _*)(typ)
+sealed abstract class BoolCst extends BoolExpr()(TyBool) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == TyBool || typ == Missing)
     require(newChildren.isEmpty)
     this
   }
@@ -403,192 +806,147 @@ case object False extends BoolCst
 // False is interpreted as 0 and True as 1.
 // However, IfThenElse does *not* evaluate the branch that's not taken, which
 // is important in cases like calling StmNext() or memory accesses.
-final class IfThenElse(cond: Expr, trueE: Expr, falseE: Expr) extends Expr {
-  val (c, t, f) = cond match {
-    case Not(c) => (c, falseE, trueE)
-    case c      => (c, trueE, falseE)
-  }
-
-  override def children: Seq[Expr] = Seq(c, t, f)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class IfThenElse(c: Expr, t: Expr, f: Expr)(typ: Type)
+    extends Expr(c, t, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(c, t, f) => IfThenElse(c, t, f)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(c, t, f) => IfThenElse(c, t, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
     }
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: IfThenElse =>
-        this.c == that.c && this.t == that.t && this.f == that.f
-      case _ => false
-    }
-  }
-  override def hashCode(): Int = {
-    (this.c, this.t, this.f).hashCode()
-  }
-
-  override def toString: String = {
-    s"IfThenElse($c, $t, $f)"
   }
 }
-object IfThenElse {
-  def apply(c: Expr, t: Expr, f: Expr): Expr = {
-    new IfThenElse(c, t, f)
-  }
-
-  def unapply(ite: IfThenElse): Option[(Expr, Expr, Expr)] = {
-    Some((ite.c, ite.t, ite.f))
+case object IfThenElse {
+  def apply(c: Expr, t: Expr, f: Expr)(
+      typ: Type = Missing
+  ): IfThenElse = {
+    c match {
+      case Not(c) => new IfThenElse(c, f, t)(typ)
+      case c      => new IfThenElse(c, t, f)(typ)
+    }
   }
 }
 
 // Comparison operators
-case class Equal(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class Equal(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BoolExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => Equal(e1, e2)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(e1, e2) => Equal(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
     }
   }
 }
-case class LessThan(e1: Expr, e2: Expr) extends BoolExpr with BinOp {
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+
+case class LessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BoolExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => LessThan(e1, e2)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(e1, e2) => LessThan(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
     }
   }
 }
+
 // Logical operators
-case class Not(e: Expr) extends BoolExpr {
-  override def children: Seq[Expr] = Seq(e)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class Not(e: Expr)(typ: Type = Missing) extends BoolExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e) => Not(e)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(e) => Not(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
-final class And(unsortedTerms: Expr*) extends BoolExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
-      // Flatten nested ANDs to represent associativity
-      .flatMap({
-        case a: And => a.terms
-        case e      => Seq(e)
-      })
-      // Deduplicate to represent the fact that x && x == x
-      .distinct
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
+case object Not {
+  def apply(e: Expr)(typ: Type = Missing): Not = {
+    if (typ == Missing && e.typ == TyBool) {
+      new Not(e)(TyBool)
+    } else {
+      new Not(e)(typ)
+    }
+  }
+}
+
+case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "And must have at least one term.")
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    And(newChildren: _*)(typ)
+  }
 
   def remove(c: Expr): Expr = {
     terms.filter(e => e != c) match {
       case Seq()  => True
       case Seq(e) => e
-      case terms  => And(terms: _*)
+      case terms  => And(terms: _*)(this.typ)
     }
   }
-
-  override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = And(newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: And => this.terms == that.terms
-      case _         => false
+}
+case object And {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
+    val terms: Seq[Expr] =
+      unsortedTerms
+        // Flatten nested ANDs to represent associativity
+        .flatMap({
+          case a: And => a.terms
+          case e      => Seq(e)
+        })
+        // Deduplicate to represent the fact that x && x == x
+        .distinct
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    terms match {
+      case Seq()  => True
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
+          TyBool
+        } else {
+          typ
+        }
+        new And(terms: _*)(newTyp)
     }
   }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"And(${this.terms.mkString(",")})"
-  }
-}
-object And {
-  def apply(terms: Expr*): And = {
-    new And(terms: _*)
-  }
-
-  def unapplySeq(a: And): Option[Seq[Expr]] = {
-    Some(a.terms)
-  }
 }
 
-final class Or(unsortedTerms: Expr*) extends BoolExpr {
-  val terms: Seq[Expr] =
-    unsortedTerms
-      // Flatten nested ORs to represent associativity
-      .flatMap({
-        case a: Or => a.terms
-        case e     => Seq(e)
-      })
-      // Deduplicate to represent the fact that x || x == x
-      .distinct
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
+case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "Or must have at least one term.")
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    Or(newChildren: _*)(typ)
+  }
 
   def remove(c: Expr): Expr = {
     terms.filter(e => e != c) match {
       case Seq()  => False
       case Seq(e) => e
-      case terms  => Or(terms: _*)
+      case terms  => Or(terms: _*)(this.typ)
     }
   }
-
-  override def children: Seq[Expr] = terms
-  override def rebuild(newChildren: Seq[Expr]): Expr = Or(newChildren: _*)
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Or => this.terms == that.terms
-      case _        => false
+}
+case object Or {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
+    val terms: Seq[Expr] =
+      unsortedTerms
+        // Flatten nested ORs to represent associativity
+        .flatMap({
+          case a: Or => a.terms
+          case e     => Seq(e)
+        })
+        // Deduplicate to represent the fact that x || x == x
+        .distinct
+        // Sort terms to represent commutativity
+        .sorted(ExprOrdering)
+    terms match {
+      case Seq()  => False
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
+          TyBool
+        } else {
+          typ
+        }
+        new Or(terms: _*)(newTyp)
     }
-  }
-  override def hashCode(): Int = {
-    this.terms.hashCode()
-  }
-
-  override def toString: String = {
-    s"Or(${this.terms.mkString(",")})"
-  }
-}
-object Or {
-  def apply(terms: Expr*): Or = {
-    new Or(terms: _*)
-  }
-
-  def unapplySeq(a: Or): Option[Seq[Expr]] = {
-    Some(a.terms)
-  }
-}
-
-// Default value for a given datatype (zero for int, false for bool, tuple of
-// defaults for a tuple, etc.).
-// Note that this should NOT be used for functions or streams.
-case object Default extends Expr {
-  def int: IntCst = IntCst(0)
-  def bool: BoolCst = False
-
-  override def children: Seq[Expr] = Seq()
-
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    require(newChildren.isEmpty)
-    this
   }
 }
 
@@ -597,13 +955,13 @@ case class StmBuild(
     n: Expr /* Int */,
     output: Expr /* Option<B> */,
     equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
-) extends Expr {
-  override def children: Seq[Expr] = {
-    Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
-      Seq(x, z, next)
-    })
-  }
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+)(typ: Type = Missing)
+    extends Expr(
+      Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
+        Seq(x, z, next)
+      }): _*
+    )(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, output, eqns @ _*) if eqns.length % 3 == 0 =>
         val equations = (0 until eqns.length / 3)
@@ -614,11 +972,8 @@ case class StmBuild(
             x -> (z, next)
           })
           .toMap
-        StmBuild(n, output, equations)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+        StmBuild(n, output, equations)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -655,12 +1010,12 @@ case class StmBuild(
       "all the variables to be replaced must appear in this stream"
     )
     val subs: Map[Expr, Expr] = replacements.toMap
-    val newOutput = output.substitute(subs)
+    val newOutput = output.subPreserveType(subs)
     val newEquations = equations.map({ case (x, (z, next)) =>
-      val y = replacements.getOrElse(x, x)
-      y -> (z, next.substitute(subs))
+      val y = replacements.getOrElse(x, x).rebuild(x.typ)
+      y -> (z, next.subPreserveType(subs))
     })
-    StmBuild(n, newOutput, newEquations)
+    StmBuild(n, newOutput, newEquations)(typ)
   }
 
   def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
@@ -678,7 +1033,7 @@ case class StmBuild(
         this.equations
           .filter({ case (x, _) => !replacements.contains(x) })
           .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
-      )
+      )()
     }
   }
 
@@ -688,6 +1043,8 @@ case class StmBuild(
     * more statically-known stream inputs. Note that this requires the stream
     * inputs to each have their own variable in <code>stm</code>; they cannot be
     * in a tuple.
+    *
+    * Fusion is guaranteed to preserve type annotations.
     */
   @tailrec
   final def fuseCompletely(): StmBuild = {
@@ -703,12 +1060,35 @@ case class StmBuild(
     */
   def fuseWith(x: Param): StmBuild = {
     val consumerStm = this
+    val consumerTyp = {
+      assert(
+        consumerStm.typ != Missing,
+        "the consumer must have been type checked before fusion"
+      )
+      assert(
+        consumerStm.typ.isInstanceOf[TyStm],
+        "the consumer must be a stream"
+      )
+      consumerStm.typ.asInstanceOf[TyStm]
+    }
     val fused = consumerStm.seedByVar.get(x) match {
       case Some(e: StmBuild) =>
         // Rename accumulator variables in case some of them are also being
         // used by the consumer stream
         val producerStm = e.renameVars
+        val producerTyp = {
+          assert(
+            producerStm.typ != Missing,
+            "the producer must have been type checked before fusion"
+          )
+          assert(
+            producerStm.typ.isInstanceOf[TyStm],
+            "the producer be a stream"
+          )
+          producerStm.typ.asInstanceOf[TyStm]
+        }
         val c = stmNextCallCondition(consumerStm, x)
+        assert(c.typ == TyBool, "stream call condition must be a bool")
         val newOutput =
           IfThenElse(
             c,
@@ -716,21 +1096,32 @@ case class StmBuild(
             OptionAccess(
               producerStm.output,
               // CASE 1a: Producer yielded a valid value. Proceed as usual.
-              (v: Expr) => consumerStm.output.substitute(StmNext(x).__1 -> v),
+              {
+                val v = Param("v")(producerTyp.t)
+                val body =
+                  consumerStm.output.subPreserveType(StmNext(x)().__1 -> v)
+                Function(v, body)(TyArrow(producerTyp.t, consumerTyp.tOpt))
+              },
               // CASE 1b: Producer did NOT yield a valid value.
               //          The consumer cannot proceed.
-              (_: Expr) => NNone
-            ),
+              {
+                val t1 = TyTuple()
+                val t2 = consumerTyp.tOpt
+                val v = Param("_")(t1)
+                Function(v, NNone(consumerTyp.t))(TyArrow(t1, t2))
+              }
+            )(consumerTyp.tOpt),
             // CASE 2: Consumer is not reading from producer.
             //         Proceed as usual.
             //         It's safe to unwrap the Option<T> here because, if it
             //         is being accessed here at all, it means the consumer is
             //         reading a value from the producer without updating the
             //         consumer, which is not allowed.
-            consumerStm.output.substitute(
-              StmNext(x).__1 -> OptionUnwrapUnsafe(producerStm.output)
+            consumerStm.output.subPreserveType(
+              StmNext(x)().__1 ->
+                OptionUnwrapUnsafe(producerStm.output)(producerTyp.t)
             )
-          )
+          )(consumerTyp.tOpt)
         val newEquations = {
           val newConsumerEquations =
             (consumerStm.equations - x)
@@ -742,15 +1133,34 @@ case class StmBuild(
                     producerStm.output,
                     // CASE 1a: Producer yielded a valid value.
                     //          Update the accumulators in the consumer.
-                    (v: Expr) => next.substitute(StmNext(x).__1 -> v),
+                    {
+                      val v = Param("v")(producerTyp.t)
+                      val body = next.subPreserveType(StmNext(x)().__1 -> v)
+                      Function(v, body)(TyArrow(producerTyp.t, y.typ))
+                    },
                     // CASE 1b: Producer did NOT yield a valid value.
                     //          Wait until it does and do not update accumulators.
-                    (_: Expr) => y
-                  ),
+                    {
+                      val v = Param("_")(TyTuple())
+                      Function(v, y)(TyArrow(TyTuple(), y.typ))
+                    }
+                  )(y.typ)
+                    // Need to immediately lower in case this is a stream-valued
+                    // accumulator: don't want to introduce an invalid stream
+                    // update expression
+                    // TODO: it's kind of ugly that this is necessary. Can we
+                    //       define StmBuild in such a way that it's not (e.g.,
+                    //       by letting the update expression for a stream
+                    //       input be a bool)?
+                    .lower(),
                   // CASE 2: Consumer is not reading from producer.
                   //         Update as usual.
-                  next.substitute(StmNext(x).__1 -> Default)
-                ))
+                  //         If the consumer *does* try to get output from the
+                  //         producer at this point, return the default value.
+                  next.subPreserveType(
+                    StmNext(x)().__1 -> Default(producerTyp.t)
+                  )
+                )(y.typ))
               })
           val newProducerEquations =
             producerStm.equations.map({ case (x, (z, next)) =>
@@ -762,11 +1172,11 @@ case class StmBuild(
                 // CASE 2: Consumer is not reading from input.
                 //         Producer does nothing.
                 x
-              ))
+              )(z.typ))
             })
           newConsumerEquations ++ newProducerEquations
         }
-        StmBuild(consumerStm.n, newOutput, newEquations)
+        StmBuild(consumerStm.n, newOutput, newEquations)(typ)
       case Some(e) =>
         throw new IllegalArgumentException(
           s"Expected the initial value of $x to be a StmBuild, but found $e"
@@ -785,6 +1195,7 @@ case class StmBuild(
       fused.freeVars() == this.freeVars(),
       "fusion should not have changed the set of free variables"
     )
+    assert(fused.typ == this.typ, "fusion should preserve type annotations")
     fused
   }
 
@@ -795,15 +1206,16 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addOutputCounter(outCtr: Param): StmBuild = {
+  def addOutputCounter(p: Param): StmBuild = {
+    requireType()
+    val outCtr = p.rebuild(TyInt)
     val s =
       if (this.equations.contains(outCtr))
         this.renameVar(outCtr)
       else
         this
     val z = IntCst(0)
-    val next =
-      OptionAccess(s.output, (_: Expr) => outCtr + 1, (_: Expr) => outCtr)
+    val next = IfThenElse(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -817,7 +1229,9 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
+  def addInputCounter(x: Param, p: Param): StmBuild = {
+    requireType()
+    val inCtr = p.rebuild(TyInt)
     val s =
       if (this.equations.contains(inCtr))
         this.renameVar(inCtr)
@@ -825,7 +1239,7 @@ case class StmBuild(
         this
     val z = IntCst(0)
     val stmNextCalled = stmNextCallCondition(s, x)
-    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)
+    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -833,11 +1247,11 @@ case class StmBuild(
     * variable may capture free variables in this stream.
     */
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
-    StmBuild(
-      this.n,
-      this.output,
-      this.equations + (x -> (z, next))
-    )
+    val newEquations = this.equations + (x -> (z, next))
+    val isTyped = (x.hasType && z.hasType && next.hasType
+      && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
+    val t = if (isTyped) this.typ else Missing
+    StmBuild(this.n, this.output, newEquations)(t)
   }
 
   /** Construct a boolean expression <code>c</code> such that, in
@@ -855,7 +1269,7 @@ case class StmBuild(
       case IfThenElse(c, t, f) =>
         val ct = stmNextCallCondition(t, x)
         val cf = stmNextCallCondition(f, x)
-        (c && ct) || (Not(c) && cf)
+        (c && ct) || (!c && cf)
       case e =>
         throw new IllegalArgumentException(
           s"Illegal update to a stream-valued accumulator element: $e."
@@ -914,7 +1328,7 @@ case class StmBuild(
     // This implementation should be correct, but it may cause excessive
     // collisions since it maps all variables to the same one variable.
     val subs: Map[Expr, Expr] =
-      this.accVars.map(x => x -> StmBuild.HashCodeParam).toMap
+      this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
     val out = this.output.substitute(subs)
     val eqns = this.equations.toSeq
@@ -926,7 +1340,7 @@ case class StmBuild(
     // Be careful not to remove equations due to the fact that they'll all use
     // the same param now!
     assert(eqnsBag.values.sum == this.equations.size)
-    Objects.hash(len, out, eqnsBag)
+    (len, out, eqnsBag).hashCode
   }
 
   /** Basically just brute-force check through all the possible mappings from
@@ -946,7 +1360,10 @@ case class StmBuild(
       // We have a full candidate mapping, so check equality
       assert(domain.forall(x => inverse(map(x)) == x))
       assert(codomain.forall(y => map(inverse(y)) == y))
-      val freshVarByPair = map.map({ case (x, y) => (x, y) -> Param() })
+      val freshVarByPair = map.map({ case (x, y) =>
+        (x, y) -> (if (x.typ != Missing) Param("p")(x.typ)
+                   else Param("p")(y.typ))
+      })
       // Need to use separate substitutions in case one of the streams refers
       // to a free variable and that same variable happens to be bound in the
       // other stream
@@ -984,70 +1401,39 @@ object StmBuild {
     * that bound variable names don't affect the hash code. <i>It MUST NOT be
     * used for anything else</i>.
     */
-  private val HashCodeParam = Param("hashCode")
+  private val HashCodeParam = Param("hashCode")()
 }
 
-case class StmLength(stream: Expr) extends IntExpr {
-  override def children: Seq[Expr] = Seq(stream)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s) => StmLength(s)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
-    }
-  }
-}
 // element only available for one clock cycle
-case class StmNext(stream: Expr /* Stream<A>*/ ) /* (Stream<A>, A) */
-    extends Expr {
-  override def children: Seq[Expr] = Seq(stream)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class StmNext(stream: Expr /* Stream<A>*/ )(typ: Type = Missing)
+/* (Stream<A>, A) */
+    extends Expr(stream)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNext(s)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(s) => StmNext(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
 
 // Vectors
-case class VecBuild(len: Expr, f: Function /*Int => Expr*/ ) extends Expr {
-  override def children: Seq[Expr] = Seq(len, f)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
+    typ: Type = Missing
+) extends Expr(len, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(n, f) => VecBuild(n, f.asInstanceOf[Function])(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 }
-case class VecAccess(vec: Expr, i: Expr) extends Expr {
-  override def children: Seq[Expr] = Seq(vec, i)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+
+case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
+    extends Expr(vec, i)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v, i) => VecAccess(v, i)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
-    }
-  }
-}
-case class VecLength(vec: Expr) extends IntExpr {
-  override def children: Seq[Expr] = Seq(vec)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(v) => VecLength(v)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
-        )
+      case Seq(v, i) => VecAccess(v, i)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 }
@@ -1056,45 +1442,110 @@ case class VecLength(vec: Expr) extends IntExpr {
 // Extra, non-synthesizable nodes
 // (Useful for evaluation and optimization)
 
-case class VecLiteral(elems: Expr*) extends Expr {
-  override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    VecLiteral(newChildren: _*)
+case class VecLiteral(elems: Expr*)(typ: Type = Missing)
+    extends Expr(elems: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    VecLiteral(newChildren: _*)(typ)
   }
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)
+    VecLiteral(elems.map(n => IntCst(n)): _*)()
   }
 }
 
-case class StmLiteral(elems: Expr*) extends Expr {
-  override def children: Seq[Expr] = elems
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
-    StmLiteral(newChildren: _*)
+case class StmLiteral(elems: Expr*)(typ: Type = Missing)
+    extends Expr(elems: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    StmLiteral(newChildren: _*)(typ)
   }
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
-    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)
+    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
   }
 }
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)
+    StmLiteral(elems.map(n => IntCst(n)): _*)()
   }
 
-  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)
+  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)()
 }
 
-case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ ) extends Expr {
-  override def children: Seq[Expr] = Seq(s, k)
-  override def rebuild(newChildren: Seq[Expr]): Expr = {
+case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
+    typ: Type = Missing
+) extends Expr(s, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, i) => StmNextK(s, i)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Wrong arguments passed to rebuild: $newChildren"
+      case Seq(s, i) => StmNextK(s, i)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+abstract class SyntaxSugar(children: Expr*)(typ: Type)
+    extends Expr(children: _*)(typ) {
+
+  def typecheck(context: Map[Param, Type]): Expr
+
+  /** Remove syntax sugar from this node and its children.
+    *
+    * If this expression has already been type checked, this method <i>MUST</i>
+    * return the flattened version of that same type. This method <i>MAY</i>
+    * assume that the expression has already been type checked, but it is
+    * acceptable to gracefully handle the case where it has not yet been type
+    * checked. (This would make it easier to test expressions where lowering
+    * does not require the type.)
+    */
+  def lowerSyntaxSugar(): Expr
+}
+
+case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmLength(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = s.tchk(context)
+    newS.typ match {
+      case _: TyStm => this.rebuild(TyInt, Seq(newS))
+      case t =>
+        throw new TypeError(
+          s"Stream in StmLength has type $t. Expected a stream."
         )
     }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    s.typ.asInstanceOf[TyStm].n.lower()
+  }
+}
+
+case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecLength(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case _: TyVec => this.rebuild(TyInt, Seq(newV))
+      case t =>
+        throw new TypeError(
+          s"Vector in VecLength has type $t. Expected a stream."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    v.typ.asInstanceOf[TyVec].n.lower()
   }
 }

@@ -44,7 +44,7 @@ object StmAccRemovalPass {
       stm.n,
       stm.output,
       stm.equations.filter({ case (x, _) => usedElems.contains(x) })
-    )
+    )()
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
@@ -54,7 +54,7 @@ object StmAccRemovalPass {
         // duplicates:
         //   x: (0, x + 1)
         //   y: (0, y + 1)
-        (z, Function(x, next))
+        (z, Function(x, next)())
       })
       .values
       .map(m => m.keySet)
@@ -103,7 +103,7 @@ object StmAccRemovalPass {
     } else {
       val currentValByVar = stm.seedByVar.map({ case (x, z) =>
         if (candidates.contains(x)) x -> z
-        else x -> Param("unknown")
+        else x -> Param("unknown")()
       })
       val nextValByVar = stm.nextByVar.map({ case (x, next) =>
         x -> PartialEvalPass.partialEval(

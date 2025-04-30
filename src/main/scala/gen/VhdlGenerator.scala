@@ -99,8 +99,8 @@ private case class VhdlComponent(
 
 object VhdlGenerator {
   def makeVhdl(s: StmBuild, dir: Path): Int = {
-    val valid = PartialEvalPass.partialEval(IsSome(s.output))
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output))
+    val valid = PartialEvalPass.partialEval(IsSome(s.output)())
+    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
     val (typeByVar, outType) = findTypes(s)
     val bitWidth = getBitWidth(outType)
 
@@ -202,10 +202,10 @@ object VhdlGenerator {
     e match {
       case x: Param  => (x.name, Seq())
       case IntCst(n) => (n.toString, Seq())
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" + "), signals.flatten)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val (vhdlFactors, signals) =
           factors.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
@@ -217,7 +217,7 @@ object VhdlGenerator {
         val (cVhdl, cSignals) = makeVhdlExpr(c, MyBool)
         val (tVhdl, tSignals) = makeVhdlExpr(t, typ)
         val (fVhdl, fSignals) = makeVhdlExpr(f, typ)
-        val sigName = Param("ite").name
+        val sigName = Param("ite")().name
         val sig = Signal(
           sigName,
           typ = makeVhdlType(typ),
@@ -243,15 +243,10 @@ object VhdlGenerator {
       case Or(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
-      case Tuple(elems @ _*)     => ???
-      case TupleAccess(t, i)     => ???
-      case Function(param, body) => ???
-      case FunCall(f, arg)       => ???
-      case Default =>
-        typ match {
-          case MyInt  => ("0", Seq())
-          case MyBool => ("false", Seq())
-        }
+      case Tuple(elems @ _*)              => ???
+      case TupleAccess(t, i)              => ???
+      case Function(x, e)              => ???
+      case FunCall(f, arg)                => ???
       case StmBuild(n, output, equations) => ???
       case StmNext(stream)                => ???
       case VecBuild(len, f)               => ???
@@ -259,6 +254,9 @@ object VhdlGenerator {
       case VecLiteral(elems @ _*)         => ???
       case StmLiteral(elems @ _*)         => ???
       case StmNextK(s, k)                 => ???
+      case _: StmLength                   => ???
+      case _: VecLength                   => ???
+      case _: SyntaxSugar                 => ???
     }
   }
 
@@ -293,7 +291,7 @@ object VhdlGenerator {
           )
       }
     })
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output))
+    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
     val outType = findType(data, typeByVar) match {
       case Some(t) => t
       case None =>

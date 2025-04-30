@@ -12,17 +12,18 @@ object PrettyPrinter {
     e match {
       case True      => "true"
       case False     => "false"
-      case Default   => "default"
       case IntCst(n) => n.toString
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
-      case Sum(terms)    => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Prod(factors) => factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)     => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)     => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case Equal(x, y)   => s"${showWithParens(x)} === ${showWithParens(y)}"
-      case Not(Equal(x, y)) => s"${showWithParens(x)} !== ${showWithParens(y)}"
-      case LessThan(x, y)   => s"${showWithParens(x)} < ${showWithParens(y)}"
+      case Sum(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" + ")
+      case Prod(factors @ _*) =>
+        factors.map(e => showWithParens(e)).mkString(" * ")
+      case Div(x, y)   => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(x, y)   => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case Equal(x, y) => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case Not(Equal(x, y)) =>
+        s"${showWithParens(x)} !== ${showWithParens(y)}"
+      case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
       case Not(LessThan(x, y)) =>
         s"${showWithParens(x)} >= ${showWithParens(y)}"
       case And(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" && ")
@@ -42,9 +43,10 @@ object PrettyPrinter {
         }
       case Function(p, b) =>
         val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
+        val tStr = show(p.typ)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
-          s"""(${pStr}) =>
+          s"""(${pStr} : $tStr) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
         } else {
@@ -115,12 +117,27 @@ object PrettyPrinter {
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
+      case Default(t) => s"Default[${show(t)}]"
       case e =>
         val name = e.getClass.getSimpleName
         val sh = (e: Expr) =>
           show(e, collapseStm = collapseStm, evalVec = evalVec)
         val children = e.children.map(sh).mkString(", ")
         s"$name($children)"
+    }
+  }
+
+  def show(t: Type): String = {
+    t match {
+      case Missing         => "?"
+      case TyInt           => "Int"
+      case TyBool          => "Bool"
+      case TyArrow(t1, t2) => s"($t1) -> ($t2)"
+      case TyTuple(ts @ _*) =>
+        val tsStr = ts.map(t => show(t)).mkString(", ")
+        s"($tsStr)"
+      case TyVec(t, n) => s"Vec[${show(t)}, ${show(n)(Map())}]"
+      case TyStm(t, n) => s"Stm[${show(t)}, ${show(n)(Map())}]"
     }
   }
 
@@ -141,13 +158,13 @@ object PrettyPrinter {
         }
       case p: Param => p.name
       case Function(param, body) =>
-        s"(${param.name}: Expr) => ${showScala(body)}"
+        s"{ val ${param.name} = Param(${param.prefix})(${param.typ}) ; Function(${param.name}, ${showScala(body)}) }"
       case FunCall(f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})"
       case IntCst(i) => i.toString
-      case Sum(terms) =>
+      case Sum(terms @ _*) =>
         s"Sum(${terms.map(e => showScala(e)).mkString(",")})"
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         s"Prod(${factors.map(e => showScala(e)).mkString(",")})"
       case Div(x, y) =>
         s"Div(${showScala(x)},${showScala(y)})"
@@ -166,7 +183,6 @@ object PrettyPrinter {
         s"Or(${terms.map(e => showScala(e)).mkString(",")})"
       case IfThenElse(c, t, f) =>
         s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
-      case Default => "Default"
       case StmBuild(n, out, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>
@@ -191,7 +207,16 @@ object PrettyPrinter {
         s"VecAccess(${showScala(v)},${showScala(i)})"
       case VecLength(v) =>
         s"VecLength(${showScala(v)})"
+      case Default(t) => s"Default(${showScala(t)})"
+      case e: SyntaxSugar =>
+        val name = e.getClass.getSimpleName
+        val children = e.children.map(showScala).mkString(", ")
+        s"$name($children)"
     }
+  }
+
+  private def showScala(t: Type): String = {
+    t.toString
   }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
@@ -222,7 +247,7 @@ object PrettyPrinter {
     PartialEvalPass.partialEval(v.len) match {
       case IntCst(n) =>
         val elems =
-          (0 until n).map(i => PartialEvalPass.partialEval(VecAccess(v, i)))
+          (0 until n).map(i => PartialEvalPass.partialEval(VecAccess(v, i)()))
         if (elems.exists(e => e.isInstanceOf[VecAccess])) {
           None
         } else {

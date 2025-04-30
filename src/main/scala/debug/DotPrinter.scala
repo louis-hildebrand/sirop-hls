@@ -364,8 +364,7 @@ object DotPrinter {
 
   private def makeDotGraph(e: Expr): String = {
     // TODO: Look for functions that are never called and add lines going in and coming out for clarity?
-    val params =
-      findFreeVars(e)(Set()).map(p => p -> DotParam(p.name, GlobalScope)).toMap
+    val params = e.freeVars().map(p => p -> DotParam(p.name, GlobalScope)).toMap
     val resultNode = toDot(e, GlobalScope)(params)
     val topLevelNodes = resultNode.allDependencies + resultNode
     val nodesDot =
@@ -376,17 +375,6 @@ object DotPrinter {
       .map(e => e.dot)
       .mkString("\n")
     s"digraph {\n${indent("""rankdir="LR"""")}\n${indent(nodesDot)}\n${indent(edgesDot)}\n}\n"
-  }
-
-  private def findFreeVars(
-      e: Expr
-  )(implicit boundVars: Set[Param]): Set[Param] = {
-    e match {
-      case p: Param              => if (boundVars.contains(p)) Set() else Set(p)
-      case Function(param, body) => findFreeVars(body)(boundVars + param)
-      case e =>
-        e.children.foldLeft(Set[Param]())((s, e) => s.union(findFreeVars(e)))
-    }
   }
 
   private def toDot(
@@ -400,35 +388,47 @@ object DotPrinter {
         DotScalar("T", Seq(), scope)
       case False =>
         DotScalar("F", Seq(), scope)
-      case Default =>
-        DotScalar("default", Seq(), scope)
-      case p: Param if params.contains(p) =>
-        // TODO: What if this parameter is for a non-scalar?
-        params(p)
       case p: Param =>
-        throw new IllegalArgumentException(
-          s"Missing name for free variable $p."
-        )
-      case Sum(terms) =>
+        params.get(p) match {
+          case Some(n) =>
+            // TODO: What if this param is for a non-scalar?
+            n
+          case None =>
+            throw new IllegalArgumentException(
+              s"Missing name for free variable $p."
+            )
+        }
+      case Sum(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("+", labeledTerms, scope)
-      case Prod(factors) =>
+      case Prod(factors @ _*) =>
         val labeledFactors = factors.map(e => ("", toDot(e, scope)))
         DotScalar("*", labeledFactors, scope)
-      case e: BinOp =>
-        val left = toDot(e.e1, scope)
-        val right = toDot(e.e2, scope)
-        DotScalar(labelBinOp(e), Seq(("L", left), ("R", right)), scope)
+      case Div(e1, e2) =>
+        val labeledInputs =
+          Seq(("L", toDot(e1, scope)), ("R", toDot(e2, scope)))
+        DotScalar("/", labeledInputs, scope)
+      case Mod(e1, e2) =>
+        val labeledInputs =
+          Seq(("L", toDot(e1, scope)), ("R", toDot(e2, scope)))
+        DotScalar("%", labeledInputs, scope)
       case And(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("&&", labeledTerms, scope)
       case Or(terms @ _*) =>
         val labeledTerms = terms.map(e => ("", toDot(e, scope)))
         DotScalar("||", labeledTerms, scope)
+      case Equal(e1, e2) =>
+        val labeledInputs = Seq(("", toDot(e1, scope)), ("", toDot(e2, scope)))
+        DotScalar("==", labeledInputs, scope)
       case Not(Equal(e1, e2)) =>
         val left = toDot(e1, scope)
         val right = toDot(e2, scope)
         DotScalar("!=", Seq(("", left), ("", right)), scope)
+      case LessThan(e1, e2) =>
+        val labeledInputs =
+          Seq(("L", toDot(e1, scope)), ("L", toDot(e2, scope)))
+        DotScalar("<", labeledInputs, scope)
       case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)
@@ -453,7 +453,7 @@ object DotPrinter {
           case IntCst(n) =>
             val vecScope = TableScope(DotNode.freshId(), parent = scope)
             val children = (0 until n)
-              .map(i => PartialEvalPass.partialEval(FunCall(f, i)))
+              .map(i => PartialEvalPass.partialEval(FunCall(f, i)()))
               .map(e => toDot(e, vecScope))
             DotTuple(children, innerScope = vecScope)
           case _ =>
@@ -494,17 +494,7 @@ object DotPrinter {
           toDot(a, scope),
           scope
         )
-      case StmBuild(n, z, f) =>
-        ???
-    }
-  }
-
-  private def labelBinOp(e: BinOp): String = {
-    e match {
-      case _: Div      => "/"
-      case _: Mod      => "%"
-      case _: LessThan => "<"
-      case _: Equal    => "=="
+      case _ => ???
     }
   }
 }

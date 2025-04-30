@@ -62,7 +62,7 @@ object StmTracer {
           step = step + 1
         )
       } catch {
-        case e: AssertionError =>
+        case e: Exception =>
           val summary =
             s"""Step $step:
              |    EXCEPTION: $e

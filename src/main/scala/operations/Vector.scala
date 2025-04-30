@@ -3,102 +3,214 @@ package operations
 import ir._
 import opt.PartialEvalPass
 
-object VecMap {
-  def apply(input: VecBuild, f: Expr => Expr): VecBuild =
-    VecBuild(VecLength(input), (i: Expr) => f(VecAccess(input, i)))
-}
+case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
+    typ: Type = Missing
+) /* Vec<B; n> */
+    extends SyntaxSugar(v, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, f) => VecMap(v, f)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-object VecFold {
-  def apply(
-      vec: Expr /* Vec<A> */,
-      z: Expr /*B*/,
-      f: Function /*A -> B -> B*/
-  ): Expr /* B */ = {
-    Iterate(
-      VecLength(vec),
-      Tuple(z, 0),
-      (acc: Expr) =>
-        Tuple(
-          FunCall(FunCall(f, VecAccess(vec, acc.__1)), acc.__0),
-          acc.__1 + 1
-        ),
-      // TODO: this assumes `z` in `VecFold` is not a tuple (which happens to be the case in all tests so far)
-      zSize = Some(2)
-    ).__0
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case TyVec(t1, n) =>
+        val newF = f.tchk(context)
+        newF.typ match {
+          case TyArrow(t, t2) if t.isCompatibleWith(t1) =>
+            this.rebuild(TyVec(t2, n), Seq(newV, newF))
+          case t => throw new TypeError(s"Function of VecMap has type $t.")
+        }
+      case t => throw new TypeError(s"Vector of VecMap has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v = this.v.lower()
+    val f = this.f.lower()
+    VecBuild(
+      VecLength(v)(),
+      TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
+    )().tchk().lower()
   }
 }
 
-object VecScan {
+case class VecFold(
+    v: Expr /* Vec<T1; n> */,
+    z: Expr /* T2 */,
+    f: Function /* T1 -> T2 -> T2 */
+)(typ: Type = Missing) /* Stm<T2; 1> */
+    extends SyntaxSugar(v, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, z, f: Function) => VecFold(v, z, f)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    val t1 = newV.typ match {
+      case TyVec(t, _) => t
+      case t           => throw new TypeError(s"Vector in VecFold has type $t.")
+    }
+    val newZ = z.tchk(context)
+    val t2 = newZ.typ
+    val newF = f.tchk(context)
+    newF.typ match {
+      case TyArrow(t3, TyArrow(t4, t5))
+          if t3.isCompatibleWith(t1) && t4.isCompatibleWith(t2) && t5
+            .isCompatibleWith(t2) =>
+        ()
+      case t =>
+        throw new TypeError(
+          s"Function in VecFold has type $t. Expected ${TyArrow(t1, TyArrow(t2, t2))}."
+        )
+    }
+    this.rebuild(TyStm(t2, 1), Seq(newV, newZ, newF))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    StmFold(Vec2Stm(v)(), z, f)().tchk().lower()
+  }
+}
+
+object VecScanInclusive {
   def apply(
-      vec: Expr /* Vec<A; n> */,
+      v: Expr /* Vec<A; n> */,
       z: Expr /* B */,
-      f: Expr => Expr => Expr /* A -> B -> B */,
-      inclusive: Boolean
-  ): Expr /* Vec<B; n> */ = {
-    val n = VecLength(vec)
-    // TODO: Would it be better to use a second shift register for accessing
-    //       the input instead of accessing the input using counter as index?
-    Iterate(
-      if (inclusive) n else n + -1,
-      Tuple(0, VecBuild(n, (i: Expr) => z)),
-      (acc: Expr) =>
-        Tuple(
-          acc.__0 + 1,
-          VecShiftLeft(
-            acc.__1,
-            f(VecAccess(vec, acc.__0))(VecAccess(acc.__1, n + -1))
-          )
-        ),
-      zSize = Some(2)
-    ).__1
+      f: Function /* B -> A -> B */
+  ): Expr /* Stm<Vec<B; n>; 1> */ = {
+    Stm2Vec(StmScanInclusive(Vec2Stm(v)(), z, f)())()
   }
 }
 
-object Stm2Vec {
+object VecScanExclusive {
   def apply(
-      s: Expr,
-      // Ideally we would get this shape info from the type system
-      n: Expr
-  ): StmBuild =
+      v: Expr /* Vec<A; n> */,
+      z: Expr /* B */,
+      f: Function /* B -> A -> B */
+  ): Expr /* Stm<Vec<B; n>; 1> */ = {
+    Stm2Vec(StmScanExclusive(Vec2Stm(v)(), z, f)())()
+  }
+}
+
+case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
+    typ: Type = Missing
+) /* Stm<Vec<A; n>; 1> */
+    extends SyntaxSugar(s)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => Stm2Vec(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newS = s.tchk(context)
+    newS.typ match {
+      case TyStm(t, n) => this.rebuild(TyStm(TyVec(t, n), 1), Seq(newS))
+      case t           => throw new TypeError(s"Stream in Stm2Vec has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val s = this.s.lower()
+    val (t, n) = this.typ match {
+      case TyStm(TyVec(t, n), IntCst(1)) => (t, n)
+      case t =>
+        throw new IllegalArgumentException(s"Stm2Vec has wrong type $t.")
+    }
     StmFold(
       s,
-      VecBuild(n, (_: Expr) => Default),
-      (v: Expr) => (e: Expr) => VecShiftLeft(v, e),
-      stmShape = Seq(n)
-    )
+      VecBuild(n, TyInt ::+ (_ => Default(t)))(),
+      TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)))
+    )().tchk().lower()
+  }
 }
 
 object Vec2Tuple {
   def apply(vec: VecBuild): Tuple = {
-    val n = PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
-    val elems = (0 until n).map(i => FunCall(vec.f, i))
-    Tuple(elems: _*)
+    val n = PartialEvalPass.partialEval(VecLength(vec)()).asInstanceOf[IntCst].i
+    val elems = (0 until n).map(i => FunCall(vec.f, i)())
+    Tuple(elems: _*)()
   }
 }
 
-object VecPrepend {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n + 1> */ = {
-    val n = VecLength(vec)
+case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
+    typ: Type = Missing
+) /* Vec<A; n+1> */
+    extends SyntaxSugar(v, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecPrepend(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t => throw new TypeError(s"Vector of VecPrepend has type $t.")
+    }
+    val newE = e.tchk(context)
+    if (newE.typ.isCompatibleWith(t)) {
+      this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
+    } else {
+      throw new TypeError(
+        s"Element of VecPrepend has type ${newE.typ}. Expected $t."
+      )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
     VecBuild(
-      n + 1,
-      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1))
-    )
+      VecLength(v)() + 1,
+      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(v, i + -1)())())
+    )().tchk().lower()
   }
 }
 
-object VecAppend {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n + 1> */ = {
-    val n = VecLength(vec)
+case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
+    typ: Type = Missing
+) /* Vec<A; n+1> */
+    extends SyntaxSugar(v, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecAppend(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t => throw new TypeError(s"Vector of VecAppend has type $t.")
+    }
+    val newE = e.tchk(context)
+    if (newE.typ.isCompatibleWith(t)) {
+      this.rebuild(TyVec(t, n + 1), Seq(newV, newE))
+    } else {
+      throw new TypeError(
+        s"Element of VecAppend has type ${newE.typ}. Expected $t."
+      )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    val n = VecLength(v)()
     VecBuild(
       n + 1,
-      (i: Expr) => IfThenElse(i === n, e, VecAccess(vec, i))
-    )
+      TyInt ::+ (i => IfThenElse(i === n, e, VecAccess(v, i)())())
+    )().tchk().lower()
   }
 }
 
@@ -108,12 +220,12 @@ object VecPrefix {
       k: Expr /* Int */
   ): Expr /* Vec<A; k> */ = {
     val nVal =
-      PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+      PartialEvalPass.partialEval(VecLength(vec)()).asInstanceOf[IntCst].i
     val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
     require(kVal >= 0)
     require(kVal <= nVal)
 
-    VecBuild(k, (i: Expr) => VecAccess(vec, i))
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i)()))()
   }
 }
 
@@ -123,13 +235,13 @@ object VecSuffix {
       k: Expr /* Int */
   ): Expr /* Vec<A; k> */ = {
     val nVal =
-      PartialEvalPass.partialEval(VecLength(vec)).asInstanceOf[IntCst].i
+      PartialEvalPass.partialEval(VecLength(vec)()).asInstanceOf[IntCst].i
     val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
     require(kVal >= 0)
     require(kVal <= nVal)
 
-    val n = VecLength(vec)
-    VecBuild(k, (i: Expr) => VecAccess(vec, i + (n - k)))
+    val n = VecLength(vec)()
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i + (n - k))()))()
   }
 }
 
@@ -138,11 +250,11 @@ object VecShiftLeft {
       vec: Expr /* Vec<A; n> */,
       e: Expr /* A */
   ): Expr /* Vec<A; n> */ = {
-    val n = VecLength(vec)
+    val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1))
-    )
+      TyInt ::+ (i => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())())
+    )()
   }
 }
 
@@ -151,11 +263,11 @@ object VecShiftRight {
       vec: Expr /* Vec<A; n> */,
       e: Expr /* A */
   ): Expr /* Vec<A; n> */ = {
-    val n = VecLength(vec)
+    val n = VecLength(vec)()
     VecBuild(
       n,
-      (i: Expr) => IfThenElse(i === 0, e, VecAccess(vec, i + -1))
-    )
+      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())())
+    )()
   }
 }
 
@@ -164,12 +276,14 @@ object VecConcat {
       v1: Expr /* Vec<A; n> */,
       v2: Expr /* Vec<A; m> */
   ): Expr /* Vec<A; n+m> */ = {
-    val n = VecLength(v1)
-    val m = VecLength(v2)
+    val n = VecLength(v1)()
+    val m = VecLength(v2)()
     VecBuild(
       n + m,
-      (i: Expr) => IfThenElse(i < n, VecAccess(v1, i), VecAccess(v2, i - n))
-    )
+      TyInt ::+ (i =>
+        IfThenElse(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
+      )
+    )()
   }
 }
 
@@ -178,25 +292,10 @@ object VecZip {
       a: Expr /* Vec<A; n> */,
       b: Expr /* Vec<B; n> */
   ): VecBuild /* Vec<(A, B); n> */ =
-    VecBuild(VecLength(a), (i: Expr) => Tuple(VecAccess(a, i), VecAccess(b, i)))
-}
-
-// Not particularly useful, just the Vec counterpart to StmZipAlternating
-object VecZipAlternating {
-  def apply(
-      a: Expr /* Vec<A; n> */,
-      b: Expr /* Vec<A; n> */
-  ): Expr /* Vec<(A, A); n> */ = {
     VecBuild(
-      VecLength(a),
-      (i: Expr) =>
-        IfThenElse(
-          (i % 2) === 0,
-          Tuple(VecAccess(a, i), VecAccess(b, i)),
-          Tuple(VecAccess(b, i), VecAccess(a, i))
-        )
-    )
-  }
+      VecLength(a)(),
+      TyInt ::+ (i => Tuple(VecAccess(a, i)(), VecAccess(b, i)())())
+    )()
 }
 
 object VecRepeat {
@@ -204,14 +303,14 @@ object VecRepeat {
       vec: Expr /* Vec<A; n> */,
       m: Expr
   ): Expr /* Vec<Vec<A; n>, m> */ = {
-    VecBuild(m, (i: Expr) => vec)
+    VecBuild(m, TyInt ::+ (_ => vec))()
   }
 }
 
 object VecReverse {
   def apply(v: Expr /* Vec<A; n> */ ): Expr /* Vec<A; n> */ = {
-    val n = VecLength(v)
-    VecBuild(n, (i: Expr) => VecAccess(v, n - i - 1))
+    val n = VecLength(v)()
+    VecBuild(n, TyInt ::+ (i => VecAccess(v, n - i - 1)()))()
   }
 }
 
@@ -220,24 +319,50 @@ object VecSplit {
       vec: Expr /* Vec<A; n> */,
       m: Expr
   ): VecBuild /* Vec<Vec<A; m>; n/m> */ = {
-    val n = VecLength(vec)
+    val n = VecLength(vec)()
     // n must be divisible by m
     VecBuild(
       n / m,
-      (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i * m + j))
-    )
+      TyInt ::+ (i =>
+        VecBuild(m, TyInt ::+ (j => VecAccess(vec, i * m + j)()))()
+      )
+    )()
   }
 }
 
-object VecJoin {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<A; n * m> */ = {
-    val n = VecLength(v)
-    val m = IfThenElse(Equal(n, 0), 1, VecLength(VecAccess(v, 0)))
-    IfThenElse(
-      m === 0,
-      VecBuild(0, (_: Expr) => Default),
-      VecBuild(n * m, (i: Expr) => VecAccess(VecAccess(v, i / m), i % m))
-    )
+case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
+    typ: Type = Missing
+) /* Vec<A; n*m> */
+    extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecJoin(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case TyVec(TyVec(t, m), n) => this.rebuild(TyVec(t, n * m), Seq(newV))
+      case t =>
+        throw new TypeError(
+          s"Vector in VecJoin has type $t. Expected a nested vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v = this.v.lower()
+    val (n, m) = this.v.typ match {
+      case TyVec(TyVec(_, m), n) => (n, m)
+      case t => throw new TypeError(s"Vector in VecJoin has type $t.")
+    }
+    VecBuild(
+      n * m,
+      TyInt ::+ (i => VecAccess(VecAccess(v, i / m)(), i % m)())
+    )().tchk().lower()
   }
 }
 
@@ -246,21 +371,23 @@ object VecSlide {
       vec: Expr /* Vec<A; n> */,
       m: Int
   ): Expr /* Vec<Vec<A, m>, n-m+1> */ = {
-    val n = VecLength(vec)
+    val n = VecLength(vec)()
     VecBuild(
       n + -m + 1,
-      (i: Expr) => VecBuild(m, (j: Expr) => VecAccess(vec, i + j))
-    )
+      TyInt ::+ (i => VecBuild(m, TyInt ::+ (j => VecAccess(vec, i + j)()))())
+    )()
   }
 }
 
 object VecTranspose {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* */ = {
-    val n = VecLength(v)
-    val m = VecLength(VecAccess(v, 0))
+  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<Vec<A; n>; m> */ = {
+    val n = VecLength(v)()
+    val m = VecLength(VecAccess(v, 0)())()
     VecBuild(
       m,
-      (i: Expr) => VecBuild(n, (j: Expr) => VecAccess(VecAccess(v, j), i))
-    )
+      TyInt ::+ (i =>
+        VecBuild(n, TyInt ::+ (j => VecAccess(VecAccess(v, j)(), i)()))()
+      )
+    )()
   }
 }

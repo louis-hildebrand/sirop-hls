@@ -20,11 +20,12 @@ object StmDelayRemovalPass {
           case Some(Function(t, e)) =>
             val facts = FactSet().between(t, 0, c)
             val noOutputInFirstCycles =
-              PartialEvalPass.partialEval(IsNone(e))(facts) == True
+              PartialEvalPass
+                .partialEval(IsNone(e)().tchk().lower())(facts) == True
             if (noOutputInFirstCycles) {
               val newEquations =
                 seedByVar.map({ case (x, z) => x -> (z, stm.nextByVar(x)) })
-              StmBuild(stm.n, stm.output, newEquations)
+              StmBuild(stm.n, stm.output, newEquations)()
             } else {
               stm
             }

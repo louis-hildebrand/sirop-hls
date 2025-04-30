@@ -1,9 +1,21 @@
 package ir
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
+
+class EmptyStreamError
+    extends IllegalArgumentException("Attempt to read from an empty stream.")
+
+// TODO: Also use this value when there's a StmNext(s).__1 without a
+//       corresponding StmNext(s).__0?
+case object EmptyStreamValue extends SyntaxSugar()(Missing) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = ???
+  override def typecheck(context: Map[Param, Type]): Expr = ???
+  override def lowerSyntaxSugar(): Expr = ???
+}
 
 trait Eval {
 
@@ -13,7 +25,7 @@ trait Eval {
   private val MaxStepsWithoutValid = 100000
 
   def eval(e: Expr): Expr = {
-    evalBigStepToplevel(e)
+    evalBigStepToplevel(e.lower())
   }
 
   def evalBigStepToplevel(e: Expr): Expr = {
@@ -22,7 +34,7 @@ trait Eval {
         n match {
           case IntCst(0) => StmLiteral.nil
           case IntCst(n) if n > 0 =>
-            evalBigStep(StmNext(StmBuild(n, z, f))) match {
+            evalBigStep(StmNext(StmBuild(n, z, f)())()) match {
               case Tuple(tail, head) =>
                 val tailElems = evalBigStepToplevel(tail) match {
                   case s: StmLiteral => s.elems
@@ -31,7 +43,7 @@ trait Eval {
                       s"Tail of stream evaluated to $v. It must evaluate to a stream literal."
                     )
                 }
-                StmLiteral(head +: tailElems: _*)
+                StmLiteral(head +: tailElems: _*)()
               case _ => ???
             }
           case n =>
@@ -61,11 +73,9 @@ trait Eval {
             )
         }
 
-      case Default => Default
-
       case IntCst(n) => IntCst(n)
-      case Sum(terms) =>
-        val termValues = terms.map(e => evalBigStep(e).defaultToInt)
+      case Sum(terms @ _*) =>
+        val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
           IntCst(xs.sum)
@@ -74,8 +84,8 @@ trait Eval {
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
           )
         }
-      case Prod(factors) =>
-        val factorValues = factors.map(e => evalBigStep(e).defaultToInt)
+      case Prod(factors @ _*) =>
+        val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
           IntCst(xs.product)
@@ -85,8 +95,8 @@ trait Eval {
           )
         }
       case Div(e1, e2) =>
-        val numer = evalBigStep(e1).defaultToInt
-        val denom = evalBigStep(e2).defaultToInt
+        val numer = evalBigStep(e1)
+        val denom = evalBigStep(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Division by zero.")
@@ -97,8 +107,8 @@ trait Eval {
             )
         }
       case Mod(e1, e2) =>
-        val numer = evalBigStep(e1).defaultToInt
-        val denom = evalBigStep(e2).defaultToInt
+        val numer = evalBigStep(e1)
+        val denom = evalBigStep(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Modulo by zero.")
@@ -112,7 +122,7 @@ trait Eval {
       case True  => True
       case False => False
       case Not(e) =>
-        evalBigStep(e).defaultToBool match {
+        evalBigStep(e) match {
           case False => True
           case True  => False
           case v =>
@@ -121,8 +131,7 @@ trait Eval {
             )
         }
       case And(terms @ _*) =>
-        // TODO: Are And() and Or() short-circuiting? No, right?
-        val termValues = terms.map(e => evalBigStep(e).defaultToBool)
+        val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
           if (termValues.contains(False)) False else True
         } else {
@@ -131,7 +140,7 @@ trait Eval {
           )
         }
       case Or(terms @ _*) =>
-        val termValues = terms.map(e => evalBigStep(e).defaultToBool)
+        val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
           if (termValues.contains(True)) True else False
         } else {
@@ -141,13 +150,12 @@ trait Eval {
         }
       case Equal(e1, e2) =>
         (evalBigStep(e1), evalBigStep(e2)) match {
-          case (Default, Default) => True
           // Bool
-          case (v1: BoolCst, v2) => v1 == v2.defaultToBool
-          case (v1, v2: BoolCst) => v1.defaultToBool == v2
+          case (v1: BoolCst, v2) => v1 == v2
+          case (v1, v2: BoolCst) => v1 == v2
           // Int
-          case (v1: IntCst, v2) => v1 == v2.defaultToInt
-          case (v1, v2: IntCst) => v1.defaultToInt == v2
+          case (v1: IntCst, v2) => v1 == v2
+          case (v1, v2: IntCst) => v1 == v2
           // Tuple
           case (v1: Tuple, v2) => evalTupleEqual(v1, v2)
           case (v1, v2: Tuple) => evalTupleEqual(v2, v1)
@@ -160,7 +168,7 @@ trait Eval {
             throw new IllegalArgumentException(s"Cannot compare $e1 with $e2.")
         }
       case LessThan(e1, e2) =>
-        (evalBigStep(e1).defaultToInt, evalBigStep(e2).defaultToInt) match {
+        (evalBigStep(e1), evalBigStep(e2)) match {
           case (IntCst(n1), IntCst(n2)) =>
             if (n1 < n2) True else False
           case (v1, v2) =>
@@ -169,7 +177,7 @@ trait Eval {
             )
         }
       case IfThenElse(c, t, f) =>
-        evalBigStep(c).defaultToBool match {
+        evalBigStep(c) match {
           case True  => evalBigStep(t)
           case False => evalBigStep(f)
           case v =>
@@ -178,12 +186,11 @@ trait Eval {
             )
         }
 
-      case Tuple(elems @ _*) => Tuple(elems.map(e => evalBigStep(e)): _*)
+      case Tuple(elems @ _*) => Tuple(elems.map(e => evalBigStep(e)): _*)()
       case TupleAccess(t, i) =>
         evalBigStep(t) match {
-          case Default => Default
           case Tuple(elems @ _*) =>
-            evalBigStep(i).defaultToInt match {
+            evalBigStep(i) match {
               case IntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -197,11 +204,11 @@ trait Eval {
         }
 
       case VecBuild(n, f) =>
-        evalBigStep(n).defaultToInt match {
+        evalBigStep(n) match {
           case IntCst(n) if n >= 0 =>
             VecLiteral(
-              (0 until n).map(i => evalBigStep(FunCall(f, IntCst(i)))): _*
-            )
+              (0 until n).map(i => evalBigStep(FunCall(f, IntCst(i))())): _*
+            )()
           case n =>
             throw new IllegalArgumentException(
               s"Vector length $n. Vectors must have non-negative integer length."
@@ -209,9 +216,8 @@ trait Eval {
         }
       case VecAccess(v, i) =>
         evalBigStep(v) match {
-          case Default => Default
           case VecLiteral(elems @ _*) =>
-            evalBigStep(i).defaultToInt match {
+            evalBigStep(i) match {
               case IntCst(i) => elems(i)
               case v =>
                 throw new IllegalArgumentException(
@@ -223,38 +229,28 @@ trait Eval {
               s"Vector of vector access evaluated to $v. It must evaluate to a vector."
             )
         }
-      case VecLength(v) =>
-        evalBigStep(v) match {
-          case Default                => Default.int
-          case VecLiteral(elems @ _*) => IntCst(elems.length)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Vector of vector length evaluated to $v. It must evaluate to a vector."
-            )
-        }
       case v: VecLiteral => v
 
       case StmBuild(n, out, equations) =>
         StmBuild(
-          evalBigStep(n).defaultToInt,
+          evalBigStep(n),
           out,
           equations.map({ case (x, (z, next)) =>
             x -> (evalBigStep(z), next)
           })
-        )
+        )()
       case StmNext(s) =>
         evalStmNext(s)(0)
       case StmNextK(s, k) =>
-        evalBigStep(k).defaultToInt match {
+        evalBigStep(k) match {
           case IntCst(k) if k <= 0 =>
             evalBigStep(s)
           case IntCst(k) if k > 0 =>
             evalBigStep(s) match {
-              case Default => Default
               case StmLiteral(vs @ _*) =>
-                StmLiteral(vs.drop(k): _*)
+                StmLiteral(vs.drop(k): _*)()
               case s: StmBuild =>
-                evalBigStep(StmNextK(StmNext(s).__0, k - 1))
+                evalBigStep(StmNextK(StmNext(s)().__0, k - 1)())
               case s =>
                 throw new IllegalArgumentException(
                   s"Stream in StmNextK evaluated to $s. It must evaluate to a stream literal."
@@ -265,17 +261,13 @@ trait Eval {
               s"Index in StmNextK evaluated to $k. The index must be a non-negative integer."
             )
         }
-      case StmLength(s) =>
-        evalBigStep(s) match {
-          case Default                => Default.int
-          case StmBuild(n, _, _)      => n
-          case StmLiteral(elems @ _*) => IntCst(elems.length)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Stream of stream length evaluated to $v. It must evaluate to a stream."
-            )
-        }
       case v: StmLiteral => v
+
+      case EmptyStreamValue => throw new EmptyStreamError
+      case s: SyntaxSugar =>
+        throw new IllegalArgumentException(
+          s"There should be no more syntax sugar after lowering. Found $s."
+        )
     }
   }
 
@@ -283,7 +275,7 @@ trait Eval {
     val v2Elems = v2 match {
       case Tuple(elems @ _*) => elems
       case _ =>
-        v1.elems.indices.map(i => evalBigStep(TupleAccess(v2, i)))
+        v1.elems.indices.map(i => evalBigStep(TupleAccess(v2, i)()))
     }
     if (v1.elems.length != v2Elems.length) {
       False
@@ -300,7 +292,7 @@ trait Eval {
     val v2Elems = v2 match {
       case VecLiteral(elems @ _*) => elems
       case _ =>
-        v1.elems.indices.map(i => evalBigStep(VecAccess(v2, i)))
+        v1.elems.indices.map(i => evalBigStep(VecAccess(v2, i)()))
     }
     if (v1.elems.length != v2Elems.length) {
       False
@@ -325,9 +317,8 @@ trait Eval {
       )
     } else {
       evalBigStep(s) match {
-        case Default => Default
         case StmLiteral() | StmBuild(IntCst(0), _, _) =>
-          Tuple(StmLiteral(), Default)
+          Tuple(StmLiteral()(), EmptyStreamValue)()
         case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
           val nextEquations = equations.map({ case (x, (_, next)) =>
@@ -337,9 +328,9 @@ trait Eval {
           val evaluatedOutput = evalBigStep(out.substitute(currentValByVar))
           evaluatedOutput match {
             case Tuple(v, True) =>
-              Tuple(StmBuild(n - 1, out, nextEquations), v)
+              Tuple(StmBuild(n - 1, out, nextEquations)(), v)()
             case Tuple(_, False) =>
-              evalStmNext(StmBuild(n, out, nextEquations))(
+              evalStmNext(StmBuild(n, out, nextEquations)())(
                 stepsWithoutValid + 1
               )
             case v =>
@@ -352,7 +343,7 @@ trait Eval {
             s"Stream length $n. Streams must have non-negative integer length."
           )
         case StmLiteral(v, vs @ _*) =>
-          Tuple(StmLiteral(vs: _*), v)
+          Tuple(StmLiteral(vs: _*)(), v)()
         case e =>
           throw new IllegalArgumentException(
             s"Stream of StmNext evaluated to $e. It must evaluate to some kind of stream."

@@ -10,29 +10,29 @@ class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Support designs that take external inputs (e.g., s => StmMap(s, ...))?
 
   test("StmCount(12)") {
-    val s = StmCount(12)
+    val s = StmCount(12)().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
   test("StmRange(10, -2, 3)") {
-    val s = StmRange(10, -2, 3)
+    val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
   test("StmCst(20, True)") {
-    val s = StmCst(20, True)
+    val s = StmCst(20, True)().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
   test("StmBuildWithBoolVars") {
     val s = {
-      val b = Param("b")
-      val i = Param("i")
+      val b = Param("b")()
+      val i = Param("i")()
       StmBuild(
         5,
-        IfThenElse(b, SSome(i), NNone),
-        Map[Param, (Expr, Expr)](b -> (True, Not(b)), i -> (0, i + 1))
-      )
+        IfThenElse(b, SSome(i)(), NNone(TyInt))(),
+        Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
+      )().tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
   }
