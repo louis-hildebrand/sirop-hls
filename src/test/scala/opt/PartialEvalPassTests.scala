@@ -265,4 +265,21 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }
+
+  test("SmallerOrEqualWithVarRanges") {
+    val n = Param("n")(TyInt)
+    val i = Param("i")(TyInt)
+    val facts = FactSet().geq(n, 2).geq(i, 0).lt(i, n)
+    val e = 1 - n + i
+    assert(PartialEvalPass.isSmallerOrEqual(e, 0)(facts).contains(true))
+    assert(PartialEvalPass.isSmallerOrEqual(e, 0)().isEmpty)
+  }
+
+  test("GreaterOrEqualWithVarRanges") {
+    val c = Param("c")(TyInt)
+    val facts = FactSet().geq(c, 0)
+    val delta = 2 - c + 2 * c
+    assert(PartialEvalPass.isGreaterOrEqual(delta, 0)(facts).contains(true))
+    assert(PartialEvalPass.isGreaterOrEqual(delta, 0)().isEmpty)
+  }
 }

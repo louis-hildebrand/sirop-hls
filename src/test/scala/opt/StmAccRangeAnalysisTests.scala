@@ -29,7 +29,8 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         c -> ScalarRange(Some(2), None)
       )
     )
-    assert(StmAccRangeAnalysis.findAccRanges(stm) == expectedRanges)
+    val actualRanges = StmAccRangeAnalysis.findAccRanges(stm)
+    assert(actualRanges == expectedRanges)
   }
 
   test("RangeForNonIncreasingElem") {

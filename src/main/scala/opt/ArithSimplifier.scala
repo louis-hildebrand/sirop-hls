@@ -310,9 +310,15 @@ object ArithSimplifier {
       case Not(False)  => True
       case Not(Not(e)) => e
       case Not(And(terms @ _*)) =>
-        simplifyOr(Or(terms.map(e => simplifyNot(Not(e)())): _*)())
+        Or(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+          case e: Or => simplifyOr(e)
+          case e     => e
+        }
       case Not(Or(terms @ _*)) =>
-        simplifyAnd(And(terms.map(e => simplifyNot(Not(e)())): _*)())
+        And(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+          case e: And => simplifyAnd(e)
+          case e      => e
+        }
       case _ => not
     }
   }

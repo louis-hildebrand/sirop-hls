@@ -228,7 +228,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           // No point in trying to replace a stream-valued expression with its
           // closed form
         } else {
-          replaceStmNextK(newStm, t) match {
+          replaceStmNextK(newStm, t)(this.facts) match {
             case Some((withoutStmNextK: StmBuild, newRecEqns)) =>
               assert(!withoutStmNextK.contains(classOf[StmNextK]))
               // TODO: Check that the stream is still synthesizable
@@ -261,17 +261,33 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   private def replaceStmNextK(
       e: Expr,
       t: Param
-  ): Option[(Expr, Map[Param, (Expr, Function)])] = {
+  )(facts: FactSet): Option[(Expr, Map[Param, (Expr, Function)])] = {
     e match {
       case s: StmNextK =>
-        tryFindRecursiveForm(s.tchk().asInstanceOf[StmNextK], t) match {
+        val sChk = s.tchk().asInstanceOf[StmNextK]
+        tryFindRecursiveForm(sChk, t)(facts) match {
           case Some((z, f)) =>
             val r = Param("r")()
             Some((r, Map(r -> (z, f))))
           case None => None
         }
       case e =>
-        val childResults = e.children.map(c => replaceStmNextK(c, t))
+        val childResults = e match {
+          case VecBuild(n, f @ Function(i, body)) =>
+            Seq(
+              replaceStmNextK(n, t)(facts),
+              replaceStmNextK(body, t)(facts.geq(i, 0).lt(i, n)).map({
+                case (newBody, xs) => (f.rebuild(Seq(i, newBody)), xs)
+              })
+            )
+          case IfThenElse(c, tru, fals) =>
+            Seq(
+              replaceStmNextK(c, t)(facts),
+              replaceStmNextK(tru, t)(facts.isTrue(c)),
+              replaceStmNextK(fals, t)(facts.isFalse(c))
+            )
+          case e => e.children.map(c => replaceStmNextK(c, t)(facts))
+        }
         if (childResults.exists(x => x.isEmpty)) {
           None
         } else {
@@ -441,7 +457,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   def tryFindRecursiveForm(
       nxt: StmNextK,
       t: Param
-  ): Option[(Expr, Function)] = {
+  )(fs: FactSet): Option[(Expr, Function)] = {
     nxt.typ match {
       case Missing =>
         throw new IllegalArgumentException(
@@ -449,7 +465,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         )
       case _ => ()
     }
-    val facts = this.facts.geq(t, 0)
+    val facts = fs.geq(t, 0)
 
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
       e match {

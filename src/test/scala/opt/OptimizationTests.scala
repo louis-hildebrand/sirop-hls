@@ -388,7 +388,8 @@ class OptimizationTests extends AnyFunSuite {
       // Reset `t` to start at zero rather than n - 1
       val s7 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s6))
       val newFacts = facts.range(s7, StmAccRangeAnalysis.findAccRanges(s7))
-      tl(StmSimplifier.simplify(s7)(newFacts))
+      val s8 = tl(StmSimplifier.simplify(s7)(newFacts))
+      s8
     }
     val original =
       tl(StmMap(Stm2Vec(s)(), TyVec(TyInt, n) ::+ (v => Vec2Stm(v)()))())
@@ -410,7 +411,7 @@ class OptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     val a = Param("a")()
-    val identity = optimize(
+    val identity = tl(
       StmBuild(
         n,
         SSome(StmNext(a)().__1)(),

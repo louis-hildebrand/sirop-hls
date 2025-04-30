@@ -604,7 +604,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyInt, n))
     val e = StmNextK(s, t)().tchk().asInstanceOf[StmNextK]
     val actual =
-      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)(FactSet())
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
@@ -642,7 +642,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyInt, n))
     val e = StmNextK(s, Min(-5 + t, 5))().tchk().lower().asInstanceOf[StmNextK]
     val actual =
-      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)(FactSet())
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
@@ -691,7 +691,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val e = StmNextK(s, Min(t, n))().tchk().lower().asInstanceOf[StmNextK]
     val facts = FactSet().geq(n, 1)
     val actual =
-      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass().tryFindRecursiveForm(e, t = t)(FactSet())
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {
@@ -738,7 +738,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val e = StmNextK(s, t - n)().tchk().asInstanceOf[StmNextK]
     val facts = FactSet().geq(n, 1)
     val actual =
-      StmInductionVarRemovalPass(facts).tryFindRecursiveForm(e, t = t)
+      StmInductionVarRemovalPass(facts).tryFindRecursiveForm(e, t = t)(facts)
 
     assert(actual.isDefined)
     val (z, f) = actual.get match {

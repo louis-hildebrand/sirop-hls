@@ -373,10 +373,28 @@ object PartialEvalPass {
     }
   }
 
+  private def getPosAndNegTerms(e: Expr): (Seq[Expr], Seq[Expr]) = {
+    e match {
+      case Sum(terms @ _*) =>
+        val children = terms.map(getPosAndNegTerms)
+        (children.flatMap(e => e._1), children.flatMap(e => e._2))
+      case Prod(IntCst(-1), e) => (Seq(), Seq(e))
+      case e                   => (Seq(e), Seq())
+    }
+  }
+
   def isSmaller(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    partialEval(e1 < e2)(facts, MoveUp) match {
+    val lt = {
+      // ArithExpr seems to handle x < y better than x - y < 0, so try making all terms positive
+      val (lhsPosTerms, lhsNegTerms) = getPosAndNegTerms(partialEval(e1)(facts))
+      val (rhsPosTerms, rhsNegTerms) = getPosAndNegTerms(partialEval(e2)(facts))
+      val newLhs = Sum(lhsPosTerms ++ rhsNegTerms: _*)()
+      val newRhs = Sum(rhsPosTerms ++ lhsNegTerms: _*)()
+      newLhs < newRhs
+    }
+    partialEval(lt)(facts, MoveUp) match {
       case True  => Some(true)
       case False => Some(false)
       case _     => None

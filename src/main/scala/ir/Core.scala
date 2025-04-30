@@ -28,8 +28,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
   def unary_! : Not = Not(this)()
-  def &&(that: Expr): And = And(this, that)()
-  def ||(that: Expr): Or = Or(this, that)()
+  def &&(that: Expr): Expr = And(this, that)()
+  def ||(that: Expr): Expr = Or(this, that)()
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
   def __0: TupleAccess = TupleAccess(this, 0)()
@@ -689,12 +689,14 @@ case class IntCst(i: Int) extends IntExpr()(TyInt) {
 }
 
 case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "Sum must have at least one term.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Sum(newChildren: _*)(typ)
   }
 }
 case object Sum {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Sum = {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms = unsortedTerms
       // Flatten nested sums to represent associativity
       .flatMap({
@@ -703,22 +705,29 @@ case object Sum {
       })
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
-    val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
-      TyInt
-    } else {
-      typ
+    terms match {
+      case Seq()  => 0
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
+          TyInt
+        } else {
+          typ
+        }
+        new Sum(terms: _*)(newTyp)
     }
-    new Sum(terms: _*)(newTyp)
   }
 }
 
 case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
+  require(factors.nonEmpty, "Prod must have at least one factor.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Prod(newChildren: _*)(typ)
   }
 }
 case object Prod {
-  def apply(unsortedFactors: Expr*)(typ: Type = Missing): Prod = {
+  def apply(unsortedFactors: Expr*)(typ: Type = Missing): Expr = {
     val factors: Seq[Expr] =
       unsortedFactors
         // Flatten nested sums to represent associativity
@@ -728,12 +737,18 @@ case object Prod {
         })
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
-    val newTyp = if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
-      TyInt
-    } else {
-      typ
+    factors match {
+      case Seq()  => IntCst(1)
+      case Seq(e) => e
+      case factors =>
+        val newTyp =
+          if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
+            TyInt
+          } else {
+            typ
+          }
+        new Prod(factors: _*)(newTyp)
     }
-    new Prod(factors: _*)(newTyp)
   }
 }
 
@@ -852,6 +867,8 @@ case object Not {
 }
 
 case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "And must have at least one term.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     And(newChildren: _*)(typ)
   }
@@ -865,7 +882,7 @@ case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 case object And {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): And = {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms: Seq[Expr] =
       unsortedTerms
         // Flatten nested ANDs to represent associativity
@@ -877,16 +894,23 @@ case object And {
         .distinct
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
-    val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-      TyBool
-    } else {
-      typ
+    terms match {
+      case Seq()  => True
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
+          TyBool
+        } else {
+          typ
+        }
+        new And(terms: _*)(newTyp)
     }
-    new And(terms: _*)(newTyp)
   }
 }
 
 case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+  require(terms.nonEmpty, "Or must have at least one term.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Or(newChildren: _*)(typ)
   }
@@ -900,7 +924,7 @@ case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 case object Or {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Or = {
+  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms: Seq[Expr] =
       unsortedTerms
         // Flatten nested ORs to represent associativity
@@ -912,12 +936,17 @@ case object Or {
         .distinct
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
-    val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-      TyBool
-    } else {
-      typ
+    terms match {
+      case Seq()  => False
+      case Seq(e) => e
+      case terms =>
+        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
+          TyBool
+        } else {
+          typ
+        }
+        new Or(terms: _*)(newTyp)
     }
-    new Or(terms: _*)(newTyp)
   }
 }
 
