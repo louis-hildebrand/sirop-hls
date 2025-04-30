@@ -376,8 +376,6 @@ object PartialEvalPass {
   def isSmaller(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    // TODO: Maybe this could be optimized by immediately returning `None` in
-    //       cases where the partial evaluator won't return `True` or `False`
     partialEval(e1 < e2)(facts, MoveUp) match {
       case True  => Some(true)
       case False => Some(false)

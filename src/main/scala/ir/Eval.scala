@@ -131,7 +131,6 @@ trait Eval {
             )
         }
       case And(terms @ _*) =>
-        // TODO: Are And() and Or() short-circuiting? No, right?
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[BoolCst])) {
           if (termValues.contains(False)) False else True

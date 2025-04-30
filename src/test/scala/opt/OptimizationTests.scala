@@ -467,7 +467,7 @@ class OptimizationTests extends AnyFunSuite {
       }
     }
 
-    // TODO: Effective simplification
+    // Effective simplification
     val a = Param("a")()
     val identity = StmBuild(
       n,
@@ -525,8 +525,7 @@ class OptimizationTests extends AnyFunSuite {
       }
     }
 
-    // TODO: Effective simplification
-    assume(false)
+    // Effective simplification
     val ideal = s
     assert(optimized == ideal)
   }

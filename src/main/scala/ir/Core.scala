@@ -343,7 +343,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
-  // TODO: Re-run the type checker (just on this node) to confirm that it is still well-typed?
   def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
   def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
   def rebuild(typ: Type): Expr = rebuild(typ, children)

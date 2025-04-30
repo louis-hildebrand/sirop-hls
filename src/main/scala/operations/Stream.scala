@@ -459,7 +459,6 @@ case class StmAccess(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    // TODO: Implement this with StmPrefix and StmSuffix?
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
@@ -575,7 +574,6 @@ case class StmScanInclusive(
     val input = this.input.lower()
     val z = this.z.lower()
     val elemType = z.typ
-    // TODO: Need to lower f as well? Or does asStm2Stm already take care of it?
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val (s, innerStm) =
       Helpers.asStm2Stm(
@@ -1346,8 +1344,8 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    // TODO: Optimize this version specifically by producing elements while
-    //       the shift register is still filling up?
+    // It may be possible to optimize this version specifically by producing
+    // elements while the shift register is still filling up
     requireType()
     val t = this.stm.typ.asInstanceOf[TyStm].t
     StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
