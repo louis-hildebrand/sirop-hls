@@ -6,6 +6,54 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class OptimizationTests extends AnyFunSuite {
 
+  /** The optimizer can produce a nice design for a simple map on a 1D stream,
+    * even though the lowering pass spits out something a bit gross (since it
+    * must handle multi-dimensional streams).
+    */
+  test("Map:1D-1D") {
+    val n = Param("n")(TyInt)
+    val s = Param("s")(TyStm(TyInt, n))
+    val f = Param("f")(TyArrow(TyInt, TyInt))
+    val original = StmMap(s, TyInt ::+ (x => FunCall(f, x)()))()
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val s1 = tl(s)
+      val s2 = tl(StmSimplifier.simplify(s1)())
+      s2
+    }
+    val optimized = optimize(original)
+
+    // Correctness
+    val nExamples = Seq(0, 1, 4)
+    val sExamples = Seq(StmCst(n, 42)(), StmCount(n)())
+    val fExamples =
+      Seq(TyInt ::+ (x => x), TyInt ::+ (x => 99), TyInt ::+ (x => x * x))
+    for (nVal <- nExamples) {
+      for (sVal <- sExamples) {
+        for (fVal <- fExamples) {
+          val expected =
+            ir.eval(
+              Let(n, nVal, Let(s, sVal, Let(f, fVal, original)())())().tchk()
+            )
+          val actual =
+            ir.eval(
+              Let(n, nVal, Let(s, sVal, Let(f, fVal, optimized)())())().tchk()
+            )
+          assert(actual == expected)
+        }
+      }
+    }
+
+    // Effective simplification
+    val sAcc = Param("s")(TyStm(TyInt, n))
+    val ideal = StmBuild(
+      n,
+      SSome(FunCall(f, StmNext(sAcc)().__1)())(),
+      Map[Param, (Expr, Expr)](sAcc -> (s, StmNext(sAcc)().__0))
+    )().tchk().lower()
+    assert(optimized == ideal)
+  }
+
   /** The optimizer can create a reduction tree for VecFold, *provided* the
     * length is a static constant.
     */
