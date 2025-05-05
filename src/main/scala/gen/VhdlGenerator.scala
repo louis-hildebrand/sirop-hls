@@ -6,10 +6,6 @@ import opt.PartialEvalPass
 
 import java.nio.file.{Files, Path}
 
-private sealed trait Type
-private case object MyInt extends Type
-private case object MyBool extends Type
-
 private case class InPort(
     name: String,
     typ: String
@@ -99,18 +95,33 @@ private case class VhdlComponent(
 
 object VhdlGenerator {
   def makeVhdl(s: StmBuild, dir: Path): Int = {
-    val valid = PartialEvalPass.partialEval(IsSome(s.output)())
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
-    val (typeByVar, outType) = findTypes(s)
-    val bitWidth = getBitWidth(outType)
+    require(
+      s.typ != Missing,
+      "Expression must be type checked before hardware generation."
+    )
+    val valid = PartialEvalPass
+      .partialEval(IsSome(s.output)().tchk().lower())
+      .tchk()
+      .lower()
+    val data = PartialEvalPass
+      .partialEval(OptionUnwrapUnsafe(s.output)().tchk().lower())
+      .tchk()
+      .lower()
+    val bitWidth = getBitWidth(data.typ)
 
-    val (nVhdl, nSignals) = makeVhdlExpr(s.n, MyInt)
-    val (validVhdl, validSignals) = makeVhdlExpr(valid, MyBool)
-    val (dataVhdl, dataSignals) = makeVhdlExpr(data, outType)
+    val (nVhdl, nSignals) = makeVhdlExpr(s.n)
+    val (validVhdl, validSignals) = makeVhdlExpr(valid)
+    val (dataVhdl, dataSignals) = makeVhdlExpr(data)
     val accSignals = s.equations.flatMap({ case (x, (z, next)) =>
-      val typ = typeByVar(x)
-      val (initVhdl, initSignals) = makeVhdlExpr(z, typ)
-      val (nextVhdl, nextSignals) = makeVhdlExpr(next, typ)
+      val typ = x.typ match {
+        case Missing =>
+          throw new IllegalArgumentException(
+            s"Missing type for accumulator element $x."
+          )
+        case t => t
+      }
+      val (initVhdl, initSignals) = makeVhdlExpr(z)
+      val (nextVhdl, nextSignals) = makeVhdlExpr(next)
       val sig = Signal(
         name = x.name,
         typ = makeVhdlType(typ),
@@ -146,7 +157,7 @@ object VhdlGenerator {
           ),
           Signal(
             "data_internal",
-            typ = makeVhdlType(outType),
+            typ = makeVhdlType(data.typ),
             init = None,
             assign = dataVhdl,
             cond = None
@@ -174,7 +185,7 @@ object VhdlGenerator {
         name = "data",
         typ = s"std_logic_vector(${bitWidth - 1} downto 0)",
         assign =
-          s"(others => '0') when not transfer_ok else ${toStdLogicVector("data_internal", outType, "data'length")}"
+          s"(others => '0') when not transfer_ok else ${toStdLogicVector("data_internal", data.typ, "data'length")}"
       ),
       OutPort(
         name = "data_valid",
@@ -198,54 +209,54 @@ object VhdlGenerator {
     bitWidth
   }
 
-  private def makeVhdlExpr(e: Expr, typ: Type): (String, Seq[Signal]) = {
+  private def makeVhdlExpr(e: Expr): (String, Seq[Signal]) = {
     e match {
       case x: Param  => (x.name, Seq())
       case IntCst(n) => (n.toString, Seq())
       case Sum(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
+        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" + "), signals.flatten)
       case Prod(factors @ _*) =>
         val (vhdlFactors, signals) =
-          factors.map(e => makeVhdlExpr(e, typ)).unzip
+          factors.map(e => makeVhdlExpr(e)).unzip
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
       case Div(e1, e2) => ???
       case Mod(e1, e2) => ???
       case True        => ("true", Seq())
       case False       => ("false", Seq())
-      case IfThenElse(c, t, f) =>
-        val (cVhdl, cSignals) = makeVhdlExpr(c, MyBool)
-        val (tVhdl, tSignals) = makeVhdlExpr(t, typ)
-        val (fVhdl, fSignals) = makeVhdlExpr(f, typ)
+      case ite @ IfThenElse(c, t, f) =>
+        val (cVhdl, cSignals) = makeVhdlExpr(c)
+        val (tVhdl, tSignals) = makeVhdlExpr(t)
+        val (fVhdl, fSignals) = makeVhdlExpr(f)
         val sigName = Param("ite")().name
         val sig = Signal(
           sigName,
-          typ = makeVhdlType(typ),
+          typ = makeVhdlType(ite.typ),
           init = None,
           assign = s"($tVhdl) when ($cVhdl) else ($fVhdl)",
           cond = None
         )
         (sigName, sig +: (cSignals ++ tSignals ++ fSignals))
       case Equal(e1, e2) =>
-        val (e1Vhdl, e1Signals) = makeVhdlExpr(e1, MyInt)
-        val (e2Vhdl, e2Signals) = makeVhdlExpr(e2, MyInt)
+        val (e1Vhdl, e1Signals) = makeVhdlExpr(e1)
+        val (e2Vhdl, e2Signals) = makeVhdlExpr(e2)
         (s"($e1Vhdl) = ($e2Vhdl)", e1Signals ++ e2Signals)
       case LessThan(e1, e2) =>
-        val (e1Vhdl, e1Signals) = makeVhdlExpr(e1, MyInt)
-        val (e2Vhdl, e2Signals) = makeVhdlExpr(e2, MyInt)
+        val (e1Vhdl, e1Signals) = makeVhdlExpr(e1)
+        val (e2Vhdl, e2Signals) = makeVhdlExpr(e2)
         (s"($e1Vhdl) < ($e2Vhdl)", e1Signals ++ e2Signals)
       case Not(e) =>
-        val (vhdlE, signals) = makeVhdlExpr(e, typ)
+        val (vhdlE, signals) = makeVhdlExpr(e)
         (s"not ($vhdlE)", signals)
       case And(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
+        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" and "), signals.flatten)
       case Or(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e, typ)).unzip
+        val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
       case Tuple(elems @ _*)              => ???
       case TupleAccess(t, i)              => ???
-      case Function(x, e)              => ???
+      case Function(x, e)                 => ???
       case FunCall(f, arg)                => ???
       case StmBuild(n, output, equations) => ???
       case StmNext(stream)                => ???
@@ -262,55 +273,40 @@ object VhdlGenerator {
 
   private def makeVhdlType(t: Type): String = {
     t match {
-      case MyInt  => "integer"
-      case MyBool => "boolean"
+      case TyInt            => "integer"
+      case TyBool           => "boolean"
+      case TyTuple(ts @ _*) => ???
+      case TyVec(t, n)      => ???
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot convert type $t to a VHDL type."
+        )
     }
   }
 
   private def toStdLogicVector(e: String, t: Type, len: String): String = {
     t match {
-      case MyInt  => s"std_logic_vector(to_signed(($e), $len))"
-      case MyBool => s""" "1" when ($e) else "0" """.strip
+      case TyInt            => s"std_logic_vector(to_signed(($e), $len))"
+      case TyBool           => s""" "1" when ($e) else "0" """.strip
+      case TyTuple(ts @ _*) => ???
+      case TyVec(t, n)      => ???
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot convert data of type $t to a std_logic_vector."
+        )
     }
   }
 
   private def getBitWidth(t: Type): Int = {
     t match {
-      case MyBool => 1
-      case MyInt  => 32
-    }
-  }
-
-  private def findTypes(s: StmBuild): (Map[Param, Type], Type) = {
-    val typeByVar = s.seedByVar.flatMap({ case (x, e) =>
-      findType(e, Map()) match {
-        case Some(t) => Some(x -> t)
-        case None =>
-          throw new IllegalArgumentException(
-            s"Unable to determine type of accumulator variable $x."
-          )
-      }
-    })
-    val data = PartialEvalPass.partialEval(OptionUnwrapUnsafe(s.output)())
-    val outType = findType(data, typeByVar) match {
-      case Some(t) => t
-      case None =>
-        throw new IllegalArgumentException("Failed to find output type.")
-    }
-    (typeByVar, outType)
-  }
-
-  private def findType(
-      e: Expr,
-      typeByVar: Map[Param, Type]
-  ): Option[Type] = {
-    e match {
-      case _: IntExpr  => Some(MyInt)
-      case _: BoolExpr => Some(MyBool)
-      case IfThenElse(_, t, f) =>
-        findType(t, typeByVar).orElse(findType(f, typeByVar))
-      case x: Param => typeByVar.get(x)
-      case _        => None
+      case TyBool              => 1
+      case TyInt               => 32
+      case TyTuple(ts @ _*)    => ts.map(t => getBitWidth(t)).sum
+      case TyVec(t, IntCst(n)) => getBitWidth(t) * n
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot find bit width for type $t."
+        )
     }
   }
 }
