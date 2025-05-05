@@ -8,12 +8,8 @@ object TestbenchGenerator {
   def makeTestbench(out: StmLiteral, bitWidth: Int, dir: Path): Unit = {
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
-        val expected = v match {
-          case IntCst(k) => s"std_logic_vector(to_signed($k, expected'length))"
-          case True      => "\"1\""
-          case False     => "\"0\""
-          case _         => ???
-        }
+        val expected =
+          VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
         s"""    expected <= ${expected};
            |    wait until rising_edge(clk) and data_valid = '1';
            |    assert(data = expected) report "Wrong `data` at step $i.";

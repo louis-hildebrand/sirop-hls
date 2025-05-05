@@ -36,4 +36,28 @@ class VhdlGeneratorTests extends AnyFunSuite {
     }
     assert(TestRunner.testExpr(s) == TestPassed)
   }
+
+  test("StmBuildWithTupleVars") {
+    val s = {
+      val x = Param("x")()
+      val y = Param("y")()
+      StmBuild(
+        4,
+        SSome(Tuple(x.__0, x.__2, y, x.__3, y)())(),
+        Map[Param, (Expr, Expr)](
+          x -> (
+            Tuple(0, Tuple()(), Tuple(1, 2)(), True)(),
+            Tuple(
+              x.__0 + 1,
+              x.__1,
+              Tuple(x.__2.__0 - 1, x.__2.__1 + 4)(),
+              !x.__3
+            )()
+          ),
+          y -> (Tuple()(), Tuple()())
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
 }
