@@ -95,7 +95,7 @@ class OptimizationTests extends AnyFunSuite {
 
   /** The optimizer can perform map-map fusion.
     */
-  test("MapMap") {
+  test("Fuse:MapMap") {
     val n = Param("n")(TyInt)
     val input = Param("input")(TyStm(TyInt, n))
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
@@ -127,7 +127,7 @@ class OptimizationTests extends AnyFunSuite {
 
   /** The optimizer can perform map-fold fusion.
     */
-  test("MapFold") {
+  test("Fuse:MapFold") {
     val n = Param("n")(TyInt)
     val input = Param("input")(TyStm(TyInt, n))
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
@@ -137,18 +137,20 @@ class OptimizationTests extends AnyFunSuite {
         StmMap(input, f)(),
         z,
         TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )().tchk().lower().asInstanceOf[StmBuild]
-    val optimize = (s: StmBuild) => {
-      val s1 = s.fuseCompletely()
-      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
-      StmSimplifier.simplify(s2)()
+      )().tchk().lower()
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val s0 = tl(s)
+      val s1 = tl(s0.fuseCompletely())
+      val s2 = tl(StmSimplifier.simplify(s1)())
+      s2
     }
     val actual = optimize(s)
 
     // Correct behaviour
     // (Using one example input, f, g, and z)
     val call =
-      (e: Expr) => Let(n, 5, Let(input, StmCount(n)(), Let(z, 42, e)())())()
+      (e: Expr) => Let(n, 3, Let(input, StmCount(n)(), Let(z, 42, e)())())()
     val expected =
       StmLiteral(
         ir.eval(
@@ -156,8 +158,6 @@ class OptimizationTests extends AnyFunSuite {
             + FunCall(f, 0)()
             + FunCall(f, 1)()
             + FunCall(f, 2)()
-            + FunCall(f, 3)()
-            + FunCall(f, 4)()
         )
       )()
     assert(ir.eval(call(s)) == expected)
@@ -169,8 +169,55 @@ class OptimizationTests extends AnyFunSuite {
       StmFold(
         input,
         z,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + (x + 2) * (x + 3) * (x + 4)))
-      )().tchk().lower().asInstanceOf[StmBuild]
+        TyInt ::+ (acc => TyInt ::+ (x => acc + FunCall(f, x)()))
+      )()
+    )
+    assert(actual == ideal)
+  }
+
+  /** The optimizer can perform map-scan fusion.
+    */
+  test("Fuse:MapScan") {
+    val n = Param("n")(TyInt)
+    val input = Param("input")(TyStm(TyInt, n))
+    val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
+    val z = Param("z")(TyInt)
+    val s =
+      StmScanInclusive(
+        StmMap(input, f)(),
+        z,
+        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
+      )().tchk().lower()
+    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val optimize = (s: Expr) => {
+      val s0 = tl(s)
+      val s1 = tl(s0.fuseCompletely())
+      val s2 = tl(StmSimplifier.simplify(s1)())
+      s2
+    }
+    val actual = optimize(s)
+
+    // Correct behaviour
+    // (Using one example input, f, g, and z)
+    val call =
+      (e: Expr) => Let(n, 3, Let(input, StmCount(n)(), Let(z, 42, e)())())()
+    val expected =
+      StmLiteral(
+        ir.eval(42 + FunCall(f, 0)()),
+        ir.eval(42 + FunCall(f, 0)() + FunCall(f, 1)()),
+        ir.eval(42 + FunCall(f, 0)() + FunCall(f, 1)() + FunCall(f, 2)())
+      )()
+    assert(ir.eval(call(s)) == expected)
+    assert(ir.eval(call(actual)) == expected)
+    // Successful fusion:
+    // fold(map(s, f), z, a => x => g(a, x)) should simplify to the same thing
+    // as fold(s, z, a => x => g(a, f(x))
+    val ideal = optimize(
+      StmScanInclusive(
+        input,
+        z,
+        TyInt ::+ (acc => TyInt ::+ (x => acc + FunCall(f, x)()))
+      )()
     )
     assert(actual == ideal)
   }
