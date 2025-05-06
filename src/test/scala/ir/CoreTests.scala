@@ -406,6 +406,7 @@ class CoreTests extends AnyFunSuite {
 
   test("StmBuild:Fuse:ZipCounters") {
     val i = Param("i")()
+    // TODO: Test more thoroughly (e.g., let inputs be multiples of 2 and 3?)
     // [0, 1, 2, 3]
     val c1 =
       StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()

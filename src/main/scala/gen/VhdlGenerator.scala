@@ -6,24 +6,27 @@ import opt.PartialEvalPass
 
 import java.nio.file.{Files, Path}
 
+private trait Port
 private case class InPort(
     name: String,
     typ: String
-)
+) extends Port
 
 private case class OutPort(
     name: String,
     typ: String,
     assign: String
-)
+) extends Port
 
 private case class Signal(
     name: String,
     typ: String,
-    init: Option[String],
-    assignStmt: String,
-    cond: Option[String]
+    init: Option[String] = None,
+    assignStmt: Option[String] = None,
+    cond: Option[String] = None
 )
+
+private case class PortMap(map: Map[String, String])
 
 /** One component (entity + architecture) in VHDL.
   *
@@ -43,8 +46,25 @@ private case class VhdlComponent(
     name: String,
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
-    signals: Seq[Signal]
+    signals: Seq[Signal],
+    children: Seq[(VhdlComponent, PortMap)]
 ) {
+  checkPortMaps()
+
+  private def checkPortMaps(): Unit = {
+    for ((child, map) <- children) {
+      val expectedPorts =
+        (child.inPorts.map(p => p.name) ++ child.outPorts.map(p =>
+          p.name
+        )).toSet
+      val actualPorts = map.map.keySet
+      assert(
+        expectedPorts == actualPorts,
+        s"wrong ports for component ${child.name} (expected $expectedPorts but got $actualPorts)"
+      )
+    }
+  }
+
   def vhdl: String = {
     val portDecls = (
       inPorts.map(p => s"${p.name} : in ${p.typ}")
@@ -58,29 +78,36 @@ private case class VhdlComponent(
       }
       s"$str2;"
     })
+    val portMaps = children.map({ case (c, pm) =>
+      val assignments =
+        pm.map.map({ case (k, v) => s"$k => $v" }).mkString(", ")
+      s"${c.name.toUpperCase} : entity work.${c.name} port map($assignments);"
+    })
     val combStmts = (
       signals
-        .filter(s => s.cond.isEmpty)
-        .map(s => s.assignStmt)
+        .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
+        .map(s => s.assignStmt.get)
         ++ outPorts.map(p => s"${p.name} <= ${p.assign};")
     )
     val clkStmts = signals
-      .filter(s => s.cond.nonEmpty)
-      .map(s => s"if (${s.cond.get}) then ${s.assignStmt} end if;")
+      .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
+      .map(s => s"if (${s.cond.get}) then ${s.assignStmt.get} end if;")
     comment + "\n" +
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
          |
-         |entity top is
+         |entity $name is
          |port (
          |    ${portDecls.mkString(";\n    ")}
          |);
-         |end top;
+         |end;
          |
-         |architecture arch of top is
+         |architecture arch of $name is
          |    ${sigDecls.mkString("\n    ")}
          |begin
+         |    ${portMaps.mkString("\n    ")}
+         |
          |    ${combStmts.mkString("\n    ")}
          |
          |    process
@@ -88,7 +115,7 @@ private case class VhdlComponent(
          |        wait until rising_edge(clk) and can_update_acc;
          |        ${clkStmts.mkString("\n        ")}
          |    end process ;
-         |end arch;
+         |end;
          |""".stripMargin
   }
 }
@@ -103,6 +130,28 @@ object VhdlGenerator {
       !s.contains(classOf[SyntaxSugar]),
       "Expression must be lowered before hardware generation."
     )
+
+    val (topComponent, bitWidth) = stmBuildToComponent(s, "top")
+
+    val designDir = dir.resolve("design")
+    Files.createDirectory(designDir)
+    emitVhdlFiles(topComponent, designDir)
+
+    bitWidth
+  }
+
+  private def emitVhdlFiles(c: VhdlComponent, dir: Path): Unit = {
+    val file = dir.resolve(s"${c.name}.vhd")
+    Files.writeString(file, c.vhdl)
+    for ((child, _) <- c.children) {
+      emitVhdlFiles(child, dir)
+    }
+  }
+
+  private def stmBuildToComponent(
+      s: StmBuild,
+      name: String
+  ): (VhdlComponent, Int) = {
     val valid = PartialEvalPass
       .partialEval(IsSome(s.output)().tchk().lower())
       .tchk()
@@ -112,113 +161,229 @@ object VhdlGenerator {
       .tchk()
       .lower()
     val bitWidth = getBitWidth(data.typ)
-
     val (nVhdl, nSignals) = makeVhdlExpr(s.n)
     val (validVhdl, validSignals) = makeVhdlExpr(valid)
     val (dataVhdl, dataSignals) = makeVhdlExpr(data)
-    val accSignals = s.equations.flatMap({ case (x, (z, next)) =>
-      val typ = x.typ match {
-        case Missing =>
-          throw new IllegalArgumentException(
-            s"Missing type for accumulator element $x."
+
+    val (registers, internalProducers, externalProducers) = {
+      val (r, ip, ep) = s.equations
+        .map({ case eqn @ (x, (z, _)) =>
+          (x.typ, z) match {
+            // CASE 1: registers
+            case (t, _) if Default.hasDefault(t) => (Some(eqn), None, None)
+            // CASE 2: internal producer streams
+            case (_: TyStm, _: StmBuild) => (None, Some(eqn), None)
+            // CASE 3: external producer streams
+            case (_: TyStm, _: Param) => (None, None, Some(eqn))
+            // CASE 4: others
+            case (t, _) =>
+              throw new IllegalArgumentException(
+                s"Accumulator variable $x with type $t cannot be mapped to a register, an internal producer stream, or an external producer stream."
+              )
+          }
+        })
+        .unzip3
+      (r.flatten.toSeq, ip.flatten.toSeq, ep.flatten.toSeq)
+    }
+
+    // Simple registers
+    val accSignals = registers
+      .flatMap({ case (x, (z, next)) =>
+        assert(Default.hasDefault(x.typ))
+        val initVhdl = valueToVhdl(z)
+        val (nextVhdl, nextSignals) = makeVhdlExpr(next)
+        val sig = Signal(
+          name = x.name,
+          typ = makeVhdlType(x.typ),
+          init = Some(initVhdl),
+          assignStmt = Some(s"${x.name} <= $nextVhdl;"),
+          cond = Some("can_update_acc")
+        )
+        sig +: nextSignals
+      })
+
+    // All producer streams
+    val allProducers = internalProducers ++ externalProducers
+    val (readyCondByProducer, readyCondSignals) = {
+      val (rcp, sig) = allProducers
+        .map({ case (x, (_, next)) =>
+          // TODO: Partially evaluate?
+          val c = StmBuild.stmNextCallCondition(next, x)
+          val (vhdl, sig) = makeVhdlExpr(c)
+          (x -> vhdl, sig)
+        })
+        .unzip
+      (rcp.toMap, sig.flatten)
+    }
+
+    val arpvExpr = if (readyCondByProducer.isEmpty) {
+      "true"
+    } else {
+      readyCondByProducer
+        .map({ case (x, c) => s"(not ($c) or (${x.name}_data_valid))" })
+        .mkString(" and ")
+    }
+    // IMPORTANT: To avoid combinational loops, the producer's `valid` signal
+    //            must NOT depend on the consumer's `ready` signal
+    val allRequiredProducersValidSignal = Signal(
+      name = "all_required_producers_valid",
+      typ = "boolean",
+      assignStmt = Some(s"all_required_producers_valid <= $arpvExpr;")
+    )
+
+    // Internal producer streams
+    val children = internalProducers
+      .map({ case (x, (z, _)) =>
+        val componentName = Param("stm")().name
+        val (component, _) =
+          stmBuildToComponent(z.asInstanceOf[StmBuild], componentName)
+        val portMap = PortMap(
+          Map(
+            "clk" -> "clk",
+            "data_valid" -> s"${x.name}_data_valid_raw",
+            "data_ready" -> s"${x.name}_data_ready_raw",
+            "data" -> s"${x.name}_data_raw"
           )
-        case t => t
-      }
-      val initVhdl = valueToVhdl(z)
-      val (nextVhdl, nextSignals) = makeVhdlExpr(next)
-      val sig = Signal(
-        name = x.name,
-        typ = makeVhdlType(typ),
-        init = Some(initVhdl),
-        assignStmt = s"${x.name} <= $nextVhdl;",
-        cond = Some("can_update_acc")
+        )
+        (component, portMap)
+      })
+    val childSignals =
+      internalProducers.flatMap({ case (x, (z, next)) =>
+        val dataType = x.typ.asInstanceOf[TyStm].t
+        val bitWidth = getBitWidth(dataType)
+        val rawDataConversion =
+          fromStdLogicVector(s"${x.name}_data_raw", dataType)
+        val readyCond = readyCondByProducer(x)
+        Seq(
+          Signal(name = s"${x.name}_data_valid_raw", typ = "std_logic"),
+          Signal(
+            name = s"${x.name}_data_valid",
+            typ = "boolean",
+            assignStmt =
+              Some(s"${x.name}_data_valid <= ${x.name}_data_valid_raw = '1';")
+          ),
+          Signal(
+            name = s"${x.name}_data_ready_raw",
+            typ = "std_logic",
+            assignStmt = Some(
+              s"${x.name}_data_ready_raw <= '1' when ${x.name}_data_ready else '0';"
+            )
+          ),
+          Signal(
+            name = s"${x.name}_data_ready",
+            typ = "boolean",
+            // If waiting for multiple producers (e.g., in StmZip), don't raise
+            // the ready signal until *all* required producers are ready
+            assignStmt = Some(
+              s"${x.name}_data_ready <= ($readyCond) and all_required_producers_valid and (data_ready = '1');"
+            )
+          ),
+          Signal(
+            name = s"${x.name}_data_raw",
+            typ = s"std_logic_vector(${bitWidth - 1} downto 0)"
+          ),
+          Signal(
+            name = s"${x.name}_data",
+            typ = makeVhdlType(dataType),
+            assignStmt = Some(s"${x.name}_data <= $rawDataConversion;")
+          )
+        )
+      })
+
+    // TODO: External producer streams
+    assert(
+      externalProducers.isEmpty,
+      "external producer streams are not yet supported"
+    )
+
+    // Ports and signals that appear in all stream components
+    val defaultInPorts = Seq(
+      InPort("clk", "std_logic"),
+      InPort("data_ready", "std_logic")
+    )
+    val (dataInternalStdLogicVec, dataInternalSlvSignals) =
+      toStdLogicVector("data_internal", data.typ, "data'length")
+    val defaultOutPorts = Seq(
+      OutPort(
+        name = "data",
+        typ = s"std_logic_vector(${bitWidth - 1} downto 0)",
+        assign =
+          s"(others => '0') when not transfer_ok else $dataInternalStdLogicVec"
+      ),
+      OutPort(
+        name = "data_valid",
+        typ = "std_logic",
+        assign = "'1' when data_valid_internal else '0'"
       )
-      sig +: nextSignals
-    })
+    )
+    val defaultSignals = Seq(
+      Signal(
+        "num_outputs",
+        typ = "integer",
+        init = Some("0"),
+        assignStmt = Some("num_outputs <= num_outputs + 1;"),
+        cond = Some("transfer_ok")
+      ),
+      Signal(
+        "data_valid_internal",
+        typ = "boolean",
+        init = None,
+        assignStmt = Some(
+          s"data_valid_internal <= (num_outputs < $nVhdl) and ($validVhdl) and all_required_producers_valid;"
+        ),
+        cond = None
+      ),
+      Signal(
+        "data_internal",
+        typ = makeVhdlType(data.typ),
+        init = None,
+        assignStmt = Some(s"data_internal <= $dataVhdl;"),
+        cond = None
+      ),
+      Signal(
+        "transfer_ok",
+        typ = "boolean",
+        init = None,
+        assignStmt =
+          Some("transfer_ok <= data_ready = '1' and data_valid_internal;"),
+        cond = None
+      ),
+      Signal(
+        "can_update_acc",
+        typ = "boolean",
+        init = None,
+        assignStmt =
+          Some("can_update_acc <= (not data_valid_internal) or transfer_ok;"),
+        cond = None
+      )
+    )
 
     val comment = PrettyPrinter
       .show(s)(Map())
       .split("\n")
       .map(x => s"-- $x")
       .mkString("\n")
-    val inPorts =
-      Seq(InPort("clk", "std_logic"), InPort("data_ready", "std_logic"))
-    val (outPorts, outPortSignals) = {
-      val (dataInternalStdLogicVec, sig) =
-        toStdLogicVector("data_internal", data.typ, "data'length")
-      val ports = Seq(
-        OutPort(
-          name = "data",
-          typ = s"std_logic_vector(${bitWidth - 1} downto 0)",
-          assign =
-            s"(others => '0') when not transfer_ok else $dataInternalStdLogicVec"
-        ),
-        OutPort(
-          name = "data_valid",
-          typ = "std_logic",
-          assign = "'1' when data_valid_internal else '0'"
-        )
-      )
-      (ports, sig.toSeq)
-    }
-    val signals = (
-      nSignals ++ validSignals ++ dataSignals ++ accSignals ++ outPortSignals
-        ++
-        Seq[Signal](
-          Signal(
-            "num_outputs",
-            typ = "integer",
-            init = Some("0"),
-            assignStmt = "num_outputs <= num_outputs + 1;",
-            cond = Some("transfer_ok")
-          ),
-          Signal(
-            "data_valid_internal",
-            typ = "boolean",
-            init = None,
-            assignStmt =
-              s"data_valid_internal <= (num_outputs < $nVhdl) and ($validVhdl);",
-            cond = None
-          ),
-          Signal(
-            "data_internal",
-            typ = makeVhdlType(data.typ),
-            init = None,
-            assignStmt = s"data_internal <= $dataVhdl;",
-            cond = None
-          ),
-          Signal(
-            "transfer_ok",
-            typ = "boolean",
-            init = None,
-            assignStmt =
-              "transfer_ok <= data_ready = '1' and data_valid_internal;",
-            cond = None
-          ),
-          Signal(
-            "can_update_acc",
-            typ = "boolean",
-            init = None,
-            assignStmt =
-              "can_update_acc <= (not data_valid_internal) or transfer_ok;",
-            cond = None
-          )
-        )
+    val allSignals = (
+      defaultSignals
+        ++ nSignals
+        ++ dataSignals
+        ++ validSignals
+        ++ dataInternalSlvSignals
+        ++ accSignals
+        ++ childSignals
+        ++ readyCondSignals
+        ++ Seq(allRequiredProducersValidSignal)
     )
     val component = VhdlComponent(
       comment = comment,
-      name = "top",
-      inPorts = inPorts,
-      outPorts = outPorts,
-      signals = signals
+      name = name,
+      inPorts = defaultInPorts,
+      outPorts = defaultOutPorts,
+      signals = allSignals,
+      children = children
     )
 
-    val designDir = dir.resolve("design")
-    Files.createDirectory(designDir)
-    val topFile = designDir.resolve("top.vhd")
-    Files.writeString(topFile, component.vhdl)
-
-    bitWidth
+    (component, bitWidth)
   }
 
   private def makeVhdlExpr(e: Expr): (String, Seq[Signal]) = {
@@ -232,10 +397,10 @@ object VhdlGenerator {
         val (vhdlFactors, signals) =
           factors.map(e => makeVhdlExpr(e)).unzip
         (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
-      case Div(e1, e2) => ???
-      case Mod(e1, e2) => ???
-      case True        => ("true", Seq())
-      case False       => ("false", Seq())
+      case _: Div => ???
+      case _: Mod => ???
+      case True   => ("true", Seq())
+      case False  => ("false", Seq())
       case ite @ IfThenElse(c, t, f) =>
         val (cVhdl, cSignals) = makeVhdlExpr(c)
         val (tVhdl, tSignals) = makeVhdlExpr(t)
@@ -245,7 +410,8 @@ object VhdlGenerator {
           sigName,
           typ = makeVhdlType(ite.typ),
           init = None,
-          assignStmt = s"$sigName <= ($tVhdl) when ($cVhdl) else ($fVhdl);",
+          assignStmt =
+            Some(s"$sigName <= ($tVhdl) when ($cVhdl) else ($fVhdl);"),
           cond = None
         )
         (sigName, sig +: (cSignals ++ tSignals ++ fSignals))
@@ -266,6 +432,19 @@ object VhdlGenerator {
       case Or(terms @ _*) =>
         val (vhdlTerms, signals) = terms.map(e => makeVhdlExpr(e)).unzip
         (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
+
+      case TupleAccess(StmNext(s: Param), IntCst(1)) =>
+        (s"${s.name}_data", Seq())
+      case _: StmLiteral => ???
+      case _: StmBuild | _: StmNext | TupleAccess(_: StmNext, _) =>
+        throw new IllegalArgumentException(
+          s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
+        )
+      case _: StmNextK =>
+        throw new IllegalArgumentException(
+          s"Cannot generate hardware for ${e.getClass.getSimpleName}."
+        )
+
       case Tuple(elems @ _*) =>
         val (vhdlElems, signals) = elems.map(makeVhdlExpr).unzip
         assert(vhdlElems.length == elems.length)
@@ -294,14 +473,14 @@ object VhdlGenerator {
           typ = makeVhdlType(ta.typ),
           // TODO: Always have a default value (to avoid warnings from to_integer)?
           init = Some(valueToVhdl(Default(ta.typ).lower())),
-          assignStmt = s"$sigName <= $vhdlTupAccess;",
+          assignStmt = Some(s"$sigName <= $vhdlTupAccess;"),
           cond = None
         )
         (sig.name, sig +: signals)
-      case Function(x, e)                 => ???
-      case FunCall(f, arg)                => ???
-      case StmBuild(n, output, equations) => ???
-      case StmNext(stream)                => ???
+
+      case _: Function => ???
+      case _: FunCall  => ???
+
       case VecLiteral(elems @ _*) =>
         val (elemsVhdl, signals) = elems.map(makeVhdlExpr).unzip
         assert(elemsVhdl.length == elems.length)
@@ -351,12 +530,11 @@ object VhdlGenerator {
           name = sigName,
           typ = makeVhdlType(va.typ),
           init = None,
-          assignStmt = assign,
+          assignStmt = Some(assign),
           cond = None
         )
         (sigName, sig +: (vecSignals ++ idxSignals))
-      case StmLiteral(elems @ _*) => ???
-      case StmNextK(s, k)         => ???
+
       case _: SyntaxSugar =>
         throw new IllegalArgumentException(
           s"Syntax sugar must be removed before hardware generation."
@@ -421,7 +599,7 @@ object VhdlGenerator {
           name = sigName,
           typ = "std_logic_vector(0 downto 0)",
           init = None,
-          assignStmt = s"""$sigName <= "1" when ($e) else "0";""",
+          assignStmt = Some(s"""$sigName <= "1" when ($e) else "0";"""),
           cond = None
         )
         (sig.name, Some(sig))
@@ -442,6 +620,7 @@ object VhdlGenerator {
       case TyInt                 => s"to_integer(signed($e))"
       case _: TyTuple | _: TyVec =>
         // Tuples and vectors are already represented using std_logic_vector
+        // TODO: But might it be necessary to resize?
         e
       case t =>
         throw new IllegalArgumentException(

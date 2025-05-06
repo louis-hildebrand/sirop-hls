@@ -77,4 +77,19 @@ class VhdlGeneratorTests extends AnyFunSuite {
     }
     assert(TestRunner.testExpr(s) == TestPassed)
   }
+
+  test("StmCount |> StmMap(+42)") {
+    val s = {
+      val n = 4
+      val s = Param("s")()
+      StmBuild(
+        n,
+        SSome(StmNext(s)().__1 + 42)(),
+        Map[Param, (Expr, Expr)](
+          s -> (StmCount(n)(), StmNext(s)().__0)
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
 }

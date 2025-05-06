@@ -10,10 +10,10 @@ object TestbenchGenerator {
       .map({ case (v, i) =>
         val expected =
           VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
-        s"""    expected <= ${expected};
-           |    wait until rising_edge(clk) and data_valid = '1';
-           |    assert(data = expected) report "Wrong `data` at step $i.";
-           |""".stripMargin
+        s"""        expected <= ${expected};
+           |        wait until rising_edge(clk) and data_valid = '1';
+           |        assert(data = expected) report "Wrong `data` at step $i.";
+           |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
     val str =
@@ -60,7 +60,7 @@ object TestbenchGenerator {
          |        assert(data = expected) report "Wrong `data` when data_ready = '0'.";
          |        data_ready <= '1';
          |
-         |        $testSteps
+         |$testSteps
          |
          |        expected <= (others => '0');
          |        wait until rising_edge(clk);

@@ -1273,22 +1273,7 @@ case class StmBuild(
     * <code>StmNext(x).0</code> iff <code>c</code> evaluates to true.
     */
   private def stmNextCallCondition(stm: StmBuild, x: Param): Expr = {
-    stmNextCallCondition(stm.nextByVar(x), x)
-  }
-
-  private def stmNextCallCondition(e: Expr, x: Param): Expr = {
-    e match {
-      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
-      case y if y == x                                  => False
-      case IfThenElse(c, t, f) =>
-        val ct = stmNextCallCondition(t, x)
-        val cf = stmNextCallCondition(f, x)
-        (c && ct) || (!c && cf)
-      case e =>
-        throw new IllegalArgumentException(
-          s"Illegal update to a stream-valued accumulator element: $e."
-        )
-    }
+    StmBuild.stmNextCallCondition(stm.nextByVar(x), x)
   }
 
   /** Find the direct dependencies between accumulator variables in this stream.
@@ -1416,6 +1401,21 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
+
+  def stmNextCallCondition(e: Expr, x: Param): Expr = {
+    e match {
+      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
+      case y if y == x                                  => False
+      case IfThenElse(c, t, f) =>
+        val ct = stmNextCallCondition(t, x)
+        val cf = stmNextCallCondition(f, x)
+        (c && ct) || (!c && cf)
+      case e =>
+        throw new IllegalArgumentException(
+          s"Illegal update to a stream-valued accumulator element: $e."
+        )
+    }
+  }
 }
 
 // element only available for one clock cycle

@@ -81,7 +81,7 @@ function run_simulation {
     if [[ "$interactive_mode" == 'true' ]]; then
         vsim -i -do "add wave sim:/testbench/DUT/*; run -all" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     else
-        timeout "$TIMEOUT" vsim -c -do "run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        timeout "$TIMEOUT" vsim -c -do "set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     fi
 }
 
