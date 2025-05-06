@@ -5,7 +5,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import operations._
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Support other types of streams (streams of tuples, vectors)
   // TODO: Support designs that take inputs (e.g., StmCount . StmMap)?
   // TODO: Support designs that take external inputs (e.g., s => StmMap(s, ...))?
 
@@ -55,6 +54,24 @@ class VhdlGeneratorTests extends AnyFunSuite {
             )()
           ),
           y -> (Tuple()(), Tuple()())
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("StmBuildWithVecVars") {
+    val s = {
+      val v = Param("v")()
+      val z = VecBuild(
+        3,
+        TyInt ::+ (i => VecBuild(2, TyInt ::+ (j => Tuple(i, j)()))())
+      )()
+      StmBuild(
+        5,
+        SSome(Tuple(42, True, v)())(),
+        Map[Param, (Expr, Expr)](
+          v -> (z, VecShiftLeft(v, VecAccess(v, 0)()))
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }

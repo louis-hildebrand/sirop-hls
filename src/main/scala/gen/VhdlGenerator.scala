@@ -21,7 +21,7 @@ private case class Signal(
     name: String,
     typ: String,
     init: Option[String],
-    assign: String,
+    assignStmt: String,
     cond: Option[String]
 )
 
@@ -61,12 +61,12 @@ private case class VhdlComponent(
     val combStmts = (
       signals
         .filter(s => s.cond.isEmpty)
-        .map(s => s"${s.name} <= ${s.assign};")
+        .map(s => s.assignStmt)
         ++ outPorts.map(p => s"${p.name} <= ${p.assign};")
     )
     val clkStmts = signals
       .filter(s => s.cond.nonEmpty)
-      .map(s => s"if (${s.cond.get}) then ${s.name} <= ${s.assign}; end if;")
+      .map(s => s"if (${s.cond.get}) then ${s.assignStmt} end if;")
     comment + "\n" +
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -99,6 +99,10 @@ object VhdlGenerator {
       s.typ != Missing,
       "Expression must be type checked before hardware generation."
     )
+    require(
+      !s.contains(classOf[SyntaxSugar]),
+      "Expression must be lowered before hardware generation."
+    )
     val valid = PartialEvalPass
       .partialEval(IsSome(s.output)().tchk().lower())
       .tchk()
@@ -126,7 +130,7 @@ object VhdlGenerator {
         name = x.name,
         typ = makeVhdlType(typ),
         init = Some(initVhdl),
-        assign = nextVhdl,
+        assignStmt = s"${x.name} <= $nextVhdl;",
         cond = Some("can_update_acc")
       )
       sig +: nextSignals
@@ -165,35 +169,38 @@ object VhdlGenerator {
             "num_outputs",
             typ = "integer",
             init = Some("0"),
-            assign = "num_outputs + 1",
+            assignStmt = "num_outputs <= num_outputs + 1;",
             cond = Some("transfer_ok")
           ),
           Signal(
             "data_valid_internal",
             typ = "boolean",
             init = None,
-            assign = s"(num_outputs < $nVhdl) and ($validVhdl)",
+            assignStmt =
+              s"data_valid_internal <= (num_outputs < $nVhdl) and ($validVhdl);",
             cond = None
           ),
           Signal(
             "data_internal",
             typ = makeVhdlType(data.typ),
             init = None,
-            assign = dataVhdl,
+            assignStmt = s"data_internal <= $dataVhdl;",
             cond = None
           ),
           Signal(
             "transfer_ok",
             typ = "boolean",
             init = None,
-            assign = "data_ready = '1' and data_valid_internal",
+            assignStmt =
+              "transfer_ok <= data_ready = '1' and data_valid_internal;",
             cond = None
           ),
           Signal(
             "can_update_acc",
             typ = "boolean",
             init = None,
-            assign = "(not data_valid_internal) or transfer_ok",
+            assignStmt =
+              "can_update_acc <= (not data_valid_internal) or transfer_ok;",
             cond = None
           )
         )
@@ -238,7 +245,7 @@ object VhdlGenerator {
           sigName,
           typ = makeVhdlType(ite.typ),
           init = None,
-          assign = s"($tVhdl) when ($cVhdl) else ($fVhdl)",
+          assignStmt = s"$sigName <= ($tVhdl) when ($cVhdl) else ($fVhdl);",
           cond = None
         )
         (sigName, sig +: (cSignals ++ tSignals ++ fSignals))
@@ -281,12 +288,13 @@ object VhdlGenerator {
         val (vhdlTuple, signals) = makeVhdlExpr(t)
         val vhdlTupAccess =
           fromStdLogicVector(s"$vhdlTuple($msb downto $lsb)", ta.typ)
+        val sigName = Param("tupaccess")().name
         val sig = Signal(
-          name = Param("tupaccess")().name,
+          name = sigName,
           typ = makeVhdlType(ta.typ),
-          // TODO: Always have a default value?
+          // TODO: Always have a default value (to avoid warnings from to_integer)?
           init = Some(valueToVhdl(Default(ta.typ).lower())),
-          assign = vhdlTupAccess,
+          assignStmt = s"$sigName <= $vhdlTupAccess;",
           cond = None
         )
         (sig.name, sig +: signals)
@@ -294,25 +302,76 @@ object VhdlGenerator {
       case FunCall(f, arg)                => ???
       case StmBuild(n, output, equations) => ???
       case StmNext(stream)                => ???
-      case VecBuild(len, f)               => ???
-      case VecAccess(vec, i)              => ???
-      case VecLiteral(elems @ _*)         => ???
-      case StmLiteral(elems @ _*)         => ???
-      case StmNextK(s, k)                 => ???
-      case _: StmLength                   => ???
-      case _: VecLength                   => ???
-      case _: SyntaxSugar                 => ???
+      case VecLiteral(elems @ _*) =>
+        val (elemsVhdl, signals) = elems.map(makeVhdlExpr).unzip
+        assert(elemsVhdl.length == elems.length)
+        val (elemsStdLogicVec, moreSignals) = elemsVhdl
+          .zip(elems)
+          .map({ case (vhdl, e) =>
+            toStdLogicVector(vhdl, e.typ, getBitWidth(e.typ).toString)
+          })
+          .unzip
+        (
+          elemsStdLogicVec.map(x => s"($x)").mkString(" & "),
+          signals.flatten ++ moreSignals.flatten
+        )
+      case VecBuild(IntCst(n), f) =>
+        val typ = f.typ.asInstanceOf[TyArrow].t2
+        val elems = (0 until n).map(i =>
+          PartialEvalPass.partialEval(FunCall(f, i)()).tchk().lower()
+        )
+        val e = VecLiteral(elems: _*)(TyVec(typ, n))
+        makeVhdlExpr(e)
+      case VecBuild(n, _) =>
+        throw new IllegalArgumentException(
+          s"VecBuild with non-constant size ($n) is not supported."
+        )
+      case va @ VecAccess(v, i) =>
+        val (elemBitWidth, n) = v.typ match {
+          case TyVec(t, IntCst(n)) if n > 0 => (getBitWidth(t), n)
+          case t =>
+            throw new IllegalArgumentException(
+              s"Invalid type for vector in VecAccess: $t. Only non-empty, constant-size vectors are allowed."
+            )
+        }
+        val totBitWidth = n * elemBitWidth
+        val (vhdlVec, vecSignals) = makeVhdlExpr(v)
+        val (vhdlIdx, idxSignals) = makeVhdlExpr(i)
+        val sigName = Param("vecaccess")().name
+        val cases = (0 until n).map(i => {
+          val cond = if (i == n - 1) "others" else i.toString
+          val msb = totBitWidth - 1 - i * elemBitWidth
+          val lsb = msb - elemBitWidth + 1
+          val value = s"$vhdlVec($msb downto $lsb)"
+          s"($value) when $cond"
+        })
+        val assign =
+          s"with ($vhdlIdx) select $sigName <= ${cases.mkString(", ")};"
+        val sig = Signal(
+          name = sigName,
+          typ = makeVhdlType(va.typ),
+          init = None,
+          assignStmt = assign,
+          cond = None
+        )
+        (sigName, sig +: (vecSignals ++ idxSignals))
+      case StmLiteral(elems @ _*) => ???
+      case StmNextK(s, k)         => ???
+      case _: SyntaxSugar =>
+        throw new IllegalArgumentException(
+          s"Syntax sugar must be removed before hardware generation."
+        )
     }
   }
 
   private def valueToVhdl(v: Expr): String = {
-    v match {
+    ir.eval(v).tchk() match {
       case False     => "false"
       case True      => "true"
       case IntCst(k) => k.toString
-      case _: Tuple  => valueToStdLogicVector(v, getBitWidth(v.typ).toString)
-      case _: VecLiteral => ???
-      case e =>
+      case _: Tuple | _: VecLiteral =>
+        valueToStdLogicVector(v, getBitWidth(v.typ).toString)
+      case _ =>
         throw new IllegalArgumentException(
           s"Cannot convert value $v to a VHDL expression. Is it really a value?"
         )
@@ -320,22 +379,35 @@ object VhdlGenerator {
   }
 
   def valueToStdLogicVector(v: Expr, len: String): String = {
-    v match {
+    ir.eval(v).tchk() match {
       case False     => "\"0\""
       case True      => "\"1\""
       case IntCst(k) => s"std_logic_vector(to_signed($k, $len))"
       case Tuple(elems @ _*) =>
-        elems
-          .map(e => valueToStdLogicVector(e, getBitWidth(e.typ).toString))
-          .foldLeft("\"\"")({ case (acc, x) => s"$acc & ($x)" })
-      case _: VecLiteral => ???
-      case e =>
+        if (elems.isEmpty) {
+          "\"\""
+        } else {
+          elems
+            .map(e => valueToStdLogicVector(e, getBitWidth(e.typ).toString))
+            .map(x => s"($x)")
+            .mkString(" & ")
+        }
+      case vec: VecLiteral =>
+        valueToStdLogicVector(Tuple(vec.elems: _*)(), len)
+      case _ =>
         throw new IllegalArgumentException(
           s"Cannot convert value $v to a std_logic_vector. Is it really a value?"
         )
     }
   }
 
+  /** @param e
+    *   The VHDL expression to convert to a std_logic_vector
+    * @param t
+    *   The type of the original expression
+    * @param len
+    *   The length of the target std_logic_vector
+    */
   private def toStdLogicVector(
       e: String,
       t: Type,
@@ -344,16 +416,18 @@ object VhdlGenerator {
     t match {
       case TyInt => (s"std_logic_vector(to_signed(($e), $len))", None)
       case TyBool =>
+        val sigName = Param("slv")().name
         val sig = Signal(
-          name = Param("slv")().name,
+          name = sigName,
           typ = "std_logic_vector(0 downto 0)",
           init = None,
-          assign = s""" "1" when ($e) else "0" """.strip,
+          assignStmt = s"""$sigName <= "1" when ($e) else "0";""",
           cond = None
         )
         (sig.name, Some(sig))
       case _: TyTuple | _: TyVec =>
         // Tuples and vectors are already represented using std_logic_vector
+        // TODO: But might it be necessary to resize?
         (e, None)
       case t =>
         throw new IllegalArgumentException(

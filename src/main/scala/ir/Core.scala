@@ -242,7 +242,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             throw new TypeError(s"Argument of VecLength has type $t.")
         }
         vl.rebuild(TyInt, Seq(newV))
-      case _: VecLiteral => ???
+      case VecLiteral(elems @ _*) =>
+        elems match {
+          case Seq() =>
+            this.rebuild(TyVec(Missing, 0), Seq())
+          case _ =>
+            val newElems = elems.map(e => e.tchk())
+            for ((e, i) <- newElems.zipWithIndex.tail) {
+              if (e.typ != newElems.head.typ) {
+                throw new TypeError(
+                  s"Element 0 of vector has type ${newElems.head.typ} but element $i has type ${e.typ}."
+                )
+              }
+            }
+            this.rebuild(TyVec(newElems.head.typ, newElems.length), newElems)
+        }
 
       case s: StmBuild =>
         val newN = s.n.tchk
