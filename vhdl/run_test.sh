@@ -74,7 +74,8 @@ function parse_args {
 }
 
 function compile {
-  vcom -2008 -autoorder "$@"
+    echo "Compiling" "$@"
+    vcom -2008 -autoorder "$@"
 }
 
 function run_simulation {
@@ -92,15 +93,13 @@ function main {
     }
 
     echo ""
-    echo "Compiling design..."
-    compile "design/*.vhd" || {
+    compile design/*.vhd || {
         echoerr "Failed to compile design."
         exit "$DESIGN_COMPILE_FAILED"
     }
 
     echo ""
-    echo "Compiling testbench..."
-    compile "test/*.vhd" || {
+    compile test/*.vhd || {
         echoerr "Failed to compile testbench."
         exit "$TESTBENCH_COMPILE_FAILED"
     }

@@ -9,17 +9,26 @@ class TestRunnerTests extends AnyFunSuite {
     assert(TestRunner.testExistingProject("or-gate") == TestPassed)
   }
 
-  test("run_test.sh:stm-count") {
-    assert(TestRunner.testExistingProject("stm-count") == TestPassed)
+  test("run_test.sh:stm-count-sum") {
+    // The files are deliberately out of order (stm_1_scan.vhd depends on
+    // stm_2_count.vhd but the former comes before the latter in an
+    // alphabetical listing of the files).
+    assert(TestRunner.testExistingProject("stm-count-sum") == TestPassed)
   }
 
   test("run_test.sh:design-compile-error") {
-    assert(TestRunner.testExistingProject("design-compile-error") == DesignCompileFailed)
+    assert(
+      TestRunner.testExistingProject(
+        "design-compile-error"
+      ) == DesignCompileFailed
+    )
   }
 
   test("run_test.sh:testbench-compile-error") {
     assert(
-      TestRunner.testExistingProject("testbench-compile-error") == TestbenchCompileFailed
+      TestRunner.testExistingProject(
+        "testbench-compile-error"
+      ) == TestbenchCompileFailed
     )
   }
 
