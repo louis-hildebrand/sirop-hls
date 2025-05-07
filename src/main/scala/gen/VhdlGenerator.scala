@@ -101,6 +101,7 @@ private case class VhdlComponent(
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
+         |use work.helpers.all;
          |
          |entity $name is
          |port (
@@ -140,9 +141,66 @@ object VhdlGenerator {
 
     val designDir = dir.resolve("design")
     Files.createDirectory(designDir)
+    emitHelperPackage(designDir)
     emitVhdlFiles(topComponent, designDir)
 
     bitWidth
+  }
+
+  private def emitHelperPackage(dir: Path): Unit = {
+    val contents =
+      s"""library IEEE;
+         |use IEEE.std_logic_1164.all;
+         |use IEEE.numeric_std.all;
+         |
+         |package helpers is
+         |    function bool2sl (b : in boolean) return std_logic;
+         |    function bool2slv (b : boolean) return std_logic_vector;
+         |    function sl2bool (x : in std_logic) return boolean;
+         |    function slv2bool (v : in std_logic_vector(0 downto 0)) return boolean;
+         |    function int2slv (n : integer) return std_logic_vector;
+         |    function slv2int (v : in std_logic_vector(31 downto 0)) return integer;
+         |end package;
+         |
+         |package body helpers is
+         |    function bool2sl (b : in boolean) return std_logic is
+         |        variable x : std_logic;
+         |    begin
+         |        x := '1' when (b) else '0';
+         |        return x;
+         |    end;
+         |
+         |    function bool2slv (b : in boolean) return std_logic_vector is
+         |        variable x : std_logic_vector(0 downto 0);
+         |    begin
+         |        x := "1" when (b) else "0";
+         |        return x;
+         |    end;
+         |
+         |    function sl2bool (x : in std_logic) return boolean is
+         |    begin
+         |        return x = '1';
+         |    end;
+         |
+         |    function slv2bool (v : in std_logic_vector(0 downto 0)) return boolean is
+         |    begin
+         |        return v = "1";
+         |    end;
+         |
+         |    function int2slv (n : integer) return std_logic_vector is
+         |    begin
+         |        return std_logic_vector(to_signed(n, 32));
+         |    end;
+         |
+         |    function slv2int (v : in std_logic_vector(31 downto 0)) return integer is
+         |    begin
+         |        return to_integer(signed(v));
+         |    end;
+         |end package body;
+         |""".stripMargin
+
+    val file = dir.resolve("helpers.vhd")
+    Files.writeString(file, contents)
   }
 
   private def emitVhdlFiles(c: VhdlComponent, dir: Path): Unit = {
@@ -255,7 +313,7 @@ object VhdlGenerator {
         (component, portMap)
       })
     val childSignals =
-      internalProducers.flatMap({ case (x, (z, next)) =>
+      internalProducers.flatMap({ case (x, _) =>
         val dataType = x.typ.asInstanceOf[TyStm].t
         val bitWidth = getBitWidth(dataType)
         val rawDataConversion =
@@ -266,14 +324,15 @@ object VhdlGenerator {
           Signal(
             name = s"${x.name}_data_valid",
             typ = "boolean",
-            assignStmt =
-              Some(s"${x.name}_data_valid <= ${x.name}_data_valid_raw = '1';")
+            assignStmt = Some(
+              s"${x.name}_data_valid <= sl2bool(${x.name}_data_valid_raw);"
+            )
           ),
           Signal(
             name = s"${x.name}_data_ready_raw",
             typ = "std_logic",
             assignStmt = Some(
-              s"${x.name}_data_ready_raw <= '1' when ${x.name}_data_ready else '0';"
+              s"${x.name}_data_ready_raw <= bool2sl(${x.name}_data_ready);"
             )
           ),
           Signal(
@@ -306,8 +365,7 @@ object VhdlGenerator {
       InPort("clk", "std_logic"),
       InPort("data_ready", "std_logic")
     )
-    val (dataInternalStdLogicVec, dataInternalSlvSignals) =
-      toStdLogicVector("data_internal", data.typ, "data'length")
+    val dataInternalStdLogicVec = toStdLogicVector("data_internal", data.typ)
     val defaultOutPorts = Seq(
       OutPort(
         name = "data",
@@ -318,7 +376,7 @@ object VhdlGenerator {
       OutPort(
         name = "data_valid",
         typ = "std_logic",
-        assign = "'1' when data_valid_internal else '0'"
+        assign = "bool2sl(data_valid_internal)"
       )
     )
     val defaultSignals = Seq(
@@ -349,8 +407,9 @@ object VhdlGenerator {
         "transfer_ok",
         typ = "boolean",
         init = None,
-        assignStmt =
-          Some("transfer_ok <= data_ready = '1' and data_valid_internal;"),
+        assignStmt = Some(
+          "transfer_ok <= sl2bool(data_ready) and data_valid_internal;"
+        ),
         cond = None
       ),
       Signal(
@@ -383,7 +442,6 @@ object VhdlGenerator {
         ++ nSignals
         ++ dataSignals
         ++ validSignals
-        ++ dataInternalSlvSignals
         ++ accSignals
         ++ childSignals
         ++ readyCondSignals
@@ -463,15 +521,12 @@ object VhdlGenerator {
       case Tuple(elems @ _*) =>
         val (vhdlElems, signals) = elems.map(makeVhdlExpr).unzip
         assert(vhdlElems.length == elems.length)
-        val (vhdlElemsStdLogicVec, moreSignals) = vhdlElems
+        val vhdlElemsStdLogicVec = vhdlElems
           .zip(elems)
-          .map({ case (vhdl, e) =>
-            toStdLogicVector(vhdl, e.typ, getBitWidth(e.typ).toString)
-          })
-          .unzip
+          .map({ case (vhdl, e) => toStdLogicVector(vhdl, e.typ) })
         val concat = vhdlElemsStdLogicVec
           .foldLeft("\"\"")({ case (acc, e) => s"$acc & ($e)" })
-        (concat, signals.flatten ++ moreSignals.flatten)
+        (concat, signals.flatten)
       case ta @ TupleAccess(t, IntCst(i)) =>
         val tupTyp = t.typ.asInstanceOf[TyTuple]
         val bitWidth = getBitWidth(tupTyp)
@@ -504,15 +559,12 @@ object VhdlGenerator {
       case VecLiteral(elems @ _*) =>
         val (elemsVhdl, signals) = elems.map(makeVhdlExpr).unzip
         assert(elemsVhdl.length == elems.length)
-        val (elemsStdLogicVec, moreSignals) = elemsVhdl
+        val elemsStdLogicVec = elemsVhdl
           .zip(elems)
-          .map({ case (vhdl, e) =>
-            toStdLogicVector(vhdl, e.typ, getBitWidth(e.typ).toString)
-          })
-          .unzip
+          .map({ case (vhdl, e) => toStdLogicVector(vhdl, e.typ) })
         (
           elemsStdLogicVec.map(x => s"($x)").mkString(" & "),
-          signals.flatten ++ moreSignals.flatten
+          signals.flatten
         )
       case VecBuild(IntCst(n), f) =>
         val typ = f.typ.asInstanceOf[TyArrow].t2
@@ -610,30 +662,20 @@ object VhdlGenerator {
     *   The VHDL expression to convert to a std_logic_vector
     * @param t
     *   The type of the original expression
-    * @param len
-    *   The length of the target std_logic_vector
     */
   private def toStdLogicVector(
       e: String,
-      t: Type,
-      len: String
-  ): (String, Option[Signal]) = {
+      t: Type
+  ): String = {
+    // TODO: Is the length really necessary?
+    // TODO: Get rid of the second return value
     t match {
-      case TyInt => (s"std_logic_vector(to_signed(($e), $len))", None)
-      case TyBool =>
-        val sigName = Param("slv")().name
-        val sig = Signal(
-          name = sigName,
-          typ = "std_logic_vector(0 downto 0)",
-          init = None,
-          assignStmt = Some(s"""$sigName <= "1" when ($e) else "0";"""),
-          cond = None
-        )
-        (sig.name, Some(sig))
+      case TyInt                 => s"int2slv($e)"
+      case TyBool                => s"bool2slv($e)"
       case _: TyTuple | _: TyVec =>
         // Tuples and vectors are already represented using std_logic_vector
         // TODO: But might it be necessary to resize?
-        (e, None)
+        e
       case t =>
         throw new IllegalArgumentException(
           s"Cannot convert data of type $t to a std_logic_vector."
@@ -643,8 +685,8 @@ object VhdlGenerator {
 
   private def fromStdLogicVector(e: String, t: Type): String = {
     t match {
-      case TyBool                => s"""($e) = \"1\""""
-      case TyInt                 => s"to_integer(signed($e))"
+      case TyBool                => s"slv2bool($e)"
+      case TyInt                 => s"slv2int($e)"
       case _: TyTuple | _: TyVec =>
         // Tuples and vectors are already represented using std_logic_vector
         // TODO: But might it be necessary to resize?
