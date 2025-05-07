@@ -3,9 +3,9 @@ package gen
 import ir._
 import org.scalatest.funsuite.AnyFunSuite
 import operations._
+import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Support designs that take inputs (e.g., StmCount . StmMap)?
   // TODO: Support designs that take external inputs (e.g., s => StmMap(s, ...))?
 
   test("StmCount(12)") {
@@ -91,5 +91,56 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )().tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("StmCount |> StmScanInclusive(0, +)") {
+    val s = {
+      val n = 20
+      val s = StmScanInclusive(
+        StmCount(n)(),
+        0,
+        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
+      )()
+      s.tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+
+    val optimized =
+      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+    assert(TestRunner.testExpr(optimized) == TestPassed)
+  }
+
+  test("StmCount |> StmScanExclusive(0, +)") {
+    val s = {
+      val n = 20
+      val s = StmScanExclusive(
+        StmCount(n)(),
+        0,
+        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
+      )()
+      s.tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+
+    val optimized =
+      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+    assert(TestRunner.testExpr(optimized) == TestPassed)
+  }
+
+  test("StmCount |> StmFold(0, +)") {
+    val s = {
+      val n = 20
+      val s = StmFold(
+        StmCount(n)(),
+        0,
+        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
+      )()
+      s.tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+
+    val optimized =
+      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+    assert(TestRunner.testExpr(optimized) == TestPassed)
   }
 }

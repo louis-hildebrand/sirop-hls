@@ -69,28 +69,33 @@ private case class VhdlComponent(
     val portDecls = (
       inPorts.map(p => s"${p.name} : in ${p.typ}")
         ++ outPorts.map(p => s"${p.name} : out ${p.typ}")
-    )
-    val sigDecls = signals.map(s => {
-      val str1 = s"signal ${s.name} : ${s.typ}"
-      val str2 = s.init match {
-        case Some(z) => s"$str1 := $z"
-        case None    => str1
-      }
-      s"$str2;"
-    })
-    val portMaps = children.map({ case (c, pm) =>
-      val assignments =
-        pm.map.map({ case (k, v) => s"$k => $v" }).mkString(", ")
-      s"${c.name.toUpperCase} : entity work.${c.name} port map($assignments);"
-    })
+    ).sortBy(x => x)
+    val sigDecls = signals
+      .map(s => {
+        val str1 = s"signal ${s.name} : ${s.typ}"
+        val str2 = s.init match {
+          case Some(z) => s"$str1 := $z"
+          case None    => str1
+        }
+        s"$str2;"
+      })
+      .sortBy(x => x)
+    val portMaps = children
+      .map({ case (c, pm) =>
+        val assignments =
+          pm.map.map({ case (k, v) => s"$k => $v" }).mkString(", ")
+        s"${c.name.toUpperCase} : entity work.${c.name} port map($assignments);"
+      })
+      .sortBy(x => x)
     val combStmts = (
       signals
         .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
         .map(s => s.assignStmt.get)
         ++ outPorts.map(p => s"${p.name} <= ${p.assign};")
-    )
+    ).sortBy(x => x)
     val clkStmts = signals
       .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
+      .sortBy(s => s.name)
       .map(s => s"if (${s.cond.get}) then ${s.assignStmt.get} end if;")
     comment + "\n" +
       s"""library IEEE;
@@ -216,6 +221,8 @@ object VhdlGenerator {
       (rcp.toMap, sig.flatten)
     }
 
+    // If waiting for multiple producers (e.g., in StmZip), don't raise the
+    // ready signal until *all* required producers are ready
     val arpvExpr = if (readyCondByProducer.isEmpty) {
       "true"
     } else {
@@ -272,10 +279,8 @@ object VhdlGenerator {
           Signal(
             name = s"${x.name}_data_ready",
             typ = "boolean",
-            // If waiting for multiple producers (e.g., in StmZip), don't raise
-            // the ready signal until *all* required producers are ready
             assignStmt = Some(
-              s"${x.name}_data_ready <= ($readyCond) and all_required_producers_valid and (data_ready = '1');"
+              s"${x.name}_data_ready <= ($readyCond) and can_update_acc;"
             )
           ),
           Signal(
@@ -352,8 +357,18 @@ object VhdlGenerator {
         "can_update_acc",
         typ = "boolean",
         init = None,
-        assignStmt =
-          Some("can_update_acc <= (not data_valid_internal) or transfer_ok;"),
+        assignStmt = Some(
+          "can_update_acc <="
+          // If a data element was transferred, then we must update all the
+          // accumulators.
+            + " transfer_ok or"
+            // If not, this stream can still keep working, except that:
+            //  * If it has some valid data to send, it cannot advance until
+            //    that data is sent.
+            + " (not data_valid_internal"
+            //  * All required producers must have valid data.
+            + " and all_required_producers_valid);"
+        ),
         cond = None
       )
     )
@@ -465,18 +480,23 @@ object VhdlGenerator {
         val msb = bitWidth - 1 - bitsBefore
         val lsb = msb - bitsInside + 1
         val (vhdlTuple, signals) = makeVhdlExpr(t)
+        val tupleSigName = Param("tupaccess_t")().name
+        val tupleSig = Signal(
+          name = tupleSigName,
+          typ = makeVhdlType(t.typ),
+          assignStmt = Some(s"$tupleSigName <= $vhdlTuple;")
+        )
         val vhdlTupAccess =
-          fromStdLogicVector(s"$vhdlTuple($msb downto $lsb)", ta.typ)
+          fromStdLogicVector(s"${tupleSig.name}($msb downto $lsb)", ta.typ)
         val sigName = Param("tupaccess")().name
         val sig = Signal(
           name = sigName,
           typ = makeVhdlType(ta.typ),
-          // TODO: Always have a default value (to avoid warnings from to_integer)?
           init = Some(valueToVhdl(Default(ta.typ).lower())),
           assignStmt = Some(s"$sigName <= $vhdlTupAccess;"),
           cond = None
         )
-        (sig.name, sig +: signals)
+        (sig.name, tupleSig +: sig +: signals)
 
       case _: Function => ???
       case _: FunCall  => ???
@@ -496,6 +516,7 @@ object VhdlGenerator {
         )
       case VecBuild(IntCst(n), f) =>
         val typ = f.typ.asInstanceOf[TyArrow].t2
+        // TODO: It would be nice to avoid partial evaluation here
         val elems = (0 until n).map(i =>
           PartialEvalPass.partialEval(FunCall(f, i)()).tchk().lower()
         )
@@ -516,12 +537,18 @@ object VhdlGenerator {
         val totBitWidth = n * elemBitWidth
         val (vhdlVec, vecSignals) = makeVhdlExpr(v)
         val (vhdlIdx, idxSignals) = makeVhdlExpr(i)
+        val vecSigName = Param("vecaccess_v")().name
+        val vecSig = Signal(
+          name = vecSigName,
+          typ = makeVhdlType(v.typ),
+          assignStmt = Some(s"$vecSigName <= $vhdlVec;")
+        )
         val sigName = Param("vecaccess")().name
         val cases = (0 until n).map(i => {
           val cond = if (i == n - 1) "others" else i.toString
           val msb = totBitWidth - 1 - i * elemBitWidth
           val lsb = msb - elemBitWidth + 1
-          val value = s"$vhdlVec($msb downto $lsb)"
+          val value = s"${vecSig.name}($msb downto $lsb)"
           s"($value) when $cond"
         })
         val assign =
@@ -533,7 +560,7 @@ object VhdlGenerator {
           assignStmt = Some(assign),
           cond = None
         )
-        (sigName, sig +: (vecSignals ++ idxSignals))
+        (sigName, vecSig +: sig +: (vecSignals ++ idxSignals))
 
       case _: SyntaxSugar =>
         throw new IllegalArgumentException(

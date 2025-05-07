@@ -74,12 +74,12 @@ function parse_args {
 }
 
 function compile {
-  vcom -2008 "$1"
+  vcom -2008 -autoorder "$@"
 }
 
 function run_simulation {
     if [[ "$interactive_mode" == 'true' ]]; then
-        vsim -i -do "add wave sim:/testbench/DUT/*; run -all" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        vsim -i -do "add wave sim:/testbench/*; add wave sim:/testbench/DUT/*; run -all" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     else
         timeout "$TIMEOUT" vsim -c -do "set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     fi
@@ -91,22 +91,19 @@ function main {
         exit "$MISSING_PROJ"
     }
 
-    for f in design/*.vhd; do
-        echo ""
-        echo "Compiling design file $f..."
-        compile "$f" || {
-            echoerr "Failed to compile design file $f."
-            exit "$DESIGN_COMPILE_FAILED"
-        }
-    done
-    for f in test/*.vhd; do
-        echo ""
-        echo "Compiling testbench $f..."
-        compile "$f" || {
-            echoerr "Failed to compile testbench $f."
-            exit "$TESTBENCH_COMPILE_FAILED"
-        }
-    done
+    echo ""
+    echo "Compiling design..."
+    compile "design/*.vhd" || {
+        echoerr "Failed to compile design."
+        exit "$DESIGN_COMPILE_FAILED"
+    }
+
+    echo ""
+    echo "Compiling testbench..."
+    compile "test/*.vhd" || {
+        echoerr "Failed to compile testbench."
+        exit "$TESTBENCH_COMPILE_FAILED"
+    }
 
     echo ""
     echo "Running simulation..."

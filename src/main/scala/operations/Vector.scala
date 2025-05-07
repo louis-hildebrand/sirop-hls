@@ -22,7 +22,10 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
         newF.typ match {
           case TyArrow(t, t2) if t.isCompatibleWith(t1) =>
             this.rebuild(TyVec(t2, n), Seq(newV, newF))
-          case t => throw new TypeError(s"Function of VecMap has type $t.")
+          case t =>
+            throw new TypeError(
+              s"Function of VecMap has type $t. Expected a function with input type $t1."
+            )
         }
       case t => throw new TypeError(s"Vector of VecMap has type $t.")
     }
