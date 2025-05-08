@@ -323,6 +323,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  def eraseTypes(): Expr = {
+    this match {
+      case x: Param => x
+      case e        => e.mapPreOrder(c => c.eraseTypes())
+    }
+  }
+
   def expectTypeCompatibleWith(t: Type): Expr = {
     if (!this.typ.isCompatibleWith(t)) {
       throw new TypeError(s"Expected type $t but found ${this.typ}.")
@@ -361,6 +368,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
   def rebuild(typ: Type): Expr = rebuild(typ, children)
   def map(f: Expr => Expr): Expr = rebuild(children.map(f))
+  def mapPreOrder(f: Expr => Expr): Expr = map(f).map(e => e.mapPreOrder(f))
 
   /** Remove all syntax sugar from this expression and its children. This is
     * guaranteed to preserve type annotations.

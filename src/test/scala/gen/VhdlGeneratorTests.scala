@@ -67,13 +67,15 @@ class VhdlGeneratorTests extends AnyFunSuite {
         3,
         TyInt ::+ (i => VecBuild(2, TyInt ::+ (j => Tuple(i, j)()))())
       )()
-      StmBuild(
+      val s = StmBuild(
         5,
         SSome(Tuple(42, True, v)())(),
         Map[Param, (Expr, Expr)](
           v -> (z, VecShiftLeft(v, VecAccess(v, 0)()))
         )
       )().tchk().lower().asInstanceOf[StmBuild]
+      // TODO: This wouldn't be necessary if VecBuild had IntCst length
+      s.eraseTypes().tchk().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
   }
