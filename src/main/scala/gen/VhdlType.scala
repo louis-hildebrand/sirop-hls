@@ -1,0 +1,153 @@
+package gen
+
+import ir._
+
+private[gen] sealed trait VhdlType {
+
+  /** The VHDL code used to <i>refer to</i> this type, e.g., in signal
+    * declarations.
+    */
+  def vhdlName: String
+
+  /** The type mark for this type. This is used, for instance, in function
+    * return types.
+    */
+  def vhdlTypeMark: String = vhdlName
+
+  /** The VHDL code required to <i>define</i> this type. Will be
+    * <code>None</code> for built-in types.
+    */
+  def vhdlDefinition: Option[String]
+
+  /** All types within this one, recursively.
+    */
+  def descendants: Set[VhdlType]
+
+  /** The number of bits required by this type.
+    */
+  def bitWidth: Int
+}
+
+private[gen] object VhdlType {
+  def apply(t: Type): VhdlType = {
+    t match {
+      case TyInt               => VhdlInt
+      case TyBool              => VhdlBool
+      case TyTuple(ts @ _*)    => VhdlRecord(ts.map(t => VhdlType(t)))
+      case TyVec(t, IntCst(n)) => VhdlArray(n, VhdlType(t))
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot convert type $t to a VHDL type."
+        )
+    }
+  }
+}
+
+private[gen] case object VhdlInt extends VhdlType {
+  override def vhdlName: String = "integer"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 32
+}
+
+private[gen] case object VhdlBool extends VhdlType {
+  override def vhdlName: String = "boolean"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 1
+}
+
+private[gen] case object VhdlStdLogic extends VhdlType {
+  override def vhdlName: String = "std_logic"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 1
+}
+
+private[gen] case class VhdlStdLogicVec(n: Int) extends VhdlType {
+  override def vhdlName: String = s"std_logic_vector(${n - 1} downto 0)"
+  override def vhdlTypeMark: String = "std_logic_vector"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = n
+}
+
+private[gen] case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
+  override def vhdlName: String = {
+    val fieldTypeNames = fieldTypes
+      .map(t => {
+        val name = t.vhdlName
+        if (name.startsWith("\\")) {
+          assert(name.length >= 2)
+          assert(name.endsWith("\\"))
+          name.drop(1).dropRight(1)
+        } else {
+          name
+        }
+      })
+    s"\\(${fieldTypeNames.mkString(", ")})\\"
+  }
+
+  override def vhdlDefinition: Option[String] = {
+    if (fieldTypes.isEmpty) {
+      // VHDL records cannot be empty, so use an empty array instead
+      Some(s"type $vhdlName is array (0 downto 1) of character;")
+    } else {
+      val fieldDecls = fieldTypes.zipWithIndex
+        .map({ case (t, i) => s"i_$i : ${t.vhdlName};" })
+      val definition =
+        s"""type $vhdlName is
+           |record
+           |    ${fieldDecls.mkString("\n    ")}
+           |end record;
+           |""".stripMargin.stripTrailing
+      Some(definition)
+    }
+  }
+
+  override def descendants: Set[VhdlType] = {
+    fieldTypes.toSet.flatMap((t: VhdlType) => t.descendants + t)
+  }
+
+  override def bitWidth: Int = fieldTypes.map(t => t.bitWidth).sum
+}
+
+private[gen] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
+  override def vhdlName: String = {
+    val elemTypeName = t.vhdlName
+    val strippedElemTypeName = if (elemTypeName.startsWith("\\")) {
+      assert(elemTypeName.length >= 2)
+      assert(elemTypeName.endsWith("\\"))
+      elemTypeName.drop(1).dropRight(1)
+    } else {
+      elemTypeName
+    }
+    s"\\Vec[$strippedElemTypeName; $n]\\"
+  }
+
+  override def vhdlDefinition: Option[String] = {
+    val definition =
+      s"""type $vhdlName is
+         |array (0 to ${n - 1}) of ${t.vhdlName};
+         |""".stripMargin.stripTrailing
+    Some(definition)
+  }
+
+  override def descendants: Set[VhdlType] = {
+    t.descendants + t
+  }
+
+  override def bitWidth: Int = n * t.bitWidth
+}

@@ -40,7 +40,7 @@ object TestRunner {
   def testExpr(s: StmBuild): TestResult = {
     new Directory(VHDL_TEST_DIR.toFile).deleteRecursively()
     Files.createDirectory(VHDL_TEST_DIR)
-    val bitWidth = VhdlGenerator.makeVhdl(s, VHDL_TEST_DIR)
+    val bitWidth = VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
     val expected = ir.eval(s).asInstanceOf[StmLiteral]
     TestbenchGenerator.makeTestbench(expected, bitWidth, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
