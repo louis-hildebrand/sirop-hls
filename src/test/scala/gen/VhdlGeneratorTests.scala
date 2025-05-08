@@ -80,6 +80,28 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
+  test("StmCst(10, ((True, 42), (99, False)) |> StmIdentity") {
+    // Ensure that the overloaded conversion methods can be resolved even when
+    // there are two types---namely, (Bool, Int) and (Int, Bool)---with the
+    // same bit width.
+    val s = {
+      val n = 10
+      val s = Param("s")()
+      val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
+      StmBuild(
+        n,
+        SSome(StmNext(s)().__1)(),
+        Map[Param, (Expr, Expr)](
+          s -> (
+            StmCst(n, c)(),
+            StmNext(s)().__0
+          )
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    }
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
   test("StmCount |> StmMap(+42)") {
     val s = {
       val n = 4

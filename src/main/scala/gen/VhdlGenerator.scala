@@ -6,10 +6,14 @@ import opt.PartialEvalPass
 
 import java.nio.file.{Files, Path}
 
-private trait VhdlType {
+// TODO: Move these types to a separate file
+
+private sealed trait VhdlType {
   def vhdlName: String
+  def vhdlTypeMark: String = vhdlName
   def vhdlDefinition: Option[String]
   def children: Set[VhdlType]
+  def bitWidth: Int
 }
 
 private case object VhdlInt extends VhdlType {
@@ -18,6 +22,8 @@ private case object VhdlInt extends VhdlType {
   override def vhdlDefinition: Option[String] = None
 
   override def children: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 32
 }
 
 private case object VhdlBool extends VhdlType {
@@ -26,6 +32,8 @@ private case object VhdlBool extends VhdlType {
   override def vhdlDefinition: Option[String] = None
 
   override def children: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 1
 }
 
 private case object VhdlStdLogic extends VhdlType {
@@ -34,14 +42,19 @@ private case object VhdlStdLogic extends VhdlType {
   override def vhdlDefinition: Option[String] = None
 
   override def children: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = 1
 }
 
 private case class VhdlStdLogicVec(n: Int) extends VhdlType {
   override def vhdlName: String = s"std_logic_vector(${n - 1} downto 0)"
+  override def vhdlTypeMark: String = "std_logic_vector"
 
   override def vhdlDefinition: Option[String] = None
 
   override def children: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = n
 }
 
 private case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
@@ -80,6 +93,8 @@ private case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
   override def children: Set[VhdlType] = {
     fieldTypes.toSet.flatMap((t: VhdlType) => t.children + t)
   }
+
+  override def bitWidth: Int = fieldTypes.map(t => t.bitWidth).sum
 }
 
 private case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
@@ -104,7 +119,41 @@ private case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
   }
 
   override def children: Set[VhdlType] = {
-    Set(t)
+    t.children + t
+  }
+
+  override def bitWidth: Int = n * t.bitWidth
+}
+
+private case class VhdlFunction(
+    name: String,
+    args: Seq[(String, VhdlType)],
+    returnType: VhdlType,
+    variables: Seq[(String, VhdlType)],
+    body: String
+) {
+  private def signature: String = {
+    val argList =
+      args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString(", ")
+    s"function $name ($argList) return ${returnType.vhdlTypeMark}"
+  }
+
+  def vhdlDecl: String = s"$signature;"
+
+  def vhdlImpl: String = {
+    val varDecls = if (variables.isEmpty) {
+      "-- No variables"
+    } else {
+      variables
+        .map({ case (x, t) => s"variable $x : ${t.vhdlName};" })
+        .mkString("\n")
+    }
+    s"""$signature is
+       |${indent(varDecls)}
+       |begin
+       |${indent(body)}
+       |end;
+       |""".stripMargin.stripTrailing
   }
 }
 
@@ -241,65 +290,57 @@ object VhdlGenerator {
     )
 
     val (topComponent, bitWidth) = stmBuildToComponent(s, "top")
+    val typesToDefine =
+      findTypesUsedIn(topComponent).flatMap(t => t.children + t)
 
     val designDir = dir.resolve("design")
     Files.createDirectory(designDir)
-    emitConversionsPackage(designDir)
-    emitTypedefs(topComponent, designDir)
+    emitConversionsPackage(typesToDefine, designDir)
+    emitTypedefs(typesToDefine, designDir)
     emitComponents(topComponent, designDir)
 
     bitWidth
   }
 
-  private def emitConversionsPackage(dir: Path): Unit = {
+  private def emitConversionsPackage(types: Set[VhdlType], dir: Path): Unit = {
+    val defaultFunctions = Seq(
+      VhdlFunction(
+        name = "bool2sl",
+        args = Seq(("b", VhdlBool)),
+        returnType = VhdlStdLogic,
+        variables = Seq(("x", VhdlStdLogic)),
+        body = """x := '1' when (b) else '0';
+                 |return x;
+                 |""".stripMargin.stripTrailing
+      ),
+      VhdlFunction(
+        name = "sl2bool",
+        args = Seq(("x", VhdlStdLogic)),
+        returnType = VhdlBool,
+        variables = Seq(),
+        body = "return x = '1';"
+      )
+    )
+    val toSlvFunctions = types.flatMap(t => toSlvConverter(t))
+    val fromSlvFunctions = types.flatMap(t => fromSlvConverter(t))
+    val functions =
+      (defaultFunctions ++ toSlvFunctions ++ fromSlvFunctions)
+        .sortBy(f => f.vhdlDecl)
+
+    val decls = functions.map(f => f.vhdlDecl).mkString("\n\n")
+    val impls = functions.map(f => f.vhdlImpl).mkString("\n\n")
     val contents =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
+         |use work.typedefs.all;
          |
          |package conversions is
-         |    function bool2sl (b : in boolean) return std_logic;
-         |    function bool2slv (b : boolean) return std_logic_vector;
-         |    function sl2bool (x : in std_logic) return boolean;
-         |    function slv2bool (v : in std_logic_vector(0 downto 0)) return boolean;
-         |    function int2slv (n : integer) return std_logic_vector;
-         |    function slv2int (v : in std_logic_vector(31 downto 0)) return integer;
+         |${indent(decls)}
          |end package;
          |
          |package body conversions is
-         |    function bool2sl (b : in boolean) return std_logic is
-         |        variable x : std_logic;
-         |    begin
-         |        x := '1' when (b) else '0';
-         |        return x;
-         |    end;
-         |
-         |    function bool2slv (b : in boolean) return std_logic_vector is
-         |        variable x : std_logic_vector(0 downto 0);
-         |    begin
-         |        x := "1" when (b) else "0";
-         |        return x;
-         |    end;
-         |
-         |    function sl2bool (x : in std_logic) return boolean is
-         |    begin
-         |        return x = '1';
-         |    end;
-         |
-         |    function slv2bool (v : in std_logic_vector(0 downto 0)) return boolean is
-         |    begin
-         |        return v = "1";
-         |    end;
-         |
-         |    function int2slv (n : integer) return std_logic_vector is
-         |    begin
-         |        return std_logic_vector(to_signed(n, 32));
-         |    end;
-         |
-         |    function slv2int (v : in std_logic_vector(31 downto 0)) return integer is
-         |    begin
-         |        return to_integer(signed(v));
-         |    end;
+         |${indent(impls)}
          |end package body;
          |""".stripMargin
 
@@ -307,19 +348,15 @@ object VhdlGenerator {
     Files.writeString(file, contents)
   }
 
-  private def emitTypedefs(topComponent: VhdlComponent, dir: Path): Unit = {
-    val typesToDefine =
-      findTypesUsedIn(topComponent)
-        .flatMap(t => t.children + t)
-        .toSeq
-        // A type declaration cannot refer to types declared later.
-        // Since every type's name includes all of its children's names, its
-        // name is guaranteed to be strictly larger than any of its children's
-        // names.
-        // Therefore, sorting by name length puts the declarations in the
-        // desired order.
-        .sortBy(x => x.vhdlName.length)
-    val definitions = typesToDefine
+  private def emitTypedefs(typesToDefine: Set[VhdlType], dir: Path): Unit = {
+    val definitions = typesToDefine.toSeq
+      // A type declaration cannot refer to types declared later.
+      // Since every type's name includes all of its children's names, its
+      // name is guaranteed to be strictly larger than any of its children's
+      // names.
+      // Therefore, sorting by name length puts the declarations in the
+      // desired order.
+      .sortBy(x => x.vhdlName.length)
       .flatMap(t => t.vhdlDefinition)
     val contents =
       s"""library IEEE;
@@ -460,10 +497,10 @@ object VhdlGenerator {
       internalProducers.flatMap({ case (x, _) =>
         val dataType = x.typ.asInstanceOf[TyStm].t
         val bitWidth = getBitWidth(dataType)
-        val (rawDataConversion, rawDataConversionSignals) =
+        val rawDataConversion =
           fromStdLogicVector(s"${x.name}_data_raw", dataType)
         val readyCond = readyCondByProducer(x)
-        rawDataConversionSignals ++ Seq(
+        Seq(
           Signal(name = s"${x.name}_data_valid_raw", typ = VhdlStdLogic),
           Signal(
             name = s"${x.name}_data_valid",
@@ -509,8 +546,7 @@ object VhdlGenerator {
       InPort("clk", VhdlStdLogic),
       InPort("data_ready", VhdlStdLogic)
     )
-    val (dataInternalSlv, dataInternalSlvSignals) =
-      toStdLogicVector("data_internal", data.typ)
+    val dataInternalSlv = toStdLogicVector("data_internal", data.typ)
     val defaultOutPorts = Seq(
       OutPort(
         name = "data",
@@ -585,7 +621,6 @@ object VhdlGenerator {
       defaultSignals
         ++ nSignals
         ++ dataSignals
-        ++ dataInternalSlvSignals
         ++ validSignals
         ++ accSignals
         ++ childSignals
@@ -683,17 +718,7 @@ object VhdlGenerator {
       case _: Function => ???
       case _: FunCall  => ???
 
-      case VecLiteral(elems @ _*) =>
-        val (elemsVhdl, signals) = elems.map(makeVhdlExpr).unzip
-        assert(elemsVhdl.length == elems.length)
-        val (elemsStdLogicVec, moreSignals) = elemsVhdl
-          .zip(elems)
-          .map({ case (vhdl, e) => toStdLogicVector(vhdl, e.typ) })
-          .unzip
-        (
-          elemsStdLogicVec.map(x => s"($x)").mkString(" & "),
-          signals.flatten ++ moreSignals.flatten
-        )
+      case VecLiteral(elems @ _*) => ???
       case VecBuild(IntCst(n), f) =>
         val vecSigName = Param("vbuild")().name
         val (vec, vecBodySignals) = {
@@ -792,161 +817,202 @@ object VhdlGenerator {
     }
   }
 
-  // TODO: Organize these conversion methods a bit better?
+  // TODO: Organize these conversion methods a bit better? Move them to a separate class?
 
   /** @param e
     *   The VHDL expression to convert to a std_logic_vector
     * @param t
     *   The type of the original expression
     */
-  private def toStdLogicVector(e: String, t: Type): (String, Seq[Signal]) = {
+  private def toStdLogicVector(e: String, t: Type): String = {
+    toStdLogicVector(e, makeVhdlType(t))
+  }
+
+  private def toStdLogicVector(e: String, t: VhdlType): String = {
     t match {
-      case TyInt       => (s"int2slv($e)", Seq())
-      case TyBool      => (s"bool2slv($e)", Seq())
-      case tt: TyTuple => tupleToStdLogicVec(e, tt)
-      case tv: TyVec   => vecToStdLogicVec(e, tv)
-      case t =>
-        throw new IllegalArgumentException(
-          s"Cannot convert data of type $t to a std_logic_vector."
-        )
-    }
-  }
-
-  private def tupleToStdLogicVec(
-      e: String,
-      tt: TyTuple
-  ): (String, Seq[Signal]) = {
-    tt match {
-      case TyTuple() => ("\"\"", Seq())
-      case TyTuple(ts @ _*) =>
-        val sigName = Param("tuple2slv")().name
-        val sig = Signal(
-          name = sigName,
-          typ = makeVhdlType(tt),
-          assignStmt = Some(s"$sigName <= $e;")
-        )
-        val (out, signals) = {
-          val (elems, signals) = ts.zipWithIndex
-            .map({ case (t, i) =>
-              toStdLogicVector(s"${sig.name}.i_$i", t)
-            })
-            .unzip
-          (elems.map(x => s"($x)").mkString(" & "), signals.flatten)
-        }
-        (out, sig +: signals)
-    }
-  }
-
-  private def vecToStdLogicVec(e: String, tv: TyVec): (String, Seq[Signal]) = {
-    tv match {
-      case TyVec(t, IntCst(n)) =>
-        val sigName = Param("vec2slv")().name
-        val vecSig = Signal(
-          name = sigName,
-          typ = makeVhdlType(tv),
-          assignStmt = Some(s"$sigName <= $e;")
-        )
-        val (out, signals) = {
-          val (elems, signals) = (0 until n)
-            .map(i => toStdLogicVector(s"${vecSig.name}($i)", t))
-            .unzip
-          (elems.map(x => s"($x)").mkString(" & "), signals.flatten)
-        }
-        (out, vecSig +: signals)
+      case VhdlStdLogic       => s"(0 => $e)"
+      case _: VhdlStdLogicVec => e
       case _ =>
-        throw new IllegalArgumentException(
-          s"Cannot convert vector type $tv with non-constant length to std_logic_vector."
-        )
+        val f = toSlvConverterName(t)
+        s"$f($e)"
     }
   }
 
-  private def fromStdLogicVector(e: String, t: Type): (String, Seq[Signal]) = {
+  private def toSlvConverterName(t: VhdlType): String = {
+    "to_std_logic_vector"
+  }
+
+  private def toSlvConverter(t: VhdlType): Option[VhdlFunction] = {
     t match {
-      case TyBool      => (s"slv2bool($e)", Seq())
-      case TyInt       => (s"slv2int($e)", Seq())
-      case tt: TyTuple => stdLogicVectorToTuple(e, tt)
-      case tv: TyVec   => stdLogicVectorToVec(e, tv)
-      case t =>
-        throw new IllegalArgumentException(
-          s"Cannot convert data of type std_logic_vector to $t."
-        )
+      case VhdlBool           => Some(boolToSlvConverter)
+      case VhdlInt            => Some(intToSlvConverter)
+      case VhdlStdLogic       => None
+      case _: VhdlStdLogicVec => None
+      case t: VhdlRecord      => Some(recordToSlvConverter(t))
+      case t: VhdlArray       => Some(arrayToSlvConverter(t))
     }
   }
 
-  private def stdLogicVectorToTuple(
-      e: String,
-      tt: TyTuple
-  ): (String, Seq[Signal]) = {
-    tt match {
-      case TyTuple() => (valueToVhdl(Tuple()()), Seq())
-      case TyTuple(ts @ _*) =>
-        val bitWidth = getBitWidth(tt)
-        val sig = {
-          val name = Param("slv2tuple")().name
-          Signal(
-            name = name,
-            typ = VhdlStdLogicVec(bitWidth),
-            assignStmt = Some(s"$name <= $e;")
-          )
-        }
-        val (out, signals) = {
-          val (elems, signals) = ts.zipWithIndex
-            .map({ case (t, i) =>
-              val bitsBefore = ts.take(i).map(t => getBitWidth(t)).sum
-              val bitsInside = getBitWidth(ts(i))
-              val msb = bitWidth - 1 - bitsBefore
-              val lsb = msb - bitsInside + 1
-              fromStdLogicVector(s"${sig.name}($msb downto $lsb)", t)
-            })
-            .unzip
-          val tuple = {
-            val assignments = elems.zipWithIndex
-              .map({ case (e, i) => s"i_$i => $e" })
-              .mkString(", ")
-            s"($assignments)"
-          }
-          (tuple, signals.flatten)
-        }
-        (out, sig +: signals)
+  private def boolToSlvConverter: VhdlFunction = {
+    VhdlFunction(
+      name = toSlvConverterName(VhdlBool),
+      args = Seq(("b", VhdlBool)),
+      returnType = VhdlStdLogicVec(1),
+      variables = Seq(("x", VhdlStdLogicVec(1))),
+      body = """x := "1" when (b) else "0";
+               |return x;
+               |""".stripMargin.stripTrailing
+    )
+  }
+
+  private def intToSlvConverter: VhdlFunction = {
+    VhdlFunction(
+      name = toSlvConverterName(VhdlInt),
+      args = Seq(("n", VhdlInt)),
+      returnType = VhdlStdLogicVec(32),
+      variables = Seq(),
+      body = "return std_logic_vector(to_signed(n, 32));"
+    )
+  }
+
+  private def recordToSlvConverter(tup: VhdlRecord): VhdlFunction = {
+    VhdlFunction(
+      name = toSlvConverterName(tup),
+      args = Seq(("x", tup)),
+      returnType = VhdlStdLogicVec(tup.bitWidth),
+      variables = Seq(),
+      body = if (tup.fieldTypes.isEmpty) {
+        "return \"\";"
+      } else {
+        val out = tup.fieldTypes.zipWithIndex
+          .map({ case (t, i) => toStdLogicVector(s"x.i_$i", t) })
+          .mkString(" & ")
+        s"return $out;"
+      }
+    )
+  }
+
+  private def arrayToSlvConverter(arr: VhdlArray): VhdlFunction = {
+    VhdlFunction(
+      name = toSlvConverterName(arr),
+      args = Seq(("x", arr)),
+      returnType = VhdlStdLogicVec(arr.bitWidth),
+      variables = Seq(),
+      body = {
+        val out = (0 until arr.n)
+          .map(i => toStdLogicVector(s"x($i)", arr.t))
+          .mkString(" & ")
+        s"return $out;"
+      }
+    )
+  }
+
+  private def fromStdLogicVector(e: String, t: Type): String = {
+    fromStdLogicVector(e, makeVhdlType(t))
+  }
+
+  private def fromStdLogicVector(e: String, t: VhdlType): String = {
+    t match {
+      case _: VhdlStdLogicVec => e
+      case _ =>
+        val f = fromSlvConverterName(t)
+        s"$f($e)"
     }
   }
 
-  private def stdLogicVectorToVec(
-      e: String,
-      tv: TyVec
-  ): (String, Seq[Signal]) = {
-    tv match {
-      case TyVec(t, IntCst(n)) =>
-        val bitWidth = getBitWidth(tv)
-        val elemBitWidth = getBitWidth(t)
-        val vecSig = {
-          val name = Param("slv2vec")().name
-          Signal(
-            name = name,
-            typ = VhdlStdLogicVec(bitWidth),
-            assignStmt = Some(s"$name <= $e;")
-          )
-        }
-        val (elems, signals) = (0 until n)
-          .map(i => {
-            val msb = bitWidth - 1 - i * elemBitWidth
-            val lsb = msb - elemBitWidth + 1
-            val slice = s"${vecSig.name}($msb downto $lsb)"
-            fromStdLogicVector(slice, t)
+  private def fromSlvConverterName(t: VhdlType): String = {
+    // It seems like the VHDL compiler can tell which overload to use based on
+    // the return type (since the result of this conversion is always assigned
+    // to a signal or return value, not converted back to a std_logic_vector).
+    // If at some point that is no longer true, just change this name to
+    // include the target type.
+    "from_std_logic_vector"
+  }
+
+  private def fromSlvConverter(t: VhdlType): Option[VhdlFunction] = {
+    t match {
+      case VhdlStdLogic       => Some(stdLogicFromSlvConverter)
+      case VhdlBool           => Some(boolFromSlvConverter)
+      case VhdlInt            => Some(intFromSlvConverter)
+      case _: VhdlStdLogicVec => None
+      case t: VhdlRecord      => Some(recordFromSlvConverter(t))
+      case t: VhdlArray       => Some(arrayFromSlvConverter(t))
+    }
+  }
+
+  private def stdLogicFromSlvConverter: VhdlFunction = {
+    VhdlFunction(
+      name = fromSlvConverterName(VhdlStdLogic),
+      args = Seq(("v", VhdlStdLogicVec(1))),
+      returnType = VhdlStdLogic,
+      variables = Seq(),
+      body = "return v(0);"
+    )
+  }
+
+  private def boolFromSlvConverter: VhdlFunction = {
+    VhdlFunction(
+      name = fromSlvConverterName(VhdlBool),
+      args = Seq(("v", VhdlStdLogicVec(1))),
+      returnType = VhdlBool,
+      variables = Seq(),
+      body = "return v = \"1\";"
+    )
+  }
+
+  private def intFromSlvConverter: VhdlFunction = {
+    VhdlFunction(
+      name = fromSlvConverterName(VhdlInt),
+      args = Seq(("v", VhdlStdLogicVec(32))),
+      returnType = VhdlInt,
+      variables = Seq(),
+      body = "return to_integer(signed(v));"
+    )
+  }
+
+  private def recordFromSlvConverter(tup: VhdlRecord): VhdlFunction = {
+    VhdlFunction(
+      name = fromSlvConverterName(tup),
+      args = Seq(("v", VhdlStdLogicVec(tup.bitWidth))),
+      returnType = tup,
+      variables = Seq(),
+      body = if (tup.fieldTypes.isEmpty) {
+        "return \"\";"
+      } else {
+        val elems = tup.fieldTypes.zipWithIndex
+          .map({ case (t, i) =>
+            val bitsBefore = tup.fieldTypes.take(i).map(t => t.bitWidth).sum
+            val bitsInside = t.bitWidth
+            val msb = tup.bitWidth - 1 - bitsBefore
+            val lsb = msb - bitsInside + 1
+            fromStdLogicVector(s"v($msb downto $lsb)", t)
           })
-          .unzip
-        val vec = {
-          val assignments = elems.zipWithIndex
-            .map({ case (e, i) => s"$i => $e" })
-            .mkString(", ")
-          s"($assignments)"
-        }
-        (vec, vecSig +: signals.flatten)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Cannot convert std_logic_vector to vector type $tv with non-constant length."
-        )
-    }
+        val assignments = elems.zipWithIndex
+          .map({ case (v, i) => s"i_$i => $v" })
+          .mkString(", ")
+        s"return ($assignments);"
+      }
+    )
+  }
+
+  private def arrayFromSlvConverter(vec: VhdlArray): VhdlFunction = {
+    VhdlFunction(
+      name = fromSlvConverterName(vec),
+      args = Seq(("v", VhdlStdLogicVec(vec.bitWidth))),
+      returnType = vec,
+      variables = Seq(),
+      body = {
+        val elems = (0 until vec.n).map(i => {
+          val msb = vec.bitWidth - 1 - i * vec.t.bitWidth
+          val lsb = msb - vec.t.bitWidth + 1
+          fromStdLogicVector(s"v($msb downto $lsb)", vec.t)
+        })
+        val assignments = elems.zipWithIndex
+          .map({ case (v, i) => s"$i => $v" })
+          .mkString(", ")
+        s"return ($assignments);"
+      }
+    )
   }
 
   private def makeVhdlType(t: Type): VhdlType = {
@@ -962,16 +1028,5 @@ object VhdlGenerator {
     }
   }
 
-  private def getBitWidth(t: Type): Int = {
-    t match {
-      case TyBool              => 1
-      case TyInt               => 32
-      case TyTuple(ts @ _*)    => ts.map(t => getBitWidth(t)).sum
-      case TyVec(t, IntCst(n)) => getBitWidth(t) * n
-      case t =>
-        throw new IllegalArgumentException(
-          s"Cannot find bit width for type $t."
-        )
-    }
-  }
+  private def getBitWidth(t: Type): Int = makeVhdlType(t).bitWidth
 }
