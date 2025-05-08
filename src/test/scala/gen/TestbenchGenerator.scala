@@ -1,25 +1,81 @@
 package gen
 
 import ir._
+import debug.indent
 
 import java.nio.file.{Files, Path}
 
+case class TestInput(elems: Seq[Option[Expr]])
+
 object TestbenchGenerator {
-  def makeTestbench(out: StmLiteral, bitWidth: Int, dir: Path): Unit = {
+  def makeTestbench(
+      // TODO: Make it possible to test multiple values for one input?
+      inputs: Seq[TestInput],
+      e: Expr,
+      bitWidth: Int,
+      dir: Path
+  ): Unit = {
+    val (out, inputsByVar) = getExpectedOutput(e, inputs)
+    val inputProcesses = inputsByVar
+      .map({ case (x, inputs) =>
+        val steps = inputs.elems
+          .map({
+            case None =>
+              s"""${x.name}_valid <= '0';
+                 |${x.name}_data <= (others => '0');
+                 |wait until rising_edge(clk);
+                 |""".stripMargin.stripTrailing
+            case Some(v) =>
+              val elemType = x.typ.asInstanceOf[TyStm].t
+              val bitWidth = VhdlType(elemType).bitWidth
+              val slv =
+                VhdlGenerator.valueToStdLogicVector(v, bitWidth.toString)
+              s"""${x.name}_valid <= '1';
+                 |${x.name}_data <= $slv;
+                 |wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+                 |""".stripMargin.stripTrailing
+          })
+          .mkString("\n\n")
+        s"""-- Generate inputs ($x.name)
+           |process
+           |begin
+           |${indent(steps)}
+           |end process;
+           |""".stripMargin.stripTrailing
+      })
+      .mkString("\n\n")
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
         val expected =
           VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
-        s"""        expected <= ${expected};
-           |        wait until rising_edge(clk) and data_valid = '1';
-           |        assert(data = expected) report "Wrong `data` at step $i.";
+        s"""expected <= ${expected};
+           |wait until rising_edge(clk) and valid = '1';
+           |assert(data = expected) report "Wrong `data` at step $i.";
            |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
+    val assignments = (
+      Seq("clk", "data", "valid", "ready")
+        ++ inputsByVar.keys.flatMap(x =>
+          Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
+        )
+    ).map(x => s"$x => $x").mkString(", ")
+    val inputStmSignals = inputsByVar.keys
+      .flatMap(x => {
+        val elemType = x.typ.asInstanceOf[TyStm].t
+        val vhdlType = VhdlStdLogicVec(VhdlType(elemType).bitWidth)
+        Seq(
+          s"signal ${x.name}_data  : ${vhdlType.vhdlName};",
+          s"signal ${x.name}_valid : std_logic;",
+          s"signal ${x.name}_ready : std_logic := '0';"
+        )
+      })
+      .mkString("\n")
     val str =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
+         |use work.conversions.all;
          |
          |entity testbench is
          |    -- empty
@@ -31,13 +87,14 @@ object TestbenchGenerator {
          |    signal   test_done  : boolean := false;
          |    signal   clk        : std_logic := '0';
          |    signal   data       : std_logic_vector(${bitWidth - 1} downto 0);
-         |    signal   data_valid : std_logic;
-         |    signal   data_ready : std_logic := '0';
+         |    signal   valid      : std_logic;
+         |    signal   ready      : std_logic := '0';
          |    signal   expected   : std_logic_vector(${bitWidth - 1} downto 0);
+         |${indent(inputStmSignals)}
          |
          |begin
          |
-         |    DUT: entity work.top port map(clk => clk, data => data, data_valid => data_valid, data_ready => data_ready);
+         |    DUT: entity work.top port map($assignments);
          |
          |    -- Generate clock signal
          |    process
@@ -50,22 +107,24 @@ object TestbenchGenerator {
          |        end if;
          |    end process;
          |
-         |    -- Run tests
+         |${indent(inputProcesses)}
+         |
+         |    -- Check outputs
          |    process
          |    begin
          |        -- What happens if the consumer is not ready?
          |        expected <= (others => '0');
-         |        data_ready <= '0';
-         |        wait until rising_edge(clk) and data_valid = '1';
-         |        assert(data = expected) report "Wrong `data` when data_ready = '0'.";
-         |        data_ready <= '1';
+         |        ready <= '0';
+         |        wait until rising_edge(clk) and valid = '1';
+         |        assert(data = expected) report "Wrong `data` when ready = '0'.";
+         |        ready <= '1';
          |
-         |$testSteps
+         |${indent(testSteps, 2)}
          |
          |        expected <= (others => '0');
          |        wait until rising_edge(clk);
          |        assert(data = expected) report "Wrong `data` after completion.";
-         |        assert(data_valid = '0') report "Wrong `valid` after completion";
+         |        assert(valid = '0') report "Wrong `valid` after completion";
          |
          |        test_done <= true;
          |        assert false report "Test done." severity note;
@@ -78,5 +137,36 @@ object TestbenchGenerator {
     Files.createDirectory(testDir)
     val testbenchFile = testDir.resolve("test_top.vhd")
     Files.writeString(testbenchFile, str)
+  }
+
+  /** Find the expected output by passing all the given inputs. Also record
+    * which parameter each input corresponds to.
+    */
+  private def getExpectedOutput(
+      e: Expr,
+      inputs: Seq[TestInput]
+  ): (StmLiteral, Map[Param, TestInput]) = {
+    val (params, _) = e match {
+      case s: StmBuild => (Seq(), s)
+      case f: Function => VhdlGenerator.unwrapTopLevelFunction(f)
+      case e =>
+        throw new IllegalArgumentException(
+          s"I don't know how to find expected output for expression $e."
+        )
+    }
+    if (inputs.length != params.length) {
+      throw new IllegalArgumentException(
+        s"Wrong number of arguments."
+          + s" Expected ${params.length}, got ${inputs.length}."
+      )
+    }
+    val substituted = inputs
+      .foldLeft(e)({ case (acc, in) =>
+        val arg = StmLiteral(in.elems.flatten: _*)()
+        FunCall(acc, arg)()
+      })
+    val evaluated = ir.eval(substituted).asInstanceOf[StmLiteral]
+    val inputByParam = params.zip(inputs).toMap
+    (evaluated, inputByParam)
   }
 }

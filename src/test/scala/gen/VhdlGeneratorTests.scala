@@ -6,12 +6,12 @@ import operations._
 import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Support designs that take external inputs (e.g., s => StmMap(s, ...))?
-
-  test("StmCount(12)") {
-    val s = StmCount(12)().tchk().lower().asInstanceOf[StmBuild]
-    assert(TestRunner.testExpr(s) == TestPassed)
-  }
+  // TODO: Support functions inside component (as in a Let expression)?
+  // TODO: What happens if an input stream is used multiple times?
+  //        (*) Directly in the top-level StmBuild, as in s => StmConcat(s, s)
+  //            or s => (x => StmConcat(x, x))(s)?
+  //        (*) In a sub-component, as in StmZip(StmPrefix(s, 2), StmSuffix(s, 2))
+  // TODO: What if an input stream is unused? Just discard data/valid and set ready <= '0'?
 
   test("StmRange(10, -2, 3)") {
     val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
@@ -166,5 +166,57 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val optimized =
       StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(optimized) == TestPassed)
+  }
+
+  test("s => StmCount(12)") {
+    // Input deliberately unused
+    val s = Param("s")(TyStm(TyInt, 1))
+    val count = StmCount(12)().tchk().lower().asInstanceOf[StmBuild]
+    val f = Function(s, count)().tchk()
+    val inputs = Seq(
+      TestInput(Seq(Some(42)))
+    )
+    assert(TestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("s => s |> StmMap") {
+    val n = 50
+    val s = Param("s")(TyStm(TyInt, n))
+    val map = StmMap(s, TyInt ::+ (x => (x + 1) * x + 42))().tchk().lower()
+    val f = Function(s, map)().tchk()
+    val inputs = Seq(
+      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i)))))
+    )
+    assert(TestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("s => s |> ZipWithIndex") {
+    val n = 33
+    val t = TyTuple(TyInt, TyBool, TyVec(TyInt, 3))
+    val s = Param("s")(TyStm(t, n))
+    val zip = StmZip(StmCount(n)(), s)().tchk().lower()
+    val f = Function(s, zip)().tchk()
+    val inputs = {
+      val v = (i: Int) => Tuple(i, i % 2 == 0, VecLiteral(i - 1, i, i + 1)())()
+      Seq(
+        TestInput((0 until n).flatMap(i => Seq(None, Some(v(i)), None)))
+      )
+    }
+    assert(TestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("a => b => c => StmZip(StmZip(a, b), c)") {
+    val n = 20
+    val a = Param("s")(TyStm(TyInt, n))
+    val b = Param("s")(TyStm(TyInt, n))
+    val c = Param("s")(TyStm(TyInt, n))
+    val zip = StmZip(StmZip(a, b)(), c)().tchk().lower()
+    val f = Function(a, Function(b, Function(c, zip)())())().tchk()
+    val inputs = Seq(
+      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i))))),
+      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i * 2)), None))),
+      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i * i)), None)))
+    )
+    assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
 }

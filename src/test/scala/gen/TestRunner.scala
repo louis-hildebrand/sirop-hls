@@ -3,6 +3,7 @@ package gen
 import ir._
 
 import java.nio.file.{Files, Path, Paths}
+import scala.collection.immutable.ListMap
 import scala.reflect.io.Directory
 import scala.sys.process._
 
@@ -37,12 +38,21 @@ object TestRunner {
     }
   }
 
-  def testExpr(s: StmBuild): TestResult = {
+  def testExpr(
+      e: Expr,
+      inputs: Seq[TestInput] = Seq()
+  ): TestResult = {
     new Directory(VHDL_TEST_DIR.toFile).deleteRecursively()
     Files.createDirectory(VHDL_TEST_DIR)
-    val bitWidth = VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
-    val expected = ir.eval(s).asInstanceOf[StmLiteral]
-    TestbenchGenerator.makeTestbench(expected, bitWidth, VHDL_TEST_DIR)
+    val bitWidth = e match {
+      case s: StmBuild => VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
+      case f: Function => VhdlGenerator.emitVhdl(f, VHDL_TEST_DIR)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Only streams and functions are supported (got expression $e)."
+        )
+    }
+    TestbenchGenerator.makeTestbench(inputs, e, bitWidth, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
   }
 }

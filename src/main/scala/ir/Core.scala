@@ -1026,7 +1026,7 @@ case class StmBuild(
     * @param replacements
     *   A map from old variables to new variables.
     */
-  private def renameVars(replacements: Map[Param, Param]): StmBuild = {
+  def renameVars(replacements: Map[Param, Param]): StmBuild = {
     require(
       replacements.keys.forall(x => this.accVars.contains(x)),
       "all the variables to be replaced must appear in this stream"

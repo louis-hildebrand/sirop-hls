@@ -43,9 +43,10 @@ private[gen] case class InPort(
 private[gen] case class OutPort(
     name: String,
     typ: VhdlType,
-    assign: String
+    assign: Option[String]
 ) extends Port
 
+// TODO: Add `category` field so I can group the signals in a meaningful way?
 private[gen] case class Signal(
     name: String,
     typ: VhdlType,
@@ -119,7 +120,9 @@ private[gen] case class VhdlComponent(
       signals
         .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
         .map(s => s.assignStmt.get)
-        ++ outPorts.map(p => s"${p.name} <= ${p.assign};")
+        ++ outPorts
+          .filter(p => p.assign.isDefined)
+          .map(p => s"${p.name} <= ${p.assign.get};")
     ).sortBy(x => x)
     val clkStmts = signals
       .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
