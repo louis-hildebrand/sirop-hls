@@ -154,8 +154,8 @@ object VhdlGenerator {
       (r.flatten, ip.flatten)
     }
 
-    val (readyCondByProducer, readyCondSignals) = {
-      val (rcp, sig) =
+    val (readyCondByProducer, readyCondDecls) = {
+      val (rcp, decls) =
         (
           // CASE 1 (internal producers).
           // Check how the stream accumulator is updated.
@@ -163,8 +163,8 @@ object VhdlGenerator {
             .map({ case (x, (_, next)) =>
               // TODO: Partially evaluate?
               val c = StmBuild.stmNextCallCondition(next, x)
-              val VhdlExpr(vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
-              (x -> vhdl, sig)
+              val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(c)
+              (x -> vhdl, decls)
             })
             ++ whereUsedByInput.flatMap({
               // CASE 2 (external producers used here).
@@ -173,8 +173,8 @@ object VhdlGenerator {
                 val next = s.nextByVar(x)
                 // TODO: Partially evaluate?
                 val c = StmBuild.stmNextCallCondition(next, x)
-                val VhdlExpr(vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
-                Some(x -> vhdl, sig)
+                val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(c)
+                Some(x -> vhdl, decls)
               // CASE 3 (external producers used nowhere).
               // Never read from it.
               case (x, Nowhere) => Some(x -> "false", Seq())
@@ -183,7 +183,7 @@ object VhdlGenerator {
               case _ => None
             })
         ).unzip
-      (rcp.toMap, sig.flatten)
+      (rcp.toMap, decls.flatten)
     }
 
     // If waiting for multiple producers (e.g., in StmZip), don't raise the
@@ -216,12 +216,12 @@ object VhdlGenerator {
       .split("\n")
       .map(x => s"-- $x")
       .mkString("\n")
-    val allSignals = (
-      defaultSignals(s.n, data, valid, allRequiredProducersValidSignal)
-        ++ registerSignals(registerEquations)
+    val allDecls = (
+      defaultDecls(s.n, data, valid, allRequiredProducersValidSignal)
+        ++ registerDecls(registerEquations)
         ++ internalProducerSignals
         ++ externalProducerSignals
-        ++ readyCondSignals
+        ++ readyCondDecls
     )
     val allPorts = (
       defaultInPorts
@@ -239,7 +239,14 @@ object VhdlGenerator {
         case p: OutPort => Some(p)
         case _          => None
       }),
-      signals = allSignals,
+      signals = allDecls.flatMap({
+        case s: Signal => Some(s)
+        case _         => None
+      }),
+      functions = allDecls.flatMap({
+        case f: VhdlFunction => Some(f)
+        case _               => None
+      }),
       children = internalProducers
     )
 
@@ -332,15 +339,15 @@ object VhdlGenerator {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultSignals(
+  private def defaultDecls(
       n: Expr,
       data: Expr,
       valid: Expr,
       allRequiredProducersValidSig: Signal
-  ): Seq[Signal] = {
-    val VhdlExpr(nVhdl, nSignals) = VhdlExprGenerator.exprToVhdl(n)
-    val VhdlExpr(validVhdl, validSignals) = VhdlExprGenerator.exprToVhdl(valid)
-    val VhdlExpr(dataVhdl, dataSignals) = VhdlExprGenerator.exprToVhdl(data)
+  ): Seq[Decl] = {
+    val VhdlExpr(nVhdl, nDecls) = VhdlExprGenerator.exprToVhdl(n)
+    val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
+    val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
       Signal(
         category = "Handshake (output)",
@@ -398,7 +405,7 @@ object VhdlGenerator {
         cond = None
       )
     )
-    allRequiredProducersValidSig +: (defaultSignals ++ nSignals ++ validSignals ++ dataSignals)
+    allRequiredProducersValidSig +: (defaultSignals ++ nDecls ++ validDecls ++ dataDecls)
   }
 
   /** Signals to represent the registers in this component.
@@ -407,9 +414,9 @@ object VhdlGenerator {
     *   The equations (variable, initial value, next value) representing the
     *   registers.
     */
-  private def registerSignals(
+  private def registerDecls(
       registerEquations: Iterable[(Param, (Expr, Expr))]
-  ): Seq[Signal] = {
+  ): Seq[Decl] = {
     registerEquations
       .flatMap({ case (x, (z, next)) =>
         assert(Default.hasDefault(x.typ))
@@ -418,7 +425,7 @@ object VhdlGenerator {
           s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
         )
         val initVhdl = VhdlExprGenerator.valueToVhdl(z)
-        val VhdlExpr(nextVhdl, nextSignals) = VhdlExprGenerator.exprToVhdl(next)
+        val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
         val sig = Signal(
           category = "Registers",
           name = x.name,
@@ -427,7 +434,7 @@ object VhdlGenerator {
           assignStmt = Some(s"${x.name} <= $nextVhdl;"),
           cond = Some("can_update_acc")
         )
-        sig +: nextSignals
+        sig +: nextDecls
       })
       .toSeq
   }

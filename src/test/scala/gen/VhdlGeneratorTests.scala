@@ -7,6 +7,10 @@ import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Support functions inside component (as in a Let expression)?
+  // TODO: Test let expressions containing other function calls, if-then-else, vec access, tuple access
+  // TODO: Test curried function call
+  // TODO: Test let expression that uses other variables (should already happen with nested let, right?)
+  // TODO: Support let f = <function> in ...
 
   test("StmRange(10, -2, 3)") {
     val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
@@ -235,5 +239,19 @@ class VhdlGeneratorTests extends AnyFunSuite {
       VhdlGenerator.emitVhdl(f, TestRunner.VHDL_TEST_DIR)
     )
     assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
+  }
+
+  test("Let") {
+    val n = 3
+    val x = Param("x")()
+    val a = Param("a")()
+    val s = StmBuild(
+      n,
+      SSome(Let(x, a * 2, x + x + 1)())(),
+      Map[Param, (Expr, Expr)](
+        a -> (0, Let(x, a + 1, x * x)())
+      )
+    )().tchk().lower()
+    assert(TestRunner.testExpr(s) == TestPassed)
   }
 }

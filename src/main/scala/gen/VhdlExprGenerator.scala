@@ -9,7 +9,7 @@ import opt.PartialEvalPass
   *   Declarations required for this expression, including all its
   *   sub-expressions
   */
-private[gen] case class VhdlExpr(vhdl: String, decls: Seq[Signal])
+private[gen] case class VhdlExpr(vhdl: String, decls: Seq[Decl])
 
 private object VhdlOp {
   def apply(op: String, terms: Seq[VhdlExpr]): VhdlExpr = {
@@ -96,8 +96,27 @@ private object VhdlExprGenerator {
         }
         VhdlExpr(s"${tupSig.name}.i_$i", tupSig +: tv.decls)
 
-      case _: Function => ???
-      case _: FunCall  => ???
+      case Function(x, body) =>
+        // TODO: Un-curry
+        val bodyVhdl = exprToVhdl(body)
+        val func = {
+          val name = Param("f")().name
+          val (inType, outType) = e.typ.asInstanceOf[TyArrow] match {
+            case TyArrow(t1, t2) => (VhdlType(t1), VhdlType(t2))
+          }
+          VhdlFunction(
+            name = name,
+            args = Seq((x.name, inType)),
+            returnType = outType,
+            variables = Seq(), // TODO
+            body = s"return ${bodyVhdl.vhdl};"
+          )
+        }
+        VhdlExpr(func.name, Seq(func))
+      case FunCall(f, arg) =>
+        val fv = exprToVhdl(f)
+        val av = exprToVhdl(arg)
+        VhdlExpr(s"${fv.vhdl}(${av.vhdl})", fv.decls ++ av.decls)
 
       case VecLiteral(elems @ _*) =>
         val vhdlElems = elems.map(exprToVhdl)

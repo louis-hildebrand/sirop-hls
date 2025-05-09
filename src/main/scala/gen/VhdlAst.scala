@@ -2,13 +2,15 @@ package gen
 
 import debug.indent
 
+private[gen] sealed trait Decl
+
 private[gen] case class VhdlFunction(
     name: String,
     args: Seq[(String, VhdlType)],
     returnType: VhdlType,
     variables: Seq[(String, VhdlType)],
     body: String
-) {
+) extends Decl {
   private def signature: String = {
     val argList =
       args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString(", ")
@@ -53,7 +55,7 @@ private[gen] case class Signal(
     init: Option[String] = None,
     assignStmt: Option[String] = None,
     cond: Option[String] = None
-)
+) extends Decl
 
 private[gen] case class PortMap(map: Map[String, String])
 
@@ -76,6 +78,8 @@ private[gen] case class VhdlComponent(
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
     signals: Seq[Signal],
+    // TODO: Include this in the VHDL code
+    functions: Seq[VhdlFunction],
     children: Seq[(VhdlComponent, PortMap)]
 ) {
   checkPortMaps()
@@ -120,6 +124,7 @@ private[gen] case class VhdlComponent(
         s"-- $categoryName\n$block"
       })
       .mkString("\n\n")
+    val funDecls = functions.map(f => f.vhdlImpl).mkString("\n\n")
     val portMaps = children
       .map({ case (c, pm) =>
         val assignments =
@@ -178,6 +183,8 @@ private[gen] case class VhdlComponent(
          |
          |architecture arch of $name is
          |${indent(sigDecls)}
+         |
+         |${indent(funDecls)}
          |begin
          |    ${portMaps.mkString("\n    ")}
          |
