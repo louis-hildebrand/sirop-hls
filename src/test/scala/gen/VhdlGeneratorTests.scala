@@ -11,7 +11,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
   //        (*) Directly in the top-level StmBuild, as in s => StmConcat(s, s)
   //            or s => (x => StmConcat(x, x))(s)?
   //        (*) In a sub-component, as in StmZip(StmPrefix(s, 2), StmSuffix(s, 2))
-  // TODO: What if an input stream is unused? Just discard data/valid and set ready <= '0'?
 
   test("StmRange(10, -2, 3)") {
     val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]

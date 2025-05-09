@@ -46,8 +46,8 @@ private[gen] case class OutPort(
     assign: Option[String]
 ) extends Port
 
-// TODO: Add `category` field so I can group the signals in a meaningful way?
 private[gen] case class Signal(
+    category: String,
     name: String,
     typ: VhdlType,
     init: Option[String] = None,
@@ -95,20 +95,31 @@ private[gen] case class VhdlComponent(
   }
 
   def vhdl: String = {
+    val signalCategories = signals
+      .groupBy(s => s.category)
+      .map({ case (name, signals) => name -> signals.sortBy(s => s.name) })
+      .toSeq
+      .sortBy({ case (cat, _) => cat })
     val portDecls = (
       inPorts.map(p => s"${p.name} : in ${p.typ.vhdlName}")
         ++ outPorts.map(p => s"${p.name} : out ${p.typ.vhdlName}")
     ).sortBy(x => x)
-    val sigDecls = signals
-      .map(s => {
-        val str1 = s"signal ${s.name} : ${s.typ.vhdlName}"
-        val str2 = s.init match {
-          case Some(z) => s"$str1 := $z"
-          case None    => str1
-        }
-        s"$str2;"
+    val sigDecls = signalCategories
+      .map({ case (categoryName, signals) =>
+        val block = signals
+          .map(s => {
+            val str1 = s"signal ${s.name} : ${s.typ.vhdlName}"
+            val str2 = s.init match {
+              case Some(z) => s"$str1 := $z"
+              case None    => str1
+            }
+            s"$str2;"
+          })
+          .sortBy(x => x)
+          .mkString("\n")
+        s"-- $categoryName\n$block"
       })
-      .sortBy(x => x)
+      .mkString("\n\n")
     val portMaps = children
       .map({ case (c, pm) =>
         val assignments =
@@ -116,18 +127,42 @@ private[gen] case class VhdlComponent(
         s"${c.name.toUpperCase} : entity work.${c.name} port map($assignments);"
       })
       .sortBy(x => x)
-    val combStmts = (
-      signals
-        .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
-        .map(s => s.assignStmt.get)
-        ++ outPorts
+    val combStmts = {
+      val signalAssignments =
+        signalCategories.flatMap({ case (categoryName, signals) =>
+          val stmts = signals
+            .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
+            .map(s => s.assignStmt.get)
+          if (stmts.isEmpty) {
+            None
+          } else {
+            Some(s"-- $categoryName\n${stmts.mkString("\n")}")
+          }
+        })
+      val outPortAssignments = {
+        val block = outPorts
           .filter(p => p.assign.isDefined)
           .map(p => s"${p.name} <= ${p.assign.get};")
-    ).sortBy(x => x)
-    val clkStmts = signals
-      .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
-      .sortBy(s => s.name)
-      .map(s => s"if (${s.cond.get}) then ${s.assignStmt.get} end if;")
+          .mkString("\n")
+        Seq(s"-- Output ports\n$block")
+      }
+      (signalAssignments ++ outPortAssignments).mkString("\n\n")
+    }
+    val clkStmts = signalCategories
+      .flatMap({ case (categoryName, signals) =>
+        val stmts = signals
+          .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
+          .sortBy(s => s.name)
+          .map(s =>
+            s"if (${s.cond.get}) then\n${indent(s.assignStmt.get)}\nend if;"
+          )
+        if (stmts.isEmpty) {
+          None
+        } else {
+          Some(s"-- $categoryName\n${stmts.mkString("\n")}")
+        }
+      })
+      .mkString("\n\n")
     comment + "\n" +
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -142,16 +177,17 @@ private[gen] case class VhdlComponent(
          |end;
          |
          |architecture arch of $name is
-         |    ${sigDecls.mkString("\n    ")}
+         |${indent(sigDecls)}
          |begin
          |    ${portMaps.mkString("\n    ")}
          |
-         |    ${combStmts.mkString("\n    ")}
+         |${indent(combStmts)}
          |
          |    process
          |    begin
-         |        wait until rising_edge(clk) and can_update_acc;
-         |        ${clkStmts.mkString("\n        ")}
+         |        wait until rising_edge(clk);
+         |
+         |${indent(clkStmts, 2)}
          |    end process ;
          |end;
          |""".stripMargin

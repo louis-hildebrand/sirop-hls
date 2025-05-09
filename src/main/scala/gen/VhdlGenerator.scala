@@ -199,6 +199,7 @@ object VhdlGenerator {
           .mkString(" and ")
       }
       Signal(
+        category = "Handshake (inputs)",
         name = "all_required_producers_valid",
         typ = VhdlBool,
         assignStmt = Some(s"all_required_producers_valid <= $arpvExpr;")
@@ -342,14 +343,16 @@ object VhdlGenerator {
     val (dataVhdl, dataSignals) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
       Signal(
-        "num_outputs",
+        category = "Handshake (output)",
+        name = "num_outputs",
         typ = VhdlInt,
         init = Some("0"),
         assignStmt = Some("num_outputs <= num_outputs + 1;"),
         cond = Some("transfer_ok")
       ),
       Signal(
-        "valid_internal",
+        category = "Handshake (output)",
+        name = "valid_internal",
         typ = VhdlBool,
         init = None,
         assignStmt = Some(
@@ -358,14 +361,16 @@ object VhdlGenerator {
         cond = None
       ),
       Signal(
-        "data_internal",
+        category = "Handshake (output)",
+        name = "data_internal",
         typ = VhdlType(data.typ),
         init = None,
         assignStmt = Some(s"data_internal <= $dataVhdl;"),
         cond = None
       ),
       Signal(
-        "transfer_ok",
+        category = "Handshake (output)",
+        name = "transfer_ok",
         typ = VhdlBool,
         init = None,
         assignStmt = Some(
@@ -374,7 +379,8 @@ object VhdlGenerator {
         cond = None
       ),
       Signal(
-        "can_update_acc",
+        category = "Handshake (output)",
+        name = "can_update_acc",
         typ = VhdlBool,
         init = None,
         assignStmt = Some(
@@ -414,6 +420,7 @@ object VhdlGenerator {
         val initVhdl = VhdlExprGenerator.valueToVhdl(z)
         val (nextVhdl, nextSignals) = VhdlExprGenerator.exprToVhdl(next)
         val sig = Signal(
+          category = "Registers",
           name = x.name,
           typ = VhdlType(x.typ),
           init = Some(initVhdl),
@@ -465,8 +472,13 @@ object VhdlGenerator {
             )
           val ready = readyByProducer(x)
           Seq(
-            Signal(name = s"${x.name}_valid", typ = VhdlStdLogic),
             Signal(
+              category = s"Handshake (input $x - internal)",
+              name = s"${x.name}_valid",
+              typ = VhdlStdLogic
+            ),
+            Signal(
+              category = s"Handshake (input $x - internal)",
               name = s"${x.name}_valid_internal",
               typ = VhdlBool,
               assignStmt = Some(
@@ -474,6 +486,7 @@ object VhdlGenerator {
               )
             ),
             Signal(
+              category = s"Handshake (input $x - internal)",
               name = s"${x.name}_ready",
               typ = VhdlStdLogic,
               assignStmt = Some(
@@ -481,6 +494,7 @@ object VhdlGenerator {
               )
             ),
             Signal(
+              category = s"Handshake (input $x - internal)",
               name = s"${x.name}_ready_internal",
               typ = VhdlBool,
               assignStmt = Some(
@@ -488,10 +502,12 @@ object VhdlGenerator {
               )
             ),
             Signal(
+              category = s"Handshake (input $x - internal)",
               name = s"${x.name}_data",
               typ = VhdlStdLogicVec(bitWidth)
             ),
             Signal(
+              category = s"Handshake (input $x - internal)",
               name = s"${x.name}_data_internal",
               typ = VhdlType(dataType),
               assignStmt =
@@ -536,6 +552,7 @@ object VhdlGenerator {
           val signals = Seq(
             // Needed for the all_required_producers_valid signal
             Signal(
+              category = s"Handshake (input $x - external, unused)",
               name = s"${x.name}_valid_internal",
               typ = VhdlBool,
               assignStmt =
@@ -561,6 +578,7 @@ object VhdlGenerator {
           )
           val signals = Seq(
             Signal(
+              category = s"Handshake (input $x - external, used here)",
               name = s"${x.name}_valid_internal",
               typ = VhdlBool,
               assignStmt = Some(
@@ -568,6 +586,7 @@ object VhdlGenerator {
               )
             ),
             Signal(
+              category = s"Handshake (input $x - external, used here)",
               name = s"${x.name}_ready_internal",
               typ = VhdlBool,
               assignStmt = Some(
@@ -575,6 +594,7 @@ object VhdlGenerator {
               )
             ),
             Signal(
+              category = s"Handshake (input $x - external, used here)",
               name = s"${x.name}_data_internal",
               typ = dataType,
               assignStmt =

@@ -33,7 +33,8 @@ private object VhdlExprGenerator {
         val (fVhdl, fSignals) = exprToVhdl(f)
         val sigName = Param("ite")().name
         val sig = Signal(
-          sigName,
+          category = "Intermediate signals",
+          name = sigName,
           typ = VhdlType(ite.typ),
           init = None,
           assignStmt =
@@ -82,6 +83,7 @@ private object VhdlExprGenerator {
         val (vhdlTuple, signals) = exprToVhdl(t)
         val tupSigName = Param("tupaccess_t")().name
         val tupSig = Signal(
+          category = "Intermediate signals",
           name = tupSigName,
           typ = VhdlType(t.typ),
           assignStmt = Some(s"$tupSigName <= $vhdlTuple;")
@@ -113,6 +115,7 @@ private object VhdlExprGenerator {
         }
         val vecSig = {
           Signal(
+            category = "Intermediate signals",
             name = vecSigName,
             typ = VhdlType(e.typ),
             assignStmt = Some(s"$vecSigName <= $vec;")
@@ -129,6 +132,7 @@ private object VhdlExprGenerator {
         val vecSig = {
           val name = Param("vecaccess_v")().name
           Signal(
+            category = "Intermediate signals",
             name = name,
             typ = VhdlType(v.typ),
             assignStmt = Some(s"$name <= $vhdlVec;")
