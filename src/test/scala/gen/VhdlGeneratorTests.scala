@@ -7,10 +7,6 @@ import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Support functions inside component (as in a Let expression)?
-  // TODO: What happens if an input stream is used multiple times?
-  //        (*) Directly in the top-level StmBuild, as in s => StmConcat(s, s)
-  //            or s => (x => StmConcat(x, x))(s)?
-  //        (*) In a sub-component, as in StmZip(StmPrefix(s, 2), StmSuffix(s, 2))
 
   test("StmRange(10, -2, 3)") {
     val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
@@ -217,5 +213,27 @@ class VhdlGeneratorTests extends AnyFunSuite {
       TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i * i)), None)))
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("s => StmConcat(s, s)") {
+    val n = 5
+    val s = Param("s")(TyStm(TyInt, n))
+    val concat = StmConcat(s, s)().tchk().lower()
+    val f = Function(s, concat)().tchk().asInstanceOf[Function]
+    val exc = intercept[IllegalArgumentException](
+      VhdlGenerator.emitVhdl(f, TestRunner.VHDL_TEST_DIR)
+    )
+    assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
+  }
+
+  test("StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
+    val n = 5
+    val s = Param("s")(TyStm(TyInt, n))
+    val zip = StmZip(StmPrefix(s, 2)(), StmSuffix(s, 2)())().tchk().lower()
+    val f = Function(s, zip)().tchk().asInstanceOf[Function]
+    val exc = intercept[IllegalArgumentException](
+      VhdlGenerator.emitVhdl(f, TestRunner.VHDL_TEST_DIR)
+    )
+    assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
   }
 }

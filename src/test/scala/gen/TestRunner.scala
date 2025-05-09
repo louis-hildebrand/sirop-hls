@@ -19,7 +19,7 @@ object TestRunner {
   private val VHDL_DIR =
     Paths.get(System.getProperty("user.dir")).resolve("vhdl")
   private val RUN_TEST_SH = VHDL_DIR.resolve("run_test.sh")
-  private val VHDL_TEST_DIR = VHDL_DIR.resolve("auto_tests")
+  private[gen] val VHDL_TEST_DIR = VHDL_DIR.resolve("auto_tests")
 
   def testExistingProject(dir: String): TestResult = {
     val fullDir = VHDL_DIR.resolve(dir)
