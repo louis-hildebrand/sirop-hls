@@ -163,7 +163,7 @@ object VhdlGenerator {
             .map({ case (x, (_, next)) =>
               // TODO: Partially evaluate?
               val c = StmBuild.stmNextCallCondition(next, x)
-              val (vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
+              val VhdlExpr(vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
               (x -> vhdl, sig)
             })
             ++ whereUsedByInput.flatMap({
@@ -173,7 +173,7 @@ object VhdlGenerator {
                 val next = s.nextByVar(x)
                 // TODO: Partially evaluate?
                 val c = StmBuild.stmNextCallCondition(next, x)
-                val (vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
+                val VhdlExpr(vhdl, sig) = VhdlExprGenerator.exprToVhdl(c)
                 Some(x -> vhdl, sig)
               // CASE 3 (external producers used nowhere).
               // Never read from it.
@@ -338,9 +338,9 @@ object VhdlGenerator {
       valid: Expr,
       allRequiredProducersValidSig: Signal
   ): Seq[Signal] = {
-    val (nVhdl, nSignals) = VhdlExprGenerator.exprToVhdl(n)
-    val (validVhdl, validSignals) = VhdlExprGenerator.exprToVhdl(valid)
-    val (dataVhdl, dataSignals) = VhdlExprGenerator.exprToVhdl(data)
+    val VhdlExpr(nVhdl, nSignals) = VhdlExprGenerator.exprToVhdl(n)
+    val VhdlExpr(validVhdl, validSignals) = VhdlExprGenerator.exprToVhdl(valid)
+    val VhdlExpr(dataVhdl, dataSignals) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
       Signal(
         category = "Handshake (output)",
@@ -418,7 +418,7 @@ object VhdlGenerator {
           s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
         )
         val initVhdl = VhdlExprGenerator.valueToVhdl(z)
-        val (nextVhdl, nextSignals) = VhdlExprGenerator.exprToVhdl(next)
+        val VhdlExpr(nextVhdl, nextSignals) = VhdlExprGenerator.exprToVhdl(next)
         val sig = Signal(
           category = "Registers",
           name = x.name,

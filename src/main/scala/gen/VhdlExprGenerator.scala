@@ -3,6 +3,22 @@ package gen
 import ir._
 import opt.PartialEvalPass
 
+/** @param vhdl
+  *   VHDL code for this expression
+  * @param decls
+  *   Declarations required for this expression, including all its
+  *   sub-expressions
+  */
+private[gen] case class VhdlExpr(vhdl: String, decls: Seq[Signal])
+
+private object VhdlOp {
+  def apply(op: String, terms: Seq[VhdlExpr]): VhdlExpr = {
+    val vhdl = terms.map(e => s"(${e.vhdl})").mkString(s" $op ")
+    val decls = terms.flatMap(e => e.decls)
+    VhdlExpr(vhdl, decls)
+  }
+}
+
 private object VhdlExprGenerator {
 
   /** Convert an expression to VHDL.
@@ -12,133 +28,113 @@ private object VhdlExprGenerator {
     * @return
     *   A VHDL expression along with the signals required by that expression
     */
-  def exprToVhdl(e: Expr): (String, Seq[Signal]) = {
+  def exprToVhdl(e: Expr): VhdlExpr = {
     e match {
-      case x: Param  => (x.name, Seq())
-      case IntCst(n) => (n.toString, Seq())
-      case Sum(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => exprToVhdl(e)).unzip
-        (vhdlTerms.map(x => s"($x)").mkString(" + "), signals.flatten)
-      case Prod(factors @ _*) =>
-        val (vhdlFactors, signals) =
-          factors.map(e => exprToVhdl(e)).unzip
-        (vhdlFactors.map(x => s"($x)").mkString(" * "), signals.flatten)
-      case _: Div => ???
-      case _: Mod => ???
-      case True   => ("true", Seq())
-      case False  => ("false", Seq())
+      case x: Param  => VhdlExpr(x.name, Seq())
+      case IntCst(n) => VhdlExpr(n.toString, Seq())
+      // TODO: Specially handle cases like x + (-1 * y)?
+      case Sum(terms @ _*)    => VhdlOp("+", terms.map(exprToVhdl))
+      case Prod(factors @ _*) => VhdlOp("*", factors.map(exprToVhdl))
+      case _: Div             => ???
+      case _: Mod             => ???
+      case True               => VhdlExpr("true", Seq())
+      case False              => VhdlExpr("false", Seq())
       case ite @ IfThenElse(c, t, f) =>
-        val (cVhdl, cSignals) = exprToVhdl(c)
-        val (tVhdl, tSignals) = exprToVhdl(t)
-        val (fVhdl, fSignals) = exprToVhdl(f)
-        val sigName = Param("ite")().name
-        val sig = Signal(
-          category = "Intermediate signals",
-          name = sigName,
-          typ = VhdlType(ite.typ),
-          init = None,
-          assignStmt =
-            Some(s"$sigName <= ($tVhdl) when ($cVhdl) else ($fVhdl);"),
-          cond = None
-        )
-        (sigName, sig +: (cSignals ++ tSignals ++ fSignals))
-      case Equal(e1, e2) =>
-        val (e1Vhdl, e1Signals) = exprToVhdl(e1)
-        val (e2Vhdl, e2Signals) = exprToVhdl(e2)
-        (s"($e1Vhdl) = ($e2Vhdl)", e1Signals ++ e2Signals)
-      case LessThan(e1, e2) =>
-        val (e1Vhdl, e1Signals) = exprToVhdl(e1)
-        val (e2Vhdl, e2Signals) = exprToVhdl(e2)
-        (s"($e1Vhdl) < ($e2Vhdl)", e1Signals ++ e2Signals)
+        val cv = exprToVhdl(c)
+        val tv = exprToVhdl(t)
+        val fv = exprToVhdl(f)
+        val sig = {
+          val name = Param("ite")().name
+          Signal(
+            category = "Intermediate signals",
+            name = name,
+            typ = VhdlType(ite.typ),
+            init = None,
+            assignStmt = Some(
+              s"$name <= (${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl});"
+            ),
+            cond = None
+          )
+        }
+        VhdlExpr(sig.name, sig +: (cv.decls ++ tv.decls ++ fv.decls))
+      case Equal(e1, e2)    => VhdlOp("=", Seq(e1, e2).map(exprToVhdl))
+      case LessThan(e1, e2) => VhdlOp("<", Seq(e1, e2).map(exprToVhdl))
       case Not(e) =>
-        val (vhdlE, signals) = exprToVhdl(e)
-        (s"not ($vhdlE)", signals)
-      case And(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => exprToVhdl(e)).unzip
-        (vhdlTerms.map(x => s"($x)").mkString(" and "), signals.flatten)
-      case Or(terms @ _*) =>
-        val (vhdlTerms, signals) = terms.map(e => exprToVhdl(e)).unzip
-        (vhdlTerms.map(x => s"($x)").mkString(" or "), signals.flatten)
+        val ve = exprToVhdl(e)
+        VhdlExpr(s"not (${ve.vhdl})", ve.decls)
+      case And(terms @ _*) => VhdlOp("and", terms.map(exprToVhdl))
+      case Or(terms @ _*)  => VhdlOp("or", terms.map(exprToVhdl))
 
       case TupleAccess(StmNext(s: Param), IntCst(1)) =>
-        (s"${s.name}_data_internal", Seq())
-      case _: StmLiteral => ???
+        VhdlExpr(s"${s.name}_data_internal", Seq())
       case _: StmBuild | _: StmNext | TupleAccess(_: StmNext, _) =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
         )
-      case _: StmNextK =>
+      case _: StmNextK | _: StmLiteral =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName}."
         )
 
-      case Tuple() => ("\"\"", Seq())
+      case Tuple() => VhdlExpr("\"\"", Seq())
       case Tuple(elems @ _*) =>
-        val (vhdlElems, signals) = elems.map(exprToVhdl).unzip
+        val vhdlElems = elems.map(exprToVhdl)
         val assignments = vhdlElems.zipWithIndex
-          .map({ case (v, i) => s"i_$i => $v" })
+          .map({ case (v, i) => s"i_$i => ${v.vhdl}" })
           .mkString(", ")
-        (s"($assignments)", signals.flatten)
+        VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
       case TupleAccess(t, IntCst(i)) =>
-        val (vhdlTuple, signals) = exprToVhdl(t)
-        val tupSigName = Param("tupaccess_t")().name
-        val tupSig = Signal(
-          category = "Intermediate signals",
-          name = tupSigName,
-          typ = VhdlType(t.typ),
-          assignStmt = Some(s"$tupSigName <= $vhdlTuple;")
-        )
-        (s"${tupSig.name}.i_$i", tupSig +: signals)
+        val tv = exprToVhdl(t)
+        val tupSig = {
+          val name = Param("tupaccess_t")().name
+          Signal(
+            category = "Intermediate signals",
+            name = name,
+            typ = VhdlType(t.typ),
+            assignStmt = Some(s"$name <= ${tv.vhdl};")
+          )
+        }
+        VhdlExpr(s"${tupSig.name}.i_$i", tupSig +: tv.decls)
 
       case _: Function => ???
       case _: FunCall  => ???
 
-      case VecLiteral(elems @ _*) => ???
+      case VecLiteral(elems @ _*) =>
+        val vhdlElems = elems.map(exprToVhdl)
+        val assignments = vhdlElems.zipWithIndex
+          .map({ case (e, i) => s"$i => ${e.vhdl}" })
+          .mkString(", ")
+        VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
       case VecBuild(IntCst(n), f) =>
-        val vecSigName = Param("vbuild")().name
-        val (vec, vecBodySignals) = {
-          val (elems, signals) = (0 until n)
-            .map(i => {
-              // TODO: Partial evaluation here kind of approximates IfThenElse
-              //       being short-circuiting---the other branch will be
-              //       discarded if the condition evaluates to a bool constant.
-              //       But if the condition cannot be evaluated statically,
-              //       then it's not the same thing.
-              val body = PartialEvalPass.partialEval(FunCall(f, i)())
-              exprToVhdl(body)
-            })
-            .unzip
-          val assignments = elems.zipWithIndex
-            .map({ case (e, i) => s"$i => $e" })
-            .mkString(", ")
-          (s"($assignments)", signals.flatten)
-        }
-        val vecSig = {
-          Signal(
-            category = "Intermediate signals",
-            name = vecSigName,
-            typ = VhdlType(e.typ),
-            assignStmt = Some(s"$vecSigName <= $vec;")
-          )
-        }
-        (vecSig.name, vecSig +: vecBodySignals)
+        val elems = (0 until n).map(i =>
+          // TODO: Partial evaluation here kind of approximates IfThenElse
+          //       being short-circuiting---the other branch will be
+          //       discarded if the condition evaluates to a bool constant.
+          //       But if the condition cannot be evaluated statically,
+          //       then it's not the same thing.
+          PartialEvalPass.partialEval(FunCall(f, i)())
+        )
+        exprToVhdl(VecLiteral(elems: _*)().tchk())
       case VecBuild(n, _) =>
         throw new IllegalArgumentException(
           s"VecBuild with non-constant size ($n) is not supported."
         )
       case VecAccess(v, i) =>
-        val (vhdlVec, vecSignals) = exprToVhdl(v)
-        val (vhdlIdx, idxSignals) = exprToVhdl(i)
+        val vv = exprToVhdl(v)
+        val iv = exprToVhdl(i)
         val vecSig = {
           val name = Param("vecaccess_v")().name
           Signal(
             category = "Intermediate signals",
             name = name,
             typ = VhdlType(v.typ),
-            assignStmt = Some(s"$name <= $vhdlVec;")
+            assignStmt = Some(s"$name <= ${vv.vhdl};")
           )
         }
-        (s"${vecSig.name}($vhdlIdx)", vecSig +: (vecSignals ++ idxSignals))
+        VhdlExpr(
+          s"${vecSig.name}(${iv.vhdl})",
+          vecSig +: (vv.decls ++ iv.decls)
+        )
 
       case _: SyntaxSugar =>
         throw new IllegalArgumentException(
