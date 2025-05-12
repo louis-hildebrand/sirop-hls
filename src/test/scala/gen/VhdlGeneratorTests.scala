@@ -6,10 +6,7 @@ import operations._
 import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Support functions inside component (as in a Let expression)?
-  // TODO: Test let expressions containing other function calls, if-then-else, vec access, tuple access
   // TODO: Test curried function call
-  // TODO: Test let expression that uses other variables (should already happen with nested let, right?)
   // TODO: Support let f = <function> in ...
 
   test("Arithmetic") {
@@ -265,7 +262,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
   }
 
-  test("Let") {
+  test("SimpleLet") {
     val n = 3
     val x = Param("x")()
     val a = Param("a")()
@@ -276,6 +273,47 @@ class VhdlGeneratorTests extends AnyFunSuite {
         a -> (0, Let(x, a + 1, x * x)())
       )
     )().tchk().lower()
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("ComplexLet") {
+    // (1) Uses constructs like IfThenElse, VecAccess, TupleAccess that
+    //     require intermediate signals (or, in this case, variables)
+    // (2) Refers to variables outside the Let
+    val n = 5
+    val x = Param("x")()
+    val y = Param("y")()
+    val v = Param("v")()
+    val j = Param("j")()
+    val a = Param("a")()
+    val s =
+      StmBuild(
+        n,
+        SSome(Tuple(v, a)())(),
+        Map[Param, (Expr, Expr)](
+          j -> (0, j + 1),
+          a -> (
+            Tuple(42, 99)(),
+            Let(
+              x,
+              a.__0,
+              Let(
+                y,
+                a.__1,
+                IfThenElse(
+                  Tuple(j)().__0 % 2 === 0,
+                  Tuple(x + VecAccess(v, 0)(), y + VecAccess(v, 1)())(),
+                  Tuple(y + VecAccess(v, 0)(), x + VecAccess(v, 1)())()
+                )()
+              )()
+            )()
+          ),
+          v -> (
+            VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
+            VecShiftLeft(v, a.__0)
+          )
+        )
+      )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 }

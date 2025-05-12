@@ -42,10 +42,9 @@ object VhdlConversionGenerator {
       name = toSlvConverterName(VhdlBool),
       args = Seq(("b", VhdlBool)),
       returnType = VhdlStdLogicVec(1),
-      variables = Seq(("x", VhdlStdLogicVec(1))),
-      body = """x := "1" when (b) else "0";
-               |return x;
-               |""".stripMargin.stripTrailing
+      decls =
+        Seq(Variable("x", VhdlStdLogicVec(1), "\"1\" when (b) else \"0\"")),
+      ret = "x"
     )
   }
 
@@ -54,8 +53,8 @@ object VhdlConversionGenerator {
       name = toSlvConverterName(VhdlInt),
       args = Seq(("n", VhdlInt)),
       returnType = VhdlStdLogicVec(VhdlInt.bitWidth),
-      variables = Seq(),
-      body = s"return std_logic_vector(to_signed(n, ${VhdlInt.bitWidth}));"
+      decls = Seq(),
+      ret = s"std_logic_vector(to_signed(n, ${VhdlInt.bitWidth}))"
     )
   }
 
@@ -64,14 +63,13 @@ object VhdlConversionGenerator {
       name = toSlvConverterName(tup),
       args = Seq(("x", tup)),
       returnType = VhdlStdLogicVec(tup.bitWidth),
-      variables = Seq(),
-      body = if (tup.fieldTypes.isEmpty) {
-        "return \"\";"
+      decls = Seq(),
+      ret = if (tup.fieldTypes.isEmpty) {
+        "\"\""
       } else {
-        val out = tup.fieldTypes.zipWithIndex
+        tup.fieldTypes.zipWithIndex
           .map({ case (t, i) => toStdLogicVector(s"x.i_$i", t) })
           .mkString(" & ")
-        s"return $out;"
       }
     )
   }
@@ -81,13 +79,10 @@ object VhdlConversionGenerator {
       name = toSlvConverterName(arr),
       args = Seq(("x", arr)),
       returnType = VhdlStdLogicVec(arr.bitWidth),
-      variables = Seq(),
-      body = {
-        val out = (0 until arr.n)
-          .map(i => toStdLogicVector(s"x($i)", arr.t))
-          .mkString(" & ")
-        s"return $out;"
-      }
+      decls = Seq(),
+      ret = (0 until arr.n)
+        .map(i => toStdLogicVector(s"x($i)", arr.t))
+        .mkString(" & ")
     )
   }
 
@@ -137,8 +132,8 @@ object VhdlConversionGenerator {
       name = fromSlvConverterName(VhdlStdLogic),
       args = Seq(("v", VhdlStdLogicVec(1))),
       returnType = VhdlStdLogic,
-      variables = Seq(),
-      body = "return v(0);"
+      decls = Seq(),
+      ret = "v(0)"
     )
   }
 
@@ -147,8 +142,8 @@ object VhdlConversionGenerator {
       name = fromSlvConverterName(VhdlBool),
       args = Seq(("v", VhdlStdLogicVec(1))),
       returnType = VhdlBool,
-      variables = Seq(),
-      body = "return v = \"1\";"
+      decls = Seq(),
+      ret = "v = \"1\""
     )
   }
 
@@ -157,8 +152,8 @@ object VhdlConversionGenerator {
       name = fromSlvConverterName(VhdlInt),
       args = Seq(("v", VhdlStdLogicVec(VhdlInt.bitWidth))),
       returnType = VhdlInt,
-      variables = Seq(),
-      body = "return to_integer(signed(v));"
+      decls = Seq(),
+      ret = "to_integer(signed(v))"
     )
   }
 
@@ -167,9 +162,9 @@ object VhdlConversionGenerator {
       name = fromSlvConverterName(tup),
       args = Seq(("v", VhdlStdLogicVec(tup.bitWidth))),
       returnType = tup,
-      variables = Seq(),
-      body = if (tup.fieldTypes.isEmpty) {
-        "return \"\";"
+      decls = Seq(),
+      ret = if (tup.fieldTypes.isEmpty) {
+        "\"\""
       } else {
         val elems = tup.fieldTypes.zipWithIndex
           .map({ case (t, i) =>
@@ -182,7 +177,7 @@ object VhdlConversionGenerator {
         val assignments = elems.zipWithIndex
           .map({ case (v, i) => s"i_$i => $v" })
           .mkString(", ")
-        s"return ($assignments);"
+        s"($assignments)"
       }
     )
   }
@@ -192,8 +187,8 @@ object VhdlConversionGenerator {
       name = fromSlvConverterName(vec),
       args = Seq(("v", VhdlStdLogicVec(vec.bitWidth))),
       returnType = vec,
-      variables = Seq(),
-      body = {
+      decls = Seq(),
+      ret = {
         val elems = (0 until vec.n).map(i => {
           val msb = vec.bitWidth - 1 - i * vec.t.bitWidth
           val lsb = msb - vec.t.bitWidth + 1
@@ -202,7 +197,7 @@ object VhdlConversionGenerator {
         val assignments = elems.zipWithIndex
           .map({ case (v, i) => s"$i => $v" })
           .mkString(", ")
-        s"return ($assignments);"
+        s"($assignments)"
       }
     )
   }

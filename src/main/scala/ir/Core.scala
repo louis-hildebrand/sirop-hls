@@ -317,7 +317,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case _: TyStm => sl.rebuild(TyInt, Seq(newS))
           case t => throw new TypeError(s"Argument of StmNext has type $t.")
         }
-      case StmLiteral(typ, elems @ _*) =>
+      case StmLiteral(elems @ _*) =>
         val checkedElems = elems.map(e => e.tchk())
         val types = checkedElems.map(e => e.typ).toSet
         if (types.isEmpty) {

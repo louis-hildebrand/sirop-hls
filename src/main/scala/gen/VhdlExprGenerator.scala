@@ -19,6 +19,10 @@ private object VhdlOp {
   }
 }
 
+private sealed trait ExprGenMode
+private object NormalMode extends ExprGenMode
+private object InFunctionMode extends ExprGenMode
+
 private object VhdlExprGenerator {
 
   /** Convert an expression to VHDL.
@@ -28,7 +32,7 @@ private object VhdlExprGenerator {
     * @return
     *   A VHDL expression along with the signals required by that expression
     */
-  def exprToVhdl(e: Expr): VhdlExpr = {
+  def exprToVhdl(e: Expr)(implicit mode: ExprGenMode = NormalMode): VhdlExpr = {
     e match {
       case x: Param  => VhdlExpr(x.name, Seq())
       case IntCst(n) => VhdlExpr(n.toString, Seq())
@@ -43,20 +47,13 @@ private object VhdlExprGenerator {
         val cv = exprToVhdl(c)
         val tv = exprToVhdl(t)
         val fv = exprToVhdl(f)
-        val sig = {
-          val name = Param("ite")().name
-          Signal(
-            category = "Intermediate signals",
-            name = name,
-            typ = VhdlType(ite.typ),
-            init = None,
-            assignStmt = Some(
-              s"$name <= (${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl});"
-            ),
-            cond = None
-          )
-        }
-        VhdlExpr(sig.name, sig +: (cv.decls ++ tv.decls ++ fv.decls))
+        val tempVar = intermediateVar(
+          "ite",
+          s"(${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl})",
+          VhdlType(ite.typ),
+          mode
+        )
+        VhdlExpr(tempVar.name, tempVar +: (cv.decls ++ tv.decls ++ fv.decls))
       case Equal(e1, e2)    => VhdlOp("=", Seq(e1, e2).map(exprToVhdl))
       case LessThan(e1, e2) => VhdlOp("<", Seq(e1, e2).map(exprToVhdl))
       case Not(e) =>
@@ -85,20 +82,13 @@ private object VhdlExprGenerator {
         VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
       case TupleAccess(t, IntCst(i)) =>
         val tv = exprToVhdl(t)
-        val tupSig = {
-          val name = Param("tupaccess_t")().name
-          Signal(
-            category = "Intermediate signals",
-            name = name,
-            typ = VhdlType(t.typ),
-            assignStmt = Some(s"$name <= ${tv.vhdl};")
-          )
-        }
-        VhdlExpr(s"${tupSig.name}.i_$i", tupSig +: tv.decls)
+        val tempVar =
+          intermediateVar("tupaccess_t", tv.vhdl, VhdlType(t.typ), mode)
+        VhdlExpr(s"${tempVar.name}.i_$i", tempVar +: tv.decls)
 
       case Function(x, body) =>
         // TODO: Un-curry
-        val bodyVhdl = exprToVhdl(body)
+        val bodyVhdl = exprToVhdl(body)(InFunctionMode)
         val func = {
           val name = Param("f")().name
           val (inType, outType) = e.typ.asInstanceOf[TyArrow] match {
@@ -108,8 +98,13 @@ private object VhdlExprGenerator {
             name = name,
             args = Seq((x.name, inType)),
             returnType = outType,
-            variables = Seq(), // TODO
-            body = s"return ${bodyVhdl.vhdl};"
+            // The expression generator *prepends* temporary variables or
+            // signals to the list (i.e., a variable will come before its
+            // dependencies).
+            // That's why the list needs to be reversed.
+            decls = bodyVhdl.decls.reverse,
+            ret = bodyVhdl.vhdl,
+            mode = ImpureFunction
           )
         }
         VhdlExpr(func.name, Seq(func))
@@ -141,18 +136,11 @@ private object VhdlExprGenerator {
       case VecAccess(v, i) =>
         val vv = exprToVhdl(v)
         val iv = exprToVhdl(i)
-        val vecSig = {
-          val name = Param("vecaccess_v")().name
-          Signal(
-            category = "Intermediate signals",
-            name = name,
-            typ = VhdlType(v.typ),
-            assignStmt = Some(s"$name <= ${vv.vhdl};")
-          )
-        }
+        val tempVar =
+          intermediateVar("vecaccess_v", vv.vhdl, VhdlType(v.typ), mode)
         VhdlExpr(
-          s"${vecSig.name}(${iv.vhdl})",
-          vecSig +: (vv.decls ++ iv.decls)
+          s"${tempVar.name}(${iv.vhdl})",
+          tempVar +: (vv.decls ++ iv.decls)
         )
 
       case _: SyntaxSugar =>
@@ -160,6 +148,28 @@ private object VhdlExprGenerator {
           s"Syntax sugar must be removed before hardware generation."
         )
     }
+  }
+
+  private def intermediateVar(
+      namePrefix: String,
+      assign: String,
+      typ: VhdlType,
+      mode: ExprGenMode
+  ): VarOrSigDecl = {
+    val name = Param(namePrefix)().name
+    mode match {
+      case NormalMode =>
+        Signal(
+          category = "Intermediate signals",
+          name = name,
+          typ = typ,
+          assignStmt = Some(s"$name <= $assign;")
+        )
+      case InFunctionMode =>
+        // TODO: Assign value here!
+        Variable(name = name, typ = typ, assign = assign)
+    }
+
   }
 
   def valueToVhdl(v: Expr): String = {

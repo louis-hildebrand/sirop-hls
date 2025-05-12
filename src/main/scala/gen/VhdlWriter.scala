@@ -20,17 +20,15 @@ object VhdlWriter {
         name = "bool2sl",
         args = Seq(("b", VhdlBool)),
         returnType = VhdlStdLogic,
-        variables = Seq(("x", VhdlStdLogic)),
-        body = """x := '1' when (b) else '0';
-                 |return x;
-                 |""".stripMargin.stripTrailing
+        decls = Seq(Variable("x", VhdlStdLogic, "'1' when (b) else '0'")),
+        ret = "x"
       ),
       VhdlFunction(
         name = "sl2bool",
         args = Seq(("x", VhdlStdLogic)),
         returnType = VhdlBool,
-        variables = Seq(),
-        body = "return x = '1';"
+        decls = Seq(),
+        ret = "x = '1'"
       )
     )
     val toSlvFunctions =
@@ -39,9 +37,9 @@ object VhdlWriter {
       types.flatMap(t => VhdlConversionGenerator.fromSlvConverter(t))
     val functions =
       (defaultFunctions ++ toSlvFunctions ++ fromSlvFunctions)
-        .sortBy(f => f.vhdlDecl)
+        .sortBy(f => f.vhdlSignature)
 
-    val decls = functions.map(f => f.vhdlDecl).mkString("\n\n")
+    val signatures = functions.map(f => f.vhdlSignature).mkString("\n\n")
     val impls = functions.map(f => f.vhdlImpl).mkString("\n\n")
     val contents =
       s"""library IEEE;
@@ -50,7 +48,7 @@ object VhdlWriter {
          |use work.typedefs.all;
          |
          |package conversions is
-         |${indent(decls)}
+         |${indent(signatures)}
          |end package;
          |
          |package body conversions is
@@ -90,7 +88,17 @@ object VhdlWriter {
     (c.inPorts.map(p => p.typ)
       ++ c.outPorts.map(p => p.typ)
       ++ c.signals.map(s => s.typ)
+      ++ c.functions.flatMap(f => findTypesUsedIn(f))
       ++ c.children.flatMap({ case (c, _) => findTypesUsedIn(c) })).toSet
+  }
+
+  private def findTypesUsedIn(f: VhdlFunction): Set[VhdlType] = {
+    (f.args.map({ case (_, t) => t })
+      ++ f.decls.flatMap({
+        case f: VhdlFunction => findTypesUsedIn(f)
+        case d: VarOrSigDecl => Seq(d.typ)
+      })
+      ++ Seq(f.returnType)).toSet
   }
 
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {

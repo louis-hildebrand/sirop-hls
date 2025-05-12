@@ -2,38 +2,61 @@ package gen
 
 import debug.indent
 
-private[gen] sealed trait Decl
+private[gen] sealed trait Decl {
+  def vhdlDecl: String
+}
+
+private[gen] sealed trait VhdlFunctionMode
+private[gen] object PureFunction extends VhdlFunctionMode
+private[gen] object ImpureFunction extends VhdlFunctionMode
 
 private[gen] case class VhdlFunction(
     name: String,
     args: Seq[(String, VhdlType)],
     returnType: VhdlType,
-    variables: Seq[(String, VhdlType)],
-    body: String
+    decls: Seq[Decl],
+    ret: String,
+    mode: VhdlFunctionMode = PureFunction
 ) extends Decl {
+  require(
+    decls.forall(d => !d.isInstanceOf[Signal]),
+    "Signals are not allowed in VHDL functions."
+  )
+
   private def signature: String = {
+    val pureOrImpure = mode match {
+      case PureFunction   => "pure"
+      case ImpureFunction => "impure"
+    }
     val argList =
       args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString(", ")
-    s"function $name ($argList) return ${returnType.vhdlTypeMark}"
+    s"$pureOrImpure function $name ($argList) return ${returnType.vhdlTypeMark}"
   }
 
-  def vhdlDecl: String = s"$signature;"
+  def vhdlSignature: String = s"$signature;"
 
   def vhdlImpl: String = {
-    val varDecls = if (variables.isEmpty) {
-      "-- No variables"
+    val declsStr = if (decls.isEmpty) {
+      "-- No variables needed"
     } else {
-      variables
-        .map({ case (x, t) => s"variable $x : ${t.vhdlName};" })
-        .mkString("\n")
+      decls.map(x => x.vhdlDecl).mkString("\n")
     }
+    val varAssignments = decls
+      .flatMap({
+        case x: Variable                 => Some(s"${x.name} := ${x.assign};")
+        case _: VhdlFunction | _: Signal => None
+      })
+      .mkString("\n")
+    val body = s"$varAssignments\nreturn $ret;"
     s"""$signature is
-       |${indent(varDecls)}
+       |${indent(declsStr)}
        |begin
        |${indent(body)}
        |end;
        |""".stripMargin.stripTrailing
   }
+
+  override def vhdlDecl: String = vhdlImpl
 }
 
 private[gen] trait Port
@@ -48,6 +71,16 @@ private[gen] case class OutPort(
     assign: Option[String]
 ) extends Port
 
+private[gen] sealed trait VarOrSigDecl extends Decl {
+  val name: String
+  val typ: VhdlType
+}
+
+private[gen] case class Variable(name: String, typ: VhdlType, assign: String)
+    extends VarOrSigDecl {
+  override def vhdlDecl: String = s"variable $name : ${typ.vhdlName};"
+}
+
 private[gen] case class Signal(
     category: String,
     name: String,
@@ -55,7 +88,16 @@ private[gen] case class Signal(
     init: Option[String] = None,
     assignStmt: Option[String] = None,
     cond: Option[String] = None
-) extends Decl
+) extends VarOrSigDecl {
+  override def vhdlDecl: String = {
+    val str1 = s"signal $name : ${typ.vhdlName}"
+    val str2 = init match {
+      case Some(z) => s"$str1 := $z"
+      case None    => str1
+    }
+    s"$str2;"
+  }
+}
 
 private[gen] case class PortMap(map: Map[String, String])
 
@@ -110,21 +152,11 @@ private[gen] case class VhdlComponent(
     ).sortBy(x => x)
     val sigDecls = signalCategories
       .map({ case (categoryName, signals) =>
-        val block = signals
-          .map(s => {
-            val str1 = s"signal ${s.name} : ${s.typ.vhdlName}"
-            val str2 = s.init match {
-              case Some(z) => s"$str1 := $z"
-              case None    => str1
-            }
-            s"$str2;"
-          })
-          .sortBy(x => x)
-          .mkString("\n")
+        val block = signals.map(s => s.vhdlDecl).sortBy(x => x).mkString("\n")
         s"-- $categoryName\n$block"
       })
       .mkString("\n\n")
-    val funDecls = functions.map(f => f.vhdlImpl).mkString("\n\n")
+    val funDecls = functions.map(f => f.vhdlDecl).mkString("\n\n")
     val portMaps = children
       .map({ case (c, pm) =>
         val assignments =
