@@ -2,8 +2,6 @@ package ir
 
 import opt.PartialEvalPass
 
-import scala.annotation.tailrec
-
 sealed trait Type {
   def ::+(f: Expr => Expr): Function = {
     val x = Param("x")(this)
@@ -27,6 +25,22 @@ sealed trait Type {
           case TyStm(t, m) => TyStm(t, n * m)
           case t           => TyStm(t, n)
         }
+    }
+  }
+
+  def uncurry: Type = {
+    this match {
+      case Missing | TyInt | TyBool    => this
+      case TyArrow(tIn, tOut: TyArrow) =>
+        // For some reason, the Scala compiler doesn't find the uncurry method
+        // if you just write tOut.uncurry :/
+        tOut.asInstanceOf[Type].uncurry.asInstanceOf[TyArrow] match {
+          case TyArrow(t1, t2) => TyArrow(TyTuple(tIn.uncurry, t1), t2)
+        }
+      case TyArrow(t1, t2)  => TyArrow(t1.uncurry, t2.uncurry)
+      case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.uncurry): _*)
+      case TyVec(t, n)      => TyVec(t.uncurry, n)
+      case TyStm(t, n)      => TyStm(t.uncurry, n)
     }
   }
 

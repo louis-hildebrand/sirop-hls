@@ -6,7 +6,7 @@ import operations._
 import opt.StmSimplifier
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Test curried function call
+  // TODO: Support let expressions with streams?
   // TODO: Support let f = <function> in ...
 
   test("Arithmetic") {
@@ -314,6 +314,20 @@ class VhdlGeneratorTests extends AnyFunSuite {
           )
         )
       )().tchk().lower()
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("CurriedFunCall") {
+    val n = 7
+    val f = Int2() ::+ (x => TyInt ::+ (y => y + x.__0 * y + x.__1))
+    val a = Param("a")()
+    val s = StmBuild(
+      n,
+      SSome(a)(),
+      Map[Param, (Expr, Expr)](
+        a -> (0, FunCall(FunCall(f, Tuple(42, 99)())(), a)())
+      )
+    )().tchk().lower().uncurry()
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 }
