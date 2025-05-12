@@ -317,7 +317,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case _: TyStm => sl.rebuild(TyInt, Seq(newS))
           case t => throw new TypeError(s"Argument of StmNext has type $t.")
         }
-      case StmLiteral(typ, elems @ _*) => ???
+      case StmLiteral(typ, elems @ _*) =>
+        val checkedElems = elems.map(e => e.tchk())
+        val types = checkedElems.map(e => e.typ).toSet
+        if (types.isEmpty) {
+          throw new IllegalArgumentException(
+            "Cannot type check empty stream literal."
+          )
+        } else if (types.size == 1) {
+          val t = types.head
+          this.rebuild(TyStm(t, checkedElems.length), checkedElems)
+        } else {
+          throw new IllegalArgumentException(
+            "Inconsistent element types in stream literal."
+          )
+        }
 
       case s: SyntaxSugar => s.typecheck(context)
     }

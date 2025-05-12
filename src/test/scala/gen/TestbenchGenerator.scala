@@ -16,6 +16,7 @@ object TestbenchGenerator {
       dir: Path
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
+    val outElemType = VhdlType(out.tchk().typ.asInstanceOf[TyStm].t)
     val inputProcesses = inputsByVar
       .map({ case (x, inputs) =>
         val steps = inputs.elems
@@ -75,6 +76,7 @@ object TestbenchGenerator {
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
+         |use work.typedefs.all;
          |use work.conversions.all;
          |
          |entity testbench is
@@ -90,6 +92,12 @@ object TestbenchGenerator {
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
          |    signal   expected   : std_logic_vector(${bitWidth - 1} downto 0);
+         |
+         |    -- Easier debugging
+         |    signal   data_t     : ${outElemType.vhdlName};
+         |    signal   expected_t : ${outElemType.vhdlName};
+         |
+         |    -- Input streams
          |${indent(inputStmSignals)}
          |
          |begin
@@ -108,6 +116,9 @@ object TestbenchGenerator {
          |    end process;
          |
          |${indent(inputProcesses)}
+         |
+         |    data_t <= from_std_logic_vector(data);
+         |    expected_t <= from_std_logic_vector(expected);
          |
          |    -- Check outputs
          |    process

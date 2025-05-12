@@ -12,6 +12,30 @@ class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Test let expression that uses other variables (should already happen with nested let, right?)
   // TODO: Support let f = <function> in ...
 
+  test("Arithmetic") {
+    val n = 10
+    val m = 10
+    val i = Param("i")()
+    val j = Param("j")()
+    val s = StmBuild(
+      n * m,
+      SSome(
+        Tuple(
+          Tuple(i, j)(),
+          Tuple(i + j, i + (-1 * j), (-1 * i) + j, (-1 * i) + (-1 * j))(),
+          Tuple(i * j, i * (-1 * j), (-1 * i) * j, (-1 * i) * (-1 * j))(),
+          Tuple(i / j, i / (-1 * j), (-1 * i) / j, (-1 * i) / (-1 * j))(),
+          Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))()
+        )()
+      )(),
+      Map[Param, (Expr, Expr)](
+        i -> (0, IfThenElse(j === m, i + 1, i)()),
+        j -> (1, IfThenElse(j === m, 1, j + 1)())
+      )
+    )().tchk().lower()
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
   test("StmRange(10, -2, 3)") {
     val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(s) == TestPassed)

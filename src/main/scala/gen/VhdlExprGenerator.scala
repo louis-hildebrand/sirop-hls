@@ -35,8 +35,8 @@ private object VhdlExprGenerator {
       // TODO: Specially handle cases like x + (-1 * y)?
       case Sum(terms @ _*)    => VhdlOp("+", terms.map(exprToVhdl))
       case Prod(factors @ _*) => VhdlOp("*", factors.map(exprToVhdl))
-      case _: Div             => ???
-      case _: Mod             => ???
+      case Div(e1, e2)        => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
+      case Mod(e1, e2)        => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
       case True               => VhdlExpr("true", Seq())
       case False              => VhdlExpr("false", Seq())
       case ite @ IfThenElse(c, t, f) =>
