@@ -330,4 +330,32 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )().tchk().lower().uncurry()
     assert(TestRunner.testExpr(s) == TestPassed)
   }
+
+  test("DotProduct") {
+    val n = 100
+    val a = Param("a")(TyStm(TyInt, n))
+    val b = Param("b")(TyStm(TyInt, n))
+    val s = StmFold(
+      StmMap(StmZip(a, b)(), Int2() ::+ (x => x.__0 * x.__1))(),
+      0,
+      TyInt ::+ (x => TyInt ::+ (y => x + y))
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val f0 = Function(a, Function(b, s)())().tchk()
+    val inputs = Seq(
+      TestInput((0 until n).map(i => Some(IntCst(i * i * i)))),
+      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(3 * i)), None, None)))
+    )
+    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
+
+    def optimize(s: StmBuild): StmBuild = {
+      val s0 = StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+      val s1 = s0.fuseCompletely().tchk().lower().asInstanceOf[StmBuild]
+      val s2 =
+        StmSimplifier.simplify(s1)().tchk().lower().asInstanceOf[StmBuild]
+      s2
+    }
+    val optimized = optimize(s)
+    val fOpt = Function(a, Function(b, optimized)())().tchk()
+    assert(TestRunner.testExpr(fOpt, inputs) == TestPassed)
+  }
 }

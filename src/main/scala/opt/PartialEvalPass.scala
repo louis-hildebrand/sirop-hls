@@ -464,7 +464,7 @@ object PartialEvalPass {
       s: StmBuild,
       stepsWithoutValid: Int = 0
   ): Option[(StmBuild, Expr)] = {
-    if (stepsWithoutValid >= 100) {
+    if (stepsWithoutValid >= 10) {
       None
     } else {
       s.n match {
