@@ -41,6 +41,10 @@ object TestbenchGenerator {
            |process
            |begin
            |${indent(steps)}
+           |
+           |    ${x.name}_valid <= '0';
+           |    ${x.name}_data <= (others => '0');
+           |    wait;
            |end process;
            |""".stripMargin.stripTrailing
       })

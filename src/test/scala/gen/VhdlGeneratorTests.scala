@@ -3,7 +3,7 @@ package gen
 import ir._
 import org.scalatest.funsuite.AnyFunSuite
 import operations._
-import opt.StmSimplifier
+import opt.{PartialEvalPass, StmSimplifier}
 
 class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Support let expressions with streams?
@@ -345,5 +345,25 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val optimized = optimize(s)
     val fOpt = Function(a, Function(b, optimized)())().tchk()
     assert(TestRunner.testExpr(fOpt, inputs) == TestPassed)
+  }
+
+  test("2DMapFold") {
+    val n = 16
+    val m = 8
+    val s = Param("s")(TyStm(TyStm(TyInt, m), n))
+    val rowSums =
+      StmMap(s, TyStm(TyInt, m) ::+ (s => StmFold(s, 0, PlusFunction())()))()
+        .tchk()
+        .lower()
+        .asInstanceOf[StmBuild]
+
+    val inputs = Seq(
+      TestInput((0 until n * m).flatMap(i => Seq(None, Some(IntCst(i)))))
+    )
+
+    val optimized =
+      StmSimplifier.simplify(rowSums)().tchk().lower().asInstanceOf[StmBuild]
+    val f = Function(s.lower().asInstanceOf[Param], optimized)().tchk()
+    assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
 }
