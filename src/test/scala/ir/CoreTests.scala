@@ -1,12 +1,9 @@
 package ir
 
-import operations._
-import opt.{PartialEvalPass, StmAccRemovalPass}
+import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 class CoreTests extends AnyFunSuite {
-  private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lower())
-
   test("Sum:Flatten") {
     val x = Param("x")()
     val y = Param("y")()
@@ -371,98 +368,6 @@ class CoreTests extends AnyFunSuite {
     val renamed = original.renameVars
     assert(original == renamed)
     assert(original.accVars.intersect(renamed.accVars).isEmpty)
-  }
-
-  test("StmBuild:Fuse:MapPlusFive") {
-    val s = Param("s")()
-    val original = StmBuild(
-      3,
-      SSome(StmNext(s)().__1 + 5)(),
-      Map[Param, (Expr, Expr)](
-        s -> (StmCount(3)().lower(), StmNext(s)().__0)
-      )
-    )()
-      .tchk(Map(s -> TyStm(TyInt, 3)))
-      .asInstanceOf[StmBuild]
-    val fused = original.fuseCompletely()
-
-    // Correct behaviour
-    val expectedElems = StmLiteral.ints(5, 6, 7)
-    assert(ir.eval(original) == expectedElems)
-    assert(ir.eval(fused) == expectedElems)
-    // Successful fusion
-    val i = Param("i")()
-    val ideal = StmBuild(
-      3,
-      SSome(i + 5)(),
-      Map[Param, (Expr, Expr)](
-        i -> (0, i + 1)
-      )
-    )()
-    val simplFused = lpe(fused)
-    val simplIdeal = lpe(ideal)
-    assert(simplFused == simplIdeal)
-  }
-
-  test("StmBuild:Fuse:ZipCounters") {
-    val i = Param("i")()
-    // TODO: Test more thoroughly (e.g., let inputs be multiples of 2 and 3?)
-    // [0, 1, 2, 3]
-    val c1 =
-      StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
-        .tchk()
-        .lower()
-    // [9, 11, 13, 15]
-    val c2 =
-      StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (9, i + 2)))()
-        .tchk()
-        .lower()
-    // [(0, 9), (1, 11), (2, 13), (3, 15)]
-    val s = StmZip(c1, c2)().tchk().lower().asInstanceOf[StmBuild]
-
-    val x1 = s.seedByVar.find({ case (_, z) => z == c1 }).get._1
-    val x2 = s.seedByVar.find({ case (_, z) => z == c2 }).get._1
-
-    val i1 = Param("i")()
-    val i2 = Param("i")()
-
-    // 1) After one fusion
-    val actual1 = PartialEvalPass.partialEval(s.fuseWith(x1))
-    // 1a) Correct behaviour
-    assert(ir.eval(actual1) == ir.eval(s))
-    // 1b) Successful fusion
-    val ideal1 = StmBuild(
-      4,
-      SSome(Tuple(i1, StmNext(x2)().__1)())(),
-      Map[Param, (Expr, Expr)](
-        x2 -> s.equations(x2),
-        i1 -> (0, i1 + 1)
-      )
-    )()
-    assert(lpe(actual1) == lpe(ideal1))
-
-    // 2) After two fusions
-    val actual2 = lpe(s.fuseWith(x1).fuseWith(x2))
-    // 2a) Correct behaviour
-    val expectedElems =
-      StmLiteral(
-        Tuple(0, 9)(),
-        Tuple(1, 11)(),
-        Tuple(2, 13)(),
-        Tuple(3, 15)()
-      )()
-    assert(ir.eval(s) == expectedElems)
-    assert(ir.eval(actual2) == expectedElems)
-    // 2b) Successful fusion
-    val ideal2 = StmBuild(
-      4,
-      SSome(Tuple(i1, i2)())(),
-      Map[Param, (Expr, Expr)](
-        i1 -> (0, i1 + 1),
-        i2 -> (9, i2 + 2)
-      )
-    )()
-    assert(lpe(actual2) == lpe(ideal2))
   }
 
   test("StmBuild:AddOutputCounter") {

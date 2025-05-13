@@ -289,7 +289,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newOutput = s.output.tchk(newContext)
         val stmT = newOutput.typ match {
           case TyTuple(t, TyBool) => t
-          case t => throw new TypeError(s"Output of StmBuild has type $t.")
+          case t =>
+            throw new TypeError(
+              s"Output of StmBuild has type $t."
+                + " Expected a 2-tuple whose second element is a bool."
+            )
         }
         StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
       case sn @ StmNext(s) =>
@@ -1152,120 +1156,33 @@ case class StmBuild(
     */
   def fuseWith(x: Param): StmBuild = {
     val consumerStm = this
-    val consumerTyp = {
-      assert(
-        consumerStm.typ != Missing,
-        "the consumer must have been type checked before fusion"
-      )
-      assert(
-        consumerStm.typ.isInstanceOf[TyStm],
-        "the consumer must be a stream"
-      )
-      consumerStm.typ.asInstanceOf[TyStm]
-    }
+    require(
+      consumerStm.typ != Missing,
+      "The consumer must have been type checked before fusion."
+    )
     val fused = consumerStm.seedByVar.get(x) match {
       case Some(e: StmBuild) =>
         // Rename accumulator variables in case some of them are also being
         // used by the consumer stream
         val producerStm = e.renameVars
-        val producerTyp = {
-          assert(
-            producerStm.typ != Missing,
-            "the producer must have been type checked before fusion"
-          )
-          assert(
-            producerStm.typ.isInstanceOf[TyStm],
-            "the producer be a stream"
-          )
-          producerStm.typ.asInstanceOf[TyStm]
-        }
-        val c = stmNextCallCondition(consumerStm, x)
-        assert(c.typ == TyBool, "stream call condition must be a bool")
-        val newOutput =
-          IfThenElse(
-            c,
-            // CASE 1: Consumer is reading from producer.
-            OptionAccess(
-              producerStm.output,
-              // CASE 1a: Producer yielded a valid value. Proceed as usual.
-              {
-                val v = Param("v")(producerTyp.t)
-                val body =
-                  consumerStm.output.subPreserveType(StmNext(x)().__1 -> v)
-                Function(v, body)(TyArrow(producerTyp.t, consumerTyp.tOpt))
-              },
-              // CASE 1b: Producer did NOT yield a valid value.
-              //          The consumer cannot proceed.
-              {
-                val t1 = TyTuple()
-                val t2 = consumerTyp.tOpt
-                val v = Param("_")(t1)
-                Function(v, NNone(consumerTyp.t))(TyArrow(t1, t2))
-              }
-            )(consumerTyp.tOpt),
-            // CASE 2: Consumer is not reading from producer.
-            //         Proceed as usual.
-            //         It's safe to unwrap the Option<T> here because, if it
-            //         is being accessed here at all, it means the consumer is
-            //         reading a value from the producer without updating the
-            //         consumer, which is not allowed.
-            consumerStm.output.subPreserveType(
-              StmNext(x)().__1 ->
-                OptionUnwrapUnsafe(producerStm.output)(producerTyp.t)
-            )
-          )(consumerTyp.tOpt)
+        val readyCond = stmNextCallCondition(consumerStm, x)
+        assert(readyCond.typ == TyBool, "stream call condition must be a bool")
+        val newOutput = fusedOutput(
+          consumer = consumerStm,
+          producer = producerStm,
+          ready = readyCond,
+          x = x
+        )
         val newEquations = {
-          val newConsumerEquations =
-            (consumerStm.equations - x)
-              .map({ case (y, (z, next)) =>
-                y -> (z, IfThenElse(
-                  c,
-                  // CASE 1: Consumer is reading from producer.
-                  OptionAccess(
-                    producerStm.output,
-                    // CASE 1a: Producer yielded a valid value.
-                    //          Update the accumulators in the consumer.
-                    {
-                      val v = Param("v")(producerTyp.t)
-                      val body = next.subPreserveType(StmNext(x)().__1 -> v)
-                      Function(v, body)(TyArrow(producerTyp.t, y.typ))
-                    },
-                    // CASE 1b: Producer did NOT yield a valid value.
-                    //          Wait until it does and do not update accumulators.
-                    {
-                      val v = Param("_")(TyTuple())
-                      Function(v, y)(TyArrow(TyTuple(), y.typ))
-                    }
-                  )(y.typ)
-                    // Need to immediately lower in case this is a stream-valued
-                    // accumulator: don't want to introduce an invalid stream
-                    // update expression
-                    // TODO: it's kind of ugly that this is necessary. Can we
-                    //       define StmBuild in such a way that it's not (e.g.,
-                    //       by letting the update expression for a stream
-                    //       input be a bool)?
-                    .lower(),
-                  // CASE 2: Consumer is not reading from producer.
-                  //         Update as usual.
-                  //         If the consumer *does* try to get output from the
-                  //         producer at this point, return the default value.
-                  next.subPreserveType(
-                    StmNext(x)().__1 -> Default(producerTyp.t)
-                  )
-                )(y.typ))
-              })
+          val newConsumerEquations = (consumerStm.equations - x).map(
+            fusedConsumerAccumulator(
+              producer = producerStm,
+              ready = readyCond,
+              x = x
+            )
+          )
           val newProducerEquations =
-            producerStm.equations.map({ case (x, (z, next)) =>
-              x -> (z, IfThenElse(
-                c,
-                // CASE 1: Consumer is reading from producer.
-                //         Update accumulators.
-                next,
-                // CASE 2: Consumer is not reading from input.
-                //         Producer does nothing.
-                x
-              )(z.typ))
-            })
+            producerStm.equations.map(fusedProducerAccumulator(readyCond))
           newConsumerEquations ++ newProducerEquations
         }
         StmBuild(consumerStm.n, newOutput, newEquations)(typ)
@@ -1289,6 +1206,131 @@ case class StmBuild(
     )
     assert(fused.typ == this.typ, "fusion should preserve type annotations")
     fused
+  }
+
+  /** Construct an expression representing the output of the consumer after
+    * fusion.
+    *
+    * @param consumer
+    *   The consumer stream
+    * @param producer
+    *   The producer stream
+    * @param ready
+    *   A boolean expression which evaluates to <code>True</code> iff the
+    *   consumer is reading from the producer (i.e., the <code>ready</code>
+    *   signal is high).
+    * @param x
+    *   The accumulator variable for the producer
+    */
+  private def fusedOutput(
+      consumer: StmBuild,
+      producer: StmBuild,
+      ready: Expr,
+      x: Param
+  ): Expr = {
+    val consumerTyp = consumer.typ.asInstanceOf[TyStm]
+    val producerTyp = producer.typ.asInstanceOf[TyStm]
+    IfThenElse(
+      ready,
+      // CASE 1: Consumer is ready (i.e., reading from producer).
+      OptionAccess(
+        producer.output,
+        // CASE 1a: Producer yielded a valid value. Proceed as usual.
+        producerTyp.t ::+ (v =>
+          consumer.output.subPreserveType(StmNext(x)().__1 -> v)
+        ),
+        // CASE 1b: Producer did NOT yield a valid value.
+        //          The consumer cannot proceed.
+        TyTuple() ::+ (_ => NNone(consumerTyp.t))
+      )(),
+      // CASE 2: Consumer is not ready (i.e., not reading from producer).
+      //         Proceed as usual, but with the default value for the producer
+      //         output (this should not be read).
+      consumer.output.subPreserveType(
+        StmNext(x)().__1 -> Default(producerTyp.t)
+      )
+    )().tchk()
+  }
+
+  /** Construct a new recurrence equation after fusion for an accumulator in the
+    * consumer stream.
+    *
+    * @param producer
+    *   The producer stream
+    * @param ready
+    *   A boolean expression which evaluates to <code>True</code> iff the
+    *   consumer is reading from the producer (i.e., the <code>ready</code>
+    *   signal is high).
+    * @param x
+    *   The accumulator variable for the producer
+    * @param eqn
+    *   The original recurrence equation
+    */
+  private def fusedConsumerAccumulator(
+      producer: StmBuild,
+      ready: Expr,
+      x: Param
+  )(
+      eqn: (Param, (Expr, Expr))
+  ): (Param, (Expr, Expr)) = {
+    val producerTyp = producer.typ.asInstanceOf[TyStm]
+    eqn match {
+      case (y, (z, next)) =>
+        y -> (
+          z,
+          IfThenElse(
+            ready,
+            // CASE 1: Consumer is reading from producer.
+            OptionAccess(
+              producer.output,
+              // CASE 1a: Producer yielded a valid value.
+              //          Update the accumulators.
+              producerTyp.t ::+ (v =>
+                next.subPreserveType(StmNext(x)().__1 -> v)
+              ),
+              // CASE 1b: Producer did NOT yield a valid value.
+              //          Do not update accumulators until it does.
+              TyTuple() ::+ (_ => y)
+            )(),
+            // CASE 2: Consumer is not reading from producer.
+            //         Update as usual, but with the default value for the
+            //         producer output (this should not be read).
+            next.subPreserveType(
+              StmNext(x)().__1 -> Default(producerTyp.t)
+            )
+          )().tchk().lower()
+        )
+    }
+  }
+
+  /** Construct a new recurrence equation after fusion for an accumulator in the
+    * producer stream.
+    *
+    * @param readyCond
+    *   A boolean expression which evaluates to <code>True</code> iff the
+    *   consumer is reading from the producer (i.e., the <code>ready</code>
+    *   signal is high).
+    * @param eqn
+    *   The original recurrence equation
+    */
+  private def fusedProducerAccumulator(
+      readyCond: Expr
+  )(eqn: (Param, (Expr, Expr))): (Param, (Expr, Expr)) = {
+    eqn match {
+      case (x, (z, next)) =>
+        x -> (
+          z,
+          IfThenElse(
+            readyCond,
+            // CASE 1: Consumer is reading from producer.
+            //         Update accumulators.
+            next,
+            // CASE 2: Consumer is not reading from input.
+            //         Producer does nothing.
+            x
+          )().tchk()
+        )
+    }
   }
 
   /** Add a new equation to this stream whose value is the number of valid
