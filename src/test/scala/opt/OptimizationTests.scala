@@ -61,7 +61,7 @@ class OptimizationTests extends AnyFunSuite {
     val n = 3
     val v = Param("v")(TyVec(TyInt, n))
     val z = Param("z")(TyInt)
-    val original = VecFold(v, z, TyInt ::+ (acc => TyInt ::+ (x => acc + x)))()
+    val original = VecFold(v, z, PlusFunction())()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
@@ -133,11 +133,7 @@ class OptimizationTests extends AnyFunSuite {
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val z = Param("z")(TyInt)
     val s =
-      StmFold(
-        StmMap(input, f)(),
-        z,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )().tchk().lower()
+      StmFold(StmMap(input, f)(), z, PlusFunction())().tchk().lower()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
@@ -183,11 +179,7 @@ class OptimizationTests extends AnyFunSuite {
     val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val z = Param("z")(TyInt)
     val s =
-      StmScanInclusive(
-        StmMap(input, f)(),
-        z,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )().tchk().lower()
+      StmScanInclusive(StmMap(input, f)(), z, PlusFunction())().tchk().lower()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)

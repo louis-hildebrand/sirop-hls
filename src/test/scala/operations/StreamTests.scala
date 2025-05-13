@@ -279,9 +279,7 @@ class StreamTests extends AnyFunSuite {
     )()
     val s = StmMap(
       input,
-      TyStm(TyInt, 4) ::+ (row =>
-        StmScanInclusive(row, 0, TyInt ::+ (a => TyInt ::+ (x => a + x)))()
-      )
+      TyStm(TyInt, 4) ::+ (row => StmScanInclusive(row, 0, PlusFunction())())
     )().tchk()
     val expected = StmLiteral.ints(
       Seq(
@@ -303,13 +301,7 @@ class StreamTests extends AnyFunSuite {
     )()
     val s = StmMap(
       input,
-      TyStm(TyInt, 4) ::+ (row =>
-        StmScanExclusive(
-          row,
-          0,
-          TyInt ::+ (a => TyInt ::+ (x => a + x))
-        )()
-      )
+      TyStm(TyInt, 4) ::+ (row => StmScanExclusive(row, 0, PlusFunction())())
     )().tchk()
     val expected = StmLiteral.ints(
       Seq(
@@ -888,7 +880,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmFold:1D:Sum") {
     val sum =
-      StmFold(StmCount(6)(), 3, TyInt ::+ (acc => TyInt ::+ (x => acc + x)))()
+      StmFold(StmCount(6)(), 3, PlusFunction())()
         .tchk()
     assert(ir.eval(sum) == StmLiteral(18)())
   }
@@ -937,14 +929,7 @@ class StreamTests extends AnyFunSuite {
       0,
       TyInt ::+ (acc =>
         TyStm(TyInt, 5) ::+ (s =>
-          StmMap(
-            StmFold(
-              s,
-              0,
-              TyInt ::+ (a => TyInt ::+ (x => a + x))
-            )(),
-            TyInt ::+ (x => acc + x)
-          )()
+          StmMap(StmFold(s, 0, PlusFunction())(), TyInt ::+ (x => acc + x))()
         )
       )
     )().tchk()
@@ -965,14 +950,7 @@ class StreamTests extends AnyFunSuite {
       0,
       TyInt ::+ (acc =>
         TyStm(TyInt, 2) ::+ (s =>
-          StmMap(
-            StmFold(
-              s,
-              0,
-              TyInt ::+ (a => TyInt ::+ (x => a + x))
-            )(),
-            TyInt ::+ (x => acc + x)
-          )()
+          StmMap(StmFold(s, 0, PlusFunction())(), TyInt ::+ (x => acc + x))()
         )
       )
     )().tchk()
@@ -1073,11 +1051,7 @@ class StreamTests extends AnyFunSuite {
               TyInt ::+ (acc =>
                 TyStm(TyInt, 4) ::+ (s =>
                   StmMap(
-                    StmFold(
-                      s,
-                      0,
-                      TyInt ::+ (a => TyInt ::+ (x => a + x))
-                    )(),
+                    StmFold(s, 0, PlusFunction())(),
                     TyInt ::+ (x => acc + x)
                   )()
                 )
@@ -1164,11 +1138,7 @@ class StreamTests extends AnyFunSuite {
       TyInt ::+ (acc =>
         TyStm(TyInt, 2) ::+ (s =>
           StmMap(
-            StmFold(
-              s,
-              0,
-              TyInt ::+ (a => TyInt ::+ (x => a + x))
-            )(),
+            StmFold(s, 0, PlusFunction())(),
             TyInt ::+ (x => acc + x)
           )()
         )
@@ -1230,11 +1200,7 @@ class StreamTests extends AnyFunSuite {
       TyInt ::+ (acc =>
         TyStm(TyInt, 2) ::+ (s =>
           StmMap(
-            StmFold(
-              s,
-              0,
-              TyInt ::+ (a => TyInt ::+ (x => a + x))
-            )(),
+            StmFold(s, 0, PlusFunction())(),
             TyInt ::+ (x => acc + x)
           )()
         )

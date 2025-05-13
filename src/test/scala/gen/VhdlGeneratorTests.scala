@@ -140,11 +140,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmScanInclusive(0, +)") {
     val s = {
       val n = 20
-      val s = StmScanInclusive(
-        StmCount(n)(),
-        0,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )()
+      val s = StmScanInclusive(StmCount(n)(), 0, PlusFunction())()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -157,11 +153,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmScanExclusive(0, +)") {
     val s = {
       val n = 20
-      val s = StmScanExclusive(
-        StmCount(n)(),
-        0,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )()
+      val s = StmScanExclusive(StmCount(n)(), 0, PlusFunction())()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -174,11 +166,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmFold(0, +)") {
     val s = {
       val n = 20
-      val s = StmFold(
-        StmCount(n)(),
-        0,
-        TyInt ::+ (acc => TyInt ::+ (x => acc + x))
-      )()
+      val s = StmFold(StmCount(n)(), 0, PlusFunction())()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -338,7 +326,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = StmFold(
       StmMap(StmZip(a, b)(), Int2() ::+ (x => x.__0 * x.__1))(),
       0,
-      TyInt ::+ (x => TyInt ::+ (y => x + y))
+      PlusFunction()
     )().tchk().lower().asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(

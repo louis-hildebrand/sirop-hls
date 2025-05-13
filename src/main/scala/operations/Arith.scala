@@ -2,6 +2,10 @@ package operations
 
 import ir._
 
+object PlusFunction {
+  def apply(): Function = TyInt ::+ (x => TyInt ::+ (y => x + y))
+}
+
 // TODO: Reimplement these as syntax sugar as well?
 object Min {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {

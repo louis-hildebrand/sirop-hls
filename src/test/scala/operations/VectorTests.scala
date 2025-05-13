@@ -41,7 +41,7 @@ class VectorTests extends AnyFunSuite {
       VecMap(
         v,
         TyVec(TyInt, 3) ::+ (v =>
-          VecFold(v, 0, TyInt ::+ (x => TyInt ::+ (y => x + y)))()
+          VecFold(v, 0, PlusFunction())()
         )
       )()
     assert(ir.eval(v2) == VecLiteral(1, 3, 5)())
