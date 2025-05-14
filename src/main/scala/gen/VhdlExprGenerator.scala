@@ -119,7 +119,8 @@ private object VhdlExprGenerator {
           .map({ case (e, i) => s"$i => ${e.vhdl}" })
           .mkString(", ")
         VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
-      case VecBuild(IntCst(n), f) =>
+      case VecBuild(len, f) if len.freeVars().isEmpty =>
+        val n = ir.eval(len).asInstanceOf[IntCst].i
         val elems = (0 until n).map(i =>
           // TODO: Partial evaluation here kind of approximates IfThenElse
           //       being short-circuiting---the other branch will be

@@ -31,10 +31,12 @@ private[gen] sealed trait VhdlType {
 private[gen] object VhdlType {
   def apply(t: Type): VhdlType = {
     t match {
-      case TyInt               => VhdlInt
-      case TyBool              => VhdlBool
-      case TyTuple(ts @ _*)    => VhdlRecord(ts.map(t => VhdlType(t)))
-      case TyVec(t, IntCst(n)) => VhdlArray(n, VhdlType(t))
+      case TyInt            => VhdlInt
+      case TyBool           => VhdlBool
+      case TyTuple(ts @ _*) => VhdlRecord(ts.map(t => VhdlType(t)))
+      case TyVec(t, len) if len.freeVars().isEmpty =>
+        val n = ir.eval(len).asInstanceOf[IntCst].i
+        VhdlArray(n, VhdlType(t))
       case t =>
         throw new IllegalArgumentException(
           s"Cannot convert type $t to a VHDL type."

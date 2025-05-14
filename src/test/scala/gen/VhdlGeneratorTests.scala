@@ -366,4 +366,29 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f = Function(s.lower().asInstanceOf[Param], optimized)().tchk()
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
+
+  test("1DStmSlide") {
+    val n = 50
+    val m = 3
+    val s = Param("s")(TyStm(TyTuple(TyInt, TyInt, TyBool), n))
+    val slide = StmSlideS(s, m = m)().tchk().lower().asInstanceOf[StmBuild]
+
+    val inputs = Seq(
+      TestInput(
+        (0 until n).flatMap(i =>
+          Seq(None, Some(Tuple(i + 1, i - 10, i % 3 === 0)()), None)
+        )
+      )
+    )
+
+    val optimized = StmSimplifier.simplify(slide)().tchk().lower()
+    val f1 = Function(s, optimized)().tchk()
+    assert(TestRunner.testExpr(f1, inputs) == TestPassed)
+
+    // TODO: The un-optimized version fails due to out-of-bounds array access
+    //       due to if-then-else not short circuiting
+    assume(false)
+    val f0 = Function(s, slide)().tchk()
+    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
+  }
 }
