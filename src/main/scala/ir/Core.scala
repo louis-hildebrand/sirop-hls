@@ -124,7 +124,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
 
       case True  => True
       case False => False
-      case ite @ IfThenElse(c, t, f) =>
+      case mux @ Mux(c, t, f) =>
         val newC = c.tchk
         newC.typ match {
           case TyBool => ()
@@ -133,7 +133,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newT = t.tchk
         val newF = f.tchk
         if (newT.typ.isCompatibleWith(newF.typ)) {
-          ite.rebuild(newT.typ, Seq(newC, newT, newF))
+          mux.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
             s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
@@ -648,7 +648,7 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Param       => 13
       case _: TupleAccess => 14
       case _: FunCall     => 15
-      case _: IfThenElse  => 16
+      case _: Mux         => 16
       case _: Tuple       => 17
       case _: Function    => 18
       case _: StmBuild    => 19
@@ -898,26 +898,22 @@ sealed abstract class BoolCst extends BoolExpr()(TyBool) {
 case object True extends BoolCst
 case object False extends BoolCst
 
-// This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
-// False is interpreted as 0 and True as 1.
-// However, IfThenElse does *not* evaluate the branch that's not taken, which
-// is important in cases like calling StmNext() or memory accesses.
-case class IfThenElse(c: Expr, t: Expr, f: Expr)(typ: Type)
+case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
     extends Expr(c, t, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(c, t, f) => IfThenElse(c, t, f)(typ)
+      case Seq(c, t, f) => Mux(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
 }
-case object IfThenElse {
+case object Mux {
   def apply(c: Expr, t: Expr, f: Expr)(
       typ: Type = Missing
-  ): IfThenElse = {
+  ): Mux = {
     c match {
-      case Not(c) => new IfThenElse(c, f, t)(typ)
-      case c      => new IfThenElse(c, t, f)(typ)
+      case Not(c) => new Mux(c, f, t)(typ)
+      case c      => new Mux(c, t, f)(typ)
     }
   }
 }
@@ -1230,7 +1226,7 @@ case class StmBuild(
   ): Expr = {
     val consumerTyp = consumer.typ.asInstanceOf[TyStm]
     val producerTyp = producer.typ.asInstanceOf[TyStm]
-    IfThenElse(
+    Mux(
       ready,
       // CASE 1: Consumer is ready (i.e., reading from producer).
       OptionAccess(
@@ -1278,7 +1274,7 @@ case class StmBuild(
       case (y, (z, next)) =>
         y -> (
           z,
-          IfThenElse(
+          Mux(
             ready,
             // CASE 1: Consumer is reading from producer.
             OptionAccess(
@@ -1320,7 +1316,7 @@ case class StmBuild(
       case (x, (z, next)) =>
         x -> (
           z,
-          IfThenElse(
+          Mux(
             readyCond,
             // CASE 1: Consumer is reading from producer.
             //         Update accumulators.
@@ -1349,7 +1345,7 @@ case class StmBuild(
       else
         this
     val z = IntCst(0)
-    val next = IfThenElse(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
+    val next = Mux(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1373,7 +1369,7 @@ case class StmBuild(
         this
     val z = IntCst(0)
     val stmNextCalled = stmNextCallCondition(s, x)
-    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)(TyInt)
+    val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -1526,7 +1522,7 @@ object StmBuild {
     e match {
       case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
       case y if y == x                                  => False
-      case IfThenElse(c, t, f) =>
+      case Mux(c, t, f) =>
         val ct = stmNextCallCondition(t, x)
         val cf = stmNextCallCondition(f, x)
         (c && ct) || (!c && cf)

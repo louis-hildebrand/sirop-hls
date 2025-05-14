@@ -280,7 +280,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 case (newBody, xs) => (f.rebuild(Seq(i, newBody)), xs)
               })
             )
-          case IfThenElse(c, tru, fals) =>
+          case Mux(c, tru, fals) =>
             Seq(
               replaceStmNextK(c, t)(facts),
               replaceStmNextK(tru, t)(facts.assumeTrue(c)),
@@ -324,7 +324,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         Some(
           Function(
             t,
-            IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))()
+            Mux(t === 0, z, e.substitute(t -> (t - 1)))()
           )()
         )
       case Counter(delta) => Some(Function(t, z + (t - t0) * delta)())
@@ -335,7 +335,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             VecBuild(
               n,
               TyInt ::+ (i =>
-                IfThenElse(
+                Mux(
                   // Imagine the vector is a fixed, infinite tape and we're
                   // moving to the right as time goes along.
                   //   [f(0), f(1), ..., f(n - 1), g(0), g(1), ...]
@@ -363,7 +363,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 Some(
                   Function(
                     t,
-                    IfThenElse(t < t1, FunCall(f, t)(), FunCall(g, t)())()
+                    Mux(t < t1, FunCall(f, t)(), FunCall(g, t)())()
                   )()
                 )
               case None => None
@@ -392,7 +392,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 acc,
                 Tuple(
                   and @ And(terms @ _*),
-                  boundedCtrUpdate @ IfThenElse(
+                  boundedCtrUpdate @ Mux(
                     TupleAccess(a0, IntCst(0)),
                     ctrUpdateIfTrue,
                     TupleAccess(a1, IntCst(1))
@@ -469,7 +469,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
 
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
       e match {
-        case ite @ IfThenElse(c, lhs, rhs) =>
+        case mux @ Mux(c, lhs, rhs) =>
           (t, Param("p")(), c) match {
             case TimeLessThan(k) =>
               findRec(lhs, t0) match {
@@ -487,8 +487,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                         val f =
                           Function(
                             t,
-                            ite.typ ::+ (x =>
-                              IfThenElse(
+                            mux.typ ::+ (x =>
+                              Mux(
                                 c,
                                 FunCall(FunCall(f0, t)(), x)(),
                                 FunCall(FunCall(f1, t)(), x)()
@@ -521,7 +521,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             val nextF = Function(
               t,
               next.typ ::+ (acc =>
-                IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
+                Mux(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
               )
             )()
             Some((z, nextF))
@@ -624,7 +624,7 @@ object LeftShiftRegister {
                   n1,
                   Function(
                     i0: Param,
-                    IfThenElse(
+                    Mux(
                       Equal(i1, n2),
                       e,
                       VecAccess(a2, Sum(IntCst(1), i2))
@@ -675,7 +675,7 @@ object Piecewise {
 object TimeLessThan {
   def unapply(args: (Param, Param, Expr)): Option[Expr] = {
     val (t, acc, lt) = args
-    (t, acc, IfThenElse(lt, True, False)()) match {
+    (t, acc, Mux(lt, True, False)()) match {
       case IfTimeLessThan(k, True, False) => Some(k)
       case _                              => None
     }
@@ -711,7 +711,7 @@ object IfLessThan {
   def unapply(args: (Expr, Expr)): Option[(Expr, Expr, Expr)] = {
     val (e, x) = args
     e match {
-      case IfThenElse(LessThan(y, z), a, b) =>
+      case Mux(LessThan(y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
         (PartialEvalPass.partialEval(y - z), x) match {

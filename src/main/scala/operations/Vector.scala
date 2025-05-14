@@ -176,7 +176,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   override def lowerSyntaxSugar(): Expr = {
     VecBuild(
       VecLength(v)() + 1,
-      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(v, i + -1)())())
+      TyInt ::+ (i => Mux(i === 0, e, VecAccess(v, i + -1)())())
     )().tchk().lower()
   }
 }
@@ -212,7 +212,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     val n = VecLength(v)()
     VecBuild(
       n + 1,
-      TyInt ::+ (i => IfThenElse(i === n, e, VecAccess(v, i)())())
+      TyInt ::+ (i => Mux(i === n, e, VecAccess(v, i)())())
     )().tchk().lower()
   }
 }
@@ -256,7 +256,7 @@ object VecShiftLeft {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      TyInt ::+ (i => IfThenElse(i === n + -1, e, VecAccess(vec, i + 1)())())
+      TyInt ::+ (i => Mux(i === n + -1, e, VecAccess(vec, i + 1)())())
     )()
   }
 }
@@ -269,7 +269,7 @@ object VecShiftRight {
     val n = VecLength(vec)()
     VecBuild(
       n,
-      TyInt ::+ (i => IfThenElse(i === 0, e, VecAccess(vec, i + -1)())())
+      TyInt ::+ (i => Mux(i === 0, e, VecAccess(vec, i + -1)())())
     )()
   }
 }
@@ -284,7 +284,7 @@ object VecConcat {
     VecBuild(
       n + m,
       TyInt ::+ (i =>
-        IfThenElse(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
+        Mux(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
       )
     )()
   }

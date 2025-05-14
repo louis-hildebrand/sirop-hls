@@ -43,14 +43,14 @@ private object VhdlExprGenerator {
       case Mod(e1, e2)        => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
       case True               => VhdlExpr("true", Seq())
       case False              => VhdlExpr("false", Seq())
-      case ite @ IfThenElse(c, t, f) =>
+      case mux @ Mux(c, t, f) =>
         val cv = exprToVhdl(c)
         val tv = exprToVhdl(t)
         val fv = exprToVhdl(f)
         val tempVar = intermediateVar(
           "ite",
           s"(${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl})",
-          VhdlType(ite.typ),
+          VhdlType(mux.typ),
           mode
         )
         VhdlExpr(tempVar.name, tempVar +: (cv.decls ++ tv.decls ++ fv.decls))

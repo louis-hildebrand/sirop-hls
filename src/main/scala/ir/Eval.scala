@@ -176,13 +176,13 @@ trait Eval {
               s"Operands of LessThan evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
         }
-      case IfThenElse(c, t, f) =>
+      case Mux(c, t, f) =>
         evalBigStep(c) match {
           case True  => evalBigStep(t)
           case False => evalBigStep(f)
           case v =>
             throw new IllegalArgumentException(
-              s"Condition of IfThenElse evaluated to $v. It must evaluate to a boolean."
+              s"Condition of Mux evaluated to $v. It must evaluate to a boolean."
             )
         }
 

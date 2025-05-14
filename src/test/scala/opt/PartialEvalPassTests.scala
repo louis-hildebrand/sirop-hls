@@ -25,9 +25,9 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("NotNot") {
     val acc = Param("acc")(TyTuple(TyInt, TyInt, TyInt, TyBool, TyInt))
     val e =
-      IfThenElse(
+      Mux(
         acc.__3,
-        IfThenElse(Not(LessThan(acc.__4, 5)())(), False, True)(),
+        Mux(Not(LessThan(acc.__4, 5)())(), False, True)(),
         False
       )()
     val expected = acc.__3 && LessThan(acc.__4, 5)()
@@ -56,11 +56,11 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       Function(
         y,
-        IfThenElse(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
+        Mux(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
       )()
     val actual = PartialEvalPass.partialEval(e)
     val expected = TyInt ::+ (y =>
-      IfThenElse(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
+      Mux(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
     )
     assert(actual == expected)
   }
@@ -110,13 +110,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
+  test("MuxTrueBranchSpecialCaseOfFalseBranch") {
     val n = Param("n")()
     val i = Param("i")()
     val acc = Param("acc")()
     val z = Param("z")()
     val delta = Param("delta")()
-    val e = IfThenElse(
+    val e = Mux(
       i === (n - 1),
       z + acc.__0 * delta,
       z + ((acc.__0 + (i + 1)) - n) * delta
@@ -126,13 +126,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("IfThenElseFalseBranchSpecialCaseOfTrueBranch") {
+  test("MuxFalseBranchSpecialCaseOfTrueBranch") {
     val n = Param("n")()
     val i = Param("i")()
     val acc = Param("acc")()
     val z = Param("z")()
     val delta = Param("delta")()
-    val e = IfThenElse(
+    val e = Mux(
       i !== (n - 1),
       z + ((acc.__0 + (i + 1)) - n) * delta,
       z + acc.__0 * delta
@@ -153,9 +153,9 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a)(), NNone(TyInt))(),
+      Mux(a >= z, SSome(a)(), NNone(TyInt))(),
       Map[Param, (Expr, Expr)](
-        a -> (z, IfThenElse(a >= z, a + 3, a - 1)())
+        a -> (z, Mux(a >= z, a + 3, a - 1)())
       )
     )()
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
@@ -213,16 +213,16 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(v) == expected)
   }
 
-  test("IfThenElseCondition:x < 10 && x >= 0") {
+  test("MuxCondition:x < 10 && x >= 0") {
     val x = Param("x")()
     val e =
-      IfThenElse(
+      Mux(
         x < 10 && x >= 0,
         Tuple(x < 11, x >= 10, x >= -1, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
       )()
     val expected =
-      IfThenElse(
+      Mux(
         x < 10 && x >= 0,
         Tuple(True, False, True, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
@@ -232,16 +232,16 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   // Used to debug an issue with StmInductionVarRemovalPass
-  test("VecBuildIndexRangeAndIfThenElseCondition") {
+  test("VecBuildIndexRangeAndMuxCondition") {
     val s = Param("s")()
     val e = TyInt ::+ (t =>
-      IfThenElse(
+      Mux(
         t < 7,
         VecBuild(
           7,
           TyInt ::+ (i =>
             StmNext(
-              IfThenElse(
+              Mux(
                 -7 + i + t < 7,
                 StmNextK(s, -7 + i + t)(),
                 StmNextK(s, 7)()
@@ -253,7 +253,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       )()
     )
     val expected = TyInt ::+ (t =>
-      IfThenElse(
+      Mux(
         t < 7,
         VecBuild(
           7,
@@ -287,7 +287,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val c0 = Param("c0")(TyBool)
     val c1 = Param("c1")(TyBool)
     val facts = FactSet().assumeTrue(c0 && (c0 || c1))
-    val e = TyInt ::+ (i => IfThenElse(c0, i + 1, i)())
+    val e = TyInt ::+ (i => Mux(c0, i + 1, i)())
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = TyInt ::+ (i => i + 1)
     assert(actual == expected)

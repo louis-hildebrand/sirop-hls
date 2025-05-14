@@ -26,8 +26,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         )()
       )(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(j === m, i + 1, i)()),
-        j -> (1, IfThenElse(j === m, 1, j + 1)())
+        i -> (0, Mux(j === m, i + 1, i)()),
+        j -> (1, Mux(j === m, 1, j + 1)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -49,7 +49,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val i = Param("i")()
       StmBuild(
         5,
-        IfThenElse(b, SSome(i)(), NNone(TyInt))(),
+        Mux(b, SSome(i)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -265,7 +265,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   }
 
   test("ComplexLet") {
-    // (1) Uses constructs like IfThenElse, VecAccess, TupleAccess that
+    // (1) Uses constructs like Mux, VecAccess, TupleAccess that
     //     require intermediate signals (or, in this case, variables)
     // (2) Refers to variables outside the Let
     val n = 5
@@ -288,7 +288,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
               Let(
                 y,
                 a.__1,
-                IfThenElse(
+                Mux(
                   Tuple(j)().__0 % 2 === 0,
                   Tuple(x + VecAccess(v, 0)(), y + VecAccess(v, 1)())(),
                   Tuple(y + VecAccess(v, 0)(), x + VecAccess(v, 1)())()

@@ -31,7 +31,7 @@ class EvalTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       1,
-      IfThenElse((a * a) % 2 === 1, SSome(a)(), NNone(TyInt))(),
+      Mux((a * a) % 2 === 1, SSome(a)(), NNone(TyInt))(),
       Map[Param, (Expr, Expr)](
         a -> (0, a + 2)
       )

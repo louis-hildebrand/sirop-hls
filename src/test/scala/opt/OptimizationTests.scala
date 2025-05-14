@@ -272,9 +272,9 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = optimize(
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           i === 1,
-          IfThenElse(
+          Mux(
             j < -1 + StmLength(input)(),
             SSome(StmNext(s)().__1)(),
             NNone(TyInt)
@@ -282,9 +282,9 @@ class OptimizationTests extends AnyFunSuite {
           SSome(42)()
         )(),
         Map[Param, (Expr, Expr)](
-          s -> (input, IfThenElse(i === 1, StmNext(s)().__0, s)()),
-          i -> (0, IfThenElse(i === 1, i, i + 1)()),
-          j -> (0, IfThenElse(i === 1, j + 1, j)())
+          s -> (input, Mux(i === 1, StmNext(s)().__0, s)()),
+          i -> (0, Mux(i === 1, i, i + 1)()),
+          j -> (0, Mux(i === 1, j + 1, j)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )
@@ -318,15 +318,15 @@ class OptimizationTests extends AnyFunSuite {
     val ideal = optimize(
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           i === 4,
           SSome(42)(),
-          IfThenElse(j < 1, NNone(TyInt), SSome(StmNext(s)().__1)())()
+          Mux(j < 1, NNone(TyInt), SSome(StmNext(s)().__1)())()
         )(),
         Map[Param, (Expr, Expr)](
-          s -> (input, IfThenElse(i === 4, s, StmNext(s)().__0)()),
-          i -> (0, IfThenElse(i === 4, i, IfThenElse(j < 1, i, i + 1)())()),
-          j -> (0, IfThenElse(i === 4, j, j + 1)())
+          s -> (input, Mux(i === 4, s, StmNext(s)().__0)()),
+          i -> (0, Mux(i === 4, i, Mux(j < 1, i, i + 1)())()),
+          j -> (0, Mux(i === 4, j, j + 1)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )

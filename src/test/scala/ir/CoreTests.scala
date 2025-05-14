@@ -24,17 +24,17 @@ class CoreTests extends AnyFunSuite {
     assert(x * y * z * w * x != Prod(z, x, y, w)())
   }
 
-  test("IfThenElse:MakeCondPositive") {
+  test("Mux:MakeCondPositive") {
     val c = Param("c")()
     val t = Param("t")()
     val f = Param("f")()
 
-    val e0 = IfThenElse(c, t, f)()
+    val e0 = Mux(c, t, f)()
     assert(e0.c == c)
     assert(e0.t == t)
     assert(e0.f == f)
 
-    val e1 = IfThenElse(Not(c)(), f, t)()
+    val e1 = Mux(Not(c)(), f, t)()
     assert(e0 == e1)
   }
 
@@ -120,7 +120,7 @@ class CoreTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         x -> (
           Tuple(True, False)(),
-          IfThenElse(
+          Mux(
             x.__1,
             Tuple(True, False)(),
             Tuple(False, True)()
@@ -139,7 +139,7 @@ class CoreTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           x2 -> (
             Tuple(True, False)(),
-            IfThenElse(
+            Mux(
               x2.__1,
               Tuple(True, False)(),
               Tuple(False, True)()
@@ -385,7 +385,7 @@ class CoreTests extends AnyFunSuite {
     // The existing bound variable should be renamed
     val i = Param("i")()
     val expectedOutCtrSeed = IntCst(0)
-    val expectedOutCtrNext = IfThenElse(IsSome(out)(), outCtr + 1, outCtr)()
+    val expectedOutCtrNext = Mux(IsSome(out)(), outCtr + 1, outCtr)()
     val expected = StmBuild(
       n,
       out,
@@ -416,7 +416,7 @@ class CoreTests extends AnyFunSuite {
     )
     val original = StmBuild(
       n,
-      IfThenElse(
+      Mux(
         FunCall(f, i)(),
         SSome(StmNext(s)().__1)(),
         NNone(TyInt)
@@ -425,10 +425,10 @@ class CoreTests extends AnyFunSuite {
         i -> (3, i + 1),
         s -> (
           input,
-          IfThenElse(
+          Mux(
             FunCall(f, i)(),
             StmNext(s)().__0,
-            IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
+            Mux(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
           )()
         ),
         inCtr -> (1, inCtr + 2)
@@ -449,7 +449,7 @@ class CoreTests extends AnyFunSuite {
     val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1) }).get._1
     val expectedInCtrSeed = IntCst(0)
     val expectedInCtrNext =
-      IfThenElse(
+      Mux(
         (Not(FunCall(f, freshI)())() && FunCall(g, j)())
           || FunCall(f, freshI)(),
         inCtr + 1,
@@ -458,7 +458,7 @@ class CoreTests extends AnyFunSuite {
     val expected =
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           FunCall(f, freshI)(),
           SSome(StmNext(s)().__1)(),
           NNone(TyInt)
@@ -467,10 +467,10 @@ class CoreTests extends AnyFunSuite {
           freshI -> (3, freshI + 1),
           s -> (
             input,
-            IfThenElse(
+            Mux(
               FunCall(f, freshI)(),
               StmNext(s)().__0,
-              IfThenElse(FunCall(g, j)(), StmNext(s)().__0, s)()
+              Mux(FunCall(g, j)(), StmNext(s)().__0, s)()
             )()
           ),
           j -> (1, j + 2),

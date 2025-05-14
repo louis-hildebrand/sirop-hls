@@ -58,7 +58,7 @@ class StreamFusionTests extends AnyFunSuite {
     val c2 =
       StmBuild(
         n,
-        IfThenElse(i % 2 === 0, SSome(i % 3 === 0)(), NNone(TyBool))(),
+        Mux(i % 2 === 0, SSome(i % 3 === 0)(), NNone(TyBool))(),
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     val s = StmBuild(
@@ -98,13 +98,13 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal2 = lpe(
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           i2 % 2 === 0,
           SSome(Tuple(StmNext(x1)().__1, i2 % 3 === 0)())(),
           NNone(TyTuple(TyInt, TyBool))
         )(),
         Map[Param, (Expr, Expr)](
-          x1 -> (c1, IfThenElse(i2 % 2 === 0, StmNext(x1)().__0, x1)()),
+          x1 -> (c1, Mux(i2 % 2 === 0, StmNext(x1)().__0, x1)()),
           i2 -> (0, i2 + 1)
         )
       )().tchk()
@@ -119,13 +119,13 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal3 = lpe(
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           i2 % 2 === 0,
           SSome(Tuple(i1 + 11, i2 % 3 === 0)())(),
           NNone(TyTuple(TyInt, TyBool))
         )(),
         Map[Param, (Expr, Expr)](
-          i1 -> (0, IfThenElse(i2 % 2 === 0, i1 + 1, i1)()),
+          i1 -> (0, Mux(i2 % 2 === 0, i1 + 1, i1)()),
           i2 -> (0, i2 + 1)
         )
       )().tchk()
@@ -145,23 +145,23 @@ class StreamFusionTests extends AnyFunSuite {
     val c1 =
       StmBuild(
         n,
-        IfThenElse(i % 3 === 0, SSome(i + 3)(), NNone(TyInt))(),
+        Mux(i % 3 === 0, SSome(i + 3)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     // Valid every 5th cycle
     val c2 =
       StmBuild(
         n,
-        IfThenElse(i % 5 === 0, SSome(i * 5 + 1)(), NNone(TyInt))(),
+        Mux(i % 5 === 0, SSome(i * 5 + 1)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     val s = StmBuild(
       n,
-      SSome(IfThenElse(i % 2 === 0, StmNext(x1)().__1, StmNext(x2)().__1)())(),
+      SSome(Mux(i % 2 === 0, StmNext(x1)().__1, StmNext(x2)().__1)())(),
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
-        x1 -> (c1, IfThenElse(i % 2 === 0, StmNext(x1)().__0, x1)()),
-        x2 -> (c2, IfThenElse(i % 2 !== 0, StmNext(x2)().__0, x2)())
+        x1 -> (c1, Mux(i % 2 === 0, StmNext(x1)().__0, x1)()),
+        x2 -> (c2, Mux(i % 2 !== 0, StmNext(x2)().__0, x2)())
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
