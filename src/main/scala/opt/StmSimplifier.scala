@@ -26,10 +26,14 @@ object StmSimplifier {
   @tailrec
   private def simplifyUntilFixpoint(s: StmBuild)(facts: FactSet): StmBuild = {
     val simplified = {
-      val s1 = PartialEvalPass.partialEval(s)(facts).asInstanceOf[StmBuild]
-      val s2 = StmAccRemovalPass.removeUnusedVars(s1)
-      val s3 = StmAccRemovalPass.removeConstantVars(s2)
-      val s4 = StmAccRemovalPass.deduplicateVars(s3)
+      val s0 = {
+        val newOutput = OptionSimplifier.simplify(s.output)
+        StmBuild(s.n, newOutput, s.equations)()
+      }
+      val s1 = tl(PartialEvalPass.partialEval(s0)(facts))
+      val s2 = tl(StmAccRemovalPass.removeUnusedVars(s1))
+      val s3 = tl(StmAccRemovalPass.removeConstantVars(s2))
+      val s4 = tl(StmAccRemovalPass.deduplicateVars(s3))
       s4
     }
     if (simplified == s) {
@@ -40,4 +44,7 @@ object StmSimplifier {
       simplifyUntilFixpoint(simplified)(facts)
     }
   }
+
+  private def tl(s: Expr): StmBuild =
+    s.tchk().lower().asInstanceOf[StmBuild]
 }

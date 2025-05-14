@@ -282,4 +282,22 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.isGreaterOrEqual(delta, 0)(facts).contains(true))
     assert(PartialEvalPass.isGreaterOrEqual(delta, 0)().isEmpty)
   }
+
+  test("ArbitraryConditionIsTrue") {
+    val c0 = Param("c0")(TyBool)
+    val c1 = Param("c1")(TyBool)
+    val facts = FactSet().assumeTrue(c0 && (c0 || c1))
+    val e = TyInt ::+ (i => IfThenElse(c0, i + 1, i)())
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    val expected = TyInt ::+ (i => i + 1)
+    assert(actual == expected)
+  }
+
+  test("ClearVariableRange") {
+    val i = Param("i")(TyInt)
+    val facts = FactSet().assumeTrue(i === 0)
+    val e = Function(i, i === 0)()
+    val actual = PartialEvalPass.partialEval(e)(facts)
+    assert(actual == e)
+  }
 }

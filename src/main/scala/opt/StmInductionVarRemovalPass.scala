@@ -283,8 +283,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           case IfThenElse(c, tru, fals) =>
             Seq(
               replaceStmNextK(c, t)(facts),
-              replaceStmNextK(tru, t)(facts.isTrue(c)),
-              replaceStmNextK(fals, t)(facts.isFalse(c))
+              replaceStmNextK(tru, t)(facts.assumeTrue(c)),
+              replaceStmNextK(fals, t)(facts.assumeFalse(c))
             )
           case e => e.children.map(c => replaceStmNextK(c, t)(facts))
         }

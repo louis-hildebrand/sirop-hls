@@ -54,10 +54,10 @@ class OptimizationTests extends AnyFunSuite {
     assert(optimized == ideal)
   }
 
-  /** The optimizer can create a reduction tree for VecFold, *provided* the
-    * length is a static constant.
+  /** The optimizer can turn VecFold into a simple sum *provided* the length is
+    * a static constant.
     */
-  test("VecFoldReductionTree") {
+  test("VecFoldSimpleSum") {
     val n = 3
     val v = Param("v")(TyVec(TyInt, n))
     val z = Param("z")(TyInt)

@@ -2,7 +2,10 @@ package opt
 
 import ir._
 
-case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
+case class FactSet(
+    rangeByExpr: Map[Expr, Range] = Map(),
+    boolByExpr: Map[Expr, Boolean] = Map()
+) {
 
   /** Update the range information for <code>x</code>.
     *
@@ -20,7 +23,7 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
       case Some(oldRange) => oldRange.merge(r)
       case _              => r
     }
-    FactSet(rangeByExpr + (e -> updatedRange))
+    FactSet(rangeByExpr + (e -> updatedRange), boolByExpr)
   }
 
   /** <code>x</code> is greater than or equal to <code>y</code>.
@@ -41,62 +44,76 @@ case class FactSet(rangeByExpr: Map[Expr, Range] = Map()) {
     * unknown.
     */
   def clearRange(e: Expr): FactSet = {
-    FactSet(rangeByExpr.filter({ case (k, _) => !k.contains(e) }))
+    FactSet(
+      rangeByExpr.filter({ case (k, _) => !k.contains(e) }),
+      boolByExpr.filter({ case (k, _) => !k.contains(e) })
+    )
   }
+
+  /** Check whether <code>e</code> is known to be true.
+    *
+    * @return
+    *   <code>Some(true)</code> if <code>e</code> is definitely true,
+    *   <code>Some(false)</code> if <code>e</code> is definitely false, and
+    *   <code>None</code> if it is unknown.
+    */
+  def isTrue(e: Expr): Option[Boolean] = boolByExpr.get(e)
 
   /** Construct a new fact set taking into account that <code>e</code> evaluates
     * to <code>True</code>.
     */
-  def isTrue(e: Expr): FactSet = {
+  def assumeTrue(e: Expr): FactSet = {
+    val newFacts = FactSet(rangeByExpr, boolByExpr + (e -> true))
     e match {
-      case Not(e) => isFalse(e)
+      case Not(e) => newFacts.assumeFalse(e)
       // If (x0 && ... && xn) = True, then xi = True for each i
       case And(terms @ _*) =>
-        terms.foldLeft(this)({ case (acc, e) => acc.isTrue(e) })
+        terms.foldLeft(newFacts)({ case (acc, e) => acc.assumeTrue(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
-        PartialEvalPass.partialEval(e1 - e2)(this) match {
+        PartialEvalPass.partialEval(e1 - e2)(newFacts) match {
           case Sum(IntCst(c), x: Param) =>
             // c + x < 0 <==> x < -c
-            this.range(x, ScalarRange(None, Some(-c)))
+            newFacts.range(x, ScalarRange(None, Some(-c)))
           case Sum(IntCst(c), Prod(IntCst(-1), x: Param)) =>
             // c - x < 0 <==> x > c ==> x >= c + 1
-            this.range(x, ScalarRange(Some(c + 1), None))
+            newFacts.range(x, ScalarRange(Some(c + 1), None))
           case x: Param =>
             // x < 0
-            this.range(x, ScalarRange(None, Some(0)))
-          case _ => this
+            newFacts.range(x, ScalarRange(None, Some(0)))
+          case _ => newFacts
         }
       case Equal(x: Param, IntCst(c)) =>
-        this.range(x, ScalarRange(Some(c), Some(c + 1)))
-      case _ => this
+        newFacts.range(x, ScalarRange(Some(c), Some(c + 1)))
+      case _ => newFacts
     }
   }
 
   /** Construct a new fact set taking into account that <code>e</code> evaluates
     * to <code>False</code>.
     */
-  def isFalse(e: Expr): FactSet = {
+  def assumeFalse(e: Expr): FactSet = {
+    val newFacts = FactSet(rangeByExpr, boolByExpr + (e -> false))
     e match {
-      case Not(e) => isTrue(e)
+      case Not(e) => newFacts.assumeTrue(e)
       // If (x0 || ... || xn) = False, then xi = False for each i
       case Or(terms @ _*) =>
-        terms.foldLeft(this)({ case (acc, e) => acc.isFalse(e) })
+        terms.foldLeft(newFacts)({ case (acc, e) => acc.assumeFalse(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
-        PartialEvalPass.partialEval(e1 - e2)(this) match {
+        PartialEvalPass.partialEval(e1 - e2)(newFacts) match {
           case Sum(IntCst(c), x: Param) =>
             // !(c + x < 0) <==> c + x >= 0 <==> x >= -c
-            this.range(x, ScalarRange(Some(-c), None))
+            newFacts.range(x, ScalarRange(Some(-c), None))
           case Sum(IntCst(c), Prod(IntCst(-1), x: Param)) =>
             // !(c - x < 0) <==> c - x >= 0 <==> x <= c <==> x < c + 1
-            this.range(x, ScalarRange(None, Some(c + 1)))
+            newFacts.range(x, ScalarRange(None, Some(c + 1)))
           case x: Param =>
             // !(x < 0) <==> x >= 0
-            this.range(x, ScalarRange(Some(0), None))
-          case _ => this
+            newFacts.range(x, ScalarRange(Some(0), None))
+          case _ => newFacts
         }
-      case _ => this
+      case _ => newFacts
     }
   }
 }
