@@ -87,7 +87,7 @@ case class NNone(innerTyp: Type)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    Tuple(Default(innerTyp), False)(this.typ.flat).lower()
+    Tuple(Default(innerTyp), False)().tchk().lower()
   }
 
   override def equals(obj: Any): Boolean = {
@@ -117,7 +117,7 @@ case class SSome(e: Expr /* T */ )(typ: Type) /* Option<T> */
 
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
-    Tuple(e, True)(this.typ.flat)
+    Tuple(e, True)().tchk().lower()
   }
 }
 case object SSome {
@@ -221,7 +221,7 @@ case class OptionUnwrapUnsafe(e: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
-    TupleAccess(e, 0)(this.typ.flat)
+    TupleAccess(e, 0)().tchk().lower()
   }
 }
 

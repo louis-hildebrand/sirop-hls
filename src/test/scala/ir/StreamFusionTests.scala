@@ -5,7 +5,8 @@ import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamFusionTests extends AnyFunSuite {
-  private val lpe: Expr => Expr = e => PartialEvalPass.partialEval(e.lower())
+  private val lpe: Expr => Expr = e =>
+    PartialEvalPass.partialEval(e.tchk().lower())
 
   /** Simplest case of stream fusion: consumer always ready, producer always
     * valid.

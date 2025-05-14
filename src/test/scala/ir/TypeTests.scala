@@ -46,20 +46,20 @@ class TypeTests extends AnyFunSuite {
       TyArrow(TyInt, TyInt),
       TyVec(TyVec(TyInt, 5), 4)
     )
-    assert(t.flat == t)
+    assert(t.lower == t)
   }
 
   test("Flatten:1DStream") {
     val n = Param("n")()
     val t = TyStm(TyInt, n)
-    assert(t.flat == t)
+    assert(t.lower == t)
   }
 
   test("Flatten:2DStream") {
     val n = Param("n")()
     val m = Param("m")()
     val t = TyStm(TyStm(TyBool, m), n)
-    assert(t.flat == TyStm(TyBool, n * m))
+    assert(t.lower == TyStm(TyBool, n * m))
   }
 
   test("Flatten:3DStream") {
@@ -67,6 +67,6 @@ class TypeTests extends AnyFunSuite {
     val m = Param("m")()
     val k = Param("k")()
     val t = TyStm(TyStm(TyStm(TyBool, k), m), n)
-    assert(t.flat == TyStm(TyBool, n * m * k))
+    assert(t.lower == TyStm(TyBool, n * m * k))
   }
 }

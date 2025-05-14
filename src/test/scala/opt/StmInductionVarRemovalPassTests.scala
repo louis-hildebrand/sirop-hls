@@ -23,7 +23,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   }
 
   // Lower and partially evaluate
-  private def lpe(e: Expr): Expr = PartialEvalPass.partialEval(e.lower())
+  private def lpe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk().lower())
 
   test("Counters") {
     val n = Param("n")(TyInt)
@@ -491,9 +491,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   }
 
   test("ClosedForm:StmNext") {
-    val s = Param("s")()
-    val t0 = 0
     val n = 10
+    val t0 = 0
+    val s = Param("s")(TyStm(TyInt, n))
     val recEqn =
       TyInt ::+ (t =>
         TyStm(TyInt, n) ::+ (x => IfThenElse(t < n, StmNext(x)().__0, x)())

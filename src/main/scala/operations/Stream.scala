@@ -461,7 +461,7 @@ case class StmAccess(
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.flat match {
+    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
       case t           => (t, IntCst(1))
     }
@@ -826,7 +826,7 @@ case class StmPrefix(
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.flat match {
+    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
       case t           => (t, IntCst(1))
     }
@@ -881,7 +881,7 @@ case class StmSuffix(
     val stm = this.stm.lower()
     val k = this.k.lower()
     val n = this.stm.typ.asInstanceOf[TyStm].n
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.flat match {
+    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
       case t           => (t, IntCst(1))
     }
@@ -1137,7 +1137,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     val stm = this.stm.lower() // flat stream
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
-    val elemSize = this.stm.typ.asInstanceOf[TyStm].t.flat match {
+    val elemSize = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
       case _           => IntCst(1)
     }
@@ -1246,7 +1246,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     requireType()
     val input = this.input.lower()
     val n = this.input.typ.asInstanceOf[TyStm].n
-    val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.flat match {
+    val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
       case t           => (t, IntCst(1))
     }

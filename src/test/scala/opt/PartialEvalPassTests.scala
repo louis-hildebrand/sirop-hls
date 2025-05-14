@@ -170,7 +170,7 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("StmOneElement") {
-    val z = Param("z")()
+    val z = Param("z")(TyInt)
     val a0 = Param("a")()
     val a1 = Param("a")()
     val s = StmBuild(
@@ -180,7 +180,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         a0 -> (z, a0 + a1 + a1),
         a1 -> (0, a1 + a0)
       )
-    )().lower()
+    )().tchk().lower()
     val expected = StmBuild(1, SSome(z)())()
     assert(PartialEvalPass.partialEval(s) == expected)
   }

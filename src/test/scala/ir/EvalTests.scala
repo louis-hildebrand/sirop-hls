@@ -9,7 +9,7 @@ class EvalTests extends AnyFunSuite {
 
   test("StmNextK") {
     val s = Param("s")()
-    val k = Param("k")()
+    val k = Param("k")(TyInt)
     val e = 42 + StmNext(StmNextK(s, 1 + k)())().__1
 
     val i = Param("i")()
@@ -17,7 +17,7 @@ class EvalTests extends AnyFunSuite {
       StmBuild(3, SSome(i)(), Map[Param, (Expr, Expr)](i -> (-4, i + 3)))()
     for (kVal <- -1 until 2) {
       val expected = IntCst(42 + -4 + 3 * (kVal + 1))
-      val actual = ir.eval(Let(s, s0, Let(k, kVal, e)())())
+      val actual = ir.eval(Let(s, s0, Let(k, kVal, e)())().tchk())
       assert(actual == expected)
     }
   }
@@ -35,7 +35,7 @@ class EvalTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a -> (0, a + 2)
       )
-    )()
+    )().tchk()
     assertThrows[InfiniteLoopError](ir.eval(s))
   }
 }

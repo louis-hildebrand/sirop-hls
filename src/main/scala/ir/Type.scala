@@ -12,16 +12,14 @@ sealed trait Type {
     Function(x, f(x))(t)
   }
 
-  /** This type, but where all streams are made one-dimensional.
-    */
-  def flat: Type = {
+  def lower: Type = {
     this match {
       case Missing | TyInt | TyBool => this
-      case TyArrow(t1, t2)          => TyArrow(t1.flat, t2.flat)
-      case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.flat): _*)
-      case TyVec(t, n)              => TyVec(t.flat, n)
+      case TyArrow(t1, t2)          => TyArrow(t1.lower, t2.lower)
+      case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.lower): _*)
+      case TyVec(t, n)              => TyVec(t.lower, n.lower())
       case TyStm(t, n) =>
-        t.flat match {
+        t.lower match {
           case TyStm(t, m) => TyStm(t, n * m)
           case t           => TyStm(t, n)
         }
@@ -30,11 +28,9 @@ sealed trait Type {
 
   def uncurry: Type = {
     this match {
-      case Missing | TyInt | TyBool    => this
+      case Missing | TyInt | TyBool => this
       case TyArrow(tIn, tOut: TyArrow) =>
-        // For some reason, the Scala compiler doesn't find the uncurry method
-        // if you just write tOut.uncurry :/
-        tOut.asInstanceOf[Type].uncurry.asInstanceOf[TyArrow] match {
+        tOut.uncurry.asInstanceOf[TyArrow] match {
           case TyArrow(t1, t2) => TyArrow(TyTuple(tIn.uncurry, t1), t2)
         }
       case TyArrow(t1, t2)  => TyArrow(t1.uncurry, t2.uncurry)

@@ -394,15 +394,15 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def lower(): Expr = {
     val desugared = this match {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
-      case e => e.rebuild(e.typ.flat, e.children.map(e => e.lower()))
+      case e => e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
     }
     // This is required because lowering may be syntax-directed (i.e., an
     // expression may need to be typed before it can be lowered) and it is no
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      !this.hasType || desugared.typ.isCompatibleWith(this.typ.flat),
-      s"lowering must yield an expression whose type is the original, but flattened (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.flat} but found ${desugared.typ})"
+      !this.hasType || desugared.typ.isCompatibleWith(this.typ.lower),
+      s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
     )
     assert(
       !desugared.contains(classOf[SyntaxSugar]),
