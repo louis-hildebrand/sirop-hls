@@ -177,9 +177,12 @@ trait Eval {
             )
         }
       case Mux(c, t, f) =>
+        // Note that both branches are always evaluated!
+        val tVal = evalBigStep(t)
+        val fVal = evalBigStep(f)
         evalBigStep(c) match {
-          case True  => evalBigStep(t)
-          case False => evalBigStep(f)
+          case True  => tVal
+          case False => fVal
           case v =>
             throw new IllegalArgumentException(
               s"Condition of Mux evaluated to $v. It must evaluate to a boolean."
