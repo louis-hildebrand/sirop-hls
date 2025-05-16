@@ -1,5 +1,6 @@
 package gen
 
+import debug.indent
 import ir._
 
 private[gen] sealed trait VhdlType {
@@ -26,6 +27,10 @@ private[gen] sealed trait VhdlType {
   /** The number of bits required by this type.
     */
   def bitWidth: Int
+
+  /** The default value for this type, consistent with Default(T) from the IR.
+    */
+  def defaultVal: String
 }
 
 private[gen] object VhdlType {
@@ -53,6 +58,8 @@ private[gen] case object VhdlInt extends VhdlType {
   override def descendants: Set[VhdlType] = Set()
 
   override def bitWidth: Int = 32
+
+  override def defaultVal: String = "0"
 }
 
 private[gen] case object VhdlBool extends VhdlType {
@@ -63,6 +70,8 @@ private[gen] case object VhdlBool extends VhdlType {
   override def descendants: Set[VhdlType] = Set()
 
   override def bitWidth: Int = 1
+
+  override def defaultVal: String = "false"
 }
 
 private[gen] case object VhdlStdLogic extends VhdlType {
@@ -73,6 +82,8 @@ private[gen] case object VhdlStdLogic extends VhdlType {
   override def descendants: Set[VhdlType] = Set()
 
   override def bitWidth: Int = 1
+
+  override def defaultVal: String = "'0'"
 }
 
 private[gen] case class VhdlStdLogicVec(n: Int) extends VhdlType {
@@ -84,6 +95,8 @@ private[gen] case class VhdlStdLogicVec(n: Int) extends VhdlType {
   override def descendants: Set[VhdlType] = Set()
 
   override def bitWidth: Int = n
+
+  override def defaultVal: String = "(others => '0')"
 }
 
 private[gen] case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
@@ -124,6 +137,13 @@ private[gen] case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
   }
 
   override def bitWidth: Int = fieldTypes.map(t => t.bitWidth).sum
+
+  override def defaultVal: String = {
+    val assignments = fieldTypes.zipWithIndex
+      .map({ case (t, i) => s"i_$i => ${t.defaultVal}" })
+      .mkString(",")
+    s"($assignments)"
+  }
 }
 
 private[gen] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
@@ -152,4 +172,24 @@ private[gen] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
   }
 
   override def bitWidth: Int = n * t.bitWidth
+
+  override def defaultVal: String = s"(others => ${t.defaultVal})"
+
+  def vecAccessFunDef: VhdlFunction = {
+    val defaultVal = t.defaultVal
+    val cases =
+      ((0 until n).map(i => s"v($i) when $i") ++ Seq(
+        s"$defaultVal when others"
+      ))
+        .mkString(",\n")
+    val body = s"with i select x :=\n${indent(cases)};"
+    VhdlFunction(
+      name = "vec_access",
+      args = Seq(("v", this), ("i", VhdlInt)),
+      returnType = t,
+      decls = Seq(VhdlVariable("x", t, assignStmt = body)),
+      ret = "x",
+      mode = PureFunction
+    )
+  }
 }

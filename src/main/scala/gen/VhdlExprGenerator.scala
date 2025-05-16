@@ -120,29 +120,20 @@ private object VhdlExprGenerator {
           .mkString(", ")
         VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
       case VecBuild(len, f) if len.freeVars().isEmpty =>
+        // TODO: Use for-generate here instead?
         val n = ir.eval(len).asInstanceOf[IntCst].i
-        val elems = (0 until n).map(i =>
-          // TODO: Partial evaluation here kind of approximates IfThenElse
-          //       being short-circuiting---the other branch will be
-          //       discarded if the condition evaluates to a bool constant.
-          //       But if the condition cannot be evaluated statically,
-          //       then it's not the same thing.
-          PartialEvalPass.partialEval(FunCall(f, i)())
-        )
+        val elems =
+          (0 until n).map(i => PartialEvalPass.partialEval(FunCall(f, i)()))
         exprToVhdl(VecLiteral(elems: _*)().tchk())
       case VecBuild(n, _) =>
         throw new IllegalArgumentException(
           s"VecBuild with non-constant size ($n) is not supported."
         )
       case VecAccess(v, i) =>
+        // TODO: Have a special case for when the index is static?
         val vv = exprToVhdl(v)
         val iv = exprToVhdl(i)
-        val tempVar =
-          intermediateVar("vecaccess_v", vv.vhdl, VhdlType(v.typ), mode)
-        VhdlExpr(
-          s"${tempVar.name}(${iv.vhdl})",
-          tempVar +: (vv.decls ++ iv.decls)
-        )
+        VhdlExpr(s"vec_access(${vv.vhdl}, ${iv.vhdl})", vv.decls ++ iv.decls)
 
       case _: SyntaxSugar =>
         throw new IllegalArgumentException(
@@ -167,8 +158,7 @@ private object VhdlExprGenerator {
           assignStmt = Some(s"$name <= $assign;")
         )
       case InFunctionMode =>
-        // TODO: Assign value here!
-        Variable(name = name, typ = typ, assign = assign)
+        VhdlVariable(name = name, typ = typ, assignStmt = s"$name := $assign;")
     }
 
   }
