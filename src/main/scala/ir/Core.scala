@@ -1598,8 +1598,6 @@ object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
     StmLiteral(elems.map(n => IntCst(n)): _*)()
   }
-
-  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)()
 }
 
 case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(

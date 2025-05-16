@@ -184,7 +184,6 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val nExamples = Seq(1, 2, 5)
     val fExamples: Seq[Function] =
       Seq(
-        TyInt ::+ (t => TyInt ::+ (i => Tuple(0, False)())),
         TyInt ::+ (t => TyInt ::+ (i => i + 1)),
         TyInt ::+ (t => TyInt ::+ (i => 2 * t)),
         TyInt ::+ (t =>
@@ -194,9 +193,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         )
       )
     val zExamples = Seq(
-      Default(TyInt),
-      Default(TyBool),
-      VecBuild(n, TyInt ::+ (_ => Default(TyTuple(TyInt, TyBool))))()
+      VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
+      VecBuild(n, TyInt ::+ (i => i * i + 1))()
     )
     for (nVal <- nExamples) {
       for (fVal <- fExamples) {
@@ -653,7 +651,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, Tuple(True, False)())(),
+      StmCst(n, 42)(),
       StmRange(n, 9, 8)()
     )
     for (sVal <- stmExamples) {
