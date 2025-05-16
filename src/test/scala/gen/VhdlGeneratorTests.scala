@@ -110,12 +110,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
       StmBuild(
         n,
-        SSome(StmNext(s)().__1)(),
+        SSome(StmNextData(s)())(),
         Map[Param, (Expr, Expr)](
-          s -> (
-            StmCst(n, c)(),
-            StmNext(s)().__0
-          )
+          s -> (StmCst(n, c)(), True)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -128,9 +125,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val s = Param("s")()
       StmBuild(
         n,
-        SSome(StmNext(s)().__1 + 42)(),
+        SSome(StmNextData(s)() + 42)(),
         Map[Param, (Expr, Expr)](
-          s -> (StmCount(n)(), StmNext(s)().__0)
+          s -> (StmCount(n)(), True)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }

@@ -52,14 +52,14 @@ class CoreTests extends AnyFunSuite {
     val s = Param("s")()
     val v = Param("v")()
 
-    val untyped = 5 + StmNext(s)().__1
-    assert(untyped.substitute(StmNext(s)().__1 -> v) == 5 + v)
+    val untyped = 5 + StmNextData(s)()
+    assert(untyped.substitute(StmNextData(s)() -> v) == 5 + v)
 
     val typed = untyped.tchk(Map(s -> TyStm(TyInt, 2)))
-    assert(typed.substitute(StmNext(s)().__1 -> v) == 5 + v)
+    assert(typed.substitute(StmNextData(s)() -> v) == 5 + v)
 
     val subbedSameType =
-      typed.subPreserveType(StmNext(s)().__1 -> v.rebuild(TyInt))
+      typed.subPreserveType(StmNextData(s)() -> v.rebuild(TyInt))
     assert(subbedSameType == 5 + v)
     assert(subbedSameType.typ == TyInt)
   }
@@ -69,16 +69,16 @@ class CoreTests extends AnyFunSuite {
     val x2 = Param("x2")(TyInt)
     val y = Param("y")(TyStm(TyInt, 5))
     val untyped = Tuple(
-      StmNext(y)().__1,
+      StmNextData(y)(),
       Function(
         x,
         Tuple(
-          StmNext(y)().__1 + 2,
-          Function(y, StmNext(y)().__1 * 3)()
+          StmNextData(y)() + 2,
+          Function(y, StmNextData(y)() * 3)()
         )()
       )()
     )()
-    val subs = Map[Expr, Expr](StmNext(y)().__1 -> Mod(x, 2)(TyInt))
+    val subs = Map[Expr, Expr](StmNextData(y)() -> Mod(x, 2)(TyInt))
     val expected = Tuple(
       x % 2,
       // (1) Need to rename the variable in the outer function to avoid
@@ -86,7 +86,7 @@ class CoreTests extends AnyFunSuite {
       // (2) Must NOT replace the StmNext(y).__1 in the innermost function
       //     because that occurrence of y is referring to the function
       //     parameter, not y in the global scope.
-      Function(x2, Tuple(x % 2 + 2, Function(y, StmNext(y)().__1 * 3)())())()
+      Function(x2, Tuple(x % 2 + 2, Function(y, StmNextData(y)() * 3)())())()
     )()
 
     val actual0 = untyped.substitute(subs)
@@ -418,18 +418,14 @@ class CoreTests extends AnyFunSuite {
       n,
       Mux(
         FunCall(f, i)(),
-        SSome(StmNext(s)().__1)(),
+        SSome(StmNextData(s)())(),
         NNone(TyInt)
       )(),
       Map[Param, (Expr, Expr)](
         i -> (3, i + 1),
         s -> (
           input,
-          Mux(
-            FunCall(f, i)(),
-            StmNext(s)().__0,
-            Mux(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
-          )()
+          FunCall(f, i)() || FunCall(g, inCtr)()
         ),
         inCtr -> (1, inCtr + 2)
       )
@@ -449,29 +445,20 @@ class CoreTests extends AnyFunSuite {
     val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1) }).get._1
     val expectedInCtrSeed = IntCst(0)
     val expectedInCtrNext =
-      Mux(
-        (Not(FunCall(f, freshI)())() && FunCall(g, j)())
-          || FunCall(f, freshI)(),
-        inCtr + 1,
-        inCtr
-      )()
+      Mux(FunCall(f, freshI)() || FunCall(g, j)(), inCtr + 1, inCtr)()
     val expected =
       StmBuild(
         n,
         Mux(
           FunCall(f, freshI)(),
-          SSome(StmNext(s)().__1)(),
+          SSome(StmNextData(s)())(),
           NNone(TyInt)
         )(),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (
             input,
-            Mux(
-              FunCall(f, freshI)(),
-              StmNext(s)().__0,
-              Mux(FunCall(g, j)(), StmNext(s)().__0, s)()
-            )()
+            FunCall(f, freshI)() || FunCall(g, j)()
           ),
           j -> (1, j + 2),
           inCtr -> (0, expectedInCtrNext)

@@ -3,7 +3,7 @@ package ir
 import opt.PartialEvalPass
 
 sealed trait Type {
-  def ::+(f: Expr => Expr): Function = {
+  def ::+(f: Param => Expr): Function = {
     val x = Param("x")(this)
     val body = f(x)
     val t =

@@ -1,6 +1,5 @@
 package ir
 
-import scala.annotation.tailrec
 import scala.language.implicitConversions
 
 class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
@@ -35,20 +34,19 @@ trait Eval {
     evalBigStep(e) match {
       case s @ StmBuild(n, z, f) =>
         n match {
-          case IntCst(0) => StmLiteral()(TyStm(s.typ.asInstanceOf[TyStm].t, 0))
+          case IntCst(0) =>
+            val t = s.typ.asInstanceOf[TyStm].t
+            StmLiteral()(TyStm(t, 0))
           case IntCst(n) if n > 0 =>
-            evalBigStep(StmNext(StmBuild(n, z, f)())().tchk()) match {
-              case Tuple(tail, head) =>
-                val tailElems = evalBigStepToplevel(tail) match {
-                  case s: StmLiteral => s.elems
-                  case v =>
-                    throw new IllegalArgumentException(
-                      s"Tail of stream evaluated to $v. It must evaluate to a stream literal."
-                    )
-                }
-                StmLiteral(head +: tailElems: _*)(s.typ)
-              case _ => ???
+            val (head, tail) = evalStmNext(s)(0)
+            val tailElems = evalBigStepToplevel(tail) match {
+              case s: StmLiteral => s.elems
+              case v =>
+                throw new IllegalArgumentException(
+                  s"Tail of stream evaluated to $v. It must evaluate to a stream literal."
+                )
             }
+            StmLiteral(head +: tailElems: _*)(s.typ)
           case n =>
             throw new IllegalArgumentException(
               s"Stream length $n. Streams must have non-negative integer length."
@@ -259,8 +257,10 @@ trait Eval {
             x -> (evalBigStep(z), next)
           })
         )()
-      case StmNext(s) =>
-        evalStmNext(s)(0)
+      case _: StmNextData =>
+        throw new IllegalArgumentException(
+          s"StmNextData must not appear outside a StmBuild."
+        )
       case StmNextK(s, k) =>
         evalBigStep(k) match {
           case IntCst(k) if k <= 0 =>
@@ -272,7 +272,8 @@ trait Eval {
                 val elems = vs.drop(k)
                 StmLiteral(elems: _*)(TyStm(t, elems.length))
               case s: StmBuild =>
-                evalBigStep(StmNextK(StmNext(s)().__0, k - 1)().tchk())
+                val (_, tail) = evalStmNext(s)(0)
+                evalBigStep(StmNextK(tail, k - 1)().tchk())
               case s =>
                 throw new IllegalArgumentException(
                   s"Stream in StmNextK evaluated to $s. It must evaluate to a stream literal."
@@ -333,10 +334,10 @@ trait Eval {
     }
   }
 
-  @tailrec
-  private def evalStmNext(s: Expr)(stepsWithoutValid: Int = 0): Expr = {
-    // TODO: What happens if the circuit tries to get the next element of an empty stream, but then discards that
-    //       value (e.g., we construct a tuple containing this but then access a different value)? Will it get stuck?
+  /** @return
+    *   (head, tail)
+    */
+  private def evalStmNext(s: Expr)(stepsWithoutValid: Int = 0): (Expr, Expr) = {
     if (stepsWithoutValid >= MaxStepsWithoutValid) {
       throw new InfiniteLoopError(
         s"A stream has taken $MaxStepsWithoutValid steps without producing a valid element."
@@ -344,24 +345,51 @@ trait Eval {
           + s" The stream is $s."
       )
     } else {
-      evalBigStep(s) match {
-        case s @ (StmLiteral() | StmBuild(IntCst(0), _, _)) =>
-          // TODO: Ideally, StmNext(empty).__0 should be an error but StmNext(empty).__1 should be fine
-          val t = s.typ.asInstanceOf[TyStm].t
-          Tuple(StmLiteral()(s.typ), Default(t))().tchk()
+      s match {
+        case StmLiteral() | StmBuild(IntCst(0), _, _) =>
+          throw new IllegalArgumentException(
+            "Attempt to read from empty stream."
+          )
         case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
-          val nextEquations = equations.map({ case (x, (_, next)) =>
-            val evaluatedNext =
-              evalBigStep(next.subPreserveType(currentValByVar))
-            x -> (evaluatedNext, next)
+          val inputStreams = equations.flatMap({
+            case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
+              // TODO: Test this
+              if (next.contains(classOf[StmNextData])) {
+                throw new IllegalArgumentException(
+                  s"${StmNextData.getClass.getSimpleName} cannot be used in the update expression for a stream-valued accumulator."
+                )
+              }
+              evalBigStep(next.subPreserveType(currentValByVar)) match {
+                case False =>
+                  val t = x.typ.asInstanceOf[TyStm].t
+                  val head = evalBigStep(Default(t).lower())
+                  Some(x -> (head, z))
+                case True =>
+                  Some(x -> evalStmNext(z)(0))
+                case v =>
+                  throw new TypeError(
+                    s"Next value for stream-valued accumulator $x evaluated to $v."
+                      + " It must evaluate to a boolean."
+                  )
+              }
+            case _ => None
           })
-          val evaluatedOutput = evalBigStep(
-            out.subPreserveType(currentValByVar)
-          )
+          val subs = inputStreams.foldLeft(currentValByVar)({
+            case (acc, (x, (head, _))) => acc + (StmNextData(x)() -> head)
+          })
+          val nextEquations = equations.map({
+            case (x, (_, next)) if x.typ.isInstanceOf[TyStm] =>
+              val (_, tail) = inputStreams(x)
+              x -> (tail, next)
+            case (x, (_, next)) =>
+              val evaluatedNext = evalBigStep(next.subPreserveType(subs))
+              x -> (evaluatedNext, next)
+          })
+          val evaluatedOutput = evalBigStep(out.subPreserveType(subs))
           evaluatedOutput match {
             case Tuple(v, True) =>
-              Tuple(StmBuild(n - 1, out, nextEquations)(), v)().tchk()
+              (v, StmBuild(n - 1, out, nextEquations)().tchk())
             case Tuple(_, False) =>
               evalStmNext(StmBuild(n, out, nextEquations)().tchk())(
                 stepsWithoutValid + 1
@@ -376,7 +404,7 @@ trait Eval {
             s"Stream length $n. Streams must have non-negative integer length."
           )
         case s @ StmLiteral(v, vs @ _*) =>
-          Tuple(StmLiteral(vs: _*)(s.typ), v)().tchk()
+          (v, StmLiteral(vs: _*)(s.typ))
         case e =>
           throw new IllegalArgumentException(
             s"Stream of StmNext evaluated to $e. It must evaluate to some kind of stream."

@@ -393,7 +393,9 @@ class StreamTests extends AnyFunSuite {
         )
       ).flatten: _*
     )()
-    assert(ir.eval(s) == expected)
+    val simplified =
+      opt.StmSimplifier.simplify(s.lower().asInstanceOf[StmBuild])()
+    assert(ir.eval(simplified) == expected)
   }
 
   test("StmMap:2D-2D:StmShiftRight") {

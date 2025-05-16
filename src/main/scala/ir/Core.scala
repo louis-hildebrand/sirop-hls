@@ -259,23 +259,23 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
 
       case s: StmBuild =>
-        val newN = s.n.tchk
-        newN.typ match {
-          case TyInt => ()
-          case t     => throw new TypeError(s"Length of StmBuild has type $t.")
-        }
+        val newN = s.n.tchk.expectType(TyInt)
         val newSeedByVar = s.seedByVar.map({ case (x, z) => x -> z.tchk })
         val newContext = newSeedByVar.foldLeft(context)({ case (ctx, (x, z)) =>
           ctx + (x -> z.typ)
         })
         val newNextByVar = s.nextByVar.map({ case (x, next) =>
-          val newNext = next.tchk(newContext)
           val initTyp = newSeedByVar(x).typ
-          if (initTyp.isCompatibleWith(newNext.typ)) {
+          val newNext = next.tchk(newContext)
+          val expectedNextTyp = initTyp match {
+            case _: TyStm => TyBool
+            case t        => initTyp
+          }
+          if (newNext.typ ~= expectedNextTyp) {
             x -> newNext
           } else {
             throw new TypeError(
-              s"Next value for accumulator $x has type ${newNext.typ} but the initial value has type $initTyp."
+              s"Next value for accumulator $x has type ${newNext.typ}. Expected type $expectedNextTyp."
             )
           }
         })
@@ -296,12 +296,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
         StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
-      case sn @ StmNext(s) =>
+      case sn @ StmNextData(s) =>
         val newS = s.tchk
         newS.typ match {
-          case TyStm(t, n) =>
-            sn.rebuild(TyTuple(TyStm(t, n - 1), t), Seq(newS))
-          case t => throw new TypeError(s"Argument of StmNext has type $t.")
+          case TyStm(t, _) => sn.rebuild(t, Seq(newS))
+          case t => throw new TypeError(s"Argument of StmNextData has type $t.")
         }
       case sn @ StmNextK(s, k) =>
         val newK = k.tchk
@@ -652,15 +651,13 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Tuple       => 17
       case _: Function    => 18
       case _: StmBuild    => 19
-      case _: StmNext     => 20
-      case _: StmLength   => 21
-      case _: VecBuild    => 22
-      case _: VecAccess   => 23
-      case _: VecLength   => 24
-      case _: VecLiteral  => 25
-      case _: StmLiteral  => 26
-      case _: StmNextK    => 27
-      case _: SyntaxSugar => 28
+      case _: StmNextData => 20
+      case _: VecBuild    => 21
+      case _: VecAccess   => 22
+      case _: VecLiteral  => 23
+      case _: StmLiteral  => 24
+      case _: StmNextK    => 25
+      case _: SyntaxSugar => 26
     }
   }
 }
@@ -1233,7 +1230,7 @@ case class StmBuild(
         producer.output,
         // CASE 1a: Producer yielded a valid value. Proceed as usual.
         producerTyp.t ::+ (v =>
-          consumer.output.subPreserveType(StmNext(x)().__1 -> v)
+          consumer.output.subPreserveType(StmNextData(x)() -> v)
         ),
         // CASE 1b: Producer did NOT yield a valid value.
         //          The consumer cannot proceed.
@@ -1243,7 +1240,7 @@ case class StmBuild(
       //         Proceed as usual, but with the default value for the producer
       //         output (this should not be read).
       consumer.output.subPreserveType(
-        StmNext(x)().__1 -> Default(producerTyp.t)
+        StmNextData(x)() -> Default(producerTyp.t)
       )
     )().tchk()
   }
@@ -1282,17 +1279,20 @@ case class StmBuild(
               // CASE 1a: Producer yielded a valid value.
               //          Update the accumulators.
               producerTyp.t ::+ (v =>
-                next.subPreserveType(StmNext(x)().__1 -> v)
+                next.subPreserveType(StmNextData(x)() -> v)
               ),
               // CASE 1b: Producer did NOT yield a valid value.
               //          Do not update accumulators until it does.
-              TyTuple() ::+ (_ => y)
+              y.typ match {
+                case _: TyStm => TyTuple() ::+ (_ => False)
+                case _        => TyTuple() ::+ (_ => y)
+              }
             )(),
             // CASE 2: Consumer is not reading from producer.
             //         Update as usual, but with the default value for the
             //         producer output (this should not be read).
             next.subPreserveType(
-              StmNext(x)().__1 -> Default(producerTyp.t)
+              StmNextData(x)() -> Default(producerTyp.t)
             )
           )().tchk().lower()
         )
@@ -1323,7 +1323,10 @@ case class StmBuild(
             next,
             // CASE 2: Consumer is not reading from input.
             //         Producer does nothing.
-            x
+            x.typ match {
+              case _: TyStm => False
+              case _        => x
+            }
           )().tchk()
         )
     }
@@ -1518,30 +1521,17 @@ object StmBuild {
     */
   private val HashCodeParam = Param("hashCode")()
 
+  @deprecated
   def stmNextCallCondition(e: Expr, x: Param): Expr = {
-    e match {
-      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
-      case y if y == x                                  => False
-      case Mux(c, t, f) =>
-        val ct = stmNextCallCondition(t, x)
-        val cf = stmNextCallCondition(f, x)
-        (c && ct) || (!c && cf)
-      case e =>
-        throw new IllegalArgumentException(
-          s"Illegal update to a stream-valued accumulator element: $e."
-        )
-    }
+    e
   }
 }
 
-// element only available for one clock cycle
-case class StmNext(stream: Expr /* Stream<A>*/ )(typ: Type = Missing)
-/* (Stream<A>, A) */
-    extends Expr(stream)(typ) {
+case class StmNextData(s: Param)(typ: Type = Missing) extends Expr(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNext(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
+      case Seq(s: Param) => StmNextData(s)(typ)
+      case _             => throw new BadRebuildError(this, newChildren)
     }
   }
 }

@@ -15,9 +15,9 @@ class StreamFusionTests extends AnyFunSuite {
     val s = Param("s")()
     val original = StmBuild(
       3,
-      SSome(StmNext(s)().__1 + 5)(),
+      SSome(StmNextData(s)() + 5)(),
       Map[Param, (Expr, Expr)](
-        s -> (StmCount(3)().lower(), StmNext(s)().__0)
+        s -> (StmCount(3)().lower(), True)
       )
     )()
       .tchk(Map(s -> TyStm(TyInt, 3)))
@@ -63,10 +63,10 @@ class StreamFusionTests extends AnyFunSuite {
       )().tchk().lower()
     val s = StmBuild(
       n,
-      SSome(Tuple(StmNext(x1)().__1, StmNext(x2)().__1)())(),
+      SSome(Tuple(StmNextData(x1)(), StmNextData(x2)())())(),
       Map[Param, (Expr, Expr)](
-        x1 -> (c1, StmNext(x1)().__0),
-        x2 -> (c2, StmNext(x2)().__0)
+        x1 -> (c1, True),
+        x2 -> (c2, True)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
@@ -81,17 +81,17 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal1 = lpe(
       StmBuild(
         n,
-        SSome(Tuple(i1 + 11, StmNext(x2)().__1)())(),
+        SSome(Tuple(i1 + 11, StmNextData(x2)())())(),
         Map[Param, (Expr, Expr)](
           i1 -> (0, i1 + 1),
-          x2 -> (c2, StmNext(x2)().__0)
+          x2 -> (c2, True)
         )
       )().tchk()
     )
     assert(actual1 == ideal1)
 
     // 2) After fusion with x2
-    val actual2 = lpe(s.fuseWith(x2))
+    val actual2 = lpe(s.fuseWith(x2)).tchk()
     // 2a) Correct behaviour
     assert(ir.eval(actual2) == ir.eval(s))
     // 2b) Successful fusion
@@ -100,11 +100,11 @@ class StreamFusionTests extends AnyFunSuite {
         n,
         Mux(
           i2 % 2 === 0,
-          SSome(Tuple(StmNext(x1)().__1, i2 % 3 === 0)())(),
+          SSome(Tuple(StmNextData(x1)(), i2 % 3 === 0)())(),
           NNone(TyTuple(TyInt, TyBool))
         )(),
         Map[Param, (Expr, Expr)](
-          x1 -> (c1, Mux(i2 % 2 === 0, StmNext(x1)().__0, x1)()),
+          x1 -> (c1, i2 % 2 === 0),
           i2 -> (0, i2 + 1)
         )
       )().tchk()
@@ -157,11 +157,11 @@ class StreamFusionTests extends AnyFunSuite {
       )().tchk().lower()
     val s = StmBuild(
       n,
-      SSome(Mux(i % 2 === 0, StmNext(x1)().__1, StmNext(x2)().__1)())(),
+      SSome(Mux(i % 2 === 0, StmNextData(x1)(), StmNextData(x2)())())(),
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
-        x1 -> (c1, Mux(i % 2 === 0, StmNext(x1)().__0, x1)()),
-        x2 -> (c2, Mux(i % 2 !== 0, StmNext(x2)().__0, x2)())
+        x1 -> (c1, i % 2 === 0),
+        x2 -> (c2, i % 2 !== 0)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 

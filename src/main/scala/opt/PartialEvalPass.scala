@@ -9,6 +9,12 @@ case object MoveUp extends MuxMotion
 case object HeuristicMotion extends MuxMotion
 
 object PartialEvalPass {
+  def pe(e: Expr): Expr = {
+    // Mostly for debugging, since the debugger really doesn't seem to handle
+    // implicit and default parameters well
+    partialEval(e)
+  }
+
   def partialEval(
       e: Expr
   )(implicit
@@ -94,7 +100,7 @@ object PartialEvalPass {
               case Mux(
                     Equal(i0, Sum(IntCst(-1), n0)),
                     c0,
-                    Mux(LessThan(Sum(IntCst(1), i1), n1), c1, c2)
+                    Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
                   )
                   if i0 == i1 && n0 == n1
                     && isSmaller(i0, n0)(facts).getOrElse(false) =>
@@ -165,8 +171,8 @@ object PartialEvalPass {
                           case _ =>
                             val x = Mux(cond, t, f)()
                             if (
-                              isBoolExpr(x)
-                                .getOrElse(false) && !hasSideEffects(x)
+                              isBoolExpr(x).getOrElse(false)
+                              && !x.contains(classOf[StmNextData])
                             ) {
                               partialEval((cond && t) || (Not(cond)() && f))
                             } else {
@@ -307,7 +313,7 @@ object PartialEvalPass {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
                 tryEvalStmNext(s) match {
-                  case Some((_, out)) if !hasSideEffects(out) =>
+                  case Some((out, _)) if !out.contains(classOf[StmNextData]) =>
                     Some(partialEval(out)(facts))
                   case _ => None
                 }
@@ -352,21 +358,7 @@ object PartialEvalPass {
                 partialEval(Mux(c, StmLength(t)(), StmLength(f)())())
               case s @ _ => StmLength(s)()
             }
-          case StmNext(s) =>
-            partialEval(s) match {
-              case s: StmBuild =>
-                tryEvalStmNext(s) match {
-                  case Some((nextStm, out)) => Tuple(nextStm, out)()
-                  case None                 => StmNext(s)()
-                }
-              case Mux(c, t, f) =>
-                // Move the Mux up in every case because
-                //  (1) the StmNext() may cancel with something further down and
-                //  (2) since this is a unary operator, the expression is unlikely
-                //      to grow *that* big.
-                partialEval(Mux(c, StmNext(t)(), StmNext(f)())())
-              case s => StmNext(s)()
-            }
+          case StmNextData(_: Param) => e
           case StmNextK(s, k) =>
             val peStm = partialEval(s)
             partialEval(k) match {
@@ -460,7 +452,7 @@ object PartialEvalPass {
   ): Expr = {
     exprs.tail.foldLeft(exprs.head)({ case (acc, e) =>
       (acc, e) match {
-        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) if (c1 == c2) =>
+        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) if c1 == c2 =>
           Mux(c1, op(t1)(t2), op(f1)(f2))()
         case (Mux(c1, t1, f1), Mux(c2, t2, f2)) =>
           Mux(
@@ -493,38 +485,73 @@ object PartialEvalPass {
     }
   }
 
-  @tailrec
   private def tryEvalStmNext(
-      s: StmBuild,
+      stm: StmBuild,
       stepsWithoutValid: Int = 0
-  ): Option[(StmBuild, Expr)] = {
+  ): Option[(Expr, StmBuild)] = {
     if (stepsWithoutValid >= 10) {
       None
     } else {
-      s.n match {
-        case IntCst(n) if n > 0 =>
-          val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
-          partialEval(s.output.substitute(currentValByVar)) match {
-            case Tuple(e, True) =>
-              val nextEquations = s.equations.map({ case (x, (_, next)) =>
-                val evaluatedNext =
-                  partialEval(next.substitute(currentValByVar))
-                x -> (evaluatedNext, next)
+      val s =
+        try {
+          Some(stm.tchk().asInstanceOf[StmBuild])
+        } catch {
+          case _: TypeError => None
+        }
+      s match {
+        case Some(s) =>
+          s.n match {
+            case IntCst(n) if n > 0 =>
+              val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
+              val inputStreamOptions = s.equations.flatMap({
+                case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
+                  partialEval(next.substitute(currentValByVar)) match {
+                    case False =>
+                      val t = x.typ.asInstanceOf[TyStm].t
+                      val head = evalBigStep(Default(t).lower())
+                      Some(Some(x -> (head, z)))
+                    case True =>
+                      val maybeHeadAndTail = z match {
+                        case s: StmBuild => tryEvalStmNext(s)
+                        case _           => None
+                      }
+                      Some(maybeHeadAndTail.map(nxt => x -> nxt))
+                    case _ => None
+                  }
+                case (x, _) =>
+                  assert(x.typ != Missing)
+                  None
               })
-              Some(StmBuild(n - 1, s.output, nextEquations)(), e)
-            case Tuple(_, False) =>
-              val nextEquations = s.equations.map({ case (x, (_, next)) =>
-                val evaluatedNext =
-                  partialEval(next.substitute(currentValByVar))
-                x -> (evaluatedNext, next)
-              })
-              tryEvalStmNext(
-                StmBuild(s.n, s.output, nextEquations)(),
-                stepsWithoutValid = stepsWithoutValid + 1
-              )
+              if (inputStreamOptions.exists(x => x.isEmpty)) {
+                None
+              } else {
+                val inputStreams = inputStreamOptions.map(x => x.get).toMap
+                val subs = inputStreams.foldLeft(currentValByVar)({
+                  case (acc, (x, (head, _))) => acc + (StmNextData(x)() -> head)
+                })
+                val nextEquations = s.equations.map({
+                  case (x, (_, next)) if x.typ.isInstanceOf[TyStm] =>
+                    val (_, tail) = inputStreams(x)
+                    x -> (tail, next)
+                  case (x, (_, next)) =>
+                    val evaluatedNext = partialEval(next.substitute(subs))
+                    x -> (evaluatedNext, next)
+                })
+                val evaluatedOutput = partialEval(s.output.substitute(subs))
+                evaluatedOutput match {
+                  case Tuple(v, True) =>
+                    Some((v, StmBuild(n - 1, s.output, nextEquations)()))
+                  case Tuple(_, False) =>
+                    tryEvalStmNext(
+                      StmBuild(n, s.output, nextEquations)(),
+                      stepsWithoutValid + 1
+                    )
+                  case _ => None
+                }
+              }
             case _ => None
           }
-        case _ => None
+        case None => None
       }
     }
   }
@@ -534,15 +561,6 @@ object PartialEvalPass {
       Some(e.tchk().typ == TyBool)
     } catch {
       case _: TypeError => None
-    }
-  }
-
-  private def hasSideEffects(e: Expr): Boolean = {
-    e match {
-      case _: VecLength => false
-      case _: StmLength => false
-      case _: StmNext   => true
-      case e            => e.children.exists(c => hasSideEffects(c))
     }
   }
 

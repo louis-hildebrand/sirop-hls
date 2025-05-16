@@ -62,9 +62,9 @@ private object VhdlExprGenerator {
       case And(terms @ _*) => VhdlOp("and", terms.map(exprToVhdl))
       case Or(terms @ _*)  => VhdlOp("or", terms.map(exprToVhdl))
 
-      case TupleAccess(StmNext(s: Param), IntCst(1)) =>
+      case StmNextData(s: Param) =>
         VhdlExpr(s"${s.name}_data_internal", Seq())
-      case _: StmBuild | _: StmNext | TupleAccess(_: StmNext, _) =>
+      case _: StmBuild =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
         )

@@ -44,18 +44,18 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")()
     val original = StmBuild(
       n,
-      Mux(a2 < n, NNone(TyInt), SSome(StmNext(a1)().__1)())(),
+      Mux(a2 < n, NNone(TyInt), SSome(StmNextData(a1)())())(),
       Map[Param, (Expr, Expr)](
-        a0 -> (s, Mux(a2 < n, StmNext(a0)().__0, a0)()),
-        a1 -> (s, Mux(a2 < n, a1, StmNext(a1)().__0)()),
+        a0 -> (s, a2 < n),
+        a1 -> (s, a2 >= n),
         a2 -> (0, a2 + 1)
       )
     )()
     val expected = StmBuild(
       n,
-      Mux(a2 < n, NNone(TyInt), SSome(StmNext(a1)().__1)())(),
+      Mux(a2 < n, NNone(TyInt), SSome(StmNextData(a1)())())(),
       Map[Param, (Expr, Expr)](
-        a1 -> (s, Mux(a2 < n, a1, StmNext(a1)().__0)()),
+        a1 -> (s, a2 >= n),
         a2 -> (0, a2 + 1)
       )
     )()
@@ -157,10 +157,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val j = Param("j")()
     val original = StmBuild(
       n,
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1, i0, i1)())(),
+      SSome(Tuple(StmNextData(s0)(), StmNextData(s1)(), i0, i1)())(),
       Map[Param, (Expr, Expr)](
-        s0 -> (input, Mux(i0 < n, StmNext(s0)().__0, s0)()),
-        s1 -> (input, Mux(i0 < n, StmNext(s1)().__0, s1)()),
+        s0 -> (input, i0 < n),
+        s1 -> (input, i0 < n),
         i0 -> (0, i0 + 2),
         i1 -> (0, i1 + 2),
         j -> (1, j * 2)
@@ -170,9 +170,9 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val optimized = StmAccRemovalPass.deduplicateVars(original)
     val expected = StmBuild(
       n,
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s0)().__1, i0, i0)())(),
+      SSome(Tuple(StmNextData(s0)(), StmNextData(s0)(), i0, i0)())(),
       Map[Param, (Expr, Expr)](
-        s0 -> (input, Mux(i0 < n, StmNext(s0)().__0, s0)()),
+        s0 -> (input, i0 < n),
         i0 -> (0, i0 + 2),
         j -> (1, j * 2)
       )

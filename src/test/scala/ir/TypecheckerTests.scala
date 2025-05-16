@@ -73,8 +73,8 @@ class TypecheckerTests extends AnyFunSuite {
       n,
       SSome(a)(),
       Map[Param, (Expr, Expr)](
-        s -> (input, Mux(a % 2 === 0, StmNext(s)().__0, s)()),
-        a -> (0, Mux(a % 2 === 0, a + StmNext(s)().__1, a + 1)())
+        s -> (input, a % 2 === 0),
+        a -> (0, Mux(a % 2 === 0, a + StmNextData(s)(), a + 1)())
       )
     )()
     val checked =
@@ -243,9 +243,9 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](e.tchk())
   }
 
-  test("StmNext:NonStmTarget") {
-    val e = StmNext(42)()
-    assertThrows[TypeError](e.tchk())
+  test("StmNextData:NonStmTarget") {
+    val x = Param("x")(TyInt)
+    assertThrows[TypeError](StmNextData(x)().tchk())
   }
 
   test("StmLength:NonStmTarget") {

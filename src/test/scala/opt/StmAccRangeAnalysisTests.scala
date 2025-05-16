@@ -87,8 +87,8 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
     val a = Param("a")()
     val stm = StmBuild(
       n,
-      SSome(StmNext(a)().__1)(),
-      Map(a -> (s, StmNext(a)().__0))
+      SSome(StmNextData(a)())(),
+      Map(a -> (s, True))
     )()
 
     val expectedRanges = StmAccRange(Map(a -> ScalarRange(None, None)))

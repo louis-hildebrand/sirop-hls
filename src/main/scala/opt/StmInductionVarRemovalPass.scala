@@ -347,11 +347,6 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             )()
           )()
         )
-      case (
-            s,
-            Function(t, Function(x0, TupleAccess(StmNext(x1), IntCst(0))))
-          ) if x0 == x1 =>
-        Some(Function(t, StmNextK(s, t - t0)())())
       case Piecewise(k, f, g) =>
         tryFindClosedForm(t0, z, f) match {
           case Some(f) =>
@@ -518,12 +513,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           )
           if (isDeltaZeroOrOne) {
             val z = next.substitute(t -> t0)
-            val nextF = Function(
-              t,
-              next.typ ::+ (acc =>
-                Mux(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
-              )
-            )()
+            val acc = Param("acc")(next.typ)
+            val nextF = Function(t, Function(acc, deltaK !== 0 && k >= 0)())()
             Some((z, nextF))
           } else {
             None

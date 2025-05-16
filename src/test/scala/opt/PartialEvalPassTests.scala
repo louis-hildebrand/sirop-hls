@@ -2,24 +2,10 @@ package opt
 
 import org.scalatest.funsuite.AnyFunSuite
 import ir._
+import operations.{StmCount, StmFold}
 
 class PartialEvalPassTests extends AnyFunSuite {
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
-
-  // Used to debug issue with StmFold
-  test("FunCall") {
-    val ttup = TyTuple(TyInt, TyStm(TyInt, 5))
-    val x = Param("x")(ttup)
-    val e = FunCall(
-      ttup ::+ (y =>
-        Tuple(StmNext(y.__1)().__1 + y.__0, StmNext(y.__1)().__0)()
-      ),
-      x
-    )()
-    val expected =
-      Tuple(StmNext(x.__1)().__1 + x.__0, StmNext(x.__1)().__0)()
-    assert(PartialEvalPass.partialEval(e) == expected)
-  }
 
   // Used to debug a case where partial evaluator left behind a Not(Not(...))
   test("NotNot") {
@@ -185,17 +171,37 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
+  test("StmOneElementWithInputs") {
+    val n = 5
+    val z = Param("z")(TyInt)
+    val i = Param("i")(TyInt)
+    val a = Param("a")(TyInt)
+    val s = Param("s")()
+    val sum = StmBuild(
+      1,
+      Mux(i === n - 1, SSome(a + StmNextData(s)())(), NNone(TyInt))(),
+      Map[Param, (Expr, Expr)](
+        i -> (0, i + 1),
+        a -> (z, a + StmNextData(s)()),
+        s -> (StmCount(n)(), True)
+      )
+    )().tchk().lower()
+    val expected = StmBuild(1, SSome(z + (0 until n).sum)())().tchk().lower()
+    val actual = PartialEvalPass.partialEval(sum).tchk().lower()
+    assert(actual == expected)
+  }
+
   test("StmOneElementNotReducible") {
     // I do NOT want this to be simplified to something like
-    //   StmCst(1, StmNext(s)().__1)
-    // because then we're calling StmNext(s)().__1 without a corresponding StmNext(s)().__0
+    //   StmCst(1, StmNextData(s)())
+    // because then we're calling StmNextData(s)() outside a stream
     val s = Param("s")()
     val a = Param("a")()
     val stm = StmBuild(
       1,
-      SSome(StmNext(a)().__1)(),
+      SSome(StmNextData(a)())(),
       Map[Param, (Expr, Expr)](
-        a -> (s, StmNext(a)().__0)
+        a -> (s, True)
       )
     )()
     assert(PartialEvalPass.partialEval(stm) == stm)
@@ -227,41 +233,6 @@ class PartialEvalPassTests extends AnyFunSuite {
         Tuple(True, False, True, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
       )()
-    val actual = PartialEvalPass.partialEval(e)
-    assert(actual == expected)
-  }
-
-  // Used to debug an issue with StmInductionVarRemovalPass
-  test("VecBuildIndexRangeAndMuxCondition") {
-    val s = Param("s")()
-    val e = TyInt ::+ (t =>
-      Mux(
-        t < 7,
-        VecBuild(
-          7,
-          TyInt ::+ (i =>
-            StmNext(
-              Mux(
-                -7 + i + t < 7,
-                StmNextK(s, -7 + i + t)(),
-                StmNextK(s, 7)()
-              )()
-            )().__1
-          )
-        )(),
-        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
-      )()
-    )
-    val expected = TyInt ::+ (t =>
-      Mux(
-        t < 7,
-        VecBuild(
-          7,
-          TyInt ::+ (i => StmNext(StmNextK(s, -7 + i + t)())().__1)
-        )(),
-        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
-      )()
-    )
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }
