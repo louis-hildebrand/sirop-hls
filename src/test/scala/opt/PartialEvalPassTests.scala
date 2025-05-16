@@ -300,4 +300,27 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == e)
   }
+
+  test("FuseVecAccessOutOfBounds") {
+    val e = VecAccess(VecBuild(5, TyInt ::+ (i => i))(), 10)()
+    val actual = PartialEvalPass.partialEval(e)
+    assert(ir.eval(actual) == ir.eval(e))
+  }
+
+  test("NestedMux") {
+    val i = Param("i")()
+    val n = Param("n")()
+    val c0 = Param("c0")()
+    val c1 = Param("c1")()
+    val c2 = Param("c2")()
+    val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())()
+
+    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
+    assert(actual0 == e)
+
+    val facts = FactSet().geq(i, 0).lt(i, n)
+    val expected = Mux(i === -1 + n, c0, c1)()
+    val actual1 = PartialEvalPass.partialEval(e)(facts)
+    assert(actual1 == expected)
+  }
 }

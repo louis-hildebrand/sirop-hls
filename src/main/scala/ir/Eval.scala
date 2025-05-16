@@ -194,10 +194,14 @@ trait Eval {
         evalBigStep(t) match {
           case Tuple(elems @ _*) =>
             evalBigStep(i) match {
-              case IntCst(i) => elems(i)
+              case IntCst(i) if elems.indices.contains(i) => elems(i)
+              case IntCst(i) =>
+                throw new TypeError(
+                  s"Index $i is out of bounds for a tuple with ${elems.length} elements."
+                )
               case v =>
                 throw new IllegalArgumentException(
-                  s"Index of tuple access evaluated to $v. It must evaluate to a boolean."
+                  s"Index of tuple access evaluated to $v. It must evaluate to an integer."
                 )
             }
           case v =>
@@ -221,7 +225,10 @@ trait Eval {
         evalBigStep(v) match {
           case VecLiteral(elems @ _*) =>
             evalBigStep(i) match {
-              case IntCst(i) => elems(i)
+              case IntCst(i) if elems.indices.contains(i) => elems(i)
+              case _: IntCst =>
+                val t = v.tchk().typ.asInstanceOf[TyVec].t
+                evalBigStep(Default(t).lower())
               case v =>
                 throw new IllegalArgumentException(
                   s"Index of vector access evaluated to $v. It must evaluate to a vector."

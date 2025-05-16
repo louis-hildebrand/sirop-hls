@@ -91,6 +91,14 @@ object PartialEvalPass {
             val peMux =
               Mux(partialEval(c), partialEval(t), partialEval(f))()
             ArithSimplifier.simplifyArithmetic(peMux)(facts) match {
+              case Mux(
+                    Equal(i0, Sum(IntCst(-1), n0)),
+                    c0,
+                    Mux(LessThan(Sum(IntCst(1), i1), n1), c1, c2)
+                  )
+                  if i0 == i1 && n0 == n1
+                    && isSmaller(i0, n0)(facts).getOrElse(false) =>
+                partialEval(Mux(i0 === -1 + n0, c0, c1)())
               case Mux(cond, trueE, falseE) =>
                 partialEval(cond) match {
                   case True  => partialEval(trueE)
@@ -285,8 +293,12 @@ object PartialEvalPass {
                 partialEval(
                   Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
-              case (v: VecBuild, i) => partialEval(FunCall(v.f, i)())
-              case (v, i)           => VecAccess(v, i)()
+              case (v @ VecBuild(n, f), i) =>
+                val t = v.tchk().typ.asInstanceOf[TyVec].t
+                partialEval(
+                  Mux(i >= 0 && i < n, FunCall(f, i)(), Default(t).lower())()
+                )
+              case (v, i) => VecAccess(v, i)()
             }
 
           case s @ StmBuild(n, out, equations) =>

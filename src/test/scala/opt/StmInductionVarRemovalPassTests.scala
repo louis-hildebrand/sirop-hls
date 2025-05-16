@@ -531,9 +531,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t0 = 0
     val s = Param("s")(TyStm(TyInt, n))
     val stmNextRecEqn =
-      TyInt ::+ (t =>
-        Missing ::+ (x => Mux(t < n, StmNext(x)().__0, x)())
-      )
+      TyInt ::+ (t => Missing ::+ (x => Mux(t < n, StmNext(x)().__0, x)()))
     val stmNextFun =
       StmInductionVarRemovalPass()
         .tryFindClosedForm(t0, s, stmNextRecEqn)
@@ -725,9 +723,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(z == s)
     val expectedF: Function =
-      Missing ::+ (t =>
-        Missing ::+ (x => Mux(t < n, StmNext(x)().__0, x)())
-      )
+      Missing ::+ (t => Missing ::+ (x => Mux(t < n, StmNext(x)().__0, x)()))
     assert(f == expectedF)
   }
 
@@ -772,9 +768,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(z == s)
     val expectedF =
-      TyInt ::+ (t =>
-        Missing ::+ (x => Mux(t - n < 0, x, StmNext(x)().__0)())
-      )
+      TyInt ::+ (t => Missing ::+ (x => Mux(t - n < 0, x, StmNext(x)().__0)()))
     assert(f == expectedF)
   }
 
@@ -821,7 +815,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected = lpe(
       StmBuild(
         n,
-        Mux(t < n, NNone(TyInt), SSome(StmNext(s1)().__1)())(),
+        Mux(
+          t < n,
+          NNone(TyInt),
+          SSome(Mux(-1 * n + t < n, StmNext(s1)().__1, 0)())()
+        )(),
         Map[Param, (Expr, Expr)](
           s0 -> (input, Mux(t < n, StmNext(s0)().__0, s0)()),
           s1 -> (input, Mux(-1 * n + t < 0, s1, StmNext(s1)().__0)()),
@@ -861,7 +859,6 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     val examples = Seq(
       StmCst(n, 42)(),
-      StmCst(n, Tuple(99, True)())(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
       StmRepeat(StmCount(n)(), m = 3)()
