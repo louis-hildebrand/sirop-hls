@@ -1,5 +1,6 @@
 package ir
 
+import operations.VecShiftLeft
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -160,6 +161,55 @@ class CoreTests extends AnyFunSuite {
     val actual2 = typed.subPreserveType(subs)
     assert(actual2 == expected)
     assert(actual2.typ != Missing)
+  }
+
+  test("SubstituteInType1") {
+    val n = Param("n")(TyInt)
+    val e = Tuple(VecBuild(n * 2, TyInt ::+ (i => i))(), n + 1)().tchk()
+    val expectedType = TyTuple(TyVec(TyInt, n * 2), TyInt)
+    assert(e.typ == expectedType)
+
+    val actual = e.subPreserveType(n -> IntCst(42))
+
+    val expected =
+      Tuple(
+        VecBuild(IntCst(42) * IntCst(2), TyInt ::+ (i => i))(),
+        IntCst(42) + IntCst(1)
+      )()
+    assert(actual == expected)
+    val expectedTypeAfterSub =
+      TyTuple(TyVec(TyInt, IntCst(42) * IntCst(2)), TyInt)
+    assert(actual.typ == expectedTypeAfterSub)
+  }
+
+  test("SubstituteInType2") {
+    val n = Param("n")(TyInt)
+    val m = Param("m")(TyInt)
+    val k = Param("k")(TyInt)
+    val v = Param("v")()
+    val e = StmBuild(
+      n,
+      SSome(VecAccess(v, 0)())(),
+      Map[Param, (Expr, Expr)](
+        v -> (VecBuild(n, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+      )
+    )().tchk()
+
+    val actual = e.subPreserveType(n -> (m + k))
+
+    val expected = StmBuild(
+      m + k,
+      SSome(VecAccess(v, 0)())(),
+      Map[Param, (Expr, Expr)](
+        v -> (VecBuild(m + k, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+      )
+    )()
+    assert(actual == expected)
+    val expectedStmType = TyStm(TyInt, m + k)
+    assert(actual.typ == expectedStmType)
+    val expectedVecType = TyVec(TyInt, m + k)
+    val actualVecParam = actual.asInstanceOf[StmBuild].equations.toSeq.head._1
+    assert(actualVecParam.typ == expectedVecType)
   }
 
   test("Function:Equals") {

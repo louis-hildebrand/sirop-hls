@@ -12,6 +12,16 @@ sealed trait Type {
     Function(x, f(x))(t)
   }
 
+  def substitute(subs: Map[Expr, Expr]): Type = {
+    this match {
+      case TyVec(t, n)     => TyVec(t.substitute(subs), n.subPreserveType(subs))
+      case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
+      case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
+      case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
+      case t @ (Missing | TyInt | TyBool) => t
+    }
+  }
+
   def lower: Type = {
     this match {
       case Missing | TyInt | TyBool => this
@@ -68,6 +78,27 @@ sealed trait Type {
     * in hardware.
     */
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
+
+  def isCompatibleIgnoringSize(that: Type): Boolean = {
+    (this, that) match {
+      case (TyBool, TyBool) => true
+      case (TyInt, TyInt)   => true
+      case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
+        t1.isCompatibleIgnoringSize(t3) && t2.isCompatibleIgnoringSize(t4)
+      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
+        (ts1.length == ts2.length
+        && ts1
+          .zip(ts2)
+          .forall({ case (t1, t2) => t1.isCompatibleIgnoringSize(t2) }))
+      case (TyVec(t1, _), TyVec(t2, _)) =>
+        t1.isCompatibleIgnoringSize(t2)
+      case (TyStm(t1, _), TyStm(t2, _)) =>
+        t1.isCompatibleIgnoringSize(t2)
+      case _ => false
+    }
+  }
+
+  def ~~=(that: Type): Boolean = this.isCompatibleIgnoringSize(that)
 
   private def sameLen(e1: Expr, e2: Expr): Boolean = {
     val e1Normalized = normalizeLen(e1)

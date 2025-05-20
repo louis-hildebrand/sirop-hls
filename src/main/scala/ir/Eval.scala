@@ -294,7 +294,7 @@ trait Eval {
     }
     val typedV = v.tchk()
     assert(
-      typedV.typ ~= e.typ,
+      typedV.typ ~~= e.typ,
       s"evaluation should preserve type (expected ${e.typ}, got ${typedV.typ})"
     )
     typedV

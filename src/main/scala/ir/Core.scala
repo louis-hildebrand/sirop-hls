@@ -552,7 +552,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 renamed.n.subPreserveType(subs),
                 renamed.output.subPreserveType(subs),
                 renamed.equations.map({ case (x, (z, next)) =>
-                  x -> (z.subPreserveType(subs), next.subPreserveType(subs))
+                  val newX = x.subPreserveType(subs).asInstanceOf[Param]
+                  val newZ = z.subPreserveType(subs)
+                  val newNext = next.subPreserveType(subs)
+                  newX -> (newZ, newNext)
                 })
               )(s.typ)
             case e =>
@@ -562,11 +565,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
     if (this.hasType) {
       assert(
-        out.typ.isCompatibleWith(this.typ),
+        out.typ ~= this.typ,
         s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ})"
       )
     }
-    out
+    // The expressions to replace may occur within the type (e.g., in the
+    // length of a vector)
+    val newType = this.typ.substitute(subs)
+    out.rebuild(newType)
   }
 
   /** Perform a substitution while preserving all type annotations.
