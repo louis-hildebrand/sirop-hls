@@ -378,15 +378,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )
     )
 
+    val f0 = Function(s, slide)().tchk()
+    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
+
     val optimized = StmSimplifier.simplify(slide)().tchk().lower()
     val f1 = Function(s, optimized)().tchk()
     assert(TestRunner.testExpr(f1, inputs) == TestPassed)
-
-    // TODO: The un-optimized version fails due to out-of-bounds array access
-    //       due to if-then-else not short circuiting
-    assume(false)
-    val f0 = Function(s, slide)().tchk()
-    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
   }
 
   /** The result of accessing a vector out of bounds should be consistent
