@@ -358,7 +358,7 @@ object PartialEvalPass {
                 partialEval(Mux(c, StmLength(t)(), StmLength(f)())())
               case s @ _ => StmLength(s)()
             }
-          case StmNextData(_: Param) => e
+          case StmNextData(s) => StmNextData(partialEval(s))()
           case StmNextK(s, k) =>
             val peStm = partialEval(s)
             partialEval(k) match {

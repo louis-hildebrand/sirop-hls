@@ -1527,11 +1527,11 @@ object StmBuild {
   }
 }
 
-case class StmNextData(s: Param)(typ: Type = Missing) extends Expr(s)(typ) {
+case class StmNextData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s: Param) => StmNextData(s)(typ)
-      case _             => throw new BadRebuildError(this, newChildren)
+      case Seq(s) => StmNextData(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
     }
   }
 }
