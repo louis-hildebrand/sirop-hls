@@ -22,9 +22,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def /(that: Expr): Div = Div(this, that)()
   def %(that: Expr): Mod = Mod(this, that)()
   def ===(that: Expr): Equal = Equal(this, that)()
-  def !==(that: Expr): Expr = Not(Equal(this, that)())()
+  def !==(that: Expr): Expr = !(this === that)
   def <(that: Expr): LessThan = LessThan(this, that)()
-  def <=(that: Expr): Not = Not(this > that)()
+  def <=(that: Expr): Not = !(this > that)
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
   def unary_! : Not = Not(this)()
@@ -476,6 +476,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   /** Perform all the given substitutions on this expression. Substitutions does
     * <i>not</i> necessarily preserve type annotations.
     */
+  @deprecated
   def substitute(subs: Map[Expr, Expr]): Expr = {
     if (subs.isEmpty) {
       this
@@ -517,6 +518,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   /** Perform all the given substitutions on this expression. Substitutions does
     * <i>not</i> necessarily preserve type annotations.
     */
+  @deprecated
   def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
 
   /** Perform a substitution while preserving all type annotations.
