@@ -1166,7 +1166,7 @@ case class StmBuild(
         // Rename accumulator variables in case some of them are also being
         // used by the consumer stream
         val producerStm = e.renameVars
-        val readyCond = stmNextCallCondition(consumerStm, x)
+        val readyCond = consumerStm.nextByVar(x)
         assert(readyCond.typ == TyBool, "stream call condition must be a bool")
         val newOutput = fusedOutput(
           consumer = consumerStm,
@@ -1379,7 +1379,7 @@ case class StmBuild(
       else
         this
     val z = IntCst(0)
-    val stmNextCalled = stmNextCallCondition(s, x)
+    val stmNextCalled = s.nextByVar(x)
     val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
   }
@@ -1393,14 +1393,6 @@ case class StmBuild(
       && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
     val t = if (isTyped) this.typ else Missing
     StmBuild(this.n, this.output, newEquations)(t)
-  }
-
-  /** Construct a boolean expression <code>c</code> such that, in
-    * <code>stm</code>, the accumulator variable <code>x</code> is updated to
-    * <code>StmNext(x).0</code> iff <code>c</code> evaluates to true.
-    */
-  private def stmNextCallCondition(stm: StmBuild, x: Param): Expr = {
-    StmBuild.stmNextCallCondition(stm.nextByVar(x), x)
   }
 
   /** Find the direct dependencies between accumulator variables in this stream.
@@ -1528,11 +1520,6 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
-
-  @deprecated
-  def stmNextCallCondition(e: Expr, x: Param): Expr = {
-    e
-  }
 }
 
 case class StmNextData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
