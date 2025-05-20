@@ -25,6 +25,23 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       FunCall(Function(x, in)(), v)()
     }
   }
+
+  override def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
+    val newX = x.freshCopy
+    val newIn = in.subPreserveType(x -> newX)
+    Let(newX, v.subPreserveType(subs), newIn.subPreserveType(subs))(this.typ)
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Let => this.lower() == that.lower()
+      case _         => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    this.lower().hashCode()
+  }
 }
 
 // Default value for a given datatype (zero for int, false for bool, tuple of

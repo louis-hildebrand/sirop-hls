@@ -560,6 +560,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                   newX -> (newZ, newNext)
                 })
               )(s.typ)
+            case e: SyntaxSugar => e.subSyntaxSugar(subs)
             case e =>
               e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
           }
@@ -568,7 +569,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     if (this.hasType) {
       assert(
         out.typ ~= this.typ,
-        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ})"
+        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ} after substitutions $subs in $this)"
       )
     }
     // The expressions to replace may occur within the type (e.g., in the
@@ -1611,6 +1612,10 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * does not require the type.)
     */
   def lowerSyntaxSugar(): Expr
+
+  def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
+    this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
+  }
 }
 
 case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
