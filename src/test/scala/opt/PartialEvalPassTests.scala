@@ -2,32 +2,18 @@ package opt
 
 import org.scalatest.funsuite.AnyFunSuite
 import ir._
+import operations.{StmCount, StmFold}
 
 class PartialEvalPassTests extends AnyFunSuite {
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
-
-  // Used to debug issue with StmFold
-  test("FunCall") {
-    val ttup = TyTuple(TyInt, TyStm(TyInt, 5))
-    val x = Param("x")(ttup)
-    val e = FunCall(
-      ttup ::+ (y =>
-        Tuple(StmNext(y.__1)().__1 + y.__0, StmNext(y.__1)().__0)()
-      ),
-      x
-    )()
-    val expected =
-      Tuple(StmNext(x.__1)().__1 + x.__0, StmNext(x.__1)().__0)()
-    assert(PartialEvalPass.partialEval(e) == expected)
-  }
 
   // Used to debug a case where partial evaluator left behind a Not(Not(...))
   test("NotNot") {
     val acc = Param("acc")(TyTuple(TyInt, TyInt, TyInt, TyBool, TyInt))
     val e =
-      IfThenElse(
+      Mux(
         acc.__3,
-        IfThenElse(Not(LessThan(acc.__4, 5)())(), False, True)(),
+        Mux(Not(LessThan(acc.__4, 5)())(), False, True)(),
         False
       )()
     val expected = acc.__3 && LessThan(acc.__4, 5)()
@@ -56,11 +42,11 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       Function(
         y,
-        IfThenElse(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
+        Mux(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
       )()
     val actual = PartialEvalPass.partialEval(e)
     val expected = TyInt ::+ (y =>
-      IfThenElse(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
+      Mux(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
     )
     assert(actual == expected)
   }
@@ -110,13 +96,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("IfThenElseTrueBranchSpecialCaseOfFalseBranch") {
+  test("MuxTrueBranchSpecialCaseOfFalseBranch") {
     val n = Param("n")()
     val i = Param("i")()
     val acc = Param("acc")()
     val z = Param("z")()
     val delta = Param("delta")()
-    val e = IfThenElse(
+    val e = Mux(
       i === (n - 1),
       z + acc.__0 * delta,
       z + ((acc.__0 + (i + 1)) - n) * delta
@@ -126,13 +112,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("IfThenElseFalseBranchSpecialCaseOfTrueBranch") {
+  test("MuxFalseBranchSpecialCaseOfTrueBranch") {
     val n = Param("n")()
     val i = Param("i")()
     val acc = Param("acc")()
     val z = Param("z")()
     val delta = Param("delta")()
-    val e = IfThenElse(
+    val e = Mux(
       i !== (n - 1),
       z + ((acc.__0 + (i + 1)) - n) * delta,
       z + acc.__0 * delta
@@ -153,9 +139,9 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       n,
-      IfThenElse(a >= z, SSome(a)(), NNone(TyInt))(),
+      Mux(a >= z, SSome(a)(), NNone(TyInt))(),
       Map[Param, (Expr, Expr)](
-        a -> (z, IfThenElse(a >= z, a + 3, a - 1)())
+        a -> (z, Mux(a >= z, a + 3, a - 1)())
       )
     )()
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
@@ -185,17 +171,37 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
+  test("StmOneElementWithInputs") {
+    val n = 5
+    val z = Param("z")(TyInt)
+    val i = Param("i")(TyInt)
+    val a = Param("a")(TyInt)
+    val s = Param("s")()
+    val sum = StmBuild(
+      1,
+      Mux(i === n - 1, SSome(a + StmNextData(s)())(), NNone(TyInt))(),
+      Map[Param, (Expr, Expr)](
+        i -> (0, i + 1),
+        a -> (z, a + StmNextData(s)()),
+        s -> (StmCount(n)(), True)
+      )
+    )().tchk().lower()
+    val expected = StmBuild(1, SSome(z + (0 until n).sum)())().tchk().lower()
+    val actual = PartialEvalPass.partialEval(sum).tchk().lower()
+    assert(actual == expected)
+  }
+
   test("StmOneElementNotReducible") {
     // I do NOT want this to be simplified to something like
-    //   StmCst(1, StmNext(s)().__1)
-    // because then we're calling StmNext(s)().__1 without a corresponding StmNext(s)().__0
+    //   StmCst(1, StmNextData(s)())
+    // because then we're calling StmNextData(s)() outside a stream
     val s = Param("s")()
     val a = Param("a")()
     val stm = StmBuild(
       1,
-      SSome(StmNext(a)().__1)(),
+      SSome(StmNextData(a)())(),
       Map[Param, (Expr, Expr)](
-        a -> (s, StmNext(a)().__0)
+        a -> (s, True)
       )
     )()
     assert(PartialEvalPass.partialEval(stm) == stm)
@@ -213,55 +219,20 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(v) == expected)
   }
 
-  test("IfThenElseCondition:x < 10 && x >= 0") {
+  test("MuxCondition:x < 10 && x >= 0") {
     val x = Param("x")()
     val e =
-      IfThenElse(
+      Mux(
         x < 10 && x >= 0,
         Tuple(x < 11, x >= 10, x >= -1, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
       )()
     val expected =
-      IfThenElse(
+      Mux(
         x < 10 && x >= 0,
         Tuple(True, False, True, x < 9)(),
         Tuple(x < 9, x >= 10, x >= 11)()
       )()
-    val actual = PartialEvalPass.partialEval(e)
-    assert(actual == expected)
-  }
-
-  // Used to debug an issue with StmInductionVarRemovalPass
-  test("VecBuildIndexRangeAndIfThenElseCondition") {
-    val s = Param("s")()
-    val e = TyInt ::+ (t =>
-      IfThenElse(
-        t < 7,
-        VecBuild(
-          7,
-          TyInt ::+ (i =>
-            StmNext(
-              IfThenElse(
-                -7 + i + t < 7,
-                StmNextK(s, -7 + i + t)(),
-                StmNextK(s, 7)()
-              )()
-            )().__1
-          )
-        )(),
-        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
-      )()
-    )
-    val expected = TyInt ::+ (t =>
-      IfThenElse(
-        t < 7,
-        VecBuild(
-          7,
-          TyInt ::+ (i => StmNext(StmNextK(s, -7 + i + t)())().__1)
-        )(),
-        VecBuild(7, TyInt ::+ (i => StmNext(StmNextK(s, i)())().__1))()
-      )()
-    )
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }
@@ -287,7 +258,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val c0 = Param("c0")(TyBool)
     val c1 = Param("c1")(TyBool)
     val facts = FactSet().assumeTrue(c0 && (c0 || c1))
-    val e = TyInt ::+ (i => IfThenElse(c0, i + 1, i)())
+    val e = TyInt ::+ (i => Mux(c0, i + 1, i)())
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = TyInt ::+ (i => i + 1)
     assert(actual == expected)
@@ -299,5 +270,28 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = Function(i, i === 0)()
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == e)
+  }
+
+  test("FuseVecAccessOutOfBounds") {
+    val e = VecAccess(VecBuild(5, TyInt ::+ (i => i))(), 10)()
+    val actual = PartialEvalPass.partialEval(e)
+    assert(ir.eval(actual) == ir.eval(e))
+  }
+
+  test("NestedMux") {
+    val i = Param("i")()
+    val n = Param("n")()
+    val c0 = Param("c0")()
+    val c1 = Param("c1")()
+    val c2 = Param("c2")()
+    val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())()
+
+    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
+    assert(actual0 == e)
+
+    val facts = FactSet().geq(i, 0).lt(i, n)
+    val expected = Mux(i === -1 + n, c0, c1)()
+    val actual1 = PartialEvalPass.partialEval(e)(facts)
+    assert(actual1 == expected)
   }
 }

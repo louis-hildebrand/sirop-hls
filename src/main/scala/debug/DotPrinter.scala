@@ -432,7 +432,7 @@ object DotPrinter {
       case Not(e) =>
         val child = toDot(e, scope)
         DotScalar("!", Seq(("", child)), scope)
-      case IfThenElse(c, t, f) =>
+      case Mux(c, t, f) =>
         val cond = toDot(c, scope)
         val trueVal = toDot(t, scope)
         val falseVal = toDot(f, scope)

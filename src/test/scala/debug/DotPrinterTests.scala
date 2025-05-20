@@ -34,9 +34,9 @@ class DotPrinterTests extends AnyFunSuite {
     DotPrinter.save(e, "./img/ComparisonOps.dot")
   }
 
-  test("IfThenElse") {
-    val e = IfThenElse(1 === 2, 3, 4)()
-    DotPrinter.save(e, "./img/IfThenElse.dot")
+  test("Mux") {
+    val e = Mux(1 === 2, 3, 4)()
+    DotPrinter.save(e, "./img/Mux.dot")
   }
 
   test("FreeVar") {
@@ -63,7 +63,7 @@ class DotPrinterTests extends AnyFunSuite {
 
   test("SimpleVecBuild") {
     val x = Param("x")()
-    val e = VecBuild(4, TyInt ::+ (i => IfThenElse(i === 0, x + 1, i * i)()))()
+    val e = VecBuild(4, TyInt ::+ (i => Mux(i === 0, x + 1, i * i)()))()
     DotPrinter.save(e, "./img/SimpleVecBuild.dot")
   }
 
@@ -72,7 +72,7 @@ class DotPrinterTests extends AnyFunSuite {
     val e = VecBuild(
       4,
       TyInt ::+ (i =>
-        VecBuild(3, TyInt ::+ (j => IfThenElse(i === j, x + i, i + j)()))()
+        VecBuild(3, TyInt ::+ (j => Mux(i === j, x + i, i + j)()))()
       )
     )()
     DotPrinter.save(e, "./img/NestedVecBuild.dot")

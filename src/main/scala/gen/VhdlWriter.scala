@@ -20,7 +20,8 @@ object VhdlWriter {
         name = "bool2sl",
         args = Seq(("b", VhdlBool)),
         returnType = VhdlStdLogic,
-        decls = Seq(Variable("x", VhdlStdLogic, "'1' when (b) else '0'")),
+        decls =
+          Seq(VhdlVariable("x", VhdlStdLogic, "x := '1' when (b) else '0';")),
         ret = "x"
       ),
       VhdlFunction(
@@ -66,10 +67,27 @@ object VhdlWriter {
       // Since every type's name includes all of its children's names, its
       // name is guaranteed to be strictly larger than any of its children's
       // names.
-      // Therefore, sorting by name length puts the declarations in the
-      // desired order.
+      // Therefore, sorting by name length puts the declarations in a
+      // valid order.
       .sortBy(x => x.vhdlName.length)
       .flatMap(t => t.vhdlDefinition)
+    val vecAccessFunctions = typesToDefine
+      .flatMap({
+        case a: VhdlArray => Some(a.vecAccessFunDef)
+        case _            => None
+      })
+    val vecAccessFunSignatures =
+      vecAccessFunctions
+        .map(f => f.vhdlSignature)
+        .toSeq
+        .sortBy(x => x)
+        .mkString("\n\n")
+    val vecAccessFunImpls =
+      vecAccessFunctions
+        .map(f => f.vhdlImpl)
+        .toSeq
+        .sortBy(x => x)
+        .mkString("\n\n")
     val contents =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -77,7 +95,13 @@ object VhdlWriter {
          |
          |package typedefs is
          |${indent(definitions.mkString("\n\n"))}
+         |
+         |${indent(vecAccessFunSignatures)}
          |end package;
+         |
+         |package body typedefs is
+         |${indent(vecAccessFunImpls)}
+         |end package body;
          |""".stripMargin
 
     val file = dir.resolve("typedefs.vhd")

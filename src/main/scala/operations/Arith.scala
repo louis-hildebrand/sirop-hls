@@ -9,13 +9,13 @@ object PlusFunction {
 // TODO: Reimplement these as syntax sugar as well?
 object Min {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
-    IfThenElse(x < y, x, y)()
+    Mux(x < y, x, y)()
   }
 }
 
 object Max {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
-    IfThenElse(x > y, x, y)()
+    Mux(x > y, x, y)()
   }
 }
 
@@ -25,7 +25,7 @@ object CeilDiv {
     Let(
       q,
       x / y,
-      IfThenElse((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q)()
+      Mux((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q)()
     )()
   }
 }

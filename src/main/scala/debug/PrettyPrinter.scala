@@ -29,7 +29,7 @@ object PrettyPrinter {
       case And(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" && ")
       case Or(terms @ _*)  => terms.map(e => showWithParens(e)).mkString(" || ")
       case Not(x)          => s"!${showWithParens(x)}"
-      case IfThenElse(c, t, f) =>
+      case Mux(c, t, f) =>
         s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
            |${indent(show(t, collapseStm = collapseStm, evalVec = evalVec))}
            |} else {
@@ -181,8 +181,8 @@ object PrettyPrinter {
         s"And(${terms.map(e => showScala(e)).mkString(",")})"
       case Or(terms @ _*) =>
         s"Or(${terms.map(e => showScala(e)).mkString(",")})"
-      case IfThenElse(c, t, f) =>
-        s"IfThenElse(${showScala(c)},${showScala(t)},${showScala(f)})"
+      case Mux(c, t, f) =>
+        s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})"
       case StmBuild(n, out, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>
@@ -192,8 +192,8 @@ object PrettyPrinter {
       case StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"
-      case StmNext(s) =>
-        s"StmNext(${showScala(s)})"
+      case StmNextData(s) =>
+        s"StmNextData(${showScala(s)})"
       case StmNextK(s, k) =>
         s"StmNextK(${showScala(s)},${showScala(k)})"
       case StmLength(s) =>

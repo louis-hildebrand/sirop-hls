@@ -44,3 +44,24 @@ case class TimeRecurrence(z: Expr, f: Function) extends Formula {
     TimeRecurrence(z.tchk(), f.tchk().asInstanceOf[Function])
   }
 }
+
+case class StreamTimeRecurrence(z: Expr, f: Function) extends Formula {
+  override def evalSeq(tMin: Int, iterations: Int): Seq[Expr] = {
+    if (iterations <= 0) {
+      Seq()
+    } else {
+      val head = ir.eval(z)
+      val tailRec =
+        StreamTimeRecurrence(
+          Mux(FunCall(FunCall(f, tMin)(), head)(), StmNextK(head, 1)(), head)(),
+          f
+        )
+      val tail = tailRec.evalSeq(tMin + 1, iterations - 1)
+      head +: tail
+    }
+  }
+
+  override def tchk(): Formula = {
+    StreamTimeRecurrence(z.tchk(), f.tchk().asInstanceOf[Function])
+  }
+}

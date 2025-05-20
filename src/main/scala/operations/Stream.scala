@@ -23,11 +23,11 @@ private object Helpers {
           TyStm(t1, n1) ::+ (s1 =>
             StmBuild(
               n1,
-              SSome(StmNext(s2)(TyTuple(s1.typ, t1)).__1)(),
+              SSome(StmNextData(s2)())(),
               Map[Param, (Expr, Expr)](
-                s2 -> (s1, StmNext(s2)(TyTuple(s1.typ, t1)).__0)
+                s2 -> (s1, True)
               )
-            )(s1.typ)
+            )().tchk()
           )
         } else {
           assert(
@@ -69,16 +69,15 @@ private object Helpers {
         val s = Param("s")(TyStm(t1, 1))
         val isFirstStep = Param("is_first_step")(TyBool)
         val y = Param("y")(t1)
-        val next = StmNext(s)(TyTuple(TyStm(t1, 0), t1))
-        val yFromStmOrReg = IfThenElse(isFirstStep, next.__1, y)(t1)
+        val yFromStmOrReg = Mux(isFirstStep, StmNextData(s)(), y)().tchk()
         val subs = (
           stm.seedByVar
             .map({ case (x, z) =>
-              x -> IfThenElse(
+              x -> Mux(
                 isFirstStep,
-                z.subPreserveType(f0.param -> next.__1),
+                z.subPreserveType(f0.param -> StmNextData(s)().tchk()),
                 x
-              )(x.typ)
+              )().tchk()
             })
             .foldLeft(Map[Expr, Expr]())(_ + _)
             + (f0.param -> yFromStmOrReg)
@@ -87,7 +86,7 @@ private object Helpers {
         val newEquations = {
           val equationsToAdd = Map[Param, (Expr, Expr)](
             // Input stream
-            s -> (input, IfThenElse(isFirstStep, next.__0, s)(s.typ)),
+            s -> (input, isFirstStep),
             // Whether we still need to read from the input stream
             isFirstStep -> (True, False),
             // Register for the value from the input stream
@@ -104,27 +103,28 @@ private object Helpers {
         }
         val newF = Function(
           input,
-          StmBuild(stm.n, newOutput, newEquations)(TyStm(t2, n))
-        )(TyArrow(TyStm(t1, 1), TyStm(t2, n)))
+          StmBuild(stm.n, newOutput, newEquations)()
+        )().tchk().asInstanceOf[Function]
         assert(!newF.contains(f0.param))
         newF
       case TyArrow(_: TyStm, _) =>
         throw new IllegalArgumentException(
           "Reducing a stream to a scalar is forbidden."
         )
-      case TyArrow(t1, t2) =>
+      case TyArrow(t1, _) =>
         // scalar -> scalar (e.g., x => x + 1)
         val s1 = Param("s1")(TyStm(t1, 1))
         val s2 = Param("s2")(TyStm(t1, 1))
-        val next = StmNext(s2)(TyTuple(TyStm(t1, 0), t1))
         Function(
           s1,
           StmBuild(
             1,
-            SSome(f0.body.subPreserveType(f0.param -> next.__1))(),
-            Map[Param, (Expr, Expr)](s2 -> (s1, next.__0))
-          )(TyStm(t2, 1))
-        )(TyArrow(TyStm(t1, 1), TyStm(t2, 1)))
+            SSome(
+              f0.body.subPreserveType(f0.param -> StmNextData(s2)().tchk())
+            )(),
+            Map[Param, (Expr, Expr)](s2 -> (s1, True))
+          )()
+        )().tchk().asInstanceOf[Function]
       case t =>
         throw new IllegalArgumentException(
           s"Function in AsStm2Stm has type $t."
@@ -168,7 +168,7 @@ case class Iterate(
     val acc = Param("acc")(t)
     StmBuild(
       1,
-      IfThenElse(i === 0, SSome(acc)(), NNone(t))(),
+      Mux(i === 0, SSome(acc)(), NNone(t))(),
       Map[Param, (Expr, Expr)](
         i -> (n, Sum(i, -1)()),
         acc -> (z, FunCall(f, acc)(t))
@@ -320,8 +320,8 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
       n * m,
       SSome(Tuple(i, j)())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(j === m - 1, i + 1, i)()),
-        j -> (0, IfThenElse(j === m - 1, 0, j + 1)())
+        i -> (0, Mux(j === m - 1, i + 1, i)()),
+        j -> (0, Mux(j === m - 1, 0, j + 1)())
       )
     )().tchk().lower()
   }
@@ -416,7 +416,7 @@ case class StmMap(
                 // Never reset the input stream
                 x -> (z, next)
               } else {
-                x -> (z, IfThenElse(shouldReset, z, next)())
+                x -> (z, Mux(shouldReset, z, next)())
               }
             })
           )()
@@ -470,11 +470,11 @@ case class StmAccess(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       perRow,
-      IfThenElse(i === k, SSome(StmNext(s)().__1)(), NNone(t))(),
+      Mux(i === k, SSome(StmNextData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
+        s -> (stm, True),
+        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
+        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
       )
     )().tchk().lower()
   }
@@ -620,13 +620,13 @@ case class StmScanInclusive(
       )()
     val outerStm = StmBuild(
       n,
-      IfThenElse(shouldReset, SSome(nextAcc)(), NNone(elemType))(),
+      Mux(shouldReset, SSome(nextAcc)(), NNone(elemType))(),
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
           x -> (z, next)
         } else {
-          x -> (z, IfThenElse(shouldReset, z, next)())
+          x -> (z, Mux(shouldReset, z, next)())
         }
       }) + (acc -> (z, nextAcc))
     )()
@@ -835,11 +835,11 @@ case class StmPrefix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      IfThenElse(i < k, SSome(StmNext(s)().__1)(), NNone(t))(),
+      Mux(i < k, SSome(StmNextData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
+        s -> (stm, True),
+        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
+        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
       )
     )().tchk().lower()
   }
@@ -890,11 +890,11 @@ case class StmSuffix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      IfThenElse(i >= n - k, SSome(StmNext(s)().__1)(), NNone(t))(),
+      Mux(i >= n - k, SSome(StmNextData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
-        s -> (stm, StmNext(s)().__0),
-        i -> (0, IfThenElse(j === perRow - 1, i + 1, i)()),
-        j -> (0, IfThenElse(j === perRow - 1, 0, j + 1)())
+        s -> (stm, True),
+        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
+        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
       )
     )().tchk().lower()
   }
@@ -1008,11 +1008,11 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val i = Param("i")(TyInt)
     StmBuild(
       n1 + n2,
-      SSome(IfThenElse(i === n1, StmNext(s2)().__1, StmNext(s1)().__1)())(),
+      SSome(Mux(i === n1, StmNextData(s2)(), StmNextData(s1)())())(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(i === n1, i, i + 1)()),
-        s1 -> (stm1, IfThenElse(i === n1, s1, StmNext(s1)().__0)()),
-        s2 -> (stm2, IfThenElse(i === n1, StmNext(s2)().__0, s2)())
+        i -> (0, Mux(i === n1, i, i + 1)()),
+        s1 -> (stm1, i !== n1),
+        s2 -> (stm2, i === n1)
       )
     )().tchk().lower()
   }
@@ -1057,10 +1057,10 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     val s1 = Param("s1")(b.typ)
     StmBuild(
       StmLength(a)(),
-      SSome(Tuple(StmNext(s0)().__1, StmNext(s1)().__1)())(),
+      SSome(Tuple(StmNextData(s0)(), StmNextData(s1)())())(),
       Map[Param, (Expr, Expr)](
-        s0 -> (a, StmNext(s0)().__0),
-        s1 -> (b, StmNext(s1)().__0)
+        s0 -> (a, True),
+        s1 -> (b, True)
       )
     )().tchk().lower()
   }
@@ -1102,7 +1102,7 @@ case class StmRepeat(
           n * m,
           SSome(VecAccess(v, i)())(),
           Map[Param, (Expr, Expr)](
-            i -> (0, IfThenElse(i + 1 === n, 0, i + 1)())
+            i -> (0, Mux(i + 1 === n, 0, i + 1)())
           )
         )()
       )
@@ -1256,32 +1256,32 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val v = Param("v")()
     val lowered = StmBuild(
       n - m + 1,
-      IfThenElse(
+      Mux(
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
         //         Produce output.
-        SSome(VecShiftLeft(v, StmNext(s)().__1))(),
+        SSome(VecShiftLeft(v, StmNextData(s)()))(),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
         NNone(TyVec(t, m * elemSize))
       )(),
       Map[Param, (Expr, Expr)](
-        s -> (input, StmNext(s)().__0),
+        s -> (input, True),
         // Number of window elements left to load
         i -> (
           m - 1,
-          IfThenElse(
+          Mux(
             i === 0 && j === 1,
             // CASE 1: Shift register is full.
             i,
             // CASE 2: Shift register is not full yet.
-            IfThenElse(
+            Mux(
               i === 0,
               // CASE 2a: Initial loading is done, just loading the next elem
               //          (may take multiple cycles for nested streams).
               i,
               // CASE 2b: Initial loading still in progress.
-              IfThenElse(j === 1, i - 1, i)()
+              Mux(j === 1, i - 1, i)()
             )()
           )()
         ),
@@ -1290,24 +1290,24 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         // if `stm` is multi-dimensional.
         j -> (
           elemSize,
-          IfThenElse(
+          Mux(
             i === 0 && j === 1,
             // CASE 1: Shift register is full.
             elemSize,
             // CASE 2: Shift register is not full yet.
-            IfThenElse(
+            Mux(
               i === 0,
               // CASE 2a: Initial loading is done, just loading the next elem
               //          (may take multiple cycles for nested streams).
               j - 1,
               // CASE 2b: Initial loading still in progress.
-              IfThenElse(j === 1, elemSize, j - 1)()
+              Mux(j === 1, elemSize, j - 1)()
             )()
           )()
         ),
         v -> (
           VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
-          VecShiftLeft(v, StmNext(s)().__1)
+          VecShiftLeft(v, StmNextData(s)())
         )
       )
     )()

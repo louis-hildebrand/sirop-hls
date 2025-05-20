@@ -67,7 +67,7 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
       n,
       SSome(Tuple(a, b)())(),
       Map[Param, (Expr, Expr)](
-        a -> (3, IfThenElse(a % 2 === 0, a + 1, a - 3)()),
+        a -> (3, Mux(a % 2 === 0, a + 1, a - 3)()),
         b -> (1, b * -2)
       )
     )()
@@ -87,8 +87,8 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
     val a = Param("a")()
     val stm = StmBuild(
       n,
-      SSome(StmNext(a)().__1)(),
-      Map(a -> (s, StmNext(a)().__0))
+      SSome(StmNextData(a)())(),
+      Map(a -> (s, True))
     )()
 
     val expectedRanges = StmAccRange(Map(a -> ScalarRange(None, None)))

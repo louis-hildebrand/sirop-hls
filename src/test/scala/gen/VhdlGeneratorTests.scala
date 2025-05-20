@@ -26,8 +26,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         )()
       )(),
       Map[Param, (Expr, Expr)](
-        i -> (0, IfThenElse(j === m, i + 1, i)()),
-        j -> (1, IfThenElse(j === m, 1, j + 1)())
+        i -> (0, Mux(j === m, i + 1, i)()),
+        j -> (1, Mux(j === m, 1, j + 1)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -49,7 +49,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val i = Param("i")()
       StmBuild(
         5,
-        IfThenElse(b, SSome(i)(), NNone(TyInt))(),
+        Mux(b, SSome(i)(), NNone(TyInt))(),
         Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -110,12 +110,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
       StmBuild(
         n,
-        SSome(StmNext(s)().__1)(),
+        SSome(StmNextData(s)())(),
         Map[Param, (Expr, Expr)](
-          s -> (
-            StmCst(n, c)(),
-            StmNext(s)().__0
-          )
+          s -> (StmCst(n, c)(), True)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -128,9 +125,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val s = Param("s")()
       StmBuild(
         n,
-        SSome(StmNext(s)().__1 + 42)(),
+        SSome(StmNextData(s)() + 42)(),
         Map[Param, (Expr, Expr)](
-          s -> (StmCount(n)(), StmNext(s)().__0)
+          s -> (StmCount(n)(), True)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -265,7 +262,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   }
 
   test("ComplexLet") {
-    // (1) Uses constructs like IfThenElse, VecAccess, TupleAccess that
+    // (1) Uses constructs like Mux, VecAccess, TupleAccess that
     //     require intermediate signals (or, in this case, variables)
     // (2) Refers to variables outside the Let
     val n = 5
@@ -288,7 +285,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
               Let(
                 y,
                 a.__1,
-                IfThenElse(
+                Mux(
                   Tuple(j)().__0 % 2 === 0,
                   Tuple(x + VecAccess(v, 0)(), y + VecAccess(v, 1)())(),
                   Tuple(y + VecAccess(v, 0)(), x + VecAccess(v, 1)())()
@@ -381,14 +378,31 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )
     )
 
+    val f0 = Function(s, slide)().tchk()
+    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
+
     val optimized = StmSimplifier.simplify(slide)().tchk().lower()
     val f1 = Function(s, optimized)().tchk()
     assert(TestRunner.testExpr(f1, inputs) == TestPassed)
+  }
 
-    // TODO: The un-optimized version fails due to out-of-bounds array access
-    //       due to if-then-else not short circuiting
-    assume(false)
-    val f0 = Function(s, slide)().tchk()
-    assert(TestRunner.testExpr(f0, inputs) == TestPassed)
+  /** The result of accessing a vector out of bounds should be consistent
+    * between hardware and software.
+    */
+  test("OutOfBoundsVecAccess") {
+    val m = 5
+    val n = 3 * m + 4
+    val v = Param("v")()
+    val i = Param("i")()
+    val s = StmBuild(
+      n,
+      SSome(VecAccess(v, i)())(),
+      Map[Param, (Expr, Expr)](
+        i -> (-2 - m, i + 1),
+        v -> (VecBuild(m, TyInt ::+ (i => 10 * (i + 1)))(), v)
+      )
+    )().tchk().lower()
+
+    assert(TestRunner.testExpr(s) == TestPassed)
   }
 }

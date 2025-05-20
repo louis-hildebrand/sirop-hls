@@ -62,11 +62,11 @@ class LoweringTests extends AnyFunSuite {
     assert(actual.typ == TyInt)
   }
 
-  test("UncurryFunction:IfThenElse") {
+  test("UncurryFunction:Mux") {
     val g0 = TyInt ::+ (_ => 0)
     val g1 = TyInt ::+ (x => 100 / x)
     val x = Param("x")(TyInt)
-    val g = IfThenElse(x === 0, g0, g1)()
+    val g = Mux(x === 0, g0, g1)()
     val f = Function(x, g)().tchk()
     val exc = intercept[IllegalArgumentException](f.uncurry())
     assert(

@@ -29,7 +29,7 @@ private[gen] case class VhdlFunction(
       case ImpureFunction => "impure"
     }
     val argList =
-      args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString(", ")
+      args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString("; ")
     s"$pureOrImpure function $name ($argList) return ${returnType.vhdlTypeMark}"
   }
 
@@ -43,7 +43,7 @@ private[gen] case class VhdlFunction(
     }
     val varAssignments = decls
       .flatMap({
-        case x: Variable                 => Some(s"${x.name} := ${x.assign};")
+        case x: VhdlVariable             => Some(x.assignStmt)
         case _: VhdlFunction | _: Signal => None
       })
       .mkString("\n")
@@ -76,8 +76,11 @@ private[gen] sealed trait VarOrSigDecl extends Decl {
   val typ: VhdlType
 }
 
-private[gen] case class Variable(name: String, typ: VhdlType, assign: String)
-    extends VarOrSigDecl {
+private[gen] case class VhdlVariable(
+    name: String,
+    typ: VhdlType,
+    assignStmt: String
+) extends VarOrSigDecl {
   override def vhdlDecl: String = s"variable $name : ${typ.vhdlName};"
 }
 

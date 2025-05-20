@@ -1,5 +1,6 @@
 package ir
 
+import operations.VecShiftLeft
 import opt.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,17 +25,17 @@ class CoreTests extends AnyFunSuite {
     assert(x * y * z * w * x != Prod(z, x, y, w)())
   }
 
-  test("IfThenElse:MakeCondPositive") {
+  test("Mux:MakeCondPositive") {
     val c = Param("c")()
     val t = Param("t")()
     val f = Param("f")()
 
-    val e0 = IfThenElse(c, t, f)()
+    val e0 = Mux(c, t, f)()
     assert(e0.c == c)
     assert(e0.t == t)
     assert(e0.f == f)
 
-    val e1 = IfThenElse(Not(c)(), f, t)()
+    val e1 = Mux(Not(c)(), f, t)()
     assert(e0 == e1)
   }
 
@@ -52,14 +53,14 @@ class CoreTests extends AnyFunSuite {
     val s = Param("s")()
     val v = Param("v")()
 
-    val untyped = 5 + StmNext(s)().__1
-    assert(untyped.substitute(StmNext(s)().__1 -> v) == 5 + v)
+    val untyped = 5 + StmNextData(s)()
+    assert(untyped.substitute(StmNextData(s)() -> v) == 5 + v)
 
     val typed = untyped.tchk(Map(s -> TyStm(TyInt, 2)))
-    assert(typed.substitute(StmNext(s)().__1 -> v) == 5 + v)
+    assert(typed.substitute(StmNextData(s)() -> v) == 5 + v)
 
     val subbedSameType =
-      typed.subPreserveType(StmNext(s)().__1 -> v.rebuild(TyInt))
+      typed.subPreserveType(StmNextData(s)() -> v.rebuild(TyInt))
     assert(subbedSameType == 5 + v)
     assert(subbedSameType.typ == TyInt)
   }
@@ -69,16 +70,16 @@ class CoreTests extends AnyFunSuite {
     val x2 = Param("x2")(TyInt)
     val y = Param("y")(TyStm(TyInt, 5))
     val untyped = Tuple(
-      StmNext(y)().__1,
+      StmNextData(y)(),
       Function(
         x,
         Tuple(
-          StmNext(y)().__1 + 2,
-          Function(y, StmNext(y)().__1 * 3)()
+          StmNextData(y)() + 2,
+          Function(y, StmNextData(y)() * 3)()
         )()
       )()
     )()
-    val subs = Map[Expr, Expr](StmNext(y)().__1 -> Mod(x, 2)(TyInt))
+    val subs = Map[Expr, Expr](StmNextData(y)() -> Mod(x, 2)(TyInt))
     val expected = Tuple(
       x % 2,
       // (1) Need to rename the variable in the outer function to avoid
@@ -86,7 +87,7 @@ class CoreTests extends AnyFunSuite {
       // (2) Must NOT replace the StmNext(y).__1 in the innermost function
       //     because that occurrence of y is referring to the function
       //     parameter, not y in the global scope.
-      Function(x2, Tuple(x % 2 + 2, Function(y, StmNext(y)().__1 * 3)())())()
+      Function(x2, Tuple(x % 2 + 2, Function(y, StmNextData(y)() * 3)())())()
     )()
 
     val actual0 = untyped.substitute(subs)
@@ -120,7 +121,7 @@ class CoreTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         x -> (
           Tuple(True, False)(),
-          IfThenElse(
+          Mux(
             x.__1,
             Tuple(True, False)(),
             Tuple(False, True)()
@@ -139,7 +140,7 @@ class CoreTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           x2 -> (
             Tuple(True, False)(),
-            IfThenElse(
+            Mux(
               x2.__1,
               Tuple(True, False)(),
               Tuple(False, True)()
@@ -160,6 +161,55 @@ class CoreTests extends AnyFunSuite {
     val actual2 = typed.subPreserveType(subs)
     assert(actual2 == expected)
     assert(actual2.typ != Missing)
+  }
+
+  test("SubstituteInType1") {
+    val n = Param("n")(TyInt)
+    val e = Tuple(VecBuild(n * 2, TyInt ::+ (i => i))(), n + 1)().tchk()
+    val expectedType = TyTuple(TyVec(TyInt, n * 2), TyInt)
+    assert(e.typ == expectedType)
+
+    val actual = e.subPreserveType(n -> IntCst(42))
+
+    val expected =
+      Tuple(
+        VecBuild(IntCst(42) * IntCst(2), TyInt ::+ (i => i))(),
+        IntCst(42) + IntCst(1)
+      )()
+    assert(actual == expected)
+    val expectedTypeAfterSub =
+      TyTuple(TyVec(TyInt, IntCst(42) * IntCst(2)), TyInt)
+    assert(actual.typ == expectedTypeAfterSub)
+  }
+
+  test("SubstituteInType2") {
+    val n = Param("n")(TyInt)
+    val m = Param("m")(TyInt)
+    val k = Param("k")(TyInt)
+    val v = Param("v")()
+    val e = StmBuild(
+      n,
+      SSome(VecAccess(v, 0)())(),
+      Map[Param, (Expr, Expr)](
+        v -> (VecBuild(n, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+      )
+    )().tchk()
+
+    val actual = e.subPreserveType(n -> (m + k))
+
+    val expected = StmBuild(
+      m + k,
+      SSome(VecAccess(v, 0)())(),
+      Map[Param, (Expr, Expr)](
+        v -> (VecBuild(m + k, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+      )
+    )()
+    assert(actual == expected)
+    val expectedStmType = TyStm(TyInt, m + k)
+    assert(actual.typ == expectedStmType)
+    val expectedVecType = TyVec(TyInt, m + k)
+    val actualVecParam = actual.asInstanceOf[StmBuild].equations.toSeq.head._1
+    assert(actualVecParam.typ == expectedVecType)
   }
 
   test("Function:Equals") {
@@ -385,7 +435,7 @@ class CoreTests extends AnyFunSuite {
     // The existing bound variable should be renamed
     val i = Param("i")()
     val expectedOutCtrSeed = IntCst(0)
-    val expectedOutCtrNext = IfThenElse(IsSome(out)(), outCtr + 1, outCtr)()
+    val expectedOutCtrNext = Mux(IsSome(out)(), outCtr + 1, outCtr)()
     val expected = StmBuild(
       n,
       out,
@@ -416,20 +466,16 @@ class CoreTests extends AnyFunSuite {
     )
     val original = StmBuild(
       n,
-      IfThenElse(
+      Mux(
         FunCall(f, i)(),
-        SSome(StmNext(s)().__1)(),
+        SSome(StmNextData(s)())(),
         NNone(TyInt)
       )(),
       Map[Param, (Expr, Expr)](
         i -> (3, i + 1),
         s -> (
           input,
-          IfThenElse(
-            FunCall(f, i)(),
-            StmNext(s)().__0,
-            IfThenElse(FunCall(g, inCtr)(), StmNext(s)().__0, s)()
-          )()
+          FunCall(f, i)() || FunCall(g, inCtr)()
         ),
         inCtr -> (1, inCtr + 2)
       )
@@ -449,29 +495,20 @@ class CoreTests extends AnyFunSuite {
     val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1) }).get._1
     val expectedInCtrSeed = IntCst(0)
     val expectedInCtrNext =
-      IfThenElse(
-        (Not(FunCall(f, freshI)())() && FunCall(g, j)())
-          || FunCall(f, freshI)(),
-        inCtr + 1,
-        inCtr
-      )()
+      Mux(FunCall(f, freshI)() || FunCall(g, j)(), inCtr + 1, inCtr)()
     val expected =
       StmBuild(
         n,
-        IfThenElse(
+        Mux(
           FunCall(f, freshI)(),
-          SSome(StmNext(s)().__1)(),
+          SSome(StmNextData(s)())(),
           NNone(TyInt)
         )(),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (
             input,
-            IfThenElse(
-              FunCall(f, freshI)(),
-              StmNext(s)().__0,
-              IfThenElse(FunCall(g, j)(), StmNext(s)().__0, s)()
-            )()
+            FunCall(f, freshI)() || FunCall(g, j)()
           ),
           j -> (1, j + 2),
           inCtr -> (0, expectedInCtrNext)

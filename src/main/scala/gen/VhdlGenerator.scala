@@ -161,9 +161,7 @@ object VhdlGenerator {
           // Check how the stream accumulator is updated.
           internalProducerEquations
             .map({ case (x, (_, next)) =>
-              // TODO: Partially evaluate?
-              val c = StmBuild.stmNextCallCondition(next, x)
-              val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(c)
+              val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(next)
               (x -> vhdl, decls)
             })
             ++ whereUsedByInput.flatMap({
@@ -171,9 +169,7 @@ object VhdlGenerator {
               // Check how the stream accumulator is updated.
               case (x, Here) =>
                 val next = s.nextByVar(x)
-                // TODO: Partially evaluate?
-                val c = StmBuild.stmNextCallCondition(next, x)
-                val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(c)
+                val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(next)
                 Some(x -> vhdl, decls)
               // CASE 3 (external producers used nowhere).
               // Never read from it.

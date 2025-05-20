@@ -22,9 +22,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def /(that: Expr): Div = Div(this, that)()
   def %(that: Expr): Mod = Mod(this, that)()
   def ===(that: Expr): Equal = Equal(this, that)()
-  def !==(that: Expr): Expr = Not(Equal(this, that)())()
+  def !==(that: Expr): Expr = !(this === that)
   def <(that: Expr): LessThan = LessThan(this, that)()
-  def <=(that: Expr): Not = Not(this > that)()
+  def <=(that: Expr): Not = !(this > that)
   def >(that: Expr): LessThan = that < this
   def >=(that: Expr): Not = that <= this
   def unary_! : Not = Not(this)()
@@ -124,7 +124,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
 
       case True  => True
       case False => False
-      case ite @ IfThenElse(c, t, f) =>
+      case mux @ Mux(c, t, f) =>
         val newC = c.tchk
         newC.typ match {
           case TyBool => ()
@@ -133,7 +133,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newT = t.tchk
         val newF = f.tchk
         if (newT.typ.isCompatibleWith(newF.typ)) {
-          ite.rebuild(newT.typ, Seq(newC, newT, newF))
+          mux.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
             s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
@@ -259,23 +259,23 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
 
       case s: StmBuild =>
-        val newN = s.n.tchk
-        newN.typ match {
-          case TyInt => ()
-          case t     => throw new TypeError(s"Length of StmBuild has type $t.")
-        }
+        val newN = s.n.tchk.expectType(TyInt)
         val newSeedByVar = s.seedByVar.map({ case (x, z) => x -> z.tchk })
         val newContext = newSeedByVar.foldLeft(context)({ case (ctx, (x, z)) =>
           ctx + (x -> z.typ)
         })
         val newNextByVar = s.nextByVar.map({ case (x, next) =>
-          val newNext = next.tchk(newContext)
           val initTyp = newSeedByVar(x).typ
-          if (initTyp.isCompatibleWith(newNext.typ)) {
+          val newNext = next.tchk(newContext)
+          val expectedNextTyp = initTyp match {
+            case _: TyStm => TyBool
+            case t        => initTyp
+          }
+          if (newNext.typ ~= expectedNextTyp) {
             x -> newNext
           } else {
             throw new TypeError(
-              s"Next value for accumulator $x has type ${newNext.typ} but the initial value has type $initTyp."
+              s"Next value for accumulator $x has type ${newNext.typ}. Expected type $expectedNextTyp."
             )
           }
         })
@@ -296,12 +296,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
         StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
-      case sn @ StmNext(s) =>
+      case sn @ StmNextData(s) =>
         val newS = s.tchk
         newS.typ match {
-          case TyStm(t, n) =>
-            sn.rebuild(TyTuple(TyStm(t, n - 1), t), Seq(newS))
-          case t => throw new TypeError(s"Argument of StmNext has type $t.")
+          case TyStm(t, _) => sn.rebuild(t, Seq(newS))
+          case t => throw new TypeError(s"Argument of StmNextData has type $t.")
         }
       case sn @ StmNextK(s, k) =>
         val newK = k.tchk
@@ -477,6 +476,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   /** Perform all the given substitutions on this expression. Substitutions does
     * <i>not</i> necessarily preserve type annotations.
     */
+  @deprecated
   def substitute(subs: Map[Expr, Expr]): Expr = {
     if (subs.isEmpty) {
       this
@@ -518,6 +518,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   /** Perform all the given substitutions on this expression. Substitutions does
     * <i>not</i> necessarily preserve type annotations.
     */
+  @deprecated
   def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
 
   /** Perform a substitution while preserving all type annotations.
@@ -553,7 +554,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 renamed.n.subPreserveType(subs),
                 renamed.output.subPreserveType(subs),
                 renamed.equations.map({ case (x, (z, next)) =>
-                  x -> (z.subPreserveType(subs), next.subPreserveType(subs))
+                  val newX = x.subPreserveType(subs).asInstanceOf[Param]
+                  val newZ = z.subPreserveType(subs)
+                  val newNext = next.subPreserveType(subs)
+                  newX -> (newZ, newNext)
                 })
               )(s.typ)
             case e =>
@@ -563,11 +567,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
     if (this.hasType) {
       assert(
-        out.typ.isCompatibleWith(this.typ),
+        out.typ ~= this.typ,
         s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ})"
       )
     }
-    out
+    // The expressions to replace may occur within the type (e.g., in the
+    // length of a vector)
+    val newType = this.typ.substitute(subs)
+    out.rebuild(newType)
   }
 
   /** Perform a substitution while preserving all type annotations.
@@ -648,19 +655,17 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Param       => 13
       case _: TupleAccess => 14
       case _: FunCall     => 15
-      case _: IfThenElse  => 16
+      case _: Mux         => 16
       case _: Tuple       => 17
       case _: Function    => 18
       case _: StmBuild    => 19
-      case _: StmNext     => 20
-      case _: StmLength   => 21
-      case _: VecBuild    => 22
-      case _: VecAccess   => 23
-      case _: VecLength   => 24
-      case _: VecLiteral  => 25
-      case _: StmLiteral  => 26
-      case _: StmNextK    => 27
-      case _: SyntaxSugar => 28
+      case _: StmNextData => 20
+      case _: VecBuild    => 21
+      case _: VecAccess   => 22
+      case _: VecLiteral  => 23
+      case _: StmLiteral  => 24
+      case _: StmNextK    => 25
+      case _: SyntaxSugar => 26
     }
   }
 }
@@ -898,26 +903,22 @@ sealed abstract class BoolCst extends BoolExpr()(TyBool) {
 case object True extends BoolCst
 case object False extends BoolCst
 
-// This is similar to TupleAccess(Tuple(falseE, trueE), cond), as long as
-// False is interpreted as 0 and True as 1.
-// However, IfThenElse does *not* evaluate the branch that's not taken, which
-// is important in cases like calling StmNext() or memory accesses.
-case class IfThenElse(c: Expr, t: Expr, f: Expr)(typ: Type)
+case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
     extends Expr(c, t, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(c, t, f) => IfThenElse(c, t, f)(typ)
+      case Seq(c, t, f) => Mux(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
 }
-case object IfThenElse {
+case object Mux {
   def apply(c: Expr, t: Expr, f: Expr)(
       typ: Type = Missing
-  ): IfThenElse = {
+  ): Mux = {
     c match {
-      case Not(c) => new IfThenElse(c, f, t)(typ)
-      case c      => new IfThenElse(c, t, f)(typ)
+      case Not(c) => new Mux(c, f, t)(typ)
+      case c      => new Mux(c, t, f)(typ)
     }
   }
 }
@@ -1165,7 +1166,7 @@ case class StmBuild(
         // Rename accumulator variables in case some of them are also being
         // used by the consumer stream
         val producerStm = e.renameVars
-        val readyCond = stmNextCallCondition(consumerStm, x)
+        val readyCond = consumerStm.nextByVar(x)
         assert(readyCond.typ == TyBool, "stream call condition must be a bool")
         val newOutput = fusedOutput(
           consumer = consumerStm,
@@ -1230,14 +1231,14 @@ case class StmBuild(
   ): Expr = {
     val consumerTyp = consumer.typ.asInstanceOf[TyStm]
     val producerTyp = producer.typ.asInstanceOf[TyStm]
-    IfThenElse(
+    Mux(
       ready,
       // CASE 1: Consumer is ready (i.e., reading from producer).
       OptionAccess(
         producer.output,
         // CASE 1a: Producer yielded a valid value. Proceed as usual.
         producerTyp.t ::+ (v =>
-          consumer.output.subPreserveType(StmNext(x)().__1 -> v)
+          consumer.output.subPreserveType(StmNextData(x)() -> v)
         ),
         // CASE 1b: Producer did NOT yield a valid value.
         //          The consumer cannot proceed.
@@ -1247,7 +1248,7 @@ case class StmBuild(
       //         Proceed as usual, but with the default value for the producer
       //         output (this should not be read).
       consumer.output.subPreserveType(
-        StmNext(x)().__1 -> Default(producerTyp.t)
+        StmNextData(x)() -> Default(producerTyp.t)
       )
     )().tchk()
   }
@@ -1278,7 +1279,7 @@ case class StmBuild(
       case (y, (z, next)) =>
         y -> (
           z,
-          IfThenElse(
+          Mux(
             ready,
             // CASE 1: Consumer is reading from producer.
             OptionAccess(
@@ -1286,17 +1287,20 @@ case class StmBuild(
               // CASE 1a: Producer yielded a valid value.
               //          Update the accumulators.
               producerTyp.t ::+ (v =>
-                next.subPreserveType(StmNext(x)().__1 -> v)
+                next.subPreserveType(StmNextData(x)() -> v)
               ),
               // CASE 1b: Producer did NOT yield a valid value.
               //          Do not update accumulators until it does.
-              TyTuple() ::+ (_ => y)
+              y.typ match {
+                case _: TyStm => TyTuple() ::+ (_ => False)
+                case _        => TyTuple() ::+ (_ => y)
+              }
             )(),
             // CASE 2: Consumer is not reading from producer.
             //         Update as usual, but with the default value for the
             //         producer output (this should not be read).
             next.subPreserveType(
-              StmNext(x)().__1 -> Default(producerTyp.t)
+              StmNextData(x)() -> Default(producerTyp.t)
             )
           )().tchk().lower()
         )
@@ -1320,14 +1324,17 @@ case class StmBuild(
       case (x, (z, next)) =>
         x -> (
           z,
-          IfThenElse(
+          Mux(
             readyCond,
             // CASE 1: Consumer is reading from producer.
             //         Update accumulators.
             next,
             // CASE 2: Consumer is not reading from input.
             //         Producer does nothing.
-            x
+            x.typ match {
+              case _: TyStm => False
+              case _        => x
+            }
           )().tchk()
         )
     }
@@ -1349,7 +1356,7 @@ case class StmBuild(
       else
         this
     val z = IntCst(0)
-    val next = IfThenElse(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
+    val next = Mux(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1372,8 +1379,8 @@ case class StmBuild(
       else
         this
     val z = IntCst(0)
-    val stmNextCalled = stmNextCallCondition(s, x)
-    val next = IfThenElse(stmNextCalled, inCtr + 1, inCtr)(TyInt)
+    val stmNextCalled = s.nextByVar(x)
+    val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -1386,14 +1393,6 @@ case class StmBuild(
       && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
     val t = if (isTyped) this.typ else Missing
     StmBuild(this.n, this.output, newEquations)(t)
-  }
-
-  /** Construct a boolean expression <code>c</code> such that, in
-    * <code>stm</code>, the accumulator variable <code>x</code> is updated to
-    * <code>StmNext(x).0</code> iff <code>c</code> evaluates to true.
-    */
-  private def stmNextCallCondition(stm: StmBuild, x: Param): Expr = {
-    StmBuild.stmNextCallCondition(stm.nextByVar(x), x)
   }
 
   /** Find the direct dependencies between accumulator variables in this stream.
@@ -1521,30 +1520,12 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
-
-  def stmNextCallCondition(e: Expr, x: Param): Expr = {
-    e match {
-      case TupleAccess(StmNext(y), IntCst(0)) if y == x => True
-      case y if y == x                                  => False
-      case IfThenElse(c, t, f) =>
-        val ct = stmNextCallCondition(t, x)
-        val cf = stmNextCallCondition(f, x)
-        (c && ct) || (!c && cf)
-      case e =>
-        throw new IllegalArgumentException(
-          s"Illegal update to a stream-valued accumulator element: $e."
-        )
-    }
-  }
 }
 
-// element only available for one clock cycle
-case class StmNext(stream: Expr /* Stream<A>*/ )(typ: Type = Missing)
-/* (Stream<A>, A) */
-    extends Expr(stream)(typ) {
+case class StmNextData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNext(s)(typ)
+      case Seq(s) => StmNextData(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1602,8 +1583,6 @@ object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
     StmLiteral(elems.map(n => IntCst(n)): _*)()
   }
-
-  val nil: StmLiteral = StmLiteral(Seq[Expr](): _*)()
 }
 
 case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(

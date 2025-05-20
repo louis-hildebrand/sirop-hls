@@ -3,6 +3,8 @@ package opt
 import ir._
 import operations.{CeilDiv, Max}
 
+// You may need to don a hazmat suit before working on this code.
+
 /** Induction variables are accumulator elements which can be expressed as a
   * function of <code>t</code>, where <code>t</code> is a counter which starts
   * at zero and counts up by one. This pass tries to remove those accumulator
@@ -73,6 +75,11 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   }
 
   private def findClosedForms(s: StmBuild): Map[Param, Function] = {
+    if (s.typ == Missing) {
+      throw new IllegalArgumentException(
+        s"The stream should be type-checked before trying to remove induction variables."
+      )
+    }
     if (s.contains(classOf[SyntaxSugar])) {
       throw new IllegalArgumentException(
         s"The stream should be lowered before trying to remove induction variables."
@@ -116,7 +123,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               PartialEvalPass.partialEval(nextExpr)(this.facts.geq(t, 0))
             )()
           )()
-          tryFindClosedForm(0, z, next) match {
+          RecurrenceSolver.tryFindClosedForm(0, z, next) match {
             case Some(f) =>
               val peF =
                 PartialEvalPass
@@ -132,7 +139,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             equations = s.equations.filter({ case (x, _) => v.contains(x) }),
             t = t
           )
-          tryFindClosedForm(0, z, next) match {
+          val typedNext = next.tchk().asInstanceOf[Function]
+          RecurrenceSolver.tryFindClosedForm(0, z.tchk(), typedNext) match {
             case Some(f) =>
               for ((i, x) <- paramByIndex) {
                 val g = Function(
@@ -177,7 +185,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       val x = paramByIndex(i)
       equations(x)._1
     }): _*)()
-    val acc = Param("acc")()
+    val tupleType = TyTuple(
+      (0 until equations.size).map(i => paramByIndex(i).typ): _*
+    )
+    val acc = Param("acc")(tupleType)
     val subs: Map[Expr, Expr] =
       paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i)() })
     val next = Function(
@@ -265,7 +276,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     e match {
       case s: StmNextK =>
         val sChk = s.tchk().asInstanceOf[StmNextK]
-        tryFindRecursiveForm(sChk, t)(facts) match {
+        RecurrenceSolver.tryFindRecursiveForm(sChk, t)(facts) match {
           case Some((z, f)) =>
             val r = Param("r")()
             Some((r, Map(r -> (z, f))))
@@ -280,7 +291,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 case (newBody, xs) => (f.rebuild(Seq(i, newBody)), xs)
               })
             )
-          case IfThenElse(c, tru, fals) =>
+          case Mux(c, tru, fals) =>
             Seq(
               replaceStmNextK(c, t)(facts),
               replaceStmNextK(tru, t)(facts.assumeTrue(c)),
@@ -300,6 +311,23 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         }
     }
   }
+}
+
+object StmInductionVarRemovalPass {
+  def apply(facts: FactSet = FactSet()): StmInductionVarRemovalPass = {
+    new StmInductionVarRemovalPass(facts)
+  }
+}
+
+object RecurrenceSolver {
+
+  def tryFindClosedForm(t0: Expr, z: Expr, next: Function): Option[Function] = {
+    z.typ match {
+      case _: TyStm                   => tryFindStmClosedForm(z, next)
+      case t if Default.hasDefault(t) => tryFindDataClosedForm(t0, z, next)
+      case _                          => None
+    }
+  }
 
   /** Attempt to convert a recurrence equation of the form
     * {{{
@@ -308,12 +336,16 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     * }}}
     * to a function of <code>t</code>.
     */
-  def tryFindClosedForm(
+  private def tryFindDataClosedForm(
       t0: Expr,
       z: Expr,
       next: Function
   ): Option[Function] = {
     val t = next.param
+    require(
+      !z.typ.isInstanceOf[TyStm],
+      s"Input must not be a stream. Use tryFindStmClosedForm instead."
+    )
     (z, next) match {
       case (z, Function(t, Function(x0, x1))) if x0 == x1 =>
         // Identity
@@ -324,7 +356,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         Some(
           Function(
             t,
-            IfThenElse(t === 0, z, e.substitute(t -> (t - 1)))()
+            Mux(t === 0, z, e.substitute(t -> (t - 1)))()
           )()
         )
       case Counter(delta) => Some(Function(t, z + (t - t0) * delta)())
@@ -335,7 +367,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             VecBuild(
               n,
               TyInt ::+ (i =>
-                IfThenElse(
+                Mux(
                   // Imagine the vector is a fixed, infinite tape and we're
                   // moving to the right as time goes along.
                   //   [f(0), f(1), ..., f(n - 1), g(0), g(1), ...]
@@ -347,23 +379,18 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             )()
           )()
         )
-      case (
-            s,
-            Function(t, Function(x0, TupleAccess(StmNext(x1), IntCst(0))))
-          ) if x0 == x1 =>
-        Some(Function(t, StmNextK(s, t - t0)())())
       case Piecewise(k, f, g) =>
-        tryFindClosedForm(t0, z, f) match {
+        tryFindDataClosedForm(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
             val t1 = Max(k, t0)
             val valAtT1 = FunCall(f, t1)()
-            tryFindClosedForm(t1, valAtT1, g) match {
+            tryFindDataClosedForm(t1, valAtT1, g) match {
               case Some(g) =>
                 Some(
                   Function(
                     t,
-                    IfThenElse(t < t1, FunCall(f, t)(), FunCall(g, t)())()
+                    Mux(t < t1, FunCall(f, t)(), FunCall(g, t)())()
                   )()
                 )
               case None => None
@@ -392,7 +419,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                 acc,
                 Tuple(
                   and @ And(terms @ _*),
-                  boundedCtrUpdate @ IfThenElse(
+                  boundedCtrUpdate @ Mux(
                     TupleAccess(a0, IntCst(0)),
                     ctrUpdateIfTrue,
                     TupleAccess(a1, IntCst(1))
@@ -409,7 +436,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           Function(a, ctrUpdateIfTrue.substitute(acc.__1 -> a))()
         )()
         if (!ctrNext.contains(acc)) {
-          tryFindClosedForm(t0, i0, ctrNext) match {
+          tryFindDataClosedForm(t0, i0, ctrNext) match {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
               val bCondIfUnbounded = bCond.substitute(
@@ -431,7 +458,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                         )
                       )()
                     )()
-                    tryFindClosedForm(t0, i0, boundedCtrNext) match {
+                    tryFindDataClosedForm(t0, i0, boundedCtrNext) match {
                       case Some(h) =>
                         Some(Function(t, Tuple(t < K, FunCall(h, t)())())())
                       case None => None
@@ -447,6 +474,30 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           None
         }
       case _ => None
+    }
+  }
+
+  private def tryFindStmClosedForm(
+      z: Expr,
+      next: Function
+  ): Option[Function] = {
+    require(
+      z.typ.isInstanceOf[TyStm],
+      s"Input must be a stream. Use tryFindDataClosedForm instead."
+    )
+    val nextIdx = next match {
+      case Function(t, Function(x, body)) if !body.contains(x) =>
+        val i = Param("i")(TyInt)
+        Function(t, Function(i, Mux(body, i + 1, i)())())()
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Invalid update function: $next."
+            + " Expected a function of two inputs where the second input is unused."
+        )
+    }
+    tryFindDataClosedForm(t0 = 0, z = 0, next = nextIdx) match {
+      case None                 => None
+      case Some(Function(t, i)) => Some(Function(t, StmNextK(z, i)())())
     }
   }
 
@@ -469,7 +520,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
 
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
       e match {
-        case ite @ IfThenElse(c, lhs, rhs) =>
+        case mux @ Mux(c, lhs, rhs) =>
           (t, Param("p")(), c) match {
             case TimeLessThan(k) =>
               findRec(lhs, t0) match {
@@ -487,8 +538,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
                         val f =
                           Function(
                             t,
-                            ite.typ ::+ (x =>
-                              IfThenElse(
+                            mux.typ ::+ (x =>
+                              Mux(
                                 c,
                                 FunCall(FunCall(f0, t)(), x)(),
                                 FunCall(FunCall(f1, t)(), x)()
@@ -509,7 +560,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.substitute(t -> (t + 1))
-          val deltaK = PartialEvalPass.partialEval(nextK - k)(this.facts)
+          val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
           val isDeltaZeroOrOne = (
             PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
               && PartialEvalPass
@@ -518,12 +569,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           )
           if (isDeltaZeroOrOne) {
             val z = next.substitute(t -> t0)
-            val nextF = Function(
-              t,
-              next.typ ::+ (acc =>
-                IfThenElse(deltaK === 0 || k < 0, acc, StmNext(acc)().__0)()
-              )
-            )()
+            val acc = Param("acc")(next.typ)
+            val nextF =
+              Function(t, Function(acc, (deltaK !== 0) && (k >= 0))())()
             Some((z, nextF))
           } else {
             None
@@ -532,11 +580,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       }
     }
 
-    val pe = PartialEvalPass.partialEval(nxt)(this.facts, MoveUp)
-    val e = pe.tchk()
+    val e = PartialEvalPass.partialEval(nxt)(facts, MoveUp).tchk()
     findRec(e, t0 = 0) match {
       case Some((z_, f_)) =>
-        val z = PartialEvalPass.partialEval(z_)(this.facts)
+        val z = PartialEvalPass.partialEval(z_)(facts)
         // Start reading the stream from the beginning: can't start from the middle
         // TODO: Is this condition really necessary? Maybe I can get away with
         //       just checking that the new z is valid (e.g., it doesn't
@@ -550,19 +597,13 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           case _ => false
         }
         if (initOk) {
-          val f = PartialEvalPass.partialEval(f_)(this.facts)
+          val f = PartialEvalPass.partialEval(f_)(facts)
           Some((nxt.s, f.asInstanceOf[Function]))
         } else {
           None
         }
       case _ => None
     }
-  }
-}
-
-object StmInductionVarRemovalPass {
-  def apply(facts: FactSet = FactSet()): StmInductionVarRemovalPass = {
-    new StmInductionVarRemovalPass(facts)
   }
 }
 
@@ -624,7 +665,7 @@ object LeftShiftRegister {
                   n1,
                   Function(
                     i0: Param,
-                    IfThenElse(
+                    Mux(
                       Equal(i1, n2),
                       e,
                       VecAccess(a2, Sum(IntCst(1), i2))
@@ -675,7 +716,7 @@ object Piecewise {
 object TimeLessThan {
   def unapply(args: (Param, Param, Expr)): Option[Expr] = {
     val (t, acc, lt) = args
-    (t, acc, IfThenElse(lt, True, False)()) match {
+    (t, acc, Mux(lt, True, False)()) match {
       case IfTimeLessThan(k, True, False) => Some(k)
       case _                              => None
     }
@@ -711,7 +752,7 @@ object IfLessThan {
   def unapply(args: (Expr, Expr)): Option[(Expr, Expr, Expr)] = {
     val (e, x) = args
     e match {
-      case IfThenElse(LessThan(y, z), a, b) =>
+      case Mux(LessThan(y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
         (PartialEvalPass.partialEval(y - z), x) match {

@@ -42,8 +42,9 @@ object VhdlConversionGenerator {
       name = toSlvConverterName(VhdlBool),
       args = Seq(("b", VhdlBool)),
       returnType = VhdlStdLogicVec(1),
-      decls =
-        Seq(Variable("x", VhdlStdLogicVec(1), "\"1\" when (b) else \"0\"")),
+      decls = Seq(
+        VhdlVariable("x", VhdlStdLogicVec(1), "x := \"1\" when (b) else \"0\";")
+      ),
       ret = "x"
     )
   }

@@ -18,19 +18,19 @@ class OptionSimplifierTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("IfThenElse(i === 42, SSome(x), NNone)") {
+  test("Mux(i === 42, SSome(x), NNone)") {
     val i = Param("i")(TyInt)
     val x = Param("x")(TyInt)
-    val e = IfThenElse(i === 42, SSome(x)(), NNone(TyInt))().tchk().lower()
+    val e = Mux(i === 42, SSome(x)(), NNone(TyInt))().tchk().lower()
     val actual = OptionSimplifier.simplify(e)
     val expected = Tuple(x, i === 42)()
     assert(actual == expected)
   }
 
-  test("IfThenElse(c, SSome(x), NNone)") {
+  test("Mux(c, SSome(x), NNone)") {
     val c = Param("c")(TyBool)
     val x = Param("x")(TyInt)
-    val e = IfThenElse(c, SSome(x)(), NNone(TyInt))().tchk().lower()
+    val e = Mux(c, SSome(x)(), NNone(TyInt))().tchk().lower()
     val actual = OptionSimplifier.simplify(e)
     val expected = Tuple(x, c)()
     assert(actual == expected)

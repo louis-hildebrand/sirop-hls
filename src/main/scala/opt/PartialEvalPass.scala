@@ -4,16 +4,22 @@ import ir._
 
 import scala.annotation.tailrec
 
-sealed trait IfThenElseMotion
-case object MoveUp extends IfThenElseMotion
-case object HeuristicMotion extends IfThenElseMotion
+sealed trait MuxMotion
+case object MoveUp extends MuxMotion
+case object HeuristicMotion extends MuxMotion
 
 object PartialEvalPass {
+  def pe(e: Expr): Expr = {
+    // Mostly for debugging, since the debugger really doesn't seem to handle
+    // implicit and default parameters well
+    partialEval(e)
+  }
+
   def partialEval(
       e: Expr
   )(implicit
       facts: FactSet = FactSet(),
-      m: IfThenElseMotion = HeuristicMotion
+      m: MuxMotion = HeuristicMotion
   ): Expr = {
     val pe = facts.isTrue(e) match {
       case Some(true)  => True
@@ -36,9 +42,9 @@ object PartialEvalPass {
             val newChildren = terms.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x + y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x + y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -49,9 +55,9 @@ object PartialEvalPass {
             val newChildren = factors.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x * y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x * y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -62,9 +68,9 @@ object PartialEvalPass {
             val newChildren = e.children.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x / y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x / y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -75,9 +81,9 @@ object PartialEvalPass {
             val newChildren = e.children.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x % y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x % y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -87,11 +93,19 @@ object PartialEvalPass {
 
           case True  => True
           case False => False
-          case IfThenElse(c, t, f) =>
-            val peIfThenElse =
-              IfThenElse(partialEval(c), partialEval(t), partialEval(f))()
-            ArithSimplifier.simplifyArithmetic(peIfThenElse)(facts) match {
-              case IfThenElse(cond, trueE, falseE) =>
+          case Mux(c, t, f) =>
+            val peMux =
+              Mux(partialEval(c), partialEval(t), partialEval(f))()
+            ArithSimplifier.simplifyArithmetic(peMux)(facts) match {
+              case Mux(
+                    Equal(i0, Sum(IntCst(-1), n0)),
+                    c0,
+                    Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
+                  )
+                  if i0 == i1 && n0 == n1
+                    && isSmaller(i0, n0)(facts).getOrElse(false) =>
+                partialEval(Mux(i0 === -1 + n0, c0, c1)())
+              case Mux(cond, trueE, falseE) =>
                 partialEval(cond) match {
                   case True  => partialEval(trueE)
                   case False => partialEval(falseE)
@@ -143,7 +157,7 @@ object PartialEvalPass {
                       case (True, False) => cond
                       case (False, True) => partialEval(Not(cond)())
                       case (StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                        partialEval(StmNextK(s0, IfThenElse(cond, k0, k1)())())
+                        partialEval(StmNextK(s0, Mux(cond, k0, k1)())())
                       case _ =>
                         cond match {
                           // True branch is special case of false branch
@@ -155,10 +169,10 @@ object PartialEvalPass {
                               if partialEval(t.substitute(p -> r)) == f =>
                             t
                           case _ =>
-                            val x = IfThenElse(cond, t, f)()
+                            val x = Mux(cond, t, f)()
                             if (
-                              isBoolExpr(x)
-                                .getOrElse(false) && !hasSideEffects(x)
+                              isBoolExpr(x).getOrElse(false)
+                              && !x.contains(classOf[StmNextData])
                             ) {
                               partialEval((cond && t) || (Not(cond)() && f))
                             } else {
@@ -172,38 +186,38 @@ object PartialEvalPass {
                 partialEval(e)
             }
           case Equal(e1, e2) =>
-            // For Equal() and LessThan(), move IfThenElse up so that we can deal with things like
+            // For Equal() and LessThan(), move Mux up so that we can deal with things like
             // Min(t - 5, 5) < Min(t - 4, 5). This may cause the expression to explode in size, but since these are
             // booleans I imagine we'll often find opportunities for simplification (e.g., both branches being True, both
-            // being False, IfThenElse(c, True, False) --> c).
+            // being False, Mux(c, True, False) --> c).
             // If this ends up being problematic, we could always try putting a cap on the number of unique conditions in
-            // an IfThenElse and avoid this transformation if the cap is exceeded.
+            // a Mux and avoid this transformation if the cap is exceeded.
             val newChildren =
               Seq(
                 partialEval(e1)(facts, MoveUp),
                 partialEval(e2)(facts, MoveUp)
               )
-            val merged = mergeIfThenElses(newChildren, x => y => x === y)
+            val merged = mergeMuxes(newChildren, x => y => x === y)
             merged match {
-              case ite: IfThenElse => partialEval(ite)
-              case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+              case mux: Mux => partialEval(mux)
+              case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case LessThan(e1, e2) =>
             val newChildren = Seq(
               partialEval(e1)(facts, MoveUp),
               partialEval(e2)(facts, MoveUp)
             )
-            mergeIfThenElses(newChildren, x => y => x < y) match {
-              case ite: IfThenElse => partialEval(ite)
-              case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+            mergeMuxes(newChildren, x => y => x < y) match {
+              case mux: Mux => partialEval(mux)
+              case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case _: And =>
             val newChildren = e.children.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x && y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x && y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -214,9 +228,9 @@ object PartialEvalPass {
             val newChildren = e.children.map(e => partialEval(e))
             m match {
               case MoveUp =>
-                mergeIfThenElses(newChildren, x => y => x || y) match {
-                  case ite: IfThenElse => partialEval(ite)
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                mergeMuxes(newChildren, x => y => x || y) match {
+                  case mux: Mux => partialEval(mux)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
@@ -225,12 +239,12 @@ object PartialEvalPass {
             }
           case Not(e) =>
             partialEval(e) match {
-              case IfThenElse(c, t, f) =>
-                // Move the IfThenElse up in every case because
+              case Mux(c, t, f) =>
+                // Move the Mux up in every case because
                 //  (1) the Not() may cancel with something further down and
                 //  (2) since this is a unary operator, the expression is unlikely
                 //      to grow *that* big.
-                partialEval(IfThenElse(c, Not(t)(), Not(f)())())
+                partialEval(Mux(c, Not(t)(), Not(f)())())
               case e =>
                 ArithSimplifier.simplifyArithmetic(Not(e)())(facts)
             }
@@ -242,14 +256,14 @@ object PartialEvalPass {
             partialEval(t) match {
               case tuple: Tuple =>
                 partialEval(tuple.elems(i))
-              case IfThenElse(c, t, f) =>
-                // Move TupleAccess inside IfThenElse in the hope that it'll
+              case Mux(c, t, f) =>
+                // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
                 // This seems reasonable even if m == HeuristicMotion, since this
                 // is essentially a unary operation; therefore, the expression is
                 // not likely to grow *that* large.
                 partialEval(
-                  IfThenElse(c, TupleAccess(t, i)(), TupleAccess(f, i)())()
+                  Mux(c, TupleAccess(t, i)(), TupleAccess(f, i)())()
                 )
               case t => TupleAccess(t, i)()
             }
@@ -268,25 +282,29 @@ object PartialEvalPass {
             }
           case VecLength(v) =>
             partialEval(v) match {
-              case VecBuild(n, _)      => partialEval(n)
-              case IfThenElse(c, t, f) =>
-                // Move the IfThenElse up in every case because
+              case VecBuild(n, _) => partialEval(n)
+              case Mux(c, t, f)   =>
+                // Move the Mux up in every case because
                 //  (1) the VecLength() may cancel with something further down and
                 //  (2) since this is a unary operator, the expression is unlikely
                 //      to grow *that* big.
-                partialEval(IfThenElse(c, VecLength(t)(), VecLength(f)())())
+                partialEval(Mux(c, VecLength(t)(), VecLength(f)())())
               case v => VecLength(v)()
             }
           case VecAccess(v, i: Expr) =>
             (partialEval(v), partialEval(i)) match {
-              case (IfThenElse(c, t, f), i) =>
-                // Move VecAccess inside IfThenElse in the hope that it'll
+              case (Mux(c, t, f), i) =>
+                // Move VecAccess inside Mux in the hope that it'll
                 // encounter a VecBuild(...)
                 partialEval(
-                  IfThenElse(c, VecAccess(t, i)(), VecAccess(f, i)())()
+                  Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
-              case (v: VecBuild, i) => partialEval(FunCall(v.f, i)())
-              case (v, i)           => VecAccess(v, i)()
+              case (v @ VecBuild(n, f), i) =>
+                val t = v.tchk().typ.asInstanceOf[TyVec].t
+                partialEval(
+                  Mux(i >= 0 && i < n, FunCall(f, i)(), Default(t).lower())()
+                )
+              case (v, i) => VecAccess(v, i)()
             }
 
           case s @ StmBuild(n, out, equations) =>
@@ -295,7 +313,7 @@ object PartialEvalPass {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
                 tryEvalStmNext(s) match {
-                  case Some((_, out)) if !hasSideEffects(out) =>
+                  case Some((out, _)) if !out.contains(classOf[StmNextData]) =>
                     Some(partialEval(out)(facts))
                   case _ => None
                 }
@@ -331,35 +349,21 @@ object PartialEvalPass {
             }
           case StmLength(s) =>
             partialEval(s) match {
-              case s: StmBuild         => partialEval(s.n)
-              case IfThenElse(c, t, f) =>
-                // Move the IfThenElse up in every case because
+              case s: StmBuild  => partialEval(s.n)
+              case Mux(c, t, f) =>
+                // Move the Mux up in every case because
                 //  (1) the StmLength() may cancel with something further down and
                 //  (2) since this is a unary operator, the expression is unlikely
                 //      to grow *that* big.
-                partialEval(IfThenElse(c, StmLength(t)(), StmLength(f)())())
+                partialEval(Mux(c, StmLength(t)(), StmLength(f)())())
               case s @ _ => StmLength(s)()
             }
-          case StmNext(s) =>
-            partialEval(s) match {
-              case s: StmBuild =>
-                tryEvalStmNext(s) match {
-                  case Some((nextStm, out)) => Tuple(nextStm, out)()
-                  case None                 => StmNext(s)()
-                }
-              case IfThenElse(c, t, f) =>
-                // Move the IfThenElse up in every case because
-                //  (1) the StmNext() may cancel with something further down and
-                //  (2) since this is a unary operator, the expression is unlikely
-                //      to grow *that* big.
-                partialEval(IfThenElse(c, StmNext(t)(), StmNext(f)())())
-              case s => StmNext(s)()
-            }
+          case StmNextData(s) => StmNextData(partialEval(s))()
           case StmNextK(s, k) =>
             val peStm = partialEval(s)
             partialEval(k) match {
-              case IfThenElse(c, t, f) if m == MoveUp =>
-                IfThenElse(
+              case Mux(c, t, f) if m == MoveUp =>
+                Mux(
                   c,
                   partialEval(StmNextK(peStm, t)()),
                   partialEval(StmNextK(peStm, f)())
@@ -442,24 +446,24 @@ object PartialEvalPass {
     isSmallerOrEqual(e2, e1)(facts)
   }
 
-  private def mergeIfThenElses(
+  private def mergeMuxes(
       exprs: Seq[Expr],
       op: Expr => Expr => Expr
   ): Expr = {
     exprs.tail.foldLeft(exprs.head)({ case (acc, e) =>
       (acc, e) match {
-        case (IfThenElse(c1, t1, f1), IfThenElse(c2, t2, f2)) if (c1 == c2) =>
-          IfThenElse(c1, op(t1)(t2), op(f1)(f2))()
-        case (IfThenElse(c1, t1, f1), IfThenElse(c2, t2, f2)) =>
-          IfThenElse(
+        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) if c1 == c2 =>
+          Mux(c1, op(t1)(t2), op(f1)(f2))()
+        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) =>
+          Mux(
             c1,
-            IfThenElse(c2, op(t1)(t2), op(t1)(f2))(),
-            IfThenElse(c2, op(f1)(t2), op(f1)(f2))()
+            Mux(c2, op(t1)(t2), op(t1)(f2))(),
+            Mux(c2, op(f1)(t2), op(f1)(f2))()
           )()
-        case (e1, IfThenElse(c, t, f)) =>
-          IfThenElse(c, op(e1)(t), op(e1)(f))()
-        case (IfThenElse(c, t, f), e2) =>
-          IfThenElse(c, op(t)(e2), op(f)(e2))()
+        case (e1, Mux(c, t, f)) =>
+          Mux(c, op(e1)(t), op(e1)(f))()
+        case (Mux(c, t, f), e2) =>
+          Mux(c, op(t)(e2), op(f)(e2))()
         case (e1, e2) =>
           op(e1)(e2)
       }
@@ -481,38 +485,73 @@ object PartialEvalPass {
     }
   }
 
-  @tailrec
   private def tryEvalStmNext(
-      s: StmBuild,
+      stm: StmBuild,
       stepsWithoutValid: Int = 0
-  ): Option[(StmBuild, Expr)] = {
+  ): Option[(Expr, StmBuild)] = {
     if (stepsWithoutValid >= 10) {
       None
     } else {
-      s.n match {
-        case IntCst(n) if n > 0 =>
-          val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
-          partialEval(s.output.substitute(currentValByVar)) match {
-            case Tuple(e, True) =>
-              val nextEquations = s.equations.map({ case (x, (_, next)) =>
-                val evaluatedNext =
-                  partialEval(next.substitute(currentValByVar))
-                x -> (evaluatedNext, next)
+      val s =
+        try {
+          Some(stm.tchk().asInstanceOf[StmBuild])
+        } catch {
+          case _: TypeError => None
+        }
+      s match {
+        case Some(s) =>
+          s.n match {
+            case IntCst(n) if n > 0 =>
+              val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
+              val inputStreamOptions = s.equations.flatMap({
+                case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
+                  partialEval(next.substitute(currentValByVar)) match {
+                    case False =>
+                      val t = x.typ.asInstanceOf[TyStm].t
+                      val head = evalBigStep(Default(t).lower())
+                      Some(Some(x -> (head, z)))
+                    case True =>
+                      val maybeHeadAndTail = z match {
+                        case s: StmBuild => tryEvalStmNext(s)
+                        case _           => None
+                      }
+                      Some(maybeHeadAndTail.map(nxt => x -> nxt))
+                    case _ => None
+                  }
+                case (x, _) =>
+                  assert(x.typ != Missing)
+                  None
               })
-              Some(StmBuild(n - 1, s.output, nextEquations)(), e)
-            case Tuple(_, False) =>
-              val nextEquations = s.equations.map({ case (x, (_, next)) =>
-                val evaluatedNext =
-                  partialEval(next.substitute(currentValByVar))
-                x -> (evaluatedNext, next)
-              })
-              tryEvalStmNext(
-                StmBuild(s.n, s.output, nextEquations)(),
-                stepsWithoutValid = stepsWithoutValid + 1
-              )
+              if (inputStreamOptions.exists(x => x.isEmpty)) {
+                None
+              } else {
+                val inputStreams = inputStreamOptions.map(x => x.get).toMap
+                val subs = inputStreams.foldLeft(currentValByVar)({
+                  case (acc, (x, (head, _))) => acc + (StmNextData(x)() -> head)
+                })
+                val nextEquations = s.equations.map({
+                  case (x, (_, next)) if x.typ.isInstanceOf[TyStm] =>
+                    val (_, tail) = inputStreams(x)
+                    x -> (tail, next)
+                  case (x, (_, next)) =>
+                    val evaluatedNext = partialEval(next.substitute(subs))
+                    x -> (evaluatedNext, next)
+                })
+                val evaluatedOutput = partialEval(s.output.substitute(subs))
+                evaluatedOutput match {
+                  case Tuple(v, True) =>
+                    Some((v, StmBuild(n - 1, s.output, nextEquations)()))
+                  case Tuple(_, False) =>
+                    tryEvalStmNext(
+                      StmBuild(n, s.output, nextEquations)(),
+                      stepsWithoutValid + 1
+                    )
+                  case _ => None
+                }
+              }
             case _ => None
           }
-        case _ => None
+        case None => None
       }
     }
   }
@@ -522,15 +561,6 @@ object PartialEvalPass {
       Some(e.tchk().typ == TyBool)
     } catch {
       case _: TypeError => None
-    }
-  }
-
-  private def hasSideEffects(e: Expr): Boolean = {
-    e match {
-      case _: VecLength => false
-      case _: StmLength => false
-      case _: StmNext   => true
-      case e            => e.children.exists(c => hasSideEffects(c))
     }
   }
 

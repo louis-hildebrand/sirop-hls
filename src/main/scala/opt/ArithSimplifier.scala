@@ -111,11 +111,11 @@ object ArithSimplifier {
         )
       case eq: Equal =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(IfThenElse(eq, True, False)())(facts)
+        toSimplifiedArithExpr(Mux(eq, True, False)())(facts)
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(IfThenElse(lt, True, False)())(facts)
-      case IfThenElse(c, t, f) =>
+        toSimplifiedArithExpr(Mux(lt, True, False)())(facts)
+      case Mux(c, t, f) =>
         val pred = c match {
           case LessThan(e1, e2) =>
             Some(
@@ -239,7 +239,7 @@ object ArithSimplifier {
               case (False, True)  => Some(Not(cond)())
               case (True, False)  => Some(cond)
               case (True, True)   => Some(True)
-              case (t, f)         => Some(IfThenElse(cond, t, f)())
+              case (t, f)         => Some(Mux(cond, t, f)())
             }
           case _ => None
         }
