@@ -23,7 +23,7 @@ private object Helpers {
           TyStm(t1, n1) ::+ (s1 =>
             StmBuild(
               n1,
-              SSome(StmNextData(s2)())(),
+              SSome(StmData(s2)())(),
               Map[Param, (Expr, Expr)](
                 s2 -> (s1, True)
               )
@@ -69,13 +69,13 @@ private object Helpers {
         val s = Param("s")(TyStm(t1, 1))
         val isFirstStep = Param("is_first_step")(TyBool)
         val y = Param("y")(t1)
-        val yFromStmOrReg = Mux(isFirstStep, StmNextData(s)(), y)().tchk()
+        val yFromStmOrReg = Mux(isFirstStep, StmData(s)(), y)().tchk()
         val subs = (
           stm.seedByVar
             .map({ case (x, z) =>
               x -> Mux(
                 isFirstStep,
-                z.subPreserveType(f0.param -> StmNextData(s)().tchk()),
+                z.subPreserveType(f0.param -> StmData(s)().tchk()),
                 x
               )().tchk()
             })
@@ -120,7 +120,7 @@ private object Helpers {
           StmBuild(
             1,
             SSome(
-              f0.body.subPreserveType(f0.param -> StmNextData(s2)().tchk())
+              f0.body.subPreserveType(f0.param -> StmData(s2)().tchk())
             )(),
             Map[Param, (Expr, Expr)](s2 -> (s1, True))
           )()
@@ -470,7 +470,7 @@ case class StmAccess(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       perRow,
-      Mux(i === k, SSome(StmNextData(s)())(), NNone(t))(),
+      Mux(i === k, SSome(StmData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -835,7 +835,7 @@ case class StmPrefix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      Mux(i < k, SSome(StmNextData(s)())(), NNone(t))(),
+      Mux(i < k, SSome(StmData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -890,7 +890,7 @@ case class StmSuffix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      Mux(i >= n - k, SSome(StmNextData(s)())(), NNone(t))(),
+      Mux(i >= n - k, SSome(StmData(s)())(), NNone(t))(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -1008,7 +1008,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val i = Param("i")(TyInt)
     StmBuild(
       n1 + n2,
-      SSome(Mux(i === n1, StmNextData(s2)(), StmNextData(s1)())())(),
+      SSome(Mux(i === n1, StmData(s2)(), StmData(s1)())())(),
       Map[Param, (Expr, Expr)](
         i -> (0, Mux(i === n1, i, i + 1)()),
         s1 -> (stm1, i !== n1),
@@ -1057,7 +1057,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     val s1 = Param("s1")(b.typ)
     StmBuild(
       StmLength(a)(),
-      SSome(Tuple(StmNextData(s0)(), StmNextData(s1)())())(),
+      SSome(Tuple(StmData(s0)(), StmData(s1)())())(),
       Map[Param, (Expr, Expr)](
         s0 -> (a, True),
         s1 -> (b, True)
@@ -1260,7 +1260,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
         //         Produce output.
-        SSome(VecShiftLeft(v, StmNextData(s)()))(),
+        SSome(VecShiftLeft(v, StmData(s)()))(),
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
         NNone(TyVec(t, m * elemSize))
@@ -1307,7 +1307,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         ),
         v -> (
           VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
-          VecShiftLeft(v, StmNextData(s)())
+          VecShiftLeft(v, StmData(s)())
         )
       )
     )()

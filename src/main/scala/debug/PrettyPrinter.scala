@@ -192,8 +192,8 @@ object PrettyPrinter {
       case StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"
-      case StmNextData(s) =>
-        s"StmNextData(${showScala(s)})"
+      case StmData(s) =>
+        s"StmData(${showScala(s)})"
       case StmNextK(s, k) =>
         s"StmNextK(${showScala(s)},${showScala(k)})"
       case StmLength(s) =>

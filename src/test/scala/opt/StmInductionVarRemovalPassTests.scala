@@ -517,7 +517,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       TyVec(TyInt, n) ::+ (x =>
         Mux(
           t < n,
-          VecShiftLeft(x, StmNextData(FunCall(stmNextFun, t)())()),
+          VecShiftLeft(x, StmData(FunCall(stmNextFun, t)())()),
           x
         )()
       )
@@ -539,11 +539,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               Mux(
                 i + t < 7,
                 Default(TyInt),
-                StmNextData(StmNextK(s, -n + t + i)())()
+                StmData(StmNextK(s, -n + t + i)())()
               )()
             )
           )(),
-          VecBuild(n, TyInt ::+ (i => StmNextData(StmNextK(s, i)())()))()
+          VecBuild(n, TyInt ::+ (i => StmData(StmNextK(s, i)())()))()
         )()
       )
     )
@@ -729,7 +729,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         s -> (input, t < n),
         v -> (
           VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
-          Mux(t < n, VecShiftLeft(v, StmNextData(s)()), v)()
+          Mux(t < n, VecShiftLeft(v, StmData(s)()), v)()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -761,7 +761,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         Mux(
           t < n,
           NNone(TyInt),
-          SSome(Mux(-1 * n + t < n, StmNextData(s1)(), 0)())()
+          SSome(Mux(-1 * n + t < n, StmData(s1)(), 0)())()
         )(),
         Map[Param, (Expr, Expr)](
           s0 -> (input, t < n),
@@ -791,7 +791,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         s -> (input, t < n),
         v -> (
           VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
-          Mux(t < n, VecShiftLeft(v, StmNextData(s)()), v)()
+          Mux(t < n, VecShiftLeft(v, StmData(s)()), v)()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]

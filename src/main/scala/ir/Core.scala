@@ -234,14 +234,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             throw new TypeError(s"Right-hand side of VecAccess has type $t.")
         }
         va.rebuild(vecT, Seq(newV, newI))
-      case vl @ VecLength(v) =>
-        val newV = v.tchk
-        newV.typ match {
-          case _: TyVec => ()
-          case t =>
-            throw new TypeError(s"Argument of VecLength has type $t.")
-        }
-        vl.rebuild(TyInt, Seq(newV))
       case VecLiteral(elems @ _*) =>
         elems match {
           case Seq() =>
@@ -296,29 +288,32 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
         StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
-      case sn @ StmNextData(s) =>
+      case sn @ StmData(s) =>
         val newS = s.tchk
         newS.typ match {
           case TyStm(t, _) => sn.rebuild(t, Seq(newS))
-          case t => throw new TypeError(s"Argument of StmNextData has type $t.")
+          case t =>
+            throw new TypeError(
+              s"Argument of ${StmData.getClass.getSimpleName} has type $t."
+            )
         }
       case sn @ StmNextK(s, k) =>
         val newK = k.tchk
         newK.typ match {
           case TyInt => ()
-          case t     => throw new TypeError(s"Index of StmNextK has type $t.")
+          case t =>
+            throw new TypeError(
+              s"Index of ${StmNextK.getClass.getSimpleName} has type $t."
+            )
         }
         val newS = s.tchk
         newS.typ match {
           case TyStm(t, n) =>
             sn.rebuild(TyStm(t, n - k), Seq(newS, newK))
-          case t => throw new TypeError(s"Stream of StmNext has type $t.")
-        }
-      case sl @ StmLength(s) =>
-        val newS = s.tchk
-        newS.typ match {
-          case _: TyStm => sl.rebuild(TyInt, Seq(newS))
-          case t => throw new TypeError(s"Argument of StmNext has type $t.")
+          case t =>
+            throw new TypeError(
+              s"Stream of ${StmNextK.getClass.getSimpleName} has type $t."
+            )
         }
       case StmLiteral(elems @ _*) =>
         val checkedElems = elems.map(e => e.tchk())
@@ -660,7 +655,7 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Tuple       => 17
       case _: Function    => 18
       case _: StmBuild    => 19
-      case _: StmNextData => 20
+      case _: StmData     => 20
       case _: VecBuild    => 21
       case _: VecAccess   => 22
       case _: VecLiteral  => 23
@@ -1239,7 +1234,7 @@ case class StmBuild(
         producer.output,
         // CASE 1a: Producer yielded a valid value. Proceed as usual.
         producerTyp.t ::+ (v =>
-          consumer.output.subPreserveType(StmNextData(x)() -> v)
+          consumer.output.subPreserveType(StmData(x)() -> v)
         ),
         // CASE 1b: Producer did NOT yield a valid value.
         //          The consumer cannot proceed.
@@ -1249,7 +1244,7 @@ case class StmBuild(
       //         Proceed as usual, but with the default value for the producer
       //         output (this should not be read).
       consumer.output.subPreserveType(
-        StmNextData(x)() -> Default(producerTyp.t)
+        StmData(x)() -> Default(producerTyp.t)
       )
     )().tchk()
   }
@@ -1287,9 +1282,7 @@ case class StmBuild(
               producer.output,
               // CASE 1a: Producer yielded a valid value.
               //          Update the accumulators.
-              producerTyp.t ::+ (v =>
-                next.subPreserveType(StmNextData(x)() -> v)
-              ),
+              producerTyp.t ::+ (v => next.subPreserveType(StmData(x)() -> v)),
               // CASE 1b: Producer did NOT yield a valid value.
               //          Do not update accumulators until it does.
               y.typ match {
@@ -1301,7 +1294,7 @@ case class StmBuild(
             //         Update as usual, but with the default value for the
             //         producer output (this should not be read).
             next.subPreserveType(
-              StmNextData(x)() -> Default(producerTyp.t)
+              StmData(x)() -> Default(producerTyp.t)
             )
           )().tchk().lower()
         )
@@ -1523,10 +1516,10 @@ object StmBuild {
   private val HashCodeParam = Param("hashCode")()
 }
 
-case class StmNextData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
+case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmNextData(s)(typ)
+      case Seq(s) => StmData(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }

@@ -48,7 +48,7 @@ class OptimizationTests extends AnyFunSuite {
     val sAcc = Param("s")(TyStm(TyInt, n))
     val ideal = StmBuild(
       n,
-      SSome(FunCall(f, StmNextData(sAcc)())())(),
+      SSome(FunCall(f, StmData(sAcc)())())(),
       Map[Param, (Expr, Expr)](sAcc -> (s, True))
     )().tchk().lower()
     assert(optimized == ideal)
@@ -306,7 +306,7 @@ class OptimizationTests extends AnyFunSuite {
           i === 1,
           Mux(
             j < -1 + StmLength(input)(),
-            SSome(StmNextData(s)())(),
+            SSome(StmData(s)())(),
             NNone(TyInt)
           )(),
           SSome(42)()
@@ -351,7 +351,7 @@ class OptimizationTests extends AnyFunSuite {
         Mux(
           i === 4,
           SSome(42)(),
-          Mux(j < 1, NNone(TyInt), SSome(StmNextData(s)())())()
+          Mux(j < 1, NNone(TyInt), SSome(StmData(s)())())()
         )(),
         Map[Param, (Expr, Expr)](
           s -> (input, i !== 4),
@@ -546,8 +546,8 @@ class OptimizationTests extends AnyFunSuite {
           SSome(
             Mux(
               -1 + n + t < n,
-              StmNextData(a)(),
-              Mux(t < n, StmNextData(a)(), 0)()
+              StmData(a)(),
+              Mux(t < n, StmData(a)(), 0)()
             )()
           )(),
           Map[Param, (Expr, Expr)](a -> (s, True), t -> (0, t + 1))
@@ -656,7 +656,7 @@ class OptimizationTests extends AnyFunSuite {
     val a = Param("a")()
     val identity = StmBuild(
       n,
-      SSome(StmNextData(a)())(),
+      SSome(StmData(a)())(),
       Map[Param, (Expr, Expr)](a -> (s, True))
     )()
     assert(optimized == identity)

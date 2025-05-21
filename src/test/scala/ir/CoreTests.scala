@@ -49,18 +49,18 @@ class CoreTests extends AnyFunSuite {
     assert(subbed.typ != TyTuple(TyInt, TyBool))
   }
 
-  test("Substitute:StmNext") {
+  test("Substitute:StmData") {
     val s = Param("s")()
     val v = Param("v")()
 
-    val untyped = 5 + StmNextData(s)()
-    assert(untyped.substitute(StmNextData(s)() -> v) == 5 + v)
+    val untyped = 5 + StmData(s)()
+    assert(untyped.substitute(StmData(s)() -> v) == 5 + v)
 
     val typed = untyped.tchk(Map(s -> TyStm(TyInt, 2)))
-    assert(typed.substitute(StmNextData(s)() -> v) == 5 + v)
+    assert(typed.substitute(StmData(s)() -> v) == 5 + v)
 
     val subbedSameType =
-      typed.subPreserveType(StmNextData(s)() -> v.rebuild(TyInt))
+      typed.subPreserveType(StmData(s)() -> v.rebuild(TyInt))
     assert(subbedSameType == 5 + v)
     assert(subbedSameType.typ == TyInt)
   }
@@ -70,24 +70,24 @@ class CoreTests extends AnyFunSuite {
     val x2 = Param("x2")(TyInt)
     val y = Param("y")(TyStm(TyInt, 5))
     val untyped = Tuple(
-      StmNextData(y)(),
+      StmData(y)(),
       Function(
         x,
         Tuple(
-          StmNextData(y)() + 2,
-          Function(y, StmNextData(y)() * 3)()
+          StmData(y)() + 2,
+          Function(y, StmData(y)() * 3)()
         )()
       )()
     )()
-    val subs = Map[Expr, Expr](StmNextData(y)() -> Mod(x, 2)(TyInt))
+    val subs = Map[Expr, Expr](StmData(y)() -> Mod(x, 2)(TyInt))
     val expected = Tuple(
       x % 2,
       // (1) Need to rename the variable in the outer function to avoid
       //     variable capture.
-      // (2) Must NOT replace the StmNext(y).__1 in the innermost function
+      // (2) Must NOT replace the StmData(y) in the innermost function
       //     because that occurrence of y is referring to the function
       //     parameter, not y in the global scope.
-      Function(x2, Tuple(x % 2 + 2, Function(y, StmNextData(y)() * 3)())())()
+      Function(x2, Tuple(x % 2 + 2, Function(y, StmData(y)() * 3)())())()
     )()
 
     val actual0 = untyped.substitute(subs)
@@ -468,7 +468,7 @@ class CoreTests extends AnyFunSuite {
       n,
       Mux(
         FunCall(f, i)(),
-        SSome(StmNextData(s)())(),
+        SSome(StmData(s)())(),
         NNone(TyInt)
       )(),
       Map[Param, (Expr, Expr)](
@@ -501,7 +501,7 @@ class CoreTests extends AnyFunSuite {
         n,
         Mux(
           FunCall(f, freshI)(),
-          SSome(StmNextData(s)())(),
+          SSome(StmData(s)())(),
           NNone(TyInt)
         )(),
         Map[Param, (Expr, Expr)](

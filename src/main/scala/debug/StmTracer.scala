@@ -44,7 +44,7 @@ object StmTracer {
               )
             case e =>
               throw new IllegalArgumentException(
-                s"Output of StmNext evaluated to $e."
+                s"Stream output evaluated to $e."
                   + " Expected it to evaluate to an option (i.e., a 2-tuple whose second element is a boolean)."
               )
           }

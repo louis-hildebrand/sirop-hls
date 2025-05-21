@@ -172,7 +172,7 @@ object PartialEvalPass {
                             val x = Mux(cond, t, f)()
                             if (
                               isBoolExpr(x).getOrElse(false)
-                              && !x.contains(classOf[StmNextData])
+                              && !x.contains(classOf[StmData])
                             ) {
                               partialEval((cond && t) || (Not(cond)() && f))
                             } else {
@@ -313,7 +313,7 @@ object PartialEvalPass {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
                 tryEvalStmNext(s) match {
-                  case Some((out, _)) if !out.contains(classOf[StmNextData]) =>
+                  case Some((out, _)) if !out.contains(classOf[StmData]) =>
                     Some(partialEval(out)(facts))
                   case _ => None
                 }
@@ -358,7 +358,7 @@ object PartialEvalPass {
                 partialEval(Mux(c, StmLength(t)(), StmLength(f)())())
               case s @ _ => StmLength(s)()
             }
-          case StmNextData(s) => StmNextData(partialEval(s))()
+          case StmData(s) => StmData(partialEval(s))()
           case StmNextK(s, k) =>
             val peStm = partialEval(s)
             partialEval(k) match {
@@ -369,9 +369,6 @@ object PartialEvalPass {
                   partialEval(StmNextK(peStm, f)())
                 )()
               case IntCst(k) if k <= 0 => peStm
-              // There are probably some cases where we want to convert StmNextK(s, k + 1) to StmNext(StmNextK(s, k)).__0
-              // and other times where we want to go the other way.
-              // Therefore, don't handle that here.
               case k => StmNextK(peStm, k)()
             }
 
@@ -527,7 +524,7 @@ object PartialEvalPass {
               } else {
                 val inputStreams = inputStreamOptions.map(x => x.get).toMap
                 val subs = inputStreams.foldLeft(currentValByVar)({
-                  case (acc, (x, (head, _))) => acc + (StmNextData(x)() -> head)
+                  case (acc, (x, (head, _))) => acc + (StmData(x)() -> head)
                 })
                 val nextEquations = s.equations.map({
                   case (x, (_, next)) if x.typ.isInstanceOf[TyStm] =>

@@ -179,10 +179,10 @@ class PartialEvalPassTests extends AnyFunSuite {
     val s = Param("s")()
     val sum = StmBuild(
       1,
-      Mux(i === n - 1, SSome(a + StmNextData(s)())(), NNone(TyInt))(),
+      Mux(i === n - 1, SSome(a + StmData(s)())(), NNone(TyInt))(),
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
-        a -> (z, a + StmNextData(s)()),
+        a -> (z, a + StmData(s)()),
         s -> (StmCount(n)(), True)
       )
     )().tchk().lower()
@@ -193,13 +193,13 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("StmOneElementNotReducible") {
     // I do NOT want this to be simplified to something like
-    //   StmCst(1, StmNextData(s)())
-    // because then we're calling StmNextData(s)() outside a stream
+    //   StmCst(1, StmData(s)())
+    // because then we're calling StmData(s)() outside a stream
     val s = Param("s")()
     val a = Param("a")()
     val stm = StmBuild(
       1,
-      SSome(StmNextData(a)())(),
+      SSome(StmData(a)())(),
       Map[Param, (Expr, Expr)](
         a -> (s, True)
       )

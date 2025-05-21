@@ -242,9 +242,6 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           replaceStmNextK(newStm, t)(this.facts) match {
             case Some((withoutStmNextK: StmBuild, newRecEqns)) =>
               assert(!withoutStmNextK.contains(classOf[StmNextK]))
-              // TODO: Check that the stream is still synthesizable
-              //       (e.g., every StmNext(acc).__1 has a corresponding
-              //       StmNext(acc).__0)?
               // TODO: Ensure that the input stream is still fully consumed?
               s = withoutStmNextK
               newAccVars ++= newRecEqns
@@ -502,7 +499,7 @@ object RecurrenceSolver {
   }
 
   /** Attempt to convert a <code>StmNextK</code> into a recurrence equation
-    * involving only <code>StmNext</code>. The recurrence equation will be a
+    * without any <code>StmNextK</code>. The recurrence equation will be a
     * function of the form <code>f(t, x(t))</code>.
     */
   def tryFindRecursiveForm(

@@ -62,7 +62,7 @@ private object VhdlExprGenerator {
       case And(terms @ _*) => VhdlOp("and", terms.map(exprToVhdl))
       case Or(terms @ _*)  => VhdlOp("or", terms.map(exprToVhdl))
 
-      case StmNextData(s: Param) =>
+      case StmData(s: Param) =>
         VhdlExpr(s"${s.name}_data_internal", Seq())
       case _: StmBuild =>
         throw new IllegalArgumentException(
@@ -87,7 +87,6 @@ private object VhdlExprGenerator {
         VhdlExpr(s"${tempVar.name}.i_$i", tempVar +: tv.decls)
 
       case Function(x, body) =>
-        // TODO: Un-curry
         val bodyVhdl = exprToVhdl(body)(InFunctionMode)
         val func = {
           val name = Param("f")().name
