@@ -105,6 +105,17 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s.tchk()) == StmLiteral(0, 1, 2)())
   }
 
+  test("StmMap:1D-1D:StmSum(StmCount(i))") {
+    val n = 5
+    val s = StmMap(
+      StmCount(5)(),
+      TyInt ::+ (i => StmFold(StmCount(i + 1)(), 0, PlusFunction())())
+    )().tchk()
+    val expected = StmLiteral((0 until n).map(i => IntCst((0 to i).sum)): _*)()
+    val actual = ir.eval(s)
+    assert(actual == expected)
+  }
+
   test("StmMap:1D-1D:DiscardInputReturn42") {
     val s = StmMap(StmCount(6)(), TyInt ::+ (_ => 42))()
     assert(ir.eval(s.tchk()) == StmLiteral(42, 42, 42, 42, 42, 42)())
