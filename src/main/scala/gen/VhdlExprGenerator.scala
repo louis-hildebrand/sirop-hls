@@ -91,7 +91,13 @@ private object VhdlExprGenerator {
         val func = {
           val name = Param("f")().name
           val (inType, outType) = e.typ.asInstanceOf[TyArrow] match {
-            case TyArrow(t1, t2) => (VhdlType(t1), VhdlType(t2))
+            case TyArrow(t1, t2)
+                if Default.hasDefault(t1) && Default.hasDefault(t2) =>
+              (VhdlType(t1), VhdlType(t2))
+            case TyArrow(t1, t2) =>
+              throw new NotImplementedError(
+                s"Cannot generate VHDL function with input type $t1 and output type $t2."
+              )
           }
           VhdlFunction(
             name = name,

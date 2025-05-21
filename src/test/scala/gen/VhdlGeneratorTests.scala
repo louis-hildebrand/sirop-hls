@@ -1,9 +1,9 @@
 package gen
 
 import ir._
-import org.scalatest.funsuite.AnyFunSuite
 import operations._
-import opt.{PartialEvalPass, StmSimplifier}
+import opt.StmSimplifier
+import org.scalatest.funsuite.AnyFunSuite
 
 class VhdlGeneratorTests extends AnyFunSuite {
   // TODO: Support let expressions with streams?
@@ -404,5 +404,27 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )().tchk().lower()
 
     assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("LetFunction") {
+    val n = 5
+    val a = Param("a")()
+    val f = Param("f")()
+    val s = StmBuild(
+      n,
+      SSome(a)(),
+      Map[Param, (Expr, Expr)](
+        a -> (0, Let(
+          f,
+          TyInt ::+ (x => x * x + 1),
+          FunCall(f, a)() + FunCall(f, 42)()
+        )())
+      )
+    )().tchk().lower()
+
+    val exc = intercept[NotImplementedError](TestRunner.testExpr(s))
+    assert(
+      exc.getMessage == s"Cannot generate VHDL function with input type ${TyArrow(TyInt, TyInt)} and output type $TyInt."
+    )
   }
 }
