@@ -6,9 +6,6 @@ import opt.StmSimplifier
 import org.scalatest.funsuite.AnyFunSuite
 
 class VhdlGeneratorTests extends AnyFunSuite {
-  // TODO: Support let expressions with streams?
-  // TODO: Support let f = <function> in ...
-
   test("Arithmetic") {
     val n = 10
     val m = 10
