@@ -393,14 +393,28 @@ case class StmMap(
           // No need to reset
           innerStm
         case n =>
-          val inCtr = Param("in_ctr")()
-          val outCtr = Param("out_ctr")()
-          val innerWithCtrs = innerStm
-            .addInputCounter(
-              innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
-              inCtr
-            )
-            .addOutputCounter(outCtr)
+          val inCtr = Param("in_ctr")(TyInt)
+          val outCtr = Param("out_ctr")(TyInt)
+          val innerWithInCtr = inputsUntilReset match {
+            case IntCst(1) =>
+              // If there's only one input, then there's no need for an input
+              // counter.
+              // (The input counter is hard to remove in the case of a function
+              // from non-stream to stream.)
+              // Either
+              //  (1) The input will be read *after* all outputs are produced,
+              //      but this means the input stream is actually unused.
+              //  (2) All inputs will be read no later than the last output.
+              // Add the input counter anyway just to keep the rest of the
+              // lowering pass simple, but it should now be trivial for the
+              // optimizer to recognize that it is constant.
+              innerStm.addAccumulator(inCtr, 1, 1)
+            case _ =>
+              val inStmVar =
+                innerStm.seedByVar.find({ case (_, z) => z == s }).get._1
+              innerStm.addInputCounter(inStmVar, inCtr)
+          }
+          val innerWithCtrs = innerWithInCtr.addOutputCounter(outCtr)
           // Want to reset depending on the *next* values of the in/out counters.
           val shouldReset = (
             Equal(innerWithCtrs.nextByVar(inCtr), inputsUntilReset)(TyBool)

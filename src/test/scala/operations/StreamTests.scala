@@ -646,6 +646,37 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s) == expected)
   }
 
+  /** The lowering pass for StmMap may elide the input counter if the number of
+    * inputs per "row" is one. But what if the inner stream somehow first
+    * produces all its outputs and then reads the input? (This is probably not
+    * useful, but the result should at least be correct).
+    */
+  test("StmMap:2D-2D:ReadInputAfterOutputs") {
+    val n = 4
+    // m needs to be 1, otherwise it defeats the purpose of this test
+    val m = 1
+    val k = 3
+    val input = StmCount2D(n, m)()
+    val actual =
+      StmMap(
+        input,
+        TyStm(Int2(), m) ::+ (sIn => {
+          val i = Param("i")()
+          val s = Param("s")()
+          StmBuild(
+            k,
+            Mux(i < k, SSome(i)(), NNone(TyInt))(),
+            Map[Param, (Expr, Expr)](i -> (0, i + 1), s -> (sIn, i === k))
+          )()
+        })
+      )().tchk()
+    val expected =
+      StmLiteral(
+        (0 until n).flatMap(_ => (0 until k).map(j => IntCst(j))): _*
+      )()
+    assert(ir.eval(actual) == expected)
+  }
+
   test("StmMap:1D-3D:MapCount") {
     val s = StmMap(
       StmCount(2)(),

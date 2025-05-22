@@ -505,7 +505,8 @@ class OptimizationTests extends AnyFunSuite {
     val optimize = (s: StmBuild) => {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
-      val s1 = tl(s.fuseCompletely())
+      val s0 = tl(StmSimplifier.simplify(s)(facts))
+      val s1 = tl(s0.fuseCompletely())
       val s2 = tl(StmSimplifier.simplify(s1)(facts))
       val s3 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s2))
       val s4 = tl(StmSimplifier.simplify(s3)(facts))
