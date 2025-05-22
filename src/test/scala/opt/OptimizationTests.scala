@@ -546,7 +546,7 @@ class OptimizationTests extends AnyFunSuite {
           n,
           SSome(
             Mux(
-              -1 + n + t < n,
+              n + t < n + 1,
               StmData(a)(),
               Mux(t < n, StmData(a)(), 0)()
             )()
@@ -606,7 +606,7 @@ class OptimizationTests extends AnyFunSuite {
     // expand each element of the vector), so the hardware should be fine
     val expected = VecBuild(
       n,
-      TyInt ::+ (i => Mux(-1 - i + n < 0, 0, VecAccess(v, i)())())
+      TyInt ::+ (i => Mux(n - i < 1, 0, VecAccess(v, i)())())
     )()
     assert(optimized == expected)
   }

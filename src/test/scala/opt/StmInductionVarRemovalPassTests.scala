@@ -625,7 +625,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     assert(z == s)
     val expectedF: Function =
-      TyInt ::+ (t => Missing ::+ (_ => (-5 + t < 5) && (-5 + t >= 0)))
+      TyInt ::+ (t => Missing ::+ (_ => (t < 10) && (t >= 5)))
     assert(f == expectedF)
   }
 

@@ -46,7 +46,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       )()
     val actual = PartialEvalPass.partialEval(e)
     val expected = TyInt ::+ (y =>
-      Mux(y > 42, TyInt ::+ (z => z > 10), TyInt ::+ (_ => False))()
+      Mux(-42 + y > 0, TyInt ::+ (z => -10 + z > 0), TyInt ::+ (_ => False))()
     )
     assert(actual == expected)
   }
@@ -90,7 +90,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val expected =
       Tuple(
         True,
-        VecBuild(7, TyInt ::+ (i => Tuple(True, True, i > 2)()))(),
+        VecBuild(7, TyInt ::+ (i => Tuple(True, True, 0 < -2 + i)()))(),
         True
       )()
     assert(actual == expected)
@@ -131,6 +131,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     val x = Param("x")()
     assert(pe((x - 1) < x) == True)
     assert(pe(x < x) == False)
+  }
+
+  test("ScalarEquality:x+c==k") {
+    val x = Param("x")(TyInt)
+    assert(pe(x - 1 === 3) == (x === 4))
+    assert(pe(5 + x === 2) == (x === -3))
+  }
+
+  test("ScalarEquality:x+c<k") {
+    val x = Param("x")(TyInt)
+    assert(pe(x - 2 < 9) == (x < 11))
+    assert(pe(-3 + x < 4) == (x < 7))
   }
 
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
@@ -287,7 +299,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())()
 
     val actual0 = PartialEvalPass.partialEval(e)(FactSet())
-    assert(actual0 == e)
+    val expected0 = Mux(i === -1 + n, c0, Mux(i < -1 + n, c1, c2)())()
+    assert(actual0 == expected0)
 
     val facts = FactSet().geq(i, 0).lt(i, n)
     val expected = Mux(i === -1 + n, c0, c1)()

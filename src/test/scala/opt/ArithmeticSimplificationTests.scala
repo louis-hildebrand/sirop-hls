@@ -208,7 +208,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val t = Param("t")(TyInt)
     val e = (-5 + t) < 5
     val actual = PartialEvalPass.partialEval(e)()
-    assert(actual == e)
+    assert(actual == t < 10)
     assert(actual.tchk().typ == TyBool)
   }
 
@@ -216,7 +216,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val t = Param("t")(TyInt)
     val e = Mux(-5 + t < 5, -5 + t, 5)()
     val actual = PartialEvalPass.partialEval(e)
-    assert(actual == e)
+    assert(actual == Mux(t < 10, -5 + t, 5)())
     assert(actual.tchk().typ == TyInt)
   }
 }

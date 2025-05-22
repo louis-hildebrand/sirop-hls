@@ -100,7 +100,7 @@ object PartialEvalPass {
               case Mux(
                     Equal(i0, Sum(IntCst(-1), n0)),
                     c0,
-                    Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
+                    Mux(LessThan(i1, Sum(IntCst(-1), n1)), c1, _)
                   )
                   if i0 == i1 && n0 == n1
                     && isSmaller(i0, n0)(facts).getOrElse(false) =>
@@ -192,22 +192,21 @@ object PartialEvalPass {
             // being False, Mux(c, True, False) --> c).
             // If this ends up being problematic, we could always try putting a cap on the number of unique conditions in
             // a Mux and avoid this transformation if the cap is exceeded.
-            val newChildren =
-              Seq(
-                partialEval(e1)(facts, MoveUp),
-                partialEval(e2)(facts, MoveUp)
-              )
-            val merged = mergeMuxes(newChildren, x => y => x === y)
+            val (lhs, rhs) = moveConstantsToRhs(
+              partialEval(e1)(facts, MoveUp),
+              partialEval(e2)(facts, MoveUp)
+            )
+            val merged = mergeMuxes(Seq(lhs, rhs), x => y => x === y)
             merged match {
               case mux: Mux => partialEval(mux)
               case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
           case LessThan(e1, e2) =>
-            val newChildren = Seq(
+            val (lhs, rhs) = moveConstantsToRhs(
               partialEval(e1)(facts, MoveUp),
               partialEval(e2)(facts, MoveUp)
             )
-            mergeMuxes(newChildren, x => y => x < y) match {
+            mergeMuxes(Seq(lhs, rhs), x => y => x < y) match {
               case mux: Mux => partialEval(mux)
               case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
@@ -369,7 +368,7 @@ object PartialEvalPass {
                   partialEval(StmNextK(peStm, f)())
                 )()
               case IntCst(k) if k <= 0 => peStm
-              case k => StmNextK(peStm, k)()
+              case k                   => StmNextK(peStm, k)()
             }
 
           case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
@@ -467,18 +466,11 @@ object PartialEvalPass {
     })
   }
 
-  /** Check whether <code>a</code> implies <code>b</code>.
-    *
-    * @return
-    *   <code>Some(true)</code> if <code>a</code> implies <code>b</code>,
-    *   <code>Some(false)</code> if <code>a</code> implies the negation of
-    *   <code>b</code>, and <code>None</code> if we can't tell.
-    */
-  private def implies(a: Expr, b: Expr)(facts: FactSet): Option[Boolean] = {
-    partialEval(b)(facts.assumeTrue(a)) match {
-      case True  => Some(true)
-      case False => Some(false)
-      case _     => None
+  private def moveConstantsToRhs(lhs: Expr, rhs: Expr): (Expr, Expr) = {
+    lhs match {
+      case IntCst(k) if k != 0        => (0, rhs - k)
+      case Sum(IntCst(k), terms @ _*) => (Sum(terms: _*)(), rhs - k)
+      case _                          => (lhs, rhs)
     }
   }
 
