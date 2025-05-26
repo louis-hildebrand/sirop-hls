@@ -1455,7 +1455,6 @@ case class StmBuild(
       case (_, SharedScope) => None
     })
     val newEquations = this.equations.map({ case (x, (z, next)) =>
-      // TODO: Handle input streams (`ready` must not depend on `i`)
       val newX = oldToNewVar(x)
       x.typ match {
         case TyStm(t, k) =>
