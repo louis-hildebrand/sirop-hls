@@ -251,7 +251,7 @@ trait Eval {
         )()
       case _: StmData =>
         throw new IllegalArgumentException(
-          s"${StmData.getClass.getSimpleName} must not appear outside a StmBuild."
+          s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
         )
       case StmNextK(s, k) =>
         evalBigStep(k) match {
