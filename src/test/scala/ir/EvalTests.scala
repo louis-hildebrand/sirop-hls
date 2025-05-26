@@ -14,7 +14,7 @@ class EvalTests extends AnyFunSuite {
 
     val i = Param("i")()
     val s0 =
-      StmBuild(3, SSome(i)(), Map[Param, (Expr, Expr)](i -> (-4, i + 3)))()
+      StmBuild(3, i, True, Map[Param, (Expr, Expr)](i -> (-4, i + 3)))()
     val elems = Seq(-4, -1, 2)
     for (kVal <- -3 until 2) {
       val expected = StmLiteral.ints(elems.drop(kVal + 1): _*)
@@ -28,7 +28,8 @@ class EvalTests extends AnyFunSuite {
     val s =
       StmBuild(
         5,
-        SSome(i + 42)(),
+        i + 42,
+        True,
         Map[Param, (Expr, Expr)](i -> (9, 2 * i + 1))
       )()
     val expected = StmLiteral(9 + 42, 19 + 42, 39 + 42, 79 + 42, 159 + 42)()
@@ -37,7 +38,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("ObviousInfiniteLoop") {
-    val s = StmBuild(1, NNone(TyInt), Map[Param, (Expr, Expr)]())()
+    val s = StmBuild(1, 0, False, Map[Param, (Expr, Expr)]())()
     assertThrows[InfiniteLoopError](ir.eval(s))
   }
 
@@ -45,7 +46,8 @@ class EvalTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       1,
-      Mux((a * a) % 2 === 1, SSome(a)(), NNone(TyInt))(),
+      a,
+      a % 2 === 1,
       Map[Param, (Expr, Expr)](
         a -> (0, a + 2)
       )

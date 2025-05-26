@@ -13,15 +13,14 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val j = Param("j")()
     val s = StmBuild(
       n * m,
-      SSome(
-        Tuple(
-          Tuple(i, j)(),
-          Tuple(i + j, i + (-1 * j), (-1 * i) + j, (-1 * i) + (-1 * j))(),
-          Tuple(i * j, i * (-1 * j), (-1 * i) * j, (-1 * i) * (-1 * j))(),
-          Tuple(i / j, i / (-1 * j), (-1 * i) / j, (-1 * i) / (-1 * j))(),
-          Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))()
-        )()
+      Tuple(
+        Tuple(i, j)(),
+        Tuple(i + j, i + (-1 * j), (-1 * i) + j, (-1 * i) + (-1 * j))(),
+        Tuple(i * j, i * (-1 * j), (-1 * i) * j, (-1 * i) * (-1 * j))(),
+        Tuple(i / j, i / (-1 * j), (-1 * i) / j, (-1 * i) / (-1 * j))(),
+        Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))()
       )(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (0, Mux(j === m, i + 1, i)()),
         j -> (1, Mux(j === m, 1, j + 1)())
@@ -46,7 +45,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val i = Param("i")()
       StmBuild(
         5,
-        Mux(b, SSome(i)(), NNone(TyInt))(),
+        i,
+        b,
         Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -59,7 +59,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val y = Param("y")()
       StmBuild(
         4,
-        SSome(Tuple(x.__0, x.__2, y, x.__3, y)())(),
+        Tuple(x.__0, x.__2, y, x.__3, y)(),
+        True,
         Map[Param, (Expr, Expr)](
           x -> (
             Tuple(0, Tuple()(), Tuple(1, 2)(), True)(),
@@ -86,7 +87,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )()
       val s = StmBuild(
         5,
-        SSome(Tuple(42, True, v)())(),
+        Tuple(42, True, v)(),
+        True,
         Map[Param, (Expr, Expr)](
           v -> (z, VecShiftLeft(v, VecAccess(v, 0)()))
         )
@@ -107,7 +109,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
       StmBuild(
         n,
-        SSome(StmData(s)())(),
+        StmData(s)(),
+        True,
         Map[Param, (Expr, Expr)](
           s -> (StmCst(n, c)(), True)
         )
@@ -122,7 +125,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val s = Param("s")()
       StmBuild(
         n,
-        SSome(StmData(s)() + 42)(),
+        StmData(s)() + 42,
+        True,
         Map[Param, (Expr, Expr)](
           s -> (StmCount(n)(), True)
         )
@@ -250,7 +254,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       n,
-      SSome(Let(x, a * 2, x + x + 1)())(),
+      Let(x, a * 2, x + x + 1)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, Let(x, a + 1, x * x)())
       )
@@ -271,7 +276,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s =
       StmBuild(
         n,
-        SSome(Tuple(v, a)())(),
+        Tuple(v, a)(),
+        True,
         Map[Param, (Expr, Expr)](
           j -> (0, j + 1),
           a -> (
@@ -305,7 +311,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       n,
-      SSome(a)(),
+      a,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, FunCall(FunCall(f, Tuple(42, 99)())(), a)())
       )
@@ -393,7 +400,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val i = Param("i")()
     val s = StmBuild(
       n,
-      SSome(VecAccess(v, i)())(),
+      VecAccess(v, i)(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (-2 - m, i + 1),
         v -> (VecBuild(m, TyInt ::+ (i => 10 * (i + 1)))(), v)
@@ -409,7 +417,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f = Param("f")()
     val s = StmBuild(
       n,
-      SSome(a)(),
+      a,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, Let(
           f,

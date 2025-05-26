@@ -53,7 +53,8 @@ class TypecheckerTests extends AnyFunSuite {
     val original =
       StmBuild(
         n,
-        Mux(b, SSome(a)(), NNone(TyInt))(),
+        a,
+        b,
         Map[Param, (Expr, Expr)](
           a -> (0, Mux(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
@@ -71,7 +72,8 @@ class TypecheckerTests extends AnyFunSuite {
     val a = Param("a")()
     val original = StmBuild(
       n,
-      SSome(a)(),
+      a,
+      True,
       Map[Param, (Expr, Expr)](
         s -> (input, a % 2 === 0),
         a -> (0, Mux(a % 2 === 0, a + StmData(s)(), a + 1)())
@@ -215,18 +217,18 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StmBuild:NonIntLength") {
-    val e = StmBuild(True, SSome(5)())()
+    val e = StmBuild(True, 5, True)()
     assertThrows[TypeError](e.tchk())
   }
 
-  test("StmBuild:NonOptionOutput") {
-    val e = StmBuild(42, Tuple(43, 44)())()
+  test("StmBuild:NonBoolValid") {
+    val e = StmBuild(42, Tuple(43, 44)(), 45)()
     assertThrows[TypeError](e.tchk())
   }
 
   test("StmBuild:NextWrongType") {
     val a = Param("a")()
-    val e = StmBuild(2, SSome(5)(), Map[Param, (Expr, Expr)](a -> (0, True)))()
+    val e = StmBuild(2, 5, True, Map[Param, (Expr, Expr)](a -> (0, True)))()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -234,7 +236,8 @@ class TypecheckerTests extends AnyFunSuite {
     val a = Param("a")()
     val e = StmBuild(
       3,
-      SSome(4)(),
+      4,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (VecBuild(10, TyInt ::+ (i => i))(),
         VecBuild(11, TyInt ::+ (i => i))())

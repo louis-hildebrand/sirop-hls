@@ -60,18 +60,17 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     }
   }
 
-  /** Try to find an expression for the <code>Option&lt;T&gt;</code> output of
-    * this stream as a function of <code>t</code>. The stream must already be in
-    * canonical form. In particular, its accumulator must be a flat tuple.
+  /** Try to find an expression for the <code>valid</code> expression of this
+    * stream as a function of <code>t</code>.
     */
-  def tryFindClosedFormForOutput(s: StmBuild): Option[Function] = {
+  def tryFindClosedFormForValid(s: StmBuild): Option[Function] = {
     val closedFormByVar = findClosedForms(s)
     val t = Param("t")(TyInt)
     val subs: Map[Expr, Expr] =
       closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)() })
-    val out = s.output.substitute(subs)
-    val allVarsRemoved = out.freeVars().intersect(s.accVars).isEmpty
-    if (allVarsRemoved) Some(Function(t, out)()) else None
+    val valid = s.valid.substitute(subs)
+    val allVarsRemoved = valid.freeVars().intersect(s.accVars).isEmpty
+    if (allVarsRemoved) Some(Function(t, valid)()) else None
   }
 
   private def findClosedForms(s: StmBuild): Map[Param, Function] = {

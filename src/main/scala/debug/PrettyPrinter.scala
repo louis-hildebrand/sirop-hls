@@ -62,20 +62,23 @@ object PrettyPrinter {
           .mkString(", ") + ")"
       case TupleAccess(t, i) =>
         s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
-      case StmBuild(n, out, equations) =>
+      case StmBuild(n, data, valid, equations) =>
         if (collapseStm) {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
           s"StmBuild(${nStr}; ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          val outStr = show(out, collapseStm = collapseStm, evalVec = evalVec)
+          val dataStr = show(data, collapseStm = collapseStm, evalVec = evalVec)
+          val validStr =
+            show(valid, collapseStm = collapseStm, evalVec = evalVec)
           val recStrings = equations.map({ case (x, (z, next)) =>
             val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
             val nextStr =
               show(next, collapseStm = collapseStm, evalVec = evalVec)
             s"${show(x)}: (\n${indent(zStr)},\n${indent(nextStr)}\n)"
           })
-          val inside = s"$nStr;\n$outStr;\n${recStrings.mkString(";\n")}"
+          val inside =
+            s"$nStr;\n$dataStr;\n$validStr;\n${recStrings.mkString(";\n")}"
           s"StmBuild(\n${indent(inside)}\n)"
         }
       case StmLength(s) =>
@@ -183,12 +186,12 @@ object PrettyPrinter {
         s"Or(${terms.map(e => showScala(e)).mkString(",")})"
       case Mux(c, t, f) =>
         s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})"
-      case StmBuild(n, out, eqns) =>
+      case StmBuild(n, data, valid, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
             })})"
-        s"StmBuild(${showScala(n)},${showScala(out)},$equationsStr)"
+        s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)"
       case StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})"

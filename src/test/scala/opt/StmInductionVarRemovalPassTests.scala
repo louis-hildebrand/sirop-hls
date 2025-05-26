@@ -36,7 +36,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a5 = Param("a")()
     val s = StmBuild(
       n,
-      SSome(Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)())(),
+      Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)(),
+      True,
       Map[Param, (Expr, Expr)](
         // up counter (+1)
         a0 -> (3, a0 + 1),
@@ -70,16 +71,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val ideal = lpe(
       StmBuild(
         n,
-        SSome(
-          Tuple(
-            6 + 2 * t,
-            3 + (1 + 4 * t) / 3,
-            19 + (-2) * t,
-            3 * t,
-            -2 + (-6) * t,
-            1 + delta * t + t
-          )()
+        Tuple(
+          6 + 2 * t,
+          3 + (1 + 4 * t) / 3,
+          19 + (-2) * t,
+          3 * t,
+          -2 + (-6) * t,
+          1 + delta * t + t
         )(),
+        True,
         Map[Param, (Expr, Expr)](t -> (0, t + 1))
       )()
     )
@@ -93,7 +93,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")()
     val triangleSum = StmBuild(
       1,
-      Mux(t >= n, SSome(sum)(), NNone(TyInt))(),
+      sum,
+      t >= n,
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
         sum -> (0, sum + i),
@@ -115,7 +116,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val ideal = lpe(
       StmBuild(
         1,
-        Mux(t >= n, SSome(sum)(), NNone(TyInt))(),
+        sum,
+        t >= n,
         Map[Param, (Expr, Expr)](
           sum -> (0, sum + t),
           t -> (0, t + 1)
@@ -132,7 +134,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("a")()
     val s = StmBuild(
       n,
-      SSome(VecShiftLeft(v, i))(),
+      VecShiftLeft(v, i),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (100, i + 2),
         v -> (VecBuild(m, TyInt ::+ (j => j))(), VecShiftLeft(v, i))
@@ -168,7 +171,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a1 = Param("a1")()
     val s = StmBuild(
       n,
-      SSome(a1)(),
+      a1,
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (
@@ -221,11 +225,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val b1 = Param("a")()
     val s = StmBuild(
       n,
-      Mux(
-        Not(b1)() && (i % 2 === 0),
-        SSome(Tuple(i, b0, b1)())(),
-        NNone(TyTuple(TyInt, TyBool, TyBool))
-      )(),
+      Tuple(i, b0, b1)(),
+      Not(b1)() && (i % 2 === 0),
       Map[Param, (Expr, Expr)](
         i -> (i0, i + delta),
         b0 -> (True, b0 && i < k0),
@@ -276,7 +277,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val b = Param("b")()
     val s = StmBuild(
       n,
-      SSome(Tuple(i, b)())(),
+      Tuple(i, b)(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (i0, Mux(b, i + delta, i)()),
         b -> (True, b && i < k)
@@ -316,7 +318,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")()
     val s = StmBuild(
       n,
-      SSome(Tuple(a1 + 2, a2)())(),
+      Tuple(a1 + 2, a2)(),
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (1, Mux(a0 < k + 1, a1 + 1, a1)()),
@@ -353,7 +356,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")()
     val s = StmBuild(
       n,
-      SSome(Tuple(3 * a1, 2 * a2)())(),
+      Tuple(3 * a1, 2 * a2)(),
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (0, a0 + 1),
         a1 -> (2, Mux(a0 >= k + 2, a1 + 1, a1)()),
@@ -388,7 +392,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val a1 = Param("a")()
     val s = StmBuild(
       n,
-      SSome(2 * a1)(),
+      2 * a1,
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (10, a0 + 1),
         a1 -> (2, Mux(
@@ -422,7 +427,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")()
     val s = StmBuild(
       n,
-      SSome(v)(),
+      v,
+      True,
       Map[Param, (Expr, Expr)](
         i -> (2, i + 1),
         v -> (
@@ -457,7 +463,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")()
     val s = StmBuild(
       n,
-      SSome(v)(),
+      v,
+      True,
       Map[Param, (Expr, Expr)](
         i -> (7, i + 1),
         v -> (
@@ -723,7 +730,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("v")()
     val original = StmBuild(
       n,
-      Mux(t < n, NNone(TyInt), SSome(VecAccess(v, t - n)())())(),
+      VecAccess(v, t - n)(),
+      t >= n,
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
         s -> (input, t < n),
@@ -758,11 +766,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected = lpe(
       StmBuild(
         n,
-        Mux(
-          t < n,
-          NNone(TyInt),
-          SSome(Mux(-1 * n + t < n, StmData(s1)(), 0)())()
-        )(),
+        Mux(t - n >= 0 && t - n < n, StmData(s1)(), 0)(),
+        t >= n,
         Map[Param, (Expr, Expr)](
           s0 -> (input, t < n),
           s1 -> (input, -1 * n + t >= 0),
@@ -781,11 +786,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")()
     val original = StmBuild(
       n,
-      Mux(
-        t < n,
-        NNone(TyInt),
-        SSome(VecAccess(v, -1 + 2 * n - t)())()
-      )(),
+      VecAccess(v, -1 + 2 * n - t)(),
+      t >= n,
       Map[Param, (Expr, Expr)](
         t -> (0, t + 1),
         s -> (input, t < n),

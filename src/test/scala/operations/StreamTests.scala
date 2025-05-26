@@ -163,7 +163,8 @@ class StreamTests extends AnyFunSuite {
         val acc = Param("acc")()
         StmBuild(
           3,
-          SSome(Tuple(i, acc)())(),
+          Tuple(i, acc)(),
+          True,
           Map[Param, (Expr, Expr)](
             acc -> (i, acc + 3)
           )
@@ -663,7 +664,8 @@ class StreamTests extends AnyFunSuite {
           val s = Param("s")()
           StmBuild(
             k,
-            Mux(i < k, SSome(i)(), NNone(TyInt))(),
+            i,
+            i < k,
             Map[Param, (Expr, Expr)](i -> (0, i + 1), s -> (sIn, i === k))
           )()
         })
@@ -1773,7 +1775,7 @@ class StreamTests extends AnyFunSuite {
     val a = StmCount(4)()
     val b = {
       val b = Param("b")()
-      StmBuild(4, SSome(b)(), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
+      StmBuild(4, b, True, Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val s = StmZip(a, b)().tchk()
     val expected =

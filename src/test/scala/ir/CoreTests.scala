@@ -117,7 +117,8 @@ class CoreTests extends AnyFunSuite {
     )
     val stm = StmBuild(
       x.__1 + z + 1,
-      SSome(Tuple(z, x.__1 && x.__1)())(),
+      Tuple(z, x.__1 && x.__1)(),
+      True,
       Map[Param, (Expr, Expr)](
         x -> (
           Tuple(True, False)(),
@@ -136,7 +137,8 @@ class CoreTests extends AnyFunSuite {
       2 * y * 99,
       StmBuild(
         y + IntCst(99) + IntCst(1),
-        SSome(Tuple(99, x2.__1 && x2.__1)())(),
+        Tuple(99, x2.__1 && x2.__1)(),
+        True,
         Map[Param, (Expr, Expr)](
           x2 -> (
             Tuple(True, False)(),
@@ -189,7 +191,8 @@ class CoreTests extends AnyFunSuite {
     val v = Param("v")()
     val e = StmBuild(
       n,
-      SSome(VecAccess(v, 0)())(),
+      VecAccess(v, 0)(),
+      True,
       Map[Param, (Expr, Expr)](
         v -> (VecBuild(n, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
       )
@@ -199,7 +202,8 @@ class CoreTests extends AnyFunSuite {
 
     val expected = StmBuild(
       m + k,
-      SSome(VecAccess(v, 0)())(),
+      VecAccess(v, 0)(),
+      True,
       Map[Param, (Expr, Expr)](
         v -> (VecBuild(m + k, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
       )
@@ -236,8 +240,8 @@ class CoreTests extends AnyFunSuite {
   }
 
   test("StmBuild:Equals:NoAccumulatorVars") {
-    val s1 = StmBuild(3, SSome(True)(), Map[Param, (Expr, Expr)]())()
-    val s2 = StmBuild(3, SSome(True)(), Map[Param, (Expr, Expr)]())()
+    val s1 = StmBuild(3, True, True, Map[Param, (Expr, Expr)]())()
+    val s2 = StmBuild(3, True, True, Map[Param, (Expr, Expr)]())()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -249,9 +253,9 @@ class CoreTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(n, SSome(i)(), Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
     val s2 =
-      StmBuild(n, SSome(j)(), Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -265,13 +269,15 @@ class CoreTests extends AnyFunSuite {
     val s1 =
       StmBuild(
         n,
-        SSome(j - i)(),
+        j - i,
+        True,
         Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
       )()
     val s2 =
       StmBuild(
         n,
-        SSome(i - j)(),
+        i - j,
+        True,
         Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
       )()
     assert(s1 == s2)
@@ -286,7 +292,8 @@ class CoreTests extends AnyFunSuite {
     val d = Param("d")()
     val s1 = StmBuild(
       n,
-      SSome(a * c * d)(),
+      a * c * d,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, a + 1),
         c -> (1, c + 2),
@@ -295,7 +302,8 @@ class CoreTests extends AnyFunSuite {
     )()
     val s2 = StmBuild(
       n,
-      SSome(a * c * d)(),
+      a * c * d,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, a + 1),
         d -> (2, d + 3),
@@ -310,7 +318,7 @@ class CoreTests extends AnyFunSuite {
   test("StmBuild:Equals:TypedAndUntyped") {
     val i = Param("i")()
     val untyped =
-      StmBuild(4, SSome(i)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
+      StmBuild(4, i, True, Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
     val typed = untyped.tchk()
     assert(typed.hashCode == untyped.hashCode)
     assert(typed == untyped)
@@ -322,9 +330,9 @@ class CoreTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(i, SSome(i)(), Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(i, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
     val s2 =
-      StmBuild(j, SSome(j)(), Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(j, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -335,9 +343,9 @@ class CoreTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(n, SSome(i)(), Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
     val s2 =
-      StmBuild(n, SSome(i)(), Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -350,13 +358,15 @@ class CoreTests extends AnyFunSuite {
     val s1 =
       StmBuild(
         n,
-        SSome(i - j)(),
+        i - j,
+        True,
         Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
       )()
     val s2 =
       StmBuild(
         n,
-        SSome(i - j)(),
+        i - j,
+        True,
         Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
       )()
     assert(s1 != s2)
@@ -368,9 +378,9 @@ class CoreTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val s1 =
-      StmBuild(n, SSome(i)(), Map[Param, (Expr, Expr)](i -> (i, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (i, i + 1)))()
     val s2 =
-      StmBuild(n, SSome(j)(), Map[Param, (Expr, Expr)](j -> (j, j + 1)))()
+      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (j, j + 1)))()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -382,7 +392,8 @@ class CoreTests extends AnyFunSuite {
     val z = Param("z")()
     val s1 = StmBuild(
       n,
-      SSome(i)(),
+      i,
+      True,
       Map[Param, (Expr, Expr)](
         i -> (z, i + 1),
         j -> (z, j - 1)
@@ -390,7 +401,8 @@ class CoreTests extends AnyFunSuite {
     )()
     val s2 = StmBuild(
       n,
-      SSome(j)(),
+      j,
+      True,
       Map[Param, (Expr, Expr)](
         i -> (z, j + 1),
         j -> (z, i - 1)
@@ -409,6 +421,7 @@ class CoreTests extends AnyFunSuite {
     val original = StmBuild(
       n,
       z + a + r0 * r1,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (z, a + 1),
         r0 -> (1, a * 2),
@@ -422,11 +435,13 @@ class CoreTests extends AnyFunSuite {
 
   test("StmBuild:AddOutputCounter") {
     val n = Param("n")(TyInt)
-    val out = Param("out")(TyTuple(TyTuple(TyInt, TyBool), TyBool))
+    val data = Param("data")(TyTuple(TyInt, TyBool))
+    val valid = Param("valid")(TyBool)
     val outCtr = Param("out_ctr")(TyInt)
     val s = StmBuild(
       n,
-      out,
+      data,
+      valid,
       Map[Param, (Expr, Expr)](outCtr -> (10, outCtr * 2))
     )().tchk().asInstanceOf[StmBuild]
 
@@ -435,10 +450,11 @@ class CoreTests extends AnyFunSuite {
     // The existing bound variable should be renamed
     val i = Param("i")()
     val expectedOutCtrSeed = IntCst(0)
-    val expectedOutCtrNext = Mux(IsSome(out)(), outCtr + 1, outCtr)()
+    val expectedOutCtrNext = Mux(valid, outCtr + 1, outCtr)()
     val expected = StmBuild(
       n,
-      out,
+      data,
+      valid,
       Map[Param, (Expr, Expr)](
         i -> (10, i * 2),
         outCtr -> (expectedOutCtrSeed, expectedOutCtrNext)
@@ -466,11 +482,8 @@ class CoreTests extends AnyFunSuite {
     )
     val original = StmBuild(
       n,
-      Mux(
-        FunCall(f, i)(),
-        SSome(StmData(s)())(),
-        NNone(TyInt)
-      )(),
+      StmData(s)(),
+      FunCall(f, i)(),
       Map[Param, (Expr, Expr)](
         i -> (3, i + 1),
         s -> (
@@ -499,11 +512,8 @@ class CoreTests extends AnyFunSuite {
     val expected =
       StmBuild(
         n,
-        Mux(
-          FunCall(f, freshI)(),
-          SSome(StmData(s)())(),
-          NNone(TyInt)
-        )(),
+        StmData(s)(),
+        FunCall(f, freshI)(),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
           s -> (
@@ -527,7 +537,8 @@ class CoreTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
-      SSome(Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)())(),
+      Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (b, a + 1 + outside),
         b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
@@ -559,7 +570,8 @@ class CoreTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
-      SSome(Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)())(),
+      Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (b, a + 1 + outside),
         b -> (0, b + c + FunCall(Function(a, a)(), 1)()),

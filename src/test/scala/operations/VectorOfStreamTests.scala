@@ -65,7 +65,8 @@ class VectorOfStreamTests extends AnyFunSuite {
       TyInt ::+ (i =>
         StmBuild(
           m,
-          SSome(Tuple(a1, a2)())(),
+          Tuple(a1, a2)(),
+          True,
           Map[Param, (Expr, Expr)](a1 -> (0, a1 + 1), a2 -> (i, a2 + i))
         )()
       )
