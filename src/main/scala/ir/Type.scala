@@ -27,7 +27,12 @@ sealed trait Type {
       case Missing | TyInt | TyBool => this
       case TyArrow(t1, t2)          => TyArrow(t1.lower, t2.lower)
       case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.lower): _*)
-      case TyVec(t, n)              => TyVec(t.lower, n.lower())
+      case TyVec(t, n) =>
+        val newN = n.lower()
+        t.lower match {
+          case TyStm(t, m) => TyStm(TyVec(t, newN), m)
+          case t           => TyVec(t, newN)
+        }
       case TyStm(t, n) =>
         t.lower match {
           case TyStm(t, m) => TyStm(t, n * m)
