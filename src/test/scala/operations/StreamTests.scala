@@ -1302,6 +1302,19 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s.tchk()) == expected)
   }
 
+  test("Vec2Stm:Vec[Stm[Int]]") {
+    val n = 4
+    val m = 3
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, 42, i)()))()
+    val e = Vec2Stm(vs)().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until m).flatMap(i => (0 until n).map(t => IntCst(42 + i * t))): _*
+      )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
   test("Vec2Stm2Vec") {
     val p = Param("p")()
     val actual = Stm2Vec(Vec2Stm(p)())()
