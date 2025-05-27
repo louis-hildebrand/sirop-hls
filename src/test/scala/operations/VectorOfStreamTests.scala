@@ -215,4 +215,38 @@ class VectorOfStreamTests extends AnyFunSuite {
     val actual = ir.eval(e)
     assert(actual == expected)
   }
+
+  test("VecPrefix") {
+    val n = 5
+    val m = 3
+    val k = Param("k")(TyInt)
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecPrefix(vs, k)().tchk().lower()
+    for (kVal <- (1 to n)) {
+      val expected = StmLiteral(
+        (0 until m).map(t =>
+          VecLiteral((0 until kVal).map(i => IntCst((1 + t) * i)): _*)()
+        ): _*
+      )()
+      val actual = ir.eval(Let(k, kVal, e)())
+      assert(actual == expected, s"(for k = $kVal)")
+    }
+  }
+
+  test("VecSuffix") {
+    val n = 5
+    val m = 3
+    val k = Param("k")(TyInt)
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecSuffix(vs, k)().tchk().lower()
+    for (kVal <- 1 to n) {
+      val expected = StmLiteral(
+        (0 until m).map(t =>
+          VecLiteral((n - kVal until n).map(i => IntCst((1 + t) * i)): _*)()
+        ): _*
+      )()
+      val actual = ir.eval(Let(k, kVal, e)())
+      assert(actual == expected, s"(for k = $kVal)")
+    }
+  }
 }

@@ -242,34 +242,81 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 }
 
-object VecPrefix {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      k: Expr /* Int */
-  ): Expr /* Vec<A; k> */ = {
-    val nVal =
-      PartialEvalPass.partialEval(VecLength(vec)()).asInstanceOf[IntCst].i
-    val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
-    require(kVal >= 0)
-    require(kVal <= nVal)
+case class VecPrefix(
+    vec: Expr /* Vec<A; n> */,
+    k: Expr /* Int */
+)(typ: Type = Missing)
+    extends SyntaxSugar(vec, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, k) => VecPrefix(v, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i)()))()
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newK = k.tchk(context).expectType(TyInt)
+    val newV = vec.tchk(context)
+    newV.typ match {
+      case TyVec(t, _) =>
+        this.rebuild(TyVec(t, k), Seq(newV, newK))
+      case t =>
+        throw new TypeError(
+          s"Argument of ${VecPrefix.getClass.getSimpleName} has type $t. Expected a vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    val k = this.k.lower()
+    val v = this.vec.lower()
+    v.typ match {
+      case TyStm(t, _) =>
+        StmMap(v, t ::+ (v => VecPrefix(v, k)()))().tchk().lower()
+      case _ =>
+        VecBuild(k, TyInt ::+ (i => VecAccess(v, i)()))().tchk()
+    }
   }
 }
 
-object VecSuffix {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      k: Expr /* Int */
-  ): Expr /* Vec<A; k> */ = {
-    val nVal =
-      PartialEvalPass.partialEval(VecLength(vec)()).asInstanceOf[IntCst].i
-    val kVal = PartialEvalPass.partialEval(k).asInstanceOf[IntCst].i
-    require(kVal >= 0)
-    require(kVal <= nVal)
+case class VecSuffix(
+    vec: Expr /* Vec<A; n> */,
+    k: Expr /* Int */
+)(typ: Type = Missing) /* Vec<A; k> */
+    extends SyntaxSugar(vec, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, k) => VecSuffix(v, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
 
-    val n = VecLength(vec)()
-    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i + (n - k))()))()
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newK = k.tchk(context).expectType(TyInt)
+    val newV = vec.tchk(context)
+    newV.typ match {
+      case TyVec(t, _) =>
+        this.rebuild(TyVec(t, k), Seq(newV, newK))
+      case t =>
+        throw new TypeError(
+          s"Argument of ${VecSuffix.getClass.getSimpleName} has type $t. Expected a vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val k = this.k.lower()
+    val v = this.vec.lower()
+    v.typ match {
+      case TyStm(t, _) =>
+        StmMap(v, t ::+ (v => VecSuffix(v, k)()))().tchk().lower()
+      case _ =>
+        val n = v.typ.asInstanceOf[TyVec].n
+        VecBuild(k, TyInt ::+ (i => VecAccess(v, i + (n - k))()))()
+          .tchk()
+          .lower()
+    }
   }
 }
 

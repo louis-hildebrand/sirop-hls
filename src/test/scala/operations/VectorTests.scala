@@ -40,9 +40,7 @@ class VectorTests extends AnyFunSuite {
     val v2 =
       VecMap(
         v,
-        TyVec(TyInt, 3) ::+ (v =>
-          VecFold(v, 0, PlusFunction())()
-        )
+        TyVec(TyInt, 3) ::+ (v => VecFold(v, 0, PlusFunction())())
       )()
     assert(ir.eval(v2) == VecLiteral(1, 3, 5)())
   }
@@ -93,18 +91,18 @@ class VectorTests extends AnyFunSuite {
 
   test("VecPrefix") {
     val v = VecBuild(3, TyInt ::+ (i => i))()
-    assert(ir.eval(VecPrefix(v, 0)) == VecLiteral()())
-    assert(ir.eval(VecPrefix(v, 1)) == VecLiteral(0)())
-    assert(ir.eval(VecPrefix(v, 2)) == VecLiteral(0, 1)())
-    assert(ir.eval(VecPrefix(v, 3)) == VecLiteral(0, 1, 2)())
+    assert(ir.eval(VecPrefix(v, 0)()) == VecLiteral()())
+    assert(ir.eval(VecPrefix(v, 1)()) == VecLiteral(0)())
+    assert(ir.eval(VecPrefix(v, 2)()) == VecLiteral(0, 1)())
+    assert(ir.eval(VecPrefix(v, 3)()) == VecLiteral(0, 1, 2)())
   }
 
   test("VecSuffix") {
     val v = VecBuild(3, TyInt ::+ (i => i))()
-    assert(ir.eval(VecSuffix(v, 0).tchk()) == VecLiteral()())
-    assert(ir.eval(VecSuffix(v, 1).tchk()) == VecLiteral(2)())
-    assert(ir.eval(VecSuffix(v, 2).tchk()) == VecLiteral(1, 2)())
-    assert(ir.eval(VecSuffix(v, 3).tchk()) == VecLiteral(0, 1, 2)())
+    assert(ir.eval(VecSuffix(v, 0)().tchk()) == VecLiteral()())
+    assert(ir.eval(VecSuffix(v, 1)().tchk()) == VecLiteral(2)())
+    assert(ir.eval(VecSuffix(v, 2)().tchk()) == VecLiteral(1, 2)())
+    assert(ir.eval(VecSuffix(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
   }
 
   test("VecShiftLeft") {
