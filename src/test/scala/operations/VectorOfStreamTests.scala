@@ -3,6 +3,7 @@ package operations
 import ir._
 import org.scalatest.funsuite.AnyFunSuite
 
+// TODO: Just combine these tests with the main VectorTests class?
 class VectorOfStreamTests extends AnyFunSuite {
   test("VecBuild:StmRange") {
     val n = 3
@@ -264,5 +265,89 @@ class VectorOfStreamTests extends AnyFunSuite {
       val actual = ir.eval(Let(k, kVal, e)())
       assert(actual == expected, s"(for k = $kVal)")
     }
+  }
+
+  test("VecRepeat") {
+    val n = 4
+    val m = 3
+    val k = Param("k")(TyInt)
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i + 1, i + 1)()))()
+    val e = VecRepeat(vs, k).tchk().lower()
+    for (kVal <- Seq(1, 2, 5)) {
+      val expected = StmLiteral(
+        (0 until m).map(t =>
+          VecLiteral(
+            (0 until kVal).map(_ =>
+              VecLiteral((0 until n).map(i => IntCst((t + 1) * (i + 1))): _*)()
+            ): _*
+          )()
+        ): _*
+      )()
+      val actual = ir.eval(Let(k, kVal, e)())
+      assert(actual == expected)
+    }
+  }
+
+  test("VecReverse") {
+    val n = 3
+    val m = 3
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i - 1, i + 1)()))()
+    val e = VecReverse(vs).tchk().lower()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral((0 until m).map(j => {
+          val i = n - 1 - j
+          IntCst((i - 1) + t * (i + 1))
+        }): _*)()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecSplit") {
+    val nm = 12
+    val m = Param("m")(TyInt)
+    val k = 3
+    val vs = VecBuild(nm, TyInt ::+ (i => StmRange(k, 0, i)()))()
+    val e = VecSplit(vs, m).tchk().lower()
+    for (mVal <- Seq(1, 2, 3, 4, 6, 12)) {
+      val nVal = nm / mVal
+      val expected = StmLiteral(
+        (0 until k).map(t =>
+          VecLiteral(
+            (0 until nVal).map(i =>
+              VecLiteral(
+                (0 until mVal).map(j => IntCst(t * (i * mVal + j))): _*
+              )()
+            ): _*
+          )()
+        ): _*
+      )()
+      val actual = ir.eval(Let(m, mVal, e)())
+      assert(actual == expected)
+    }
+  }
+
+  test("VecJoin") {
+    val n = 2
+    val m = 3
+    val k = 4
+    val vs = VecBuild(
+      n,
+      TyInt ::+ (i => VecBuild(m, TyInt ::+ (j => StmRange(k, i, j)()))())
+    )()
+    val e = VecJoin(vs)()
+    val expected = StmLiteral(
+      (0 until k).map(t =>
+        VecLiteral((0 until n * m).map(ij => {
+          val i = ij / m
+          val j = ij % m
+          IntCst(i + t * j)
+        }): _*)()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
   }
 }

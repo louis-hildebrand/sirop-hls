@@ -268,14 +268,7 @@ case class VecPrefix(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    val k = this.k.lower()
-    val v = this.vec.lower()
-    v.typ match {
-      case TyStm(t, _) =>
-        StmMap(v, t ::+ (v => VecPrefix(v, k)()))().tchk().lower()
-      case _ =>
-        VecBuild(k, TyInt ::+ (i => VecAccess(v, i)()))().tchk()
-    }
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i)()))().tchk().lower()
   }
 }
 
@@ -305,18 +298,10 @@ case class VecSuffix(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    requireType()
-    val k = this.k.lower()
-    val v = this.vec.lower()
-    v.typ match {
-      case TyStm(t, _) =>
-        StmMap(v, t ::+ (v => VecSuffix(v, k)()))().tchk().lower()
-      case _ =>
-        val n = v.typ.asInstanceOf[TyVec].n
-        VecBuild(k, TyInt ::+ (i => VecAccess(v, i + (n - k))()))()
-          .tchk()
-          .lower()
-    }
+    val n = vec.typ.asInstanceOf[TyVec].n
+    VecBuild(k, TyInt ::+ (i => VecAccess(vec, i + (n - k))()))()
+      .tchk()
+      .lower()
   }
 }
 
@@ -427,7 +412,6 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    val v = this.v.lower()
     val (n, m) = this.v.typ match {
       case TyVec(TyVec(_, m), n) => (n, m)
       case t => throw new TypeError(s"Vector in VecJoin has type $t.")
