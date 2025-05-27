@@ -204,7 +204,15 @@ class VectorOfStreamTests extends AnyFunSuite {
   }
 
   test("Vec2Stm") {
-    // TODO: Write test for passing a Vec[Stm[Int]] to Vec2Stm
-    ???
+    val n = 4
+    val m = 3
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, 42, i)()))()
+    val e = Vec2Stm(vs)().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until m).flatMap(i => (0 until n).map(t => IntCst(42 + i * t))): _*
+      )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
   }
 }

@@ -747,18 +747,20 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val v = this.v.lower()
-    val i = Param("i")(TyInt)
-    val (t, n) = {
-      val vt = v.typ.asInstanceOf[TyVec]
-      (vt.t, vt.n)
+    v.typ match {
+      case TyVec(_, n) =>
+        // Alternatively, you could implement Vec2Stm using a shift register
+        val i = Param("i")()
+        StmBuild(
+          n,
+          VecAccess(v, i)(),
+          True,
+          Map[Param, (Expr, Expr)](i -> (0, i + 1))
+        )().tchk().lower()
+      case TyStm(tv: TyVec, _) =>
+        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
+      case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
     }
-    // Alternatively, you could implement Vec2Stm using a shift register
-    StmBuild(
-      n,
-      VecAccess(v, i)(t),
-      True,
-      Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )().tchk().lower()
   }
 }
 
