@@ -158,7 +158,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     StmFold(
       s,
       VecBuild(n, TyInt ::+ (_ => Default(t)))(),
-      TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)))
+      TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)()))
     )().tchk().lower()
   }
 }
@@ -298,29 +298,80 @@ case class VecSuffix(
   }
 }
 
-object VecShiftLeft {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n> */ = {
-    val n = VecLength(vec)()
-    VecBuild(
-      n,
-      TyInt ::+ (i => Mux(i === n + -1, e, VecAccess(vec, i + 1)())())
-    )()
+case class VecShiftLeft(
+    vec: Expr /* Vec<A; n> */,
+    e: Expr /* A */
+)(typ: Type = Missing) /* Vec<A; n> */
+    extends SyntaxSugar(vec, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecShiftLeft(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = vec.tchk(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First argument in ${VecShiftLeft.getClass.getSimpleName} has type $t. Expected a vector."
+        )
+    }
+    val newE = e.tchk(context).expectType(t)
+    this.rebuild(TyVec(t, n), Seq(newV, newE))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = this.vec.typ.asInstanceOf[TyVec].n
+    val e = this.e.lower()
+    val v = this.vec.lower()
+    v.typ match {
+      case TyStm(tv: TyVec, _) =>
+        val tt = TyTuple(tv, tv.t)
+        StmMap(StmZip(v, e)(), tt ::+ (vv => VecShiftLeft(vv.__0, vv.__1)()))()
+          .tchk()
+          .lower()
+      case _ =>
+        VecBuild(
+          n,
+          TyInt ::+ (i => Mux(i === n + -1, e, VecAccess(v, i + 1)())())
+        )().tchk().lower()
+    }
   }
 }
 
-object VecShiftRight {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      e: Expr /* A */
-  ): Expr /* Vec<A; n> */ = {
-    val n = VecLength(vec)()
-    VecBuild(
-      n,
-      TyInt ::+ (i => Mux(i === 0, e, VecAccess(vec, i + -1)())())
-    )()
+case class VecShiftRight(
+    vec: Expr /* Vec<A; n> */,
+    e: Expr /* A */
+)(typ: Type = Missing) /* Vec<A; n> */
+    extends SyntaxSugar(vec, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, e) => VecShiftRight(v, e)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV = vec.tchk(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First argument in ${VecShiftRight.getClass.getSimpleName} has type $t. Expected a vector."
+        )
+    }
+    val newE = e.tchk(context).expectType(t)
+    this.rebuild(TyVec(t, n), Seq(newV, newE))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = vec.typ.asInstanceOf[TyVec].n
+    VecPrepend(VecPrefix(vec, n - 1)(), e)().tchk().lower()
   }
 }
 

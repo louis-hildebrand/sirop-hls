@@ -648,9 +648,11 @@ object LeftShiftRegister {
     */
   def unapply(args: (Expr, Function)): Option[(Expr, Expr, Expr)] = {
     val (z, next) = args
+    val (peZ, peNext) =
+      (PartialEvalPass.partialEval(z), PartialEvalPass.partialEval(next))
     // Partially evaluate because the initial value may be a function call that
     // ends up returning a vector, for example
-    (PartialEvalPass.partialEval(z), next) match {
+    (peZ, peNext) match {
       case (
             VecBuild(n0, f),
             Function(

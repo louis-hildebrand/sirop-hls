@@ -90,7 +90,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         Tuple(42, True, v)(),
         True,
         Map[Param, (Expr, Expr)](
-          v -> (z, VecShiftLeft(v, VecAccess(v, 0)()))
+          v -> (z, VecShiftLeft(v, VecAccess(v, 0)())())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
       // TODO: This wouldn't be necessary if VecBuild had IntCst length
@@ -298,7 +298,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
           ),
           v -> (
             VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
-            VecShiftLeft(v, a.__0)
+            VecShiftLeft(v, a.__0)()
           )
         )
       )().tchk().lower()

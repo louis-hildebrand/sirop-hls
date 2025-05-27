@@ -420,4 +420,42 @@ class VectorOfStreamTests extends AnyFunSuite {
     val actual = ir.eval(e)
     assert(actual == expected)
   }
+
+  test("VecShiftLeft") {
+    val m = 4
+    val n = 3
+    val s = StmCst(m, 99)()
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecShiftLeft(vs, s)().tchk().lower()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until n).map(i =>
+            IntCst(if (i < n - 1) (i + 1) + t * (i + 1) else 99)
+          ): _*
+        )()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecShiftRight") {
+    val m = 4
+    val n = 3
+    val s = StmCst(m, 99)()
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecShiftRight(vs, s)().tchk().lower()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until n).map(i =>
+            IntCst(if (i == 0) 99 else (i - 1) + t * (i - 1))
+          ): _*
+        )()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
 }

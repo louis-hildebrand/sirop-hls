@@ -147,6 +147,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(-3 + x < 4) == (x < 7))
   }
 
+  test("ScalarInequality:(x >= c) && (x < c + 1)") {
+    val c = 42
+    val x = Param("x")(TyInt)
+    val e = (x >= c) && (x < (c + 1))
+    assert(pe(e) == (x === c))
+  }
+
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")()
     val z = Param("z")()

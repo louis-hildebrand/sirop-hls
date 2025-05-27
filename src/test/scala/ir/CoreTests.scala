@@ -194,7 +194,7 @@ class CoreTests extends AnyFunSuite {
       VecAccess(v, 0)(),
       True,
       Map[Param, (Expr, Expr)](
-        v -> (VecBuild(n, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+        v -> (VecBuild(n, TyInt ::+ (i => i))(), VecShiftLeft(v, 42)())
       )
     )().tchk()
 
@@ -205,7 +205,7 @@ class CoreTests extends AnyFunSuite {
       VecAccess(v, 0)(),
       True,
       Map[Param, (Expr, Expr)](
-        v -> (VecBuild(m + k, TyInt ::+ (i => i))(), VecShiftLeft(v, 42))
+        v -> (VecBuild(m + k, TyInt ::+ (i => i))(), VecShiftLeft(v, 42)())
       )
     )()
     assert(actual == expected)

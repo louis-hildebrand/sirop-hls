@@ -107,12 +107,12 @@ class VectorTests extends AnyFunSuite {
 
   test("VecShiftLeft") {
     val v = VecBuild(3, TyInt ::+ (i => i * (i + 2)))()
-    assert(ir.eval(VecShiftLeft(v, 42).tchk()) == VecLiteral(3, 8, 42)())
+    assert(ir.eval(VecShiftLeft(v, 42)().tchk()) == VecLiteral(3, 8, 42)())
   }
 
   test("VecShiftRight") {
     val v = VecBuild(3, TyInt ::+ (i => i * (i + 2)))()
-    assert(ir.eval(VecShiftRight(v, 42).tchk()) == VecLiteral(42, 0, 3)())
+    assert(ir.eval(VecShiftRight(v, 42)().tchk()) == VecLiteral(42, 0, 3)())
   }
 
   test("VecConcat") {

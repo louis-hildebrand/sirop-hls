@@ -1288,7 +1288,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val v = Param("v")()
     val lowered = StmBuild(
       n - m + 1,
-      VecShiftLeft(v, StmData(s)()),
+      VecShiftLeft(v, StmData(s)())(),
       Mux(
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
@@ -1340,7 +1340,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         ),
         v -> (
           VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
-          VecShiftLeft(v, StmData(s)())
+          VecShiftLeft(v, StmData(s)())()
         )
       )
     )()

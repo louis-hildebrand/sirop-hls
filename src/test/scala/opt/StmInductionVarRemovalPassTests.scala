@@ -134,11 +134,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val v = Param("a")()
     val s = StmBuild(
       n,
-      VecShiftLeft(v, i),
+      VecShiftLeft(v, i)(),
       True,
       Map[Param, (Expr, Expr)](
         i -> (100, i + 2),
-        v -> (VecBuild(m, TyInt ::+ (j => j))(), VecShiftLeft(v, i))
+        v -> (VecBuild(m, TyInt ::+ (j => j))(), VecShiftLeft(v, i)())
       )
     )().tchk().lower().asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
@@ -433,7 +433,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (2, i + 1),
         v -> (
           VecBuild(m, TyInt ::+ (j => j))(),
-          Mux(i < m, VecShiftLeft(v, 2 * i), v)()
+          Mux(i < m, VecShiftLeft(v, 2 * i)(), v)()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -469,7 +469,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (7, i + 1),
         v -> (
           VecBuild(m, TyInt ::+ (j => j))(),
-          Mux(i < m, v, VecShiftLeft(v, 3 * i + 1))()
+          Mux(i < m, v, VecShiftLeft(v, 3 * i + 1)())()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -524,7 +524,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       TyVec(TyInt, n) ::+ (x =>
         Mux(
           t < n,
-          VecShiftLeft(x, StmData(FunCall(stmNextFun, t)())()),
+          VecShiftLeft(x, StmData(FunCall(stmNextFun, t)())())(),
           x
         )()
       )
@@ -737,7 +737,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         s -> (input, t < n),
         v -> (
           VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
-          Mux(t < n, VecShiftLeft(v, StmData(s)()), v)()
+          Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -793,7 +793,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         s -> (input, t < n),
         v -> (
           VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
-          Mux(t < n, VecShiftLeft(v, StmData(s)()), v)()
+          Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
