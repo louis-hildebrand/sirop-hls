@@ -96,6 +96,22 @@ class VectorOfStreamTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("VecAccess") {
+    val n = 5
+    val m = 4
+    val idx = Param("idx")(TyInt)
+    val e = VecAccess(
+      VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))(),
+      idx
+    )().tchk().lower()
+    for (idxVal <- 0 until n) {
+      val expected =
+        StmLiteral((0 until m).map(t => IntCst(idxVal + t * idxVal)): _*)()
+      val actual = ir.eval(Let(idx, idxVal, e)())
+      assert(actual == expected)
+    }
+  }
+
   test("VecMap:StmMap(VecMap(StmMap))") {
     val n = 2
     val m = 3

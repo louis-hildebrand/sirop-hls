@@ -1,5 +1,6 @@
 package ir
 
+import operations.StmMap
 import opt.OptionSimplifier
 
 import java.util.concurrent.atomic.AtomicLong
@@ -387,7 +388,16 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     val desugared = this match {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
       case vb: VecBuild   => vb.lowerVecBuild()
-      case e => e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
+      case va: VecAccess  => va.lowerVecAccess()
+      case e @ (_: Param | _: StmLiteral | _: VecLiteral) =>
+        // These expressions cannot necessarily be type checked in isolation,
+        // so maintain the type
+        e.rebuild(e.typ.lower)
+      case e =>
+        // Re-run the type checker to ensure no type errors crept in during
+        // lowering
+        val newE = e.rebuild(e.children.map(e => e.lower()))
+        if (e.typ != Missing) newE.tchk() else newE
     }
     // This is required because lowering may be syntax-directed (i.e., an
     // expression may need to be typed before it can be lowered) and it is no
@@ -1523,10 +1533,11 @@ case class StmBuild(
       !s.freeVars().contains(i),
       "there should be no more free occurrences of the vector index i"
     )
+    val expectedFreeVars = (this.freeVars() ++ m.freeVars()) - i
     assert(
-      s.freeVars().subsetOf(this.freeVars() - i),
+      s.freeVars().subsetOf(expectedFreeVars),
       "replication should not introduce any new free variables"
-        + s" (expected ${this.freeVars() - i}, found ${s.freeVars()})"
+        + s" (expected $expectedFreeVars, found ${s.freeVars()})"
     )
     s.tchk().asInstanceOf[StmBuild]
   }
@@ -1749,6 +1760,21 @@ case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
     newChildren match {
       case Seq(v, i) => VecAccess(v, i)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  def lowerVecAccess(): Expr = {
+    requireType()
+    val v = this.vec.lower()
+    val i = this.i.lower()
+    v.typ match {
+      case _: TyVec => VecAccess(v, i)().tchk()
+      case TyStm(tv: TyVec, _) =>
+        StmMap(v, tv ::+ (v => VecAccess(v, i)()))().tchk().lower()
+      case t =>
+        throw new TypeError(
+          s"Cannot lower ${VecAccess.getClass.getSimpleName} whose first argument has type $t."
+        )
     }
   }
 }
