@@ -111,7 +111,7 @@ object PrettyPrinter {
                  |${indent(nStr)},
                  |${indent(fStr)}
                  |)
-                 |""".stripMargin
+                 |""".stripMargin.stripTrailing
             } else {
               s"VecBuild(${nStr}, ${fStr})"
             }

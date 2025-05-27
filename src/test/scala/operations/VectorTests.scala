@@ -118,8 +118,12 @@ class VectorTests extends AnyFunSuite {
   test("VecConcat") {
     val v1 = VecBuild(2, TyInt ::+ (i => i))()
     val v2 = VecBuild(4, TyInt ::+ (i => i))()
-    assert(ir.eval(VecConcat(v1, v2).tchk()) == VecLiteral(0, 1, 0, 1, 2, 3)())
-    assert(ir.eval(VecConcat(v2, v1).tchk()) == VecLiteral(0, 1, 2, 3, 0, 1)())
+    assert(
+      ir.eval(VecConcat(v1, v2)().tchk()) == VecLiteral(0, 1, 0, 1, 2, 3)()
+    )
+    assert(
+      ir.eval(VecConcat(v2, v1)().tchk()) == VecLiteral(0, 1, 2, 3, 0, 1)()
+    )
   }
 
   test("Vec2Tuple") {

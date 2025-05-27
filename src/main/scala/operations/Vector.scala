@@ -199,10 +199,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    VecBuild(
-      VecLength(v)() + 1,
-      TyInt ::+ (i => Mux(i === 0, e, VecAccess(v, i + -1)())())
-    )().tchk().lower()
+    VecConcat(VecBuild(1, TyInt ::+ (_ => e))(), v)().tchk().lower()
   }
 }
 
@@ -234,11 +231,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    val n = VecLength(v)()
-    VecBuild(
-      n + 1,
-      TyInt ::+ (i => Mux(i === n, e, VecAccess(v, i)())())
-    )().tchk().lower()
+    VecConcat(v, VecBuild(1, TyInt ::+ (_ => e))())().tchk().lower()
   }
 }
 
@@ -331,17 +324,65 @@ object VecShiftRight {
   }
 }
 
-object VecConcat {
-  def apply(
-      v1: Expr /* Vec<A; n> */,
-      v2: Expr /* Vec<A; m> */
-  ): Expr /* Vec<A; n+m> */ = {
-    val n = VecLength(v1)()
-    val m = VecLength(v2)()
-    VecBuild(
-      n + m,
-      TyInt ::+ (i => Mux(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())())
-    )()
+case class VecConcat(
+    v1: Expr /* Vec<A; n> */,
+    v2: Expr /* Vec<A; m> */
+)(typ: Type = Missing) /* Vec<A; n+m> */
+    extends SyntaxSugar(v1, v2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v1, v2) => VecConcat(v1, v2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newV1 = v1.tchk(context)
+    val (t1, n1) = newV1.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First argument in VecConcat has type $t. Expected a vector."
+        )
+    }
+    val newV2 = v2.tchk(context)
+    val (t2, n2) = newV2.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Second argument in VecConcat has type $t. Expected a vector."
+        )
+    }
+    if (t1 ~= t2) {
+      this.rebuild(TyVec(t1, n1 + n2), Seq(newV1, newV2))
+    } else {
+      throw new TypeError(
+        s"First vector in VecConcat contains elements of type $t1, but second vector contains elements of type $t2."
+      )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v1 = this.v1.lower()
+    val n1 = this.v1.typ.asInstanceOf[TyVec].n
+    val v2 = this.v2.lower()
+    val n2 = this.v2.typ.asInstanceOf[TyVec].n
+    v1.typ match {
+      case TyStm(tv1: TyVec, _) =>
+        val tv2 = v2.typ.asInstanceOf[TyStm].t.asInstanceOf[TyVec]
+        StmMap(
+          StmZip(v1, v2)(),
+          TyTuple(tv1, tv2) ::+ (vv => VecConcat(vv.__0, vv.__1)())
+        )().tchk().lower()
+      case _ =>
+        VecBuild(
+          n1 + n2,
+          TyInt ::+ (i =>
+            Mux(i < n1, VecAccess(v1, i)(), VecAccess(v2, i - n1)())()
+          )
+        )().tchk().lower()
+    }
   }
 }
 

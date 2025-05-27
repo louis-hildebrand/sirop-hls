@@ -239,7 +239,7 @@ class VectorOfStreamTests extends AnyFunSuite {
     val k = Param("k")(TyInt)
     val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
     val e = VecPrefix(vs, k)().tchk().lower()
-    for (kVal <- (1 to n)) {
+    for (kVal <- 1 to n) {
       val expected = StmLiteral(
         (0 until m).map(t =>
           VecLiteral((0 until kVal).map(i => IntCst((1 + t) * i)): _*)()
@@ -345,6 +345,76 @@ class VectorOfStreamTests extends AnyFunSuite {
           val j = ij % m
           IntCst(i + t * j)
         }): _*)()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecConcat") {
+    val m = 3
+    val n1 = 4
+    val n2 = 2
+    val vs1 = VecBuild(n1, TyInt ::+ (i => StmRange(m, 42, i)()))()
+    val vs2 = VecBuild(n2, TyInt ::+ (_ => StmCst(m, 99)()))()
+
+    val e1 = VecConcat(vs1, vs2)().tchk().lower()
+    val expected1 = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until (n1 + n2)).map(i =>
+            IntCst(if (i < n1) 42 + i * t else 99)
+          ): _*
+        )()
+      ): _*
+    )()
+    val actual1 = ir.eval(e1)
+    assert(actual1 == expected1)
+
+    val e2 = VecConcat(vs2, vs1)().tchk().lower()
+    val expected2 = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until (n1 + n2)).map(i =>
+            IntCst(if (i < n2) 99 else 42 + (i - n2) * t)
+          ): _*
+        )()
+      ): _*
+    )()
+    val actual2 = ir.eval(e2)
+    assert(actual2 == expected2)
+  }
+
+  test("VecPrepend") {
+    val m = 4
+    val n = 3
+    val s = StmCst(m, 99)()
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecPrepend(vs, s)()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until (n + 1)).map(i =>
+            IntCst(if (i == 0) 99 else (i - 1) + t * (i - 1))
+          ): _*
+        )()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecAppend") {
+    val m = 4
+    val n = 3
+    val s = StmCst(m, 99)()
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, i)()))()
+    val e = VecAppend(vs, s)()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral(
+          (0 until (n + 1)).map(i => IntCst(if (i < n) i + t * i else 99)): _*
+        )()
       ): _*
     )()
     val actual = ir.eval(e)
