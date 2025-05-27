@@ -2,7 +2,7 @@ package operations
 
 import ir._
 
-private object Helpers {
+object AsStm2Stm {
 
   /** Convert the given function into a function from stream to stream.
     *
@@ -10,7 +10,7 @@ private object Helpers {
     *   The original function, which could be (1) scalar to scalar, (2) scalar
     *   to stream, or (3) stream to stream.
     */
-  def asStm2Stm(f: Function): (Param, StmBuild) = {
+  def apply(f: Function): (Param, StmBuild) = {
     val f0 = f.lower()
     val f1 = f0.typ match {
       case TyArrow(TyStm(t1, n1), _: TyStm) =>
@@ -106,7 +106,7 @@ private object Helpers {
         val newF = Function(
           input,
           StmBuild(stm.n, newData, newValid, newEquations)()
-        )().tchk().asInstanceOf[Function]
+        )().tchk().lower().asInstanceOf[Function]
         assert(!newF.contains(f0.param))
         newF
       case TyArrow(_: TyStm, _) =>
@@ -131,10 +131,17 @@ private object Helpers {
           s"Function in AsStm2Stm has type $t."
         )
     }
+    (f1.param, f1.body.asInstanceOf[StmBuild])
+  }
+}
+
+object AsFusedStm2Stm {
+  def apply(f: Function): (Param, StmBuild) = {
+    val (x, body) = AsStm2Stm(f)
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
+    (x, body.fuseCompletely())
   }
 }
 
@@ -366,7 +373,7 @@ case class StmMap(
     val f = this.f.lower()
     val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
-    val (s, innerStm) = Helpers.asStm2Stm(f)
+    val (s, innerStm) = AsFusedStm2Stm(f)
     assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
     assert(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
@@ -595,7 +602,7 @@ case class StmScanInclusive(
     val elemType = z.typ
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val (s, innerStm) =
-      Helpers.asStm2Stm(
+      AsFusedStm2Stm(
         // The function has the form (acc) => (elem) => newAcc.
         // Take just the (elem) => newAcc part here, with acc being a free variable.
         // Later, replace that free variable with the appropriate element in the StmScan accumulator.

@@ -35,10 +35,35 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     requireType()
     val v = this.v.lower()
     val f = this.f.lower()
-    VecBuild(
-      VecLength(v)(),
-      TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
-    )().tchk().lower()
+    f.typ.asInstanceOf[TyArrow] match {
+      case TyArrow(t1, t2)
+          if Default.hasDefault(t1) && Default.hasDefault(t2) =>
+        VecBuild(
+          VecLength(v)(),
+          TyInt ::+ (i => FunCall(f, VecAccess(v, i)())())
+        )().tchk().lower()
+      case TyArrow(t1, _: TyStm) =>
+        val (x, stm) = f match {
+          case f: Function => AsStm2Stm(f)
+          case f =>
+            throw new IllegalArgumentException(
+              s"Cannot lower VecMap with function $f."
+            )
+        }
+        val n = this.v.typ.asInstanceOf[TyVec].n
+        val i = Param("i")(TyInt)
+        val replicatedStm = stm.replicate(n, i = i, varsToReplicate = Set(x))
+        t1 match {
+          case _: TyStm =>
+            replicatedStm.subPreserveType(x -> v)
+          case _ =>
+            replicatedStm.subPreserveType(x -> StmCst(1, v)().tchk().lower())
+        }
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot lower VecMap with function of type $t."
+        )
+    }
   }
 }
 
@@ -283,9 +308,7 @@ object VecConcat {
     val m = VecLength(v2)()
     VecBuild(
       n + m,
-      TyInt ::+ (i =>
-        Mux(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())()
-      )
+      TyInt ::+ (i => Mux(i < n, VecAccess(v1, i)(), VecAccess(v2, i - n)())())
     )()
   }
 }

@@ -1425,10 +1425,16 @@ case class StmBuild(
     *   The number of instances of the body to create.
     * @param i
     *   The index within the vector.
+    * @param varsToReplicate
+    *   Input stream variables that must also be replicated.
     * @return
     *   A stream of vectors of length <code>m</code>.
     */
-  def replicate(m: Expr, i: Param): StmBuild = {
+  def replicate(
+      m: Expr,
+      i: Param,
+      varsToReplicate: Set[Param]
+  ): StmBuild = {
     if (this.n.freeVars().contains(i)) {
       throw new IllegalArgumentException(
         "Stream length must not vary with vector index."
@@ -1439,7 +1445,7 @@ case class StmBuild(
     // into vectors.
     // Some variables do not depend on the vector index i and can therefore be
     // shared.
-    val scopes = this.findScopeByVar(i)
+    val scopes = this.findScopeByVar(i, varsToReplicate)
     // If the type of the variables may change, then it seems like a good idea
     // to just introduce a whole new variable.
     // This way I can check that no uses of the original variable were
@@ -1447,8 +1453,9 @@ case class StmBuild(
     // same name but different types floating around.
     val oldToNewVar = scopes
       .map({
-        case (x, PrivateScope) => x -> x.freshCopy.rebuild(TyVec(x.typ, m))
-        case (x, SharedScope)  => x -> x
+        case (x, PrivateScope) =>
+          x -> x.freshCopy.rebuild(TyVec(x.typ, m).lower)
+        case (x, SharedScope) => x -> x
       })
     val subs: Map[Expr, Expr] = scopes.flatMap({
       case (x, PrivateScope) =>
@@ -1476,7 +1483,7 @@ case class StmBuild(
           val newZ = scopes(x) match {
             case PrivateScope =>
               z match {
-                case z: StmBuild => z.replicate(m, i)
+                case z: StmBuild => z.replicate(m, i, varsToReplicate)
                 case z: Param    => z.rebuild(TyStm(TyVec(t, m), k))
                 case z =>
                   throw new IllegalArgumentException(
@@ -1524,7 +1531,10 @@ case class StmBuild(
     s.tchk().asInstanceOf[StmBuild]
   }
 
-  private def findScopeByVar(i: Param): Map[Param, AccVarScope] = {
+  private def findScopeByVar(
+      i: Param,
+      varsToReplicate: Set[Param]
+  ): Map[Param, AccVarScope] = {
     // If an accumulator variable depends on private variables, then it must also be private
     @tailrec
     def propagateScopes(
@@ -1555,8 +1565,10 @@ case class StmBuild(
     propagateScopes(
       scopeByVar = this.equations
         .map({ case (x, (z, next)) =>
-          val dependsOnI =
-            next.freeVars().contains(i) || z.freeVars().contains(i)
+          val dependsOnI = next.freeVars().contains(i) || z
+            .freeVars()
+            .intersect(varsToReplicate + i)
+            .nonEmpty
           x -> (if (dependsOnI) PrivateScope else SharedScope)
         }),
       dependencies = dependencies,
@@ -1721,7 +1733,7 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
               s"Cannot lower VecBuild whose function has body $body. Expected StmBuild."
             )
         }
-        s.replicate(n, i)
+        s.replicate(n, i, Set())
       case t if Default.hasDefault(t) => VecBuild(n, f)().tchk()
       case t =>
         throw new IllegalArgumentException(
@@ -1844,7 +1856,7 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
       case _: TyVec => this.rebuild(TyInt, Seq(newV))
       case t =>
         throw new TypeError(
-          s"Vector in VecLength has type $t. Expected a stream."
+          s"Vector in VecLength has type $t. Expected a vector."
         )
     }
   }

@@ -96,8 +96,115 @@ class VectorOfStreamTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecMap:StmSum") {
-    // TODO: Write a test like VecBuild:StmSum, but in which the input must also be replicated
+  test("VecMap:StmMap(VecMap(StmMap))") {
+    val n = 2
+    val m = 3
+    val k = 4
+    val svs =
+      StmCst(n, VecBuild(m, TyInt ::+ (i => StmRange(k, i - 1, i * 2)()))())()
+    val e = StmMap(
+      svs,
+      TyVec(TyStm(TyInt, k), m) ::+ (vs =>
+        VecMap(
+          vs,
+          TyStm(TyInt, k) ::+ (s => StmMap(s, TyInt ::+ (x => x + 42))())
+        )()
+      )
+    )().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until n).flatMap(_ =>
+          (0 until k).map(t1 =>
+            VecLiteral(
+              (0 until m).map(i => IntCst((i - 1 + i * 2 * t1) + 42)): _*
+            )()
+          )
+        ): _*
+      )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecMap:StmMap(VecMap(VecMap(StmMap)))") {
+    val n = 2
+    val m = 3
+    val k = 4
+    val p = 5
+    val svvs = StmCst(
+      n,
+      VecBuild(
+        m,
+        TyInt ::+ (i => VecBuild(k, TyInt ::+ (j => StmRange(p, i, j)()))())
+      )()
+    )()
+    val e = StmMap(
+      svvs,
+      TyVec(TyVec(TyStm(TyInt, p), k), m) ::+ (vvs =>
+        VecMap(
+          vvs,
+          TyVec(TyStm(TyInt, p), k) ::+ (vs =>
+            VecMap(
+              vs,
+              TyStm(TyInt, p) ::+ (s => StmMap(s, TyInt ::+ (x => x * x + 9))())
+            )()
+          )
+        )()
+      )
+    )().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until n).flatMap(_ =>
+          (0 until p).map(t1 =>
+            VecLiteral(
+              (0 until m).map(i =>
+                VecLiteral((0 until k).map(j => {
+                  val x = i + t1 * j
+                  IntCst(x * x + 9)
+                }): _*)()
+              ): _*
+            )()
+          )
+        ): _*
+      )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecMap:VecMap(StmScan)") {
+    val n = 5
+    val m = 3
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, i, 1)()))()
+    val e = VecMap(
+      vs,
+      TyStm(TyInt, m) ::+ (s => StmScanInclusive(s, 0, PlusFunction())())
+    )().tchk().lower()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral((0 until n).map(i => IntCst((i to i + t).sum)): _*)()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecMap:VecMap(VecCount(n), i => StmRange(m, i, 1))") {
+    val n = 2
+    val m = 3
+    val e = VecMap(
+      VecBuild(n, TyInt ::+ (i => i))(),
+      TyInt ::+ (i => StmRange(m, i, 1)())
+    )().tchk().lower()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral((0 until n).map(i => IntCst(i + t)): _*)()
+      ): _*
+    )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("Vec2Stm") {
+    // TODO: Write test for passing a Vec[Stm[Int]] to Vec2Stm
     ???
   }
 }
