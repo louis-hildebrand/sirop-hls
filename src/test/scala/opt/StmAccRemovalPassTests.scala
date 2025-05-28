@@ -14,7 +14,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val a4 = Param("a")()
     val stm = StmBuild(
       n,
-      SSome(Tuple(a2)())(),
+      Tuple(a2)(),
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (0, 0),
         a1 -> (1, a1 + 1),
@@ -25,7 +26,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )()
     val expected = StmBuild(
       n,
-      SSome(Tuple(a2)())(),
+      Tuple(a2)(),
+      True,
       Map[Param, (Expr, Expr)](
         a2 -> (2, a2 + a3),
         a3 -> (3, a3 + a4),
@@ -44,7 +46,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val a2 = Param("a")()
     val original = StmBuild(
       n,
-      Mux(a2 < n, NNone(TyInt), SSome(StmData(a1)())())(),
+      StmData(a1)(),
+      a2 >= n,
       Map[Param, (Expr, Expr)](
         a0 -> (s, a2 < n),
         a1 -> (s, a2 >= n),
@@ -53,7 +56,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )()
     val expected = StmBuild(
       n,
-      Mux(a2 < n, NNone(TyInt), SSome(StmData(a1)())())(),
+      StmData(a1)(),
+      a2 >= n,
       Map[Param, (Expr, Expr)](
         a1 -> (s, a2 >= n),
         a2 -> (0, a2 + 1)
@@ -65,7 +69,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
   test("RemoveConstantVars:EmptyStream") {
     val s = StmBuild(
       5,
-      SSome(42)(),
+      42,
+      True,
       Map[Param, (Expr, Expr)]()
     )()
     assert(StmAccRemovalPass.removeConstantVars(s) == s)
@@ -77,7 +82,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val b = Param("b")()
     val s = StmBuild(
       n,
-      SSome(Tuple(a, b)())(),
+      Tuple(a, b)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (1, Mux(a - 1 === 0, 1, b + 42)()),
         b -> (1, b + 1)
@@ -86,7 +92,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     // `a` will always be 1, so the optimizer should be able to get rid of it
     val expected = StmBuild(
       n,
-      SSome(Tuple(1, b)())(),
+      Tuple(1, b)(),
+      True,
       Map[Param, (Expr, Expr)](
         b -> (1, b + 1)
       )
@@ -101,7 +108,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val b = Param("b")()
     val s = StmBuild(
       n,
-      SSome(Tuple(a, b)())(),
+      Tuple(a, b)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (1, Mux(a - 1 === 0 && b + 2 === 4, b - 1, b + 42)()),
         b -> (2, Mux(a - 1 === 0 && b + 2 === 4, a + 1, b + 1)())
@@ -109,7 +117,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )()
     val expected = StmBuild(
       n,
-      SSome(Tuple(1, 2)())(),
+      Tuple(1, 2)(),
+      True,
       Map[Param, (Expr, Expr)]()
     )()
     val actual = StmAccRemovalPass.removeConstantVars(s)
@@ -125,7 +134,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val e = Param("e")()
     val s = StmBuild(
       n,
-      SSome(a * c * d)(),
+      a * c * d,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, a + 1),
         b -> (Tuple()(), b),
@@ -136,7 +146,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )()
     val expected = StmBuild(
       n,
-      SSome(a * c * d)(),
+      a * c * d,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (0, a + 1),
         c -> (1, c + 2),
@@ -157,7 +168,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val j = Param("j")()
     val original = StmBuild(
       n,
-      SSome(Tuple(StmData(s0)(), StmData(s1)(), i0, i1)())(),
+      Tuple(StmData(s0)(), StmData(s1)(), i0, i1)(),
+      True,
       Map[Param, (Expr, Expr)](
         s0 -> (input, i0 < n),
         s1 -> (input, i0 < n),
@@ -170,7 +182,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val optimized = StmAccRemovalPass.deduplicateVars(original)
     val expected = StmBuild(
       n,
-      SSome(Tuple(StmData(s0)(), StmData(s0)(), i0, i0)())(),
+      Tuple(StmData(s0)(), StmData(s0)(), i0, i0)(),
+      True,
       Map[Param, (Expr, Expr)](
         s0 -> (input, i0 < n),
         i0 -> (0, i0 + 2),

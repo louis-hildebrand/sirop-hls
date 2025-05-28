@@ -306,7 +306,7 @@ object PartialEvalPass {
               case (v, i) => VecAccess(v, i)()
             }
 
-          case s @ StmBuild(n, out, equations) =>
+          case s @ StmBuild(n, data, valid, equations) =>
             val len = partialEval(n)(facts)
             val onlyElem = len match {
               case IntCst(1) =>
@@ -321,7 +321,7 @@ object PartialEvalPass {
             }
             onlyElem match {
               case Some(e) =>
-                StmBuild(1, SSome(e)(), Map[Param, (Expr, Expr)]())()
+                StmBuild(1, e, True, Map[Param, (Expr, Expr)]())()
               case None =>
                 // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
                 // evaluator is waaaay too slow. In many cases, it's not needed.
@@ -336,9 +336,13 @@ object PartialEvalPass {
                   .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
                     facts.range(x, r)
                   })
+                val newValid = partialEval(valid)(newFacts)
                 StmBuild(
                   len,
-                  partialEval(out)(newFacts),
+                  // The value of the data doesn't matter if it is invalid, so
+                  // we can assume it is valid when simplifying.
+                  partialEval(data)(newFacts.assumeTrue(newValid)),
+                  newValid,
                   equations.map({ case (x, (z, next)) =>
                     // The recurrence variables shouldn't occur free in z, so use
                     // the old facts for z
@@ -526,13 +530,14 @@ object PartialEvalPass {
                     val evaluatedNext = partialEval(next.substitute(subs))
                     x -> (evaluatedNext, next)
                 })
-                val evaluatedOutput = partialEval(s.output.substitute(subs))
-                evaluatedOutput match {
-                  case Tuple(v, True) =>
-                    Some((v, StmBuild(n - 1, s.output, nextEquations)()))
-                  case Tuple(_, False) =>
+                val evaluatedValid = partialEval(s.valid.substitute(subs))
+                evaluatedValid match {
+                  case True =>
+                    val v = partialEval(s.data.substitute(subs))
+                    Some((v, StmBuild(n - 1, s.data, s.valid, nextEquations)()))
+                  case False =>
                     tryEvalStmNext(
-                      StmBuild(n, s.output, nextEquations)(),
+                      StmBuild(n, s.data, s.valid, nextEquations)(),
                       stepsWithoutValid + 1
                     )
                   case _ => None

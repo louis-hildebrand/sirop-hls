@@ -20,17 +20,13 @@ object StmSimplifier {
         x -> (simplify(producer)(facts), next)
       case eqn => eqn
     })
-    StmBuild(s.n, s.output, newEquations)()
+    StmBuild(s.n, s.data, s.valid, newEquations)()
   }
 
   @tailrec
   private def simplifyUntilFixpoint(s: StmBuild)(facts: FactSet): StmBuild = {
     val simplified = {
-      val s0 = {
-        val newOutput = OptionSimplifier.simplify(s.output)
-        StmBuild(s.n, newOutput, s.equations)()
-      }
-      val s1 = tl(PartialEvalPass.partialEval(s0)(facts))
+      val s1 = tl(PartialEvalPass.partialEval(s)(facts))
       val s2 = tl(StmAccRemovalPass.removeUnusedVars(s1))
       val s3 = tl(StmAccRemovalPass.removeConstantVars(s2))
       val s4 = tl(StmAccRemovalPass.deduplicateVars(s3))

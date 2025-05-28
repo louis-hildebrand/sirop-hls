@@ -120,16 +120,6 @@ object VhdlGenerator {
       s.renameVars(replacements)
     }
 
-    // TODO: It would be nice to avoid partial evaluation
-    val valid = PartialEvalPass
-      .partialEval(IsSome(s.output)().tchk().lower())
-      .tchk()
-      .lower()
-    val data = PartialEvalPass
-      .partialEval(OptionUnwrapUnsafe(s.output)().tchk().lower())
-      .tchk()
-      .lower()
-
     val (registerEquations, internalProducerEquations) = {
       val (r, ip) = s.equations.toSeq
         .map({ case eqn @ (x, (z, _)) =>
@@ -213,7 +203,7 @@ object VhdlGenerator {
       .map(x => s"-- $x")
       .mkString("\n")
     val allDecls = (
-      defaultDecls(s.n, data, valid, allRequiredProducersValidSignal)
+      defaultDecls(s.n, s.data, s.valid, allRequiredProducersValidSignal)
         ++ registerDecls(registerEquations)
         ++ internalProducerSignals
         ++ externalProducerSignals
@@ -221,7 +211,7 @@ object VhdlGenerator {
     )
     val allPorts = (
       defaultInPorts
-        ++ defaultOutPorts(VhdlType(data.typ))
+        ++ defaultOutPorts(VhdlType(s.data.typ))
         ++ externalProducerPorts
     )
     val component = VhdlComponent(
@@ -246,7 +236,7 @@ object VhdlGenerator {
       children = internalProducers
     )
 
-    (component, getBitWidth(data.typ))
+    (component, getBitWidth(s.data.typ))
   }
 
   private def findWhereUsedByInput(
@@ -265,7 +255,7 @@ object VhdlGenerator {
     val s = stm.renameVars
     inputs
       .map(x => {
-        if (s.output.freeVars().contains(x)) {
+        if (s.data.freeVars().union(s.valid.freeVars()).contains(x)) {
           throw new IllegalArgumentException(
             s"Input $x occurs free in the stream output. $rules"
           )

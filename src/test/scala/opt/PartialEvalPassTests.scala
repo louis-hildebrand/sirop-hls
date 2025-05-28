@@ -55,7 +55,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")()
     val s = StmBuild(
       10,
-      SSome(Tuple(a >= 0, a < 4)())(),
+      Tuple(a >= 0, a < 4)(),
+      True,
       Map(a -> (IntCst(0), a + 1))
     )()
     val e = Tuple(a < 4, s)()
@@ -70,7 +71,8 @@ class PartialEvalPassTests extends AnyFunSuite {
       True,
       StmBuild(
         10,
-        SSome(Tuple(True, a < 4)())(),
+        Tuple(True, a < 4)(),
+        True,
         Map(a -> (IntCst(0), a + 1))
       )()
     )()
@@ -145,13 +147,21 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(pe(-3 + x < 4) == (x < 7))
   }
 
+  test("ScalarInequality:(x >= c) && (x < c + 1)") {
+    val c = 42
+    val x = Param("x")(TyInt)
+    val e = (x >= c) && (x < (c + 1))
+    assert(pe(e) == (x === c))
+  }
+
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")()
     val z = Param("z")()
     val a = Param("a")()
     val s = StmBuild(
       n,
-      Mux(a >= z, SSome(a)(), NNone(TyInt))(),
+      a,
+      a >= z,
       Map[Param, (Expr, Expr)](
         a -> (z, Mux(a >= z, a + 3, a - 1)())
       )
@@ -159,7 +169,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
-      SSome(a)(),
+      a,
+      True,
       Map[Param, (Expr, Expr)](
         a -> (z, a + 3)
       )
@@ -173,13 +184,14 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a1 = Param("a")()
     val s = StmBuild(
       1,
-      SSome(a0)(),
+      a0,
+      True,
       Map[Param, (Expr, Expr)](
         a0 -> (z, a0 + a1 + a1),
         a1 -> (0, a1 + a0)
       )
     )().tchk().lower()
-    val expected = StmBuild(1, SSome(z)())()
+    val expected = StmBuild(1, z, True)()
     assert(PartialEvalPass.partialEval(s) == expected)
   }
 
@@ -191,14 +203,15 @@ class PartialEvalPassTests extends AnyFunSuite {
     val s = Param("s")()
     val sum = StmBuild(
       1,
-      Mux(i === n - 1, SSome(a + StmData(s)())(), NNone(TyInt))(),
+      a + StmData(s)(),
+      i === n - 1,
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
         a -> (z, a + StmData(s)()),
         s -> (StmCount(n)(), True)
       )
     )().tchk().lower()
-    val expected = StmBuild(1, SSome(z + (0 until n).sum)())().tchk().lower()
+    val expected = StmBuild(1, z + (0 until n).sum, True)().tchk().lower()
     val actual = PartialEvalPass.partialEval(sum).tchk().lower()
     assert(actual == expected)
   }
@@ -211,7 +224,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")()
     val stm = StmBuild(
       1,
-      SSome(StmData(a)())(),
+      StmData(a)(),
+      True,
       Map[Param, (Expr, Expr)](
         a -> (s, True)
       )

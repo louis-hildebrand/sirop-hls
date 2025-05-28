@@ -6,13 +6,14 @@ import ir._
 object StmTracer {
   def trace(stm: StmBuild): Seq[String] = {
     val n = PartialEvalPass.partialEval(stm.n).asInstanceOf[IntCst].i
-    trace(n, stm.equations.toSeq, stm.output, step = 0)
+    trace(n, stm.equations.toSeq, stm.data, stm.valid, step = 0)
   }
 
   private def trace(
       n: Int,
       equations: Seq[(Param, (Expr, Expr))],
-      output: Expr,
+      data: Expr,
+      valid: Expr,
       step: Int
   ): Seq[String] = {
     if (n <= 0) {
@@ -33,32 +34,33 @@ object StmTracer {
               x -> (evaluatedNext, next)
             })
             .toMap
-          val evaluatedOutput = evalBigStep(output.substitute(currentValByVar))
-          evaluatedOutput match {
-            case Tuple(v, valid: BoolCst) =>
-              (
-                // IMPORTANT: keep same order of accumulator elements
-                equations.map({ case (x, _) => (x, nextEquations(x)) }),
-                v,
-                valid == True
-              )
-            case e =>
-              throw new IllegalArgumentException(
-                s"Stream output evaluated to $e."
-                  + " Expected it to evaluate to an option (i.e., a 2-tuple whose second element is a boolean)."
-              )
-          }
+          val evaluatedData = evalBigStep(data.substitute(currentValByVar))
+          val evaluatedValid = evalBigStep(valid.substitute(currentValByVar))
+          assert(
+            evaluatedValid.isInstanceOf[BoolCst],
+            s"stream valid expression must evaluate to a boolean (found $evaluatedValid)"
+          )
+          (
+            // IMPORTANT: keep same order of accumulator elements
+            equations.map({ case (x, _) => (x, nextEquations(x)) }),
+            evaluatedData,
+            evaluatedValid == True
+          )
         }
-        val outStr = PrettyPrinter.show(nextOut, evalVec = true)(Map())
+        val outStr =
+          if (nextOutValid)
+            s"Some(${PrettyPrinter.show(nextOut, evalVec = true)(Map())})"
+          else "None"
         val summary =
           s"""Step $step:
              |    Accumulator: $accStr
-             |    Next output: ($outStr, valid: $nextOutValid)
+             |    Next output: $outStr
              |""".stripMargin.stripTrailing
         summary +: trace(
           if (nextOutValid) n - 1 else n,
           nextEquations,
-          output,
+          data,
+          valid,
           step = step + 1
         )
       } catch {

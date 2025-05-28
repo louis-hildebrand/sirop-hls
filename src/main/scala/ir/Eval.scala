@@ -24,8 +24,8 @@ trait Eval {
       s"Expression to evaluate must have a type (got untyped expression $e)."
     )
     evalBigStep(e) match {
-      case s @ StmBuild(n, z, f) =>
-        n match {
+      case s: StmBuild =>
+        s.n match {
           case IntCst(0) =>
             val t = s.typ.asInstanceOf[TyStm].t
             StmLiteral()(TyStm(t, 0))
@@ -241,17 +241,18 @@ trait Eval {
         }
       case v: VecLiteral => v
 
-      case StmBuild(n, out, equations) =>
+      case StmBuild(n, data, valid, equations) =>
         StmBuild(
           evalBigStep(n),
-          out,
+          data,
+          valid,
           equations.map({ case (x, (z, next)) =>
             x -> (evalBigStep(z), next)
           })
         )()
       case _: StmData =>
         throw new IllegalArgumentException(
-          s"${StmData.getClass.getSimpleName} must not appear outside a StmBuild."
+          s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
         )
       case StmNextK(s, k) =>
         evalBigStep(k) match {
@@ -337,9 +338,9 @@ trait Eval {
       )
     } else {
       s match {
-        case StmLiteral() | StmBuild(IntCst(0), _, _) =>
+        case StmLiteral() | StmBuild(IntCst(0), _, _, _) =>
           throw new EmptyStreamError
-        case s @ StmBuild(IntCst(n), out, equations) if n > 0 =>
+        case s @ StmBuild(IntCst(n), data, valid, equations) if n > 0 =>
           val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
           val inputStreams = equations.flatMap({
             case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
@@ -375,22 +376,23 @@ trait Eval {
               val evaluatedNext = evalBigStep(next.subPreserveType(subs))
               x -> (evaluatedNext, next)
           })
-          val evaluatedOutput = evalBigStep(out.subPreserveType(subs))
-          evaluatedOutput match {
-            case Tuple(v, True) =>
-              (v, StmBuild(n - 1, out, nextEquations)().tchk())
-            case Tuple(_, False) =>
-              evalStmNext(StmBuild(n, out, nextEquations)().tchk())(
+          val evaluatedValid = evalBigStep(valid.subPreserveType(subs))
+          evaluatedValid match {
+            case True =>
+              val v = evalBigStep(data.subPreserveType(subs))
+              (v, StmBuild(n - 1, data, valid, nextEquations)().tchk())
+            case False =>
+              evalStmNext(StmBuild(n, data, valid, nextEquations)().tchk())(
                 stepsWithoutValid + 1
               )
             case v =>
               throw new IllegalArgumentException(
-                s"Output of StmBuild evaluated to $v. It must evaluate to an option (i.e., a tuple whose second element is a boolean)."
+                s"Valid expression of StmBuild evaluated to $v. It must evaluate to a boolean."
               )
           }
-        case StmBuild(n, _, _) =>
+        case s: StmBuild =>
           throw new IllegalArgumentException(
-            s"Stream length $n. Streams must have non-negative integer length."
+            s"Stream length ${s.n}. Streams must have non-negative integer length."
           )
         case s @ StmLiteral(v, vs @ _*) =>
           (v, StmLiteral(vs: _*)(s.typ))

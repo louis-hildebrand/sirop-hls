@@ -42,7 +42,8 @@ object StmAccRemovalPass {
       stm.accVarDependencies.transitiveDependencies(stm.outputDependencies)
     StmBuild(
       stm.n,
-      stm.output,
+      stm.data,
+      stm.valid,
       stm.equations.filter({ case (x, _) => usedElems.contains(x) })
     )()
   }

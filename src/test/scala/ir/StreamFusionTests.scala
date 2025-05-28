@@ -15,7 +15,8 @@ class StreamFusionTests extends AnyFunSuite {
     val s = Param("s")()
     val original = StmBuild(
       3,
-      SSome(StmData(s)() + 5)(),
+      StmData(s)() + 5,
+      True,
       Map[Param, (Expr, Expr)](
         s -> (StmCount(3)().lower(), True)
       )
@@ -32,7 +33,8 @@ class StreamFusionTests extends AnyFunSuite {
     val i = Param("i")()
     val ideal = StmBuild(
       3,
-      SSome(i + 5)(),
+      i + 5,
+      True,
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1)
       )
@@ -51,19 +53,21 @@ class StreamFusionTests extends AnyFunSuite {
     val x2 = Param("x2")()
     // Valid every cycle
     val c1 =
-      StmBuild(n, SSome(i + 11)(), Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
+      StmBuild(n, i + 11, True, Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
         .tchk()
         .lower()
     // Valid every 2nd cycle
     val c2 =
       StmBuild(
         n,
-        Mux(i % 2 === 0, SSome(i % 3 === 0)(), NNone(TyBool))(),
+        i % 3 === 0,
+        i % 2 === 0,
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     val s = StmBuild(
       n,
-      SSome(Tuple(StmData(x1)(), StmData(x2)())())(),
+      Tuple(StmData(x1)(), StmData(x2)())(),
+      True,
       Map[Param, (Expr, Expr)](
         x1 -> (c1, True),
         x2 -> (c2, True)
@@ -81,7 +85,8 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal1 = lpe(
       StmBuild(
         n,
-        SSome(Tuple(i1 + 11, StmData(x2)())())(),
+        Tuple(i1 + 11, StmData(x2)())(),
+        True,
         Map[Param, (Expr, Expr)](
           i1 -> (0, i1 + 1),
           x2 -> (c2, True)
@@ -98,11 +103,8 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal2 = lpe(
       StmBuild(
         n,
-        Mux(
-          i2 % 2 === 0,
-          SSome(Tuple(StmData(x1)(), i2 % 3 === 0)())(),
-          NNone(TyTuple(TyInt, TyBool))
-        )(),
+        Tuple(StmData(x1)(), i2 % 3 === 0)(),
+        i2 % 2 === 0,
         Map[Param, (Expr, Expr)](
           x1 -> (c1, i2 % 2 === 0),
           i2 -> (0, i2 + 1)
@@ -119,11 +121,8 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal3 = lpe(
       StmBuild(
         n,
-        Mux(
-          i2 % 2 === 0,
-          SSome(Tuple(i1 + 11, i2 % 3 === 0)())(),
-          NNone(TyTuple(TyInt, TyBool))
-        )(),
+        Tuple(i1 + 11, i2 % 3 === 0)(),
+        i2 % 2 === 0,
         Map[Param, (Expr, Expr)](
           i1 -> (0, Mux(i2 % 2 === 0, i1 + 1, i1)()),
           i2 -> (0, i2 + 1)
@@ -145,19 +144,22 @@ class StreamFusionTests extends AnyFunSuite {
     val c1 =
       StmBuild(
         n,
-        Mux(i % 3 === 0, SSome(i + 3)(), NNone(TyInt))(),
+        i + 3,
+        i % 3 === 0,
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     // Valid every 5th cycle
     val c2 =
       StmBuild(
         n,
-        Mux(i % 5 === 0, SSome(i * 5 + 1)(), NNone(TyInt))(),
+        i * 5 + 1,
+        i % 5 === 0,
         Map[Param, (Expr, Expr)](i -> (0, i + 1))
       )().tchk().lower()
     val s = StmBuild(
       n,
-      SSome(Mux(i % 2 === 0, StmData(x1)(), StmData(x2)())())(),
+      Mux(i % 2 === 0, StmData(x1)(), StmData(x2)())(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (0, i + 1),
         x1 -> (c1, i % 2 === 0),

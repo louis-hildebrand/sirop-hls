@@ -163,7 +163,8 @@ class StreamTests extends AnyFunSuite {
         val acc = Param("acc")()
         StmBuild(
           3,
-          SSome(Tuple(i, acc)())(),
+          Tuple(i, acc)(),
+          True,
           Map[Param, (Expr, Expr)](
             acc -> (i, acc + 3)
           )
@@ -404,9 +405,7 @@ class StreamTests extends AnyFunSuite {
         )
       ).flatten: _*
     )()
-    val simplified =
-      opt.StmSimplifier.simplify(s.lower().asInstanceOf[StmBuild])()
-    assert(ir.eval(simplified) == expected)
+    assert(ir.eval(s) == expected)
   }
 
   test("StmMap:2D-2D:StmShiftRight") {
@@ -665,7 +664,8 @@ class StreamTests extends AnyFunSuite {
           val s = Param("s")()
           StmBuild(
             k,
-            Mux(i < k, SSome(i)(), NNone(TyInt))(),
+            i,
+            i < k,
             Map[Param, (Expr, Expr)](i -> (0, i + 1), s -> (sIn, i === k))
           )()
         })
@@ -1302,6 +1302,19 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s.tchk()) == expected)
   }
 
+  test("Vec2Stm:Vec[Stm[Int]]") {
+    val n = 4
+    val m = 3
+    val vs = VecBuild(n, TyInt ::+ (i => StmRange(m, 42, i)()))()
+    val e = Vec2Stm(vs)().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until m).flatMap(i => (0 until n).map(t => IntCst(42 + i * t))): _*
+      )()
+    val actual = ir.eval(e)
+    assert(actual == expected)
+  }
+
   test("Vec2Stm2Vec") {
     val p = Param("p")()
     val actual = Stm2Vec(Vec2Stm(p)())()
@@ -1775,7 +1788,7 @@ class StreamTests extends AnyFunSuite {
     val a = StmCount(4)()
     val b = {
       val b = Param("b")()
-      StmBuild(4, SSome(b)(), Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
+      StmBuild(4, b, True, Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val s = StmZip(a, b)().tchk()
     val expected =

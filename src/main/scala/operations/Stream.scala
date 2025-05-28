@@ -2,7 +2,7 @@ package operations
 
 import ir._
 
-private object Helpers {
+object AsStm2Stm {
 
   /** Convert the given function into a function from stream to stream.
     *
@@ -10,7 +10,7 @@ private object Helpers {
     *   The original function, which could be (1) scalar to scalar, (2) scalar
     *   to stream, or (3) stream to stream.
     */
-  def asStm2Stm(f: Function): (Param, StmBuild) = {
+  def apply(f: Function): (Param, StmBuild) = {
     val f0 = f.lower()
     val f1 = f0.typ match {
       case TyArrow(TyStm(t1, n1), _: TyStm) =>
@@ -23,7 +23,8 @@ private object Helpers {
           TyStm(t1, n1) ::+ (s1 =>
             StmBuild(
               n1,
-              SSome(StmData(s2)())(),
+              StmData(s2)(),
+              True,
               Map[Param, (Expr, Expr)](
                 s2 -> (s1, True)
               )
@@ -82,7 +83,8 @@ private object Helpers {
             .foldLeft(Map[Expr, Expr]())(_ + _)
             + (f0.param -> yFromStmOrReg)
         )
-        val newOutput = stm.output.subPreserveType(subs)
+        val newData = stm.data.subPreserveType(subs)
+        val newValid = stm.valid.subPreserveType(subs)
         val newEquations = {
           val equationsToAdd = Map[Param, (Expr, Expr)](
             // Input stream
@@ -103,8 +105,8 @@ private object Helpers {
         }
         val newF = Function(
           input,
-          StmBuild(stm.n, newOutput, newEquations)()
-        )().tchk().asInstanceOf[Function]
+          StmBuild(stm.n, newData, newValid, newEquations)()
+        )().tchk().lower().asInstanceOf[Function]
         assert(!newF.contains(f0.param))
         newF
       case TyArrow(_: TyStm, _) =>
@@ -119,9 +121,8 @@ private object Helpers {
           s1,
           StmBuild(
             1,
-            SSome(
-              f0.body.subPreserveType(f0.param -> StmData(s2)().tchk())
-            )(),
+            f0.body.subPreserveType(f0.param -> StmData(s2)().tchk()),
+            True,
             Map[Param, (Expr, Expr)](s2 -> (s1, True))
           )()
         )().tchk().asInstanceOf[Function]
@@ -130,10 +131,17 @@ private object Helpers {
           s"Function in AsStm2Stm has type $t."
         )
     }
+    (f1.param, f1.body.asInstanceOf[StmBuild])
+  }
+}
+
+object AsFusedStm2Stm {
+  def apply(f: Function): (Param, StmBuild) = {
+    val (x, body) = AsStm2Stm(f)
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
+    (x, body.fuseCompletely())
   }
 }
 
@@ -168,7 +176,8 @@ case class Iterate(
     val acc = Param("acc")(t)
     StmBuild(
       1,
-      Mux(i === 0, SSome(acc)(), NNone(t))(),
+      acc,
+      i === 0,
       Map[Param, (Expr, Expr)](
         i -> (n, Sum(i, -1)()),
         acc -> (z, FunCall(f, acc)(t))
@@ -198,7 +207,7 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     val c = this.c.lower()
     val out = c.typ match {
       case _: TyStm => StmRepeat(c, n)()
-      case _        => StmBuild(n, SSome(c)())()
+      case _        => StmBuild(n, c, True)()
     }
     out.tchk().lower()
   }
@@ -257,7 +266,8 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val a = Param("a")(TyInt)
     StmBuild(
       n,
-      SSome(a)(),
+      a,
+      True,
       Map[Param, (Expr, Expr)](a -> (z, a + delta))
     )().tchk().lower()
   }
@@ -288,7 +298,7 @@ case class StmCst2D(
     val n = this.n.lower()
     val m = this.m.lower()
     val c = this.c.lower()
-    StmBuild(n * m, SSome(c)())().tchk().lower()
+    StmBuild(n * m, c, True)().tchk().lower()
   }
 }
 
@@ -318,7 +328,8 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     val j = Param("j")(TyInt)
     StmBuild(
       n * m,
-      SSome(Tuple(i, j)())(),
+      Tuple(i, j)(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (0, Mux(j === m - 1, i + 1, i)()),
         j -> (0, Mux(j === m - 1, 0, j + 1)())
@@ -362,7 +373,7 @@ case class StmMap(
     val f = this.f.lower()
     val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
-    val (s, innerStm) = Helpers.asStm2Stm(f)
+    val (s, innerStm) = AsFusedStm2Stm(f)
     assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
     assert(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
@@ -424,7 +435,8 @@ case class StmMap(
           )
           val outerStm = StmBuild(
             n * outputsUntilReset,
-            innerWithCtrs.output,
+            innerWithCtrs.data,
+            innerWithCtrs.valid,
             innerWithCtrs.equations.map({ case (x, (z, next)) =>
               if (z == s) {
                 // Never reset the input stream
@@ -484,7 +496,8 @@ case class StmAccess(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       perRow,
-      Mux(i === k, SSome(StmData(s)())(), NNone(t))(),
+      StmData(s)(),
+      i === k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -589,7 +602,7 @@ case class StmScanInclusive(
     val elemType = z.typ
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val (s, innerStm) =
-      Helpers.asStm2Stm(
+      AsFusedStm2Stm(
         // The function has the form (acc) => (elem) => newAcc.
         // Take just the (elem) => newAcc part here, with acc being a free variable.
         // Later, replace that free variable with the appropriate element in the StmScan accumulator.
@@ -626,15 +639,11 @@ case class StmScanInclusive(
       }
     }
     val acc = Param("acc")(elemType)
-    val nextAcc =
-      OptionAccess(
-        innerWithCtrs.output,
-        elemType ::+ (v => v),
-        TyTuple() ::+ (_ => acc)
-      )()
+    val nextAcc = Mux(innerWithCtrs.valid, innerWithCtrs.data, acc)()
     val outerStm = StmBuild(
       n,
-      Mux(shouldReset, SSome(nextAcc)(), NNone(elemType))(),
+      nextAcc,
+      shouldReset,
       innerWithCtrs.equations.map({ case (x, (z, next)) =>
         if (z == s) {
           // Never reset the input stream
@@ -646,7 +655,8 @@ case class StmScanInclusive(
     )()
     assert(
       !outerStm.n.contains(s)
-        && !outerStm.output.contains(s)
+        && !outerStm.data.contains(s)
+        && !outerStm.valid.contains(s)
         && !outerStm.nextByVar.values.toSeq.exists(nxt => nxt.contains(s)),
       "the input stream must only occur in the seed of the StmBuild"
     )
@@ -737,17 +747,20 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val v = this.v.lower()
-    val i = Param("i")(TyInt)
-    val (t, n) = {
-      val vt = v.typ.asInstanceOf[TyVec]
-      (vt.t, vt.n)
+    v.typ match {
+      case TyVec(_, n) =>
+        // Alternatively, you could implement Vec2Stm using a shift register
+        val i = Param("i")()
+        StmBuild(
+          n,
+          VecAccess(v, i)(),
+          True,
+          Map[Param, (Expr, Expr)](i -> (0, i + 1))
+        )().tchk().lower()
+      case TyStm(tv: TyVec, _) =>
+        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
+      case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
     }
-    // Alternatively, you could implement Vec2Stm using a shift register
-    StmBuild(
-      n,
-      SSome(VecAccess(v, i)(t))(),
-      Map[Param, (Expr, Expr)](i -> (0, i + 1))
-    )().tchk().lower()
   }
 }
 
@@ -849,7 +862,8 @@ case class StmPrefix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      Mux(i < k, SSome(StmData(s)())(), NNone(t))(),
+      StmData(s)(),
+      i < k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -904,7 +918,8 @@ case class StmSuffix(
     val j = Param("j")(TyInt) // index within row
     StmBuild(
       k * perRow,
-      Mux(i >= n - k, SSome(StmData(s)())(), NNone(t))(),
+      StmData(s)(),
+      i >= n - k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (0, Mux(j === perRow - 1, i + 1, i)()),
@@ -1022,7 +1037,8 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val i = Param("i")(TyInt)
     StmBuild(
       n1 + n2,
-      SSome(Mux(i === n1, StmData(s2)(), StmData(s1)())())(),
+      Mux(i === n1, StmData(s2)(), StmData(s1)())(),
+      True,
       Map[Param, (Expr, Expr)](
         i -> (0, Mux(i === n1, i, i + 1)()),
         s1 -> (stm1, i !== n1),
@@ -1071,7 +1087,8 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     val s1 = Param("s1")(b.typ)
     StmBuild(
       StmLength(a)(),
-      SSome(Tuple(StmData(s0)(), StmData(s1)())())(),
+      Tuple(StmData(s0)(), StmData(s1)())(),
+      True,
       Map[Param, (Expr, Expr)](
         s0 -> (a, True),
         s1 -> (b, True)
@@ -1114,7 +1131,8 @@ case class StmRepeat(
       TyVec(t, n) ::+ (v =>
         StmBuild(
           n * m,
-          SSome(VecAccess(v, i)())(),
+          VecAccess(v, i)(),
+          True,
           Map[Param, (Expr, Expr)](
             i -> (0, Mux(i + 1 === n, 0, i + 1)())
           )
@@ -1270,14 +1288,15 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val v = Param("v")()
     val lowered = StmBuild(
       n - m + 1,
+      VecShiftLeft(v, StmData(s)())(),
       Mux(
         i === 0 && j === 1,
         // CASE 1: Shift register is full.
         //         Produce output.
-        SSome(VecShiftLeft(v, StmData(s)()))(),
+        True,
         // CASE 2: Shift register is not full yet.
         //         Wait until it is.
-        NNone(TyVec(t, m * elemSize))
+        False
       )(),
       Map[Param, (Expr, Expr)](
         s -> (input, True),
@@ -1321,7 +1340,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         ),
         v -> (
           VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
-          VecShiftLeft(v, StmData(s)())
+          VecShiftLeft(v, StmData(s)())()
         )
       )
     )()

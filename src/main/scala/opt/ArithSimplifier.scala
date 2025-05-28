@@ -285,6 +285,10 @@ object ArithSimplifier {
       case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
           if e1 == e2 =>
         LessThan(math.max(c1, c2), e1)()
+      case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
+          if x0 == x1
+            && PartialEvalPass.isEqual(c1, c0 + 1)().getOrElse(false) =>
+        x0 === c0
       case e => e
     }
   }

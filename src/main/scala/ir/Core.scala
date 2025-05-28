@@ -1,5 +1,8 @@
 package ir
 
+import operations.StmMap
+import opt.OptionSimplifier
+
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 
@@ -7,6 +10,18 @@ class BadRebuildError(e: Expr, args: Seq[Expr])
     extends IllegalArgumentException(
       s"Wrong arguments passed to rebuild: node $e, args $args"
     )
+
+/** Scope of a variable within a stream that is parallelized by replication.
+  */
+private sealed trait AccVarScope
+
+/** Scope of an accumulator variable which depends on the vector index.
+  */
+private object PrivateScope extends AccVarScope
+
+/** Scope of an accumulator variable which does not depend on the vector index.
+  */
+private object SharedScope extends AccVarScope
 
 /** A node in the IR.
   *
@@ -207,19 +222,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
 
-      case vb @ VecBuild(n, f) =>
-        val newN = n.tchk
-        newN.typ match {
-          case TyInt => ()
-          case t     => throw new TypeError(s"Length of VecBuild has type $t.")
-        }
-        val newF = f.tchk
-        // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
-        val vecT = newF.typ match {
-          case TyArrow(TyInt, t) => t
-          case t => throw new TypeError(s"Function of VecBuild has type $t.")
-        }
-        vb.rebuild(TyVec(vecT, newN), Seq(newN, newF))
+      case vb: VecBuild =>
+        vb.typecheckVecBuild(context)
       case va @ VecAccess(v, i) =>
         val newV = v.tchk
         val vecT = newV.typ match {
@@ -261,7 +265,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           val newNext = next.tchk(newContext)
           val expectedNextTyp = initTyp match {
             case _: TyStm => TyBool
-            case t        => initTyp
+            case _        => initTyp
           }
           if (newNext.typ ~= expectedNextTyp) {
             x -> newNext
@@ -278,16 +282,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             newX -> (z, newNextByVar(x))
           })
           .toMap
-        val newOutput = s.output.tchk(newContext)
-        val stmT = newOutput.typ match {
-          case TyTuple(t, TyBool) => t
-          case t =>
-            throw new TypeError(
-              s"Output of StmBuild has type $t."
-                + " Expected a 2-tuple whose second element is a bool."
-            )
-        }
-        StmBuild(newN, newOutput, newEquations)(TyStm(stmT, newN))
+        val newData = s.data.tchk(newContext)
+        val newValid = s.valid.tchk(newContext).expectType(TyBool)
+        StmBuild(newN, newData, newValid, newEquations)(
+          TyStm(newData.typ, newN)
+        )
       case sn @ StmData(s) =>
         val newS = s.tchk
         newS.typ match {
@@ -388,7 +387,17 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def lower(): Expr = {
     val desugared = this match {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
-      case e => e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
+      case vb: VecBuild   => vb.lowerVecBuild()
+      case va: VecAccess  => va.lowerVecAccess()
+      case e @ (_: Param | _: StmLiteral | _: VecLiteral) =>
+        // These expressions cannot necessarily be type checked in isolation,
+        // so maintain the type
+        e.rebuild(e.typ.lower)
+      case e =>
+        // Re-run the type checker to ensure no type errors crept in during
+        // lowering
+        val newE = e.rebuild(e.children.map(e => e.lower()))
+        if (e.typ != Missing) newE.tchk() else newE
     }
     // This is required because lowering may be syntax-directed (i.e., an
     // expression may need to be typed before it can be lowered) and it is no
@@ -495,7 +504,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               val renamed = s.renameVars
               StmBuild(
                 renamed.n.substitute(subs),
-                renamed.output.substitute(subs),
+                renamed.data.substitute(subs),
+                renamed.valid.substitute(subs),
                 renamed.equations.map({ case (x, (z, next)) =>
                   x -> (z.substitute(subs), next.substitute(subs))
                 })
@@ -547,7 +557,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               val renamed = s.renameVars
               StmBuild(
                 renamed.n.subPreserveType(subs),
-                renamed.output.subPreserveType(subs),
+                renamed.data.subPreserveType(subs),
+                renamed.valid.subPreserveType(subs),
                 renamed.equations.map({ case (x, (z, next)) =>
                   val newX = x.subPreserveType(subs).asInstanceOf[Param]
                   val newZ = z.subPreserveType(subs)
@@ -581,7 +592,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     this match {
       case x: Param       => Set(x)
       case Function(x, e) => e.freeVars() - x
-      case stm @ StmBuild(n, out, eqns) =>
+      case stm @ StmBuild(n, data, valid, eqns) =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
@@ -591,7 +602,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             })
             // There may be bound variables in the output and "next" functions
             ++ (
-              (out.freeVars()
+              (data.freeVars() ++ valid.freeVars()
                 ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
                   fvs ++ next.freeVars()
                 }))
@@ -1046,17 +1057,18 @@ case object Or {
 // Streams
 case class StmBuild(
     n: Expr /* Int */,
-    output: Expr /* Option<B> */,
+    data: Expr /* B */,
+    valid: Expr /* Bool */,
     equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
 )(typ: Type = Missing)
     extends Expr(
-      Seq(n, output) ++ equations.flatMap({ case (x, (z, next)) =>
+      Seq(n, data, valid) ++ equations.flatMap({ case (x, (z, next)) =>
         Seq(x, z, next)
       }): _*
     )(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, output, eqns @ _*) if eqns.length % 3 == 0 =>
+      case Seq(n, data, valid, eqns @ _*) if eqns.length % 3 == 0 =>
         val equations = (0 until eqns.length / 3)
           .map(i => {
             val x = eqns(3 * i).asInstanceOf[Param]
@@ -1065,7 +1077,7 @@ case class StmBuild(
             x -> (z, next)
           })
           .toMap
-        StmBuild(n, output, equations)(typ)
+        StmBuild(n, data, valid, equations)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1103,12 +1115,13 @@ case class StmBuild(
       "all the variables to be replaced must appear in this stream"
     )
     val subs: Map[Expr, Expr] = replacements.toMap
-    val newOutput = output.subPreserveType(subs)
+    val newData = data.subPreserveType(subs)
+    val newValid = valid.subPreserveType(subs)
     val newEquations = equations.map({ case (x, (z, next)) =>
       val y = replacements.getOrElse(x, x).rebuild(x.typ)
       y -> (z, next.subPreserveType(subs))
     })
-    StmBuild(n, newOutput, newEquations)(typ)
+    StmBuild(n, newData, newValid, newEquations)(typ)
   }
 
   def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
@@ -1122,7 +1135,8 @@ case class StmBuild(
       val subs: Map[Expr, Expr] = replacements.toMap
       StmBuild(
         this.n,
-        this.output.substitute(subs),
+        this.data.substitute(subs),
+        this.valid.substitute(subs),
         this.equations
           .filter({ case (x, _) => !replacements.contains(x) })
           .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
@@ -1164,7 +1178,7 @@ case class StmBuild(
         val producerStm = e.renameVars
         val readyCond = consumerStm.nextByVar(x)
         assert(readyCond.typ == TyBool, "stream call condition must be a bool")
-        val newOutput = fusedOutput(
+        val (newData, newValid) = fusedOutput(
           consumer = consumerStm,
           producer = producerStm,
           ready = readyCond,
@@ -1182,7 +1196,7 @@ case class StmBuild(
             producerStm.equations.map(fusedProducerAccumulator(readyCond))
           newConsumerEquations ++ newProducerEquations
         }
-        StmBuild(consumerStm.n, newOutput, newEquations)(typ)
+        StmBuild(consumerStm.n, newData, newValid, newEquations)(typ)
       case Some(e) =>
         throw new IllegalArgumentException(
           s"Expected the initial value of $x to be a StmBuild, but found $e"
@@ -1224,29 +1238,38 @@ case class StmBuild(
       producer: StmBuild,
       ready: Expr,
       x: Param
-  ): Expr = {
+  ): (Expr, Expr) = {
     val consumerTyp = consumer.typ.asInstanceOf[TyStm]
     val producerTyp = producer.typ.asInstanceOf[TyStm]
-    Mux(
+    val valid = Mux(
       ready,
       // CASE 1: Consumer is ready (i.e., reading from producer).
-      OptionAccess(
-        producer.output,
+      Mux(
+        producer.valid,
         // CASE 1a: Producer yielded a valid value. Proceed as usual.
-        producerTyp.t ::+ (v =>
-          consumer.output.subPreserveType(StmData(x)() -> v)
-        ),
+        consumer.valid.subPreserveType(StmData(x)() -> producer.data),
         // CASE 1b: Producer did NOT yield a valid value.
         //          The consumer cannot proceed.
-        TyTuple() ::+ (_ => NNone(consumerTyp.t))
+        False
       )(),
       // CASE 2: Consumer is not ready (i.e., not reading from producer).
       //         Proceed as usual, but with the default value for the producer
       //         output (this should not be read).
-      consumer.output.subPreserveType(
-        StmData(x)() -> Default(producerTyp.t)
-      )
+      consumer.valid.subPreserveType(StmData(x)() -> Default(producerTyp.t))
     )().tchk()
+    val data = Mux(
+      ready,
+      // CASE 1: Consumer is ready (i.e., reading from producer).
+      //         It doesn't matter whether the producer yielded a valid value:
+      //         if it did then fine, if it did not then `valid` will be False
+      //         and therefore the `data` doesn't matter.
+      consumer.data.subPreserveType(StmData(x)() -> producer.data),
+      // CASE 2: Consumer is not ready (i.e., not reading from producer).
+      //         Proceed as usual, but with the default value for the producer
+      //         output (this should not be read).
+      consumer.data.subPreserveType(StmData(x)() -> Default(producerTyp.t))
+    )().tchk()
+    (data, valid)
   }
 
   /** Construct a new recurrence equation after fusion for an accumulator in the
@@ -1278,16 +1301,16 @@ case class StmBuild(
           Mux(
             ready,
             // CASE 1: Consumer is reading from producer.
-            OptionAccess(
-              producer.output,
+            Mux(
+              producer.valid,
               // CASE 1a: Producer yielded a valid value.
               //          Update the accumulators.
-              producerTyp.t ::+ (v => next.subPreserveType(StmData(x)() -> v)),
+              next.subPreserveType(StmData(x)() -> producer.data),
               // CASE 1b: Producer did NOT yield a valid value.
               //          Do not update accumulators until it does.
               y.typ match {
-                case _: TyStm => TyTuple() ::+ (_ => False)
-                case _        => TyTuple() ::+ (_ => y)
+                case _: TyStm => False
+                case _        => y
               }
             )(),
             // CASE 2: Consumer is not reading from producer.
@@ -1350,7 +1373,7 @@ case class StmBuild(
       else
         this
     val z = IntCst(0)
-    val next = Mux(IsSome(s.output)(TyBool), outCtr + 1, outCtr)(TyInt)
+    val next = Mux(s.valid, outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1386,7 +1409,7 @@ case class StmBuild(
     val isTyped = (x.hasType && z.hasType && next.hasType
       && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
     val t = if (isTyped) this.typ else Missing
-    StmBuild(this.n, this.output, newEquations)(t)
+    StmBuild(this.n, this.data, this.valid, newEquations)(t)
   }
 
   /** Find the direct dependencies between accumulator variables in this stream.
@@ -1403,7 +1426,165 @@ case class StmBuild(
   /** Find the accumulator variables that the output of this stream depends on.
     */
   def outputDependencies: Set[Param] = {
-    this.output.freeVars().intersect(this.accVars)
+    this.data.freeVars().union(this.valid.freeVars()).intersect(this.accVars)
+  }
+
+  /** Parallelize this stream by duplicating its body <code>m</code> times.
+    *
+    * @param m
+    *   The number of instances of the body to create.
+    * @param i
+    *   The index within the vector.
+    * @param varsToReplicate
+    *   Input stream variables that must also be replicated.
+    * @return
+    *   A stream of vectors of length <code>m</code>.
+    */
+  def replicate(
+      m: Expr,
+      i: Param,
+      varsToReplicate: Set[Param]
+  ): StmBuild = {
+    if (this.n.freeVars().contains(i)) {
+      throw new IllegalArgumentException(
+        "Stream length must not vary with vector index."
+          + s" (Found vector index $i and stream length $n.)"
+      )
+    }
+    // Some variables depend on the vector index i and must therefore be turned
+    // into vectors.
+    // Some variables do not depend on the vector index i and can therefore be
+    // shared.
+    val scopes = this.findScopeByVar(i, varsToReplicate)
+    // If the type of the variables may change, then it seems like a good idea
+    // to just introduce a whole new variable.
+    // This way I can check that no uses of the original variable were
+    // accidentally left behind and there aren't multiple variables with the
+    // same name but different types floating around.
+    val oldToNewVar = scopes
+      .map({
+        case (x, PrivateScope) =>
+          x -> x.freshCopy.rebuild(TyVec(x.typ, m).lower)
+        case (x, SharedScope) => x -> x
+      })
+    val subs: Map[Expr, Expr] = scopes.flatMap({
+      case (x, PrivateScope) =>
+        val newX = oldToNewVar(x)
+        x.typ match {
+          case TyStm(t, _) =>
+            Some(StmData(x)() -> VecAccess(StmData(newX)(TyVec(t, m)), i)(t))
+          case t if Default.hasDefault(t) =>
+            Some(x -> VecAccess(newX, i)(x.typ))
+          case t =>
+            throw new IllegalArgumentException(s"Invalid accumulator type $t.")
+        }
+      case (_, SharedScope) => None
+    })
+    val newEquations = this.equations.map({ case (x, (z, next)) =>
+      val newX = oldToNewVar(x)
+      x.typ match {
+        case TyStm(t, k) =>
+          if (next.freeVars().contains(i)) {
+            throw new IllegalArgumentException(
+              "Input stream `ready` cannot depend on the vector index."
+                + s" (Found vector index $i and `ready` expression $next.)"
+            )
+          }
+          val newZ = scopes(x) match {
+            case PrivateScope =>
+              z match {
+                case z: StmBuild => z.replicate(m, i, varsToReplicate)
+                case z: Param    => z.rebuild(TyStm(TyVec(t, m), k))
+                case z =>
+                  throw new IllegalArgumentException(
+                    s"Invalid initial value for input stream: $z."
+                  )
+              }
+            case SharedScope => z
+          }
+          newX -> (newZ, next)
+        case t if Default.hasDefault(t) =>
+          scopes(x) match {
+            case SharedScope => newX -> (z, next.subPreserveType(subs))
+            case PrivateScope =>
+              newX -> (
+                VecBuild(m, Function(i, z)())(),
+                VecBuild(m, Function(i, next.subPreserveType(subs))())()
+              )
+          }
+        case t =>
+          throw new IllegalArgumentException(s"Invalid accumulator type $t.")
+      }
+    })
+    val newData = {
+      val validDependsOnI = valid
+        .freeVars()
+        .exists(x => x == i || scopes.get(x).contains(PrivateScope))
+      if (validDependsOnI) {
+        throw new IllegalArgumentException(
+          "Stream `valid` must not depend on the vector index."
+            + s" (Found vector index $i and stream `valid` expression $valid.)"
+        )
+      }
+      VecBuild(m, Function(i, data.subPreserveType(subs))())()
+    }
+    val s = StmBuild(this.n, newData, valid, newEquations)()
+    assert(
+      !s.freeVars().contains(i),
+      "there should be no more free occurrences of the vector index i"
+    )
+    val expectedFreeVars = (this.freeVars() ++ m.freeVars()) - i
+    assert(
+      s.freeVars().subsetOf(expectedFreeVars),
+      "replication should not introduce any new free variables"
+        + s" (expected $expectedFreeVars, found ${s.freeVars()})"
+    )
+    s.tchk().asInstanceOf[StmBuild]
+  }
+
+  private def findScopeByVar(
+      i: Param,
+      varsToReplicate: Set[Param]
+  ): Map[Param, AccVarScope] = {
+    // If an accumulator variable depends on private variables, then it must also be private
+    @tailrec
+    def propagateScopes(
+        scopeByVar: Map[Param, AccVarScope],
+        dependencies: Map[Param, Set[Param]],
+        i: Param
+    ): Map[Param, AccVarScope] = {
+
+      require(scopeByVar.keySet == dependencies.keySet)
+      val newScopeByVar = dependencies.map({ case (x, deps) =>
+        scopeByVar(x) match {
+          case PrivateScope => x -> PrivateScope
+          case SharedScope =>
+            val anyDepsPrivate = deps.exists(y => scopeByVar(y) == PrivateScope)
+            x -> (if (anyDepsPrivate) PrivateScope else SharedScope)
+        }
+      })
+      if (newScopeByVar == scopeByVar) {
+        scopeByVar
+      } else {
+        propagateScopes(newScopeByVar, dependencies, i)
+      }
+    }
+
+    val dependencies = this.equations.map({ case (x, (z, next)) =>
+      x -> next.freeVars().intersect(this.accVars)
+    })
+    propagateScopes(
+      scopeByVar = this.equations
+        .map({ case (x, (z, next)) =>
+          val dependsOnI = next.freeVars().contains(i) || z
+            .freeVars()
+            .intersect(varsToReplicate + i)
+            .nonEmpty
+          x -> (if (dependsOnI) PrivateScope else SharedScope)
+        }),
+      dependencies = dependencies,
+      i = i
+    )
   }
 
   /** Checks for structural equality, ignoring order of equations and names of
@@ -1442,7 +1623,8 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val out = this.output.substitute(subs)
+    val data = this.data.substitute(subs)
+    val valid = this.valid.substitute(subs)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
         (z, next.substitute(subs))
@@ -1452,7 +1634,7 @@ case class StmBuild(
     // Be careful not to remove equations due to the fact that they'll all use
     // the same param now!
     assert(eqnsBag.values.sum == this.equations.size)
-    (len, out, eqnsBag).hashCode
+    (len, data, valid, eqnsBag).hashCode
   }
 
   /** Basically just brute-force check through all the possible mappings from
@@ -1487,9 +1669,11 @@ case class StmBuild(
         (this.nextByVar(x).substitute(thisSubs)
           == that.nextByVar(y).substitute(thatSubs))
       })
-      val outputsMatch =
-        this.output.substitute(thisSubs) == that.output.substitute(thatSubs)
-      eqnsMatch && outputsMatch
+      val thisOutput =
+        (this.data.substitute(thisSubs), this.valid.substitute(thisSubs))
+      val thatOutput =
+        (that.data.substitute(thatSubs), that.valid.substitute(thatSubs))
+      eqnsMatch && thisOutput == thatOutput
     } else {
       // Don't have a full candidate mapping yet, so recurse
       val x = domain(map.size)
@@ -1535,6 +1719,39 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  def typecheckVecBuild(implicit context: Map[Param, Type]): Expr = {
+    val newN = len.tchk.expectType(TyInt)
+    val newF = f.tchk
+    // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
+    val vecT = newF.typ match {
+      case TyArrow(TyInt, t) => t
+      case t => throw new TypeError(s"Function of VecBuild has type $t.")
+    }
+    this.rebuild(TyVec(vecT, newN), Seq(newN, newF))
+  }
+
+  def lowerVecBuild(): Expr = {
+    requireType()
+    val n = this.len.lower()
+    val f = this.f.lower()
+    this.typ.asInstanceOf[TyVec].t.lower match {
+      case _: TyStm =>
+        val (i, s) = f match {
+          case Function(i, s: StmBuild) => (i, s)
+          case Function(_, body) =>
+            throw new IllegalArgumentException(
+              s"Cannot lower VecBuild whose function has body $body. Expected StmBuild."
+            )
+        }
+        s.replicate(n, i, Set())
+      case t if Default.hasDefault(t) => VecBuild(n, f)().tchk()
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot lower VecBuild containing elements of type $t."
+        )
+    }
+  }
 }
 
 case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
@@ -1543,6 +1760,21 @@ case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
     newChildren match {
       case Seq(v, i) => VecAccess(v, i)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  def lowerVecAccess(): Expr = {
+    requireType()
+    val v = this.vec.lower()
+    val i = this.i.lower()
+    v.typ match {
+      case _: TyVec => VecAccess(v, i)().tchk()
+      case TyStm(tv: TyVec, _) =>
+        StmMap(v, tv ::+ (v => VecAccess(v, i)()))().tchk().lower()
+      case t =>
+        throw new TypeError(
+          s"Cannot lower ${VecAccess.getClass.getSimpleName} whose first argument has type $t."
+        )
     }
   }
 }
@@ -1650,7 +1882,7 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
       case _: TyVec => this.rebuild(TyInt, Seq(newV))
       case t =>
         throw new TypeError(
-          s"Vector in VecLength has type $t. Expected a stream."
+          s"Vector in VecLength has type $t. Expected a vector."
         )
     }
   }

@@ -3,6 +3,10 @@ package ir
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
+  private val n = Param("n")(TyInt)
+  private val m = Param("m")(TyInt)
+  private val k = Param("k")(TyInt)
+
   test("AnnotatedFunction:TypedBody") {
     val f = TyInt ::+ (i => 2 * (i + 5))
     val expected = {
@@ -24,7 +28,6 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("IsCompatibleWith:VecLength") {
-    val n = Param("n")(TyInt)
     val v = Param("v")(TyVec(TyInt, n))
     val vLen = VecLength(v)(TyInt)
     assert(TyVec(TyInt, n) ~= TyVec(TyInt, vLen))
@@ -38,7 +41,7 @@ class TypeTests extends AnyFunSuite {
     assert(TyVec(TyInt, wLen) ~= TyVec(TyInt, vLen))
   }
 
-  test("Flatten:NonStreams") {
+  test("LowerType:NonStreams") {
     val t = TyTuple(
       Missing,
       TyInt,
@@ -49,24 +52,73 @@ class TypeTests extends AnyFunSuite {
     assert(t.lower == t)
   }
 
-  test("Flatten:1DStream") {
-    val n = Param("n")()
+  test("LowerType:Stm[Int]") {
     val t = TyStm(TyInt, n)
     assert(t.lower == t)
   }
 
-  test("Flatten:2DStream") {
-    val n = Param("n")()
-    val m = Param("m")()
+  test("LowerType:Vec[Int]") {
+    val t = TyVec(TyInt, n)
+    assert(t.lower == t)
+  }
+
+  test("LowerType:Stm[Stm[Int]]") {
     val t = TyStm(TyStm(TyBool, m), n)
     assert(t.lower == TyStm(TyBool, n * m))
   }
 
-  test("Flatten:3DStream") {
-    val n = Param("n")()
-    val m = Param("m")()
-    val k = Param("k")()
+  test("LowerType:Stm[Vec[Int]]") {
+    val t = TyStm(TyVec(TyInt, m), n)
+    assert(t.lower == t)
+  }
+
+  test("LowerType:Vec[Stm[Int]]") {
+    val t = TyVec(TyStm(TyInt, m), n)
+    assert(t.lower == TyStm(TyVec(TyInt, n), m))
+  }
+
+  test("LowerType:Vec[Vec[Int]]") {
+    val t = TyVec(TyVec(TyInt, m), n)
+    assert(t.lower == t)
+  }
+
+  test("LowerType:Stm[Stm[Stm[Int]]]") {
     val t = TyStm(TyStm(TyStm(TyBool, k), m), n)
     assert(t.lower == TyStm(TyBool, n * m * k))
+  }
+
+  test("LowerType:Stm[Stm[Vec[Int]]]") {
+    val t = TyStm(TyStm(TyVec(TyInt, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyInt, k), n * m))
+  }
+
+  test("LowerType:Stm[Vec[Stm[Int]]]") {
+    val t = TyStm(TyVec(TyStm(TyInt, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyInt, m), n * k))
+  }
+
+  test("LowerType:Stm[Vec[Vec[Int]]]") {
+    val t = TyStm(TyVec(TyVec(TyInt, k), m), n)
+    assert(t.lower == t)
+  }
+
+  test("LowerType:Vec[Stm[Stm[Int]]]") {
+    val t = TyVec(TyStm(TyStm(TyInt, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyInt, n), m * k))
+  }
+
+  test("LowerType:Vec[Stm[Vec[Int]]]") {
+    val t = TyVec(TyStm(TyVec(TyInt, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyVec(TyInt, k), n), m))
+  }
+
+  test("LowerType:Vec[Vec[Stm[Int]]]") {
+    val t = TyVec(TyVec(TyStm(TyInt, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyVec(TyInt, m), n), k))
+  }
+
+  test("LowerType:Vec[Vec[Vec[Int]]]") {
+    val t = TyVec(TyVec(TyVec(TyInt, k), m), n)
+    assert(t.lower == t)
   }
 }

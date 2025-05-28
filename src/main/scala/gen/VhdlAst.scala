@@ -123,7 +123,6 @@ private[gen] case class VhdlComponent(
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
     signals: Seq[Signal],
-    // TODO: Include this in the VHDL code
     functions: Seq[VhdlFunction],
     children: Seq[(VhdlComponent, PortMap)]
 ) {
