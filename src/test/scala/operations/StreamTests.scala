@@ -810,6 +810,77 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s) == expected)
   }
 
+  test("StmMap:SimpleRepeatedData") {
+    val n = 4
+    val f =
+      (TyStm(TyStm(TyInt, n), n) ::+ (a =>
+        TyStm(TyStm(TyInt, n), n) ::+ (b =>
+          StmMap(
+            a,
+            TyStm(TyInt, n) ::+ (rowA =>
+              StmMap(b, TyStm(TyInt, n) ::+ (rowB => StmZip(rowA, rowB)()))()
+            )
+          )()
+        )
+      )).tchk().lower()
+    val a = StmMap(
+      StmCount2D(n, n)(),
+      TyStm(Int2(), n) ::+ (s =>
+        StmMap(s, Int2() ::+ (x => x.__0 + 2 * x.__1))()
+      )
+    )().tchk().lower()
+    val b = StmMap(
+      StmCount2D(n, n)(),
+      TyStm(Int2(), n) ::+ (s =>
+        StmMap(s, Int2() ::+ (x => 2 * x.__0 + x.__1))()
+      )
+    )().tchk().lower()
+    val expected = {
+      val aVals = (0 until n).map(i => (0 until n).map(j => i + 2 * j))
+      val bVals = (0 until n).map(i => (0 until n).map(j => 2 * i + j))
+      val expectedVals = aVals.map(rowA => bVals.map(rowB => rowA.zip(rowB)))
+      StmLiteral(
+        expectedVals.flatten.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
+      )()
+    }
+    val actual = ir.eval(FunCall(FunCall(f, a)(), b)())
+    assert(actual == expected)
+  }
+
+  test("StmFold:RepeatedData") {
+    val n = 4
+    val f =
+      (TyStm(TyStm(TyInt, n), n) ::+ (a =>
+        TyStm(TyInt, n) ::+ (b =>
+          StmMap(
+            a,
+            TyStm(TyInt, n) ::+ (rowA => {
+              val zipped = StmZip(rowA, b)()
+              val products = StmMap(zipped, Int2() ::+ (x => x.__0 * x.__1))()
+              val dotProd = StmFold(products, 0, PlusFunction())()
+              dotProd
+            })
+          )()
+        )
+      )).tchk().lower()
+    val a = StmMap(
+      StmCount2D(n, n)(),
+      TyStm(Int2(), n) ::+ (s =>
+        StmMap(s, Int2() ::+ (x => x.__0 + 2 * x.__1))()
+      )
+    )().tchk().lower()
+    val b = StmRange(n, 10, 3)().tchk().lower()
+    val expected = {
+      val aVals = (0 until n).map(i => (0 until n).map(j => i + 2 * j))
+      val bVals = (0 until n).map(t => 10 + 3 * t)
+      val expectedVals =
+        aVals.map(rowA => rowA.zip(bVals).map({ case (x, y) => x * y }).sum)
+      StmLiteral.ints(expectedVals: _*)
+    }
+    val actual = ir.eval(FunCall(FunCall(f, a)(), b)())
+    assert(actual == expected)
+  }
+
   test("StmAccess:1D") {
     val n = 3
     val i = Param("i")(TyInt)

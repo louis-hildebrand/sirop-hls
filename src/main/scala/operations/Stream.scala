@@ -437,13 +437,17 @@ case class StmMap(
             n * outputsUntilReset,
             innerWithCtrs.data,
             innerWithCtrs.valid,
-            innerWithCtrs.equations.map({ case (x, (z, next)) =>
-              if (z == s) {
-                // Never reset the input stream
-                x -> (z, next)
-              } else {
+            innerWithCtrs.equations.map({
+              case (x, (z, ready)) if z == s =>
+                // Never reset the primary input stream
+                x -> (z, ready)
+              case (x, (z, ready)) if x.typ.isInstanceOf[TyStm] =>
+                // Repeat other input streams to give the illusion that they
+                // are being reset
+                x -> (StmJoin(StmRepeat(z, n)())(), ready)
+              case (x, (z, next)) =>
+                // Reset data accumulators
                 x -> (z, Mux(shouldReset, z, next)())
-              }
             })
           )()
           outerStm
@@ -644,13 +648,17 @@ case class StmScanInclusive(
       n,
       nextAcc,
       shouldReset,
-      innerWithCtrs.equations.map({ case (x, (z, next)) =>
-        if (z == s) {
-          // Never reset the input stream
-          x -> (z, next)
-        } else {
+      innerWithCtrs.equations.map({
+        case (x, (z, ready)) if z == s =>
+          // Never reset the primary input stream
+          x -> (z, ready)
+        case (x, (z, ready)) if x.typ.isInstanceOf[TyStm] =>
+          // Repeat other input streams to give the illusion that they
+          // are being reset
+          x -> (StmJoin(StmRepeat(z, n)())(), ready)
+        case (x, (z, next)) =>
+          // Reset data accumulators
           x -> (z, Mux(shouldReset, z, next)())
-        }
       }) + (acc -> (z, nextAcc))
     )()
     assert(
