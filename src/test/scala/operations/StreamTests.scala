@@ -1,6 +1,7 @@
 package operations
 
 import ir._
+import opt.{PartialEvalPass, StmSimplifier}
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamTests extends AnyFunSuite {
@@ -211,7 +212,7 @@ class StreamTests extends AnyFunSuite {
           TyInt ::+ (acc => Int2() ::+ (x => acc + x.__0 + x.__1))
         )()
       )
-    )().tchk()
+    )().tchk().lower()
     val expected = StmLiteral(3, 6, 9, 12)()
     assert(ir.eval(s) == expected)
   }
@@ -810,34 +811,66 @@ class StreamTests extends AnyFunSuite {
     assert(ir.eval(s) == expected)
   }
 
-  test("StmMap:SimpleRepeatedData") {
-    val n = 4
+  test("StmMap:RepeatedData1") {
+    val n = 3
+    val m = 4
     val f =
-      (TyStm(TyStm(TyInt, n), n) ::+ (a =>
-        TyStm(TyStm(TyInt, n), n) ::+ (b =>
-          StmMap(
-            a,
-            TyStm(TyInt, n) ::+ (rowA =>
-              StmMap(b, TyStm(TyInt, n) ::+ (rowB => StmZip(rowA, rowB)()))()
-            )
-          )()
+      (TyStm(TyStm(TyInt, m), n) ::+ (a =>
+        TyStm(TyInt, m) ::+ (b =>
+          StmMap(a, TyStm(TyInt, m) ::+ (rowA => StmZip(rowA, b)()))()
         )
       )).tchk().lower()
     val a = StmMap(
-      StmCount2D(n, n)(),
-      TyStm(Int2(), n) ::+ (s =>
+      StmCount2D(n, m)(),
+      TyStm(Int2(), m) ::+ (s =>
+        StmMap(s, Int2() ::+ (x => x.__0 + 2 * x.__1))()
+      )
+    )().tchk().lower()
+    val b = StmRange(m, -1, 2)().tchk().lower()
+    val expected = {
+      val aVals = (0 until n).map(i => (0 until m).map(j => i + 2 * j))
+      val bVals = (0 until m).map(t => -1 + 2 * t)
+      val expectedVals = aVals.map(rowA => rowA.zip(bVals))
+      StmLiteral(
+        expectedVals.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
+      )()
+    }
+    val actual = ir.eval(FunCall(FunCall(f, a)(), b)())
+    assert(actual == expected)
+  }
+
+  test("StmMap:RepeatedData2") {
+    val n = 2
+    val m = 3
+    val k = 4
+    val f = {
+      val f = TyStm(TyStm(TyInt, k), n) ::+ (a =>
+        TyStm(TyStm(TyInt, k), m) ::+ (b =>
+          StmMap(
+            a,
+            TyStm(TyInt, k) ::+ (rowA =>
+              StmMap(b, TyStm(TyInt, k) ::+ (rowB => StmZip(rowA, rowB)()))()
+            )
+          )()
+        )
+      )
+      f.tchk().lower()
+    }
+    val a = StmMap(
+      StmCount2D(n, k)(),
+      TyStm(Int2(), k) ::+ (s =>
         StmMap(s, Int2() ::+ (x => x.__0 + 2 * x.__1))()
       )
     )().tchk().lower()
     val b = StmMap(
-      StmCount2D(n, n)(),
-      TyStm(Int2(), n) ::+ (s =>
+      StmCount2D(m, k)(),
+      TyStm(Int2(), k) ::+ (s =>
         StmMap(s, Int2() ::+ (x => 2 * x.__0 + x.__1))()
       )
     )().tchk().lower()
     val expected = {
-      val aVals = (0 until n).map(i => (0 until n).map(j => i + 2 * j))
-      val bVals = (0 until n).map(i => (0 until n).map(j => 2 * i + j))
+      val aVals = (0 until n).map(i => (0 until k).map(j => i + 2 * j))
+      val bVals = (0 until m).map(i => (0 until k).map(j => 2 * i + j))
       val expectedVals = aVals.map(rowA => bVals.map(rowB => rowA.zip(rowB)))
       StmLiteral(
         expectedVals.flatten.flatten.map({ case (x, y) => Tuple(x, y)() }): _*

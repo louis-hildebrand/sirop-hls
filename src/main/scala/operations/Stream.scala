@@ -433,6 +433,10 @@ case class StmMap(
                 TyBool
               )
           )
+          assert(
+            innerWithCtrs.typ != Missing,
+            "stream must be type checked to be able to distinguish between data accumulators and input streams"
+          )
           val outerStm = StmBuild(
             n * outputsUntilReset,
             innerWithCtrs.data,
@@ -644,6 +648,10 @@ case class StmScanInclusive(
     }
     val acc = Param("acc")(elemType)
     val nextAcc = Mux(innerWithCtrs.valid, innerWithCtrs.data, acc)()
+    assert(
+      innerWithCtrs.typ != Missing,
+      "stream must be type checked to be able to distinguish between data accumulators and input streams"
+    )
     val outerStm = StmBuild(
       n,
       nextAcc,

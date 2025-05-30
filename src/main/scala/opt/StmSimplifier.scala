@@ -10,8 +10,8 @@ object StmSimplifier {
     * beneficial, like partially evaluating and removing unused accumulator
     * elements.
     */
-  def simplify(s: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
-    simplifyUntilFixpoint(simplifyInputs(s)(facts))(facts)
+  def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
+    simplifyUntilFixpoint(simplifyInputs(tl(stm))(facts))(facts)
   }
 
   private def simplifyInputs(s: StmBuild)(facts: FactSet): StmBuild = {
