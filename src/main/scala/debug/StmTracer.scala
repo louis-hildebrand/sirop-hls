@@ -1,68 +1,47 @@
 package debug
 
-import opt.PartialEvalPass
 import ir._
 
 object StmTracer {
+
+  /** Trace the execution of a stream step-by-step, showing the accumulator
+    * values and outputs.
+    *
+    * @param stm
+    *   Stream to trace
+    * @return
+    *   Summary of the stream state and output at each step
+    */
   def trace(stm: StmBuild): Seq[String] = {
-    val n = PartialEvalPass.partialEval(stm.n).asInstanceOf[IntCst].i
-    trace(n, stm.equations.toSeq, stm.data, stm.valid, step = 0)
+    trace(stm, step = 0)
   }
 
-  private def trace(
-      n: Int,
-      equations: Seq[(Param, (Expr, Expr))],
-      data: Expr,
-      valid: Expr,
-      step: Int
-  ): Seq[String] = {
+  private def trace(s: StmBuild, step: Int): Seq[String] = {
+    val n = ir.eval(s.n).asInstanceOf[IntCst].i
     if (n <= 0) {
       Seq()
     } else {
       try {
-        val accStr = equations.map({ case (x, (z, _)) =>
-          val zStr =
-            PrettyPrinter.show(z, collapseStm = true, evalVec = true)(Map())
-          s"${x.name} = $zStr"
-        })
-        val (nextEquations, nextOut, nextOutValid) = {
-          val currentValByVar: Map[Expr, Expr] =
-            equations.map({ case (x, (z, _)) => x -> z }).toMap
-          val nextEquations = equations
-            .map({ case (x, (_, next)) =>
-              val evaluatedNext = evalBigStep(next.substitute(currentValByVar))
-              x -> (evaluatedNext, next)
-            })
-            .toMap
-          val evaluatedData = evalBigStep(data.substitute(currentValByVar))
-          val evaluatedValid = evalBigStep(valid.substitute(currentValByVar))
-          assert(
-            evaluatedValid.isInstanceOf[BoolCst],
-            s"stream valid expression must evaluate to a boolean (found $evaluatedValid)"
-          )
-          (
-            // IMPORTANT: keep same order of accumulator elements
-            equations.map({ case (x, _) => (x, nextEquations(x)) }),
-            evaluatedData,
-            evaluatedValid == True
-          )
+        val accStr = s.equations.toSeq
+          .sortBy({ case (x, _) => x.name })
+          .map({ case (x, (z, _)) =>
+            val zStr =
+              PrettyPrinter.show(z, collapseStm = true, evalVec = true)(Map())
+            s"${x.name} = $zStr"
+          })
+          .mkString("{ ", ", ", " }")
+        val (head, tail) = stepStream(s)
+        val outStr = head match {
+          case Some(v) =>
+            s"Some(${PrettyPrinter.show(v, evalVec = true)(Map())})"
+          case None => "None"
         }
-        val outStr =
-          if (nextOutValid)
-            s"Some(${PrettyPrinter.show(nextOut, evalVec = true)(Map())})"
-          else "None"
         val summary =
           s"""Step $step:
              |    Accumulator: $accStr
-             |    Next output: $outStr
+             |    Output:      $outStr
              |""".stripMargin.stripTrailing
-        summary +: trace(
-          if (nextOutValid) n - 1 else n,
-          nextEquations,
-          data,
-          valid,
-          step = step + 1
-        )
+        summary +: trace(tail.asInstanceOf[StmBuild], step = step + 1)
       } catch {
         case e: Exception =>
           val summary =
