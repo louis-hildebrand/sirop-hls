@@ -1141,18 +1141,27 @@ case class StmRepeat(
     val m = this.m.lower()
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
-    val i = Param("i")(TyInt)
-    StmMap(
-      Stm2Vec(stm)(),
-      TyVec(t, n) ::+ (v =>
-        StmBuild(
-          n * m,
-          VecAccess(v, i)(),
-          True,
-          Map[Param, (Expr, Expr)](
-            i -> (0, Mux(i + 1 === n, 0, i + 1)())
-          )
-        )()
+    val s = Param("s")()
+    val v = Param("v")()
+    val i = Param("i")()
+    val filling = Param("filling")()
+    // TODO: It may be possible to shave off one cycle by outputting valid data
+    //       during the last filling cycle, but this would make the expression
+    //       more complicated.
+    // NOTE: You could also implement this using Vec2Stm and then reading the
+    //       vector repeatedly, but the resulting expression is pretty gross
+    StmBuild(
+      n * m,
+      VecAccess(v, i)(),
+      !filling,
+      Map[Param, (Expr, Expr)](
+        s -> (stm, filling),
+        v -> (
+          VecBuild(n, TyInt ::+ (_ => Default(t)))(),
+          Mux(filling, VecShiftLeft(v, StmData(s)())(), v)()
+        ),
+        i -> (0, Mux(i + 1 === n, 0, i + 1)()),
+        filling -> (True, filling && (i + 1 < n))
       )
     )().tchk().lower()
   }

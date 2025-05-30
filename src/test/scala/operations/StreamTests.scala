@@ -1909,16 +1909,16 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount(3)()
     val expected = Seq(IntCst(0), IntCst(1), IntCst(2))
 
-    val actual0 = StmRepeat(s, 0)().tchk()
+    val actual0 = StmRepeat(s, 0)().tchk().lower()
     assert(ir.eval(actual0) == StmLiteral()())
 
-    val actual1 = StmRepeat(s, 1)().tchk()
+    val actual1 = StmRepeat(s, 1)().tchk().lower()
     assert(ir.eval(actual1) == StmLiteral(expected: _*)())
 
-    val actual2 = StmRepeat(s, 2)().tchk()
+    val actual2 = StmRepeat(s, 2)().tchk().lower()
     assert(ir.eval(actual2) == StmLiteral(expected ++ expected: _*)())
 
-    val actual3 = StmRepeat(s, 3)().tchk()
+    val actual3 = StmRepeat(s, 3)().tchk().lower()
     assert(
       ir.eval(actual3) == StmLiteral(expected ++ expected ++ expected: _*)()
     )
