@@ -37,7 +37,7 @@ class StmTracerTests extends AnyFunSuite {
          |    Output:      Some(36)
          |""".stripMargin.stripTrailing
     )
-    val actual = StmTracer.trace(s)
+    val actual = StmTracer.traceTop(s, 0)
     assert(actual == expected)
   }
 
@@ -80,7 +80,7 @@ class StmTracerTests extends AnyFunSuite {
          |    Output:      Some([42, 43, 44, 45])
          |""".stripMargin.stripTrailing
     )
-    val actual = StmTracer.trace(stm2vec)
+    val actual = StmTracer.traceTop(stm2vec, 0)
     assert(actual == expected)
   }
 }

@@ -5,18 +5,14 @@ import ir._
 object StmTracer {
 
   /** Trace the execution of a stream step-by-step, showing the accumulator
-    * values and outputs.
+    * values and outputs for the top-level stream.
     *
-    * @param stm
+    * @param s
     *   Stream to trace
     * @return
     *   Summary of the stream state and output at each step
     */
-  def trace(stm: StmBuild): Seq[String] = {
-    trace(stm, step = 0)
-  }
-
-  private def trace(s: StmBuild, step: Int): Seq[String] = {
+  def traceTop(s: StmBuild, step: Int): Seq[String] = {
     val n = ir.eval(s.n).asInstanceOf[IntCst].i
     if (n <= 0) {
       Seq()
@@ -41,7 +37,7 @@ object StmTracer {
              |    Accumulator: $accStr
              |    Output:      $outStr
              |""".stripMargin.stripTrailing
-        summary +: trace(tail.asInstanceOf[StmBuild], step = step + 1)
+        summary +: traceTop(tail.asInstanceOf[StmBuild], step = step + 1)
       } catch {
         case e: Exception =>
           val summary =
