@@ -3,57 +3,338 @@ package ir
 import scala.annotation.tailrec
 import scala.language.implicitConversions
 
-class InfiniteLoopError(msg: String) extends IllegalArgumentException(msg)
-
 class EmptyStreamError
     extends IllegalArgumentException("Attempt to read from an empty stream.")
 
-trait Eval {
+class DeadlockError(val reasons: Seq[DeadlockReason])
+    extends RuntimeException(s"Deadlock (${reasons.mkString(", ")}).")
+
+sealed trait DeadlockReason
+
+/** The stream is definitely deadlocked because it tried to read from an empty
+  * stream.
+  */
+case object EmptyStreamRead extends DeadlockReason
+
+/** The stream <i>appears</i> to be deadlocked because it took too many steps
+  * without producing any valid outputs.
+  */
+case object TooManySteps extends DeadlockReason
+
+/** The state of a node in the pipeline.
+  */
+sealed trait NodeState
+
+/** The node has no more data to send.
+  */
+object Empty extends NodeState
+
+/** The node is waiting for some of its input nodes.
+  */
+object Stalled extends NodeState
+
+/** The node has taken one step but the output was invalid (i.e.,
+  * <code>None</code>).
+  */
+object Invalid extends NodeState
+
+/** The node has a valid output.
+  *
+  * @param v
+  *   The output.
+  */
+case class Valid(v: Expr) extends NodeState
+
+/** The node is deadlocked and will never produce any more outputs.
+  */
+case class Deadlocked(reasons: Seq[DeadlockReason]) extends NodeState
+
+/** An accumulator containing some data (a number, a boolean, a tuple of data,
+  * etc.). In hardware, this would be a register.
+  *
+  * @param v
+  *   The current value.
+  * @param next
+  *   An expression for the next value.
+  */
+case class DataAccumulator(v: Expr, next: Expr)
+
+/** An accumulator representing an input stream.
+  *
+  * @param node
+  *   The node representing the input stream.
+  * @param ready
+  *   An expression for the <code>ready</code> signal, which determines whether
+  *   or not the stream will consume the value from this input.
+  */
+case class InputStream(node: StmNode, ready: Expr)
+
+/** One stream-producing component in a pipeline. This is similar to
+  * <code>StmBuild</code>, but with extra data to allow evaluation.
+  *
+  * @param n
+  *   The length of this stream.
+  * @param data
+  *   The expression for this node's output.
+  * @param valid
+  *   An expression indicating whether the data is valid.
+  * @param dataAccumulators
+  *   The data accumulators (i.e., registers) in this stream.
+  * @param inputs
+  *   The producer nodes that feed into this node.
+  * @param state
+  *   The current state of this node.
+  */
+case class StmNode(
+    // TODO: Separate unchanging fields (e.g., next, data, valid, ready expressions) from the fields that do change?
+    n: Int,
+    data: Expr,
+    valid: Expr,
+    dataAccumulators: Map[Param, DataAccumulator],
+    inputs: Map[Param, InputStream],
+    state: NodeState,
+    invalidSteps: Int,
+    typ: Type
+) {
+
+  /** Compute the new state of the pipeline after one cycle.
+    */
+  def step(): StmNode = {
+    this.transferData(true).computeNextOutputs()
+  }
+
+  /** At each ready/valid interface, update the nodes according to whether or
+    * not data was transferred.
+    *
+    * @param ready
+    *   Whether the consumer is ready to receive output.
+    */
+  private def transferData(ready: Boolean): StmNode = {
+    val currentValByDataAcc: Map[Expr, Expr] =
+      dataAccumulators.map({ case (x, DataAccumulator(v, _)) => x -> v })
+    val requiredProducers =
+      getRequiredProducers(this.inputs.values, currentValByDataAcc).toSet
+    val transferOk = this.state.isInstanceOf[Valid] && ready
+    val canStep = transferOk || (!this.state
+      .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers))
+    val newInputs = this.inputs.map({ case (x, InputStream(node, readyExpr)) =>
+      val ready = canStep && requiredProducers.contains(node)
+      x -> InputStream(node.transferData(ready), readyExpr)
+    })
+    val newDataAccumulators = if (canStep) {
+      val subs =
+        currentValByDataAcc ++ getDataByInput(this.inputs, requiredProducers)
+      this.dataAccumulators.map({ case (x, DataAccumulator(_, nextExpr)) =>
+        val next = evalBigStep(nextExpr.subPreserveType(subs))
+        x -> DataAccumulator(next, nextExpr)
+      })
+    } else {
+      this.dataAccumulators
+    }
+    StmNode(
+      n = if (transferOk) this.n - 1 else this.n,
+      data = this.data,
+      valid = this.valid,
+      dataAccumulators = newDataAccumulators,
+      inputs = newInputs,
+      state = Stalled,
+      invalidSteps = this.invalidSteps,
+      typ = this.typ
+    )
+  }
+
+  /** Traverse the pipeline source-to-sink, computing node outputs along the
+    * way.
+    */
+  private def computeNextOutputs(): StmNode = {
+    assert(
+      this.state == Stalled,
+      "transferData() must be called before computeNextOutputs(), and transferData() should set all nodes' states to Stalled"
+    )
+
+    val newInputs = this.inputs.map({ case (x, InputStream(node, ready)) =>
+      x -> InputStream(node.computeNextOutputs(), ready)
+    })
+
+    val currentValByDataAcc: Map[Expr, Expr] =
+      dataAccumulators.map({ case (x, DataAccumulator(v, _)) => x -> v })
+    val requiredProducers =
+      getRequiredProducers(newInputs.values, currentValByDataAcc).toSet
+
+    val deadlockReasons = checkDeadlocks(requiredProducers)
+    val newState = if (this.n <= 0) {
+      Empty
+    } else if (deadlockReasons.nonEmpty) {
+      Deadlocked(deadlockReasons.toSeq)
+    } else if (!allRequiredProducersValid(requiredProducers)) {
+      Stalled
+    } else {
+      val subs =
+        currentValByDataAcc ++ getDataByInput(newInputs, requiredProducers)
+      val evaluatedValid = evalBigStep(this.valid.subPreserveType(subs))
+      evaluatedValid match {
+        case True =>
+          val evaluatedData = evalBigStep(this.data.subPreserveType(subs))
+          Valid(evaluatedData)
+        case False =>
+          Invalid
+        case v =>
+          throw new TypeError(
+            s"Valid signal evaluated to $v. It must evaluate to a boolean."
+          )
+      }
+    }
+    val newInvalidSteps = newState match {
+      case _: Valid => 0
+      case Invalid  => this.invalidSteps + 1
+      case _        => this.invalidSteps
+    }
+    StmNode(
+      n = this.n,
+      data = this.data,
+      valid = this.valid,
+      dataAccumulators = this.dataAccumulators,
+      inputs = newInputs,
+      state = newState,
+      invalidSteps = newInvalidSteps,
+      typ = this.typ
+    )
+  }
+
+  private def getRequiredProducers(
+      producers: Iterable[InputStream],
+      currentValByDataAcc: Map[Expr, Expr]
+  ): Set[StmNode] = {
+    producers
+      .flatMap({ case InputStream(node, readyExpr) =>
+        if (readyExpr.contains(classOf[StmData])) {
+          throw new IllegalArgumentException(
+            s"${StmData.getClass.getSimpleName} cannot be used in a ready expression."
+          )
+        }
+        evalBigStep(readyExpr.subPreserveType(currentValByDataAcc)) match {
+          case True  => Some(node)
+          case False => None
+          case v =>
+            throw new TypeError(
+              s"Ready signal evaluated to $v. It must evaluate to a boolean."
+            )
+        }
+      })
+      .toSet
+  }
+
+  private def getDataByInput(
+      inputs: Map[Param, InputStream],
+      requiredProducers: Set[StmNode]
+  ): Map[Expr, Expr] = {
+    inputs.map({ case (x, InputStream(node, _)) =>
+      if (requiredProducers.contains(node)) {
+        // If `canStep` is true, then all required producers must have
+        // valid data.
+        val v = node.state.asInstanceOf[Valid].v
+        StmData(x)() -> v
+      } else {
+        val typ = x.typ.asInstanceOf[TyStm].t
+        StmData(x)() -> Default(typ).lower()
+      }
+    })
+  }
+
+  private def allRequiredProducersValid(
+      requiredProducers: Iterable[StmNode]
+  ): Boolean = {
+    requiredProducers.forall(n => n.state.isInstanceOf[Valid])
+  }
+
+  private def checkDeadlocks(
+      requiredProducers: Iterable[StmNode]
+  ): Set[DeadlockReason] = {
+    val reasons: Set[DeadlockReason] = requiredProducers
+      .flatMap(s =>
+        s.state match {
+          case Empty                        => Set(EmptyStreamRead)
+          case Deadlocked(reasons)          => reasons
+          case _: Valid | Invalid | Stalled => Set()
+        }
+      )
+      .toSet
+    if (this.invalidSteps >= StmNode.MaxInvalidSteps) reasons + TooManySteps
+    else reasons
+  }
+}
+
+private object StmNode {
 
   /** If a stream takes this many steps without producing a valid element,
     * assume it is stuck in an infinite loop.
     */
-  private val MaxStepsWithoutValid = 100000
+  private[ir] val MaxInvalidSteps = 1000
 
-  def eval(e: Expr): Expr = {
-    evalBigStepToplevel(e.tchk().lower())
+  def apply(s: StmBuild): StmNode = {
+    StmNode.init(s).computeNextOutputs()
   }
 
-  private def evalBigStepToplevel(e: Expr): Expr = {
+  private def init(s: StmBuild): StmNode = {
     require(
-      e.typ != Missing,
-      s"Expression to evaluate must have a type (got untyped expression $e)."
+      s.typ != Missing,
+      s"Stream must be type checked before it can be converted to a ${StmNode.getClass.getSimpleName}."
     )
-    evalBigStep(e) match {
-      case s: StmBuild =>
-        s.n match {
-          case IntCst(0) =>
-            val t = s.typ.asInstanceOf[TyStm].t
-            StmLiteral()(TyStm(t, 0))
-          case IntCst(n) if n > 0 =>
-            val (head, tail) = evalStmNext(s)(0)
-            val tailElems = evalBigStepToplevel(tail) match {
-              case s: StmLiteral => s.elems
-              case v =>
-                throw new IllegalArgumentException(
-                  s"Tail of stream evaluated to $v. It must evaluate to a stream literal."
-                )
-            }
-            StmLiteral(head +: tailElems: _*)(s.typ)
-          case n =>
-            throw new IllegalArgumentException(
-              s"Stream length $n. Streams must have non-negative integer length."
-            )
-        }
-      case e => e
+    val n = eval(s.n) match {
+      case IntCst(n) => n
+      case e =>
+        throw new TypeError(
+          s"Stream length evaluated to $e. It must evaluate to an integer."
+        )
+    }
+    // TODO: Evaluate each data accumulator value
+    val (inputStmBuilds, accumulators) = s.equations.partition({ case (x, _) =>
+      x.typ.isInstanceOf[TyStm]
+    })
+    val inputs = inputStmBuilds.map({
+      case (x, (z: StmBuild, ready)) => x -> InputStream(StmNode.init(z), ready)
+      case (x, (z, _)) =>
+        throw new IllegalArgumentException(
+          s"Initial value for stream-valued accumulator ${x.name} is $z. Expected a StmBuild."
+        )
+    })
+    val dataAccumulators = accumulators.map({ case (x, (z, next)) =>
+      x -> DataAccumulator(evalBigStep(z), next)
+    })
+    StmNode(
+      n,
+      data = s.data,
+      valid = s.valid,
+      dataAccumulators = dataAccumulators,
+      inputs = inputs,
+      state = Stalled,
+      invalidSteps = 0,
+      typ = s.typ
+    )
+  }
+}
+
+trait Eval {
+
+  def eval(e: Expr): Expr = evalBigStep(e.tchk().lower())
+
+  @tailrec
+  private def evalPipeline(
+      s: StmNode,
+      elems: Seq[Expr],
+      numInvalid: Int
+  ): Expr = {
+    s.state match {
+      case Empty =>
+        StmLiteral(elems.reverse: _*)(s.typ)
+      case Valid(v) => evalPipeline(s.step(), v +: elems, numInvalid = 0)
+      case Stalled | Invalid =>
+        evalPipeline(s.step(), elems, numInvalid = numInvalid + 1)
+      case Deadlocked(rs) => throw new DeadlockError(rs)
     }
   }
 
   def evalBigStep(e: Expr): Expr = {
-    require(
-      e.typ != Missing,
-      s"Expression to evaluate must have a type (got untyped expression $e)."
-    )
     val v: Expr = e match {
       case x: Param =>
         throw new IllegalArgumentException(
@@ -242,20 +523,14 @@ trait Eval {
         }
       case v: VecLiteral => v
 
-      case StmBuild(n, data, valid, equations) =>
-        StmBuild(
-          evalBigStep(n),
-          data,
-          valid,
-          equations.map({ case (x, (z, next)) =>
-            x -> (evalBigStep(z), next)
-          })
-        )()
+      case s: StmBuild => evalPipeline(StmNode(s), Seq(), 0)
       case _: StmData =>
         throw new IllegalArgumentException(
           s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
         )
       case StmNextK(s, k) =>
+        // TODO
+        ???
         evalBigStep(k) match {
           case IntCst(k) if k <= 0 =>
             evalBigStep(s)
@@ -278,7 +553,9 @@ trait Eval {
               s"Index in StmNextK evaluated to $k. The index must be a non-negative integer."
             )
         }
-      case v: StmLiteral => v
+      case v: StmLiteral =>
+        // TODO
+        ???
 
       case s: SyntaxSugar =>
         throw new IllegalArgumentException(
@@ -331,13 +608,10 @@ trait Eval {
     *   (head, tail)
     */
   @tailrec
+  @deprecated
   private def evalStmNext(s: Expr)(stepsWithoutValid: Int = 0): (Expr, Expr) = {
-    if (stepsWithoutValid >= MaxStepsWithoutValid) {
-      throw new InfiniteLoopError(
-        s"A stream has taken $MaxStepsWithoutValid steps without producing a valid element."
-          + " Is it stuck in an infinite loop?"
-          + s" The stream is $s."
-      )
+    if (stepsWithoutValid >= StmNode.MaxInvalidSteps) {
+      throw new DeadlockError(Seq(TooManySteps))
     } else {
       stepStream(s) match {
         case (Some(v), s) => (v, s)
@@ -349,6 +623,7 @@ trait Eval {
   /** @return
     *   (Some(head), tail) if output is valid, else (None, tail)
     */
+  @deprecated
   def stepStream(s: Expr): (Option[Expr], Expr) = {
     s match {
       case StmLiteral() | StmBuild(IntCst(0), _, _, _) =>

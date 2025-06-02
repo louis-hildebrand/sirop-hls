@@ -7,22 +7,6 @@ class EvalTests extends AnyFunSuite {
     assert(ir.eval(IntCst(3)) == IntCst(3))
   }
 
-  test("StmNextK") {
-    val s = Param("s")()
-    val k = Param("k")(TyInt)
-    val e = StmNextK(s, 1 + k)()
-
-    val i = Param("i")()
-    val s0 =
-      StmBuild(3, i, True, Map[Param, (Expr, Expr)](i -> (-4, i + 3)))()
-    val elems = Seq(-4, -1, 2)
-    for (kVal <- -3 until 2) {
-      val expected = StmLiteral.ints(elems.drop(kVal + 1): _*)
-      val actual = ir.eval(Let(s, s0, Let(k, kVal, e)())().tchk())
-      assert(actual == expected)
-    }
-  }
-
   test("StmBuild") {
     val i = Param("i")()
     val s =
@@ -39,7 +23,8 @@ class EvalTests extends AnyFunSuite {
 
   test("ObviousInfiniteLoop") {
     val s = StmBuild(1, 0, False, Map[Param, (Expr, Expr)]())()
-    assertThrows[InfiniteLoopError](ir.eval(s))
+    val exc = intercept[DeadlockError](ir.eval(s))
+    assert(exc.reasons == Seq(TooManySteps))
   }
 
   test("LessObviousInfiniteLoop") {
@@ -52,6 +37,37 @@ class EvalTests extends AnyFunSuite {
         a -> (0, a + 2)
       )
     )().tchk()
-    assertThrows[InfiniteLoopError](ir.eval(s))
+    val exc = intercept[DeadlockError](ir.eval(s))
+    assert(exc.reasons == Seq(TooManySteps))
+  }
+
+  test("InfiniteLoopInInputStream") {
+    val s = Param("s")()
+    val stm = StmBuild(
+      1,
+      StmData(s)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (StmBuild(1, 0, False)(), True)
+      )
+    )()
+    val exc = intercept[DeadlockError](ir.eval(stm))
+    assert(exc.reasons == Seq(TooManySteps))
+  }
+
+  test("ReadFromEmptyStream") {
+    val s = {
+      val s = Param("s")()
+      StmBuild(
+        2,
+        StmData(s)(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s -> (StmBuild(1, 0, True)(), True)
+        )
+      )()
+    }
+    val exc = intercept[DeadlockError](ir.eval(s))
+    assert(exc.reasons == Seq(EmptyStreamRead))
   }
 }
