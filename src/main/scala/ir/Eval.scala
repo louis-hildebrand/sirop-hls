@@ -49,52 +49,49 @@ case class Valid(v: Expr) extends NodeState
   */
 case class Deadlocked(reasons: Seq[DeadlockReason]) extends NodeState
 
-/** An accumulator containing some data (a number, a boolean, a tuple of data,
-  * etc.). In hardware, this would be a register.
+/** The parts of a stream-producing component which do not change at runtime.
   *
-  * @param v
-  *   The current value.
-  * @param next
-  *   An expression for the next value.
-  */
-case class DataAccumulator(v: Expr, next: Expr)
-
-/** An accumulator representing an input stream.
-  *
-  * @param node
-  *   The node representing the input stream.
-  * @param ready
-  *   An expression for the <code>ready</code> signal, which determines whether
-  *   or not the stream will consume the value from this input.
-  */
-case class InputStream(node: StmNode, ready: Expr)
-
-/** One stream-producing component in a pipeline. This is similar to
-  * <code>StmBuild</code>, but with extra data to allow evaluation.
-  *
-  * @param n
-  *   The length of this stream.
   * @param data
   *   The expression for this node's output.
   * @param valid
   *   An expression indicating whether the data is valid.
-  * @param dataAccumulators
-  *   The data accumulators (i.e., registers) in this stream.
+  * @param nextByDataAcc
+  *   An expression for the next value for each data accumulator.
+  * @param readyByInput
+  *   For each input, an expression saying whether this node will consume that
+  *   input.
+  * @param typ
+  *   The stream type.
+  */
+case class StmNodeHardware(
+    data: Expr,
+    valid: Expr,
+    nextByDataAcc: Map[Param, Expr],
+    readyByInput: Map[Param, Expr],
+    typ: TyStm
+)
+
+/** One stream-producing component in a pipeline. This is similar to
+  * <code>StmBuild</code>, but with extra data to allow evaluation.
+  *
+  * @param hw
+  *   The static information of this component.
+  * @param n
+  *   The length of this stream.
+  * @param currentValByDataAcc
+  *   For each data accumulator, the current value.
   * @param inputs
   *   The producer nodes that feed into this node.
   * @param state
   *   The current state of this node.
   */
 case class StmNode(
-    // TODO: Separate unchanging fields (e.g., next, data, valid, ready expressions) from the fields that do change?
+    hw: StmNodeHardware,
     n: Int,
-    data: Expr,
-    valid: Expr,
-    dataAccumulators: Map[Param, DataAccumulator],
-    inputs: Map[Param, InputStream],
+    currentValByDataAcc: Map[Param, Expr],
+    inputs: Map[Param, StmNode],
     state: NodeState,
-    invalidSteps: Int,
-    typ: Type
+    invalidSteps: Int
 ) {
 
   /** Compute the new state of the pipeline after one cycle.
@@ -110,36 +107,31 @@ case class StmNode(
     *   Whether the consumer is ready to receive output.
     */
   private def transferData(ready: Boolean): StmNode = {
-    val currentValByDataAcc: Map[Expr, Expr] =
-      dataAccumulators.map({ case (x, DataAccumulator(v, _)) => x -> v })
     val requiredProducers =
-      getRequiredProducers(this.inputs.values, currentValByDataAcc).toSet
+      getRequiredProducers(this.inputs, this.currentValByDataAcc.toMap)
     val transferOk = this.state.isInstanceOf[Valid] && ready
     val canStep = transferOk || (!this.state
       .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers))
-    val newInputs = this.inputs.map({ case (x, InputStream(node, readyExpr)) =>
+    val newInputs = this.inputs.map({ case (x, node) =>
       val ready = canStep && requiredProducers.contains(node)
-      x -> InputStream(node.transferData(ready), readyExpr)
+      x -> node.transferData(ready)
     })
     val newDataAccumulators = if (canStep) {
       val subs =
         currentValByDataAcc ++ getDataByInput(this.inputs, requiredProducers)
-      this.dataAccumulators.map({ case (x, DataAccumulator(_, nextExpr)) =>
-        val next = evalBigStep(nextExpr.subPreserveType(subs))
-        x -> DataAccumulator(next, nextExpr)
+      this.hw.nextByDataAcc.map({ case (x, nextExpr) =>
+        x -> evalBigStep(nextExpr.subPreserveType(subs))
       })
     } else {
-      this.dataAccumulators
+      this.currentValByDataAcc
     }
     StmNode(
+      hw = this.hw,
       n = if (transferOk) this.n - 1 else this.n,
-      data = this.data,
-      valid = this.valid,
-      dataAccumulators = newDataAccumulators,
+      currentValByDataAcc = newDataAccumulators,
       inputs = newInputs,
       state = Stalled,
-      invalidSteps = this.invalidSteps,
-      typ = this.typ
+      invalidSteps = this.invalidSteps
     )
   }
 
@@ -152,14 +144,11 @@ case class StmNode(
       "transferData() must be called before computeNextOutputs(), and transferData() should set all nodes' states to Stalled"
     )
 
-    val newInputs = this.inputs.map({ case (x, InputStream(node, ready)) =>
-      x -> InputStream(node.computeNextOutputs(), ready)
-    })
+    val newInputs =
+      this.inputs.map({ case (x, node) => x -> node.computeNextOutputs() })
 
-    val currentValByDataAcc: Map[Expr, Expr] =
-      dataAccumulators.map({ case (x, DataAccumulator(v, _)) => x -> v })
     val requiredProducers =
-      getRequiredProducers(newInputs.values, currentValByDataAcc).toSet
+      getRequiredProducers(newInputs, this.currentValByDataAcc.toMap)
 
     val deadlockReasons = checkDeadlocks(requiredProducers)
     val newState = if (this.n <= 0) {
@@ -171,10 +160,10 @@ case class StmNode(
     } else {
       val subs =
         currentValByDataAcc ++ getDataByInput(newInputs, requiredProducers)
-      val evaluatedValid = evalBigStep(this.valid.subPreserveType(subs))
+      val evaluatedValid = evalBigStep(this.hw.valid.subPreserveType(subs))
       evaluatedValid match {
         case True =>
-          val evaluatedData = evalBigStep(this.data.subPreserveType(subs))
+          val evaluatedData = evalBigStep(this.hw.data.subPreserveType(subs))
           Valid(evaluatedData)
         case False =>
           Invalid
@@ -190,23 +179,22 @@ case class StmNode(
       case _        => this.invalidSteps
     }
     StmNode(
+      hw = this.hw,
       n = this.n,
-      data = this.data,
-      valid = this.valid,
-      dataAccumulators = this.dataAccumulators,
+      currentValByDataAcc = this.currentValByDataAcc,
       inputs = newInputs,
       state = newState,
-      invalidSteps = newInvalidSteps,
-      typ = this.typ
+      invalidSteps = newInvalidSteps
     )
   }
 
   private def getRequiredProducers(
-      producers: Iterable[InputStream],
+      producers: Map[Param, StmNode],
       currentValByDataAcc: Map[Expr, Expr]
   ): Set[StmNode] = {
     producers
-      .flatMap({ case InputStream(node, readyExpr) =>
+      .flatMap({ case (x, node) =>
+        val readyExpr = this.hw.readyByInput(x)
         if (readyExpr.contains(classOf[StmData])) {
           throw new IllegalArgumentException(
             s"${StmData.getClass.getSimpleName} cannot be used in a ready expression."
@@ -225,10 +213,10 @@ case class StmNode(
   }
 
   private def getDataByInput(
-      inputs: Map[Param, InputStream],
+      inputs: Map[Param, StmNode],
       requiredProducers: Set[StmNode]
   ): Map[Expr, Expr] = {
-    inputs.map({ case (x, InputStream(node, _)) =>
+    inputs.map({ case (x, node) =>
       if (requiredProducers.contains(node)) {
         // If `canStep` is true, then all required producers must have
         // valid data.
@@ -264,7 +252,7 @@ case class StmNode(
   }
 }
 
-private object StmNode {
+object StmNode {
 
   /** If a stream takes this many steps without producing a valid element,
     * assume it is stuck in an infinite loop.
@@ -287,29 +275,32 @@ private object StmNode {
           s"Stream length evaluated to $e. It must evaluate to an integer."
         )
     }
-    // TODO: Evaluate each data accumulator value
-    val (inputStmBuilds, accumulators) = s.equations.partition({ case (x, _) =>
-      x.typ.isInstanceOf[TyStm]
-    })
-    val inputs = inputStmBuilds.map({
-      case (x, (z: StmBuild, ready)) => x -> InputStream(StmNode.init(z), ready)
-      case (x, (z, _)) =>
-        throw new IllegalArgumentException(
-          s"Initial value for stream-valued accumulator ${x.name} is $z. Expected a StmBuild."
-        )
-    })
-    val dataAccumulators = accumulators.map({ case (x, (z, next)) =>
-      x -> DataAccumulator(evalBigStep(z), next)
-    })
+    val (inputStmBuilds, accumulators) =
+      s.equations.partition({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+    val (inputs, readyByInput) = inputStmBuilds
+      .map({
+        case (x, (z: StmBuild, ready)) => (x -> StmNode.init(z), x -> ready)
+        case (x, (z, _)) =>
+          throw new IllegalArgumentException(
+            s"Initial value for stream-valued accumulator ${x.name} is $z. Expected a StmBuild."
+          )
+      })
+      .unzip
     StmNode(
-      n,
-      data = s.data,
-      valid = s.valid,
-      dataAccumulators = dataAccumulators,
-      inputs = inputs,
+      hw = StmNodeHardware(
+        data = s.data,
+        valid = s.valid,
+        nextByDataAcc = accumulators.map({ case (x, (_, next)) => x -> next }),
+        readyByInput = readyByInput.toMap,
+        typ = s.typ.asInstanceOf[TyStm]
+      ),
+      n = n,
+      currentValByDataAcc = accumulators.map({ case (x, (z, _)) =>
+        x -> evalBigStep(z)
+      }),
+      inputs = inputs.toMap,
       state = Stalled,
-      invalidSteps = 0,
-      typ = s.typ
+      invalidSteps = 0
     )
   }
 }
@@ -326,7 +317,7 @@ trait Eval {
   ): Expr = {
     s.state match {
       case Empty =>
-        StmLiteral(elems.reverse: _*)(s.typ)
+        StmLiteral(elems.reverse: _*)(s.hw.typ)
       case Valid(v) => evalPipeline(s.step(), v +: elems, numInvalid = 0)
       case Stalled | Invalid =>
         evalPipeline(s.step(), elems, numInvalid = numInvalid + 1)
