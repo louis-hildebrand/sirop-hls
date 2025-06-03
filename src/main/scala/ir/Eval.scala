@@ -113,7 +113,7 @@ case class StmNode(
     val canStep = transferOk || (!this.state
       .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers))
     val newInputs = this.inputs.map({ case (x, node) =>
-      val ready = canStep && requiredProducers.contains(node)
+      val ready = canStep && requiredProducers.contains(x)
       x -> node.transferData(ready)
     })
     val newDataAccumulators = if (canStep) {
@@ -191,9 +191,9 @@ case class StmNode(
   private def getRequiredProducers(
       producers: Map[Param, StmNode],
       currentValByDataAcc: Map[Expr, Expr]
-  ): Set[StmNode] = {
+  ): Map[Param, StmNode] = {
     producers
-      .flatMap({ case (x, node) =>
+      .filter({ case (x, node) =>
         val readyExpr = this.hw.readyByInput(x)
         if (readyExpr.contains(classOf[StmData])) {
           throw new IllegalArgumentException(
@@ -201,23 +201,22 @@ case class StmNode(
           )
         }
         evalBigStep(readyExpr.subPreserveType(currentValByDataAcc)) match {
-          case True  => Some(node)
-          case False => None
+          case True  => true
+          case False => false
           case v =>
             throw new TypeError(
               s"Ready signal evaluated to $v. It must evaluate to a boolean."
             )
         }
       })
-      .toSet
   }
 
   private def getDataByInput(
       inputs: Map[Param, StmNode],
-      requiredProducers: Set[StmNode]
+      requiredProducers: Map[Param, StmNode]
   ): Map[Expr, Expr] = {
     inputs.map({ case (x, node) =>
-      if (requiredProducers.contains(node)) {
+      if (requiredProducers.contains(x)) {
         // If `canStep` is true, then all required producers must have
         // valid data.
         val v = node.state.asInstanceOf[Valid].v
@@ -230,22 +229,22 @@ case class StmNode(
   }
 
   private def allRequiredProducersValid(
-      requiredProducers: Iterable[StmNode]
+      requiredProducers: Map[Param, StmNode]
   ): Boolean = {
-    requiredProducers.forall(n => n.state.isInstanceOf[Valid])
+    requiredProducers.forall({ case (_, n) => n.state.isInstanceOf[Valid] })
   }
 
   private def checkDeadlocks(
-      requiredProducers: Iterable[StmNode]
+      requiredProducers: Map[Param, StmNode]
   ): Set[DeadlockReason] = {
     val reasons: Set[DeadlockReason] = requiredProducers
-      .flatMap(s =>
+      .flatMap({ case (_, s) =>
         s.state match {
           case Empty                        => Set(EmptyStreamRead)
           case Deadlocked(reasons)          => reasons
           case _: Valid | Invalid | Stalled => Set()
         }
-      )
+      })
       .toSet
     if (this.invalidSteps >= StmNode.MaxInvalidSteps) reasons + TooManySteps
     else reasons
@@ -280,6 +279,9 @@ object StmNode {
     val (inputs, readyByInput) = inputStmBuilds
       .map({
         case (x, (z: StmBuild, ready)) => (x -> StmNode.init(z), x -> ready)
+        case (x, (z: StmLiteral, ready)) =>
+          val stm = stmLiteralToStmBuild(z)
+          (x -> StmNode.init(stm), x -> ready)
         case (x, (z, _)) =>
           throw new IllegalArgumentException(
             s"Initial value for stream-valued accumulator ${x.name} is $z. Expected a StmBuild."
@@ -325,6 +327,22 @@ trait Eval {
     }
   }
 
+  private[ir] def stmLiteralToStmBuild(s: StmLiteral): StmBuild = {
+    val v = Param("v")()
+    val i = Param("i")()
+    val t = s.typ.asInstanceOf[TyStm].t
+    val n = s.typ.asInstanceOf[TyStm].n
+    StmBuild(
+      s.elems.length,
+      VecAccess(v, i)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (0, i + 1),
+        v -> (VecLiteral(s.elems: _*)(TyVec(t, n)), v)
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+  }
+
   def evalBigStep(e: Expr): Expr = {
     val v: Expr = e match {
       case x: Param =>
@@ -335,7 +353,11 @@ trait Eval {
       case FunCall(f, arg) =>
         evalBigStep(f) match {
           case Function(x, body) =>
-            val a = evalBigStep(arg)
+            // Leave stream inputs unevaluated
+            val a = arg.typ match {
+              case _: TyStm => arg
+              case _        => evalBigStep(arg)
+            }
             evalBigStep(body.subPreserveType(x -> a))
           case v =>
             throw new IllegalArgumentException(
@@ -515,38 +537,33 @@ trait Eval {
       case v: VecLiteral => v
 
       case s: StmBuild => evalPipeline(StmNode(s), Seq(), 0)
+      case s: StmLiteral =>
+        evalPipeline(StmNode(stmLiteralToStmBuild(s)), Seq(), 0)
       case _: StmData =>
         throw new IllegalArgumentException(
           s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
         )
       case StmNextK(s, k) =>
-        // TODO
-        ???
-        evalBigStep(k) match {
-          case IntCst(k) if k <= 0 =>
-            evalBigStep(s)
-          case IntCst(k) if k > 0 =>
-            evalBigStep(s) match {
-              case s @ StmLiteral(vs @ _*) =>
+        evalBigStep(s) match {
+          case s: StmLiteral =>
+            evalBigStep(k) match {
+              case IntCst(k) if k <= 0 => s
+              case IntCst(k) =>
                 val t = s.typ.asInstanceOf[TyStm].t
-                val elems = vs.drop(k)
-                StmLiteral(elems: _*)(TyStm(t, elems.length))
-              case s: StmBuild =>
-                val (_, tail) = evalStmNext(s)(0)
-                evalBigStep(StmNextK(tail, k - 1)().tchk())
-              case s =>
-                throw new IllegalArgumentException(
-                  s"Stream in StmNextK evaluated to $s. It must evaluate to a stream literal."
+                val newElems = s.elems.drop(k)
+                StmLiteral(newElems: _*)(TyStm(t, newElems.length))
+              case e =>
+                throw new TypeError(
+                  s"Number in ${StmNextK.getClass.getSimpleName} evaluated to $e."
+                    + "It must evaluate to an integer."
                 )
             }
-          case k =>
-            throw new IllegalArgumentException(
-              s"Index in StmNextK evaluated to $k. The index must be a non-negative integer."
+          case e =>
+            throw new TypeError(
+              s"Stream in ${StmNextK.getClass.getSimpleName} evaluated to $e."
+                + s"It must evaluate to a ${StmLiteral.getClass.getSimpleName}."
             )
         }
-      case v: StmLiteral =>
-        // TODO
-        ???
 
       case s: SyntaxSugar =>
         throw new IllegalArgumentException(

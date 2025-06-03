@@ -479,8 +479,7 @@ class OptimizationTests extends AnyFunSuite {
                 .elems
             StmLiteral(VecLiteral(elems: _*)())()
           }
-          val actual =
-            ir.eval(Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v)())())())
+          val actual = Let(n, nVal, Let(z, zVal, Let(delta, deltaVal, v)())())()
           assert(ir.eval(actual) == expected)
         }
       }
