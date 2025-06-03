@@ -14,12 +14,12 @@ sealed trait DeadlockReason
 /** The stream is definitely deadlocked because it tried to read from an empty
   * stream.
   */
-case object EmptyStreamRead extends DeadlockReason
+object EmptyStreamRead extends DeadlockReason
 
 /** The stream <i>appears</i> to be deadlocked because it took too many steps
   * without producing any valid outputs.
   */
-case object TooManySteps extends DeadlockReason
+object TooManySteps extends DeadlockReason
 
 /** The state of a node in the pipeline.
   */

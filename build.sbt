@@ -6,7 +6,8 @@ ThisBuild / scalaVersion := "2.12.19"
 ThisBuild / parallelExecution := false
 scalacOptions += "-Wconf:cat=other-match-analysis:error"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+libraryDependencies += "org.scala-lang" %% "toolkit" % "0.1.7"
 Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src/main/"
 
 lazy val root = (project in file("."))

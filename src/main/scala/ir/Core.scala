@@ -722,10 +722,14 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
   override def toString: String = name
 }
 case object Param {
-  private val idCtr = new AtomicLong()
+  private val idCtr = new AtomicLong(0)
 
   def apply(prefix: String)(typ: Type = Missing): Param = {
     new Param(prefix, idCtr.incrementAndGet())(typ)
+  }
+
+  private[ir] def resetCounter(): Unit = {
+    idCtr.set(0)
   }
 }
 
@@ -771,6 +775,12 @@ object Function {
     * be used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
+
+  /** Force initialization of this object.
+    */
+  private[ir] def forceInit(): Unit = {
+    // Just calling this method should force initialization of `HashCodeParam`
+  }
 }
 
 case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
@@ -1698,6 +1708,12 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
+
+  /** Force initialization of this object.
+    */
+  private[ir] def forceInit(): Unit = {
+    // Just calling this method should force initialization of `HashCodeParam`
+  }
 }
 
 case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {

@@ -1,0 +1,114 @@
+{
+    "steps": [
+        {
+            "$type": "debug.FullTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 0, 0]",
+                "t_4": "0"
+            },
+            "inputs": {
+                "s_2": {
+                    "$type": "debug.FullTraceNode",
+                    "n": 4,
+                    "state": "valid (42)",
+                    "accumulators": {
+                        "i_1": "42"
+                    },
+                    "inputs": {
+                        
+                    }
+                }
+            }
+        },
+        {
+            "$type": "debug.FullTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 0, 42]",
+                "t_4": "1"
+            },
+            "inputs": {
+                "s_2": {
+                    "$type": "debug.FullTraceNode",
+                    "n": 3,
+                    "state": "valid (43)",
+                    "accumulators": {
+                        "i_1": "43"
+                    },
+                    "inputs": {
+                        
+                    }
+                }
+            }
+        },
+        {
+            "$type": "debug.FullTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 42, 43]",
+                "t_4": "2"
+            },
+            "inputs": {
+                "s_2": {
+                    "$type": "debug.FullTraceNode",
+                    "n": 2,
+                    "state": "valid (44)",
+                    "accumulators": {
+                        "i_1": "44"
+                    },
+                    "inputs": {
+                        
+                    }
+                }
+            }
+        },
+        {
+            "$type": "debug.FullTraceNode",
+            "n": 1,
+            "state": "valid ([42, 43, 44, 45])",
+            "accumulators": {
+                "v_3": "[0, 42, 43, 44]",
+                "t_4": "3"
+            },
+            "inputs": {
+                "s_2": {
+                    "$type": "debug.FullTraceNode",
+                    "n": 1,
+                    "state": "valid (45)",
+                    "accumulators": {
+                        "i_1": "45"
+                    },
+                    "inputs": {
+                        
+                    }
+                }
+            }
+        },
+        {
+            "$type": "debug.FullTraceNode",
+            "n": 0,
+            "state": "empty",
+            "accumulators": {
+                "v_3": "[42, 43, 44, 45]",
+                "t_4": "4"
+            },
+            "inputs": {
+                "s_2": {
+                    "$type": "debug.FullTraceNode",
+                    "n": 0,
+                    "state": "empty",
+                    "accumulators": {
+                        "i_1": "46"
+                    },
+                    "inputs": {
+                        
+                    }
+                }
+            }
+        }
+    ]
+}
