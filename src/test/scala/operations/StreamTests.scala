@@ -843,40 +843,30 @@ class StreamTests extends AnyFunSuite {
     val n = 2
     val m = 3
     val k = 4
-    val f = {
-      val f = TyStm(TyStm(TyInt, k), n) ::+ (a =>
-        TyStm(TyStm(TyInt, k), m) ::+ (b =>
-          StmMap(
-            a,
-            TyStm(TyInt, k) ::+ (rowA =>
-              StmMap(b, TyStm(TyInt, k) ::+ (rowB => StmZip(rowA, rowB)()))()
-            )
-          )()
-        )
-      )
-      f.tchk().lower()
+    val a = Param("a")(TyStm(TyStm(Int2(), k), n))
+    val b = Param("b")(TyStm(TyStm(Int2(), k), m))
+    val map = {
+      val rowA = Param("row_a")(TyStm(Int2(), k))
+      val rowB = Param("row_b")(TyStm(Int2(), k))
+      val map = StmMap(
+        a,
+        Function(rowA, StmMap(b, Function(rowB, StmZip(rowA, rowB)())())())()
+      )()
+      map.tchk().lower()
     }
-    val a = StmMap(
-      StmCount2D(n, k)(),
-      TyStm(Int2(), k) ::+ (s =>
-        StmMap(s, Int2() ::+ (x => x.__0 + 2 * x.__1))()
-      )
-    )().tchk().lower()
-    val b = StmMap(
-      StmCount2D(m, k)(),
-      TyStm(Int2(), k) ::+ (s =>
-        StmMap(s, Int2() ::+ (x => 2 * x.__0 + x.__1))()
-      )
-    )().tchk().lower()
+    val subs: Map[Expr, Expr] = Map(
+      a -> StmCount2D(n, k)().tchk().lower(),
+      b -> StmCount2D(m, k)().tchk().lower()
+    )
     val expected = {
-      val aVals = (0 until n).map(i => (0 until k).map(j => i + 2 * j))
-      val bVals = (0 until m).map(i => (0 until k).map(j => 2 * i + j))
+      val aVals = (0 until n).map(i => (0 until k).map(j => Tuple(i, j)()))
+      val bVals = (0 until m).map(i => (0 until k).map(j => Tuple(i, j)()))
       val expectedVals = aVals.map(rowA => bVals.map(rowB => rowA.zip(rowB)))
       StmLiteral(
         expectedVals.flatten.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
       )()
     }
-    val actual = ir.eval(FunCall(FunCall(f, a)(), b)())
+    val actual = ir.eval(map.subPreserveType(subs))
     assert(actual == expected)
   }
 
