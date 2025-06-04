@@ -533,13 +533,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       this
     } else {
       subs.get(this) match {
-        case Some(v) =>
-          // For convenience, automatically preserve the type if you're
-          // replacing with a variable (which seems fairly common)
-          v match {
-            case x: Param => x.rebuild(this.typ)
-            case e        => e
-          }
+        case Some(v) => v
         case None =>
           this match {
             case f: Function =>
@@ -548,7 +542,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
               val renamed = f.renameVar
-              Function(renamed.param, renamed.body.subPreserveType(subs))(f.typ)
+              Function(
+                renamed.param.subPreserveType(subs).asInstanceOf[Param],
+                renamed.body.subPreserveType(subs)
+              )(f.typ)
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
@@ -580,7 +577,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
     // The expressions to replace may occur within the type (e.g., in the
     // length of a vector)
-    val newType = this.typ.substitute(subs)
+    val newType = out.typ.substitute(subs)
     out.rebuild(newType)
   }
 

@@ -200,8 +200,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       for (fVal <- fExamples) {
         for (zVal <- zExamples) {
           val expected = Let(n, nVal, Let(f, fVal, Let(z, zVal, s)())())()
+          val expectedVal = ir.eval(expected)
           val actual = Let(n, nVal, Let(f, fVal, Let(z, zVal, opt)())())()
-          assert(ir.eval(expected) == ir.eval(actual))
+          val actualVal = ir.eval(actual)
+          assert(actualVal == expectedVal)
         }
       }
     }
@@ -806,7 +808,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       StmCst(n, 42)(),
       StmCst(n, -1)(),
       StmRange(n, 1, 5)(),
-      StmRepeat(StmCount(n)(), m = 3)()
+      StmJoin(StmRepeat(StmCount(n)(), m = 3)())()
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {

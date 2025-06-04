@@ -105,16 +105,10 @@ class CoreTests extends AnyFunSuite {
   test("Substitute:StmBuild") {
     val x = Param("x")()
     val x2 = Param("x2")()
-    val y = Param("y")()
-    val y2 = Param("y2")()
-    val z = Param("z")()
-    val context = Map(
-      x -> TyTuple(TyInt, TyInt),
-      x2 -> TyTuple(TyInt, TyInt),
-      y -> TyInt,
-      y2 -> TyInt,
-      z -> TyInt
-    )
+    val y = Param("y")(TyInt)
+    val y2 = Param("y2")(TyInt)
+    val z = Param("z")(TyInt)
+    val context = Map(x -> Int2(), x2 -> Int2())
     val stm = StmBuild(
       x.__1 + z + 1,
       Tuple(z, x.__1 && x.__1)(),
@@ -214,6 +208,48 @@ class CoreTests extends AnyFunSuite {
     val expectedVecType = TyVec(TyInt, m + k)
     val actualVecParam = actual.asInstanceOf[StmBuild].equations.toSeq.head._1
     assert(actualVecParam.typ == expectedVecType)
+  }
+
+  test("Substitute:InFunctionTypeAnnotation") {
+    val n = Param("n")(TyInt)
+    val v = Param("v")(TyVec(TyInt, n))
+    val f = Function(v, v)().tchk()
+    val actual = f.subPreserveType(n -> IntCst(42)).asInstanceOf[Function]
+    val expected = {
+      val v = Param("v")(TyVec(TyInt, 42))
+      Function(v, v)()
+    }
+    assert(actual == expected)
+    assert(actual.param.typ == TyVec(TyInt, 42))
+    assert(actual.body.typ == TyVec(TyInt, 42))
+  }
+
+  test("Substitute:ChangeStreamLength") {
+    val s1 = Param("s1")(TyStm(TyInt, 4))
+    val s2 = Param("s2")(TyStm(TyInt, 20))
+    val e = {
+      val s = Param("s")()
+      StmBuild(
+        4,
+        StmData(s)(),
+        True,
+        Map[Param, (Expr, Expr)](s -> (s1, True))
+      )()
+    }
+    val actual = e.subPreserveType(s1 -> s2).asInstanceOf[StmBuild]
+    val expected = {
+      val s = Param("s")()
+      StmBuild(
+        4,
+        StmData(s)(),
+        True,
+        Map[Param, (Expr, Expr)](s -> (s2, True))
+      )()
+    }
+    assert(actual == expected)
+    val actualInputStm = actual.equations.toSeq.head._2._1
+    assert(actualInputStm == s2)
+    assert(actualInputStm.typ == TyStm(TyInt, 20))
   }
 
   test("Function:Equals") {

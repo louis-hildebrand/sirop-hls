@@ -10,6 +10,26 @@ class LoweringTests extends AnyFunSuite {
     assert(actual.typ == TyStm(TyInt, IntCst(2) * IntCst(2)))
   }
 
+  test("LowerFunction") {
+    val s = Param("s")(TyStm(TyStm(TyInt, 3), 2))
+    val f = Function(s, s)().tchk()
+    val actual = f.lower().asInstanceOf[Function]
+    assert(actual == f)
+    assert(actual.param.typ == TyStm(TyInt, IntCst(3) * IntCst(2)))
+  }
+
+  test("LowerLet") {
+    val s = Param("s")()
+    val s1 = Param("s1")(TyStm(TyStm(TyInt, 2), 2))
+    val e = Let(s, s1, s)().tchk()
+    val actual = e.lower().asInstanceOf[FunCall]
+    assert(actual == FunCall(Function(s, s)(), s1)())
+    assert(
+      actual.f.asInstanceOf[Function].param.typ
+        == TyStm(TyInt, IntCst(2) * IntCst(2))
+    )
+  }
+
   test("UncurryFunction:1arg") {
     val f = (TyInt ::+ (x => x * x + 1)).tchk()
     val actual = f.uncurry()
