@@ -501,7 +501,7 @@ object PartialEvalPass {
                   partialEval(next.substitute(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
-                      val head = evalBigStep(Default(t).lower())
+                      val head = ir.eval(Default(t))
                       Some(Some(x -> (head, z)))
                     case True =>
                       val maybeHeadAndTail = z match {

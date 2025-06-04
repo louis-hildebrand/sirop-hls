@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
-      implicit nameByParam: Map[Param, String]
+      implicit nameByParam: Map[Param, String] = Map()
   ): String = {
     e match {
       case True      => "true"

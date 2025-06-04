@@ -1,0 +1,64 @@
+{
+    "steps": [
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 4,
+            "state": "valid (0)",
+            "accumulators": {
+                "b_4": "true"
+            },
+            "inputLengths": {
+                "s1_5": 2,
+                "s2_6": 2
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 3,
+            "state": "valid (42)",
+            "accumulators": {
+                "b_4": "false"
+            },
+            "inputLengths": {
+                "s1_5": 1,
+                "s2_6": 2
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 2,
+            "state": "valid (1)",
+            "accumulators": {
+                "b_4": "true"
+            },
+            "inputLengths": {
+                "s1_5": 1,
+                "s2_6": 1
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "valid (45)",
+            "accumulators": {
+                "b_4": "false"
+            },
+            "inputLengths": {
+                "s1_5": 0,
+                "s2_6": 1
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 0,
+            "state": "empty",
+            "accumulators": {
+                "b_4": "true"
+            },
+            "inputLengths": {
+                "s1_5": 0,
+                "s2_6": 0
+            }
+        }
+    ]
+}

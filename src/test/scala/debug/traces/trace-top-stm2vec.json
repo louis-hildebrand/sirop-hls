@@ -1,0 +1,64 @@
+{
+    "steps": [
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 0, 0]",
+                "t_4": "0"
+            },
+            "inputLengths": {
+                "s_2": 4
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 0, 42]",
+                "t_4": "1"
+            },
+            "inputLengths": {
+                "s_2": 3
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "v_3": "[0, 0, 42, 43]",
+                "t_4": "2"
+            },
+            "inputLengths": {
+                "s_2": 2
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "valid ([42, 43, 44, 45])",
+            "accumulators": {
+                "v_3": "[0, 42, 43, 44]",
+                "t_4": "3"
+            },
+            "inputLengths": {
+                "s_2": 1
+            }
+        },
+        {
+            "$type": "debug.SummarizedTraceNode",
+            "n": 0,
+            "state": "empty",
+            "accumulators": {
+                "v_3": "[42, 43, 44, 45]",
+                "t_4": "4"
+            },
+            "inputLengths": {
+                "s_2": 0
+            }
+        }
+    ]
+}
