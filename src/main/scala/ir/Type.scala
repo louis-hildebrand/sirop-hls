@@ -142,23 +142,46 @@ sealed trait Type {
 case object Missing extends Type
 @deprecated
 case object TyInt extends Type
-sealed abstract class TyAnyInt(w: Int) extends Type {
+
+/** Some custom integer with [[w]] bits.
+  *
+  * @param w
+  *   the bit width.
+  */
+sealed abstract class TyAnyInt(val w: Int) extends Type {
   require(w >= 0, "Bit width must be non-negative.")
 
   def +(that: TyAnyInt): TyAnyInt = TSum(this, that)
-  def *(that: TyAnyInt): TyAnyInt = TMul(this, that)
+  def *(that: TyAnyInt): TyAnyInt = TProd(this, that)
   def /(that: TyAnyInt): TyAnyInt = TDiv(this, that)
   def %(that: TyAnyInt): TyAnyInt = TMod(this, that)
 
+  /** Decides whether this type is wide enough to represent the given value.
+    *
+    * For example, 7 can be represented as a 3-bit unsigned number, as a 4-bit
+    * signed number, etc. However, 7 cannot be represented as a 3-bit signed
+    * number.
+    *
+    * @param n
+    *   the number to check.
+    */
   def contains(n: BigInt): Boolean = {
     n >= this.minInt && n <= this.maxInt
   }
+
+  /** The smallest (i.e., most negative) value that can be represented by this
+    * type.
+    */
   def minInt: BigInt = {
     this match {
       case TyUInt(_) => 0
       case TySInt(w) => -BigInt(2).pow(w - 1)
     }
   }
+
+  /** The greatest (i.e., most positive) number that can be represented by this
+    * type.
+    */
   def maxInt: BigInt = {
     this match {
       case TyUInt(w) => BigInt(2).pow(w) - 1
@@ -166,8 +189,46 @@ sealed abstract class TyAnyInt(w: Int) extends Type {
     }
   }
 }
-case class TySInt(w: Int) extends TyAnyInt(w)
-case class TyUInt(w: Int) extends TyAnyInt(w)
+
+object TyAnyInt {
+
+  /** Find the smallest type that fits the given range.
+    *
+    * @param lowerBound
+    *   the lower bound of the desired range.
+    * @param upperBound
+    *   the upper bound of the desired range.
+    */
+  private[ir] def tightest(lowerBound: BigInt, upperBound: BigInt): TyAnyInt = {
+    if (lowerBound >= 0) {
+      // Result can be unsigned
+      TyUInt(upperBound.bitLength)
+    } else {
+      // Result must be signed
+      val n1 = lowerBound.bitLength
+      val n2 = upperBound.bitLength
+      TySInt(1 + math.max(n1, n2))
+    }
+  }
+}
+
+/** A signed integer with [[w]] bits.
+  *
+  * @param w
+  *   the bit width.
+  */
+case class TySInt(override val w: Int) extends TyAnyInt(w) {
+  override def toString: String = s"i$w"
+}
+
+/** An unsigned integer with [[w]] bits.
+  *
+  * @param w
+  *   the bit width.
+  */
+case class TyUInt(override val w: Int) extends TyAnyInt(w) {
+  override def toString: String = s"u$w"
+}
 case object TyBool extends Type
 case class TyArrow(t1: Type, t2: Type) extends Type
 case class TyTuple(ts: Type*) extends Type
@@ -189,6 +250,156 @@ case class TyStm(t: Type, n: Expr) extends Type {
     */
   val tOpt: Type = TyOption(t)
 }
+
+// Shorthand for common int types
+
+trait CommonIntTypes {
+
+  /** The type of an 8-bit unsigned integer.
+    */
+  val U8: TyUInt = TyUInt(8)
+
+  /** The type of a 16-bit unsigned integer.
+    */
+  val U16: TyUInt = TyUInt(16)
+
+  /** The type of a 32-bit unsigned integer.
+    */
+  val U32: TyUInt = TyUInt(32)
+
+  /** The type of an 8-bit signed integer.
+    */
+  val I8: TySInt = TySInt(8)
+
+  /** The type of a 16-bit signed integer.
+    */
+  val I16: TySInt = TySInt(16)
+
+  /** The type of a 32-bit signed integer.
+    */
+  val I32: TySInt = TySInt(32)
+}
+
+// Bit width computations
+
+/** Computes the type of the result of a sum.
+  */
+case object TSum {
+
+  /** Computes the type of the result of a sum.
+    *
+    * @param ts
+    *   the types of the operands.
+    */
+  def apply(ts: TyAnyInt*): TyAnyInt = {
+    val lowerBound = ts.map(t => t.minInt).sum
+    val upperBound = ts.map(t => t.maxInt).sum
+    TyAnyInt.tightest(lowerBound, upperBound)
+  }
+}
+
+/** Computes the type of the result of a product.
+  */
+case object TProd {
+
+  /** Computes the type of the result of a product.
+    *
+    * @param ts
+    *   the types of the operands.
+    */
+  def apply(ts: TyAnyInt*): TyAnyInt = {
+    ts.toList match {
+      case Seq() => TyUInt(1)
+      case t :: ts =>
+        val (lowerBound, upperBound) = ts.foldLeft((t.minInt, t.maxInt))({
+          case ((lo, hi), t) =>
+            assert(lo <= 0)
+            assert(hi >= 0)
+            assert(t.minInt <= 0)
+            assert(t.maxInt >= 0)
+            val newLo = (lo * t.maxInt).min(hi * t.minInt)
+            val newHi = (lo * t.minInt).max(hi * t.maxInt)
+            (newLo, newHi)
+        })
+        TyAnyInt.tightest(lowerBound, upperBound)
+    }
+  }
+}
+
+/** Computes the type of the result of a division.
+  */
+case object TDiv {
+
+  /** Computes the type of the result of a division.
+    *
+    * @param t1
+    *   the type of the numerator.
+    * @param t2
+    *   the type of the denominator.
+    * @return
+    */
+  def apply(t1: TyAnyInt, t2: TyAnyInt): TyAnyInt = {
+    t2 match {
+      case t if t.w == 0 =>
+        throw new ArithmeticException(
+          s"Denominator of div is guaranteed to be zero since its bit width is zero."
+        )
+      case _: TySInt =>
+        // Cases:
+        //  (1) Divide by  0: not allowed
+        //  (2) Divide by  1: leaves range unchanged
+        //  (3) Divide by -1: flip range
+        //  (4) Divide by something with larger magnitude: only shrinks the range
+        val lowerBound = t1.minInt.min(-t1.maxInt)
+        val upperBound = t1.maxInt.max(-t1.minInt)
+        TyAnyInt.tightest(lowerBound, upperBound)
+      case _: TyUInt =>
+        // Cases:
+        //  (1) Divide by zero: not allowed
+        //  (2) Divide by one: leaves range unchanged
+        //  (3) Divide by something larger: only shrinks the range
+        t1
+    }
+  }
+}
+
+/** Computes the type of the result of the [[Mod]] operation.
+  */
+case object TMod {
+
+  /** Computes the type of the result of the [[Mod]] operation.
+    *
+    * @param t1
+    *   the type of the numerator.
+    * @param t2
+    *   the type of the denominator.
+    */
+  def apply(t1: TyAnyInt, t2: TyAnyInt): TyAnyInt = {
+    if (t2.w == 0) {
+      throw new ArithmeticException(
+        s"Denominator of mod is guaranteed to be zero since its bit width is zero."
+      )
+    }
+    // The sign is determined by the sign of the numerator
+    val lowerBound = t1 match {
+      case _: TyUInt =>
+        // Numerator is non-negative, so result will be non-negative
+        BigInt(0)
+      case _: TySInt =>
+        // Numerator may be negative, so the result may be negative
+        // The magnitude will certainly not exceed the magnitude of the
+        // numerator and will be strictly less than that of the denominator
+        val magnitude = t1.minInt.abs.min(t2.maxInt.max(t2.minInt.abs) - 1)
+        -magnitude
+    }
+    // Likewise, if the numerator is positive, the result will be no more than
+    // the numerator and strictly less than the denominator
+    val upperBound = t1.maxInt.min(t2.maxInt.max(t2.minInt.abs) - 1)
+    TyAnyInt.tightest(lowerBound, upperBound)
+  }
+}
+
+// Syntax sugar for types
 
 case object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)

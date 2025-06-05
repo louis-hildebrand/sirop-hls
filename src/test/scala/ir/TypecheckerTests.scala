@@ -24,16 +24,16 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("IntAndBoolFunction") {
     val original: Expr =
-      TyTuple(TyInt, TyBool) ::+ (x =>
+      TyTuple(TyUInt(8), TyBool) ::+ (x =>
         Tuple(
           Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
           x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
         )()
       )
     val checked = original.tchk()
-    assert(
-      checked.typ == TyArrow(TyTuple(TyInt, TyBool), TyTuple(TyBool, TyInt))
-    )
+    val expectedType =
+      TyArrow(TyTuple(TyUInt(8), TyBool), TyTuple(TyBool, TyUInt(17)))
+    assert(checked.typ == expectedType)
     assertAllNodesHaveType(checked)
   }
 
