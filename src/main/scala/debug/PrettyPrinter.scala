@@ -134,6 +134,8 @@ object PrettyPrinter {
     t match {
       case Missing         => "?"
       case TyInt           => "Int"
+      case TySInt(w)       => s"TySInt(${show(w)(Map())})"
+      case TyUInt(w)       => s"TyUInt(${show(w)(Map())})"
       case TyBool          => "Bool"
       case TyArrow(t1, t2) => s"($t1) -> ($t2)"
       case TyTuple(ts @ _*) =>

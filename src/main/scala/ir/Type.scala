@@ -18,6 +18,8 @@ sealed trait Type {
       case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
       case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
+      case TySInt(w)        => TySInt(w)
+      case TyUInt(w)        => TyUInt(w)
       case t @ (Missing | TyInt | TyBool) => t
     }
   }
@@ -25,6 +27,8 @@ sealed trait Type {
   def lower: Type = {
     this match {
       case Missing | TyInt | TyBool => this
+      case TySInt(w)                => TySInt(w)
+      case TyUInt(w)                => TyUInt(w)
       case TyArrow(t1, t2)          => TyArrow(t1.lower, t2.lower)
       case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.lower): _*)
       case TyVec(t, n) =>
@@ -44,6 +48,8 @@ sealed trait Type {
   def uncurry: Type = {
     this match {
       case Missing | TyInt | TyBool => this
+      case TySInt(w)                => TySInt(w)
+      case TyUInt(w)                => TyUInt(w)
       case TyArrow(tIn, tOut: TyArrow) =>
         tOut.uncurry.asInstanceOf[TyArrow] match {
           case TyArrow(t1, t2) => TyArrow(TyTuple(tIn.uncurry, t1), t2)
@@ -58,6 +64,7 @@ sealed trait Type {
   /** Check whether two types are "compatible," i.e., will have the same shape
     * in hardware.
     */
+  @deprecated
   def isCompatibleWith(that: Type): Boolean = {
     (this, that) match {
       case (TyBool, TyBool) => true
@@ -82,8 +89,10 @@ sealed trait Type {
   /** Check whether two types are "compatible," i.e., will have the same shape
     * in hardware.
     */
+  @deprecated
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
 
+  @deprecated
   def isCompatibleIgnoringSize(that: Type): Boolean = {
     (this, that) match {
       case (TyBool, TyBool) => true
@@ -103,6 +112,7 @@ sealed trait Type {
     }
   }
 
+  @deprecated
   def ~~=(that: Type): Boolean = this.isCompatibleIgnoringSize(that)
 
   private def sameLen(e1: Expr, e2: Expr): Boolean = {
@@ -130,7 +140,34 @@ sealed trait Type {
   }
 }
 case object Missing extends Type
+@deprecated
 case object TyInt extends Type
+sealed abstract class TyAnyInt(w: Int) extends Type {
+  require(w >= 0, "Bit width must be non-negative.")
+
+  def +(that: TyAnyInt): TyAnyInt = TSum(this, that)
+  def *(that: TyAnyInt): TyAnyInt = TMul(this, that)
+  def /(that: TyAnyInt): TyAnyInt = TDiv(this, that)
+  def %(that: TyAnyInt): TyAnyInt = TMod(this, that)
+
+  def contains(n: BigInt): Boolean = {
+    n >= this.minInt && n <= this.maxInt
+  }
+  def minInt: BigInt = {
+    this match {
+      case TyUInt(_) => 0
+      case TySInt(w) => -BigInt(2).pow(w - 1)
+    }
+  }
+  def maxInt: BigInt = {
+    this match {
+      case TyUInt(w) => BigInt(2).pow(w) - 1
+      case TySInt(w) => BigInt(2).pow(w - 1) - 1
+    }
+  }
+}
+case class TySInt(w: Int) extends TyAnyInt(w)
+case class TyUInt(w: Int) extends TyAnyInt(w)
 case object TyBool extends Type
 case class TyArrow(t1: Type, t2: Type) extends Type
 case class TyTuple(ts: Type*) extends Type
@@ -156,6 +193,7 @@ case class TyStm(t: Type, n: Expr) extends Type {
 case object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)
 }
+@deprecated
 case object Int2 {
   def apply(): Type = TyTuple(TyInt, TyInt)
 }
