@@ -12,7 +12,7 @@ class StreamFusionTests extends AnyFunSuite {
     * valid.
     */
   test("StmBuild:Fuse:MapPlusFive") {
-    val s = Param("s")()
+    val s = Param("s")(TyStm(TyInt, 3))
     val original = StmBuild(
       3,
       StmData(s)() + 5,
@@ -30,7 +30,7 @@ class StreamFusionTests extends AnyFunSuite {
     assert(ir.eval(original) == expectedElems)
     assert(ir.eval(fused) == expectedElems)
     // Successful fusion
-    val i = Param("i")()
+    val i = Param("i")(TyInt)
     val ideal = StmBuild(
       3,
       i + 5,
@@ -48,9 +48,9 @@ class StreamFusionTests extends AnyFunSuite {
     */
   test("StmBuild:Fuse:ZipCounters") {
     val n = 10
-    val i = Param("i")()
-    val x1 = Param("x1")()
-    val x2 = Param("x2")()
+    val i = Param("i")(TyInt)
+    val x1 = Param("x1")(TyStm(TyInt, n))
+    val x2 = Param("x2")(TyStm(TyBool, n))
     // Valid every cycle
     val c1 =
       StmBuild(n, i + 11, True, Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
@@ -74,8 +74,8 @@ class StreamFusionTests extends AnyFunSuite {
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
-    val i1 = Param("i")()
-    val i2 = Param("i")()
+    val i1 = Param("i")(TyInt)
+    val i2 = Param("i")(TyInt)
 
     // 1) After fusion with x1
     val actual1 = lpe(s.fuseWith(x1))
@@ -137,9 +137,9 @@ class StreamFusionTests extends AnyFunSuite {
     */
   test("StmBuild:Fuse:Interleave") {
     val n = 10
-    val i = Param("i")()
-    val x1 = Param("x1")()
-    val x2 = Param("x2")()
+    val i = Param("i")(TyInt)
+    val x1 = Param("x1")(TyStm(TyInt, n))
+    val x2 = Param("x2")(TyStm(TyInt, n))
     // Valid every 3rd cycle
     val c1 =
       StmBuild(

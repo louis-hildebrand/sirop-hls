@@ -325,10 +325,10 @@ trait Eval {
   }
 
   private[ir] def stmLiteralToStmBuild(s: StmLiteral): StmBuild = {
-    val v = Param("v")()
-    val i = Param("i")()
     val t = s.typ.asInstanceOf[TyStm].t
     val n = s.typ.asInstanceOf[TyStm].n
+    val i = Param("i")(TyInt)
+    val v = Param("v")(TyVec(t, n))
     StmBuild(
       s.elems.length,
       VecAccess(v, i)(),

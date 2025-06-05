@@ -180,8 +180,8 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("StmOneElement") {
     val z = Param("z")(TyInt)
-    val a0 = Param("a")()
-    val a1 = Param("a")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a")(TyInt)
     val s = StmBuild(
       1,
       a0,
@@ -200,7 +200,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val z = Param("z")(TyInt)
     val i = Param("i")(TyInt)
     val a = Param("a")(TyInt)
-    val s = Param("s")()
+    val s = Param("s")(TyStm(TyInt, -1))
     val sum = StmBuild(
       1,
       a + StmData(s)(),

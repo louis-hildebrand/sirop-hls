@@ -59,8 +59,8 @@ class VectorTests extends AnyFunSuite {
   test("VecBuild:StmZipFused") {
     val n = 4
     val m = 3
-    val a1 = Param("a1")()
-    val a2 = Param("a2")()
+    val a1 = Param("a1")(TyInt)
+    val a2 = Param("a2")(TyInt)
     val e = VecBuild(
       n,
       TyInt ::+ (i =>

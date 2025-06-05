@@ -114,7 +114,7 @@ class CoreTests extends AnyFunSuite {
       Tuple(z, x.__1 && x.__1)(),
       True,
       Map[Param, (Expr, Expr)](
-        x -> (
+        x.rebuild(TyTuple(TyBool, TyBool)) -> (
           Tuple(True, False)(),
           Mux(
             x.__1,
@@ -182,7 +182,7 @@ class CoreTests extends AnyFunSuite {
     val n = Param("n")(TyInt)
     val m = Param("m")(TyInt)
     val k = Param("k")(TyInt)
-    val v = Param("v")()
+    val v = Param("v")(TyVec(TyInt, n))
     val e = StmBuild(
       n,
       VecAccess(v, 0)(),
@@ -352,7 +352,7 @@ class CoreTests extends AnyFunSuite {
   }
 
   test("StmBuild:Equals:TypedAndUntyped") {
-    val i = Param("i")()
+    val i = Param("i")(TyInt)
     val untyped =
       StmBuild(4, i, True, Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
     val typed = untyped.tchk()
@@ -507,9 +507,9 @@ class CoreTests extends AnyFunSuite {
     val f = Param("f")()
     val g = Param("g")()
     val input = Param("input")()
-    val i = Param("i")()
-    val inCtr = Param("in_ctr")()
-    val s = Param("s")()
+    val i = Param("i")(TyInt)
+    val inCtr = Param("in_ctr")(TyInt)
+    val s = Param("s")(TyStm(TyInt, n))
     val context = Map(
       n -> TyInt,
       f -> TyArrow(TyInt, TyBool),

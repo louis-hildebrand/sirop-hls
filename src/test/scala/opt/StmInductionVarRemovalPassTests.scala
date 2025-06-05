@@ -28,12 +28,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Counters") {
     val n = Param("n")(TyInt)
     val delta = Param("delta")(TyInt)
-    val a0 = Param("a")()
-    val a1 = Param("a")()
-    val a2 = Param("a")()
-    val a3 = Param("a")()
-    val a4 = Param("a")()
-    val a5 = Param("a")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a")(TyInt)
+    val a2 = Param("a")(TyInt)
+    val a3 = Param("a")(TyInt)
+    val a4 = Param("a")(TyInt)
+    val a5 = Param("a")(TyInt)
     val s = StmBuild(
       n,
       Tuple(2 * a0, a1 / 3, a2, a3, a4, a5)(),
@@ -67,7 +67,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val t = Param("t")()
+    val t = Param("t")(TyInt)
     val ideal = lpe(
       StmBuild(
         n,
@@ -88,9 +88,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   test("NotCounter:TriangleSum") {
     val n = Param("n")(TyInt)
-    val i = Param("i")()
-    val sum = Param("a")()
-    val t = Param("t")()
+    val i = Param("i")(TyInt)
+    val sum = Param("a")(TyInt)
+    val t = Param("t")(TyInt)
     val triangleSum = StmBuild(
       1,
       sum,
@@ -130,8 +130,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("VecShiftLeft") {
     val n = Param("n")(TyInt)
     val m = Param("m")(TyInt)
-    val i = Param("a")()
-    val v = Param("a")()
+    val i = Param("i")(TyInt)
+    val v = Param("v")(TyVec(TyInt, m))
     val s = StmBuild(
       n,
       VecShiftLeft(v, i)(),
@@ -167,8 +167,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = Param("n")(TyInt)
     val f = Param("f")(TyArrow(TyInt, TyArrow(TyInt, TyInt)))
     val z = Param("z")(TyVec(TyInt, n))
-    val a0 = Param("a")()
-    val a1 = Param("a1")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a1")(TyVec(TyInt, n))
     val s = StmBuild(
       n,
       a1,
@@ -222,9 +222,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val k1 = Param("k1")(TyInt)
     // TODO: Run multiple tests for different values of delta?
     val delta = 3
-    val i = Param("a")()
-    val b0 = Param("a")()
-    val b1 = Param("a")()
+    val i = Param("i")(TyInt)
+    val b0 = Param("b0")(TyBool)
+    val b1 = Param("b1")(TyBool)
     val s = StmBuild(
       n,
       Tuple(i, b0, b1)(),
@@ -275,8 +275,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val i0 = Param("i0")(TyInt)
     val k = Param("k")(TyInt)
     val delta = 4
-    val i = Param("i")()
-    val b = Param("b")()
+    val i = Param("i")(TyInt)
+    val b = Param("b")(TyBool)
     val s = StmBuild(
       n,
       Tuple(i, b)(),
@@ -315,9 +315,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("PiecewiseCounter:StopCounting") {
     val n = Param("n")(TyInt)
     val k = Param("k")(TyInt)
-    val a0 = Param("a")()
-    val a1 = Param("a")()
-    val a2 = Param("a")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a")(TyInt)
+    val a2 = Param("a")(TyInt)
     val s = StmBuild(
       n,
       Tuple(a1 + 2, a2)(),
@@ -353,9 +353,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("PiecewiseCounter:Delayed") {
     val n = Param("n")(TyInt)
     val k = Param("k")(TyInt)
-    val a0 = Param("a")()
-    val a1 = Param("a")()
-    val a2 = Param("a")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a")(TyInt)
+    val a2 = Param("a")(TyInt)
     val s = StmBuild(
       n,
       Tuple(3 * a1, 2 * a2)(),
@@ -390,8 +390,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   // Piecewise functions where each branch is yet another piecewise function
   test("PiecewiseCounter:UpThenDown") {
     val n = Param("n")(TyInt)
-    val a0 = Param("a")()
-    val a1 = Param("a")()
+    val a0 = Param("a")(TyInt)
+    val a1 = Param("a")(TyInt)
     val s = StmBuild(
       n,
       2 * a1,
@@ -425,8 +425,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("PiecewiseVecShiftLeft:StopShifting") {
     val n = Param("n")(TyInt)
     val m = Param("m")(TyInt)
-    val i = Param("i")()
-    val v = Param("v")()
+    val i = Param("i")(TyInt)
+    val v = Param("v")(TyVec(TyInt, m))
     val s = StmBuild(
       n,
       v,
@@ -461,8 +461,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("PiecewiseVecShiftLeft:Delayed") {
     val n = Param("n")(TyInt)
     val m = Param("m")(TyInt)
-    val i = Param("i")()
-    val v = Param("v")()
+    val i = Param("i")(TyInt)
+    val v = Param("v")(TyVec(TyInt, m))
     val s = StmBuild(
       n,
       v,
@@ -727,9 +727,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Stm2Vec2Stm") {
     val n = Param("n")(TyInt)
     val input = Param("input")(TyStm(TyInt, n))
-    val t = Param("t")()
-    val s = Param("s")()
-    val v = Param("v")()
+    val t = Param("t")(TyInt)
+    val s = Param("s")(TyStm(TyInt, -1))
+    val v = Param("v")(TyVec(TyInt, n))
     val original = StmBuild(
       n,
       VecAccess(v, t - n)(),
@@ -763,8 +763,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val s0 = Param("s")()
-    val s1 = Param("s")()
+    val s0 = Param("s")(TyStm(TyInt, -1))
+    val s1 = Param("s")(TyStm(TyInt, -1))
     val expected = lpe(
       StmBuild(
         n,
@@ -783,9 +783,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Stm2ReversedVec2Stm") {
     val n = Param("n")(TyInt)
     val input = Param("input")(TyStm(TyInt, n))
-    val s = Param("s")()
-    val v = Param("v")()
-    val t = Param("t")()
+    val s = Param("s")(TyStm(TyInt, -1))
+    val v = Param("v")(TyVec(TyInt, n))
+    val t = Param("t")(TyInt)
     val original = StmBuild(
       n,
       VecAccess(v, -1 + 2 * n - t)(),

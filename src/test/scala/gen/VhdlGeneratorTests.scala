@@ -9,8 +9,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("Arithmetic") {
     val n = 10
     val m = 10
-    val i = Param("i")()
-    val j = Param("j")()
+    val i = Param("i")(TyInt)
+    val j = Param("j")(TyInt)
     val s = StmBuild(
       n * m,
       Tuple(
@@ -41,8 +41,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithBoolVars") {
     val s = {
-      val b = Param("b")()
-      val i = Param("i")()
+      val b = Param("b")(TyBool)
+      val i = Param("i")(TyInt)
       StmBuild(
         5,
         i,
@@ -55,8 +55,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithTupleVars") {
     val s = {
-      val x = Param("x")()
-      val y = Param("y")()
+      val x = Param("x")(TyTuple(TyInt, TyTuple(), Int2(), TyBool))
+      val y = Param("y")(TyTuple())
       StmBuild(
         4,
         Tuple(x.__0, x.__2, y, x.__3, y)(),
@@ -80,7 +80,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithVecVars") {
     val s = {
-      val v = Param("v")()
+      val v = Param("v")(TyVec(TyVec(Int2(), 2), 3))
       val z = VecBuild(
         3,
         TyInt ::+ (i => VecBuild(2, TyInt ::+ (j => Tuple(i, j)()))())
@@ -105,8 +105,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     // same bit width.
     val s = {
       val n = 10
-      val s = Param("s")()
       val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
+      val tt = TyTuple(TyTuple(TyBool, TyInt), TyTuple(TyInt, TyBool))
+      val s = Param("s")(TyStm(tt, -1))
       StmBuild(
         n,
         StmData(s)(),
@@ -122,7 +123,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmMap(+42)") {
     val s = {
       val n = 4
-      val s = Param("s")()
+      val s = Param("s")(TyStm(TyInt, -1))
       StmBuild(
         n,
         StmData(s)() + 42,
@@ -251,7 +252,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("SimpleLet") {
     val n = 3
     val x = Param("x")()
-    val a = Param("a")()
+    val a = Param("a")(TyInt)
     val s = StmBuild(
       n,
       Let(x, a * 2, x + x + 1)(),
@@ -270,9 +271,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 5
     val x = Param("x")()
     val y = Param("y")()
-    val v = Param("v")()
-    val j = Param("j")()
-    val a = Param("a")()
+    val j = Param("j")(TyInt)
+    val a = Param("a")(Int2())
+    val v = Param("v")(TyVec(TyInt, n))
     val s =
       StmBuild(
         n,
@@ -308,7 +309,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("CurriedFunCall") {
     val n = 7
     val f = Int2() ::+ (x => TyInt ::+ (y => y + x.__0 * y + x.__1))
-    val a = Param("a")()
+    val a = Param("a")(TyInt)
     val s = StmBuild(
       n,
       a,
@@ -396,8 +397,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("OutOfBoundsVecAccess") {
     val m = 5
     val n = 3 * m + 4
-    val v = Param("v")()
-    val i = Param("i")()
+    val i = Param("i")(TyInt)
+    val v = Param("v")(TyVec(TyInt, m))
     val s = StmBuild(
       n,
       VecAccess(v, i)(),
@@ -413,18 +414,21 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("LetFunction") {
     val n = 5
-    val a = Param("a")()
+    val a = Param("a")(TyInt)
     val f = Param("f")()
     val s = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (0, Let(
-          f,
-          TyInt ::+ (x => x * x + 1),
-          FunCall(f, a)() + FunCall(f, 42)()
-        )())
+        a -> (
+          0,
+          Let(
+            f,
+            TyInt ::+ (x => x * x + 1),
+            FunCall(f, a)() + FunCall(f, 42)()
+          )()
+        )
       )
     )().tchk().lower()
 

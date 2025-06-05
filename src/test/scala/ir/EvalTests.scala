@@ -8,7 +8,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("StmBuild") {
-    val i = Param("i")()
+    val i = Param("i")(TyInt)
     val s =
       StmBuild(
         5,
@@ -28,7 +28,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("LessObviousInfiniteLoop") {
-    val a = Param("a")()
+    val a = Param("a")(TyInt)
     val s = StmBuild(
       1,
       a,
@@ -42,7 +42,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("InfiniteLoopInInputStream") {
-    val s = Param("s")()
+    val s = Param("s")(TyStm(TyInt, 1))
     val stm = StmBuild(
       1,
       StmData(s)(),
@@ -57,7 +57,7 @@ class EvalTests extends AnyFunSuite {
 
   test("ReadFromEmptyStream") {
     val s = {
-      val s = Param("s")()
+      val s = Param("s")(TyStm(TyInt, 1))
       StmBuild(
         2,
         StmData(s)(),

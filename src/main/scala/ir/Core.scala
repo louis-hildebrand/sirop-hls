@@ -255,33 +255,45 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
 
       case s: StmBuild =>
-        val newN = s.n.tchk.expectType(TyInt)
-        val newSeedByVar = s.seedByVar.map({ case (x, z) => x -> z.tchk })
-        val newContext = newSeedByVar.foldLeft(context)({ case (ctx, (x, z)) =>
-          ctx + (x -> z.typ)
-        })
-        val newNextByVar = s.nextByVar.map({ case (x, next) =>
-          val initTyp = newSeedByVar(x).typ
-          val newNext = next.tchk(newContext)
-          val expectedNextTyp = initTyp match {
-            case _: TyStm => TyBool
-            case _        => initTyp
+        val newContext = s.accVars.foldLeft(context)({ case (ctx, x) =>
+          x.typ match {
+            case Missing =>
+              throw new TypeError(
+                s"Missing type annotation for accumulator $x."
+              )
+            case _: TyStm =>
+              ctx + (x -> x.typ)
+            case t if Default.hasDefault(t) =>
+              ctx + (x -> x.typ)
+            case t =>
+              throw new TypeError(
+                s"Invalid type $t for accumulator $x."
+                  + s"Accumulators can only be streams or data."
+              )
           }
-          if (newNext.typ ~= expectedNextTyp) {
-            x -> newNext
-          } else {
+        })
+        val newN = s.n.tchk(context).expectType(TyInt)
+        val newEquations = s.equations.map({ case (x, (z, next)) =>
+          val newZ = z.tchk(context)
+          if (!(newZ.typ ~= x.typ)) {
             throw new TypeError(
-              s"Next value for accumulator $x has type ${newNext.typ}. Expected type $expectedNextTyp."
+              s"Seed for accumulator $x has type ${newZ.typ}."
+                + s"Expected type ${x.typ}."
             )
           }
+          val newNext = next.tchk(newContext)
+          val expectedNextTyp = x.typ match {
+            case _: TyStm => TyBool
+            case _        => x.typ
+          }
+          if (!(newNext.typ ~= expectedNextTyp)) {
+            throw new TypeError(
+              s"Next value for accumulator $x has type ${newNext.typ}."
+                + s"Expected type $expectedNextTyp."
+            )
+          }
+          x -> (newZ, newNext)
         })
-        val newEquations = s.accVars
-          .map(x => {
-            val z = newSeedByVar(x)
-            val newX = x.rebuild(z.typ)
-            newX -> (z, newNextByVar(x))
-          })
-          .toMap
         val newData = s.data.tchk(newContext)
         val newValid = s.valid.tchk(newContext).expectType(TyBool)
         StmBuild(newN, newData, newValid, newEquations)(

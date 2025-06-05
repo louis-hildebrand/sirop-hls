@@ -48,8 +48,8 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("SimpleStream") {
     val n = Param("n")()
-    val b = Param("b")()
-    val a = Param("a")()
+    val b = Param("b")(TyBool)
+    val a = Param("a")(TyInt)
     val original =
       StmBuild(
         n,
@@ -68,8 +68,8 @@ class TypecheckerTests extends AnyFunSuite {
   test("StreamWithStreamInput") {
     val n = Param("n")()
     val input = Param("input")()
-    val s = Param("s")()
-    val a = Param("a")()
+    val s = Param("s")(TyStm(TyInt, n))
+    val a = Param("a")(TyInt)
     val original = StmBuild(
       n,
       a,

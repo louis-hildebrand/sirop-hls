@@ -274,7 +274,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         val sChk = s.tchk().asInstanceOf[StmNextK]
         RecurrenceSolver.tryFindRecursiveForm(sChk, t)(facts) match {
           case Some((z, f)) =>
-            val r = Param("r")()
+            val typ = sChk.typ.asInstanceOf[TyStm].t
+            val r = Param("r")(TyStm(typ, -1))
             Some((r, Map(r -> (z, f))))
           case None => None
         }

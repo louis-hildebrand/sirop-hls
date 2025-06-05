@@ -766,7 +766,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     v.typ match {
       case TyVec(_, n) =>
         // Alternatively, you could implement Vec2Stm using a shift register
-        val i = Param("i")()
+        val i = Param("i")(TyInt)
         StmBuild(
           n,
           VecAccess(v, i)(),
@@ -1141,10 +1141,10 @@ case class StmRepeat(
     val m = this.m.lower()
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
-    val s = Param("s")()
-    val v = Param("v")()
-    val i = Param("i")()
-    val filling = Param("filling")()
+    val s = Param("s")(TyStm(t, -1))
+    val v = Param("v")(TyVec(t, n))
+    val i = Param("i")(TyInt)
+    val filling = Param("filling")(TyBool)
     // TODO: It may be possible to shave off one cycle by outputting valid data
     //       during the last filling cycle, but this would make the expression
     //       more complicated.
@@ -1307,10 +1307,10 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
       case TyStm(t, n) => (t, n)
       case t           => (t, IntCst(1))
     }
-    val s = Param("s")()
-    val i = Param("i")()
-    val j = Param("j")()
-    val v = Param("v")()
+    val s = Param("s")(TyStm(t, -1))
+    val i = Param("i")(TyInt)
+    val j = Param("j")(TyInt)
+    val v = Param("v")(TyVec(t, m * elemSize))
     val lowered = StmBuild(
       n - m + 1,
       VecShiftLeft(v, StmData(s)())(),

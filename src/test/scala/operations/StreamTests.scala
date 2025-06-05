@@ -161,7 +161,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount(3)(),
       TyInt ::+ (i => {
-        val acc = Param("acc")()
+        val acc = Param("acc")(TyInt)
         StmBuild(
           3,
           Tuple(i, acc)(),
@@ -661,8 +661,8 @@ class StreamTests extends AnyFunSuite {
       StmMap(
         input,
         TyStm(Int2(), m) ::+ (sIn => {
-          val i = Param("i")()
-          val s = Param("s")()
+          val i = Param("i")(TyInt)
+          val s = Param("s")(TyStm(Int2(), -1))
           StmBuild(
             k,
             i,
@@ -1881,7 +1881,7 @@ class StreamTests extends AnyFunSuite {
   test("StmZip:1D") {
     val a = StmCount(4)()
     val b = {
-      val b = Param("b")()
+      val b = Param("b")(TyBool)
       StmBuild(4, b, True, Map[Param, (Expr, Expr)](b -> (True, Not(b)())))()
     }
     val s = StmZip(a, b)().tchk()

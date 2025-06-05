@@ -297,9 +297,9 @@ class OptimizationTests extends AnyFunSuite {
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
     // Successful fusion
-    val s = Param("s")()
-    val i = Param("i")()
-    val j = Param("j")()
+    val s = Param("s")(TyStm(TyInt, -1))
+    val i = Param("i")(TyInt)
+    val j = Param("j")(TyInt)
     val ideal = optimize(
       StmBuild(
         n,
@@ -340,9 +340,9 @@ class OptimizationTests extends AnyFunSuite {
     assert(ir.eval(call(original)) == expectedElems)
     assert(ir.eval(call(fused)) == expectedElems)
     // Successful fusion
-    val s = Param("s")()
-    val i = Param("i")()
-    val j = Param("j")()
+    val s = Param("s")(TyStm(TyInt, -1))
+    val i = Param("i")(TyInt)
+    val j = Param("j")(TyInt)
     val ideal = optimize(
       StmBuild(
         n,
@@ -396,7 +396,7 @@ class OptimizationTests extends AnyFunSuite {
     assert(ir.eval(actual1(optimized)) == expected1)
 
     // Effective simplification
-    val i = Param("i")()
+    val i = Param("i")(TyInt)
     val ideal = StmBuild(
       n,
       Mux(i < n, FunCall(f, i)(), Default(TyInt))(),
@@ -532,10 +532,10 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val a = Param("a")()
+    val a = Param("a")(TyStm(TyInt, -1))
     // TODO: This isn't quite the identity stream you'd expect
     val expected = {
-      val t = Param("t")()
+      val t = Param("t")(TyInt)
       tl(
         StmBuild(
           n,
