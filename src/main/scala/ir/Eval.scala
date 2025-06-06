@@ -367,7 +367,7 @@ trait Eval {
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.sum)()
+          IntCst(xs.sum)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
@@ -377,7 +377,7 @@ trait Eval {
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.product)()
+          IntCst(xs.product)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Prod evaluated to $factorValues. They must each evaluate to an integer."
@@ -565,9 +565,11 @@ trait Eval {
         evalBigStep(n) match {
           case IntCst(n) if n >= 0 =>
             VecLiteral(
-              (0 until n).map(i =>
-                evalBigStep(FunCall(f, IntCst(i)())().tchk())
-              ): _*
+              (0 until n).map(i => {
+                val inTyp = f.param.typ
+                assert(inTyp.isInstanceOf[TyUInt])
+                evalBigStep(FunCall(f, IntCst(i)(inTyp))().tchk())
+              }): _*
             )(v.typ)
           case n =>
             throw new IllegalArgumentException(
@@ -648,7 +650,9 @@ trait Eval {
       evalBigStep(
         v1.elems
           .zip(v2Elems)
-          .foldLeft(True: Expr)({ case (a, (e1, e2)) => a && (e1 === e2) })
+          .foldLeft(True: Expr)({ case (a, (e1, e2)) =>
+            a && Equal(e1, e2)().tchk()
+          })
       )
     }
   }
@@ -665,7 +669,9 @@ trait Eval {
       evalBigStep(
         v1.elems
           .zip(v2Elems)
-          .foldLeft(True: Expr)({ case (a, (e1, e2)) => a && (e1 === e2) })
+          .foldLeft(True: Expr)({ case (a, (e1, e2)) =>
+            a && Equal(e1, e2)().tchk()
+          })
       )
     }
   }

@@ -3,23 +3,20 @@ package ir
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
-  private val n = Param("n")(TyInt)
-  private val m = Param("m")(TyInt)
-  private val k = Param("k")(TyInt)
+  private val n = Param("n")(U8)
+  private val m = Param("m")(U8)
+  private val k = Param("k")(U8)
 
   test("AnnotatedFunction:TypedBody") {
-    val f = TyInt ::+ (i => 2 * (i + 5))
-    val expected = {
-      val i = Param("i")()
-      Function(i, Prod(2, Sum(i, 5)())())()
-    }
+    val f = U8 ::+ (_ => IntCst(-1)(I32))
+    val expected = Function(Param("_")(U8), IntCst(-1)(I32))()
     assert(f == expected)
-    assert(f.typ == TyArrow(TyInt, TyInt))
+    assert(f.typ == TyArrow(U8, I32))
   }
 
   test("AnnotatedFunction:UntypedBody") {
     val v = Param("v")()
-    val f = TyInt ::+ (i => VecAccess(v, i)())
+    val f = U8 ::+ (i => VecAccess(v, i)())
     val expected = {
       val i = Param("i")()
       Function(i, VecAccess(v, i)())()
@@ -27,22 +24,54 @@ class TypeTests extends AnyFunSuite {
     assert(f == expected)
   }
 
-  test("IsCompatibleWith:VecLength") {
-    val v = Param("v")(TyVec(TyInt, n))
-    val vLen = VecLength(v)(TyInt)
-    assert(TyVec(TyInt, n) ~= TyVec(TyInt, vLen))
-    assert(TyVec(TyInt, vLen) ~= TyVec(TyInt, n))
+  test("U8 -> I8") {
+    assert(U8 ->: I8 == TyArrow(U8, I8))
+  }
 
-    val w = Param("w")(TyVec(TyInt, vLen))
-    val wLen = VecLength(w)(TyInt)
-    assert(TyVec(TyInt, n) ~= TyVec(TyInt, wLen))
-    assert(TyVec(TyInt, wLen) ~= TyVec(TyInt, n))
-    assert(TyVec(TyInt, vLen) ~= TyVec(TyInt, wLen))
-    assert(TyVec(TyInt, wLen) ~= TyVec(TyInt, vLen))
+  test("U8 -> U16 -> U32") {
+    assert(U8 ->: U16 ->: U32 == TyArrow(U8, TyArrow(U16, U32)))
+  }
+
+  test("(I8 -> I16) -> I32") {
+    assert((I8 ->: I16) ->: I32 == TyArrow(TyArrow(I8, I16), I32))
   }
 
   test("IsCompatibleWith:Int") {
-    ???
+    val intTypes = Seq(U8, U16, U32, I8, I16, I32)
+    for (t <- intTypes) {
+      assert(t ~= t)
+    }
+    for (i <- intTypes.indices) {
+      for (j <- intTypes.indices) {
+        if (i != j) {
+          assert(!(intTypes(i) ~= intTypes(j)))
+        }
+      }
+    }
+  }
+
+  test("IsCompatibleWith:VecLength") {
+    val v = Param("v")(TyVec(I16, n))
+    val vLen = VecLength(v)(U8)
+    assert(TyVec(I16, n) ~= TyVec(I16, vLen))
+    assert(TyVec(U32, n) ~= TyVec(U32, vLen))
+    assert(TyVec(U32, vLen) ~= TyVec(U32, n))
+
+    val w = Param("w")(TyVec(I16, vLen))
+    val wLen = VecLength(w)(U8)
+    assert(TyVec(U8, n) ~= TyVec(U8, wLen))
+    assert(TyVec(U16, wLen) ~= TyVec(U16, n))
+    assert(TyVec(I32, vLen) ~= TyVec(I32, wLen))
+    assert(TyVec(I8, wLen) ~= TyVec(I8, vLen))
+
+    val intTypes = Seq(U8, U16, U32, I8, I16, I32)
+    for (i <- intTypes.indices) {
+      for (j <- intTypes.indices) {
+        if (i != j) {
+          assert(!(TyVec(intTypes(i), n) ~= TyVec(intTypes(j), n)))
+        }
+      }
+    }
   }
 
   test("MinInt:SInt") {
@@ -133,7 +162,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Sum:BruteForce") {
     val testCases = Seq(TyUInt(2), TyUInt(3), TySInt(2), TySInt(3), TySInt(4))
     for (idx1 <- testCases.indices) {
-      for (idx2 <- (idx1 until testCases.length)) {
+      for (idx2 <- idx1 until testCases.length) {
         val t1 = testCases(idx1)
         val t2 = testCases(idx2)
         val tResult = t1 + t2
@@ -195,7 +224,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Prod:BruteForce") {
     val testCases = Seq(TyUInt(2), TyUInt(3), TySInt(2), TySInt(3), TySInt(4))
     for (idx1 <- testCases.indices) {
-      for (idx2 <- (idx1 until testCases.length)) {
+      for (idx2 <- idx1 until testCases.length) {
         val t1 = testCases(idx1)
         val t2 = testCases(idx2)
         val tResult = t1 * t2
@@ -241,7 +270,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Div:BruteForce") {
     val testCases = Seq(TyUInt(2), TyUInt(3), TySInt(2), TySInt(3), TySInt(4))
     for (idx1 <- testCases.indices) {
-      for (idx2 <- (idx1 until testCases.length)) {
+      for (idx2 <- idx1 until testCases.length) {
         val t1 = testCases(idx1)
         val t2 = testCases(idx2)
         val tResult = t1 / t2
@@ -296,7 +325,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Mod:BruteForce") {
     val testCases = Seq(TyUInt(2), TyUInt(3), TySInt(2), TySInt(3), TySInt(4))
     for (idx1 <- testCases.indices) {
-      for (idx2 <- (idx1 until testCases.length)) {
+      for (idx2 <- idx1 until testCases.length) {
         val t1 = testCases(idx1)
         val t2 = testCases(idx2)
         val tResult = t1 % t2
@@ -314,21 +343,22 @@ class TypeTests extends AnyFunSuite {
   test("LowerType:NonStreams") {
     val t = TyTuple(
       Missing,
-      TyInt,
+      U8,
+      I16,
       TyBool,
-      TyArrow(TyInt, TyInt),
-      TyVec(TyVec(TyInt, 5), 4)
+      TyArrow(I8, I32),
+      TyVec(TyVec(U32, 5), 4)
     )
     assert(t.lower == t)
   }
 
   test("LowerType:Stm[Int]") {
-    val t = TyStm(TyInt, n)
+    val t = TyStm(U8, n)
     assert(t.lower == t)
   }
 
   test("LowerType:Vec[Int]") {
-    val t = TyVec(TyInt, n)
+    val t = TyVec(U8, n)
     assert(t.lower == t)
   }
 
@@ -338,17 +368,17 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("LowerType:Stm[Vec[Int]]") {
-    val t = TyStm(TyVec(TyInt, m), n)
+    val t = TyStm(TyVec(U8, m), n)
     assert(t.lower == t)
   }
 
   test("LowerType:Vec[Stm[Int]]") {
-    val t = TyVec(TyStm(TyInt, m), n)
-    assert(t.lower == TyStm(TyVec(TyInt, n), m))
+    val t = TyVec(TyStm(U16, m), n)
+    assert(t.lower == TyStm(TyVec(U16, n), m))
   }
 
   test("LowerType:Vec[Vec[Int]]") {
-    val t = TyVec(TyVec(TyInt, m), n)
+    val t = TyVec(TyVec(U32, m), n)
     assert(t.lower == t)
   }
 
@@ -358,37 +388,37 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("LowerType:Stm[Stm[Vec[Int]]]") {
-    val t = TyStm(TyStm(TyVec(TyInt, k), m), n)
-    assert(t.lower == TyStm(TyVec(TyInt, k), n * m))
+    val t = TyStm(TyStm(TyVec(I8, k), m), n)
+    assert(t.lower == TyStm(TyVec(I8, k), n * m))
   }
 
   test("LowerType:Stm[Vec[Stm[Int]]]") {
-    val t = TyStm(TyVec(TyStm(TyInt, k), m), n)
-    assert(t.lower == TyStm(TyVec(TyInt, m), n * k))
+    val t = TyStm(TyVec(TyStm(I16, k), m), n)
+    assert(t.lower == TyStm(TyVec(I16, m), n * k))
   }
 
   test("LowerType:Stm[Vec[Vec[Int]]]") {
-    val t = TyStm(TyVec(TyVec(TyInt, k), m), n)
+    val t = TyStm(TyVec(TyVec(I32, k), m), n)
     assert(t.lower == t)
   }
 
   test("LowerType:Vec[Stm[Stm[Int]]]") {
-    val t = TyVec(TyStm(TyStm(TyInt, k), m), n)
-    assert(t.lower == TyStm(TyVec(TyInt, n), m * k))
+    val t = TyVec(TyStm(TyStm(U8, k), m), n)
+    assert(t.lower == TyStm(TyVec(U8, n), m * k))
   }
 
   test("LowerType:Vec[Stm[Vec[Int]]]") {
-    val t = TyVec(TyStm(TyVec(TyInt, k), m), n)
-    assert(t.lower == TyStm(TyVec(TyVec(TyInt, k), n), m))
+    val t = TyVec(TyStm(TyVec(U16, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyVec(U16, k), n), m))
   }
 
   test("LowerType:Vec[Vec[Stm[Int]]]") {
-    val t = TyVec(TyVec(TyStm(TyInt, k), m), n)
-    assert(t.lower == TyStm(TyVec(TyVec(TyInt, m), n), k))
+    val t = TyVec(TyVec(TyStm(U32, k), m), n)
+    assert(t.lower == TyStm(TyVec(TyVec(U32, m), n), k))
   }
 
   test("LowerType:Vec[Vec[Vec[Int]]]") {
-    val t = TyVec(TyVec(TyVec(TyInt, k), m), n)
+    val t = TyVec(TyVec(TyVec(U8, k), m), n)
     assert(t.lower == t)
   }
 }

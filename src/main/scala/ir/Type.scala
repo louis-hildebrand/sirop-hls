@@ -12,6 +12,17 @@ sealed trait Type {
     Function(x, f(x))(t)
   }
 
+  /** Shorthand for [[TyArrow]].
+    *
+    * @param that
+    *   the function input type.
+    */
+  def ->:(that: Type): Type = {
+    // This method is right-associative (since it ends with a colon), and
+    // therefore t1 ->: t2 actually means t2.->:(t1)
+    TyArrow(that, this)
+  }
+
   def substitute(subs: Map[Expr, Expr]): Type = {
     this match {
       case TyVec(t, n)     => TyVec(t.substitute(subs), n.subPreserveType(subs))
@@ -80,7 +91,7 @@ sealed trait Type {
           .forall({ case (t1, t2) => t1.isCompatibleWith(t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
         // TODO: Improve check for equality of lengths?
-        t1.isCompatibleWith(t2) && sameLen(n1, n2)
+        t1.isCompatibleWith(t2) && Type.sameLen(n1, n2)
       case (TyStm(t1, _), TyStm(t2, _)) =>
         // Two streams are compatible even if they have different lengths!
         t1.isCompatibleWith(t2)
@@ -91,10 +102,16 @@ sealed trait Type {
   /** Check whether two types are "compatible," i.e., will have the same shape
     * in hardware.
     */
-  @deprecated
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
+}
 
-  private def sameLen(e1: Expr, e2: Expr): Boolean = {
+object Type {
+
+  /** Conservatively whether two lengths (e.g., vector sizes) are equal. If the
+    * result is <code>true</code> then the lengths are definitely equal, but if
+    * the result is <code>False</code> then they may or may not be equal.
+    */
+  def sameLen(e1: Expr, e2: Expr): Boolean = {
     val e1Normalized = normalizeLen(e1)
     val e2Normalized = normalizeLen(e2)
     e1Normalized == e2Normalized
@@ -118,6 +135,7 @@ sealed trait Type {
     }
   }
 }
+
 case object Missing extends Type
 @deprecated
 case object TyInt extends Type
@@ -273,6 +291,10 @@ trait CommonIntTypes {
   /** The type of a 32-bit signed integer.
     */
   val I32: TySInt = TySInt(32)
+
+  /** Common integer types.
+    */
+  val COMMON_INT_TYPES: Seq[TyAnyInt] = Seq(U8, U16, U32, I8, I16, I32)
 }
 
 // Bit width computations

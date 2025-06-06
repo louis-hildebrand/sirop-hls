@@ -52,4 +52,157 @@ class SugarTests extends AnyFunSuite {
     assert(e1 != e2)
     assert(e2 != e1)
   }
+
+  test("ReshapeData:i0 to u0") {
+    val i0 = TySInt(0)
+    val u0 = TyUInt(0)
+    assert(ReshapeData.canReshape(i0, u0))
+    assert(ReshapeData.canReshape(i0, U8))
+    assert(ReshapeData.canReshape(u0, i0))
+    assert(ReshapeData.narrowestCommonAncestor(i0, u0).contains(u0))
+    assert(ReshapeData.narrowestCommonAncestor(u0, i0).contains(u0))
+    assert(ReshapeData.narrowestCommonAncestor(i0, i0).contains(u0))
+    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, u0)).contains(u0))
+    assert(ReshapeData.narrowestCommonAncestor(Seq(u0, i0)).contains(u0))
+    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, u0, u0)).contains(u0))
+  }
+
+  test("ReshapeData:Valid") {
+    val x = Param("x")()
+    val e =
+      (t1: Type, t2: Type) => ReshapeData(x.rebuild(t1), t2)().tchk().lower()
+
+    assert(e(U8, U16) == PadTo(x, 16)())
+    assert(e(I8, I32) == PadTo(x, 32)())
+    assert(e(U8, I16) == PadTo(ToSigned(x)(), 16)())
+    assert(
+      e(TyTuple(U8, U16), TyTuple(U16, U32))
+        == Tuple(PadTo(x.__0, 16)(), PadTo(x.__1, 32)())()
+    )
+    assert(
+      e(TyVec(I8, 5), TyVec(I16, 5))
+        == VecBuild(5, U32 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
+    )
+  }
+
+  test("ReshapeData:Invalid") {
+    val e = (t1: Type, t2: Type) => ReshapeData(Param("x")(t1), t2)()
+
+    assertThrows[TypeError](e(U16, U8).tchk())
+    assertThrows[TypeError](e(U16, TyUInt(15)).tchk())
+    assertThrows[TypeError](e(U16, I16).tchk())
+    assertThrows[TypeError](e(I8, U32).tchk())
+    assertThrows[TypeError](e(TyBool, U32).tchk())
+  }
+
+  test("SmartEqual:Bool") {
+    assert(ir.eval(False === False) == True)
+    assert(ir.eval(False === True) == False)
+    assert(ir.eval(True === False) == False)
+    assert(ir.eval(True === True) == True)
+  }
+
+  test("SmartEqual:Int") {
+    for (t1 <- COMMON_INT_TYPES) {
+      for (t2 <- COMMON_INT_TYPES) {
+        assert(ir.eval(IntCst(0)(t1) === IntCst(0)(t2)) == True)
+        assert(ir.eval(IntCst(63)(t1) === IntCst(63)(t2)) == True)
+        assert(ir.eval(IntCst(42)(t1) === IntCst(43)(t2)) == False)
+      }
+    }
+  }
+
+  test("SmartEqual:Vec[(Int, Bool), n]") {
+    val v1 = VecBuild(5, U8 ::+ (i => Tuple(i, i === 3)()))()
+    val v2 = VecBuild(5, U8 ::+ (i => Tuple(2 * i - i, i + 1 === 4)()))()
+    val v3 = VecBuild(5, U8 ::+ (i => Tuple(i + 1, i === 3)()))()
+    val v4 = VecBuild(5, U8 ::+ (i => Tuple(i, True)()))()
+
+    assert(ir.eval(v1 === v2) == True)
+    assert(ir.eval(v2 === v1) == True)
+    assert(ir.eval(v1 === v3) == False)
+    assert(ir.eval(v1 !== v3) == True)
+    assert(ir.eval(v1 === v4) == False)
+    assert(ir.eval(v1 !== v4) == True)
+  }
+
+  test("SmartEqual:IncompatibleTypes") {
+    val types = Seq(
+      U8,
+      TyBool,
+      TyTuple(U8, TyBool),
+      TyTuple(TyBool, U8),
+      TyVec(U8, IntCst(5)(U8)),
+      TyVec(U8, IntCst(6)(U8)),
+      TyVec(TyBool, IntCst(5)(U8))
+    )
+    for (i <- types.indices) {
+      for (j <- types.indices) {
+        if (i != j) {
+          val x = Param("x")(types(i))
+          val y = Param("y")(types(j))
+          assertThrows[TypeError](SmartEqual(x, y)().tchk())
+        }
+      }
+    }
+  }
+
+  test("SmartLessThan:Valid") {
+    for (t1 <- COMMON_INT_TYPES) {
+      for (t2 <- COMMON_INT_TYPES) {
+        assert(ir.eval(IntCst(0)(t1) < IntCst(0)(t2)) == False)
+        assert(ir.eval(IntCst(0)(t1) < IntCst(1)(t2)) == True)
+        assert(ir.eval(IntCst(42)(t1) < IntCst(41)(t2)) == False)
+        assert(ir.eval(IntCst(42)(t1) < IntCst(42)(t2)) == False)
+        assert(ir.eval(IntCst(42)(t1) < IntCst(43)(t2)) == True)
+      }
+    }
+  }
+
+  test("SmartLessThan:Invalid") {
+    assertThrows[TypeError](SmartLessThan(True, False)().tchk())
+  }
+
+  test("SmartSum:Valid") {
+    assert(
+      ir.eval(
+        SmartSum(IntCst(127)(I8), IntCst(127)(TyUInt(7)), IntCst(32767)(I16))()
+      )
+        == IntCst(33021)()
+    )
+    assert(
+      ir.eval(
+        SmartSum(IntCst(255)(U8), IntCst(255)(U8), IntCst(1)(TyUInt(1)))()
+      )
+        == IntCst(511)()
+    )
+    assert(
+      ir.eval(
+        SmartSum(
+          SmartSum(
+            SmartSum(IntCst(255)(U8), IntCst(255)(U8))(),
+            IntCst(255)(U8)
+          )(),
+          IntCst(255)(U8)
+        )()
+      )
+        == IntCst(4 * 255)()
+    )
+    assert(
+      ir.eval(SmartSum(IntCst(0)(TyUInt(0)), IntCst(0)(TySInt(0)))())
+        == IntCst(0)()
+    )
+    assert(
+      ir.eval(SmartSum(IntCst(0)(TySInt(0)), IntCst(0)(TyUInt(0)))())
+        == IntCst(0)()
+    )
+    assert(ir.eval(SmartSum()()) == IntCst(0)())
+  }
+
+  test("SmartProd:Valid") {
+    assert(ir.eval(SmartProd()()) == IntCst(1)())
+    assert(
+      ir.eval(IntCst(255)(U8) * IntCst(32767)(I16)) == IntCst(255 * 32767)()
+    )
+  }
 }

@@ -36,11 +36,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def *(that: Expr): Expr = Prod(this, that)()
   def /(that: Expr): Div = Div(this, that)()
   def %(that: Expr): Mod = Mod(this, that)()
-  def ===(that: Expr): Equal = Equal(this, that)()
+  def ===(that: Expr): Expr = SmartEqual(this, that)()
   def !==(that: Expr): Expr = !(this === that)
-  def <(that: Expr): LessThan = LessThan(this, that)()
+  def <(that: Expr): Expr = SmartLessThan(this, that)()
   def <=(that: Expr): Not = !(this > that)
-  def >(that: Expr): LessThan = that < this
+  def >(that: Expr): Expr = that < this
   def >=(that: Expr): Not = that <= this
   def unary_! : Not = Not(this)()
   def &&(that: Expr): Expr = And(this, that)()
@@ -53,6 +53,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def __3: TupleAccess = TupleAccess(this, 3)()
   def __4: TupleAccess = TupleAccess(this, 4)()
   def __5: TupleAccess = TupleAccess(this, 5)()
+
+  /** The name of this class. This is useful, for example, for including the
+    * class name in an error message without hard-coding it.
+    */
+  protected def className: String = this.getClass.getSimpleName
 
   /** Type check this expression and annotate this node with its type.
     *
@@ -102,19 +107,31 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case s @ Sum(terms @ _*) =>
         val newTerms = terms.map(e => e.tchk)
         for ((t, i) <- newTerms.zipWithIndex) {
-          if (t.typ != TyInt) {
-            throw new TypeError(s"Term $i of sum has type ${t.typ}.")
+          if (!t.typ.isInstanceOf[TyAnyInt]) {
+            throw new TypeError(
+              s"Term $i of sum has type ${t.typ}."
+                + " Expected an integer."
+            )
           }
         }
-        s.rebuild(TyInt, newTerms)
+        s.rebuild(
+          TSum(newTerms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
+          newTerms
+        )
       case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => e.tchk)
         for ((t, i) <- newFactors.zipWithIndex) {
-          if (t.typ != TyInt) {
-            throw new TypeError(s"Term $i of product has type ${t.typ}.")
+          if (!t.typ.isInstanceOf[TyAnyInt]) {
+            throw new TypeError(
+              s"Term $i of product has type ${t.typ}."
+                + " Expected an integer."
+            )
           }
         }
-        p.rebuild(TyInt, newFactors)
+        p.rebuild(
+          TProd(newFactors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
+          newFactors
+        )
       case d @ Div(e1, e2) =>
         val newLhs = e1.tchk
         newLhs.typ match {
@@ -129,16 +146,30 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         d.rebuild(TyInt, Seq(newLhs, newRhs))
       case m @ Mod(e1, e2) =>
         val newLhs = e1.tchk
-        newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t1 = newLhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer"
+            )
         }
         val newRhs = e2.tchk
-        newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t2 = newRhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        m.rebuild(TyInt, Seq(newLhs, newRhs))
+        if (t1 ~= t2) {
+          m.rebuild(TMod(t1, t2), Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type ${newLhs.typ}, but right-hand side has type ${newRhs.typ}."
+          )
+        }
       case pad @ PadTo(e, targetWidth) =>
         val newE = e.tchk
         newE.typ match {
@@ -239,44 +270,64 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case eq @ Equal(e1, e2) =>
         val newE1 = e1.tchk
         newE1.typ match {
-          case _: TyStm | _: TyArrow =>
-            throw new TypeError(s"Cannot compare value of type ${newE1.typ}.")
-          case _ => ()
+          case t if Default.hasDefault(t) => ()
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has non-data type $t."
+            )
         }
         val newE2 = e2.tchk
         newE2.typ match {
-          case _: TyStm | _: TyArrow =>
-            throw new TypeError(s"Cannot compare value of type ${newE2.typ}.")
-          case _ => ()
+          case t if Default.hasDefault(t) => ()
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has non-data type $t."
+            )
         }
-        if (newE1.typ.isCompatibleWith(newE2.typ)) {
+        if (newE1.typ ~= newE2.typ) {
           eq.rebuild(TyBool, Seq(newE1, newE2))
         } else {
           throw new TypeError(
-            s"Left-hand side of Equals has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
+            s"Left-hand side of $className has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
           )
         }
       case lt @ LessThan(e1, e2) =>
         val newLhs = e1.tchk
         newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+          case _: TyAnyInt => ()
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
         val newRhs = e2.tchk
         newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+          case _: TyAnyInt => ()
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        lt.rebuild(TyBool, Seq(newLhs, newRhs))
+        if (newLhs.typ ~= newRhs.typ) {
+          lt.rebuild(TyBool, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}."
+          )
+        }
 
       case t @ Tuple(elems @ _*) =>
         val newElems = elems.map(e => e.tchk)
         t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
       case ta @ TupleAccess(t, idx: IntCst) =>
+        val newIdx = idx.tchk
+        assert(newIdx.typ.isInstanceOf[TyAnyInt])
         val newT = t.tchk
         newT.typ match {
           case TyTuple(ts @ _*) =>
-            ta.rebuild(ts(idx.i), Seq(newT, idx))
+            ta.rebuild(ts(idx.i), Seq(newT, newIdx))
           case t =>
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
@@ -292,9 +343,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newI = i.tchk
         newI.typ match {
-          case TyInt => ()
+          case _: TyUInt => ()
           case t =>
-            throw new TypeError(s"Right-hand side of VecAccess has type $t.")
+            throw new TypeError(
+              s"Right-hand side of VecAccess has type $t."
+                + " Expected an unsigned integer"
+            )
         }
         va.rebuild(vecT, Seq(newV, newI))
       case VecLiteral(elems @ _*) =>
@@ -426,10 +480,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     this
   }
 
+  /** Insist that this expression has been type checked.
+    */
   protected def requireType(): Unit = {
     require(
       this.typ != Missing,
-      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
+      s"$className must be type checked before it can be lowered."
     )
   }
 
@@ -783,21 +839,13 @@ case class Tuple(elems: Expr*)(typ: Type = Missing)
     Tuple(newChildren: _*)(typ)
 }
 
-case class TupleAccess(t: Expr, i: IntCst)(typ: Type) extends Expr(t, i)(typ) {
+case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
+    extends Expr(t, i)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
     }
-  }
-}
-case object TupleAccess {
-  def apply(t: Expr, i: IntCst)(typ: Type = Missing): TupleAccess = {
-    val newTyp = (typ, t.typ) match {
-      case (Missing, TyTuple(ts @ _*)) => ts(i.i)
-      case _                           => typ
-    }
-    new TupleAccess(t, i)(newTyp)
   }
 }
 
@@ -1896,11 +1944,18 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
   }
 
   def typecheckVecBuild(implicit context: Map[Param, Type]): Expr = {
-    val newN = len.tchk.expectType(TyInt)
+    val newN = len.tchk
+    newN.typ match {
+      case _: TyUInt => ()
+      case t =>
+        throw new TypeError(
+          s"Vector length has type $t."
+            + " Expected an unsigned integer."
+        )
+    }
     val newF = f.tchk
-    // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
     val vecT = newF.typ match {
-      case TyArrow(TyInt, t) => t
+      case TyArrow(_: TyUInt, t) if Default.hasDefault(t) => t
       case t => throw new TypeError(s"Function of VecBuild has type $t.")
     }
     this.rebuild(TyVec(vecT, newN), Seq(newN, newF))

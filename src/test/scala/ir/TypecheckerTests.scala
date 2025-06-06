@@ -9,14 +9,14 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IdentityFunction") {
-    val original: Expr = TyInt ::+ (x => x)
+    val original: Expr = U8 ::+ (x => x)
     val checked = original.tchk()
-    assert(checked.typ == TyArrow(TyInt, TyInt))
+    assert(checked.typ == U8 ->: U8)
     assertAllNodesHaveType(checked)
   }
 
   test("FunCall") {
-    val original = FunCall(TyInt ::+ (x => x < 42), 42)()
+    val original = FunCall(U8 ::+ (x => x < IntCst(42)(U8)), IntCst(42)(U8))()
     val checked = original.tchk()
     assert(checked.typ == TyBool)
     assertAllNodesHaveType(checked)
@@ -34,11 +34,62 @@ class TypecheckerTests extends AnyFunSuite {
     assert(IntCst(4)().tchk().typ == TyUInt(3))
   }
 
+  test("Equal:Valid") {
+    val types = Seq(
+      U8,
+      U16,
+      U32,
+      I8,
+      I16,
+      I32,
+      TyBool,
+      TyTuple(U8, TyBool),
+      TyVec(U8, IntCst(42)(U8))
+    )
+    for (t <- types) {
+      val x = Param("x")(t)
+      val y = Param("y")(t)
+      assert(Equal(x, y)().tchk().typ == TyBool)
+    }
+  }
+
+  test("Equal:Invalid") {
+    // Non-data type
+    assertThrows[TypeError](
+      Equal(Param("x")(TyStm(U8, 1)), Param("y")(TyStm(U8, 1)))().tchk()
+    )
+    assertThrows[TypeError](
+      Equal(Param("x")(U8 ->: U8), Param("y")(U8 ->: U8))().tchk()
+    )
+    // Completely different types
+    assertThrows[TypeError](Equal(Param("x")(TyBool), Param("y")(I8))().tchk())
+    // Different int types
+    assertThrows[TypeError](Equal(Param("x")(U8), Param("y")(I8))().tchk())
+  }
+
+  test("LessThan:Valid") {
+    for (t <- Seq(U8, U16, U32, I8, I16, I32)) {
+      val x = Param("x")(t)
+      val y = Param("y")(t)
+      assert(LessThan(x, y)().tchk().typ == TyBool)
+    }
+  }
+
+  test("LessThan:Invalid") {
+    assertThrows[TypeError](
+      LessThan(Param("x")(TyBool), Param("y")(U8))().tchk()
+    )
+    assertThrows[TypeError](
+      LessThan(Param("x")(U8), Param("y")(TyBool))().tchk()
+    )
+    assertThrows[TypeError](LessThan(Param("x")(U8), Param("x")(I8))().tchk())
+  }
+
   test("IntAndBoolFunction") {
     val original: Expr =
       TyTuple(TyUInt(8), TyBool) ::+ (x =>
         Tuple(
-          Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
+          x.__1 || !x.__1 || (x.__1 && x.__0 === 2 && x.__0 < 6),
           x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
         )()
       )
