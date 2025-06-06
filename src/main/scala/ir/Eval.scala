@@ -362,12 +362,12 @@ trait Eval {
             )
         }
 
-      case IntCst(n) => IntCst(n)
+      case n: IntCst => n
       case Sum(terms @ _*) =>
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.sum)
+          IntCst(xs.sum)()
         } else {
           throw new IllegalArgumentException(
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
@@ -377,7 +377,7 @@ trait Eval {
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.product)
+          IntCst(xs.product)()
         } else {
           throw new IllegalArgumentException(
             s"Terms of Prod evaluated to $factorValues. They must each evaluate to an integer."
@@ -389,7 +389,7 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Division by zero.")
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)()
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Div evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -401,11 +401,72 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Modulo by zero.")
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)()
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
+        }
+      case PadTo(e, targetWidth) =>
+        val v = evalBigStep(e).asInstanceOf[IntCst]
+        val typ = v.typ.asInstanceOf[TyAnyInt]
+        assert(
+          targetWidth >= typ.w,
+          s"pad target width must be greater than or equal to original width (target $targetWidth, original ${typ.w})"
+        )
+        typ match {
+          case _: TySInt => v.rebuild(TySInt(targetWidth))
+          case _: TyUInt => v.rebuild(TyUInt(targetWidth))
+        }
+      case TruncateTo(e, targetWidth) =>
+        val v = evalBigStep(e).asInstanceOf[IntCst]
+        val typ = v.typ.asInstanceOf[TyAnyInt]
+        assert(
+          targetWidth <= typ.w,
+          s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
+        )
+        val truncatedV = {
+          val mask = (0 until targetWidth).foldLeft(0)({ case (n, _) =>
+            (n << 1) | 1
+          })
+          val masked = v.i & mask
+          typ match {
+            case _: TySInt =>
+              // Need to sign extend because the value is stored in a Scala
+              // Int, which is a 32-bit signed int
+              assert(
+                masked.isInstanceOf[Int],
+                "expect value to be stored in a 32-bit int"
+              )
+              val msbIsOne = (masked & (1 << (targetWidth - 1))) != 0
+              if (msbIsOne) {
+                (targetWidth until 32).foldLeft(masked)({ case (n, i) =>
+                  n | (1 << i)
+                })
+              } else {
+                masked
+              }
+            case _: TyUInt =>
+              masked
+          }
+        }
+        IntCst(truncatedV)(typ.withWidth(targetWidth))
+      case ToSigned(e) =>
+        val v = evalBigStep(e)
+        v.typ.asInstanceOf[TyUInt] match {
+          case TyUInt(w) =>
+            v.rebuild(TySInt(w + 1))
+        }
+      case ToUnsigned(e) =>
+        val v = evalBigStep(e).asInstanceOf[IntCst]
+        v.typ.asInstanceOf[TySInt] match {
+          case TySInt(w) =>
+            // Just drop the sign bit
+            val newWidth = math.max(0, w - 1)
+            val mask = (0 until newWidth).foldLeft(0)({ case (n, _) =>
+              (n << 1) | 1
+            })
+            IntCst(v.i & mask)(TyUInt(newWidth))
         }
 
       case True  => True
@@ -505,7 +566,7 @@ trait Eval {
           case IntCst(n) if n >= 0 =>
             VecLiteral(
               (0 until n).map(i =>
-                evalBigStep(FunCall(f, IntCst(i))().tchk())
+                evalBigStep(FunCall(f, IntCst(i)())().tchk())
               ): _*
             )(v.typ)
           case n =>
@@ -569,8 +630,8 @@ trait Eval {
     }
     val typedV = v.tchk()
     assert(
-      typedV.typ ~~= e.typ,
-      s"evaluation should preserve type (expected ${e.typ}, got ${typedV.typ})"
+      typedV.typ ~= e.typ,
+      s"evaluation should preserve the type (expected ${e.typ}, found ${typedV.typ})"
     )
     typedV
   }

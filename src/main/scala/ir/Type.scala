@@ -67,8 +67,10 @@ sealed trait Type {
   @deprecated
   def isCompatibleWith(that: Type): Boolean = {
     (this, that) match {
-      case (TyBool, TyBool) => true
-      case (TyInt, TyInt)   => true
+      case (TyBool, TyBool)         => true
+      case (TyInt, TyInt)           => true
+      case (TySInt(w1), TySInt(w2)) => w1 == w2
+      case (TyUInt(w1), TyUInt(w2)) => w1 == w2
       case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
         t1.isCompatibleWith(t3) && t2.isCompatibleWith(t4)
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
@@ -91,29 +93,6 @@ sealed trait Type {
     */
   @deprecated
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
-
-  @deprecated
-  def isCompatibleIgnoringSize(that: Type): Boolean = {
-    (this, that) match {
-      case (TyBool, TyBool) => true
-      case (TyInt, TyInt)   => true
-      case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
-        t1.isCompatibleIgnoringSize(t3) && t2.isCompatibleIgnoringSize(t4)
-      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
-        (ts1.length == ts2.length
-        && ts1
-          .zip(ts2)
-          .forall({ case (t1, t2) => t1.isCompatibleIgnoringSize(t2) }))
-      case (TyVec(t1, _), TyVec(t2, _)) =>
-        t1.isCompatibleIgnoringSize(t2)
-      case (TyStm(t1, _), TyStm(t2, _)) =>
-        t1.isCompatibleIgnoringSize(t2)
-      case _ => false
-    }
-  }
-
-  @deprecated
-  def ~~=(that: Type): Boolean = this.isCompatibleIgnoringSize(that)
 
   private def sameLen(e1: Expr, e2: Expr): Boolean = {
     val e1Normalized = normalizeLen(e1)
@@ -156,6 +135,18 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
   def /(that: TyAnyInt): TyAnyInt = TDiv(this, that)
   def %(that: TyAnyInt): TyAnyInt = TMod(this, that)
 
+  /** Construct a new type with the same sign as this one but a width of [[w]].
+    *
+    * @param w
+    *   the new bit width.
+    */
+  def withWidth(w: Int): TyAnyInt = {
+    this match {
+      case _: TySInt => TySInt(w)
+      case _: TyUInt => TyUInt(w)
+    }
+  }
+
   /** Decides whether this type is wide enough to represent the given value.
     *
     * For example, 7 can be represented as a 3-bit unsigned number, as a 4-bit
@@ -175,6 +166,7 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
   def minInt: BigInt = {
     this match {
       case TyUInt(_) => 0
+      case TySInt(0) => 0
       case TySInt(w) => -BigInt(2).pow(w - 1)
     }
   }
@@ -185,6 +177,7 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
   def maxInt: BigInt = {
     this match {
       case TyUInt(w) => BigInt(2).pow(w) - 1
+      case TySInt(0) => 0
       case TySInt(w) => BigInt(2).pow(w - 1) - 1
     }
   }
@@ -192,12 +185,14 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
 
 object TyAnyInt {
 
+  def unapply(t: TyAnyInt): Option[Int] = Some(t.w)
+
   /** Find the smallest type that fits the given range.
     *
     * @param lowerBound
-    *   the lower bound of the desired range.
+    *   the lower bound of the desired range (inclusive).
     * @param upperBound
-    *   the upper bound of the desired range.
+    *   the upper bound of the desired range (inclusive).
     */
   private[ir] def tightest(lowerBound: BigInt, upperBound: BigInt): TyAnyInt = {
     if (lowerBound >= 0) {

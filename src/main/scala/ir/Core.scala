@@ -61,9 +61,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     *   that is not <code>Missing</code>
     */
   def tchk(implicit context: Map[Param, Type] = Map()): Expr = {
+    if (this.typ != Missing) {
+      return this
+    }
     this match {
-      case e if e.typ != Missing => e
-
       case x: Param =>
         context.get(x) match {
           case Some(t) => x.rebuild(t)
@@ -95,7 +96,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
 
-      case n: IntCst => n.rebuild(TyInt)
+      case cst @ IntCst(n) =>
+        assert(cst.typ == Missing)
+        cst.rebuild(TyAnyInt.tightest(n, n))
       case s @ Sum(terms @ _*) =>
         val newTerms = terms.map(e => e.tchk)
         for ((t, i) <- newTerms.zipWithIndex) {
@@ -136,6 +139,62 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case t => throw new TypeError(s"Expected type $TyInt but found $t.")
         }
         m.rebuild(TyInt, Seq(newLhs, newRhs))
+      case pad @ PadTo(e, targetWidth) =>
+        val newE = e.tchk
+        newE.typ match {
+          case t @ TyAnyInt(srcWidth) if targetWidth >= srcWidth =>
+            pad.rebuild(t.withWidth(targetWidth), Seq(newE))
+          case t: TyAnyInt =>
+            throw new TypeError(
+              s"Argument of ${PadTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
+                + "The target width cannot be smaller than the original width."
+            )
+          case t =>
+            throw new TypeError(
+              s"Argument of ${PadTo.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
+            )
+        }
+      case trunc @ TruncateTo(e, targetWidth) =>
+        val newE = e.tchk
+        newE.typ match {
+          case t @ TyAnyInt(srcWidth) if targetWidth <= srcWidth =>
+            trunc.rebuild(t.withWidth(targetWidth), Seq(newE))
+          case t: TyAnyInt =>
+            throw new TypeError(
+              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
+                + " The target width cannot be greater than the original width."
+            )
+          case t =>
+            throw new TypeError(
+              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
+            )
+        }
+      case sgn @ ToSigned(e) =>
+        val newE = e.tchk
+        newE.typ match {
+          case TyUInt(w) =>
+            // Widen by one bit so that the value is guaranteed to fit
+            sgn.rebuild(TySInt(w + 1), Seq(newE))
+          case t =>
+            throw new TypeError(
+              s"Argument of ${ToSigned.getClass.getSimpleName} has type $t."
+                + " Expected an unsigned integer."
+            )
+        }
+      case uns @ ToUnsigned(e) =>
+        val newE = e.tchk
+        newE.typ match {
+          case TySInt(w) =>
+            // We don't need the sign bit anymore
+            uns.rebuild(TyUInt(math.max(0, w - 1)), Seq(newE))
+          case t =>
+            throw new TypeError(
+              s"Argument of ${ToUnsigned.getClass.getSimpleName} has type $t."
+                + " Expected a signed integer."
+            )
+        }
 
       case True  => True
       case False => False
@@ -213,11 +272,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case t @ Tuple(elems @ _*) =>
         val newElems = elems.map(e => e.tchk)
         t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
-      case ta @ TupleAccess(t, IntCst(i)) =>
+      case ta @ TupleAccess(t, idx: IntCst) =>
         val newT = t.tchk
         newT.typ match {
           case TyTuple(ts @ _*) =>
-            ta.rebuild(ts(i), Seq(newT, IntCst(i)))
+            ta.rebuild(ts(idx.i), Seq(newT, idx))
           case t =>
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
@@ -387,9 +446,36 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  /** Reconstruct this expression with new children or a new type annotation.
+    *
+    * @param typ
+    *   the new type annotation.
+    * @param newChildren
+    *   the new children.
+    */
   def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
+
+  /** Reconstruct this expression with new children and erase the type
+    * annotation.
+    *
+    * @param newChildren
+    *   the new children.
+    */
   def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
+
+  /** Reconstruct this expression with a new type annotation but the same
+    * children.
+    *
+    * @param typ
+    *   the new type annotation.
+    */
   def rebuild(typ: Type): Expr = rebuild(typ, children)
+
+  /** Rebuild this expression after applying [[f]] to each of its children.
+    *
+    * @param f
+    *   the function to apply to each child.
+    */
   def map(f: Expr => Expr): Expr = rebuild(children.map(f))
   def mapPreOrder(f: Expr => Expr): Expr = map(f).map(e => e.mapPreOrder(f))
 
@@ -401,9 +487,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
       case vb: VecBuild   => vb.lowerVecBuild()
       case va: VecAccess  => va.lowerVecAccess()
-      case e @ (_: Param | _: StmLiteral | _: VecLiteral) =>
-        // These expressions cannot necessarily be type checked in isolation,
-        // so maintain the type
+      case e @ (_: IntCst | _: Param | _: StmLiteral | _: VecLiteral) =>
+        // These expressions may carry type information that cannot be derived
+        // from the syntax alone, so be careful not to discard it.
         e.rebuild(e.typ.lower)
       case e =>
         // Re-run the type checker to ensure no type errors crept in during
@@ -668,20 +754,24 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Prod        => 10
       case _: Div         => 11
       case _: Mod         => 12
-      case _: Param       => 13
-      case _: TupleAccess => 14
-      case _: FunCall     => 15
-      case _: Mux         => 16
-      case _: Tuple       => 17
-      case _: Function    => 18
-      case _: StmBuild    => 19
-      case _: StmData     => 20
-      case _: VecBuild    => 21
-      case _: VecAccess   => 22
-      case _: VecLiteral  => 23
-      case _: StmLiteral  => 24
-      case _: StmNextK    => 25
-      case _: SyntaxSugar => 26
+      case _: PadTo       => 13
+      case _: TruncateTo  => 14
+      case _: ToSigned    => 15
+      case _: ToUnsigned  => 16
+      case _: Param       => 17
+      case _: TupleAccess => 18
+      case _: FunCall     => 19
+      case _: Mux         => 20
+      case _: Tuple       => 21
+      case _: Function    => 22
+      case _: StmBuild    => 23
+      case _: StmData     => 24
+      case _: VecBuild    => 25
+      case _: VecAccess   => 26
+      case _: VecLiteral  => 27
+      case _: StmLiteral  => 28
+      case _: StmNextK    => 29
+      case _: SyntaxSugar => 30
     }
   }
 }
@@ -807,11 +897,23 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
-case class IntCst(i: Int) extends IntExpr()(TyInt) {
+// TODO: Use Long or BigInt here so that wide int types can be represented?
+case class IntCst(i: Int)(typ: Type = Missing) extends IntExpr()(typ) {
+  typ match {
+    case Missing => ()
+    case int: TyAnyInt =>
+      require(
+        int.contains(i),
+        s"Integer constant $i does not fit in type $typ."
+      )
+    case t =>
+      throw new TypeError(s"Invalid type $t for integer constant.")
+  }
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    require(typ == TyInt || typ == Missing)
+    require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
-    this
+    IntCst(i)(typ)
   }
 }
 
@@ -833,15 +935,9 @@ case object Sum {
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
     terms match {
-      case Seq()  => 0
+      case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
-          TyInt
-        } else {
-          typ
-        }
-        new Sum(terms: _*)(newTyp)
+      case terms  => new Sum(terms: _*)(typ)
     }
   }
 }
@@ -865,16 +961,9 @@ case object Prod {
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
     factors match {
-      case Seq()  => IntCst(1)
-      case Seq(e) => e
-      case factors =>
-        val newTyp =
-          if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
-            TyInt
-          } else {
-            typ
-          }
-        new Prod(factors: _*)(newTyp)
+      case Seq()   => IntCst(1)(typ)
+      case Seq(e)  => e
+      case factors => new Prod(factors: _*)(typ)
     }
   }
 }
@@ -910,6 +999,67 @@ case object Mod {
       typ
     }
     new Mod(e1, e2)(newTyp)
+  }
+}
+
+/** Sign extend an integer to be [[w]] bits wide.
+  *
+  * @param e
+  *   the integer to pad.
+  * @param w
+  *   the new width.
+  */
+case class PadTo(e: Expr, w: Int)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => PadTo(e, w)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Truncate an integer to be [[w]] bits wide.
+  *
+  * @param e
+  *   the integer to truncate.
+  * @param w
+  *   the new width.
+  */
+case class TruncateTo(e: Expr, w: Int)(typ: Type = Missing)
+    extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => TruncateTo(e, w)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Convert an unsigned integer to a signed integer.
+  *
+  * @param e
+  *   the integer to convert.
+  */
+case class ToSigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => ToSigned(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Convert a signed integer to an unsigned integer.
+  *
+  * @param e
+  *   the integer to convert.
+  */
+case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => ToUnsigned(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
   }
 }
 
@@ -1391,7 +1541,7 @@ case class StmBuild(
         this.renameVar(outCtr)
       else
         this
-    val z = IntCst(0)
+    val z = IntCst(0)()
     val next = Mux(s.valid, outCtr + 1, outCtr)(TyInt)
     s.addAccumulator(outCtr, z, next)
   }
@@ -1414,7 +1564,7 @@ case class StmBuild(
         this.renameVar(inCtr)
       else
         this
-    val z = IntCst(0)
+    val z = IntCst(0)()
     val stmNextCalled = s.nextByVar(x)
     val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
     s.addAccumulator(inCtr, z, next)
@@ -1816,7 +1966,7 @@ case class VecLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)()
+    VecLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 
@@ -1832,7 +1982,7 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)()
+    StmLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 

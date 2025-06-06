@@ -45,6 +45,39 @@ class TypeTests extends AnyFunSuite {
     ???
   }
 
+  test("MinInt:SInt") {
+    assert(TySInt(0).minInt == 0)
+    assert(TySInt(1).minInt == -1)
+    assert(TySInt(2).minInt == -2)
+    assert(TySInt(3).minInt == -4)
+    assert(TySInt(4).minInt == -8)
+    assert(TySInt(5).minInt == -16)
+  }
+
+  test("MinInt:UInt") {
+    for (w <- 0 to 10) {
+      assert(TyUInt(w).minInt == 0)
+    }
+  }
+
+  test("MaxInt:SInt") {
+    assert(TySInt(0).maxInt == 0)
+    assert(TySInt(1).maxInt == 0)
+    assert(TySInt(2).maxInt == 1)
+    assert(TySInt(3).maxInt == 3)
+    assert(TySInt(4).maxInt == 7)
+    assert(TySInt(5).maxInt == 15)
+  }
+
+  test("MaxInt:UInt") {
+    assert(TyUInt(0).maxInt == 0)
+    assert(TyUInt(1).maxInt == 1)
+    assert(TyUInt(2).maxInt == 3)
+    assert(TyUInt(3).maxInt == 7)
+    assert(TyUInt(4).maxInt == 15)
+    assert(TyUInt(5).maxInt == 31)
+  }
+
   test("BitWidth:Sum:Empty") {
     val emptySum = ir.eval(Sum()()).asInstanceOf[IntCst].i
     assert(TSum().contains(emptySum))

@@ -17,7 +17,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmCst:Stream") {
-    val c = IntCst(42)
+    val c = IntCst(42)()
     val s = StmCst(2, StmCst(3, c)())()
     assert(ir.eval(s.tchk()) == StmLiteral(c, c, c, c, c, c)())
   }
@@ -112,7 +112,8 @@ class StreamTests extends AnyFunSuite {
       StmCount(5)(),
       TyInt ::+ (i => StmFold(StmCount(i + 1)(), 0, PlusFunction())())
     )().tchk()
-    val expected = StmLiteral((0 until n).map(i => IntCst((0 to i).sum)): _*)()
+    val expected =
+      StmLiteral((0 until n).map(i => IntCst((0 to i).sum)()): _*)()
     val actual = ir.eval(s)
     assert(actual == expected)
   }
@@ -244,7 +245,7 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:2D-1D:DiscardInputReturn42") {
     val s = StmMap(
       StmCount2D(3, 4)(),
-      TyStm(Int2(), 4) ::+ (_ => StmCst(1, IntCst(42))())
+      TyStm(Int2(), 4) ::+ (_ => StmCst(1, IntCst(42)())())
     )().tchk()
     val expected = StmLiteral(42, 42, 42)()
     assert(ir.eval(s) == expected)
@@ -673,7 +674,7 @@ class StreamTests extends AnyFunSuite {
       )().tchk()
     val expected =
       StmLiteral(
-        (0 until n).flatMap(_ => (0 until k).map(j => IntCst(j))): _*
+        (0 until n).flatMap(_ => (0 until k).map(j => IntCst(j)())): _*
       )()
     assert(ir.eval(actual) == expected)
   }
@@ -1250,7 +1251,7 @@ class StreamTests extends AnyFunSuite {
         )
       )
     )().tchk()
-    assert(ir.eval(prod) == StmLiteral(IntCst(207360))())
+    assert(ir.eval(prod) == StmLiteral(IntCst(207360)())())
   }
 
   test("StmScanInclusive:1D:Sum") {
@@ -1403,7 +1404,7 @@ class StreamTests extends AnyFunSuite {
     val e = Vec2Stm(vs)().tchk().lower()
     val expected =
       StmLiteral(
-        (0 until m).flatMap(i => (0 until n).map(t => IntCst(42 + i * t))): _*
+        (0 until m).flatMap(i => (0 until n).map(t => IntCst(42 + i * t)())): _*
       )()
     val actual = ir.eval(e)
     assert(actual == expected)
@@ -1897,7 +1898,7 @@ class StreamTests extends AnyFunSuite {
 
   test("StmRepeat:1D") {
     val s = StmCount(3)()
-    val expected = Seq(IntCst(0), IntCst(1), IntCst(2))
+    val expected = Seq(IntCst(0)(), IntCst(1)(), IntCst(2)())
 
     val actual0 = StmRepeat(s, 0)().tchk().lower()
     assert(ir.eval(actual0) == StmLiteral()())
@@ -1945,7 +1946,7 @@ class StreamTests extends AnyFunSuite {
         Seq(1, 1, 1, 1),
         Seq(1, 1, 1, 1)
       )
-    ).flatMap(xss => xss.flatMap(xs => xs.map(x => IntCst(x))))
+    ).flatMap(xss => xss.flatMap(xs => xs.map(x => IntCst(x)())))
     assert(ir.eval(StmRepeat(s, 0)().tchk()) == StmLiteral()())
     assert(ir.eval(StmRepeat(s, 1)().tchk()) == StmLiteral(expected: _*)())
     assert(
@@ -2062,9 +2063,9 @@ class StreamTests extends AnyFunSuite {
   test("StmSlideV:1D:SmallWindow") {
     val actual = StmSlideV(StmCount(4)(), 2)().tchk()
     val expected = StmLiteral(
-      VecLiteral(IntCst(0), IntCst(1))(),
-      VecLiteral(IntCst(1), IntCst(2))(),
-      VecLiteral(IntCst(2), IntCst(3))()
+      VecLiteral(IntCst(0)(), IntCst(1)())(),
+      VecLiteral(IntCst(1)(), IntCst(2)())(),
+      VecLiteral(IntCst(2)(), IntCst(3)())()
     )()
     assert(ir.eval(actual) == expected)
   }
@@ -2072,7 +2073,13 @@ class StreamTests extends AnyFunSuite {
   test("StmSlideV:1D:LargestWindow") {
     val actual = StmSlideV(StmCount(5)(), 5)().tchk()
     val expected = StmLiteral(
-      VecLiteral(IntCst(0), IntCst(1), IntCst(2), IntCst(3), IntCst(4))()
+      VecLiteral(
+        IntCst(0)(),
+        IntCst(1)(),
+        IntCst(2)(),
+        IntCst(3)(),
+        IntCst(4)()
+      )()
     )()
     assert(ir.eval(actual) == expected)
   }

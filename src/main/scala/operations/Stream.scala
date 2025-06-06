@@ -390,11 +390,11 @@ case class StmMap(
       // How many elements will the inner component read and produce before it must be reset?
       val inputsUntilReset = f.typ.asInstanceOf[TyArrow].t1 match {
         case TyStm(_, n) => n
-        case _           => IntCst(1)
+        case _           => IntCst(1)()
       }
       val outputsUntilReset = f.typ.asInstanceOf[TyArrow].t2 match {
         case TyStm(_, n) => n
-        case _           => IntCst(1)
+        case _           => IntCst(1)()
       }
       val map = n match {
         // TODO: Why this special case? Is it just to make the resulting stream
@@ -497,7 +497,7 @@ case class StmAccess(
     val k = this.k.lower()
     val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(TyInt) // index of current row
@@ -603,7 +603,7 @@ case class StmScanInclusive(
     val n = this.input.typ.asInstanceOf[TyStm].n
     val inputsUntilReset = this.input.typ.asInstanceOf[TyStm].t match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)
+      case _           => IntCst(1)()
     }
     val input = this.input.lower()
     val z = this.z.lower()
@@ -617,7 +617,7 @@ case class StmScanInclusive(
         f.body.asInstanceOf[Function]
       )
     assert(
-      innerStm.n == IntCst(1),
+      innerStm.n == IntCst(1)(),
       "the function in StmScan should return a scalar or a stream of length 1"
     )
     assert(
@@ -625,7 +625,7 @@ case class StmScanInclusive(
       "the input stream should appear at most once in the inner StmBuild"
     )
     val (innerWithCtrs, shouldReset) = {
-      val outputsUntilReset = IntCst(1)
+      val outputsUntilReset = IntCst(1)()
       val outCtr = Param("out_ctr")(TyInt)
       val withOutCtr = innerStm.addOutputCounter(outCtr)
       val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
@@ -871,7 +871,7 @@ case class StmPrefix(
     val k = this.k.lower()
     val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(TyInt) // index of current row
@@ -927,7 +927,7 @@ case class StmSuffix(
     val n = this.stm.typ.asInstanceOf[TyStm].n
     val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(TyInt) // index of current row
@@ -1196,7 +1196,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     val n = stm.typ.asInstanceOf[TyStm].n
     val elemSize = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)
+      case _           => IntCst(1)()
     }
     StmMap(
       Stm2Vec(stm)() /* flat vector */,
@@ -1305,7 +1305,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val n = this.input.typ.asInstanceOf[TyStm].n
     val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(TyStm(t, -1))
     val i = Param("i")(TyInt)

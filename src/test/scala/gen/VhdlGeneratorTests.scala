@@ -192,7 +192,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val map = StmMap(s, TyInt ::+ (x => (x + 1) * x + 42))().tchk().lower()
     val f = Function(s, map)().tchk()
     val inputs = Seq(
-      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i)))))
+      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i)()))))
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
@@ -220,9 +220,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val zip = StmZip(StmZip(a, b)(), c)().tchk().lower()
     val f = Function(a, Function(b, Function(c, zip)())())().tchk()
     val inputs = Seq(
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i))))),
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i * 2)), None))),
-      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i * i)), None)))
+      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i)())))),
+      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i * 2)()), None))),
+      TestInput(
+        (0 until n).flatMap(i => Seq(None, Some(IntCst(i * i)()), None))
+      )
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
@@ -332,8 +334,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )().tchk().lower().asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(
-      TestInput((0 until n).map(i => Some(IntCst(i * i * i)))),
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(3 * i)), None, None)))
+      TestInput((0 until n).map(i => Some(IntCst(i * i * i)()))),
+      TestInput(
+        (0 until n).flatMap(i => Seq(Some(IntCst(3 * i)()), None, None))
+      )
     )
     assert(TestRunner.testExpr(f0, inputs) == TestPassed)
 
@@ -360,7 +364,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         .asInstanceOf[StmBuild]
 
     val inputs = Seq(
-      TestInput((0 until n * m).flatMap(i => Seq(None, Some(IntCst(i)))))
+      TestInput((0 until n * m).flatMap(i => Seq(None, Some(IntCst(i)()))))
     )
 
     val optimized =

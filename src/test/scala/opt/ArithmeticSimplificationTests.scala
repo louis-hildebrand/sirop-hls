@@ -13,25 +13,25 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e1 = VecAccess(Param("p")(), Param("p")())().__1
     val e2 = StmLength(Param("p")())()
 
-    assert(pe(IntCst(1) + IntCst(2)) == IntCst(3))
-    assert(pe(e1 + IntCst(0)) == e1)
-    assert(pe(IntCst(0) + e1) == e1)
-    assert(pe(e1 - e1) == IntCst(0))
+    assert(pe(IntCst(1)() + IntCst(2)()) == IntCst(3)())
+    assert(pe(e1 + IntCst(0)()) == e1)
+    assert(pe(IntCst(0)() + e1) == e1)
+    assert(pe(e1 - e1) == IntCst(0)())
     assert(pe(e1 - 2 * e1) == -1 * e1)
     assert(pe(3 * e1 + 4 * e1) == 7 * e1)
-    assert(pe((e1 + IntCst(9)) + IntCst(3)) == IntCst(12) + e1)
-    assert(pe((IntCst(8) + e1) + IntCst(3)) == IntCst(11) + e1)
-    assert(pe(IntCst(3) + (e1 + IntCst(4))) == IntCst(7) + e1)
-    assert(pe(IntCst(2) + (IntCst(1) + e1)) == IntCst(3) + e1)
-    assert(pe((e1 - IntCst(9)) + IntCst(3)) == IntCst(-6) + e1)
-    assert(pe((IntCst(8) - e1) + IntCst(3)) == IntCst(11) - e1)
-    assert(pe(IntCst(3) + (e1 - IntCst(4))) == IntCst(-1) + e1)
-    assert(pe(IntCst(2) + (IntCst(1) - e1)) == IntCst(3) - e1)
+    assert(pe((e1 + IntCst(9)()) + IntCst(3)()) == IntCst(12)() + e1)
+    assert(pe((IntCst(8)() + e1) + IntCst(3)()) == IntCst(11)() + e1)
+    assert(pe(IntCst(3)() + (e1 + IntCst(4)())) == IntCst(7)() + e1)
+    assert(pe(IntCst(2)() + (IntCst(1)() + e1)) == IntCst(3)() + e1)
+    assert(pe((e1 - IntCst(9)()) + IntCst(3)()) == IntCst(-6)() + e1)
+    assert(pe((IntCst(8)() - e1) + IntCst(3)()) == IntCst(11)() - e1)
+    assert(pe(IntCst(3)() + (e1 - IntCst(4)())) == IntCst(-1)() + e1)
+    assert(pe(IntCst(2)() + (IntCst(1)() - e1)) == IntCst(3)() - e1)
     assert(pe(e1 + (e2 - e1)) == e2)
     assert(pe(e2 + (e1 - e2)) == e1)
     assert(pe((e2 - e1) + e1) == e2)
     assert(pe((e1 - e2) + e2) == e1)
-    assert(pe((((e1 + IntCst(1)) + e2) - IntCst(1)) - e2) == e1)
+    assert(pe((((e1 + IntCst(1)()) + e2) - IntCst(1)()) - e2) == e1)
   }
 
   // The non-arithmetic terms within a sum are also simplified
@@ -41,19 +41,19 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e3 = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
     val e4 = Param("p")()
 
-    val actual = pe((e3 + e4 + IntCst(42)) - e4)
-    val expected = IntCst(42) + VecAccess(FunCall(f, 10)(), i)()
+    val actual = pe((e3 + e4 + IntCst(42)()) - e4)
+    val expected = IntCst(42)() + VecAccess(FunCall(f, 10)(), i)()
     assert(actual == expected)
   }
 
   test("Mul") {
     val e = VecAccess(Param("p")(), Param("p")())()
 
-    assert(pe(IntCst(4) * IntCst(9)) == IntCst(36))
-    assert(pe(e * IntCst(0)) == IntCst(0))
-    assert(pe(IntCst(0) * e) == IntCst(0))
-    assert(pe(e * IntCst(1)) == e)
-    assert(pe(IntCst(1) * e) == e)
+    assert(pe(IntCst(4)() * IntCst(9)()) == IntCst(36)())
+    assert(pe(e * IntCst(0)()) == IntCst(0)())
+    assert(pe(IntCst(0)() * e) == IntCst(0)())
+    assert(pe(e * IntCst(1)()) == e)
+    assert(pe(IntCst(1)() * e) == e)
   }
 
   // The non-arithmetic terms within a product are also simplified
@@ -62,8 +62,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val f = Param("f")()
     val e = VecAccess(FunCall(f, Tuple(0, 10, 20)().__1)(), i)()
 
-    val actual = pe((IntCst(42) * e) * IntCst(3))
-    val expected = IntCst(126) * VecAccess(FunCall(f, 10)(), i)()
+    val actual = pe((IntCst(42)() * e) * IntCst(3)())
+    val expected = IntCst(126)() * VecAccess(FunCall(f, 10)(), i)()
     assert(actual == expected)
   }
 
@@ -71,19 +71,19 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = StmLength(Param("p")())()
 
     // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
-    assert(pe(e / IntCst(1)) == e)
-    assert(pe(IntCst(6) * e / IntCst(6)) == e)
-    assert(pe((IntCst(6) * e) / IntCst(3)) == 2 * e)
-    assert(pe((e * IntCst(15)) / IntCst(5)) == 3 * e)
-    assert(pe(IntCst(27) * e / IntCst(6)) == 9 * e / 2)
-    assert(pe(e * IntCst(27) / IntCst(6)) == 9 * e / 2)
+    assert(pe(e / IntCst(1)()) == e)
+    assert(pe(IntCst(6)() * e / IntCst(6)()) == e)
+    assert(pe((IntCst(6)() * e) / IntCst(3)()) == 2 * e)
+    assert(pe((e * IntCst(15)()) / IntCst(5)()) == 3 * e)
+    assert(pe(IntCst(27)() * e / IntCst(6)()) == 9 * e / 2)
+    assert(pe(e * IntCst(27)() / IntCst(6)()) == 9 * e / 2)
   }
 
   test("Mod") {
     val e = VecLength(Param("p")())()
 
-    assert(pe(IntCst(17) % IntCst(12)) == IntCst(5))
-    assert(pe(IntCst(0) % e) == IntCst(0))
+    assert(pe(IntCst(17)() % IntCst(12)()) == IntCst(5)())
+    assert(pe(IntCst(0)() % e) == IntCst(0)())
   }
 
   test("MuxWithBoundedVariable") {
@@ -115,7 +115,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("SimplifyBranchesOfMux") {
-    val i = IntCst(0)
+    val i = IntCst(0)()
     val e = Mux(
       (i % 2) === 0,
       Tuple(i, 2 + (2 * i))(),

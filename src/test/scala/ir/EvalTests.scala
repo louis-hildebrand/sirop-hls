@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class EvalTests extends AnyFunSuite {
   test("IntCst") {
-    assert(ir.eval(IntCst(3)) == IntCst(3))
+    assert(ir.eval(IntCst(3)()) == IntCst(3)())
   }
 
   test("StmBuild") {
@@ -69,5 +69,76 @@ class EvalTests extends AnyFunSuite {
     }
     val exc = intercept[DeadlockError](ir.eval(s))
     assert(exc.reasons == Seq(EmptyStreamRead))
+  }
+
+  test("PadTo") {
+    for (x <- -3 to 3) {
+      for (w <- 3 to 5) {
+        assert(ir.eval(PadTo(x, w)()) == IntCst(x)())
+      }
+    }
+  }
+
+  test("TruncateTo") {
+    def truncations(i: IntCst): Seq[Int] = {
+      val w0 = i.typ.asInstanceOf[TyAnyInt].w
+      (w0 to 0 by -1).map(w =>
+        ir.eval(TruncateTo(i, w)()).asInstanceOf[IntCst].i
+      )
+    }
+
+    // -3 = (11101)_2
+    assert(truncations(IntCst(-3)(TySInt(5))) == Seq(-3, -3, -3, 1, -1, 0))
+    // -2 = (1110)_2
+    assert(truncations(IntCst(-2)(TySInt(4))) == Seq(-2, -2, -2, 0, 0))
+    // -1 = (111)_2
+    assert(truncations(IntCst(-1)(TySInt(3))) == Seq(-1, -1, -1, 0))
+    // 0 = (000)_2
+    assert(truncations(IntCst(0)(TySInt(3))) == Seq(0, 0, 0, 0))
+    assert(truncations(IntCst(0)(TyUInt(3))) == Seq(0, 0, 0, 0))
+    // 1 = (001)_2
+    assert(truncations(IntCst(1)(TySInt(3))) == Seq(1, 1, -1, 0))
+    assert(truncations(IntCst(1)(TyUInt(3))) == Seq(1, 1, 1, 0))
+    // 2 = (0010)_2
+    assert(truncations(IntCst(2)(TySInt(4))) == Seq(2, 2, -2, 0, 0))
+    assert(truncations(IntCst(2)(TyUInt(4))) == Seq(2, 2, 2, 0, 0))
+    // 3 = (0011)_2
+    assert(truncations(IntCst(3)(TySInt(4))) == Seq(3, 3, -1, -1, 0))
+    assert(truncations(IntCst(3)(TyUInt(4))) == Seq(3, 3, 3, 1, 0))
+    // 4 = (00100)_2
+    assert(truncations(IntCst(4)(TySInt(5))) == Seq(4, 4, -4, 0, 0, 0))
+    assert(truncations(IntCst(4)(TyUInt(5))) == Seq(4, 4, 4, 0, 0, 0))
+    // 5 = (00101)_2
+    assert(truncations(IntCst(5)(TySInt(5))) == Seq(5, 5, -3, 1, -1, 0))
+    assert(truncations(IntCst(5)(TyUInt(5))) == Seq(5, 5, 5, 1, 1, 0))
+  }
+
+  test("ToSigned") {
+    for (x <- 0 to 10) {
+      assert(ir.eval(ToSigned(x)()) == IntCst(x)())
+    }
+  }
+
+  test("ToUnsigned") {
+    val f = I8 ::+ (x => ToUnsigned(x)())
+
+    // No-op if argument is positive
+    for (x <- 0 to 10) {
+      assert(ir.eval(FunCall(f, IntCst(x)(I8))()) == IntCst(x)())
+    }
+
+    // If argument is negative, then drop leading bit and reinterpret as unsigned
+    // -6 = (11111010)_2
+    assert(ir.eval(FunCall(f, IntCst(-6)(I8))()) == IntCst(122)())
+    // -5 = (11111011)_2
+    assert(ir.eval(FunCall(f, IntCst(-5)(I8))()) == IntCst(123)())
+    // -4 = (11111100)_2
+    assert(ir.eval(FunCall(f, IntCst(-4)(I8))()) == IntCst(124)())
+    // -3 = (11111101)_2
+    assert(ir.eval(FunCall(f, IntCst(-3)(I8))()) == IntCst(125)())
+    // -2 = (11111110)_2
+    assert(ir.eval(FunCall(f, IntCst(-2)(I8))()) == IntCst(126)())
+    // -1 = (11111111)_2
+    assert(ir.eval(FunCall(f, IntCst(-1)(I8))()) == IntCst(127)())
   }
 }

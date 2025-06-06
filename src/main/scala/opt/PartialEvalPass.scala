@@ -90,6 +90,32 @@ object PartialEvalPass {
                   facts
                 )
             }
+          case PadTo(e, w) =>
+            // TODO: add some more simplification rules here (e.g., padding to
+            //       the same width, padding and then truncating)
+            partialEval(e) match {
+              case Mux(c, t, f) =>
+                partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
+              case e => PadTo(e, w)()
+            }
+          case TruncateTo(e, w) =>
+            partialEval(e) match {
+              case Mux(c, t, f) =>
+                partialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
+              case e => TruncateTo(e, w)()
+            }
+          case ToSigned(e) =>
+            partialEval(e) match {
+              case Mux(c, t, f) =>
+                partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
+              case e => ToSigned(e)()
+            }
+          case ToUnsigned(e) =>
+            partialEval(e) match {
+              case Mux(c, t, f) =>
+                partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
+              case e => ToUnsigned(e)()
+            }
 
           case True  => True
           case False => False

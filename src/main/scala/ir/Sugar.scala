@@ -80,7 +80,7 @@ case object Default {
 
   private def getDefaultOpt(typ: Type): Option[Expr] = {
     typ match {
-      case TyInt            => Some(IntCst(0))
+      case TyInt            => Some(IntCst(0)())
       case TyBool           => Some(False)
       case TyTuple(ts @ _*) => Some(Tuple(ts.map(t => getDefault(t)): _*)(typ))
       case TyVec(t, n) => Some(VecBuild(n, TyInt ::+ (_ => getDefault(t)))(typ))

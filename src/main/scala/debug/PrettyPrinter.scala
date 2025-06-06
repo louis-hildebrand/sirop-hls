@@ -175,8 +175,12 @@ object PrettyPrinter {
         s"Div(${showScala(x)},${showScala(y)})"
       case Mod(x, y) =>
         s"Mod(${showScala(x)},${showScala(y)})"
-      case True  => "True"
-      case False => "False"
+      case PadTo(x, y)      => s"PadTo(${showScala(x)},${showScala(y)})"
+      case TruncateTo(x, y) => s"TruncateTo(${showScala(x)},${showScala(y)})"
+      case ToSigned(x)      => s"ToSigned(${showScala(x)})"
+      case ToUnsigned(x)    => s"ToUnsigned(${showScala(x)})"
+      case True             => "True"
+      case False            => "False"
       case Equal(x, y) =>
         s"Equal(${showScala(x)},${showScala(y)})"
       case LessThan(x, y) =>

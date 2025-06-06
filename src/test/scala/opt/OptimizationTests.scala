@@ -77,7 +77,7 @@ class OptimizationTests extends AnyFunSuite {
       VecBuild(n, TyInt ::+ (i => i))(),
       VecBuild(n, TyInt ::+ (i => i * (i + 1)))()
     )
-    val zExamples = Seq(IntCst(0), IntCst(-3), IntCst(42))
+    val zExamples = Seq(IntCst(0)(), IntCst(-3)(), IntCst(42)())
     for (vVal <- vExamples) {
       for (zVal <- zExamples) {
         val expected = ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
@@ -389,7 +389,7 @@ class OptimizationTests extends AnyFunSuite {
     val n1 = 15
     val f1 = TyInt ::+ (i => (i + 1) * (i + 2) * (i + 3))
     val expected1 = StmLiteral(
-      (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
+      (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))()): _*
     )()
     val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s)())()
     assert(ir.eval(actual1(s)) == expected1)
@@ -428,7 +428,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = optimize(Stm2Vec(StmCst(n, c)())())
 
     // Correctness
-    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0))
+    val cExamples: Seq[Expr] = Seq(IntCst(42)(), IntCst(0)())
     for (cVal <- cExamples) {
       for (nVal <- Seq(0, 1, 2, 5)) {
         val expected =

@@ -22,6 +22,18 @@ class TypecheckerTests extends AnyFunSuite {
     assertAllNodesHaveType(checked)
   }
 
+  test("IntCst") {
+    assert(IntCst(-4)().tchk().typ == TySInt(3))
+    assert(IntCst(-3)().tchk().typ == TySInt(3))
+    assert(IntCst(-2)().tchk().typ == TySInt(2))
+    assert(IntCst(-1)().tchk().typ == TySInt(1))
+    assert(IntCst(0)().tchk().typ == TyUInt(0))
+    assert(IntCst(1)().tchk().typ == TyUInt(1))
+    assert(IntCst(2)().tchk().typ == TyUInt(2))
+    assert(IntCst(3)().tchk().typ == TyUInt(2))
+    assert(IntCst(4)().tchk().typ == TyUInt(3))
+  }
+
   test("IntAndBoolFunction") {
     val original: Expr =
       TyTuple(TyUInt(8), TyBool) ::+ (x =>
@@ -96,7 +108,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall:NotFunction") {
-    val e = FunCall(IntCst(42), IntCst(43))()
+    val e = FunCall(IntCst(42)(), IntCst(43)())()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -127,7 +139,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Mux:NonBoolCondition") {
-    val e = Mux(IntCst(42), False, True)()
+    val e = Mux(IntCst(42)(), False, True)()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -139,20 +151,20 @@ class TypecheckerTests extends AnyFunSuite {
   test("And:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b && IntCst(1)).tchk(Map(b -> TyBool))
+      (b && IntCst(1)()).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1) && b).tchk(Map(b -> TyBool))
+      (IntCst(1)() && b).tchk(Map(b -> TyBool))
     )
   }
 
   test("Or:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b || IntCst(1)).tchk(Map(b -> TyBool))
+      (b || IntCst(1)()).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1) || b).tchk(Map(b -> TyBool))
+      (IntCst(1)() || b).tchk(Map(b -> TyBool))
     )
   }
 
@@ -162,8 +174,8 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Equal:DifferentTypes") {
-    assertThrows[TypeError]((IntCst(42) === True).tchk())
-    assertThrows[TypeError]((True === IntCst(42)).tchk())
+    assertThrows[TypeError]((IntCst(42)() === True).tchk())
+    assertThrows[TypeError]((True === IntCst(42)()).tchk())
   }
 
   test("Equal:Streams") {
@@ -185,7 +197,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("TupleAccess:NonTuple") {
-    assertThrows[TypeError](IntCst(42).__1.tchk())
+    assertThrows[TypeError](IntCst(42)().__1.tchk())
   }
 
   test("VecBuild:NonIntLength") {

@@ -57,7 +57,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       10,
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (IntCst(0), a + 1))
+      Map(a -> (IntCst(0)(), a + 1))
     )()
     val e = Tuple(a < 4, s)()
     val facts =
@@ -73,7 +73,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         10,
         Tuple(True, a < 4)(),
         True,
-        Map(a -> (IntCst(0), a + 1))
+        Map(a -> (IntCst(0)(), a + 1))
       )()
     )()
     assert(actual == expected)

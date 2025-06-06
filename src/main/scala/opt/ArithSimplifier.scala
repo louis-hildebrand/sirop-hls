@@ -192,7 +192,7 @@ object ArithSimplifier {
 
   private def fromArithExpr(a: ae.ArithExpr): Option[Expr] = {
     a match {
-      case ae.Cst(c) => Some(IntCst(c.toInt))
+      case ae.Cst(c) => Some(IntCst(c.toInt)())
       case ae.Sum(terms) =>
         val exprTerms = terms.map(fromArithExpr)
         if (exprTerms.forall(e => e.isDefined)) {
