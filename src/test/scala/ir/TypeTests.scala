@@ -36,6 +36,12 @@ class TypeTests extends AnyFunSuite {
     assert((I8 ->: I16) ->: I32 == TyArrow(TyArrow(I8, I16), I32))
   }
 
+  test("ToString:Arrow") {
+    val t = (U8 ->: U16) ->: U16 ->: TyTuple(TyBool, I32)
+    val expected = "(u8 -> u16) -> u16 -> (bool, i32)"
+    assert(t.toString == expected)
+  }
+
   test("IsCompatibleWith:Int") {
     val intTypes = Seq(U8, U16, U32, I8, I16, I32)
     for (t <- intTypes) {

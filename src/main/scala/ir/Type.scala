@@ -225,7 +225,7 @@ object TyAnyInt {
   }
 }
 
-/** A signed integer with [[w]] bits.
+/** The type of a signed integer with [[w]] bits.
   *
   * @param w
   *   the bit width.
@@ -234,7 +234,7 @@ case class TySInt(override val w: Int) extends TyAnyInt(w) {
   override def toString: String = s"i$w"
 }
 
-/** An unsigned integer with [[w]] bits.
+/** The type of an unsigned integer with [[w]] bits.
   *
   * @param w
   *   the bit width.
@@ -242,17 +242,66 @@ case class TySInt(override val w: Int) extends TyAnyInt(w) {
 case class TyUInt(override val w: Int) extends TyAnyInt(w) {
   override def toString: String = s"u$w"
 }
-case object TyBool extends Type
-case class TyArrow(t1: Type, t2: Type) extends Type
-case class TyTuple(ts: Type*) extends Type
-case class TyVec(t: Type, n: Expr) extends Type
 
-/** @param t
-  *   The type of the <i>unwrapped</i> elements produced by the stream. In other
+/** The type of a boolean.
+  */
+case object TyBool extends Type {
+  override def toString: String = "bool"
+}
+
+/** The type of a function.
+  *
+  * @param t1
+  *   the input type.
+  * @param t2
+  *   the output type.
+  */
+case class TyArrow(t1: Type, t2: Type) extends Type {
+  override def toString: String = {
+    val shouldParenthesizeInput = t1 match {
+      case _: TyArrow => true
+      case _          => false
+    }
+    if (shouldParenthesizeInput) {
+      s"($t1) -> $t2"
+    } else {
+      s"$t1 -> $t2"
+    }
+  }
+}
+
+/** The type of a tuple.
+  *
+  * @param ts
+  *   the element types.
+  */
+case class TyTuple(ts: Type*) extends Type {
+  override def toString: String = {
+    ts.map(t => t.toString).mkString("(", ", ", ")")
+  }
+}
+
+/** The type of a vector.
+  *
+  * @param t
+  *   the type of the elements in the vector.
+  * @param n
+  *   the length of the vector.
+  */
+case class TyVec(t: Type, n: Expr) extends Type {
+  override def toString: String = {
+    s"Vec[$t, $n]"
+  }
+}
+
+/** The type of a stream.
+  *
+  * @param t
+  *   the type of the <i>unwrapped</i> elements produced by the stream. In other
   *   words, this is the type seen by consumers of the stream (usually
   *   <i>not</i> an <code>Option</code> type).
   * @param n
-  *   The length of the stream.
+  *   the length of the stream.
   */
 case class TyStm(t: Type, n: Expr) extends Type {
 
@@ -262,6 +311,10 @@ case class TyStm(t: Type, n: Expr) extends Type {
     * <code>StmBuild</code> itself.
     */
   val tOpt: Type = TyOption(t)
+
+  override def toString: String = {
+    s"Stm[$t, $n]"
+  }
 }
 
 // Shorthand for common int types
