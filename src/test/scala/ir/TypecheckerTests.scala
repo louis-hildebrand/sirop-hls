@@ -85,6 +85,86 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](LessThan(Param("x")(U8), Param("x")(I8))().tchk())
   }
 
+  private val xU8 = Param("x")(U8)
+  private val yU8 = Param("y")(U8)
+  private val zU8 = Param("z")(U8)
+  private val yU16 = Param("y")(U16)
+  private val yI8 = Param("y")(I8)
+  private val xI32 = Param("x")(I32)
+  private val yI32 = Param("y")(I32)
+
+  test("u8 + u8 + u8") {
+    assert(Sum(xU8, yU8, zU8)().tchk().typ == U8)
+  }
+
+  test("i32 + i32") {
+    assert(Sum(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("EmptySum") {
+    assert(Sum()().tchk().typ == TyUInt(0))
+  }
+
+  test("u8 + i8") {
+    assertThrows[TypeError](Sum(xU8, yI8)().tchk())
+  }
+
+  test("u8 + u16") {
+    assertThrows[TypeError](Sum(xU8, yU16)().tchk())
+  }
+
+  test("u8 * u8 * u8") {
+    assert(Prod(xU8, yU8, zU8)().tchk().typ == U8)
+  }
+
+  test("i32 * i32") {
+    assert(Prod(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("EmptyProd") {
+    assert(Prod()().tchk().typ == TyUInt(1))
+  }
+
+  test("u8 * i8") {
+    assertThrows[TypeError](Prod(xU8, yI8)().tchk())
+  }
+
+  test("u8 * u16") {
+    assertThrows[TypeError](Prod(xU8, yU16)().tchk())
+  }
+
+  test("u8 / u8") {
+    assert(Div(xU8, yU8)().tchk().typ == U8)
+  }
+
+  test("i32 / i32") {
+    assert(Div(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("u8 / i8") {
+    assertThrows[TypeError](Div(xU8, yI8)().tchk())
+  }
+
+  test("u8 / u16") {
+    assertThrows[TypeError](Div(xU8, yU16)().tchk())
+  }
+
+  test("u8 % u8") {
+    assert(Mod(xU8, yU8)().tchk().typ == U8)
+  }
+
+  test("i32 % i32") {
+    assert(Mod(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("u8 % i8") {
+    assertThrows[TypeError](Mod(xU8, yI8)().tchk())
+  }
+
+  test("u8 % u16") {
+    assertThrows[TypeError](Mod(xU8, yU16)().tchk())
+  }
+
   test("IntAndBoolFunction") {
     val original: Expr =
       TyTuple(TyUInt(8), TyBool) ::+ (x =>

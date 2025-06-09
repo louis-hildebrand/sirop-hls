@@ -352,7 +352,10 @@ trait CommonIntTypes {
 
 // Bit width computations
 
-/** Computes the type of the result of a sum.
+// TODO: Delete these?
+
+/** Computes the narrowest type that can represent the result of a sum without
+  * overflow.
   */
 case object TSum {
 
@@ -368,7 +371,8 @@ case object TSum {
   }
 }
 
-/** Computes the type of the result of a product.
+/** Computes the narrowest type that can represent the result of a product
+  * without overflow.
   */
 case object TProd {
 
@@ -396,7 +400,8 @@ case object TProd {
   }
 }
 
-/** Computes the type of the result of a division.
+/** Computes the narrowest type that can represent the result of a division
+  * without overflow.
   */
 case object TDiv {
 
@@ -433,7 +438,8 @@ case object TDiv {
   }
 }
 
-/** Computes the type of the result of the [[Mod]] operation.
+/** Computes the narrowest type that can represent the result of the [[Mod]]
+  * operation without overflow.
   */
 case object TMod {
 

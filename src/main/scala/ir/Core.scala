@@ -114,10 +114,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
           }
         }
-        s.rebuild(
-          TSum(newTerms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-          newTerms
-        )
+        val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${s.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          s.rebuild(elemTypes.head, newTerms)
+        }
       case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => e.tchk)
         for ((t, i) <- newFactors.zipWithIndex) {
@@ -128,22 +132,40 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
           }
         }
-        p.rebuild(
-          TProd(newFactors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-          newFactors
-        )
+        val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${p.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          p.rebuild(elemTypes.head, newFactors)
+        }
       case d @ Div(e1, e2) =>
         val newLhs = e1.tchk
-        newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t1 = newLhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer"
+            )
         }
         val newRhs = e2.tchk
-        newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t2 = newRhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        d.rebuild(TyInt, Seq(newLhs, newRhs))
+        if (t1 ~= t2) {
+          d.rebuild(t1, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
+          )
+        }
       case m @ Mod(e1, e2) =>
         val newLhs = e1.tchk
         val t1 = newLhs.typ match {
@@ -164,10 +186,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
         if (t1 ~= t2) {
-          m.rebuild(TMod(t1, t2), Seq(newLhs, newRhs))
+          m.rebuild(t1, Seq(newLhs, newRhs))
         } else {
           throw new TypeError(
-            s"Left-hand side of $className has type ${newLhs.typ}, but right-hand side has type ${newRhs.typ}."
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
           )
         }
       case pad @ PadTo(e, targetWidth) =>
