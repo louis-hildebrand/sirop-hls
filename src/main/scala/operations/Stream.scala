@@ -158,7 +158,7 @@ case class Iterate(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     val newZ = z.tchk(context)
     val t = newZ.typ
@@ -195,7 +195,7 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     val newC = c.tchk(context)
     this.rebuild(TyStm(newC.typ, newN), Seq(newN, newC))
@@ -221,7 +221,7 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     this.rebuild(TyStm(TyInt, newN), Seq(newN))
   }
@@ -252,7 +252,7 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     val newZ = z.tchk(context).expectType(TyInt)
     val newDelta = delta.tchk(context).expectType(TyInt)
@@ -287,7 +287,7 @@ case class StmCst2D(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     val newM = m.tchk(context).expectType(TyInt)
     val newC = c.tchk(context)
@@ -311,7 +311,7 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newN = n.tchk(context).expectType(TyInt)
     val newM = m.tchk(context).expectType(TyInt)
     this.rebuild(
@@ -350,7 +350,7 @@ case class StmMap(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = input.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -481,7 +481,7 @@ case class StmAccess(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val t = newS.typ match {
       case TyStm(t, _) => t
@@ -528,7 +528,7 @@ case class StmFold(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stream.tchk(context)
     val t1 = newS.typ match {
       case TyStm(t, _) => t
@@ -573,7 +573,7 @@ case class StmScanInclusive(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = input.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -709,7 +709,7 @@ case class StmScanExclusive(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -751,7 +751,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     newV.typ match {
       case TyVec(t, n) =>
@@ -791,7 +791,7 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -818,7 +818,7 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -855,7 +855,7 @@ case class StmPrefix(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newK = k.tchk(context).expectType(TyInt)
     val newS = stm.tchk(context)
     newS.typ match {
@@ -910,7 +910,7 @@ case class StmSuffix(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newK = k.tchk(context).expectType(TyInt)
     val newS = stm.tchk(context)
     newS.typ match {
@@ -956,7 +956,7 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -994,7 +994,7 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1022,7 +1022,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS1 = stm1.tchk(context)
     val (t1, n1) = newS1.typ match {
       case TyStm(t, n1) => (t, n1)
@@ -1075,7 +1075,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newA = a.tchk(context)
     val (t1, n) = newA.typ match {
       case TyStm(t1, n) if Default.hasDefault(t1) => (t1, n)
@@ -1125,7 +1125,7 @@ case class StmRepeat(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newM = m.tchk(context).expectType(TyInt)
     val newS = stm.tchk(context)
     newS.typ match {
@@ -1178,7 +1178,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) =>
@@ -1218,7 +1218,7 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newM = m.tchk(context).expectType(TyInt)
     val newS = stm.tchk(context)
     newS.typ match {
@@ -1245,7 +1245,7 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(TyStm(t, m), n) =>
@@ -1286,7 +1286,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newM = m.tchk(context).expectType(TyInt)
     val newS = input.tchk(context)
     newS.typ match {
@@ -1387,7 +1387,7 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newM = m.tchk(context).expectType(TyInt)
     val newS = stm.tchk(context)
     newS.typ match {
@@ -1422,7 +1422,7 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(TyStm(t, m), n) if Default.hasDefault(t) =>

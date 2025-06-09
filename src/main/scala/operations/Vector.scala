@@ -14,7 +14,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     newV.typ match {
       case TyVec(t1, n) =>
@@ -80,7 +80,7 @@ case class VecFold(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     val t1 = newV.typ match {
       case TyVec(t, _) => t
@@ -139,7 +139,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = s.tchk(context)
     newS.typ match {
       case TyStm(t, n) => this.rebuild(TyStm(TyVec(t, n), 1), Seq(newS))
@@ -182,7 +182,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -214,7 +214,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -247,7 +247,7 @@ case class VecPrefix(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newK = k.tchk(context).expectType(TyInt)
     val newV = vec.tchk(context)
     newV.typ match {
@@ -277,7 +277,7 @@ case class VecSuffix(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newK = k.tchk(context).expectType(TyInt)
     val newV = vec.tchk(context)
     newV.typ match {
@@ -310,7 +310,7 @@ case class VecShiftLeft(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = vec.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -355,7 +355,7 @@ case class VecShiftRight(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = vec.tchk(context)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -387,7 +387,7 @@ case class VecConcat(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV1 = v1.tchk(context)
     val (t1, n1) = newV1.typ match {
       case TyVec(t, n) => (t, n)
@@ -491,7 +491,7 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     newV.typ match {
       case TyVec(TyVec(t, m), n) => this.rebuild(TyVec(t, n * m), Seq(newV))

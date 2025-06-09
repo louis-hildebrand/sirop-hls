@@ -9,7 +9,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
     val newIn = in.tchk(context + (x -> newV.typ))
     val newX = x.rebuild(newV.typ)
@@ -20,7 +20,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     val x = this.x.lower().asInstanceOf[Param]
     val v = this.v.lower()
     val in = this.in.lower()
-    val f = this.asFunCall()
+    val f = Let(x, v, in)().asFunCall()
     if (this.typ != Missing) f.tchk() else f
   }
 
@@ -55,7 +55,7 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     // Check that the requested type indeed has a default
     Default.getDefault(this.typ)
     this
@@ -114,7 +114,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk
     if (ReshapeData.canReshape(newE.typ, targetType)) {
       this.rebuild(targetType, Seq(newE))
@@ -246,7 +246,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE1 = e1.tchk
     newE1.typ match {
       case t if Default.hasDefault(t) => ()
@@ -299,7 +299,7 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newLhs = e1.tchk
     newLhs.typ match {
       case _: TyAnyInt => ()
@@ -341,9 +341,9 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
     SmartSum(newChildren: _*)(typ)
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newTerms = terms.zipWithIndex.map({ case (e, i) =>
-      val newE = e.tchk
+      val newE = e.tchk(context)
       newE.typ match {
         case _: TyAnyInt => newE
         case t =>
@@ -384,9 +384,9 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     SmartProd(newChildren: _*)(typ)
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newFactors = factors.zipWithIndex.map({ case (e, i) =>
-      val newE = e.tchk
+      val newE = e.tchk(context)
       newE.typ match {
         case _: TyAnyInt => newE
         case t =>
@@ -432,7 +432,7 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newLhs = e1.tchk
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
@@ -480,7 +480,7 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newLhs = e1.tchk
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
@@ -523,7 +523,7 @@ case class NNone(innerTyp: Type)
     this
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     this
   }
 
@@ -551,7 +551,7 @@ case class SSome(e: Expr /* T */ )(typ: Type) /* Option<T> */
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk(context)
     rebuild(TyTuple(newE.typ, TyBool), Seq(newE))
   }
@@ -586,7 +586,7 @@ case class OptionAccess(
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk(context)
     val innerTyp = newE.typ match {
       case TyTuple(t, TyBool) => t
@@ -650,7 +650,7 @@ case class OptionUnwrapUnsafe(e: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk(context)
     val t = newE.typ match {
       case TyTuple(t, TyBool) => t
@@ -674,7 +674,7 @@ case class IsNone(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk(context)
     newE.typ match {
       case TyTuple(_, TyBool) => ()
@@ -698,7 +698,7 @@ case class IsSome(e: Expr)(typ: Type = Missing) extends SyntaxSugar(e)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE = e.tchk(context)
     newE.typ match {
       case TyTuple(_, TyBool) => ()

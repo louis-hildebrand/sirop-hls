@@ -1,7 +1,6 @@
 package ir
 
 import operations.StmMap
-import opt.OptionSimplifier
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
@@ -407,13 +406,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               )
           }
         })
-        val newN = s.n.tchk(context).expectType(TyInt)
+        val newN = s.n.tchk(context)
+        newN.typ match {
+          case _: TyUInt => ()
+          case t =>
+            throw new TypeError(
+              s"Stream length has type $t."
+                + " Expected an unsigned integer."
+            )
+        }
         val newEquations = s.equations.map({ case (x, (z, next)) =>
           val newZ = z.tchk(context)
           if (!(newZ.typ ~= x.typ)) {
             throw new TypeError(
               s"Seed for accumulator $x has type ${newZ.typ}."
-                + s"Expected type ${x.typ}."
+                + s" Expected type ${x.typ}."
             )
           }
           val newNext = next.tchk(newContext)
@@ -446,10 +453,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case sn @ StmNextK(s, k) =>
         val newK = k.tchk
         newK.typ match {
-          case TyInt => ()
+          case _: TyAnyInt => ()
           case t =>
             throw new TypeError(
               s"Index of ${StmNextK.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
             )
         }
         val newS = s.tchk
@@ -616,7 +624,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             newBody match {
               case Function(y, newestBody) =>
                 val z = Param("z")(TyTuple(newX.typ, y.typ))
-                val subs = Map[Expr, Expr](newX -> z.__0, y -> z.__1)
+                val z0 = z.__0.tchk()
+                val z1 = z.__1.tchk()
+                val subs = Map[Expr, Expr](newX -> z0, y -> z1)
                 Function(z, newestBody.subPreserveType(subs))().tchk()
               case e =>
                 throw new IllegalArgumentException(
@@ -1038,37 +1048,19 @@ case object Prod {
   }
 }
 
-case class Div(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+case class Div(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Div(newChildren.head, newChildren(1))(typ)
   }
 }
-case object Div {
-  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Div = {
-    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
-      TyInt
-    } else {
-      typ
-    }
-    new Div(e1, e2)(newTyp)
-  }
-}
 
-case class Mod(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Mod(newChildren.head, newChildren(1))(typ)
-  }
-}
-case object Mod {
-  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Mod = {
-    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
-      TyInt
-    } else {
-      typ
-    }
-    new Mod(e1, e2)(newTyp)
   }
 }
 
@@ -1603,16 +1595,29 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addOutputCounter(p: Param): StmBuild = {
+  def addOutputCounter(outCtr: Param): StmBuild = {
     requireType()
-    val outCtr = p.rebuild(TyInt)
+    outCtr.typ match {
+      case Missing =>
+        throw new TypeError(
+          s"Variable provided for output counter must have a type."
+          // ... because every accumulator must have a type, and how would we
+          // know what value to choose here?
+        )
+      case _: TyUInt => ()
+      case t =>
+        throw new TypeError(
+          s"Variable provided for output counter has type $t."
+            + " Expected an unsigned integer."
+        )
+    }
     val s =
       if (this.equations.contains(outCtr))
         this.renameVar(outCtr)
       else
         this
     val z = IntCst(0)()
-    val next = Mux(s.valid, outCtr + 1, outCtr)(TyInt)
+    val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1626,9 +1631,22 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addInputCounter(x: Param, p: Param): StmBuild = {
+  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
     requireType()
-    val inCtr = p.rebuild(TyInt)
+    inCtr.typ match {
+      case Missing =>
+        throw new TypeError(
+          s"Variable provided for output counter must have a type."
+          // ... because every accumulator must have a type, and how would we
+          // know what value to choose here?
+        )
+      case _: TyUInt => ()
+      case t =>
+        throw new TypeError(
+          s"Variable provided for output counter has type $t."
+            + " Expected an unsigned integer."
+        )
+    }
     val s =
       if (this.equations.contains(inCtr))
         this.renameVar(inCtr)
@@ -1636,7 +1654,7 @@ case class StmBuild(
         this
     val z = IntCst(0)()
     val stmNextCalled = s.nextByVar(x)
-    val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
+    val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
     s.addAccumulator(inCtr, z, next)
   }
 
@@ -2077,7 +2095,7 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
 
-  def typecheck(context: Map[Param, Type]): Expr
+  def typecheck(implicit context: Map[Param, Type]): Expr
 
   /** Remove syntax sugar from this node and its children.
     *
@@ -2103,10 +2121,10 @@ case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = s.tchk(context)
     newS.typ match {
-      case _: TyStm => this.rebuild(TyInt, Seq(newS))
+      case _: TyStm => this.rebuild(U32, Seq(newS))
       case t =>
         throw new TypeError(
           s"Stream in StmLength has type $t. Expected a stream."
@@ -2128,10 +2146,10 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
-    val newV = v.tchk(context)
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newV = v.tchk
     newV.typ match {
-      case _: TyVec => this.rebuild(TyInt, Seq(newV))
+      case _: TyVec => this.rebuild(U32, Seq(newV))
       case t =>
         throw new TypeError(
           s"Vector in VecLength has type $t. Expected a vector."

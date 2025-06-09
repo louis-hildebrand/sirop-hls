@@ -8,13 +8,13 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("StmBuild") {
-    val i = Param("i")(TyInt)
+    val i = Param("i")(U8)
     val s =
       StmBuild(
         5,
         i + 42,
         True,
-        Map[Param, (Expr, Expr)](i -> (9, 2 * i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(9)(U8), 2 * i + 1))
       )()
     val expected = StmLiteral(9 + 42, 19 + 42, 39 + 42, 79 + 42, 159 + 42)()
     val actual = ir.eval(s)
@@ -28,13 +28,13 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("LessObviousInfiniteLoop") {
-    val a = Param("a")(TyInt)
+    val a = Param("a")(U32)
     val s = StmBuild(
       1,
       a,
       a % 2 === 1,
       Map[Param, (Expr, Expr)](
-        a -> (0, a + 2)
+        a -> (ReshapeData(0, U32)(), a + 2)
       )
     )().tchk()
     val exc = intercept[DeadlockError](ir.eval(s))
@@ -42,7 +42,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("InfiniteLoopInInputStream") {
-    val s = Param("s")(TyStm(TyInt, 1))
+    val s = Param("s")(TyStm(TyUInt(0), -1))
     val stm = StmBuild(
       1,
       StmData(s)(),
@@ -57,7 +57,7 @@ class EvalTests extends AnyFunSuite {
 
   test("ReadFromEmptyStream") {
     val s = {
-      val s = Param("s")(TyStm(TyInt, 1))
+      val s = Param("s")(TyStm(TyUInt(0), 1))
       StmBuild(
         2,
         StmData(s)(),
