@@ -20,11 +20,8 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     val x = this.x.lower().asInstanceOf[Param]
     val v = this.v.lower()
     val in = this.in.lower()
-    if (this.typ != Missing) {
-      FunCall(Function(x, in)(TyArrow(v.typ, in.typ)), v)(in.typ)
-    } else {
-      FunCall(Function(x, in)(), v)()
-    }
+    val f = this.asFunCall()
+    if (this.typ != Missing) f.tchk() else f
   }
 
   override def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
@@ -33,15 +30,19 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     Let(newX, v.subPreserveType(subs), newIn.subPreserveType(subs))(this.typ)
   }
 
+  private def asFunCall(): FunCall = {
+    FunCall(Function(this.x, this.in)(), this.v)()
+  }
+
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: Let => this.lower() == that.lower()
+      case that: Let => this.asFunCall() == that.asFunCall()
       case _         => false
     }
   }
 
   override def hashCode(): Int = {
-    this.lower().hashCode()
+    this.asFunCall().hashCode()
   }
 }
 
@@ -128,9 +129,9 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
     requireType()
     val e = this.e.lower()
     (e.typ, targetType) match {
-      case (TyBool, TyBool) => e
+      case (t1, t2) if t1 ~= t2 => e
       case (TyUInt(w1), TyUInt(w2)) =>
-        assert(w2 >= w1)
+        assert(w2 > w1)
         PadTo(e, w2)().tchk().lower()
       case (TyUInt(w1), TySInt(w2)) =>
         assert(w2 >= w1 + 1)
@@ -138,7 +139,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
       case (TySInt(0), u: TyUInt) =>
         IntCst(0)(u).tchk().lower()
       case (TySInt(w1), TySInt(w2)) =>
-        assert(w2 >= w1)
+        assert(w2 > w1)
         PadTo(e, w2)().tchk().lower()
       case (_: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(
@@ -352,10 +353,12 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
           )
       }
     })
-    this.rebuild(
-      TSum(newTerms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-      newTerms
-    )
+    val typ = if (newTerms.isEmpty) {
+      TyUInt(0)
+    } else {
+      ReshapeData.narrowestCommonAncestor(newTerms.map(e => e.typ)).get
+    }
+    this.rebuild(typ, newTerms)
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -364,15 +367,17 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
     if (terms.isEmpty) {
       IntCst(0)(this.typ)
     } else {
-      val operandTyp =
-        ReshapeData.narrowestCommonAncestor(terms.map(e => e.typ)).get
-      val resultTyp = this.typ.asInstanceOf[TyAnyInt]
-      val sum = Sum(terms.map(e => ReshapeData(e, operandTyp)()): _*)()
-      TruncateTo(sum, resultTyp.w)().tchk().lower()
+      val typ = this.typ.asInstanceOf[TyAnyInt]
+      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
     }
   }
 }
 
+/** The product of multiple values, even ones with slightly different types.
+  *
+  * @param factors
+  *   the values to multiply.
+  */
 case class SmartProd(factors: Expr*)(typ: Type = Missing)
     extends SyntaxSugar(factors: _*)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -391,10 +396,12 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
           )
       }
     })
-    this.rebuild(
-      TProd(newFactors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-      newFactors
-    )
+    val typ = if (newFactors.isEmpty) {
+      TyUInt(1)
+    } else {
+      ReshapeData.narrowestCommonAncestor(newFactors.map(e => e.typ)).get
+    }
+    this.rebuild(typ, newFactors)
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -403,12 +410,105 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     if (factors.isEmpty) {
       IntCst(1)(this.typ)
     } else {
-      val operandTyp =
-        ReshapeData.narrowestCommonAncestor(factors.map(e => e.typ)).get
-      val resultTyp = this.typ.asInstanceOf[TyAnyInt]
-      val prod = Prod(factors.map(e => ReshapeData(e, operandTyp)()): _*)()
-      TruncateTo(prod, resultTyp.w)().tchk().lower()
+      val typ = this.typ.asInstanceOf[TyAnyInt]
+      Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
     }
+  }
+}
+
+/** The quotient of two values, even ones with slightly different types.
+  *
+  * @param e1
+  *   the numerator.
+  * @param e2
+  *   the denominator.
+  */
+case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => SmartDiv(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newLhs = e1.tchk
+    val t1 = newLhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Left-hand side of $className has type $t."
+            + " Expected an integer"
+        )
+    }
+    val newRhs = e2.tchk
+    val t2 = newRhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Right-hand side of $className has type $t."
+            + " Expected an integer."
+        )
+    }
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    this.rebuild(typ, Seq(newLhs, newRhs))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val typ = this.typ.asInstanceOf[TyAnyInt]
+    val e1 = this.e1.lower()
+    val e2 = this.e2.lower()
+    Div(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
+  }
+}
+
+/** Computes [[Mod]] of two values, even ones with slightly different types.
+  *
+  * @param e1
+  *   the numerator.
+  * @param e2
+  *   the denominator.
+  */
+case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => SmartMod(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type]): Expr = {
+    val newLhs = e1.tchk
+    val t1 = newLhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Left-hand side of $className has type $t."
+            + " Expected an integer"
+        )
+    }
+    val newRhs = e2.tchk
+    val t2 = newRhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Right-hand side of $className has type $t."
+            + " Expected an integer."
+        )
+    }
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    this.rebuild(typ, Seq(newLhs, newRhs))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val typ = this.typ.asInstanceOf[TyAnyInt]
+    val e1 = this.e1.lower()
+    val e2 = this.e2.lower()
+    Mod(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
   }
 }
 

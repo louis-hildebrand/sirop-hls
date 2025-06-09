@@ -367,7 +367,8 @@ trait Eval {
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.sum)(e.typ)
+          val fullResult = xs.sum
+          IntCst(truncate(fullResult, e.typ.asInstanceOf[TyAnyInt]))(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
@@ -377,7 +378,8 @@ trait Eval {
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.product)(e.typ)
+          val fullResult = xs.product
+          IntCst(truncate(fullResult, e.typ.asInstanceOf[TyAnyInt]))(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Prod evaluated to $factorValues. They must each evaluate to an integer."
@@ -389,7 +391,7 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Division by zero.")
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)()
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Div evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -401,7 +403,7 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw new IllegalArgumentException("Modulo by zero.")
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)()
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -425,32 +427,8 @@ trait Eval {
           targetWidth <= typ.w,
           s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
         )
-        val truncatedV = {
-          val mask = (0 until targetWidth).foldLeft(0)({ case (n, _) =>
-            (n << 1) | 1
-          })
-          val masked = v.i & mask
-          typ match {
-            case _: TySInt =>
-              // Need to sign extend because the value is stored in a Scala
-              // Int, which is a 32-bit signed int
-              assert(
-                masked.isInstanceOf[Int],
-                "expect value to be stored in a 32-bit int"
-              )
-              val msbIsOne = (masked & (1 << (targetWidth - 1))) != 0
-              if (msbIsOne) {
-                (targetWidth until 32).foldLeft(masked)({ case (n, i) =>
-                  n | (1 << i)
-                })
-              } else {
-                masked
-              }
-            case _: TyUInt =>
-              masked
-          }
-        }
-        IntCst(truncatedV)(typ.withWidth(targetWidth))
+        val targetTyp = typ.withWidth(targetWidth)
+        IntCst(truncate(v.i, targetTyp))(targetTyp)
       case ToSigned(e) =>
         val v = evalBigStep(e)
         v.typ.asInstanceOf[TyUInt] match {
@@ -636,6 +614,32 @@ trait Eval {
       s"evaluation should preserve the type (expected ${e.typ}, found ${typedV.typ})"
     )
     typedV
+  }
+
+  private def truncate(n: Int, typ: TyAnyInt): Int = {
+    val mask = (0 until typ.w).foldLeft(0)({ case (n, _) =>
+      (n << 1) | 1
+    })
+    val masked = n & mask
+    typ match {
+      case _: TySInt =>
+        // Need to sign extend because the value is stored in a Scala
+        // Int, which is a 32-bit signed int
+        assert(
+          masked.isInstanceOf[Int],
+          "expect value to be stored in a 32-bit int"
+        )
+        val msbIsOne = (masked & (1 << (typ.w - 1))) != 0
+        if (msbIsOne) {
+          (typ.w until 32).foldLeft(masked)({ case (n, i) =>
+            n | (1 << i)
+          })
+        } else {
+          masked
+        }
+      case _: TyUInt =>
+        masked
+    }
   }
 
   private def evalTupleEqual(v1: Tuple, v2: Expr): Expr = {

@@ -31,11 +31,11 @@ private object SharedScope extends AccVarScope
   *   than <code>Missing</code>.
   */
 sealed abstract class Expr(val children: Expr*)(val typ: Type) {
-  def +(that: Expr): Expr = Sum(this, that)()
-  def -(that: Expr): Expr = Sum(this, Prod(-1, that)())()
-  def *(that: Expr): Expr = Prod(this, that)()
-  def /(that: Expr): Div = Div(this, that)()
-  def %(that: Expr): Mod = Mod(this, that)()
+  def +(that: Expr): Expr = SmartSum(this, that)()
+  def -(that: Expr): Expr = this + -1 * that
+  def *(that: Expr): Expr = SmartProd(this, that)()
+  def /(that: Expr): Expr = SmartDiv(this, that)()
+  def %(that: Expr): Expr = SmartMod(this, that)()
   def ===(that: Expr): Expr = SmartEqual(this, that)()
   def !==(that: Expr): Expr = !(this === that)
   def <(that: Expr): Expr = SmartLessThan(this, that)()
@@ -403,7 +403,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             case t =>
               throw new TypeError(
                 s"Invalid type $t for accumulator $x."
-                  + s"Accumulators can only be streams or data."
+                  + s" Accumulators can only be streams or data."
               )
           }
         })

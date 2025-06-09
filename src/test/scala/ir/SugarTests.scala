@@ -166,27 +166,27 @@ class SugarTests extends AnyFunSuite {
   test("SmartSum:Valid") {
     assert(
       ir.eval(
-        SmartSum(IntCst(127)(I8), IntCst(127)(TyUInt(7)), IntCst(32767)(I16))()
+        SmartSum(IntCst(-1)(I8), IntCst(5)(TyUInt(7)), IntCst(-300)(I16))()
       )
-        == IntCst(33021)()
+        == IntCst(-296)()
     )
     assert(
       ir.eval(
-        SmartSum(IntCst(255)(U8), IntCst(255)(U8), IntCst(1)(TyUInt(1)))()
+        SmartSum(IntCst(3)(U8), IntCst(2)(U8), IntCst(1)(TyUInt(1)))()
       )
-        == IntCst(511)()
+        == IntCst(3 + 2 + 1)()
     )
     assert(
       ir.eval(
         SmartSum(
           SmartSum(
-            SmartSum(IntCst(255)(U8), IntCst(255)(U8))(),
-            IntCst(255)(U8)
+            SmartSum(IntCst(1)(U8), IntCst(2)(U8))(),
+            IntCst(3)(U8)
           )(),
-          IntCst(255)(U8)
+          IntCst(4)(U8)
         )()
       )
-        == IntCst(4 * 255)()
+        == IntCst(1 + 2 + 3 + 4)()
     )
     assert(
       ir.eval(SmartSum(IntCst(0)(TyUInt(0)), IntCst(0)(TySInt(0)))())
@@ -200,9 +200,18 @@ class SugarTests extends AnyFunSuite {
   }
 
   test("SmartProd:Valid") {
+    assert(ir.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
     assert(ir.eval(SmartProd()()) == IntCst(1)())
+  }
+
+  test("SmartDiv:Valid") {
+    assert(ir.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)())
+    assert(ir.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(-14)())
+  }
+
+  test("SmartMod:Valid") {
     assert(
-      ir.eval(IntCst(255)(U8) * IntCst(32767)(I16)) == IntCst(255 * 32767)()
+      ir.eval(SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()) == IntCst(2)()
     )
   }
 }

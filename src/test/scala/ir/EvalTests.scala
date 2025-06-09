@@ -141,4 +141,26 @@ class EvalTests extends AnyFunSuite {
     // -1 = (11111111)_2
     assert(ir.eval(FunCall(f, IntCst(-1)(I8))()) == IntCst(127)())
   }
+
+  test("AddWithOverflow:U8:255 + 255 + 255") {
+    val c = IntCst(255)(U8)
+    assert(ir.eval(Sum(c, c, c)()) == IntCst((3 * 255) % 256)())
+  }
+
+  test("AddWithOverflow:I16:32767 + 1") {
+    assert(
+      ir.eval(Sum(IntCst(32767)(I16), IntCst(1)(I16))()) == IntCst(-32768)()
+    )
+  }
+
+  test("MulWithOverflow1:U8:32 * 32") {
+    val c = IntCst(32)(U8)
+    assert(ir.eval(Prod(c, c)()) == IntCst((32 * 32) % 256)())
+  }
+
+  test("MulWithOverflow:I8:-100 * 2") {
+    assert(
+      ir.eval(Prod(IntCst(-100)(I8), IntCst(2)(I8))()) == IntCst(56)()
+    )
+  }
 }

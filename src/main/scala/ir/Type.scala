@@ -50,7 +50,7 @@ sealed trait Type {
         }
       case TyStm(t, n) =>
         t.lower match {
-          case TyStm(t, m) => TyStm(t, n * m)
+          case TyStm(t, m) => TyStm(t, (n * m).tchk().lower())
           case t           => TyStm(t, n)
         }
     }

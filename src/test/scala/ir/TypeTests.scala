@@ -370,7 +370,7 @@ class TypeTests extends AnyFunSuite {
 
   test("LowerType:Stm[Stm[Int]]") {
     val t = TyStm(TyStm(TyBool, m), n)
-    assert(t.lower == TyStm(TyBool, n * m))
+    assert(t.lower == TyStm(TyBool, Prod(n, m)()))
   }
 
   test("LowerType:Stm[Vec[Int]]") {
@@ -390,17 +390,17 @@ class TypeTests extends AnyFunSuite {
 
   test("LowerType:Stm[Stm[Stm[Int]]]") {
     val t = TyStm(TyStm(TyStm(TyBool, k), m), n)
-    assert(t.lower == TyStm(TyBool, n * m * k))
+    assert(t.lower == TyStm(TyBool, Prod(n, m, k)()))
   }
 
   test("LowerType:Stm[Stm[Vec[Int]]]") {
     val t = TyStm(TyStm(TyVec(I8, k), m), n)
-    assert(t.lower == TyStm(TyVec(I8, k), n * m))
+    assert(t.lower == TyStm(TyVec(I8, k), Prod(n, m)()))
   }
 
   test("LowerType:Stm[Vec[Stm[Int]]]") {
     val t = TyStm(TyVec(TyStm(I16, k), m), n)
-    assert(t.lower == TyStm(TyVec(I16, m), n * k))
+    assert(t.lower == TyStm(TyVec(I16, m), Prod(n, k)()))
   }
 
   test("LowerType:Stm[Vec[Vec[Int]]]") {
@@ -410,7 +410,7 @@ class TypeTests extends AnyFunSuite {
 
   test("LowerType:Vec[Stm[Stm[Int]]]") {
     val t = TyVec(TyStm(TyStm(U8, k), m), n)
-    assert(t.lower == TyStm(TyVec(U8, n), m * k))
+    assert(t.lower == TyStm(TyVec(U8, n), Prod(m, k)()))
   }
 
   test("LowerType:Vec[Stm[Vec[Int]]]") {

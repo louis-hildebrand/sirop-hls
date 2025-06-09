@@ -174,25 +174,24 @@ class TypecheckerTests extends AnyFunSuite {
         )()
       )
     val checked = original.tchk()
-    val expectedType =
-      TyArrow(TyTuple(TyUInt(8), TyBool), TyTuple(TyBool, TyUInt(17)))
+    val expectedType = TyArrow(TyTuple(U8, TyBool), TyTuple(TyBool, U8))
     assert(checked.typ == expectedType)
     assertAllNodesHaveType(checked)
   }
 
   test("Vector") {
     val n = Param("n")()
-    val v = VecBuild(n, TyInt ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
+    val v = VecBuild(n, U8 ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
     val original = VecAccess(v, VecLength(v)() - 1)()
-    val checked = original.tchk(Map(n -> TyInt))
-    assert(checked.typ == TyTuple(TyInt, TyBool))
+    val checked = original.tchk(Map(n -> U8))
+    assert(checked.typ == TyTuple(U8, TyBool))
     assertAllNodesHaveType(checked)
   }
 
   test("SimpleStream") {
     val n = Param("n")()
     val b = Param("b")(TyBool)
-    val a = Param("a")(TyInt)
+    val a = Param("a")(U8)
     val original =
       StmBuild(
         n,
@@ -203,8 +202,8 @@ class TypecheckerTests extends AnyFunSuite {
           b -> (False, Not(b)() || (a % 4 === 0))
         )
       )()
-    val checked = original.tchk(Map(n -> TyInt))
-    assert(checked.typ == TyStm(TyInt, n.rebuild(TyInt)))
+    val checked = original.tchk(Map(n -> U16))
+    assert(checked.typ == TyStm(U8, n.rebuild(U16)))
     assertAllNodesHaveType(checked)
   }
 
