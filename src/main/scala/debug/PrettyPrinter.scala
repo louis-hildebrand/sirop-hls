@@ -18,9 +18,13 @@ object PrettyPrinter {
       case Sum(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" + ")
       case Prod(factors @ _*) =>
         factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)   => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)   => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case Equal(x, y) => s"${showWithParens(x)} === ${showWithParens(y)}"
+      case Div(x, y)        => s"${showWithParens(x)} / ${showWithParens(y)}"
+      case Mod(x, y)        => s"${showWithParens(x)} % ${showWithParens(y)}"
+      case PadTo(x, y)      => s"pad_to(${show(x)}, $y)"
+      case TruncateTo(x, y) => s"trunc_to(${show(x)}, $y)"
+      case ToSigned(x)      => s"to_signed(${show(x)})"
+      case ToUnsigned(x)    => s"to_unsigned(${show(x)})"
+      case Equal(x, y)      => s"${showWithParens(x)} === ${showWithParens(y)}"
       case Not(Equal(x, y)) =>
         s"${showWithParens(x)} !== ${showWithParens(y)}"
       case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
