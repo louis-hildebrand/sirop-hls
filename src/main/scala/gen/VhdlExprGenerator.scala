@@ -128,7 +128,9 @@ private object VhdlExprGenerator {
         // TODO: Use for-generate here instead?
         val n = ir.eval(len).asInstanceOf[IntCst].i
         val elems =
-          (0 until n).map(i => PartialEvalPass.partialEval(FunCall(f, i)()))
+          (0 until n.toInt).map(i =>
+            PartialEvalPass.partialEval(FunCall(f, i)())
+          )
         exprToVhdl(VecLiteral(elems: _*)().tchk())
       case VecBuild(n, _) =>
         throw new IllegalArgumentException(

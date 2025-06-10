@@ -80,7 +80,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("TruncateTo") {
-    def truncations(i: IntCst): Seq[Int] = {
+    def truncations(i: IntCst): Seq[Long] = {
       val w0 = i.typ.asInstanceOf[TyAnyInt].w
       (w0 to 0 by -1).map(w =>
         ir.eval(TruncateTo(i, w)()).asInstanceOf[IntCst].i

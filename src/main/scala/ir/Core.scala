@@ -341,7 +341,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newT = t.tchk
         newT.typ match {
           case TyTuple(ts @ _*) =>
-            ta.rebuild(ts(idx.i), Seq(newT, newIdx))
+            ta.rebuild(ts(idx.i.toInt), Seq(newT, newIdx))
           case t =>
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
@@ -1014,7 +1014,7 @@ sealed abstract class IntExpr(children: Expr*)(typ: Type)
   * @param i
   *   the integer value.
   */
-case class IntCst(i: Int)(typ: Type = Missing) extends IntExpr()(typ) {
+case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
   typ match {
     case Missing => ()
     case int: TyAnyInt =>
@@ -1044,7 +1044,7 @@ object C {
     * @param typ
     *   the type annotation.
     */
-  def apply(i: Int)(typ: Type = Missing): IntCst = {
+  def apply(i: Long)(typ: Type = Missing): IntCst = {
     IntCst(i)(typ)
   }
 }

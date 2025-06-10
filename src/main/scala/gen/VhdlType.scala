@@ -41,7 +41,7 @@ private[gen] object VhdlType {
       case TyTuple(ts @ _*) => VhdlRecord(ts.map(t => VhdlType(t)))
       case TyVec(t, len) if len.freeVars().isEmpty =>
         val n = ir.eval(len).asInstanceOf[IntCst].i
-        VhdlArray(n, VhdlType(t))
+        VhdlArray(n.toInt, VhdlType(t))
       case t =>
         throw new IllegalArgumentException(
           s"Cannot convert type $t to a VHDL type."

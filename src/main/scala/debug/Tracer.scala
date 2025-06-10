@@ -42,9 +42,6 @@ private object Serialization {
   *   the state of the pipeline at each step.
   */
 case class Trace(steps: Seq[TraceNode]) {
-  def display(): String = {
-    steps.zipWithIndex.map({ case (n, t) => n.display(t) }).mkString("\n")
-  }
 
   /** Converts this trace to JSON.
     */
@@ -75,9 +72,7 @@ private object TraceTop extends TraceType
 
 /** One node in a trace.
   */
-sealed trait TraceNode {
-  def display(t: Int): String
-}
+sealed trait TraceNode
 
 object TraceNode {
   def apply(s: StmNode, mode: TraceType): TraceNode = {
@@ -102,21 +97,11 @@ object TraceNode {
   *   the input streams.
   */
 case class FullTraceNode(
-    n: Int,
+    n: Long,
     state: NodeState,
     accumulators: Map[String, String],
     inputs: Map[String, TraceNode]
-) extends TraceNode {
-  def display(t: Int): String = {
-    ???
-    s"""Cycle $t:
-       |    N:            $n
-       |    State:        TODO
-       |    Accumulators: TODO
-       |    Inputs:       TODO
-       |""".stripMargin.stripTrailing
-  }
-}
+) extends TraceNode
 
 object FullTraceNode {
   def apply(s: StmNode): FullTraceNode = {
@@ -145,34 +130,11 @@ object FullTraceNode {
   *   the current length of each input stream.
   */
 case class SummarizedTraceNode(
-    n: Int,
+    n: Long,
     state: NodeState,
     accumulators: Map[String, String],
-    inputLengths: Map[String, Int]
-) extends TraceNode {
-  def display(t: Int): String = {
-    val stateStr = state match {
-      case Empty    => "empty"
-      case Stalled  => "stalled"
-      case Invalid  => "invalid"
-      case Valid(v) => s"valid (${PrettyPrinter.show(v, evalVec = true)()})"
-      case Deadlocked(reasons) => s"deadlocked (${reasons.mkString(",")})"
-    }
-    val accStr = {
-      val dataAccStrings = accumulators.map({ case (x, v) => s"$x = $v" })
-      val inputStmStrings = inputLengths.map({ case (x, n) =>
-        s"$x = StmBuild($n; ...)"
-      })
-      (dataAccStrings ++ inputStmStrings).toSeq.sorted
-        .mkString("( ", ", ", " )")
-    }
-    s"""Step $t:
-       |    N:            $n
-       |    State:        $stateStr
-       |    Accumulators: $accStr
-       |""".stripMargin.stripTrailing
-  }
-}
+    inputLengths: Map[String, Long]
+) extends TraceNode
 
 object SummarizedTraceNode {
   def apply(s: StmNode): SummarizedTraceNode = {

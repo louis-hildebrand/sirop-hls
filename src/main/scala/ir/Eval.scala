@@ -84,7 +84,7 @@ case class StmNodeHardware(
   */
 case class StmNode(
     hw: StmNodeHardware,
-    n: Int,
+    n: Long,
     currentValByDataAcc: Map[Param, Expr],
     inputs: Map[Param, StmNode],
     state: NodeState,
@@ -448,10 +448,8 @@ trait Eval {
           case TySInt(w) =>
             // Just drop the sign bit
             val newWidth = math.max(0, w - 1)
-            val mask = (0 until newWidth).foldLeft(0)({ case (n, _) =>
-              (n << 1) | 1
-            })
-            IntCst(v.i & mask)(TyUInt(newWidth))
+            val typ = TyUInt(newWidth)
+            C(truncate(v.i, typ))(typ)
         }
 
       case True  => True
@@ -529,7 +527,7 @@ trait Eval {
         evalBigStep(t) match {
           case Tuple(elems @ _*) =>
             evalBigStep(i) match {
-              case IntCst(i) if elems.indices.contains(i) => elems(i)
+              case IntCst(i) if elems.indices.contains(i) => elems(i.toInt)
               case IntCst(i) =>
                 throw new TypeError(
                   s"Index $i is out of bounds for a tuple with ${elems.length} elements."
@@ -550,7 +548,7 @@ trait Eval {
         evalBigStep(n) match {
           case IntCst(n) if n >= 0 =>
             VecLiteral(
-              (0 until n).map(i => {
+              (0 until n.toInt).map(i => {
                 val inTyp = f.param.typ
                 assert(inTyp.isInstanceOf[TyUInt])
                 evalBigStep(FunCall(f, IntCst(i)(inTyp))().tchk())
@@ -565,7 +563,7 @@ trait Eval {
         evalBigStep(v) match {
           case VecLiteral(elems @ _*) =>
             evalBigStep(i) match {
-              case IntCst(i) if elems.indices.contains(i) => elems(i)
+              case IntCst(i) if elems.indices.contains(i) => elems(i.toInt)
               case _: IntCst =>
                 val t = v.tchk().typ.asInstanceOf[TyVec].t
                 evalBigStep(Default(t).lower())
@@ -595,7 +593,7 @@ trait Eval {
               case IntCst(k) if k <= 0 => s
               case IntCst(k) =>
                 val t = s.typ.asInstanceOf[TyStm].t
-                val newElems = s.elems.drop(k)
+                val newElems = s.elems.drop(k.toInt)
                 StmLiteral(newElems: _*)(TyStm(t, newElems.length))
               case e =>
                 throw new TypeError(
@@ -623,23 +621,23 @@ trait Eval {
     typedV
   }
 
-  private def truncate(n: Int, typ: TyAnyInt): Int = {
-    val mask = (0 until typ.w).foldLeft(0)({ case (n, _) =>
+  private def truncate(n: Long, typ: TyAnyInt): Long = {
+    val mask = (0 until typ.w).foldLeft(0L)({ case (n, _) =>
       (n << 1) | 1
     })
     val masked = n & mask
     typ match {
       case _: TySInt =>
         // Need to sign extend because the value is stored in a Scala
-        // Int, which is a 32-bit signed int
+        // Long, which is a 64-bit signed int
         assert(
-          masked.isInstanceOf[Int],
-          "expect value to be stored in a 32-bit int"
+          masked.isInstanceOf[Long],
+          "expect value to be stored in a 64-bit int"
         )
-        val msbIsOne = (masked & (1 << (typ.w - 1))) != 0
+        val msbIsOne = (masked & (1L << (typ.w - 1))) != 0
         if (msbIsOne) {
-          (typ.w until 32).foldLeft(masked)({ case (n, i) =>
-            n | (1 << i)
+          (typ.w until 64).foldLeft(masked)({ case (n, i) =>
+            n | (1L << i)
           })
         } else {
           masked

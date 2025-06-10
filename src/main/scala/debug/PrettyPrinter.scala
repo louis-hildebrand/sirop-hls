@@ -260,7 +260,9 @@ object PrettyPrinter {
     PartialEvalPass.partialEval(v.len) match {
       case IntCst(n) =>
         val elems =
-          (0 until n).map(i => PartialEvalPass.partialEval(VecAccess(v, i)()))
+          (0 until n.toInt).map(i =>
+            PartialEvalPass.partialEval(VecAccess(v, i)())
+          )
         if (elems.exists(e => e.isInstanceOf[VecAccess])) {
           None
         } else {

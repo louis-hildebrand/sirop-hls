@@ -292,7 +292,7 @@ object PartialEvalPass {
           case TupleAccess(t: Expr, IntCst(i)) =>
             partialEval(t) match {
               case tuple: Tuple =>
-                partialEval(tuple.elems(i))
+                partialEval(tuple.elems(i.toInt))
               case Mux(c, t, f) =>
                 // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
