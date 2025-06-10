@@ -449,7 +449,7 @@ trait Eval {
             // Just drop the sign bit
             val newWidth = math.max(0, w - 1)
             val typ = TyUInt(newWidth)
-            C(truncate(v.i, typ))(typ)
+            IntCst(truncate(v.i, typ))(typ)
         }
 
       case True  => True

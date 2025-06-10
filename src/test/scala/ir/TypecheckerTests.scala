@@ -208,7 +208,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StreamWithStreamInput") {
-    val n = Param("n")()
+    val n = Param("n")(U8)
     val input = Param("input")()
     val s = Param("s")(TyStm(I16, n))
     val a = Param("a")(I16)
@@ -225,7 +225,7 @@ class TypecheckerTests extends AnyFunSuite {
       )
     )()
     val checked =
-      original.tchk(Map(n -> U8, input -> TyStm(I16, n)))
+      original.tchk(Map(input -> TyStm(I16, n)))
     assert(checked.typ == TyStm(I16, n.rebuild(U8)))
     assertAllNodesHaveType(checked)
   }

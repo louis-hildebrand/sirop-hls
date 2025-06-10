@@ -7,7 +7,7 @@ class LoweringTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyStm(U8, 2), 2))
     val actual = s.lower()
     assert(actual.lower() == s)
-    assert(actual.typ == TyStm(U8, Prod(2, 2)()))
+    assert(actual.typ == TyStm(U8, Prod(PadTo(2, 4)(), PadTo(2, 4)())()))
   }
 
   test("LowerFunction") {
@@ -15,7 +15,7 @@ class LoweringTests extends AnyFunSuite {
     val f = Function(s, s)().tchk()
     val actual = f.lower().asInstanceOf[Function]
     assert(actual == f)
-    assert(actual.param.typ == TyStm(U16, Prod(3, 2)()))
+    assert(actual.param.typ == TyStm(U16, Prod(PadTo(3, 4)(), PadTo(2, 4)())()))
   }
 
   test("LowerLet") {
@@ -26,7 +26,7 @@ class LoweringTests extends AnyFunSuite {
     assert(actual == FunCall(Function(s, s)(), s1)())
     assert(
       actual.f.asInstanceOf[Function].param.typ
-        == TyStm(U32, Prod(2, 2)())
+        == TyStm(U32, Prod(PadTo(2, 4)(), PadTo(2, 4)())())
     )
   }
 

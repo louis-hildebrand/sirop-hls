@@ -496,7 +496,7 @@ class CoreTests extends AnyFunSuite {
   }
 
   test("StmBuild:AddInputCounter") {
-    val n = Param("n")()
+    val n = Param("n")(U8)
     val f = Param("f")()
     val g = Param("g")()
     val input = Param("input")()
@@ -504,7 +504,6 @@ class CoreTests extends AnyFunSuite {
     val inCtr = Param("in_ctr")(U8)
     val s = Param("s")(TyStm(U8, n))
     val context = Map(
-      n -> U8,
       f -> TyArrow(U8, TyBool),
       g -> TyArrow(U8, TyBool),
       input -> TyStm(U8, n)
