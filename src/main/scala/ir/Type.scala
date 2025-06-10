@@ -35,6 +35,8 @@ sealed trait Type {
     }
   }
 
+  def substitute(sub: (Expr, Expr)): Type = substitute(Map(sub))
+
   def lower: Type = {
     this match {
       case Missing | TyInt | TyBool => this

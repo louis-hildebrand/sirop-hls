@@ -1,7 +1,7 @@
 package ir
 
 import scala.annotation.tailrec
-import scala.language.implicitConversions
+import scala.language.{existentials, implicitConversions}
 
 class DeadlockError(val reasons: Seq[DeadlockReason])
     extends RuntimeException(s"Deadlock (${reasons.mkString(", ")}).")
@@ -342,6 +342,11 @@ trait Eval {
   }
 
   private[ir] def evalBigStep(e: Expr): Expr = {
+    // Mutable state, so gross, right?
+    // But it's much more convenient than returning the expected type alongside
+    // the value in each and every case, despite it only being different in the
+    // FunCall case.
+    var expectedType = e.typ
     val v: Expr = e match {
       case x: Param =>
         throw new IllegalArgumentException(
@@ -356,6 +361,7 @@ trait Eval {
               case _: TyStm => arg
               case _        => evalBigStep(arg)
             }
+            expectedType = body.typ.substitute(x -> a)
             evalBigStep(body.subPreserveType(x -> a))
           case v =>
             throw new IllegalArgumentException(
@@ -611,8 +617,8 @@ trait Eval {
     }
     val typedV = v.tchk()
     assert(
-      typedV.typ ~= e.typ,
-      s"evaluation should preserve the type (expected ${e.typ}, found ${typedV.typ})"
+      typedV.typ ~= expectedType,
+      s"evaluation should preserve the type (expected $expectedType, found ${typedV.typ})"
     )
     typedV
   }
