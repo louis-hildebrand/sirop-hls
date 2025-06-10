@@ -27,13 +27,16 @@ class TracerTests extends AnyFunSuite {
   test("Counter") {
     ir.resetState()
     val n = 3
-    val i = Param("i")(TyInt)
-    val j = Param("j")(TyInt)
+    val i = Param("i")(U8)
+    val j = Param("j")(U8)
     val s = StmBuild(
       n,
       i + 2 * j,
       i % 2 === 0,
-      Map[Param, (Expr, Expr)](i -> (0, i + 1), j -> (10, j + i))
+      Map[Param, (Expr, Expr)](
+        i -> (IntCst(0)(U8), i + 1),
+        j -> (IntCst(10)(U8), j + i)
+      )
     )().tchk().lower().asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(s)
@@ -52,13 +55,18 @@ class TracerTests extends AnyFunSuite {
 
   test("Stm2Vec") {
     ir.resetState()
-    val n = 4
-    val i = Param("i")(TyInt)
+    val n = IntCst(4)(U8)
+    val i = Param("i")(U8)
     val input =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (42, i + 1)))()
-    val s = Param("s")(TyStm(TyInt, n))
-    val v = Param("v")(TyVec(TyInt, n))
-    val t = Param("t")(TyInt)
+      StmBuild(
+        n,
+        ReshapeData(i, I32)(),
+        True,
+        Map[Param, (Expr, Expr)](i -> (IntCst(42)(U8), i + 1))
+      )()
+    val s = Param("s")(TyStm(I32, -1))
+    val v = Param("v")(TyVec(I32, n))
+    val t = Param("t")(U8)
     val stm2vec = StmBuild(
       1,
       VecShiftLeft(v, StmData(s)())(),
@@ -66,10 +74,10 @@ class TracerTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         v -> (
-          VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
+          VecBuild(n, U8 ::+ (_ => Default(I32)))(),
           VecShiftLeft(v, StmData(s)())()
         ),
-        t -> (0, t + 1)
+        t -> (IntCst(0)(U8), t + 1)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
@@ -90,12 +98,17 @@ class TracerTests extends AnyFunSuite {
   test("Interleave") {
     ir.resetState()
     val stm1 = {
-      val i = Param("i")(TyInt)
-      StmBuild(2, i, True, Map[Param, (Expr, Expr)](i -> (0, i + 1)))()
+      val i = Param("i")(U8)
+      StmBuild(
+        2,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
+      )()
     }
     val stm2 = {
-      val s = Param("s")(TyStm(TyInt, -1))
-      val j = Param("j")(TyInt)
+      val s = Param("s")(TyStm(U8, -1))
+      val j = Param("j")(U8)
       StmBuild(
         2,
         StmData(s)(),
@@ -106,7 +119,7 @@ class TracerTests extends AnyFunSuite {
               4,
               j,
               True,
-              Map[Param, (Expr, Expr)](j -> (42, j + 1))
+              Map[Param, (Expr, Expr)](j -> (IntCst(42)(U8), j + 1))
             )(),
             True
           )
@@ -115,8 +128,8 @@ class TracerTests extends AnyFunSuite {
     }
     val s = {
       val b = Param("b")(TyBool)
-      val s1 = Param("s1")(TyStm(TyInt, -1))
-      val s2 = Param("s2")(TyStm(TyInt, -1))
+      val s1 = Param("s1")(TyStm(U8, -1))
+      val s2 = Param("s2")(TyStm(U8, -1))
       StmBuild(
         4,
         Mux(b, StmData(s1)(), StmData(s2)())(),

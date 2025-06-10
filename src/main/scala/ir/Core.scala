@@ -1126,7 +1126,7 @@ case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
 }
 
 // Boolean expressions
-// Unfortunately, cannot say that this node always has type Int.
+// Unfortunately, cannot say that this node always has type Bool.
 // If we do, then the type checker will not visit the children, which may lead
 // to type errors being missed.
 sealed abstract class BoolExpr(children: Expr*)(typ: Type)
