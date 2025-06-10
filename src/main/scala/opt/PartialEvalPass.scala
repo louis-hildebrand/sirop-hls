@@ -96,24 +96,36 @@ object PartialEvalPass {
             partialEval(e) match {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
-              case e => PadTo(e, w)()
+              case v: IntCst => ir.eval(PadTo(v, w)())
+              case e         => PadTo(e, w)()
             }
           case TruncateTo(e, w) =>
             partialEval(e) match {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
-              case e => TruncateTo(e, w)()
+              case v: IntCst => ir.eval(TruncateTo(v, w)())
+              case e         => TruncateTo(e, w)()
             }
           case ToSigned(e) =>
             partialEval(e) match {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
-              case e => ToSigned(e)()
+              case v: IntCst => ir.eval(ToSigned(v)())
+              case e         => ToSigned(e)()
             }
           case ToUnsigned(e) =>
             partialEval(e) match {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
+              case v: IntCst =>
+                // TODO: This is a hack to ensure the argument of ToUnsigned
+                //       is signed. Better to preserve the type during partial
+                //       evaluation
+                val vv = v.typ match {
+                  case _: TySInt => v
+                  case _         => v.rebuild(TyAnyInt.tightest(-1, v.i))
+                }
+                ir.eval(ToUnsigned(vv)())
               case e => ToUnsigned(e)()
             }
 

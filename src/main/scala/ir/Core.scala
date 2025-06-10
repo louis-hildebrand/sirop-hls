@@ -224,17 +224,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
       case sgn @ ToSigned(e) =>
-        val newE = e.tchk
-        newE.typ match {
-          case TyUInt(w) =>
-            // Widen by one bit so that the value is guaranteed to fit
-            sgn.rebuild(TySInt(w + 1), Seq(newE))
-          case t =>
-            throw new TypeError(
-              s"Argument of ${ToSigned.getClass.getSimpleName} has type $t."
-                + " Expected an unsigned integer."
-            )
-        }
+        val newE = e.tchk.expectUInt()
+        val w = newE.typ.asInstanceOf[TyUInt].w
+        // Widen by one bit so that the value is guaranteed to fit
+        sgn.rebuild(TySInt(w + 1), Seq(newE))
       case uns @ ToUnsigned(e) =>
         val newE = e.tchk
         newE.typ match {
@@ -362,15 +355,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case t =>
             throw new TypeError(s"Left-hand side of VecAccess has type $t.")
         }
-        val newI = i.tchk
-        newI.typ match {
-          case _: TyUInt => ()
-          case t =>
-            throw new TypeError(
-              s"Right-hand side of VecAccess has type $t."
-                + " Expected an unsigned integer"
-            )
-        }
+        val newI = i.tchk.expectUInt()
         va.rebuild(vecT, Seq(newV, newI))
       case VecLiteral(elems @ _*) =>
         elems match {
@@ -406,15 +391,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               )
           }
         })
-        val newN = s.n.tchk(context)
-        newN.typ match {
-          case _: TyUInt => ()
-          case t =>
-            throw new TypeError(
-              s"Stream length has type $t."
-                + " Expected an unsigned integer."
-            )
-        }
+        val newN = s.n.tchk(context).expectUInt()
         val newEquations = s.equations.map({ case (x, (z, next)) =>
           val newZ = z.tchk(context)
           if (!(newZ.typ ~= x.typ)) {
@@ -496,6 +473,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  @deprecated
   def expectTypeCompatibleWith(t: Type): Expr = {
     if (!this.typ.isCompatibleWith(t)) {
       throw new TypeError(s"Expected type $t but found ${this.typ}.")
@@ -503,6 +481,55 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     this
   }
 
+  /** Insist that this expression has the type of an unsigned integer.
+    *
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
+  def expectUInt(): Expr = {
+    this.typ match {
+      case _: TyUInt => this
+      case t =>
+        throw new TypeError(s"Expected an unsigned integer but found $t.")
+    }
+  }
+
+  /** Insist that this expression has the type of an integer, either signed or
+    * unsigned.
+    *
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
+  def expectAnyInt(): Expr = {
+    this.typ match {
+      case _: TyAnyInt => this
+      case t =>
+        throw new TypeError(s"Expected an integer but found $t.")
+    }
+  }
+
+  def expectStream(): Expr = {
+    this.typ match {
+      case _: TyStm => this
+      case t =>
+        throw new TypeError(s"Expected a stream but found $t.")
+    }
+  }
+
+  /** Insist that this expression's type is compatible with the given type (as
+    * determined by [[Type.~=]]).
+    *
+    * @param t
+    *   the expected type.
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
   def expectType(t: Type): Expr = {
     if (this.typ != t) {
       throw new TypeError(s"Expected type $t but found ${this.typ}.")
@@ -511,11 +538,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   }
 
   /** Insist that this expression has been type checked.
+    *
+    * @param action
+    *   the action that must be preceded by type checking.
     */
-  protected def requireType(): Unit = {
+  protected def requireType(action: String = "lowering"): Unit = {
     require(
       this.typ != Missing,
-      s"$className must be type checked before it can be lowered."
+      s"$className must be type checked before $action."
     )
   }
 
@@ -978,6 +1008,12 @@ sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
 // TODO: Use Long or BigInt here so that wide int types can be represented?
+
+/** An integer constant.
+  *
+  * @param i
+  *   the integer value.
+  */
 case class IntCst(i: Int)(typ: Type = Missing) extends IntExpr()(typ) {
   typ match {
     case Missing => ()
@@ -993,6 +1029,22 @@ case class IntCst(i: Int)(typ: Type = Missing) extends IntExpr()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
+    IntCst(i)(typ)
+  }
+}
+
+/** Shorthand for [[IntCst]].
+  */
+object C {
+
+  /** Constructs an [[IntCst]].
+    *
+    * @param i
+    *   the integer value.
+    * @param typ
+    *   the type annotation.
+    */
+  def apply(i: Int)(typ: Type = Missing): IntCst = {
     IntCst(i)(typ)
   }
 }
@@ -1596,7 +1648,7 @@ case class StmBuild(
     *   appears bound in this stream, then the bound variable will be renamed.
     */
   def addOutputCounter(outCtr: Param): StmBuild = {
-    requireType()
+    requireType("adding an output counter")
     outCtr.typ match {
       case Missing =>
         throw new TypeError(
@@ -1616,7 +1668,7 @@ case class StmBuild(
         this.renameVar(outCtr)
       else
         this
-    val z = IntCst(0)()
+    val z = IntCst(0)(outCtr.typ)
     val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
     s.addAccumulator(outCtr, z, next)
   }
@@ -1632,7 +1684,7 @@ case class StmBuild(
     *   appears bound in this stream, then the bound variable will be renamed.
     */
   def addInputCounter(x: Param, inCtr: Param): StmBuild = {
-    requireType()
+    requireType("adding an input counter")
     inCtr.typ match {
       case Missing =>
         throw new TypeError(
@@ -1652,10 +1704,9 @@ case class StmBuild(
         this.renameVar(inCtr)
       else
         this
-    val z = IntCst(0)()
     val stmNextCalled = s.nextByVar(x)
     val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
-    s.addAccumulator(inCtr, z, next)
+    s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
   }
 
   /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
@@ -1664,7 +1715,7 @@ case class StmBuild(
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     val newEquations = this.equations + (x -> (z, next))
     val isTyped = (x.hasType && z.hasType && next.hasType
-      && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
+      && (z.typ ~= x.typ) && (next.typ ~= x.typ))
     val t = if (isTyped) this.typ else Missing
     StmBuild(this.n, this.data, this.valid, newEquations)(t)
   }
@@ -1984,18 +2035,10 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
   }
 
   def typecheckVecBuild(implicit context: Map[Param, Type]): Expr = {
-    val newN = len.tchk
-    newN.typ match {
-      case _: TyUInt => ()
-      case t =>
-        throw new TypeError(
-          s"Vector length has type $t."
-            + " Expected an unsigned integer."
-        )
-    }
+    val newN = len.tchk.expectUInt()
     val newF = f.tchk
     val vecT = newF.typ match {
-      case TyArrow(_: TyUInt, t) if Default.hasDefault(t) => t
+      case TyArrow(_: TyUInt, t) => t
       case t => throw new TypeError(s"Function of VecBuild has type $t.")
     }
     this.rebuild(TyVec(vecT, newN), Seq(newN, newF))
@@ -2113,6 +2156,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   }
 }
 
+@deprecated
 case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -2134,10 +2178,11 @@ case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    s.typ.asInstanceOf[TyStm].n.lower()
+    ReshapeData(s.typ.asInstanceOf[TyStm].n, U32)().tchk().lower()
   }
 }
 
+@deprecated
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -2159,6 +2204,6 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    v.typ.asInstanceOf[TyVec].n.lower()
+    ReshapeData(v.typ.asInstanceOf[TyVec].n, U32)().tchk().lower()
   }
 }

@@ -50,7 +50,7 @@ sealed trait Type {
         }
       case TyStm(t, n) =>
         t.lower match {
-          case TyStm(t, m) => TyStm(t, (n * m).tchk().lower())
+          case TyStm(t, m) => TyStm(t, SafeProd(n, m)().tchk().lower())
           case t           => TyStm(t, n)
         }
     }
@@ -212,7 +212,7 @@ object TyAnyInt {
     * @param upperBound
     *   the upper bound of the desired range (inclusive).
     */
-  private[ir] def tightest(lowerBound: BigInt, upperBound: BigInt): TyAnyInt = {
+  def tightest(lowerBound: BigInt, upperBound: BigInt): TyAnyInt = {
     if (lowerBound >= 0) {
       // Result can be unsigned
       TyUInt(upperBound.bitLength)
@@ -289,9 +289,18 @@ case class TyTuple(ts: Type*) extends Type {
   *   the length of the vector.
   */
 case class TyVec(t: Type, n: Expr) extends Type {
+  require(
+    n.hasType,
+    s"Length in ${TyVec.getClass.getSimpleName} must have a type."
+  )
+
   override def toString: String = {
     s"Vec[$t, $n]"
   }
+}
+
+object TyVec {
+  def apply(t: Type, n: Expr): Type = new TyVec(t, n.tchk())
 }
 
 /** The type of a stream.
@@ -304,6 +313,10 @@ case class TyVec(t: Type, n: Expr) extends Type {
   *   the length of the stream.
   */
 case class TyStm(t: Type, n: Expr) extends Type {
+  require(
+    n.hasType,
+    s"Length in ${TyStm.getClass.getSimpleName} must have a type."
+  )
 
   /** If this is a stream of type <code>Stm&lt;T; n&gt;</code>, then
     * <code>tOpt</code> is <code>Option&lt;T&gt;</code>. That is,
@@ -315,6 +328,10 @@ case class TyStm(t: Type, n: Expr) extends Type {
   override def toString: String = {
     s"Stm[$t, $n]"
   }
+}
+
+object TyStm {
+  def apply(t: Type, n: Expr): Type = new TyStm(t, n.tchk())
 }
 
 // Shorthand for common int types

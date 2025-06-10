@@ -115,8 +115,8 @@ object AsStm2Stm {
         )
       case TyArrow(t1, _) =>
         // scalar -> scalar (e.g., x => x + 1)
-        val s1 = Param("s1")(TyStm(t1, 1))
-        val s2 = Param("s2")(TyStm(t1, 1))
+        val s1 = Param("s1")(TyStm(t1, C(1)(TyUInt(1))))
+        val s2 = Param("s2")(TyStm(t1, C(1)(TyUInt(1))))
         Function(
           s1,
           StmBuild(
@@ -159,11 +159,10 @@ case class Iterate(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    val newZ = z.tchk(context)
-    val t = newZ.typ
-    val newF = f.tchk(context).expectTypeCompatibleWith(TyArrow(t, t))
-    this.rebuild(TyStm(t, 1), Seq(newN, newZ, newF))
+    val n = this.n.tchk.expectUInt()
+    val z = this.z.tchk
+    val f = this.f.tchk.expectType(z.typ ->: z.typ)
+    this.rebuild(TyStm(z.typ, 1), Seq(n, z, f))
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -171,15 +170,15 @@ case class Iterate(
     val n = this.n.lower()
     val z = this.z.lower()
     val f = this.f.lower()
-    val i = Param("i")(TyInt)
+    val i = Param("i")(n.typ)
     val t = z.typ
     val acc = Param("acc")(t)
     StmBuild(
       1,
       acc,
-      i === 0,
+      i === n,
       Map[Param, (Expr, Expr)](
-        i -> (n, Sum(i, -1)()),
+        i -> (IntCst(0)(n.typ), i + 1),
         acc -> (z, FunCall(f, acc)(t))
       )
     )().tchk().lower()
@@ -196,8 +195,8 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    val newC = c.tchk(context)
+    val newN = n.tchk.expectUInt()
+    val newC = c.tchk
     this.rebuild(TyStm(newC.typ, newN), Seq(newN, newC))
   }
 
@@ -222,12 +221,14 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    this.rebuild(TyStm(TyInt, newN), Seq(newN))
+    val newN = n.tchk.expectUInt()
+    this.rebuild(TyStm(newN.typ, newN), Seq(newN))
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    StmRange(n, 0, 1)().tchk().lower()
+    requireType()
+    val n = this.n.lower()
+    StmRange(n, IntCst(0)(n.typ), IntCst(1)(n.typ))().tchk().lower()
   }
 }
 
@@ -253,17 +254,17 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    val newZ = z.tchk(context).expectType(TyInt)
-    val newDelta = delta.tchk(context).expectType(TyInt)
-    this.rebuild(TyStm(TyInt, newN), Seq(newN, newZ, newDelta))
+    val newN = n.tchk.expectUInt()
+    val newZ = z.tchk.expectAnyInt()
+    val newDelta = delta.tchk.expectType(newZ.typ)
+    this.rebuild(TyStm(newZ.typ, newN), Seq(newN, newZ, newDelta))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     val n = this.n.lower()
     val z = this.z.lower()
     val delta = this.delta.lower()
-    val a = Param("a")(TyInt)
+    val a = Param("a")(z.typ)
     StmBuild(
       n,
       a,
@@ -288,17 +289,18 @@ case class StmCst2D(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    val newM = m.tchk(context).expectType(TyInt)
-    val newC = c.tchk(context)
+    val newN = n.tchk.expectUInt()
+    val newM = m.tchk.expectUInt()
+    val newC = c.tchk
     this.rebuild(TyStm(TyStm(newC.typ, newM), newN), Seq(newN, newM, newC))
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    requireType()
     val n = this.n.lower()
     val m = this.m.lower()
     val c = this.c.lower()
-    StmBuild(n * m, c, True)().tchk().lower()
+    StmBuild(SafeProd(n, m)(), c, True)().tchk().lower()
   }
 }
 
@@ -312,27 +314,24 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk(context).expectType(TyInt)
-    val newM = m.tchk(context).expectType(TyInt)
-    this.rebuild(
-      TyStm(TyStm(TyTuple(TyInt, TyInt), newM), newN),
-      Seq(newN, newM)
-    )
+    val n = this.n.tchk(context).expectUInt()
+    val m = this.m.tchk(context).expectUInt()
+    this.rebuild(TyStm(TyStm((n.typ, m.typ), m), n), Seq(n, m))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val n = this.n.lower()
     val m = this.m.lower()
-    val i = Param("i")(TyInt)
-    val j = Param("j")(TyInt)
+    val i = Param("i")(n.typ)
+    val j = Param("j")(m.typ)
     StmBuild(
-      n * m,
+      SafeProd(n, m)(),
       Tuple(i, j)(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (0, Mux(j === m - 1, i + 1, i)()),
-        j -> (0, Mux(j === m - 1, 0, j + 1)())
+        i -> (IntCst(0)(n.typ), Mux(j === m - 1, i + 1, i)()),
+        j -> (IntCst(0)(m.typ), Mux(j === m - 1, IntCst(0)(m.typ), j + 1)())
       )
     )().tchk().lower()
   }
@@ -404,8 +403,8 @@ case class StmMap(
           // No need to reset
           innerStm
         case n =>
-          val inCtr = Param("in_ctr")(TyInt)
-          val outCtr = Param("out_ctr")(TyInt)
+          val inCtr = Param("in_ctr")(U32)
+          val outCtr = Param("out_ctr")(U32)
           val innerWithInCtr = inputsUntilReset match {
             case IntCst(1) =>
               // If there's only one input, then there's no need for an input
@@ -419,7 +418,7 @@ case class StmMap(
               // Add the input counter anyway just to keep the rest of the
               // lowering pass simple, but it should now be trivial for the
               // optimizer to recognize that it is constant.
-              innerStm.addAccumulator(inCtr, 1, 1)
+              innerStm.addAccumulator(inCtr, IntCst(1)(U32), IntCst(1)(U32))
             case _ =>
               val inStmVar =
                 innerStm.seedByVar.find({ case (_, z) => z == s }).get._1
@@ -428,17 +427,11 @@ case class StmMap(
           val innerWithCtrs = innerWithInCtr.addOutputCounter(outCtr)
           // Want to reset depending on the *next* values of the in/out counters.
           val shouldReset = (
-            Equal(innerWithCtrs.nextByVar(inCtr), inputsUntilReset)(TyBool)
-              && Equal(innerWithCtrs.nextByVar(outCtr), outputsUntilReset)(
-                TyBool
-              )
-          )
-          assert(
-            innerWithCtrs.typ != Missing,
-            "stream must be type checked to be able to distinguish between data accumulators and input streams"
-          )
+            (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
+              && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
+          ).tchk()
           val outerStm = StmBuild(
-            n * outputsUntilReset,
+            SafeProd(n, outputsUntilReset)(),
             innerWithCtrs.data,
             innerWithCtrs.valid,
             innerWithCtrs.equations.map({
@@ -482,34 +475,31 @@ case class StmAccess(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newS = stm.tchk(context)
-    val t = newS.typ match {
-      case TyStm(t, _) => t
-      case t => throw new TypeError(s"Expected a stream but found $t.")
-    }
-    val newK = k.tchk(context).expectType(TyInt)
-    this.rebuild(TyStm(t, 1), Seq(newS, newK))
+    val s = this.stm.tchk.expectStream()
+    val t = s.typ.asInstanceOf[TyStm].t
+    val k = this.k.tchk.expectUInt()
+    this.rebuild(TyStm(t, 1), Seq(s, k))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
-      case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1)())
+    val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)(U32)
     }
     val s = Param("s")(stm.typ) // input stream
-    val i = Param("i")(TyInt) // index of current row
-    val j = Param("j")(TyInt) // index within row
+    val i = Param("i")(U32) // index of current row
+    val j = Param("j")(U32) // index within row
     StmBuild(
       perRow,
       StmData(s)(),
       i === k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
-        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
+        i -> (C(0)(U32), Mux(j + 1 === perRow, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j + 1 === perRow, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -546,7 +536,7 @@ case class StmFold(
         ()
       case t =>
         throw new TypeError(
-          s"Function in StmScan has type $t. Expected ${TyArrow(t2, TyArrow(t1, t2))}."
+          s"Function in StmScan has type $t. Expected ${t2 ->: t1 ->: t2}."
         )
     }
     this.rebuild(TyStm(t2, 1), Seq(newS, newZ, newF))
@@ -626,11 +616,11 @@ case class StmScanInclusive(
     )
     val (innerWithCtrs, shouldReset) = {
       val outputsUntilReset = IntCst(1)()
-      val outCtr = Param("out_ctr")(TyInt)
+      val outCtr = Param("out_ctr")(U32)
       val withOutCtr = innerStm.addOutputCounter(outCtr)
       val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
       if (usesInputStream) {
-        val inCtr = Param("in_ctr")(TyInt)
+        val inCtr = Param("in_ctr")(U32)
         val withCtrs = withOutCtr
           .addInputCounter(
             innerStm.seedByVar.find({ case (_, z) => z == s }).get._1,
@@ -648,10 +638,6 @@ case class StmScanInclusive(
     }
     val acc = Param("acc")(elemType)
     val nextAcc = Mux(innerWithCtrs.valid, innerWithCtrs.data, acc)()
-    assert(
-      innerWithCtrs.typ != Missing,
-      "stream must be type checked to be able to distinguish between data accumulators and input streams"
-    )
     val outerStm = StmBuild(
       n,
       nextAcc,
@@ -766,12 +752,12 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     v.typ match {
       case TyVec(_, n) =>
         // Alternatively, you could implement Vec2Stm using a shift register
-        val i = Param("i")(TyInt)
+        val i = Param("i")(U32)
         StmBuild(
           n,
           VecAccess(v, i)(),
           True,
-          Map[Param, (Expr, Expr)](i -> (0, i + 1))
+          Map[Param, (Expr, Expr)](i -> (C(0)(U32), i + 1))
         )().tchk().lower()
       case TyStm(tv: TyVec, _) =>
         StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
@@ -856,11 +842,11 @@ case class StmPrefix(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newK = k.tchk(context).expectType(TyInt)
-    val newS = stm.tchk(context)
-    newS.typ match {
+    val k = this.k.tchk.expectUInt()
+    val s = this.stm.tchk
+    s.typ match {
       case TyStm(t, _) =>
-        this.rebuild(TyStm(t, newK), Seq(newS, newK))
+        this.rebuild(TyStm(t, k), Seq(s, k))
       case t => throw new TypeError(s"Stream in StmPrefix has type $t.")
     }
   }
@@ -874,16 +860,16 @@ case class StmPrefix(
       case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
-    val i = Param("i")(TyInt) // index of current row
-    val j = Param("j")(TyInt) // index within row
+    val i = Param("i")(U32) // index of current row
+    val j = Param("j")(U32) // index within row
     StmBuild(
-      k * perRow,
+      SafeProd(k, perRow)(),
       StmData(s)(),
       i < k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
-        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -911,8 +897,8 @@ case class StmSuffix(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newK = k.tchk(context).expectType(TyInt)
-    val newS = stm.tchk(context)
+    val newK = k.tchk.expectUInt()
+    val newS = stm.tchk
     newS.typ match {
       case TyStm(t, _) =>
         this.rebuild(TyStm(t, newK), Seq(newS, newK))
@@ -930,16 +916,16 @@ case class StmSuffix(
       case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
-    val i = Param("i")(TyInt) // index of current row
-    val j = Param("j")(TyInt) // index within row
+    val i = Param("i")(U32) // index of current row
+    val j = Param("j")(U32) // index within row
     StmBuild(
       k * perRow,
       StmData(s)(),
       i >= n - k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (0, Mux(j === perRow - 1, i + 1, i)()),
-        j -> (0, Mux(j === perRow - 1, 0, j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -969,7 +955,7 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
-    StmAppend(StmSuffix(stm, n - 1)(), e)().tchk().lower()
+    StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
 }
 
@@ -1007,7 +993,7 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
-    StmPrepend(StmPrefix(stm, n - 1)(), e)().tchk().lower()
+    StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
 }
 
@@ -1023,7 +1009,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newS1 = stm1.tchk(context)
+    val newS1 = stm1.tchk
     val (t1, n1) = newS1.typ match {
       case TyStm(t, n1) => (t, n1)
       case t =>
@@ -1031,9 +1017,9 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
           s"First input in StmConcat has type $t. Expected a stream."
         )
     }
-    val newS2 = stm2.tchk(context)
+    val newS2 = stm2.tchk
     val n2 = newS2.typ match {
-      case TyStm(t2, n2) if t2.isCompatibleWith(t1) => n2
+      case TyStm(t2, n2) if t2 ~= t1 => n2
       case t =>
         throw new TypeError(
           s"Second input in StmConcat has type $t. Expected a stream of $t1."
@@ -1050,13 +1036,13 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val n2 = stm2.typ.asInstanceOf[TyStm].n
     val s1 = Param("s1")(stm1.typ)
     val s2 = Param("s2")(stm2.typ)
-    val i = Param("i")(TyInt)
+    val i = Param("i")(U32)
     StmBuild(
-      n1 + n2,
+      SafeSum(n1, n2)(),
       Mux(i === n1, StmData(s2)(), StmData(s1)())(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (0, Mux(i === n1, i, i + 1)()),
+        i -> (C(0)(U32), Mux(i === n1, i, i + 1)()),
         s1 -> (stm1, i !== n1),
         s2 -> (stm2, i === n1)
       )
@@ -1126,8 +1112,8 @@ case class StmRepeat(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk(context).expectType(TyInt)
-    val newS = stm.tchk(context)
+    val newM = m.tchk.expectUInt()
+    val newS = stm.tchk
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, n), m), Seq(newS, newM))
@@ -1143,7 +1129,7 @@ case class StmRepeat(
     val n = stm.typ.asInstanceOf[TyStm].n
     val s = Param("s")(TyStm(t, -1))
     val v = Param("v")(TyVec(t, n))
-    val i = Param("i")(TyInt)
+    val i = Param("i")(U32)
     val filling = Param("filling")(TyBool)
     // TODO: It may be possible to shave off one cycle by outputting valid data
     //       during the last filling cycle, but this would make the expression
@@ -1151,16 +1137,16 @@ case class StmRepeat(
     // NOTE: You could also implement this using Vec2Stm and then reading the
     //       vector repeatedly, but the resulting expression is pretty gross
     StmBuild(
-      n * m,
+      SafeProd(n, m)(),
       VecAccess(v, i)(),
       !filling,
       Map[Param, (Expr, Expr)](
         s -> (stm, filling),
         v -> (
-          VecBuild(n, TyInt ::+ (_ => Default(t)))(),
+          VecBuild(n, U32 ::+ (_ => Default(t)))(),
           Mux(filling, VecShiftLeft(v, StmData(s)())(), v)()
         ),
-        i -> (0, Mux(i + 1 === n, 0, i + 1)()),
+        i -> (C(0)(U32), Mux(i + 1 === n, C(0)(U32), i + 1)()),
         filling -> (True, filling && (i + 1 < n))
       )
     )().tchk().lower()
@@ -1219,8 +1205,8 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk(context).expectType(TyInt)
-    val newS = stm.tchk(context)
+    val newM = m.tchk.expectUInt()
+    val newS = stm.tchk
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, newM), n / newM), Seq(newS, newM))
@@ -1287,11 +1273,14 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk(context).expectType(TyInt)
-    val newS = input.tchk(context)
+    val newM = m.tchk.expectUInt()
+    val newS = input.tchk
     newS.typ match {
       case TyStm(t, n) if Default.hasDefault(t) =>
-        this.rebuild(TyStm(TyVec(t, newM), n - newM + 1), Seq(newS, newM))
+        this.rebuild(
+          TyStm(TyVec(t, newM), ToUnsigned(n - newM + 1)().tchk()),
+          Seq(newS, newM)
+        )
       case t =>
         throw new TypeError(
           s"Stream in StmSlideV has type $t. Expected a non-nested stream."
@@ -1308,63 +1297,29 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
       case t           => (t, IntCst(1)())
     }
     val s = Param("s")(TyStm(t, -1))
-    val i = Param("i")(TyInt)
-    val j = Param("j")(TyInt)
-    val v = Param("v")(TyVec(t, m * elemSize))
+    val i = Param("i")(U32)
+    val j = Param("j")(U32)
+    val stmLen = ToUnsigned(n - m + 1)()
+    val vecLen = SafeProd(m, elemSize)().tchk().lower()
+    val v = Param("v")(TyVec(t, vecLen))
     val lowered = StmBuild(
-      n - m + 1,
+      stmLen,
       VecShiftLeft(v, StmData(s)())(),
-      Mux(
-        i === 0 && j === 1,
-        // CASE 1: Shift register is full.
-        //         Produce output.
-        True,
-        // CASE 2: Shift register is not full yet.
-        //         Wait until it is.
-        False
-      )(),
+      i + 1 === m && j + 1 === elemSize,
       Map[Param, (Expr, Expr)](
         s -> (input, True),
-        // Number of window elements left to load
+        // Number of window elements loaded so far
         i -> (
-          m - 1,
-          Mux(
-            i === 0 && j === 1,
-            // CASE 1: Shift register is full.
-            i,
-            // CASE 2: Shift register is not full yet.
-            Mux(
-              i === 0,
-              // CASE 2a: Initial loading is done, just loading the next elem
-              //          (may take multiple cycles for nested streams).
-              i,
-              // CASE 2b: Initial loading still in progress.
-              Mux(j === 1, i - 1, i)()
-            )()
-          )()
+          C(0)(U32),
+          Mux((i + 1 === m) || (j + 1 !== elemSize), i, i + 1)()
         ),
-        // How many pieces of data left to load in the current window element?
-        // This will be 1 if `stm` is flat but may be greater than 1
-        // if `stm` is multi-dimensional.
+        // Number of pieces of data loaded so far in the current window element
         j -> (
-          elemSize,
-          Mux(
-            i === 0 && j === 1,
-            // CASE 1: Shift register is full.
-            elemSize,
-            // CASE 2: Shift register is not full yet.
-            Mux(
-              i === 0,
-              // CASE 2a: Initial loading is done, just loading the next elem
-              //          (may take multiple cycles for nested streams).
-              j - 1,
-              // CASE 2b: Initial loading still in progress.
-              Mux(j === 1, elemSize, j - 1)()
-            )()
-          )()
+          C(0)(U32),
+          Mux(j + 1 === elemSize, C(0)(U32), j + 1)()
         ),
         v -> (
-          VecBuild(m * elemSize, TyInt ::+ (_ => Default(t)))(),
+          VecBuild(vecLen, U32 ::+ (_ => Default(t)))(),
           VecShiftLeft(v, StmData(s)())()
         )
       )
@@ -1388,7 +1343,7 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk(context).expectType(TyInt)
+    val newM = m.tchk.expectUInt()
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) if Default.hasDefault(t) =>

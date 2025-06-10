@@ -163,7 +163,7 @@ class SugarTests extends AnyFunSuite {
     assertThrows[TypeError](SmartLessThan(True, False)().tchk())
   }
 
-  test("SmartSum:Valid") {
+  test("SmartSum") {
     assert(
       ir.eval(
         SmartSum(IntCst(-1)(I8), IntCst(5)(TyUInt(7)), IntCst(-300)(I16))()
@@ -199,17 +199,43 @@ class SugarTests extends AnyFunSuite {
     assert(ir.eval(SmartSum()()) == IntCst(0)())
   }
 
-  test("SmartProd:Valid") {
-    assert(ir.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
-    assert(ir.eval(SmartProd()()) == IntCst(1)())
+  test("SafeSum") {
+    val u3 = TyUInt(3)
+    val u4 = TyUInt(4)
+    val e = SafeSum(IntCst(4)(u3), IntCst(4)(u3))().tchk()
+
+    assert(e.typ == u4)
+    assert(ir.eval(e) == IntCst(8)())
+
+    assert(ir.eval(SafeSum()()) == C(0)())
   }
 
-  test("SmartDiv:Valid") {
+  test("SmartProd") {
+    assert(ir.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
+    assert(ir.eval(SmartProd()()) == IntCst(1)())
+    assert(ir.eval(SmartProd(0, 42)()) == C(0)())
+  }
+
+  test("SafeProd") {
+    val u2 = TyUInt(2)
+    val u3 = TyUInt(3)
+    val u5 = TyUInt(5)
+    val e = SafeProd(IntCst(3)(u2), IntCst(4)(u3))().tchk()
+
+    assert(e.typ == u5)
+    assert(ir.eval(e) == IntCst(12)())
+
+    assert(ir.eval(SafeProd()()) == C(1)())
+
+    assert(ir.eval(SafeProd(42, 0)()) == C(0)())
+  }
+
+  test("SmartDiv") {
     assert(ir.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)())
     assert(ir.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(-14)())
   }
 
-  test("SmartMod:Valid") {
+  test("SmartMod") {
     assert(
       ir.eval(SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()) == IntCst(2)()
     )

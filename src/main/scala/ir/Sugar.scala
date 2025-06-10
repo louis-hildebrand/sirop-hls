@@ -10,10 +10,13 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newV = v.tchk(context)
-    val newIn = in.tchk(context + (x -> newV.typ))
-    val newX = x.rebuild(newV.typ)
-    Let(newX, newV, newIn)(newIn.typ)
+    val v = this.v.tchk(context)
+    val in = this.in.tchk(context + (this.x -> v.typ))
+    val x = this.x.typ match {
+      case Missing => this.x.rebuild(v.typ)
+      case _       => this.x.expectType(v.typ).asInstanceOf[Param]
+    }
+    Let(x, v, in)(in.typ)
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -84,8 +87,9 @@ case object Default {
       case _: TyAnyInt      => Some(IntCst(0)(typ))
       case TyBool           => Some(False)
       case TyTuple(ts @ _*) => Some(Tuple(ts.map(t => getDefault(t)): _*)(typ))
-      case TyVec(t, n) => Some(VecBuild(n, U32 ::+ (_ => getDefault(t)))(typ))
-      case _           => None
+      case TyVec(t, n) =>
+        Some(VecBuild(n.tchk(), U32 ::+ (_ => getDefault(t)))(typ))
+      case _ => None
     }
   }
 }
@@ -332,6 +336,10 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
 
 /** The sum of multiple values, even ones with slightly different types.
   *
+  * Each operand will be reshaped to be compatible with the others. However, the
+  * result may still overflow. For example, if you add two values of type
+  * <code>u8</code>, the result will remain a <code>u8</code>.
+  *
   * @param terms
   *   the terms to add up.
   */
@@ -373,7 +381,46 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
   }
 }
 
+/** The sum of several values <i>without overflow</i>.
+  *
+  * The type of this expression will be chosen so as to guarantee that the sum
+  * can be computed without overflow.
+  *
+  * @param terms
+  *   the values to add up.
+  */
+case class SafeSum(terms: Expr*)(typ: Type = Missing)
+    extends SyntaxSugar(terms: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    SafeSum(newChildren: _*)(typ)
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val terms = this.terms.map(e => e.tchk.expectAnyInt())
+    this.rebuild(
+      TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
+      terms
+    )
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val terms = this.terms.map(e => e.lower())
+    if (terms.isEmpty) {
+      IntCst(0)(this.typ)
+    } else {
+      val typ = this.typ.asInstanceOf[TyAnyInt]
+      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+    }
+  }
+}
+
 /** The product of multiple values, even ones with slightly different types.
+  *
+  * Each operand will be reshaped to be compatible with the others. However, the
+  * result may still overflow. For example, if the operands have type
+  * <code>u8</code> and <code>u7</code>, then the result will have type
+  * <code>u8</code>.
   *
   * @param factors
   *   the values to multiply.
@@ -412,6 +459,46 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     } else {
       val typ = this.typ.asInstanceOf[TyAnyInt]
       Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+    }
+  }
+}
+
+/** The product of several factors <i>without overflow</i>.
+  *
+  * The type of this expression will be chosen so as to guarantee that the
+  * product can be computed without overflow.
+  *
+  * @param factors
+  *   the values to multiply.
+  */
+case class SafeProd(factors: Expr*)(typ: Type = Missing)
+    extends SyntaxSugar(factors: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    SafeProd(newChildren: _*)(typ)
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val factors = this.factors.map(e => e.tchk.expectAnyInt())
+    this.rebuild(
+      TProd(factors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
+      factors
+    )
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val factors = this.factors.map(e => e.lower())
+    if (factors.isEmpty) {
+      IntCst(1)(this.typ)
+    } else {
+      this.typ.asInstanceOf[TyAnyInt] match {
+        case TyUInt(0) =>
+          // Need this special case because you can't normally resize to a U0,
+          // but we know the product will be zero.
+          IntCst(0)(TyUInt(0))
+        case typ =>
+          Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+      }
     }
   }
 }
