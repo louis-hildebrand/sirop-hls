@@ -408,7 +408,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           if (!(newNext.typ ~= expectedNextTyp)) {
             throw new TypeError(
               s"Next value for accumulator $x has type ${newNext.typ}."
-                + s"Expected type $expectedNextTyp."
+                + s" Expected type $expectedNextTyp."
             )
           }
           x -> (newZ, newNext)
@@ -1018,10 +1018,9 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
   typ match {
     case Missing => ()
     case int: TyAnyInt =>
-      require(
-        int.contains(i),
-        s"Integer constant $i does not fit in type $typ."
-      )
+      if (!int.contains(i)) {
+        throw OverflowError(i, int)
+      }
     case t =>
       throw new TypeError(s"Invalid type $t for integer constant.")
   }

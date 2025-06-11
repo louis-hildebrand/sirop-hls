@@ -71,9 +71,9 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("Iterate:Square") {
-    val x = Param("x")(U16)
+    val x = Param("x")(U32)
     val n = Param("n")()
-    val iter = Iterate(n, IntCst(3)(U16), Function(x, x * x)())()
+    val iter = Iterate(n, IntCst(3)(U32), Function(x, x * x)())()
     val e = (nVal: Int) => Let(n, IntCst(nVal)(U8), iter)().tchk()
     assert(ir.eval(e(0)) == StmLiteral(3)())
     assert(ir.eval(e(1)) == StmLiteral(9)())
@@ -603,7 +603,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
       TyStm((U8, U8), 3) ::+ (_ => StmCount(5)())
-    )().tchk()
+    )().tchk().lower()
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 1, 2, 3, 4),
@@ -1925,7 +1925,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmRepeat:1D") {
-    val s = StmCount(3)()
+    val s = StmCount(C(3)(U8))()
     val expected = Seq(IntCst(0)(), IntCst(1)(), IntCst(2)())
 
     val actual0 = StmRepeat(s, 0)().tchk().lower()
@@ -1944,7 +1944,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmRepeat:2D") {
-    val s = StmCount2D(2, 3)()
+    val s = StmCount2D(C(2)(U8), C(3)(U8))()
     val expected = Seq(
       Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
       Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())
@@ -1988,13 +1988,13 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmReverse:1D") {
-    val s = StmReverse(StmCount(5)())().tchk()
+    val s = StmReverse(StmCount(C(5)(U8))())().tchk()
     val expected = StmLiteral(4, 3, 2, 1, 0)()
     assert(ir.eval(s) == expected)
   }
 
   test("StmReverse:2D") {
-    val s = StmReverse(StmCount2D(3, 3)())().tchk()
+    val s = StmReverse(StmCount2D(C(3)(U8), C(3)(U8))())().tchk()
     val expected = StmLiteral(
       Tuple(2, 0)(),
       Tuple(2, 1)(),
@@ -2125,7 +2125,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmSlideS:1D:SameSize") {
-    val actual = StmSlideS(StmCount(5)(), 5)().tchk()
+    val actual = StmSlideS(StmCount(C(5)(U8))(), 5)().tchk()
     val expected = StmLiteral(0, 1, 2, 3, 4)()
     assert(ir.eval(actual) == expected)
   }
@@ -2143,7 +2143,11 @@ class StreamTests extends AnyFunSuite {
     val transposed = StmTranspose(s)()
 
     val actual =
-      Let(n, 2, Let(m, 2, Let(s, StmCount2D(2, 2)(), transposed)())())().tchk()
+      Let(
+        n,
+        2,
+        Let(m, 2, Let(s, StmCount2D(C(2)(U8), C(2)(U8))(), transposed)())()
+      )().tchk()
     assert(ir.eval(actual) == expected)
   }
 

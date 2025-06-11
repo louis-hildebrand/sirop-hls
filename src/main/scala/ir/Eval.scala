@@ -3,9 +3,29 @@ package ir
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
 
-class DeadlockError(val reasons: Seq[DeadlockReason])
-    extends RuntimeException(s"Deadlock (${reasons.mkString(", ")}).")
+/** An error that occurred during evaluation.
+  */
+sealed abstract class EvalException(msg: String) extends RuntimeException(msg)
 
+/** The evaluator encountered a division or modulo whose denominator was zero.
+  */
+object DivByZero extends EvalException("Division or modulo by zero.")
+
+/** The evaluator encountered integer overflow.
+  */
+case class OverflowError(n: Long, t: TyAnyInt)
+    extends EvalException(s"Value $n does not fit in type $t.")
+
+/** The stream became deadlocked.
+  *
+  * @param reasons
+  *   the cause(s) of the deadlock.
+  */
+class DeadlockError(val reasons: Seq[DeadlockReason])
+    extends EvalException(s"Deadlock (${reasons.mkString(", ")}).")
+
+/** A cause for a deadlock.
+  */
 sealed trait DeadlockReason
 
 /** The stream is definitely deadlocked because it tried to read from an empty
@@ -107,8 +127,8 @@ case class StmNode(
     val requiredProducers =
       getRequiredProducers(this.inputs, this.currentValByDataAcc.toMap)
     val transferOk = this.state.isInstanceOf[Valid] && ready
-    val canStep = transferOk || (!this.state
-      .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers))
+    val canStep = this.state != Empty && (transferOk || (!this.state
+      .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers)))
     val newInputs = this.inputs.map({ case (x, node) =>
       val ready = canStep && requiredProducers.contains(x)
       x -> node.transferData(ready)
@@ -374,8 +394,7 @@ trait Eval {
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
-          val fullResult = xs.sum
-          IntCst(truncate(fullResult, e.typ.asInstanceOf[TyAnyInt]))(e.typ)
+          IntCst(xs.sum)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
@@ -385,8 +404,7 @@ trait Eval {
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
-          val fullResult = xs.product
-          IntCst(truncate(fullResult, e.typ.asInstanceOf[TyAnyInt]))(e.typ)
+          IntCst(xs.product)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Prod evaluated to $factorValues. They must each evaluate to an integer."
@@ -397,7 +415,7 @@ trait Eval {
         val denom = evalBigStep(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
-            throw new IllegalArgumentException("Division by zero.")
+            throw DivByZero
           case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(
@@ -409,7 +427,7 @@ trait Eval {
         val denom = evalBigStep(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
-            throw new IllegalArgumentException("Modulo by zero.")
+            throw DivByZero
           case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(

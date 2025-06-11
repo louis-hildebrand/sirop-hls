@@ -20,8 +20,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (C(-8)(i4), i + 1),
-        j -> (C(0)(u4), j + 1)
+        i -> (C(-8)(i4), TruncateTo(SafeSum(i, 1)(), 4)()),
+        j -> (C(0)(u4), TruncateTo(SafeSum(j, 1)(), 4)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -338,17 +338,17 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("CurriedFunCall") {
     val n = 7
-    val f = (U8, U8) ::+ (x => U8 ::+ (y => y + x.__0 * y + x.__1))
-    val a = Param("a")(U8)
+    val f = (U16, U16) ::+ (x => U8 ::+ (y => y + x.__0 * y + x.__1))
+    val a = Param("a")(U16)
     val s = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (C(0)(U8), FunCall(
-          FunCall(f, Tuple(C(42)(U8), C(99)(U8))())(),
-          a
-        )())
+        a -> (
+          C(0)(U16),
+          FunCall(FunCall(f, Tuple(C(42)(U16), C(99)(U16))())(), a)()
+        )
       )
     )().tchk().lower().uncurry()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -365,7 +365,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )().tchk().lower().asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(
-      TestInput((0 until n).map(i => Some(C(i * i * i)(U32)))),
+      TestInput((0 until n).map(i => Some(C(i * i)(U32)))),
       TestInput(
         (0 until n).flatMap(i => Seq(Some(C(3 * i)(U16)), None, None))
       )
