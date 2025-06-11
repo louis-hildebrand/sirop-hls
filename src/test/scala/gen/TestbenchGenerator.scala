@@ -12,7 +12,7 @@ object TestbenchGenerator {
       // TODO: Make it possible to test multiple values for one input?
       inputs: Seq[TestInput],
       e: Expr,
-      bitWidth: Int,
+      dataTyp: VhdlType,
       dir: Path
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
@@ -76,6 +76,9 @@ object TestbenchGenerator {
         )
       })
       .mkString("\n")
+    val expected =
+      VhdlConversionGenerator.fromStdLogicVector("expected", dataTyp)
+    val data = VhdlConversionGenerator.fromStdLogicVector("data", dataTyp)
     val str =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -92,10 +95,10 @@ object TestbenchGenerator {
          |    constant CLK_CYCLE  : time := 20 ns;
          |    signal   test_done  : boolean := false;
          |    signal   clk        : std_logic := '0';
-         |    signal   data       : std_logic_vector(${bitWidth - 1} downto 0);
+         |    signal   data       : std_logic_vector(${dataTyp.bitWidth - 1} downto 0);
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
-         |    signal   expected   : std_logic_vector(${bitWidth - 1} downto 0);
+         |    signal   expected   : std_logic_vector(${dataTyp.bitWidth - 1} downto 0);
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
@@ -121,8 +124,8 @@ object TestbenchGenerator {
          |
          |${indent(inputProcesses)}
          |
-         |    data_t <= from_std_logic_vector(data);
-         |    expected_t <= from_std_logic_vector(expected);
+         |    data_t <= $data;
+         |    expected_t <= $expected;
          |
          |    -- Check outputs
          |    process

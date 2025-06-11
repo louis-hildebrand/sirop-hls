@@ -44,7 +44,7 @@ object TestRunner {
   ): TestResult = {
     new Directory(VHDL_TEST_DIR.toFile).deleteRecursively()
     Files.createDirectory(VHDL_TEST_DIR)
-    val bitWidth = e match {
+    val dataTyp = e match {
       case s: StmBuild => VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
       case f: Function => VhdlGenerator.emitVhdl(f, VHDL_TEST_DIR)
       case _ =>
@@ -52,7 +52,7 @@ object TestRunner {
           s"Only streams and functions are supported (got expression $e)."
         )
     }
-    TestbenchGenerator.makeTestbench(inputs, e, bitWidth, VHDL_TEST_DIR)
+    TestbenchGenerator.makeTestbench(inputs, e, dataTyp, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
   }
 }

@@ -37,6 +37,8 @@ private[gen] object VhdlType {
   def apply(t: Type): VhdlType = {
     t match {
       case TyInt            => VhdlInt
+      case TyUInt(w)        => VhdlUnsigned(w)
+      case TySInt(w)        => VhdlSigned(w)
       case TyBool           => VhdlBool
       case TyTuple(ts @ _*) => VhdlRecord(ts.map(t => VhdlType(t)))
       case TyVec(t, len) if len.freeVars().isEmpty =>
@@ -50,6 +52,7 @@ private[gen] object VhdlType {
   }
 }
 
+@deprecated
 private[gen] case object VhdlInt extends VhdlType {
   override def vhdlName: String = "integer"
 
@@ -60,6 +63,42 @@ private[gen] case object VhdlInt extends VhdlType {
   override def bitWidth: Int = 32
 
   override def defaultVal: String = "0"
+}
+
+/** A VHDL signed integer.
+  *
+  * @param width
+  *   the bit width.
+  */
+private[gen] case class VhdlSigned(width: Int) extends VhdlType {
+  override def vhdlName: String = s"signed(${width - 1} downto 0)"
+  override def vhdlTypeMark: String = "signed"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = width
+
+  override def defaultVal: String = "(others => '0')"
+}
+
+/** A VHDL unsigned integer.
+  *
+  * @param width
+  *   the bit width.
+  */
+private[gen] case class VhdlUnsigned(width: Int) extends VhdlType {
+  override def vhdlName: String = s"unsigned(${width - 1} downto 0)"
+  override def vhdlTypeMark: String = "unsigned"
+
+  override def vhdlDefinition: Option[String] = None
+
+  override def descendants: Set[VhdlType] = Set()
+
+  override def bitWidth: Int = width
+
+  override def defaultVal: String = "(others => '0')"
 }
 
 private[gen] case object VhdlBool extends VhdlType {
@@ -182,10 +221,10 @@ private[gen] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
         s"$defaultVal when others"
       ))
         .mkString(",\n")
-    val body = s"with i select x :=\n${indent(cases)};"
+    val body = s"with to_integer(i) select x :=\n${indent(cases)};"
     VhdlFunction(
       name = "vec_access",
-      args = Seq(("v", this), ("i", VhdlInt)),
+      args = Seq(("v", this), ("i", VhdlUnsigned(-1))),
       returnType = t,
       decls = Seq(VhdlVariable("x", t, assignStmt = body)),
       ret = "x",

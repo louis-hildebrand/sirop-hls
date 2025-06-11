@@ -2,7 +2,6 @@ package gen
 
 import debug.PrettyPrinter
 import ir._
-import opt.PartialEvalPass
 
 import java.nio.file.Path
 import scala.annotation.tailrec
@@ -33,11 +32,11 @@ object VhdlGenerator {
     * @param dir
     *   The directory in which to save the design
     */
-  def emitVhdl(s: StmBuild, dir: Path): Int = {
+  def emitVhdl(s: StmBuild, dir: Path): VhdlType = {
     validateExpr(s)
-    val (topComponent, bitWidth) = stmBuildToVhdl(s, Set(), "top")
+    val (topComponent, typ) = stmBuildToVhdl(s, Set(), "top")
     VhdlWriter.emit(topComponent, dir)
-    bitWidth
+    typ
   }
 
   /** Create a VHDL design for the given function and save it in the given
@@ -48,12 +47,12 @@ object VhdlGenerator {
     * @param dir
     *   The directory in which to save the design
     */
-  def emitVhdl(f: Function, dir: Path): Int = {
+  def emitVhdl(f: Function, dir: Path): VhdlType = {
     validateExpr(f)
     val (inputs, stm) = unwrapTopLevelFunction(f)
-    val (topComponent, bitWidth) = stmBuildToVhdl(stm, inputs.toSet, "top")
+    val (topComponent, typ) = stmBuildToVhdl(stm, inputs.toSet, "top")
     VhdlWriter.emit(topComponent, dir)
-    bitWidth
+    typ
   }
 
   def unwrapTopLevelFunction(f: Function): (Seq[Param], StmBuild) = {
@@ -100,7 +99,7 @@ object VhdlGenerator {
       stm: StmBuild,
       inputs: Set[Param],
       name: String
-  ): (VhdlComponent, Int) = {
+  ): (VhdlComponent, VhdlType) = {
     val whereUsedByInput = findWhereUsedByInput(stm, inputs)
 
     // TODO: Define a new trait representing producer streams?
@@ -236,7 +235,7 @@ object VhdlGenerator {
       children = internalProducers
     )
 
-    (component, getBitWidth(s.data.typ))
+    (component, VhdlType(s.data.typ))
   }
 
   private def findWhereUsedByInput(

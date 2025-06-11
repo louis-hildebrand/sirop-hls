@@ -9,8 +9,9 @@ object VhdlConversionGenerator {
     */
   def toStdLogicVector(e: String, t: VhdlType): String = {
     t match {
-      case VhdlStdLogic       => s"(0 => $e)"
-      case _: VhdlStdLogicVec => e
+      case VhdlStdLogic                    => s"(0 => $e)"
+      case _: VhdlStdLogicVec              => e
+      case _: VhdlSigned | _: VhdlUnsigned => s"std_logic_vector($e)"
       case _ =>
         val f = toSlvConverterName(t)
         s"$f($e)"
@@ -30,6 +31,8 @@ object VhdlConversionGenerator {
     t match {
       case VhdlBool           => Some(boolToSlvConverter)
       case VhdlInt            => Some(intToSlvConverter)
+      case _: VhdlSigned      => None
+      case _: VhdlUnsigned    => None
       case VhdlStdLogic       => None
       case _: VhdlStdLogicVec => None
       case t: VhdlRecord      => Some(recordToSlvConverter(t))
@@ -97,6 +100,8 @@ object VhdlConversionGenerator {
   def fromStdLogicVector(e: String, t: VhdlType): String = {
     t match {
       case _: VhdlStdLogicVec => e
+      case _: VhdlSigned      => s"signed($e)"
+      case _: VhdlUnsigned    => s"unsigned($e)"
       case _ =>
         val f = fromSlvConverterName(t)
         s"$f($e)"
@@ -122,6 +127,8 @@ object VhdlConversionGenerator {
       case VhdlStdLogic       => Some(stdLogicFromSlvConverter)
       case VhdlBool           => Some(boolFromSlvConverter)
       case VhdlInt            => Some(intFromSlvConverter)
+      case _: VhdlSigned      => None
+      case _: VhdlUnsigned    => None
       case _: VhdlStdLogicVec => None
       case t: VhdlRecord      => Some(recordFromSlvConverter(t))
       case t: VhdlArray       => Some(arrayFromSlvConverter(t))
