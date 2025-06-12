@@ -30,14 +30,14 @@ private object SharedScope extends AccVarScope
   *   than <code>Missing</code>.
   */
 sealed abstract class Expr(val children: Expr*)(val typ: Type) {
-  def +(that: Expr): Expr = SmartSum(this, that)()
+  def +(that: Expr): Expr = Sum(this, that)()
   def -(that: Expr): Expr = this + -1 * that
-  def *(that: Expr): Expr = SmartProd(this, that)()
-  def /(that: Expr): Expr = SmartDiv(this, that)()
-  def %(that: Expr): Expr = SmartMod(this, that)()
-  def ===(that: Expr): Expr = SmartEqual(this, that)()
+  def *(that: Expr): Expr = Prod(this, that)()
+  def /(that: Expr): Expr = Div(this, that)()
+  def %(that: Expr): Expr = Mod(this, that)()
+  def ===(that: Expr): Expr = Equal(this, that)()
   def !==(that: Expr): Expr = !(this === that)
-  def <(that: Expr): Expr = SmartLessThan(this, that)()
+  def <(that: Expr): Expr = LessThan(this, that)()
   def <=(that: Expr): Not = !(this > that)
   def >(that: Expr): Expr = that < this
   def >=(that: Expr): Not = that <= this
@@ -114,12 +114,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
-        if (elemTypes.toSet.size > 1) {
-          throw new TypeError(
-            s"Operands of ${s.className} have different types: ${elemTypes.mkString(", ")}."
-          )
-        } else {
-          s.rebuild(elemTypes.head, newTerms)
+        ReshapeData.narrowestCommonAncestor(elemTypes) match {
+          case Some(typ) =>
+            s.rebuild(typ, newTerms)
+          case None =>
+            val ts = elemTypes.mkString(", ")
+            throw new TypeError(
+              s"Could not find common type for operand types $ts in $className."
+            )
         }
       case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => e.tchk)
@@ -132,12 +134,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
-        if (elemTypes.toSet.size > 1) {
-          throw new TypeError(
-            s"Operands of ${p.className} have different types: ${elemTypes.mkString(", ")}."
-          )
-        } else {
-          p.rebuild(elemTypes.head, newFactors)
+        ReshapeData.narrowestCommonAncestor(elemTypes) match {
+          case Some(typ) =>
+            p.rebuild(typ, newFactors)
+          case None =>
+            val ts = elemTypes.mkString(", ")
+            throw new TypeError(
+              s"Could not find common type for operand types $ts in $className."
+            )
         }
       case d @ Div(e1, e2) =>
         val newLhs = e1.tchk
@@ -158,12 +162,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        if (t1 ~= t2) {
-          d.rebuild(t1, Seq(newLhs, newRhs))
-        } else {
-          throw new TypeError(
-            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
-          )
+        ReshapeData.narrowestCommonAncestor(t1, t2) match {
+          case Some(typ) =>
+            d.rebuild(typ, Seq(newLhs, newRhs))
+          case None =>
+            throw new TypeError(
+              s"Could not find common type for operand types $t1 and $t2 in $className."
+            )
         }
       case m @ Mod(e1, e2) =>
         val newLhs = e1.tchk
@@ -184,12 +189,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        if (t1 ~= t2) {
-          m.rebuild(t1, Seq(newLhs, newRhs))
-        } else {
-          throw new TypeError(
-            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
-          )
+        ReshapeData.narrowestCommonAncestor(t1, t2) match {
+          case Some(typ) =>
+            m.rebuild(typ, Seq(newLhs, newRhs))
+          case None =>
+            throw new TypeError(
+              s"Could not find common type for operand types $t1 and $t2 in $className."
+            )
         }
       case pad @ PadTo(e, targetWidth) =>
         val newE = e.tchk
@@ -298,12 +304,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               s"Right-hand side of $className has non-data type $t."
             )
         }
-        if (newE1.typ ~= newE2.typ) {
-          eq.rebuild(TyBool, Seq(newE1, newE2))
-        } else {
-          throw new TypeError(
-            s"Left-hand side of $className has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
-          )
+        ReshapeData.narrowestCommonAncestor(newE1.typ, newE2.typ) match {
+          case Some(_) =>
+            eq.rebuild(TyBool, Seq(newE1, newE2))
+          case None =>
+            throw new TypeError(
+              s"Could not find common type for operand types ${newE1.typ} and ${newE2.typ} in $className."
+            )
         }
       case lt @ LessThan(e1, e2) =>
         val newLhs = e1.tchk
@@ -324,12 +331,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        if (newLhs.typ ~= newRhs.typ) {
-          lt.rebuild(TyBool, Seq(newLhs, newRhs))
-        } else {
-          throw new TypeError(
-            s"Left-hand side of $className has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}."
-          )
+        ReshapeData.narrowestCommonAncestor(newLhs.typ, newRhs.typ) match {
+          case Some(_) =>
+            lt.rebuild(TyBool, Seq(newLhs, newRhs))
+          case None =>
+            throw new TypeError(
+              s"Could not find common type for operand types ${newLhs.typ} and ${newRhs.typ} in $className."
+            )
         }
 
       case t @ Tuple(elems @ _*) =>

@@ -485,8 +485,8 @@ object PartialEvalPass {
       // ArithExpr seems to handle x < y better than x - y < 0, so try making all terms positive
       val (lhsPosTerms, lhsNegTerms) = getPosAndNegTerms(partialEval(e1)(facts))
       val (rhsPosTerms, rhsNegTerms) = getPosAndNegTerms(partialEval(e2)(facts))
-      val newLhs = SmartSum(lhsPosTerms ++ rhsNegTerms: _*)()
-      val newRhs = SmartSum(rhsPosTerms ++ lhsNegTerms: _*)()
+      val newLhs = Sum(lhsPosTerms ++ rhsNegTerms: _*)()
+      val newRhs = Sum(rhsPosTerms ++ lhsNegTerms: _*)()
       (newLhs < newRhs).tchk().lower()
     }
     partialEval(lt)(facts, MoveUp) match {

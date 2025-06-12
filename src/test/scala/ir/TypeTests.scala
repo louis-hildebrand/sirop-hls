@@ -123,8 +123,7 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("BitWidth:Sum:Zeros") {
-    val u0 = TyUInt(0)
-    assert(TSum(u0, u0, u0, u0) == u0)
+    assert(TSum(U0, U0, U0, U0) == U0)
   }
 
   test("BitWidth:Sum:SimpleCase") {
@@ -191,8 +190,7 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("BitWidth:Prod:Zeros") {
-    val u0 = TyUInt(0)
-    assert(TProd(u0, u0, u0, u0) == u0)
+    assert(TProd(U0, U0, U0, U0) == U0)
   }
 
   test("BitWidth:Prod:SimpleCase") {
@@ -249,7 +247,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Div:ZeroDenominator") {
     val expectedMessage =
       "Denominator of div is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 / TyUInt(0))
+    val exc1 = intercept[ArithmeticException](U8 / U0)
     assert(exc1.getMessage == expectedMessage)
     val exc2 = intercept[ArithmeticException](U8 / TySInt(0))
     assert(exc2.getMessage == expectedMessage)
@@ -322,7 +320,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Mod:ZeroDenominator") {
     val expectedMessage =
       "Denominator of mod is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 % TyUInt(0))
+    val exc1 = intercept[ArithmeticException](U8 % U0)
     assert(exc1.getMessage == expectedMessage)
     val exc2 = intercept[ArithmeticException](U8 % TySInt(0))
     assert(exc2.getMessage == expectedMessage)

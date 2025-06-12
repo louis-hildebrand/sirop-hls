@@ -340,6 +340,11 @@ object TyStm {
 
 trait CommonIntTypes {
 
+  /** The type of a 0-bit unsigned number (i.e., a number that can only be
+    * zero).
+    */
+  val U0: TyUInt = TyUInt(0)
+
   /** The type of an 8-bit unsigned integer.
     */
   val U8: TyUInt = TyUInt(8)

@@ -34,6 +34,14 @@ class TypecheckerTests extends AnyFunSuite {
     assert(IntCst(4)().tchk().typ == TyUInt(3))
   }
 
+  private val xU8 = Param("x")(U8)
+  private val yU8 = Param("y")(U8)
+  private val zU8 = Param("z")(U8)
+  private val yU16 = Param("y")(U16)
+  private val yI8 = Param("y")(I8)
+  private val xI32 = Param("x")(I32)
+  private val yI32 = Param("y")(I32)
+
   test("Equal:Valid") {
     val types = Seq(
       U8,
@@ -53,18 +61,39 @@ class TypecheckerTests extends AnyFunSuite {
     }
   }
 
-  test("Equal:Invalid") {
-    // Non-data type
+  test("Equal:DifferentIntTypes") {
+    assert(Equal(xU8, yI8)().tchk().typ == TyBool)
+    assert(Equal(xU8, yU16)().tchk().typ == TyBool)
+  }
+
+  test("Equal:NonData") {
     assertThrows[TypeError](
       Equal(Param("x")(TyStm(U8, 1)), Param("y")(TyStm(U8, 1)))().tchk()
     )
     assertThrows[TypeError](
       Equal(Param("x")(U8 ->: U8), Param("y")(U8 ->: U8))().tchk()
     )
-    // Completely different types
-    assertThrows[TypeError](Equal(Param("x")(TyBool), Param("y")(I8))().tchk())
-    // Different int types
-    assertThrows[TypeError](Equal(Param("x")(U8), Param("y")(I8))().tchk())
+  }
+
+  test("Equal:IncompatibleTypes") {
+    val types = Seq(
+      U8,
+      TyBool,
+      TyTuple(U8, TyBool),
+      TyTuple(TyBool, U8),
+      TyVec(U8, IntCst(5)(U8)),
+      TyVec(U8, IntCst(6)(U8)),
+      TyVec(TyBool, IntCst(5)(U8))
+    )
+    for (i <- types.indices) {
+      for (j <- types.indices) {
+        if (i != j) {
+          val x = Param("x")(types(i))
+          val y = Param("y")(types(j))
+          assertThrows[TypeError]((x === y).tchk())
+        }
+      }
+    }
   }
 
   test("LessThan:Valid") {
@@ -75,23 +104,20 @@ class TypecheckerTests extends AnyFunSuite {
     }
   }
 
+  test("LessThan:DifferentIntTypes") {
+    assert(LessThan(xU8, yI8)().tchk().typ == TyBool)
+    assert(LessThan(xU8, yU16)().tchk().typ == TyBool)
+  }
+
   test("LessThan:Invalid") {
+    assertThrows[TypeError]((True < False).tchk())
     assertThrows[TypeError](
       LessThan(Param("x")(TyBool), Param("y")(U8))().tchk()
     )
     assertThrows[TypeError](
       LessThan(Param("x")(U8), Param("y")(TyBool))().tchk()
     )
-    assertThrows[TypeError](LessThan(Param("x")(U8), Param("x")(I8))().tchk())
   }
-
-  private val xU8 = Param("x")(U8)
-  private val yU8 = Param("y")(U8)
-  private val zU8 = Param("z")(U8)
-  private val yU16 = Param("y")(U16)
-  private val yI8 = Param("y")(I8)
-  private val xI32 = Param("x")(I32)
-  private val yI32 = Param("y")(I32)
 
   test("u8 + u8 + u8") {
     assert(Sum(xU8, yU8, zU8)().tchk().typ == U8)
@@ -102,15 +128,15 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("EmptySum") {
-    assert(Sum()().tchk().typ == TyUInt(0))
+    assert(Sum()().tchk().typ == U0)
   }
 
   test("u8 + i8") {
-    assertThrows[TypeError](Sum(xU8, yI8)().tchk())
+    assert(Sum(xU8, yI8)().tchk().typ == I9)
   }
 
   test("u8 + u16") {
-    assertThrows[TypeError](Sum(xU8, yU16)().tchk())
+    assert(Sum(xU8, yU16)().tchk().typ == U16)
   }
 
   test("u8 * u8 * u8") {
@@ -126,11 +152,11 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("u8 * i8") {
-    assertThrows[TypeError](Prod(xU8, yI8)().tchk())
+    assert(Prod(xU8, yI8)().tchk().typ == I9)
   }
 
   test("u8 * u16") {
-    assertThrows[TypeError](Prod(xU8, yU16)().tchk())
+    assert(Prod(xU8, yU16)().tchk().typ == U16)
   }
 
   test("u8 / u8") {
@@ -142,11 +168,11 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("u8 / i8") {
-    assertThrows[TypeError](Div(xU8, yI8)().tchk())
+    assert(Div(xU8, yI8)().tchk().typ == I9)
   }
 
   test("u8 / u16") {
-    assertThrows[TypeError](Div(xU8, yU16)().tchk())
+    assert(Div(xU8, yU16)().tchk().typ == U16)
   }
 
   test("u8 % u8") {
@@ -158,11 +184,11 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("u8 % i8") {
-    assertThrows[TypeError](Mod(xU8, yI8)().tchk())
+    assert(Mod(xU8, yI8)().tchk().typ == I9)
   }
 
   test("u8 % u16") {
-    assertThrows[TypeError](Mod(xU8, yU16)().tchk())
+    assert(Mod(xU8, yU16)().tchk().typ == U16)
   }
 
   test("IntAndBoolFunction") {
