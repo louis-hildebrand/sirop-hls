@@ -158,9 +158,10 @@ private object VhdlExprGenerator {
         if (len.freeVars().isEmpty) {
           // TODO: Use for-generate here instead?
           val n = ir.eval(len).asInstanceOf[IntCst].i
+          val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
           val elems =
             (0 until n.toInt).map(i =>
-              PartialEvalPass.partialEval(FunCall(f, i)())
+              PartialEvalPass.partialEval(FunCall(f, C(i)(idxTyp))())
             )
           exprToVhdl(VecLiteral(elems: _*)().tchk())
         } else {

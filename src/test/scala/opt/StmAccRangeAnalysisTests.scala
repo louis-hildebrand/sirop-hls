@@ -6,11 +6,11 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRangeAnalysisTests extends AnyFunSuite {
   test("RangeForNonDecreasingElem") {
-    val n = Param("n")()
-    val z = Param("z")()
-    val a = Param("a")()
-    val b = Param("b")()
-    val c = Param("c")()
+    val n = Param("n")(U8)
+    val z = Param("z")(U8)
+    val a = Param("a")(U8)
+    val b = Param("b")(I8)
+    val c = Param("c")(I32)
     val stm =
       StmBuild(
         n,
@@ -18,10 +18,10 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           a -> (z, a + 1),
-          b -> (-3, b + 9),
-          c -> (2, 2 * c + 2)
+          b -> (C(-3)(I8), b + 9),
+          c -> (C(2)(I32), 2 * c + 2)
         )
-      )()
+      )().tchk().lower().asInstanceOf[StmBuild]
 
     val expectedRanges = StmAccRange(
       Map(

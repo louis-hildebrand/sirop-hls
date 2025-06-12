@@ -30,14 +30,14 @@ object StmAccRangeAnalysis {
     //           `StmCanonPass` which identifies constant accumulator elements.
 
     val z = stm.seedByVar(x)
-    val delta = stm.nextByVar(x) - x
+    val next = stm.nextByVar(x)
 
     // acc[i] >= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] >= z   (always true)
     //   (Ind. case) acc[i] >= z ==> next(acc[i]) >= z     (to be shown)
     val fLow = FactSet().geq(x, z)
     val isNonDecreasing =
-      PartialEvalPass.isGreaterOrEqual(delta, 0)(fLow).getOrElse(false)
+      PartialEvalPass.isGreaterOrEqual(next, x)(fLow).getOrElse(false)
     val lower = if (isNonDecreasing) {
       Some(z)
     } else {
@@ -47,10 +47,11 @@ object StmAccRangeAnalysis {
     // acc[i] <= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] <= z   (always true)
     //   (Ind. case) acc[i] <= z ==> next(acc[i]) <= z     (to be shown)
-    val zPlusOne = ArithSimplifier.simplifyArithmetic(z + 1)(FactSet())
+    val zPlusOne =
+      ArithSimplifier.simplifyArithmetic((z + 1).tchk().lower())(FactSet())
     val fHi = FactSet().lt(x, zPlusOne)
     val isNonIncreasing =
-      PartialEvalPass.isSmallerOrEqual(delta, 0)(fHi).getOrElse(false)
+      PartialEvalPass.isSmallerOrEqual(next, x)(fHi).getOrElse(false)
     val upper = if (isNonIncreasing) {
       Some(zPlusOne)
     } else {

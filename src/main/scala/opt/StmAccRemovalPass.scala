@@ -104,11 +104,11 @@ object StmAccRemovalPass {
     } else {
       val currentValByVar = stm.seedByVar.map({ case (x, z) =>
         if (candidates.contains(x)) x -> z
-        else x -> Param("unknown")()
+        else x -> Param("unknown")(x.typ)
       })
       val nextValByVar = stm.nextByVar.map({ case (x, next) =>
         x -> PartialEvalPass.partialEval(
-          next.substitute(currentValByVar.toMap[Expr, Expr])
+          next.subPreserveType(currentValByVar.toMap[Expr, Expr])
         )
       })
       val constantVars =

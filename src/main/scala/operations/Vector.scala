@@ -38,7 +38,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
       case TyArrow(t1, t2)
           if Default.hasDefault(t1) && Default.hasDefault(t2) =>
         VecBuild(
-          VecLength(v)(),
+          v.typ.asInstanceOf[TyVec].n,
           U32 ::+ (i => FunCall(f, VecAccess(v, i)())())
         )().tchk().lower()
       case TyArrow(t1, _: TyStm) =>

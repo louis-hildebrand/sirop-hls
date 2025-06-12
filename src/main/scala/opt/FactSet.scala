@@ -71,7 +71,7 @@ case class FactSet(
         terms.foldLeft(newFacts)({ case (acc, e) => acc.assumeTrue(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
-        PartialEvalPass.partialEval(e1 - e2)(newFacts) match {
+        PartialEvalPass.partialEval((e1 - e2).tchk().lower())(newFacts) match {
           case Sum(IntCst(c), x: Param) =>
             // c + x < 0 <==> x < -c
             newFacts.range(x, ScalarRange(None, Some(-c)))
@@ -101,7 +101,7 @@ case class FactSet(
         terms.foldLeft(newFacts)({ case (acc, e) => acc.assumeFalse(e) })
       // TODO: Add some more cases?
       case LessThan(e1, e2) =>
-        PartialEvalPass.partialEval(e1 - e2)(newFacts) match {
+        PartialEvalPass.partialEval((e1 - e2).tchk().lower())(newFacts) match {
           case Sum(IntCst(c), x: Param) =>
             // !(c + x < 0) <==> c + x >= 0 <==> x >= -c
             newFacts.range(x, ScalarRange(Some(-c), None))

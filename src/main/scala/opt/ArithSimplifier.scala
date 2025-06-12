@@ -7,7 +7,7 @@ import lift.arithmetic.{simplifier => aes}
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
-object ArithSimplifier {
+private[opt] object ArithSimplifier {
 
   /** An `ArithExpr` containing an expression that cannot be translated to any
     * other kind of `ArithExpr` (e.g., a vector access).
@@ -73,17 +73,24 @@ object ArithSimplifier {
     private val idCtr = new AtomicLong()
   }
 
-  def simplifyArithmetic(e: Expr)(facts: FactSet): Expr = {
+  def simplifyArithmetic(expr: Expr)(facts: FactSet): Expr = {
+    val e = expr.tchk()
     val a =
       try {
         Some(toSimplifiedArithExpr(e)(facts))
       } catch {
         case _: ArithmeticException => None
       }
-    a.flatMap(a => fromArithExpr(a)) match {
+    a.flatMap(a => fromArithExpr(a, e.typ)) match {
       case None => e
-      case Some(e) =>
-        e
+      case Some(newE) =>
+        if (e.typ != Missing) {
+          assert(
+            newE.typ == e.typ,
+            s"arithmetic simplification should preserve type annotations (expected ${e.typ}, found ${newE.typ})"
+          )
+        }
+        newE
     }
   }
 
@@ -190,126 +197,162 @@ object ArithSimplifier {
     }
   }
 
-  private def fromArithExpr(a: ae.ArithExpr): Option[Expr] = {
-    a match {
-      case ae.Cst(c) => Some(IntCst(c.toInt)())
+  /** Convert a [[ae.ArithExpr]] back to an [[Expr]].
+    *
+    * @param a
+    *   the expression to convert.
+    * @param typ
+    *   the expected type.
+    * @return
+    *   [[None]] if the conversion failed, otherwise the converted expression.
+    */
+  private def fromArithExpr(
+      a: ae.ArithExpr,
+      typ: Type
+  ): Option[Expr] = {
+    val result = a match {
+      case ae.Cst(c) =>
+        val t = typ.asInstanceOf[TyAnyInt]
+        val v = ir.eval(TruncateTo(IntCst(c)(t.withWidth(64)), t.w)())
+        Some(v)
       case ae.Sum(terms) =>
-        val exprTerms = terms.map(fromArithExpr)
+        val exprTerms = terms.map(e => fromArithExpr(e, typ))
         if (exprTerms.forall(e => e.isDefined)) {
           Some(Sum(exprTerms.map(e => e.get): _*)())
         } else {
           None
         }
       case ae.Prod(factors) =>
-        val exprFactors = factors.map(fromArithExpr)
+        val exprFactors = factors.map(e => fromArithExpr(e, typ))
         if (exprFactors.forall(e => e.isDefined)) {
           Some(Prod(exprFactors.map(e => e.get): _*)())
         } else {
           None
         }
       case ae.IntDiv(n, d) =>
-        (fromArithExpr(n), fromArithExpr(d)) match {
-          case (Some(n), Some(d)) => Some(Div(n, d)())
-          case _                  => None
+        (fromArithExpr(n, typ), fromArithExpr(d, typ)) match {
+          case (Some(n), Some(d)) =>
+            Some(Div(n, d)())
+          case _ => None
         }
       case ae.Mod(dividend, divisor) =>
-        (fromArithExpr(dividend), fromArithExpr(divisor)) match {
+        (fromArithExpr(dividend, typ), fromArithExpr(divisor, typ)) match {
           case (Some(dividend), Some(divisor)) => Some(Mod(dividend, divisor)())
           case _                               => None
         }
-      case ae.IfThenElse(c, t, f) =>
-        (
-          fromArithExpr(c.lhs),
-          fromArithExpr(c.rhs),
-          fromArithExpr(t),
-          fromArithExpr(f)
-        ) match {
-          case (Some(lhs), Some(rhs), Some(t), Some(f)) =>
-            val cond = simplifyBoolExpr(c.op match {
-              case ae.Predicate.Operator.<  => lhs < rhs
-              case ae.Predicate.Operator.>  => lhs > rhs
-              case ae.Predicate.Operator.<= => lhs <= rhs
-              case ae.Predicate.Operator.>= => lhs >= rhs
-              case ae.Predicate.Operator.!= => lhs !== rhs
-              case ae.Predicate.Operator.== => lhs === rhs
+      case ae.IfThenElse(
+            // The expressions within the predicate must be black boxes.
+            // Otherwise, how can we recover their type?
+            ae.Predicate(BlackBox(a, _), BlackBox(b, _), op),
+            t,
+            f
+          ) =>
+        (fromArithExpr(t, typ), fromArithExpr(f, typ)) match {
+          case (Some(t), Some(f)) =>
+            val cond = simplifyBoolExpr(op match {
+              case ae.Predicate.Operator.<  => LessThan(a, b)()
+              case ae.Predicate.Operator.>  => LessThan(b, a)()
+              case ae.Predicate.Operator.<= => Not(LessThan(b, a)())()
+              case ae.Predicate.Operator.>= => Not(LessThan(a, b)())()
+              case ae.Predicate.Operator.!= => Not(Equal(a, b)())()
+              case ae.Predicate.Operator.== => Equal(a, b)()
             })
-            // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-            (t, f) match {
-              case (False, False) => Some(False)
-              case (False, True)  => Some(Not(cond)())
-              case (True, False)  => Some(cond)
-              case (True, True)   => Some(True)
-              case (t, f)         => Some(Mux(cond, t, f)())
+            (cond, t, f) match {
+              case (_, False, False)     => Some(False)
+              case (Not(c), False, True) => Some(c)
+              case (c, False, True)      => Some(Not(c)())
+              case (_, True, False)      => Some(cond)
+              case (_, True, True)       => Some(True)
+              case (c, t, f)             => Some(Mux(c, t, f)())
             }
           case _ => None
         }
-      //      case AbsFunction(ae)                   => ???
-      //      case FloorFunction(ae)                 => ???
-      //      case CeilingFunction(ae)               => ???
-      case BlackBox(e, _) =>
-        Some(e)
-      case _ => None
+      case BlackBox(e, _) => Some(e)
+      case _              => None
+    }
+    result match {
+      case Some(e) =>
+        val typedE = e.tchk()
+        assert(typedE.typ == typ, s"expected type $typ but found ${typedE.typ}")
+        Some(typedE)
+      case None => None
     }
   }
 
   private def simplifyBoolExpr(e: Expr): Expr = {
-    e.rebuild(e.typ, e.children.map(e => simplifyBoolExpr(e))) match {
+    val out = e.rebuild(e.typ, e.children.map(e => simplifyBoolExpr(e))) match {
       case eq: Equal => simplifyEqual(eq)
       case and: And  => simplifyAnd(and)
       case or: Or    => simplifyOr(or)
       case not: Not  => simplifyNot(not)
       case e         => e
     }
+    out.tchk()
   }
 
   private def simplifyEqual(eq: Equal): Expr = {
-    eq match {
+    val out = eq match {
       case Equal(c, True)  => c
       case Equal(True, c)  => c
       case Equal(c, False) => Not(c)()
       case Equal(False, c) => Not(c)()
       case _               => eq
     }
+    out.tchk()
   }
 
   private def simplifyAnd(and: And): Expr = {
-    and.remove(True) match {
+    // TODO: While simplifying a given term, assume all previous terms are true?
+    val out = and.remove(True) match {
       case And(terms @ _*) if terms.contains(False) =>
         False
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
       case And(terms @ _*) if hasContradictoryTerms(terms) =>
         False
-      case And(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2)))
+      case And(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst))
           if e1 == e2 =>
-        LessThan(e1, math.min(c1, c2))()
-      case And(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2))
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(e1, IntCst(math.min(c1.i, c2.i))(c1.typ))()
+      case And(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2))
           if e1 == e2 =>
-        LessThan(math.max(c1, c2), e1)()
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(IntCst(math.max(c1.i, c2.i))(c1.typ), e1)()
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
-            && PartialEvalPass.isEqual(c1, c0 + 1)().getOrElse(false) =>
+            && PartialEvalPass
+              .isEqual(c1, (c0 + 1).tchk().lower())()
+              .getOrElse(false) =>
         x0 === c0
       case e => e
     }
+    out.tchk()
   }
 
   private def simplifyOr(or: Or): Expr = {
-    or.remove(False) match {
+    // TODO: While simplifying a given term, assume all previous terms are false?
+    val out = or.remove(False) match {
       case Or(terms @ _*) if terms.contains(True) =>
         True
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
       case Or(terms @ _*) if hasContradictoryTerms(terms) =>
         True
-      case Or(LessThan(e1, IntCst(c1)), LessThan(e2, IntCst(c2))) if e1 == e2 =>
-        LessThan(e1, math.max(c1, c2))()
-      case Or(LessThan(IntCst(c1), e1), LessThan(IntCst(c2), e2)) if e1 == e2 =>
-        LessThan(math.min(c1, c2), e1)()
+      case Or(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst)) if e1 == e2 =>
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(e1, IntCst(math.max(c1.i, c2.i))(c1.typ))()
+      case Or(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2)) if e1 == e2 =>
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(IntCst(math.min(c1.i, c2.i))(c1.typ), e1)()
       case e => e
     }
+    out.tchk()
   }
 
   private def simplifyNot(not: Not): Expr = {
-    not match {
+    val out = not match {
       case Not(True)   => False
       case Not(False)  => True
       case Not(Not(e)) => e
@@ -325,6 +368,7 @@ object ArithSimplifier {
         }
       case _ => not
     }
+    out.tchk()
   }
 
   private def hasContradictoryTerms(terms: Seq[Expr]): Boolean = {

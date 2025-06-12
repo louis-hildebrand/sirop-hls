@@ -356,6 +356,10 @@ trait CommonIntTypes {
     */
   val I8: TySInt = TySInt(8)
 
+  /** The type of a 9-bit signed integer.
+    */
+  val I9: TySInt = TySInt(9)
+
   /** The type of a 16-bit signed integer.
     */
   val I16: TySInt = TySInt(16)

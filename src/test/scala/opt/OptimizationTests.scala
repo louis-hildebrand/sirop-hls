@@ -11,10 +11,10 @@ class OptimizationTests extends AnyFunSuite {
     * must handle multi-dimensional streams).
     */
   test("Map:1D-1D") {
-    val n = Param("n")(TyInt)
-    val s = Param("s")(TyStm(TyInt, n))
-    val f = Param("f")(TyArrow(TyInt, TyInt))
-    val original = StmMap(s, TyInt ::+ (x => FunCall(f, x)()))()
+    val n = Param("n")(U8)
+    val s = Param("s")(TyStm(I32, n))
+    val f = Param("f")(TyArrow(I32, I32))
+    val original = StmMap(s, I32 ::+ (x => FunCall(f, x)()))()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s1 = tl(s)
@@ -25,19 +25,24 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val nExamples = Seq(0, 1, 4)
-    val sExamples = Seq(StmCst(n, 42)(), StmCount(n)())
+    val sExamples = Seq(
+      StmCst(n, C(42)(I32))(),
+      StmMap(StmCount(n)(), U8 ::+ (x => ReshapeData(x, I32)()))()
+    )
     val fExamples =
-      Seq(TyInt ::+ (x => x), TyInt ::+ (x => 99), TyInt ::+ (x => x * x))
+      Seq(I32 ::+ (x => x), I32 ::+ (_ => C(99)(I32)), I32 ::+ (x => x * x))
     for (nVal <- nExamples) {
       for (sVal <- sExamples) {
         for (fVal <- fExamples) {
           val expected =
             ir.eval(
-              Let(n, nVal, Let(s, sVal, Let(f, fVal, original)())())().tchk()
+              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, original)())())()
+                .tchk()
             )
           val actual =
             ir.eval(
-              Let(n, nVal, Let(s, sVal, Let(f, fVal, optimized)())())().tchk()
+              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, optimized)())())()
+                .tchk()
             )
           assert(actual == expected)
         }
@@ -45,7 +50,7 @@ class OptimizationTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    val sAcc = Param("s")(TyStm(TyInt, n))
+    val sAcc = Param("s")(TyStm(I32, -1))
     val ideal = StmBuild(
       n,
       FunCall(f, StmData(sAcc)())(),
@@ -60,9 +65,9 @@ class OptimizationTests extends AnyFunSuite {
     */
   test("VecFoldSimpleSum") {
     val n = 3
-    val v = Param("v")(TyVec(TyInt, n))
-    val z = Param("z")(TyInt)
-    val original = VecFold(v, z, PlusFunction())()
+    val v = Param("v")(TyVec(I16, C(n)(U8)))
+    val z = Param("z")(I16)
+    val original = VecFold(v, z, PlusFunction(I16))()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
@@ -74,10 +79,10 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val vExamples = Seq(
-      VecBuild(n, TyInt ::+ (i => i))(),
-      VecBuild(n, TyInt ::+ (i => i * (i + 1)))()
+      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i, I16)()))(),
+      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i * (i + 1), I16)()))()
     )
-    val zExamples = Seq(IntCst(0)(), IntCst(-3)(), IntCst(42)())
+    val zExamples = Seq(C(0)(I16), C(-3)(I16), C(42)(I16))
     for (vVal <- vExamples) {
       for (zVal <- zExamples) {
         val expected = ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
@@ -97,10 +102,10 @@ class OptimizationTests extends AnyFunSuite {
   /** The optimizer can perform map-map fusion on vectors.
     */
   test("Fuse:VecMapMap") {
-    val n = Param("n")(TyInt)
-    val input = Param("input")(TyVec(TyInt, n))
-    val f = TyInt ::+ (x => (x + 2) * (x + 3) * (x + 4))
-    val g = TyInt ::+ (x => x - 10)
+    val n = Param("n")(U8)
+    val input = Param("input")(TyVec(U32, n))
+    val f = U32 ::+ (x => (x + 2) * (x + 3) * (x + 4))
+    val g = U32 ::+ (x => x + 10)
     val original = VecMap(VecMap(input, f)(), g)().tchk().lower()
     val optimize = (v: Expr) => {
       val v1 = PartialEvalPass.partialEval(v)
@@ -111,14 +116,14 @@ class OptimizationTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example input, f, and g)
     val call = (e: Expr) =>
-      Let(n, 5, Let(input, VecBuild(n, TyInt ::+ (i => i + 1))(), e)())()
+      Let(n, C(5)(U8), Let(input, VecBuild(n, U32 ::+ (i => i + 1))(), e)())()
     assert(ir.eval(call(original)) == ir.eval(call(optimized)))
     // Successful fusion:
     // map(map(v, f), g) should simplify to the same thing as map(v, g . f)
     val ideal = optimize(
       VecMap(
         input,
-        TyInt ::+ (x => FunCall(g, FunCall(f, x)())())
+        U32 ::+ (x => FunCall(g, FunCall(f, x)())())
       )().tchk().lower()
     )
     assert(optimized == ideal)

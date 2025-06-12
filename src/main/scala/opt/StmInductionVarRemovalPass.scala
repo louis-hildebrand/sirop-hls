@@ -68,7 +68,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     val t = Param("t")(TyInt)
     val subs: Map[Expr, Expr] =
       closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)() })
-    val valid = s.valid.substitute(subs)
+    val valid = s.valid.subPreserveType(subs)
     val allVarsRemoved = valid.freeVars().intersect(s.accVars).isEmpty
     if (allVarsRemoved) Some(Function(t, valid)()) else None
   }
@@ -104,7 +104,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             .filter({ case (x, _) => v.contains(x) })
             .map({ case (x, (z, next)) =>
               // Replace other accumulator vars by their closed form
-              x -> (z, next.substitute(subs))
+              x -> (z, next.subPreserveType(subs))
             })
         if (v.size == 1) {
           // For simplicity of the recurrence-solving code, don't wrap this one
@@ -196,7 +196,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         acc,
         Tuple((0 until equations.size).map(i => {
           val x = paramByIndex(i)
-          equations(x)._2.substitute(subs)
+          equations(x)._2.subPreserveType(subs)
         }): _*)()
       )()
     )()
@@ -353,7 +353,7 @@ object RecurrenceSolver {
         Some(
           Function(
             t,
-            Mux(t === 0, z, e.substitute(t -> (t - 1)))()
+            Mux(t === 0, z, e.subPreserveType(t -> (t - 1)))()
           )()
         )
       case Counter(delta) => Some(Function(t, z + (t - t0) * delta)())
@@ -430,13 +430,13 @@ object RecurrenceSolver {
         val a = Param("a")(TyInt)
         val ctrNext = Function(
           t,
-          Function(a, ctrUpdateIfTrue.substitute(acc.__1 -> a))()
+          Function(a, ctrUpdateIfTrue.subPreserveType(acc.__1 -> a))()
         )()
         if (!ctrNext.contains(acc)) {
           tryFindDataClosedForm(t0, i0, ctrNext) match {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
-              val bCondIfUnbounded = bCond.substitute(
+              val bCondIfUnbounded = bCond.subPreserveType(
                 Map[Expr, Expr](acc.__0 -> a, acc.__1 -> FunCall(f, t)())
               )
               if (!bCondIfUnbounded.contains(acc)) {
@@ -450,7 +450,7 @@ object RecurrenceSolver {
                       t,
                       Function(
                         a,
-                        boundedCtrUpdate.substitute(
+                        boundedCtrUpdate.subPreserveType(
                           Map[Expr, Expr](acc.__0 -> (t < K), acc.__1 -> a)
                         )
                       )()
@@ -524,7 +524,7 @@ object RecurrenceSolver {
                 case Some((z0, f0)) =>
                   findRec(rhs, k) match {
                     case Some((z1, f1)) =>
-                      val expectedZ1 = lhs.substitute(t -> k)
+                      val expectedZ1 = lhs.subPreserveType(t -> k)
                       val isContinuous = PartialEvalPass
                         .isEqual(
                           z1.tchk().lower(),
@@ -556,7 +556,7 @@ object RecurrenceSolver {
         case next @ StmNextK(_, k) =>
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
-          val nextK = k.substitute(t -> (t + 1))
+          val nextK = k.subPreserveType(t -> (t + 1))
           val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
           val isDeltaZeroOrOne = (
             PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
@@ -565,7 +565,7 @@ object RecurrenceSolver {
                 .getOrElse(false)
           )
           if (isDeltaZeroOrOne) {
-            val z = next.substitute(t -> t0)
+            val z = next.subPreserveType(t -> t0)
             val acc = Param("acc")(next.typ)
             val nextF =
               Function(t, Function(acc, (deltaK !== 0) && (k >= 0))())()

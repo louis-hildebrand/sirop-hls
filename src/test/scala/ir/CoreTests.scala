@@ -35,14 +35,9 @@ class CoreTests extends AnyFunSuite {
     val s = Param("s")()
     val v = Param("v")()
 
-    val untyped = 5 + StmData(s)()
-    assert(untyped.substitute(StmData(s)() -> v) == 5 + v)
-
-    val typed = untyped.tchk(Map(s -> TyStm(U16, 2)))
-    assert(typed.substitute(StmData(s)() -> v) == 5 + v)
-
+    val original = (5 + StmData(s)()).tchk(Map(s -> TyStm(U16, 2)))
     val subbedSameType =
-      typed.subPreserveType(StmData(s)() -> v.rebuild(U16))
+      original.subPreserveType(StmData(s)() -> v.rebuild(U16))
     assert(subbedSameType == 5 + v)
     assert(subbedSameType.typ == U16)
   }
@@ -51,7 +46,7 @@ class CoreTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val x2 = Param("x2")(U8)
     val y = Param("y")(TyStm(U8, 5))
-    val untyped = Tuple(
+    val original = Tuple(
       StmData(y)(),
       Function(
         x,
@@ -60,7 +55,7 @@ class CoreTests extends AnyFunSuite {
           Function(y, StmData(y)() * 3)()
         )()
       )()
-    )()
+    )().tchk()
     val subs = Map[Expr, Expr](StmData(y)() -> (x % 2).tchk())
     val expected = Tuple(
       x % 2,
@@ -72,14 +67,7 @@ class CoreTests extends AnyFunSuite {
       Function(x2, Tuple(x % 2 + 2, Function(y, StmData(y)() * 3)())())()
     )()
 
-    val actual0 = untyped.substitute(subs)
-    assert(actual0 == expected)
-
-    val typed = untyped.tchk(Map(x -> x.typ, x2 -> x2.typ, y -> y.typ))
-    val actual1 = typed.substitute(subs)
-    assert(actual1 == expected)
-
-    val actual2 = typed.subPreserveType(subs)
+    val actual2 = original.subPreserveType(subs)
     assert(actual2 == expected)
     assert(actual2.typ != Missing)
   }
@@ -107,7 +95,7 @@ class CoreTests extends AnyFunSuite {
         y -> (x.__1 / 2 + z, y + 2 + z)
       )
     )()
-    val untyped = Tuple(2 * x.__1 * z, stm)()
+    val original = Tuple(2 * x.__1 * z, stm)().tchk(context)
     val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)(U8))
     val expected = Tuple(
       2 * y * 99,
@@ -129,14 +117,7 @@ class CoreTests extends AnyFunSuite {
       )()
     )()
 
-    val actual0 = untyped.substitute(subs)
-    assert(actual0 == expected)
-
-    val typed = untyped.tchk(context)
-    val actual1 = typed.substitute(subs)
-    assert(actual1 == expected)
-
-    val actual2 = typed.subPreserveType(subs)
+    val actual2 = original.subPreserveType(subs)
     assert(actual2 == expected)
     assert(actual2.typ != Missing)
   }

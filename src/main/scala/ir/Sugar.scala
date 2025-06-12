@@ -721,8 +721,8 @@ case class OptionAccess(
     } else {
       Mux(
         e.__1,
-        s.body.substitute(s.param -> e.__0),
-        n.body.substitute(n.param -> Tuple()())
+        s.body.subPreserveType(s.param -> e.__0),
+        n.body.subPreserveType(n.param -> Tuple()())
       )()
     }
   }

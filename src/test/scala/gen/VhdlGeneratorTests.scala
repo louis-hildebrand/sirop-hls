@@ -220,8 +220,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("s => s |> ZipWithIndex") {
     val n = 33
-    val i9 = TySInt(9)
-    val t = TyTuple(U8, TyBool, TyVec(i9, 3))
+    val t = TyTuple(U8, TyBool, TyVec(I9, 3))
     val s = Param("s")(TyStm(t, n))
     val zip = StmZip(StmCount(n)(), s)().tchk().lower()
     val f = Function(s, zip)().tchk()
@@ -231,7 +230,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
           Tuple(
             C(i)(U8),
             i % 2 == 0,
-            VecLiteral(C(i - 1)(i9), C(i)(i9), C(i + 1)(i9))()
+            VecLiteral(C(i - 1)(I9), C(i)(I9), C(i + 1)(I9))()
           )()
       Seq(
         TestInput((0 until n).flatMap(i => Seq(None, Some(v(i)), None)))
@@ -338,16 +337,16 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("CurriedFunCall") {
     val n = 7
-    val f = (U16, U16) ::+ (x => U8 ::+ (y => y + x.__0 * y + x.__1))
-    val a = Param("a")(U16)
+    val f = (U32, U32) ::+ (x => U32 ::+ (y => y + x.__0 * y + x.__1))
+    val a = Param("a")(U32)
     val s = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
         a -> (
-          C(0)(U16),
-          FunCall(FunCall(f, Tuple(C(42)(U16), C(99)(U16))())(), a)()
+          C(0)(U32),
+          FunCall(FunCall(f, Tuple(C(1)(U32), C(1)(U32))())(), a)()
         )
       )
     )().tchk().lower().uncurry()
@@ -387,15 +386,15 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("2DMapFold") {
     val n = 16
     val m = 8
-    val s = Param("s")(TyStm(TyStm(U8, m), n))
+    val s = Param("s")(TyStm(TyStm(U16, m), n))
     val rowSums =
       StmMap(
         s,
-        TyStm(U8, m) ::+ (s => StmFold(s, C(0)(U8), PlusFunction(U8))())
+        TyStm(U16, m) ::+ (s => StmFold(s, C(0)(U16), PlusFunction(U16))())
       )().tchk().lower().asInstanceOf[StmBuild]
 
     val inputs = Seq(
-      TestInput((0 until n * m).flatMap(i => Seq(None, Some(C(i)(U8)))))
+      TestInput((0 until n * m).flatMap(i => Seq(None, Some(C(i)(U16)))))
     )
 
     val optimized =

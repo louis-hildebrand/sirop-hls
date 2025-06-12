@@ -606,7 +606,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case e @ (_: IntCst | _: Param | _: StmLiteral | _: VecLiteral) =>
         // These expressions may carry type information that cannot be derived
         // from the syntax alone, so be careful not to discard it.
-        e.rebuild(e.typ.lower)
+        e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
       case e =>
         // Re-run the type checker to ensure no type errors crept in during
         // lowering
@@ -618,7 +618,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      !this.hasType || desugared.typ.isCompatibleWith(this.typ.lower),
+      !this.hasType || (desugared.typ ~= this.typ.lower),
       s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
     )
     assert(
@@ -1417,11 +1417,11 @@ case class StmBuild(
       val subs: Map[Expr, Expr] = replacements.toMap
       StmBuild(
         this.n,
-        this.data.substitute(subs),
-        this.valid.substitute(subs),
+        this.data.subPreserveType(subs),
+        this.valid.subPreserveType(subs),
         this.equations
           .filter({ case (x, _) => !replacements.contains(x) })
-          .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
+          .map({ case (x, (z, next)) => x -> (z, next.subPreserveType(subs)) })
       )()
     }
   }

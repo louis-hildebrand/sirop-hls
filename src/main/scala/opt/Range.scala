@@ -19,6 +19,23 @@ sealed trait Range {
   *   Upper bound, exclusive
   */
 case class ScalarRange(lower: Option[Expr], upper: Option[Expr]) extends Range {
+  lower match {
+    case Some(e) =>
+      require(
+        !e.contains(classOf[SyntaxSugar]),
+        "Lower bound must not contain syntax sugar."
+      )
+    case None => ()
+  }
+  upper match {
+    case Some(e) =>
+      require(
+        !e.contains(classOf[SyntaxSugar]),
+        "Upper bound must not contain syntax sugar."
+      )
+    case None => ()
+  }
+
   override def merge(that: Range): ScalarRange = {
     that match {
       case ScalarRange(newLower, newUpper) =>

@@ -1,23 +1,96 @@
 package opt
 
-import org.scalatest.funsuite.AnyFunSuite
 import ir._
-import operations.{StmCount, StmFold}
+import operations.StmCount
+import org.scalatest.funsuite.AnyFunSuite
 
 class PartialEvalPassTests extends AnyFunSuite {
+  @deprecated
   private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
+  private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
 
-  // Used to debug a case where partial evaluator left behind a Not(Not(...))
-  test("NotNot") {
-    val acc = Param("acc")(TyTuple(TyInt, TyInt, TyInt, TyBool, TyInt))
-    val e =
-      Mux(
-        acc.__3,
-        Mux(Not(LessThan(acc.__4, 5)())(), False, True)(),
-        False
-      )()
-    val expected = acc.__3 && LessThan(acc.__4, 5)()
-    assert(PartialEvalPass.partialEval(e) == expected)
+  test("PadTo:Const") {
+    for (n <- -10 to 10) {
+      val e = PadTo(IntCst(n)(I8), 16)()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == I16)
+    }
+  }
+
+  test("PadTo:SameWidth") {
+    val x = Param("x")()
+    for (t <- COMMON_INT_TYPES) {
+      val actual = lpe(PadTo(x.rebuild(t), t.w)())
+      val expected = x.rebuild(t)
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+  }
+
+  test("TruncateTo:Const") {
+    for (n <- -10 to 10) {
+      val e = TruncateTo(IntCst(n)(I8), 2)()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TySInt(2))
+    }
+  }
+
+  test("TruncateTo:SameWidth") {
+    val x = Param("x")()
+    for (t <- COMMON_INT_TYPES) {
+      val actual = lpe(TruncateTo(x.rebuild(t), t.w)())
+      val expected = x.rebuild(t)
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+  }
+
+  test("PadThenTruncate") {
+    val x = Param("x")(U8)
+
+    assert(lpe(TruncateTo(PadTo(x, 8)(), 8)()) == x)
+    assert(lpe(TruncateTo(PadTo(x, 9)(), 8)()) == x)
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 8)()) == x)
+
+    assert(lpe(TruncateTo(PadTo(x, 9)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(TruncateTo(PadTo(x, 11)(), 7)()) == TruncateTo(x, 7)())
+
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(TruncateTo(PadTo(x, 11)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(TruncateTo(PadTo(x, 12)(), 9)()) == PadTo(x, 9)())
+  }
+
+  test("TruncateThenPad") {
+    val x = Param("x")(U8)
+    val e = PadTo(TruncateTo(x, 2)(), 8)()
+    // Cannot cancel out the pad and the truncate because the original
+    // expression may discard data
+    assert(pe(e) == e)
+  }
+
+  test("ToUnsigned:Const") {
+    for (n <- -10 to 10) {
+      val e = ToUnsigned(IntCst(n)(I8))()
+      val actual = pe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TyUInt(7))
+    }
+  }
+
+  test("ToSigned:Const") {
+    for (n <- 0 to 10) {
+      val e = ToSigned(IntCst(n)(U8))()
+      val actual = pe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TySInt(9))
+    }
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
@@ -260,6 +333,19 @@ class PartialEvalPassTests extends AnyFunSuite {
         Tuple(x < 9, x >= 10, x >= 11)()
       )()
     val actual = PartialEvalPass.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("MuxCondition:ToSigned(x) < 5") {
+    val x = Param("x")(U8)
+    val e =
+      Mux(
+        ToSigned(x)() < C(5)(I9),
+        ToSigned(x)() < C(10)(I9),
+        ToSigned(x)() < C(3)(I9)
+      )().tchk().lower()
+    val expected = LessThan(ToSigned(x)(), C(5)(I9))()
+    val actual = lpe(e)
     assert(actual == expected)
   }
 

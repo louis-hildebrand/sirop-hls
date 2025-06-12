@@ -1,11 +1,13 @@
 import scala.language.implicitConversions
 
 package object ir extends Eval with CommonIntTypes {
+  //  TODO: This is dangerous! It is easy to accidentally discard an IntCst's type this way
+  @deprecated
   implicit def int2IntCst(i: Int): IntCst = IntCst(i)()
-
+  @deprecated
   implicit def long2IntCst(i: Long): IntCst = IntCst(i)()
 
-  // This is dangerous! It is too easy to write e1 == e2 rather than e1 === e2
+  // TODO: This is dangerous! It is too easy to write e1 == e2 rather than e1 === e2
   @deprecated
   implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
 
