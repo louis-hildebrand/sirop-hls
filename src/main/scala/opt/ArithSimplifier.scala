@@ -273,7 +273,7 @@ private[opt] object ArithSimplifier {
     result match {
       case Some(e) =>
         val typedE = e.tchk()
-        assert(typedE.typ == typ, s"expected type $typ but found ${typedE.typ}")
+        assert(typedE.typ <= typ, s"expected type $typ but found ${typedE.typ}")
         Some(typedE)
       case None => None
     }

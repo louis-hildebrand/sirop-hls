@@ -16,7 +16,8 @@ object TestbenchGenerator {
       dir: Path
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
-    val outElemType = VhdlType(out.tchk().typ.asInstanceOf[TyStm].t)
+    val outElemType = out.tchk().typ.asInstanceOf[TyStm].t
+    val outElemTypeVhdl = VhdlType(outElemType)
     val inputProcesses = inputsByVar
       .map({ case (x, inputs) =>
         val steps = inputs.elems
@@ -51,9 +52,10 @@ object TestbenchGenerator {
       .mkString("\n\n")
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
+        val reshapedV = ReshapeData(v, outElemType)().tchk().lower()
         val expected =
-          VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
-        s"""expected <= ${expected};
+          VhdlGenerator.valueToStdLogicVector(reshapedV, "expected'length")
+        s"""expected <= $expected;
            |wait until rising_edge(clk) and valid = '1';
            |assert(data = expected) report "Wrong `data` at step $i.";
            |""".stripMargin.stripTrailing
@@ -101,8 +103,8 @@ object TestbenchGenerator {
          |    signal   expected   : std_logic_vector(${dataTyp.bitWidth - 1} downto 0);
          |
          |    -- Easier debugging
-         |    signal   data_t     : ${outElemType.vhdlName};
-         |    signal   expected_t : ${outElemType.vhdlName};
+         |    signal   data_t     : ${outElemTypeVhdl.vhdlName};
+         |    signal   expected_t : ${outElemTypeVhdl.vhdlName};
          |
          |    -- Input streams
          |${indent(inputStmSignals)}

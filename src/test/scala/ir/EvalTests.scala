@@ -126,6 +126,12 @@ class EvalTests extends AnyFunSuite {
     assert(truncations(C(5)(TyUInt(5))) == Seq(5, 5, 5, 1, 1, 0))
   }
 
+  test("TruncateSmallNumber") {
+    val f = U16 ::+ (x => TruncateTo(x, 15)())
+    val e = f(C(1)(TyUInt(1)))
+    assert(ir.eval(e) == C(1)())
+  }
+
   test("ToSigned") {
     for (x <- 0 to 10) {
       assert(ir.eval(ToSigned(x)()) == C(x)())
@@ -153,6 +159,12 @@ class EvalTests extends AnyFunSuite {
     assert(ir.eval(FunCall(f, C(-2)(I8))()) == C(126)())
     // -1 = (11111111)_2
     assert(ir.eval(FunCall(f, C(-1)(I8))()) == C(127)())
+  }
+
+  test("UnsignedToUnsigned") {
+    val f = I9 ::+ (x => ToUnsigned(x)())
+    val e = f(C(2)(TyUInt(2)))
+    assert(ir.eval(e) == C(2)())
   }
 
   test("Equal:Bool") {

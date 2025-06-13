@@ -62,6 +62,25 @@ class TypecheckerTests extends AnyFunSuite {
   private val xI32 = Param("x")(I32)
   private val yI32 = Param("y")(I32)
 
+  test("PadLargeNumber") {
+    assertThrows[TypeError](PadTo(C(255)(U8), 2)().tchk())
+  }
+
+  test("TruncateSmallNumber") {
+    // This expression may be the result of a substitution, so it must be valid
+    val u2 = TyUInt(2)
+    assert(TruncateTo(C(3)(u2), 16)().tchk().typ == u2)
+  }
+
+  test("SignedToSigned") {
+    assertThrows[TypeError](ToSigned(C(-128)(I8))().tchk())
+  }
+
+  test("UnsignedToUnsigned") {
+    // This expression may be the result of a substitution, so it must be valid
+    assert(ToUnsigned(C(255)(U8))().tchk().typ == U8)
+  }
+
   test("Equal:Valid") {
     val types = Seq(
       U8,
@@ -244,7 +263,7 @@ class TypecheckerTests extends AnyFunSuite {
         a,
         b,
         Map[Param, (Expr, Expr)](
-          a -> (ReshapeData(0, U8)(), Mux(b, a + 2, a + 1)()),
+          a -> (0, Mux(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
         )
       )()

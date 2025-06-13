@@ -20,8 +20,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (C(-8)(i4), TruncateTo(SafeSum(i, 1)(), 4)()),
-        j -> (C(0)(u4), TruncateTo(SafeSum(j, 1)(), 4)())
+        i -> (-8, TruncateTo(SafeSum(i, 1)(), 4)()),
+        j -> (0, TruncateTo(SafeSum(j, 1)(), 4)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)

@@ -220,11 +220,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         newE.typ match {
           case t @ TyAnyInt(srcWidth) if targetWidth <= srcWidth =>
             trunc.rebuild(t.withWidth(targetWidth), Seq(newE))
-          case t: TyAnyInt =>
-            throw new TypeError(
-              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
-                + " The target width cannot be greater than the original width."
-            )
+          case t @ TyAnyInt(srcWidth) =>
+            // This situation may arise after a substitution
+            // (e.g., [1 / x] TruncateTo(x, 16)).
+            // In this case, truncating is a no-op.
+            assert(srcWidth < targetWidth)
+            trunc.rebuild(t, Seq(newE))
           case t =>
             throw new TypeError(
               s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t."
@@ -242,6 +243,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case TySInt(w) =>
             // We don't need the sign bit anymore
             uns.rebuild(TyUInt(math.max(0, w - 1)), Seq(newE))
+          case t: TyUInt =>
+            // This situation may arise after a substitution
+            // (e.g., [1 / x] ToUnsigned(x))
+            // The substitution is only valid if the unsigned number is one
+            // bit narrower than the variable, so there's no need to drop any
+            // more bits here.
+            uns.rebuild(t, Seq(newE))
           case t =>
             throw new TypeError(
               s"Argument of ${ToUnsigned.getClass.getSimpleName} has type $t."
@@ -404,7 +412,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newN = s.n.tchk(context).expectUInt()
         val newEquations = s.equations.map({ case (x, (z, next)) =>
           val newZ = z.tchk(context)
-          if (!(newZ.typ ~= x.typ)) {
+          if (!(newZ.typ <= x.typ)) {
             throw new TypeError(
               s"Seed for accumulator $x has type ${newZ.typ}."
                 + s" Expected type ${x.typ}."

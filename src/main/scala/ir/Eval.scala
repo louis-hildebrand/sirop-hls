@@ -448,12 +448,12 @@ trait Eval {
       case TruncateTo(e, targetWidth) =>
         val v = evalBigStep(e).asInstanceOf[IntCst]
         val typ = v.typ.asInstanceOf[TyAnyInt]
-        assert(
-          targetWidth <= typ.w,
-          s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
-        )
-        val targetTyp = typ.withWidth(targetWidth)
-        IntCst(truncate(v.i, targetTyp))(targetTyp)
+        if (targetWidth <= typ.w) {
+          val targetTyp = typ.withWidth(targetWidth)
+          IntCst(truncate(v.i, targetTyp))(targetTyp)
+        } else {
+          e
+        }
       case ToSigned(e) =>
         val v = evalBigStep(e)
         v.typ.asInstanceOf[TyUInt] match {
@@ -462,12 +462,14 @@ trait Eval {
         }
       case ToUnsigned(e) =>
         val v = evalBigStep(e).asInstanceOf[IntCst]
-        v.typ.asInstanceOf[TySInt] match {
+        v.typ.asInstanceOf[TyAnyInt] match {
           case TySInt(w) =>
             // Just drop the sign bit
             val newWidth = math.max(0, w - 1)
             val typ = TyUInt(newWidth)
             IntCst(truncate(v.i, typ))(typ)
+          case _: TyUInt =>
+            e
         }
 
       case True  => True
@@ -633,8 +635,8 @@ trait Eval {
     }
     val typedV = v.tchk()
     assert(
-      typedV.typ ~= expectedType,
-      s"evaluation should preserve the type (expected $expectedType, found ${typedV.typ})"
+      typedV.typ <= expectedType,
+      s"type after evaluation should be a subtype of the original type (expected $expectedType, found ${typedV.typ})"
     )
     typedV
   }
