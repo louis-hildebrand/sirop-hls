@@ -244,11 +244,11 @@ private object VhdlExprGenerator {
   }
 
   private def makeEqual(eq: Equal)(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = ReshapeData.narrowestCommonAncestor(eq.e1.typ, eq.e2.typ) match {
+    val typ = Type.supertype(eq.e1.typ, eq.e2.typ) match {
       case Some(typ) => typ
       case None =>
         throw new TypeError(
-          s"Could not find common type for operand types ${eq.e1.typ} and ${eq.e2.typ} in ${Equal.getClass.getSimpleName}."
+          s"Could not find common supertype for operand types ${eq.e1.typ} and ${eq.e2.typ} in ${Equal.getClass.getSimpleName}."
         )
     }
     val reshapedInputs =
@@ -259,11 +259,11 @@ private object VhdlExprGenerator {
   private def makeLessThan(
       lt: LessThan
   )(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = ReshapeData.narrowestCommonAncestor(lt.e1.typ, lt.e2.typ) match {
+    val typ = Type.supertype(lt.e1.typ, lt.e2.typ) match {
       case Some(typ) => typ
       case None =>
         throw new TypeError(
-          s"Could not find common type for operand types ${lt.e1.typ} and ${lt.e2.typ} in ${LessThan.getClass.getSimpleName}."
+          s"Could not find common supertype for operand types ${lt.e1.typ} and ${lt.e2.typ} in ${LessThan.getClass.getSimpleName}."
         )
     }
     val reshapedInputs =

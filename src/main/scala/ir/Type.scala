@@ -147,6 +147,112 @@ sealed trait Type {
 
 object Type {
 
+  /** Finds the narrowest common supertype of two types.
+    *
+    * @return
+    *   the narrowest type that is a supertype of both `t1` and `t2`, or
+    *   [[None]] if no such type exists.
+    */
+  def supertype(t1: Type, t2: Type): Option[Type] = {
+    (t1, t2) match {
+      case (TyBool, TyBool)         => Some(TyBool)
+      case (TyUInt(w1), TyUInt(w2)) => Some(TyUInt(math.max(w1, w2)))
+      case (u: TyUInt, TySInt(0))   => Some(u)
+      case (TySInt(0), u: TyUInt)   => Some(u)
+      case (TyUInt(w1), TySInt(w2)) => Some(TySInt(math.max(w1 + 1, w2)))
+      case (TySInt(w1), TyUInt(w2)) => Some(TySInt(math.max(w1, w2 + 1)))
+      case (TySInt(0), TySInt(0))   => Some(U0)
+      case (TySInt(w1), TySInt(w2)) => Some(TySInt(math.max(w1, w2)))
+      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) if ts1.length == ts2.length =>
+        val elemTypeOptions = ts1
+          .zip(ts2)
+          .map({ case (t1, t2) => supertype(t1, t2) })
+        if (elemTypeOptions.forall(x => x.isDefined)) {
+          Some(TyTuple(elemTypeOptions.map(x => x.get): _*))
+        } else {
+          None
+        }
+      case (TyVec(t1, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>
+        supertype(t1, t2) match {
+          case Some(t) => Some(TyVec(t, n1))
+          case None    => None
+        }
+      case (TyStm(t1, n1), TyStm(t2, _)) =>
+        // TODO: What to do about the length here?
+        supertype(t1, t2) match {
+          case Some(t) => Some(TyStm(t, n1))
+          case None    => None
+        }
+      case (TyArrow(t11, t12), TyArrow(t21, t22)) =>
+        (subtype(t11, t21), supertype(t12, t22)) match {
+          case (Some(t1), Some(t2)) => Some(t1 ->: t2)
+          case _                    => None
+        }
+      case _ => None
+    }
+  }
+
+  /** Finds the narrowest common supertype of many types.
+    *
+    * @return
+    *   the narrowest type that is a supertype of all the given types, or
+    *   [[None]] if no such type exists.
+    */
+  def supertype(ts: Seq[Type]): Option[Type] = {
+    require(ts.nonEmpty)
+    ts.tail.foldLeft[Option[Type]](Some(ts.head))({ case (acc, t) =>
+      acc match {
+        case None      => None
+        case Some(acc) => supertype(acc, t)
+      }
+    })
+  }
+
+  /** Finds the widest common subtype of two types.
+    *
+    * @return
+    *   the widest type that is a subtype of both `t1` and `t2`, or [[None]] if
+    *   no such type exists.
+    */
+  def subtype(t1: Type, t2: Type): Option[Type] = {
+    (t1, t2) match {
+      case (TyBool, TyBool)         => Some(TyBool)
+      case (TyUInt(w1), TyUInt(w2)) => Some(TyUInt(math.min(w1, w2)))
+      case (TyUInt(w1), TySInt(w2)) =>
+        Some(TyUInt(math.max(0, math.min(w1, w2 - 1))))
+      case (TySInt(w1), TyUInt(w2)) =>
+        Some(TyUInt(math.max(0, math.min(w1 - 1, w2))))
+      case (TySInt(0), TySInt(0))   => Some(U0)
+      case (TySInt(w1), TySInt(w2)) => Some(TySInt(math.min(w1, w2)))
+      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) if ts1.length == ts2.length =>
+        val elemTypeOptions = ts1
+          .zip(ts2)
+          .map({ case (t1, t2) => subtype(t1, t2) })
+        if (elemTypeOptions.forall(x => x.isDefined)) {
+          Some(TyTuple(elemTypeOptions.map(x => x.get): _*))
+        } else {
+          None
+        }
+      case (TyVec(t1, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>
+        subtype(t1, t2) match {
+          case Some(t) => Some(TyVec(t, n1))
+          case None    => None
+        }
+      case (TyStm(t1, n1), TyStm(t2, _)) =>
+        // TODO: What to do about the length here?
+        subtype(t1, t2) match {
+          case Some(t) => Some(TyStm(t, n1))
+          case None    => None
+        }
+      case (TyArrow(t11, t12), TyArrow(t21, t22)) =>
+        (supertype(t11, t21), subtype(t12, t22)) match {
+          case (Some(t1), Some(t2)) => Some(t1 ->: t2)
+          case _                    => None
+        }
+      case _ => None
+    }
+  }
+
   /** Conservatively whether two lengths (e.g., vector sizes) are equal. If the
     * result is <code>true</code> then the lengths are definitely equal, but if
     * the result is <code>False</code> then they may or may not be equal.

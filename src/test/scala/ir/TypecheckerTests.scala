@@ -295,6 +295,37 @@ class TypecheckerTests extends AnyFunSuite {
     assertAllNodesHaveType(checked)
   }
 
+  test("Mux:SameType") {
+    val c = Param("c")(TyBool)
+    val t = Param("t")(U8)
+    val f = Param("f")(U8)
+    assert(Mux(c, t, f)().tchk().typ == U8)
+  }
+
+  test("Mux:U8 and I8") {
+    val c = Param("c")(TyBool)
+    val t = Param("t")(U8)
+    val f = Param("f")(I8)
+    assert(Mux(c, t, f)().tchk().typ == I9)
+  }
+
+  test("Mux:Vec[U8, 5] and Vec[U16, 5]") {
+    val c = Param("c")(TyBool)
+    val t = Param("t")(U8)
+    val f = Param("f")(U16)
+    assert(Mux(c, t, f)().tchk().typ == U16)
+  }
+
+  test("Mux:NonBoolCondition") {
+    val e = Mux(IntCst(42)(), False, True)()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("Mux:IncompatibleBranches") {
+    val e = Mux(True, Tuple(42, 43)(), Tuple(True, 99)())()
+    assertThrows[TypeError](e.tchk())
+  }
+
   test("FreeVar") {
     val x = Param("x")()
     assertThrows[TypeError](x.tchk())
@@ -334,16 +365,6 @@ class TypecheckerTests extends AnyFunSuite {
   test("Mod:WrongTerms") {
     assertThrows[TypeError]((False % 4).tchk())
     assertThrows[TypeError]((4 % False).tchk())
-  }
-
-  test("Mux:NonBoolCondition") {
-    val e = Mux(IntCst(42)(), False, True)()
-    assertThrows[TypeError](e.tchk())
-  }
-
-  test("Mux:IncompatibleBranches") {
-    val e = Mux(True, Tuple(42, 43)(), Tuple(True, 99)())()
-    assertThrows[TypeError](e.tchk())
   }
 
   test("And:WrongTerms") {

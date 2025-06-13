@@ -116,13 +116,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
-        ReshapeData.narrowestCommonAncestor(elemTypes) match {
+        Type.supertype(elemTypes) match {
           case Some(typ) =>
             s.rebuild(typ, newTerms)
           case None =>
             val ts = elemTypes.mkString(", ")
             throw new TypeError(
-              s"Could not find common type for operand types $ts in $className."
+              s"Could not find common supertype for operand types $ts in $className."
             )
         }
       case p @ Prod(factors @ _*) =>
@@ -136,13 +136,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
-        ReshapeData.narrowestCommonAncestor(elemTypes) match {
+        Type.supertype(elemTypes) match {
           case Some(typ) =>
             p.rebuild(typ, newFactors)
           case None =>
             val ts = elemTypes.mkString(", ")
             throw new TypeError(
-              s"Could not find common type for operand types $ts in $className."
+              s"Could not find common supertype for operand types $ts in $className."
             )
         }
       case d @ Div(e1, e2) =>
@@ -164,12 +164,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        ReshapeData.narrowestCommonAncestor(t1, t2) match {
+        Type.supertype(t1, t2) match {
           case Some(typ) =>
             d.rebuild(typ, Seq(newLhs, newRhs))
           case None =>
             throw new TypeError(
-              s"Could not find common type for operand types $t1 and $t2 in $className."
+              s"Could not find common supertype for operand types $t1 and $t2 in $className."
             )
         }
       case m @ Mod(e1, e2) =>
@@ -191,12 +191,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        ReshapeData.narrowestCommonAncestor(t1, t2) match {
+        Type.supertype(t1, t2) match {
           case Some(typ) =>
             m.rebuild(typ, Seq(newLhs, newRhs))
           case None =>
             throw new TypeError(
-              s"Could not find common type for operand types $t1 and $t2 in $className."
+              s"Could not find common supertype for operand types $t1 and $t2 in $className."
             )
         }
       case pad @ PadTo(e, targetWidth) =>
@@ -267,12 +267,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newT = t.tchk
         val newF = f.tchk
-        if (newT.typ.isCompatibleWith(newF.typ)) {
-          mux.rebuild(newT.typ, Seq(newC, newT, newF))
-        } else {
-          throw new TypeError(
-            s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
-          )
+        Type.supertype(newT.typ, newF.typ) match {
+          case Some(typ) =>
+            mux.rebuild(typ, Seq(newC, newT, newF))
+          case None =>
+            throw new TypeError(
+              s"Could not find common supertype for ${newT.typ} and ${newF.typ} in MUX branches."
+            )
         }
       case a @ And(terms @ _*) =>
         val newTerms = terms.map(e => e.tchk)
@@ -314,12 +315,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               s"Right-hand side of $className has non-data type $t."
             )
         }
-        ReshapeData.narrowestCommonAncestor(newE1.typ, newE2.typ) match {
+        Type.supertype(newE1.typ, newE2.typ) match {
           case Some(_) =>
             eq.rebuild(TyBool, Seq(newE1, newE2))
           case None =>
             throw new TypeError(
-              s"Could not find common type for operand types ${newE1.typ} and ${newE2.typ} in $className."
+              s"Could not find common supertype for operand types ${newE1.typ} and ${newE2.typ} in $className."
             )
         }
       case lt @ LessThan(e1, e2) =>
@@ -341,12 +342,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        ReshapeData.narrowestCommonAncestor(newLhs.typ, newRhs.typ) match {
+        Type.supertype(newLhs.typ, newRhs.typ) match {
           case Some(_) =>
             lt.rebuild(TyBool, Seq(newLhs, newRhs))
           case None =>
             throw new TypeError(
-              s"Could not find common type for operand types ${newLhs.typ} and ${newRhs.typ} in $className."
+              s"Could not find common supertype for operand types ${newLhs.typ} and ${newRhs.typ} in $className."
             )
         }
 
@@ -1059,12 +1060,7 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
   */
 object C {
 
-  /** Constructs an [[IntCst]].
-    *
-    * @param i
-    *   the integer value.
-    * @param typ
-    *   the type annotation.
+  /** Shorthand for [[IntCst]].
     */
   def apply(i: Long)(typ: Type = Missing): IntCst = {
     IntCst(i)(typ)

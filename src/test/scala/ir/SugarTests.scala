@@ -58,12 +58,12 @@ class SugarTests extends AnyFunSuite {
     assert(ReshapeData.canReshape(i0, U0))
     assert(ReshapeData.canReshape(i0, U8))
     assert(ReshapeData.canReshape(U0, i0))
-    assert(ReshapeData.narrowestCommonAncestor(i0, U0).contains(U0))
-    assert(ReshapeData.narrowestCommonAncestor(U0, i0).contains(U0))
-    assert(ReshapeData.narrowestCommonAncestor(i0, i0).contains(U0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, U0)).contains(U0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(U0, i0)).contains(U0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, U0, U0)).contains(U0))
+    assert(Type.supertype(i0, U0).contains(U0))
+    assert(Type.supertype(U0, i0).contains(U0))
+    assert(Type.supertype(i0, i0).contains(U0))
+    assert(Type.supertype(Seq(i0, U0)).contains(U0))
+    assert(Type.supertype(Seq(U0, i0)).contains(U0))
+    assert(Type.supertype(Seq(i0, U0, U0)).contains(U0))
   }
 
   test("ReshapeData:Valid") {

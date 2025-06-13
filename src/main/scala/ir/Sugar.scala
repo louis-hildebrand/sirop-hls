@@ -178,47 +178,6 @@ object ReshapeData {
   def canReshape(t1: Type, t2: Type): Boolean = {
     Default.hasDefault(t1) && Default.hasDefault(t2) && t1 <= t2
   }
-
-  /** Tries to find the narrowest type such that this type and the given type
-    * can both be reshaped to that type.
-    */
-  def narrowestCommonAncestor(t1: Type, t2: Type): Option[Type] = {
-    (t1, t2) match {
-      case (TyBool, TyBool)         => Some(TyBool)
-      case (TyUInt(w1), TyUInt(w2)) => Some(TyUInt(math.max(w1, w2)))
-      case (u: TyUInt, TySInt(0))   => Some(u)
-      case (TySInt(0), u: TyUInt)   => Some(u)
-      case (TyUInt(w1), TySInt(w2)) => Some(TySInt(math.max(w1 + 1, w2)))
-      case (TySInt(w1), TyUInt(w2)) => Some(TySInt(math.max(w1, w2 + 1)))
-      case (TySInt(0), TySInt(0))   => Some(U0)
-      case (TySInt(w1), TySInt(w2)) => Some(TySInt(math.max(w1, w2)))
-      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) if ts1.length == ts2.length =>
-        val elemTypeOptions = ts1
-          .zip(ts2)
-          .map({ case (t1, t2) => ReshapeData.narrowestCommonAncestor(t1, t2) })
-        if (elemTypeOptions.forall(x => x.isDefined)) {
-          Some(TyTuple(elemTypeOptions.map(x => x.get): _*))
-        } else {
-          None
-        }
-      case (TyVec(t1, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>
-        narrowestCommonAncestor(t1, t2) match {
-          case Some(t) => Some(TyVec(t, n1))
-          case None    => None
-        }
-      case _ => None
-    }
-  }
-
-  def narrowestCommonAncestor(ts: Seq[Type]): Option[Type] = {
-    require(ts.nonEmpty)
-    ts.tail.foldLeft[Option[Type]](Some(ts.head))({ case (acc, t) =>
-      acc match {
-        case None      => None
-        case Some(acc) => narrowestCommonAncestor(acc, t)
-      }
-    })
-  }
 }
 
 /** The sum of several values <i>without overflow</i>.
