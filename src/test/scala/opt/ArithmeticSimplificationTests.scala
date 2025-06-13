@@ -52,6 +52,17 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe((((e1 + C(1)()) + e2) - C(1)()) - e2) == e1)
   }
 
+  test("Sum:(x:u8) + 1 - (x:u8)") {
+    val x = Param("x")(U8)
+    assert(lpe(x + 1 - x) == C(1)())
+  }
+
+  test("Sum:(x:i2) + 255 - (x:i2)") {
+    val i2 = TySInt(2)
+    val x = Param("x")(i2)
+    assert(lpe(x + 255 - x) == C(255)())
+  }
+
   test("SumWithOverflow:U8") {
     val actual = lpe(C(255)(U8) + C(2)(U8))
     assert(actual == C(1)())

@@ -97,12 +97,15 @@ object PartialEvalPass {
                 )(facts)
             }
           case PadTo(e, w) =>
-            // TODO: add some more simplification rules here (e.g., padding to
-            //       the same width, padding and then truncating)
             partialEval(e) match {
+              case v: IntCst => ir.eval(PadTo(v, w)())
+              case Sum(terms @ _*) =>
+                partialEval(Sum(terms.map(e => PadTo(e, w)()): _*)())
+              case Prod(factors @ _*) =>
+                partialEval(Prod(factors.map(e => PadTo(e, w)()): _*)())
+              // TODO: Move the PadTo down in other cases?
               case Mux(c, t, f) =>
                 partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
-              case v: IntCst => ir.eval(PadTo(v, w)())
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w0 == w => e
@@ -136,10 +139,15 @@ object PartialEvalPass {
             }
           case ToSigned(e) =>
             partialEval(e) match {
+              case v: IntCst => ir.eval(ToSigned(v)())
+              case Sum(terms @ _*) =>
+                partialEval(Sum(terms.map(e => ToSigned(e)()): _*)())
+              case Prod(factors @ _*) =>
+                partialEval(Prod(factors.map(e => ToSigned(e)()): _*)())
+              // TODO: Move the ToSigned towards the leaves in other cases too?
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
-              case v: IntCst => ir.eval(ToSigned(v)())
-              case e         => ToSigned(e)()
+              case e => ToSigned(e)()
             }
           case ToUnsigned(e) =>
             partialEval(e) match {

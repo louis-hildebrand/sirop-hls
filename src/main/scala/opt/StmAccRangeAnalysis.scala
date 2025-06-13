@@ -15,7 +15,16 @@ object StmAccRangeAnalysis {
     * canonicalization pass before using this analysis.
     */
   def findAccRanges(stm: StmBuild): StmAccRange = {
-    StmAccRange(stm.accVars.map(x => x -> getRange(stm, x)).toMap)
+    StmAccRange(
+      stm.accVars
+        .flatMap(x =>
+          x.typ match {
+            case _: TyAnyInt => Some(x -> getRange(stm, x))
+            case _           => None
+          }
+        )
+        .toMap
+    )
   }
 
   private def getRange(stm: StmBuild, x: Param): ScalarRange = {
@@ -28,16 +37,20 @@ object StmAccRangeAnalysis {
     //           then `acc.__0 >= 0` (by itself), but also `acc.__1 >= 1` (only because `acc.__0 >= 0`).
     //       (2) Looking for both upper and lower bounds. Maybe this one could even be combined with the function in
     //           `StmCanonPass` which identifies constant accumulator elements.
+    assert(
+      x.typ.isInstanceOf[TyAnyInt],
+      "the accumulator range analysis should only be used for integer accumulators"
+    )
 
     val z = stm.seedByVar(x)
-    val next = stm.nextByVar(x)
+    val delta = (stm.nextByVar(x) - x).tchk().lower()
 
     // acc[i] >= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] >= z   (always true)
     //   (Ind. case) acc[i] >= z ==> next(acc[i]) >= z     (to be shown)
     val fLow = FactSet().geq(x, z)
     val isNonDecreasing =
-      PartialEvalPass.isGreaterOrEqual(next, x)(fLow).getOrElse(false)
+      PartialEvalPass.isGreaterOrEqual(delta, 0)(fLow).getOrElse(false)
     val lower = if (isNonDecreasing) {
       Some(z)
     } else {
@@ -48,10 +61,10 @@ object StmAccRangeAnalysis {
     //   (Base case) acc[i] = z at first, so acc[i] <= z   (always true)
     //   (Ind. case) acc[i] <= z ==> next(acc[i]) <= z     (to be shown)
     val zPlusOne =
-      ArithSimplifier.simplifyArithmetic((z + 1).tchk().lower())(FactSet())
+      PartialEvalPass.partialEval((z + 1).tchk().lower())(FactSet())
     val fHi = FactSet().lt(x, zPlusOne)
     val isNonIncreasing =
-      PartialEvalPass.isSmallerOrEqual(next, x)(fHi).getOrElse(false)
+      PartialEvalPass.isSmallerOrEqual(delta, 0)(fHi).getOrElse(false)
     val upper = if (isNonIncreasing) {
       Some(zPlusOne)
     } else {
