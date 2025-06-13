@@ -101,10 +101,48 @@ sealed trait Type {
     }
   }
 
-  /** Check whether two types are "compatible," i.e., will have the same shape
-    * in hardware.
+  /** Check whether two types are "compatible" with one another, i.e., will have
+    * the same shape in hardware.
     */
   def ~=(that: Type): Boolean = this.isCompatibleWith(that)
+
+  /** Checks whether this type is a subtype of another type—that is, whether an
+    * expression of this type can be used in place of an expression of the given
+    * type.
+    *
+    * For data types, this tells you whether this type is "narrower than"
+    * another. For example, u8 is narrower than u16 and u8 is also narrower than
+    * i16. Likewise, Vec[u8, n] is narrower than Vec[u16, n]. However, bool is
+    * not narrower than u8 because they are unrelated types.
+    *
+    * @param that
+    *   the type to compare with.
+    */
+  def <=(that: Type): Boolean = {
+    (this, that) match {
+      case (TyBool, TyBool)         => true
+      case (TyUInt(w1), TyUInt(w2)) => w1 <= w2
+      case (TyUInt(w1), TySInt(w2)) => (w1 < w2) || (w1 == 0 && w2 == 0)
+      case (TySInt(w), _: TyUInt)   => w == 0
+      case (TySInt(w1), TySInt(w2)) => w1 <= w2
+      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
+        // Tuples are covariant
+        (ts1.length == ts2.length
+        && ts1.zip(ts2).forall({ case (t1, t2) => t1 <= t2 }))
+      case (TyVec(t1, n1), TyVec(t2, n2)) =>
+        // Vectors are covariant
+        // TODO: Actually check that n1 <= n2?
+        t1 <= t2 && Type.sameLen(n1, n2)
+      case (TyStm(t1, _), TyStm(t2, _)) =>
+        // Streams are covariant
+        // TODO: Also check that n1 >= n2?
+        t1 <= t2
+      case (TyArrow(t11, t12), TyArrow(t21, t22)) =>
+        // Functions are contravariant in the input and covariant in the output
+        t21 <= t11 && t12 <= t22
+      case _ => false
+    }
+  }
 }
 
 object Type {
@@ -356,6 +394,10 @@ trait CommonIntTypes {
   /** The type of a 32-bit unsigned integer.
     */
   val U32: TyUInt = TyUInt(32)
+
+  /** The type of a 0-bit signed number (i.e., a number that can only be zero).
+    */
+  val I0: TySInt = TySInt(0)
 
   /** The type of an 8-bit signed integer.
     */

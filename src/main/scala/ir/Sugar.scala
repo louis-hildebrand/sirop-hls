@@ -176,19 +176,7 @@ object ReshapeData {
     * because they are entirely different types.
     */
   def canReshape(t1: Type, t2: Type): Boolean = {
-    (t1, t2) match {
-      case (TyBool, TyBool)         => true
-      case (TyUInt(w1), TyUInt(w2)) => w2 >= w1
-      case (TyUInt(w1), TySInt(w2)) => (w2 >= w1 + 1) || (w1 == 0 && w2 == 0)
-      case (TySInt(w), _: TyUInt)   => w == 0
-      case (TySInt(w1), TySInt(w2)) => w2 >= w1
-      case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
-        (ts1.length == ts2.length
-        && ts1.zip(ts2).forall({ case (t1, t2) => canReshape(t1, t2) }))
-      case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canReshape(t1, t2) && Type.sameLen(n1, n2)
-      case _ => false
-    }
+    Default.hasDefault(t1) && Default.hasDefault(t2) && t1 <= t2
   }
 
   /** Tries to find the narrowest type such that this type and the given type

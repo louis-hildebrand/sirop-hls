@@ -22,6 +22,26 @@ class TypecheckerTests extends AnyFunSuite {
     assertAllNodesHaveType(checked)
   }
 
+  test("FunCall:NarrowerArg") {
+    val f = Param("f")(TyVec(I32, 5) ->: I32)
+    val x = Param("x")(TyVec(U16, 5))
+    val checked = f(x).tchk()
+    assert(checked.typ == I32)
+    assertAllNodesHaveType(checked)
+  }
+
+  test("FunCall:WiderArg") {
+    val f = Param("f")(U8 ->: U8)
+    val x = Param("x")(U16)
+    assertThrows[TypeError](f(x).tchk())
+  }
+
+  test("FunCall:WrongSignArg") {
+    val f = Param("f")(U16 ->: U16)
+    val x = Param("x")(I8)
+    assertThrows[TypeError](f(x).tchk())
+  }
+
   test("IntCst") {
     assert(IntCst(-4)().tchk().typ == TySInt(3))
     assert(IntCst(-3)().tchk().typ == TySInt(3))

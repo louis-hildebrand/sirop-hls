@@ -142,7 +142,10 @@ private object VhdlExprGenerator {
         VhdlExpr(func.name, Seq(func))
       case FunCall(f, arg) =>
         val fv = exprToVhdl(f)
-        val av = exprToVhdl(arg)
+        val inTyp = f.typ.asInstanceOf[TyArrow].t1
+        val reshapedArg =
+          ReshapeData(arg, f.typ.asInstanceOf[TyArrow].t1)().tchk().lower()
+        val av = exprToVhdl(reshapedArg)
         VhdlExpr(s"${fv.vhdl}(${av.vhdl})", fv.decls ++ av.decls)
 
       case VecLiteral(elems @ _*) =>

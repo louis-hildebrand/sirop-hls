@@ -53,6 +53,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def __4: TupleAccess = TupleAccess(this, 4)()
   def __5: TupleAccess = TupleAccess(this, 5)()
 
+  def apply(e: Expr): FunCall = FunCall(this, e)()
+
   /** The name of this class. This is useful, for example, for including the
     * class name in an error message without hard-coding it.
     */
@@ -68,7 +70,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     if (this.typ != Missing) {
       return this
     }
-    this match {
+    val checked = this match {
       case x: Param =>
         context.get(x) match {
           case Some(t) => x.rebuild(t)
@@ -87,7 +89,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newArg = arg.tchk
         newF.typ match {
           case TyArrow(t1, t2) =>
-            if (newArg.typ.isCompatibleWith(t1)) {
+            if (newArg.typ <= t1) {
               fc.rebuild(t2, Seq(newF, newArg))
             } else {
               throw new TypeError(
@@ -472,6 +474,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
 
       case s: SyntaxSugar => s.typecheck(context)
     }
+    assert(
+      checked.typ != Missing,
+      s"type must not be ${Missing.getClass.getSimpleName} after type checking"
+    )
+    checked
   }
 
   def eraseTypes(): Expr = {
@@ -795,8 +802,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
     if (this.hasType) {
       assert(
-        out.typ ~= this.typ,
-        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ} after substitutions $subs in $this)"
+        out.typ <= this.typ,
+        s"the type after substitution should be a subtype of the original type (expected ${this.typ}, found ${out.typ} after substitutions $subs in $this)"
       )
     }
     // The expressions to replace may occur within the type (e.g., in the

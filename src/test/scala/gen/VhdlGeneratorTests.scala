@@ -284,7 +284,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val a = Param("a")(U8)
     val s = StmBuild(
       n,
-      Let(x, a * 2, x + x + 1)(),
+      // Argument deliberately has different type than function input
+      (I16 ::+ (x => x + x + 1))(a * 2),
       True,
       Map[Param, (Expr, Expr)](
         a -> (C(0)(U8), Let(x, a + 1, x * x)())
