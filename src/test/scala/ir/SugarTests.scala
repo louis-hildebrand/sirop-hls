@@ -97,25 +97,25 @@ class SugarTests extends AnyFunSuite {
   test("SafeSum") {
     val u3 = TyUInt(3)
     val u4 = TyUInt(4)
-    val e = SafeSum(IntCst(4)(u3), IntCst(4)(u3))().tchk()
+    val e = SafeSum(IntCst(4), IntCst(4))().tchk()
 
     assert(e.typ == u4)
-    assert(ir.eval(e) == IntCst(8)())
+    assert(ir.eval(e) == IntCst(8))
 
-    assert(ir.eval(SafeSum()()) == C(0)())
+    assert(ir.eval(SafeSum()()) == C(0))
   }
 
   test("SafeProd") {
     val u2 = TyUInt(2)
     val u3 = TyUInt(3)
     val u5 = TyUInt(5)
-    val e = SafeProd(IntCst(3)(u2), IntCst(4)(u3))().tchk()
+    val e = SafeProd(IntCst(3), IntCst(4))().tchk()
 
     assert(e.typ == u5)
-    assert(ir.eval(e) == IntCst(12)())
+    assert(ir.eval(e) == IntCst(12))
 
-    assert(ir.eval(SafeProd()()) == C(1)())
+    assert(ir.eval(SafeProd()()) == C(1))
 
-    assert(ir.eval(SafeProd(42, 0)()) == C(0)())
+    assert(ir.eval(SafeProd(42, 0)()) == C(0))
   }
 }

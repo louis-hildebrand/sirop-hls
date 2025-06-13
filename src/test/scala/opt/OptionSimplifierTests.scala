@@ -23,7 +23,7 @@ class OptionSimplifierTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val e = Mux(i === 42, SSome(x)(), NNone(U8))().tchk().lower()
     val actual = OptionSimplifier.simplify(e)
-    val expected = Tuple(x, Equal(i, C(42)(U8))())()
+    val expected = Tuple(x, Equal(i, C(42))())()
     assert(actual == expected)
   }
 

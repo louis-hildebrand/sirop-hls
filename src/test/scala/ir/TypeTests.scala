@@ -8,10 +8,10 @@ class TypeTests extends AnyFunSuite {
   private val k = Param("k")(U8)
 
   test("AnnotatedFunction:TypedBody") {
-    val f = U8 ::+ (_ => IntCst(-1)(I32))
-    val expected = Function(Param("_")(U8), IntCst(-1)(I32))()
+    val f = U8 ::+ (_ => C(-1))
+    val expected = Function(Param("_")(U8), C(-1))()
     assert(f == expected)
-    assert(f.typ == TyArrow(U8, I32))
+    assert(f.typ == TyArrow(U8, TySInt(1)))
   }
 
   test("AnnotatedFunction:UntypedBody") {
@@ -435,7 +435,7 @@ class TypeTests extends AnyFunSuite {
   test("LowerType:Stm[Stm[Int, 3], 4]") {
     val t = TyStm(TyStm(U8, 3), 4)
     val n = t.lower.asInstanceOf[TyStm].n
-    assert(ir.eval(n) == C(12)())
+    assert(ir.eval(n) == C(12))
   }
 
   test("LowerType:Stm[Vec[Int]]") {

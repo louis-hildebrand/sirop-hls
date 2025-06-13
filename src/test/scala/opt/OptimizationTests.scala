@@ -26,22 +26,22 @@ class OptimizationTests extends AnyFunSuite {
     // Correctness
     val nExamples = Seq(0, 1, 4)
     val sExamples = Seq(
-      StmCst(n, C(42)(I32))(),
+      StmCst(n, C(42))(),
       StmMap(StmCount(n)(), U8 ::+ (x => ReshapeData(x, I32)()))()
     )
     val fExamples =
-      Seq(I32 ::+ (x => x), I32 ::+ (_ => C(99)(I32)), I32 ::+ (x => x * x))
+      Seq(I32 ::+ (x => x), I32 ::+ (_ => C(99)), I32 ::+ (x => x * x))
     for (nVal <- nExamples) {
       for (sVal <- sExamples) {
         for (fVal <- fExamples) {
           val expected =
             ir.eval(
-              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, original)())())()
+              Let(n, C(nVal), Let(s, sVal, Let(f, fVal, original)())())()
                 .tchk()
             )
           val actual =
             ir.eval(
-              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, optimized)())())()
+              Let(n, C(nVal), Let(s, sVal, Let(f, fVal, optimized)())())()
                 .tchk()
             )
           assert(actual == expected)
@@ -65,7 +65,7 @@ class OptimizationTests extends AnyFunSuite {
     */
   test("VecFoldSimpleSum") {
     val n = 3
-    val v = Param("v")(TyVec(I16, C(n)(U8)))
+    val v = Param("v")(TyVec(I16, C(n)))
     val z = Param("z")(I16)
     val original = VecFold(v, z, PlusFunction(I16))()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
@@ -79,10 +79,10 @@ class OptimizationTests extends AnyFunSuite {
 
     // Correctness
     val vExamples = Seq(
-      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i, I16)()))(),
-      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i * (i + 1), I16)()))()
+      VecBuild(C(n), U8 ::+ (i => ReshapeData(i, I16)()))(),
+      VecBuild(C(n), U8 ::+ (i => ReshapeData(i * (i + 1), I16)()))()
     )
-    val zExamples = Seq(C(0)(I16), C(-3)(I16), C(42)(I16))
+    val zExamples = Seq(C(0), C(-3), C(42))
     for (vVal <- vExamples) {
       for (zVal <- zExamples) {
         val expected = ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
@@ -116,7 +116,7 @@ class OptimizationTests extends AnyFunSuite {
     // Correct behaviour
     // (Using one example input, f, and g)
     val call = (e: Expr) =>
-      Let(n, C(5)(U8), Let(input, VecBuild(n, U32 ::+ (i => i + 1))(), e)())()
+      Let(n, C(5), Let(input, VecBuild(n, U32 ::+ (i => i + 1))(), e)())()
     assert(ir.eval(call(original)) == ir.eval(call(optimized)))
     // Successful fusion:
     // map(map(v, f), g) should simplify to the same thing as map(v, g . f)
@@ -394,7 +394,7 @@ class OptimizationTests extends AnyFunSuite {
     val n1 = 15
     val f1 = TyInt ::+ (i => (i + 1) * (i + 2) * (i + 3))
     val expected1 = StmLiteral(
-      (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))()): _*
+      (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))): _*
     )()
     val actual1 = (s: Expr) => Let(n, n1, Let(f, f1, s)())()
     assert(ir.eval(actual1(s)) == expected1)
@@ -433,7 +433,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = optimize(Stm2Vec(StmCst(n, c)())())
 
     // Correctness
-    val cExamples: Seq[Expr] = Seq(IntCst(42)(), IntCst(0)())
+    val cExamples: Seq[Expr] = Seq(IntCst(42), IntCst(0))
     for (cVal <- cExamples) {
       for (nVal <- Seq(0, 1, 2, 5)) {
         val expected =

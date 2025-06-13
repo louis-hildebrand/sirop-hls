@@ -449,8 +449,8 @@ object PartialEvalPass {
     if (expectedTyp != Missing) {
       val typedExpr = pe.tchk()
       assert(
-        typedExpr.typ ~= expectedTyp,
-        s"partial evaluation should preserve type annotations (expected $expectedTyp, found ${typedExpr.typ})"
+        typedExpr.typ <= expectedTyp,
+        s"type after partial evaluation should be a subtype of the original type (expected $expectedTyp, found ${typedExpr.typ})"
       )
       typedExpr
     } else {

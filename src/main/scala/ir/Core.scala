@@ -642,8 +642,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      !this.hasType || (desugared.typ ~= this.typ.lower),
-      s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
+      !this.hasType || (desugared.typ <= this.typ.lower),
+      s"lowering must yield an expression whose type is a subtype of the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
     )
     assert(
       !desugared.contains(classOf[SyntaxSugar]),
@@ -1031,28 +1031,16 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
-// TODO: Use Long or BigInt here so that wide int types can be represented?
-
 /** An integer constant.
   *
   * @param i
   *   the integer value.
   */
-case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
-  typ match {
-    case Missing => ()
-    case int: TyAnyInt =>
-      if (!int.contains(i)) {
-        throw OverflowError(i, int)
-      }
-    case t =>
-      throw new TypeError(s"Invalid type $t for integer constant.")
-  }
-
+case class IntCst(i: Long) extends IntExpr()(TyAnyInt.tightest(i, i)) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
-    IntCst(i)(typ)
+    IntCst(i)
   }
 }
 
@@ -1062,11 +1050,16 @@ object C {
 
   /** Shorthand for [[IntCst]].
     */
-  def apply(i: Long)(typ: Type = Missing): IntCst = {
-    IntCst(i)(typ)
+  def apply(i: Long): IntCst = {
+    IntCst(i)
   }
 }
 
+/** The sum of many integers.
+  *
+  * @param terms
+  *   the expressions to add up.
+  */
 case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
   require(terms.nonEmpty, "Sum must have at least one term.")
 
@@ -1085,13 +1078,18 @@ case object Sum {
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
     terms match {
-      case Seq()  => IntCst(0)(typ)
+      case Seq()  => IntCst(0)
       case Seq(e) => e
       case terms  => new Sum(terms: _*)(typ)
     }
   }
 }
 
+/** The product of many integers.
+  *
+  * @param factors
+  *   the expressions to multiply.
+  */
 case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
   require(factors.nonEmpty, "Prod must have at least one factor.")
 
@@ -1111,7 +1109,7 @@ case object Prod {
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
     factors match {
-      case Seq()   => IntCst(1)(typ)
+      case Seq()   => IntCst(1)
       case Seq(e)  => e
       case factors => new Prod(factors: _*)(typ)
     }
@@ -1686,7 +1684,7 @@ case class StmBuild(
         this.renameVar(outCtr)
       else
         this
-    val z = IntCst(0)(outCtr.typ)
+    val z = IntCst(0)
     val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
     s.addAccumulator(outCtr, z, next)
   }
@@ -1724,7 +1722,7 @@ case class StmBuild(
         this
     val stmNextCalled = s.nextByVar(x)
     val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
-    s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
+    s.addAccumulator(inCtr, C(0), next)
   }
 
   /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
@@ -2122,7 +2120,7 @@ case class VecLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)()): _*)()
+    VecLiteral(elems.map(n => IntCst(n)): _*)()
   }
 }
 
@@ -2138,7 +2136,7 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)()): _*)()
+    StmLiteral(elems.map(n => IntCst(n)): _*)()
   }
 }
 

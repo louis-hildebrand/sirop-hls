@@ -46,9 +46,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         // down counter (-2)
         a2 -> (19, a2 - 2),
         // up counter (--3)
-        a3 -> (0, a3 - IntCst(-3)()),
+        a3 -> (0, a3 - IntCst(-3)),
         // down counter (+-6)
-        a4 -> (-2, a4 + IntCst(-6)()),
+        a4 -> (-2, a4 + IntCst(-6)),
         // counter (+ delta + 1)
         a5 -> (1, a5 + delta + 1)
       )
@@ -160,7 +160,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("NextDoesntDependOnCurrent") {
@@ -212,7 +212,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("MonotonicBool:SimpleCounter") {
@@ -267,7 +267,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("MonotonicBool:BoundedCounter") {
@@ -308,7 +308,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Counters that count up but stop at a certain point
@@ -346,7 +346,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Counters that stay constant at first and only start counting later
@@ -384,7 +384,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Piecewise functions where each branch is yet another piecewise function
@@ -418,7 +418,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Shift register that stops at a certain point
@@ -454,7 +454,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   // Shift register that only starts shifting after some delay
@@ -490,7 +490,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // There should only be one accumulator variable left representing t
     assert(opt.equations.size == 1)
     val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assert(opt.equations == Map(t -> (IntCst(0), t + 1)))
   }
 
   test("ClosedForm:StmNext") {

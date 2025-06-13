@@ -85,8 +85,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Tuple(a, b)(),
       True,
       Map[Param, (Expr, Expr)](
-        a -> (C(1)(U8), Mux(a - 1 === 0, C(1)(U8), b + 42)()),
-        b -> (C(1)(U8), b + C(1)(U8))
+        a -> (C(1), Mux(a - 1 === 0, C(1), b + 42)()),
+        b -> (C(1), b + C(1))
       )
     )().tchk().lower().asInstanceOf[StmBuild]
     // `a` will always be 1, so the optimizer should be able to get rid of it
@@ -95,7 +95,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Tuple(1, b)(),
       True,
       Map[Param, (Expr, Expr)](
-        b -> (1, Sum(C(1)(U8), b)())
+        b -> (1, Sum(C(1), b)())
       )
     )()
     val actual = StmAccRemovalPass.removeConstantVars(s)
@@ -112,10 +112,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         a -> (
-          C(1)(U8),
+          C(1),
           Mux(a - 1 === 0 && b + 2 === 4, ToUnsigned(b - 1)(), b + 42)()
         ),
-        b -> (C(2)(U8), Mux(a - 1 === 0 && b + 2 === 4, a + 1, b + 1)())
+        b -> (C(2), Mux(a - 1 === 0 && b + 2 === 4, a + 1, b + 1)())
       )
     )().tchk().lower().asInstanceOf[StmBuild]
     val expected = StmBuild(
@@ -140,10 +140,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Prod(a, c, d)(),
       True,
       Map[Param, (Expr, Expr)](
-        a -> (C(0)(U8), a + C(1)(U8)),
+        a -> (C(0), a + C(1)),
         b -> (Tuple()(), b),
-        c -> (C(1)(U8), c + C(2)(U8)),
-        d -> (C(2)(U8), d + C(3)(U8)),
+        c -> (C(1), c + C(2)),
+        d -> (C(2), d + C(3)),
         e -> (Tuple()(), Tuple()())
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -152,9 +152,9 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Prod(a, c, d)(),
       True,
       Map[Param, (Expr, Expr)](
-        a -> (C(0)(U8), Sum(C(1)(U8), a)()),
-        c -> (C(1)(U8), Sum(C(2)(U8), c)()),
-        d -> (C(2)(U8), Sum(C(3)(U8), d)())
+        a -> (C(0), Sum(C(1), a)()),
+        c -> (C(1), Sum(C(2), c)()),
+        d -> (C(2), Sum(C(3), d)())
       )
     )()
     val actual = StmAccRemovalPass.removeConstantVars(s)

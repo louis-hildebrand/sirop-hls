@@ -161,7 +161,7 @@ private object VhdlExprGenerator {
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
           val elems =
             (0 until n.toInt).map(i =>
-              PartialEvalPass.partialEval(FunCall(f, C(i)(idxTyp))())
+              PartialEvalPass.partialEval(FunCall(f, C(i))())
             )
           exprToVhdl(VecLiteral(elems: _*)().tchk())
         } else {

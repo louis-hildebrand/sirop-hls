@@ -11,7 +11,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("PadTo:Const") {
     for (n <- -10 to 10) {
-      val e = PadTo(IntCst(n)(I8), 16)()
+      val e = PadTo(IntCst(n), 16)()
       val actual = lpe(e)
       val expected = ir.eval(e)
       assert(actual == expected)
@@ -31,7 +31,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("TruncateTo:Const") {
     for (n <- -10 to 10) {
-      val e = TruncateTo(IntCst(n)(I8), 2)()
+      val e = TruncateTo(IntCst(n), 2)()
       val actual = lpe(e)
       val expected = ir.eval(e)
       assert(actual == expected)
@@ -75,7 +75,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("ToUnsigned:Const") {
     for (n <- -10 to 10) {
-      val e = ToUnsigned(IntCst(n)(I8))()
+      val e = ToUnsigned(IntCst(n))()
       val actual = pe(e)
       val expected = ir.eval(e)
       assert(actual == expected)
@@ -85,7 +85,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("ToSigned:Const") {
     for (n <- 0 to 10) {
-      val e = ToSigned(IntCst(n)(U8))()
+      val e = ToSigned(IntCst(n))()
       val actual = pe(e)
       val expected = ir.eval(e)
       assert(actual == expected)
@@ -130,7 +130,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       10,
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (IntCst(0)(), a + 1))
+      Map(a -> (IntCst(0), a + 1))
     )()
     val e = Tuple(a < 4, s)()
     val facts =
@@ -146,7 +146,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         10,
         Tuple(True, a < 4)(),
         True,
-        Map(a -> (IntCst(0)(), a + 1))
+        Map(a -> (IntCst(0), a + 1))
       )()
     )()
     assert(actual == expected)
@@ -340,11 +340,11 @@ class PartialEvalPassTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val e =
       Mux(
-        ToSigned(x)() < C(5)(I9),
-        ToSigned(x)() < C(10)(I9),
-        ToSigned(x)() < C(3)(I9)
+        ToSigned(x)() < C(5),
+        ToSigned(x)() < C(10),
+        ToSigned(x)() < C(3)
       )().tchk().lower()
-    val expected = LessThan(ToSigned(x)(), C(5)(I9))()
+    val expected = LessThan(ToSigned(x)(), C(5))()
     val actual = lpe(e)
     assert(actual == expected)
   }

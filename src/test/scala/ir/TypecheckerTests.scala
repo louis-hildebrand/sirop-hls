@@ -16,7 +16,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall") {
-    val original = FunCall(U8 ::+ (x => x < IntCst(42)(U8)), IntCst(42)(U8))()
+    val original = FunCall(U8 ::+ (x => x < IntCst(42)), IntCst(42))()
     val checked = original.tchk()
     assert(checked.typ == TyBool)
     assertAllNodesHaveType(checked)
@@ -43,15 +43,15 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IntCst") {
-    assert(IntCst(-4)().tchk().typ == TySInt(3))
-    assert(IntCst(-3)().tchk().typ == TySInt(3))
-    assert(IntCst(-2)().tchk().typ == TySInt(2))
-    assert(IntCst(-1)().tchk().typ == TySInt(1))
-    assert(IntCst(0)().tchk().typ == TyUInt(0))
-    assert(IntCst(1)().tchk().typ == TyUInt(1))
-    assert(IntCst(2)().tchk().typ == TyUInt(2))
-    assert(IntCst(3)().tchk().typ == TyUInt(2))
-    assert(IntCst(4)().tchk().typ == TyUInt(3))
+    assert(IntCst(-4).tchk().typ == TySInt(3))
+    assert(IntCst(-3).tchk().typ == TySInt(3))
+    assert(IntCst(-2).tchk().typ == TySInt(2))
+    assert(IntCst(-1).tchk().typ == TySInt(1))
+    assert(IntCst(0).tchk().typ == TyUInt(0))
+    assert(IntCst(1).tchk().typ == TyUInt(1))
+    assert(IntCst(2).tchk().typ == TyUInt(2))
+    assert(IntCst(3).tchk().typ == TyUInt(2))
+    assert(IntCst(4).tchk().typ == TyUInt(3))
   }
 
   private val xU8 = Param("x")(U8)
@@ -63,22 +63,22 @@ class TypecheckerTests extends AnyFunSuite {
   private val yI32 = Param("y")(I32)
 
   test("PadLargeNumber") {
-    assertThrows[TypeError](PadTo(C(255)(U8), 2)().tchk())
+    assertThrows[TypeError](PadTo(C(255), 2)().tchk())
   }
 
   test("TruncateSmallNumber") {
     // This expression may be the result of a substitution, so it must be valid
     val u2 = TyUInt(2)
-    assert(TruncateTo(C(3)(u2), 16)().tchk().typ == u2)
+    assert(TruncateTo(C(3), 16)().tchk().typ == u2)
   }
 
   test("SignedToSigned") {
-    assertThrows[TypeError](ToSigned(C(-128)(I8))().tchk())
+    assertThrows[TypeError](ToSigned(C(-128))().tchk())
   }
 
   test("UnsignedToUnsigned") {
     // This expression may be the result of a substitution, so it must be valid
-    assert(ToUnsigned(C(255)(U8))().tchk().typ == U8)
+    assert(ToUnsigned(C(255))().tchk().typ == U8)
   }
 
   test("Equal:Valid") {
@@ -91,7 +91,7 @@ class TypecheckerTests extends AnyFunSuite {
       I32,
       TyBool,
       TyTuple(U8, TyBool),
-      TyVec(U8, IntCst(42)(U8))
+      TyVec(U8, IntCst(42))
     )
     for (t <- types) {
       val x = Param("x")(t)
@@ -120,9 +120,9 @@ class TypecheckerTests extends AnyFunSuite {
       TyBool,
       TyTuple(U8, TyBool),
       TyTuple(TyBool, U8),
-      TyVec(U8, IntCst(5)(U8)),
-      TyVec(U8, IntCst(6)(U8)),
-      TyVec(TyBool, IntCst(5)(U8))
+      TyVec(U8, IntCst(5)),
+      TyVec(U8, IntCst(6)),
+      TyVec(TyBool, IntCst(5))
     )
     for (i <- types.indices) {
       for (j <- types.indices) {
@@ -317,7 +317,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Mux:NonBoolCondition") {
-    val e = Mux(IntCst(42)(), False, True)()
+    val e = Mux(IntCst(42), False, True)()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -337,7 +337,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall:NotFunction") {
-    val e = FunCall(IntCst(42)(), IntCst(43)())()
+    val e = FunCall(IntCst(42), IntCst(43))()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -370,20 +370,20 @@ class TypecheckerTests extends AnyFunSuite {
   test("And:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b && IntCst(1)()).tchk(Map(b -> TyBool))
+      (b && IntCst(1)).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1)() && b).tchk(Map(b -> TyBool))
+      (IntCst(1) && b).tchk(Map(b -> TyBool))
     )
   }
 
   test("Or:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b || IntCst(1)()).tchk(Map(b -> TyBool))
+      (b || IntCst(1)).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1)() || b).tchk(Map(b -> TyBool))
+      (IntCst(1) || b).tchk(Map(b -> TyBool))
     )
   }
 
@@ -393,8 +393,8 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Equal:DifferentTypes") {
-    assertThrows[TypeError]((IntCst(42)() === True).tchk())
-    assertThrows[TypeError]((True === IntCst(42)()).tchk())
+    assertThrows[TypeError]((IntCst(42) === True).tchk())
+    assertThrows[TypeError]((True === IntCst(42)).tchk())
   }
 
   test("Equal:Streams") {
@@ -416,7 +416,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("TupleAccess:NonTuple") {
-    assertThrows[TypeError](IntCst(42)().__1.tchk())
+    assertThrows[TypeError](IntCst(42).__1.tchk())
   }
 
   test("VecBuild:NonIntLength") {

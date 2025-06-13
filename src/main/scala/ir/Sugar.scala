@@ -84,7 +84,7 @@ case object Default {
 
   private def getDefaultOpt(typ: Type): Option[Expr] = {
     typ match {
-      case _: TyAnyInt      => Some(IntCst(0)(typ))
+      case _: TyAnyInt      => Some(IntCst(0))
       case TyBool           => Some(False)
       case TyTuple(ts @ _*) => Some(Tuple(ts.map(t => getDefault(t)): _*)(typ))
       case TyVec(t, n) =>
@@ -141,7 +141,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
           PadTo(ToSigned(e)(), w2)().tchk().lower()
         }
       case (TySInt(0), u: TyUInt) =>
-        IntCst(0)(u).tchk().lower()
+        IntCst(0).tchk().lower()
       case (TySInt(w1), TySInt(w2)) =>
         assert(w2 > w1)
         PadTo(e, w2)().tchk().lower()
@@ -206,7 +206,7 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
     requireType()
     val terms = this.terms.map(e => e.lower())
     if (terms.isEmpty) {
-      IntCst(0)(this.typ)
+      IntCst(0)
     } else {
       val typ = this.typ.asInstanceOf[TyAnyInt]
       Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
@@ -240,15 +240,17 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
     requireType()
     val factors = this.factors.map(e => e.lower())
     if (factors.isEmpty) {
-      IntCst(1)(this.typ)
+      IntCst(1)
     } else {
       this.typ.asInstanceOf[TyAnyInt] match {
         case TyUInt(0) =>
           // Need this special case because you can't normally resize to a U0,
           // but we know the product will be zero.
-          IntCst(0)(U0)
+          IntCst(0)
         case typ =>
-          Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+          Prod(factors.map(e => ReshapeData(e, typ)()): _*)()
+            .tchk()
+            .lower()
       }
     }
   }
