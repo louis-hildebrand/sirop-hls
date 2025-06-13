@@ -34,8 +34,8 @@ class TracerTests extends AnyFunSuite {
       i + 2 * j,
       i % 2 === 0,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), i + 1),
-        j -> (IntCst(10), j + i)
+        i -> (IntCst(0)(U8), i + 1),
+        j -> (IntCst(10)(U8), j + i)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
@@ -55,14 +55,14 @@ class TracerTests extends AnyFunSuite {
 
   test("Stm2Vec") {
     ir.resetState()
-    val n = IntCst(4)
+    val n = IntCst(4)(U8)
     val i = Param("i")(U8)
     val input =
       StmBuild(
         n,
         ReshapeData(i, I32)(),
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(42), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(42)(U8), i + 1))
       )()
     val s = Param("s")(TyStm(I32, -1))
     val v = Param("v")(TyVec(I32, n))
@@ -77,7 +77,7 @@ class TracerTests extends AnyFunSuite {
           VecBuild(n, U8 ::+ (_ => Default(I32)))(),
           VecShiftLeft(v, StmData(s)())()
         ),
-        t -> (IntCst(0), t + 1)
+        t -> (IntCst(0)(U8), t + 1)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
 
@@ -103,7 +103,7 @@ class TracerTests extends AnyFunSuite {
         2,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )()
     }
     val stm2 = {
@@ -119,7 +119,7 @@ class TracerTests extends AnyFunSuite {
               4,
               j,
               True,
-              Map[Param, (Expr, Expr)](j -> (IntCst(42), j + 1))
+              Map[Param, (Expr, Expr)](j -> (IntCst(42)(U8), j + 1))
             )(),
             True
           )

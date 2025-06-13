@@ -355,7 +355,7 @@ trait Eval {
       VecAccess(v, i)(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), i + 1),
+        i -> (IntCst(0)(idxTyp), i + 1),
         v -> (VecLiteral(s.elems: _*)(TyVec(t, n)), v)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
@@ -394,7 +394,7 @@ trait Eval {
         val termValues = terms.map(e => evalBigStep(e))
         if (termValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = termValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.sum)
+          IntCst(xs.sum)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
@@ -404,7 +404,7 @@ trait Eval {
         val factorValues = factors.map(e => evalBigStep(e))
         if (factorValues.forall(e => e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(e => e.asInstanceOf[IntCst].i)
-          IntCst(xs.product)
+          IntCst(xs.product)(e.typ)
         } else {
           throw new IllegalArgumentException(
             s"Terms of Prod evaluated to $factorValues. They must each evaluate to an integer."
@@ -416,7 +416,7 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw DivByZero
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Div evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -428,7 +428,7 @@ trait Eval {
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             throw DivByZero
-          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)(e.typ)
           case (v1, v2) =>
             throw new IllegalArgumentException(
               s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
@@ -448,12 +448,12 @@ trait Eval {
       case TruncateTo(e, targetWidth) =>
         val v = evalBigStep(e).asInstanceOf[IntCst]
         val typ = v.typ.asInstanceOf[TyAnyInt]
-        if (targetWidth <= typ.w) {
-          val targetTyp = typ.withWidth(targetWidth)
-          IntCst(truncate(v.i, targetTyp))
-        } else {
-          e
-        }
+        assert(
+          targetWidth <= typ.w,
+          s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
+        )
+        val targetTyp = typ.withWidth(targetWidth)
+        IntCst(truncate(v.i, targetTyp))(targetTyp)
       case ToSigned(e) =>
         val v = evalBigStep(e)
         v.typ.asInstanceOf[TyUInt] match {
@@ -462,14 +462,12 @@ trait Eval {
         }
       case ToUnsigned(e) =>
         val v = evalBigStep(e).asInstanceOf[IntCst]
-        v.typ.asInstanceOf[TyAnyInt] match {
+        v.typ.asInstanceOf[TySInt] match {
           case TySInt(w) =>
             // Just drop the sign bit
             val newWidth = math.max(0, w - 1)
             val typ = TyUInt(newWidth)
-            IntCst(truncate(v.i, typ))
-          case _: TyUInt =>
-            e
+            IntCst(truncate(v.i, typ))(typ)
         }
 
       case True  => True
@@ -571,7 +569,7 @@ trait Eval {
               (0 until n.toInt).map(i => {
                 val inTyp = f.param.typ
                 assert(inTyp.isInstanceOf[TyUInt])
-                evalBigStep(FunCall(f, IntCst(i))().tchk())
+                evalBigStep(FunCall(f, IntCst(i)(inTyp))().tchk())
               }): _*
             )(v.typ)
           case n =>
@@ -635,8 +633,8 @@ trait Eval {
     }
     val typedV = v.tchk()
     assert(
-      typedV.typ <= expectedType,
-      s"type after evaluation should be a subtype of the original type (expected $expectedType, found ${typedV.typ})"
+      typedV.typ ~= expectedType,
+      s"evaluation should preserve the type (expected $expectedType, found ${typedV.typ})"
     )
     typedV
   }

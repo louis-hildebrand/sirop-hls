@@ -96,11 +96,11 @@ class CoreTests extends AnyFunSuite {
       )
     )()
     val original = Tuple(2 * x.__1 * z, stm)().tchk(context)
-    val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99))
+    val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)(U8))
     val expected = Tuple(
       2 * y * 99,
       StmBuild(
-        y + IntCst(99) + IntCst(1),
+        y + IntCst(99)() + IntCst(1)(),
         Tuple(99, x2.__1 && x2.__1)(),
         True,
         Map[Param, (Expr, Expr)](
@@ -112,7 +112,7 @@ class CoreTests extends AnyFunSuite {
               Tuple(False, True)()
             )()
           ),
-          y2 -> (y / 2 + IntCst(99), y2 + 2 + IntCst(99))
+          y2 -> (y / 2 + IntCst(99)(), y2 + 2 + IntCst(99)())
         )
       )()
     )()
@@ -128,16 +128,16 @@ class CoreTests extends AnyFunSuite {
     val expectedType = TyTuple(TyVec(U8, n * 2), U8)
     assert(e.typ == expectedType)
 
-    val actual = e.subPreserveType(n -> IntCst(42))
+    val actual = e.subPreserveType(n -> IntCst(42)(U8))
 
     val expected =
       Tuple(
-        VecBuild(IntCst(42) * IntCst(2), U8 ::+ (i => i))(),
-        IntCst(42) + IntCst(1)
+        VecBuild(IntCst(42)() * IntCst(2)(), U8 ::+ (i => i))(),
+        IntCst(42)() + IntCst(1)()
       )()
     assert(actual == expected)
     val expectedTypeAfterSub =
-      TyTuple(TyVec(U8, IntCst(42) * IntCst(2)), U8)
+      TyTuple(TyVec(U8, IntCst(42)() * IntCst(2)()), U8)
     assert(actual.typ == expectedTypeAfterSub)
   }
 
@@ -153,7 +153,7 @@ class CoreTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         v -> (
           VecBuild(n, U8 ::+ (i => i))(),
-          VecShiftLeft(v, IntCst(42))()
+          VecShiftLeft(v, IntCst(42)(U8))()
         )
       )
     )().tchk()
@@ -167,7 +167,7 @@ class CoreTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         v -> (
           VecBuild(m + k, U8 ::+ (i => i))(),
-          VecShiftLeft(v, IntCst(42))()
+          VecShiftLeft(v, IntCst(42)(U8))()
         )
       )
     )()
@@ -183,7 +183,7 @@ class CoreTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val v = Param("v")(TyVec(U8, n))
     val f = Function(v, v)().tchk()
-    val actual = f.subPreserveType(n -> IntCst(42)).asInstanceOf[Function]
+    val actual = f.subPreserveType(n -> IntCst(42)(U8)).asInstanceOf[Function]
     val expected = {
       val v = Param("v")(TyVec(U8, 42))
       Function(v, v)()
@@ -327,7 +327,7 @@ class CoreTests extends AnyFunSuite {
         4,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )()
     val typed = untyped.tchk()
     assert(typed.hashCode == untyped.hashCode)
@@ -452,21 +452,21 @@ class CoreTests extends AnyFunSuite {
       n,
       data,
       valid,
-      Map[Param, (Expr, Expr)](outCtr -> (IntCst(10), outCtr * 2))
+      Map[Param, (Expr, Expr)](outCtr -> (IntCst(10)(U8), outCtr * 2))
     )().tchk().asInstanceOf[StmBuild]
 
     val actual = s.addOutputCounter(outCtr)
 
     // The existing bound variable should be renamed
     val i = Param("i")()
-    val expectedOutCtrSeed = IntCst(0)
+    val expectedOutCtrSeed = IntCst(0)()
     val expectedOutCtrNext = Mux(valid, outCtr + 1, outCtr)()
     val expected = StmBuild(
       n,
       data,
       valid,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(10), i * 2),
+        i -> (IntCst(10)(U8), i * 2),
         outCtr -> (expectedOutCtrSeed, expectedOutCtrNext)
       )
     )()
@@ -494,12 +494,12 @@ class CoreTests extends AnyFunSuite {
       StmData(s)(),
       FunCall(f, i)(),
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(3), i + 1),
+        i -> (IntCst(3)(U8), i + 1),
         s -> (
           input,
           FunCall(f, i)() || FunCall(g, inCtr)()
         ),
-        inCtr -> (IntCst(1), inCtr + 2)
+        inCtr -> (IntCst(1)(U8), inCtr + 2)
       )
     )().tchk(context).asInstanceOf[StmBuild]
 
@@ -511,10 +511,10 @@ class CoreTests extends AnyFunSuite {
     // I need to find the new parameters representing `i` and `inCtr` so that
     // I can check that the new input counter is updated correctly.
     val freshI =
-      actual.seedByVar.find({ case (_, z) => z == IntCst(3) }).get._1
+      actual.seedByVar.find({ case (_, z) => z == IntCst(3)() }).get._1
     // Call this one `j` to avoid confusion
-    val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1) }).get._1
-    val expectedInCtrSeed = IntCst(0)
+    val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1)() }).get._1
+    val expectedInCtrSeed = IntCst(0)()
     val expectedInCtrNext =
       Mux(FunCall(f, freshI)() || FunCall(g, j)(), inCtr + 1, inCtr)()
     val expected =

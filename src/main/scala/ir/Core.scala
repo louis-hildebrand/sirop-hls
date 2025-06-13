@@ -30,14 +30,14 @@ private object SharedScope extends AccVarScope
   *   than <code>Missing</code>.
   */
 sealed abstract class Expr(val children: Expr*)(val typ: Type) {
-  def +(that: Expr): Expr = Sum(this, that)()
+  def +(that: Expr): Expr = SmartSum(this, that)()
   def -(that: Expr): Expr = this + -1 * that
-  def *(that: Expr): Expr = Prod(this, that)()
-  def /(that: Expr): Expr = Div(this, that)()
-  def %(that: Expr): Expr = Mod(this, that)()
-  def ===(that: Expr): Expr = Equal(this, that)()
+  def *(that: Expr): Expr = SmartProd(this, that)()
+  def /(that: Expr): Expr = SmartDiv(this, that)()
+  def %(that: Expr): Expr = SmartMod(this, that)()
+  def ===(that: Expr): Expr = SmartEqual(this, that)()
   def !==(that: Expr): Expr = !(this === that)
-  def <(that: Expr): Expr = LessThan(this, that)()
+  def <(that: Expr): Expr = SmartLessThan(this, that)()
   def <=(that: Expr): Not = !(this > that)
   def >(that: Expr): Expr = that < this
   def >=(that: Expr): Not = that <= this
@@ -52,8 +52,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def __3: TupleAccess = TupleAccess(this, 3)()
   def __4: TupleAccess = TupleAccess(this, 4)()
   def __5: TupleAccess = TupleAccess(this, 5)()
-
-  def apply(e: Expr): FunCall = FunCall(this, e)()
 
   /** The name of this class. This is useful, for example, for including the
     * class name in an error message without hard-coding it.
@@ -70,7 +68,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     if (this.typ != Missing) {
       return this
     }
-    val checked = this match {
+    this match {
       case x: Param =>
         context.get(x) match {
           case Some(t) => x.rebuild(t)
@@ -89,7 +87,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newArg = arg.tchk
         newF.typ match {
           case TyArrow(t1, t2) =>
-            if (newArg.typ <= t1) {
+            if (newArg.typ.isCompatibleWith(t1)) {
               fc.rebuild(t2, Seq(newF, newArg))
             } else {
               throw new TypeError(
@@ -116,14 +114,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
-        Type.supertype(elemTypes) match {
-          case Some(typ) =>
-            s.rebuild(typ, newTerms)
-          case None =>
-            val ts = elemTypes.mkString(", ")
-            throw new TypeError(
-              s"Could not find common supertype for operand types $ts in $className."
-            )
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${s.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          s.rebuild(elemTypes.head, newTerms)
         }
       case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => e.tchk)
@@ -136,14 +132,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           }
         }
         val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
-        Type.supertype(elemTypes) match {
-          case Some(typ) =>
-            p.rebuild(typ, newFactors)
-          case None =>
-            val ts = elemTypes.mkString(", ")
-            throw new TypeError(
-              s"Could not find common supertype for operand types $ts in $className."
-            )
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${p.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          p.rebuild(elemTypes.head, newFactors)
         }
       case d @ Div(e1, e2) =>
         val newLhs = e1.tchk
@@ -164,13 +158,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        Type.supertype(t1, t2) match {
-          case Some(typ) =>
-            d.rebuild(typ, Seq(newLhs, newRhs))
-          case None =>
-            throw new TypeError(
-              s"Could not find common supertype for operand types $t1 and $t2 in $className."
-            )
+        if (t1 ~= t2) {
+          d.rebuild(t1, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
+          )
         }
       case m @ Mod(e1, e2) =>
         val newLhs = e1.tchk
@@ -191,13 +184,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        Type.supertype(t1, t2) match {
-          case Some(typ) =>
-            m.rebuild(typ, Seq(newLhs, newRhs))
-          case None =>
-            throw new TypeError(
-              s"Could not find common supertype for operand types $t1 and $t2 in $className."
-            )
+        if (t1 ~= t2) {
+          m.rebuild(t1, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
+          )
         }
       case pad @ PadTo(e, targetWidth) =>
         val newE = e.tchk
@@ -220,12 +212,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         newE.typ match {
           case t @ TyAnyInt(srcWidth) if targetWidth <= srcWidth =>
             trunc.rebuild(t.withWidth(targetWidth), Seq(newE))
-          case t @ TyAnyInt(srcWidth) =>
-            // This situation may arise after a substitution
-            // (e.g., [1 / x] TruncateTo(x, 16)).
-            // In this case, truncating is a no-op.
-            assert(srcWidth < targetWidth)
-            trunc.rebuild(t, Seq(newE))
+          case t: TyAnyInt =>
+            throw new TypeError(
+              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
+                + " The target width cannot be greater than the original width."
+            )
           case t =>
             throw new TypeError(
               s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t."
@@ -243,13 +234,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case TySInt(w) =>
             // We don't need the sign bit anymore
             uns.rebuild(TyUInt(math.max(0, w - 1)), Seq(newE))
-          case t: TyUInt =>
-            // This situation may arise after a substitution
-            // (e.g., [1 / x] ToUnsigned(x))
-            // The substitution is only valid if the unsigned number is one
-            // bit narrower than the variable, so there's no need to drop any
-            // more bits here.
-            uns.rebuild(t, Seq(newE))
           case t =>
             throw new TypeError(
               s"Argument of ${ToUnsigned.getClass.getSimpleName} has type $t."
@@ -267,13 +251,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newT = t.tchk
         val newF = f.tchk
-        Type.supertype(newT.typ, newF.typ) match {
-          case Some(typ) =>
-            mux.rebuild(typ, Seq(newC, newT, newF))
-          case None =>
-            throw new TypeError(
-              s"Could not find common supertype for ${newT.typ} and ${newF.typ} in MUX branches."
-            )
+        if (newT.typ.isCompatibleWith(newF.typ)) {
+          mux.rebuild(newT.typ, Seq(newC, newT, newF))
+        } else {
+          throw new TypeError(
+            s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
+          )
         }
       case a @ And(terms @ _*) =>
         val newTerms = terms.map(e => e.tchk)
@@ -315,13 +298,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               s"Right-hand side of $className has non-data type $t."
             )
         }
-        Type.supertype(newE1.typ, newE2.typ) match {
-          case Some(_) =>
-            eq.rebuild(TyBool, Seq(newE1, newE2))
-          case None =>
-            throw new TypeError(
-              s"Could not find common supertype for operand types ${newE1.typ} and ${newE2.typ} in $className."
-            )
+        if (newE1.typ ~= newE2.typ) {
+          eq.rebuild(TyBool, Seq(newE1, newE2))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
+          )
         }
       case lt @ LessThan(e1, e2) =>
         val newLhs = e1.tchk
@@ -342,13 +324,12 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 + " Expected an integer."
             )
         }
-        Type.supertype(newLhs.typ, newRhs.typ) match {
-          case Some(_) =>
-            lt.rebuild(TyBool, Seq(newLhs, newRhs))
-          case None =>
-            throw new TypeError(
-              s"Could not find common supertype for operand types ${newLhs.typ} and ${newRhs.typ} in $className."
-            )
+        if (newLhs.typ ~= newRhs.typ) {
+          lt.rebuild(TyBool, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}."
+          )
         }
 
       case t @ Tuple(elems @ _*) =>
@@ -413,7 +394,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newN = s.n.tchk(context).expectUInt()
         val newEquations = s.equations.map({ case (x, (z, next)) =>
           val newZ = z.tchk(context)
-          if (!(newZ.typ <= x.typ)) {
+          if (!(newZ.typ ~= x.typ)) {
             throw new TypeError(
               s"Seed for accumulator $x has type ${newZ.typ}."
                 + s" Expected type ${x.typ}."
@@ -483,11 +464,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
 
       case s: SyntaxSugar => s.typecheck(context)
     }
-    assert(
-      checked.typ != Missing,
-      s"type must not be ${Missing.getClass.getSimpleName} after type checking"
-    )
-    checked
   }
 
   def eraseTypes(): Expr = {
@@ -642,8 +618,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      !this.hasType || (desugared.typ <= this.typ.lower),
-      s"lowering must yield an expression whose type is a subtype of the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
+      !this.hasType || (desugared.typ ~= this.typ.lower),
+      s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
     )
     assert(
       !desugared.contains(classOf[SyntaxSugar]),
@@ -811,8 +787,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
     if (this.hasType) {
       assert(
-        out.typ <= this.typ,
-        s"the type after substitution should be a subtype of the original type (expected ${this.typ}, found ${out.typ} after substitutions $subs in $this)"
+        out.typ ~= this.typ,
+        s"the type should be preserved after substitution (expected ${this.typ}, found ${out.typ} after substitutions $subs in $this)"
       )
     }
     // The expressions to replace may occur within the type (e.g., in the
@@ -1031,16 +1007,28 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
+// TODO: Use Long or BigInt here so that wide int types can be represented?
+
 /** An integer constant.
   *
   * @param i
   *   the integer value.
   */
-case class IntCst(i: Long) extends IntExpr()(TyAnyInt.tightest(i, i)) {
+case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
+  typ match {
+    case Missing => ()
+    case int: TyAnyInt =>
+      if (!int.contains(i)) {
+        throw OverflowError(i, int)
+      }
+    case t =>
+      throw new TypeError(s"Invalid type $t for integer constant.")
+  }
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
-    IntCst(i)
+    IntCst(i)(typ)
   }
 }
 
@@ -1048,18 +1036,18 @@ case class IntCst(i: Long) extends IntExpr()(TyAnyInt.tightest(i, i)) {
   */
 object C {
 
-  /** Shorthand for [[IntCst]].
+  /** Constructs an [[IntCst]].
+    *
+    * @param i
+    *   the integer value.
+    * @param typ
+    *   the type annotation.
     */
-  def apply(i: Long): IntCst = {
-    IntCst(i)
+  def apply(i: Long)(typ: Type = Missing): IntCst = {
+    IntCst(i)(typ)
   }
 }
 
-/** The sum of many integers.
-  *
-  * @param terms
-  *   the expressions to add up.
-  */
 case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
   require(terms.nonEmpty, "Sum must have at least one term.")
 
@@ -1078,18 +1066,13 @@ case object Sum {
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
     terms match {
-      case Seq()  => IntCst(0)
+      case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
       case terms  => new Sum(terms: _*)(typ)
     }
   }
 }
 
-/** The product of many integers.
-  *
-  * @param factors
-  *   the expressions to multiply.
-  */
 case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
   require(factors.nonEmpty, "Prod must have at least one factor.")
 
@@ -1109,7 +1092,7 @@ case object Prod {
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
     factors match {
-      case Seq()   => IntCst(1)
+      case Seq()   => IntCst(1)(typ)
       case Seq(e)  => e
       case factors => new Prod(factors: _*)(typ)
     }
@@ -1684,7 +1667,7 @@ case class StmBuild(
         this.renameVar(outCtr)
       else
         this
-    val z = IntCst(0)
+    val z = IntCst(0)(outCtr.typ)
     val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
     s.addAccumulator(outCtr, z, next)
   }
@@ -1722,7 +1705,7 @@ case class StmBuild(
         this
     val stmNextCalled = s.nextByVar(x)
     val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
-    s.addAccumulator(inCtr, C(0), next)
+    s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
   }
 
   /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
@@ -2120,7 +2103,7 @@ case class VecLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)()
+    VecLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 
@@ -2136,7 +2119,7 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)()
+    StmLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 

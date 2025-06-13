@@ -449,8 +449,8 @@ object PartialEvalPass {
     if (expectedTyp != Missing) {
       val typedExpr = pe.tchk()
       assert(
-        typedExpr.typ <= expectedTyp,
-        s"type after partial evaluation should be a subtype of the original type (expected $expectedTyp, found ${typedExpr.typ})"
+        typedExpr.typ ~= expectedTyp,
+        s"partial evaluation should preserve type annotations (expected $expectedTyp, found ${typedExpr.typ})"
       )
       typedExpr
     } else {
@@ -485,8 +485,8 @@ object PartialEvalPass {
       // ArithExpr seems to handle x < y better than x - y < 0, so try making all terms positive
       val (lhsPosTerms, lhsNegTerms) = getPosAndNegTerms(partialEval(e1)(facts))
       val (rhsPosTerms, rhsNegTerms) = getPosAndNegTerms(partialEval(e2)(facts))
-      val newLhs = Sum(lhsPosTerms ++ rhsNegTerms: _*)()
-      val newRhs = Sum(rhsPosTerms ++ lhsNegTerms: _*)()
+      val newLhs = SmartSum(lhsPosTerms ++ rhsNegTerms: _*)()
+      val newRhs = SmartSum(rhsPosTerms ++ lhsNegTerms: _*)()
       (newLhs < newRhs).tchk().lower()
     }
     partialEval(lt)(facts, MoveUp) match {

@@ -409,8 +409,7 @@ object VhdlGenerator {
           z.freeVars().isEmpty,
           s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
         )
-        val reshapedInit = ReshapeData(z, x.typ)().tchk().lower()
-        val initVhdl = VhdlExprGenerator.valueToVhdl(reshapedInit)
+        val initVhdl = VhdlExprGenerator.valueToVhdl(z)
         val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
         val sig = Signal(
           category = "Registers",

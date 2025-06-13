@@ -15,10 +15,10 @@ class StreamFusionTests extends AnyFunSuite {
     val i = Param("i")(u2)
     val counter =
       StmBuild(
-        IntCst(3),
+        IntCst(3)(u2),
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(u2), i + 1))
       )()
     val original = {
       val s = Param("s")(TyStm(u2, -1))
@@ -43,7 +43,7 @@ class StreamFusionTests extends AnyFunSuite {
       PadTo(i, 4)() + 5,
       True,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), i + 1)
+        i -> (IntCst(0)(u2), i + 1)
       )
     )()
     val simplFused = lpe(fused)
@@ -64,7 +64,7 @@ class StreamFusionTests extends AnyFunSuite {
         n,
         ReshapeData(i + 11, I16)(),
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )().tchk().lower()
     // Valid every 2nd cycle
     val c2 =
@@ -72,7 +72,7 @@ class StreamFusionTests extends AnyFunSuite {
         n,
         i % 3 === 0,
         i % 2 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )().tchk().lower()
     val s = StmBuild(
       n,
@@ -98,7 +98,7 @@ class StreamFusionTests extends AnyFunSuite {
         Tuple(ReshapeData(i1 + 11, I16)(), StmData(x2)())(),
         True,
         Map[Param, (Expr, Expr)](
-          i1 -> (IntCst(0), i1 + 1),
+          i1 -> (IntCst(0)(U8), i1 + 1),
           x2 -> (c2, True)
         )
       )().tchk()
@@ -117,7 +117,7 @@ class StreamFusionTests extends AnyFunSuite {
         i2 % 2 === 0,
         Map[Param, (Expr, Expr)](
           x1 -> (c1, i2 % 2 === 0),
-          i2 -> (IntCst(0), i2 + 1)
+          i2 -> (IntCst(0)(U8), i2 + 1)
         )
       )().tchk()
     )
@@ -134,8 +134,8 @@ class StreamFusionTests extends AnyFunSuite {
         Tuple(ReshapeData(i1 + 11, I16)(), i2 % 3 === 0)(),
         i2 % 2 === 0,
         Map[Param, (Expr, Expr)](
-          i1 -> (IntCst(0), Mux(i2 % 2 === 0, i1 + 1, i1)()),
-          i2 -> (IntCst(0), i2 + 1)
+          i1 -> (IntCst(0)(U8), Mux(i2 % 2 === 0, i1 + 1, i1)()),
+          i2 -> (IntCst(0)(U8), i2 + 1)
         )
       )().tchk()
     )
@@ -156,7 +156,7 @@ class StreamFusionTests extends AnyFunSuite {
         n,
         i + 3,
         i % 3 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )().tchk().lower()
     // Valid every 5th cycle
     val c2 =
@@ -164,14 +164,14 @@ class StreamFusionTests extends AnyFunSuite {
         n,
         i * 5 + 1,
         i % 5 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
       )().tchk().lower()
     val s = StmBuild(
       n,
       Mux(i % 2 === 0, StmData(x1)(), StmData(x2)())(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), i + 1),
+        i -> (IntCst(0)(U8), i + 1),
         x1 -> (c1, i % 2 === 0),
         x2 -> (c2, i % 2 !== 0)
       )

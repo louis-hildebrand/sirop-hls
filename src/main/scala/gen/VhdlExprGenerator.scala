@@ -40,10 +40,13 @@ private object VhdlExprGenerator {
           case TyUInt(w) => VhdlExpr(s"to_unsigned(${c.i}, $w)", Seq())
           case TySInt(w) => VhdlExpr(s"to_signed(${c.i}, $w)", Seq())
         }
-      case sum: Sum   => makeSum(sum)(mode)
-      case prod: Prod => makeProd(prod)(mode)
-      case div: Div   => makeDiv(div)(mode)
-      case mod: Mod   => makeMod(mod)(mode)
+      // TODO: Specially handle cases like x + (-1 * y)?
+      case Sum(terms @ _*) => VhdlOp("+", terms.map(exprToVhdl))
+      case Prod(factors @ _*) =>
+        val w = e.typ.asInstanceOf[TyAnyInt].w
+        makeProduct(factors.map(exprToVhdl), bitWidth = w)
+      case Div(e1, e2) => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
+      case Mod(e1, e2) => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
       case PadTo(e, w) =>
         val ev = exprToVhdl(e)
         VhdlExpr(s"pad(${ev.vhdl}, $w)", ev.decls)
@@ -73,8 +76,8 @@ private object VhdlExprGenerator {
           mode
         )
         VhdlExpr(tempVar.name, tempVar +: (cv.decls ++ tv.decls ++ fv.decls))
-      case eq: Equal    => makeEqual(eq)(mode)
-      case lt: LessThan => makeLessThan(lt)(mode)
+      case Equal(e1, e2)    => VhdlOp("=", Seq(e1, e2).map(exprToVhdl))
+      case LessThan(e1, e2) => VhdlOp("<", Seq(e1, e2).map(exprToVhdl))
       case Not(e) =>
         val ve = exprToVhdl(e)
         VhdlExpr(s"not (${ve.vhdl})", ve.decls)
@@ -142,10 +145,7 @@ private object VhdlExprGenerator {
         VhdlExpr(func.name, Seq(func))
       case FunCall(f, arg) =>
         val fv = exprToVhdl(f)
-        val inTyp = f.typ.asInstanceOf[TyArrow].t1
-        val reshapedArg =
-          ReshapeData(arg, f.typ.asInstanceOf[TyArrow].t1)().tchk().lower()
-        val av = exprToVhdl(reshapedArg)
+        val av = exprToVhdl(arg)
         VhdlExpr(s"${fv.vhdl}(${av.vhdl})", fv.decls ++ av.decls)
 
       case VecLiteral(elems @ _*) =>
@@ -161,7 +161,7 @@ private object VhdlExprGenerator {
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
           val elems =
             (0 until n.toInt).map(i =>
-              PartialEvalPass.partialEval(FunCall(f, C(i))())
+              PartialEvalPass.partialEval(FunCall(f, C(i)(idxTyp))())
             )
           exprToVhdl(VecLiteral(elems: _*)().tchk())
         } else {
@@ -182,93 +182,19 @@ private object VhdlExprGenerator {
     }
   }
 
-  private def makeSum(sum: Sum)(implicit mode: ExprGenMode): VhdlExpr = {
-    // TODO: Specially handle cases like x + (-1 * y)?
-    require(sum.terms.nonEmpty)
-    val typ = sum.typ
-    assert(
-      typ.isInstanceOf[TyAnyInt],
-      s"the type of a sum should be an integer type (found type $typ)"
-    )
-    val reshapedTerms =
-      sum.terms.map(e => ReshapeData(e, typ)().tchk().lower())
-    VhdlOp("+", reshapedTerms.map(exprToVhdl))
-  }
-
-  private def makeProd(prod: Prod)(implicit mode: ExprGenMode): VhdlExpr = {
-    def makeTree(factors: Seq[VhdlExpr], bitWidth: Int): VhdlExpr = {
-      require(factors.nonEmpty)
-      if (factors.length == 1) {
-        factors.head
-      } else {
-        val (leftFactors, rightFactors) = factors.splitAt(factors.length / 2)
-        val lhs = makeTree(leftFactors, bitWidth)
-        val rhs = makeTree(rightFactors, bitWidth)
-        VhdlExpr(
-          s"truncate((${lhs.vhdl}) * (${rhs.vhdl}), $bitWidth)",
-          lhs.decls ++ rhs.decls
-        )
-      }
+  private def makeProduct(factors: Seq[VhdlExpr], bitWidth: Int): VhdlExpr = {
+    require(factors.nonEmpty)
+    if (factors.length == 1) {
+      factors.head
+    } else {
+      val (leftFactors, rightFactors) = factors.splitAt(factors.length / 2)
+      val lhs = makeProduct(leftFactors, bitWidth)
+      val rhs = makeProduct(rightFactors, bitWidth)
+      VhdlExpr(
+        s"truncate((${lhs.vhdl}) * (${rhs.vhdl}), $bitWidth)",
+        lhs.decls ++ rhs.decls
+      )
     }
-
-    assert(
-      prod.typ.isInstanceOf[TyAnyInt],
-      s"the type of a product should be an integer type (found type ${prod.typ})"
-    )
-    val typ = prod.typ.asInstanceOf[TyAnyInt]
-    val reshapedInputs =
-      prod.factors.map(e => ReshapeData(e, typ)().tchk().lower())
-    makeTree(reshapedInputs.map(exprToVhdl), typ.w)
-  }
-
-  private def makeDiv(div: Div)(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = div.typ
-    assert(
-      typ.isInstanceOf[TyAnyInt],
-      s"the type of a quotient should be an integer type (found type $typ)"
-    )
-    val reshapedInputs =
-      div.children.map(e => ReshapeData(e, typ)().tchk().lower())
-    VhdlOp("/", reshapedInputs.map(exprToVhdl))
-  }
-
-  private def makeMod(mod: Mod)(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = mod.typ
-    assert(
-      typ.isInstanceOf[TyAnyInt],
-      s"the type of Mod should be an integer type (found type $typ)"
-    )
-    val reshapedInputs =
-      mod.children.map(e => ReshapeData(e, typ)().tchk().lower())
-    VhdlOp("rem", reshapedInputs.map(exprToVhdl))
-  }
-
-  private def makeEqual(eq: Equal)(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = Type.supertype(eq.e1.typ, eq.e2.typ) match {
-      case Some(typ) => typ
-      case None =>
-        throw new TypeError(
-          s"Could not find common supertype for operand types ${eq.e1.typ} and ${eq.e2.typ} in ${Equal.getClass.getSimpleName}."
-        )
-    }
-    val reshapedInputs =
-      eq.children.map(e => ReshapeData(e, typ)().tchk().lower())
-    VhdlOp("=", reshapedInputs.map(exprToVhdl))
-  }
-
-  private def makeLessThan(
-      lt: LessThan
-  )(implicit mode: ExprGenMode): VhdlExpr = {
-    val typ = Type.supertype(lt.e1.typ, lt.e2.typ) match {
-      case Some(typ) => typ
-      case None =>
-        throw new TypeError(
-          s"Could not find common supertype for operand types ${lt.e1.typ} and ${lt.e2.typ} in ${LessThan.getClass.getSimpleName}."
-        )
-    }
-    val reshapedInputs =
-      lt.children.map(e => ReshapeData(e, typ)().tchk().lower())
-    VhdlOp("<", reshapedInputs.map(exprToVhdl))
   }
 
   private def intermediateVar(

@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class EvalTests extends AnyFunSuite {
   test("IntCst") {
-    assert(ir.eval(C(3)) == C(3))
+    assert(ir.eval(IntCst(3)()) == IntCst(3)())
   }
 
   test("StmBuild") {
@@ -14,7 +14,7 @@ class EvalTests extends AnyFunSuite {
         5,
         i + 42,
         True,
-        Map[Param, (Expr, Expr)](i -> (C(9), 2 * i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(9)(U16), 2 * i + 1))
       )()
     val expected = StmLiteral(9 + 42, 19 + 42, 39 + 42, 79 + 42, 159 + 42)()
     val actual = ir.eval(s)
@@ -42,7 +42,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("InfiniteLoopInInputStream") {
-    val s = Param("s")(TyStm(U0, -1))
+    val s = Param("s")(TyStm(TyUInt(0), -1))
     val stm = StmBuild(
       1,
       StmData(s)(),
@@ -57,7 +57,7 @@ class EvalTests extends AnyFunSuite {
 
   test("ReadFromEmptyStream") {
     val s = {
-      val s = Param("s")(TyStm(U0, 1))
+      val s = Param("s")(TyStm(TyUInt(0), 1))
       StmBuild(
         2,
         StmData(s)(),
@@ -72,22 +72,22 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("Overflow") {
-    assertThrows[OverflowError](ir.eval(C(255) + C(1)))
-    assertThrows[OverflowError](ir.eval(Sum(C(32767), C(1))()))
-    assertThrows[OverflowError](ir.eval(C(-127) + C(-2)))
-    assertThrows[OverflowError](ir.eval(C(128) * C(2)))
-    assertThrows[OverflowError](ir.eval(C(-64) * C(3)))
+    assertThrows[OverflowError](ir.eval(C(255)(U8) + C(1)(U8)))
+    assertThrows[OverflowError](ir.eval(Sum(C(32767)(I16), C(1)(I16))()))
+    assertThrows[OverflowError](ir.eval(C(-127)(I8) + C(-2)(I8)))
+    assertThrows[OverflowError](ir.eval(C(128)(U8) * C(2)(U8)))
+    assertThrows[OverflowError](ir.eval(C(-64)(U8) * C(3)(U8)))
   }
 
   test("DivByZero") {
-    assertThrows[DivByZero.type](ir.eval(C(42) / C(0)))
-    assertThrows[DivByZero.type](ir.eval(C(42) % C(0)))
+    assertThrows[DivByZero.type](ir.eval(C(42)(U8) / C(0)(U8)))
+    assertThrows[DivByZero.type](ir.eval(C(42)(U8) % C(0)(U8)))
   }
 
   test("PadTo") {
     for (x <- -3 to 3) {
       for (w <- 3 to 5) {
-        assert(ir.eval(PadTo(x, w)()) == C(x))
+        assert(ir.eval(PadTo(x, w)()) == IntCst(x)())
       }
     }
   }
@@ -101,40 +101,34 @@ class EvalTests extends AnyFunSuite {
     }
 
     // -3 = (11101)_2
-    assert(truncations(C(-3)) == Seq(-3, -3, -3, 1, -1, 0))
+    assert(truncations(IntCst(-3)(TySInt(5))) == Seq(-3, -3, -3, 1, -1, 0))
     // -2 = (1110)_2
-    assert(truncations(C(-2)) == Seq(-2, -2, -2, 0, 0))
+    assert(truncations(IntCst(-2)(TySInt(4))) == Seq(-2, -2, -2, 0, 0))
     // -1 = (111)_2
-    assert(truncations(C(-1)) == Seq(-1, -1, -1, 0))
+    assert(truncations(IntCst(-1)(TySInt(3))) == Seq(-1, -1, -1, 0))
     // 0 = (000)_2
-    assert(truncations(C(0)) == Seq(0, 0, 0, 0))
-    assert(truncations(C(0)) == Seq(0, 0, 0, 0))
+    assert(truncations(IntCst(0)(TySInt(3))) == Seq(0, 0, 0, 0))
+    assert(truncations(IntCst(0)(TyUInt(3))) == Seq(0, 0, 0, 0))
     // 1 = (001)_2
-    assert(truncations(C(1)) == Seq(1, 1, -1, 0))
-    assert(truncations(C(1)) == Seq(1, 1, 1, 0))
+    assert(truncations(IntCst(1)(TySInt(3))) == Seq(1, 1, -1, 0))
+    assert(truncations(IntCst(1)(TyUInt(3))) == Seq(1, 1, 1, 0))
     // 2 = (0010)_2
-    assert(truncations(C(2)) == Seq(2, 2, -2, 0, 0))
-    assert(truncations(C(2)) == Seq(2, 2, 2, 0, 0))
+    assert(truncations(IntCst(2)(TySInt(4))) == Seq(2, 2, -2, 0, 0))
+    assert(truncations(IntCst(2)(TyUInt(4))) == Seq(2, 2, 2, 0, 0))
     // 3 = (0011)_2
-    assert(truncations(C(3)) == Seq(3, 3, -1, -1, 0))
-    assert(truncations(C(3)) == Seq(3, 3, 3, 1, 0))
+    assert(truncations(IntCst(3)(TySInt(4))) == Seq(3, 3, -1, -1, 0))
+    assert(truncations(IntCst(3)(TyUInt(4))) == Seq(3, 3, 3, 1, 0))
     // 4 = (00100)_2
-    assert(truncations(C(4)) == Seq(4, 4, -4, 0, 0, 0))
-    assert(truncations(C(4)) == Seq(4, 4, 4, 0, 0, 0))
+    assert(truncations(IntCst(4)(TySInt(5))) == Seq(4, 4, -4, 0, 0, 0))
+    assert(truncations(IntCst(4)(TyUInt(5))) == Seq(4, 4, 4, 0, 0, 0))
     // 5 = (00101)_2
-    assert(truncations(C(5)) == Seq(5, 5, -3, 1, -1, 0))
-    assert(truncations(C(5)) == Seq(5, 5, 5, 1, 1, 0))
-  }
-
-  test("TruncateSmallNumber") {
-    val f = U16 ::+ (x => TruncateTo(x, 15)())
-    val e = f(C(1))
-    assert(ir.eval(e) == C(1))
+    assert(truncations(IntCst(5)(TySInt(5))) == Seq(5, 5, -3, 1, -1, 0))
+    assert(truncations(IntCst(5)(TyUInt(5))) == Seq(5, 5, 5, 1, 1, 0))
   }
 
   test("ToSigned") {
     for (x <- 0 to 10) {
-      assert(ir.eval(ToSigned(x)()) == C(x))
+      assert(ir.eval(ToSigned(x)()) == IntCst(x)())
     }
   }
 
@@ -143,97 +137,21 @@ class EvalTests extends AnyFunSuite {
 
     // No-op if argument is positive
     for (x <- 0 to 10) {
-      assert(ir.eval(FunCall(f, C(x))()) == C(x))
+      assert(ir.eval(FunCall(f, IntCst(x)(I8))()) == IntCst(x)())
     }
 
     // If argument is negative, then drop leading bit and reinterpret as unsigned
     // -6 = (11111010)_2
-    assert(ir.eval(FunCall(f, C(-6))()) == C(122))
+    assert(ir.eval(FunCall(f, IntCst(-6)(I8))()) == IntCst(122)())
     // -5 = (11111011)_2
-    assert(ir.eval(FunCall(f, C(-5))()) == C(123))
+    assert(ir.eval(FunCall(f, IntCst(-5)(I8))()) == IntCst(123)())
     // -4 = (11111100)_2
-    assert(ir.eval(FunCall(f, C(-4))()) == C(124))
+    assert(ir.eval(FunCall(f, IntCst(-4)(I8))()) == IntCst(124)())
     // -3 = (11111101)_2
-    assert(ir.eval(FunCall(f, C(-3))()) == C(125))
+    assert(ir.eval(FunCall(f, IntCst(-3)(I8))()) == IntCst(125)())
     // -2 = (11111110)_2
-    assert(ir.eval(FunCall(f, C(-2))()) == C(126))
+    assert(ir.eval(FunCall(f, IntCst(-2)(I8))()) == IntCst(126)())
     // -1 = (11111111)_2
-    assert(ir.eval(FunCall(f, C(-1))()) == C(127))
-  }
-
-  test("UnsignedToUnsigned") {
-    val f = I9 ::+ (x => ToUnsigned(x)())
-    val e = f(C(2))
-    assert(ir.eval(e) == C(2))
-  }
-
-  test("Equal:Bool") {
-    assert(ir.eval(False === False) == True)
-    assert(ir.eval(False === True) == False)
-    assert(ir.eval(True === False) == False)
-    assert(ir.eval(True === True) == True)
-  }
-
-  test("Equal:Int") {
-    for (t1 <- COMMON_INT_TYPES) {
-      for (t2 <- COMMON_INT_TYPES) {
-        assert(ir.eval(C(0) === C(0)) == True)
-        assert(ir.eval(C(63) === C(63)) == True)
-        assert(ir.eval(C(42) === C(43)) == False)
-      }
-    }
-  }
-
-  test("Equal:Vec[(Int, Bool), n]") {
-    val v1 = VecBuild(5, U8 ::+ (i => Tuple(i, i === 3)()))()
-    val v2 = VecBuild(5, U8 ::+ (i => Tuple(2 * i - i, i + 1 === 4)()))()
-    val v3 = VecBuild(5, U8 ::+ (i => Tuple(i + 1, i === 3)()))()
-    val v4 = VecBuild(5, U8 ::+ (i => Tuple(i, True)()))()
-
-    assert(ir.eval(v1 === v2) == True)
-    assert(ir.eval(v2 === v1) == True)
-    assert(ir.eval(v1 === v3) == False)
-    assert(ir.eval(v1 !== v3) == True)
-    assert(ir.eval(v1 === v4) == False)
-    assert(ir.eval(v1 !== v4) == True)
-  }
-
-  test("LessThan:Valid") {
-    for (t1 <- COMMON_INT_TYPES) {
-      for (t2 <- COMMON_INT_TYPES) {
-        assert(ir.eval(C(0) < C(0)) == False)
-        assert(ir.eval(C(0) < C(1)) == True)
-        assert(ir.eval(C(42) < C(41)) == False)
-        assert(ir.eval(C(42) < C(42)) == False)
-        assert(ir.eval(C(42) < C(43)) == True)
-      }
-    }
-  }
-
-  test("Sum") {
-    assert(ir.eval(C(-1) + C(5) + C(-300)) == C(-296))
-    assert(ir.eval(C(3) + C(2) + C(1)) == C(3 + 2 + 1))
-    assert(
-      ir.eval(((C(1) + C(2)) + C(3)) + C(4))
-        == C(1 + 2 + 3 + 4)
-    )
-    assert(ir.eval(C(0) + C(0)) == C(0))
-    assert(ir.eval(C(0) + C(0)) == C(0))
-    assert(ir.eval(Sum()()) == C(0))
-  }
-
-  test("Prod") {
-    assert(ir.eval(C(7) * C(-6)) == C(-42))
-    assert(ir.eval(Prod()()) == C(1))
-    assert(ir.eval(Prod(0, 42)()) == C(0))
-  }
-
-  test("Div") {
-    assert(ir.eval(C(42) / C(2)) == C(21))
-    assert(ir.eval(C(42) / C(-3)) == C(-14))
-  }
-
-  test("Mod") {
-    assert(ir.eval(C(44) % C(3)) == C(2))
+    assert(ir.eval(FunCall(f, IntCst(-1)(I8))()) == IntCst(127)())
   }
 }

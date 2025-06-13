@@ -13,14 +13,14 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
 
   test("IntCst:U32") {
-    val e = C(0)
+    val e = C(0)(U32)
     val actual = lpe(e)
     assert(actual == e)
     assert(actual.typ == e.typ)
   }
 
   test("IntCst:I16") {
-    val e = C(-2)
+    val e = C(-2)(I16)
     val actual = lpe(e)
     assert(actual == e)
     assert(actual.typ == e.typ)
@@ -30,37 +30,37 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e1 = VecAccess(Param("v")(TyVec(I16, 5)), Param("i")(U8))()
     val e2 = Param("p")((TyBool, I16)).__1
 
-    assert(lpe(C(1) + C(2)) == C(3))
-    assert(lpe(C(1) + e1) == Sum(1, e1)())
-    assert(lpe(e1 + C(0)) == e1)
-    assert(lpe(C(0) + e1) == e1)
-    assert(lpe(e1 - e1) == C(0))
+    assert(lpe(C(1)(U8) + C(2)(U8)) == C(3)())
+    assert(lpe(C(1)(U8) + e1) == Sum(1, e1)())
+    assert(lpe(e1 + C(0)()) == e1)
+    assert(lpe(C(0)() + e1) == e1)
+    assert(lpe(e1 - e1) == C(0)())
     assert(lpe(e1 - 2 * e1) == Prod(-1, e1)())
     assert(lpe(3 * e1 + 4 * e1) == Prod(7, e1)())
-    assert(lpe((e1 + C(9)) + C(3)) == Sum(C(12), e1)())
-    assert(lpe((C(8) + e1) + C(3)) == Sum(C(11), e1)())
-    assert(lpe(C(3) + (e1 + C(4))) == Sum(C(7), e1)())
-    assert(lpe(C(2) + (C(1) + e1)) == Sum(C(3), e1)())
-    assert(lpe((e1 - C(9)) + C(3)) == Sum(C(-6), e1)())
-    assert(lpe(C(3) + (e1 - C(4))) == Sum(C(-1), e1)())
-    assert(lpe((C(8) - e1) + C(3)) == Sum(C(11), Prod(-1, e1)())())
-    assert(lpe(C(2) + (C(1) - e1)) == Sum(C(3), Prod(-1, e1)())())
+    assert(lpe((e1 + C(9)()) + C(3)()) == Sum(C(12)(), e1)())
+    assert(lpe((C(8)() + e1) + C(3)()) == Sum(C(11)(), e1)())
+    assert(lpe(C(3)() + (e1 + C(4)())) == Sum(C(7)(), e1)())
+    assert(lpe(C(2)() + (C(1)() + e1)) == Sum(C(3)(), e1)())
+    assert(lpe((e1 - C(9)()) + C(3)()) == Sum(C(-6)(), e1)())
+    assert(lpe(C(3)() + (e1 - C(4)())) == Sum(C(-1)(), e1)())
+    assert(lpe((C(8)() - e1) + C(3)()) == Sum(C(11)(), Prod(-1, e1)())())
+    assert(lpe(C(2)() + (C(1)() - e1)) == Sum(C(3)(), Prod(-1, e1)())())
     assert(lpe(e1 + (e2 - e1)) == e2)
     assert(lpe(e2 + (e1 - e2)) == e1)
     assert(lpe((e2 - e1) + e1) == e2)
     assert(lpe((e1 - e2) + e2) == e1)
-    assert(lpe((((e1 + C(1)) + e2) - C(1)) - e2) == e1)
+    assert(lpe((((e1 + C(1)()) + e2) - C(1)()) - e2) == e1)
   }
 
   test("SumWithOverflow:U8") {
-    val actual = lpe(C(255) + C(2))
-    assert(actual == C(1))
+    val actual = lpe(C(255)(U8) + C(2)(U8))
+    assert(actual == C(1)())
     assert(actual.typ == U8)
   }
 
   test("SumWithOverflow:I8") {
-    val actual = lpe(C(127) + C(2))
-    assert(actual == C(-127))
+    val actual = lpe(C(127)(I8) + C(2)(I8))
+    assert(actual == C(-127)())
     assert(actual.typ == I8)
   }
 
@@ -69,22 +69,22 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val i = Param("i")(U8)
     val f = Param("f")(U8 ->: TyVec(I8, 3))
     val e3 =
-      VecAccess(FunCall(f, Tuple(C(0), C(10), C(20))().__1)(), i)()
+      VecAccess(FunCall(f, Tuple(C(0)(U8), C(10)(U8), C(20)(U8))().__1)(), i)()
     val e4 = Param("x")(I8)
 
-    val actual = lpe((e3 + e4 + C(42)) - e4)
-    val expected = Sum(C(42), VecAccess(FunCall(f, C(10))(), i)())()
+    val actual = lpe((e3 + e4 + C(42)()) - e4)
+    val expected = Sum(C(42)(), VecAccess(FunCall(f, C(10)(U8))(), i)())()
     assert(actual == expected)
   }
 
   test("Mul") {
     val e = VecAccess(Param("v")(TyVec(I16, 10)), Param("i")(U8))()
 
-    assert(lpe(C(4) * C(9)) == C(36))
-    assert(lpe(e * C(0)) == C(0))
-    assert(lpe(C(0) * e) == C(0))
-    assert(lpe(e * C(1)) == e)
-    assert(lpe(C(1) * e) == e)
+    assert(lpe(C(4)(U8) * C(9)(U8)) == C(36)())
+    assert(lpe(e * C(0)()) == C(0)())
+    assert(lpe(C(0)() * e) == C(0)())
+    assert(lpe(e * C(1)()) == e)
+    assert(lpe(C(1)() * e) == e)
   }
 
   // The non-arithmetic terms within a product are also simplified
@@ -92,10 +92,10 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val i = Param("i")(U8)
     val f = Param("f")(U8 ->: TyVec(I8, 3))
     val e =
-      VecAccess(FunCall(f, Tuple(C(0), C(10), C(20))().__1)(), i)()
+      VecAccess(FunCall(f, Tuple(C(0)(U8), C(10)(U8), C(20)(U8))().__1)(), i)()
 
-    val actual = lpe((C(42) * e) * C(3))
-    val expected = Prod(C(126), VecAccess(FunCall(f, 10)(), i)())()
+    val actual = lpe((C(42)() * e) * C(3)())
+    val expected = Prod(C(126)(), VecAccess(FunCall(f, 10)(), i)())()
     assert(actual == expected)
   }
 
@@ -103,19 +103,19 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = Param("x")(I8)
 
     // TODO: What about simplifying x * y / x if x is non-constant? Might need to check that x != 0 first
-    assert(lpe(e / IntCst(1)) == e)
-    assert(lpe(IntCst(6) * e / IntCst(6)) == e)
-    assert(lpe((IntCst(6) * e) / IntCst(3)) == Prod(2, e)())
-    assert(lpe((e * IntCst(15)) / IntCst(5)) == Prod(3, e)())
-    assert(lpe(IntCst(27) * e / IntCst(6)) == Div(Prod(9, e)(), 2)())
-    assert(lpe(e * IntCst(27) / IntCst(6)) == Div(Prod(9, e)(), 2)())
+    assert(lpe(e / IntCst(1)()) == e)
+    assert(lpe(IntCst(6)() * e / IntCst(6)()) == e)
+    assert(lpe((IntCst(6)() * e) / IntCst(3)()) == Prod(2, e)())
+    assert(lpe((e * IntCst(15)()) / IntCst(5)()) == Prod(3, e)())
+    assert(lpe(IntCst(27)() * e / IntCst(6)()) == Div(Prod(9, e)(), 2)())
+    assert(lpe(e * IntCst(27)() / IntCst(6)()) == Div(Prod(9, e)(), 2)())
   }
 
   test("Mod") {
     val e = Param("x")(I8)
 
-    assert(lpe(IntCst(17) % IntCst(12)) == IntCst(5))
-    assert(lpe(IntCst(0) % e) == IntCst(0))
+    assert(lpe(IntCst(17)() % IntCst(12)()) == IntCst(5)())
+    assert(lpe(IntCst(0)() % e) == IntCst(0)())
   }
 
   test("MuxWithBoundedVariable1") {
@@ -123,7 +123,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val y = Param("y")(TyVec(I32, 3))
     val z = Param("z")(TyVec(I32, 3))
     val a = Param("a")(I8)
-    val e = Mux(x.__1 >= C(-2) + a, y, z)().tchk().lower()
+    val e = Mux(x.__1 >= C(-2)(I8) + a, y, z)().tchk().lower()
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
@@ -137,13 +137,13 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val y = Param("y")(TyVec(I32, 3))
     val z = Param("z")(TyVec(I32, 3))
-    val e = Mux(ToSigned(x)() < C(5), y, z)().tchk().lower()
+    val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower()
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().geq(ToSigned(x)(), C(5))
+    val facts1 = FactSet().geq(ToSigned(x)(), C(5)(I9))
     assert(PartialEvalPass.partialEval(e)(facts1) == z)
-    val facts2 = FactSet().lt(ToSigned(x)(), C(5))
+    val facts2 = FactSet().lt(ToSigned(x)(), C(5)(I9))
     assert(PartialEvalPass.partialEval(e)(facts2) == y)
   }
 
@@ -151,13 +151,13 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val y = Param("y")(TyVec(I32, 3))
     val z = Param("z")(TyVec(I32, 3))
-    val e = Mux(ToSigned(x)() < C(5), y, z)().tchk().lower()
+    val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower()
 
     val facts0 = FactSet()
     assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().geq(ToSigned(x)(), C(5))
+    val facts1 = FactSet().geq(ToSigned(x)(), C(5)(I9))
     assert(PartialEvalPass.partialEval(e)(facts1) == z)
-    val facts2 = FactSet().lt(ToSigned(x)(), C(5))
+    val facts2 = FactSet().lt(ToSigned(x)(), C(5)(I9))
     assert(PartialEvalPass.partialEval(e)(facts2) == y)
   }
 
@@ -176,7 +176,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("SimplifyBranchesOfMux") {
-    val i = IntCst(0)
+    val i = IntCst(0)(U8)
     val e = Mux(
       (i % 2) === 0,
       Tuple(i, 2 + (2 * i))(),
@@ -191,64 +191,64 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("PossibleDivByZeroInFalseBranch") {
     val x = Param("x")(U8)
 
-    val e0 = Mux(x === 0, C(1), 2 / x)()
-    val expected0 = Mux(Equal(x, C(0))(), C(1), Div(C(2), x)())()
+    val e0 = Mux(x === 0, C(1)(U8), 2 / x)()
+    val expected0 = Mux(Equal(x, C(0)(U8))(), C(1)(U8), Div(C(2)(U8), x)())()
     assert(lpe(e0) == expected0)
 
-    val e1 = Mux(x === 1, C(1), 3 / (1 - x))()
+    val e1 = Mux(x === 1, C(1)(I9), 3 / (1 - x))()
     val expected1 =
       Mux(
-        Equal(x, C(1))(),
-        C(1),
-        Div(C(3), Sum(C(1), Prod(C(-1), ToSigned(x)())())())()
+        Equal(x, C(1)(U8))(),
+        C(1)(I9),
+        Div(C(3)(I9), Sum(C(1)(I9), Prod(C(-1)(), ToSigned(x)())())())()
       )()
     assert(lpe(e1) == expected1)
 
-    val e2 = Mux(x > 0, 10 / x, C(0))()
+    val e2 = Mux(x > 0, 10 / x, C(0)(U8))()
     val expected2 =
-      Mux(LessThan(C(0), x)(), Div(C(10), x)(), C(0))()
+      Mux(LessThan(C(0)(U8), x)(), Div(C(10)(U8), x)(), C(0)(U8))()
     assert(lpe(e2) == expected2)
   }
 
   test("PossibleDivByZeroInTrueBranch") {
     val x = Param("x")(U8)
 
-    val e0 = Mux(x !== 0, 2 / x, C(1))()
+    val e0 = Mux(x !== 0, 2 / x, C(1)(U8))()
     val expected0 =
-      Mux(Not(Equal(x, C(0))())(), Div(C(2), x)(), C(1))()
+      Mux(Not(Equal(x, C(0)(U8))())(), Div(C(2)(), x)(), C(1)(U8))()
     assert(lpe(e0) == expected0)
 
-    val e1 = Mux(x !== 1, 3 / (1 - x), C(1))()
+    val e1 = Mux(x !== 1, 3 / (1 - x), C(1)(I9))()
     val expected1 =
       Mux(
-        Not(Equal(x, C(1))())(),
-        Div(C(3), Sum(C(1), Prod(C(-1), ToSigned(x)())())())(),
-        C(1)
+        Not(Equal(x, C(1)(U8))())(),
+        Div(C(3)(I9), Sum(C(1)(I9), Prod(C(-1)(I9), ToSigned(x)())())())(),
+        C(1)(I9)
       )()
     assert(lpe(e1) == expected1)
 
-    val e2 = Mux(x <= 0, C(0), 10 / x)()
+    val e2 = Mux(x <= 0, C(0)(U8), 10 / x)()
     val expected2 =
-      Mux(Not(LessThan(C(0), x)())(), C(0), Div(C(10), x)())()
+      Mux(Not(LessThan(C(0)(U8), x)())(), C(0)(U8), Div(C(10)(U8), x)())()
     assert(lpe(e2) == expected2)
   }
 
   test("MinLessThanMin") {
     val t = Param("t")(U8)
-    val e = Min(-5 + t, C(5)) < Min(-4 + t, C(5))
+    val e = Min(-5 + t, C(5)(I9)) < Min(-4 + t, C(5)(I9))
     val actual = lpe(e)
     assert(actual == True)
   }
 
   test("MinMinusMinGreaterOrEqualToZero") {
     val t = Param("t")(U8)
-    val e = (Min(-4 + t, C(5)) - Min(-5 + t, C(5))) >= 0
+    val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) >= 0
     assert(lpe(e) == True)
   }
 
   test("MinMinusMinLessOrEqualToOne") {
     val t = Param("t")(U8)
-    val e = (Min(-4 + t, C(5)) - Min(-5 + t, C(5))) <= 1
+    val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) <= 1
     assert(PartialEvalPass.partialEval(e) == True)
   }
 
@@ -294,7 +294,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   test("TypePreservation2") {
     val t = Param("t")(U8)
-    val e = Mux(-5 + t < 5, -5 + t, C(5))().tchk().lower()
+    val e = Mux(-5 + t < 5, -5 + t, C(5)(I9))().tchk().lower()
     val actual = lpe(e)
     assert(actual == Mux(t < 10, -5 + t, 5)())
     assert(actual.tchk().typ == U8)

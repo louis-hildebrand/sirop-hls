@@ -86,8 +86,8 @@ private[opt] object ArithSimplifier {
       case Some(newE) =>
         if (e.typ != Missing) {
           assert(
-            newE.typ <= e.typ,
-            s"type after arithmetic simplification should be a subtype of the original type (expected ${e.typ}, found ${newE.typ})"
+            newE.typ == e.typ,
+            s"arithmetic simplification should preserve type annotations (expected ${e.typ}, found ${newE.typ})"
           )
         }
         newE
@@ -213,7 +213,7 @@ private[opt] object ArithSimplifier {
     val result = a match {
       case ae.Cst(c) =>
         val t = typ.asInstanceOf[TyAnyInt]
-        val v = ir.eval(TruncateTo(IntCst(c), t.w)())
+        val v = ir.eval(TruncateTo(IntCst(c)(t.withWidth(64)), t.w)())
         Some(v)
       case ae.Sum(terms) =>
         val exprTerms = terms.map(e => fromArithExpr(e, typ))
@@ -273,7 +273,7 @@ private[opt] object ArithSimplifier {
     result match {
       case Some(e) =>
         val typedE = e.tchk()
-        assert(typedE.typ <= typ, s"expected type $typ but found ${typedE.typ}")
+        assert(typedE.typ == typ, s"expected type $typ but found ${typedE.typ}")
         Some(typedE)
       case None => None
     }
@@ -313,12 +313,12 @@ private[opt] object ArithSimplifier {
           if e1 == e2 =>
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
-        LessThan(e1, IntCst(math.min(c1.i, c2.i)))()
+        LessThan(e1, IntCst(math.min(c1.i, c2.i))(c1.typ))()
       case And(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2))
           if e1 == e2 =>
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
-        LessThan(IntCst(math.max(c1.i, c2.i)), e1)()
+        LessThan(IntCst(math.max(c1.i, c2.i))(c1.typ), e1)()
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
             && PartialEvalPass
@@ -339,9 +339,13 @@ private[opt] object ArithSimplifier {
       case Or(terms @ _*) if hasContradictoryTerms(terms) =>
         True
       case Or(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst)) if e1 == e2 =>
-        LessThan(e1, IntCst(math.max(c1.i, c2.i)))()
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(e1, IntCst(math.max(c1.i, c2.i))(c1.typ))()
       case Or(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2)) if e1 == e2 =>
-        LessThan(IntCst(math.min(c1.i, c2.i)), e1)()
+        assert(c1.hasType)
+        assert(c1.typ == c2.typ)
+        LessThan(IntCst(math.min(c1.i, c2.i))(c1.typ), e1)()
       case e => e
     }
     out.tchk()

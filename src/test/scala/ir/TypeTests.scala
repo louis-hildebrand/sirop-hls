@@ -8,10 +8,10 @@ class TypeTests extends AnyFunSuite {
   private val k = Param("k")(U8)
 
   test("AnnotatedFunction:TypedBody") {
-    val f = U8 ::+ (_ => C(-1))
-    val expected = Function(Param("_")(U8), C(-1))()
+    val f = U8 ::+ (_ => IntCst(-1)(I32))
+    val expected = Function(Param("_")(U8), IntCst(-1)(I32))()
     assert(f == expected)
-    assert(f.typ == TyArrow(U8, TySInt(1)))
+    assert(f.typ == TyArrow(U8, I32))
   }
 
   test("AnnotatedFunction:UntypedBody") {
@@ -80,67 +80,6 @@ class TypeTests extends AnyFunSuite {
     }
   }
 
-  test("Subtype:Bool") {
-    assert(TyBool <= TyBool)
-    assert(!(TyBool <= U8))
-  }
-
-  test("Subtype:UInt") {
-    assert(U16 <= U16)
-    assert(U16 <= U32)
-    assert(U16 <= TyUInt(17))
-    assert(U0 <= I0)
-
-    assert(!(U16 <= U8))
-    assert(!(U16 <= I16))
-  }
-
-  test("Subtype:SInt") {
-    assert(I16 <= I16)
-    assert(I16 <= I32)
-    assert(I0 <= U0)
-    assert(I0 <= U8)
-
-    assert(!(I16 <= U16))
-    assert(!(I16 <= U32))
-  }
-
-  test("Subtype:Tuple") {
-    assert((U16, U16) <= (U16, U16))
-    assert((U8, U16) <= (I9, U32))
-    assert(TyTuple(U8, I8, I16) <= TyTuple(U8, I16, I16))
-
-    assert(!((U16, U8) <= (U8, U8)))
-    assert(!((U16, I32) <= (U16, I8)))
-  }
-
-  test("Subtype:Vec") {
-    assert(TyVec(U8, 5) <= TyVec(U8, 5))
-    assert(TyVec(U8, 5) <= TyVec(U16, 5))
-    val n = Param("n")(U8)
-    assert(TyVec((U8, I8), n) <= TyVec((U16, I16), n))
-
-    assert(!(TyVec(U32, 5) <= TyVec(U8, 5)))
-    assert(!(TyVec(U8, 10) <= TyVec(U8, 5)))
-  }
-
-  test("Subtype:Stm") {
-    assert(TyStm(U8, 5) <= TyStm(U8, 5))
-    assert(TyStm(U8, 5) <= TyStm(U16, 5))
-
-    assert(!(TyStm(U16, 5) <= TyStm(U8, 5)))
-  }
-
-  test("Subtype:Arrow") {
-    assert((U8 ->: I16) <= (U8 ->: I16))
-    assert((U16 ->: I16) <= (U8 ->: I16))
-    assert((U8 ->: I8) <= (U8 ->: I16))
-    assert((U16 ->: I8) <= (U8 ->: I16))
-
-    assert(!((U8 ->: I16) <= (U16 ->: I16)))
-    assert(!((U8 ->: I16) <= (U8 ->: I8)))
-  }
-
   test("MinInt:SInt") {
     assert(TySInt(0).minInt == 0)
     assert(TySInt(1).minInt == -1)
@@ -184,7 +123,8 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("BitWidth:Sum:Zeros") {
-    assert(TSum(U0, U0, U0, U0) == U0)
+    val u0 = TyUInt(0)
+    assert(TSum(u0, u0, u0, u0) == u0)
   }
 
   test("BitWidth:Sum:SimpleCase") {
@@ -251,7 +191,8 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("BitWidth:Prod:Zeros") {
-    assert(TProd(U0, U0, U0, U0) == U0)
+    val u0 = TyUInt(0)
+    assert(TProd(u0, u0, u0, u0) == u0)
   }
 
   test("BitWidth:Prod:SimpleCase") {
@@ -308,7 +249,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Div:ZeroDenominator") {
     val expectedMessage =
       "Denominator of div is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 / U0)
+    val exc1 = intercept[ArithmeticException](U8 / TyUInt(0))
     assert(exc1.getMessage == expectedMessage)
     val exc2 = intercept[ArithmeticException](U8 / TySInt(0))
     assert(exc2.getMessage == expectedMessage)
@@ -381,7 +322,7 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Mod:ZeroDenominator") {
     val expectedMessage =
       "Denominator of mod is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 % U0)
+    val exc1 = intercept[ArithmeticException](U8 % TyUInt(0))
     assert(exc1.getMessage == expectedMessage)
     val exc2 = intercept[ArithmeticException](U8 % TySInt(0))
     assert(exc2.getMessage == expectedMessage)
@@ -435,7 +376,7 @@ class TypeTests extends AnyFunSuite {
   test("LowerType:Stm[Stm[Int, 3], 4]") {
     val t = TyStm(TyStm(U8, 3), 4)
     val n = t.lower.asInstanceOf[TyStm].n
-    assert(ir.eval(n) == C(12))
+    assert(ir.eval(n) == C(12)())
   }
 
   test("LowerType:Stm[Vec[Int]]") {

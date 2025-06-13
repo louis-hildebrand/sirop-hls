@@ -115,8 +115,8 @@ object AsStm2Stm {
         )
       case TyArrow(t1, _) =>
         // scalar -> scalar (e.g., x => x + 1)
-        val s1 = Param("s1")(TyStm(t1, C(1)))
-        val s2 = Param("s2")(TyStm(t1, C(1)))
+        val s1 = Param("s1")(TyStm(t1, C(1)(TyUInt(1))))
+        val s2 = Param("s2")(TyStm(t1, C(1)(TyUInt(1))))
         Function(
           s1,
           StmBuild(
@@ -178,7 +178,7 @@ case class Iterate(
       acc,
       i === n,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), i + 1),
+        i -> (IntCst(0)(n.typ), i + 1),
         acc -> (z, FunCall(f, acc)(t))
       )
     )().tchk().lower()
@@ -228,7 +228,7 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val n = this.n.lower()
-    StmRange(n, IntCst(0), IntCst(1))().tchk().lower()
+    StmRange(n, IntCst(0)(n.typ), IntCst(1)(n.typ))().tchk().lower()
   }
 }
 
@@ -330,8 +330,8 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
       Tuple(i, j)(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (IntCst(0), Mux(j === m - 1, i + 1, i)()),
-        j -> (IntCst(0), Mux(j === m - 1, IntCst(0), j + 1)())
+        i -> (IntCst(0)(n.typ), Mux(j === m - 1, i + 1, i)()),
+        j -> (IntCst(0)(m.typ), Mux(j === m - 1, IntCst(0)(m.typ), j + 1)())
       )
     )().tchk().lower()
   }
@@ -389,11 +389,11 @@ case class StmMap(
       // How many elements will the inner component read and produce before it must be reset?
       val inputsUntilReset = f.typ.asInstanceOf[TyArrow].t1 match {
         case TyStm(_, n) => n
-        case _           => IntCst(1)
+        case _           => IntCst(1)()
       }
       val outputsUntilReset = f.typ.asInstanceOf[TyArrow].t2 match {
         case TyStm(_, n) => n
-        case _           => IntCst(1)
+        case _           => IntCst(1)()
       }
       val map = n match {
         // TODO: Why this special case? Is it just to make the resulting stream
@@ -418,7 +418,7 @@ case class StmMap(
               // Add the input counter anyway just to keep the rest of the
               // lowering pass simple, but it should now be trivial for the
               // optimizer to recognize that it is constant.
-              innerStm.addAccumulator(inCtr, IntCst(1), IntCst(1))
+              innerStm.addAccumulator(inCtr, IntCst(1)(U32), IntCst(1)(U32))
             case _ =>
               val inStmVar =
                 innerStm.seedByVar.find({ case (_, z) => z == s }).get._1
@@ -487,7 +487,7 @@ case class StmAccess(
     val k = this.k.lower()
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)
+      case _           => IntCst(1)(U32)
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(U32) // index of current row
@@ -498,8 +498,8 @@ case class StmAccess(
       i === k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0), Mux(j + 1 === perRow, i + 1, i)()),
-        j -> (C(0), Mux(j + 1 === perRow, C(0), j + 1)())
+        i -> (C(0)(U32), Mux(j + 1 === perRow, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j + 1 === perRow, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -593,7 +593,7 @@ case class StmScanInclusive(
     val n = this.input.typ.asInstanceOf[TyStm].n
     val inputsUntilReset = this.input.typ.asInstanceOf[TyStm].t match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)
+      case _           => IntCst(1)()
     }
     val input = this.input.lower()
     val z = this.z.lower()
@@ -607,7 +607,7 @@ case class StmScanInclusive(
         f.body.asInstanceOf[Function]
       )
     assert(
-      innerStm.n == IntCst(1),
+      innerStm.n == IntCst(1)(),
       "the function in StmScan should return a scalar or a stream of length 1"
     )
     assert(
@@ -615,7 +615,7 @@ case class StmScanInclusive(
       "the input stream should appear at most once in the inner StmBuild"
     )
     val (innerWithCtrs, shouldReset) = {
-      val outputsUntilReset = IntCst(1)
+      val outputsUntilReset = IntCst(1)()
       val outCtr = Param("out_ctr")(U32)
       val withOutCtr = innerStm.addOutputCounter(outCtr)
       val usesInputStream = innerStm.seedByVar.exists({ case (_, z) => z == s })
@@ -757,7 +757,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
           n,
           VecAccess(v, i)(),
           True,
-          Map[Param, (Expr, Expr)](i -> (C(0), i + 1))
+          Map[Param, (Expr, Expr)](i -> (C(0)(U32), i + 1))
         )().tchk().lower()
       case TyStm(tv: TyVec, _) =>
         StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
@@ -857,7 +857,7 @@ case class StmPrefix(
     val k = this.k.lower()
     val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(U32) // index of current row
@@ -868,8 +868,8 @@ case class StmPrefix(
       i < k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0), Mux(j === perRow - 1, i + 1, i)()),
-        j -> (C(0), Mux(j === perRow - 1, C(0), j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -913,7 +913,7 @@ case class StmSuffix(
     val n = this.stm.typ.asInstanceOf[TyStm].n
     val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(U32) // index of current row
@@ -924,8 +924,8 @@ case class StmSuffix(
       i >= n - k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0), Mux(j === perRow - 1, i + 1, i)()),
-        j -> (C(0), Mux(j === perRow - 1, C(0), j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
+        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
       )
     )().tchk().lower()
   }
@@ -1042,7 +1042,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
       Mux(i === n1, StmData(s2)(), StmData(s1)())(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (C(0), Mux(i === n1, i, i + 1)()),
+        i -> (C(0)(U32), Mux(i === n1, i, i + 1)()),
         s1 -> (stm1, i !== n1),
         s2 -> (stm2, i === n1)
       )
@@ -1146,7 +1146,7 @@ case class StmRepeat(
           VecBuild(n, U32 ::+ (_ => Default(t)))(),
           Mux(filling, VecShiftLeft(v, StmData(s)())(), v)()
         ),
-        i -> (C(0), Mux(i + 1 === n, C(0), i + 1)()),
+        i -> (C(0)(U32), Mux(i + 1 === n, C(0)(U32), i + 1)()),
         filling -> (True, filling && (i + 1 < n))
       )
     )().tchk().lower()
@@ -1182,7 +1182,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     val n = stm.typ.asInstanceOf[TyStm].n
     val elemSize = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)
+      case _           => IntCst(1)()
     }
     StmMap(
       Stm2Vec(stm)() /* flat vector */,
@@ -1294,7 +1294,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val n = this.input.typ.asInstanceOf[TyStm].n
     val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1))
+      case t           => (t, IntCst(1)())
     }
     val s = Param("s")(TyStm(t, -1))
     val i = Param("i")(U32)
@@ -1310,13 +1310,13 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
         s -> (input, True),
         // Number of window elements loaded so far
         i -> (
-          C(0),
+          C(0)(U32),
           Mux((i + 1 === m) || (j + 1 !== elemSize), i, i + 1)()
         ),
         // Number of pieces of data loaded so far in the current window element
         j -> (
-          C(0),
-          Mux(j + 1 === elemSize, C(0), j + 1)()
+          C(0)(U32),
+          Mux(j + 1 === elemSize, C(0)(U32), j + 1)()
         ),
         v -> (
           VecBuild(vecLen, U32 ::+ (_ => Default(t)))(),

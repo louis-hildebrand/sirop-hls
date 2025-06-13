@@ -56,7 +56,7 @@ class LoweringTests extends AnyFunSuite {
 
   test("UncurryFunCall:1arg") {
     val f = Param("f")(I8 ->: I8)
-    val e = FunCall(f, IntCst(42))().tchk()
+    val e = FunCall(f, IntCst(42)(I8))().tchk()
     val actual = e.uncurry()
     assert(actual == e)
     assert(actual.typ == I8)
@@ -64,7 +64,7 @@ class LoweringTests extends AnyFunSuite {
 
   test("UncurryFunCall:2args") {
     val f = Param("f")(I16 ->: I16 ->: I16)
-    val e = FunCall(FunCall(f, IntCst(42))(), IntCst(99))().tchk()
+    val e = FunCall(FunCall(f, IntCst(42)(I16))(), IntCst(99)(I16))().tchk()
     val expected = FunCall(f.lower(), Tuple(42, 99)())()
     val actual = e.uncurry()
     assert(actual == expected)
@@ -75,7 +75,7 @@ class LoweringTests extends AnyFunSuite {
     val int2bool2int2int = I32 ->: TyBool ->: I32 ->: I32
     val f = Param("f")(int2bool2int2int)
     val e =
-      FunCall(FunCall(FunCall(f, IntCst(42))(), True)(), IntCst(99))()
+      FunCall(FunCall(FunCall(f, IntCst(42)(I32))(), True)(), IntCst(99)(I32))()
         .tchk()
     val expected = FunCall(f.lower(), Tuple(42, Tuple(True, 99)())())()
     val actual = e.uncurry()
@@ -84,8 +84,8 @@ class LoweringTests extends AnyFunSuite {
   }
 
   test("UncurryFunction:Mux") {
-    val g0 = U8 ::+ (_ => IntCst(0))
-    val g1 = U8 ::+ (x => IntCst(100) / x)
+    val g0 = U8 ::+ (_ => IntCst(0)(U8))
+    val g1 = U8 ::+ (x => IntCst(100)(U8) / x)
     val x = Param("x")(I8)
     val g = Mux(x === 0, g0, g1)()
     val f = Function(x, g)().tchk()
@@ -106,7 +106,7 @@ class LoweringTests extends AnyFunSuite {
 
   test("UncurryFunCall:PartialApplication") {
     val f = Param("f")(U8 ->: U8 ->: U8)
-    val e = FunCall(f, IntCst(42))().tchk()
+    val e = FunCall(f, IntCst(42)(U8))().tchk()
     val exc = intercept[IllegalArgumentException](e.uncurry())
     val expectedMessage =
       s"Uncurried function call is not well-typed. Are there enough arguments? Note that partial application is not supported. (Expression: $e)"

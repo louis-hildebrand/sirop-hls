@@ -18,8 +18,8 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           a -> (z, a + 1),
-          b -> (C(-3), b + 9),
-          c -> (C(2), 2 * c + 2)
+          b -> (C(-3)(I8), b + 9),
+          c -> (C(2)(I32), 2 * c + 2)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
 
