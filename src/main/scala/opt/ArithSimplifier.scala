@@ -324,7 +324,7 @@ private[opt] object ArithSimplifier {
             && PartialEvalPass
               .isEqual(c1, (c0 + 1).tchk().lower())()
               .getOrElse(false) =>
-        x0 === c0
+        Equal(x0, c0)()
       case e => e
     }
     out.tchk()

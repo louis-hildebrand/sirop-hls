@@ -165,9 +165,10 @@ object PartialEvalPass {
               case e => ToUnsigned(e)()
             }
 
-          case True  => True
-          case False => False
+          case True         => True
+          case False        => False
           case Mux(c, t, f) =>
+            // TODO: This needs to be cleaned up (e.g., to reduce the amount of duplicate partial evaluation)
             val peMux = Mux(
               partialEval(c)(facts, MoveUp),
               partialEval(t),
@@ -469,7 +470,7 @@ object PartialEvalPass {
   def isEqual(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    partialEval(e1 === e2)(facts, MoveUp) match {
+    partialEval((e1 === e2).tchk().lower())(facts, MoveUp) match {
       case True  => Some(true)
       case False => Some(false)
       case _     => None

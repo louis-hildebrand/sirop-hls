@@ -35,14 +35,65 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def *(that: Expr): Expr = SmartProd(this, that)()
   def /(that: Expr): Expr = SmartDiv(this, that)()
   def %(that: Expr): Expr = SmartMod(this, that)()
+
+  /** See [[SmartEqual]].
+    */
   def ===(that: Expr): Expr = SmartEqual(this, that)()
+
+  /** See [[Equal]].
+    */
+  def eq(that: Expr): Expr = Equal(this, that)()
+
+  /** See [[SmartEqual]].
+    */
   def !==(that: Expr): Expr = !(this === that)
+
+  /** See [[Equal]].
+    */
+  def neq(that: Expr): Expr = !(this eq that)
+
+  /** See [[SmartLessThan]].
+    */
   def <(that: Expr): Expr = SmartLessThan(this, that)()
+
+  /** See [[LessThan]].
+    */
+  def lt(that: Expr): LessThan = LessThan(this, that)()
+
+  /** See [[SmartLessThan]].
+    */
   def <=(that: Expr): Not = !(this > that)
+
+  /** See [[LessThan]]
+    */
+  def leq(that: Expr): Not = !(this gt that)
+
+  /** See [[SmartLessThan]].
+    */
   def >(that: Expr): Expr = that < this
-  def >=(that: Expr): Not = that <= this
+
+  /** See [[LessThan]].
+    */
+  def gt(that: Expr): Expr = that lt this
+
+  /** See [[SmartLessThan]].
+    */
+  def >=(that: Expr): Expr = that <= this
+
+  /** See [[LessThan]].
+    */
+  def geq(that: Expr): Expr = that leq this
+
+  /** See [[Not]].
+    */
   def unary_! : Not = Not(this)()
+
+  /** See [[And]].
+    */
   def &&(that: Expr): Expr = And(this, that)()
+
+  /** See [[Or]].
+    */
   def ||(that: Expr): Expr = Or(this, that)()
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
