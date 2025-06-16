@@ -3,7 +3,7 @@
         {
             "$type": "debug.FullTraceNode",
             "n": 4,
-            "state": "valid (0)",
+            "state": "valid (0:u8)",
             "accumulators": {
                 "b_4": "true"
             },
@@ -11,9 +11,9 @@
                 "s1_5": {
                     "$type": "debug.FullTraceNode",
                     "n": 2,
-                    "state": "valid (0)",
+                    "state": "valid (0:u8)",
                     "accumulators": {
-                        "i_1": "0"
+                        "i_1": "0:u8"
                     },
                     "inputs": {
                         
@@ -22,7 +22,7 @@
                 "s2_6": {
                     "$type": "debug.FullTraceNode",
                     "n": 2,
-                    "state": "valid (42)",
+                    "state": "valid (42:u8)",
                     "accumulators": {
                         
                     },
@@ -30,9 +30,9 @@
                         "s_2": {
                             "$type": "debug.FullTraceNode",
                             "n": 4,
-                            "state": "valid (42)",
+                            "state": "valid (42:u8)",
                             "accumulators": {
-                                "j_3": "42"
+                                "j_3": "42:u8"
                             },
                             "inputs": {
                                 
@@ -45,7 +45,7 @@
         {
             "$type": "debug.FullTraceNode",
             "n": 3,
-            "state": "valid (42)",
+            "state": "valid (42:u8)",
             "accumulators": {
                 "b_4": "false"
             },
@@ -53,9 +53,9 @@
                 "s1_5": {
                     "$type": "debug.FullTraceNode",
                     "n": 1,
-                    "state": "valid (1)",
+                    "state": "valid (1:u8)",
                     "accumulators": {
-                        "i_1": "1"
+                        "i_1": "1:u8"
                     },
                     "inputs": {
                         
@@ -64,7 +64,7 @@
                 "s2_6": {
                     "$type": "debug.FullTraceNode",
                     "n": 2,
-                    "state": "valid (42)",
+                    "state": "valid (42:u8)",
                     "accumulators": {
                         
                     },
@@ -72,9 +72,9 @@
                         "s_2": {
                             "$type": "debug.FullTraceNode",
                             "n": 4,
-                            "state": "valid (42)",
+                            "state": "valid (42:u8)",
                             "accumulators": {
-                                "j_3": "42"
+                                "j_3": "42:u8"
                             },
                             "inputs": {
                                 
@@ -87,7 +87,7 @@
         {
             "$type": "debug.FullTraceNode",
             "n": 2,
-            "state": "valid (1)",
+            "state": "valid (1:u8)",
             "accumulators": {
                 "b_4": "true"
             },
@@ -95,9 +95,9 @@
                 "s1_5": {
                     "$type": "debug.FullTraceNode",
                     "n": 1,
-                    "state": "valid (1)",
+                    "state": "valid (1:u8)",
                     "accumulators": {
-                        "i_1": "1"
+                        "i_1": "1:u8"
                     },
                     "inputs": {
                         
@@ -114,9 +114,9 @@
                         "s_2": {
                             "$type": "debug.FullTraceNode",
                             "n": 3,
-                            "state": "valid (43)",
+                            "state": "valid (43:u8)",
                             "accumulators": {
-                                "j_3": "43"
+                                "j_3": "43:u8"
                             },
                             "inputs": {
                                 
@@ -139,7 +139,7 @@
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2"
+                        "i_1": "2:u8"
                     },
                     "inputs": {
                         
@@ -156,9 +156,9 @@
                         "s_2": {
                             "$type": "debug.FullTraceNode",
                             "n": 2,
-                            "state": "valid (44)",
+                            "state": "valid (44:u8)",
                             "accumulators": {
-                                "j_3": "44"
+                                "j_3": "44:u8"
                             },
                             "inputs": {
                                 
@@ -171,7 +171,7 @@
         {
             "$type": "debug.FullTraceNode",
             "n": 1,
-            "state": "valid (45)",
+            "state": "valid (45:u8)",
             "accumulators": {
                 "b_4": "false"
             },
@@ -181,7 +181,7 @@
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2"
+                        "i_1": "2:u8"
                     },
                     "inputs": {
                         
@@ -190,7 +190,7 @@
                 "s2_6": {
                     "$type": "debug.FullTraceNode",
                     "n": 1,
-                    "state": "valid (45)",
+                    "state": "valid (45:u8)",
                     "accumulators": {
                         
                     },
@@ -198,9 +198,9 @@
                         "s_2": {
                             "$type": "debug.FullTraceNode",
                             "n": 1,
-                            "state": "valid (45)",
+                            "state": "valid (45:u8)",
                             "accumulators": {
-                                "j_3": "45"
+                                "j_3": "45:u8"
                             },
                             "inputs": {
                                 
@@ -223,7 +223,7 @@
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2"
+                        "i_1": "2:u8"
                     },
                     "inputs": {
                         
@@ -242,7 +242,7 @@
                             "n": 0,
                             "state": "empty",
                             "accumulators": {
-                                "j_3": "46"
+                                "j_3": "46:u8"
                             },
                             "inputs": {
                                 

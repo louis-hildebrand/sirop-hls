@@ -3,7 +3,7 @@
         {
             "$type": "debug.SummarizedTraceNode",
             "n": 4,
-            "state": "valid (0)",
+            "state": "valid (0:u8)",
             "accumulators": {
                 "b_4": "true"
             },
@@ -15,7 +15,7 @@
         {
             "$type": "debug.SummarizedTraceNode",
             "n": 3,
-            "state": "valid (42)",
+            "state": "valid (42:u8)",
             "accumulators": {
                 "b_4": "false"
             },
@@ -27,7 +27,7 @@
         {
             "$type": "debug.SummarizedTraceNode",
             "n": 2,
-            "state": "valid (1)",
+            "state": "valid (1:u8)",
             "accumulators": {
                 "b_4": "true"
             },
@@ -39,7 +39,7 @@
         {
             "$type": "debug.SummarizedTraceNode",
             "n": 1,
-            "state": "valid (45)",
+            "state": "valid (45:u8)",
             "accumulators": {
                 "b_4": "false"
             },

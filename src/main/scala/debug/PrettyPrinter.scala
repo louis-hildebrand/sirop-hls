@@ -12,7 +12,7 @@ object PrettyPrinter {
     e match {
       case True      => "true"
       case False     => "false"
-      case IntCst(n) => n.toString
+      case IntCst(n) => s"$n:${e.typ}"
       // In theory we should also pass `collapseStm` to `showWithParens`, but
       // hopefully there are no streams being built inside these expressions
       case Sum(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" + ")
@@ -79,7 +79,7 @@ object PrettyPrinter {
             val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
             val nextStr =
               show(next, collapseStm = collapseStm, evalVec = evalVec)
-            s"${show(x)}: (\n${indent(zStr)},\n${indent(nextStr)}\n)"
+            s"(${x.name} : ${x.typ}) -> (\n${indent(zStr)},\n${indent(nextStr)}\n)"
           })
           val inside =
             s"$nStr;\n$dataStr;\n$validStr;\n${recStrings.mkString(";\n")}"
@@ -88,7 +88,7 @@ object PrettyPrinter {
       case StmLength(s) =>
         val stmStr = show(s, collapseStm = true)
         s"StmLength($stmStr)"
-      case VecLiteral(elems @ _*) =>
+      case _: VecLiteral =>
         val sh = (e: Expr) =>
           show(e, collapseStm = collapseStm, evalVec = evalVec)
         val children = e.children.map(sh).mkString(", ")

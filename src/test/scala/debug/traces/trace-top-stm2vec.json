@@ -5,8 +5,8 @@
             "n": 1,
             "state": "invalid",
             "accumulators": {
-                "v_3": "[0, 0, 0, 0]",
-                "t_4": "0"
+                "v_3": "[0:i32, 0:i32, 0:i32, 0:i32]",
+                "t_4": "0:u8"
             },
             "inputLengths": {
                 "s_2": 4
@@ -17,8 +17,8 @@
             "n": 1,
             "state": "invalid",
             "accumulators": {
-                "v_3": "[0, 0, 0, 42]",
-                "t_4": "1"
+                "v_3": "[0:i32, 0:i32, 0:i32, 42:i32]",
+                "t_4": "1:u8"
             },
             "inputLengths": {
                 "s_2": 3
@@ -29,8 +29,8 @@
             "n": 1,
             "state": "invalid",
             "accumulators": {
-                "v_3": "[0, 0, 42, 43]",
-                "t_4": "2"
+                "v_3": "[0:i32, 0:i32, 42:i32, 43:i32]",
+                "t_4": "2:u8"
             },
             "inputLengths": {
                 "s_2": 2
@@ -39,10 +39,10 @@
         {
             "$type": "debug.SummarizedTraceNode",
             "n": 1,
-            "state": "valid ([42, 43, 44, 45])",
+            "state": "valid ([42:i32, 43:i32, 44:i32, 45:i32])",
             "accumulators": {
-                "v_3": "[0, 42, 43, 44]",
-                "t_4": "3"
+                "v_3": "[0:i32, 42:i32, 43:i32, 44:i32]",
+                "t_4": "3:u8"
             },
             "inputLengths": {
                 "s_2": 1
@@ -53,8 +53,8 @@
             "n": 0,
             "state": "empty",
             "accumulators": {
-                "v_3": "[42, 43, 44, 45]",
-                "t_4": "4"
+                "v_3": "[42:i32, 43:i32, 44:i32, 45:i32]",
+                "t_4": "4:u8"
             },
             "inputLengths": {
                 "s_2": 0
