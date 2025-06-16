@@ -165,6 +165,14 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](Mod(xU8, yU16)().tchk())
   }
 
+  test("TruncateTo:u16 to u8") {
+    assert(TruncateTo(yU16, 8)().tchk().typ == U8)
+  }
+
+  test("TruncateTo:i8 to u0") {
+    assert(TruncateTo(yI8, 0)().tchk().typ == U0)
+  }
+
   test("IntAndBoolFunction") {
     val original: Expr =
       TyTuple(TyUInt(8), TyBool) ::+ (x =>

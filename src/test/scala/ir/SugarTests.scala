@@ -53,20 +53,6 @@ class SugarTests extends AnyFunSuite {
     assert(e2 != e1)
   }
 
-  test("ReshapeData:i0 to u0") {
-    val i0 = TySInt(0)
-    val u0 = TyUInt(0)
-    assert(ReshapeData.canReshape(i0, u0))
-    assert(ReshapeData.canReshape(i0, U8))
-    assert(ReshapeData.canReshape(u0, i0))
-    assert(ReshapeData.narrowestCommonAncestor(i0, u0).contains(u0))
-    assert(ReshapeData.narrowestCommonAncestor(u0, i0).contains(u0))
-    assert(ReshapeData.narrowestCommonAncestor(i0, i0).contains(u0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, u0)).contains(u0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(u0, i0)).contains(u0))
-    assert(ReshapeData.narrowestCommonAncestor(Seq(i0, u0, u0)).contains(u0))
-  }
-
   test("ReshapeData:Valid") {
     val x = Param("x")()
     val e =
@@ -188,14 +174,7 @@ class SugarTests extends AnyFunSuite {
       )
         == IntCst(1 + 2 + 3 + 4)()
     )
-    assert(
-      ir.eval(SmartSum(IntCst(0)(TyUInt(0)), IntCst(0)(TySInt(0)))())
-        == IntCst(0)()
-    )
-    assert(
-      ir.eval(SmartSum(IntCst(0)(TySInt(0)), IntCst(0)(TyUInt(0)))())
-        == IntCst(0)()
-    )
+    assert(ir.eval(SmartSum(C(0)(U0), C(0)(U0))()) == IntCst(0)())
     assert(ir.eval(SmartSum()()) == IntCst(0)())
   }
 

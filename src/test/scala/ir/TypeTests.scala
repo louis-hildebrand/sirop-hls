@@ -81,7 +81,6 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("MinInt:SInt") {
-    assert(TySInt(0).minInt == 0)
     assert(TySInt(1).minInt == -1)
     assert(TySInt(2).minInt == -2)
     assert(TySInt(3).minInt == -4)
@@ -96,7 +95,6 @@ class TypeTests extends AnyFunSuite {
   }
 
   test("MaxInt:SInt") {
-    assert(TySInt(0).maxInt == 0)
     assert(TySInt(1).maxInt == 0)
     assert(TySInt(2).maxInt == 1)
     assert(TySInt(3).maxInt == 3)
@@ -249,10 +247,8 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Div:ZeroDenominator") {
     val expectedMessage =
       "Denominator of div is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 / TyUInt(0))
-    assert(exc1.getMessage == expectedMessage)
-    val exc2 = intercept[ArithmeticException](U8 / TySInt(0))
-    assert(exc2.getMessage == expectedMessage)
+    val exc = intercept[ArithmeticException](U8 / TyUInt(0))
+    assert(exc.getMessage == expectedMessage)
   }
 
   test("BitWidth:Div") {
@@ -322,10 +318,8 @@ class TypeTests extends AnyFunSuite {
   test("BitWidth:Mod:ZeroDenominator") {
     val expectedMessage =
       "Denominator of mod is guaranteed to be zero since its bit width is zero."
-    val exc1 = intercept[ArithmeticException](U8 % TyUInt(0))
-    assert(exc1.getMessage == expectedMessage)
-    val exc2 = intercept[ArithmeticException](U8 % TySInt(0))
-    assert(exc2.getMessage == expectedMessage)
+    val exc = intercept[ArithmeticException](U8 % TyUInt(0))
+    assert(exc.getMessage == expectedMessage)
   }
 
   test("BitWidth:Mod:BruteForce") {

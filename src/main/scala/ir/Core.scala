@@ -284,7 +284,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         newE.typ match {
           case TySInt(w) =>
             // We don't need the sign bit anymore
-            uns.rebuild(TyUInt(math.max(0, w - 1)), Seq(newE))
+            assert(w >= 1)
+            uns.rebuild(TyUInt(w - 1), Seq(newE))
           case t =>
             throw new TypeError(
               s"Argument of ${ToUnsigned.getClass.getSimpleName} has type $t."

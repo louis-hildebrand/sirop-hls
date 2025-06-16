@@ -162,8 +162,9 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
     */
   def withWidth(w: Int): TyAnyInt = {
     this match {
-      case _: TySInt => TySInt(w)
-      case _: TyUInt => TyUInt(w)
+      case _ if w <= 0 => TyUInt(w)
+      case _: TySInt   => TySInt(w)
+      case _: TyUInt   => TyUInt(w)
     }
   }
 
@@ -233,6 +234,8 @@ object TyAnyInt {
   *   the bit width.
   */
 case class TySInt(override val w: Int) extends TyAnyInt(w) {
+  require(w >= 1, s"Invalid width for signed int: $w.")
+
   override def toString: String = s"i$w"
 }
 
@@ -242,6 +245,8 @@ case class TySInt(override val w: Int) extends TyAnyInt(w) {
   *   the bit width.
   */
 case class TyUInt(override val w: Int) extends TyAnyInt(w) {
+  require(w >= 0, s"Invalid width for unsigned int: $w.")
+
   override def toString: String = s"u$w"
 }
 
@@ -339,6 +344,10 @@ object TyStm {
 // Shorthand for common int types
 
 trait CommonIntTypes {
+
+  /** The type of a 0-bit unsigned number—i.e., a number which can only be zero.
+    */
+  val U0: TyUInt = TyUInt(0)
 
   /** The type of an 8-bit unsigned integer.
     */

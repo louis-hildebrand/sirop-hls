@@ -465,8 +465,8 @@ trait Eval {
         v.typ.asInstanceOf[TySInt] match {
           case TySInt(w) =>
             // Just drop the sign bit
-            val newWidth = math.max(0, w - 1)
-            val typ = TyUInt(newWidth)
+            assert(w >= 1)
+            val typ = TyUInt(w - 1)
             IntCst(truncate(v.i, typ))(typ)
         }
 

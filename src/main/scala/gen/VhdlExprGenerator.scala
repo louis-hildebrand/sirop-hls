@@ -59,9 +59,9 @@ private object VhdlExprGenerator {
         VhdlExpr(s"signed(pad(${ev.vhdl}, ${w + 1}))", ev.decls)
       case ToUnsigned(e) =>
         val w = e.typ.asInstanceOf[TySInt].w
-        val newWidth = math.max(0, w - 1)
+        assert(w >= 1)
         val ev = exprToVhdl(e)
-        VhdlExpr(s"truncate(unsigned(${ev.vhdl}), $newWidth)", ev.decls)
+        VhdlExpr(s"truncate(unsigned(${ev.vhdl}), ${w - 1})", ev.decls)
 
       case True  => VhdlExpr("true", Seq())
       case False => VhdlExpr("false", Seq())
