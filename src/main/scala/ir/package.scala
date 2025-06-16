@@ -1,3 +1,4 @@
+import scala.annotation.nowarn
 import scala.language.implicitConversions
 
 package object ir extends Eval with CommonIntTypes {
@@ -11,7 +12,10 @@ package object ir extends Eval with CommonIntTypes {
   @deprecated
   implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
 
+  implicit def typeTuple0(@nowarn t: Unit): TyTuple = TyTuple()
   implicit def typeTuple2(t: (Type, Type)): TyTuple = TyTuple(t._1, t._2)
+  implicit def typeTuple3(t: (Type, Type, Type)): TyTuple =
+    TyTuple(t._1, t._2, t._3)
 
   /** Reset any internal state in this package. For example, the [[Param]] class
     * has an internal counter for generating fresh variables.
