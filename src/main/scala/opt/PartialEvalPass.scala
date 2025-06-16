@@ -106,6 +106,13 @@ object PartialEvalPass {
               // TODO: Move the PadTo down in other cases?
               case Mux(c, t, f) =>
                 partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
+              case PadTo(e, w2) =>
+                assert(
+                  w >= w2,
+                  "intermediate width in nested pads must not be greater than the final width"
+                    + s" (intermediate width is $w2, final width is $w)"
+                )
+                PadTo(e, w)()
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w0 == w => e
@@ -131,6 +138,13 @@ object PartialEvalPass {
                   case _ =>
                     TruncateTo(e, w)()
                 }
+              case TruncateTo(e, w2) =>
+                assert(
+                  w <= w2,
+                  "intermediate width in nested truncates must not be less than the final width"
+                    + s" (intermediate width is $w2, final width is $w)"
+                )
+                TruncateTo(e, w)()
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w == w0 => e
@@ -139,6 +153,9 @@ object PartialEvalPass {
             }
           case ToSigned(e) =>
             partialEval(e) match {
+              case ToUnsigned(e)
+                  if isGreaterOrEqual(e, 0)(facts).getOrElse(false) =>
+                e
               case v: IntCst => ir.eval(ToSigned(v)())
               case Sum(terms @ _*) =>
                 partialEval(Sum(terms.map(e => ToSigned(e)()): _*)())
@@ -151,6 +168,7 @@ object PartialEvalPass {
             }
           case ToUnsigned(e) =>
             partialEval(e) match {
+              case ToSigned(e) => e
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
               case v: IntCst =>

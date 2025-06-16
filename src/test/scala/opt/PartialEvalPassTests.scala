@@ -49,7 +49,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     }
   }
 
-  test("PadThenTruncate") {
+  test("Pad . Truncate") {
     val x = Param("x")(U8)
 
     assert(lpe(TruncateTo(PadTo(x, 8)(), 8)()) == x)
@@ -65,12 +65,24 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(lpe(TruncateTo(PadTo(x, 12)(), 9)()) == PadTo(x, 9)())
   }
 
-  test("TruncateThenPad") {
+  test("Truncate . Pad") {
     val x = Param("x")(U8)
     val e = PadTo(TruncateTo(x, 2)(), 8)()
     // Cannot cancel out the pad and the truncate because the original
     // expression may discard data
     assert(lpe(e) == e)
+  }
+
+  test("Pad . Pad") {
+    val x = Param("x")(U8)
+    val actual = lpe(PadTo(PadTo(x, 10)(), 12)())
+    assert(actual == PadTo(x, 12)())
+  }
+
+  test("Truncate . Truncate") {
+    val x = Param("x")(U8)
+    val actual = lpe(TruncateTo(TruncateTo(x, 7)(), 5)())
+    assert(actual == TruncateTo(x, 5)())
   }
 
   test("ToUnsigned:Const") {
@@ -91,6 +103,26 @@ class PartialEvalPassTests extends AnyFunSuite {
       assert(actual == expected)
       assert(actual.typ == TySInt(9))
     }
+  }
+
+  test("ToUnsigned . ToSigned") {
+    // This only works if you know the number is non-negative!
+
+    val x = Param("x")(I8)
+    val e = ToSigned(ToUnsigned(x)())().tchk().lower()
+
+    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
+    assert(actual0 == e)
+
+    val facts1 = FactSet().geq(x, 0)
+    val actual1 = PartialEvalPass.partialEval(e)(facts1)
+    assert(actual1 == x)
+  }
+
+  test("ToSigned . ToUnsigned") {
+    val x = Param("x")(U8)
+    val actual = lpe(ToUnsigned(ToSigned(x)())())
+    assert(actual == x)
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
@@ -406,11 +438,15 @@ class PartialEvalPassTests extends AnyFunSuite {
 
     val actual0 = PartialEvalPass.partialEval(e)(FactSet())
     val expected0 =
-      Mux(i eq Sum(-1, n)(), c0, Mux(i lt Sum(-1, n)(), c1, c2)())()
+      Mux(
+        ToSigned(i)() eq Sum(-1, ToSigned(n)())(),
+        c0,
+        Mux(Sum(1, i)() lt n, c1, c2)()
+      )()
     assert(actual0 == expected0)
 
     val facts = FactSet().geq(i, 0).lt(i, n)
-    val expected1 = Mux(i eq Sum(-1, n)(), c0, c1)()
+    val expected1 = Mux(ToSigned(i)() eq Sum(-1, ToSigned(n)())(), c0, c1)()
     val actual1 = PartialEvalPass.partialEval(e)(facts)
     assert(actual1 == expected1)
   }
