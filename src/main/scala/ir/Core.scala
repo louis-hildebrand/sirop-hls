@@ -30,6 +30,14 @@ private object SharedScope extends AccVarScope
   *   than <code>Missing</code>.
   */
 sealed abstract class Expr(val children: Expr*)(val typ: Type) {
+
+  /** Constructs a function call with the given argument.
+    *
+    * @param arg
+    *   the function argument.
+    */
+  def apply(arg: Expr): FunCall = FunCall(this, arg)()
+
   def +(that: Expr): Expr = SmartSum(this, that)()
   def -(that: Expr): Expr = this + -1 * that
   def *(that: Expr): Expr = SmartProd(this, that)()
@@ -1059,8 +1067,6 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
-// TODO: Use Long or BigInt here so that wide int types can be represented?
-
 /** An integer constant.
   *
   * @param i
@@ -1071,7 +1077,9 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
     case Missing => ()
     case int: TyAnyInt =>
       if (!int.contains(i)) {
-        throw OverflowError(i, int)
+        throw new IllegalArgumentException(
+          s"Value $i does not fit within type $int."
+        )
       }
     case t =>
       throw new TypeError(s"Invalid type $t for integer constant.")

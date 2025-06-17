@@ -429,27 +429,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(TestRunner.testExpr(f1, inputs) == TestPassed)
   }
 
-  /** The result of accessing a vector out of bounds should be consistent
-    * between hardware and software.
-    */
-  test("OutOfBoundsVecAccess") {
-    val m = 5
-    val n = 2 * m + 2
-    val i = Param("i")(U8)
-    val v = Param("v")(TyVec(U16, m))
-    val s = StmBuild(
-      n,
-      VecAccess(v, i)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        i -> (C(0)(U8), i + 1),
-        v -> (VecBuild(m, U16 ::+ (i => 10 * (i + 1)))(), v)
-      )
-    )().tchk().lower()
-
-    assert(TestRunner.testExpr(s) == TestPassed)
-  }
-
   test("LetFunction") {
     val n = 5
     val a = Param("a")(U8)

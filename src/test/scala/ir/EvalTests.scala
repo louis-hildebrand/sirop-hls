@@ -71,17 +71,65 @@ class EvalTests extends AnyFunSuite {
     assert(exc.reasons == Seq(EmptyStreamRead))
   }
 
-  test("Overflow") {
-    assertThrows[OverflowError](ir.eval(C(255)(U8) + C(1)(U8)))
-    assertThrows[OverflowError](ir.eval(Sum(C(32767)(I16), C(1)(I16))()))
-    assertThrows[OverflowError](ir.eval(C(-127)(I8) + C(-2)(I8)))
-    assertThrows[OverflowError](ir.eval(C(128)(U8) * C(2)(U8)))
-    assertThrows[OverflowError](ir.eval(C(-64)(U8) * C(3)(U8)))
+  test("Overflow:Used") {
+    def assertOverflow(e: Expr, n: Int, typ: TyAnyInt): Unit = {
+      val exc = intercept[UndefinedValException](ir.eval(e))
+      assert(exc.warnings == Set(OverflowWarning(n, typ)))
+    }
+
+    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8)
+    assertOverflow(Sum(C(32767)(I16), C(1)(I16))(), 32768, I16)
+    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8)
+    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8)
+    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8)
   }
 
-  test("DivByZero") {
-    assertThrows[DivByZero.type](ir.eval(C(42)(U8) / C(0)(U8)))
-    assertThrows[DivByZero.type](ir.eval(C(42)(U8) % C(0)(U8)))
+  test("Overflow:Unused") {
+    val f = I9 ::+ (t => Mux(t === 0, C(0)(U8), 2 * ToUnsigned(t - 1)())())
+    assert(ir.eval(f(C(0)(I9))) == C(0)())
+    assert(ir.eval(f(C(1)(I9))) == C(0)())
+    assert(ir.eval(f(C(2)(I9))) == C(2)())
+    assert(ir.eval(f(C(3)(I9))) == C(4)())
+  }
+
+  test("DivByZero:Used") {
+    def assertDivByZero(e: Expr): Unit = {
+      val exc = intercept[UndefinedValException](ir.eval(e))
+      assert(exc.warnings == Set(DivByZeroWarning))
+    }
+
+    assertDivByZero(C(42)(U8) / C(0)(U8))
+    assertDivByZero(C(42)(U8) % C(0)(U8))
+  }
+
+  test("DivByZero:Unused") {
+    val f = U8 ::+ (i => Mux(i === 0, C(0)(U8), 10 / i)())
+    assert(ir.eval(f(C(0)(U8))) == C(0)())
+    assert(ir.eval(f(C(1)(U8))) == C(10)())
+    assert(ir.eval(f(C(2)(U8))) == C(5)())
+  }
+
+  test("OutOfBoundsVecAccess:Used") {
+    def assertOOB(e: Expr, n: Int, i: Int): Unit = {
+      val exc = intercept[UndefinedValException](ir.eval(e))
+      assert(exc.warnings == Set(VecIndexOutOfBoundsWarning(n, i)))
+    }
+
+    val v = VecBuild(4, U8 ::+ (i => i))()
+    assertOOB(VecAccess(v, C(4)(U8))(), 4, 4)
+    assertOOB(VecAccess(v, C(5)(U8))(), 4, 5)
+    assertOOB(VecAccess(v, C(6)(U8))(), 4, 6)
+  }
+
+  test("OutOfBoundsVecAccess:Unused") {
+    val v = VecBuild(3, U8 ::+ (i => 10 + i))()
+    val f = U8 ::+ (i => Mux(i < 3, VecAccess(v, i)(), C(0)(U8))())
+    assert(ir.eval(f(C(0)(U8))) == C(10)())
+    assert(ir.eval(f(C(1)(U8))) == C(11)())
+    assert(ir.eval(f(C(2)(U8))) == C(12)())
+    assert(ir.eval(f(C(3)(U8))) == C(0)())
+    assert(ir.eval(f(C(4)(U8))) == C(0)())
+    assert(ir.eval(f(C(5)(U8))) == C(0)())
   }
 
   test("PadTo") {

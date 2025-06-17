@@ -79,7 +79,7 @@ case object Default {
     getDefaultOpt(typ).isDefined
   }
 
-  private def getDefault(typ: Type): Expr = {
+  private[ir] def getDefault(typ: Type): Expr = {
     getDefaultOpt(typ) match {
       case Some(v) => v
       case None =>
