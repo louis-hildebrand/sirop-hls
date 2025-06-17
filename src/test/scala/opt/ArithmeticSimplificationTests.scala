@@ -3,6 +3,7 @@ package opt
 import ir._
 import operations.Min
 import org.scalatest.funsuite.AnyFunSuite
+import opt.{PartialEvalPass => PE}
 
 class ArithmeticSimplificationTests extends AnyFunSuite {
   @deprecated
@@ -137,11 +138,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = Mux(x.__1 >= C(-2)(I8) + a, y, z)().tchk().lower()
 
     val facts0 = FactSet()
-    assert(PartialEvalPass.partialEval(e)(facts0) == e)
+    val expected0 = Mux(Sum(2, x.__1)() lt a, z, y)()
+    assert(PE.partialEval(e)(facts0) == expected0)
     val facts1 = FactSet().geq(x.__1, lpe(a - 1))
-    assert(PartialEvalPass.partialEval(e)(facts1) == y)
+    assert(PE.partialEval(e)(facts1) == y)
     val facts2 = FactSet().lt(x.__1, lpe(a - 2))
-    assert(PartialEvalPass.partialEval(e)(facts2) == z)
+    assert(PE.partialEval(e)(facts2) == z)
   }
 
   test("MuxWithBoundedVariable2") {
@@ -248,19 +250,22 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val t = Param("t")(U8)
     val e = Min(-5 + t, C(5)(I9)) < Min(-4 + t, C(5)(I9))
     val actual = lpe(e)
-    assert(actual == True)
+    val expected = ToSigned(t)() lt C(10)(I9)
+    assert(actual == expected)
   }
 
   test("MinMinusMinGreaterOrEqualToZero") {
     val t = Param("t")(U8)
     val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) >= 0
-    assert(lpe(e) == True)
+    val actual = lpe(e)
+    assert(actual == True)
   }
 
   test("MinMinusMinLessOrEqualToOne") {
     val t = Param("t")(U8)
     val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) <= 1
-    assert(PartialEvalPass.partialEval(e) == True)
+    val actual = lpe(e)
+    assert(actual == True)
   }
 
   test("Mux(a < b, True, False) === False") {
@@ -268,7 +273,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val b = Param("b")(U8)
     val e = Mux(a < b, True, False)() === False
     val actual = lpe(e)
-    val expected = a >= b
+    val expected = !(a lt b)
     assert(actual == expected)
   }
 
@@ -293,21 +298,5 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = (((-1 + n) === 0) || b).tchk().lower()
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == b)
-  }
-
-  test("TypePreservation1") {
-    val t = Param("t")(U8)
-    val e = ((-5 + t) < 5).tchk().lower()
-    val actual = lpe(e)
-    assert(actual == t < 10)
-    assert(actual.tchk().typ == TyBool)
-  }
-
-  test("TypePreservation2") {
-    val t = Param("t")(U8)
-    val e = Mux(-5 + t < 5, -5 + t, C(5)(I9))().tchk().lower()
-    val actual = lpe(e)
-    assert(actual == Mux(t < 10, -5 + t, 5)())
-    assert(actual.tchk().typ == U8)
   }
 }

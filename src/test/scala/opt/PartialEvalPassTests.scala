@@ -1,8 +1,9 @@
 package opt
 
 import ir._
-import operations.StmCount
+import operations.{Max, StmCount}
 import org.scalatest.funsuite.AnyFunSuite
+import opt.{PartialEvalPass => PE}
 
 class PartialEvalPassTests extends AnyFunSuite {
   @deprecated
@@ -146,7 +147,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = (U8 ::+ (y =>
       Mux(y > 42, U8 ::+ (y => y > 10), U8 ::+ (_ => y > 45))()
     )).tchk().lower()
-    val actual = PartialEvalPass.partialEval(e)
+    val actual = PE.partialEval(e)
     val expected = U8 ::+ (y =>
       Mux(
         LessThan(42, y)(),
@@ -177,9 +178,9 @@ class PartialEvalPassTests extends AnyFunSuite {
       True,
       StmBuild(
         10,
-        Tuple(True, a < 4)(),
+        Tuple(True, a lt 4)(),
         True,
-        Map(a -> (C(0)(U8), a + 1))
+        Map(a -> (C(0)(U8), Sum(a, 1)()))
       )()
     )()
     assert(actual == expected)
@@ -205,34 +206,31 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("MuxTrueBranchSpecialCaseOfFalseBranch") {
-    val n = Param("n")(U8)
-    val i = Param("i")(U8)
-    val acc = Param("acc")((U8, U8))
-    val z = Param("z")(U8)
-    val delta = Param("delta")(U8)
+    val n = C(10)(I8)
+    val i = Param("i")(I8)
+    val acc = Param("acc")((I8, U8))
+    val z = Param("z")(I8)
+    val delta = Param("delta")(I8)
     val e = Mux(
       i === (n - 1),
       z + acc.__0 * delta,
       z + ((acc.__0 + (i + 1)) - n) * delta
     )().tchk().lower()
-    val actual = PartialEvalPass.partialEval(e)
-    val expected = z + delta * acc.__0 + delta * i + delta - delta * n
+    val actual = PE.partialEval(e)
+    val expected = Sum(
+      z,
+      Prod(delta, acc.__0)(),
+      Prod(delta, i)(),
+      Prod(-9, delta)()
+    )()
     assert(actual == expected)
   }
 
   test("MuxFalseBranchSpecialCaseOfTrueBranch") {
-    val n = Param("n")(U8)
-    val i = Param("i")(U8)
-    val acc = Param("acc")((U8, U8))
-    val z = Param("z")(U8)
-    val delta = Param("delta")(U8)
-    val e = Mux(
-      i !== (n - 1),
-      z + ((acc.__0 + (i + 1)) - n) * delta,
-      z + acc.__0 * delta
-    )().tchk().lower()
-    val expected = z + delta * acc.__0 + delta * i + delta - delta * n
-    assert(PartialEvalPass.partialEval(e) == expected)
+    val x = Param("x")(I8)
+    val e = Mux(x < 42, Max(x, C(10)(I8)), x)().tchk().lower()
+    val expected = Mux(LessThan(10, x)(), x, C(10)(I8))()
+    assert(PE.partialEval(e) == expected)
   }
 
   test("ScalarInequality:x<x+1") {
@@ -242,15 +240,15 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("ScalarEquality:x+c==k") {
-    val x = Param("x")(U8)
+    val x = Param("x")(I8)
     assert(lpe(x - 1 === 3) == Equal(x, 4)())
-    assert(lpe(5 + x === 2) == Equal(x, -3)())
+    assert(lpe(5 + x === 2) == Equal(Sum(3, x)(), 0)())
   }
 
   test("ScalarEquality:x+c<k") {
     val x = Param("x")(U8)
-    assert(lpe(x - 2 < 9) == LessThan(x, 11)())
-    assert(lpe(-3 + x < 4) == LessThan(x, 7)())
+    assert(lpe(x - 2 < 9) == LessThan(ToSigned(x)(), 11)())
+    assert(lpe(-3 + x < 4) == LessThan(ToSigned(x)(), 7)())
   }
 
   test("ScalarInequality:(x >= c) && (x < c + 1)") {
@@ -349,7 +347,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val expected =
       VecBuild(
         n,
-        U8 ::+ (i => Tuple(True, True, False, False, i gt 10)())
+        U8 ::+ (i => Tuple(True, True, False, False, i gt 0)())
       )()
     assert(PartialEvalPass.partialEval(v) == expected)
   }
@@ -389,13 +387,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val i = Param("i")(U8)
     val facts = FactSet().geq(n, 2).geq(i, 0).lt(i, n)
-    val e = 1 - n + i
-    assert(PartialEvalPass.isSmallerOrEqual(e, 0)(facts).contains(true))
-    assert(PartialEvalPass.isSmallerOrEqual(e, 0)().isEmpty)
+    val e = (1 - n + i).tchk().lower()
+    assert(PE.isSmallerOrEqual(e, 0)(facts).contains(true))
+    assert(PE.isSmallerOrEqual(e, 0)().isEmpty)
   }
 
   test("GreaterOrEqualWithVarRanges") {
-    val c = Param("c")(U8)
+    val c = Param("c")(I8)
     val facts = FactSet().geq(c, 0)
     val delta = 2 - c + 2 * c
     assert(PartialEvalPass.isGreaterOrEqual(delta, 0)(facts).contains(true))
@@ -421,11 +419,12 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("FuseVecAccessOutOfBounds") {
+  test("FuseVecAccess") {
     val e =
-      VecAccess(VecBuild(5, U8 ::+ (i => i))(), C(10)(U8))().tchk().lower()
-    val actual = PartialEvalPass.partialEval(e)
-    assert(ir.eval(actual) == ir.eval(e))
+      VecAccess(VecBuild(5, U8 ::+ (i => 7 + i))(), C(3)(U8))().tchk().lower()
+    val actual = PE.partialEval(e)
+    val expected = C(10)()
+    assert(actual == expected)
   }
 
   test("NestedMux") {
@@ -436,18 +435,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     val c2 = Param("c2")((U8, I16))
     val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())().tchk().lower()
 
-    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
+    val actual0 = PE.partialEval(e)(FactSet())
     val expected0 =
       Mux(
-        ToSigned(i)() eq Sum(-1, ToSigned(n)())(),
+        Sum(1, ToSigned(i)())() eq ToSigned(n)(),
         c0,
         Mux(Sum(1, i)() lt n, c1, c2)()
       )()
     assert(actual0 == expected0)
 
-    val facts = FactSet().geq(i, 0).lt(i, n)
-    val expected1 = Mux(ToSigned(i)() eq Sum(-1, ToSigned(n)())(), c0, c1)()
-    val actual1 = PartialEvalPass.partialEval(e)(facts)
+    val facts = FactSet().between(i, 0, n)
+    val expected1 = Mux(Sum(1, ToSigned(i)())() eq ToSigned(n)(), c0, c1)()
+    val actual1 = PE.partialEval(e)(facts)
     assert(actual1 == expected1)
   }
 

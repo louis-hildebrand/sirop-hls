@@ -180,121 +180,76 @@ object PartialEvalPass {
               case e => ToUnsigned(e)()
             }
 
-          case True         => True
-          case False        => False
+          case True  => True
+          case False => False
           case Mux(c, t, f) =>
-            // TODO: This needs to be cleaned up (e.g., to reduce the amount of duplicate partial evaluation)
-            val peMux = Mux(
-              partialEval(c)(facts, MoveUp),
-              partialEval(t),
-              partialEval(f)
-            )()
-            peMux match {
-              case Mux(
-                    Equal(i0, Sum(IntCst(-1), n0)),
-                    c0,
-                    Mux(LessThan(i1, Sum(IntCst(-1), n1)), c1, _)
-                  )
-                  if i0 == i1 && n0 == n1
-                    && isSmaller(i0, n0)(facts).getOrElse(false) =>
-                partialEval(Mux(i0 === -1 + n0, c0, c1)())
-              case Mux(cond, trueE, falseE) =>
-                partialEval(cond) match {
-                  case True  => partialEval(trueE)
-                  case False => partialEval(falseE)
-                  case cond =>
-                    val t = {
-                      val newFacts = facts.assumeTrue(cond)
-                      val t = splitAnd(cond).foldLeft(trueE)({ case (acc, c) =>
-                        // TODO: Ideally, this canonicalization of moving everything
-                        //       to the left would happen in general, not just here.
-                        //       At the moment, this is also quite brittle because
-                        //       it only works one way:
-                        //         * The expression
-                        //               if (x < y) then
-                        //                 if (x - y < 0) then e1 else e2
-                        //               else e3
-                        //           should be successfully simplified
-                        //         * The expression
-                        //               if (x - y < 0) then
-                        //                 if (x < y) then e1 else e2
-                        //               else e3
-                        //           may not :(
-                        //       Unfortunately, ArithExpr works better with x < y
-                        //       than x - y < 0 (at least as of 2025-03-12).
-                        // TODO: Bring back this canonicalization while being
-                        //       careful about signed vs unsigned arithmetic?
-//                        val condVariants = c match {
-//                          case LessThan(x, y) => Seq(c, LessThan(x - y, 0)())
-//                          case _              => Seq(c)
-//                        }
-                        val condVariants = Seq(c)
-                        val subs = condVariants.map(c => c -> True).toMap
-                        acc.subPreserveType(subs)
-                      })
-                      partialEval(t)(newFacts, m)
-                    }
-                    val f = {
-                      val newFacts = facts.assumeFalse(cond)
-                      val f = splitOr(cond).foldLeft(falseE)({ case (acc, c) =>
-                        // TODO: See TODO comment above (ideally do this
-                        //       canonicalization everywhere, not just here)
-//                        val condVariants = c match {
-//                          case LessThan(x, y) => Seq(c, LessThan(x - y, 0)())
-//                          case _              => Seq(c)
-//                        }
-                        val condVariants = Seq(c)
-                        val subs = condVariants.map(c => c -> False).toMap
-                        acc.subPreserveType(subs)
-                      })
-                      partialEval(f)(newFacts, m)
-                    }
-                    (t, f) match {
-                      case _ if t == f   => t
-                      case (True, False) => cond
-                      case (False, True) => partialEval(Not(cond)())
-                      case (StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                        partialEval(StmNextK(s0, Mux(cond, k0, k1)())())
-                      case _ =>
-                        cond match {
-                          // True branch is special case of false branch
-                          case Equal(p: Param, r)
-                              if partialEval(f.subPreserveType(p -> r)) == t =>
-                            f
-                          // False branch is special case of true branch
-                          case Not(Equal(p: Param, r))
-                              if partialEval(t.subPreserveType(p -> r)) == f =>
-                            t
-                          case _ =>
-                            val x = Mux(cond, t, f)()
-                            if (
-                              isBoolExpr(x).getOrElse(false)
-                              && !x.contains(classOf[StmData])
-                            ) {
-                              partialEval((cond && t) || (Not(cond)() && f))
-                            } else {
-                              x
-                            }
-                        }
-                    }
+            partialEval(c)(facts, MoveUp) match {
+              case True  => partialEval(t)
+              case False => partialEval(f)
+              case cond =>
+                val trueE = partialEval(t)(facts.assumeTrue(cond), m)
+                val falseE = partialEval(f)(facts.assumeFalse(cond), m)
+                (cond, trueE, falseE) match {
+                  case _ if trueE == falseE => trueE
+                  case _ if trueE.typ == TyBool =>
+                    partialEval((cond && trueE) || (!cond && falseE))
+                  case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
+                    partialEval(StmNextK(s0, Mux(cond, k0, k1)())())
+                  case (
+                        Equal(Sum(IntCst(1), i0), n0),
+                        c0,
+                        Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
+                      )
+                      if isEqual(i0, i1)(facts).getOrElse(false)
+                        && isEqual(n0, n1)(facts).getOrElse(false)
+                        && isSmaller(i0, n0)(facts).getOrElse(false) =>
+                    partialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
+                  // True branch is special case of false branch
+                  case _
+                      if Default.hasDefault(trueE.typ)
+                        && isEqual(trueE, falseE)(facts.assumeTrue(cond))
+                          .getOrElse(false) =>
+                    falseE
+                  // False branch is special case of true branch
+                  case _
+                      if Default.hasDefault(falseE.typ)
+                        && isEqual(trueE, falseE)(facts.assumeFalse(cond))
+                          .getOrElse(false) =>
+                    trueE
+                  case _ =>
+                    Mux(cond, trueE, falseE)()
                 }
             }
-          case _: Equal =>
+          case Equal(lhs, rhs) =>
             // For Equal() and LessThan(), move Mux up so that we can deal with things like
             // Min(t - 5, 5) < Min(t - 4, 5). This may cause the expression to explode in size, but since these are
             // booleans I imagine we'll often find opportunities for simplification (e.g., both branches being True, both
             // being False, Mux(c, True, False) --> c).
             // If this ends up being problematic, we could always try putting a cap on the number of unique conditions in
             // a Mux and avoid this transformation if the cap is exceeded.
-            val newChildren = e.children.map(e => partialEval(e))
-            val merged = mergeMuxes(newChildren, x => y => Equal(x, y)())
+            val (newLhs, newRhs) = if (lhs.typ.isInstanceOf[TyAnyInt]) {
+              combineConstants(
+                partialEval(lhs)(facts, MoveUp),
+                partialEval(rhs)(facts, MoveUp)
+              )
+            } else {
+              (partialEval(lhs)(facts, MoveUp), partialEval(rhs)(facts, MoveUp))
+            }
+            val merged =
+              mergeMuxes(Seq(newLhs, newRhs), x => y => Equal(x, y)())
             merged match {
               case mux: Mux => partialEval(mux)
               case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
-          case _: LessThan =>
-            val newChildren = e.children.map(e => partialEval(e))
-            mergeMuxes(newChildren, x => y => LessThan(x, y)()) match {
+          case LessThan(lhs, rhs) =>
+            val (newLhs, newRhs) =
+              combineConstants(
+                partialEval(lhs)(facts, MoveUp),
+                partialEval(rhs)(facts, MoveUp)
+              )
+            val merged =
+              mergeMuxes(Seq(newLhs, newRhs), x => y => LessThan(x, y)())
+            merged match {
               case mux: Mux => partialEval(mux)
               case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
             }
@@ -386,16 +341,11 @@ object PartialEvalPass {
                 partialEval(
                   Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
-              case (v @ VecBuild(n, f), i) =>
-                val t = v.tchk().typ.asInstanceOf[TyVec].t
+              case (VecBuild(_, f), i) =>
+                // Out-of-bounds vector access is undefined behaviour, so just
+                // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
-                partialEval(
-                  Mux(
-                    i >= 0 && i < n,
-                    FunCall(f, Cast(i, fInT)())(),
-                    Default(t)
-                  )().tchk().lower()
-                )
+                partialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
               case (v, i) => VecAccess(v, i)()
             }
 
@@ -563,11 +513,42 @@ object PartialEvalPass {
     merged.tchk()
   }
 
-  private def moveConstantsToRhs(lhs: Expr, rhs: Expr): (Expr, Expr) = {
-    lhs match {
-      case IntCst(k) if k != 0        => (0, rhs - k)
-      case Sum(IntCst(k), terms @ _*) => (Sum(terms: _*)(), rhs - k)
-      case _                          => (lhs, rhs)
+  private def combineConstants(lhs: Expr, rhs: Expr): (Expr, Expr) = {
+    require(
+      lhs.typ.isInstanceOf[TyAnyInt],
+      "Left-hand side should be an integer."
+    )
+    require(
+      rhs.typ.isInstanceOf[TyAnyInt],
+      "Right-hand side must be an integer."
+    )
+    val (lhsCst, lhsNonCstTerms) = lhs match {
+      case Sum(terms @ _*) =>
+        val (cst, nonCst) = terms.partition(e => e.isInstanceOf[IntCst])
+        (cst.map(e => e.asInstanceOf[IntCst].i).sum, nonCst)
+      case IntCst(k) => (k, Seq())
+      case e         => (0L, Seq(e))
+    }
+    val (rhsCst, rhsNonCstTerms) = rhs match {
+      case Sum(terms @ _*) =>
+        val (cst, nonCst) = terms.partition(e => e.isInstanceOf[IntCst])
+        (cst.map(e => e.asInstanceOf[IntCst].i).sum, nonCst)
+      case IntCst(k) => (k, Seq())
+      case e         => (0L, Seq(e))
+    }
+    lhsCst - rhsCst match {
+      case 0 =>
+        (Sum(lhsNonCstTerms: _*)(lhs.typ), Sum(rhsNonCstTerms: _*)(rhs.typ))
+      case k if k > 0 =>
+        (
+          Sum(C(k)(lhs.typ) +: lhsNonCstTerms: _*)(lhs.typ),
+          Sum(rhsNonCstTerms: _*)(rhs.typ)
+        )
+      case k =>
+        (
+          Sum(lhsNonCstTerms: _*)(lhs.typ),
+          Sum(C(-k)(rhs.typ) +: rhsNonCstTerms: _*)(rhs.typ)
+        )
     }
   }
 

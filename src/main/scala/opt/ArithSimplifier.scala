@@ -17,7 +17,7 @@ private[opt] object ArithSimplifier {
     * @param range
     *   The range for the expression
     */
-  case class BlackBox(
+  private case class BlackBox(
       e: Expr,
       override val range: ae.Range = ae.RangeUnknown
   ) extends ae.ExtensibleVar("", ae.RangeUnknown, Some(BlackBox.identify(e)))
@@ -36,7 +36,7 @@ private[opt] object ArithSimplifier {
       f(BlackBox(e, range.visitAndRebuild(f)))
     }
   }
-  object BlackBox {
+  private object BlackBox {
 
     /** Choose a unique identifier for the given expression. The identifier is
       * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
@@ -53,12 +53,24 @@ private[opt] object ArithSimplifier {
       */
     private def identify(e: Expr): Long = {
       this.synchronized {
-        idByExpr.get(e) match {
-          case None =>
-            val id = idCtr.incrementAndGet()
-            idByExpr.update(e, id)
-            id
-          case Some(id) => id
+        e match {
+          case ToSigned(e) =>
+            // We can treat ToSigned(x) as being synonymous with x.
+            // ToSigned only changes the type, not the value, and ArithExpr
+            // doesn't care about the type.
+            identify(e)
+          case PadTo(e, _) =>
+            // ... likewise, PadTo(x) is equivalent to x from the library's
+            // point of view
+            identify(e)
+          case _ =>
+            idByExpr.get(e) match {
+              case None =>
+                val id = idCtr.incrementAndGet()
+                idByExpr.update(e, id)
+                id
+              case Some(id) => id
+            }
         }
       }
     }
@@ -118,7 +130,7 @@ private[opt] object ArithSimplifier {
         )
       case eq: Equal =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(Mux(eq, True, False)())(facts)
+        toSimplifiedArithExpr(Mux(simplifyEqual(eq), True, False)())(facts)
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
         toSimplifiedArithExpr(Mux(lt, True, False)())(facts)
@@ -183,7 +195,7 @@ private[opt] object ArithSimplifier {
   }
 
   private def findRange(e: Expr)(facts: FactSet): ae.Range = {
-    facts.rangeByExpr.getOrElse(e, ScalarRange(None, None)) match {
+    facts.getRange(e).getOrElse(ScalarRange(None, None)) match {
       case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
       case ScalarRange(None, Some(upper)) =>
         ae.GoesToRange(toSimplifiedArithExpr(upper)(facts))
@@ -292,6 +304,7 @@ private[opt] object ArithSimplifier {
 
   private def simplifyEqual(eq: Equal): Expr = {
     val out = eq match {
+      // TODO: generalize by rewriting to (a && b) || (!a && !b) ?
       case Equal(c, True)  => c
       case Equal(True, c)  => c
       case Equal(c, False) => Not(c)()

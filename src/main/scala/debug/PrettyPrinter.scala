@@ -63,8 +63,8 @@ object PrettyPrinter {
         "t(" + elems
           .map(e => show(e, collapseStm = collapseStm, evalVec = evalVec))
           .mkString(", ") + ")"
-      case TupleAccess(t, i) =>
-        s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__${show(i, collapseStm = collapseStm, evalVec = evalVec)}"
+      case TupleAccess(t, IntCst(i)) =>
+        s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__$i"
       case StmBuild(n, data, valid, equations) =>
         if (collapseStm) {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
@@ -234,8 +234,10 @@ object PrettyPrinter {
 
   private def shouldParenthesize(e: Expr): Boolean = {
     e match {
-      case _: IntCst | _: Param | _: TupleAccess => false
-      case _                                     => true
+      case _: IntCst | _: Param | _: TupleAccess | _: ToSigned | _: ToUnsigned |
+          _: PadTo | _: TruncateTo =>
+        false
+      case _ => true
     }
   }
 
