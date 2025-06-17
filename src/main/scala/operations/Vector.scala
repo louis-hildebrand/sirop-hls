@@ -337,7 +337,7 @@ case class VecShiftLeft(
       case _ =>
         VecBuild(
           n,
-          U32 ::+ (i => Mux(i === n + -1, e, VecAccess(v, i + 1)())())
+          U32 ::+ (i => Mux((i + 1) === n, e, VecAccess(v, i + 1)())())
         )().tchk().lower()
     }
   }

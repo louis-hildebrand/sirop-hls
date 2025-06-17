@@ -154,4 +154,24 @@ class EvalTests extends AnyFunSuite {
     // -1 = (11111111)_2
     assert(ir.eval(FunCall(f, IntCst(-1)(I8))()) == IntCst(127)())
   }
+
+  test("NestedLet") {
+    val n = Param("n")(U8)
+    val m = Param("m")(U8)
+    val f = U32 ::+ (k =>
+      VecBuild(
+        n,
+        U32 ::+ (i => VecBuild(m, U32 ::+ (j => Tuple(i, j, k)()))())
+      )()
+    )
+    val lets = Let(n, C(3)(U8), Let(m, C(2)(U8), FunCall(f, C(42)(U32))())())()
+    val evaluated = ir.eval(lets)
+    val expected = VecLiteral(
+      VecLiteral(Tuple(0, 0, 42)(), Tuple(0, 1, 42)())(),
+      VecLiteral(Tuple(1, 0, 42)(), Tuple(1, 1, 42)())(),
+      VecLiteral(Tuple(2, 0, 42)(), Tuple(2, 1, 42)())()
+    )()
+    assert(evaluated == expected)
+    assert(evaluated.typ == TyVec(TyVec((U32, U32, U32), C(2)(U8)), C(3)(U8)))
+  }
 }

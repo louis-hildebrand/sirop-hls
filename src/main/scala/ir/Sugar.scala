@@ -14,7 +14,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     val in = this.in.tchk(context + (this.x -> v.typ))
     val x = this.x.typ match {
       case Missing => this.x.rebuild(v.typ)
-      case _       => this.x.expectType(v.typ).asInstanceOf[Param]
+      case t =>
+        if (t ~= v.typ) {
+          this.x
+        } else {
+          throw new TypeError(
+            s"Cannot assign value of type ${v.typ} to variable of type $t."
+          )
+        }
     }
     Let(x, v, in)(in.typ)
   }

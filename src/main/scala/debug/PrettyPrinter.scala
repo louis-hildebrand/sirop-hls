@@ -47,14 +47,13 @@ object PrettyPrinter {
         }
       case Function(p, b) =>
         val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
-        val tStr = show(p.typ)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
-          s"""(${pStr} : $tStr) =>
+          s"""(${p.name} : ${p.typ}) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
         } else {
-          s"(${pStr}) => ${bStr}"
+          s"(${p.name} : ${p.typ}) => ${bStr}"
         }
       case FunCall(f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
@@ -124,29 +123,13 @@ object PrettyPrinter {
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
       case VecLength(v) =>
         s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
-      case Default(t) => s"Default[${show(t)}]"
+      case Default(t) => s"Default[$t]"
       case e =>
         val name = e.getClass.getSimpleName
         val sh = (e: Expr) =>
           show(e, collapseStm = collapseStm, evalVec = evalVec)
         val children = e.children.map(sh).mkString(", ")
         s"$name($children)"
-    }
-  }
-
-  def show(t: Type): String = {
-    t match {
-      case Missing         => "?"
-      case TyInt           => "Int"
-      case TySInt(w)       => s"TySInt(${show(w)(Map())})"
-      case TyUInt(w)       => s"TyUInt(${show(w)(Map())})"
-      case TyBool          => "Bool"
-      case TyArrow(t1, t2) => s"($t1) -> ($t2)"
-      case TyTuple(ts @ _*) =>
-        val tsStr = ts.map(t => show(t)).mkString(", ")
-        s"($tsStr)"
-      case TyVec(t, n) => s"Vec[${show(t)}, ${show(n)(Map())}]"
-      case TyStm(t, n) => s"Stm[${show(t)}, ${show(n)(Map())}]"
     }
   }
 

@@ -1,8 +1,7 @@
 package opt
 
 import ir._
-
-import scala.annotation.tailrec
+import operations.Cast
 
 sealed trait MuxMotion
 case object MoveUp extends MuxMotion
@@ -22,7 +21,6 @@ object PartialEvalPass {
       m: MuxMotion = HeuristicMotion
   ): Expr = {
     val e = expr.tchk()
-    var expectedTyp = e.typ
     val pe = facts.isTrue(e) match {
       case Some(true)  => True
       case Some(false) => False
@@ -37,7 +35,6 @@ object PartialEvalPass {
                 val a = partialEval(arg)
                 assert(x.typ != Missing)
                 assert(a.typ ~= x.typ)
-                expectedTyp = e.typ.substitute(x -> a)
                 partialEval(body.subPreserveType(x -> a))
               case f => FunCall(f, partialEval(arg))()
             }
@@ -391,10 +388,13 @@ object PartialEvalPass {
                 )
               case (v @ VecBuild(n, f), i) =>
                 val t = v.tchk().typ.asInstanceOf[TyVec].t
+                val fInT = f.typ.asInstanceOf[TyArrow].t1
                 partialEval(
-                  Mux(i >= 0 && i < n, FunCall(f, i)(), Default(t))()
-                    .tchk()
-                    .lower()
+                  Mux(
+                    i >= 0 && i < n,
+                    FunCall(f, Cast(i, fInT)())(),
+                    Default(t)
+                  )().tchk().lower()
                 )
               case (v, i) => VecAccess(v, i)()
             }
@@ -473,16 +473,12 @@ object PartialEvalPass {
 
         }
     }
-    if (expectedTyp != Missing) {
-      val typedExpr = pe.tchk()
-      assert(
-        typedExpr.typ ~= expectedTyp,
-        s"partial evaluation should preserve type annotations (expected $expectedTyp, found ${typedExpr.typ})"
-      )
-      typedExpr
-    } else {
-      pe
-    }
+    val typedExpr = pe.tchk()
+    assert(
+      typedExpr.typ ~~= e.typ,
+      s"partial evaluation should preserve type annotations (expected ${e.typ}, found ${typedExpr.typ})"
+    )
+    typedExpr
   }
 
   def isEqual(e1: Expr, e2: Expr)(

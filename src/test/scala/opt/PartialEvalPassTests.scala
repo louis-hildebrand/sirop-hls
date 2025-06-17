@@ -450,4 +450,20 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual1 = PartialEvalPass.partialEval(e)(facts)
     assert(actual1 == expected1)
   }
+
+  test("NestedLet") {
+    val n = Param("n")(U8)
+    val m = Param("m")(U8)
+    val e =
+      VecBuild(n, U32 ::+ (i => VecBuild(m, U32 ::+ (j => Tuple(i, j)()))()))()
+    val lets = Let(n, C(3)(U8), Let(m, C(2)(U8), e)())()
+    val evaluated = lpe(lets)
+    val expected =
+      VecBuild(
+        C(3)(U8),
+        U32 ::+ (i => VecBuild(C(2)(U8), U32 ::+ (j => Tuple(i, j)()))())
+      )()
+    assert(evaluated == expected)
+    assert(evaluated.typ == TyVec(TyVec((U32, U32), C(2)(U8)), C(3)(U8)))
+  }
 }

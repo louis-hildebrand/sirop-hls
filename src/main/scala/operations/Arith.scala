@@ -104,7 +104,7 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
   }
 }
 
-private object Cast {
+object Cast {
   private def canCast(t1: Type, t2: Type): Boolean = {
     (t1, t2) match {
       case (TyBool, TyBool)           => true

@@ -191,7 +191,12 @@ object Tracer {
       }
     }
 
-    Trace(trace(StmNode(s), Seq()))
+    try {
+      Trace(trace(StmNode(s), Seq()))
+    } catch {
+      case ex: EvalException =>
+        Trace(Seq(ErrorTraceNode(ex)))
+    }
   }
 
   /** Traces execution step-by-step, showing the accumulator values and outputs

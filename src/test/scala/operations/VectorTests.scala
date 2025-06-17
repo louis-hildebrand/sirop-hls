@@ -404,11 +404,30 @@ class VectorTests extends AnyFunSuite {
     }
   }
 
-  test("VecShiftLeft:Vec[Int]") {
+  test("VecShiftLeft:Vec[Int, 3]") {
     val v = VecBuild(3, U32 ::+ (i => i * (i + 2)))()
     assert(
       ir.eval(VecShiftLeft(v, C(42)(U32))().tchk()) == VecLiteral(3, 8, 42)()
     )
+  }
+
+  test("VecShiftLeft:Vec[Int, 7:u3]") {
+    // Test that there's no overflow, even if the vector length is the maximum
+    // int of the given type
+
+    val u3 = TyUInt(3)
+    val v = VecBuild(C(7)(u3), u3 ::+ (i => i))()
+    val actual = VecShiftLeft(v, C(3)(u3))().tchk().lower()
+    val expected = VecLiteral(
+      C(1)(u3),
+      C(2)(u3),
+      C(3)(u3),
+      C(4)(u3),
+      C(5)(u3),
+      C(6)(u3),
+      C(3)(u3)
+    )()
+    assert(ir.eval(actual) == expected)
   }
 
   test("VecShiftLeft:Vec[Stm[Int]]") {

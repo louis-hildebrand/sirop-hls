@@ -1,7 +1,7 @@
 package opt
 
 import ir._
-import operations.{CeilDiv, Max}
+import operations.{Cast, CeilDiv, Max}
 
 // You may need to don a hazmat suit before working on this code.
 
@@ -65,9 +65,11 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     */
   def tryFindClosedFormForValid(s: StmBuild): Option[Function] = {
     val closedFormByVar = findClosedForms(s)
-    val t = Param("t")(TyInt)
+    // Even though t >= 0, use i32 to minimize conversions like ToSigned and
+    // ToUnsigned (e.g., when computing t - t0)
+    val t = Param("t")(I32)
     val subs: Map[Expr, Expr] =
-      closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)() })
+      closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)().tchk() })
     val valid = s.valid.subPreserveType(subs)
     val allVarsRemoved = valid.freeVars().intersect(s.accVars).isEmpty
     if (allVarsRemoved) Some(Function(t, valid)()) else None
@@ -84,7 +86,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         s"The stream should be lowered before trying to remove induction variables."
       )
     }
-    val t = Param("t")(TyInt)
+    // Even though t >= 0, use i32 to minimize conversions like ToSigned and
+    // ToUnsigned (e.g., when computing t - t0)
+    val t = Param("t")(I32)
     // The dependency graph may have cycles. To deal with that, combine
     // elements of each strongly connected component into one tuple.
     val g = s.accVarDependencies.condensation()
@@ -98,7 +102,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         // find closed forms for all its dependencies?
       } else {
         val subs: Map[Expr, Expr] =
-          closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)() })
+          closedFormByVar.map({ case (x, f) =>
+            val replacement = Cast(FunCall(f, t)(), x.typ)().tchk().lower()
+            x -> replacement
+          })
         val equations =
           s.equations
             .filter({ case (x, _) => v.contains(x) })
@@ -189,7 +196,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     )
     val acc = Param("acc")(tupleType)
     val subs: Map[Expr, Expr] =
-      paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i)() })
+      paramByIndex.map({ case (i, x) => x -> TupleAccess(acc, i)().tchk() })
     val next = Function(
       t,
       Function(
@@ -212,7 +219,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     if (closedFormByVar.isEmpty) {
       stm
     } else {
-      val t = Param("t")(TyInt)
+      // Even though t >= 0, use i32 to minimize conversions like ToSigned and
+      // ToUnsigned (e.g., when computing t - t0)
+      val t = Param("t")(I32)
 
       // Process the closed forms without StmNextK first because they should
       // always work regardless of order.
@@ -228,8 +237,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       var s = stm
       var newAccVars = Map[Param, (Expr, Function)]()
       for ((x, f) <- closedFormsInOrder) {
+        val replacement = Cast(FunCall(f, t)(), x.typ)().tchk().lower()
         val newStm = PartialEvalPass
-          .partialEval(s.replaceVar(x, FunCall(f, t)()))(this.facts)
+          .partialEval(s.replaceVar(x, replacement))(this.facts)
           .asInstanceOf[StmBuild]
         assert(!newStm.freeVars().contains(f.param))
         if (!newStm.contains(classOf[StmNextK])) {
@@ -254,7 +264,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       for ((x, (z, Function(t, f))) <- newAccVars) {
         s = s.addAccumulator(x, z, FunCall(f, x)())
       }
-      s = s.addAccumulator(t, 0, t + 1)
+      s = s.addAccumulator(t, C(0)(t.typ), t + 1)
       s
     }
   }
@@ -353,28 +363,34 @@ object RecurrenceSolver {
         Some(
           Function(
             t,
-            Mux(t === 0, z, e.subPreserveType(t -> (t - 1)))()
+            Mux(
+              t === 0,
+              z,
+              e.subPreserveType(t -> (t - 1).tchk().lower())
+            )()
           )()
         )
       case Counter(delta) => Some(Function(t, z + (t - t0) * delta)())
       case LeftShiftRegister(n, f, g) =>
+        val fInT = f.tchk().typ.asInstanceOf[TyArrow].t1
+        val gInT = g.tchk().typ.asInstanceOf[TyArrow].t1
         Some(
           Function(
             t,
             VecBuild(
               n,
-              TyInt ::+ (i =>
+              U32 ::+ (i =>
                 Mux(
                   // Imagine the vector is a fixed, infinite tape and we're
                   // moving to the right as time goes along.
                   //   [f(0), f(1), ..., f(n - 1), g(0), g(1), ...]
                   (t - t0 + i) < n,
-                  FunCall(f, t - t0 + i)(),
-                  FunCall(g, t - t0 + i - n)()
+                  FunCall(f, Cast(t - t0 + i, fInT)())(),
+                  FunCall(g, Cast(t - t0 + i - n, gInT)())()
                 )()
               )
             )()
-          )()
+          )().tchk().lower().asInstanceOf[Function]
         )
       case Piecewise(k, f, g) =>
         tryFindDataClosedForm(t0, z, f) match {
@@ -426,8 +442,8 @@ object RecurrenceSolver {
             )
           ) if a0 == acc && a1 == acc && terms.contains(acc.__0) =>
         val bCond = and.remove(acc.__0)
-        // (1) Find closed form for counter if it was unbounded
-        val a = Param("a")(TyInt)
+        // (1) Find closed form for counter as if it was unbounded
+        val a = Param("a")(I32)
         val ctrNext = Function(
           t,
           Function(a, ctrUpdateIfTrue.subPreserveType(acc.__1 -> a))()
@@ -437,7 +453,7 @@ object RecurrenceSolver {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
               val bCondIfUnbounded = bCond.subPreserveType(
-                Map[Expr, Expr](acc.__0 -> a, acc.__1 -> FunCall(f, t)())
+                Map[Expr, Expr](acc.__0 -> a, acc.__1 -> FunCall(f, t)().tchk())
               )
               if (!bCondIfUnbounded.contains(acc)) {
                 (t, a, bCondIfUnbounded) match {
@@ -451,7 +467,10 @@ object RecurrenceSolver {
                       Function(
                         a,
                         boundedCtrUpdate.subPreserveType(
-                          Map[Expr, Expr](acc.__0 -> (t < K), acc.__1 -> a)
+                          Map[Expr, Expr](
+                            acc.__0 -> (t < K).tchk().lower(),
+                            acc.__1 -> a
+                          )
                         )
                       )()
                     )()
@@ -484,7 +503,7 @@ object RecurrenceSolver {
     )
     val nextIdx = next match {
       case Function(t, Function(x, body)) if !body.contains(x) =>
-        val i = Param("i")(TyInt)
+        val i = Param("i")(U32)
         Function(t, Function(i, Mux(body, i + 1, i)())())()
       case _ =>
         throw new IllegalArgumentException(
@@ -524,7 +543,7 @@ object RecurrenceSolver {
                 case Some((z0, f0)) =>
                   findRec(rhs, k) match {
                     case Some((z1, f1)) =>
-                      val expectedZ1 = lhs.subPreserveType(t -> k)
+                      val expectedZ1 = lhs.subPreserveType(t -> k.tchk())
                       val isContinuous = PartialEvalPass
                         .isEqual(
                           z1.tchk().lower(),
@@ -556,7 +575,7 @@ object RecurrenceSolver {
         case next @ StmNextK(_, k) =>
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
-          val nextK = k.subPreserveType(t -> (t + 1))
+          val nextK = k.subPreserveType(t -> (t + 1).tchk().lower())
           val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
           val isDeltaZeroOrOne = (
             PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
@@ -565,7 +584,7 @@ object RecurrenceSolver {
                 .getOrElse(false)
           )
           if (isDeltaZeroOrOne) {
-            val z = next.subPreserveType(t -> t0)
+            val z = next.subPreserveType(t -> t0.tchk())
             val acc = Param("acc")(next.typ)
             val nextF =
               Function(t, Function(acc, (deltaK !== 0) && (k >= 0))())()
@@ -665,7 +684,7 @@ object LeftShiftRegister {
                   Function(
                     i0: Param,
                     Mux(
-                      Equal(i1, n2),
+                      Equal(Sum(IntCst(1), i1), n2),
                       e,
                       VecAccess(a2, Sum(IntCst(1), i2))
                     )
@@ -676,7 +695,7 @@ object LeftShiftRegister {
           )
           if a2 == acc && i1 == i0 && i2 == i0 && !e.contains(acc)
             && PartialEvalPass.isEqual(n1, n0)().getOrElse(false)
-            && PartialEvalPass.isEqual(n2, -1 + n0)().getOrElse(false) =>
+            && PartialEvalPass.isEqual(n2, n0)().getOrElse(false) =>
         // e may have t as a free variable
         Some((n0, f, Function(t, e)()))
       case _ => None
