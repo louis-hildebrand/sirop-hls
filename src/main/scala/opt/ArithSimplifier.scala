@@ -86,7 +86,8 @@ private[opt] object ArithSimplifier {
   }
 
   def simplifyArithmetic(expr: Expr)(facts: FactSet): Expr = {
-    val e = expr.tchk()
+    // Try simplifying without the library first
+    val e = simplifyBoolExpr(expr.tchk())
     val a =
       try {
         Some(toSimplifiedArithExpr(e)(facts))
@@ -130,7 +131,7 @@ private[opt] object ArithSimplifier {
         )
       case eq: Equal =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
-        toSimplifiedArithExpr(Mux(simplifyEqual(eq), True, False)())(facts)
+        toSimplifiedArithExpr(Mux(eq, True, False)())(facts)
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
         toSimplifiedArithExpr(Mux(lt, True, False)())(facts)
@@ -293,11 +294,12 @@ private[opt] object ArithSimplifier {
 
   private def simplifyBoolExpr(e: Expr): Expr = {
     val out = e.rebuild(e.typ, e.children.map(e => simplifyBoolExpr(e))) match {
-      case eq: Equal => simplifyEqual(eq)
-      case and: And  => simplifyAnd(and)
-      case or: Or    => simplifyOr(or)
-      case not: Not  => simplifyNot(not)
-      case e         => e
+      case eq: Equal    => simplifyEqual(eq)
+      case lt: LessThan => simplifyLessThan(lt)
+      case and: And     => simplifyAnd(and)
+      case or: Or       => simplifyOr(or)
+      case not: Not     => simplifyNot(not)
+      case e            => e
     }
     out.tchk()
   }
@@ -309,7 +311,18 @@ private[opt] object ArithSimplifier {
       case Equal(True, c)  => c
       case Equal(c, False) => Not(c)()
       case Equal(False, c) => Not(c)()
-      case _               => eq
+      case Equal(ToSignedOrIntCst(x), ToSignedOrIntCst(y)) =>
+        Equal(x, y)()
+      case _ => eq
+    }
+    out.tchk()
+  }
+
+  private def simplifyLessThan(lt: LessThan): Expr = {
+    val out = lt match {
+      case LessThan(ToSignedOrIntCst(x), ToSignedOrIntCst(y)) =>
+        LessThan(x, y)()
+      case e => e
     }
     out.tchk()
   }
@@ -389,5 +402,25 @@ private[opt] object ArithSimplifier {
       case Not(e) => terms.contains(e)
       case _      => false
     })
+  }
+}
+
+private[opt] object ToSignedOrIntCst {
+  def unapply(e: Expr): Option[Expr] = {
+    e.typ match {
+      case TySInt(w) =>
+        assert(w >= 1)
+        e match {
+          case ToSigned(x) => Some(x)
+          case IntCst(k)   =>
+            // TODO: What if k is somehow negative? Should probably never happen;
+            //       I would expect the optimizer to simplify something like
+            //       `ToSigned(x) == -1` to False.
+            Some(C(k)(TyUInt(w - 1)))
+          case _ => None
+        }
+      case _ =>
+        None
+    }
   }
 }

@@ -110,6 +110,9 @@ object PartialEvalPass {
                     + s" (intermediate width is $w2, final width is $w)"
                 )
                 PadTo(e, w)()
+              case TruncateTo(e, w2)
+                  if canTruncateSafely(e, w2)(facts).getOrElse(false) =>
+                e
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w0 == w => e
@@ -488,6 +491,27 @@ object PartialEvalPass {
     isSmallerOrEqual(e2, e1)(facts)
   }
 
+  /** Checks whether truncating an expression to a certain width is guaranteed
+    * to not result in data loss (i.e., whether the expression's value will
+    * definitely fit in the target type).
+    */
+  private def canTruncateSafely(e: Expr, w: Int)(
+      facts: FactSet
+  ): Option[Boolean] = {
+    val originalTyp = e.typ.asInstanceOf[TyAnyInt]
+    val targetTyp = originalTyp.withWidth(w)
+    facts.getRange(e) match {
+      case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi)))) =>
+        if (targetTyp.contains(lo) && targetTyp.contains(hi - 1)) {
+          Some(true)
+        } else {
+          None
+        }
+      case _ =>
+        None
+    }
+  }
+
   private def mergeMuxes(
       exprs: Seq[Expr],
       op: Expr => Expr => Expr
@@ -621,30 +645,6 @@ object PartialEvalPass {
           }
         case None => None
       }
-    }
-  }
-
-  private def isBoolExpr(e: Expr): Option[Boolean] = {
-    try {
-      Some(e.tchk().typ == TyBool)
-    } catch {
-      case _: TypeError => None
-    }
-  }
-
-  private def splitAnd(e: Expr): Seq[Expr] = {
-    // TODO: Convert to POS form first?
-    e match {
-      case And(terms @ _*) => terms
-      case e               => Seq(e)
-    }
-  }
-
-  private def splitOr(e: Expr): Seq[Expr] = {
-    // TODO: Convert to SOP form first?
-    e match {
-      case Or(terms @ _*) => terms
-      case e              => Seq(e)
     }
   }
 }

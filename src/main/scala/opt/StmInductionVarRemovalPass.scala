@@ -20,12 +20,17 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   }
 
   /** Try to find the value of the given stream's accumulator at time
-    * <code>t</code>.
+    * <code>c</code>.
     */
   def tryFindAccumulatorAtTime(
       s: StmBuild,
       c: Expr
   ): Option[Map[Param, Expr]] = {
+    require(
+      ReshapeData.canReshape(c.typ, I32),
+      s"Unsupported type for time (expected $I32, got ${c.typ})."
+    )
+
     val closedFormByVar = findClosedForms(s)
 
     // Need the new seed to be synthesizable, so can't have any StmNextK's.
@@ -45,7 +50,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     if (allElemsHaveClosedForm) {
       val seedsAtT = s.accVars
         .map(x => {
-          val e1 = FunCall(closedFormByVar(x), c)()
+          val e1 =
+            FunCall(closedFormByVar(x), ReshapeData(c, I32)())().tchk().lower()
           val e2 = removeStmNextK(e1)
           x -> PartialEvalPass.partialEval(e2)(this.facts)
         })
@@ -349,11 +355,20 @@ object RecurrenceSolver {
       next: Function
   ): Option[Function] = {
     val t = next.param
-    require(
-      !z.typ.isInstanceOf[TyStm],
-      s"Input must not be a stream. Use tryFindStmClosedForm instead."
-    )
-    (z, next) match {
+
+    /** The type of the accumulator */
+    val typ = {
+      require(
+        z.typ != Missing,
+        "Equation must be type checked before a closed form can be found."
+      )
+      require(
+        !z.typ.isInstanceOf[TyStm],
+        s"Input must not be a stream. Use tryFindStmClosedForm instead."
+      )
+      z.typ
+    }
+    val result = (z, next) match {
       case (z, Function(t, Function(x0, x1))) if x0 == x1 =>
         // Identity
         Some(Function(t, z)())
@@ -370,7 +385,8 @@ object RecurrenceSolver {
             )()
           )()
         )
-      case Counter(delta) => Some(Function(t, z + (t - t0) * delta)())
+      case Counter(delta) =>
+        Some(Function(t, Cast(z + (t - t0) * delta, typ)())().tchk().lower())
       case LeftShiftRegister(n, f, g) =>
         val fInT = f.tchk().typ.asInstanceOf[TyArrow].t1
         val gInT = g.tchk().typ.asInstanceOf[TyArrow].t1
@@ -491,6 +507,14 @@ object RecurrenceSolver {
         }
       case _ => None
     }
+    result.map(f => {
+      val typedF = f.tchk().asInstanceOf[Function]
+      assert(
+        typedF.typ == I32 ->: typ,
+        s"Closed form must have the same type as the original (expected ${I32 ->: typ} but found ${typedF.typ})."
+      )
+      typedF
+    })
   }
 
   private def tryFindStmClosedForm(

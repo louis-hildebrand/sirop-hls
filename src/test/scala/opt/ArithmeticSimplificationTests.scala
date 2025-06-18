@@ -153,25 +153,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower()
 
     val facts0 = FactSet()
-    assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().geq(ToSigned(x)(), C(5)(I9))
-    assert(PartialEvalPass.partialEval(e)(facts1) == z)
-    val facts2 = FactSet().lt(ToSigned(x)(), C(5)(I9))
-    assert(PartialEvalPass.partialEval(e)(facts2) == y)
-  }
-
-  test("MuxWithBoundedVariable3") {
-    val x = Param("x")(U8)
-    val y = Param("y")(TyVec(I32, 3))
-    val z = Param("z")(TyVec(I32, 3))
-    val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower()
-
-    val facts0 = FactSet()
-    assert(PartialEvalPass.partialEval(e)(facts0) == e)
-    val facts1 = FactSet().geq(ToSigned(x)(), C(5)(I9))
-    assert(PartialEvalPass.partialEval(e)(facts1) == z)
-    val facts2 = FactSet().lt(ToSigned(x)(), C(5)(I9))
-    assert(PartialEvalPass.partialEval(e)(facts2) == y)
+    val expected0 = Mux(x lt 5, y, z)()
+    assert(PE.partialEval(e)(facts0) == expected0)
+    val facts1 = FactSet().geq(x, 5)
+    assert(PE.partialEval(e)(facts1) == z)
+    val facts2 = FactSet().lt(x, 5)
+    assert(PE.partialEval(e)(facts2) == y)
   }
 
   test("LessThanWithBoundedVariable") {
@@ -250,7 +237,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val t = Param("t")(U8)
     val e = Min(-5 + t, C(5)(I9)) < Min(-4 + t, C(5)(I9))
     val actual = lpe(e)
-    val expected = ToSigned(t)() lt C(10)(I9)
+    val expected = t lt C(10)()
     assert(actual == expected)
   }
 

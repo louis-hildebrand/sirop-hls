@@ -69,9 +69,15 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("Truncate . Pad") {
     val x = Param("x")(U8)
     val e = PadTo(TruncateTo(x, 2)(), 8)()
+
     // Cannot cancel out the pad and the truncate because the original
     // expression may discard data
-    assert(lpe(e) == e)
+    assert(PE.partialEval(e) == e)
+
+    // But if you happen to know that the value fits in the smaller range, then
+    // it's ok
+    val facts = FactSet().lt(x, 4)
+    assert(PE.partialEval(e)(facts) == x)
   }
 
   test("Pad . Pad") {
@@ -124,6 +130,52 @@ class PartialEvalPassTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val actual = lpe(ToUnsigned(ToSigned(x)())())
     assert(actual == x)
+  }
+
+  test("ToSigned(x) < ToSigned(y)") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt ToSigned(y)()) == (x lt y))
+  }
+
+  test("ToSigned(x) < -1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt C(-1)(I9)) == False)
+  }
+
+  test("ToSigned(x) < 42:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt C(42)(I9)) == (x lt 42))
+  }
+
+  test("13:i9 < ToSigned(x)") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(C(13)(I9) lt ToSigned(x)()) == (13 lt x))
+  }
+
+  test("ToSigned(x) > 1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() gt C(1)(I9)) == (x gt 1))
+  }
+
+  test("ToSigned(x) <= 2:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() leq C(2)(I9)) == (x leq 2))
+  }
+
+  test("ToSigned(x) >= 3:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() geq C(3)(I9)) == (x geq 3))
+  }
+
+  test("ToSigned(x) == -1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() eq C(-1)(I9)) == False)
+  }
+
+  test("ToSigned(x) == 4:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() eq C(4)(I9)) == (x eq 4))
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
@@ -247,8 +299,8 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("ScalarEquality:x+c<k") {
     val x = Param("x")(U8)
-    assert(lpe(x - 2 < 9) == LessThan(ToSigned(x)(), 11)())
-    assert(lpe(-3 + x < 4) == LessThan(ToSigned(x)(), 7)())
+    assert(lpe(x - 2 < 9) == LessThan(x, 11)())
+    assert(lpe(-3 + x < 4) == LessThan(x, 7)())
   }
 
   test("ScalarInequality:(x >= c) && (x < c + 1)") {
@@ -378,7 +430,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         ToSigned(x)() < C(10)(I9),
         ToSigned(x)() < C(3)(I9)
       )().tchk().lower()
-    val expected = ToSigned(x)() lt C(5)(I9)
+    val expected = x lt C(5)(I9)
     val actual = lpe(e)
     assert(actual == expected)
   }
