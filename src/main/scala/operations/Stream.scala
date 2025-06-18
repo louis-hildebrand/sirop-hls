@@ -357,7 +357,7 @@ case class StmMap(
     }
     val newF = f.tchk(context)
     val t2 = newF.typ match {
-      case TyArrow(t, t2) if t.isCompatibleWith(t1) => t2
+      case TyArrow(t, t2) if t ~= t1 => t2
       case t =>
         throw new TypeError(
           s"Function in StmMap has type $t. Expected a function whose input type is $t1."
@@ -783,7 +783,7 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmPrepend has type $t.")
     }
-    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    val newE = e.tchk(context).expectType(t)
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
@@ -810,7 +810,7 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmAppend has type $t.")
     }
-    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    val newE = e.tchk(context).expectType(t)
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
@@ -948,7 +948,7 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmShiftLeft has type $t.")
     }
-    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    val newE = e.tchk(context).expectType(t)
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
@@ -986,7 +986,7 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmShiftRight has type $t.")
     }
-    val newE = e.tchk(context).expectTypeCompatibleWith(t)
+    val newE = e.tchk(context).expectType(t)
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
@@ -1088,7 +1088,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     val s0 = Param("s0")(a.typ)
     val s1 = Param("s1")(b.typ)
     StmBuild(
-      StmLength(a)(),
+      a.typ.asInstanceOf[TyStm].n,
       Tuple(StmData(s0)(), StmData(s1)())(),
       True,
       Map[Param, (Expr, Expr)](

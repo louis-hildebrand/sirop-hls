@@ -146,7 +146,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newArg = arg.tchk
         newF.typ match {
           case TyArrow(t1, t2) =>
-            if (newArg.typ.isCompatibleWith(t1)) {
+            if (newArg.typ ~= t1) {
               fc.rebuild(t2, Seq(newF, newArg))
             } else {
               throw new TypeError(
@@ -311,7 +311,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newT = t.tchk
         val newF = f.tchk
-        if (newT.typ.isCompatibleWith(newF.typ)) {
+        if (newT.typ ~= newF.typ) {
           mux.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
@@ -531,14 +531,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case x: Param => x
       case e        => e.mapPreOrder(c => c.eraseTypes())
     }
-  }
-
-  @deprecated
-  def expectTypeCompatibleWith(t: Type): Expr = {
-    if (!this.typ.isCompatibleWith(t)) {
-      throw new TypeError(s"Expected type $t but found ${this.typ}.")
-    }
-    this
   }
 
   /** Insist that this expression has the type of an unsigned integer.
@@ -2212,32 +2204,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
 
   def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
     this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
-  }
-}
-
-@deprecated
-case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s) => StmLength(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newS = s.tchk(context)
-    newS.typ match {
-      case _: TyStm => this.rebuild(U32, Seq(newS))
-      case t =>
-        throw new TypeError(
-          s"Stream in StmLength has type $t. Expected a stream."
-        )
-    }
-  }
-
-  override def lowerSyntaxSugar(): Expr = {
-    requireType()
-    ReshapeData(s.typ.asInstanceOf[TyStm].n, U32)().tchk().lower()
   }
 }
 

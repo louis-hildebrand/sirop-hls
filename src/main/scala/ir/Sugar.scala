@@ -698,7 +698,7 @@ case class OptionAccess(
       case _ =>
         throw new TypeError(s"`None` branch of OptionAccess is not a function.")
     }
-    if (sOut.isCompatibleWith(nOut)) {
+    if (sOut ~= nOut) {
       rebuild(sOut, Seq(newE, newS, newN))
     } else {
       throw new TypeError(

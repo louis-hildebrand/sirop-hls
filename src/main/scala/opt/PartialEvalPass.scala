@@ -325,17 +325,6 @@ object PartialEvalPass {
                 x0
               case _ => VecBuild(newN, newF)()
             }
-          case VecLength(v) =>
-            partialEval(v) match {
-              case VecBuild(n, _) => partialEval(n)
-              case Mux(c, t, f)   =>
-                // Move the Mux up in every case because
-                //  (1) the VecLength() may cancel with something further down and
-                //  (2) since this is a unary operator, the expression is unlikely
-                //      to grow *that* big.
-                partialEval(Mux(c, VecLength(t)(), VecLength(f)())())
-              case v => VecLength(v)()
-            }
           case VecAccess(v, i: Expr) =>
             (partialEval(v), partialEval(i)) match {
               case (Mux(c, t, f), i) =>
@@ -395,17 +384,6 @@ object PartialEvalPass {
                     x -> (partialEval(z)(facts), partialEval(next)(newFacts))
                   })
                 )()
-            }
-          case StmLength(s) =>
-            partialEval(s) match {
-              case s: StmBuild  => partialEval(s.n)
-              case Mux(c, t, f) =>
-                // Move the Mux up in every case because
-                //  (1) the StmLength() may cancel with something further down and
-                //  (2) since this is a unary operator, the expression is unlikely
-                //      to grow *that* big.
-                partialEval(Mux(c, StmLength(t)(), StmLength(f)())())
-              case s @ _ => StmLength(s)()
             }
           case StmData(s) => StmData(partialEval(s))()
           case StmNextK(s, k) =>

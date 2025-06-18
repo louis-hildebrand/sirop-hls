@@ -364,11 +364,6 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](e.tchk(Map(v -> TyVec(U8, 2))))
   }
 
-  test("VecLength:NonVecTarget") {
-    val e = VecLength(42)()
-    assertThrows[TypeError](e.tchk())
-  }
-
   test("StmBuild:NonIntLength") {
     val e = StmBuild(True, 5, True)()
     assertThrows[TypeError](e.tchk())
@@ -402,10 +397,5 @@ class TypecheckerTests extends AnyFunSuite {
   test("StmData:NonStmTarget") {
     val x = Param("x")(U8)
     assertThrows[TypeError](StmData(x)().tchk())
-  }
-
-  test("StmLength:NonStmTarget") {
-    val e = StmLength(42)()
-    assertThrows[TypeError](e.tchk())
   }
 }

@@ -31,7 +31,7 @@ sealed trait Type {
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
       case TySInt(w)        => TySInt(w)
       case TyUInt(w)        => TyUInt(w)
-      case t @ (Missing | TyInt | TyBool) => t
+      case t @ (Missing | TyBool) => t
     }
   }
 
@@ -39,11 +39,11 @@ sealed trait Type {
 
   def lower: Type = {
     this match {
-      case Missing | TyInt | TyBool => this
-      case TySInt(w)                => TySInt(w)
-      case TyUInt(w)                => TyUInt(w)
-      case TyArrow(t1, t2)          => TyArrow(t1.lower, t2.lower)
-      case TyTuple(ts @ _*)         => TyTuple(ts.map(t => t.lower): _*)
+      case Missing | TyBool => this
+      case TySInt(w)        => TySInt(w)
+      case TyUInt(w)        => TyUInt(w)
+      case TyArrow(t1, t2)  => TyArrow(t1.lower, t2.lower)
+      case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.lower): _*)
       case TyVec(t, n) =>
         val newN = n.lower()
         t.lower match {
@@ -60,9 +60,9 @@ sealed trait Type {
 
   def uncurry: Type = {
     this match {
-      case Missing | TyInt | TyBool => this
-      case TySInt(w)                => TySInt(w)
-      case TyUInt(w)                => TyUInt(w)
+      case Missing | TyBool => this
+      case TySInt(w)        => TySInt(w)
+      case TyUInt(w)        => TyUInt(w)
       case TyArrow(tIn, tOut: TyArrow) =>
         tOut.uncurry.asInstanceOf[TyArrow] match {
           case TyArrow(t1, t2) => TyArrow(TyTuple(tIn.uncurry, t1), t2)
@@ -77,34 +77,27 @@ sealed trait Type {
   /** Check whether two types are "compatible," i.e., will have the same shape
     * in hardware.
     */
-  @deprecated
-  def isCompatibleWith(that: Type): Boolean = {
+  def ~=(that: Type): Boolean = {
     (this, that) match {
       case (TyBool, TyBool)         => true
-      case (TyInt, TyInt)           => true
       case (TySInt(w1), TySInt(w2)) => w1 == w2
       case (TyUInt(w1), TyUInt(w2)) => w1 == w2
       case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
-        t1.isCompatibleWith(t3) && t2.isCompatibleWith(t4)
+        (t1 ~= t3) && (t2 ~= t4)
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length
         && ts1
           .zip(ts2)
-          .forall({ case (t1, t2) => t1.isCompatibleWith(t2) }))
+          .forall({ case (t1, t2) => t1 ~= t2 }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
         // TODO: Improve check for equality of lengths?
-        t1.isCompatibleWith(t2) && Type.sameLen(n1, n2)
+        (t1 ~= t2) && Type.sameLen(n1, n2)
       case (TyStm(t1, _), TyStm(t2, _)) =>
         // Two streams are compatible even if they have different lengths!
-        t1.isCompatibleWith(t2)
+        t1 ~= t2
       case _ => false
     }
   }
-
-  /** Check whether two types are "compatible," i.e., will have the same shape
-    * in hardware.
-    */
-  def ~=(that: Type): Boolean = this.isCompatibleWith(that)
 
   /** Like [[~=]], but ignores vector lengths.
     *
@@ -160,8 +153,6 @@ object Type {
 }
 
 case object Missing extends Type
-@deprecated
-case object TyInt extends Type
 
 /** Some custom integer with [[w]] bits.
   *
@@ -532,8 +523,4 @@ case object TMod {
 
 case object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)
-}
-@deprecated
-case object Int2 {
-  def apply(): Type = TyTuple(TyInt, TyInt)
 }

@@ -6,8 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import opt.{PartialEvalPass => PE}
 
 class PartialEvalPassTests extends AnyFunSuite {
-  @deprecated
-  private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
   private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
 
   test("PadTo:Const") {

@@ -1,9 +1,7 @@
 package debug
 
-import opt.PartialEvalPass
 import ir._
-
-import scala.annotation.tailrec
+import opt.PartialEvalPass
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
@@ -46,14 +44,13 @@ object PrettyPrinter {
           case None       => p.toString
         }
       case Function(p, b) =>
-        val pStr = show(p, collapseStm = collapseStm, evalVec = evalVec)
         val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
         if (isMultiline(bStr)) {
           s"""(${p.name} : ${p.typ}) =>
              |${indent(bStr)}
              |""".stripMargin.stripTrailing
         } else {
-          s"(${p.name} : ${p.typ}) => ${bStr}"
+          s"(${p.name} : ${p.typ}) => $bStr"
         }
       case FunCall(f, a) =>
         s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
@@ -68,7 +65,7 @@ object PrettyPrinter {
       case StmBuild(n, data, valid, equations) =>
         if (collapseStm) {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          s"StmBuild(${nStr}; ...)"
+          s"StmBuild($nStr; ...)"
         } else {
           val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
           val dataStr = show(data, collapseStm = collapseStm, evalVec = evalVec)
@@ -84,9 +81,6 @@ object PrettyPrinter {
             s"$nStr;\n$dataStr;\n$validStr;\n${recStrings.mkString(";\n")}"
           s"StmBuild(\n${indent(inside)}\n)"
         }
-      case StmLength(s) =>
-        val stmStr = show(s, collapseStm = true)
-        s"StmLength($stmStr)"
       case _: VecLiteral =>
         val sh = (e: Expr) =>
           show(e, collapseStm = collapseStm, evalVec = evalVec)
@@ -116,13 +110,11 @@ object PrettyPrinter {
                  |)
                  |""".stripMargin.stripTrailing
             } else {
-              s"VecBuild(${nStr}, ${fStr})"
+              s"VecBuild($nStr, $fStr)"
             }
         }
       case VecAccess(v, i) =>
         s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
-      case VecLength(v) =>
-        s"VecLength(${show(v, collapseStm = collapseStm, evalVec = evalVec)})"
       case Default(t) => s"Default[$t]"
       case e =>
         val name = e.getClass.getSimpleName
@@ -192,8 +184,6 @@ object PrettyPrinter {
         s"StmData(${showScala(s)})"
       case StmNextK(s, k) =>
         s"StmNextK(${showScala(s)},${showScala(k)})"
-      case StmLength(s) =>
-        s"StmLength(${showScala(s)})"
       case VecBuild(n, f) =>
         s"VecBuild(${showScala(n)},${showScala(f)})"
       case VecLiteral(elems @ _*) =>
@@ -201,8 +191,6 @@ object PrettyPrinter {
         s"VecLiteral(${children.mkString(",")})"
       case VecAccess(v, i) =>
         s"VecAccess(${showScala(v)},${showScala(i)})"
-      case VecLength(v) =>
-        s"VecLength(${showScala(v)})"
       case Default(t) => s"Default(${showScala(t)})"
       case e: SyntaxSugar =>
         val name = e.getClass.getSimpleName

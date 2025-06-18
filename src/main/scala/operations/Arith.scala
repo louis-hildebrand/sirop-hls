@@ -6,9 +6,6 @@ import ir._
   */
 object PlusFunction {
   def apply(t: TyAnyInt): Function = t ::+ (x => t ::+ (y => x + y))
-
-  @deprecated
-  def apply(): Function = TyInt ::+ (x => TyInt ::+ (y => x + y))
 }
 
 /** A function which computes the product of two values.

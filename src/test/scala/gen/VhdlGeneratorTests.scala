@@ -229,7 +229,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         (i: Int) =>
           Tuple(
             C(i)(U8),
-            i % 2 == 0,
+            i % 2 === 0,
             VecLiteral(C(i - 1)(I9), C(i)(I9), C(i + 1)(I9))()
           )()
       Seq(

@@ -36,7 +36,6 @@ private[gen] sealed trait VhdlType {
 private[gen] object VhdlType {
   def apply(t: Type): VhdlType = {
     t match {
-      case TyInt            => VhdlInt
       case TyUInt(w)        => VhdlUnsigned(w)
       case TySInt(w)        => VhdlSigned(w)
       case TyBool           => VhdlBool
@@ -50,19 +49,6 @@ private[gen] object VhdlType {
         )
     }
   }
-}
-
-@deprecated
-private[gen] case object VhdlInt extends VhdlType {
-  override def vhdlName: String = "integer"
-
-  override def vhdlDefinition: Option[String] = None
-
-  override def descendants: Set[VhdlType] = Set()
-
-  override def bitWidth: Int = 32
-
-  override def defaultVal: String = "0"
 }
 
 /** A VHDL signed integer.

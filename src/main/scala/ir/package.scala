@@ -8,9 +8,10 @@ package object ir extends Eval with CommonIntTypes {
   @deprecated
   implicit def long2IntCst(i: Long): IntCst = IntCst(i)()
 
-  // TODO: This is dangerous! It is too easy to write e1 == e2 rather than e1 === e2
-  @deprecated
-  implicit def bool2BoolExpr(b: Boolean): BoolExpr = if (b) True else False
+  // WARNING: do not provide an implicit Boolean to BoolCst conversion because
+  // it is much too easy to accidentally write e1 == e2 (which compares
+  // syntactically and then converts to True or False) rather than e1 === e2
+  // (which constructs an expression like Equal(e1, e2) ).
 
   implicit def typeTuple0(@nowarn t: Unit): TyTuple = TyTuple()
   implicit def typeTuple2(t: (Type, Type)): TyTuple = TyTuple(t._1, t._2)

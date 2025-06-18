@@ -90,8 +90,7 @@ case class VecFold(
     val newF = f.tchk(context)
     newF.typ match {
       case TyArrow(t3, TyArrow(t4, t5))
-          if t3.isCompatibleWith(t1) && t4.isCompatibleWith(t2) && t5
-            .isCompatibleWith(t2) =>
+          if (t3 ~= t1) && (t4 ~= t2) && (t5 ~= t2) =>
         ()
       case t =>
         throw new TypeError(

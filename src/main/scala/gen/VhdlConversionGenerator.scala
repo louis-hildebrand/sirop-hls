@@ -30,7 +30,6 @@ object VhdlConversionGenerator {
   def toSlvConverter(t: VhdlType): Option[VhdlFunction] = {
     t match {
       case VhdlBool           => Some(boolToSlvConverter)
-      case VhdlInt            => Some(intToSlvConverter)
       case _: VhdlSigned      => None
       case _: VhdlUnsigned    => None
       case VhdlStdLogic       => None
@@ -49,16 +48,6 @@ object VhdlConversionGenerator {
         VhdlVariable("x", VhdlStdLogicVec(1), "x := \"1\" when (b) else \"0\";")
       ),
       ret = "x"
-    )
-  }
-
-  private def intToSlvConverter: VhdlFunction = {
-    VhdlFunction(
-      name = toSlvConverterName(VhdlInt),
-      args = Seq(("n", VhdlInt)),
-      returnType = VhdlStdLogicVec(VhdlInt.bitWidth),
-      decls = Seq(),
-      ret = s"std_logic_vector(to_signed(n, ${VhdlInt.bitWidth}))"
     )
   }
 
@@ -126,7 +115,6 @@ object VhdlConversionGenerator {
     t match {
       case VhdlStdLogic       => Some(stdLogicFromSlvConverter)
       case VhdlBool           => Some(boolFromSlvConverter)
-      case VhdlInt            => Some(intFromSlvConverter)
       case _: VhdlSigned      => None
       case _: VhdlUnsigned    => None
       case _: VhdlStdLogicVec => None
@@ -152,16 +140,6 @@ object VhdlConversionGenerator {
       returnType = VhdlBool,
       decls = Seq(),
       ret = "v = \"1\""
-    )
-  }
-
-  private def intFromSlvConverter: VhdlFunction = {
-    VhdlFunction(
-      name = fromSlvConverterName(VhdlInt),
-      args = Seq(("v", VhdlStdLogicVec(VhdlInt.bitWidth))),
-      returnType = VhdlInt,
-      decls = Seq(),
-      ret = "to_integer(signed(v))"
     )
   }
 

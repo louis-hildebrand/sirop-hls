@@ -337,8 +337,8 @@ object VhdlGenerator {
       Signal(
         category = "Handshake (output)",
         name = "num_outputs",
-        typ = VhdlInt,
-        init = Some("0"),
+        typ = VhdlUnsigned(32),
+        init = Some("(others => '0')"),
         assignStmt = Some("num_outputs <= num_outputs + 1;"),
         cond = Some("transfer_ok")
       ),

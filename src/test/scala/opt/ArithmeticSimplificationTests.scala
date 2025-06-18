@@ -6,8 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import opt.{PartialEvalPass => PE}
 
 class ArithmeticSimplificationTests extends AnyFunSuite {
-  @deprecated
-  private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
 
   /** Lower and partially evaluate.
     */
@@ -265,8 +263,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   }
 
   test("1 < 2") {
-    assert(lpe(1 < 2) == True)
-    assert(lpe(1 < 1) == False)
+    assert(lpe(C(1)() < C(2)()) == True)
+    assert(lpe(C(1)() < C(1)()) == False)
   }
 
   test("ParamMinusOneLessThan") {
