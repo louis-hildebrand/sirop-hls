@@ -78,19 +78,17 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
     val result = (e.typ, this.target) match {
-      case (TyBool, TyBool) => e
+      case (t1, t2) if t1 == t2 => e
       case (TyUInt(w1), TyUInt(w2)) =>
-        if (w1 < w2) PadTo(e, w2)()
-        else if (w1 > w2) TruncateTo(e, w2)()
-        else e
+        if (w1 > w2) TruncateTo(e, w2)()
+        else PadTo(e, w2)()
       case (_: TyUInt, t2: TySInt) =>
         Cast(ToSigned(e)(), t2)()
       case (_: TySInt, t2: TyUInt) =>
         Cast(ToUnsigned(e)(), t2)()
       case (TySInt(w1), TySInt(w2)) =>
-        if (w1 < w2) PadTo(e, w2)()
-        else if (w1 > w2) TruncateTo(e, w2)()
-        else e
+        if (w1 > w2) TruncateTo(e, w2)()
+        else PadTo(e, w2)()
       case (_: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(ts2.zipWithIndex.map({ case (t, i) =>
           Cast(TupleAccess(e, i)(), t)()
@@ -107,7 +105,7 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
 object Cast {
   private def canCast(t1: Type, t2: Type): Boolean = {
     (t1, t2) match {
-      case (TyBool, TyBool)           => true
+      case _ if t1 == t2              => true
       case (_: TyAnyInt, _: TyAnyInt) => true
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length

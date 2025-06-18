@@ -195,4 +195,99 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     )()
     assert(optimized == expected)
   }
+
+  test("DeduplicateVars:DifferentUnsignedTypes") {
+    val n = Param("n")(U8)
+    val a0 = Param("a")(U8)
+    val a1 = Param("a")(U16)
+    val a2 = Param("a")(U32)
+    val s = StmBuild(
+      n,
+      Tuple(a0, a1, a2)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        a1 -> (C(0)(U16), a1 + C(1)(U16)),
+        a0 -> (C(0)(U8), a0 + C(1)(U8)),
+        a2 -> (C(0)(U32), a2 + C(1)(U32))
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val t = Param("t")(U8)
+    val expected = StmBuild(
+      n,
+      Tuple(t, PadTo(t, 16)(), PadTo(t, 32)())(),
+      True,
+      Map[Param, (Expr, Expr)](
+        t -> (C(0)(U8), Sum(t, C(1)(I8))())
+      )
+    )()
+    val actual = StmAccRemovalPass.deduplicateVars(s)
+    assert(actual == expected)
+    assert(actual.accVars.head.typ == U8)
+  }
+
+  test("DeduplicateVars:DifferentSignedTypes") {
+    val n = Param("n")(U8)
+    val a0 = Param("a")(I8)
+    val a1 = Param("a")(I16)
+    val a2 = Param("a")(I32)
+    val s = StmBuild(
+      n,
+      Tuple(a0, a1, a2)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        a1 -> (C(-10)(I16), a1 + C(1)(I16)),
+        a2 -> (C(-10)(I32), a2 + C(1)(I32)),
+        a0 -> (C(-10)(I8), a0 + C(1)(I8))
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val t = Param("t")(I8)
+    val expected = StmBuild(
+      n,
+      Tuple(t, PadTo(t, 16)(), PadTo(t, 32)())(),
+      True,
+      Map[Param, (Expr, Expr)](
+        t -> (C(-10)(I8), Sum(t, C(1)(I8))())
+      )
+    )()
+    val actual = StmAccRemovalPass.deduplicateVars(s)
+    assert(actual == expected)
+    assert(actual.accVars.head.typ == I8)
+  }
+
+  test("DeduplicateVars:DifferentSignedAndUnsignedTypes") {
+    val u9 = TyUInt(9)
+    val n = Param("n")(U8)
+    val a0 = Param("a")(U8)
+    val a1 = Param("a")(I8)
+    val a2 = Param("a")(u9)
+    val a3 = Param("a")(I9)
+    val s = StmBuild(
+      n,
+      Tuple(a0, a1, a2, a3)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        a0 -> (C(0)(U8), a0 + C(1)(U8)),
+        a1 -> (C(0)(I8), a1 + C(1)(I8)),
+        a2 -> (C(0)(u9), a2 + C(1)(u9)),
+        a3 -> (C(0)(I9), a3 + C(1)(I9))
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val t = Param("t")(U8)
+    val expected = StmBuild(
+      n,
+      Tuple(
+        t,
+        TruncateTo(ToSigned(t)(), 8)(),
+        PadTo(t, 9)(),
+        ToSigned(t)()
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        t -> (C(0)(U8), Sum(t, C(1)(U8))())
+      )
+    )()
+    val actual = StmAccRemovalPass.deduplicateVars(s)
+    assert(actual == expected)
+    assert(actual.accVars.head.typ == U8)
+  }
 }
