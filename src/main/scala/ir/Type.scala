@@ -180,6 +180,19 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
     }
   }
 
+  /** Finds the narrowest type with the same signedness as this that can fit
+    * `k`.
+    *
+    * @param k
+    *   the number that must fit in the new range.
+    */
+  def shrinkToFit(k: BigInt): TyAnyInt = {
+    this match {
+      case _: TySInt => TySInt.tightest(k, k)
+      case _: TyUInt => TyUInt.tightest(k)
+    }
+  }
+
   /** Decides whether this type is wide enough to represent the given value.
     *
     * For example, 7 can be represented as a 3-bit unsigned number, as a 4-bit
@@ -220,7 +233,7 @@ object TyAnyInt {
 
   def unapply(t: TyAnyInt): Option[Int] = Some(t.w)
 
-  /** Find the smallest type that fits the given range.
+  /** Finds the smallest type that fits the given range.
     *
     * @param lowerBound
     *   the lower bound of the desired range (inclusive).
@@ -230,12 +243,10 @@ object TyAnyInt {
   def tightest(lowerBound: BigInt, upperBound: BigInt): TyAnyInt = {
     if (lowerBound >= 0) {
       // Result can be unsigned
-      TyUInt(upperBound.bitLength)
+      TyUInt.tightest(upperBound)
     } else {
       // Result must be signed
-      val n1 = lowerBound.bitLength
-      val n2 = upperBound.bitLength
-      TySInt(1 + math.max(n1, n2))
+      TySInt.tightest(lowerBound, upperBound)
     }
   }
 }
@@ -251,6 +262,22 @@ case class TySInt(override val w: Int) extends TyAnyInt(w) {
   override def toString: String = s"i$w"
 }
 
+object TySInt {
+
+  /** Finds the smallest signed type that fits the given range.
+    *
+    * @param lowerBound
+    *   the lower bound of the desired range (inclusive).
+    * @param upperBound
+    *   the upper bound of the desired range (inclusive).
+    */
+  private[ir] def tightest(lowerBound: BigInt, upperBound: BigInt): TySInt = {
+    val n1 = lowerBound.bitLength
+    val n2 = upperBound.bitLength
+    TySInt(1 + math.max(n1, n2))
+  }
+}
+
 /** The type of an unsigned integer with [[w]] bits.
   *
   * @param w
@@ -260,6 +287,22 @@ case class TyUInt(override val w: Int) extends TyAnyInt(w) {
   require(w >= 0, s"Invalid width for unsigned int: $w.")
 
   override def toString: String = s"u$w"
+}
+
+object TyUInt {
+
+  /** Finds the smallest unsigned type that fits the given range.
+    *
+    * @param upperBound
+    *   the upper bound of the desired range (inclusive).
+    */
+  private[ir] def tightest(upperBound: BigInt): TyUInt = {
+    require(
+      upperBound >= 0,
+      s"Cannot find unsigned type containing negative value $upperBound."
+    )
+    TyUInt(upperBound.bitLength)
+  }
 }
 
 /** The type of a boolean.

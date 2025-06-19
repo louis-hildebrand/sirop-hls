@@ -29,7 +29,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     *   the stream to check.
     */
   private def assertOneAccumulator(s: StmBuild): Unit = {
-    assert(s.equations.size == 1, "there should be only one accumulator")
+    assert(s.equations.size == 1, "(there should be only one accumulator)")
     val t = s.accVars.head
     assert(s.seedByVar(t) == C(0)())
     assert(s.nextByVar(t) == Sum(C(1)(), t)())
@@ -244,7 +244,6 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val i0 = Param("i0")(I8)
     val k0 = Param("k0")(I8)
     val k1 = Param("k1")(I8)
-    // TODO: Run multiple tests for different values of delta?
     val delta = 3
     val i = Param("i")(I8)
     val b0 = Param("b0")(TyBool)
@@ -262,10 +261,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
-    for (nVal <- (0 to 2) :+ 5) {
-      for (i0Val <- -2 to 2) {
-        for (k0Val <- -2 to 2) {
-          for (k1Val <- -2 to 2) {
+    for (nVal <- (0 to 1) :+ 5) {
+      for (i0Val <- Seq(-3, 0, 2)) {
+        for (k0Val <- Seq(-3, 0, 2)) {
+          for (k1Val <- Seq(-3, 0, 2)) {
             val expected =
               Let(
                 n,

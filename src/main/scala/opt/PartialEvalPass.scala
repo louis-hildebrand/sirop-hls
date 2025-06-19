@@ -54,8 +54,7 @@ object PartialEvalPass {
               case MoveUp =>
                 mergeMuxes(newChildren, x => y => Sum(x, y)()) match {
                   case mux: Mux => partialEval(mux)
-                  // TODO: Ensure `e` has been type checked here
-                  case e => ArithSimplifier.simplifyArithmetic(e)(facts)
+                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
                 }
               case HeuristicMotion =>
                 ArithSimplifier.simplifyArithmetic(
@@ -104,13 +103,6 @@ object PartialEvalPass {
           case PadTo(e, w) =>
             partialEval(e) match {
               case v: IntCst => ir.eval(PadTo(v, w)())
-              case Sum(terms @ _*) =>
-                partialEval(Sum(terms.map(e => PadTo(e, w)()): _*)())
-              case Prod(factors @ _*) =>
-                partialEval(Prod(factors.map(e => PadTo(e, w)()): _*)())
-              // TODO: Move the PadTo down in other cases?
-              case Mux(c, t, f) =>
-                partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
               case PadTo(e, w2) =>
                 assert(
                   w >= w2,
@@ -120,8 +112,24 @@ object PartialEvalPass {
                 PadTo(e, w)()
               case TruncateTo(e, _) =>
                 // It is undefined behaviour if `e` does not fit in the target
-                // type, so the partial evaluator is allowed to treat this as a no-op
-                e
+                // type, so the partial evaluator is allowed to cancel out
+                // like this
+                val w0 = e.typ.asInstanceOf[TyAnyInt].w
+                if (w < w0) TruncateTo(e, w)()
+                else if (w == w0) e
+                else PadTo(e, w)()
+              // Move PadTo() towards the leaves. This is always safe because
+              // it only widens the values; it never truncates.
+              case Sum(terms @ _*) =>
+                partialEval(Sum(terms.map(e => PadTo(e, w)()): _*)())
+              case Prod(factors @ _*) =>
+                partialEval(Prod(factors.map(e => PadTo(e, w)()): _*)())
+              case Div(e1, e2) =>
+                partialEval(Div(PadTo(e1, w)(), PadTo(e2, w)())())
+              case Mod(e1, e2) =>
+                partialEval(Mod(PadTo(e1, w)(), PadTo(e2, w)())())
+              case Mux(c, t, f) =>
+                partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w0 == w => e
@@ -143,18 +151,10 @@ object PartialEvalPass {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
               case PadTo(e, _) =>
-                e.typ match {
-                  case TyAnyInt(w0) =>
-                    if (w < w0) {
-                      TruncateTo(e, w)()
-                    } else if (w == w0) {
-                      e
-                    } else {
-                      PadTo(e, w)()
-                    }
-                  case _ =>
-                    TruncateTo(e, w)()
-                }
+                val w0 = e.typ.asInstanceOf[TyAnyInt].w
+                if (w < w0) TruncateTo(e, w)()
+                else if (w == w0) e
+                else PadTo(e, w)()
               case TruncateTo(e, w2) =>
                 assert(
                   w <= w2,
@@ -170,16 +170,21 @@ object PartialEvalPass {
             }
           case ToSigned(e) =>
             partialEval(e) match {
+              case v: IntCst     => ir.eval(ToSigned(v)())
               case ToUnsigned(e) =>
                 // It is undefined behaviour if `e` is negative, so the partial
                 // evaluator is allowed to treat this as a no-op
                 e
-              case v: IntCst => ir.eval(ToSigned(v)())
+              // Move ToSigned() towards the leaves. This is always safe
+              // because it only widens the values; it never truncates.
               case Sum(terms @ _*) =>
                 partialEval(Sum(terms.map(e => ToSigned(e)()): _*)())
               case Prod(factors @ _*) =>
                 partialEval(Prod(factors.map(e => ToSigned(e)()): _*)())
-              // TODO: Move the ToSigned towards the leaves in other cases too?
+              case Div(e1, e2) =>
+                partialEval(Div(ToSigned(e1)(), ToSigned(e2)())())
+              case Mod(e1, e2) =>
+                partialEval(Mod(ToSigned(e1)(), ToSigned(e2)())())
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
               case e => ToSigned(e)()

@@ -258,7 +258,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case t: TyAnyInt =>
             throw new TypeError(
               s"Argument of ${PadTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
-                + "The target width cannot be smaller than the original width."
+                + " The target width cannot be smaller than the original width."
             )
           case t =>
             throw new TypeError(

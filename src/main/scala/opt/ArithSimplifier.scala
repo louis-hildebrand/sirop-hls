@@ -3,8 +3,10 @@ package opt
 import ir._
 import lift.{arithmetic => ae}
 import lift.arithmetic.{simplifier => aes}
+import opt.{PartialEvalPass => PE}
 
 import java.util.concurrent.atomic.AtomicLong
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 private[opt] object ArithSimplifier {
@@ -302,27 +304,83 @@ private[opt] object ArithSimplifier {
     out.tchk()
   }
 
+  @tailrec
   private def simplifyEqual(eq: Equal): Expr = {
-    val out = eq match {
+    eq.tchk() match {
       // TODO: generalize by rewriting to (a && b) || (!a && !b) ?
-      case Equal(c, True)  => c
-      case Equal(True, c)  => c
-      case Equal(c, False) => Not(c)()
-      case Equal(False, c) => Not(c)()
+      case Equal(c, True)  => c.tchk()
+      case Equal(True, c)  => c.tchk()
+      case Equal(c, False) => (!c).tchk()
+      case Equal(False, c) => (!c).tchk()
       case Equal(ToSignedOrIntCst(x), ToSignedOrIntCst(y)) =>
-        Equal(x, y)()
+        simplifyEqual(Equal(x, y)())
+      case Equal(PadOrIntCst(x), PadOrIntCst(y)) =>
+        // If both sides are padded, the conversions are unnecessary and can
+        // be stripped away
+        val lhsW = x.typ.asInstanceOf[TyAnyInt].w
+        val rhsW = y.typ.asInstanceOf[TyAnyInt].w
+        val w = math.max(lhsW, rhsW)
+        val newLhs = PE.partialEval(PadTo(x, w)())
+        val newRhs = PE.partialEval(PadTo(y, w)())
+        simplifyEqual(Equal(newLhs, newRhs)())
+      case Equal(TruncateTo(x, _), y) =>
+        val w = x.typ.asInstanceOf[TyAnyInt].w
+        val newRhs = PE.partialEval(PadTo(y, w)())
+        simplifyEqual(Equal(x, newRhs)())
+      case Equal(x, TruncateTo(y, _)) =>
+        val w = y.typ.asInstanceOf[TyAnyInt].w
+        val newLhs = PE.partialEval(PadTo(x, w)())
+        simplifyEqual(Equal(newLhs, y)())
+      case Equal(ToUnsigned(x), y) =>
+        val newRhs = PE.partialEval(ToSigned(y)())
+        simplifyEqual(Equal(x, newRhs)())
+      case Equal(x, ToUnsigned(y)) =>
+        val newLhs = PE.partialEval(ToSigned(x)())
+        simplifyEqual(Equal(newLhs, y)())
       case _ => eq
     }
-    out.tchk()
   }
 
+  @tailrec
   private def simplifyLessThan(lt: LessThan): Expr = {
-    val out = lt match {
+    lt.tchk() match {
       case LessThan(ToSignedOrIntCst(x), ToSignedOrIntCst(y)) =>
-        LessThan(x, y)()
-      case e => e
+        // If both sides are converted to signed, the conversions are
+        // unnecessary and can be stripped away
+        simplifyLessThan(LessThan(x, y)())
+      case LessThan(PadOrIntCst(x), PadOrIntCst(y)) =>
+        // If both sides are padded, the conversions are unnecessary and can
+        // be stripped away
+        val lhsW = x.typ.asInstanceOf[TyAnyInt].w
+        val rhsW = y.typ.asInstanceOf[TyAnyInt].w
+        val w = math.max(lhsW, rhsW)
+        val newLhs = PE.partialEval(PadTo(x, w)())
+        val newRhs = PE.partialEval(PadTo(y, w)())
+        simplifyLessThan(LessThan(newLhs, newRhs)())
+      case LessThan(TruncateTo(x, _), y) =>
+        // It's always safe to widen both sides, and here it is beneficial
+        // because it will remove the truncation
+        val w = x.typ.asInstanceOf[TyAnyInt].w
+        val newRhs = PE.partialEval(PadTo(y, w)())
+        simplifyLessThan(LessThan(x, newRhs)())
+      case LessThan(x, TruncateTo(y, _)) =>
+        // It's always safe to widen both sides, and here it is beneficial
+        // because it will remove the truncation
+        val w = y.typ.asInstanceOf[TyAnyInt].w
+        val newLhs = PE.partialEval(PadTo(x, w)())
+        simplifyLessThan(LessThan(newLhs, y)())
+      case LessThan(ToUnsigned(x), y) =>
+        // It's always safe to make both sides signed, and here it is
+        // beneficial because it will remove the ToUnsigned(_)
+        val newRhs = PE.partialEval(ToSigned(y)())
+        simplifyLessThan(LessThan(x, newRhs)())
+      case LessThan(x, ToUnsigned(y)) =>
+        // It's always safe to make both sides signed, and here it is
+        // beneficial because it will remove the ToUnsigned(_)
+        val newLhs = PE.partialEval(ToSigned(x)())
+        simplifyLessThan(LessThan(newLhs, y)())
+      case e => e.tchk()
     }
-    out.tchk()
   }
 
   private def simplifyAnd(and: And): Expr = {
@@ -409,16 +467,29 @@ private[opt] object ToSignedOrIntCst {
       case TySInt(w) =>
         assert(w >= 1)
         e match {
-          case ToSigned(x) => Some(x)
-          case IntCst(k)   =>
-            // TODO: What if k is somehow negative? Should probably never happen;
-            //       I would expect the optimizer to simplify something like
-            //       `ToSigned(x) == -1` to False.
-            Some(C(k)(TyUInt(w - 1)))
-          case _ => None
+          case ToSigned(x)         => Some(x)
+          case IntCst(k) if k >= 0 => Some(C(k)(TyUInt(w - 1)))
+          case _                   => None
         }
       case _ =>
         None
+    }
+  }
+}
+
+private[opt] object PadOrIntCst {
+  def unapply(e: Expr): Option[Expr] = {
+    e match {
+      case PadTo(x, _) => Some(x)
+      case IntCst(k) =>
+        val originalTyp = e.typ.asInstanceOf[TyAnyInt]
+        val typ = originalTyp.shrinkToFit(k)
+        if (typ.w < originalTyp.w) {
+          Some(IntCst(k)(typ))
+        } else {
+          None
+        }
+      case _ => None
     }
   }
 }

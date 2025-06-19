@@ -66,8 +66,21 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("Pad(Truncate(x))") {
     val x = Param("x")(U8)
-    val e = PadTo(TruncateTo(x, 2)(), 8)()
-    assert(PE.partialEval(e) == x)
+
+    // TODO: can we somehow do this while still recording the assumption that x
+    //       is small enough to be truncated like this?
+
+    assert(lpe(PadTo(TruncateTo(x, 8)(), 8)()) == x)
+    assert(lpe(PadTo(TruncateTo(x, 7)(), 8)()) == x)
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 8)()) == x)
+
+    assert(lpe(PadTo(TruncateTo(x, 7)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(PadTo(TruncateTo(x, 5)(), 9)()) == PadTo(x, 9)())
+
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(PadTo(TruncateTo(x, 5)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(PadTo(TruncateTo(x, 4)(), 7)()) == TruncateTo(x, 7)())
   }
 
   test("Pad(Pad(x))") {
@@ -158,6 +171,148 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("ToSigned(x) == 4:i9") {
     val x = Param("x")(U8)
     assert(PE.partialEval(ToSigned(x)() eq C(4)(I9)) == (x eq 4))
+  }
+
+  test("PadTo(x:u8, 32) < PadTo(y:u16, 32)") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U16)
+    val e = PadTo(x, 32)() lt PadTo(y, 32)()
+    assert(PE.partialEval(e) == (PadTo(x, 16)() lt y))
+  }
+
+  test("PadTo(x:i16, 20) < PadTo(y:i8, 20)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I8)
+    val e = PadTo(x, 20)() lt PadTo(y, 20)()
+    assert(PE.partialEval(e) == (x lt PadTo(y, 16)()))
+  }
+
+  test("PadTo(x, 16) < 42:u16") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 16)() lt C(42)(U16)) == (x lt 42))
+  }
+
+  test("PadTo(x:u8, 32) < 512:u32") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 32)() lt C(512)(U32)) == True)
+  }
+
+  test("PadTo(x:i8, 29) == PadTo(y:i16, 29)") {
+    val x = Param("x")(I8)
+    val y = Param("y")(I16)
+    val e = PadTo(x, 29)() eq PadTo(y, 29)()
+    assert(PE.partialEval(e) == (PadTo(x, 16)() eq y))
+  }
+
+  test("PadTo(x:u16, 17) == PadTo(y:u8, 17)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U8)
+    val e = PadTo(x, 17)() eq PadTo(y, 17)()
+    assert(PE.partialEval(e) == (x eq PadTo(y, 16)()))
+  }
+
+  test("PadTo(x, 16) == 99:u16") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 16)() eq C(99)(U16)) == (x eq 99))
+  }
+
+  test("42:i32 == PadTo(x, 32)") {
+    val x = Param("x")(I8)
+    assert(PE.partialEval(C(42)(I32) eq PadTo(x, 32)()) == (C(42)() eq x))
+  }
+
+  test("TruncateTo(x:u32, 8) < TruncateTo(y:u16, 8)") {
+    val x = Param("x")(U32)
+    val y = Param("y")(U16)
+    val e = TruncateTo(x, 8)() lt TruncateTo(y, 8)()
+    assert(PE.partialEval(e) == (x lt PadTo(y, 32)()))
+  }
+
+  test("TruncateTo(x:u16, 8) < TruncateTo(y:u32, 8)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U32)
+    val e = TruncateTo(x, 8)() lt TruncateTo(y, 8)()
+    assert(PE.partialEval(e) == (PadTo(x, 32)() lt y))
+  }
+
+  test("TruncateTo(x, 8) < 42:u8") {
+    val x = Param("x")(U16)
+    assert(PE.partialEval(TruncateTo(x, 8)() lt C(42)(U8)) == (x lt 42))
+  }
+
+  test("-10:i16 < TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(PE.partialEval(C(-10)(I16) lt TruncateTo(x, 16)()) == (-10 lt x))
+  }
+
+  test("10:i16 < TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(PE.partialEval(C(10)(I16) lt TruncateTo(x, 16)()) == (10 lt x))
+  }
+
+  test("TruncateTo(x:i32, 9) == TruncateTo(y:i16, 9)") {
+    val x = Param("x")(I32)
+    val y = Param("y")(I16)
+    val e = TruncateTo(x, 9)() eq TruncateTo(y, 9)()
+    assert(PE.partialEval(e) == (x eq PadTo(y, 32)()))
+  }
+
+  test("TruncateTo(x:u16, 10) == TruncateTo(y:u32, 10)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U32)
+    val e = TruncateTo(x, 10)() eq TruncateTo(y, 10)()
+    assert(PE.partialEval(e) == (PadTo(x, 32)() eq y))
+  }
+
+  test("TruncateTo(x, 8) == 99:u8") {
+    val x = Param("x")(U16)
+    assert(PE.partialEval(TruncateTo(x, 8)() eq C(99)(U8)) == (x eq 99))
+  }
+
+  test("42:i16 == TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(PE.partialEval(C(42)(I16) eq TruncateTo(x, 16)()) == (C(42)() eq x))
+  }
+
+  test("ToUnsigned(x) < 42:u8") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(ToUnsigned(x)() lt C(42)(U8)) == (x lt 42))
+  }
+
+  test("12:u8 < ToUnsigned(x)") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(C(12)(U8) lt ToUnsigned(x)()) == (12 lt x))
+  }
+
+  test("ToUnsigned(x) == ToUnsigned(y)") {
+    val x = Param("x")(I9)
+    val y = Param("y")(I9)
+    val e = ToUnsigned(x)() eq ToUnsigned(y)()
+    assert(PE.partialEval(e) == (x eq y))
+  }
+
+  test("ToUnsigned(x) == 13:u8") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(ToUnsigned(x)() eq C(13)(U8)) == (x eq 13))
+  }
+
+  test("13:u8 == ToUnsigned(x)") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(C(13)(U8) eq ToUnsigned(x)()) == (C(13)() eq x))
+  }
+
+  test("TruncateTo(ToUnsigned(x), 8) < TruncateTo(ToUnsigned(y), 8)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I16)
+    val e = TruncateTo(ToUnsigned(x)(), 8)() lt TruncateTo(ToUnsigned(y)(), 8)()
+    assert(PE.partialEval(e) == (x lt y))
+  }
+
+  test("TruncateTo(ToUnsigned(x), 8) == TruncateTo(ToUnsigned(y), 8)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I16)
+    val e = TruncateTo(ToUnsigned(x)(), 8)() eq TruncateTo(ToUnsigned(y)(), 8)()
+    assert(PE.partialEval(e) == (x eq y))
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
