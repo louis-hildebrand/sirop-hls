@@ -2,7 +2,25 @@ package ir
 
 import org.scalatest.funsuite.AnyFunSuite
 
+/** Tests for the evaluator.
+  */
 class EvalTests extends AnyFunSuite {
+
+  /** Asserts that evaluating the given expression results in an overflow
+    * warning.
+    *
+    * @param e
+    *   the expression to evaluate.
+    * @param n
+    *   the expected number in the [[OverflowWarning]].
+    * @param typ
+    *   the expected type in the [[OverflowWarning]].
+    */
+  private def assertOverflow(e: Expr, n: Int, typ: TyAnyInt): Unit = {
+    val exc = intercept[UndefinedValException](ir.eval(e))
+    assert(exc.warnings == Set(OverflowWarning(n, typ)))
+  }
+
   test("IntCst") {
     assert(ir.eval(IntCst(3)()) == IntCst(3)())
   }
@@ -72,11 +90,6 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("Overflow:Used") {
-    def assertOverflow(e: Expr, n: Int, typ: TyAnyInt): Unit = {
-      val exc = intercept[UndefinedValException](ir.eval(e))
-      assert(exc.warnings == Set(OverflowWarning(n, typ)))
-    }
-
     assertOverflow(C(255)(U8) + C(1)(U8), 256, U8)
     assertOverflow(Sum(C(32767)(I16), C(1)(I16))(), 32768, I16)
     assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8)
@@ -140,38 +153,31 @@ class EvalTests extends AnyFunSuite {
     }
   }
 
-  test("TruncateTo") {
-    def truncations(i: IntCst): Seq[Long] = {
-      val w0 = i.typ.asInstanceOf[TyAnyInt].w
-      (w0 to 0 by -1).map(w =>
-        ir.eval(TruncateTo(i, w)()).asInstanceOf[IntCst].i
-      )
-    }
+  test("TruncateTo:Valid") {
+    assert(ir.eval(TruncateTo(C(0)(U32), 16)()) == C(0)())
+    assert(ir.eval(TruncateTo(C(0)(U32), 8)()) == C(0)())
+    assert(ir.eval(TruncateTo(C(0)(U32), 0)()) == C(0)())
 
-    // -3 = (11101)_2
-    assert(truncations(IntCst(-3)(TySInt(5))) == Seq(-3, -3, -3, 1, -1, 0))
-    // -2 = (1110)_2
-    assert(truncations(IntCst(-2)(TySInt(4))) == Seq(-2, -2, -2, 0, 0))
-    // -1 = (111)_2
-    assert(truncations(IntCst(-1)(TySInt(3))) == Seq(-1, -1, -1, 0))
-    // 0 = (000)_2
-    assert(truncations(IntCst(0)(TySInt(3))) == Seq(0, 0, 0, 0))
-    assert(truncations(IntCst(0)(TyUInt(3))) == Seq(0, 0, 0, 0))
-    // 1 = (001)_2
-    assert(truncations(IntCst(1)(TySInt(3))) == Seq(1, 1, -1, 0))
-    assert(truncations(IntCst(1)(TyUInt(3))) == Seq(1, 1, 1, 0))
-    // 2 = (0010)_2
-    assert(truncations(IntCst(2)(TySInt(4))) == Seq(2, 2, -2, 0, 0))
-    assert(truncations(IntCst(2)(TyUInt(4))) == Seq(2, 2, 2, 0, 0))
-    // 3 = (0011)_2
-    assert(truncations(IntCst(3)(TySInt(4))) == Seq(3, 3, -1, -1, 0))
-    assert(truncations(IntCst(3)(TyUInt(4))) == Seq(3, 3, 3, 1, 0))
-    // 4 = (00100)_2
-    assert(truncations(IntCst(4)(TySInt(5))) == Seq(4, 4, -4, 0, 0, 0))
-    assert(truncations(IntCst(4)(TyUInt(5))) == Seq(4, 4, 4, 0, 0, 0))
-    // 5 = (00101)_2
-    assert(truncations(IntCst(5)(TySInt(5))) == Seq(5, 5, -3, 1, -1, 0))
-    assert(truncations(IntCst(5)(TyUInt(5))) == Seq(5, 5, 5, 1, 1, 0))
+    assert(ir.eval(TruncateTo(C(19)(U16), 16)()) == C(19)())
+    assert(ir.eval(TruncateTo(C(19)(U32), 8)()) == C(19)())
+
+    assert(ir.eval(TruncateTo(C(-7)(I32), 16)()) == C(-7)())
+    assert(ir.eval(TruncateTo(C(-7)(I16), 8)()) == C(-7)())
+    assert(ir.eval(TruncateTo(C(-7)(I8), 4)()) == C(-7)())
+
+    assert(ir.eval(TruncateTo(C(7)(I32), 16)()) == C(7)())
+    assert(ir.eval(TruncateTo(C(7)(I16), 8)()) == C(7)())
+    assert(ir.eval(TruncateTo(C(7)(I16), 4)()) == C(7)())
+  }
+
+  test("TruncateTo:ValueOutOfRange") {
+    assertOverflow(TruncateTo(C(-129)(I16), 8)(), -129, I8)
+    assertOverflow(TruncateTo(C(-130)(I16), 8)(), -130, I8)
+    assertOverflow(TruncateTo(C(128)(I16), 8)(), 128, I8)
+    assertOverflow(TruncateTo(C(129)(I16), 8)(), 129, I8)
+    assertOverflow(TruncateTo(C(256)(U32), 8)(), 256, U8)
+    assertOverflow(TruncateTo(C(257)(U32), 8)(), 257, U8)
+    assertOverflow(TruncateTo(C(2049)(U16), 9)(), 2049, TyUInt(9))
   }
 
   test("ToSigned") {
@@ -180,27 +186,18 @@ class EvalTests extends AnyFunSuite {
     }
   }
 
-  test("ToUnsigned") {
+  test("ToUnsigned:Valid") {
     val f = I8 ::+ (x => ToUnsigned(x)())
 
     // No-op if argument is positive
     for (x <- 0 to 10) {
       assert(ir.eval(FunCall(f, IntCst(x)(I8))()) == IntCst(x)())
     }
+  }
 
-    // If argument is negative, then drop leading bit and reinterpret as unsigned
-    // -6 = (11111010)_2
-    assert(ir.eval(FunCall(f, IntCst(-6)(I8))()) == IntCst(122)())
-    // -5 = (11111011)_2
-    assert(ir.eval(FunCall(f, IntCst(-5)(I8))()) == IntCst(123)())
-    // -4 = (11111100)_2
-    assert(ir.eval(FunCall(f, IntCst(-4)(I8))()) == IntCst(124)())
-    // -3 = (11111101)_2
-    assert(ir.eval(FunCall(f, IntCst(-3)(I8))()) == IntCst(125)())
-    // -2 = (11111110)_2
-    assert(ir.eval(FunCall(f, IntCst(-2)(I8))()) == IntCst(126)())
-    // -1 = (11111111)_2
-    assert(ir.eval(FunCall(f, IntCst(-1)(I8))()) == IntCst(127)())
+  test("ToUnsigned:NegativeInput") {
+    assertOverflow(ToUnsigned(C(-5)(I8))(), -5, TyUInt(7))
+    assertOverflow(ToUnsigned(C(-1)(I32))(), -1, TyUInt(31))
   }
 
   test("NestedLet") {

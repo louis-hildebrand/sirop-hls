@@ -225,9 +225,7 @@ private[opt] object ArithSimplifier {
   ): Option[Expr] = {
     val result = a match {
       case ae.Cst(c) =>
-        val t = typ.asInstanceOf[TyAnyInt]
-        val v = ir.eval(TruncateTo(IntCst(c)(t.withWidth(64)), t.w)())
-        Some(v)
+        Some(IntCst(c)(typ))
       case ae.Sum(terms) =>
         val exprTerms = terms.map(e => fromArithExpr(e, typ))
         if (exprTerms.forall(e => e.isDefined)) {

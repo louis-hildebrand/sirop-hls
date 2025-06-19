@@ -28,7 +28,7 @@ case class VecIndexOutOfBoundsWarning(n: Int, i: Long) extends EvalWarning {
 /** Integer overflow occurred.
   *
   * @param n
-  *   the non-overflowed value.
+  *   the number that was too large to fit within the target type.
   * @param typ
   *   the type of the expression that overflowed.
   */

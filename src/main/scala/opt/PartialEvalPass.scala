@@ -110,8 +110,9 @@ object PartialEvalPass {
                     + s" (intermediate width is $w2, final width is $w)"
                 )
                 PadTo(e, w)()
-              case TruncateTo(e, w2)
-                  if canTruncateSafely(e, w2)(facts).getOrElse(false) =>
+              case TruncateTo(e, _) =>
+                // It is undefined behaviour if `e` does not fit in the target
+                // type, so the partial evaluator is allowed to treat this as a no-op
                 e
               case e =>
                 e.typ match {
@@ -153,8 +154,9 @@ object PartialEvalPass {
             }
           case ToSigned(e) =>
             partialEval(e) match {
-              case ToUnsigned(e)
-                  if isGreaterOrEqual(e, 0)(facts).getOrElse(false) =>
+              case ToUnsigned(e) =>
+                // It is undefined behaviour if `e` is negative, so the partial
+                // evaluator is allowed to treat this as a no-op
                 e
               case v: IntCst => ir.eval(ToSigned(v)())
               case Sum(terms @ _*) =>
@@ -172,14 +174,7 @@ object PartialEvalPass {
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
               case v: IntCst =>
-                // TODO: This is a hack to ensure the argument of ToUnsigned
-                //       is signed. Better to preserve the type during partial
-                //       evaluation
-                val vv = v.typ match {
-                  case _: TySInt => v
-                  case _         => v.rebuild(TyAnyInt.tightest(-1, v.i))
-                }
-                ir.eval(ToUnsigned(vv)())
+                ir.eval(ToUnsigned(v)())
               case e => ToUnsigned(e)()
             }
 
@@ -467,27 +462,6 @@ object PartialEvalPass {
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
     isSmallerOrEqual(e2, e1)(facts)
-  }
-
-  /** Checks whether truncating an expression to a certain width is guaranteed
-    * to not result in data loss (i.e., whether the expression's value will
-    * definitely fit in the target type).
-    */
-  private def canTruncateSafely(e: Expr, w: Int)(
-      facts: FactSet
-  ): Option[Boolean] = {
-    val originalTyp = e.typ.asInstanceOf[TyAnyInt]
-    val targetTyp = originalTyp.withWidth(w)
-    facts.getRange(e) match {
-      case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi)))) =>
-        if (targetTyp.contains(lo) && targetTyp.contains(hi - 1)) {
-          Some(true)
-        } else {
-          None
-        }
-      case _ =>
-        None
-    }
   }
 
   private def mergeMuxes(

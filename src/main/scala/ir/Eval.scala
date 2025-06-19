@@ -438,15 +438,22 @@ trait Eval {
           case _: TyUInt => Value(v.e.rebuild(TyUInt(targetWidth)), v.warnings)
         }
       case TruncateTo(e, targetWidth) =>
-        val v = evalBigStep(e)
-        val i = v.e.asInstanceOf[IntCst].i
-        val typ = v.e.typ.asInstanceOf[TyAnyInt]
+        val Value(IntCst(i), warnings) = evalBigStep(e)
+        val typ = e.typ.asInstanceOf[TyAnyInt]
         assert(
           targetWidth <= typ.w,
           s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
         )
         val targetTyp = typ.withWidth(targetWidth)
-        Value(IntCst(truncate(i, targetTyp))(targetTyp), v.warnings)
+        if (targetTyp.contains(i)) {
+          Value(IntCst(i)(targetTyp), warnings)
+        } else {
+          val overflowWarning = OverflowWarning(i, targetTyp)
+          Value(
+            IntCst(truncate(i, targetTyp))(targetTyp),
+            warnings + overflowWarning
+          )
+        }
       case ToSigned(e) =>
         val v = evalBigStep(e)
         v.e.typ.asInstanceOf[TyUInt] match {
@@ -461,7 +468,12 @@ trait Eval {
             // Just drop the sign bit
             assert(w >= 1)
             val typ = TyUInt(w - 1)
-            Value(IntCst(truncate(i, typ))(typ), v.warnings)
+            if (typ.contains(i)) {
+              Value(IntCst(i)(typ), v.warnings)
+            } else {
+              val overflowWarning = OverflowWarning(i, typ)
+              Value(IntCst(truncate(i, typ))(typ), v.warnings + overflowWarning)
+            }
         }
 
       case True  => Value(True, Set())

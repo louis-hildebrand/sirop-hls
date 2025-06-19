@@ -29,12 +29,12 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("TruncateTo:Const") {
-    for (n <- -10 to 10) {
-      val e = TruncateTo(IntCst(n)(I8), 2)()
+    for (n <- -4 to 3) {
+      val e = TruncateTo(IntCst(n)(I8), 3)()
       val actual = lpe(e)
       val expected = ir.eval(e)
       assert(actual == expected)
-      assert(actual.typ == TySInt(2))
+      assert(actual.typ == TySInt(3))
     }
   }
 
@@ -48,7 +48,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     }
   }
 
-  test("Pad . Truncate") {
+  test("Truncate(Pad(x))") {
     val x = Param("x")(U8)
 
     assert(lpe(TruncateTo(PadTo(x, 8)(), 8)()) == x)
@@ -64,34 +64,26 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(lpe(TruncateTo(PadTo(x, 12)(), 9)()) == PadTo(x, 9)())
   }
 
-  test("Truncate . Pad") {
+  test("Pad(Truncate(x))") {
     val x = Param("x")(U8)
     val e = PadTo(TruncateTo(x, 2)(), 8)()
-
-    // Cannot cancel out the pad and the truncate because the original
-    // expression may discard data
-    assert(PE.partialEval(e) == e)
-
-    // But if you happen to know that the value fits in the smaller range, then
-    // it's ok
-    val facts = FactSet().lt(x, 4)
-    assert(PE.partialEval(e)(facts) == x)
+    assert(PE.partialEval(e) == x)
   }
 
-  test("Pad . Pad") {
+  test("Pad(Pad(x))") {
     val x = Param("x")(U8)
     val actual = lpe(PadTo(PadTo(x, 10)(), 12)())
     assert(actual == PadTo(x, 12)())
   }
 
-  test("Truncate . Truncate") {
+  test("Truncate(Truncate(x))") {
     val x = Param("x")(U8)
     val actual = lpe(TruncateTo(TruncateTo(x, 7)(), 5)())
     assert(actual == TruncateTo(x, 5)())
   }
 
   test("ToUnsigned:Const") {
-    for (n <- -10 to 10) {
+    for (n <- 0 to 10) {
       val e = ToUnsigned(IntCst(n)(I8))()
       val actual = lpe(e)
       val expected = ir.eval(e)
@@ -110,24 +102,16 @@ class PartialEvalPassTests extends AnyFunSuite {
     }
   }
 
-  test("ToUnsigned . ToSigned") {
-    // This only works if you know the number is non-negative!
-
+  test("ToSigned(ToUnsigned(x))") {
     val x = Param("x")(I8)
     val e = ToSigned(ToUnsigned(x)())().tchk().lower()
-
-    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
-    assert(actual0 == e)
-
-    val facts1 = FactSet().geq(x, 0)
-    val actual1 = PartialEvalPass.partialEval(e)(facts1)
-    assert(actual1 == x)
+    assert(PE.partialEval(e) == x)
   }
 
-  test("ToSigned . ToUnsigned") {
+  test("ToUnsigned(ToSigned(x))") {
     val x = Param("x")(U8)
-    val actual = lpe(ToUnsigned(ToSigned(x)())())
-    assert(actual == x)
+    val e = ToUnsigned(ToSigned(x)())().tchk().lower()
+    assert(PE.partialEval(e) == x)
   }
 
   test("ToSigned(x) < ToSigned(y)") {

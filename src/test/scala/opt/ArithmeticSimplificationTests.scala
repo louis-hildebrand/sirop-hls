@@ -62,18 +62,6 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(x + 255 - x) == C(255)())
   }
 
-  test("SumWithOverflow:U8") {
-    val actual = lpe(C(255)(U8) + C(2)(U8))
-    assert(actual == C(1)())
-    assert(actual.typ == U8)
-  }
-
-  test("SumWithOverflow:I8") {
-    val actual = lpe(C(127)(I8) + C(2)(I8))
-    assert(actual == C(-127)())
-    assert(actual.typ == I8)
-  }
-
   // The non-arithmetic terms within a sum are also simplified
   test("SimplifiableBlackBoxInsideAdd") {
     val i = Param("i")(U8)

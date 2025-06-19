@@ -589,8 +589,11 @@ class OptimizationTests extends AnyFunSuite {
       val s2 = tl(StmSimplifier.simplify(s1)())
       val s3 = tl(StmInductionVarRemovalPass().removeInductionVars(s2))
       val s4 = tl(StmSimplifier.simplify(s3)())
-      val s5 = tl(StmDelayRemovalPass.skipFirstCycles(s4, n - 1)())
-      tl(StmSimplifier.simplify(s5)())
+      val facts = FactSet().range(s4, StmAccRangeAnalysis.findAccRanges(s4))
+      val s5 = tl(StmSimplifier.simplify(s4)(facts))
+      val s6 =
+        tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower())())
+      tl(StmSimplifier.simplify(s6)())
     }
     val original = tl(Stm2Vec(Vec2Stm(v)())())
     val optimized = optimize(original)

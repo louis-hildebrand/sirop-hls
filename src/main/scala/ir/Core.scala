@@ -1183,7 +1183,11 @@ case class PadTo(e: Expr, w: Int)(typ: Type = Missing) extends IntExpr(e)(typ) {
   }
 }
 
-/** Truncate an integer to be [[w]] bits wide.
+/** Truncate an integer to be [[w]] bits wide by dropping the most significant
+  * bits.
+  *
+  * It is undefined behaviour if the value of the input does not fit within the
+  * target type.
   *
   * @param e
   *   the integer to truncate.
@@ -1215,6 +1219,8 @@ case class ToSigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
 }
 
 /** Convert a signed integer to an unsigned integer.
+  *
+  * It is undefined behaviour if the value of the input is negative.
   *
   * @param e
   *   the integer to convert.

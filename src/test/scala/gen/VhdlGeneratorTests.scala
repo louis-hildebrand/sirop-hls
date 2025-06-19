@@ -8,20 +8,23 @@ import org.scalatest.funsuite.AnyFunSuite
 class VhdlGeneratorTests extends AnyFunSuite {
   test("Reshaping") {
     val n = 16
-    val i4 = TySInt(4)
-    val u4 = TyUInt(4)
-    val i = Param("i")(i4)
-    val j = Param("j")(u4)
+    val i = Param("i")(I8)
+    val j = Param("j")(U8)
     val s = StmBuild(
       n,
       Tuple(
-        Tuple(i, PadTo(i, 8)(), TruncateTo(i, 2)(), ToUnsigned(i)())(),
-        Tuple(j, PadTo(j, 8)(), TruncateTo(j, 2)(), ToSigned(j)())()
+        Tuple(
+          i,
+          PadTo(i, 8)(),
+          TruncateTo(i, 4)(),
+          Mux(i < 0, C(0)(TyUInt(7)), ToUnsigned(i)())()
+        )(),
+        Tuple(j, PadTo(j, 8)(), TruncateTo(j, 4)(), ToSigned(j)())()
       )(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (C(-8)(i4), TruncateTo(SafeSum(i, 1)(), 4)()),
-        j -> (C(0)(u4), TruncateTo(SafeSum(j, 1)(), 4)())
+        i -> (C(-8)(I8), TruncateTo(SafeSum(i, 1)(), 8)()),
+        j -> (C(0)(U8), TruncateTo(SafeSum(j, 1)(), 8)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
