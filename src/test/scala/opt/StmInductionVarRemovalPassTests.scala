@@ -22,8 +22,51 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
   }
 
+  /** Asserts that the given stream has only one accumulator and that the
+    * accumulator represents time (i.e., starts at zero and counts up).
+    *
+    * @param s
+    *   the stream to check.
+    */
+  private def assertOneAccumulator(s: StmBuild): Unit = {
+    assert(s.equations.size == 1, "there should be only one accumulator")
+    val t = s.accVars.head
+    assert(s.seedByVar(t) == C(0)())
+    assert(s.nextByVar(t) == Sum(C(1)(), t)())
+  }
+
   // Lower and partially evaluate
   private def lpe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk().lower())
+
+  /** Consider the accumulator
+    *
+    * {{{
+    *   (x : i8) -> (-128, x + 32)
+    * }}}
+    *
+    * This produces the sequence -128, -96, -64, -32, 0, 32, 64, 96, which does
+    * not have overflow. However, if you carelessly let its closed form be
+    * -128:i8 + 32:i8 * t, then 32:i8 * t will overflow when t = 4.
+    */
+  test("Counter:WatchOutForOverflow") {
+    val n = 6
+    val a = Param("a")(I8)
+    val s = StmBuild(
+      C(n)(),
+      a,
+      True,
+      Map[Param, (Expr, Expr)](
+        a -> (C(-128)(I8), a + C(32)(I8))
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
+
+    // Correctness
+    assert(ir.eval(s) == ir.eval(opt))
+
+    // Effective simplification
+    assertOneAccumulator(opt)
+  }
 
   test("Counters") {
     val n = Param("n")(U8)
@@ -67,10 +110,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (C(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   test("NotCounter:TriangleSum") {
@@ -145,10 +185,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   test("NextDoesntDependOnCurrent") {
@@ -199,10 +236,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   test("MonotonicBool:SimpleCounter") {
@@ -262,10 +296,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (C(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   test("MonotonicBool:BoundedCounter") {
@@ -311,10 +342,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   // Counters that count up but stop at a certain point
@@ -349,10 +377,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   // Counters that stay constant at first and only start counting later
@@ -387,10 +412,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   // Piecewise functions where each branch is yet another piecewise function
@@ -424,10 +446,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   // Shift register that stops at a certain point
@@ -460,10 +479,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   // Shift register that only starts shifting after some delay
@@ -496,10 +512,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     // Effective simplification
-    // There should only be one accumulator variable left representing t
-    assert(opt.equations.size == 1)
-    val t = opt.accVars.head
-    assert(opt.equations == Map(t -> (IntCst(0)(), t + 1)))
+    assertOneAccumulator(opt)
   }
 
   test("ClosedForm:StmNext") {

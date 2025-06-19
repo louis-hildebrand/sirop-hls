@@ -270,7 +270,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       for ((x, (z, Function(t, f))) <- newAccVars) {
         s = s.addAccumulator(x, z, FunCall(f, x)())
       }
-      s = s.addAccumulator(t, C(0)(t.typ), t + 1)
+      s = s.addAccumulator(t, C(0)(t.typ), Sum(t, C(1)(t.typ))())
       s
     }
   }

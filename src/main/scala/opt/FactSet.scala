@@ -153,10 +153,18 @@ case class FactSet(
         assert(diff.typ.isInstanceOf[TyAnyInt], "difference must be an integer")
         val lt = LessThan(diff, C(0)(diff.typ))().tchk()
         newFacts.assumeTrue(lt)
-      // ---------- x == c ----------
-      case Equal(x: Param, IntCst(c))           => newFacts.eq(x, c)
-      case Equal(ToSigned(x: Param), IntCst(c)) => newFacts.eq(x, c)
-      case Equal(PadTo(x: Param, _), IntCst(c)) => newFacts.eq(x, c)
+      case Equal(e, IntCst(0)) =>
+        e match {
+          case Sum(IntCst(c), Prod(IntCst(-1), x)) => newFacts.eq(x, c)
+          case Sum(IntCst(c), x)                   => newFacts.eq(x, -c)
+          case Prod(IntCst(-1), x)                 => newFacts.eq(x, 0)
+          case x                                   => newFacts.eq(x, 0)
+        }
+      case Equal(e1, e2) if e1.typ.isInstanceOf[TyAnyInt] =>
+        val diff = PE.partialEval((e1 - e2).tchk().lower())
+        assert(diff.typ.isInstanceOf[TyAnyInt], "difference must be an integer")
+        val eq = Equal(diff, C(0)(diff.typ))().tchk()
+        newFacts.assumeTrue(eq)
       // ---------- unknown ----------
       case _ => newFacts
     }

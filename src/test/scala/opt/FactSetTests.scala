@@ -60,4 +60,30 @@ class FactSetTests extends AnyFunSuite {
     val actualRange = facts.getRange(x)
     assert(actualRange.contains(expectedRange))
   }
+
+  test("AssumeTrue:x == -1") {
+    val x = Param("x")(I8)
+    val cond = PE.partialEval((x === -1).tchk().lower())
+    val facts = FactSet().assumeTrue(cond)
+    val expectedRange = ScalarRange(Some(-1), Some(0))
+    val actualRange = facts.getRange(x)
+    assert(actualRange.contains(expectedRange))
+  }
+
+  test("AssumeTrue:42 == x") {
+    val x = Param("x")(I8)
+    val cond = PE.partialEval((42 === x).tchk().lower())
+    val facts = FactSet().assumeTrue(cond)
+    val expectedRange = ScalarRange(Some(42), Some(43))
+    val actualRange = facts.getRange(x)
+    assert(actualRange.contains(expectedRange))
+  }
+
+  test("AssumeTrue:NonInt == NonInt") {
+    val x = Param("x")(TyBool)
+    val y = Param("y")(TyBool)
+    val facts = FactSet().assumeTrue(Equal(x, y)().tchk())
+    assert(facts.getRange(x).isEmpty)
+    assert(facts.getRange(y).isEmpty)
+  }
 }

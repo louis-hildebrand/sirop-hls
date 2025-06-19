@@ -116,6 +116,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(IntCst(0)() % e) == IntCst(0)())
   }
 
+  test("SingletonRange") {
+    val x = Param("x")(U8)
+    val facts = FactSet().between(x, 0, 1)
+    assert(PE.partialEval(x)(facts) == C(0)())
+  }
+
   test("MuxWithBoundedVariable1") {
     val x = Param("x")((U8, I8))
     val y = Param("y")(TyVec(I32, 3))
@@ -169,6 +175,21 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
       Tuple(2 + (2 * i), i)()
     )()
     assert(lpe(e) == Tuple(0, 2)())
+  }
+
+  test("PossibleNegativeToUnsignedInFalseBranch") {
+    val u7 = TyUInt(7)
+    val x = Param("x")(I8)
+    val e =
+      Mux(x + C(1)(I8) === C(0)(I8), C(0)(u7), ToUnsigned(x)())().tchk().lower()
+    assert(PE.partialEval(e) == e)
+  }
+
+  test("PossibleInvalidTruncationInFalseBranch") {
+    val u3 = TyUInt(3)
+    val x = Param("x")(U8)
+    val e = Mux(x === C(8)(U8), C(0)(u3), TruncateTo(x, 3)())().tchk().lower()
+    assert(PE.partialEval(e) == e)
   }
 
   /** The partial evaluator may check whether one branch is a special case of

@@ -26,7 +26,15 @@ object PartialEvalPass {
       case Some(false) => False
       case None =>
         e match {
-          case x: Param => x
+          case x: Param =>
+            facts.getRange(x) match {
+              case Some(ScalarRange(Some(lo), Some(hi)))
+                  if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
+                    .getOrElse(false) =>
+                partialEval(ReshapeData(lo, x.typ)().tchk().lower())
+              case _ =>
+                x
+            }
           case Function(x, body) =>
             Function(x, partialEval(body)(facts.clearRange(x), m))()
           case FunCall(f: Expr, arg: Expr) =>
@@ -120,10 +128,18 @@ object PartialEvalPass {
                   case _                       => PadTo(e, w)()
                 }
             }
-          case TruncateTo(e, w) =>
-            partialEval(e) match {
+          case TruncateTo(arg, w) =>
+            partialEval(arg) match {
               case v: IntCst =>
-                ir.eval(TruncateTo(v, w)())
+                try {
+                  // Wrap in try/catch because the argument may not fit in the
+                  // target range (and this can occur while speculatively
+                  // partially evaluating one branch of a MUX to see whether it
+                  // is equivalent to the other)
+                  ir.eval(TruncateTo(v, w)())
+                } catch {
+                  case _: EvalException => e
+                }
               case Mux(c, t, f) =>
                 partialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
               case PadTo(e, _) =>
@@ -168,13 +184,21 @@ object PartialEvalPass {
                 partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
               case e => ToSigned(e)()
             }
-          case ToUnsigned(e) =>
-            partialEval(e) match {
+          case ToUnsigned(arg) =>
+            partialEval(arg) match {
               case ToSigned(e) => e
               case Mux(c, t, f) =>
                 partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
               case v: IntCst =>
-                ir.eval(ToUnsigned(v)())
+                try {
+                  // Wrap in try/catch because the argument may not fit in the
+                  // target range (and this can occur while speculatively
+                  // partially evaluating one branch of a MUX to see whether it
+                  // is equivalent to the other)
+                  ir.eval(ToUnsigned(v)())
+                } catch {
+                  case _: EvalException => e
+                }
               case e => ToUnsigned(e)()
             }
 
