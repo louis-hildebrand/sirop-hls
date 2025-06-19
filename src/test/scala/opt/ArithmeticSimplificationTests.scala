@@ -244,7 +244,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val t = Param("t")(U8)
     val e = Min(-5 + t, C(5)(I9)) < Min(-4 + t, C(5)(I9))
     val actual = lpe(e)
-    val expected = t lt C(10)()
+    val expected = t leq C(9)()
     assert(actual == expected)
   }
 

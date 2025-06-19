@@ -137,6 +137,8 @@ private[opt] object ArithSimplifier {
       case lt: LessThan =>
         // TODO: This is a nasty hack. It would be better if ArithExpr just supported booleans
         toSimplifiedArithExpr(Mux(lt, True, False)())(facts)
+      case Not(e) =>
+        toSimplifiedArithExpr(Mux(e, False, True)())(facts)
       case Mux(c, t, f) =>
         val pred = c match {
           case LessThan(e1, e2) =>
@@ -185,13 +187,11 @@ private[opt] object ArithSimplifier {
       case and: And =>
         // Don't bother looking up a range for this black box, since the
         // operands of And should be booleans, not integers
-        BlackBox(simplifyAnd(and))
+        BlackBox(and)
       case or: Or =>
         // Don't bother looking up a range for this black box, since the
         // operands of And should be booleans, not integers
-        BlackBox(simplifyOr(or))
-      case not: Not =>
-        BlackBox(simplifyNot(not))
+        BlackBox(or)
       case e =>
         BlackBox(e, range = findRange(e)(facts))
     }
@@ -428,6 +428,8 @@ private[opt] object ArithSimplifier {
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
         LessThan(IntCst(math.min(c1.i, c2.i))(c1.typ), e1)()
+      case Or(Equal(x0, y0), LessThan(x1, y1)) if x0 == x1 && y0 == y1 =>
+        x0 leq y0
       case e => e
     }
     out.tchk()

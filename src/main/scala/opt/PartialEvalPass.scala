@@ -3,10 +3,6 @@ package opt
 import ir._
 import operations.Cast
 
-sealed trait MuxMotion
-case object MoveUp extends MuxMotion
-case object HeuristicMotion extends MuxMotion
-
 object PartialEvalPass {
   def pe(e: Expr): Expr = {
     // Mostly for debugging, since the debugger really doesn't seem to handle
@@ -16,11 +12,24 @@ object PartialEvalPass {
 
   def partialEval(
       expr: Expr
-  )(implicit
-      facts: FactSet = FactSet(),
-      m: MuxMotion = HeuristicMotion
-  ): Expr = {
-    val e = expr.tchk()
+  )(implicit facts: FactSet = FactSet()): Expr = {
+    val e = {
+      val typed = expr.tchk()
+      if (typed.typ == TyBool) {
+        // For boolean expressions, be more aggressive and move MUXes up.
+        // For expressions like Min(t - 5, 5) < Min(t - 4, 5), considering each
+        // case separately helps.
+        // This may cause the expression to explode in size, but since these
+        // are booleans there should usually be opportunities for
+        // simplification (e.g., both branches being True, both being False,
+        // Mux(c, True, False) --> c).
+        // If this ends up being problematic, we could always scan the
+        // expression first and skip this if there are too many MUXes.
+        MuxMover.moveUp(typed).tchk()
+      } else {
+        typed
+      }
+    }
     val pe = facts.isTrue(e) match {
       case Some(true)  => True
       case Some(false) => False
@@ -36,7 +45,7 @@ object PartialEvalPass {
                 x
             }
           case Function(x, body) =>
-            Function(x, partialEval(body)(facts.clearRange(x), m))()
+            Function(x, partialEval(body)(facts.clearRange(x)))()
           case FunCall(f: Expr, arg: Expr) =>
             partialEval(f) match {
               case Function(x, body) =>
@@ -50,56 +59,24 @@ object PartialEvalPass {
           case IntCst(_) => e
           case Sum(terms @ _*) =>
             val newChildren = terms.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => Sum(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(
-                  e.rebuild(e.typ, newChildren)
-                )(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
           case Prod(factors @ _*) =>
             val newChildren = factors.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => Prod(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(
-                  e.rebuild(e.typ, newChildren)
-                )(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
           case _: Div =>
             val newChildren = e.children.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => Div(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(
-                  e.rebuild(e.typ, newChildren)
-                )(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
           case _: Mod =>
             val newChildren = e.children.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => Mod(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(
-                  e.rebuild(e.typ, newChildren)
-                )(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
           case PadTo(e, w) =>
             partialEval(e) match {
               case v: IntCst => ir.eval(PadTo(v, w)())
@@ -210,12 +187,12 @@ object PartialEvalPass {
           case True  => True
           case False => False
           case Mux(c, t, f) =>
-            partialEval(c)(facts, MoveUp) match {
+            partialEval(c)(facts) match {
               case True  => partialEval(t)
               case False => partialEval(f)
               case cond =>
-                val trueE = partialEval(t)(facts.assumeTrue(cond), m)
-                val falseE = partialEval(f)(facts.assumeFalse(cond), m)
+                val trueE = partialEval(t)(facts.assumeTrue(cond))
+                val falseE = partialEval(f)(facts.assumeFalse(cond))
                 (cond, trueE, falseE) match {
                   case _ if trueE == falseE => trueE
                   case _ if trueE.typ == TyBool =>
@@ -248,78 +225,25 @@ object PartialEvalPass {
                 }
             }
           case Equal(lhs, rhs) =>
-            // For Equal() and LessThan(), move Mux up so that we can deal with things like
-            // Min(t - 5, 5) < Min(t - 4, 5). This may cause the expression to explode in size, but since these are
-            // booleans I imagine we'll often find opportunities for simplification (e.g., both branches being True, both
-            // being False, Mux(c, True, False) --> c).
-            // If this ends up being problematic, we could always try putting a cap on the number of unique conditions in
-            // a Mux and avoid this transformation if the cap is exceeded.
             val (newLhs, newRhs) = if (lhs.typ.isInstanceOf[TyAnyInt]) {
-              combineConstants(
-                partialEval(lhs)(facts, MoveUp),
-                partialEval(rhs)(facts, MoveUp)
-              )
+              combineConstants(partialEval(lhs)(facts), partialEval(rhs)(facts))
             } else {
-              (partialEval(lhs)(facts, MoveUp), partialEval(rhs)(facts, MoveUp))
+              (partialEval(lhs)(facts), partialEval(rhs)(facts))
             }
-            val merged =
-              mergeMuxes(Seq(newLhs, newRhs), x => y => Equal(x, y)())
-            merged match {
-              case mux: Mux => partialEval(mux)
-              case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(Equal(newLhs, newRhs)())(facts)
           case LessThan(lhs, rhs) =>
             val (newLhs, newRhs) =
-              combineConstants(
-                partialEval(lhs)(facts, MoveUp),
-                partialEval(rhs)(facts, MoveUp)
-              )
-            val merged =
-              mergeMuxes(Seq(newLhs, newRhs), x => y => LessThan(x, y)())
-            merged match {
-              case mux: Mux => partialEval(mux)
-              case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-            }
+              combineConstants(partialEval(lhs)(facts), partialEval(rhs)(facts))
+            val lt = LessThan(newLhs, newRhs)()
+            ArithSimplifier.simplifyArithmetic(lt)(facts)
           case _: And =>
-            val newChildren = e.children.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => And(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
-                  facts
-                )
-            }
+            ArithSimplifier.simplifyArithmetic(e.map(partialEval))(facts)
           case _: Or =>
-            val newChildren = e.children.map(e => partialEval(e))
-            m match {
-              case MoveUp =>
-                mergeMuxes(newChildren, x => y => Or(x, y)()) match {
-                  case mux: Mux => partialEval(mux)
-                  case e        => ArithSimplifier.simplifyArithmetic(e)(facts)
-                }
-              case HeuristicMotion =>
-                ArithSimplifier.simplifyArithmetic(e.rebuild(newChildren))(
-                  facts
-                )
-            }
+            ArithSimplifier.simplifyArithmetic(e.map(partialEval))(facts)
           case Not(e) =>
-            partialEval(e) match {
-              case Mux(c, t, f) =>
-                // Move the Mux up in every case because
-                //  (1) the Not() may cancel with something further down and
-                //  (2) since this is a unary operator, the expression is unlikely
-                //      to grow *that* big.
-                partialEval(Mux(c, Not(t)(), Not(f)())())
-              case e =>
-                ArithSimplifier.simplifyArithmetic(Not(e)())(facts)
-            }
+            ArithSimplifier.simplifyArithmetic(Not(partialEval(e))())(facts)
 
           case t: Tuple =>
-            // TODO: Move up?
             Tuple(t.elems.map(partialEval): _*)()
           case TupleAccess(t: Expr, IntCst(i)) =>
             partialEval(t) match {
@@ -413,12 +337,6 @@ object PartialEvalPass {
           case StmNextK(s, k) =>
             val peStm = partialEval(s)
             partialEval(k) match {
-              case Mux(c, t, f) if m == MoveUp =>
-                Mux(
-                  c,
-                  partialEval(StmNextK(peStm, t)()),
-                  partialEval(StmNextK(peStm, f)())
-                )()
               case IntCst(k) if k <= 0 => peStm
               case k                   => StmNextK(peStm, k)()
             }
@@ -439,7 +357,7 @@ object PartialEvalPass {
   def isEqual(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    partialEval((e1 === e2).tchk().lower())(facts, MoveUp) match {
+    partialEval((e1 === e2).tchk().lower())(facts) match {
       case True  => Some(true)
       case False => Some(false)
       case _     => None
@@ -467,7 +385,7 @@ object PartialEvalPass {
       val newRhs = SmartSum(rhsPosTerms ++ lhsNegTerms: _*)()
       (newLhs < newRhs).tchk().lower()
     }
-    partialEval(lt)(facts, MoveUp) match {
+    partialEval(lt)(facts) match {
       case True  => Some(true)
       case False => Some(false)
       case _     => None
@@ -491,31 +409,6 @@ object PartialEvalPass {
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
     isSmallerOrEqual(e2, e1)(facts)
-  }
-
-  private def mergeMuxes(
-      exprs: Seq[Expr],
-      op: Expr => Expr => Expr
-  ): Expr = {
-    val merged = exprs.tail.foldLeft(exprs.head)({ case (acc, e) =>
-      (acc, e) match {
-        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) if c1 == c2 =>
-          Mux(c1, op(t1)(t2), op(f1)(f2))()
-        case (Mux(c1, t1, f1), Mux(c2, t2, f2)) =>
-          Mux(
-            c1,
-            Mux(c2, op(t1)(t2), op(t1)(f2))(),
-            Mux(c2, op(f1)(t2), op(f1)(f2))()
-          )()
-        case (e1, Mux(c, t, f)) =>
-          Mux(c, op(e1)(t), op(e1)(f))()
-        case (Mux(c, t, f), e2) =>
-          Mux(c, op(t)(e2), op(f)(e2))()
-        case (e1, e2) =>
-          op(e1)(e2)
-      }
-    })
-    merged.tchk()
   }
 
   private def combineConstants(lhs: Expr, rhs: Expr): (Expr, Expr) = {

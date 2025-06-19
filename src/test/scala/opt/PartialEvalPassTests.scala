@@ -447,6 +447,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(lpe(e) == (x eq c))
   }
 
+  test("x < 9 || x == 9") {
+    val x = Param("x")(U8)
+    val e = (x lt C(9)(U8)) || (x eq C(9)(U8))
+    assert(PE.partialEval(e) == (x leq 9))
+  }
+
+  test("x < 255 || x == 255") {
+    val x = Param("x")(U8)
+    val e = (x lt C(255)(U8)) || (x eq C(255)(U8))
+    assert(PE.partialEval(e) == True)
+  }
+
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")(U8)
     val z = Param("z")(I8)

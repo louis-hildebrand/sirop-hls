@@ -620,7 +620,7 @@ object RecurrenceSolver {
       }
     }
 
-    val e = PartialEvalPass.partialEval(nxt)(facts, MoveUp).tchk()
+    val e = PartialEvalPass.partialEval(MuxMover.moveUp(nxt))(facts).tchk()
     findRec(e, t0 = 0) match {
       case Some((z_, f_)) =>
         val z = PartialEvalPass.partialEval(z_)(facts)

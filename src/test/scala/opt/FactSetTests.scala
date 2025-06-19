@@ -36,7 +36,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeTrue:10 < x") {
     val x = Param("x")(U16)
-    val cond = PE.partialEval(10 < x).tchk().lower()
+    val cond = PE.partialEval((10 < x).tchk().lower())
     val facts = FactSet().assumeTrue(cond)
     val expectedRange = ScalarRange(Some(11), Some(65536))
     val actualRange = facts.getRange(x)
@@ -54,7 +54,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeFalse:10 < x") {
     val x = Param("x")(U16)
-    val cond = PE.partialEval(10 < x).tchk().lower()
+    val cond = PE.partialEval((10 < x).tchk().lower())
     val facts = FactSet().assumeFalse(cond)
     val expectedRange = ScalarRange(Some(0), Some(11))
     val actualRange = facts.getRange(x)
