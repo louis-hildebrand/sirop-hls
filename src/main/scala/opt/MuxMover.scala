@@ -37,7 +37,7 @@ object MuxMover {
       case LessThan(e1, e2)   => moveUp2(Seq(e1, e2), LessThan(_, _)())
       case Not(e)             => moveUp1(e, Not(_)())
       case And(terms @ _*)    => moveUpMany(terms, xs => And(xs: _*)())
-      case Or(terms @ _*)     => moveUp2(terms, Or(_, _)())
+      case Or(terms @ _*)     => moveUpMany(terms, xs => Or(xs: _*)())
       case Mux(c, t, f) =>
         moveUp(c) match {
           case Mux(cc, ct, cf) =>
