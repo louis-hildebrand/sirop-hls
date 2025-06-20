@@ -10,9 +10,18 @@ object PartialEvalPass {
     partialEval(e)
   }
 
-  def partialEval(
-      expr: Expr
-  )(implicit facts: FactSet = FactSet()): Expr = {
+  def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
+    val e1 = doPartialEval(e)
+    // Partial evaluation may reveal more opportunities to move int
+    // conversions (e.g., by function inlining)...
+    val e2 = IntConversionMover.widen(e1)
+    // ... but also, moving int conversions will make it easier to simplify
+    // arithmetic operations.
+    val e3 = doPartialEval(e2)
+    e3
+  }
+
+  private def doPartialEval(expr: Expr)(implicit facts: FactSet): Expr = {
     val e = {
       val typed = expr.tchk()
       if (typed.typ == TyBool) {
@@ -40,45 +49,45 @@ object PartialEvalPass {
               case Some(ScalarRange(Some(lo), Some(hi)))
                   if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
                     .getOrElse(false) =>
-                partialEval(ReshapeData(lo, x.typ)().tchk().lower())
+                doPartialEval(ReshapeData(lo, x.typ)().tchk().lower())
               case _ =>
                 x
             }
           case Function(x, body) =>
-            Function(x, partialEval(body)(facts.clearRange(x)))()
+            Function(x, doPartialEval(body)(facts.clearRange(x)))()
           case FunCall(f: Expr, arg: Expr) =>
-            partialEval(f) match {
+            doPartialEval(f) match {
               case Function(x, body) =>
-                val a = partialEval(arg)
+                val a = doPartialEval(arg)
                 assert(x.typ != Missing)
                 assert(a.typ ~= x.typ)
-                partialEval(body.subPreserveType(x -> a))
-              case f => FunCall(f, partialEval(arg))()
+                doPartialEval(body.subPreserveType(x -> a))
+              case f => FunCall(f, doPartialEval(arg))()
             }
 
           case IntCst(_) => e
           case Sum(terms @ _*) =>
-            val newChildren = terms.map(e => partialEval(e))
+            val newChildren = terms.map(e => doPartialEval(e))
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
           case Prod(factors @ _*) =>
-            val newChildren = factors.map(e => partialEval(e))
+            val newChildren = factors.map(e => doPartialEval(e))
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
           case _: Div =>
-            val newChildren = e.children.map(e => partialEval(e))
+            val newChildren = e.children.map(e => doPartialEval(e))
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
           case _: Mod =>
-            val newChildren = e.children.map(e => partialEval(e))
+            val newChildren = e.children.map(e => doPartialEval(e))
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
           case PadTo(e, w) =>
-            partialEval(e) match {
+            doPartialEval(e) match {
               case v: IntCst => ir.eval(PadTo(v, w)())
               case PadTo(e, w2) =>
                 assert(
@@ -95,18 +104,6 @@ object PartialEvalPass {
                 if (w < w0) TruncateTo(e, w)()
                 else if (w == w0) e
                 else PadTo(e, w)()
-              // Move PadTo() towards the leaves. This is always safe because
-              // it only widens the values; it never truncates.
-              case Sum(terms @ _*) =>
-                partialEval(Sum(terms.map(e => PadTo(e, w)()): _*)())
-              case Prod(factors @ _*) =>
-                partialEval(Prod(factors.map(e => PadTo(e, w)()): _*)())
-              case Div(e1, e2) =>
-                partialEval(Div(PadTo(e1, w)(), PadTo(e2, w)())())
-              case Mod(e1, e2) =>
-                partialEval(Mod(PadTo(e1, w)(), PadTo(e2, w)())())
-              case Mux(c, t, f) =>
-                partialEval(Mux(c, PadTo(t, w)(), PadTo(f, w)())())
               case e =>
                 e.typ match {
                   case TyAnyInt(w0) if w0 == w => e
@@ -114,7 +111,7 @@ object PartialEvalPass {
                 }
             }
           case TruncateTo(arg, w) =>
-            partialEval(arg) match {
+            doPartialEval(arg) match {
               case v: IntCst =>
                 try {
                   // Wrap in try/catch because the argument may not fit in the
@@ -126,7 +123,7 @@ object PartialEvalPass {
                   case _: EvalException => e
                 }
               case Mux(c, t, f) =>
-                partialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
+                doPartialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
               case PadTo(e, _) =>
                 val w0 = e.typ.asInstanceOf[TyAnyInt].w
                 if (w < w0) TruncateTo(e, w)()
@@ -146,31 +143,19 @@ object PartialEvalPass {
                 }
             }
           case ToSigned(e) =>
-            partialEval(e) match {
+            doPartialEval(e) match {
               case v: IntCst     => ir.eval(ToSigned(v)())
               case ToUnsigned(e) =>
                 // It is undefined behaviour if `e` is negative, so the partial
                 // evaluator is allowed to treat this as a no-op
                 e
-              // Move ToSigned() towards the leaves. This is always safe
-              // because it only widens the values; it never truncates.
-              case Sum(terms @ _*) =>
-                partialEval(Sum(terms.map(e => ToSigned(e)()): _*)())
-              case Prod(factors @ _*) =>
-                partialEval(Prod(factors.map(e => ToSigned(e)()): _*)())
-              case Div(e1, e2) =>
-                partialEval(Div(ToSigned(e1)(), ToSigned(e2)())())
-              case Mod(e1, e2) =>
-                partialEval(Mod(ToSigned(e1)(), ToSigned(e2)())())
-              case Mux(c, t, f) =>
-                partialEval(Mux(c, ToSigned(t)(), ToSigned(f)())())
               case e => ToSigned(e)()
             }
           case ToUnsigned(arg) =>
-            partialEval(arg) match {
+            doPartialEval(arg) match {
               case ToSigned(e) => e
               case Mux(c, t, f) =>
-                partialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
+                doPartialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
               case v: IntCst =>
                 try {
                   // Wrap in try/catch because the argument may not fit in the
@@ -187,18 +172,18 @@ object PartialEvalPass {
           case True  => True
           case False => False
           case Mux(c, t, f) =>
-            partialEval(c)(facts) match {
-              case True  => partialEval(t)
-              case False => partialEval(f)
+            doPartialEval(c)(facts) match {
+              case True  => doPartialEval(t)
+              case False => doPartialEval(f)
               case cond =>
-                val trueE = partialEval(t)(facts.assumeTrue(cond))
-                val falseE = partialEval(f)(facts.assumeFalse(cond))
+                val trueE = doPartialEval(t)(facts.assumeTrue(cond))
+                val falseE = doPartialEval(f)(facts.assumeFalse(cond))
                 (cond, trueE, falseE) match {
                   case _ if trueE == falseE => trueE
                   case _ if trueE.typ == TyBool =>
-                    partialEval((cond && trueE) || (!cond && falseE))
+                    doPartialEval((cond && trueE) || (!cond && falseE))
                   case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                    partialEval(StmNextK(s0, Mux(cond, k0, k1)())())
+                    doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
                   case (
                         Equal(Sum(IntCst(1), i0), n0),
                         c0,
@@ -207,7 +192,7 @@ object PartialEvalPass {
                       if isEqual(i0, i1)(facts).getOrElse(false)
                         && isEqual(n0, n1)(facts).getOrElse(false)
                         && isSmaller(i0, n0)(facts).getOrElse(false) =>
-                    partialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
+                    doPartialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
                   // True branch is special case of false branch
                   case _
                       if Default.hasDefault(trueE.typ)
@@ -226,45 +211,51 @@ object PartialEvalPass {
             }
           case Equal(lhs, rhs) =>
             val (newLhs, newRhs) = if (lhs.typ.isInstanceOf[TyAnyInt]) {
-              combineConstants(partialEval(lhs)(facts), partialEval(rhs)(facts))
+              combineConstants(
+                doPartialEval(lhs)(facts),
+                doPartialEval(rhs)(facts)
+              )
             } else {
-              (partialEval(lhs)(facts), partialEval(rhs)(facts))
+              (doPartialEval(lhs)(facts), doPartialEval(rhs)(facts))
             }
             ArithSimplifier.simplifyArithmetic(Equal(newLhs, newRhs)())(facts)
           case LessThan(lhs, rhs) =>
             val (newLhs, newRhs) =
-              combineConstants(partialEval(lhs)(facts), partialEval(rhs)(facts))
+              combineConstants(
+                doPartialEval(lhs)(facts),
+                doPartialEval(rhs)(facts)
+              )
             val lt = LessThan(newLhs, newRhs)()
             ArithSimplifier.simplifyArithmetic(lt)(facts)
           case _: And =>
-            ArithSimplifier.simplifyArithmetic(e.map(partialEval))(facts)
+            ArithSimplifier.simplifyArithmetic(e.map(doPartialEval))(facts)
           case _: Or =>
-            ArithSimplifier.simplifyArithmetic(e.map(partialEval))(facts)
+            ArithSimplifier.simplifyArithmetic(e.map(doPartialEval))(facts)
           case Not(e) =>
-            ArithSimplifier.simplifyArithmetic(Not(partialEval(e))())(facts)
+            ArithSimplifier.simplifyArithmetic(Not(doPartialEval(e))())(facts)
 
           case t: Tuple =>
-            Tuple(t.elems.map(partialEval): _*)()
+            Tuple(t.elems.map(doPartialEval): _*)()
           case TupleAccess(t: Expr, IntCst(i)) =>
-            partialEval(t) match {
+            doPartialEval(t) match {
               case tuple: Tuple =>
-                partialEval(tuple.elems(i.toInt))
+                doPartialEval(tuple.elems(i.toInt))
               case Mux(c, t, f) =>
                 // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
                 // This seems reasonable even if m == HeuristicMotion, since this
                 // is essentially a unary operation; therefore, the expression is
                 // not likely to grow *that* large.
-                partialEval(
+                doPartialEval(
                   Mux(c, TupleAccess(t, i)(), TupleAccess(f, i)())()
                 )
               case t => TupleAccess(t, i)()
             }
 
           case VecBuild(n, f) =>
-            val newN = partialEval(n)
+            val newN = doPartialEval(n)
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
-            val newF = Function(f.param, partialEval(f.body)(newFacts))()
+            val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
             (newN, newF) match {
               case (
                     VecLength(x0: Param),
@@ -274,29 +265,29 @@ object PartialEvalPass {
               case _ => VecBuild(newN, newF)()
             }
           case VecAccess(v, i: Expr) =>
-            (partialEval(v), partialEval(i)) match {
+            (doPartialEval(v), doPartialEval(i)) match {
               case (Mux(c, t, f), i) =>
                 // Move VecAccess inside Mux in the hope that it'll
                 // encounter a VecBuild(...)
-                partialEval(
+                doPartialEval(
                   Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
               case (VecBuild(_, f), i) =>
                 // Out-of-bounds vector access is undefined behaviour, so just
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
-                partialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
+                doPartialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
               case (v, i) => VecAccess(v, i)()
             }
 
           case s @ StmBuild(n, data, valid, equations) =>
-            val len = partialEval(n)(facts)
+            val len = doPartialEval(n)(facts)
             val onlyElem = len match {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
                 tryEvalStmNext(s) match {
                   case Some((out, _)) if !out.contains(classOf[StmData]) =>
-                    Some(partialEval(out)(facts))
+                    Some(doPartialEval(out)(facts))
                   case _ => None
                 }
               case _ =>
@@ -319,30 +310,32 @@ object PartialEvalPass {
                   .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
                     facts.range(x, r)
                   })
-                val newValid = partialEval(valid)(newFacts)
+                val newValid = doPartialEval(valid)(newFacts)
                 StmBuild(
                   len,
                   // The value of the data doesn't matter if it is invalid, so
                   // we can assume it is valid when simplifying.
-                  partialEval(data)(newFacts.assumeTrue(newValid)),
+                  doPartialEval(data)(newFacts.assumeTrue(newValid)),
                   newValid,
                   equations.map({ case (x, (z, next)) =>
                     // The recurrence variables shouldn't occur free in z, so use
                     // the old facts for z
-                    x -> (partialEval(z)(facts), partialEval(next)(newFacts))
+                    x -> (doPartialEval(z)(facts), doPartialEval(next)(
+                      newFacts
+                    ))
                   })
                 )()
             }
-          case StmData(s) => StmData(partialEval(s))()
+          case StmData(s) => StmData(doPartialEval(s))()
           case StmNextK(s, k) =>
-            val peStm = partialEval(s)
-            partialEval(k) match {
+            val peStm = doPartialEval(s)
+            doPartialEval(k) match {
               case IntCst(k) if k <= 0 => peStm
               case k                   => StmNextK(peStm, k)()
             }
 
           case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
-            e.map(partialEval)
+            e.map(doPartialEval)
 
         }
     }

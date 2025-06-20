@@ -420,13 +420,19 @@ trait CommonIntTypes {
     */
   val I8: TySInt = TySInt(8)
 
-  /** The type of a 9-bit signed integer.
+  /** The type of a 9-bit signed integer. (This is the type of [[ToSigned]] when
+    * the input has type [[U8]].)
     */
   val I9: TySInt = TySInt(9)
 
   /** The type of a 16-bit signed integer.
     */
   val I16: TySInt = TySInt(16)
+
+  /** The type of a 17-bit signed integer. (This is the type of [[ToSigned]]
+    * when the input has type [[U16]].)
+    */
+  val I17: TySInt = TySInt(17)
 
   /** The type of a 32-bit signed integer.
     */
@@ -438,8 +444,6 @@ trait CommonIntTypes {
 }
 
 // Bit width computations
-
-// TODO: Delete these?
 
 /** Computes the narrowest type that can represent the result of a sum without
   * overflow.

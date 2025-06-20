@@ -629,7 +629,16 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     * @param newChildren
     *   the new children.
     */
-  def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
+  def rebuild(newChildren: Seq[Expr]): Expr = {
+    this match {
+      case _: IntCst | _: Param | _: StmLiteral | _: VecLiteral =>
+        // These expressions may carry type information that cannot be derived
+        // from the syntax alone, so be careful not to discard it.
+        this.rebuild(this.typ, newChildren)
+      case _ =>
+        this.rebuild(Missing, newChildren)
+    }
+  }
 
   /** Reconstruct this expression with a new type annotation but the same
     * children.

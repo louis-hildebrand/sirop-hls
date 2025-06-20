@@ -242,7 +242,9 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("-10:i16 < TruncateTo(x, 16)") {
     val x = Param("x")(I32)
-    assert(PE.partialEval(C(-10)(I16) lt TruncateTo(x, 16)()) == (-10 lt x))
+    assert(
+      PE.partialEval(C(-10)(I16) lt TruncateTo(x, 16)()) == (0 lt Sum(10, x)())
+    )
   }
 
   test("10:i16 < TruncateTo(x, 16)") {
