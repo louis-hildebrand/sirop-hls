@@ -7,10 +7,10 @@ class ArithTests extends AnyFunSuite {
   test("Min") {
     val x = Param("x")()
     val y = Param("y")()
-    val e = Min(x, y)
+    val e = Min(x, y)()
 
     val min = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, IntCst(xVal)(I8), Let(y, IntCst(yVal)(I8), e)())())
+      ir.eval(Let(x, C(xVal)(), Let(y, C(yVal)(), e)())())
         .asInstanceOf[IntCst]
         .i
     for (xVal <- -10 to 10) {
@@ -23,10 +23,10 @@ class ArithTests extends AnyFunSuite {
   test("Max") {
     val x = Param("x")()
     val y = Param("y")()
-    val e = Max(x, y)
+    val e = Max(x, y)()
 
     val max = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, IntCst(xVal)(I8), Let(y, IntCst(yVal)(I8), e)())())
+      ir.eval(Let(x, C(xVal)(), Let(y, C(yVal)(), e)())())
         .asInstanceOf[IntCst]
         .i
     for (xVal <- -10 to 10) {
@@ -39,10 +39,10 @@ class ArithTests extends AnyFunSuite {
   test("CeilDiv") {
     val x = Param("x")()
     val y = Param("y")()
-    val e = CeilDiv(x, y)
+    val e = CeilDiv(x, y)()
 
     val ceildiv = (xVal: Int, yVal: Int) =>
-      ir.eval(Let(x, IntCst(xVal)(I8), Let(y, IntCst(yVal)(I8), e)())())
+      ir.eval(Let(x, C(xVal)(I8), Let(y, C(yVal)(I8), e)())())
         .asInstanceOf[IntCst]
         .i
     for (x <- -4 to 4) {

@@ -38,10 +38,24 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     */
   def apply(arg: Expr): FunCall = FunCall(this, arg)()
 
+  /** See [[SmartSum]].
+    */
   def +(that: Expr): Expr = SmartSum(this, that)()
+
+  /** See [[SmartSum]] and [[SmartProd]].
+    */
   def -(that: Expr): Expr = this + -1 * that
+
+  /** See [[SmartProd]].
+    */
   def *(that: Expr): Expr = SmartProd(this, that)()
+
+  /** See [[SmartDiv]].
+    */
   def /(that: Expr): Expr = SmartDiv(this, that)()
+
+  /** See [[SmartMod]].
+    */
   def %(that: Expr): Expr = SmartMod(this, that)()
 
   /** See [[SmartEqual]].

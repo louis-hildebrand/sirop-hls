@@ -14,27 +14,96 @@ object TimesFunction {
   def apply(t: TyAnyInt): Function = t ::+ (x => t ::+ (y => x * y))
 }
 
-// TODO: Reimplement these as syntax sugar as well?
-
 /** The minimum of two values.
   */
-object Min {
+case class Min(x: Expr, y: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(x, y)(typ) {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
     Mux(x < y, x, y)()
+  }
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x, y) => Min(x, y)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val x = this.x.tchk.expectAnyInt()
+    val y = this.y.tchk.expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+      case Some(typ) =>
+        this.rebuild(typ, Seq(x, y))
+      case None =>
+        throw new TypeError(
+          s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+      case Some(typ) =>
+        Mux(x < y, ReshapeData(x, typ)(), ReshapeData(y, typ)())()
+          .tchk()
+          .lower()
+      case None =>
+        throw new TypeError(
+          s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
+        )
+    }
   }
 }
 
 /** The maximum of two values.
   */
-object Max {
+case class Max(x: Expr, y: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(x, y)(typ) {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
     Mux(x > y, x, y)()
+  }
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x, y) => Max(x, y)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val x = this.x.tchk.expectAnyInt()
+    val y = this.y.tchk.expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+      case Some(typ) =>
+        this.rebuild(typ, Seq(x, y))
+      case None =>
+        throw new TypeError(
+          s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+      case Some(typ) =>
+        Mux(x > y, ReshapeData(x, typ)(), ReshapeData(y, typ)())()
+          .tchk()
+          .lower()
+      case None =>
+        throw new TypeError(
+          s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
+        )
+    }
   }
 }
 
 /** The ceiling of the quotient of two values.
   */
-object CeilDiv {
+case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(x, y)(typ) {
   def apply(x: Expr, y: Expr): Expr = {
     val q = Param("q")()
     Let(
@@ -42,6 +111,36 @@ object CeilDiv {
       x / y,
       Mux((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q)()
     )()
+  }
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x, y) => CeilDiv(x, y)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val x = this.x.tchk.expectAnyInt()
+    val y = this.y.tchk.expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+      case Some(typ) =>
+        this.rebuild(typ, Seq(x, y))
+      case None =>
+        throw new TypeError(
+          s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val q = Param("q")()
+    Let(
+      q,
+      x / y,
+      Mux((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q)()
+    )().tchk().lower()
   }
 }
 

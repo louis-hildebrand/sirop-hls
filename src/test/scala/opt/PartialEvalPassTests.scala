@@ -419,7 +419,7 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("MuxFalseBranchSpecialCaseOfTrueBranch") {
     val x = Param("x")(I8)
-    val e = Mux(x < 42, Max(x, C(10)(I8)), x)().tchk().lower()
+    val e = Mux(x < 42, Max(x, C(10)(I8))(), x)().tchk().lower()
     val expected = Mux(LessThan(10, x)(), x, C(10)(I8))()
     assert(PE.partialEval(e) == expected)
   }

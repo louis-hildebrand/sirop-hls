@@ -622,7 +622,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = 5
     val t = Param("t")(U32)
     val s = Param("s")(TyStm(I16, n))
-    val e = StmNextK(s, Min(-5 + t, C(5)(TySInt(33))))()
+    val e = StmNextK(s, Min(-5 + t, C(5)(TySInt(33)))())()
       .tchk()
       .lower()
       .asInstanceOf[StmNextK]
@@ -664,7 +664,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t = Param("t")(U32)
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(I16, n))
-    val e = StmNextK(s, Min(t, ReshapeData(n, U32)()))()
+    val e = StmNextK(s, Min(t, ReshapeData(n, U32)())())()
       .tchk()
       .lower()
       .asInstanceOf[StmNextK]

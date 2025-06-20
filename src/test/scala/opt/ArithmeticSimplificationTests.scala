@@ -242,7 +242,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   test("MinLessThanMin") {
     val t = Param("t")(U8)
-    val e = Min(-5 + t, C(5)(I9)) < Min(-4 + t, C(5)(I9))
+    val e = Min(-5 + t, C(5)(I9))() < Min(-4 + t, C(5)(I9))()
     val actual = lpe(e)
     val expected = t leq C(9)()
     assert(actual == expected)
@@ -250,14 +250,14 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   test("MinMinusMinGreaterOrEqualToZero") {
     val t = Param("t")(U8)
-    val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) >= 0
+    val e = (Min(-4 + t, C(5)(I9))() - Min(-5 + t, C(5)(I9))()) >= 0
     val actual = lpe(e)
     assert(actual == True)
   }
 
   test("MinMinusMinLessOrEqualToOne") {
     val t = Param("t")(U8)
-    val e = (Min(-4 + t, C(5)(I9)) - Min(-5 + t, C(5)(I9))) <= 1
+    val e = (Min(-4 + t, C(5)(I9))() - Min(-5 + t, C(5)(I9))()) <= 1
     val actual = lpe(e)
     assert(actual == True)
   }
