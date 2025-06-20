@@ -4,8 +4,12 @@ import ir._
 import operations.{Max, StmCount}
 import org.scalatest.funsuite.AnyFunSuite
 import opt.{PartialEvalPass => PE}
+import testing.ParamStore
 
 class PartialEvalPassTests extends AnyFunSuite {
+  private val x = new ParamStore("x")
+  private val y = new ParamStore("y")
+
   private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
 
   test("PadTo:Const") {
@@ -461,6 +465,24 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PE.partialEval(e) == True)
   }
 
+  /** The partial evaluator may try to combine the constants on opposite sides
+    * of a comparison. But in some cases, this will lead to overflow!
+    */
+  test("-1:i1 == 0:i1") {
+    val i1 = TySInt(1)
+    val e = C(-1)(i1) eq C(0)(i1)
+    assert(PE.partialEval(e) == False)
+  }
+
+  /** The partial evaluator may try to combine the constants on opposite sides
+    * of a comparison. But in some cases, this will lead to overflow!
+    */
+  test("x + 4:i4 < y - 4:i4") {
+    val i4 = TySInt(4)
+    val e = Sum(x(i4), C(4)(i4))() lt Sum(y(i4), C(-4)(i4))()
+    assert(PE.partialEval(e) == e)
+  }
+
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
     val n = Param("n")(U8)
     val z = Param("z")(I8)
@@ -667,5 +689,15 @@ class PartialEvalPassTests extends AnyFunSuite {
       )()
     assert(evaluated == expected)
     assert(evaluated.typ == TyVec(TyVec((U32, U32), C(2)(U8)), C(3)(U8)))
+  }
+
+  /** Used to debug an infinite loop in the partial evaluator.
+    */
+  test("BoolMux") {
+    val t_1 = Param("t")(I32)
+    val e = And(True, Not(SmartLessThan(t_1, 0)())())()
+    val actual = PE.partialEval(e)
+    val expected = Not(SmartLessThan(t_1, 0)())()
+    assert(actual == expected)
   }
 }

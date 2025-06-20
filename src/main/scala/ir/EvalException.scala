@@ -36,3 +36,6 @@ object EmptyStreamRead extends DeadlockReason
   * without producing any valid outputs.
   */
 object TooManySteps extends DeadlockReason
+
+case class OverflowException(n: Long, typ: Type)
+    extends IllegalArgumentException(s"Value $n does not fit within type $typ.")

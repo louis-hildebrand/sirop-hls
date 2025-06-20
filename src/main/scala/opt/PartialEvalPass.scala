@@ -350,7 +350,14 @@ object PartialEvalPass {
   def isEqual(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    partialEval((e1 === e2).tchk().lower())(facts) match {
+    val eq =
+      try {
+        (e1 === e2).tchk().lower()
+      } catch {
+        case _: TypeError =>
+          return None
+      }
+    partialEval(eq)(facts) match {
       case True  => Some(true)
       case False => Some(false)
       case _     => None
@@ -431,15 +438,27 @@ object PartialEvalPass {
       case 0 =>
         (Sum(lhsNonCstTerms: _*)(lhs.typ), Sum(rhsNonCstTerms: _*)(rhs.typ))
       case k if k > 0 =>
-        (
-          Sum(C(k)(lhs.typ) +: lhsNonCstTerms: _*)(lhs.typ),
-          Sum(rhsNonCstTerms: _*)(rhs.typ)
-        )
+        try {
+          val cst = C(k)(lhs.typ)
+          (
+            Sum(cst +: lhsNonCstTerms: _*)(lhs.typ),
+            Sum(rhsNonCstTerms: _*)(rhs.typ)
+          )
+        } catch {
+          case _: OverflowException =>
+            (lhs, rhs)
+        }
       case k =>
-        (
-          Sum(lhsNonCstTerms: _*)(lhs.typ),
-          Sum(C(-k)(rhs.typ) +: rhsNonCstTerms: _*)(rhs.typ)
-        )
+        try {
+          val cst = C(-k)(rhs.typ)
+          (
+            Sum(lhsNonCstTerms: _*)(lhs.typ),
+            Sum(cst +: rhsNonCstTerms: _*)(rhs.typ)
+          )
+        } catch {
+          case _: OverflowException =>
+            (lhs, rhs)
+        }
     }
   }
 

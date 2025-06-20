@@ -25,6 +25,12 @@ class EvalTests extends AnyFunSuite {
     assert(ir.eval(IntCst(3)()) == IntCst(3)())
   }
 
+  test("StmLiteral()") {
+    val e = StmLiteral()(TyStm(U8, 0))
+    val actual = ir.eval(e)
+    assert(actual == e)
+  }
+
   test("StmBuild") {
     val i = Param("i")(U16)
     val s =

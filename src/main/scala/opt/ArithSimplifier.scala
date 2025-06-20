@@ -96,7 +96,7 @@ private[opt] object ArithSimplifier {
       } catch {
         case _: ArithmeticException => None
       }
-    a.flatMap(a => fromArithExpr(a, e.typ)) match {
+    a.flatMap(a => fromArithExpr(a, e.typ)).map(e => unwrapMux(e)) match {
       case None => e
       case Some(newE) =>
         if (e.typ != Missing) {
@@ -289,6 +289,17 @@ private[opt] object ArithSimplifier {
         assert(typedE.typ == typ, s"expected type $typ but found ${typedE.typ}")
         Some(typedE)
       case None => None
+    }
+  }
+
+  private def unwrapMux(e: Expr): Expr = {
+    e match {
+      case Mux(c, True, False) =>
+        unwrapMux(c)
+      case Mux(c, False, True) =>
+        Not(unwrapMux(c))()
+      case e =>
+        e
     }
   }
 

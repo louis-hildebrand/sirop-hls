@@ -2,6 +2,7 @@ package opt
 
 import ir._
 import operations.{Cast, CeilDiv, Max}
+import opt.{PartialEvalPass => PE}
 
 // You may need to don a hazmat suit before working on this code.
 
@@ -39,7 +40,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       e match {
         case StmNextK(s, k) =>
           val isKNonPositive =
-            PartialEvalPass.isSmallerOrEqual(k, 0)(this.facts).getOrElse(false)
+            PE.isSmallerOrEqual(k, 0)(this.facts).getOrElse(false)
           if (isKNonPositive) s else e
         case e => e.rebuild(e.children.map(c => removeStmNextK(c)))
       }
@@ -53,7 +54,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val e1 =
             FunCall(closedFormByVar(x), ReshapeData(c, I32)())().tchk().lower()
           val e2 = removeStmNextK(e1)
-          x -> PartialEvalPass.partialEval(e2)(this.facts)
+          x -> PE.partialEval(e2)(this.facts)
         })
         .toMap
       // TODO: Is this a sufficient condition?
@@ -132,14 +133,13 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             t,
             Function(
               x,
-              PartialEvalPass.partialEval(nextExpr)(this.facts.geq(t, 0))
+              PE.partialEval(nextExpr)(this.facts.geq(t, 0))
             )()
           )()
           RecurrenceSolver.tryFindClosedForm(0, z, next) match {
             case Some(f) =>
               val peF =
-                PartialEvalPass
-                  .partialEval(f.tchk().lower())(this.facts)
+                PE.partialEval(f.tchk().lower())(this.facts.geq(t, 0))
                   .asInstanceOf[Function]
               closedFormByVar += (x -> peF)
             case None => ()
@@ -157,10 +157,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
               for ((i, x) <- paramByIndex) {
                 val g = Function(
                   t,
-                  PartialEvalPass
-                    .partialEval(
-                      TupleAccess(FunCall(f, t)(), i)().tchk().lower()
-                    )(this.facts)
+                  PE.partialEval(
+                    TupleAccess(FunCall(f, t)(), i)().tchk().lower()
+                  )(this.facts.geq(t, 0))
                 )()
                 closedFormByVar += (x -> g)
               }
@@ -244,8 +243,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       var newAccVars = Map[Param, (Expr, Function)]()
       for ((x, f) <- closedFormsInOrder) {
         val replacement = Cast(FunCall(f, t)(), x.typ)().tchk().lower()
-        val newStm = PartialEvalPass
-          .partialEval(s.replaceVar(x, replacement))(this.facts)
+        val newStm = PE
+          .partialEval(s.replaceVar(x, replacement))(this.facts.geq(t, 0))
           .asInstanceOf[StmBuild]
         assert(!newStm.freeVars().contains(f.param))
         if (!newStm.contains(classOf[StmNextK])) {
@@ -254,7 +253,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           // No point in trying to replace a stream-valued expression with its
           // closed form
         } else {
-          replaceStmNextK(newStm, t)(this.facts) match {
+          replaceStmNextK(newStm, t)(this.facts.geq(t, 0)) match {
             case Some((withoutStmNextK: StmBuild, newRecEqns)) =>
               assert(!withoutStmNextK.contains(classOf[StmNextK]))
               // TODO: Ensure that the input stream is still fully consumed?
@@ -335,11 +334,33 @@ object StmInductionVarRemovalPass {
 object RecurrenceSolver {
 
   def tryFindClosedForm(t0: Expr, z: Expr, next: Function): Option[Function] = {
-    z.typ match {
-      case _: TyStm                   => tryFindStmClosedForm(z, next)
-      case t if Default.hasDefault(t) => tryFindDataClosedForm(t0, z, next)
+    require(
+      !z.contains(classOf[SyntaxSugar]),
+      "Syntax sugar must be removed before a closed form can be found."
+    )
+    require(
+      !next.contains(classOf[SyntaxSugar]),
+      "Syntax sugar must be removed before a closed form can be found."
+    )
+    val peZ = PE.partialEval(z.tchk())
+    val peNext = PE.partialEval(next.tchk()).asInstanceOf[Function]
+    val closedForm = peZ.typ match {
+      case _: TyStm                   => tryFindStmClosedForm(peZ, peNext)
+      case t if Default.hasDefault(t) => tryFindDataClosedForm(t0, peZ, peNext)
       case _                          => None
     }
+    closedForm.foreach(f => {
+      val typedF = f.tchk().asInstanceOf[Function]
+      assert(
+        !typedF.contains(classOf[SyntaxSugar]),
+        s"closed form should not contain any syntax sugar (expression is $typedF)"
+      )
+      assert(
+        typedF.typ ~= I32 ->: peZ.typ,
+        s"Closed form must have the same type as the original (expected ${I32 ->: peZ.typ} but found ${typedF.typ})."
+      )
+    })
+    closedForm
   }
 
   /** Attempt to convert a recurrence equation of the form
@@ -365,6 +386,11 @@ object RecurrenceSolver {
       require(
         !z.typ.isInstanceOf[TyStm],
         s"Input must not be a stream. Use tryFindStmClosedForm instead."
+      )
+      val nextTyp = next.typ.asInstanceOf[TyArrow].t2.asInstanceOf[TyArrow].t2
+      require(
+        z.typ ~= nextTyp,
+        s"Initial value has type ${z.typ} but next function return type is $nextTyp."
       )
       z.typ
     }
@@ -409,12 +435,12 @@ object RecurrenceSolver {
           )().tchk().lower().asInstanceOf[Function]
         )
       case Piecewise(k, f, g) =>
-        tryFindDataClosedForm(t0, z, f) match {
+        tryFindClosedForm(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
-            val t1 = Max(k, t0)()
-            val valAtT1 = FunCall(f, t1)()
-            tryFindDataClosedForm(t1, valAtT1, g) match {
+            val t1 = Max(k, t0)().tchk().lower()
+            val valAtT1 = FunCall(f, t1)().tchk().lower()
+            tryFindClosedForm(t1, valAtT1, g) match {
               case Some(g) =>
                 Some(
                   Function(
@@ -459,17 +485,23 @@ object RecurrenceSolver {
           ) if a0 == acc && a1 == acc && terms.contains(acc.__0) =>
         val bCond = and.remove(acc.__0)
         // (1) Find closed form for counter as if it was unbounded
-        val a = Param("a")(I32)
+        val a = Param("a")(acc.__1.tchk().typ)
+        // TODO: what if there's overflow here?
         val ctrNext = Function(
           t,
           Function(a, ctrUpdateIfTrue.subPreserveType(acc.__1 -> a))()
         )()
         if (!ctrNext.contains(acc)) {
-          tryFindDataClosedForm(t0, i0, ctrNext) match {
+          tryFindClosedForm(t0, i0, ctrNext) match {
             case Some(f) =>
               // (2) Find closed form for the boolean if the counter was unbounded
-              val bCondIfUnbounded = bCond.subPreserveType(
-                Map[Expr, Expr](acc.__0 -> a, acc.__1 -> FunCall(f, t)().tchk())
+              val bCondIfUnbounded = PE.partialEval(
+                bCond.subPreserveType(
+                  Map[Expr, Expr](
+                    acc.__0 -> a,
+                    acc.__1 -> FunCall(f, t)().tchk()
+                  )
+                )
               )
               if (!bCondIfUnbounded.contains(acc)) {
                 (t, a, bCondIfUnbounded) match {
@@ -489,7 +521,10 @@ object RecurrenceSolver {
                           )
                         )
                       )()
-                    )()
+                    )().tchk().lower().asInstanceOf[Function]
+                    // TODO: Call tryFindClosedForm instead (this will
+                    //       partially evaluate the next function, which
+                    //       apparently breaks the pattern matching)
                     tryFindDataClosedForm(t0, i0, boundedCtrNext) match {
                       case Some(h) =>
                         Some(Function(t, Tuple(t < K, FunCall(h, t)())())())
@@ -508,12 +543,12 @@ object RecurrenceSolver {
       case _ => None
     }
     result.map(f => {
-      val typedF = f.tchk().asInstanceOf[Function]
+      val peF = PE.partialEval(f.tchk().lower()).asInstanceOf[Function]
       assert(
-        typedF.typ == I32 ->: typ,
-        s"Closed form must have the same type as the original (expected ${I32 ->: typ} but found ${typedF.typ})."
+        peF.typ == I32 ->: typ,
+        s"Closed form must have the same type as the original (expected ${I32 ->: typ} but found ${peF.typ})."
       )
-      typedF
+      peF
     })
   }
 
@@ -527,7 +562,7 @@ object RecurrenceSolver {
     )
     val nextIdx = next match {
       case Function(t, Function(x, body)) if !body.contains(x) =>
-        val i = Param("i")(U32)
+        val i = Param("i")(I32)
         Function(t, Function(i, Mux(body, i + 1, i)())())()
       case _ =>
         throw new IllegalArgumentException(
@@ -535,7 +570,9 @@ object RecurrenceSolver {
             + " Expected a function of two inputs where the second input is unused."
         )
     }
-    tryFindDataClosedForm(t0 = 0, z = 0, next = nextIdx) match {
+    val peNextIdx =
+      PE.partialEval(nextIdx.tchk().lower()).asInstanceOf[Function]
+    tryFindClosedForm(t0 = C(0)(I32), z = C(0)(I32), next = peNextIdx) match {
       case None                 => None
       case Some(Function(t, i)) => Some(Function(t, StmNextK(z, i)())())
     }
@@ -559,6 +596,7 @@ object RecurrenceSolver {
     val facts = fs.geq(t, 0)
 
     def findRec(e: Expr, t0: Expr): Option[(Expr, Function)] = {
+      assert(t0.typ == I32, s"t0 should be an $I32")
       e match {
         case mux @ Mux(c, lhs, rhs) =>
           (t, Param("p")(), c) match {
@@ -568,12 +606,12 @@ object RecurrenceSolver {
                   findRec(rhs, k) match {
                     case Some((z1, f1)) =>
                       val expectedZ1 = lhs.subPreserveType(t -> k.tchk())
-                      val isContinuous = PartialEvalPass
-                        .isEqual(
+                      val isContinuous =
+                        PE.isEqual(
                           z1.tchk().lower(),
                           expectedZ1.tchk().lower()
                         )(facts)
-                        .getOrElse(false)
+                          .getOrElse(false)
                       if (isContinuous) {
                         val f =
                           Function(
@@ -600,10 +638,10 @@ object RecurrenceSolver {
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
           val nextK = k.subPreserveType(t -> (t + 1).tchk().lower())
-          val deltaK = PartialEvalPass.partialEval(nextK - k)(facts)
+          val deltaK = PE.partialEval((nextK - k).tchk().lower())(facts)
           val isDeltaZeroOrOne = (
-            PartialEvalPass.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
-              && PartialEvalPass
+            PE.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
+              && PE
                 .isSmallerOrEqual(deltaK, 1)(facts)
                 .getOrElse(false)
           )
@@ -612,6 +650,9 @@ object RecurrenceSolver {
             val acc = Param("acc")(next.typ)
             val nextF =
               Function(t, Function(acc, (deltaK !== 0) && (k >= 0))())()
+                .tchk()
+                .lower()
+                .asInstanceOf[Function]
             Some((z, nextF))
           } else {
             None
@@ -620,10 +661,10 @@ object RecurrenceSolver {
       }
     }
 
-    val e = PartialEvalPass.partialEval(MuxMover.moveUp(nxt))(facts).tchk()
-    findRec(e, t0 = 0) match {
+    val e = PE.partialEval(MuxMover.moveUp(nxt))(facts).tchk()
+    findRec(e, t0 = C(0)(I32)) match {
       case Some((z_, f_)) =>
-        val z = PartialEvalPass.partialEval(z_)(facts)
+        val z = PE.partialEval(z_)(facts)
         // Start reading the stream from the beginning: can't start from the middle
         // TODO: Is this condition really necessary? Maybe I can get away with
         //       just checking that the new z is valid (e.g., it doesn't
@@ -631,13 +672,12 @@ object RecurrenceSolver {
         val initOk = z match {
           case s if s == nxt.s => true
           case StmNextK(s, k) =>
-            s == nxt.s && PartialEvalPass
-              .isSmallerOrEqual(k, 0)(facts)
-              .getOrElse(false)
+            (s == nxt.s
+            && PE.isSmallerOrEqual(k, 0)(facts).getOrElse(false))
           case _ => false
         }
         if (initOk) {
-          val f = PartialEvalPass.partialEval(f_)(facts)
+          val f = PE.partialEval(f_)(facts)
           Some((nxt.s, f.asInstanceOf[Function]))
         } else {
           None
@@ -693,7 +733,7 @@ object LeftShiftRegister {
   def unapply(args: (Expr, Function)): Option[(Expr, Expr, Expr)] = {
     val (z, next) = args
     val (peZ, peNext) =
-      (PartialEvalPass.partialEval(z), PartialEvalPass.partialEval(next))
+      (PE.partialEval(z), PE.partialEval(next))
     // Partially evaluate because the initial value may be a function call that
     // ends up returning a vector, for example
     (peZ, peNext) match {
@@ -708,20 +748,27 @@ object LeftShiftRegister {
                   Function(
                     i0: Param,
                     Mux(
-                      Equal(Sum(IntCst(1), i1), n2),
-                      e,
-                      VecAccess(a2, Sum(IntCst(1), i2))
+                      lastIdxCond,
+                      e /* may have t as free variable */,
+                      VecAccess(a2, Sum(IntCst(1), i1))
                     )
                   )
                 )
               )
             )
           )
-          if a2 == acc && i1 == i0 && i2 == i0 && !e.contains(acc)
-            && PartialEvalPass.isEqual(n1, n0)().getOrElse(false)
-            && PartialEvalPass.isEqual(n2, n0)().getOrElse(false) =>
-        // e may have t as a free variable
-        Some((n0, f, Function(t, e)()))
+          if a2 == acc && i1 == i0 && !e.contains(acc)
+            && PE.isEqual(n1, n0)().getOrElse(false) =>
+        lastIdxCond match {
+          case Equal(Sum(IntCst(1), i2: Param), n2)
+              if i2 == i0 && PE.isEqual(n2, n0)().getOrElse(false) =>
+            Some((n0, f, Function(t, e)()))
+          case Equal(i2: Param, n2)
+              if i2 == i0
+                && PE.isEqual((n2 + 1).tchk().lower(), n0)().getOrElse(false) =>
+            Some((n0, f, Function(t, e)()))
+          case _ => None
+        }
       case _ => None
     }
   }
@@ -797,7 +844,7 @@ object IfLessThan {
       case Mux(LessThan(y, z), a, b) =>
         // Look at y - z to deal with things like 10 + x < 20, 5 < x, etc.
         // Just matching LessThan(x, k) doesn't handle those cases.
-        (PartialEvalPass.partialEval(y - z), x) match {
+        (PE.partialEval((y - z).tchk().lower()), x) match {
           case LinearFunctionOf(c0, c1) =>
             // TODO: Use a more general approach to find the sign of a particular expression?
             c1 match {

@@ -319,7 +319,9 @@ trait Eval {
   private[ir] def stmLiteralToStmBuild(s: StmLiteral): StmBuild = {
     val t = s.typ.asInstanceOf[TyStm].t
     val n = s.typ.asInstanceOf[TyStm].n
-    val idxTyp = TyAnyInt.tightest(0, s.elems.length)
+    // The index type must be at least wide enough to fit the value 1, since
+    // the index accumulator is updated by i + 1
+    val idxTyp = TyAnyInt.tightest(0, math.max(1, s.elems.length))
     val i = Param("i")(idxTyp)
     val v = Param("v")(TyVec(t, n))
     StmBuild(

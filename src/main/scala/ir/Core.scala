@@ -1092,9 +1092,7 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
     case Missing => ()
     case int: TyAnyInt =>
       if (!int.contains(i)) {
-        throw new IllegalArgumentException(
-          s"Value $i does not fit within type $int."
-        )
+        throw OverflowException(i, int)
       }
     case t =>
       throw new TypeError(s"Invalid type $t for integer constant.")

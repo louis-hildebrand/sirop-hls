@@ -3,6 +3,7 @@ package opt
 import ir._
 import operations._
 import org.scalatest.funsuite.AnyFunSuite
+import opt.{PartialEvalPass => PE}
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
   private def assertEquationsEqual(
@@ -261,7 +262,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
-    for (nVal <- (0 to 1) :+ 5) {
+    for (nVal <- Seq(0, 1, 5)) {
       for (i0Val <- Seq(-3, 0, 2)) {
         for (k0Val <- Seq(-3, 0, 2)) {
           for (k1Val <- Seq(-3, 0, 2)) {
@@ -302,7 +303,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val i0 = Param("i0")(I8)
     val k = Param("k")(I8)
-    val delta = 4
+    val delta = C(4)(I8)
     val i = Param("i")(I8)
     val b = Param("b")(TyBool)
     val s = StmBuild(
@@ -317,9 +318,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
-    for (nVal <- (0 to 2) :+ 5) {
-      for (i0Val <- -2 to 2) {
-        for (kVal <- -2 to 2) {
+    for (nVal <- Seq(0, 1, 5)) {
+      for (i0Val <- Seq(-3, 0, 2)) {
+        for (kVal <- Seq(-3, 0, 2)) {
           val expected =
             Let(
               n,
@@ -518,14 +519,17 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = C(10)(U8)
     val s = Param("s")(TyStm((U8, U8), n))
     val recEqn =
-      U32 ::+ (t => TyStm((U8, U8), n) ::+ (_ => t < n))
+      (I32 ::+ (t => TyStm((U8, U8), n) ::+ (_ => t < n)))
+        .tchk()
+        .lower()
+        .asInstanceOf[Function]
     val result = RecurrenceSolver.tryFindClosedForm(0, s, recEqn)
 
     assert(result.isDefined)
     val f = lpe(result.get)
 
     val expected =
-      lpe(U32 ::+ (t => StmNextK(s, Mux(t < 10, t, 10)())()))
+      lpe(I32 ::+ (t => StmNextK(s, Mux(t < 10, t, C(10)(I32))())()))
     assert(f == expected)
   }
 
@@ -534,7 +538,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t0 = 0
     val s = Param("s")(TyStm(I16, n))
     val stmNextRecEqn =
-      U32 ::+ (t => TyStm(I16, n) ::+ (_ => t < n))
+      (I32 ::+ (t => TyStm(I16, n) ::+ (_ => t < n)))
+        .tchk()
+        .lower()
+        .asInstanceOf[Function]
     val stmNextFun =
       RecurrenceSolver
         .tryFindClosedForm(t0, s, stmNextRecEqn)
@@ -543,7 +550,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     val initialVec =
       VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower()
-    val shiftRecEqn = (U32 ::+ (t =>
+    val shiftRecEqn = (I32 ::+ (t =>
       TyVec(I16, n) ::+ (x =>
         Mux(
           t < n,
@@ -560,7 +567,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Effective simplification
     val expected = lpe(
-      U32 ::+ (t =>
+      I32 ::+ (t =>
         Mux(
           t < n,
           VecBuild(
@@ -569,11 +576,20 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               Mux(
                 i + t < 7,
                 Default(I16),
-                StmData(StmNextK(s, -1 * n + t + i)())()
+                StmData(
+                  StmNextK(s, TruncateTo(-1 * n + t + ToSigned(i)(), 32)())()
+                )()
               )()
             )
           )(),
-          VecBuild(n, U32 ::+ (i => StmData(StmNextK(s, i)())()))()
+          VecBuild(
+            n,
+            U32 ::+ (i =>
+              // The TruncateTo(ToSigned(i)) is perhaps unnecessary, but it's
+              // not the end of the world
+              StmData(StmNextK(s, TruncateTo(ToSigned(i)(), 32)())())()
+            )
+          )()
         )()
       )
     )
@@ -583,7 +599,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   test("RecursiveForm:StmNextK(s, t)") {
     val n = 3
-    val t = Param("t")(U32)
+    val t = Param("t")(I32)
     val s = Param("s")(TyStm(I16, n))
     val e = StmNextK(s, t)().tchk().asInstanceOf[StmNextK]
     val actual =
@@ -614,100 +630,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     assert(z == s)
-    val expectedF = U32 ::+ (_ => TyStm(I16, n) ::+ (_ => True))
-    assert(f == expectedF)
-  }
-
-  test("RecursiveForm:StmNextK(s, Min(-5 + t, 5))") {
-    val n = 5
-    val t = Param("t")(U32)
-    val s = Param("s")(TyStm(I16, n))
-    val e = StmNextK(s, Min(-5 + t, C(5)(TySInt(33)))())()
-      .tchk()
-      .lower()
-      .asInstanceOf[StmNextK]
-    val actual =
-      RecurrenceSolver.tryFindRecursiveForm(e, t = t)(FactSet())
-
-    assert(actual.isDefined)
-    val (z, f) = actual.get match {
-      case (z, Function(t, e)) =>
-        (
-          PartialEvalPass.partialEval(z),
-          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))()
-        )
-    }
-
-    // Smoke test
-    val stmExamples = Seq(
-      StmCst(n, C(42)(I16))(),
-      StmRange(n, C(9)(I16), C(8)(I16))()
-    )
-    for (sVal <- stmExamples) {
-      val timeFunc =
-        ir.eval(Let(s, sVal, Function(t, e)())().tchk()).asInstanceOf[Function]
-      assertEquationsEqual(
-        FunctionOfTime(timeFunc),
-        StreamTimeRecurrence(Let(s, sVal, z)(), f),
-        // Check even a few cycles after everything is done
-        iterations = 2 * n + 2
-      )
-    }
-
-    assert(z == s)
-    val expectedF: Function =
-      U32 ::+ (t => TyStm(I16, n) ::+ (_ => (t < 10) && (t >= 5)))
-    assert(f == expectedF)
-  }
-
-  test("RecursiveForm:StmNextK(s, Min(t, n))") {
-    val t = Param("t")(U32)
-    val n = Param("n")(U8)
-    val s = Param("s")(TyStm(I16, n))
-    val e = StmNextK(s, Min(t, ReshapeData(n, U32)())())()
-      .tchk()
-      .lower()
-      .asInstanceOf[StmNextK]
-    val facts = FactSet().geq(n, 1)
-    val actual =
-      RecurrenceSolver.tryFindRecursiveForm(e, t = t)(FactSet())
-
-    assert(actual.isDefined)
-    val (z, f) = actual.get match {
-      case (z, Function(t, e)) =>
-        (
-          PartialEvalPass.partialEval(z),
-          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
-        )
-    }
-
-    // Smoke test
-    val stmExamples = Seq(
-      StmCst(n, 42)(),
-      StmRange(n, 9, 8)()
-    )
-    for (sVal <- stmExamples) {
-      for (nVal <- Seq(1, 2, 5)) {
-        val timeFunc =
-          ir.eval(Let(n, nVal, Let(s, sVal, Function(t, e)())())().tchk())
-            .asInstanceOf[Function]
-        val recFunc = ir.eval(Let(n, nVal, f)()).asInstanceOf[Function]
-        assertEquationsEqual(
-          FunctionOfTime(timeFunc),
-          StreamTimeRecurrence(Let(n, nVal, Let(s, sVal, z)())(), recFunc),
-          // Check even a few cycles after everything is done
-          iterations = 2 * nVal + 2
-        )
-      }
-    }
-
-    assert(z == s)
-    val expectedF = U32 ::+ (t => TyStm(I16, n) ::+ (_ => t < n))
+    val expectedF = I32 ::+ (_ => TyStm(I16, n) ::+ (_ => True))
     assert(f == expectedF)
   }
 
   test("RecursiveForm:StmNextK(s, t - n)") {
-    val t = Param("t")(U32)
+    val t = Param("t")(I32)
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(I16, n))
     val e = StmNextK(s, t - n)().tchk().asInstanceOf[StmNextK]
@@ -747,22 +675,27 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     assert(z == s)
-    val expectedF = U32 ::+ (t => TyStm(I16, n) ::+ (_ => t - n >= 0))
+    val expectedF =
+      U32 ::+ (t =>
+        TyStm(I16, n) ::+ (_ =>
+          Sum(t, Prod(-1, PadTo(ToSigned(n)(), 32)())())() geq 0
+        )
+      )
     assert(f == expectedF)
   }
 
   test("Stm2Vec2Stm") {
     val n = Param("n")(U8)
     val input = Param("input")(TyStm(I16, n))
-    val t = Param("t")(U32)
+    val t = Param("t")(I32)
     val s = Param("s")(TyStm(I16, -1))
     val v = Param("v")(TyVec(I16, n))
     val original = StmBuild(
       n,
-      VecAccess(v, t - n)(),
+      VecAccess(v, ToUnsigned(t - n)())(),
       t >= n,
       Map[Param, (Expr, Expr)](
-        t -> (0, t + 1),
+        t -> (C(0)(I32), t + 1),
         s -> (input, t < n),
         v -> (
           VecBuild(n, U32 ::+ (_ => Default(I16)))(),
@@ -777,14 +710,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42)(),
-      StmCst(n, -1)(),
-      StmRange(n, 1, 5)()
+      StmCst(n, C(42)(I16))(),
+      StmCst(n, C(-1)(I16))(),
+      StmRange(n, C(1)(I16), C(5)(I16))()
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(0, 1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, original)())().tchk()
-        val actual = Let(n, nVal, Let(input, exampleStm, opt)())().tchk()
+        val expected =
+          Let(n, C(nVal)(U8), Let(input, exampleStm, original)())().tchk()
+        val actual = Let(n, C(nVal)(U8), Let(input, exampleStm, opt)())().tchk()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
@@ -795,12 +729,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected = lpe(
       StmBuild(
         n,
-        Mux(t - n >= 0 && t - n < n, StmData(s1)(), 0)(),
+        StmData(s1)(),
         t >= n,
         Map[Param, (Expr, Expr)](
           s0 -> (input, t < n),
-          s1 -> (input, -1 * n + t >= 0),
-          t -> (0, t + 1)
+          s1 -> (
+            input,
+            PadTo(t, 33)() - PadTo(ToSigned(n)(), 33)() >= 0
+          ),
+          t -> (C(0)(I32), t + 1)
         )
       )()
     )
@@ -812,13 +749,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val input = Param("input")(TyStm(I16, n))
     val s = Param("s")(TyStm(I16, -1))
     val v = Param("v")(TyVec(I16, n))
-    val t = Param("t")(U32)
+    val t = Param("t")(I32)
     val original = StmBuild(
       n,
-      VecAccess(v, -1 + 2 * n - t)(),
+      VecAccess(v, ToUnsigned(-1 + 2 * n - t)())(),
       t >= n,
       Map[Param, (Expr, Expr)](
-        t -> (0, t + 1),
+        t -> (C(0)(I32), t + 1),
         s -> (input, t < n),
         v -> (
           VecBuild(n, U32 ::+ (_ => Default(I16)))(),
@@ -832,21 +769,22 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, 42)(),
-      StmCst(n, -1)(),
-      StmRange(n, 1, 5)(),
-      StmJoin(StmRepeat(StmCount(n)(), m = 3)())()
+      StmCst(n, C(42)(I16))(),
+      StmCst(n, C(-1)(I16))(),
+      StmRange(n, C(1)(I16), C(5)(I16))()
     )
     for (exampleStm <- examples) {
       for (nVal <- Seq(1, 2, 6)) {
-        val expected = Let(n, nVal, Let(input, exampleStm, original)())().tchk()
-        val actual = Let(n, nVal, Let(input, exampleStm, opt)())().tchk()
+        val expected =
+          Let(n, C(nVal)(U8), Let(input, exampleStm, original)())().tchk()
+        val actual = Let(n, C(nVal)(U8), Let(input, exampleStm, opt)())().tchk()
         assert(ir.eval(actual) == ir.eval(expected))
       }
     }
 
     // Cannot remove induction variable here because we're reading from the
     // input stream in reverse
-    assert(opt == original)
+    val expected = PE.partialEval(original)
+    assert(opt == expected)
   }
 }

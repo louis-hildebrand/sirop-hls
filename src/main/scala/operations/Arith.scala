@@ -174,7 +174,7 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
     val result = (e.typ, this.target) match {
-      case (t1, t2) if t1 == t2 => e
+      case (t1, t2) if t1 ~= t2 => e
       case (TyUInt(w1), TyUInt(w2)) =>
         if (w1 > w2) TruncateTo(e, w2)()
         else PadTo(e, w2)()
@@ -201,7 +201,7 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
 object Cast {
   private def canCast(t1: Type, t2: Type): Boolean = {
     (t1, t2) match {
-      case _ if t1 == t2              => true
+      case _ if t1 ~= t2              => true
       case (_: TyAnyInt, _: TyAnyInt) => true
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length

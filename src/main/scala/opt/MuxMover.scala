@@ -55,10 +55,8 @@ object MuxMover {
         moveUpMany(elems, xs => StmLiteral(xs: _*)())
       case StmNextK(s, k) => moveUp2(Seq(s, k), StmNextK(_, _)())
       case e: SyntaxSugar =>
-        throw new IllegalArgumentException(
-          s"The expression should be lowered before attempting to move MUXes."
-            + s" (Found syntax sugar $e.)"
-        )
+        // TODO: emit warning in case there's syntax sugar?
+        e.map(moveUp)
     }
     val typedResult = result.tchk()
     assert(
