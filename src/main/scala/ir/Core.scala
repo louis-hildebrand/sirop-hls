@@ -329,7 +329,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           mux.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
-            s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
+            s"True branch of MUX has type ${newT.typ} but false branch has type ${newF.typ}."
           )
         }
       case a @ And(terms @ _*) =>

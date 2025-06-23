@@ -253,7 +253,18 @@ object PartialEvalPass {
             }
 
           case VecBuild(n, f) =>
-            val newN = doPartialEval(n)
+            val newN = {
+              // Be careful about cases like the following:
+              //   if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)
+              // The type checker must still be able to verify afterwards that
+              // the two branches are compatible.
+              val simplifiedN = doPartialEval(n)
+              if (isEqual(simplifiedN, n)(FactSet()).getOrElse(false)) {
+                simplifiedN
+              } else {
+                n
+              }
+            }
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
             val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
             (newN, newF) match {

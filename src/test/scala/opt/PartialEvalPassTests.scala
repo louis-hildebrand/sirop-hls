@@ -691,13 +691,24 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(evaluated.typ == TyVec(TyVec((U32, U32), C(2)(U8)), C(3)(U8)))
   }
 
+  test("if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)") {
+    val n = Param("n")(U8)
+    val e =
+      Mux(
+        n eq C(0)(U8),
+        VecBuild(n, U32 ::+ (_ => C(-1)(I8)))(),
+        VecBuild(n, U32 ::+ (_ => C(42)(I8)))()
+      )().tchk().lower()
+    assert(PE.partialEval(e) == e)
+  }
+
   /** Used to debug an infinite loop in the partial evaluator.
     */
-  test("BoolMux") {
-    val t_1 = Param("t")(I32)
-    val e = And(True, Not(SmartLessThan(t_1, 0)())())()
+  test("true && !SmartLessThan(t, 0)") {
+    val t = Param("t")(I32)
+    val e = And(True, Not(SmartLessThan(t, 0)())())()
     val actual = PE.partialEval(e)
-    val expected = Not(SmartLessThan(t_1, 0)())()
+    val expected = Not(SmartLessThan(t, 0)())()
     assert(actual == expected)
   }
 }

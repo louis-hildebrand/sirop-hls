@@ -438,6 +438,11 @@ trait CommonIntTypes {
     */
   val I32: TySInt = TySInt(32)
 
+  /** The type of a 33-bit signed integer. (This is the type of [[ToSigned]]
+    * when the input has type [[U32]].)
+    */
+  val I33: TySInt = TySInt(33)
+
   /** Common integer types.
     */
   val COMMON_INT_TYPES: Seq[TyAnyInt] = Seq(U8, U16, U32, I8, I16, I32)

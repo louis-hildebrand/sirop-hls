@@ -142,14 +142,14 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // One counter can be removed, but not the sum
     val ideal = lpe({
-      val t = Param("t")(I32)
+      val t = Param("t")(I33)
       StmBuild(
         1,
         sum,
         TruncateTo(ToUnsigned(t)(), 8)() >= n,
         Map[Param, (Expr, Expr)](
           sum -> (C(0)(U8), sum + TruncateTo(ToUnsigned(t)(), 8)()),
-          t -> (C(0)(I32), t + 1)
+          t -> (C(0)(I33), t + 1)
         )
       )()
     })
@@ -299,7 +299,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assertOneAccumulator(opt)
   }
 
-  test("MonotonicBool:BoundedCounter") {
+  test("MonotonicBool:BoundedCounter:i8") {
     val n = Param("n")(U8)
     val i0 = Param("i0")(I8)
     val k = Param("k")(I8)
@@ -332,6 +332,52 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               n,
               C(nVal)(U8),
               Let(i0, C(i0Val)(I8), Let(k, C(kVal)(I8), opt)())()
+            )()
+          assert(
+            ir.eval(actual) == ir.eval(expected),
+            s"(for n = $nVal, i0 = $i0Val, k = $kVal)"
+          )
+        }
+      }
+    }
+
+    // Effective simplification
+    assertOneAccumulator(opt)
+  }
+
+  test("MonotonicBool:BoundedCounter:u32") {
+    val n = Param("n")(U8)
+    val i0 = Param("i0")(U32)
+    val k = Param("k")(U32)
+    val delta = C(4)(U32)
+    val i = Param("i")(U32)
+    val b = Param("b")(TyBool)
+    val s = StmBuild(
+      n,
+      Tuple(i, b)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (i0, Mux(b, i + delta, i)()),
+        b -> (True, b && i < k)
+      )
+    )().tchk().lower().asInstanceOf[StmBuild]
+    val opt = StmInductionVarRemovalPass().removeInductionVars(s)
+
+    // Correctness
+    for (nVal <- Seq(0, 1, 5)) {
+      for (i0Val <- Seq(0, 1, 2)) {
+        for (kVal <- Seq(0, 1, 2)) {
+          val expected =
+            Let(
+              n,
+              C(nVal)(U8),
+              Let(i0, C(i0Val)(U32), Let(k, C(kVal)(U32), s)())()
+            )()
+          val actual =
+            Let(
+              n,
+              C(nVal)(U8),
+              Let(i0, C(i0Val)(U32), Let(k, C(kVal)(U32), opt)())()
             )()
           assert(
             ir.eval(actual) == ir.eval(expected),
@@ -519,7 +565,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val n = C(10)(U8)
     val s = Param("s")(TyStm((U8, U8), n))
     val recEqn =
-      (I32 ::+ (t => TyStm((U8, U8), n) ::+ (_ => t < n)))
+      (I33 ::+ (t => TyStm((U8, U8), n) ::+ (_ => t < n)))
         .tchk()
         .lower()
         .asInstanceOf[Function]
@@ -529,7 +575,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val f = lpe(result.get)
 
     val expected =
-      lpe(I32 ::+ (t => StmNextK(s, Mux(t < 10, t, C(10)(I32))())()))
+      lpe(I33 ::+ (t => StmNextK(s, Mux(t < 10, t, C(10)(I33))())()))
     assert(f == expected)
   }
 
@@ -538,7 +584,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val t0 = 0
     val s = Param("s")(TyStm(I16, n))
     val stmNextRecEqn =
-      (I32 ::+ (t => TyStm(I16, n) ::+ (_ => t < n)))
+      (I33 ::+ (t => TyStm(I16, n) ::+ (_ => t < n)))
         .tchk()
         .lower()
         .asInstanceOf[Function]
@@ -550,7 +596,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     val initialVec =
       VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower()
-    val shiftRecEqn = (I32 ::+ (t =>
+    val shiftRecEqn = (I33 ::+ (t =>
       TyVec(I16, n) ::+ (x =>
         Mux(
           t < n,
@@ -567,7 +613,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Effective simplification
     val expected = lpe(
-      I32 ::+ (t =>
+      I33 ::+ (t =>
         Mux(
           t < n,
           VecBuild(
@@ -576,19 +622,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               Mux(
                 i + t < 7,
                 Default(I16),
-                StmData(
-                  StmNextK(s, TruncateTo(-1 * n + t + ToSigned(i)(), 32)())()
-                )()
+                StmData(StmNextK(s, -1 * n + t + ToSigned(i)())())()
               )()
             )
           )(),
           VecBuild(
             n,
-            U32 ::+ (i =>
-              // The TruncateTo(ToSigned(i)) is perhaps unnecessary, but it's
-              // not the end of the world
-              StmData(StmNextK(s, TruncateTo(ToSigned(i)(), 32)())())()
-            )
+            U32 ::+ (i => StmData(StmNextK(s, ToSigned(i)())())())
           )()
         )()
       )
@@ -599,7 +639,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   test("RecursiveForm:StmNextK(s, t)") {
     val n = 3
-    val t = Param("t")(I32)
+    val t = Param("t")(I33)
     val s = Param("s")(TyStm(I16, n))
     val e = StmNextK(s, t)().tchk().asInstanceOf[StmNextK]
     val actual =
@@ -630,12 +670,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     }
 
     assert(z == s)
-    val expectedF = I32 ::+ (_ => TyStm(I16, n) ::+ (_ => True))
+    val expectedF = I33 ::+ (_ => TyStm(I16, n) ::+ (_ => True))
     assert(f == expectedF)
   }
 
   test("RecursiveForm:StmNextK(s, t - n)") {
-    val t = Param("t")(I32)
+    val t = Param("t")(I33)
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(I16, n))
     val e = StmNextK(s, t - n)().tchk().asInstanceOf[StmNextK]
@@ -678,7 +718,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expectedF =
       U32 ::+ (t =>
         TyStm(I16, n) ::+ (_ =>
-          Sum(t, Prod(-1, PadTo(ToSigned(n)(), 32)())())() geq 0
+          Sum(t, Prod(-1, PadTo(ToSigned(n)(), 33)())())() geq 0
         )
       )
     assert(f == expectedF)
@@ -687,7 +727,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   test("Stm2Vec2Stm") {
     val n = Param("n")(U8)
     val input = Param("input")(TyStm(I16, n))
-    val t = Param("t")(I32)
+    val t = Param("t")(I33)
     val s = Param("s")(TyStm(I16, -1))
     val v = Param("v")(TyVec(I16, n))
     val original = StmBuild(
@@ -695,7 +735,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       VecAccess(v, ToUnsigned(t - n)())(),
       t >= n,
       Map[Param, (Expr, Expr)](
-        t -> (C(0)(I32), t + 1),
+        t -> (C(0)(I33), t + 1),
         s -> (input, t < n),
         v -> (
           VecBuild(n, U32 ::+ (_ => Default(I16)))(),
@@ -737,7 +777,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             input,
             PadTo(t, 33)() - PadTo(ToSigned(n)(), 33)() >= 0
           ),
-          t -> (C(0)(I32), t + 1)
+          t -> (C(0)(I33), t + 1)
         )
       )()
     )
@@ -749,13 +789,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val input = Param("input")(TyStm(I16, n))
     val s = Param("s")(TyStm(I16, -1))
     val v = Param("v")(TyVec(I16, n))
-    val t = Param("t")(I32)
+    val t = Param("t")(I33)
     val original = StmBuild(
       n,
       VecAccess(v, ToUnsigned(-1 + 2 * n - t)())(),
       t >= n,
       Map[Param, (Expr, Expr)](
-        t -> (C(0)(I32), t + 1),
+        t -> (C(0)(I33), t + 1),
         s -> (input, t < n),
         v -> (
           VecBuild(n, U32 ::+ (_ => Default(I16)))(),
