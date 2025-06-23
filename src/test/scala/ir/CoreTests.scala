@@ -19,18 +19,6 @@ class CoreTests extends AnyFunSuite {
     assert(e0 == e1)
   }
 
-  /** Substitution can, in principle, change the type of an expression.
-    */
-  test("Substitute:RemoveType") {
-    val x = Param("x")(U8)
-    val y = Param("y")(TyBool)
-    val z = Param("z")()
-    val e = Tuple(x, y)(TyTuple(U8, TyBool))
-    val subbed = e.substitute(x -> (y && z))
-    assert(subbed == Tuple(y && z, y)())
-    assert(subbed.typ != TyTuple(U8, TyBool))
-  }
-
   test("Substitute:StmData") {
     val s = Param("s")()
     val v = Param("v")()

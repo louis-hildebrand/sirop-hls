@@ -58,6 +58,7 @@ class TypeTests extends AnyFunSuite {
 
   test("IsCompatibleWith:Vec") {
     assert(TyVec(I16, n) ~= TyVec(I16, n))
+    assert(TyVec(U8, m) ~= TyVec(U8, m))
     assert(TyVec(I16, n) ~= TyVec(I16, n + C(2)(U8) + C(-2)(I8)))
   }
 

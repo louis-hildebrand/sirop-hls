@@ -276,6 +276,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(C(1)() < C(1)()) == False)
   }
 
+  test("n == n") {
+    val n = Param("n")(U8)
+    assert(PE.partialEval(n eq n) == True)
+    assert(PE.isEqual(n, n)().contains(true))
+  }
+
   test("ParamMinusOneLessThan") {
     val n = Param("n")(U8)
     val b = Param("b")(TyBool)

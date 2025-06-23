@@ -768,55 +768,6 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def contains[T <: Expr](cls: Class[T]): Boolean =
     this.contains(e => cls.isInstance(e))
 
-  /** Perform all the given substitutions on this expression. Substitutions does
-    * <i>not</i> necessarily preserve type annotations.
-    */
-  @deprecated
-  def substitute(subs: Map[Expr, Expr]): Expr = {
-    if (subs.isEmpty) {
-      this
-    } else {
-      subs.get(this) match {
-        case Some(v) => v
-        case None =>
-          this match {
-            case f: Function =>
-              // Rename both
-              //   (1) to avoid variable capture and
-              //   (2) in case f.param appears free in the old value of a
-              //       substitution (i.e., the value to be replaced)
-              val renamed = f.renameVar
-              Function(renamed.param, renamed.body.substitute(subs))()
-            case s: StmBuild =>
-              // Rename both
-              //   (1) to avoid variable capture and
-              //   (2) in case an accumulator variable appears free in the old
-              //       value of a substitution (i.e., the value to be replaced)
-              val renamed = s.renameVars
-              StmBuild(
-                renamed.n.substitute(subs),
-                renamed.data.substitute(subs),
-                renamed.valid.substitute(subs),
-                renamed.equations.map({ case (x, (z, next)) =>
-                  x -> (z.substitute(subs), next.substitute(subs))
-                })
-              )()
-            case x: Param =>
-              // Don't erase the type annotation for variables
-              x
-            case e =>
-              e.rebuild(Missing, e.children.map(e => e.substitute(subs)))
-          }
-      }
-    }
-  }
-
-  /** Perform all the given substitutions on this expression. Substitutions does
-    * <i>not</i> necessarily preserve type annotations.
-    */
-  @deprecated
-  def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
-
   /** Perform a substitution while preserving all type annotations.
     */
   def subPreserveType(subs: Map[Expr, Expr]): Expr = {
@@ -1040,8 +991,11 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     x match {
       case that: Function =>
         val fresh = Param("p")()
-        (this.body.substitute(this.param -> fresh)
-          == that.body.substitute(that.param -> fresh))
+        val thisRenamed =
+          this.body.subPreserveType(this.param -> fresh.rebuild(this.param.typ))
+        val thatRenamed =
+          that.body.subPreserveType(that.param -> fresh.rebuild(that.param.typ))
+        thisRenamed == thatRenamed
       case _ => false
     }
   }
@@ -1049,7 +1003,11 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
+    this.body
+      .subPreserveType(
+        this.param -> Function.HashCodeParam.rebuild(this.param.typ)
+      )
+      .hashCode
   }
 }
 object Function {
@@ -2009,11 +1967,11 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val data = this.data.substitute(subs)
-    val valid = this.valid.substitute(subs)
+    val data = this.data.subPreserveType(subs)
+    val valid = this.valid.subPreserveType(subs)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
-        (z, next.substitute(subs))
+        (z, next.subPreserveType(subs))
       })
     val eqnsBag =
       eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
@@ -2048,17 +2006,27 @@ case class StmBuild(
       // to a free variable and that same variable happens to be bound in the
       // other stream
       val thisSubs: Map[Expr, Expr] =
-        freshVarByPair.map({ case ((x, _), fresh) => x -> fresh })
+        freshVarByPair.map({ case ((x, _), fresh) =>
+          x -> fresh.rebuild(x.typ)
+        })
       val thatSubs: Map[Expr, Expr] =
-        freshVarByPair.map({ case ((_, y), fresh) => y -> fresh })
+        freshVarByPair.map({ case ((_, y), fresh) =>
+          y -> fresh.rebuild(y.typ)
+        })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).substitute(thisSubs)
-          == that.nextByVar(y).substitute(thatSubs))
+        (this.nextByVar(x).subPreserveType(thisSubs)
+          == that.nextByVar(y).subPreserveType(thatSubs))
       })
       val thisOutput =
-        (this.data.substitute(thisSubs), this.valid.substitute(thisSubs))
+        (
+          this.data.subPreserveType(thisSubs),
+          this.valid.subPreserveType(thisSubs)
+        )
       val thatOutput =
-        (that.data.substitute(thatSubs), that.valid.substitute(thatSubs))
+        (
+          that.data.subPreserveType(thatSubs),
+          that.valid.subPreserveType(thatSubs)
+        )
       eqnsMatch && thisOutput == thatOutput
     } else {
       // Don't have a full candidate mapping yet, so recurse
