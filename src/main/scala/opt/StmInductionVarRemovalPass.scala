@@ -886,14 +886,14 @@ object IfLessThan {
                 //     c0 + c1*x < 0
                 // iff c1*x < -c0
                 // iff x < ceil(-c0 / c1)  (since we're dealing with integers)
-                Some((CeilDiv(-1 * c0, c1)(), a, b))
+                Some((CeilDiv(-1 * c0, C(c1)())(), a, b))
               case IntCst(c1) if c1 < 0 =>
                 //     c0 + c1*x < 0
                 // iff c1*x < -c0
                 // iff x > ceil(-c0 / c1)  (sign flips because c1 < 0)
                 // iff x >= 1 + ceil(-c0 / c1)
                 // TODO: what if there's overflow?
-                Some((1 + CeilDiv(-1 * c0, c1)(), b, a))
+                Some((1 + CeilDiv(-1 * c0, C(c1)())(), b, a))
               case _ => None
             }
           case _ => None

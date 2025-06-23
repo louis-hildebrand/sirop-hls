@@ -2234,7 +2234,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   }
 }
 
-@deprecated
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {

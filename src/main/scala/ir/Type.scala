@@ -1,6 +1,6 @@
 package ir
 
-import opt.PartialEvalPass
+import opt.{PartialEvalPass => PE}
 
 sealed trait Type {
   def ::+(f: Param => Expr): Function = {
@@ -128,27 +128,7 @@ object Type {
     * the result is <code>False</code> then they may or may not be equal.
     */
   def sameLen(e1: Expr, e2: Expr): Boolean = {
-    val e1Normalized = normalizeLen(e1)
-    val e2Normalized = normalizeLen(e2)
-    e1Normalized == e2Normalized
-  }
-
-  private def normalizeLen(e: Expr): Expr = {
-    val norm = e match {
-      case VecLength(v) =>
-        v.typ match {
-          case TyVec(_, n) => normalizeLen(n)
-          // TODO: It is very sketchy to have the type checker depend on an
-          //       optimization pass
-          case _ => PartialEvalPass.partialEval(e)
-        }
-      case e => PartialEvalPass.partialEval(e)
-    }
-    if (norm == e) {
-      e
-    } else {
-      normalizeLen(norm)
-    }
+    PE.isEqual(e1.tchk().lower(), e2.tchk().lower())().getOrElse(false)
   }
 }
 
@@ -379,13 +359,6 @@ case class TyStm(t: Type, n: Expr) extends Type {
     n.hasType,
     s"Length in ${TyStm.getClass.getSimpleName} must have a type."
   )
-
-  /** If this is a stream of type <code>Stm&lt;T; n&gt;</code>, then
-    * <code>tOpt</code> is <code>Option&lt;T&gt;</code>. That is,
-    * <code>tOpt</code> is the type of the output expression inside the
-    * <code>StmBuild</code> itself.
-    */
-  val tOpt: Type = TyOption(t)
 
   override def toString: String = {
     s"Stm[$t, $n]"

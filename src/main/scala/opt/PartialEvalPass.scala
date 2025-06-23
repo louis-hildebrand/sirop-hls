@@ -247,9 +247,9 @@ object PartialEvalPass {
                 // is essentially a unary operation; therefore, the expression is
                 // not likely to grow *that* large.
                 doPartialEval(
-                  Mux(c, TupleAccess(t, i)(), TupleAccess(f, i)())()
+                  Mux(c, TupleAccess(t, C(i)())(), TupleAccess(f, C(i)())())()
                 )
-              case t => TupleAccess(t, i)()
+              case t => TupleAccess(t, C(i)())()
             }
 
           case VecBuild(n, f) =>
@@ -267,14 +267,7 @@ object PartialEvalPass {
             }
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
             val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
-            (newN, newF) match {
-              case (
-                    VecLength(x0: Param),
-                    Function(i0, VecAccess(x1: Param, i1: Param))
-                  ) if x0 == x1 && i0 == i1 =>
-                x0
-              case _ => VecBuild(newN, newF)()
-            }
+            VecBuild(newN, newF)()
           case VecAccess(v, i: Expr) =>
             (doPartialEval(v), doPartialEval(i)) match {
               case (Mux(c, t, f), i) =>
@@ -529,10 +522,15 @@ object PartialEvalPass {
                 evaluatedValid match {
                   case True =>
                     val v = partialEval(s.data.subPreserveType(subs))
-                    Some((v, StmBuild(n - 1, s.data, s.valid, nextEquations)()))
+                    Some(
+                      (
+                        v,
+                        StmBuild(C(n - 1)(), s.data, s.valid, nextEquations)()
+                      )
+                    )
                   case False =>
                     tryEvalStmNext(
-                      StmBuild(n, s.data, s.valid, nextEquations)(),
+                      StmBuild(C(n)(), s.data, s.valid, nextEquations)(),
                       stepsWithoutValid + 1
                     )
                   case _ => None

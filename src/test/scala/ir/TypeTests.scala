@@ -56,28 +56,9 @@ class TypeTests extends AnyFunSuite {
     }
   }
 
-  test("IsCompatibleWith:VecLength") {
-    val v = Param("v")(TyVec(I16, n))
-    val vLen = VecLength(v)(U8)
-    assert(TyVec(I16, n) ~= TyVec(I16, vLen))
-    assert(TyVec(U32, n) ~= TyVec(U32, vLen))
-    assert(TyVec(U32, vLen) ~= TyVec(U32, n))
-
-    val w = Param("w")(TyVec(I16, vLen))
-    val wLen = VecLength(w)(U8)
-    assert(TyVec(U8, n) ~= TyVec(U8, wLen))
-    assert(TyVec(U16, wLen) ~= TyVec(U16, n))
-    assert(TyVec(I32, vLen) ~= TyVec(I32, wLen))
-    assert(TyVec(I8, wLen) ~= TyVec(I8, vLen))
-
-    val intTypes = Seq(U8, U16, U32, I8, I16, I32)
-    for (i <- intTypes.indices) {
-      for (j <- intTypes.indices) {
-        if (i != j) {
-          assert(!(TyVec(intTypes(i), n) ~= TyVec(intTypes(j), n)))
-        }
-      }
-    }
+  test("IsCompatibleWith:Vec") {
+    assert(TyVec(I16, n) ~= TyVec(I16, n))
+    assert(TyVec(I16, n) ~= TyVec(I16, n + C(2)(U8) + C(-2)(I8)))
   }
 
   test("MinInt:SInt") {

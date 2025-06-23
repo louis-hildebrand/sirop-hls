@@ -101,7 +101,7 @@ case class FactSet(
   /** <code>x</code> is exactly equal to <code>c</code>.
     */
   def eq(x: Expr, c: Long): FactSet = {
-    geq(x, c).lt(x, c + 1)
+    geq(x, C(c)()).lt(x, C(c + 1)())
   }
 
   /** Construct a new fact set in which the range of <code>e</code> is entirely
@@ -140,9 +140,10 @@ case class FactSet(
       case LessThan(e, IntCst(0)) =>
         e match {
           // ---------- c - x < 0 <==> x > c ==> x >= c + 1 ----------
-          case Sum(IntCst(c), Prod(IntCst(-1), x)) => newFacts.geq(x, c + 1)
+          case Sum(IntCst(c), Prod(IntCst(-1), x)) =>
+            newFacts.geq(x, C(c + 1)())
           // ---------- c + x < 0 <==> x < -c ----------
-          case Sum(IntCst(c), x) => newFacts.lt(x, -c)
+          case Sum(IntCst(c), x) => newFacts.lt(x, C(-c)())
           // ---------- -x < 0 <==> x > 0 ----------
           case Prod(IntCst(-1), x) => newFacts.geq(x, 1)
           // ---------- x < 0 ----------
@@ -187,9 +188,9 @@ case class FactSet(
       case LessThan(e, IntCst(0)) =>
         e match {
           // ---------- !(c - x < 0) <==> x <= c <==> x < c + 1 ----------
-          case Sum(IntCst(c), Prod(IntCst(-1), x)) => newFacts.lt(x, c + 1)
+          case Sum(IntCst(c), Prod(IntCst(-1), x)) => newFacts.lt(x, C(c + 1)())
           // ---------- !(c + x < 0) <==> c + x >= 0 <==> x >= -c ----------
-          case Sum(IntCst(c), x) => newFacts.geq(x, -c)
+          case Sum(IntCst(c), x) => newFacts.geq(x, C(-c)())
           // ---------- !(-x < 0) <==> !(x > 0) <==> x <= 0 ----------
           case Prod(IntCst(-1), x) => newFacts.lt(x, 1)
           // ---------- !(x < 0) <==> x >= 0 ----------

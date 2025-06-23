@@ -190,7 +190,7 @@ class TypecheckerTests extends AnyFunSuite {
   test("Vector") {
     val n = Param("n")()
     val v = VecBuild(n, U8 ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
-    val original = VecAccess(v, ToUnsigned(VecLength(v)() - 1)())()
+    val original = VecAccess(v, ToUnsigned(n - 1)())()
     val checked = original.tchk(Map(n -> U8))
     assert(checked.typ == TyTuple(U8, TyBool))
     assertAllNodesHaveType(checked)
