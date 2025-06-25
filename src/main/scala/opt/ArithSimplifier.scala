@@ -9,83 +9,83 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-private[opt] object ArithSimplifier {
+/** An `ArithExpr` containing an expression that cannot be translated to any
+  * other kind of `ArithExpr` (e.g., a vector access).
+  *
+  * @param e
+  *   The expression inside the black box
+  * @param range
+  *   The range for the expression
+  */
+private[opt] case class BlackBox(
+    e: Expr,
+    override val range: ae.Range = ae.RangeUnknown
+) extends ae.ExtensibleVar("", ae.RangeUnknown, Some(BlackBox.identify(e)))
+    with ae.SimplifiedExpr {
+  override def copy(r: ae.Range): BlackBox = {
+    BlackBox(e, r)
+  }
 
-  /** An `ArithExpr` containing an expression that cannot be translated to any
-    * other kind of `ArithExpr` (e.g., a vector access).
+  override def cloneSimplified(): BlackBox = {
+    BlackBox(e, range)
+  }
+
+  override def visitAndRebuild(
+      f: ae.ArithExpr => ae.ArithExpr
+  ): ae.ArithExpr = {
+    f(BlackBox(e, range.visitAndRebuild(f)))
+  }
+}
+
+private[opt] object BlackBox {
+
+  /** Choose a unique identifier for the given expression. The identifier is
+    * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
+    * words, if another instance of the same expression (as determined by
+    * `equals` and `hashCode`) has previously been put in a BlackBox (and has
+    * not been garbage collected), then the same ID will be returned. Otherwise,
+    * the chosen ID will be different from all other previously-chosen IDs.
     *
     * @param e
-    *   The expression inside the black box
-    * @param range
-    *   The range for the expression
+    *   An expression
+    * @return
+    *   A unique identifier for the given expression
     */
-  private case class BlackBox(
-      e: Expr,
-      override val range: ae.Range = ae.RangeUnknown
-  ) extends ae.ExtensibleVar("", ae.RangeUnknown, Some(BlackBox.identify(e)))
-      with ae.SimplifiedExpr {
-    override def copy(r: ae.Range): BlackBox = {
-      BlackBox(e, r)
-    }
-
-    override def cloneSimplified(): BlackBox = {
-      BlackBox(e, range)
-    }
-
-    override def visitAndRebuild(
-        f: ae.ArithExpr => ae.ArithExpr
-    ): ae.ArithExpr = {
-      f(BlackBox(e, range.visitAndRebuild(f)))
-    }
-  }
-  private object BlackBox {
-
-    /** Choose a unique identifier for the given expression. The identifier is
-      * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
-      * words, if another instance of the same expression (as determined by
-      * `equals` and `hashCode`) has previously been put in a BlackBox (and has
-      * not been garbage collected), then the same ID will be returned.
-      * Otherwise, the chosen ID will be different from all other
-      * previously-chosen IDs.
-      *
-      * @param e
-      *   An expression
-      * @return
-      *   A unique identifier for the given expression
-      */
-    private def identify(e: Expr): Long = {
-      this.synchronized {
-        e match {
-          case ToSigned(e) =>
-            // We can treat ToSigned(x) as being synonymous with x.
-            // ToSigned only changes the type, not the value, and ArithExpr
-            // doesn't care about the type.
-            identify(e)
-          case PadTo(e, _) =>
-            // ... likewise, PadTo(x) is equivalent to x from the library's
-            // point of view
-            identify(e)
-          case _ =>
-            idByExpr.get(e) match {
-              case None =>
-                val id = idCtr.incrementAndGet()
-                idByExpr.update(e, id)
-                id
-              case Some(id) => id
-            }
-        }
+  private def identify(e: Expr): Long = {
+    this.synchronized {
+      e match {
+        case ToSigned(e) =>
+          // We can treat ToSigned(x) as being synonymous with x.
+          // ToSigned only changes the type, not the value, and ArithExpr
+          // doesn't care about the type.
+          identify(e)
+        case PadTo(e, _) =>
+          // ... likewise, PadTo(x) is equivalent to x from the library's
+          // point of view
+          identify(e)
+        case _ =>
+          idByExpr.get(e) match {
+            case None =>
+              val id = idCtr.incrementAndGet()
+              idByExpr.update(e, id)
+              id
+            case Some(id) => id
+          }
       }
     }
-
-    /** Store previously-generated IDs so that I can return the same one later.
-      * use a `WeakHashMap` because, if an expression is garbage collected, it
-      * presumably doesn't matter if the ID changes. This seems like a nasty
-      * hack, but the `id` is part of the public interface for `ExtensibleVar`
-      * so `BlackBox` must have one.
-      */
-    private val idByExpr = mutable.WeakHashMap[Expr, Long]()
-    private val idCtr = new AtomicLong()
   }
+
+  /** Store previously-generated IDs so that I can return the same one later.
+    * use a `WeakHashMap` because, if an expression is garbage collected, it
+    * presumably doesn't matter if the ID changes. This seems like a nasty hack,
+    * but the `id` is part of the public interface for `ExtensibleVar` so
+    * `BlackBox` must have one.
+    */
+  private val idByExpr = mutable.WeakHashMap[Expr, Long]()
+  private val idCtr = new AtomicLong()
+}
+
+private[opt] object ArithSimplifier {
 
   def simplifyArithmetic(expr: Expr)(facts: FactSet): Expr = {
     // Try simplifying without the library first
