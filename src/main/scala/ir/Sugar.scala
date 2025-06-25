@@ -34,10 +34,16 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     if (this.typ != Missing) f.tchk() else f
   }
 
-  override def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     val newX = x.freshCopy
     val newIn = in.subPreserveType(x -> newX)
     Let(newX, v.subPreserveType(subs), newIn.subPreserveType(subs))(this.typ)
+  }
+
+  override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    val newX = x.freshCopy
+    val newIn = in.subAndEraseType(x -> newX)
+    Let(newX, v.subAndEraseType(subs), newIn.subAndEraseType(subs))()
   }
 
   private def asFunCall(): FunCall = {

@@ -667,7 +667,7 @@ case class StmScanInclusive(
     //      naive substitution behaves like the usual one
     //  (2) we want to replace f.param with the *bound* variable acc, so alpha
     //      renaming is NOT what we want here
-    val scan = outerStm.rebuild(
+    val scan = outerStm.rebuildAndEraseType(
       outerStm.children.map(e =>
         e.subPreserveType(Map[Expr, Expr](s -> input, f.param -> acc))
       )

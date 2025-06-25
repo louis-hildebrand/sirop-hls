@@ -90,7 +90,7 @@ object IntConversionMover {
       case e @ (_: Sum | _: Prod | _: Div | _: Mod) =>
         val newChildren = e.children.map(e => widen(e))
         if (newChildren.exists(e => e.isInstanceOf[ToUnsigned])) {
-          ToUnsigned(widen(e.rebuild(newChildren.map(e => ToSigned(e)()))))()
+          ToUnsigned(widen(e.rebuildAndEraseType(newChildren.map(e => ToSigned(e)()))))()
         } else if (newChildren.exists(e => e.isInstanceOf[TruncateTo])) {
           val trunc = newChildren
             .find(e => e.isInstanceOf[TruncateTo])
@@ -100,19 +100,19 @@ object IntConversionMover {
           val narrow = trunc.w
           widen(
             TruncateTo(
-              e.rebuild(newChildren.map(e => PadTo(e, wide)())),
+              e.rebuildAndEraseType(newChildren.map(e => PadTo(e, wide)())),
               narrow
             )()
           )
         } else {
-          e.rebuild(newChildren)
+          e.rebuildAndEraseType(newChildren)
         }
       case Mux(c, t, f) =>
         val newC = widen(c)
         val newBranches = Seq(t, f).map(e => widen(e))
         if (newBranches.exists(e => e.isInstanceOf[ToUnsigned])) {
           ToUnsigned(
-            widen(e.rebuild(newC +: newBranches.map(e => ToSigned(e)())))
+            widen(e.rebuildAndEraseType(newC +: newBranches.map(e => ToSigned(e)())))
           )()
         } else if (newBranches.exists(e => e.isInstanceOf[TruncateTo])) {
           val trunc = newBranches
@@ -123,12 +123,12 @@ object IntConversionMover {
           val narrow = trunc.w
           widen(
             TruncateTo(
-              e.rebuild(newC +: newBranches.map(e => PadTo(e, wide)())),
+              e.rebuildAndEraseType(newC +: newBranches.map(e => PadTo(e, wide)())),
               narrow
             )()
           )
         } else {
-          e.rebuild(newC +: newBranches)
+          e.rebuildAndEraseType(newC +: newBranches)
         }
       case i: IntCst =>
         // Don't erase type annotation on IntCst

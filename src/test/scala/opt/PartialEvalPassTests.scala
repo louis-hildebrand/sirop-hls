@@ -711,4 +711,13 @@ class PartialEvalPassTests extends AnyFunSuite {
     val expected = Not(SmartLessThan(t, 0)())()
     assert(actual == expected)
   }
+
+  test("if (c) then VecBuild(...) else v") {
+    val c = Param("c")(TyBool)
+    val n = Param("n")(U8)
+    val v = Param("v")(TyVec(U8, n))
+    val e =
+      Mux(c, VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))(), v)().tchk().lower()
+    assert(PE.partialEval(e) == e)
+  }
 }

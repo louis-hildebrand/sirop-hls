@@ -7,19 +7,21 @@ class SugarTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val y = Param("y")(U8)
     val e = Let(x, x * y, x + y)()
-    val actual = e.subPreserveType(x -> y)
     val expected = Let(x, y * y, x + y)()
-    assert(actual == expected)
+    assert(e.subPreserveType(x -> y) == expected)
+    assert(e.subAndEraseType(x -> y) == expected)
   }
 
   test("Substitute:[y / x](let y = x * y in x + y)") {
     val x = Param("x")(U8)
     val y = Param("y")(U8)
     val e = Let(y, x * y, x + y)()
-    val actual = e.subPreserveType(x -> y)
-    val y2 = Param("y2")(U8)
-    val expected = Let(y2, y * y, y + y2)()
-    assert(actual == expected)
+    val expected = {
+      val y2 = Param("y2")(U8)
+      Let(y2, y * y, y + y2)()
+    }
+    assert(e.subPreserveType(x -> y) == expected)
+    assert(e.subAndEraseType(x -> y) == expected)
   }
 
   test("Let:Equals") {

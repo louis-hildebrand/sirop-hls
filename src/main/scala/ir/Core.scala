@@ -24,6 +24,15 @@ private object SharedScope extends AccVarScope
 
 /** A node in the IR.
   *
+  * ==Important Note About [[equals]] and [[hashCode]]==
+  * The [[equals]] and [[hashCode]] methods of an [[Expr]] must NOT depend on
+  * arithmetic simplification via the [[lift.arithmetic]] library, even
+  * indirectly. In particular, this means they must NOT use methods like
+  * [[Type.~=]] which use the arithmetic expression library to compare vector
+  * lengths. This restriction is due to the fact that the library may invoke
+  * [[equals]] or [[hashCode]] while arithmetic simplification is temporarily
+  * disabled.
+  *
   * @param typ
   *   The type of this node. If this node has a type other than
   *   <code>Missing</code>, then all its children must also have types other
@@ -643,7 +652,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     * @param newChildren
     *   the new children.
     */
-  def rebuild(newChildren: Seq[Expr]): Expr = {
+  def rebuildAndEraseType(newChildren: Seq[Expr]): Expr = {
     this match {
       case _: IntCst | _: Param | _: StmLiteral | _: VecLiteral =>
         // These expressions may carry type information that cannot be derived
@@ -667,7 +676,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     * @param f
     *   the function to apply to each child.
     */
-  def map(f: Expr => Expr): Expr = rebuild(children.map(f))
+  def map(f: Expr => Expr): Expr = rebuildAndEraseType(children.map(f))
   def mapPreOrder(f: Expr => Expr): Expr = map(f).map(e => e.mapPreOrder(f))
 
   /** Remove all syntax sugar from this expression and its children. This is
@@ -685,7 +694,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case e =>
         // Re-run the type checker to ensure no type errors crept in during
         // lowering
-        val newE = e.rebuild(e.children.map(e => e.lower()))
+        val newE = e.rebuildAndEraseType(e.children.map(e => e.lower()))
         if (e.typ != Missing) newE.tchk() else newE
     }
     // This is required because lowering may be syntax-directed (i.e., an
@@ -768,7 +777,75 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def contains[T <: Expr](cls: Class[T]): Boolean =
     this.contains(e => cls.isInstance(e))
 
-  /** Perform a substitution while preserving all type annotations.
+  /** Perform the given substitutions in this expression while erasing the type
+    * annotations.
+    *
+    * @param subs
+    *   a map from old expressions (i.e., the ones to be replaced) to new
+    *   expressions (i.e., what to replace the old expressions with).
+    */
+  protected[ir] def subAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    if (subs.isEmpty) {
+      this
+    } else {
+      subs.get(this) match {
+        case Some(v) =>
+          v
+        case None =>
+          this match {
+            case Function(x, body) =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case f.param appears free in the old value of a
+              //       substitution (i.e., the value to be replaced)
+              val newX = x.freshCopy
+              Function(
+                newX,
+                body.subAndEraseType(x -> newX).subAndEraseType(subs)
+              )()
+            case s: StmBuild =>
+              // Rename both
+              //   (1) to avoid variable capture and
+              //   (2) in case an accumulator variable appears free in the old
+              //       value of a substitution (i.e., the value to be replaced)
+              val renamingSubs: Map[Expr, Expr] =
+                s.accVars.map(x => x -> x.freshCopy).toMap
+              StmBuild(
+                s.n.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.data.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.valid.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.equations.map({ case (x, (z, next)) =>
+                  val newX = renamingSubs(x).asInstanceOf[Param]
+                  val newZ =
+                    z.subAndEraseType(renamingSubs).subAndEraseType(subs)
+                  val newNext =
+                    next.subAndEraseType(renamingSubs).subAndEraseType(subs)
+                  newX -> (newZ, newNext)
+                })
+              )()
+            case e: SyntaxSugar =>
+              e.sugarSubAndEraseType(subs)
+            case e =>
+              e.rebuildAndEraseType(
+                e.children.map(e => e.subAndEraseType(subs))
+              )
+          }
+      }
+    }
+  }
+
+  /** Shorthand for [[subAndEraseType]] with just one substitution.
+    */
+  protected[ir] def subAndEraseType(sub: (Expr, Expr)): Expr = {
+    subAndEraseType(Map(sub))
+  }
+
+  /** Perform the given substitutions in this expression while checking, at each
+    * step, that the new type is compatible with the original one.
+    *
+    * @param subs
+    *   a map from old expressions (i.e., the ones to be replaced) to new
+    *   expressions (i.e., what to replace the old expressions with).
     */
   def subPreserveType(subs: Map[Expr, Expr]): Expr = {
     val out = if (subs.isEmpty) {
@@ -783,6 +860,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               //   (1) to avoid variable capture and
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
+              // TODO: Get rid of renameVar?
               val renamed = f.renameVar
               Function(
                 renamed.param.subPreserveType(subs).asInstanceOf[Param],
@@ -805,7 +883,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                   newX -> (newZ, newNext)
                 })
               )(s.typ)
-            case e: SyntaxSugar => e.subSyntaxSugar(subs)
+            case e: SyntaxSugar => e.sugarSubAndKeepType(subs)
             case e =>
               e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
           }
@@ -823,7 +901,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     out.rebuild(newType)
   }
 
-  /** Perform a substitution while preserving all type annotations.
+  // TODO: Fix link in documentation
+  /** Shorthand for [[subPreserveType]] with just one substitution.
     */
   def subPreserveType(sub: (Expr, Expr)): Expr = subPreserveType(Map(sub))
 
@@ -945,7 +1024,7 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
     require(newChildren.isEmpty)
     Param(this.prefix, this.id)(typ)
   }
-  override def rebuild(newChildren: Seq[Expr]): Param = {
+  override def rebuildAndEraseType(newChildren: Seq[Expr]): Param = {
     // Keep the same type by default
     rebuild(this.typ, newChildren)
   }
@@ -992,9 +1071,9 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
-          this.body.subPreserveType(this.param -> fresh.rebuild(this.param.typ))
+          this.body.subAndEraseType(this.param -> fresh.rebuild(this.param.typ))
         val thatRenamed =
-          that.body.subPreserveType(that.param -> fresh.rebuild(that.param.typ))
+          that.body.subAndEraseType(that.param -> fresh.rebuild(that.param.typ))
         thisRenamed == thatRenamed
       case _ => false
     }
@@ -1004,7 +1083,7 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
     this.body
-      .subPreserveType(
+      .subAndEraseType(
         this.param -> Function.HashCodeParam.rebuild(this.param.typ)
       )
       .hashCode
@@ -1418,7 +1497,7 @@ case class StmBuild(
     * where the accumulator variable <code>x</code> has been replaced by a fresh
     * variable.
     */
-  def renameVar(x: Param): StmBuild = {
+  private def renameVar(x: Param): StmBuild = {
     renameVars(Map(x -> x.freshCopy))
   }
 
@@ -1967,11 +2046,11 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val data = this.data.subPreserveType(subs)
-    val valid = this.valid.subPreserveType(subs)
+    val data = this.data.subAndEraseType(subs)
+    val valid = this.valid.subAndEraseType(subs)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
-        (z, next.subPreserveType(subs))
+        (z, next.subAndEraseType(subs))
       })
     val eqnsBag =
       eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
@@ -2014,18 +2093,18 @@ case class StmBuild(
           y -> fresh.rebuild(y.typ)
         })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).subPreserveType(thisSubs)
-          == that.nextByVar(y).subPreserveType(thatSubs))
+        (this.nextByVar(x).subAndEraseType(thisSubs)
+          == that.nextByVar(y).subAndEraseType(thatSubs))
       })
       val thisOutput =
         (
-          this.data.subPreserveType(thisSubs),
-          this.valid.subPreserveType(thisSubs)
+          this.data.subAndEraseType(thisSubs),
+          this.valid.subAndEraseType(thisSubs)
         )
       val thatOutput =
         (
-          that.data.subPreserveType(thatSubs),
-          that.valid.subPreserveType(thatSubs)
+          that.data.subAndEraseType(thatSubs),
+          that.valid.subAndEraseType(thatSubs)
         )
       eqnsMatch && thisOutput == thatOutput
     } else {
@@ -2197,8 +2276,12 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def lowerSyntaxSugar(): Expr
 
-  def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
+  }
+
+  def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    this.rebuildAndEraseType(this.children.map(e => e.subPreserveType(subs)))
   }
 }
 

@@ -42,7 +42,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val isKNonPositive =
             PE.isSmallerOrEqual(k, 0)(this.facts).getOrElse(false)
           if (isKNonPositive) s else e
-        case e => e.rebuild(e.children.map(c => removeStmNextK(c)))
+        case e => e.rebuildAndEraseType(e.children.map(c => removeStmNextK(c)))
       }
     }
 
@@ -312,7 +312,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             Seq(
               replaceStmNextK(n, t)(facts),
               replaceStmNextK(body, t)(facts.geq(i, 0).lt(i, n)).map({
-                case (newBody, xs) => (f.rebuild(Seq(i, newBody)), xs)
+                case (newBody, xs) => (f.rebuildAndEraseType(Seq(i, newBody)), xs)
               })
             )
           case Mux(c, tru, fals) =>
@@ -331,7 +331,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val newAccElems = unwrappedChildResults
             .map(x => x._2)
             .foldLeft(Map[Param, (Expr, Function)]())(_ ++ _)
-          Some((e.rebuild(newChildren), newAccElems))
+          Some((e.rebuildAndEraseType(newChildren), newAccElems))
         }
     }
   }
