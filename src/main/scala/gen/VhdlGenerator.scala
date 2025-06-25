@@ -124,7 +124,7 @@ object VhdlGenerator {
         .map({ case eqn @ (x, (z, _)) =>
           (x.typ, z) match {
             // CASE 1: registers
-            case (t, _) if Default.hasDefault(t) => (Some(eqn), None)
+            case (t, _) if t.isData => (Some(eqn), None)
             // CASE 2: internal producer streams
             case (_: TyStm, _: StmBuild) => (None, Some(eqn))
             // CASE 3: external producer streams
@@ -404,7 +404,7 @@ object VhdlGenerator {
   ): Seq[Decl] = {
     registerEquations
       .flatMap({ case (x, (z, next)) =>
-        assert(Default.hasDefault(x.typ))
+        assert(x.typ.isData)
         require(
           z.freeVars().isEmpty,
           s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."

@@ -35,8 +35,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     val v = this.v.lower()
     val f = this.f.lower()
     f.typ.asInstanceOf[TyArrow] match {
-      case TyArrow(t1, t2)
-          if Default.hasDefault(t1) && Default.hasDefault(t2) =>
+      case TyArrow(t1, t2) if t1.isData && t2.isData =>
         VecBuild(
           v.typ.asInstanceOf[TyVec].n,
           U32 ::+ (i => FunCall(f, VecAccess(v, i)())())

@@ -60,9 +60,9 @@ object AsStm2Stm {
         // Try to get rid of input streams by fusion.
         val stm = f0.body.asInstanceOf[StmBuild].fuseCompletely()
         for (x <- stm.accVars) {
-          if (!Default.hasDefault(x.typ)) {
+          if (!x.typ.isData) {
             throw new IllegalArgumentException(
-              s"Accumulator $x with type ${x.typ} has no default."
+              s"Accumulator $x with non-data type ${x.typ} has no default."
             )
           }
         }
@@ -1064,7 +1064,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newA = a.tchk(context)
     val (t1, n) = newA.typ match {
-      case TyStm(t1, n) if Default.hasDefault(t1) => (t1, n)
+      case TyStm(t1, n) if t1.isData => (t1, n)
       case t =>
         throw new TypeError(
           s"First stream in StmZip has type $t. Expected a non-nested stream."
@@ -1072,7 +1072,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     }
     val newB = b.tchk(context)
     val t2 = newB.typ match {
-      case TyStm(t2, _) if Default.hasDefault(t2) => t2
+      case TyStm(t2, _) if t1.isData => t2
       case t =>
         throw new TypeError(
           s"Second stream in StmZip has type $t. Expected a non-nested stream."
@@ -1276,7 +1276,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newM = m.tchk.expectUInt()
     val newS = input.tchk
     newS.typ match {
-      case TyStm(t, n) if Default.hasDefault(t) =>
+      case TyStm(t, n) if t.isData =>
         this.rebuild(
           TyStm(TyVec(t, newM), ToUnsigned(n - newM + 1)().tchk()),
           Seq(newS, newM)
@@ -1346,7 +1346,7 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newM = m.tchk.expectUInt()
     val newS = stm.tchk(context)
     newS.typ match {
-      case TyStm(t, n) if Default.hasDefault(t) =>
+      case TyStm(t, n) if t.isData =>
         this.rebuild(TyStm(TyStm(t, newM), n - newM + 1), Seq(newS, newM))
       case t =>
         throw new TypeError(
@@ -1380,7 +1380,7 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
-      case TyStm(TyStm(t, m), n) if Default.hasDefault(t) =>
+      case TyStm(TyStm(t, m), n) if t.isData =>
         this.rebuild(TyStm(TyStm(t, n), m), Seq(newS))
       case t =>
         throw new TypeError(

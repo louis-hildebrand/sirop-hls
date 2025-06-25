@@ -312,7 +312,8 @@ class StmInductionVarRemovalPass(facts: FactSet) {
             Seq(
               replaceStmNextK(n, t)(facts),
               replaceStmNextK(body, t)(facts.geq(i, 0).lt(i, n)).map({
-                case (newBody, xs) => (f.rebuildAndEraseType(Seq(i, newBody)), xs)
+                case (newBody, xs) =>
+                  (f.rebuildAndEraseType(Seq(i, newBody)), xs)
               })
             )
           case Mux(c, tru, fals) =>
@@ -379,9 +380,9 @@ object RecurrenceSolver {
     val peZ = PE.partialEval(z.tchk())
     val peNext = PE.partialEval(next.tchk()).asInstanceOf[Function]
     val closedForm = peZ.typ match {
-      case _: TyStm                   => tryFindStmClosedForm(peZ, peNext)
-      case t if Default.hasDefault(t) => tryFindDataClosedForm(t0, peZ, peNext)
-      case _                          => None
+      case _: TyStm      => tryFindStmClosedForm(peZ, peNext)
+      case t if t.isData => tryFindDataClosedForm(t0, peZ, peNext)
+      case _             => None
     }
     closedForm.foreach(f => {
       val typedF = f.tchk().asInstanceOf[Function]

@@ -195,13 +195,13 @@ object PartialEvalPass {
                     doPartialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
                   // True branch is special case of false branch
                   case _
-                      if Default.hasDefault(trueE.typ)
+                      if trueE.typ.isData
                         && isEqual(trueE, falseE)(facts.assumeTrue(cond))
                           .getOrElse(false) =>
                     falseE
                   // False branch is special case of true branch
                   case _
-                      if Default.hasDefault(falseE.typ)
+                      if trueE.typ.isData
                         && isEqual(trueE, falseE)(facts.assumeFalse(cond))
                           .getOrElse(false) =>
                     trueE

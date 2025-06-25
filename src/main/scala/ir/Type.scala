@@ -119,6 +119,21 @@ sealed trait Type {
       case _ => false
     }
   }
+
+  /** Decides whether this type is "data."
+    *
+    * Data types include integers, booleans, tuples whose children are all data,
+    * etc. A component in hardware can take data as input and produces data as
+    * output. On the other hand, functions and streams are <i>not</i> data.
+    */
+  def isData: Boolean = {
+    this match {
+      case _: TyAnyInt | TyBool            => true
+      case TyTuple(ts @ _*)                => ts.forall(t => t.isData)
+      case TyVec(t, n)                     => t.isData
+      case Missing | _: TyArrow | _: TyStm => false
+    }
+  }
 }
 
 object Type {

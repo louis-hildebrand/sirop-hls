@@ -367,7 +367,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case eq @ Equal(e1, e2) =>
         val newE1 = e1.tchk
         newE1.typ match {
-          case t if Default.hasDefault(t) => ()
+          case t if t.isData => ()
           case t =>
             throw new TypeError(
               s"Left-hand side of $className has non-data type $t."
@@ -375,7 +375,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newE2 = e2.tchk
         newE2.typ match {
-          case t if Default.hasDefault(t) => ()
+          case t if t.isData => ()
           case t =>
             throw new TypeError(
               s"Right-hand side of $className has non-data type $t."
@@ -465,7 +465,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               )
             case _: TyStm =>
               ctx + (x -> x.typ)
-            case t if Default.hasDefault(t) =>
+            case t if t.isData =>
               ctx + (x -> x.typ)
             case t =>
               throw new TypeError(
@@ -1896,7 +1896,7 @@ case class StmBuild(
         x.typ match {
           case TyStm(t, _) =>
             Some(StmData(x)() -> VecAccess(StmData(newX)(TyVec(t, m)), i)(t))
-          case t if Default.hasDefault(t) =>
+          case t if t.isData =>
             Some(x -> VecAccess(newX, i)(x.typ))
           case t =>
             throw new IllegalArgumentException(s"Invalid accumulator type $t.")
@@ -1926,7 +1926,7 @@ case class StmBuild(
             case SharedScope => z
           }
           newX -> (newZ, next)
-        case t if Default.hasDefault(t) =>
+        case t if t.isData =>
           scopes(x) match {
             case SharedScope => newX -> (z, next.subPreserveType(subs))
             case PrivateScope =>
@@ -2183,7 +2183,7 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
             )
         }
         s.replicate(n, i, Set())
-      case t if Default.hasDefault(t) => VecBuild(n, f)().tchk()
+      case t if t.isData => VecBuild(n, f)().tchk()
       case t =>
         throw new IllegalArgumentException(
           s"Cannot lower VecBuild containing elements of type $t."

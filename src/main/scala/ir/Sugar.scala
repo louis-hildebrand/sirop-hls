@@ -81,10 +81,6 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     Default.getDefault(this.typ).tchk().lower()
 }
 case object Default {
-  def hasDefault(typ: Type): Boolean = {
-    getDefaultOpt(typ).isDefined
-  }
-
   private[ir] def getDefault(typ: Type): Expr = {
     getDefaultOpt(typ) match {
       case Some(v) => v
@@ -266,7 +262,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newE1 = e1.tchk
     newE1.typ match {
-      case t if Default.hasDefault(t) => ()
+      case t if t.isData => ()
       case t =>
         throw new TypeError(
           s"Left-hand side of $className has non-data type $t."
@@ -274,7 +270,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
     val newE2 = e2.tchk
     newE2.typ match {
-      case t if Default.hasDefault(t) => ()
+      case t if t.isData => ()
       case t =>
         throw new TypeError(
           s"Right-hand side of $className has non-data type $t."
