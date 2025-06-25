@@ -42,9 +42,9 @@ private[opt] object BlackBox {
   /** Choose a unique identifier for the given expression. The identifier is
     * chosen such that `identify(e1) == identify(e2)` iff `e1 == e2`. In other
     * words, if another instance of the same expression (as determined by
-    * `equals` and `hashCode`) has previously been put in a BlackBox (and has
-    * not been garbage collected), then the same ID will be returned. Otherwise,
-    * the chosen ID will be different from all other previously-chosen IDs.
+    * `equals` and `hashCode`) has previously been put in a BlackBox, then the
+    * same ID will be returned. Otherwise, the chosen ID will be different from
+    * all other previously-chosen IDs.
     *
     * @param e
     *   An expression
@@ -76,12 +76,14 @@ private[opt] object BlackBox {
   }
 
   /** Store previously-generated IDs so that I can return the same one later.
-    * use a `WeakHashMap` because, if an expression is garbage collected, it
-    * presumably doesn't matter if the ID changes. This seems like a nasty hack,
-    * but the `id` is part of the public interface for `ExtensibleVar` so
-    * `BlackBox` must have one.
+    * This seems like a nasty hack, but the `id` is part of the public interface
+    * for `ExtensibleVar` so `BlackBox` must have one.
+    *
+    * Note that it is NOT valid to use [[mutable.WeakHashMap]] here. Even if no
+    * references exist to key `e1`, there may still be references to another
+    * expression `e2` such that `e2 == e1`.
     */
-  private val idByExpr = mutable.WeakHashMap[Expr, Long]()
+  private val idByExpr = mutable.HashMap[Expr, Long]()
   private val idCtr = new AtomicLong()
 }
 

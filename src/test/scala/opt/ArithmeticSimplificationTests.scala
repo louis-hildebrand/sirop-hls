@@ -299,4 +299,12 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == b)
   }
+
+  test("BlackBox.identify") {
+    val m = Param("m")()
+    val id0 = BlackBox(m.rebuild(U8)).id
+    System.gc()
+    val id1 = BlackBox(m.rebuild(U8)).id
+    assert(id0 == id1)
+  }
 }
