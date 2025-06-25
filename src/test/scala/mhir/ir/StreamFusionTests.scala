@@ -1,7 +1,7 @@
 package mhir.ir
 
 import mhir.ir._
-import mhir.opt.PartialEvalPass
+import mhir.optimize.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamFusionTests extends AnyFunSuite {

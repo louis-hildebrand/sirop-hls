@@ -1,6 +1,6 @@
 package mhir.ir
 
-import mhir.opt.{PartialEvalPass => PE}
+import mhir.optimize.{PartialEvalPass => PE}
 
 sealed trait Type {
   def ::+(f: Param => Expr): Function = {

@@ -3,8 +3,6 @@ package mhir.ir
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
 
-
-
 trait Eval {
 
   def eval(e: Expr): Expr = {

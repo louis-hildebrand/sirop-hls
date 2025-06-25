@@ -1,7 +1,7 @@
 package mhir.debug
 
 import mhir.ir._
-import mhir.operations.VecShiftLeft
+import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
 class TracerTests extends AnyFunSuite {
