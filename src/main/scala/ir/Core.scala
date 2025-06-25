@@ -1,7 +1,6 @@
 package ir
 
 import operations.StmMap
-import opt.OptionSimplifier
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
@@ -25,25 +24,107 @@ private object SharedScope extends AccVarScope
 
 /** A node in the IR.
   *
+  * ==Important Note About [[equals]] and [[hashCode]]==
+  * The [[equals]] and [[hashCode]] methods of an [[Expr]] must NOT depend on
+  * arithmetic simplification via the [[lift.arithmetic]] library, even
+  * indirectly. In particular, this means they must NOT use methods like
+  * [[Type.~=]] which use the arithmetic expression library to compare vector
+  * lengths. This restriction is due to the fact that the library may invoke
+  * [[equals]] or [[hashCode]] while arithmetic simplification is temporarily
+  * disabled.
+  *
   * @param typ
   *   The type of this node. If this node has a type other than
   *   <code>Missing</code>, then all its children must also have types other
   *   than <code>Missing</code>.
   */
 sealed abstract class Expr(val children: Expr*)(val typ: Type) {
-  def +(that: Expr): Expr = Sum(this, that)()
-  def -(that: Expr): Expr = Sum(this, Prod(-1, that)())()
-  def *(that: Expr): Expr = Prod(this, that)()
-  def /(that: Expr): Div = Div(this, that)()
-  def %(that: Expr): Mod = Mod(this, that)()
-  def ===(that: Expr): Equal = Equal(this, that)()
+
+  /** Constructs a function call with the given argument.
+    *
+    * @param arg
+    *   the function argument.
+    */
+  def apply(arg: Expr): FunCall = FunCall(this, arg)()
+
+  /** See [[SmartSum]].
+    */
+  def +(that: Expr): Expr = SmartSum(this, that)()
+
+  /** See [[SmartSum]] and [[SmartProd]].
+    */
+  def -(that: Expr): Expr = this + -1 * that
+
+  /** See [[SmartProd]].
+    */
+  def *(that: Expr): Expr = SmartProd(this, that)()
+
+  /** See [[SmartDiv]].
+    */
+  def /(that: Expr): Expr = SmartDiv(this, that)()
+
+  /** See [[SmartMod]].
+    */
+  def %(that: Expr): Expr = SmartMod(this, that)()
+
+  /** See [[SmartEqual]].
+    */
+  def ===(that: Expr): Expr = SmartEqual(this, that)()
+
+  /** See [[Equal]].
+    */
+  def eq(that: Expr): Expr = Equal(this, that)()
+
+  /** See [[SmartEqual]].
+    */
   def !==(that: Expr): Expr = !(this === that)
-  def <(that: Expr): LessThan = LessThan(this, that)()
+
+  /** See [[Equal]].
+    */
+  def neq(that: Expr): Expr = !(this eq that)
+
+  /** See [[SmartLessThan]].
+    */
+  def <(that: Expr): Expr = SmartLessThan(this, that)()
+
+  /** See [[LessThan]].
+    */
+  def lt(that: Expr): LessThan = LessThan(this, that)()
+
+  /** See [[SmartLessThan]].
+    */
   def <=(that: Expr): Not = !(this > that)
-  def >(that: Expr): LessThan = that < this
-  def >=(that: Expr): Not = that <= this
+
+  /** See [[LessThan]]
+    */
+  def leq(that: Expr): Not = !(this gt that)
+
+  /** See [[SmartLessThan]].
+    */
+  def >(that: Expr): Expr = that < this
+
+  /** See [[LessThan]].
+    */
+  def gt(that: Expr): Expr = that lt this
+
+  /** See [[SmartLessThan]].
+    */
+  def >=(that: Expr): Expr = that <= this
+
+  /** See [[LessThan]].
+    */
+  def geq(that: Expr): Expr = that leq this
+
+  /** See [[Not]].
+    */
   def unary_! : Not = Not(this)()
+
+  /** See [[And]].
+    */
   def &&(that: Expr): Expr = And(this, that)()
+
+  /** See [[Or]].
+    */
   def ||(that: Expr): Expr = Or(this, that)()
 
   // if we use _0, _1, ... for some reasons the Scala compiler gets confused and produces error messages when matching some of the expressions
@@ -54,6 +135,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def __4: TupleAccess = TupleAccess(this, 4)()
   def __5: TupleAccess = TupleAccess(this, 5)()
 
+  /** The name of this class. This is useful, for example, for including the
+    * class name in an error message without hard-coding it.
+    */
+  protected def className: String = this.getClass.getSimpleName
+
   /** Type check this expression and annotate this node with its type.
     *
     * @return
@@ -61,9 +147,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     *   that is not <code>Missing</code>
     */
   def tchk(implicit context: Map[Param, Type] = Map()): Expr = {
+    if (this.typ != Missing) {
+      return this
+    }
     this match {
-      case e if e.typ != Missing => e
-
       case x: Param =>
         context.get(x) match {
           case Some(t) => x.rebuild(t)
@@ -82,7 +169,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         val newArg = arg.tchk
         newF.typ match {
           case TyArrow(t1, t2) =>
-            if (newArg.typ.isCompatibleWith(t1)) {
+            if (newArg.typ ~= t1) {
               fc.rebuild(t2, Seq(newF, newArg))
             } else {
               throw new TypeError(
@@ -95,47 +182,147 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             )
         }
 
-      case n: IntCst => n.rebuild(TyInt)
+      case cst @ IntCst(n) =>
+        assert(cst.typ == Missing)
+        cst.rebuild(TyAnyInt.tightest(n, n))
       case s @ Sum(terms @ _*) =>
         val newTerms = terms.map(e => e.tchk)
         for ((t, i) <- newTerms.zipWithIndex) {
-          if (t.typ != TyInt) {
-            throw new TypeError(s"Term $i of sum has type ${t.typ}.")
+          if (!t.typ.isInstanceOf[TyAnyInt]) {
+            throw new TypeError(
+              s"Term $i of sum has type ${t.typ}."
+                + " Expected an integer."
+            )
           }
         }
-        s.rebuild(TyInt, newTerms)
+        val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${s.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          s.rebuild(elemTypes.head, newTerms)
+        }
       case p @ Prod(factors @ _*) =>
         val newFactors = factors.map(e => e.tchk)
         for ((t, i) <- newFactors.zipWithIndex) {
-          if (t.typ != TyInt) {
-            throw new TypeError(s"Term $i of product has type ${t.typ}.")
+          if (!t.typ.isInstanceOf[TyAnyInt]) {
+            throw new TypeError(
+              s"Term $i of product has type ${t.typ}."
+                + " Expected an integer."
+            )
           }
         }
-        p.rebuild(TyInt, newFactors)
+        val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
+        if (elemTypes.toSet.size > 1) {
+          throw new TypeError(
+            s"Operands of ${p.className} have different types: ${elemTypes.mkString(", ")}."
+          )
+        } else {
+          p.rebuild(elemTypes.head, newFactors)
+        }
       case d @ Div(e1, e2) =>
         val newLhs = e1.tchk
-        newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t1 = newLhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer"
+            )
         }
         val newRhs = e2.tchk
-        newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t2 = newRhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        d.rebuild(TyInt, Seq(newLhs, newRhs))
+        if (t1 ~= t2) {
+          d.rebuild(t1, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
+          )
+        }
       case m @ Mod(e1, e2) =>
         val newLhs = e1.tchk
-        newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t1 = newLhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer"
+            )
         }
         val newRhs = e2.tchk
-        newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+        val t2 = newRhs.typ match {
+          case t: TyAnyInt => t
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        m.rebuild(TyInt, Seq(newLhs, newRhs))
+        if (t1 ~= t2) {
+          m.rebuild(t1, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type $t1, but right-hand side has type $t2."
+          )
+        }
+      case pad @ PadTo(e, targetWidth) =>
+        val newE = e.tchk
+        newE.typ match {
+          case t @ TyAnyInt(srcWidth) if targetWidth >= srcWidth =>
+            pad.rebuild(t.withWidth(targetWidth), Seq(newE))
+          case t: TyAnyInt =>
+            throw new TypeError(
+              s"Argument of ${PadTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
+                + " The target width cannot be smaller than the original width."
+            )
+          case t =>
+            throw new TypeError(
+              s"Argument of ${PadTo.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
+            )
+        }
+      case trunc @ TruncateTo(e, targetWidth) =>
+        val newE = e.tchk
+        newE.typ match {
+          case t @ TyAnyInt(srcWidth) if targetWidth <= srcWidth =>
+            trunc.rebuild(t.withWidth(targetWidth), Seq(newE))
+          case t: TyAnyInt =>
+            throw new TypeError(
+              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t but the target width is $targetWidth."
+                + " The target width cannot be greater than the original width."
+            )
+          case t =>
+            throw new TypeError(
+              s"Argument of ${TruncateTo.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
+            )
+        }
+      case sgn @ ToSigned(e) =>
+        val newE = e.tchk.expectUInt()
+        val w = newE.typ.asInstanceOf[TyUInt].w
+        // Widen by one bit so that the value is guaranteed to fit
+        sgn.rebuild(TySInt(w + 1), Seq(newE))
+      case uns @ ToUnsigned(e) =>
+        val newE = e.tchk
+        newE.typ match {
+          case TySInt(w) =>
+            // We don't need the sign bit anymore
+            assert(w >= 1)
+            uns.rebuild(TyUInt(w - 1), Seq(newE))
+          case t =>
+            throw new TypeError(
+              s"Argument of ${ToUnsigned.getClass.getSimpleName} has type $t."
+                + " Expected a signed integer."
+            )
+        }
 
       case True  => True
       case False => False
@@ -147,11 +334,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         }
         val newT = t.tchk
         val newF = f.tchk
-        if (newT.typ.isCompatibleWith(newF.typ)) {
+        if (newT.typ ~= newF.typ) {
           mux.rebuild(newT.typ, Seq(newC, newT, newF))
         } else {
           throw new TypeError(
-            s"True branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}."
+            s"True branch of MUX has type ${newT.typ} but false branch has type ${newF.typ}."
           )
         }
       case a @ And(terms @ _*) =>
@@ -180,44 +367,64 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case eq @ Equal(e1, e2) =>
         val newE1 = e1.tchk
         newE1.typ match {
-          case _: TyStm | _: TyArrow =>
-            throw new TypeError(s"Cannot compare value of type ${newE1.typ}.")
-          case _ => ()
+          case t if Default.hasDefault(t) => ()
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has non-data type $t."
+            )
         }
         val newE2 = e2.tchk
         newE2.typ match {
-          case _: TyStm | _: TyArrow =>
-            throw new TypeError(s"Cannot compare value of type ${newE2.typ}.")
-          case _ => ()
+          case t if Default.hasDefault(t) => ()
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has non-data type $t."
+            )
         }
-        if (newE1.typ.isCompatibleWith(newE2.typ)) {
+        if (newE1.typ ~= newE2.typ) {
           eq.rebuild(TyBool, Seq(newE1, newE2))
         } else {
           throw new TypeError(
-            s"Left-hand side of Equals has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
+            s"Left-hand side of $className has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
           )
         }
       case lt @ LessThan(e1, e2) =>
         val newLhs = e1.tchk
         newLhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+          case _: TyAnyInt => ()
+          case t =>
+            throw new TypeError(
+              s"Left-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
         val newRhs = e2.tchk
         newRhs.typ match {
-          case TyInt => ()
-          case t => throw new TypeError(s"Expected type $TyInt but found $t.")
+          case _: TyAnyInt => ()
+          case t =>
+            throw new TypeError(
+              s"Right-hand side of $className has type $t."
+                + " Expected an integer."
+            )
         }
-        lt.rebuild(TyBool, Seq(newLhs, newRhs))
+        if (newLhs.typ ~= newRhs.typ) {
+          lt.rebuild(TyBool, Seq(newLhs, newRhs))
+        } else {
+          throw new TypeError(
+            s"Left-hand side of $className has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}."
+          )
+        }
 
       case t @ Tuple(elems @ _*) =>
         val newElems = elems.map(e => e.tchk)
         t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
-      case ta @ TupleAccess(t, IntCst(i)) =>
+      case ta @ TupleAccess(t, idx: IntCst) =>
+        val newIdx = idx.tchk
+        assert(newIdx.typ.isInstanceOf[TyAnyInt])
         val newT = t.tchk
         newT.typ match {
           case TyTuple(ts @ _*) =>
-            ta.rebuild(ts(i), Seq(newT, IntCst(i)))
+            ta.rebuild(ts(idx.i.toInt), Seq(newT, newIdx))
           case t =>
             throw new TypeError(s"Left-hand side of tuple access has type $t.")
         }
@@ -231,12 +438,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           case t =>
             throw new TypeError(s"Left-hand side of VecAccess has type $t.")
         }
-        val newI = i.tchk
-        newI.typ match {
-          case TyInt => ()
-          case t =>
-            throw new TypeError(s"Right-hand side of VecAccess has type $t.")
-        }
+        val newI = i.tchk.expectUInt()
         va.rebuild(vecT, Seq(newV, newI))
       case VecLiteral(elems @ _*) =>
         elems match {
@@ -268,17 +470,17 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             case t =>
               throw new TypeError(
                 s"Invalid type $t for accumulator $x."
-                  + s"Accumulators can only be streams or data."
+                  + s" Accumulators can only be streams or data."
               )
           }
         })
-        val newN = s.n.tchk(context).expectType(TyInt)
+        val newN = s.n.tchk(context).expectUInt()
         val newEquations = s.equations.map({ case (x, (z, next)) =>
           val newZ = z.tchk(context)
           if (!(newZ.typ ~= x.typ)) {
             throw new TypeError(
               s"Seed for accumulator $x has type ${newZ.typ}."
-                + s"Expected type ${x.typ}."
+                + s" Expected type ${x.typ}."
             )
           }
           val newNext = next.tchk(newContext)
@@ -289,7 +491,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           if (!(newNext.typ ~= expectedNextTyp)) {
             throw new TypeError(
               s"Next value for accumulator $x has type ${newNext.typ}."
-                + s"Expected type $expectedNextTyp."
+                + s" Expected type $expectedNextTyp."
             )
           }
           x -> (newZ, newNext)
@@ -311,10 +513,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case sn @ StmNextK(s, k) =>
         val newK = k.tchk
         newK.typ match {
-          case TyInt => ()
+          case _: TyAnyInt => ()
           case t =>
             throw new TypeError(
               s"Index of ${StmNextK.getClass.getSimpleName} has type $t."
+                + " Expected an integer."
             )
         }
         val newS = s.tchk
@@ -353,13 +556,55 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
-  def expectTypeCompatibleWith(t: Type): Expr = {
-    if (!this.typ.isCompatibleWith(t)) {
-      throw new TypeError(s"Expected type $t but found ${this.typ}.")
+  /** Insist that this expression has the type of an unsigned integer.
+    *
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
+  def expectUInt(): Expr = {
+    this.typ match {
+      case _: TyUInt => this
+      case t =>
+        throw new TypeError(s"Expected an unsigned integer but found $t.")
     }
-    this
   }
 
+  /** Insist that this expression has the type of an integer, either signed or
+    * unsigned.
+    *
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
+  def expectAnyInt(): Expr = {
+    this.typ match {
+      case _: TyAnyInt => this
+      case t =>
+        throw new TypeError(s"Expected an integer but found $t.")
+    }
+  }
+
+  def expectStream(): Expr = {
+    this.typ match {
+      case _: TyStm => this
+      case t =>
+        throw new TypeError(s"Expected a stream but found $t.")
+    }
+  }
+
+  /** Insist that this expression's type is compatible with the given type (as
+    * determined by [[Type.~=]]).
+    *
+    * @param t
+    *   the expected type.
+    * @return
+    *   this expression, unchanged.
+    * @throws TypeError
+    *   if this expression does not have the expected type.
+    */
   def expectType(t: Type): Expr = {
     if (this.typ != t) {
       throw new TypeError(s"Expected type $t but found ${this.typ}.")
@@ -367,10 +612,15 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     this
   }
 
-  protected def requireType(): Unit = {
+  /** Insist that this expression has been type checked.
+    *
+    * @param action
+    *   the action that must be preceded by type checking.
+    */
+  protected def requireType(action: String = "lowering"): Unit = {
     require(
       this.typ != Missing,
-      s"${this.getClass.getSimpleName} must be type checked before it can be lowered."
+      s"$className must be type checked before $action."
     )
   }
 
@@ -387,10 +637,46 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  /** Reconstruct this expression with new children or a new type annotation.
+    *
+    * @param typ
+    *   the new type annotation.
+    * @param newChildren
+    *   the new children.
+    */
   def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
-  def rebuild(newChildren: Seq[Expr]): Expr = rebuild(Missing, newChildren)
+
+  /** Reconstruct this expression with new children and erase the type
+    * annotation.
+    *
+    * @param newChildren
+    *   the new children.
+    */
+  def rebuildAndEraseType(newChildren: Seq[Expr]): Expr = {
+    this match {
+      case _: IntCst | _: Param | _: StmLiteral | _: VecLiteral =>
+        // These expressions may carry type information that cannot be derived
+        // from the syntax alone, so be careful not to discard it.
+        this.rebuild(this.typ, newChildren)
+      case _ =>
+        this.rebuild(Missing, newChildren)
+    }
+  }
+
+  /** Reconstruct this expression with a new type annotation but the same
+    * children.
+    *
+    * @param typ
+    *   the new type annotation.
+    */
   def rebuild(typ: Type): Expr = rebuild(typ, children)
-  def map(f: Expr => Expr): Expr = rebuild(children.map(f))
+
+  /** Rebuild this expression after applying [[f]] to each of its children.
+    *
+    * @param f
+    *   the function to apply to each child.
+    */
+  def map(f: Expr => Expr): Expr = rebuildAndEraseType(children.map(f))
   def mapPreOrder(f: Expr => Expr): Expr = map(f).map(e => e.mapPreOrder(f))
 
   /** Remove all syntax sugar from this expression and its children. This is
@@ -401,14 +687,14 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case s: SyntaxSugar => s.lowerSyntaxSugar()
       case vb: VecBuild   => vb.lowerVecBuild()
       case va: VecAccess  => va.lowerVecAccess()
-      case e @ (_: Param | _: StmLiteral | _: VecLiteral) =>
-        // These expressions cannot necessarily be type checked in isolation,
-        // so maintain the type
-        e.rebuild(e.typ.lower)
+      case e @ (_: IntCst | _: Param | _: StmLiteral | _: VecLiteral) =>
+        // These expressions may carry type information that cannot be derived
+        // from the syntax alone, so be careful not to discard it.
+        e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
       case e =>
         // Re-run the type checker to ensure no type errors crept in during
         // lowering
-        val newE = e.rebuild(e.children.map(e => e.lower()))
+        val newE = e.rebuildAndEraseType(e.children.map(e => e.lower()))
         if (e.typ != Missing) newE.tchk() else newE
     }
     // This is required because lowering may be syntax-directed (i.e., an
@@ -416,7 +702,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     // good if you type check an expression but then the type is removed while
     // lowering its children.
     assert(
-      !this.hasType || desugared.typ.isCompatibleWith(this.typ.lower),
+      !this.hasType || (desugared.typ ~= this.typ.lower),
       s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${this.getClass.getSimpleName}, expected ${this.typ.lower} but found ${desugared.typ})"
     )
     assert(
@@ -452,7 +738,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
             newBody match {
               case Function(y, newestBody) =>
                 val z = Param("z")(TyTuple(newX.typ, y.typ))
-                val subs = Map[Expr, Expr](newX -> z.__0, y -> z.__1)
+                val z0 = z.__0.tchk()
+                val z1 = z.__1.tchk()
+                val subs = Map[Expr, Expr](newX -> z0, y -> z1)
                 Function(z, newestBody.subPreserveType(subs))().tchk()
               case e =>
                 throw new IllegalArgumentException(
@@ -489,56 +777,75 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def contains[T <: Expr](cls: Class[T]): Boolean =
     this.contains(e => cls.isInstance(e))
 
-  /** Perform all the given substitutions on this expression. Substitutions does
-    * <i>not</i> necessarily preserve type annotations.
+  /** Perform the given substitutions in this expression while erasing the type
+    * annotations.
+    *
+    * @param subs
+    *   a map from old expressions (i.e., the ones to be replaced) to new
+    *   expressions (i.e., what to replace the old expressions with).
     */
-  @deprecated
-  def substitute(subs: Map[Expr, Expr]): Expr = {
+  protected[ir] def subAndEraseType(subs: Map[Expr, Expr]): Expr = {
     if (subs.isEmpty) {
       this
     } else {
       subs.get(this) match {
-        case Some(v) => v
+        case Some(v) =>
+          v
         case None =>
           this match {
-            case f: Function =>
+            case Function(x, body) =>
               // Rename both
               //   (1) to avoid variable capture and
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
-              val renamed = f.renameVar
-              Function(renamed.param, renamed.body.substitute(subs))()
+              val newX = x.freshCopy
+              Function(
+                newX,
+                body.subAndEraseType(x -> newX).subAndEraseType(subs)
+              )()
             case s: StmBuild =>
               // Rename both
               //   (1) to avoid variable capture and
               //   (2) in case an accumulator variable appears free in the old
               //       value of a substitution (i.e., the value to be replaced)
-              val renamed = s.renameVars
+              val renamingSubs: Map[Expr, Expr] =
+                s.accVars.map(x => x -> x.freshCopy).toMap
               StmBuild(
-                renamed.n.substitute(subs),
-                renamed.data.substitute(subs),
-                renamed.valid.substitute(subs),
-                renamed.equations.map({ case (x, (z, next)) =>
-                  x -> (z.substitute(subs), next.substitute(subs))
+                s.n.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.data.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.valid.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                s.equations.map({ case (x, (z, next)) =>
+                  val newX = renamingSubs(x).asInstanceOf[Param]
+                  val newZ =
+                    z.subAndEraseType(renamingSubs).subAndEraseType(subs)
+                  val newNext =
+                    next.subAndEraseType(renamingSubs).subAndEraseType(subs)
+                  newX -> (newZ, newNext)
                 })
               )()
-            case x: Param =>
-              // Don't erase the type annotation for variables
-              x
+            case e: SyntaxSugar =>
+              e.sugarSubAndEraseType(subs)
             case e =>
-              e.rebuild(Missing, e.children.map(e => e.substitute(subs)))
+              e.rebuildAndEraseType(
+                e.children.map(e => e.subAndEraseType(subs))
+              )
           }
       }
     }
   }
 
-  /** Perform all the given substitutions on this expression. Substitutions does
-    * <i>not</i> necessarily preserve type annotations.
+  /** Shorthand for [[subAndEraseType]] with just one substitution.
     */
-  @deprecated
-  def substitute(sub: (Expr, Expr)): Expr = substitute(Map(sub))
+  protected[ir] def subAndEraseType(sub: (Expr, Expr)): Expr = {
+    subAndEraseType(Map(sub))
+  }
 
-  /** Perform a substitution while preserving all type annotations.
+  /** Perform the given substitutions in this expression while checking, at each
+    * step, that the new type is compatible with the original one.
+    *
+    * @param subs
+    *   a map from old expressions (i.e., the ones to be replaced) to new
+    *   expressions (i.e., what to replace the old expressions with).
     */
   def subPreserveType(subs: Map[Expr, Expr]): Expr = {
     val out = if (subs.isEmpty) {
@@ -553,6 +860,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
               //   (1) to avoid variable capture and
               //   (2) in case f.param appears free in the old value of a
               //       substitution (i.e., the value to be replaced)
+              // TODO: Get rid of renameVar?
               val renamed = f.renameVar
               Function(
                 renamed.param.subPreserveType(subs).asInstanceOf[Param],
@@ -575,7 +883,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                   newX -> (newZ, newNext)
                 })
               )(s.typ)
-            case e: SyntaxSugar => e.subSyntaxSugar(subs)
+            case e: SyntaxSugar => e.sugarSubAndKeepType(subs)
             case e =>
               e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
           }
@@ -593,7 +901,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     out.rebuild(newType)
   }
 
-  /** Perform a substitution while preserving all type annotations.
+  // TODO: Fix link in documentation
+  /** Shorthand for [[subPreserveType]] with just one substitution.
     */
   def subPreserveType(sub: (Expr, Expr)): Expr = subPreserveType(Map(sub))
 
@@ -668,20 +977,24 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Prod        => 10
       case _: Div         => 11
       case _: Mod         => 12
-      case _: Param       => 13
-      case _: TupleAccess => 14
-      case _: FunCall     => 15
-      case _: Mux         => 16
-      case _: Tuple       => 17
-      case _: Function    => 18
-      case _: StmBuild    => 19
-      case _: StmData     => 20
-      case _: VecBuild    => 21
-      case _: VecAccess   => 22
-      case _: VecLiteral  => 23
-      case _: StmLiteral  => 24
-      case _: StmNextK    => 25
-      case _: SyntaxSugar => 26
+      case _: PadTo       => 13
+      case _: TruncateTo  => 14
+      case _: ToSigned    => 15
+      case _: ToUnsigned  => 16
+      case _: Param       => 17
+      case _: TupleAccess => 18
+      case _: FunCall     => 19
+      case _: Mux         => 20
+      case _: Tuple       => 21
+      case _: Function    => 22
+      case _: StmBuild    => 23
+      case _: StmData     => 24
+      case _: VecBuild    => 25
+      case _: VecAccess   => 26
+      case _: VecLiteral  => 27
+      case _: StmLiteral  => 28
+      case _: StmNextK    => 29
+      case _: SyntaxSugar => 30
     }
   }
 }
@@ -693,21 +1006,13 @@ case class Tuple(elems: Expr*)(typ: Type = Missing)
     Tuple(newChildren: _*)(typ)
 }
 
-case class TupleAccess(t: Expr, i: IntCst)(typ: Type) extends Expr(t, i)(typ) {
+case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
+    extends Expr(t, i)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(t, i: IntCst) => TupleAccess(t, i)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
     }
-  }
-}
-case object TupleAccess {
-  def apply(t: Expr, i: IntCst)(typ: Type = Missing): TupleAccess = {
-    val newTyp = (typ, t.typ) match {
-      case (Missing, TyTuple(ts @ _*)) => ts(i.i)
-      case _                           => typ
-    }
-    new TupleAccess(t, i)(newTyp)
   }
 }
 
@@ -719,7 +1024,7 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
     require(newChildren.isEmpty)
     Param(this.prefix, this.id)(typ)
   }
-  override def rebuild(newChildren: Seq[Expr]): Param = {
+  override def rebuildAndEraseType(newChildren: Seq[Expr]): Param = {
     // Keep the same type by default
     rebuild(this.typ, newChildren)
   }
@@ -765,8 +1070,11 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     x match {
       case that: Function =>
         val fresh = Param("p")()
-        (this.body.substitute(this.param -> fresh)
-          == that.body.substitute(that.param -> fresh))
+        val thisRenamed =
+          this.body.subAndEraseType(this.param -> fresh.rebuild(this.param.typ))
+        val thatRenamed =
+          that.body.subAndEraseType(that.param -> fresh.rebuild(that.param.typ))
+        thisRenamed == thatRenamed
       case _ => false
     }
   }
@@ -774,7 +1082,11 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    this.body.substitute(this.param -> Function.HashCodeParam).hashCode
+    this.body
+      .subAndEraseType(
+        this.param -> Function.HashCodeParam.rebuild(this.param.typ)
+      )
+      .hashCode
   }
 }
 object Function {
@@ -807,11 +1119,42 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
-case class IntCst(i: Int) extends IntExpr()(TyInt) {
+/** An integer constant.
+  *
+  * @param i
+  *   the integer value.
+  */
+case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
+  typ match {
+    case Missing => ()
+    case int: TyAnyInt =>
+      if (!int.contains(i)) {
+        throw OverflowException(i, int)
+      }
+    case t =>
+      throw new TypeError(s"Invalid type $t for integer constant.")
+  }
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    require(typ == TyInt || typ == Missing)
+    require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
-    this
+    IntCst(i)(typ)
+  }
+}
+
+/** Shorthand for [[IntCst]].
+  */
+object C {
+
+  /** Constructs an [[IntCst]].
+    *
+    * @param i
+    *   the integer value.
+    * @param typ
+    *   the type annotation.
+    */
+  def apply(i: Long)(typ: Type = Missing): IntCst = {
+    IntCst(i)(typ)
   }
 }
 
@@ -833,15 +1176,9 @@ case object Sum {
       // Sort terms to represent commutativity
       .sorted(ExprOrdering)
     terms match {
-      case Seq()  => 0
+      case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyInt)) {
-          TyInt
-        } else {
-          typ
-        }
-        new Sum(terms: _*)(newTyp)
+      case terms  => new Sum(terms: _*)(typ)
     }
   }
 }
@@ -865,56 +1202,98 @@ case object Prod {
         // Sort terms to represent commutativity
         .sorted(ExprOrdering)
     factors match {
-      case Seq()  => IntCst(1)
-      case Seq(e) => e
-      case factors =>
-        val newTyp =
-          if (typ == Missing && factors.forall(e => e.typ == TyInt)) {
-            TyInt
-          } else {
-            typ
-          }
-        new Prod(factors: _*)(newTyp)
+      case Seq()   => IntCst(1)(typ)
+      case Seq(e)  => e
+      case factors => new Prod(factors: _*)(typ)
     }
   }
 }
 
-case class Div(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+case class Div(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Div(newChildren.head, newChildren(1))(typ)
   }
 }
-case object Div {
-  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Div = {
-    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
-      TyInt
-    } else {
-      typ
-    }
-    new Div(e1, e2)(newTyp)
-  }
-}
 
-case class Mod(e1: Expr, e2: Expr)(typ: Type) extends IntExpr(e1, e2)(typ) {
+case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Mod(newChildren.head, newChildren(1))(typ)
   }
 }
-case object Mod {
-  def apply(e1: Expr, e2: Expr)(typ: Type = Missing): Mod = {
-    val newTyp = if (typ == Missing && e1.typ == TyInt && e2.typ == TyInt) {
-      TyInt
-    } else {
-      typ
+
+/** Sign extend an integer to be [[w]] bits wide.
+  *
+  * @param e
+  *   the integer to pad.
+  * @param w
+  *   the new width.
+  */
+case class PadTo(e: Expr, w: Int)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => PadTo(e, w)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
     }
-    new Mod(e1, e2)(newTyp)
+  }
+}
+
+/** Truncate an integer to be [[w]] bits wide by dropping the most significant
+  * bits.
+  *
+  * It is undefined behaviour if the value of the input does not fit within the
+  * target type.
+  *
+  * @param e
+  *   the integer to truncate.
+  * @param w
+  *   the new width.
+  */
+case class TruncateTo(e: Expr, w: Int)(typ: Type = Missing)
+    extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => TruncateTo(e, w)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Convert an unsigned integer to a signed integer.
+  *
+  * @param e
+  *   the integer to convert.
+  */
+case class ToSigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => ToSigned(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Convert a signed integer to an unsigned integer.
+  *
+  * It is undefined behaviour if the value of the input is negative.
+  *
+  * @param e
+  *   the integer to convert.
+  */
+case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => ToUnsigned(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
   }
 }
 
 // Boolean expressions
-// Unfortunately, cannot say that this node always has type Int.
+// Unfortunately, cannot say that this node always has type Bool.
 // If we do, then the type checker will not visit the children, which may lead
 // to type errors being missed.
 sealed abstract class BoolExpr(children: Expr*)(typ: Type)
@@ -1118,7 +1497,7 @@ case class StmBuild(
     * where the accumulator variable <code>x</code> has been replaced by a fresh
     * variable.
     */
-  def renameVar(x: Param): StmBuild = {
+  private def renameVar(x: Param): StmBuild = {
     renameVars(Map(x -> x.freshCopy))
   }
 
@@ -1154,11 +1533,11 @@ case class StmBuild(
       val subs: Map[Expr, Expr] = replacements.toMap
       StmBuild(
         this.n,
-        this.data.substitute(subs),
-        this.valid.substitute(subs),
+        this.data.subPreserveType(subs),
+        this.valid.subPreserveType(subs),
         this.equations
           .filter({ case (x, _) => !replacements.contains(x) })
-          .map({ case (x, (z, next)) => x -> (z, next.substitute(subs)) })
+          .map({ case (x, (z, next)) => x -> (z, next.subPreserveType(subs)) })
       )()
     }
   }
@@ -1383,16 +1762,29 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addOutputCounter(p: Param): StmBuild = {
-    requireType()
-    val outCtr = p.rebuild(TyInt)
+  def addOutputCounter(outCtr: Param): StmBuild = {
+    requireType("adding an output counter")
+    outCtr.typ match {
+      case Missing =>
+        throw new TypeError(
+          s"Variable provided for output counter must have a type."
+          // ... because every accumulator must have a type, and how would we
+          // know what value to choose here?
+        )
+      case _: TyUInt => ()
+      case t =>
+        throw new TypeError(
+          s"Variable provided for output counter has type $t."
+            + " Expected an unsigned integer."
+        )
+    }
     val s =
       if (this.equations.contains(outCtr))
         this.renameVar(outCtr)
       else
         this
-    val z = IntCst(0)
-    val next = Mux(s.valid, outCtr + 1, outCtr)(TyInt)
+    val z = IntCst(0)(outCtr.typ)
+    val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
     s.addAccumulator(outCtr, z, next)
   }
 
@@ -1406,18 +1798,30 @@ case class StmBuild(
     *   The variable to use for the new equation. If the variable already
     *   appears bound in this stream, then the bound variable will be renamed.
     */
-  def addInputCounter(x: Param, p: Param): StmBuild = {
-    requireType()
-    val inCtr = p.rebuild(TyInt)
+  def addInputCounter(x: Param, inCtr: Param): StmBuild = {
+    requireType("adding an input counter")
+    inCtr.typ match {
+      case Missing =>
+        throw new TypeError(
+          s"Variable provided for output counter must have a type."
+          // ... because every accumulator must have a type, and how would we
+          // know what value to choose here?
+        )
+      case _: TyUInt => ()
+      case t =>
+        throw new TypeError(
+          s"Variable provided for output counter has type $t."
+            + " Expected an unsigned integer."
+        )
+    }
     val s =
       if (this.equations.contains(inCtr))
         this.renameVar(inCtr)
       else
         this
-    val z = IntCst(0)
     val stmNextCalled = s.nextByVar(x)
-    val next = Mux(stmNextCalled, inCtr + 1, inCtr)(TyInt)
-    s.addAccumulator(inCtr, z, next)
+    val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
+    s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
   }
 
   /** Add a new accumulator variable to this stream. <i>NOTE:</i> the new
@@ -1426,7 +1830,7 @@ case class StmBuild(
   def addAccumulator(x: Param, z: Expr, next: Expr): StmBuild = {
     val newEquations = this.equations + (x -> (z, next))
     val isTyped = (x.hasType && z.hasType && next.hasType
-      && z.typ.isCompatibleWith(x.typ) && next.typ.isCompatibleWith(x.typ))
+      && (z.typ ~= x.typ) && (next.typ ~= x.typ))
     val t = if (isTyped) this.typ else Missing
     StmBuild(this.n, this.data, this.valid, newEquations)(t)
   }
@@ -1642,11 +2046,11 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val data = this.data.substitute(subs)
-    val valid = this.valid.substitute(subs)
+    val data = this.data.subAndEraseType(subs)
+    val valid = this.valid.subAndEraseType(subs)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
-        (z, next.substitute(subs))
+        (z, next.subAndEraseType(subs))
       })
     val eqnsBag =
       eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
@@ -1681,17 +2085,27 @@ case class StmBuild(
       // to a free variable and that same variable happens to be bound in the
       // other stream
       val thisSubs: Map[Expr, Expr] =
-        freshVarByPair.map({ case ((x, _), fresh) => x -> fresh })
+        freshVarByPair.map({ case ((x, _), fresh) =>
+          x -> fresh.rebuild(x.typ)
+        })
       val thatSubs: Map[Expr, Expr] =
-        freshVarByPair.map({ case ((_, y), fresh) => y -> fresh })
+        freshVarByPair.map({ case ((_, y), fresh) =>
+          y -> fresh.rebuild(y.typ)
+        })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).substitute(thisSubs)
-          == that.nextByVar(y).substitute(thatSubs))
+        (this.nextByVar(x).subAndEraseType(thisSubs)
+          == that.nextByVar(y).subAndEraseType(thatSubs))
       })
       val thisOutput =
-        (this.data.substitute(thisSubs), this.valid.substitute(thisSubs))
+        (
+          this.data.subAndEraseType(thisSubs),
+          this.valid.subAndEraseType(thisSubs)
+        )
       val thatOutput =
-        (that.data.substitute(thatSubs), that.valid.substitute(thatSubs))
+        (
+          that.data.subAndEraseType(thatSubs),
+          that.valid.subAndEraseType(thatSubs)
+        )
       eqnsMatch && thisOutput == thatOutput
     } else {
       // Don't have a full candidate mapping yet, so recurse
@@ -1746,11 +2160,10 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
   }
 
   def typecheckVecBuild(implicit context: Map[Param, Type]): Expr = {
-    val newN = len.tchk.expectType(TyInt)
+    val newN = len.tchk.expectUInt()
     val newF = f.tchk
-    // TODO: Properly enforce restrictions on contents of vector (e.g., no streams, no functions)
     val vecT = newF.typ match {
-      case TyArrow(TyInt, t) => t
+      case TyArrow(_: TyUInt, t) => t
       case t => throw new TypeError(s"Function of VecBuild has type $t.")
     }
     this.rebuild(TyVec(vecT, newN), Seq(newN, newF))
@@ -1816,7 +2229,7 @@ case class VecLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
-    VecLiteral(elems.map(n => IntCst(n)): _*)()
+    VecLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 
@@ -1832,7 +2245,7 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
 }
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)): _*)()
+    StmLiteral(elems.map(n => IntCst(n)()): _*)()
   }
 }
 
@@ -1850,7 +2263,7 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
 
-  def typecheck(context: Map[Param, Type]): Expr
+  def typecheck(implicit context: Map[Param, Type]): Expr
 
   /** Remove syntax sugar from this node and its children.
     *
@@ -1863,33 +2276,12 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def lowerSyntaxSugar(): Expr
 
-  def subSyntaxSugar(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
   }
-}
 
-case class StmLength(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s) => StmLength(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(context: Map[Param, Type]): Expr = {
-    val newS = s.tchk(context)
-    newS.typ match {
-      case _: TyStm => this.rebuild(TyInt, Seq(newS))
-      case t =>
-        throw new TypeError(
-          s"Stream in StmLength has type $t. Expected a stream."
-        )
-    }
-  }
-
-  override def lowerSyntaxSugar(): Expr = {
-    requireType()
-    s.typ.asInstanceOf[TyStm].n.lower()
+  def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    this.rebuildAndEraseType(this.children.map(e => e.subPreserveType(subs)))
   }
 }
 
@@ -1901,10 +2293,10 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type]): Expr = {
-    val newV = v.tchk(context)
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newV = v.tchk
     newV.typ match {
-      case _: TyVec => this.rebuild(TyInt, Seq(newV))
+      case _: TyVec => this.rebuild(U32, Seq(newV))
       case t =>
         throw new TypeError(
           s"Vector in VecLength has type $t. Expected a vector."
@@ -1914,6 +2306,6 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    v.typ.asInstanceOf[TyVec].n.lower()
+    ReshapeData(v.typ.asInstanceOf[TyVec].n, U32)().tchk().lower()
   }
 }

@@ -28,8 +28,18 @@ private[gen] case class VhdlFunction(
       case PureFunction   => "pure"
       case ImpureFunction => "impure"
     }
-    val argList =
-      args.map({ case (x, t) => s"$x : in ${t.vhdlName}" }).mkString("; ")
+    val argList = args
+      .map({ case (x, t) =>
+        val tStr = t match {
+          case VhdlStdLogicVec(n) => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlArray(n, _)    => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlSigned(n)      => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlUnsigned(n)    => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case _                  => t.vhdlName
+        }
+        s"$x : in $tStr"
+      })
+      .mkString("; ")
     s"$pureOrImpure function $name ($argList) return ${returnType.vhdlTypeMark}"
   }
 

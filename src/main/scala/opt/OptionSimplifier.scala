@@ -1,6 +1,7 @@
 package opt
 
 import ir._
+import opt.{PartialEvalPass => PE}
 
 object OptionSimplifier {
 
@@ -10,10 +11,13 @@ object OptionSimplifier {
     * the value of <code>data</code> doesn't matter.
     */
   def simplify(e: Expr): Tuple = {
-    val data = PartialEvalPass.partialEval(e.__0)
-    val valid = PartialEvalPass.partialEval(e.__1)
-    val simplifiedData =
-      PartialEvalPass.partialEval(data)(FactSet().assumeTrue(valid))
+    val data = PE.partialEval(e.__0)
+    val valid = PE.partialEval(e.__1)
+    val simplifiedData = if (valid == False) {
+      PE.partialEval(Default(data.typ).tchk().lower())
+    } else {
+      PE.partialEval(data)(FactSet().assumeTrue(valid))
+    }
     Tuple(simplifiedData, valid)()
   }
 }

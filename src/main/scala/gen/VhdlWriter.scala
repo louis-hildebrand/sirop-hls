@@ -50,10 +50,35 @@ object VhdlWriter {
          |
          |package conversions is
          |${indent(signatures)}
+         |
+         |    pure function pad (x : in signed; w: natural) return signed;
+         |    pure function pad (x : in unsigned; w: natural) return unsigned;
+         |    pure function truncate (x : in signed; w: natural) return signed;
+         |    pure function truncate (x : in unsigned; w: natural) return unsigned;
          |end package;
          |
          |package body conversions is
          |${indent(impls)}
+         |
+         |    pure function pad (x : in signed; w: natural) return signed is
+         |    begin
+         |        return resize(x, w);
+         |    end;
+         |
+         |    pure function pad (x : in unsigned; w: natural) return unsigned is
+         |    begin
+         |        return resize(x, w);
+         |    end;
+         |
+         |    pure function truncate (x : in signed; w: natural) return signed is
+         |    begin
+         |        return x(w - 1 downto 0);
+         |    end;
+         |
+         |    pure function truncate (x : in unsigned; w: natural) return unsigned is
+         |    begin
+         |        return x(w - 1 downto 0);
+         |    end;
          |end package body;
          |""".stripMargin
 

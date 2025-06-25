@@ -1,27 +1,328 @@
 package opt
 
-import org.scalatest.funsuite.AnyFunSuite
 import ir._
-import operations.{StmCount, StmFold}
+import operations.{Max, StmCount}
+import org.scalatest.funsuite.AnyFunSuite
+import opt.{PartialEvalPass => PE}
+import testing.ParamStore
 
 class PartialEvalPassTests extends AnyFunSuite {
-  private val pe = (e: Expr) => PartialEvalPass.partialEval(e)
+  private val x = new ParamStore("x")
+  private val y = new ParamStore("y")
 
-  // Used to debug a case where partial evaluator left behind a Not(Not(...))
-  test("NotNot") {
-    val acc = Param("acc")(TyTuple(TyInt, TyInt, TyInt, TyBool, TyInt))
-    val e =
-      Mux(
-        acc.__3,
-        Mux(Not(LessThan(acc.__4, 5)())(), False, True)(),
-        False
-      )()
-    val expected = acc.__3 && LessThan(acc.__4, 5)()
-    assert(PartialEvalPass.partialEval(e) == expected)
+  private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
+
+  test("PadTo:Const") {
+    for (n <- -10 to 10) {
+      val e = PadTo(IntCst(n)(I8), 16)()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == I16)
+    }
+  }
+
+  test("PadTo:SameWidth") {
+    val x = Param("x")()
+    for (t <- COMMON_INT_TYPES) {
+      val actual = lpe(PadTo(x.rebuild(t), t.w)())
+      val expected = x.rebuild(t)
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+  }
+
+  test("TruncateTo:Const") {
+    for (n <- -4 to 3) {
+      val e = TruncateTo(IntCst(n)(I8), 3)()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TySInt(3))
+    }
+  }
+
+  test("TruncateTo:SameWidth") {
+    val x = Param("x")()
+    for (t <- COMMON_INT_TYPES) {
+      val actual = lpe(TruncateTo(x.rebuild(t), t.w)())
+      val expected = x.rebuild(t)
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+  }
+
+  test("Truncate(Pad(x))") {
+    val x = Param("x")(U8)
+
+    assert(lpe(TruncateTo(PadTo(x, 8)(), 8)()) == x)
+    assert(lpe(TruncateTo(PadTo(x, 9)(), 8)()) == x)
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 8)()) == x)
+
+    assert(lpe(TruncateTo(PadTo(x, 9)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(TruncateTo(PadTo(x, 11)(), 7)()) == TruncateTo(x, 7)())
+
+    assert(lpe(TruncateTo(PadTo(x, 10)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(TruncateTo(PadTo(x, 11)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(TruncateTo(PadTo(x, 12)(), 9)()) == PadTo(x, 9)())
+  }
+
+  test("Pad(Truncate(x))") {
+    val x = Param("x")(U8)
+
+    // TODO: can we somehow do this while still recording the assumption that x
+    //       is small enough to be truncated like this?
+
+    assert(lpe(PadTo(TruncateTo(x, 8)(), 8)()) == x)
+    assert(lpe(PadTo(TruncateTo(x, 7)(), 8)()) == x)
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 8)()) == x)
+
+    assert(lpe(PadTo(TruncateTo(x, 7)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 9)()) == PadTo(x, 9)())
+    assert(lpe(PadTo(TruncateTo(x, 5)(), 9)()) == PadTo(x, 9)())
+
+    assert(lpe(PadTo(TruncateTo(x, 6)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(PadTo(TruncateTo(x, 5)(), 7)()) == TruncateTo(x, 7)())
+    assert(lpe(PadTo(TruncateTo(x, 4)(), 7)()) == TruncateTo(x, 7)())
+  }
+
+  test("Pad(Pad(x))") {
+    val x = Param("x")(U8)
+    val actual = lpe(PadTo(PadTo(x, 10)(), 12)())
+    assert(actual == PadTo(x, 12)())
+  }
+
+  test("Truncate(Truncate(x))") {
+    val x = Param("x")(U8)
+    val actual = lpe(TruncateTo(TruncateTo(x, 7)(), 5)())
+    assert(actual == TruncateTo(x, 5)())
+  }
+
+  test("ToUnsigned:Const") {
+    for (n <- 0 to 10) {
+      val e = ToUnsigned(IntCst(n)(I8))()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TyUInt(7))
+    }
+  }
+
+  test("ToSigned:Const") {
+    for (n <- 0 to 10) {
+      val e = ToSigned(IntCst(n)(U8))()
+      val actual = lpe(e)
+      val expected = ir.eval(e)
+      assert(actual == expected)
+      assert(actual.typ == TySInt(9))
+    }
+  }
+
+  test("ToSigned(ToUnsigned(x))") {
+    val x = Param("x")(I8)
+    val e = ToSigned(ToUnsigned(x)())().tchk().lower()
+    assert(PE.partialEval(e) == x)
+  }
+
+  test("ToUnsigned(ToSigned(x))") {
+    val x = Param("x")(U8)
+    val e = ToUnsigned(ToSigned(x)())().tchk().lower()
+    assert(PE.partialEval(e) == x)
+  }
+
+  test("ToSigned(x) < ToSigned(y)") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt ToSigned(y)()) == (x lt y))
+  }
+
+  test("ToSigned(x) < -1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt C(-1)(I9)) == False)
+  }
+
+  test("ToSigned(x) < 42:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() lt C(42)(I9)) == (x lt 42))
+  }
+
+  test("13:i9 < ToSigned(x)") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(C(13)(I9) lt ToSigned(x)()) == (13 lt x))
+  }
+
+  test("ToSigned(x) > 1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() gt C(1)(I9)) == (x gt 1))
+  }
+
+  test("ToSigned(x) <= 2:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() leq C(2)(I9)) == (x leq 2))
+  }
+
+  test("ToSigned(x) >= 3:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() geq C(3)(I9)) == (x geq 3))
+  }
+
+  test("ToSigned(x) == -1:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() eq C(-1)(I9)) == False)
+  }
+
+  test("ToSigned(x) == 4:i9") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(ToSigned(x)() eq C(4)(I9)) == (x eq 4))
+  }
+
+  test("PadTo(x:u8, 32) < PadTo(y:u16, 32)") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U16)
+    val e = PadTo(x, 32)() lt PadTo(y, 32)()
+    assert(PE.partialEval(e) == (PadTo(x, 16)() lt y))
+  }
+
+  test("PadTo(x:i16, 20) < PadTo(y:i8, 20)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I8)
+    val e = PadTo(x, 20)() lt PadTo(y, 20)()
+    assert(PE.partialEval(e) == (x lt PadTo(y, 16)()))
+  }
+
+  test("PadTo(x, 16) < 42:u16") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 16)() lt C(42)(U16)) == (x lt 42))
+  }
+
+  test("PadTo(x:u8, 32) < 512:u32") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 32)() lt C(512)(U32)) == True)
+  }
+
+  test("PadTo(x:i8, 29) == PadTo(y:i16, 29)") {
+    val x = Param("x")(I8)
+    val y = Param("y")(I16)
+    val e = PadTo(x, 29)() eq PadTo(y, 29)()
+    assert(PE.partialEval(e) == (PadTo(x, 16)() eq y))
+  }
+
+  test("PadTo(x:u16, 17) == PadTo(y:u8, 17)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U8)
+    val e = PadTo(x, 17)() eq PadTo(y, 17)()
+    assert(PE.partialEval(e) == (x eq PadTo(y, 16)()))
+  }
+
+  test("PadTo(x, 16) == 99:u16") {
+    val x = Param("x")(U8)
+    assert(PE.partialEval(PadTo(x, 16)() eq C(99)(U16)) == (x eq 99))
+  }
+
+  test("42:i32 == PadTo(x, 32)") {
+    val x = Param("x")(I8)
+    assert(PE.partialEval(C(42)(I32) eq PadTo(x, 32)()) == (C(42)() eq x))
+  }
+
+  test("TruncateTo(x:u32, 8) < TruncateTo(y:u16, 8)") {
+    val x = Param("x")(U32)
+    val y = Param("y")(U16)
+    val e = TruncateTo(x, 8)() lt TruncateTo(y, 8)()
+    assert(PE.partialEval(e) == (x lt PadTo(y, 32)()))
+  }
+
+  test("TruncateTo(x:u16, 8) < TruncateTo(y:u32, 8)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U32)
+    val e = TruncateTo(x, 8)() lt TruncateTo(y, 8)()
+    assert(PE.partialEval(e) == (PadTo(x, 32)() lt y))
+  }
+
+  test("TruncateTo(x, 8) < 42:u8") {
+    val x = Param("x")(U16)
+    assert(PE.partialEval(TruncateTo(x, 8)() lt C(42)(U8)) == (x lt 42))
+  }
+
+  test("-10:i16 < TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(
+      PE.partialEval(C(-10)(I16) lt TruncateTo(x, 16)()) == (0 lt Sum(10, x)())
+    )
+  }
+
+  test("10:i16 < TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(PE.partialEval(C(10)(I16) lt TruncateTo(x, 16)()) == (10 lt x))
+  }
+
+  test("TruncateTo(x:i32, 9) == TruncateTo(y:i16, 9)") {
+    val x = Param("x")(I32)
+    val y = Param("y")(I16)
+    val e = TruncateTo(x, 9)() eq TruncateTo(y, 9)()
+    assert(PE.partialEval(e) == (x eq PadTo(y, 32)()))
+  }
+
+  test("TruncateTo(x:u16, 10) == TruncateTo(y:u32, 10)") {
+    val x = Param("x")(U16)
+    val y = Param("y")(U32)
+    val e = TruncateTo(x, 10)() eq TruncateTo(y, 10)()
+    assert(PE.partialEval(e) == (PadTo(x, 32)() eq y))
+  }
+
+  test("TruncateTo(x, 8) == 99:u8") {
+    val x = Param("x")(U16)
+    assert(PE.partialEval(TruncateTo(x, 8)() eq C(99)(U8)) == (x eq 99))
+  }
+
+  test("42:i16 == TruncateTo(x, 16)") {
+    val x = Param("x")(I32)
+    assert(PE.partialEval(C(42)(I16) eq TruncateTo(x, 16)()) == (C(42)() eq x))
+  }
+
+  test("ToUnsigned(x) < 42:u8") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(ToUnsigned(x)() lt C(42)(U8)) == (x lt 42))
+  }
+
+  test("12:u8 < ToUnsigned(x)") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(C(12)(U8) lt ToUnsigned(x)()) == (12 lt x))
+  }
+
+  test("ToUnsigned(x) == ToUnsigned(y)") {
+    val x = Param("x")(I9)
+    val y = Param("y")(I9)
+    val e = ToUnsigned(x)() eq ToUnsigned(y)()
+    assert(PE.partialEval(e) == (x eq y))
+  }
+
+  test("ToUnsigned(x) == 13:u8") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(ToUnsigned(x)() eq C(13)(U8)) == (x eq 13))
+  }
+
+  test("13:u8 == ToUnsigned(x)") {
+    val x = Param("x")(I9)
+    assert(PE.partialEval(C(13)(U8) eq ToUnsigned(x)()) == (C(13)() eq x))
+  }
+
+  test("TruncateTo(ToUnsigned(x), 8) < TruncateTo(ToUnsigned(y), 8)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I16)
+    val e = TruncateTo(ToUnsigned(x)(), 8)() lt TruncateTo(ToUnsigned(y)(), 8)()
+    assert(PE.partialEval(e) == (x lt y))
+  }
+
+  test("TruncateTo(ToUnsigned(x), 8) == TruncateTo(ToUnsigned(y), 8)") {
+    val x = Param("x")(I16)
+    val y = Param("y")(I16)
+    val e = TruncateTo(ToUnsigned(x)(), 8)() eq TruncateTo(ToUnsigned(y)(), 8)()
+    assert(PE.partialEval(e) == (x eq y))
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
-    val x = Param("x")(TyTuple(TyInt, TyInt))
+    val x = Param("x")(TyTuple(U8, U8))
     val e =
       Tuple(
         x.__0 >= 1,
@@ -30,36 +331,37 @@ class PartialEvalPassTests extends AnyFunSuite {
           Tuple(x.__1, x.__0)()
         )(),
         x.__0 >= 1
-      )()
+      )().tchk().lower()
     val facts = FactSet().geq(x.__0, 1)
     val actual = PartialEvalPass.partialEval(e)(facts)
-    val expected = Tuple(True, x.__1 >= 1, True)()
+    val expected = Tuple(True, Not(LessThan(x.__1, C(1)())())(), True)()
     assert(actual == expected)
   }
 
   test("ReusedParam:NestedScalarFunctions") {
-    val y = Param("y")(TyInt)
-    val e =
-      Function(
-        y,
-        Mux(y > 42, Function(y, y > 10)(), TyInt ::+ (_ => y > 45))()
+    val e = (U8 ::+ (y =>
+      Mux(y > 42, U8 ::+ (y => y > 10), U8 ::+ (_ => y > 45))()
+    )).tchk().lower()
+    val actual = PE.partialEval(e)
+    val expected = U8 ::+ (y =>
+      Mux(
+        LessThan(42, y)(),
+        U8 ::+ (z => LessThan(10, z)()),
+        U8 ::+ (_ => False)
       )()
-    val actual = PartialEvalPass.partialEval(e)
-    val expected = TyInt ::+ (y =>
-      Mux(-42 + y > 0, TyInt ::+ (z => -10 + z > 0), TyInt ::+ (_ => False))()
     )
     assert(actual == expected)
   }
 
   test("ReusedParam:StmAccumulator") {
-    val a = Param("a")()
+    val a = Param("a")(U8)
     val s = StmBuild(
       10,
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (IntCst(0), a + 1))
+      Map(a -> (C(0)(U8), a + 1))
     )()
-    val e = Tuple(a < 4, s)()
+    val e = Tuple(a < 4, s)().tchk().lower()
     val facts =
       FactSet()
         // Inside the stream, a >= 0
@@ -71,93 +373,120 @@ class PartialEvalPassTests extends AnyFunSuite {
       True,
       StmBuild(
         10,
-        Tuple(True, a < 4)(),
+        Tuple(True, a lt 4)(),
         True,
-        Map(a -> (IntCst(0), a + 1))
+        Map(a -> (C(0)(U8), Sum(a, 1)()))
       )()
     )()
     assert(actual == expected)
   }
 
   test("ReusedParam:VecIndex") {
-    val i = Param("i")(TyInt)
+    val i = Param("i")(U8)
     val e =
       Tuple(
         i > 1,
         VecBuild(7, Function(i, Tuple(i >= 0, i < 7, i > 2)())())(),
         i > 2
-      )()
+      )().tchk().lower()
     val facts = FactSet().geq(i, 3)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected =
       Tuple(
         True,
-        VecBuild(7, TyInt ::+ (i => Tuple(True, True, 0 < -2 + i)()))(),
+        VecBuild(7, U8 ::+ (i => Tuple(True, True, LessThan(2, i)())()))(),
         True
       )()
     assert(actual == expected)
   }
 
   test("MuxTrueBranchSpecialCaseOfFalseBranch") {
-    val n = Param("n")()
-    val i = Param("i")()
-    val acc = Param("acc")()
-    val z = Param("z")()
-    val delta = Param("delta")()
+    val n = C(10)(I8)
+    val i = Param("i")(I8)
+    val acc = Param("acc")((I8, U8))
+    val z = Param("z")(I8)
+    val delta = Param("delta")(I8)
     val e = Mux(
       i === (n - 1),
       z + acc.__0 * delta,
       z + ((acc.__0 + (i + 1)) - n) * delta
+    )().tchk().lower()
+    val actual = PE.partialEval(e)
+    val expected = Sum(
+      z,
+      Prod(delta, acc.__0)(),
+      Prod(delta, i)(),
+      Prod(-9, delta)()
     )()
-    val actual = PartialEvalPass.partialEval(e)
-    val expected = z + delta * acc.__0 + delta * i + delta - delta * n
     assert(actual == expected)
   }
 
   test("MuxFalseBranchSpecialCaseOfTrueBranch") {
-    val n = Param("n")()
-    val i = Param("i")()
-    val acc = Param("acc")()
-    val z = Param("z")()
-    val delta = Param("delta")()
-    val e = Mux(
-      i !== (n - 1),
-      z + ((acc.__0 + (i + 1)) - n) * delta,
-      z + acc.__0 * delta
-    )()
-    val expected = z + delta * acc.__0 + delta * i + delta - delta * n
-    assert(PartialEvalPass.partialEval(e) == expected)
+    val x = Param("x")(I8)
+    val e = Mux(x < 42, Max(x, C(10)(I8))(), x)().tchk().lower()
+    val expected = Mux(LessThan(10, x)(), x, C(10)(I8))()
+    assert(PE.partialEval(e) == expected)
   }
 
   test("ScalarInequality:x<x+1") {
-    val x = Param("x")()
-    assert(pe((x - 1) < x) == True)
-    assert(pe(x < x) == False)
+    val x = Param("x")(U8)
+    assert(lpe((x - 1) < x) == True)
+    assert(lpe(x < x) == False)
   }
 
   test("ScalarEquality:x+c==k") {
-    val x = Param("x")(TyInt)
-    assert(pe(x - 1 === 3) == (x === 4))
-    assert(pe(5 + x === 2) == (x === -3))
+    val x = Param("x")(I8)
+    assert(lpe(x - 1 === 3) == Equal(x, 4)())
+    assert(lpe(5 + x === 2) == Equal(Sum(3, x)(), 0)())
   }
 
   test("ScalarEquality:x+c<k") {
-    val x = Param("x")(TyInt)
-    assert(pe(x - 2 < 9) == (x < 11))
-    assert(pe(-3 + x < 4) == (x < 7))
+    val x = Param("x")(U8)
+    assert(lpe(x - 2 < 9) == LessThan(x, 11)())
+    assert(lpe(-3 + x < 4) == LessThan(x, 7)())
   }
 
   test("ScalarInequality:(x >= c) && (x < c + 1)") {
     val c = 42
-    val x = Param("x")(TyInt)
+    val x = Param("x")(U8)
     val e = (x >= c) && (x < (c + 1))
-    assert(pe(e) == (x === c))
+    assert(lpe(e) == (x eq c))
+  }
+
+  test("x < 9 || x == 9") {
+    val x = Param("x")(U8)
+    val e = (x lt C(9)(U8)) || (x eq C(9)(U8))
+    assert(PE.partialEval(e) == (x leq 9))
+  }
+
+  test("x < 255 || x == 255") {
+    val x = Param("x")(U8)
+    val e = (x lt C(255)(U8)) || (x eq C(255)(U8))
+    assert(PE.partialEval(e) == True)
+  }
+
+  /** The partial evaluator may try to combine the constants on opposite sides
+    * of a comparison. But in some cases, this will lead to overflow!
+    */
+  test("-1:i1 == 0:i1") {
+    val i1 = TySInt(1)
+    val e = C(-1)(i1) eq C(0)(i1)
+    assert(PE.partialEval(e) == False)
+  }
+
+  /** The partial evaluator may try to combine the constants on opposite sides
+    * of a comparison. But in some cases, this will lead to overflow!
+    */
+  test("x + 4:i4 < y - 4:i4") {
+    val i4 = TySInt(4)
+    val e = Sum(x(i4), C(4)(i4))() lt Sum(y(i4), C(-4)(i4))()
+    assert(PE.partialEval(e) == e)
   }
 
   test("StmAccumulatorGreaterOrEqualToInitialVal") {
-    val n = Param("n")()
-    val z = Param("z")()
-    val a = Param("a")()
+    val n = Param("n")(U8)
+    val z = Param("z")(I8)
+    val a = Param("a")(I8)
     val s = StmBuild(
       n,
       a,
@@ -165,30 +494,30 @@ class PartialEvalPassTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a -> (z, Mux(a >= z, a + 3, a - 1)())
       )
-    )()
+    )().tchk().lower().asInstanceOf[StmBuild]
     val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
     val expected = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (z, a + 3)
+        a -> (z, Sum(a, C(3)())())
       )
     )()
     assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
 
   test("StmOneElement") {
-    val z = Param("z")(TyInt)
-    val a0 = Param("a")(TyInt)
-    val a1 = Param("a")(TyInt)
+    val z = Param("z")(U8)
+    val a0 = Param("a")(U8)
+    val a1 = Param("a")(U8)
     val s = StmBuild(
       1,
       a0,
       True,
       Map[Param, (Expr, Expr)](
         a0 -> (z, a0 + a1 + a1),
-        a1 -> (0, a1 + a0)
+        a1 -> (C(0)(U8), a1 + a0)
       )
     )().tchk().lower()
     val expected = StmBuild(1, z, True)()
@@ -197,21 +526,21 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("StmOneElementWithInputs") {
     val n = 5
-    val z = Param("z")(TyInt)
-    val i = Param("i")(TyInt)
-    val a = Param("a")(TyInt)
-    val s = Param("s")(TyStm(TyInt, -1))
+    val z = Param("z")(U8)
+    val i = Param("i")(U8)
+    val a = Param("a")(U8)
+    val s = Param("s")(TyStm(U8, -1))
     val sum = StmBuild(
       1,
       a + StmData(s)(),
       i === n - 1,
       Map[Param, (Expr, Expr)](
-        i -> (0, i + 1),
+        i -> (C(0)(U8), i + 1),
         a -> (z, a + StmData(s)()),
-        s -> (StmCount(n)(), True)
+        s -> (StmCount(C(n)(U8))(), True)
       )
     )().tchk().lower()
-    val expected = StmBuild(1, z + (0 until n).sum, True)().tchk().lower()
+    val expected = StmBuild(1, Sum(z, (0 until n).sum)(), True)()
     val actual = PartialEvalPass.partialEval(sum).tchk().lower()
     assert(actual == expected)
   }
@@ -220,8 +549,8 @@ class PartialEvalPassTests extends AnyFunSuite {
     // I do NOT want this to be simplified to something like
     //   StmCst(1, StmData(s)())
     // because then we're calling StmData(s)() outside a stream
-    val s = Param("s")()
-    val a = Param("a")()
+    val s = Param("s")(TyStm(U8, 5))
+    val a = Param("a")(TyStm(U8, -1))
     val stm = StmBuild(
       1,
       StmData(a)(),
@@ -234,46 +563,62 @@ class PartialEvalPassTests extends AnyFunSuite {
   }
 
   test("VecBuildIndexRange") {
-    val n = Param("n")()
+    val n = Param("n")(U8)
     val v =
       VecBuild(
         n,
-        TyInt ::+ (i => Tuple(i > -1, i < n + 1, i >= n, i < 0, i > 0)())
-      )()
+        U8 ::+ (i => Tuple(i > -1, i < n + 1, i >= n, i < 0, i > 0)())
+      )().tchk().lower()
     val expected =
-      VecBuild(n, TyInt ::+ (i => Tuple(True, True, False, False, i > 0)()))()
+      VecBuild(
+        n,
+        U8 ::+ (i => Tuple(True, True, False, False, i gt 0)())
+      )()
     assert(PartialEvalPass.partialEval(v) == expected)
   }
 
   test("MuxCondition:x < 10 && x >= 0") {
-    val x = Param("x")()
+    val x = Param("x")(I8)
     val e =
       Mux(
         x < 10 && x >= 0,
         Tuple(x < 11, x >= 10, x >= -1, x < 9)(),
-        Tuple(x < 9, x >= 10, x >= 11)()
-      )()
+        Tuple(x < 9, x >= 10, x >= 11, True)()
+      )().tchk().lower()
     val expected =
       Mux(
-        x < 10 && x >= 0,
-        Tuple(True, False, True, x < 9)(),
-        Tuple(x < 9, x >= 10, x >= 11)()
+        (x lt 10) && (x geq 0),
+        Tuple(True, False, True, x lt 9)(),
+        Tuple(x lt 9, x geq 10, x geq 11, True)()
       )()
     val actual = PartialEvalPass.partialEval(e)
     assert(actual == expected)
   }
 
+  test("MuxCondition:ToSigned(x) < 5") {
+    val x = Param("x")(U8)
+    val e =
+      Mux(
+        ToSigned(x)() < C(5)(I9),
+        ToSigned(x)() < C(10)(I9),
+        ToSigned(x)() < C(3)(I9)
+      )().tchk().lower()
+    val expected = x lt C(5)(I9)
+    val actual = lpe(e)
+    assert(actual == expected)
+  }
+
   test("SmallerOrEqualWithVarRanges") {
-    val n = Param("n")(TyInt)
-    val i = Param("i")(TyInt)
+    val n = Param("n")(U8)
+    val i = Param("i")(U8)
     val facts = FactSet().geq(n, 2).geq(i, 0).lt(i, n)
-    val e = 1 - n + i
-    assert(PartialEvalPass.isSmallerOrEqual(e, 0)(facts).contains(true))
-    assert(PartialEvalPass.isSmallerOrEqual(e, 0)().isEmpty)
+    val e = (1 - n + i).tchk().lower()
+    assert(PE.isSmallerOrEqual(e, 0)(facts).contains(true))
+    assert(PE.isSmallerOrEqual(e, 0)().isEmpty)
   }
 
   test("GreaterOrEqualWithVarRanges") {
-    val c = Param("c")(TyInt)
+    val c = Param("c")(I8)
     val facts = FactSet().geq(c, 0)
     val delta = 2 - c + 2 * c
     assert(PartialEvalPass.isGreaterOrEqual(delta, 0)(facts).contains(true))
@@ -284,41 +629,95 @@ class PartialEvalPassTests extends AnyFunSuite {
     val c0 = Param("c0")(TyBool)
     val c1 = Param("c1")(TyBool)
     val facts = FactSet().assumeTrue(c0 && (c0 || c1))
-    val e = TyInt ::+ (i => Mux(c0, i + 1, i)())
+    val e = (U8 ::+ (i => Mux(c0, i + 1, i)())).tchk().lower()
     val actual = PartialEvalPass.partialEval(e)(facts)
-    val expected = TyInt ::+ (i => i + 1)
+    val expected = U8 ::+ (i => Sum(i, 1)())
     assert(actual == expected)
   }
 
   test("ClearVariableRange") {
-    val i = Param("i")(TyInt)
+    val i = Param("i")(U8)
     val facts = FactSet().assumeTrue(i === 0)
-    val e = Function(i, i === 0)()
+    val e = Function(i, i === 0)().tchk().lower()
     val actual = PartialEvalPass.partialEval(e)(facts)
-    assert(actual == e)
+    val expected = U8 ::+ (i => i eq 0)
+    assert(actual == expected)
   }
 
-  test("FuseVecAccessOutOfBounds") {
-    val e = VecAccess(VecBuild(5, TyInt ::+ (i => i))(), 10)()
-    val actual = PartialEvalPass.partialEval(e)
-    assert(ir.eval(actual) == ir.eval(e))
+  test("FuseVecAccess") {
+    val e =
+      VecAccess(VecBuild(5, U8 ::+ (i => 7 + i))(), C(3)(U8))().tchk().lower()
+    val actual = PE.partialEval(e)
+    val expected = C(10)()
+    assert(actual == expected)
   }
 
   test("NestedMux") {
-    val i = Param("i")()
-    val n = Param("n")()
-    val c0 = Param("c0")()
-    val c1 = Param("c1")()
-    val c2 = Param("c2")()
-    val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())()
+    val i = Param("i")(U8)
+    val n = Param("n")(U8)
+    val c0 = Param("c0")((U8, I16))
+    val c1 = Param("c1")((U8, I16))
+    val c2 = Param("c2")((U8, I16))
+    val e = Mux(i === -1 + n, c0, Mux(1 + i < n, c1, c2)())().tchk().lower()
 
-    val actual0 = PartialEvalPass.partialEval(e)(FactSet())
-    val expected0 = Mux(i === -1 + n, c0, Mux(i < -1 + n, c1, c2)())()
+    val actual0 = PE.partialEval(e)(FactSet())
+    val expected0 =
+      Mux(
+        Sum(1, ToSigned(i)())() eq ToSigned(n)(),
+        c0,
+        Mux(Sum(1, i)() lt n, c1, c2)()
+      )()
     assert(actual0 == expected0)
 
-    val facts = FactSet().geq(i, 0).lt(i, n)
-    val expected = Mux(i === -1 + n, c0, c1)()
-    val actual1 = PartialEvalPass.partialEval(e)(facts)
-    assert(actual1 == expected)
+    val facts = FactSet().between(i, 0, n)
+    val expected1 = Mux(Sum(1, ToSigned(i)())() eq ToSigned(n)(), c0, c1)()
+    val actual1 = PE.partialEval(e)(facts)
+    assert(actual1 == expected1)
+  }
+
+  test("NestedLet") {
+    val n = Param("n")(U8)
+    val m = Param("m")(U8)
+    val e =
+      VecBuild(n, U32 ::+ (i => VecBuild(m, U32 ::+ (j => Tuple(i, j)()))()))()
+    val lets = Let(n, C(3)(U8), Let(m, C(2)(U8), e)())()
+    val evaluated = lpe(lets)
+    val expected =
+      VecBuild(
+        C(3)(U8),
+        U32 ::+ (i => VecBuild(C(2)(U8), U32 ::+ (j => Tuple(i, j)()))())
+      )()
+    assert(evaluated == expected)
+    assert(evaluated.typ == TyVec(TyVec((U32, U32), C(2)(U8)), C(3)(U8)))
+  }
+
+  test("if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)") {
+    val n = Param("n")(U8)
+    val e =
+      Mux(
+        n eq C(0)(U8),
+        VecBuild(n, U32 ::+ (_ => C(-1)(I8)))(),
+        VecBuild(n, U32 ::+ (_ => C(42)(I8)))()
+      )().tchk().lower()
+    assert(PE.partialEval(e) == e)
+  }
+
+  /** Used to debug an infinite loop in the partial evaluator.
+    */
+  test("true && !SmartLessThan(t, 0)") {
+    val t = Param("t")(I32)
+    val e = And(True, Not(SmartLessThan(t, 0)())())()
+    val actual = PE.partialEval(e)
+    val expected = Not(SmartLessThan(t, 0)())()
+    assert(actual == expected)
+  }
+
+  test("if (c) then VecBuild(...) else v") {
+    val c = Param("c")(TyBool)
+    val n = Param("n")(U8)
+    val v = Param("v")(TyVec(U8, n))
+    val e =
+      Mux(c, VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))(), v)().tchk().lower()
+    assert(PE.partialEval(e) == e)
   }
 }

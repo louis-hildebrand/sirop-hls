@@ -1,11 +1,13 @@
 package opt
 
 import ir._
+import opt.{PartialEvalPass => PE}
 
 object StmDelayRemovalPass {
-  def skipFirstCycles(stm: StmBuild, c: Expr)(
+  def skipFirstCycles(stm: StmBuild, cc: Expr)(
       facts: FactSet = FactSet()
   ): StmBuild = {
+    val c = PE.partialEval(cc)
     // Necessary conditions:
     //  (1) Need to know the value of the accumulator after c cycles
     //  (2) For the first c cycles, there is no valid output
@@ -19,8 +21,7 @@ object StmDelayRemovalPass {
           case None => stm
           case Some(Function(t, e)) =>
             val facts = FactSet().between(t, 0, c)
-            val noOutputInFirstCycles =
-              PartialEvalPass.partialEval(e)(facts) == False
+            val noOutputInFirstCycles = PE.partialEval(e)(facts) == False
             if (noOutputInFirstCycles) {
               val newEquations =
                 seedByVar.map({ case (x, z) => x -> (z, stm.nextByVar(x)) })

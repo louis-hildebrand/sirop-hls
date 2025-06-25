@@ -6,11 +6,35 @@ import opt.StmSimplifier
 import org.scalatest.funsuite.AnyFunSuite
 
 class VhdlGeneratorTests extends AnyFunSuite {
+  test("Reshaping") {
+    val n = 16
+    val i = Param("i")(I8)
+    val j = Param("j")(U8)
+    val s = StmBuild(
+      n,
+      Tuple(
+        Tuple(
+          i,
+          PadTo(i, 8)(),
+          TruncateTo(i, 4)(),
+          Mux(i < 0, C(0)(TyUInt(7)), ToUnsigned(i)())()
+        )(),
+        Tuple(j, PadTo(j, 8)(), TruncateTo(j, 4)(), ToSigned(j)())()
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (C(-8)(I8), TruncateTo(SafeSum(i, 1)(), 8)()),
+        j -> (C(0)(U8), TruncateTo(SafeSum(j, 1)(), 8)())
+      )
+    )().tchk().lower()
+    assert(TestRunner.testExpr(s) == TestPassed)
+  }
+
   test("Arithmetic") {
     val n = 10
     val m = 10
-    val i = Param("i")(TyInt)
-    val j = Param("j")(TyInt)
+    val i = Param("i")(I8)
+    val j = Param("j")(I8)
     val s = StmBuild(
       n * m,
       Tuple(
@@ -22,15 +46,16 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (0, Mux(j === m, i + 1, i)()),
-        j -> (1, Mux(j === m, 1, j + 1)())
+        i -> (C(0)(I8), Mux(j === m, i + 1, i)()),
+        j -> (C(1)(I8), Mux(j === m, C(1)(I8), j + 1)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
   test("StmRange(10, -2, 3)") {
-    val s = StmRange(10, -2, 3)().tchk().lower().asInstanceOf[StmBuild]
+    val s =
+      StmRange(10, C(-2)(I8), C(3)(I8))().tchk().lower().asInstanceOf[StmBuild]
     assert(TestRunner.testExpr(s) == TestPassed)
   }
 
@@ -42,12 +67,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmBuildWithBoolVars") {
     val s = {
       val b = Param("b")(TyBool)
-      val i = Param("i")(TyInt)
+      val i = Param("i")(U8)
       StmBuild(
         5,
         i,
         b,
-        Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (0, i + 1))
+        Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (C(0)(U8), i + 1))
       )().tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -55,7 +80,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithTupleVars") {
     val s = {
-      val x = Param("x")(TyTuple(TyInt, TyTuple(), Int2(), TyBool))
+      val x = Param("x")(TyTuple(U8, TyTuple(), (I8, U16), TyBool))
       val y = Param("y")(TyTuple())
       StmBuild(
         4,
@@ -63,7 +88,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           x -> (
-            Tuple(0, Tuple()(), Tuple(1, 2)(), True)(),
+            Tuple(C(0)(U8), Tuple()(), Tuple(C(1)(I8), C(2)(U16))(), True)(),
             Tuple(
               x.__0 + 1,
               x.__1,
@@ -80,12 +105,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmBuildWithVecVars") {
     val s = {
-      val v = Param("v")(TyVec(TyVec(Int2(), 2), 3))
+      val v = Param("v")(TyVec(TyVec((U8, U8), 2), 3))
       val z = VecBuild(
         3,
-        TyInt ::+ (i => VecBuild(2, TyInt ::+ (j => Tuple(i, j)()))())
+        U8 ::+ (i => VecBuild(2, U8 ::+ (j => Tuple(i, j)()))())
       )()
-      val s = StmBuild(
+      StmBuild(
         5,
         Tuple(42, True, v)(),
         True,
@@ -93,8 +118,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
           v -> (z, VecShiftLeft(v, VecAccess(v, 0)())())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
-      // TODO: This wouldn't be necessary if VecBuild had IntCst length
-      s.eraseTypes().tchk().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
   }
@@ -105,9 +128,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     // same bit width.
     val s = {
       val n = 10
-      val c = Tuple(Tuple(True, 42)(), Tuple(99, False)())()
-      val tt = TyTuple(TyTuple(TyBool, TyInt), TyTuple(TyInt, TyBool))
-      val s = Param("s")(TyStm(tt, -1))
+      val c = Tuple(Tuple(True, C(42)(I8))(), Tuple(C(99)(U8), False)())()
+      val s = Param("s")(TyStm(((TyBool, I8): Type, (U8, TyBool): Type), -1))
       StmBuild(
         n,
         StmData(s)(),
@@ -123,13 +145,13 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmMap(+42)") {
     val s = {
       val n = 4
-      val s = Param("s")(TyStm(TyInt, -1))
+      val s = Param("s")(TyStm(U8, -1))
       StmBuild(
         n,
         StmData(s)() + 42,
         True,
         Map[Param, (Expr, Expr)](
-          s -> (StmCount(n)(), True)
+          s -> (StmCount(C(n)(U8))(), True)
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     }
@@ -139,7 +161,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmScanInclusive(0, +)") {
     val s = {
       val n = 20
-      val s = StmScanInclusive(StmCount(n)(), 0, PlusFunction())()
+      val s =
+        StmScanInclusive(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -152,7 +175,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmScanExclusive(0, +)") {
     val s = {
       val n = 20
-      val s = StmScanExclusive(StmCount(n)(), 0, PlusFunction())()
+      val s =
+        StmScanExclusive(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -165,7 +189,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmFold(0, +)") {
     val s = {
       val n = 20
-      val s = StmFold(StmCount(n)(), 0, PlusFunction())()
+      val s = StmFold(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
       s.tchk().lower().asInstanceOf[StmBuild]
     }
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -177,34 +201,40 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("s => StmCount(12)") {
     // Input deliberately unused
-    val s = Param("s")(TyStm(TyInt, 1))
-    val count = StmCount(12)().tchk().lower().asInstanceOf[StmBuild]
+    val s = Param("s")(TyStm(U8, 1))
+    val count = StmCount(C(12)(U8))().tchk().lower().asInstanceOf[StmBuild]
     val f = Function(s, count)().tchk()
     val inputs = Seq(
-      TestInput(Seq(Some(42)))
+      TestInput(Seq(Some(C(42)(U8))))
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
 
   test("s => s |> StmMap") {
     val n = 50
-    val s = Param("s")(TyStm(TyInt, n))
-    val map = StmMap(s, TyInt ::+ (x => (x + 1) * x + 42))().tchk().lower()
+    val s = Param("s")(TyStm(U16, n))
+    val map = StmMap(s, U16 ::+ (x => (x + 1) * x + 42))().tchk().lower()
     val f = Function(s, map)().tchk()
     val inputs = Seq(
-      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i)))))
+      TestInput((0 until n).flatMap(i => Seq(None, Some(C(i)(U16)))))
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
 
   test("s => s |> ZipWithIndex") {
     val n = 33
-    val t = TyTuple(TyInt, TyBool, TyVec(TyInt, 3))
+    val t = TyTuple(U8, TyBool, TyVec(I9, 3))
     val s = Param("s")(TyStm(t, n))
     val zip = StmZip(StmCount(n)(), s)().tchk().lower()
     val f = Function(s, zip)().tchk()
     val inputs = {
-      val v = (i: Int) => Tuple(i, i % 2 == 0, VecLiteral(i - 1, i, i + 1)())()
+      val v =
+        (i: Int) =>
+          Tuple(
+            C(i)(U8),
+            i % 2 === 0,
+            VecLiteral(C(i - 1)(I9), C(i)(I9), C(i + 1)(I9))()
+          )()
       Seq(
         TestInput((0 until n).flatMap(i => Seq(None, Some(v(i)), None)))
       )
@@ -214,22 +244,24 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("a => b => c => StmZip(StmZip(a, b), c)") {
     val n = 20
-    val a = Param("s")(TyStm(TyInt, n))
-    val b = Param("s")(TyStm(TyInt, n))
-    val c = Param("s")(TyStm(TyInt, n))
+    val a = Param("s")(TyStm(U16, n))
+    val b = Param("s")(TyStm(U16, n))
+    val c = Param("s")(TyStm(U16, n))
     val zip = StmZip(StmZip(a, b)(), c)().tchk().lower()
     val f = Function(a, Function(b, Function(c, zip)())())().tchk()
     val inputs = Seq(
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i))))),
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(i * 2)), None))),
-      TestInput((0 until n).flatMap(i => Seq(None, Some(IntCst(i * i)), None)))
+      TestInput((0 until n).flatMap(i => Seq(Some(C(i)(U16))))),
+      TestInput((0 until n).flatMap(i => Seq(Some(C(i * 2)(U16)), None))),
+      TestInput(
+        (0 until n).flatMap(i => Seq(None, Some(C(i * i)(U16)), None))
+      )
     )
     assert(TestRunner.testExpr(f, inputs) == TestPassed)
   }
 
   test("s => StmConcat(s, s)") {
     val n = 5
-    val s = Param("s")(TyStm(TyInt, n))
+    val s = Param("s")(TyStm(U8, n))
     val concat = StmConcat(s, s)().tchk().lower()
     val f = Function(s, concat)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
@@ -240,7 +272,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
     val n = 5
-    val s = Param("s")(TyStm(TyInt, n))
+    val s = Param("s")(TyStm(U8, n))
     val zip = StmZip(StmPrefix(s, 2)(), StmSuffix(s, 2)())().tchk().lower()
     val f = Function(s, zip)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
@@ -252,13 +284,13 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("SimpleLet") {
     val n = 3
     val x = Param("x")()
-    val a = Param("a")(TyInt)
+    val a = Param("a")(U8)
     val s = StmBuild(
       n,
       Let(x, a * 2, x + x + 1)(),
       True,
       Map[Param, (Expr, Expr)](
-        a -> (0, Let(x, a + 1, x * x)())
+        a -> (C(0)(U8), Let(x, a + 1, x * x)())
       )
     )().tchk().lower()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -271,18 +303,18 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 5
     val x = Param("x")()
     val y = Param("y")()
-    val j = Param("j")(TyInt)
-    val a = Param("a")(Int2())
-    val v = Param("v")(TyVec(TyInt, n))
+    val j = Param("j")(U8)
+    val a = Param("a")((U8, U8))
+    val v = Param("v")(TyVec(U8, n))
     val s =
       StmBuild(
         n,
         Tuple(v, a)(),
         True,
         Map[Param, (Expr, Expr)](
-          j -> (0, j + 1),
+          j -> (C(0)(U8), j + 1),
           a -> (
-            Tuple(42, 99)(),
+            Tuple(C(42)(U8), C(99)(U8))(),
             Let(
               x,
               a.__0,
@@ -298,7 +330,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
             )()
           ),
           v -> (
-            VecBuild(n, TyInt ::+ (_ => Default(TyInt)))(),
+            VecBuild(n, U8 ::+ (_ => Default(U8)))(),
             VecShiftLeft(v, a.__0)()
           )
         )
@@ -308,14 +340,17 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("CurriedFunCall") {
     val n = 7
-    val f = Int2() ::+ (x => TyInt ::+ (y => y + x.__0 * y + x.__1))
-    val a = Param("a")(TyInt)
+    val f = (U32, U32) ::+ (x => U32 ::+ (y => y + x.__0 * y + x.__1))
+    val a = Param("a")(U32)
     val s = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (0, FunCall(FunCall(f, Tuple(42, 99)())(), a)())
+        a -> (
+          C(0)(U32),
+          FunCall(FunCall(f, Tuple(C(1)(U32), C(1)(U32))())(), a)()
+        )
       )
     )().tchk().lower().uncurry()
     assert(TestRunner.testExpr(s) == TestPassed)
@@ -323,17 +358,19 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("DotProduct") {
     val n = 100
-    val a = Param("a")(TyStm(TyInt, n))
-    val b = Param("b")(TyStm(TyInt, n))
+    val a = Param("a")(TyStm(U32, n))
+    val b = Param("b")(TyStm(U16, n))
     val s = StmFold(
-      StmMap(StmZip(a, b)(), Int2() ::+ (x => x.__0 * x.__1))(),
-      0,
-      PlusFunction()
+      StmMap(StmZip(a, b)(), (U32, U16) ::+ (x => x.__0 * x.__1))(),
+      C(0)(U32),
+      PlusFunction(U32)
     )().tchk().lower().asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(
-      TestInput((0 until n).map(i => Some(IntCst(i * i * i)))),
-      TestInput((0 until n).flatMap(i => Seq(Some(IntCst(3 * i)), None, None)))
+      TestInput((0 until n).map(i => Some(C(i * i)(U32)))),
+      TestInput(
+        (0 until n).flatMap(i => Seq(Some(C(3 * i)(U16)), None, None))
+      )
     )
     assert(TestRunner.testExpr(f0, inputs) == TestPassed)
 
@@ -352,15 +389,15 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("2DMapFold") {
     val n = 16
     val m = 8
-    val s = Param("s")(TyStm(TyStm(TyInt, m), n))
+    val s = Param("s")(TyStm(TyStm(U16, m), n))
     val rowSums =
-      StmMap(s, TyStm(TyInt, m) ::+ (s => StmFold(s, 0, PlusFunction())()))()
-        .tchk()
-        .lower()
-        .asInstanceOf[StmBuild]
+      StmMap(
+        s,
+        TyStm(U16, m) ::+ (s => StmFold(s, C(0)(U16), PlusFunction(U16))())
+      )().tchk().lower().asInstanceOf[StmBuild]
 
     val inputs = Seq(
-      TestInput((0 until n * m).flatMap(i => Seq(None, Some(IntCst(i)))))
+      TestInput((0 until n * m).flatMap(i => Seq(None, Some(C(i)(U16)))))
     )
 
     val optimized =
@@ -372,18 +409,22 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("1DStmSlide") {
     val n = 50
     val m = 3
-    val s = Param("s")(TyStm(TyTuple(TyInt, TyInt, TyBool), n))
+    val s = Param("s")(TyStm(TyTuple(U8, I8, TyBool), n))
     val slide = StmSlideS(s, m = m)().tchk().lower().asInstanceOf[StmBuild]
 
     val inputs = Seq(
       TestInput(
         (0 until n).flatMap(i =>
-          Seq(None, Some(Tuple(i + 1, i - 10, i % 3 === 0)()), None)
+          Seq(
+            None,
+            Some(Tuple(C(i + 1)(U8), C(i - 10)(I8), i % 3 === 0)()),
+            None
+          )
         )
       )
     )
 
-    val f0 = Function(s, slide)().tchk()
+    val f0 = Function(s, slide)().tchk().lower()
     assert(TestRunner.testExpr(f0, inputs) == TestPassed)
 
     val optimized = StmSimplifier.simplify(slide)().tchk().lower()
@@ -391,30 +432,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(TestRunner.testExpr(f1, inputs) == TestPassed)
   }
 
-  /** The result of accessing a vector out of bounds should be consistent
-    * between hardware and software.
-    */
-  test("OutOfBoundsVecAccess") {
-    val m = 5
-    val n = 3 * m + 4
-    val i = Param("i")(TyInt)
-    val v = Param("v")(TyVec(TyInt, m))
-    val s = StmBuild(
-      n,
-      VecAccess(v, i)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        i -> (-2 - m, i + 1),
-        v -> (VecBuild(m, TyInt ::+ (i => 10 * (i + 1)))(), v)
-      )
-    )().tchk().lower()
-
-    assert(TestRunner.testExpr(s) == TestPassed)
-  }
-
   test("LetFunction") {
     val n = 5
-    val a = Param("a")(TyInt)
+    val a = Param("a")(U8)
     val f = Param("f")()
     val s = StmBuild(
       n,
@@ -422,11 +442,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         a -> (
-          0,
+          C(0)(U8),
           Let(
             f,
-            TyInt ::+ (x => x * x + 1),
-            FunCall(f, a)() + FunCall(f, 42)()
+            U8 ::+ (x => x * x + 1),
+            FunCall(f, a)() + FunCall(f, C(42)(U8))()
           )()
         )
       )
@@ -434,7 +454,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
     val exc = intercept[NotImplementedError](TestRunner.testExpr(s))
     assert(
-      exc.getMessage == s"Cannot generate VHDL function with input type ${TyArrow(TyInt, TyInt)} and output type $TyInt."
+      exc.getMessage == s"Cannot generate VHDL function with input type ${U8 ->: U8} and output type $U8."
     )
   }
 }

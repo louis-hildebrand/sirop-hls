@@ -34,15 +34,37 @@ private object VhdlExprGenerator {
     */
   def exprToVhdl(e: Expr)(implicit mode: ExprGenMode = NormalMode): VhdlExpr = {
     e match {
-      case x: Param  => VhdlExpr(x.name, Seq())
-      case IntCst(n) => VhdlExpr(n.toString, Seq())
+      case x: Param => VhdlExpr(x.name, Seq())
+      case c: IntCst =>
+        c.typ.asInstanceOf[TyAnyInt] match {
+          case TyUInt(w) => VhdlExpr(s"to_unsigned(${c.i}, $w)", Seq())
+          case TySInt(w) => VhdlExpr(s"to_signed(${c.i}, $w)", Seq())
+        }
       // TODO: Specially handle cases like x + (-1 * y)?
-      case Sum(terms @ _*)    => VhdlOp("+", terms.map(exprToVhdl))
-      case Prod(factors @ _*) => VhdlOp("*", factors.map(exprToVhdl))
-      case Div(e1, e2)        => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
-      case Mod(e1, e2)        => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
-      case True               => VhdlExpr("true", Seq())
-      case False              => VhdlExpr("false", Seq())
+      case Sum(terms @ _*) => VhdlOp("+", terms.map(exprToVhdl))
+      case Prod(factors @ _*) =>
+        val w = e.typ.asInstanceOf[TyAnyInt].w
+        makeProduct(factors.map(exprToVhdl), bitWidth = w)
+      case Div(e1, e2) => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
+      case Mod(e1, e2) => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
+      case PadTo(e, w) =>
+        val ev = exprToVhdl(e)
+        VhdlExpr(s"pad(${ev.vhdl}, $w)", ev.decls)
+      case TruncateTo(e, w) =>
+        val ev = exprToVhdl(e)
+        VhdlExpr(s"truncate(${ev.vhdl}, $w)", ev.decls)
+      case ToSigned(e) =>
+        val w = e.typ.asInstanceOf[TyUInt].w
+        val ev = exprToVhdl(e)
+        VhdlExpr(s"signed(pad(${ev.vhdl}, ${w + 1}))", ev.decls)
+      case ToUnsigned(e) =>
+        val w = e.typ.asInstanceOf[TySInt].w
+        assert(w >= 1)
+        val ev = exprToVhdl(e)
+        VhdlExpr(s"truncate(unsigned(${ev.vhdl}), ${w - 1})", ev.decls)
+
+      case True  => VhdlExpr("true", Seq())
+      case False => VhdlExpr("false", Seq())
       case mux @ Mux(c, t, f) =>
         val cv = exprToVhdl(c)
         val tv = exprToVhdl(t)
@@ -64,6 +86,10 @@ private object VhdlExprGenerator {
 
       case StmData(s: Param) =>
         VhdlExpr(s"${s.name}_data_internal", Seq())
+      case StmData(e) =>
+        throw new IllegalArgumentException(
+          s"Invalid argument to ${StmData.getClass.getSimpleName}: $e"
+        )
       case _: StmBuild =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
@@ -73,13 +99,17 @@ private object VhdlExprGenerator {
           s"Cannot generate hardware for ${e.getClass.getSimpleName}."
         )
 
-      case Tuple() => VhdlExpr("\"\"", Seq())
       case Tuple(elems @ _*) =>
-        val vhdlElems = elems.map(exprToVhdl)
-        val assignments = vhdlElems.zipWithIndex
-          .map({ case (v, i) => s"i_$i => ${v.vhdl}" })
-          .mkString(", ")
-        VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
+        elems match {
+          case Seq() =>
+            VhdlExpr("\"\"", Seq())
+          case elems =>
+            val vhdlElems = elems.map(exprToVhdl)
+            val assignments = vhdlElems.zipWithIndex
+              .map({ case (v, i) => s"i_$i => ${v.vhdl}" })
+              .mkString(", ")
+            VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
+        }
       case TupleAccess(t, IntCst(i)) =>
         val tv = exprToVhdl(t)
         val tempVar =
@@ -124,16 +154,21 @@ private object VhdlExprGenerator {
           .map({ case (e, i) => s"$i => ${e.vhdl}" })
           .mkString(", ")
         VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
-      case VecBuild(len, f) if len.freeVars().isEmpty =>
-        // TODO: Use for-generate here instead?
-        val n = ir.eval(len).asInstanceOf[IntCst].i
-        val elems =
-          (0 until n).map(i => PartialEvalPass.partialEval(FunCall(f, i)()))
-        exprToVhdl(VecLiteral(elems: _*)().tchk())
-      case VecBuild(n, _) =>
-        throw new IllegalArgumentException(
-          s"VecBuild with non-constant size ($n) is not supported."
-        )
+      case VecBuild(len, f) =>
+        if (len.freeVars().isEmpty) {
+          // TODO: Use for-generate here instead?
+          val n = ir.eval(len).asInstanceOf[IntCst].i
+          val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
+          val elems =
+            (0 until n.toInt).map(i =>
+              PartialEvalPass.partialEval(FunCall(f, C(i)(idxTyp))())
+            )
+          exprToVhdl(VecLiteral(elems: _*)().tchk())
+        } else {
+          throw new IllegalArgumentException(
+            s"VecBuild with non-constant size ($len) is not supported."
+          )
+        }
       case VecAccess(v, i) =>
         // TODO: Have a special case for when the index is static?
         val vv = exprToVhdl(v)
@@ -144,6 +179,21 @@ private object VhdlExprGenerator {
         throw new IllegalArgumentException(
           s"Syntax sugar must be removed before hardware generation."
         )
+    }
+  }
+
+  private def makeProduct(factors: Seq[VhdlExpr], bitWidth: Int): VhdlExpr = {
+    require(factors.nonEmpty)
+    if (factors.length == 1) {
+      factors.head
+    } else {
+      val (leftFactors, rightFactors) = factors.splitAt(factors.length / 2)
+      val lhs = makeProduct(leftFactors, bitWidth)
+      val rhs = makeProduct(rightFactors, bitWidth)
+      VhdlExpr(
+        s"truncate((${lhs.vhdl}) * (${rhs.vhdl}), $bitWidth)",
+        lhs.decls ++ rhs.decls
+      )
     }
   }
 
@@ -170,10 +220,14 @@ private object VhdlExprGenerator {
 
   def valueToVhdl(v: Expr): String = {
     ir.eval(v).tchk() match {
-      case False     => "false"
-      case True      => "true"
-      case IntCst(k) => k.toString
-      case Tuple()   => "\"\""
+      case False => "false"
+      case True  => "true"
+      case c: IntCst =>
+        c.typ.asInstanceOf[TyAnyInt] match {
+          case TyUInt(w) => s"to_unsigned(${c.i}, $w)"
+          case TySInt(w) => s"to_signed(${c.i}, $w)"
+        }
+      case Tuple() => "\"\""
       case Tuple(elems @ _*) =>
         val assignments = elems.zipWithIndex
           .map({ case (e, i) => s"i_$i => ${valueToVhdl(e)}" })

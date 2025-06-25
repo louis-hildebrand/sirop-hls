@@ -9,79 +9,232 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("IdentityFunction") {
-    val original: Expr = TyInt ::+ (x => x)
+    val original: Expr = U8 ::+ (x => x)
     val checked = original.tchk()
-    assert(checked.typ == TyArrow(TyInt, TyInt))
+    assert(checked.typ == U8 ->: U8)
     assertAllNodesHaveType(checked)
   }
 
   test("FunCall") {
-    val original = FunCall(TyInt ::+ (x => x < 42), 42)()
+    val original = FunCall(U8 ::+ (x => x < IntCst(42)(U8)), IntCst(42)(U8))()
     val checked = original.tchk()
     assert(checked.typ == TyBool)
     assertAllNodesHaveType(checked)
   }
 
+  test("IntCst") {
+    assert(IntCst(-4)().tchk().typ == TySInt(3))
+    assert(IntCst(-3)().tchk().typ == TySInt(3))
+    assert(IntCst(-2)().tchk().typ == TySInt(2))
+    assert(IntCst(-1)().tchk().typ == TySInt(1))
+    assert(IntCst(0)().tchk().typ == TyUInt(0))
+    assert(IntCst(1)().tchk().typ == TyUInt(1))
+    assert(IntCst(2)().tchk().typ == TyUInt(2))
+    assert(IntCst(3)().tchk().typ == TyUInt(2))
+    assert(IntCst(4)().tchk().typ == TyUInt(3))
+  }
+
+  test("Equal:Valid") {
+    val types = Seq(
+      U8,
+      U16,
+      U32,
+      I8,
+      I16,
+      I32,
+      TyBool,
+      TyTuple(U8, TyBool),
+      TyVec(U8, IntCst(42)(U8))
+    )
+    for (t <- types) {
+      val x = Param("x")(t)
+      val y = Param("y")(t)
+      assert(Equal(x, y)().tchk().typ == TyBool)
+    }
+  }
+
+  test("Equal:Invalid") {
+    // Non-data type
+    assertThrows[TypeError](
+      Equal(Param("x")(TyStm(U8, 1)), Param("y")(TyStm(U8, 1)))().tchk()
+    )
+    assertThrows[TypeError](
+      Equal(Param("x")(U8 ->: U8), Param("y")(U8 ->: U8))().tchk()
+    )
+    // Completely different types
+    assertThrows[TypeError](Equal(Param("x")(TyBool), Param("y")(I8))().tchk())
+    // Different int types
+    assertThrows[TypeError](Equal(Param("x")(U8), Param("y")(I8))().tchk())
+  }
+
+  test("LessThan:Valid") {
+    for (t <- Seq(U8, U16, U32, I8, I16, I32)) {
+      val x = Param("x")(t)
+      val y = Param("y")(t)
+      assert(LessThan(x, y)().tchk().typ == TyBool)
+    }
+  }
+
+  test("LessThan:Invalid") {
+    assertThrows[TypeError](
+      LessThan(Param("x")(TyBool), Param("y")(U8))().tchk()
+    )
+    assertThrows[TypeError](
+      LessThan(Param("x")(U8), Param("y")(TyBool))().tchk()
+    )
+    assertThrows[TypeError](LessThan(Param("x")(U8), Param("x")(I8))().tchk())
+  }
+
+  private val xU8 = Param("x")(U8)
+  private val yU8 = Param("y")(U8)
+  private val zU8 = Param("z")(U8)
+  private val yU16 = Param("y")(U16)
+  private val yI8 = Param("y")(I8)
+  private val xI32 = Param("x")(I32)
+  private val yI32 = Param("y")(I32)
+
+  test("u8 + u8 + u8") {
+    assert(Sum(xU8, yU8, zU8)().tchk().typ == U8)
+  }
+
+  test("i32 + i32") {
+    assert(Sum(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("EmptySum") {
+    assert(Sum()().tchk().typ == TyUInt(0))
+  }
+
+  test("u8 + i8") {
+    assertThrows[TypeError](Sum(xU8, yI8)().tchk())
+  }
+
+  test("u8 + u16") {
+    assertThrows[TypeError](Sum(xU8, yU16)().tchk())
+  }
+
+  test("u8 * u8 * u8") {
+    assert(Prod(xU8, yU8, zU8)().tchk().typ == U8)
+  }
+
+  test("i32 * i32") {
+    assert(Prod(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("EmptyProd") {
+    assert(Prod()().tchk().typ == TyUInt(1))
+  }
+
+  test("u8 * i8") {
+    assertThrows[TypeError](Prod(xU8, yI8)().tchk())
+  }
+
+  test("u8 * u16") {
+    assertThrows[TypeError](Prod(xU8, yU16)().tchk())
+  }
+
+  test("u8 / u8") {
+    assert(Div(xU8, yU8)().tchk().typ == U8)
+  }
+
+  test("i32 / i32") {
+    assert(Div(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("u8 / i8") {
+    assertThrows[TypeError](Div(xU8, yI8)().tchk())
+  }
+
+  test("u8 / u16") {
+    assertThrows[TypeError](Div(xU8, yU16)().tchk())
+  }
+
+  test("u8 % u8") {
+    assert(Mod(xU8, yU8)().tchk().typ == U8)
+  }
+
+  test("i32 % i32") {
+    assert(Mod(xI32, yI32)().tchk().typ == I32)
+  }
+
+  test("u8 % i8") {
+    assertThrows[TypeError](Mod(xU8, yI8)().tchk())
+  }
+
+  test("u8 % u16") {
+    assertThrows[TypeError](Mod(xU8, yU16)().tchk())
+  }
+
+  test("TruncateTo:u16 to u8") {
+    assert(TruncateTo(yU16, 8)().tchk().typ == U8)
+  }
+
+  test("TruncateTo:i8 to u0") {
+    assert(TruncateTo(yI8, 0)().tchk().typ == U0)
+  }
+
   test("IntAndBoolFunction") {
     val original: Expr =
-      TyTuple(TyInt, TyBool) ::+ (x =>
+      TyTuple(TyUInt(8), TyBool) ::+ (x =>
         Tuple(
-          Or(x.__1, Not(x.__1)(), And(x.__1, x.__0 === 2, x.__0 < 6)())(),
+          x.__1 || !x.__1 || (x.__1 && x.__0 === 2 && x.__0 < 6),
           x.__0 + 2 * x.__0 + x.__0 / 4 + x.__0 % 8
         )()
       )
     val checked = original.tchk()
-    assert(
-      checked.typ == TyArrow(TyTuple(TyInt, TyBool), TyTuple(TyBool, TyInt))
-    )
+    val expectedType = TyArrow(TyTuple(U8, TyBool), TyTuple(TyBool, U8))
+    assert(checked.typ == expectedType)
     assertAllNodesHaveType(checked)
   }
 
   test("Vector") {
     val n = Param("n")()
-    val v = VecBuild(n, TyInt ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
-    val original = VecAccess(v, VecLength(v)() - 1)()
-    val checked = original.tchk(Map(n -> TyInt))
-    assert(checked.typ == TyTuple(TyInt, TyBool))
+    val v = VecBuild(n, U8 ::+ (i => Tuple(i + 1, i % 2 === 0)()))()
+    val original = VecAccess(v, ToUnsigned(n - 1)())()
+    val checked = original.tchk(Map(n -> U8))
+    assert(checked.typ == TyTuple(U8, TyBool))
     assertAllNodesHaveType(checked)
   }
 
   test("SimpleStream") {
     val n = Param("n")()
     val b = Param("b")(TyBool)
-    val a = Param("a")(TyInt)
+    val a = Param("a")(U8)
     val original =
       StmBuild(
         n,
         a,
         b,
         Map[Param, (Expr, Expr)](
-          a -> (0, Mux(b, a + 2, a + 1)()),
+          a -> (ReshapeData(0, U8)(), Mux(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
         )
       )()
-    val checked = original.tchk(Map(n -> TyInt))
-    assert(checked.typ == TyStm(TyInt, n.rebuild(TyInt)))
+    val checked = original.tchk(Map(n -> U16))
+    assert(checked.typ == TyStm(U8, n.rebuild(U16)))
     assertAllNodesHaveType(checked)
   }
 
   test("StreamWithStreamInput") {
-    val n = Param("n")()
+    val n = Param("n")(U8)
     val input = Param("input")()
-    val s = Param("s")(TyStm(TyInt, n))
-    val a = Param("a")(TyInt)
+    val s = Param("s")(TyStm(I16, n))
+    val a = Param("a")(I16)
     val original = StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
         s -> (input, a % 2 === 0),
-        a -> (0, Mux(a % 2 === 0, a + StmData(s)(), a + 1)())
+        a -> (
+          ReshapeData(0, I16)(),
+          Mux(a % 2 === 0, a + StmData(s)(), a + 1)()
+        )
       )
     )()
     val checked =
-      original.tchk(Map(n -> TyInt, input -> TyStm(TyInt, n)))
-    assert(checked.typ == TyStm(TyInt, n.rebuild(TyInt)))
+      original.tchk(Map(input -> TyStm(I16, n)))
+    assert(checked.typ == TyStm(I16, n.rebuild(U8)))
     assertAllNodesHaveType(checked)
   }
 
@@ -96,14 +249,14 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("FunCall:NotFunction") {
-    val e = FunCall(IntCst(42), IntCst(43))()
+    val e = FunCall(IntCst(42)(), IntCst(43)())()
     assertThrows[TypeError](e.tchk())
   }
 
   test("FunCall:WrongArgType") {
     val f = Param("f")()
     val e = FunCall(f, True)()
-    assertThrows[TypeError](e.tchk(Map(f -> TyArrow(TyInt, TyBool))))
+    assertThrows[TypeError](e.tchk(Map(f -> TyArrow(U8, TyBool))))
   }
 
   test("Sum:WrongTerms") {
@@ -127,7 +280,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Mux:NonBoolCondition") {
-    val e = Mux(IntCst(42), False, True)()
+    val e = Mux(IntCst(42)(), False, True)()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -139,44 +292,44 @@ class TypecheckerTests extends AnyFunSuite {
   test("And:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b && IntCst(1)).tchk(Map(b -> TyBool))
+      (b && IntCst(1)()).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1) && b).tchk(Map(b -> TyBool))
+      (IntCst(1)() && b).tchk(Map(b -> TyBool))
     )
   }
 
   test("Or:WrongTerms") {
     val b = Param("b")()
     assertThrows[TypeError](
-      (b || IntCst(1)).tchk(Map(b -> TyBool))
+      (b || IntCst(1)()).tchk(Map(b -> TyBool))
     )
     assertThrows[TypeError](
-      (IntCst(1) || b).tchk(Map(b -> TyBool))
+      (IntCst(1)() || b).tchk(Map(b -> TyBool))
     )
   }
 
   test("Not:WrongInput") {
     val x = Param("x")()
-    assertThrows[TypeError](Not(x)().tchk(Map(x -> TyInt)))
+    assertThrows[TypeError](Not(x)().tchk(Map(x -> U8)))
   }
 
   test("Equal:DifferentTypes") {
-    assertThrows[TypeError]((IntCst(42) === True).tchk())
-    assertThrows[TypeError]((True === IntCst(42)).tchk())
+    assertThrows[TypeError]((IntCst(42)() === True).tchk())
+    assertThrows[TypeError]((True === IntCst(42)()).tchk())
   }
 
   test("Equal:Streams") {
     val s = Param("s")()
     assertThrows[TypeError](
-      (s === s).tchk(Map(s -> TyStm(TyInt, 1)))
+      (s === s).tchk(Map(s -> TyStm(U8, 1)))
     )
   }
 
   test("Equal:Functions") {
     val f = Param("f")()
     assertThrows[TypeError](
-      (f === f).tchk(Map(f -> TyArrow(TyInt, TyInt)))
+      (f === f).tchk(Map(f -> TyArrow(U16, I16)))
     )
   }
 
@@ -185,11 +338,11 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("TupleAccess:NonTuple") {
-    assertThrows[TypeError](IntCst(42).__1.tchk())
+    assertThrows[TypeError](IntCst(42)().__1.tchk())
   }
 
   test("VecBuild:NonIntLength") {
-    val e = VecBuild(True, TyInt ::+ (i => i))()
+    val e = VecBuild(True, U8 ::+ (i => i))()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -208,12 +361,7 @@ class TypecheckerTests extends AnyFunSuite {
   test("VecAccess:NonIntIndex") {
     val v = Param("v")()
     val e = VecAccess(v, True)()
-    assertThrows[TypeError](e.tchk(Map(v -> TyVec(TyInt, 2))))
-  }
-
-  test("VecLength:NonVecTarget") {
-    val e = VecLength(42)()
-    assertThrows[TypeError](e.tchk())
+    assertThrows[TypeError](e.tchk(Map(v -> TyVec(U8, 2))))
   }
 
   test("StmBuild:NonIntLength") {
@@ -239,20 +387,15 @@ class TypecheckerTests extends AnyFunSuite {
       4,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (VecBuild(10, TyInt ::+ (i => i))(),
-        VecBuild(11, TyInt ::+ (i => i))())
+        a -> (VecBuild(10, U8 ::+ (i => i))(),
+        VecBuild(11, U8 ::+ (i => i))())
       )
     )()
     assertThrows[TypeError](e.tchk())
   }
 
   test("StmData:NonStmTarget") {
-    val x = Param("x")(TyInt)
+    val x = Param("x")(U8)
     assertThrows[TypeError](StmData(x)().tchk())
-  }
-
-  test("StmLength:NonStmTarget") {
-    val e = StmLength(42)()
-    assertThrows[TypeError](e.tchk())
   }
 }

@@ -9,8 +9,9 @@ object VhdlConversionGenerator {
     */
   def toStdLogicVector(e: String, t: VhdlType): String = {
     t match {
-      case VhdlStdLogic       => s"(0 => $e)"
-      case _: VhdlStdLogicVec => e
+      case VhdlStdLogic                    => s"(0 => $e)"
+      case _: VhdlStdLogicVec              => e
+      case _: VhdlSigned | _: VhdlUnsigned => s"std_logic_vector($e)"
       case _ =>
         val f = toSlvConverterName(t)
         s"$f($e)"
@@ -29,7 +30,8 @@ object VhdlConversionGenerator {
   def toSlvConverter(t: VhdlType): Option[VhdlFunction] = {
     t match {
       case VhdlBool           => Some(boolToSlvConverter)
-      case VhdlInt            => Some(intToSlvConverter)
+      case _: VhdlSigned      => None
+      case _: VhdlUnsigned    => None
       case VhdlStdLogic       => None
       case _: VhdlStdLogicVec => None
       case t: VhdlRecord      => Some(recordToSlvConverter(t))
@@ -46,16 +48,6 @@ object VhdlConversionGenerator {
         VhdlVariable("x", VhdlStdLogicVec(1), "x := \"1\" when (b) else \"0\";")
       ),
       ret = "x"
-    )
-  }
-
-  private def intToSlvConverter: VhdlFunction = {
-    VhdlFunction(
-      name = toSlvConverterName(VhdlInt),
-      args = Seq(("n", VhdlInt)),
-      returnType = VhdlStdLogicVec(VhdlInt.bitWidth),
-      decls = Seq(),
-      ret = s"std_logic_vector(to_signed(n, ${VhdlInt.bitWidth}))"
     )
   }
 
@@ -97,6 +89,8 @@ object VhdlConversionGenerator {
   def fromStdLogicVector(e: String, t: VhdlType): String = {
     t match {
       case _: VhdlStdLogicVec => e
+      case _: VhdlSigned      => s"signed($e)"
+      case _: VhdlUnsigned    => s"unsigned($e)"
       case _ =>
         val f = fromSlvConverterName(t)
         s"$f($e)"
@@ -121,7 +115,8 @@ object VhdlConversionGenerator {
     t match {
       case VhdlStdLogic       => Some(stdLogicFromSlvConverter)
       case VhdlBool           => Some(boolFromSlvConverter)
-      case VhdlInt            => Some(intFromSlvConverter)
+      case _: VhdlSigned      => None
+      case _: VhdlUnsigned    => None
       case _: VhdlStdLogicVec => None
       case t: VhdlRecord      => Some(recordFromSlvConverter(t))
       case t: VhdlArray       => Some(arrayFromSlvConverter(t))
@@ -145,16 +140,6 @@ object VhdlConversionGenerator {
       returnType = VhdlBool,
       decls = Seq(),
       ret = "v = \"1\""
-    )
-  }
-
-  private def intFromSlvConverter: VhdlFunction = {
-    VhdlFunction(
-      name = fromSlvConverterName(VhdlInt),
-      args = Seq(("v", VhdlStdLogicVec(VhdlInt.bitWidth))),
-      returnType = VhdlInt,
-      decls = Seq(),
-      ret = "to_integer(signed(v))"
     )
   }
 

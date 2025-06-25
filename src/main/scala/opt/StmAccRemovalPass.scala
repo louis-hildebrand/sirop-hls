@@ -1,6 +1,7 @@
 package opt
 
 import ir._
+import operations.Cast
 
 import scala.annotation.tailrec
 
@@ -62,16 +63,33 @@ object StmAccRemovalPass {
       .toSeq
     val replacements: Map[Param, Expr] =
       varEquivClasses
-        .flatMap(xs =>
-          if (xs.size <= 1) {
-            // No duplicates
-            Set[(Param, Param)]()
-          } else {
-            // Choose any variable to be the representative
-            val x = xs.head
-            (xs - x).map(y => y -> x)
-          }
-        )
+        .flatMap(xs => {
+          // Accumulators with different integer types may end up in the same
+          // equivalence class.
+          // Keep the "smallest" type (unsigned if possible and with the
+          // smallest bit width) out of the available types.
+          // In theory, in some cases you could go even narrower than any of the
+          // existing accumulators.
+          // For example, if you have a u8 and an i8, you should be able to fit
+          // the value into a u7 (assuming the original program had no overflow).
+          // However, then you would need to do some reshaping to turn the u8
+          // accumulator into a u7 accumulator, which seems non-trivial in
+          // general.
+          // Simply choosing one of the existing accumulators to keep seems
+          // much easier.
+          val typ = xs
+            .map(x => x.typ)
+            .toSeq
+            .minBy({
+              case TyUInt(w) => (0, w)
+              case TySInt(w) => (1, w)
+              case _         => (2, 0)
+            })
+          val x = xs.find(x => x.typ == typ).get
+          val replacements =
+            (xs - x).map(y => y -> Cast(x, y.typ)().tchk().lower())
+          replacements
+        })
         .toMap
     val newStm = stm.replaceVars(replacements)
     // Will this incorrectly leave behind any occurrences of the removed
@@ -85,12 +103,6 @@ object StmAccRemovalPass {
     newStm
   }
 
-  /** @param stm
-    *   A stream whose accumulator is a non-nested tuple.
-    * @return
-    *   The indices within the accumulator tuple of the constant-valued
-    *   elements.
-    */
   @tailrec
   private def findConstantAccumulatorElems(
       stm: StmBuild,
@@ -104,11 +116,11 @@ object StmAccRemovalPass {
     } else {
       val currentValByVar = stm.seedByVar.map({ case (x, z) =>
         if (candidates.contains(x)) x -> z
-        else x -> Param("unknown")()
+        else x -> Param("unknown")(x.typ)
       })
       val nextValByVar = stm.nextByVar.map({ case (x, next) =>
         x -> PartialEvalPass.partialEval(
-          next.substitute(currentValByVar.toMap[Expr, Expr])
+          next.subPreserveType(currentValByVar.toMap[Expr, Expr])
         )
       })
       val constantVars =
