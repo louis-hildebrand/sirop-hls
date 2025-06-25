@@ -1,6 +1,5 @@
 package mhir.ir
 
-import mhir.ir._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SugarTests extends AnyFunSuite {
@@ -213,13 +212,19 @@ class SugarTests extends AnyFunSuite {
   }
 
   test("SmartDiv") {
-    assert(mhir.ir.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)())
-    assert(mhir.ir.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(-14)())
+    assert(
+      mhir.ir.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)()
+    )
+    assert(
+      mhir.ir.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(-14)()
+    )
   }
 
   test("SmartMod") {
     assert(
-      mhir.ir.eval(SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()) == IntCst(2)()
+      mhir.ir.eval(SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()) == IntCst(
+        2
+      )()
     )
   }
 }

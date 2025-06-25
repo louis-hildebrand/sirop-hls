@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
+
 import java.nio.file.{Files, Path}
 
 object VhdlWriter {

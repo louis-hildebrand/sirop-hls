@@ -1,8 +1,8 @@
 package mhir.optimize
 
-import mhir.sugar.{Cast, CeilDiv, Max}
-import mhir.optimize.{PartialEvalPass => PE}
 import mhir.ir._
+import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar.{Cast, CeilDiv, Max}
 
 // You may need to don a hazmat suit before working on this code.
 

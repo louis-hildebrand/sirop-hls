@@ -1,6 +1,7 @@
 package mhir.ir
 
 import mhir.sugar.StmMap
+
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 

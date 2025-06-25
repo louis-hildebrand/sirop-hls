@@ -85,8 +85,10 @@ class OptimizationTests extends AnyFunSuite {
     val zExamples = Seq(C(0)(I16), C(-3)(I16), C(42)(I16))
     for (vVal <- vExamples) {
       for (zVal <- zExamples) {
-        val expected = mhir.ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
-        val actual = mhir.ir.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
+        val expected =
+          mhir.ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
+        val actual =
+          mhir.ir.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
         assert(actual == expected)
       }
     }
@@ -495,13 +497,15 @@ class OptimizationTests extends AnyFunSuite {
         for (deltaVal <- -5 to 5) {
           val expected = {
             val elems =
-              mhir.ir.eval(
-                Let(
-                  n,
-                  C(nVal)(U16),
-                  Let(z, C(zVal)(I16), Let(delta, C(deltaVal)(I16), s)())()
-                )()
-              ).asInstanceOf[StmLiteral]
+              mhir.ir
+                .eval(
+                  Let(
+                    n,
+                    C(nVal)(U16),
+                    Let(z, C(zVal)(I16), Let(delta, C(deltaVal)(I16), s)())()
+                  )()
+                )
+                .asInstanceOf[StmLiteral]
                 .elems
             StmLiteral(VecLiteral(elems: _*)())()
           }

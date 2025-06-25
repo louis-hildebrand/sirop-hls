@@ -1,7 +1,7 @@
 package mhir.ir
 
-import mhir.sugar.VecShiftLeft
 import mhir.optimize.PartialEvalPass
+import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
 class CoreTests extends AnyFunSuite {

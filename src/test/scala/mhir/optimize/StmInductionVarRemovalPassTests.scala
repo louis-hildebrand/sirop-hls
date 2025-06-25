@@ -1,9 +1,9 @@
 package mhir.optimize
 
 import mhir.ir._
+import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{StmCst, StmRange, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
-import mhir.optimize.{PartialEvalPass => PE}
 
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
   private def assertEquationsEqual(

@@ -1,7 +1,7 @@
 package mhir.optimize
 
-import mhir.sugar.Cast
 import mhir.ir._
+import mhir.sugar.Cast
 
 import scala.annotation.tailrec
 

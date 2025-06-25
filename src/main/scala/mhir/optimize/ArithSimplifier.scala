@@ -1,7 +1,7 @@
 package mhir.optimize
 
-import lift.{arithmetic => ae}
 import lift.arithmetic.{simplifier => aes}
+import lift.{arithmetic => ae}
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 

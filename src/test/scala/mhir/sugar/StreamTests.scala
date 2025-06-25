@@ -1939,7 +1939,9 @@ class StreamTests extends AnyFunSuite {
 
     val actual3 = StmRepeat(s, 3)().tchk().lower()
     assert(
-      mhir.ir.eval(actual3) == StmLiteral(expected ++ expected ++ expected: _*)()
+      mhir.ir.eval(actual3) == StmLiteral(
+        expected ++ expected ++ expected: _*
+      )()
     )
   }
 
@@ -2060,10 +2062,18 @@ class StreamTests extends AnyFunSuite {
     val s = StmCount(6)()
     val expected = StmLiteral(0, 1, 2, 3, 4, 5)()
 
-    assert(mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 1)())())().tchk()) == expected)
-    assert(mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 2)())())().tchk()) == expected)
-    assert(mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 3)())())().tchk()) == expected)
-    assert(mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 6)())())().tchk()) == expected)
+    assert(
+      mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 1)())())().tchk()) == expected
+    )
+    assert(
+      mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 2)())())().tchk()) == expected
+    )
+    assert(
+      mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 3)())())().tchk()) == expected
+    )
+    assert(
+      mhir.ir.eval(Let(p, s, StmJoin(StmSplit(p, 6)())())().tchk()) == expected
+    )
   }
 
   test("StmJoinSplit") {

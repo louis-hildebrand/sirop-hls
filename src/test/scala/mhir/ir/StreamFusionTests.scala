@@ -1,6 +1,5 @@
 package mhir.ir
 
-import mhir.ir._
 import mhir.optimize.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 

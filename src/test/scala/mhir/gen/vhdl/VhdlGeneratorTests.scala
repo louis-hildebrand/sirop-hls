@@ -1,8 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.ir._
-import mhir.sugar._
 import mhir.optimize.StmSimplifier
+import mhir.sugar._
 import mhir.testing.VhdlTest
 import org.scalatest.funsuite.AnyFunSuite
 

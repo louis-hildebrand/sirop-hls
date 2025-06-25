@@ -1,6 +1,5 @@
 package mhir.ir
 
-import mhir.ir._
 import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for the evaluator.

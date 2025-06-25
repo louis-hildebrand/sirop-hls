@@ -1,8 +1,8 @@
 package mhir.optimize
 
 import mhir.ir._
-import mhir.sugar.Min
 import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar.Min
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArithmeticSimplificationTests extends AnyFunSuite {

@@ -1,7 +1,7 @@
 package mhir.debug
 
 import mhir.ir._
-import mhir.optimize.{FactSet, PartialEvalPass}
+import mhir.optimize.PartialEvalPass
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(

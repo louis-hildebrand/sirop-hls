@@ -1,10 +1,10 @@
 package mhir.optimize
 
 import mhir.ir._
+import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{Max, StmCount}
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
-import mhir.optimize.{PartialEvalPass => PE}
 
 class PartialEvalPassTests extends AnyFunSuite {
   private val x = new ParamStore("x")
