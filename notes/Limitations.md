@@ -1,0 +1,12 @@
+- No memory, only vectors
+- Partial evaluator will always inline function calls whose left-hand side is a function, so there isn't really a great way to do things like common sub-expression elimination
+- Black-box functions not supported
+	- In particular, don't handle any sequential functions within a `StmBuild`
+- Pretty ugly how you need functions like StmMap to be *syntax sugar:* can't just have it be a user-defined function
+	- Hopefully it demonstrates that it's *possible* to convert higher-level primitives into the minimalist IR
+	- Hopefully it would be feasible to do basically the same lowering but with a proper dependent type system
+- Compiler is very slow
+- Error reporting is not ideal
+- Relies heavily on good arithmetic simplification
+- Fragile: the Stm2Vec . Vec2Stm test case keeps breaking
+- Hard to debug, since expressions in the IR tend to be large and optimization requires many steps, any of which could fail

@@ -1,0 +1,51 @@
+## Top-Level Design Unit
+- Program is assumed to be a function that takes as input zero or more streams and returns one stream
+	- In the case of zero inputs, it would actually be a `StmBuild` directly
+	- In SHIR it would instead be a function that reads from host RAM and writes back to host RAM, but we don't currently support memory
+## Functions
+- What happens in cases like recursive functions (e.g., via Y combinator)?
+	- Simply-typed lambda calculus is *not* Turing complete and does *not* allow recursion, so recursion should be impossible in this IR (just using functions)
+- ==TODO:== Higher-order functions don't really make sense in hardware, so we'd need to get rid of those
+	- Specially recognize functions like `fun(x => fun(y => x + y))` and rewrite to `fun((x, y) => x + y)`? But then what about functions like `fun(x => let y = 1 in fun(z => x + y + z))`? Automatically move the `let` inside the function?
+	- Use defunctionalization to get rid of functions that take functions as input?
+- ==TODO:== Black-box functions (e.g., add, multiply):
+	- Functional units may take multiple cycles, so for simplicity just wrap them all in a latency-insensitive interface (i.e., basically treat functional units as functions that emit a stream of length 1)?
+		- Combinational circuits can basically have `ready` and `valid` hardcoded to 1 (depending on how we specify the interface) and Quartus should be able to optimize that away
+		- If the input to the FU must be available for more than one cycle, who is responsible for buffering it?
+			- Probably the functional unit itself
+	- Include useful info in type system?
+		- Combinational (needs to be wrapped in `ready`/`valid` interface) vs sequential (already has `ready`/`valid`)?
+		- Delay
+## Stream Protocol
+- Ready, valid, data
+- The IR deals with "logical" time steps and every accumulator is updated at every step. This implicitly means that producer streams do nothing until the `ready` signal is raised and the consumer waits for *all* required streams.
+- The hardware deals with actual clock cycles and it may take many cycles for a stream input to become valid.
+	- Producer streams should continue updating themselves until they have valid output to send
+		- ==Might it be worthwhile in certain cases to make this explicit in the IR? It would probably require special support for updating an input stream only without reading the value, which seems like overkill.==
+- How do we avoid combinational loops in handshake protocol?
+	- In general, the `ready` signal of the consumer depends on the `valid` signals of the producers
+	- *Simplest solution:* allow `ready` to depend on `valid` but make sure no operators have `valid` depending on `ready`?
+		- This seems like a reasonable restriction at first glance - why would you want to "unzip" a stream? Once zipped the values must be synchronized, so might as well keep them tupled.
+	- *More flexible solutions:*
+		- [[Jang et al in PLDI24]]
+			- Cites "Basejump" ([[Taylor in DAC18]]) (unsound!)
+			- Cites "Wire Sorts" ([[Christensen et al in PLDI21]])
+- Should there be wires to carry the length of the stream?
+	- Probably not necessary since the length will (eventually) be statically known
+- How long are elements valid?
+	- Data is valid only for one cycle
+	- We could consider a more elaborate protocol if necessary (e.g., data is valid until the producer lowers the `valid` signal), but stick to the existing rule for now
+## Compiling Streams
+- `StmBuild`:
+	- Accumulators can be partitioned into three sets:
+		- Data (i.e., integers, booleans, tuples or vectors of data), which will be represented by registers
+		- Internal stream producers (if initial value is literally a `StmBuild`)
+		- External stream producers (if initial value is a stream-valued variable)
+		- If none of the above: error
+	- Assume all code within the `StmBuild` (i.e., register updates and output) are combinational
+		- ==TODO:== lift this restriction?
+			- `valid` and `ready` signals would presumably need to be updated to include the black-box functional unit's `ready` and `valid` signals
+			- May require inserting registers
+				- SHIR already has an analysis for automatically inserting registers, but it's quite brittle. It might help if we kept track of relevant information for black-box functional units (e.g., sequential vs combinational, delay)
+	- `valid` signal:
+		- Add a counter to know how many elements are left, set `valid` to 0 when there are no more elements

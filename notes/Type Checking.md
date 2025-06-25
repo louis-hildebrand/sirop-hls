@@ -1,0 +1,14 @@
+- Some transformations required for converting from higher-level to minimalist IR are type-directed
+	- e.g., to know when to reset in `StmMap` or `StmScan`, need to know dimensions of input streams
+	- e.g., during stream fusion, return `Default(T)` in case the consumer reads when they're not supposed to
+	- *Solution:* type check expression in the higher-level IR and then lower
+		- Add an IR node `SyntaxSugar` with a method `lower()`
+- Need some notion of "compatible" types - i.e., ones with the same shape in hardware
+	- e.g., `Vec[Int; 5]` is *not* compatible with `Vec[Int; 6]`
+		- e.g., stream accumulator cannot have initial value with 5 elements but next value with 6 - shape doesn't match
+	- e.g., `Stm[Int; 5]` *is* compatible with `Stm[Int; 4]`
+		- e.g., perfectly fine for stream accumulator to start with type `Stm[Int; 5]` and shrink - indeed this is the normal behaviour! The length of a stream is not part of its hardware interface
+- Do *not* bother checking stream lengths (e.g., to guarantee that stream is non-empty, that it will actually produce at least the stated number of elements)
+	- `StmBuild` seems to be Turing-complete, so this seems to reduce to the halting problem, which is undecidable
+- Invariant: if a node has a type, its children must also have a type
+	- This allows the type checker to skip sub-trees which have already been checked

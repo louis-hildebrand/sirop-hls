@@ -1,0 +1,139 @@
+## Error Reporting (==include in thesis!==)
+- Possible error cases:
+	- Type error
+	- Out-of-bounds array access
+	- Trying to raise `ready` signal when producer stream is empty
+	- Reading data from stream without raising `ready` signal
+	- Division by zero
+	- Overflow (e.g., in sum or product)
+- Desirable properties of the language (in decreasing order of importance?):
+	1. *Expressivity.* Error handling should not make it impossible to write important things like shift registers.
+	2. *Quality of hardware.* Error handling should not impose a severe performance penalty, nor seriously hinder optimization.
+		1. In particular, should be able to use standard arithmetic simplification library (like ArithExpr) without huge changes.
+	3. *Determinacy.* A given expression should always evaluate to the same thing.
+		- Otherwise, it seems like it would be a nightmare to debug or even identify such bugs in the first place.
+		- Don't be like C and C++
+	4. *Observability.* The programmer should be informed if they ran into a nonsense situation so that they can fix their code.
+		- Don't be like JavaScript!
+- Possible solutions:
+	1. Crash the program (i.e., have the evaluator throw an exception). Programmer is responsible for always avoiding such cases.
+		- *Advantages:*
+			- Simple
+			- Clearly communicates to the programmer what's wrong
+			- Corresponds to what the simulator does *in some cases*
+				- Type error (particularly if shape of data is wrong): should be excluded at compile time
+				- Trying to read from empty stream will cause hardware to deadlock. In software, why not tell the user rather than throwing the program into an infinite loop?
+		- *Problem:* some error expressions are difficult or impossible to avoid, especially since the MUX primitive strictly evaluates both branches
+			- Reading data from stream when not ready: impossible to avoid, as far as I can tell
+			- Out-of-bounds array accesses: maybe possible, but tricky
+	2. Have an `if-then-else` primitive which only evaluates the branch that is actually taken?
+		- *Problem:* unclear how to implement this in hardware in a reasonably performant and space-efficient way
+		- Have this lazy `if-then-else` but translate it to a MUX anyway?
+			- Unfortunately the simulator may throw an error if you do an out-of-bounds array access
+	3. Return some special value (`undefined`, `error`, whatever) with the semantics that `e + undefined --> undefined`, `e && undefined --> undefined`, etc.
+		- *Problem*: requirement (2) is not satisfied! For example, we'd like to say that `e - e --> 0` or `false && e --> false`, but these identities do *not* hold if `e` can evaluate to `undefined`
+	4. Declare that these situations are undefined behaviour; have the evaluator choose some random value
+		- *Problem:* requirement (3) is not satisfied! Now evaluation is non-deterministic
+	5. Consistently choose some value (e.g., 0 if an int is expected, false if a bool is expected); basically make it so that nothing is really an error
+		- *Problem:* requirement (4) is not satisfied! Now the programmer may do something silly without noticing
+			- Workaround: can make a note of the fact that the default value was chosen and throw an exception at the end if the value seems to be used
+				- This is a conservative analysis: it is almost certainly impossible to decide in general whether a given "undefined" value affects the ultimate output
+					- *Easy case:* if the undefined behaviour occurs in the MUX branch that gets discarded, there's no problem
+						- This will probably account for most occurrences of undefined behaviour
+					- *Intermediate case:* `False && e` will always evaluate to `False`, even if `e` relies on undefined behaviour
+					- *Harder case:* `(2 * e + 2) % 2 == 0` will always be `True`, even if `e` relies on undefined behaviour
+					- In general, it seems like you could construct arbitrarily complex identities where the undefined behaviour is arbitrarily deep within the expression
+			- But maybe that's not such a big deal, as long as we can get the hardware to behave the same way
+	6. ==TODO:== Make every fallible primitive return an `Option<T>`; require matching on that?
+		- Or maybe replace `VecAccess(v, i)` with `VecAccessOrElse(v, i, e)`; require programmer to provide default value on the spot. Less flexible but maybe simpler to compile and saves one wire
+		- For vector accesses, you should be able to implement this using `VecAccess`! `VecAccessOpt(v, i) = VecAccess(VecMap(v, x => Some(x)), i)` (assuming `Default(Option<T>) = None`)
+- Solution by error case:
+	- Type error: throw an exception
+	- Trying to raise `ready` signal when producer stream is empty: throw an exception (or just hang if the producer supposedly has more elements but its `valid` signal is always `false`)
+	- Reading data from stream without raising `ready` signal: return default value (==TODO:== with warning?)
+	- Out-of-bounds vector access, division by zero, overflow: return default value with warning, throw exception if the value seems to be used
+		- Throw an exception?
+			- *Advantage:* optimizer may be able to simplify the expression since it's explicitly represented in the IR
+			- How to prevent out-of-bounds accesses?
+				- Wrap index in a MUX?
+					- *Problems:*
+						- The partial evaluator may decide to get rid of the inner MUX (around the index) since the condition will presumably be the same as for the outer MUX
+							- If you have an expression like `mux(c, e1, mux(c, e2, e3))`, you can replace it with `mux(c, e1, e3)`. Either `c` evaluates to `true`, in which case the value of the `false` branch doesn't matter, or `c` evaluates to `false`, in which case the `false` branch will evaluate to `e3`
+								- Expressions like this show up surprisingly often during optimization! It's unclear why
+							- If you have an expression like `mux(c, e1, v[mux(c, e2, e3)])`, you can replace it with `mux(c, e1, v[e3])`, right? Wrong! `v[e3]` may be out of bounds when `c` is `false` and this would cause problems due to the strict evaluation
+								- Cannot use this trick in the index of a `VecAccess`
+								- Also cannot use this trick in the argument of a function call, since it may turn out that the function includes a `VecAccess`
+									- e.g., `(j -> v[j])(if (i < n) then i else n - 1)`
+								- Also cannot use this trick in a `SyntaxSugar` node, since that may desugar to a `VecAccess` or a `FunCall`
+									- e.g., `let j = if (i < n) then i else n - 1 in v[j]`
+						- Functions may make certain assumptions about their inputs for simplicity. But then all optimization passes must be careful to satisfy those assumptions
+							- e.g., no need to do vector bounds checking in `VecMap` since we assume `0 <= i < n`
+							- e.g., in the induction variable removal pass, the case for piecewise functions must add `min` or `max` when calling the function from each half
+						- Doesn't work for arrays of length 0
+							- A lot of functions probably have this limitation, so maybe it's not such a big deal. Programmer should just not create empty vectors
+				- Statically pad array to nearest power of two, truncate bits of index, and then access
+					- *Problems:*
+						- How to pad array to nearest power of two?
+							- Add another primitive?
+							- Use VecBuild? But then we're back at square one, so you need some kind of primitive. Maybe `StaticIf`, whose condition must be statically evaluable (and the index in `VecBuild` is considered static)
+								- But what happens if you try to substitute a non-static expression into a `StaticIf` (as might happen if you tried to evaluate a function call or `vbuild(n, f)[i] --> f(i)`)? Is substitution now a partial function? Gross.
+						- How to truncate index? Maybe add yet another primitive?
+		- Return some well-defined value?
+			- *Advantage:* simpler code in the IR, no risk of optimizer mistakenly getting rid of necessary guards
+			- What expression to return?
+				- Always `Default` if out of bounds?
+				- Pad + truncate index?
+					- This seems to better correspond to the way the bitwidth of the index is flexible (see [[Data and Basic Control]]), but it makes the partial evaluator's job harder. How do you know what the index bit width will be (and therefore how much to truncate) if the vector length is `n`?
+			- Will this impose a severe performance penalty? Hopefully not *that* much.
+				- If the `VecAccess` index is static, then we just grab the `i`th wire: no performance hit
+				- If the index is non-static then in any case we need a MUX; the question is just what happens for invalid values of the select signal (don't care vs 0). So it leaves a bit less room for Quartus to optimize, but that's hopefully not the end of the world.
+- In some cases, the optimizer may take an erroneous program and make it not erroneous
+	- *Example 1:* `sbuild(1, Some(42), s : (sbuild(0, None), true))` will get stuck because the producer never produces a value. But if we remove `s` (since it's unused), the error goes away
+	- *Example 2:* `(10 + 10 + 10) / 3` will overflow if we're dealing with 4-bit unsigned numbers, but the partial evaluator may simplify this to 10 (no more error)
+	- It may be possible to detect these issues in some cases, but probably not always
+		- *Example 1:* checking whether a program halts is obviously undecidable (assuming the language is Turing-complete, which I think it is)
+		- *Example 2:* what if you simplify `(3 * x) / 3` to `x` and later replace `x` with 10?
+## DontCare / Undefined
+- Where used?
+	- For evaluating nonsense expressions (e.g., reading invalid data from input stream)
+	- To define the `Option<T>` type
+	- As initial values that are ignored...
+		- In `asStm2Stm` for the case where you have a function from scalar to stream
+		- In shift registers (`Stm2Vec`, `StmSlideV`)
+		- In zero-length vector in `VecJoin` (shouldn't really happen, but just in case)
+	- In partial evaluator, if one branch is `DontCare` then simply return the other branch
+- Why it's useful:
+	- More clearly document that an expression doesn't matter compared to writing `0 /* don't care */`
+	- Can choose an irrelevant initial value without knowing the type (e.g., I can write `VecBuild(n, _ => DontCare)` regardless of the type of the vector)
+	- Can implement `Option<T>` as syntax sugar rather than a primitive: `Some(e) --> (e, True)` and `None --> (DontCare, False)`
+	- Lets you tell the compiler "ignore this branch: it can never happen"
+		- e.g., then the compiler can optimize `if (e1) then e2 else DontCare` to `e1` (but also, when simplifying `e2`, make use of the assumption that `e1` evaluates to `true`!)
+- ***PROBLEMS*** (similar to those mentioned above)
+	- It makes the language non-deterministic!
+	- If you naively have rules like `DontCare * x --> DontCare`, it means optimizations like `(2 * x) % 2 --> 0` are now broken: if `x = DontCare` then it would actually evaluate to `DontCare`, not 0
+- Possible approaches:
+	- ~~Try to maintain constraints on a given `DontCare`?~~
+		- *Easy example:* for any `x`, `x && False` is `False`. Therefore, `DontCare && False` should be `False`
+		- *Slightly harder example:* for any `x`, `2 * x % 2 === 0` is `True`. But what value `v` should `2 * DontCare` evaluate to such that `v % 2` then evaluates to 0?
+		- *Problem:* I would be flabbergasted if this was possible for a Turing-complete language like this
+	- Just don't have it in the language?
+		- *Advantage:* now the language is deterministic and it seems a bit more type-safe
+		- *Problem:* but then you give up some of the aforementioned benefits
+	- (`DontCare(T)`) Literally just use a random number generator to pick a value?
+		- *Problem:* will tests be flaky now?
+			- Seems like I could seed the random number generator before each evaluation. But even then, it seems like there may be cases where switching to a different but equivalent expression (e.g., changing order of terms in sum) would yield a different result, which sounds like a debugging nightmare
+				- *Example:* suppose the random number generator generates `True` and then `False`. If you try to evaluate `(if DontCare then 0 else 1) + (if DontCare then 10 else 20)` you'd get `0 + 20 = 20`, but if you swapped the order of the sum you'd get `10 + 1 = 11`
+		- *Problem:* how do I know what type the expression is supposed to be?
+			- Require the type checker to run before evaluation? Gross.
+			- Delay actually choosing a value until it's needed?
+				- *Example:* if I try to evaluate a sum and one of the terms is `DontCare`, then I know I need to choose an integer
+	- (`Default(T)`) Systematically define a default value for each type (e.g., 0 for ints, false for booleans) so that the interpreter becomes deterministic, even though the generated hardware wouldn't be?
+		- *Problem:* give up on certain optimizations (for the partial evaluator to be in sync with the evaluator)
+		- *Problem:* how do I know what type an expression is supposed to be?
+			- See comments above
+		- *Problem:* could give a false sense of security if the code behaves well in testing but not in hardware
+			- Maybe it wouldn't be so bad to have the hardware also behave like this (e.g., have the template for `StmBuild` zero out its output when the value is not valid)
+	- Have a feature flag to choose between having `DontCare(T)` and `Default(T)`?
+		- Could select between them in the constructor for `DontCare`
+	- *IMPORTANT:* each `DontCare` should essentially be a free variable; i.e., the same one can appear many times and you need to choose consistently
+		- *Example:* `let x = DontCare in x * x` must always be non-negative: cannot evaluate this to `DontCare1 * DontCare2` and choose different values for the two

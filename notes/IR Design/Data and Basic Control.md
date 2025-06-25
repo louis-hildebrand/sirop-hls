@@ -1,0 +1,174 @@
+## Data Types
+- Data types: int, bool, tuple, vector
+	- Each can be straightforwardly translated to wires in hardware
+- Seems useful to distinguish between "data types" (int, bool, tuple, vec) and others (stream, function, memory)
+	- Comparison (`===`) is only valid for data types
+	- The `default` primitive can only be used for data types
+	- Data types can only contain other data types (e.g., cannot have a tuple of streams)
+- ==TODO:== support arbitrary-width integers
+	- In SHIR:
+		- Hierarchy of `IntTypeT` (in `AlgoDataType.scala`):
+			- SignedIntTypeT
+				- SignedIntType
+				- SignedIntTypeVar
+			- IntType
+			- IntTypeVar
+		- ==Why are these types defined at the algo level rather than in the core?==
+		- ==What is the difference between `SignedIntTypeT` and `SignedIntType`, for example?==
+		- Width is represented by an `ArithTypeT` (which can contain an arbitrary expression? so bit widths can contain variables, for example?)
+			- ==Is it really important for bit width to be variable?==
+				- SHIR does allow it and it is sometimes used
+				- Not strictly required for my project (keep things feasible), but it would be nice
+			- ==Why is width represented by a *type* rather than directly using an expression?==
+		- Hierarchy of `ArithTypeT`:
+			- `ArithType` (which contains an `ArithExpr` from the `ArithExpr` library)
+			- `ArithTypeVar` (which extends `ExtensibleVar` from the `ArithExpr` library)
+	- In minimalist IR:
+		- Replace `TyInt` with `SInt(width)` and `UInt(width)`
+		- Should non-static widths be allowed?
+			- *Advantages of allowing them:* extra flexibility
+			- *Disadvantage of allowing them:* extra complexity
+				- Need new `Expr` variants to express general formulas for widths of sum, prod, etc.
+					- Power, log, ceiling
+					- ==Actually, maybe I could just use `ArithExpr` directly as the length==
+				- Those new `Expr` variants will also need to be type checked
+					- What is the type of `Log`? Will we need to include floating-point or fixed-point numbers too? T-T
+				- Harder to tell whether two bit widths are the same: need partial evaluator?
+					- This is already the case for vector lengths, so maybe it's not such a big deal
+				- Harder to enforce constraint that target width in `PadTo` must be greater than or equal to the original width
+			- Seems to be a bunch of extra work and I can't imagine I will need this feature
+			- Can always add it later if a compelling use case comes up
+		- What is the type of `IntCst`?
+			- ~~Require a type annotation each time?~~
+				- Will the compiler always have enough info to make the right decision?
+			- Choose the smallest type that can fit the given value
+					- Then I guess arithmetic operations would need to tolerate inputs with different size and signedness, otherwise something like `-1 + 1` would be ill-typed (assuming -1 gets type `SInt(1)` and 1 gets type `UInt(1)`)
+		- What if input types of adder don't match?
+			- ~~Require all operands to have the same width and signedness?~~
+				- Seems to better reflect the hardware implementation
+					- VHDL 2008 standard (IEEE 1076-2008), sec. 9.2 says that operands for addition, comparison, etc. must match
+				- Can provide primitives like `ToSigned` and `Pad` so the programmer can explicitly perform the necessary conversions
+			- ~~Implicitly perform the necessary conversions (i.e., pad, convert unsigned to signed) if the types don't match?~~
+				- Seems more ergonomic
+				- Seems easier to handle for the optimizer in certain cases
+					- e.g., safe to shrink the bit width of an expression (from point of view of consumer) without needing to add extra padding
+			- Require operand types to match exactly, but provide syntax sugar (e.g., `SmartEqual`) to automatically insert the necessary padding?
+				- Explicitness + ergonomics?
+		- What should output type of adder be?
+			- ~~Let output type be as wide as necessary, but provide primitive `Truncate` which drops some bits (i.e., do arithmetic modulo $2^n$) and provide some kind of macro which performs truncating addition?~~
+				- Max flexibility: programmer can choose how they want to handle overflow
+				- Be careful when computing output bit width
+					- ==Puzzle:== what is width of `((a + b) + c) + d` vs `(a + b) + (c + d)` (assuming `a`, `b`, `c`, `d` are all $n$-bit unsigned integers?)
+						- `(a + b) + (c + d)`: result has $n + 2$ bits
+							- $a, b, c, d \in [0, 2^n - 1]$
+							- $(a + b), (c + d) \in [0, 2^{n+1} - 2]$ (fits in $n + 1$ bits)
+							- $a + b + c + d \in [0, 2^{n+2} - 4]$ (fits in $n + 2$ bits)
+						- `((a + b) + c) + d`: result has $n + 3$ bits?
+							- $a, b, c, d \in [0, 2^n - 1]$
+							- $a + b \in [0, 2^{n+1} - 2]$ (fits in $n + 1$ bits)
+							- $a + b + c \in [0, 0, 3(2^n) - 3]$ (fits in $n + 2$ bits with plenty of space)
+							- $a + b + c + d \in [0, 2^{n+2} - 4]$ (fits in $n + 2$ bits)
+						- So changing the parentheses in a sum can *increase* the width of the output!
+							- Say that any optimization pass which does this is responsible for truncating so that the final output is compatible with the original type?
+					- Would it be better to track *range* rather than bit width in type?
+						- *Advantage:* more accurate, solves the issue mentioned above
+						- *Disadvantage:* seems more complex in most ways
+							- Not as clear how a given int type maps to hardware
+							- Not as clear how to decide whether two int types are "compatible"
+			- Same type as operands?
+				- *Advantages:*
+					- Consistent with VHDL's behaviour
+					- Much easier for programmer to predict what the type of a given expression will be
+					- Fewer `truncate` expressions need to be inserted in case you want to simply add with overflow (which seems like the most common case!)
+		- If the initial value in a stream accumulator is an int constant, how do I find the type?
+			- Can no longer infer type from seed: each accumulator needs a type annotation
+			- Perform some analysis to try to find number of steps taken by stream and therefore the max value of each accumulator?
+				- Surely not possible in the general case, otherwise we would be able to decide whether stream will halt
+			- In cases like induction variable remover, just assume 32 bits and later try to shrink that (best effort)
+				- ==TODO:== Add a logger so that I can emit a warning in case the step count cannot be found
+		- Can I just forget about all this until hardware generation?
+			- Unfortunately not, since the programmer should be able to decide how they want to handle overflow
+		- What primitives should be provided for conversion?
+			- One general-purpose `CastInt` primitive that takes as input the desired type?
+				- *Advantage:*
+					- Fewer cases to deal with (although four simple primitives really isn't *that* many)
+			- A bunch of smaller primitives like `TruncateTo`, `PadTo`, `ToSigned`, `ToUnsigned`
+				- *Advantages:*
+					- Similar to what's already in SHIR?
+					- Each primitive is simpler, corresponds more closely to the VHDL code (although a general conversion primitive really wouldn't be *that* bad)
+					- Simpler rewrite rules?
+		- Some conversions (e.g., widening an integer, converting from unsigned to signed *assuming bit width increases by one*) are safe - the value will always remain the same. How should such conversions happen?
+			- Explicitly
+				- e.g., the sum of `7:u3` and `-2:i3` would be written `to_signed(7:u3) + pad_to(-2:i3, 4)` and the type checker would let the result type be the same as the input type, which is `i4`
+				- *Advantages:*
+					- Simpler hardware generation, since there's never any need to infer conversions
+					- Simpler type checking?
+				- *Disadvantages:*
+					- Integer constants need type annotations
+						- Otherwise, substitution may no longer preserve types (e.g., `[0 / x]` where `x : u8`)
+							- And this may lead to problems like `to_unsigned(x)` being fine (assuming `x : i8`), but the expression becoming ill-typed after the perfectly normal substitution `[2 / x]` (since the input to `to_unsigned` should be signed)
+						- Otherwise, evaluation may no longer preserve types
+			- ~~Implicitly, and infer types for addition and multiplication based on operands~~
+				- e.g., the sum of `7:u3` and `-2:i3` would simply be written `7:u3 + -2:i3` and the type checker would infer its type as `i4`
+				- *Problems:*
+					- (==serious!==) During simplification, the type may be narrowed *and this may lead to overflow*
+						- e.g., suppose `x : i8`, `y : u3`, and we have the expression `7:u3 + x + y + -1*x`. The type checker will infer the type `i8` for this sum and if we were to set `x = 0` and `y = 1:u3`, then we would get `8:i8`. But the arithmetic simplifier may simplify this to `7:u3 + y`. The type checker would infer the type `u3` to this expression, and then plugging in `y = 1:u3` would result in overflow!
+							- Could we just attach the bit width for the sum to the sum itself, rather than inferring it from its operands? No, because then how would we recover that information after converting to `ArithExpr`?
+						- Maybe you could actually address this by saying that the arithmetic simplifier must insert padding as necessary, based on the type of the top-level expression
+					- Optimizer can't optimize reshaping. But what is there to optimize anyway?
+						- Trivial to have a special case to not reshape if target type is same as original type
+						- Other optimizations (e.g., `PadTo(IntCst)`, `TruncateTo(PadTo)`) would make the VHDL code a bit more readable, but surely the quality of results will be unaffected, right? It's just adding or dropping wires
+				- *Advantages:*
+					- Expressions will be more concise, since there's no need to insert `PadTo` and `ToSigned` everywhere
+					- Fewer cases for optimizer to deal with
+						- e.g., the arithmetic simplifier would probably struggle with something like `to_signed(x + 1) + -1 * to_signed(x)`, but if we omit `to_signed` then it's `x + 1 - x`, which should be pretty easy to handle
+					- Arithmetic simplifier currently converts from `Expr` to `ArithExpr` and then back. When converting back, it needs to be careful to restore type annotations (e.g., because type annotations are needed in `IntCst`) based on the type of the full expression. In some cases it is simply impossible (e.g., in a `LessThan`). But if widening happens automatically, then there's no need for this
+				- Where must the conversion happen?
+					- In `Sum`, `Prod`, `Div`, `Mod`, `Equal`, and `LessThan`
+					- In accumulator seed
+					- In function call
+					- When padding an unsigned number to `ToUnsigned` (since the unsigned number can be promoted to a signed int)
+					- When truncating an integer (since, after substitution, a wide number may have been replaced by a narrower one)
+					- In testbench generator, when setting expected values
+				- Can I delete `PadTo` and `ToSigned` if using this approach?
+					- No, since they are required if you want to perform "safe addition" and "safe multiplication" (which widen the inputs so as to prevent overflow)
+			- ~~Implicitly, and annotate each sum or product with a bit width~~
+				- e.g., `7 +u3 1` will overflow but `7 +u8 1` will not
+				- *Problems:*
+					- (==serious!==) But then how can I recover this information after converting to `ArithExpr` for simplification?
+		- Some conversions (`ToUnsigned`, `TruncateTo`) are unsafe—the input is not guaranteed to fit within the target type. What happens if the input does not fit?
+			- Truncate as you would expect with 2's complement number?
+				- *Advantages:* Seems safer, reasonably intuitive
+			- Undefined behaviour?
+				- Simplifies certain optimizations
+					- e.g., `ToSigned(ToUnsigned(x)) --> x` is only true if `x >= 0`. But if passing a negative number to `ToUnsigned` is undefined behaviour, then we can assume `x >= 0` and therefore we can cancel them out in every case
+				- Programmer could still truncate in the 2's complement way by manually zeroing out the necessary bits
+					- e.g., if `x : u8`, then `SafeTruncateTo(x, 7) = TruncateTo(x & 0x7f, 7)`
+					- ==TODO:== this would require adding a `BitwiseAnd` primitive, but how hard could that be?
+		- ==How wide should the index in `VecBuild` be?==
+			- ~~Just as wide as needed to fit the vector length?~~
+				- Vector length can be a variable. What will you do in the meantime?
+			- Allow any unsigned int type, handle it during hardware generation? VecBuild will use the narrowest type possible (and error if the existing type is too narrow).
+				- ==Then VecAccess should probably truncate index (see [[Errors]])==
+					- But if I do that, then the partial evaluator would probably have a harder time fusing out-of-bounds vector accesses :( Maybe I should actually make it undefined (nondeterministic) behaviour...
+## Arithmetic and Control Expressions
+- `IfThenElse` vs `Mux`
+	- In typical software languages, if-then-else is "lazily evaluated" - only the branch that's taken will be evaluated
+	- In hardware, multiplexer "evaluates" both branches and then selects one of the results
+	- In IR, have a `Mux` primitive rather than an `IfThenElse` primitive because it translates more easily to hardware
+- In tuple access, index must be a constant
+	- Easy to ensure it is a valid index
+	- If you want to access $i$th element of tuple (why?), use an if-then-else and deal with out-of-bounds index however you want
+	- If we allowed arbitrary index, it seems like there would be some overlap with `Mux` - can implement `Mux` by constructing a tuple and then selecting the appropriate index (assuming booleans could be used as integers)
+- Arithmetic:
+	- Use `Sum(e1, e2, ..., ek)` instead of `Add(e1, e2)` (and likewise for `Prod`, `And`, `Or`, etc.). Also flatten and sort terms
+		- Can get closer to a "canonical form" for expressions - e.g., `(x + y) + z`, `x + (z + y)`, etc. are all just ways to represent `x + y + z`
+			- Easier simplification (e.g., constant folding, grouping like terms)
+			- More robust tests - avoid tests failing because we expected `(x + y) + z` but got `x + (z + y)`
+	- No need for separate primitives for subtraction, unary negation, etc. Just multiply by -1 as appropriate
+		- Avoid having many ways to represent the same thing - fewer cases for the optimizer to handle, more reliable tests, etc.
+		- If Quartus doesn't handle n-ary sums or multiplication by -1 well, it should be straightforward enough for the hardware generator to handle
+			- Sort terms so that negated terms come at the end; replace multiplication by -1 with subtraction
+			- Try replacing multiplication and division with bit shifting
+			- Turn list of terms into binary tree (hopefully roughly balanced)
+			- Equality saturation could probably also do all this implicitly
