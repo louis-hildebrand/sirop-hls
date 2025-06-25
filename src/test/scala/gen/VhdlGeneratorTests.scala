@@ -4,7 +4,9 @@ import ir._
 import operations._
 import opt.StmSimplifier
 import org.scalatest.funsuite.AnyFunSuite
+import testing.VhdlTest
 
+@VhdlTest
 class VhdlGeneratorTests extends AnyFunSuite {
   test("Reshaping") {
     val n = 16

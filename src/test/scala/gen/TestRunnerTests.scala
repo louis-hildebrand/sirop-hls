@@ -1,9 +1,11 @@
 package gen
 
 import org.scalatest.funsuite.AnyFunSuite
+import testing.VhdlTest
 
 /** Smoke tests to ensure the test runner script itself is working as expected.
   */
+@VhdlTest
 class TestRunnerTests extends AnyFunSuite {
   test("run_test.sh:or-gate") {
     assert(TestRunner.testExistingProject("or-gate") == TestPassed)
