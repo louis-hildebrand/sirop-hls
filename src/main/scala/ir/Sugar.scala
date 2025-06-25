@@ -1,5 +1,30 @@
 package ir
 
+case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecLength(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newV = v.tchk
+    newV.typ match {
+      case _: TyVec => this.rebuild(U32, Seq(newV))
+      case t =>
+        throw new TypeError(
+          s"Vector in VecLength has type $t. Expected a vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    ReshapeData(v.typ.asInstanceOf[TyVec].n, U32)().tchk().lower()
+  }
+}
+
 case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     extends SyntaxSugar(x, v, in)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
