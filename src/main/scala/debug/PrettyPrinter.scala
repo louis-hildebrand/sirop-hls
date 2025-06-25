@@ -1,7 +1,7 @@
 package debug
 
 import ir._
-import opt.PartialEvalPass
+import opt.{FactSet, PartialEvalPass}
 
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
@@ -130,77 +130,95 @@ object PrettyPrinter {
     */
   def showScala(e: Expr): String = {
     e match {
-      case Tuple(elems @ _*) =>
+      case tup @ Tuple(elems @ _*) =>
         val children = elems.map(e => showScala(e))
-        s"Tuple(${children.mkString(",")})"
-      case TupleAccess(t, i) =>
+        s"Tuple(${children.mkString(",")})(${showScala(tup.typ)})"
+      case ta @ TupleAccess(t, i) =>
         i match {
           case IntCst(i) if 0 <= i && i <= 5 =>
             s"${showScalaWithParens(t)}.__$i"
           case _ =>
-            s"TupleAccess(${showScala(t)},${showScala(i)})"
+            s"TupleAccess(${showScala(t)},${showScala(i)})(${ta.typ})"
         }
-      case p: Param => p.name
+      case x: Param => s"${x.name}"
       case Function(param, body) =>
-        s"{ val ${param.name} = Param(${param.prefix})(${param.typ}) ; Function(${param.name}, ${showScala(body)}) }"
-      case FunCall(f, arg) =>
-        s"(${showScala(f)})(${showScala(arg)})"
-      case IntCst(i) => i.toString
-      case Sum(terms @ _*) =>
-        s"Sum(${terms.map(e => showScala(e)).mkString(",")})"
-      case Prod(factors @ _*) =>
-        s"Prod(${factors.map(e => showScala(e)).mkString(",")})"
-      case Div(x, y) =>
-        s"Div(${showScala(x)},${showScala(y)})"
-      case Mod(x, y) =>
-        s"Mod(${showScala(x)},${showScala(y)})"
-      case PadTo(x, y)      => s"PadTo(${showScala(x)},${showScala(y)})"
-      case TruncateTo(x, y) => s"TruncateTo(${showScala(x)},${showScala(y)})"
-      case ToSigned(x)      => s"ToSigned(${showScala(x)})"
-      case ToUnsigned(x)    => s"ToUnsigned(${showScala(x)})"
-      case True             => "True"
-      case False            => "False"
-      case Equal(x, y) =>
-        s"Equal(${showScala(x)},${showScala(y)})"
-      case LessThan(x, y) =>
-        s"LessThan(${showScala(x)},${showScala(y)})"
-      case Not(e) => s"Not(${showScala(e)})"
-      case And(terms @ _*) =>
-        s"And(${terms.map(e => showScala(e)).mkString(",")})"
-      case Or(terms @ _*) =>
-        s"Or(${terms.map(e => showScala(e)).mkString(",")})"
-      case Mux(c, t, f) =>
-        s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})"
-      case StmBuild(n, data, valid, eqns) =>
+        s"{ val ${param.name} = Param(${param.prefix})(${param.typ}) ; Function(${param.name}, ${showScala(body)})() }"
+      case fc @ FunCall(f, arg) =>
+        s"(${showScala(f)})(${showScala(arg)})(${showScala(fc.typ)})"
+      case c: IntCst =>
+        s"IntCst(${c.i}L)(${showScala(c.typ)})"
+      case s @ Sum(terms @ _*) =>
+        s"Sum(${terms.map(e => showScala(e)).mkString(",")})(${showScala(s.typ)})"
+      case p @ Prod(factors @ _*) =>
+        s"Prod(${factors.map(e => showScala(e)).mkString(",")})(${showScala(p.typ)})"
+      case d @ Div(x, y) =>
+        s"Div(${showScala(x)},${showScala(y)})(${showScala(d.typ)})"
+      case m @ Mod(x, y) =>
+        s"Mod(${showScala(x)},${showScala(y)})(${showScala(m.typ)})"
+      case pt @ PadTo(x, w) =>
+        s"PadTo(${showScala(x)},$w)(${showScala(pt.typ)})"
+      case tt @ TruncateTo(x, w) =>
+        s"TruncateTo(${showScala(x)},$w)(${showScala(tt.typ)})"
+      case ts @ ToSigned(x) =>
+        s"ToSigned(${showScala(x)})(${showScala(ts.typ)})"
+      case tu @ ToUnsigned(x) =>
+        s"ToUnsigned(${showScala(x)})(${showScala(tu.typ)})"
+      case True  => "True"
+      case False => "False"
+      case eq @ Equal(x, y) =>
+        s"Equal(${showScala(x)},${showScala(y)})(${showScala(eq.typ)})"
+      case lt @ LessThan(x, y) =>
+        s"LessThan(${showScala(x)},${showScala(y)})(${showScala(lt.typ)})"
+      case n @ Not(e) => s"Not(${showScala(e)})(${n.typ})"
+      case a @ And(terms @ _*) =>
+        s"And(${terms.map(e => showScala(e)).mkString(",")})(${showScala(a.typ)})"
+      case or @ Or(terms @ _*) =>
+        s"Or(${terms.map(e => showScala(e)).mkString(",")})(${showScala(or.typ)})"
+      case m @ Mux(c, t, f) =>
+        s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})(${showScala(m.typ)})"
+      case s @ StmBuild(n, data, valid, eqns) =>
         val equationsStr =
           s"Map(${eqns.map({ case (x, (z, next)) =>
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
             })})"
-        s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)"
-      case StmLiteral(elems @ _*) =>
+        s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)(${showScala(s.typ)})"
+      case s @ StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
-        s"StmLiteral(${children.mkString(",")})"
-      case StmData(s) =>
-        s"StmData(${showScala(s)})"
-      case StmNextK(s, k) =>
-        s"StmNextK(${showScala(s)},${showScala(k)})"
-      case VecBuild(n, f) =>
-        s"VecBuild(${showScala(n)},${showScala(f)})"
-      case VecLiteral(elems @ _*) =>
+        s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"
+      case sd @ StmData(s) =>
+        s"StmData(${showScala(s)})(${showScala(sd.typ)})"
+      case sn @ StmNextK(s, k) =>
+        s"StmNextK(${showScala(s)},${showScala(k)})(${showScala(sn.typ)})"
+      case vb @ VecBuild(n, f) =>
+        s"VecBuild(${showScala(n)},${showScala(f)})(${showScala(vb.typ)})"
+      case v @ VecLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
-        s"VecLiteral(${children.mkString(",")})"
-      case VecAccess(v, i) =>
-        s"VecAccess(${showScala(v)},${showScala(i)})"
-      case Default(t) => s"Default(${showScala(t)})"
+        s"VecLiteral(${children.mkString(",")})(${showScala(v.typ)})"
+      case va @ VecAccess(v, i) =>
+        s"VecAccess(${showScala(v)},${showScala(i)})(${showScala(va.typ)})"
+      case Default(t) =>
+        s"Default(${showScala(t)})"
       case e: SyntaxSugar =>
         val name = e.getClass.getSimpleName
         val children = e.children.map(showScala).mkString(", ")
-        s"$name($children)"
+        s"$name($children)(${showScala(e.typ)})"
     }
   }
 
   private def showScala(t: Type): String = {
-    t.toString
+    t match {
+      case Missing                                   => "Missing"
+      case t: TyUInt if COMMON_INT_TYPES.contains(t) => s"U${t.w}"
+      case TyUInt(w)                                 => s"TyUInt($w)"
+      case t: TySInt if COMMON_INT_TYPES.contains(t) => s"I${t.w}"
+      case TySInt(w)                                 => s"TySInt($w)"
+      case TyBool                                    => "TyBool"
+      case TyArrow(t1, t2) => s"TyArrow(${showScala(t1)},${showScala(t2)})"
+      case TyTuple(ts @ _*) =>
+        s"TyTuple(${ts.map(t => showScala(t)).mkString(",")})"
+      case TyVec(t, n) => s"TyVec(${showScala(t)},${showScala(n)})"
+      case TyStm(t, n) => s"TyStm(${showScala(t)},${showScala(n)})"
+    }
   }
 
   private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
