@@ -1,7 +1,7 @@
 {
     "steps": [
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 4,
             "state": "valid (0:u8)",
             "accumulators": {
@@ -9,7 +9,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (0:u8)",
                     "accumulators": {
@@ -20,7 +20,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (42:u8)",
                     "accumulators": {
@@ -28,7 +28,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 4,
                             "state": "valid (42:u8)",
                             "accumulators": {
@@ -43,7 +43,7 @@
             }
         },
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 3,
             "state": "valid (42:u8)",
             "accumulators": {
@@ -51,7 +51,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (1:u8)",
                     "accumulators": {
@@ -62,7 +62,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (42:u8)",
                     "accumulators": {
@@ -70,7 +70,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 4,
                             "state": "valid (42:u8)",
                             "accumulators": {
@@ -85,7 +85,7 @@
             }
         },
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 2,
             "state": "valid (1:u8)",
             "accumulators": {
@@ -93,7 +93,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (1:u8)",
                     "accumulators": {
@@ -104,7 +104,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "invalid",
                     "accumulators": {
@@ -112,7 +112,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 3,
                             "state": "valid (43:u8)",
                             "accumulators": {
@@ -127,7 +127,7 @@
             }
         },
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 1,
             "state": "stalled",
             "accumulators": {
@@ -135,7 +135,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
@@ -146,7 +146,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "invalid",
                     "accumulators": {
@@ -154,7 +154,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 2,
                             "state": "valid (44:u8)",
                             "accumulators": {
@@ -169,7 +169,7 @@
             }
         },
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 1,
             "state": "valid (45:u8)",
             "accumulators": {
@@ -177,7 +177,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
@@ -188,7 +188,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (45:u8)",
                     "accumulators": {
@@ -196,7 +196,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 1,
                             "state": "valid (45:u8)",
                             "accumulators": {
@@ -211,7 +211,7 @@
             }
         },
         {
-            "$type": "debug.FullTraceNode",
+            "$type": "mhir.debug.FullTraceNode",
             "n": 0,
             "state": "empty",
             "accumulators": {
@@ -219,7 +219,7 @@
             },
             "inputs": {
                 "s1_5": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
@@ -230,7 +230,7 @@
                     }
                 },
                 "s2_6": {
-                    "$type": "debug.FullTraceNode",
+                    "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
@@ -238,7 +238,7 @@
                     },
                     "inputs": {
                         "s_2": {
-                            "$type": "debug.FullTraceNode",
+                            "$type": "mhir.debug.FullTraceNode",
                             "n": 0,
                             "state": "empty",
                             "accumulators": {

@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TracerTests extends AnyFunSuite {
   private val TracesDir =
-    os.pwd / "src" / "test" / "scala" / "mhir/debug" / "traces"
+    os.pwd / "src" / "test" / "scala" / "mhir" / "debug" / "traces"
 
   /** If true, then whatever traces are generated will be saved. This should
     * only ever be temporarily set to true; remember to set it back to false

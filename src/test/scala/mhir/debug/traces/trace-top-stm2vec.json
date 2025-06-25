@@ -1,7 +1,7 @@
 {
     "steps": [
         {
-            "$type": "debug.SummarizedTraceNode",
+            "$type": "mhir.debug.SummarizedTraceNode",
             "n": 1,
             "state": "invalid",
             "accumulators": {
@@ -13,7 +13,7 @@
             }
         },
         {
-            "$type": "debug.SummarizedTraceNode",
+            "$type": "mhir.debug.SummarizedTraceNode",
             "n": 1,
             "state": "invalid",
             "accumulators": {
@@ -25,7 +25,7 @@
             }
         },
         {
-            "$type": "debug.SummarizedTraceNode",
+            "$type": "mhir.debug.SummarizedTraceNode",
             "n": 1,
             "state": "invalid",
             "accumulators": {
@@ -37,7 +37,7 @@
             }
         },
         {
-            "$type": "debug.SummarizedTraceNode",
+            "$type": "mhir.debug.SummarizedTraceNode",
             "n": 1,
             "state": "valid ([42:i32, 43:i32, 44:i32, 45:i32])",
             "accumulators": {
@@ -49,7 +49,7 @@
             }
         },
         {
-            "$type": "debug.SummarizedTraceNode",
+            "$type": "mhir.debug.SummarizedTraceNode",
             "n": 0,
             "state": "empty",
             "accumulators": {
