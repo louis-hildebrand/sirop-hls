@@ -913,6 +913,8 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
         e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
     }
   }
+
+  override def toString: String = ExprPrinter.displayOneLine(this)
 }
 
 // Tuples
@@ -2178,6 +2180,20 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
 
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
+
+  /** The precedence of this expression. See [[Precedence]].
+    */
+  def precedence: Int = Precedence.FunCall
+
+  /** See [[ExprPrinter.displayOneLine]].
+    *
+    * @note
+    *   there is no need to wrap the final result in parentheses; that will be
+    *   handled outside this method.
+    */
+  def displayOneLine(): String = {
+    ExprPrinter.displayFunCallOneLine(this.className, this.children)
+  }
 
   def typecheck(implicit context: Map[Param, Type]): Expr
 

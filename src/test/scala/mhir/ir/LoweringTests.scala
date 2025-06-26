@@ -87,7 +87,7 @@ class LoweringTests extends AnyFunSuite {
     val g0 = U8 ::+ (_ => IntCst(0)(U8))
     val g1 = U8 ::+ (x => IntCst(100)(U8) / x)
     val x = Param("x")(I8)
-    val g = Mux(x === 0, g0, g1)()
+    val g = Mux(x === 0, g0, g1)().tchk()
     val f = Function(x, g)().tchk()
     val exc = intercept[IllegalArgumentException](f.uncurry())
     assert(
