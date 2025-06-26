@@ -2,14 +2,16 @@ package mhir.optimize
 
 import mhir.ir._
 
-/** Transformations for moving integer conversion primitives ([[PadTo]],
-  * [[TruncateTo]], [[ToSigned]], and [[ToUnsigned]]) around in the AST.
+/** Transformations for moving integer conversion primitives ([[mhir.ir.PadTo]],
+  * [[mhir.ir.TruncateTo]], [[mhir.ir.ToSigned]], and [[mhir.ir.ToUnsigned]])
+  * around in the AST.
   */
 object IntConversionMover {
 
-  /** Move padding conversions ([[PadTo]] and [[ToSigned]]) towards the leaves
-    * of the AST and move truncating conversions ([[TruncateTo]] and
-    * [[ToUnsigned]]) towards the root of the AST.
+  /** Move padding conversions ([[mhir.ir.PadTo]] and [[mhir.ir.ToSigned]])
+    * towards the leaves of the AST and move truncating conversions
+    * ([[mhir.ir.TruncateTo]] and [[mhir.ir.ToUnsigned]]) towards the root of
+    * the AST.
     *
     * This transformation is always safe to perform, since it has the effect of
     * widening the intermediate results. It will probably increase the hardware

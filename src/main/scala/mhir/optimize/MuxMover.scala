@@ -4,14 +4,14 @@ import mhir.ir._
 
 object MuxMover {
 
-  /** Move [[Mux]]es up towards the root of the AST.
+  /** Move [[mhir.ir.Mux]]es up towards the root of the AST.
     *
     * This may cause the number of nodes in the AST to grow exponentially (as a
     * function of the number of MUXes). However, making a large table of all
     * possible cases may simplify certain analyses.
     *
     * @param expr
-    *   the expression in which to move the [[Mux]]es.
+    *   the expression in which to move the [[mhir.ir.Mux]]es.
     * @return
     */
   def moveUp(expr: Expr): Expr = {

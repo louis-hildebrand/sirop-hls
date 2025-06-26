@@ -654,7 +654,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     */
   def rebuild(typ: Type): Expr = rebuild(typ, children)
 
-  /** Rebuild this expression after applying [[f]] to each of its children.
+  /** Rebuild this expression after transforming each of its children.
     *
     * @param f
     *   the function to apply to each child.
@@ -817,7 +817,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
-  /** Shorthand for [[subAndEraseType]] with just one substitution.
+  /** Shorthand for [[subAndEraseType(subs*]] with just one substitution.
     */
   protected[ir] def subAndEraseType(sub: (Expr, Expr)): Expr = {
     subAndEraseType(Map(sub))
@@ -884,8 +884,7 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     out.rebuild(newType)
   }
 
-  // TODO: Fix link in documentation
-  /** Shorthand for [[subPreserveType]] with just one substitution.
+  /** Shorthand for [[subPreserveType(subs*]] with just one substitution.
     */
   def subPreserveType(sub: (Expr, Expr)): Expr = subPreserveType(Map(sub))
 

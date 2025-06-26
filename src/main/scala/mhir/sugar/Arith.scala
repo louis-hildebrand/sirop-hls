@@ -146,8 +146,8 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
 
 /** Convert from one data type to another, even if this may cause data loss.
   *
-  * For example, [[ReshapeData]] will refuse to convert `u32` to `u8`, but
-  * [[Cast]] can do it (using [[TruncateTo]]).
+  * For example, [[mhir.ir.ReshapeData]] will refuse to convert `u32` to `u8`,
+  * but [[Cast]] can do it (using [[mhir.ir.TruncateTo]]).
   *
   * @param e
   *   the expression to convert.
