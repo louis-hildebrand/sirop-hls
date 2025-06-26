@@ -3,6 +3,7 @@ package mhir.optimize
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.sugar.{NNone, SSome}
 import org.scalatest.funsuite.AnyFunSuite
 
 class OptionSimplifierTests extends AnyFunSuite {

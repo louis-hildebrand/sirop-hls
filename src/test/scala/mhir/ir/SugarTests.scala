@@ -182,17 +182,6 @@ class SugarTests extends AnyFunSuite {
     assert(mhir.ir.eval(SmartSum()()) == IntCst(0)())
   }
 
-  test("SafeSum") {
-    val u3 = TyUInt(3)
-    val u4 = TyUInt(4)
-    val e = SafeSum(IntCst(4)(u3), IntCst(4)(u3))().tchk()
-
-    assert(e.typ == u4)
-    assert(mhir.ir.eval(e) == IntCst(8)())
-
-    assert(mhir.ir.eval(SafeSum()()) == C(0)())
-  }
-
   test("SmartProd") {
     assert(mhir.ir.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
     assert(mhir.ir.eval(SmartProd()()) == IntCst(1)())

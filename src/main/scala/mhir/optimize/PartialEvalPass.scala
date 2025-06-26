@@ -4,7 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
-import mhir.sugar.Cast
+import mhir.sugar.{Cast, SafeSum}
 
 object PartialEvalPass {
   def pe(e: Expr): Expr = {

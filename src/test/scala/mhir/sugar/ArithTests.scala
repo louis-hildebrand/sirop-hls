@@ -112,4 +112,15 @@ class ArithTests extends AnyFunSuite {
     val expected = VecBuild(n, U8 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
     assert(actual == expected)
   }
+
+  test("SafeSum") {
+    val u3 = TyUInt(3)
+    val u4 = TyUInt(4)
+    val e = SafeSum(IntCst(4)(u3), IntCst(4)(u3))().tchk()
+
+    assert(e.typ == u4)
+    assert(mhir.ir.eval(e) == IntCst(8)())
+
+    assert(mhir.ir.eval(SafeSum()()) == C(0)())
+  }
 }
