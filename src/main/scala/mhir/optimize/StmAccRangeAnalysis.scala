@@ -1,5 +1,7 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 
 object StmAccRangeAnalysis {

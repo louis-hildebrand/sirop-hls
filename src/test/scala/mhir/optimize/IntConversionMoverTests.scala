@@ -1,5 +1,7 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
@@ -34,14 +36,14 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:Pad(if Pad(x * y) == 6 then x / y else x % y)") {
     val e = {
-      val c = PadTo(Prod(x(U16), y(U16))(), 32)() eq C(6)(U32)
+      val c = PadTo(Prod(x(U16), y(U16))(), 32)() equ C(6)(U32)
       val t = Div(x(U8), y(U8))()
       val f = Mod(x(U8), y(U8))()
       PadTo(Mux(c, t, f)(), 20)().tchk().lower()
     }
     val actual = IntConversionMover.widen(e)
     val expected = {
-      val c = Prod(PadTo(x(U16), 32)(), PadTo(y(U16), 32)())() eq C(6)(U32)
+      val c = Prod(PadTo(x(U16), 32)(), PadTo(y(U16), 32)())() equ C(6)(U32)
       val t = Div(PadTo(x(U8), 20)(), PadTo(y(U8), 20)())()
       val f = Mod(PadTo(x(U8), 20)(), PadTo(y(U8), 20)())()
       Mux(c, t, f)()
@@ -78,14 +80,14 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:ToSigned(if ToSigned(x * y) == 6 then x / y else x % y)") {
     val e = {
-      val c = ToSigned(Prod(x(U16), y(U16))())() eq C(6)(I17)
+      val c = ToSigned(Prod(x(U16), y(U16))())() equ C(6)(I17)
       val t = Div(x(U8), y(U8))()
       val f = Mod(x(U8), y(U8))()
       ToSigned(Mux(c, t, f)())().tchk().lower()
     }
     val actual = IntConversionMover.widen(e)
     val expected = {
-      val c = Prod(ToSigned(x(U16))(), ToSigned(y(U16))())() eq C(6)(I17)
+      val c = Prod(ToSigned(x(U16))(), ToSigned(y(U16))())() equ C(6)(I17)
       val t = Div(ToSigned(x(U8))(), ToSigned(y(U8))())()
       val f = Mod(ToSigned(x(U8))(), ToSigned(y(U8))())()
       Mux(c, t, f)()

@@ -1,5 +1,6 @@
 package mhir.ir
 
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.optimize.PartialEvalPass
 import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
@@ -72,7 +73,7 @@ class CoreTests extends AnyFunSuite {
       Tuple(z, x.__1 && x.__1)(),
       True,
       Map[Param, (Expr, Expr)](
-        x.rebuild(TyTuple(TyBool, TyBool)) -> (
+        x.rebuild(TyTuple(TyBool, TyBool)).asInstanceOf[Param] -> (
           Tuple(True, False)(),
           Mux(
             x.__1,

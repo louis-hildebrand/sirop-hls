@@ -1,5 +1,8 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
+
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
 

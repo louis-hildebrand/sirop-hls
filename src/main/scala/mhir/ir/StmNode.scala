@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+
 /** One stream-producing component in a pipeline. This is similar to
   * <code>StmBuild</code>, but with extra data to allow evaluation.
   *

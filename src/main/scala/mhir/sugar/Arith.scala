@@ -1,5 +1,7 @@
 package mhir.sugar
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 
 /** A function which computes the sum of two values.

@@ -1,5 +1,8 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
+
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -38,7 +41,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     val v = this.v.tchk(context)
     val in = this.in.tchk(context + (this.x -> v.typ))
     val x = this.x.typ match {
-      case Missing => this.x.rebuild(v.typ)
+      case Missing => this.x.rebuild(v.typ).asInstanceOf[Param]
       case t =>
         if (t ~= v.typ) {
           this.x
@@ -713,13 +716,16 @@ case class OptionAccess(
       case TyTuple(t, TyBool) => t
       case t => throw new TypeError(s"Target of OptionAccess has type $t.")
     }
-    val newS = Function(s.param.rebuild(innerTyp), s.body)().tchk(context)
+    val newS = Function(s.param.rebuild(innerTyp).asInstanceOf[Param], s.body)()
+      .tchk(context)
     val sOut = newS.typ match {
       case TyArrow(_, t2) => t2
       case _ =>
         throw new TypeError(s"`Some` branch of OptionAccess is not a function.")
     }
-    val newN = Function(n.param.rebuild(TyTuple()), n.body)().tchk(context)
+    val newN =
+      Function(n.param.rebuild(TyTuple()).asInstanceOf[Param], n.body)()
+        .tchk(context)
     val nOut = newN.typ match {
       case TyArrow(_, t2) => t2
       case _ =>
@@ -736,8 +742,8 @@ case class OptionAccess(
 
   override def lowerSyntaxSugar(): Expr = {
     val e = this.e.lower()
-    val s = this.s.lower()
-    val n = this.n.lower()
+    val s = this.s.lower().asInstanceOf[Function]
+    val n = this.n.lower().asInstanceOf[Function]
     if (this.typ != Missing) {
       val innerTyp = e.typ match {
         case TyTuple(t, TyBool) => t

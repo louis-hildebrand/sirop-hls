@@ -1,5 +1,6 @@
 package mhir.ir
 
+import mhir.ir.Lowering.TypeLowering
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {

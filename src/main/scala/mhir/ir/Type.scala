@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 
 sealed trait Type {
@@ -36,27 +38,6 @@ sealed trait Type {
   }
 
   def substitute(sub: (Expr, Expr)): Type = substitute(Map(sub))
-
-  def lower: Type = {
-    this match {
-      case Missing | TyBool => this
-      case TySInt(w)        => TySInt(w)
-      case TyUInt(w)        => TyUInt(w)
-      case TyArrow(t1, t2)  => TyArrow(t1.lower, t2.lower)
-      case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.lower): _*)
-      case TyVec(t, n) =>
-        val newN = n.lower()
-        t.lower match {
-          case TyStm(t, m) => TyStm(TyVec(t, newN), m)
-          case t           => TyVec(t, newN)
-        }
-      case TyStm(t, n) =>
-        t.lower match {
-          case TyStm(t, m) => TyStm(t, SafeProd(n, m)().tchk().lower())
-          case t           => TyStm(t, n)
-        }
-    }
-  }
 
   def uncurry: Type = {
     this match {

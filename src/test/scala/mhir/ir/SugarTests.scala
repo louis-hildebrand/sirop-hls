@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class SugarTests extends AnyFunSuite {

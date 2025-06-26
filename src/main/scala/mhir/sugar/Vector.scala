@@ -1,5 +1,8 @@
 package mhir.sugar
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.StreamReplicator.StreamReplication
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 
 case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(

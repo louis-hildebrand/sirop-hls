@@ -1,5 +1,9 @@
 package mhir.gen.vhdl
 
+import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.optimize.StmSimplifier
 import mhir.sugar._

@@ -1,5 +1,8 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite

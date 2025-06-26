@@ -1,5 +1,8 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.optimize.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
 

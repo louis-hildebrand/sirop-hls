@@ -1,5 +1,8 @@
 package mhir.sugar
 
+import mhir.ir.Lowering.{ExprLowering, TypeLowering}
+import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 
 object AsStm2Stm {
@@ -11,7 +14,7 @@ object AsStm2Stm {
     *   to stream, or (3) stream to stream.
     */
   def apply(f: Function): (Param, StmBuild) = {
-    val f0 = f.lower()
+    val f0 = f.lower().asInstanceOf[Function]
     val f1 = f0.typ match {
       case TyArrow(TyStm(t1, n1), _: TyStm) =>
         // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
@@ -369,7 +372,7 @@ case class StmMap(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val input = this.input.lower()
-    val f = this.f.lower()
+    val f = this.f.lower().asInstanceOf[Function]
     val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
     val (s, innerStm) = AsFusedStm2Stm(f)

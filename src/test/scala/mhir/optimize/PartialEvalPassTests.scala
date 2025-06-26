@@ -1,5 +1,7 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{Max, StmCount}
@@ -169,12 +171,12 @@ class PartialEvalPassTests extends AnyFunSuite {
 
   test("ToSigned(x) == -1:i9") {
     val x = Param("x")(U8)
-    assert(PE.partialEval(ToSigned(x)() eq C(-1)(I9)) == False)
+    assert(PE.partialEval(ToSigned(x)() equ C(-1)(I9)) == False)
   }
 
   test("ToSigned(x) == 4:i9") {
     val x = Param("x")(U8)
-    assert(PE.partialEval(ToSigned(x)() eq C(4)(I9)) == (x eq 4))
+    assert(PE.partialEval(ToSigned(x)() equ C(4)(I9)) == (x equ 4))
   }
 
   test("PadTo(x:u8, 32) < PadTo(y:u16, 32)") {
@@ -204,25 +206,25 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("PadTo(x:i8, 29) == PadTo(y:i16, 29)") {
     val x = Param("x")(I8)
     val y = Param("y")(I16)
-    val e = PadTo(x, 29)() eq PadTo(y, 29)()
-    assert(PE.partialEval(e) == (PadTo(x, 16)() eq y))
+    val e = PadTo(x, 29)() equ PadTo(y, 29)()
+    assert(PE.partialEval(e) == (PadTo(x, 16)() equ y))
   }
 
   test("PadTo(x:u16, 17) == PadTo(y:u8, 17)") {
     val x = Param("x")(U16)
     val y = Param("y")(U8)
-    val e = PadTo(x, 17)() eq PadTo(y, 17)()
-    assert(PE.partialEval(e) == (x eq PadTo(y, 16)()))
+    val e = PadTo(x, 17)() equ PadTo(y, 17)()
+    assert(PE.partialEval(e) == (x equ PadTo(y, 16)()))
   }
 
   test("PadTo(x, 16) == 99:u16") {
     val x = Param("x")(U8)
-    assert(PE.partialEval(PadTo(x, 16)() eq C(99)(U16)) == (x eq 99))
+    assert(PE.partialEval(PadTo(x, 16)() equ C(99)(U16)) == (x equ 99))
   }
 
   test("42:i32 == PadTo(x, 32)") {
     val x = Param("x")(I8)
-    assert(PE.partialEval(C(42)(I32) eq PadTo(x, 32)()) == (C(42)() eq x))
+    assert(PE.partialEval(C(42)(I32) equ PadTo(x, 32)()) == (C(42)() equ x))
   }
 
   test("TruncateTo(x:u32, 8) < TruncateTo(y:u16, 8)") {
@@ -259,25 +261,27 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("TruncateTo(x:i32, 9) == TruncateTo(y:i16, 9)") {
     val x = Param("x")(I32)
     val y = Param("y")(I16)
-    val e = TruncateTo(x, 9)() eq TruncateTo(y, 9)()
-    assert(PE.partialEval(e) == (x eq PadTo(y, 32)()))
+    val e = TruncateTo(x, 9)() equ TruncateTo(y, 9)()
+    assert(PE.partialEval(e) == (x equ PadTo(y, 32)()))
   }
 
   test("TruncateTo(x:u16, 10) == TruncateTo(y:u32, 10)") {
     val x = Param("x")(U16)
     val y = Param("y")(U32)
-    val e = TruncateTo(x, 10)() eq TruncateTo(y, 10)()
-    assert(PE.partialEval(e) == (PadTo(x, 32)() eq y))
+    val e = TruncateTo(x, 10)() equ TruncateTo(y, 10)()
+    assert(PE.partialEval(e) == (PadTo(x, 32)() equ y))
   }
 
   test("TruncateTo(x, 8) == 99:u8") {
     val x = Param("x")(U16)
-    assert(PE.partialEval(TruncateTo(x, 8)() eq C(99)(U8)) == (x eq 99))
+    assert(PE.partialEval(TruncateTo(x, 8)() equ C(99)(U8)) == (x equ 99))
   }
 
   test("42:i16 == TruncateTo(x, 16)") {
     val x = Param("x")(I32)
-    assert(PE.partialEval(C(42)(I16) eq TruncateTo(x, 16)()) == (C(42)() eq x))
+    assert(
+      PE.partialEval(C(42)(I16) equ TruncateTo(x, 16)()) == (C(42)() equ x)
+    )
   }
 
   test("ToUnsigned(x) < 42:u8") {
@@ -293,18 +297,18 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("ToUnsigned(x) == ToUnsigned(y)") {
     val x = Param("x")(I9)
     val y = Param("y")(I9)
-    val e = ToUnsigned(x)() eq ToUnsigned(y)()
-    assert(PE.partialEval(e) == (x eq y))
+    val e = ToUnsigned(x)() equ ToUnsigned(y)()
+    assert(PE.partialEval(e) == (x equ y))
   }
 
   test("ToUnsigned(x) == 13:u8") {
     val x = Param("x")(I9)
-    assert(PE.partialEval(ToUnsigned(x)() eq C(13)(U8)) == (x eq 13))
+    assert(PE.partialEval(ToUnsigned(x)() equ C(13)(U8)) == (x equ 13))
   }
 
   test("13:u8 == ToUnsigned(x)") {
     val x = Param("x")(I9)
-    assert(PE.partialEval(C(13)(U8) eq ToUnsigned(x)()) == (C(13)() eq x))
+    assert(PE.partialEval(C(13)(U8) equ ToUnsigned(x)()) == (C(13)() equ x))
   }
 
   test("TruncateTo(ToUnsigned(x), 8) < TruncateTo(ToUnsigned(y), 8)") {
@@ -317,8 +321,9 @@ class PartialEvalPassTests extends AnyFunSuite {
   test("TruncateTo(ToUnsigned(x), 8) == TruncateTo(ToUnsigned(y), 8)") {
     val x = Param("x")(I16)
     val y = Param("y")(I16)
-    val e = TruncateTo(ToUnsigned(x)(), 8)() eq TruncateTo(ToUnsigned(y)(), 8)()
-    assert(PE.partialEval(e) == (x eq y))
+    val e =
+      TruncateTo(ToUnsigned(x)(), 8)() equ TruncateTo(ToUnsigned(y)(), 8)()
+    assert(PE.partialEval(e) == (x equ y))
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {
@@ -450,18 +455,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     val c = 42
     val x = Param("x")(U8)
     val e = (x >= c) && (x < (c + 1))
-    assert(lpe(e) == (x eq c))
+    assert(lpe(e) == (x equ c))
   }
 
   test("x < 9 || x == 9") {
     val x = Param("x")(U8)
-    val e = (x lt C(9)(U8)) || (x eq C(9)(U8))
+    val e = (x lt C(9)(U8)) || (x equ C(9)(U8))
     assert(PE.partialEval(e) == (x leq 9))
   }
 
   test("x < 255 || x == 255") {
     val x = Param("x")(U8)
-    val e = (x lt C(255)(U8)) || (x eq C(255)(U8))
+    val e = (x lt C(255)(U8)) || (x equ C(255)(U8))
     assert(PE.partialEval(e) == True)
   }
 
@@ -470,7 +475,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     */
   test("-1:i1 == 0:i1") {
     val i1 = TySInt(1)
-    val e = C(-1)(i1) eq C(0)(i1)
+    val e = C(-1)(i1) equ C(0)(i1)
     assert(PE.partialEval(e) == False)
   }
 
@@ -640,7 +645,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val facts = FactSet().assumeTrue(i === 0)
     val e = Function(i, i === 0)().tchk().lower()
     val actual = PartialEvalPass.partialEval(e)(facts)
-    val expected = U8 ::+ (i => i eq 0)
+    val expected = U8 ::+ (i => i equ 0)
     assert(actual == expected)
   }
 
@@ -663,14 +668,14 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual0 = PE.partialEval(e)(FactSet())
     val expected0 =
       Mux(
-        Sum(1, ToSigned(i)())() eq ToSigned(n)(),
+        Sum(1, ToSigned(i)())() equ ToSigned(n)(),
         c0,
         Mux(Sum(1, i)() lt n, c1, c2)()
       )()
     assert(actual0 == expected0)
 
     val facts = FactSet().between(i, 0, n)
-    val expected1 = Mux(Sum(1, ToSigned(i)())() eq ToSigned(n)(), c0, c1)()
+    val expected1 = Mux(Sum(1, ToSigned(i)())() equ ToSigned(n)(), c0, c1)()
     val actual1 = PE.partialEval(e)(facts)
     assert(actual1 == expected1)
   }
@@ -695,7 +700,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val e =
       Mux(
-        n eq C(0)(U8),
+        n equ C(0)(U8),
         VecBuild(n, U32 ::+ (_ => C(-1)(I8)))(),
         VecBuild(n, U32 ::+ (_ => C(42)(I8)))()
       )().tchk().lower()

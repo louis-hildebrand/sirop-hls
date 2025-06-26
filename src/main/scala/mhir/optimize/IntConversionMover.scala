@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 
 /** Transformations for moving integer conversion primitives ([[mhir.ir.PadTo]],

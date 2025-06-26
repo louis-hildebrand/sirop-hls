@@ -60,7 +60,7 @@ class ExprPrinterTests extends AnyFunSuite {
   }
 
   test("false || true == (true && false)") {
-    val e = False || (True eq (False && True))
+    val e = False || (True equ (False && True))
     assert(ExprPrinter.displayOneLine(e) == "false || true == (false && true)")
   }
 

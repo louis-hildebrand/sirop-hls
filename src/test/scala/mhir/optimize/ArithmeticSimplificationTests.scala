@@ -1,5 +1,7 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.TypeChecker.TypeCheck
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.Min
@@ -278,7 +280,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   test("n == n") {
     val n = Param("n")(U8)
-    assert(PE.partialEval(n eq n) == True)
+    assert(PE.partialEval(n equ n) == True)
     assert(PE.isEqual(n, n)().contains(true))
   }
 
