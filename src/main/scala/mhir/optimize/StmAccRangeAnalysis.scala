@@ -4,6 +4,9 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 
+/** Analysis for finding the ranges of accumulators within a
+  * [[mhir.ir.StmBuild]].
+  */
 object StmAccRangeAnalysis {
 
   /** Look for ranges on accumulator elements in a stream. For example, if an

@@ -3,6 +3,9 @@ package mhir.optimize
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 
+/** Transformations for skipping steps within a [[mhir.ir.StmBuild]], thereby
+  * reducing latency.
+  */
 object StmDelayRemovalPass {
   def skipFirstCycles(stm: StmBuild, cc: Expr)(
       facts: FactSet = FactSet()

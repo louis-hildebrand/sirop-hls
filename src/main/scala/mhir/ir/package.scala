@@ -7,6 +7,17 @@ import scala.language.implicitConversions
 import mhir.ir.evaluate.Eval
 import mhir.ir.typecheck.{CommonIntTypes, TypeError}
 
+/** The core IR, type checker ([[mhir.ir.typecheck]]), evaluator
+  * ([[mhir.ir.evaluate]]), and a few other tidbits.
+  *
+  * The root class for the IR is [[mhir.ir.Expr]]. There are the typical lambda
+  * calculus primitives ([[Param]], [[Function]], [[FunCall]]), some primitives
+  * for integer and boolean arithmetic (e.g., [[Sum]], [[And]]), etc. However,
+  * the most notable primitives are the ones for sequences. "Vectors" can only
+  * be constructed using the general-purpose [[VecBuild]] primitive and
+  * "streams" can only be constructed using the general-purpose [[StmBuild]]
+  * primitive.
+  */
 package object ir extends Eval with CommonIntTypes {
   //  TODO: This is a bit dangerous, since it is easy to accidentally discard
   //        an IntCst's type this way. But it is already used in so many places

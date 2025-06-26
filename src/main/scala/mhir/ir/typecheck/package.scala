@@ -1,13 +1,28 @@
 package mhir.ir
 
+/** The typechecker.
+  *
+  * To type check an expression, use the [[mhir.ir.typecheck.TypeCheck.tchk]]
+  * extension method. The implicit class [[mhir.ir.typecheck.TypeCheck]] must be
+  * in scope.
+  *
+  * @example
+  *
+  * {{{
+  *   import mhir.ir.typecheck.TypeCheck
+  *   IntCst(42)().tchk()
+  * }}}
+  */
 package object typecheck {
   implicit class TypeCheck(expr: Expr) {
 
-    /** Type check this expression and annotate this node with its type.
+    /** Type checks this expression and annotates it with its type.
       *
       * @return
-      *   A new expression that is equal to this one but has a type annotation
-      *   that is not <code>Missing</code>
+      *   a new expression that is equal to this one but has a type annotation
+      *   that is not [[Missing]].
+      * @throws TypeError
+      *   if the expression is ill-typed.
       */
     def tchk(implicit context: Map[Param, Type] = Map()): Expr = {
       if (this.expr.typ != Missing) {
@@ -453,6 +468,13 @@ package object typecheck {
       }
     }
 
+    /** Insists that this expression's type is [[TyStm]].
+      *
+      * @return
+      *   this expression, unchanged.
+      * @throws TypeError
+      *   if this expression does not have the expected type.
+      */
     def expectStream(): Expr = {
       this.expr.typ match {
         case _: TyStm => this.expr

@@ -7,6 +7,9 @@ import mhir.sugar.Cast
 
 import scala.annotation.tailrec
 
+/** Simple transformations for removing unnecessary accumulators within a
+  * [[mhir.ir.StmBuild]].
+  */
 object StmAccRemovalPass {
 
   /** For each accumulator element that definitely never changes, replace each

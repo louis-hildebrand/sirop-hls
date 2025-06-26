@@ -8,10 +8,11 @@ import mhir.sugar.{Cast, CeilDiv, Max}
 
 // You may need to don a hazmat suit before working on this code.
 
-/** Induction variables are accumulator elements which can be expressed as a
+/** Transformations that attempt to remove induction variables.
+  *
+  * Induction variables are accumulator elements which can be expressed as a
   * function of <code>t</code>, where <code>t</code> is a counter which starts
-  * at zero and counts up by one. This pass tries to remove those accumulator
-  * elements and instead compute them using <code>t</code>.
+  * at zero and counts up by one.
   */
 class StmInductionVarRemovalPass(facts: FactSet) {
 
@@ -362,13 +363,15 @@ class StmInductionVarRemovalPass(facts: FactSet) {
   }
 }
 
+/** Factory for [[StmInductionVarRemovalPass]].
+  */
 object StmInductionVarRemovalPass {
   def apply(facts: FactSet = FactSet()): StmInductionVarRemovalPass = {
     new StmInductionVarRemovalPass(facts)
   }
 }
 
-object RecurrenceSolver {
+private object RecurrenceSolver {
 
   def tryFindClosedForm(t0: Expr, z: Expr, next: Function): Option[Function] = {
     require(
@@ -724,7 +727,7 @@ object RecurrenceSolver {
   }
 }
 
-object Counter {
+private object Counter {
 
   /** A counter which changes by <code>delta</code> at each step, where
     * <code>delta</code> is constant within the stream (i.e., does not depend on
@@ -756,7 +759,7 @@ object Counter {
   }
 }
 
-object LeftShiftRegister {
+private object LeftShiftRegister {
 
   /** A leftwards-shifting shift register (i.e., a <code>VecShiftLeft</code>) of
     * size <code>n</code>, where the initial value at index <code>i</code> is
@@ -811,7 +814,7 @@ object LeftShiftRegister {
   }
 }
 
-object Piecewise {
+private object Piecewise {
 
   /** A function of the form <code>h(t, x) = if (t &lt; k) then f(t, x) else
     * g(t, x)</code>
@@ -839,7 +842,7 @@ object Piecewise {
   }
 }
 
-object TimeLessThan {
+private object TimeLessThan {
   def unapply(args: (Param, Param, Expr)): Option[Expr] = {
     val (t, acc, lt) = args
     (t, acc, Mux(lt, True, False)()) match {
@@ -849,7 +852,7 @@ object TimeLessThan {
   }
 }
 
-object IfTimeLessThan {
+private object IfTimeLessThan {
 
   /** An expression of the form <code>if (t &lt; k) then a else b</code>, where
     * <code>k</code> neither depends on <code>t</code> nor <code>acc</code>.
@@ -867,7 +870,7 @@ object IfTimeLessThan {
   }
 }
 
-object IfLessThan {
+private object IfLessThan {
 
   /** An expression of the form <code>if (x &lt k) then a else b</code>, where
     * <code>k</code> does not depend on <code>x</code>
@@ -906,7 +909,7 @@ object IfLessThan {
   }
 }
 
-object LinearFunctionOf {
+private object LinearFunctionOf {
 
   /** An expression of the form <code>c0 + c1*x</code>, where neither
     * <code>c0</code> nor <code>c1</code> depend on <code>x</code>.
@@ -939,7 +942,7 @@ object LinearFunctionOf {
   }
 }
 
-object ConstMultipleOf {
+private object ConstMultipleOf {
 
   /** An expression of the form <code>k * x</code>, where <code>k</code> does
     * not depend on <code>x</code>

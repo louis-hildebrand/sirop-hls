@@ -6,6 +6,12 @@ import mhir.ir._
 
 import scala.annotation.tailrec
 
+/** Transformation that combines many different simplifications.
+  *
+  * Simplification should make the expression easier to analyze. In some cases
+  * it may make the hardware a bit worse (e.g., by distributing a product over a
+  * sum).
+  */
 object StmSimplifier {
 
   /** Perform common-sense simplifications that should pretty much always be

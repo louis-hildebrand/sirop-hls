@@ -7,31 +7,21 @@ import mhir.ir._
 import java.nio.file.Path
 import scala.annotation.tailrec
 
-/** Where an input stream is used in a given component.
+/** The main class for generating VHDL from an [[mhir.ir.Expr]].
+  *
+  * To generate VHDL for a [[mhir.ir.StmBuild]], use
+  * [[emitVhdl(s* emitVhdl(s, dir)]]. To generate VHDL for a
+  * [[mhir.ir.Function]], use [[emitVhdl(f* emitVhdl(f, dir)]].
   */
-private sealed trait WhereUsed
-
-/** The input stream is read by this component.
-  */
-private object Here extends WhereUsed
-
-/** The input stream is passed along to exactly one sub-component.
-  */
-private object InChild extends WhereUsed
-
-/** The input stream is not used anywhere in this component.
-  */
-private object Nowhere extends WhereUsed
-
 object VhdlGenerator {
 
-  /** Create a VHDL design for the given stream and save it in the given
+  /** Creates a VHDL design for the given stream and saves it in the given
     * directory.
     *
     * @param s
-    *   The stream for which to generate VHDL
+    *   the stream for which to generate VHDL.
     * @param dir
-    *   The directory in which to save the design
+    *   the directory in which to save the design.
     */
   def emitVhdl(s: StmBuild, dir: Path): VhdlType = {
     validateExpr(s)
@@ -40,13 +30,13 @@ object VhdlGenerator {
     typ
   }
 
-  /** Create a VHDL design for the given function and save it in the given
+  /** Creates a VHDL design for the given function and saves it in the given
     * directory.
     *
     * @param f
-    *   The function for which to generate VHDL
+    *   the function for which to generate VHDL.
     * @param dir
-    *   The directory in which to save the design
+    *   the directory in which to save the design.
     */
   def emitVhdl(f: Function, dir: Path): VhdlType = {
     validateExpr(f)

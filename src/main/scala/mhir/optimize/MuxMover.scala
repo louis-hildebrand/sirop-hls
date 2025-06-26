@@ -3,6 +3,8 @@ package mhir.optimize
 import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 
+/** Transformations for moving [[mhir.ir.Mux]]es around in the AST.
+  */
 object MuxMover {
 
   /** Move [[mhir.ir.Mux]]es up towards the root of the AST.

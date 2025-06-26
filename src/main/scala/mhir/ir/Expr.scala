@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicLong
   * [[equals]] or [[hashCode]] while arithmetic simplification is temporarily
   * disabled.
   *
+  * @param children
+  *   all children of this node.
   * @param typ
   *   The type of this node. If this node has a type other than
   *   <code>Missing</code>, then all its children must also have types other
@@ -60,19 +62,33 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     *   the new type annotation.
     * @param newChildren
     *   the new children.
+    * @throws mhir.ir.BadRebuildError
+    *   if the new children are invalid (usually because there are too few or
+    *   too many).
     */
   def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
 
   override def toString: String = ExprPrinter.displayOneLine(this)
 }
 
-// Tuples
+/** A tuple.
+  *
+  * @param elems
+  *   the contents of the tuple.
+  */
 case class Tuple(elems: Expr*)(typ: Type = Missing)
     extends Expr(elems: _*)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr =
     Tuple(newChildren: _*)(typ)
 }
 
+/** Access an element within a tuple.
+  *
+  * @param t
+  *   the tuple to read from.
+  * @param i
+  *   the index to access within the tuple. The index is zero-based.
+  */
 case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
     extends Expr(t, i)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -83,7 +99,16 @@ case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
   }
 }
 
-// Functions
+/** A variable.
+  *
+  * To ensure variables are unique and facilitate generating new variables, each
+  * variable's name is constructed from a prefix together with a unique number.
+  *
+  * @param prefix
+  *   the prefix for the variable name.
+  * @param id
+  *   the unique number for the variable name.
+  */
 case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
   val name: String = s"${prefix}_$id"
 
@@ -108,6 +133,20 @@ case object Param {
   }
 }
 
+/** A function.
+  *
+  * As is common in functional programming languages, only functions of one
+  * variable are supported. If you want a function of zero parameters for some
+  * reason, you can take as input an empty tuple. If you want a function of more
+  * than one variable, you can either take as input a tuple containing the
+  * arguments or you can write a function of type `T1 -> T2 -> T3` (i.e., use
+  * currying).
+  *
+  * @param param
+  *   the function parameter.
+  * @param body
+  *   the body of the function.
+  */
 case class Function(param: Param, body: Expr)(typ: Type = Missing)
     extends Expr(param, body)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -155,6 +194,13 @@ object Function {
   }
 }
 
+/** A function application.
+  *
+  * @param f
+  *   the function.
+  * @param arg
+  *   the argument.
+  */
 case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
     extends Expr(f, arg)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -163,10 +209,11 @@ case class FunCall(f: Expr, arg: Expr)(typ: Type = Missing)
   }
 }
 
-// Integer expressions
-// Unfortunately, cannot say that this node always has type Int.
-// If we do, then the type checker will not visit the children, which may lead
-// to type errors being missed.
+/** An expression which must have type [[TyAnyInt]] if it is well-typed.
+  *
+  * Note that the type may temporarily be [[Missing]] rather than [[TyAnyInt]]
+  * if this expression's children have not yet been type checked.
+  */
 sealed abstract class IntExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
 
@@ -209,6 +256,11 @@ object C {
   }
 }
 
+/** The sum of many values.
+  *
+  * @param terms
+  *   the expressions to add up.
+  */
 case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
   require(terms.nonEmpty, "Sum must have at least one term.")
 
@@ -234,6 +286,11 @@ case object Sum {
   }
 }
 
+/** The product of many values.
+  *
+  * @param factors
+  *   the expressions to multiply.
+  */
 case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
   require(factors.nonEmpty, "Prod must have at least one factor.")
 
@@ -260,6 +317,13 @@ case object Prod {
   }
 }
 
+/** Integer division, like `/` in Scala and VHDL.
+  *
+  * @param e1
+  *   the numerator.
+  * @param e2
+  *   the denominator.
+  */
 case class Div(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -268,6 +332,13 @@ case class Div(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 }
 
+/** The remainder after division, like Scala's `%` and VHDL's `rem`.
+  *
+  * @param e1
+  *   the numerator.
+  * @param e2
+  *   the denominator.
+  */
 case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -343,12 +414,16 @@ case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
   }
 }
 
-// Boolean expressions
-// Unfortunately, cannot say that this node always has type Bool.
-// If we do, then the type checker will not visit the children, which may lead
-// to type errors being missed.
+/** An expression which must have type [[TyBool]] if it is well-typed.
+  *
+  * Note that the type may temporarily be [[Missing]] rather than [[TyBool]] if
+  * this expression's children have not yet been type checked.
+  */
 sealed abstract class BoolExpr(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ)
+
+/** A boolean constant.
+  */
 sealed abstract class BoolCst extends BoolExpr()(TyBool) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ == TyBool || typ == Missing)
@@ -356,9 +431,30 @@ sealed abstract class BoolCst extends BoolExpr()(TyBool) {
     this
   }
 }
+
+/** The boolean constant "true."
+  */
 case object True extends BoolCst
+
+/** The boolean constant "false."
+  */
 case object False extends BoolCst
 
+/** A multiplexer.
+  *
+  * A multiplexer behaves similarly to and if-then-else expression, except that
+  * both branches will always be evaluated. In practice, this simply means that
+  * you must be careful about side effects in a [[Mux]]. If there is an error in
+  * the branch that is <i>not</i> selected (e.g., an out-of-bounds vector
+  * access), then that branch's value may be undefined but it will be discarded.
+  *
+  * @param c
+  *   the condition.
+  * @param t
+  *   what to return if the condition evaluates to [[True]].
+  * @param f
+  *   what to return if the condition evaluates to [[False]].
+  */
 case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
     extends Expr(c, t, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -379,7 +475,13 @@ case object Mux {
   }
 }
 
-// Comparison operators
+/** Checks whether two pieces of data are equal.
+  *
+  * @param e1
+  *   the left-hand side.
+  * @param e2
+  *   the right-hand side.
+  */
 case class Equal(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BoolExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -390,6 +492,13 @@ case class Equal(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 }
 
+/** Checks whether one number is strictly less than another.
+  *
+  * @param e1
+  *   the left-hand side.
+  * @param e2
+  *   the right-hand side.
+  */
 case class LessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BoolExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -400,7 +509,11 @@ case class LessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 }
 
-// Logical operators
+/** Logical NOT.
+  *
+  * @param e
+  *   the condition to negate.
+  */
 case class Not(e: Expr)(typ: Type = Missing) extends BoolExpr(e)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -419,6 +532,11 @@ case object Not {
   }
 }
 
+/** Logical AND.
+  *
+  * @param terms
+  *   the operands.
+  */
 case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   require(terms.nonEmpty, "And must have at least one term.")
 
@@ -461,6 +579,11 @@ case object And {
   }
 }
 
+/** Logical OR.
+  *
+  * @param terms
+  *   the operands.
+  */
 case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   require(terms.nonEmpty, "Or must have at least one term.")
 
@@ -503,7 +626,29 @@ case object Or {
   }
 }
 
-// Streams
+/** Constructs a fixed-length stream of elements.
+  *
+  * Streams are collections that do <i>not</i> support random access. You can
+  * only ever access the next element of a stream, and once you read the element
+  * it will only be available for one step.
+  *
+  * @param n
+  *   the length of the stream. This must <i>not</i> depend on any of this
+  *   stream's accumulators.
+  * @param data
+  *   an expression for the next output of this stream. This may depend on any
+  *   of this stream's accumulators.
+  * @param valid
+  *   an expression indicating whether the next output of this stream is valid.
+  *   If not, then the value of [[data]] doesn't matter. This may depend on any
+  *   of this stream's accumulators.
+  * @param equations
+  *   a set of accumulators within this stream. Each accumulator has (1) a
+  *   [[Param]] representing it, (2) an initial value, and (3) an update
+  *   expression. The update expression may depend on any of this stream's
+  *   accumulators, but the initial value must <i>not</i> depend on any of this
+  *   stream's accumulators.
+  */
 case class StmBuild(
     n: Expr /* Int */,
     data: Expr /* B */,
@@ -666,6 +811,14 @@ object StmBuild {
   }
 }
 
+/** Access the data of another stream.
+  *
+  * This must only be used inside a [[StmBuild]], and the input to [[StmData]]
+  * must be a stream accumulator within that [[StmBuild]].
+  *
+  * @param s
+  *   the stream whose data to access.
+  */
 case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
@@ -675,7 +828,17 @@ case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   }
 }
 
-// Vectors
+/** Constructs a fixed-length vector.
+  *
+  * Vectors are collections that support random access. Moreover, it is possible
+  * to access <i>multiple</i> elements in the same step.
+  *
+  * @param len
+  *   the length of the vector
+  * @param f
+  *   a function which, given an index `i`, returns the value at index `i`
+  *   within the vector.
+  */
 case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
     typ: Type = Missing
 ) extends Expr(len, f)(typ) {
@@ -687,6 +850,13 @@ case class VecBuild(len: Expr, f: Function /* Int => Expr */ )(
   }
 }
 
+/** Access an element within a vector.
+  *
+  * @param vec
+  *   the vector to read from.
+  * @param i
+  *   the index within the vector to access. The index is zero-based.
+  */
 case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
     extends Expr(vec, i)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -701,6 +871,14 @@ case class VecAccess(vec: Expr, i: Expr)(typ: Type = Missing)
 // Extra, non-synthesizable nodes
 // (Useful for evaluation and optimization)
 
+/** A vector literal.
+  *
+  * Normally you would use [[VecBuild]]. However, [[VecLiteral]] is needed as it
+  * is the result of evaluating a [[VecBuild]].
+  *
+  * @param elems
+  *   the elements within the vector.
+  */
 case class VecLiteral(elems: Expr*)(typ: Type = Missing)
     extends Expr(elems: _*)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -713,6 +891,14 @@ object VecLiteral {
   }
 }
 
+/** A stream literal.
+  *
+  * Normally you should use [[StmBuild]]. However, [[StmLiteral]] is needed as
+  * it is the result of evaluating a [[StmLiteral]].
+  *
+  * @param elems
+  *   the elements within the stream.
+  */
 case class StmLiteral(elems: Expr*)(typ: Type = Missing)
     extends Expr(elems: _*)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -729,6 +915,19 @@ object StmLiteral {
   }
 }
 
+/** Construct a new stream by skipping a certain number of elements within
+  * another stream.
+  *
+  * This construct is <i>not</i> synthesizable in general—stream must be read in
+  * order starting from the beginning, but this allows jumping to a random index
+  * within a stream. However, it is useful for certain optimization passes
+  * (e.g., [[mhir.optimize.StmInductionVarRemovalPass]]).
+  *
+  * @param s
+  *   the original stream.
+  * @param k
+  *   the number of elements to skip.
+  */
 case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
     typ: Type = Missing
 ) extends Expr(s, k)(typ) {
@@ -740,6 +939,10 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
   }
 }
 
+/** A node outside the core IR.
+  *
+  * This can be used to define syntax sugar (e.g., [[Let]], [[SmartSum]]).
+  */
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
 

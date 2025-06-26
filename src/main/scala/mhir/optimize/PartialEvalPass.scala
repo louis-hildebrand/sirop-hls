@@ -6,6 +6,8 @@ import mhir.ir._
 import mhir.ir.evaluate.EvalException
 import mhir.sugar.{Cast, SafeSum}
 
+/** Partial evaluation, arithmetic simplification, and related functionality.
+  */
 object PartialEvalPass {
   def pe(e: Expr): Expr = {
     // Mostly for debugging, since the debugger really doesn't seem to handle
