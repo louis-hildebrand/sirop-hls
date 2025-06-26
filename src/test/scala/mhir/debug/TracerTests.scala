@@ -1,7 +1,7 @@
 package mhir.debug
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite

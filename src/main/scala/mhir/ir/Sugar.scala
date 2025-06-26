@@ -1,7 +1,7 @@
 package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.{TProd, TSum, TypeCheck, TypeError}
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {

@@ -1,4 +1,5 @@
 package mhir.ir
+package evaluate
 
 /** The state of a node in the pipeline.
   */

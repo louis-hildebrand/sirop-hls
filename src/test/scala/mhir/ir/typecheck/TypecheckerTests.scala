@@ -1,6 +1,6 @@
 package mhir.ir
+package typecheck
 
-import mhir.ir.TypeChecker.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypecheckerTests extends AnyFunSuite {

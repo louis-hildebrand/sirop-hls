@@ -1,4 +1,5 @@
 package mhir.ir
+package typecheck
 
 trait CommonIntTypes {
 

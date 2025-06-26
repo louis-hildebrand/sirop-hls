@@ -1,6 +1,6 @@
 package mhir.optimize
 
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 
 object MuxMover {

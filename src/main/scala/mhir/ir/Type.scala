@@ -1,7 +1,7 @@
 package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.{TSum, TProd, TDiv, TMod, TypeCheck}
 import mhir.optimize.{PartialEvalPass => PE}
 
 sealed trait Type {
@@ -124,7 +124,7 @@ object Type {
     * the result is <code>False</code> then they may or may not be equal.
     */
   def sameLen(e1: Expr, e2: Expr): Boolean = {
-    PE.isEqual(e1.tchk().lower(), e2.tchk().lower())().getOrElse(false)
+    PE.isEqual(e1.tchk(), e2.tchk())().getOrElse(false)
   }
 }
 

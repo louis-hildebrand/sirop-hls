@@ -1,4 +1,5 @@
 package mhir.ir
+package typecheck
 
 /** Computes the narrowest type that can represent the result of a sum without
   * overflow.

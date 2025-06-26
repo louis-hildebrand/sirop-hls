@@ -1,9 +1,11 @@
 package mhir
 
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 
 import scala.annotation.nowarn
 import scala.language.implicitConversions
+import mhir.ir.evaluate.Eval
+import mhir.ir.typecheck.{CommonIntTypes, TypeError}
 
 package object ir extends Eval with CommonIntTypes {
   //  TODO: This is a bit dangerous, since it is easy to accidentally discard

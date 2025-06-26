@@ -1,7 +1,7 @@
 package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir.Uncurrier.Uncurry
 import org.scalatest.funsuite.AnyFunSuite
 

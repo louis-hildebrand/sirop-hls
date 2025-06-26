@@ -1,6 +1,6 @@
 package mhir.ir
 
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.StmMap
 
 object Lowering {

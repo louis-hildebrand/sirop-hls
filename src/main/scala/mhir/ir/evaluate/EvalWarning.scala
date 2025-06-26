@@ -1,4 +1,5 @@
 package mhir.ir
+package evaluate
 
 /** A problem that the evaluator encountered which does not immediately result
   * in an exception.

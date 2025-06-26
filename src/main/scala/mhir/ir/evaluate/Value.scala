@@ -1,4 +1,5 @@
 package mhir.ir
+package evaluate
 
 /** The result of evaluation along with warnings for the undefined behaviour
   * that affects the result, if any.

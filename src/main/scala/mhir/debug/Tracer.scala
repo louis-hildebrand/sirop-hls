@@ -1,6 +1,7 @@
 package mhir.debug
 
 import mhir.ir._
+import mhir.ir.evaluate._
 import upickle.default.Writer
 
 import scala.annotation.tailrec

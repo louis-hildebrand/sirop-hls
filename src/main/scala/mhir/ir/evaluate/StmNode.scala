@@ -1,6 +1,8 @@
 package mhir.ir
+package evaluate
 
 import mhir.ir.Lowering.ExprLowering
+import mhir.ir.typecheck.TypeError
 
 /** One stream-producing component in a pipeline. This is similar to
   * <code>StmBuild</code>, but with extra data to allow evaluation.

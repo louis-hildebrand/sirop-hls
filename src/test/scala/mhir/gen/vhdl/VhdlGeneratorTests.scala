@@ -1,6 +1,6 @@
 package mhir.gen.vhdl
 
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.Uncurrier.Uncurry

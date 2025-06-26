@@ -3,7 +3,7 @@ package mhir.optimize
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 

@@ -1,6 +1,6 @@
 package mhir.debug
 
-import mhir.ir._
+import mhir.ir.evaluate._
 import os.Path
 
 /** A step-by-step account of the execution of a pipeline.

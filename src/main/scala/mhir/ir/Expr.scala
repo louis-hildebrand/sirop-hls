@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.ir.typecheck.TypeError
+
 import java.util.concurrent.atomic.AtomicLong
 
 /** A node in the IR.

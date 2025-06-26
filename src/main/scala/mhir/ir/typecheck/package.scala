@@ -1,6 +1,6 @@
 package mhir.ir
 
-object TypeChecker {
+package object typecheck {
   implicit class TypeCheck(expr: Expr) {
 
     /** Type check this expression and annotate this node with its type.

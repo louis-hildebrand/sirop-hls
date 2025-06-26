@@ -1,11 +1,11 @@
 package mhir.ir
 
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
 import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
-class CoreTests extends AnyFunSuite {
+class ExprTests extends AnyFunSuite {
   test("Mux:MakeCondPositive") {
     val c = Param("c")()
     val t = Param("t")()

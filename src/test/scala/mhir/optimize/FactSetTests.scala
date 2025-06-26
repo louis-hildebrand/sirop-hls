@@ -1,7 +1,7 @@
 package mhir.optimize
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.TypeChecker.TypeCheck
+import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 import org.scalatest.funsuite.AnyFunSuite
