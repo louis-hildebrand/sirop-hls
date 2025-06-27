@@ -16,7 +16,9 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk
     newV.typ match {
-      case _: TyVec => this.rebuild(U32, Seq(newV))
+      case TyVec(_, n) =>
+        assert(n.typ != Missing)
+        this.rebuild(n.typ, Seq(newV))
       case t =>
         throw new TypeError(
           s"Vector in VecLength has type $t. Expected a vector."
@@ -26,7 +28,7 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    ReshapeData(v.typ.asInstanceOf[TyVec].n, U32)().tchk().lower()
+    v.typ.asInstanceOf[TyVec].n.tchk().lower()
   }
 }
 

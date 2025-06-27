@@ -72,6 +72,16 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(s) == expected.flatten)
   }
 
+  test("StmCount3D") {
+    val s = StmCount3D(2, 3, 4)().tchk().lower()
+    val expected = StmLiteral(
+      (0 until 2).flatMap(i =>
+        (0 until 3).flatMap(j => (0 until 4).map(k => Tuple(i, j, k)()))
+      ): _*
+    )()
+    assert(mhir.ir.eval(s) == expected)
+  }
+
   test("Iterate:Square") {
     val x = Param("x")(U32)
     val n = Param("n")()
@@ -787,38 +797,16 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmMap:3D-3D:StmTranspose") {
-    // TODO: Why is this so slow?!
-    assume(false)
-    // [[[(0, 0), (0, 1), (0, 2), (0, 3)],
-    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
-    //   [(2, 0), (2, 1), (2, 2), (2, 3)]],
-    //
-    //  [[(0, 0), (0, 1), (0, 2), (0, 3)],
-    //   [(1, 0), (1, 1), (1, 2), (1, 3)],
-    //   [(2, 0), (2, 1), (2, 2), (2, 3)]]]
-    val s = StmMap(
-      StmCount(C(2)(U8))(),
-      U8 ::+ (_ => StmCount2D(C(3)(U8), C(4)(U8))())
-    )()
+    val s = StmCount3D(C(2)(U8), C(2)(U8), C(2)(U8))()
     val expected = StmLiteral(
-      Seq(
-        Seq(
-          Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)()),
-          Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)()),
-          Seq(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)()),
-          Seq(Tuple(0, 3)(), Tuple(1, 3)(), Tuple(2, 3)())
-        ),
-        Seq(
-          Seq(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)()),
-          Seq(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)()),
-          Seq(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)()),
-          Seq(Tuple(0, 3)(), Tuple(1, 3)(), Tuple(2, 3)())
-        )
-      ).flatten.flatten: _*
+      (0 until 2).flatMap(i =>
+        (0 until 2).flatMap(j => (0 until 2).map(k => Tuple(i, k, j)()))
+      ): _*
     )()
     val actual =
-      StmMap(s, TyStm(TyStm((U8, U8), 4), 3) ::+ (s => StmTranspose(s)()))()
+      StmMap(s, TyStm(TyStm((U8, U8, U8), 2), 2) ::+ (s => StmTranspose(s)()))()
         .tchk()
+        .lower()
     assert(mhir.ir.eval(actual) == expected)
   }
 
@@ -1175,37 +1163,27 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(sum) == StmLiteral(3 * 42)())
   }
 
-  test("StmFold:3D:Sum") {
-    // TODO: Why is this so slow?!
-    assume(false)
-    // [[[0, 1, 2, 3],
-    //   [1, 2, 3, 4]],
-    //  [[1, 2, 3, 4],
-    //   [2, 3, 4, 5]],
-    //  [[2, 3, 4, 5],
-    //   [3, 4, 5, 6]]]
-    val s = StmMap(
-      StmCount(C(3)(U8))(),
-      U8 ::+ (i =>
-        StmMap(
-          StmCount(C(2)(U8))(),
-          U8 ::+ (j => StmMap(StmCount(C(4)(U8))(), U8 ::+ (k => i + j + k))())
-        )()
-      )
-    )()
+  ignore("StmFold:3D:Sum") {
+    val s = StmCount3D(C(2)(U8), C(2)(U8), C(3)(U8))().tchk()
     val sum = StmFold(
       s,
       C(0)(U8),
       U8 ::+ (acc =>
-        TyStm(TyStm(U8, 4), 2) ::+ (s =>
+        TyStm(TyStm((U8, U8, U8), 3), 2) ::+ (s =>
           StmMap(
             StmFold(
               s,
               C(0)(U8),
               U8 ::+ (acc =>
-                TyStm(U8, 4) ::+ (s =>
+                TyStm((U8, U8, U8), 3) ::+ (s =>
                   StmMap(
-                    StmFold(s, C(0)(U8), PlusFunction(U8))(),
+                    StmFold(
+                      s,
+                      C(0)(U8),
+                      U8 ::+ (acc =>
+                        (U8, U8, U8) ::+ (x => acc + x.__0 + x.__1 + x.__2)
+                      )
+                    )(),
                     U8 ::+ (x => acc + x)
                   )()
                 )
@@ -1215,13 +1193,17 @@ class StreamTests extends AnyFunSuite {
           )()
         )
       )
-    )().tchk()
-    assert(mhir.ir.eval(sum) == StmLiteral(72)())
+    )().tchk().lower()
+    val expected = StmLiteral(
+      (0 until 2)
+        .flatMap(i => (0 until 2).flatMap(j => (0 until 3).map(k => i + j + k)))
+        .sum
+    )()
+    assert(mhir.ir.eval(sum) == expected)
   }
 
-  test("StmFold:3D:Product") {
-    // TODO: Why is this so slow?!
-    assume(false)
+  // TODO: Why is this test failing?
+  ignore("StmFold:3D:Product") {
     // [[[1, 2],
     //   [2, 3]],
     //  [[2, 3],
@@ -1265,8 +1247,21 @@ class StreamTests extends AnyFunSuite {
           )()
         )
       )
-    )().tchk()
-    assert(mhir.ir.eval(prod) == StmLiteral(IntCst(207360)())())
+    )().tchk().lower()
+    val expected = {
+      val s = (0 until 3).map(i =>
+        (0 until 2).map(j => (0 until 2).map(k => i + j + k + 1))
+      )
+      val prod = s.foldLeft(1)({ case (acc, s) =>
+        val x = s.foldLeft(1)({ case (acc, s) =>
+          val x = s.foldLeft(1)({ case (acc, x) => acc * x })
+          acc * x
+        })
+        acc * x
+      })
+      StmLiteral(prod)()
+    }
+    assert(mhir.ir.eval(prod) == expected)
   }
 
   test("StmScanInclusive:1D:Sum") {
@@ -2164,11 +2159,11 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmTransposeTranspose") {
-    // TODO: Why is this so slow?!
-    assume(false)
     val s = Param("s")()
     val actual =
-      Let(s, StmCount2D(2, 2)(), StmTranspose(StmTranspose(s)())())().tchk()
+      Let(s, StmCount2D(2, 2)(), StmTranspose(StmTranspose(s)())())()
+        .tchk()
+        .lower()
     val expected = StmLiteral(
       Seq(
         Seq(Tuple(0, 0)(), Tuple(0, 1)()),

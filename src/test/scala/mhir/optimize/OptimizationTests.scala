@@ -656,7 +656,7 @@ class OptimizationTests extends AnyFunSuite {
     val v = Param("v")(TyVec(U8, n))
     val original = VecReverse(VecReverse(v)).tchk().lower()
     val optimized = PartialEvalPass.partialEval(original)
-    val expected = VecBuild(PadTo(n, 32)(), U8 ::+ (i => VecAccess(v, i)()))()
+    val expected = VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))()
     assert(optimized == expected)
   }
 

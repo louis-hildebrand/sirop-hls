@@ -263,9 +263,7 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.ir.eval(sum) == StmLiteral(IntCst(13)())())
   }
 
-  test("SumRows") {
-    // TODO: How to handle this case?
-    assume(false)
+  ignore("SumRows") {
     val v =
       VecBuild(3, U32 ::+ (i => VecBuild(2, U32 ::+ (j => i + j))()))()
     val v2 =

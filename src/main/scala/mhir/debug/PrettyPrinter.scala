@@ -3,6 +3,10 @@ package mhir.debug
 import mhir.ir._
 import mhir.optimize.PartialEvalPass
 
+/** Functions for displaying an expression.
+  *
+  * TODO: Merge this into [[mhir.ir.ExprPrinter]].
+  */
 object PrettyPrinter {
   def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
       implicit nameByParam: Map[Param, String] = Map()

@@ -22,7 +22,7 @@ object AsStm2Stm {
         // We want to be able to reset `f` itself, but *not* the input stream.
         val identity: Function = Missing ::+ (x => x)
         if (f0 == identity) {
-          val s2 = Param("s2")(TyStm(t1, n1))
+          val s2 = Param("s2")(TyStm(t1, -1))
           TyStm(t1, n1) ::+ (s1 =>
             StmBuild(
               n1,
@@ -40,7 +40,7 @@ object AsStm2Stm {
           )
           f0
         }
-      case TyArrow(t1, TyStm(t2, n)) =>
+      case TyArrow(t1, _: TyStm) =>
         // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
         // The scalar input to the original function (`f.param`) can appear in
         // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
@@ -70,7 +70,7 @@ object AsStm2Stm {
           }
         }
         val input = Param("input")(TyStm(t1, 1))
-        val s = Param("s")(TyStm(t1, 1))
+        val s = Param("s")(TyStm(t1, -1))
         val isFirstStep = Param("is_first_step")(TyBool)
         val y = Param("y")(t1)
         val yFromStmOrReg = Mux(isFirstStep, StmData(s)(), y)().tchk()
@@ -118,8 +118,8 @@ object AsStm2Stm {
         )
       case TyArrow(t1, _) =>
         // scalar -> scalar (e.g., x => x + 1)
-        val s1 = Param("s1")(TyStm(t1, C(1)(TyUInt(1))))
-        val s2 = Param("s2")(TyStm(t1, C(1)(TyUInt(1))))
+        val s1 = Param("s1")(TyStm(t1, 1))
+        val s2 = Param("s2")(TyStm(t1, -1))
         Function(
           s1,
           StmBuild(
@@ -340,6 +340,59 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   }
 }
 
+case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n1, n2, n3)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n1, n2, n3) => StmCount3D(n1, n2, n3)(typ)
+      case _               => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val n1 = this.n1.tchk.expectUInt()
+    val n2 = this.n2.tchk.expectUInt()
+    val n3 = this.n3.tchk.expectUInt()
+    this.rebuild(
+      TyStm(TyStm(TyStm((n1.typ, n2.typ, n3.typ), n3), n2), n1),
+      Seq(n1, n2, n3)
+    )
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n1 = this.n1.lower()
+    val n2 = this.n2.lower()
+    val n3 = this.n3.lower()
+    val i = Param("i")(n1.typ)
+    val j = Param("j")(n2.typ)
+    val k = Param("k")(n3.typ)
+    StmBuild(
+      SafeProd(n1, n2, n3)(),
+      Tuple(i, j, k)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (
+          C(0)(i.typ),
+          Mux((k === -1 + n3) && (j === -1 + n2), i + 1, i)()
+        ),
+        j -> (
+          C(0)(j.typ),
+          Mux(
+            (k === -1 + n3) && (j === -1 + n2),
+            C(0)(j.typ),
+            Mux(k === -1 + n3, j + 1, j)()
+          )()
+        ),
+        k -> (
+          C(0)(k.typ),
+          Mux(k === -1 + n3, C(0)(k.typ), k + 1)()
+        )
+      )
+    )().tchk().lower()
+  }
+}
+
 case class StmMap(
     input: Expr /* Stm<A; n> */,
     f: Function /* A -> B */
@@ -539,7 +592,7 @@ case class StmFold(
         ()
       case t =>
         throw new TypeError(
-          s"Function in StmScan has type $t. Expected ${t2 ->: t1 ->: t2}."
+          s"Function in $className has type $t. Expected ${t2 ->: t1 ->: t2}."
         )
     }
     this.rebuild(TyStm(t2, 1), Seq(newS, newZ, newF))

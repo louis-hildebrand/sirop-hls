@@ -934,6 +934,9 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     StmLiteral(newChildren: _*)(typ)
   }
+
+  /** Flatten a [[StmLiteral]] whose elements are also [[StmLiteral]].
+    */
   def flatten: StmLiteral = {
     require(elems.forall(e => e.isInstanceOf[StmLiteral]))
     StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
