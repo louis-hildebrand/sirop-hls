@@ -1,10 +1,24 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.{TSum, TProd, TDiv, TMod, TypeCheck}
+import mhir.ir.typecheck.{TDiv, TMod, TProd, TSum, TypeCheck}
 import mhir.optimize.{PartialEvalPass => PE}
 
+/** The type of an expression.
+  */
 sealed trait Type {
+
+  /** Constructs a function whose parameter has this type.
+    *
+    * @example
+    *
+    * {{{
+    *   // A function whose input has type TyBool
+    *   TyBool ::+ (x => x || True)
+    * }}}
+    *
+    * @param f
+    *   the body of the function.
+    */
   def ::+(f: Param => Expr): Function = {
     val x = Param("x")(this)
     val body = f(x)
@@ -25,20 +39,32 @@ sealed trait Type {
     TyArrow(that, this)
   }
 
+  /** Performs the given substitutions within this type.
+    *
+    * @param subs
+    *   a map from old expressions (i.e., the ones to be replaced) to new
+    *   expressions (i.e., what to replace the old expressions with).
+    */
   def substitute(subs: Map[Expr, Expr]): Type = {
     this match {
       case TyVec(t, n)     => TyVec(t.substitute(subs), n.subPreserveType(subs))
       case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
       case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
-      case TySInt(w)        => TySInt(w)
-      case TyUInt(w)        => TyUInt(w)
-      case t @ (Missing | TyBool) => t
+      case t @ (Missing | TyBool | _: TySInt | _: TyUInt) => t
     }
   }
 
+  /** Shorthand for [[substitute(subs*]] with just one substitution.
+    */
   def substitute(sub: (Expr, Expr)): Type = substitute(Map(sub))
 
+  /** Turn curried arrow types into equivalent non-curried versions.
+    *
+    * @example
+    *   if a function has type `T1 -> T2 -> T3` (where `T3` is not an arrow
+    *   type), then the uncurried function will have type `(T1, T2) -> T3`.
+    */
   def uncurry: Type = {
     this match {
       case Missing | TyBool => this
@@ -117,6 +143,8 @@ sealed trait Type {
   }
 }
 
+/** Companion object for [[Type]].
+  */
 object Type {
 
   /** Conservatively whether two lengths (e.g., vector sizes) are equal. If the
@@ -128,6 +156,8 @@ object Type {
   }
 }
 
+/** Placeholder type for an expression which has not been type checked.
+  */
 case object Missing extends Type
 
 /** Some custom integer with [[w]] bits.
@@ -138,9 +168,20 @@ case object Missing extends Type
 sealed abstract class TyAnyInt(val w: Int) extends Type {
   require(w >= 0, "Bit width must be non-negative.")
 
+  /** See [[mhir.ir.typecheck.TSum]].
+    */
   def +(that: TyAnyInt): TyAnyInt = TSum(this, that)
+
+  /** See [[mhir.ir.typecheck.TProd]].
+    */
   def *(that: TyAnyInt): TyAnyInt = TProd(this, that)
+
+  /** See [[mhir.ir.typecheck.TDiv]].
+    */
   def /(that: TyAnyInt): TyAnyInt = TDiv(this, that)
+
+  /** See [[mhir.ir.typecheck.TMod]].
+    */
   def %(that: TyAnyInt): TyAnyInt = TMod(this, that)
 
   /** Construct a new type with the same sign as this one but a width of [[w]].
@@ -205,8 +246,12 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
   }
 }
 
+/** Companion object for [[TyAnyInt]].
+  */
 object TyAnyInt {
 
+  /** Extracts the bit width from this type.
+    */
   def unapply(t: TyAnyInt): Option[Int] = Some(t.w)
 
   /** Finds the smallest type that fits the given range.
@@ -238,6 +283,8 @@ case class TySInt(override val w: Int) extends TyAnyInt(w) {
   override def toString: String = s"i$w"
 }
 
+/** Companion object for [[TySInt]].
+  */
 object TySInt {
 
   /** Finds the smallest signed type that fits the given range.
@@ -265,6 +312,8 @@ case class TyUInt(override val w: Int) extends TyAnyInt(w) {
   override def toString: String = s"u$w"
 }
 
+/** Companion object for [[TyUInt]].
+  */
 object TyUInt {
 
   /** Finds the smallest unsigned type that fits the given range.
@@ -337,6 +386,8 @@ case class TyVec(t: Type, n: Expr) extends Type {
   }
 }
 
+/** Companion object for [[TyVec]].
+  */
 object TyVec {
   def apply(t: Type, n: Expr): Type = new TyVec(t, n.tchk())
 }
@@ -361,12 +412,14 @@ case class TyStm(t: Type, n: Expr) extends Type {
   }
 }
 
+/** Companion object for [[TyStm]].
+  */
 object TyStm {
   def apply(t: Type, n: Expr): Type = new TyStm(t, n.tchk())
 }
 
-// Syntax sugar for types
-
-case object TyOption {
+/** The type of an option (like Scala's [[scala.Option]]).
+  */
+object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)
 }

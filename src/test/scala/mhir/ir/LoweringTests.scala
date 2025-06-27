@@ -1,8 +1,8 @@
 package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir.Uncurrier.Uncurry
+import mhir.ir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class LoweringTests extends AnyFunSuite {

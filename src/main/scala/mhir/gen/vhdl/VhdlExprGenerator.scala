@@ -1,7 +1,7 @@
 package mhir.gen.vhdl
 
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
 
 /** @param vhdl

@@ -5,6 +5,19 @@ import mhir.ir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 
+/** The stream replication transformation.
+  *
+  * To perform this transformation, use the extension method
+  * [[StreamReplicator.StreamReplication.replicate]]. The implicit class
+  * [[StreamReplicator.StreamReplication]] must be in scope.
+  *
+  * @example
+  *
+  * {{{
+  *   import mhir.ir.StreamReplicator.StreamReplication
+  *   stm.replicate(16, i, Set())
+  * }}}
+  */
 object StreamReplicator {
   implicit class StreamReplication(stm: StmBuild) {
 

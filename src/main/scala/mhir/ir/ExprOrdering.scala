@@ -1,8 +1,12 @@
 package mhir.ir
 
-// Define a consistent order for expressions to make the tests less brittle.
-// Where appropriate, the interpreter should keep things in this order so that a test doesn't break only due to an
-// insignificant change in the order of sub-expressions (e.g., for the terms within a sum).
+/** An [[scala.math.Ordering]] for expressions.
+  *
+  * In some cases, the order of terms within an expression doesn't matter (e.g.,
+  * the terms within a [[Sum]] or the factors in a [[Prod]]). In such cases,
+  * putting the terms in some "canonical" order is useful for making tests less
+  * brittle.
+  */
 case object ExprOrdering extends Ordering[Expr] {
   override def compare(x: Expr, y: Expr): Int = {
     val c = classScore(x).compareTo(classScore(y))

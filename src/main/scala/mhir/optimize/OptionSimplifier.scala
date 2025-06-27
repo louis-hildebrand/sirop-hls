@@ -1,8 +1,8 @@
 package mhir.optimize
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 
 object OptionSimplifier {

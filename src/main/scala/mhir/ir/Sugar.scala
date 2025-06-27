@@ -3,6 +3,15 @@ package mhir.ir
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 
+/** A let expression.
+  *
+  * @param x
+  *   the variable to declare.
+  * @param v
+  *   the value to assign to the variable.
+  * @param in
+  *   an expression that may use the variable.
+  */
 case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     extends SyntaxSugar(x, v, in)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -65,9 +74,18 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 }
 
-// Default value for a given datatype (zero for int, false for bool, tuple of
-// defaults for a tuple, etc.).
-// Note that this should NOT be used for functions or streams.
+/** The default value for a given data type.
+  *
+  * For example, the default integer is zero, the default boolean is false, and
+  * the default tuple contains the default for each element.
+  *
+  * The default value only makes sense for "data types" as defined by
+  * [[Type.isData]]. In particular, there is no default function and no default
+  * stream.
+  *
+  * @param typ
+  *   the data type for which to find the default.
+  */
 case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
@@ -83,6 +101,9 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   override def lowerSyntaxSugar(): Expr =
     Default.getDefault(this.typ).tchk().lower()
 }
+
+/** Companion object for [[Default]].
+  */
 case object Default {
   private[ir] def getDefault(typ: Type): Expr = {
     getDefaultOpt(typ) match {
@@ -175,6 +196,8 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
   }
 }
 
+/** Companion object for [[ReshapeData]].
+  */
 object ReshapeData {
 
   /** Decides whether data of type <code>t1</code> can be reshaped to be

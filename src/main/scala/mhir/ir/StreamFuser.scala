@@ -5,6 +5,24 @@ import mhir.ir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 
+/** The stream fusion transformation.
+  *
+  * Stream fusion combines a consumer stream with its statically-known
+  * producers, which eliminates the handshake protocol overhead and may reveal
+  * more optimization opportunities.
+  *
+  * To fuse a stream with <i>all</i> its inputs, use the extension method
+  * [[StreamFuser.StreamFusion.fuseCompletely]]. To fuse with a specific input,
+  * use the extension method [[StreamFuser.StreamFusion.fuseWith]]. In either
+  * case, the implicit class [[StreamFuser.StreamFusion]] must be in scope.
+  *
+  * @example
+  *
+  * {{{
+  *   import mhir.ir.StreamFuser.StreamFusion
+  *   stm.fuseCompletely()
+  * }}}
+  */
 object StreamFuser {
   implicit class StreamFusion(stm: StmBuild) {
 

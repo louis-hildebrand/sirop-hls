@@ -1,9 +1,9 @@
 package mhir.optimize
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.{Cast, SafeSum}
 
 /** Partial evaluation, arithmetic simplification, and related functionality.

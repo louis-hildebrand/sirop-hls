@@ -1,8 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 import java.nio.file.{Files, Path}
 

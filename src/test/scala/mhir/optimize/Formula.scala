@@ -1,7 +1,7 @@
 package mhir.optimize
 
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 trait Formula {
 

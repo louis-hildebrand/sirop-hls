@@ -3,8 +3,8 @@ package mhir.optimize
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 
 import java.util.concurrent.atomic.AtomicLong

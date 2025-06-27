@@ -1,8 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.debug.PrettyPrinter
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 import java.nio.file.Path
 import scala.annotation.tailrec

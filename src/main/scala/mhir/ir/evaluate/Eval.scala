@@ -7,8 +7,20 @@ import mhir.ir.typecheck.{TypeCheck, TypeError}
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
 
+/** The evaluator.
+  */
 trait Eval {
 
+  /** Evaluates an expression.
+    *
+    * @param e
+    *   the expression to evaluate.
+    * @throws mhir.ir.typecheck.TypeError
+    *   if the expression is ill-typed.
+    * @throws EvalException
+    *   if the evaluator encounters an undefined value <i>and it seems to affect
+    *   the final value</i>, or if a stream seems to be deadlocked.
+    */
   def eval(e: Expr): Expr = {
     val Value(v, warnings) = evalBigStep(e.tchk().lower())
     if (warnings.isEmpty) {

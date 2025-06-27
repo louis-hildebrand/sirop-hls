@@ -41,6 +41,8 @@ private object TraceTop extends TraceType
   */
 sealed trait TraceNode
 
+/** Factory for [[TraceNode]].
+  */
 object TraceNode {
   def apply(s: StmNode, mode: TraceType): TraceNode = {
     mode match {
@@ -70,6 +72,8 @@ case class FullTraceNode(
     inputs: Map[String, TraceNode]
 ) extends TraceNode
 
+/** Factory for [[FullTraceNode]].
+  */
 object FullTraceNode {
   def apply(s: StmNode): FullTraceNode = {
     FullTraceNode(
@@ -103,6 +107,8 @@ case class SummarizedTraceNode(
     inputLengths: Map[String, Long]
 ) extends TraceNode
 
+/** Factory for [[SummarizedTraceNode]].
+  */
 object SummarizedTraceNode {
   def apply(s: StmNode): SummarizedTraceNode = {
     SummarizedTraceNode(
@@ -116,4 +122,9 @@ object SummarizedTraceNode {
   }
 }
 
+/** One node in a trace showing that an exception has occurred.
+  *
+  * @param exc
+  *   the exception that interrupted evaluation.
+  */
 case class ErrorTraceNode(exc: EvalException) extends TraceNode

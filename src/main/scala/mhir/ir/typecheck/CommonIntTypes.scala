@@ -1,6 +1,8 @@
 package mhir.ir
 package typecheck
 
+/** Shorthands for common integer types.
+  */
 trait CommonIntTypes {
 
   /** The type of a 0-bit unsigned number—i.e., a number which can only be zero.

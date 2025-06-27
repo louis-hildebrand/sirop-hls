@@ -2,8 +2,8 @@ package mhir.sugar
 
 import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamFuser.StreamFusion
-import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir._
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 
 object AsStm2Stm {
 

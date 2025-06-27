@@ -1,7 +1,7 @@
 package mhir.optimize
 
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 /** Transformations for moving [[mhir.ir.Mux]]es around in the AST.
   */

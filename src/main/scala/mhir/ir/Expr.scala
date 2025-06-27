@@ -121,6 +121,9 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
 
   override def toString: String = name
 }
+
+/** Companion object for [[Param]].
+  */
 case object Param {
   private val idCtr = new AtomicLong(0)
 
@@ -179,6 +182,9 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       .hashCode
   }
 }
+
+/** Companion object for [[Function]].
+  */
 object Function {
 
   /** Parameter to be used in the definition of <code>hashCode</code> to ensure
@@ -268,6 +274,9 @@ case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
     Sum(newChildren: _*)(typ)
   }
 }
+
+/** Companion object for [[Sum]].
+  */
 case object Sum {
   def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms = unsortedTerms
@@ -298,6 +307,9 @@ case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
     Prod(newChildren: _*)(typ)
   }
 }
+
+/** Companion object for [[Prod]].
+  */
 case object Prod {
   def apply(unsortedFactors: Expr*)(typ: Type = Missing): Expr = {
     val factors: Seq[Expr] =
@@ -464,6 +476,9 @@ case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
     }
   }
 }
+
+/** Companion object for [[Mux]].
+  */
 case object Mux {
   def apply(c: Expr, t: Expr, f: Expr)(
       typ: Type = Missing
@@ -522,6 +537,9 @@ case class Not(e: Expr)(typ: Type = Missing) extends BoolExpr(e)(typ) {
     }
   }
 }
+
+/** Companion object for [[Mux]].
+  */
 case object Not {
   def apply(e: Expr)(typ: Type = Missing): Not = {
     if (typ == Missing && e.typ == TyBool) {
@@ -552,6 +570,9 @@ case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
     }
   }
 }
+
+/** Companion object for [[And]].
+  */
 case object And {
   def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms: Seq[Expr] =
@@ -599,6 +620,9 @@ case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
     }
   }
 }
+
+/** Companion object for [[Or]].
+  */
 case object Or {
   def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
     val terms: Seq[Expr] =
@@ -796,6 +820,9 @@ case class StmBuild(
     }
   }
 }
+
+/** Companion object for [[StmBuild]].
+  */
 object StmBuild {
 
   /** Parameter to be used in the definition of <code>hashCode</code> to ensure
@@ -885,6 +912,9 @@ case class VecLiteral(elems: Expr*)(typ: Type = Missing)
     VecLiteral(newChildren: _*)(typ)
   }
 }
+
+/** Companion object for [[VecLiteral]].
+  */
 object VecLiteral {
   def ints(elems: Int*): VecLiteral = {
     VecLiteral(elems.map(n => IntCst(n)()): _*)()
@@ -909,6 +939,9 @@ case class StmLiteral(elems: Expr*)(typ: Type = Missing)
     StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
   }
 }
+
+/** Companion object for [[StmLiteral]].
+  */
 object StmLiteral {
   def ints(elems: Int*): StmLiteral = {
     StmLiteral(elems.map(n => IntCst(n)()): _*)()

@@ -3,14 +3,34 @@ package mhir.ir
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+/** A directed graph.
+  *
+  * @param nodes
+  *   the nodes in the graph.
+  * @param edges
+  *   the edges in the graph.
+  * @tparam T
+  *   the type of a node in the graph.
+  */
 case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
 
+  /** A map from a node `u` to all the nodes `v` such that `(u, v)` is an edge
+    * in this graph.
+    *
+    * The key set in the map contains all the nodes in this graph.
+    */
   lazy val outNeighbours: Map[T, Set[T]] = {
     val neighboursByNode = edges
       .groupBy({ case (u, _) => u })
       .mapValues(xs => xs.map({ case (_, v) => v }))
     nodes.map(v => v -> neighboursByNode.getOrElse(v, Set())).toMap
   }
+
+  /** A map from a node `u` to all the nodes `v` such that `(v, u)` is an edge
+    * in this graph.
+    *
+    * The key set in the map contains all the nodes in this graph.
+    */
   lazy val inNeighbours: Map[T, Set[T]] = {
     val neighboursByNode = edges
       .groupBy({ case (_, v) => v })
@@ -18,9 +38,10 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     nodes.map(v => v -> neighboursByNode.getOrElse(v, Set())).toMap
   }
 
-  /** Construct the condensation graph of this graph. The nodes of the
-    * condensation graph are strongly connected components (i.e., sets of nodes
-    * from this graph). The condensation graph is acyclic.
+  /** Constructs the condensation graph of this graph.
+    *
+    * The nodes of the condensation graph are strongly connected components
+    * (i.e., sets of nodes from this graph). The condensation graph is acyclic.
     */
   def condensation(): DiGraph[Set[T]] = {
     // https://en.wikipedia.org/wiki/Kosaraju%27s_algorithm
@@ -65,6 +86,11 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     DiGraph(sccNodes, sccEdges)
   }
 
+  /** Remove the given node from this graph.
+    *
+    * @param u
+    *   the node to remove.
+    */
   def remove(u: T): DiGraph[T] = {
     DiGraph(
       nodes.filter(v => u != v),

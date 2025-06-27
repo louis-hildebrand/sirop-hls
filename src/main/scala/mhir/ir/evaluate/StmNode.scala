@@ -184,6 +184,8 @@ case class StmNode(
   }
 }
 
+/** Companion object for [[StmNode]].
+  */
 object StmNode {
 
   /** If a stream takes this many steps without producing a valid element,

@@ -1,8 +1,8 @@
 package mhir.sugar
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.{TSum, TypeCheck, TypeError}
 import mhir.ir._
+import mhir.ir.typecheck.{TSum, TypeCheck, TypeError}
 
 /** A function which computes the sum of two values.
   */

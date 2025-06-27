@@ -4,6 +4,22 @@ import mhir.ir.typecheck.{TypeCheck, TypeError}
 
 import scala.annotation.tailrec
 
+/** The uncurrying transformation.
+  *
+  * Uncurrying transforms a curried function like `x => y => x + y` into an
+  * equivalent non-curried function like `(x, y) => x + y`.
+  *
+  * To perform the transformation, use the extension method
+  * [[Uncurrier.Uncurry.uncurry]]. The implicit class [[Uncurrier.Uncurry]] must
+  * be in scope.
+  *
+  * @example
+  *
+  * {{{
+  *   import mhir.ir.Uncurrier.Uncurry
+  *   f.uncurry()
+  * }}}
+  */
 object Uncurrier {
   implicit class Uncurry(expr: Expr) {
 

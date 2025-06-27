@@ -1,11 +1,10 @@
 package mhir
 
-import mhir.ir.typecheck.TypeCheck
+import mhir.ir.evaluate.Eval
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 
 import scala.annotation.nowarn
 import scala.language.implicitConversions
-import mhir.ir.evaluate.Eval
-import mhir.ir.typecheck.{CommonIntTypes, TypeError}
 
 /** The core IR, type checker ([[mhir.ir.typecheck]]), evaluator
   * ([[mhir.ir.evaluate]]), and a few other tidbits.
@@ -18,11 +17,28 @@ import mhir.ir.typecheck.{CommonIntTypes, TypeError}
   * "streams" can only be constructed using the general-purpose [[StmBuild]]
   * primitive.
   */
-package object ir extends Eval with CommonIntTypes {
+// Use the fully-qualified name for CommonIntTypes; otherwise, Scaladoc fails
+// for some reason.
+package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
   //  TODO: This is a bit dangerous, since it is easy to accidentally discard
   //        an IntCst's type this way. But it is already used in so many places
   //        that it seems wildly impractical to review them all.
+
+  /** Implicitly converts an integer to an [[IntCst]].
+    */
   implicit def int2IntCst(i: Int): IntCst = IntCst(i)()
+
+  /** Implicitly converts an integer to an [[ExprOps]] so that shorthands like
+    * [[ExprOps.+]] can be used.
+    *
+    * @example
+    *
+    * {{{
+    *   import mhir.ir.ExprOps
+    *   val e1: Expr = ...
+    *   val e2: Expr = 1 + e2
+    * }}}
+    */
   implicit def int2ExprOps(i: Int): ExprOps = new ExprOps(IntCst(i)())
 
   // WARNING: do not provide an implicit Boolean to BoolCst conversion because
@@ -30,8 +46,18 @@ package object ir extends Eval with CommonIntTypes {
   // syntactically and then converts to True or False) rather than e1 === e2
   // (which constructs an expression like Equal(e1, e2) ).
 
+  /** Implicitly converts `()` to an empty [[TyTuple]].
+    */
   implicit def typeTuple0(@nowarn t: Unit): TyTuple = TyTuple()
+
+  /** Implicitly converts a tuple of [[Type]] to a [[TyTuple]] with those same
+    * types.
+    */
   implicit def typeTuple2(t: (Type, Type)): TyTuple = TyTuple(t._1, t._2)
+
+  /** Implicitly converts a tuple of [[Type]] to a [[TyTuple]] with those same
+    * types.
+    */
   implicit def typeTuple3(t: (Type, Type, Type)): TyTuple =
     TyTuple(t._1, t._2, t._3)
 

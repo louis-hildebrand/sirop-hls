@@ -3,7 +3,29 @@ package mhir.ir
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.StmMap
 
+/** The lowering transformation, which removes syntax sugar from an expression
+  * or a type.
+  *
+  * To lower an expression, use the extension method [[ExprLowering.lower]]. To
+  * lower a type, use the extension method [[TypeLowering.lower]]. In either
+  * case, the implicit class ([[ExprLowering]] and [[TypeLowering]],
+  * respectively) must be in scope.
+  *
+  * @example
+  *
+  * {{{
+  *   import mhir.ir.Lowering.ExprLowering
+  *   exprWithSyntaxSugar.lower()
+  * }}}
+  * {{{
+  *   import mhir.ir.Lowering.TypeLowering
+  *   typeWithSyntaxSugar.lower()
+  * }}}
+  */
 object Lowering {
+
+  /** The lowering transformation for expressions.
+    */
   implicit class ExprLowering(expr: Expr) {
 
     /** Remove all syntax sugar from this expression and its children. This is
@@ -73,6 +95,8 @@ object Lowering {
     }
   }
 
+  /** The lowering transformation for types.
+    */
   implicit class TypeLowering(typ: Type) {
     def lower: Type = {
       typ match {

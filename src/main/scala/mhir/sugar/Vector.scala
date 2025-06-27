@@ -2,8 +2,8 @@ package mhir.sugar
 
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.StreamReplicator.StreamReplication
-import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir._
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
