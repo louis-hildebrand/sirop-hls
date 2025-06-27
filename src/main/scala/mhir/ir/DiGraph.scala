@@ -31,7 +31,7 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     *
     * The key set in the map contains all the nodes in this graph.
     */
-  lazy val inNeighbours: Map[T, Set[T]] = {
+  private lazy val inNeighbours: Map[T, Set[T]] = {
     val neighboursByNode = edges
       .groupBy({ case (_, v) => v })
       .mapValues(xs => xs.map({ case (u, _) => u }))

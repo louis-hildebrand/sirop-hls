@@ -911,9 +911,9 @@ case class StmPrefix(
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
-      case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1)())
+    val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)()
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(U32) // index of current row
@@ -967,9 +967,9 @@ case class StmSuffix(
     val stm = this.stm.lower()
     val k = this.k.lower()
     val n = this.stm.typ.asInstanceOf[TyStm].n
-    val (t, perRow) = this.stm.typ.asInstanceOf[TyStm].t.lower match {
-      case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1)())
+    val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)()
     }
     val s = Param("s")(stm.typ) // input stream
     val i = Param("i")(U32) // index of current row

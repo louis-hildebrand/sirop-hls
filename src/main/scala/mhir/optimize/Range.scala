@@ -52,12 +52,12 @@ case class ScalarRange(lower: Option[Expr], upper: Option[Expr]) extends Range {
 case class StmAccRange(elemRanges: Map[Param, ScalarRange]) extends Range {
   override def merge(that: Range): StmAccRange = {
     that match {
-      case StmAccRange(newRanges) if (newRanges.size == elemRanges.size) =>
+      case StmAccRange(newRanges) if newRanges.size == elemRanges.size =>
         if (elemRanges.keySet != newRanges.keySet) {
           throw new IllegalArgumentException("Range parameter set mismatch")
         }
-        val zipped = (elemRanges.keySet
-          .union(newRanges.keySet))
+        val zipped = elemRanges.keySet
+          .union(newRanges.keySet)
           .map(x => x -> (elemRanges(x), newRanges(x)))
           .toMap
         StmAccRange(

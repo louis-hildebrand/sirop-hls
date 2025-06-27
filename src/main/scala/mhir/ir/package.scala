@@ -364,13 +364,10 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 fvs ++ z.freeVars()
               })
               // There may be bound variables in the output and "next" functions
-              ++ (
-                (data.freeVars() ++ valid.freeVars()
-                  ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
-                    fvs ++ next.freeVars()
-                  }))
-                  .diff(stm.accVars)
-              )
+              ++ (data.freeVars() ++ valid.freeVars()
+                ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                  fvs ++ next.freeVars()
+                })).diff(stm.accVars)
           )
         case e =>
           e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())

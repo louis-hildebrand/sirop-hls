@@ -137,7 +137,7 @@ sealed trait Type {
     this match {
       case _: TyAnyInt | TyBool            => true
       case TyTuple(ts @ _*)                => ts.forall(t => t.isData)
-      case TyVec(t, n)                     => t.isData
+      case TyVec(t, _)                     => t.isData
       case Missing | _: TyArrow | _: TyStm => false
     }
   }

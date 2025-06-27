@@ -1,5 +1,7 @@
 package mhir.gen.vhdl
 
+import scala.annotation.nowarn
+
 object VhdlConversionGenerator {
 
   /** @param e
@@ -18,7 +20,7 @@ object VhdlConversionGenerator {
     }
   }
 
-  private def toSlvConverterName(t: VhdlType): String = {
+  private def toSlvConverterName(@nowarn t: VhdlType): String = {
     "to_std_logic_vector"
   }
 
@@ -97,7 +99,7 @@ object VhdlConversionGenerator {
     }
   }
 
-  private def fromSlvConverterName(t: VhdlType): String = {
+  private def fromSlvConverterName(@nowarn t: VhdlType): String = {
     // It seems like the VHDL compiler can tell which overload to use based on
     // the return type (since the result of this conversion is always assigned
     // to a signal or return value, not converted back to a std_logic_vector).

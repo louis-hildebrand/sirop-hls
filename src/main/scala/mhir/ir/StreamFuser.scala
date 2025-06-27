@@ -122,7 +122,6 @@ object StreamFuser {
         ready: Expr,
         x: Param
     ): (Expr, Expr) = {
-      val consumerTyp = consumer.typ.asInstanceOf[TyStm]
       val producerTyp = producer.typ.asInstanceOf[TyStm]
       val valid = Mux(
         ready,

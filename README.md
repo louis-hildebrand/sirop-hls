@@ -10,7 +10,7 @@ Documentation for the Scala code can be generated and opened using the following
 sbt doc && open target/scala-2.12/api/index.html
 ```
 
-There are also rough notes explaining certain design decisions in [notes/](./notes/).
+There are also rough notes explaining certain design decisions in [notes/](./notes).
 
 ## Development Tasks
 

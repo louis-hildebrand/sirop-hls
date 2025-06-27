@@ -54,7 +54,7 @@ object TestbenchGenerator {
       .map({ case (v, i) =>
         val expected =
           VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
-        s"""expected <= ${expected};
+        s"""expected <= $expected;
            |wait until rising_edge(clk) and valid = '1';
            |assert(data = expected) report "Wrong `data` at step $i.";
            |""".stripMargin.stripTrailing
