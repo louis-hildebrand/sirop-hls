@@ -4,7 +4,8 @@ ThisBuild / scalaVersion := "2.12.19"
 // when run in parallel.
 // Maybe it's somehow related to the ArithExpr library, since the issue appeared only when I started using the library.
 ThisBuild / parallelExecution := false
-scalacOptions += "-Wconf:cat=other-match-analysis:error"
+ThisBuild / logBuffered := false
+ThisBuild / autoAPIMappings := true
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 libraryDependencies += "org.scala-lang" %% "toolkit" % "0.1.7"

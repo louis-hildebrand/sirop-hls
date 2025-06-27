@@ -1,0 +1,76 @@
+{
+    "steps": [
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 3,
+            "state": "valid (20:u8)",
+            "accumulators": {
+                "i_1": "0:u8",
+                "j_2": "10:u8"
+            },
+            "inputLengths": {
+                
+            }
+        },
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 2,
+            "state": "invalid",
+            "accumulators": {
+                "i_1": "1:u8",
+                "j_2": "10:u8"
+            },
+            "inputLengths": {
+                
+            }
+        },
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 2,
+            "state": "valid (24:u8)",
+            "accumulators": {
+                "i_1": "2:u8",
+                "j_2": "11:u8"
+            },
+            "inputLengths": {
+                
+            }
+        },
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "invalid",
+            "accumulators": {
+                "i_1": "3:u8",
+                "j_2": "13:u8"
+            },
+            "inputLengths": {
+                
+            }
+        },
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 1,
+            "state": "valid (36:u8)",
+            "accumulators": {
+                "i_1": "4:u8",
+                "j_2": "16:u8"
+            },
+            "inputLengths": {
+                
+            }
+        },
+        {
+            "$type": "mhir.debug.SummarizedTraceNode",
+            "n": 0,
+            "state": "empty",
+            "accumulators": {
+                "i_1": "5:u8",
+                "j_2": "20:u8"
+            },
+            "inputLengths": {
+                
+            }
+        }
+    ]
+}
