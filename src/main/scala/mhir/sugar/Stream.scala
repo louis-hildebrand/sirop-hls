@@ -645,14 +645,20 @@ case class StmScanInclusive(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    // IMPORTANT: use the original input here, not the flattened version
+    val input = this.input.lower()
+    val z = this.z.lower()
+    // IMPORTANT: use the original input here, not the flattened version.
+    // If we're scanning over a Stm[Stm[T, m], n], we will produce a stream of
+    // length n, not a stream of length n * m.
     val n = this.input.typ.asInstanceOf[TyStm].n
-    val inputsUntilReset = this.input.typ.asInstanceOf[TyStm].t match {
+    // IMPORTANT: use the original (possibly nested) stream here, but flatten
+    // the inner dimensions.
+    // If we're scanning over a Stm[Stm[Stm[T, k], m], n], then it takes k * m
+    // steps per scan output, not just m.
+    val inputsUntilReset = this.input.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
       case _           => IntCst(1)()
     }
-    val input = this.input.lower()
-    val z = this.z.lower()
     val elemType = z.typ
     // TODO: Enforce the restriction that the accumulator cannot contain any streams?
     val (s, innerStm) =

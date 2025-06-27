@@ -1163,7 +1163,7 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(sum) == StmLiteral(3 * 42)())
   }
 
-  ignore("StmFold:3D:Sum") {
+  test("StmFold:3D:Sum") {
     val s = StmCount3D(C(2)(U8), C(2)(U8), C(3)(U8))().tchk()
     val sum = StmFold(
       s,
@@ -1202,41 +1202,26 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(sum) == expected)
   }
 
-  // TODO: Why is this test failing?
-  ignore("StmFold:3D:Product") {
-    // [[[1, 2],
-    //   [2, 3]],
-    //  [[2, 3],
-    //   [3, 4]],
-    //  [[3, 4],
-    //   [4, 5]]]
-    val s = StmMap(
-      StmCount(C(3)(U8))(),
-      U8 ::+ (i =>
-        StmMap(
-          StmCount(C(2)(U8))(),
-          U8 ::+ (j =>
-            StmMap(StmCount(C(2)(U8))(), U8 ::+ (k => i + j + k + 1))()
-          )
-        )()
-      )
-    )()
+  test("StmFold:3D:Product") {
+    val s = StmCount3D(C(3)(U8), C(2)(U8), C(2)(U8))().tchk()
     val prod = StmFold(
       s,
       C(1)(U32),
       U32 ::+ (acc =>
-        TyStm(TyStm(U8, 2), 2) ::+ (s =>
+        TyStm(TyStm((U8, U8, U8), 2), 2) ::+ (s =>
           StmMap(
             StmFold(
               s,
               C(1)(U32),
               U32 ::+ (acc =>
-                TyStm(U8, 2) ::+ (s =>
+                TyStm((U8, U8, U8), 2) ::+ (s =>
                   StmMap(
                     StmFold(
                       s,
                       C(1)(U32),
-                      U32 ::+ (a => U8 ::+ (x => a * x))
+                      U32 ::+ (a =>
+                        (U8, U8, U8) ::+ (x => a * (x.__0 + x.__1 + x.__2 + 1))
+                      )
                     )(),
                     U32 ::+ (x => acc * x)
                   )()
@@ -1250,11 +1235,13 @@ class StreamTests extends AnyFunSuite {
     )().tchk().lower()
     val expected = {
       val s = (0 until 3).map(i =>
-        (0 until 2).map(j => (0 until 2).map(k => i + j + k + 1))
+        (0 until 2).map(j => (0 until 2).map(k => (i, j, k)))
       )
       val prod = s.foldLeft(1)({ case (acc, s) =>
         val x = s.foldLeft(1)({ case (acc, s) =>
-          val x = s.foldLeft(1)({ case (acc, x) => acc * x })
+          val x = s.foldLeft(1)({ case (acc, x) =>
+            acc * (x._1 + x._2 + x._3 + 1)
+          })
           acc * x
         })
         acc * x
