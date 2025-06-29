@@ -191,7 +191,7 @@ object StmNode {
   /** If a stream takes this many steps without producing a valid element,
     * assume it is stuck in an infinite loop.
     */
-  private[ir] val MaxInvalidSteps = 1000
+  private[ir] val MaxInvalidSteps = 10000
 
   def apply(s: StmBuild): StmNode = {
     StmNode.init(s).computeNextOutputs()
