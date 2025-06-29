@@ -55,7 +55,7 @@ scalafmt --check --exclude ./lib || {
     exit 1
 }
 
-sbt 'testQuick * -- -l mhir.testing.VhdlTest' || {
+sbt 'testQuick * -- -l mhir.testing.VhdlTest -l org.scalatest.tags.Slow' || {
     echo "Tests failed."
     exit 1
 }

@@ -4,6 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.tagobjects.Slow
 
 class StreamTests extends AnyFunSuite {
   test("StmCst:Int") {
@@ -796,7 +797,7 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
-  test("StmMap:3D-3D:StmTranspose") {
+  test("StmMap:3D-3D:StmTranspose", Slow) {
     val s = StmCount3D(C(2)(U8), C(2)(U8), C(2)(U8))()
     val expected = StmLiteral(
       (0 until 2).flatMap(i =>
@@ -1979,7 +1980,7 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(s) == expected)
   }
 
-  test("StmReverse:2D") {
+  test("StmReverse:2D", Slow) {
     val s = StmReverse(StmCount2D(C(3)(U8), C(3)(U8))())().tchk()
     val expected = StmLiteral(
       Tuple(2, 0)(),
@@ -2145,7 +2146,7 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
-  test("StmTransposeTranspose") {
+  test("StmTransposeTranspose", Slow) {
     val s = Param("s")()
     val actual =
       Let(s, StmCount2D(2, 2)(), StmTranspose(StmTranspose(s)())())()

@@ -6,6 +6,7 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.tagobjects.Slow
 
 class OptimizationTests extends AnyFunSuite {
 
@@ -473,7 +474,7 @@ class OptimizationTests extends AnyFunSuite {
   /** The conversion of an arbitrary counter of unknown length into a vector can
     * be optimized (no delay, just return the vector directly).
     */
-  test("Stm2Vec(StmRange(n, z, delta))") {
+  test("Stm2Vec(StmRange(n, z, delta))", Slow) {
     val n = Param("n")(U16)
     val z = Param("z")(I16)
     val delta = Param("delta")(I16)
