@@ -74,6 +74,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 }
 
+/** Like a [[Let]] expression, but can have more than one assignment.
+  */
+object Lets {
+  def apply(assignments: (Param, Expr)*)(body: Expr): Expr = {
+    assignments.foldRight(body)({ case ((x, v), acc) => Let(x, v, acc)() })
+  }
+}
+
 /** The default value for a given data type.
   *
   * For example, the default integer is zero, the default boolean is false, and

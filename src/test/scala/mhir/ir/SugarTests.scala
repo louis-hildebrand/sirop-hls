@@ -57,6 +57,14 @@ class SugarTests extends AnyFunSuite {
     assert(e2 != e1)
   }
 
+  test("Lets") {
+    val x = Param("x")()
+    val y = Param("y")()
+    val actual = Lets(x -> C(5)(U8), y -> C(-21)(I32))(x + y)
+    val expected = Let(x, C(5)(U8), Let(y, C(-21)(I32), x + y)())()
+    assert(actual == expected)
+  }
+
   test("ReshapeData:Valid") {
     val x = Param("x")()
     val e =
