@@ -411,7 +411,15 @@ case class StmMap(
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmMap has type $t.")
     }
-    val newF = f.tchk(context)
+    val newF = {
+      val withAnnotatedInput = f.param.typ match {
+        case Missing =>
+          val x = f.param.rebuild(t1).asInstanceOf[Param]
+          Function(x, f.body)()
+        case _ => f
+      }
+      withAnnotatedInput.tchk(context)
+    }
     val t2 = newF.typ match {
       case TyArrow(t, t2) if t ~= t1 => t2
       case t =>

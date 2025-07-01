@@ -113,7 +113,7 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmMap:1D-1D:Identity") {
-    val s = StmMap(StmCount(IntCst(3)(U8))(), U8 ::+ (x => x))()
+    val s = StmMap(StmCount(IntCst(3)(U8))(), Missing ::+ (x => x))()
     assert(mhir.ir.eval(s.tchk()) == StmLiteral(0, 1, 2)())
   }
 
@@ -158,7 +158,7 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:1D-2D:StmCountFrom") {
     val s = StmMap(
       StmCount(IntCst(3)(U8))(),
-      U8 ::+ (n => StmRange(4, n, IntCst(1)(U8))())
+      Missing ::+ (n => StmRange(4, n, IntCst(1)(U8))())
     )().tchk()
     val expected = StmLiteral.ints(
       Seq(
@@ -238,7 +238,7 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:2D-1D:Access") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
-      TyStm((U8, U8), 3) ::+ (s => StmAccess(s, 1)())
+      Missing ::+ (s => StmAccess(s, 1)())
     )().tchk()
     val expected =
       StmLiteral(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)(), Tuple(3, 1)())()
@@ -288,9 +288,7 @@ class StreamTests extends AnyFunSuite {
   test("StmMap:2D-2D:StmMap") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
-      TyStm((U8, U8), 3) ::+ (s =>
-        StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1))()
-      )
+      Missing ::+ (s => StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1))())
     )().tchk()
     val expected = StmLiteral.ints(
       Seq(
