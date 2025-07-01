@@ -1,0 +1,12 @@
+module0 (I :: UInt8T) =
+    n11 = Const_GenN UInt8V 5 1 UInt8T
+    n5 = ATupleN UInt8T UInt8T I n11
+    n6 = AddN UInt8T n5
+
+module1 (I :: (SSeqT 200 UInt8T)) =
+    n1 = FIFON (SSeqT 200 UInt8T) 1 "I"
+    n7 = Map_sN 200 module0 n1
+    n8 = FIFON (SSeqT 200 UInt8T) 1 "n7"
+    n9 = FIFON (SSeqT 200 UInt8T) 1 "n8"
+    n10 = FIFON (SSeqT 200 UInt8T) 1 "n9"
+
