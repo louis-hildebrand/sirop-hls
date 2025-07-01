@@ -19,6 +19,7 @@ class AtherlingParserTests extends AnyFunSuite {
          |    n10 = FIFON (TSeqT 20 0 (SSeqT 10 UInt8T)) 1 "n9"
          |    n11 = FIFON (TSeqT 20 0 (SSeqT 10 UInt8T)) 1 "n10"
          |    n12 = FIFON (TSeqT 20 0 (SSeqT 10 UInt8T)) 1 "n11"
+         |
          |""".stripMargin
     val expected = {
       val module0 = Param("module0")()
@@ -61,5 +62,25 @@ class AtherlingParserTests extends AnyFunSuite {
     val expectedTyp = expected.tchk().typ
     val actualTyp = actual.tchk().typ
     assert(actualTyp == expectedTyp)
+  }
+
+  test("map") {
+    pending
+  }
+
+  test("conv2d") {
+    pending
+  }
+
+  test("conv2d_b2b") {
+    pending
+  }
+
+  test("sharpen") {
+    pending
+  }
+
+  test("camera") {
+    pending
   }
 }
