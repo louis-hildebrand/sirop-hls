@@ -21,10 +21,11 @@ private object Serialization {
     upickle.default
       .writer[String]
       .comap({
-        case Empty    => "empty"
-        case Stalled  => "stalled"
-        case Invalid  => "invalid"
-        case Valid(v) => s"valid (${PrettyPrinter.show(v, evalVec = true)()})"
+        case Empty   => "empty"
+        case Stalled => "stalled"
+        case Invalid => "invalid"
+        // TODO: evalVec = true?
+        case Valid(v)            => s"valid (${ExprPrinter.display(v)})"
         case Deadlocked(reasons) => s"deadlocked (${reasons.mkString(", ")})"
       })
 

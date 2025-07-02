@@ -8,126 +8,6 @@ import mhir.optimize.PartialEvalPass
   * TODO: Merge this into [[mhir.ir.ExprPrinter]].
   */
 object PrettyPrinter {
-  def show(e: Expr, collapseStm: Boolean = false, evalVec: Boolean = false)(
-      implicit nameByParam: Map[Param, String] = Map()
-  ): String = {
-    e match {
-      case True      => "true"
-      case False     => "false"
-      case IntCst(n) => s"$n:${e.typ}"
-      // In theory we should also pass `collapseStm` to `showWithParens`, but
-      // hopefully there are no streams being built inside these expressions
-      case Sum(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" + ")
-      case Prod(factors @ _*) =>
-        factors.map(e => showWithParens(e)).mkString(" * ")
-      case Div(x, y)        => s"${showWithParens(x)} / ${showWithParens(y)}"
-      case Mod(x, y)        => s"${showWithParens(x)} % ${showWithParens(y)}"
-      case PadTo(x, y)      => s"pad_to(${show(x)}, $y)"
-      case TruncateTo(x, y) => s"trunc_to(${show(x)}, $y)"
-      case ToSigned(x)      => s"to_signed(${show(x)})"
-      case ToUnsigned(x)    => s"to_unsigned(${show(x)})"
-      case Equal(x, y)      => s"${showWithParens(x)} === ${showWithParens(y)}"
-      case Not(Equal(x, y)) =>
-        s"${showWithParens(x)} !== ${showWithParens(y)}"
-      case LessThan(x, y) => s"${showWithParens(x)} < ${showWithParens(y)}"
-      case Not(LessThan(x, y)) =>
-        s"${showWithParens(x)} >= ${showWithParens(y)}"
-      case And(terms @ _*) => terms.map(e => showWithParens(e)).mkString(" && ")
-      case Or(terms @ _*)  => terms.map(e => showWithParens(e)).mkString(" || ")
-      case Not(x)          => s"!${showWithParens(x)}"
-      case Mux(c, t, f) =>
-        s"""if (${show(c, collapseStm = collapseStm, evalVec = evalVec)}) then {
-           |${indent(show(t, collapseStm = collapseStm, evalVec = evalVec))}
-           |} else {
-           |${indent(show(f, collapseStm = collapseStm, evalVec = evalVec))}
-           |}
-           |""".stripMargin.stripTrailing
-      case p: Param =>
-        nameByParam.get(p) match {
-          case Some(name) => name
-          case None       => p.toString
-        }
-      case Function(p, b) =>
-        val bStr = show(b, collapseStm = collapseStm, evalVec = evalVec)
-        if (isMultiline(bStr)) {
-          s"""(${p.name} : ${p.typ}) =>
-             |${indent(bStr)}
-             |""".stripMargin.stripTrailing
-        } else {
-          s"(${p.name} : ${p.typ}) => $bStr"
-        }
-      case FunCall(f, a) =>
-        s"(${show(f, collapseStm = collapseStm, evalVec = evalVec)})(${show(a, collapseStm = collapseStm, evalVec = evalVec)})"
-      case Tuple(elems @ _*) =>
-        // Include the trailing t to distinguish between a parenthesized
-        // expression and a tuple of one element.
-        "t(" + elems
-          .map(e => show(e, collapseStm = collapseStm, evalVec = evalVec))
-          .mkString(", ") + ")"
-      case TupleAccess(t, IntCst(i)) =>
-        s"${show(t, collapseStm = collapseStm, evalVec = evalVec)}.__$i"
-      case StmBuild(n, data, valid, equations) =>
-        if (collapseStm) {
-          val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          s"StmBuild($nStr; ...)"
-        } else {
-          val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-          val dataStr = show(data, collapseStm = collapseStm, evalVec = evalVec)
-          val validStr =
-            show(valid, collapseStm = collapseStm, evalVec = evalVec)
-          val recStrings = equations.map({ case (x, (z, next)) =>
-            val zStr = show(z, collapseStm = collapseStm, evalVec = evalVec)
-            val nextStr =
-              show(next, collapseStm = collapseStm, evalVec = evalVec)
-            s"(${x.name} : ${x.typ}) -> (\n${indent(zStr)},\n${indent(nextStr)}\n)"
-          })
-          val inside =
-            s"$nStr;\n$dataStr;\n$validStr;\n${recStrings.mkString(";\n")}"
-          s"StmBuild(\n${indent(inside)}\n)"
-        }
-      case _: VecLiteral =>
-        val sh = (e: Expr) =>
-          show(e, collapseStm = collapseStm, evalVec = evalVec)
-        val children = e.children.map(sh).mkString(", ")
-        s"[$children]"
-      case v @ VecBuild(n, f) =>
-        val elems = if (evalVec) tryEvalVec(v) else None
-        elems match {
-          case Some(elems) =>
-            // Show the elements
-            val elemStrs = elems.map(e =>
-              show(e, collapseStm = collapseStm, evalVec = evalVec)
-            )
-            if (elemStrs.exists(s => isMultiline(s))) {
-              "[\n" + elemStrs.map(s => indent(s) + ",\n") + "]"
-            } else {
-              "[" + elemStrs.mkString(", ") + "]"
-            }
-          case None =>
-            // Show the StmBuild itself
-            val nStr = show(n, collapseStm = collapseStm, evalVec = evalVec)
-            val fStr = show(f, collapseStm = collapseStm, evalVec = evalVec)
-            if (isMultiline(nStr) || isMultiline(fStr)) {
-              s"""VecBuild(
-                 |${indent(nStr)},
-                 |${indent(fStr)}
-                 |)
-                 |""".stripMargin.stripTrailing
-            } else {
-              s"VecBuild($nStr, $fStr)"
-            }
-        }
-      case VecAccess(v, i) =>
-        s"${show(v)}[${show(i, collapseStm = collapseStm, evalVec = evalVec)}]"
-      case Default(t) => s"Default[$t]"
-      case e =>
-        val name = e.getClass.getSimpleName
-        val sh = (e: Expr) =>
-          show(e, collapseStm = collapseStm, evalVec = evalVec)
-        val children = e.children.map(sh).mkString(", ")
-        s"$name($children)"
-    }
-  }
 
   /** Produce Scala code that I can copy and paste (e.g., to take some large
     * expression and use it in a test case).
@@ -225,18 +105,6 @@ object PrettyPrinter {
     }
   }
 
-  private def isMultiline(s: String): Boolean = s.linesIterator.length > 1
-
-  private def showWithParens(
-      e: Expr
-  )(implicit nameByParam: Map[Param, String]): String = {
-    if (shouldParenthesize(e)) {
-      s"(${show(e)})"
-    } else {
-      show(e)
-    }
-  }
-
   private def showScalaWithParens(e: Expr): String = {
     val str = showScala(e)
     if (shouldParenthesize(e)) s"($str)" else str
@@ -248,22 +116,6 @@ object PrettyPrinter {
           _: PadTo | _: TruncateTo =>
         false
       case _ => true
-    }
-  }
-
-  private def tryEvalVec(v: VecBuild): Option[Seq[Expr]] = {
-    PartialEvalPass.partialEval(v.len) match {
-      case IntCst(n) =>
-        val elems =
-          (0 until n.toInt).map(i =>
-            PartialEvalPass.partialEval(VecAccess(v, i)())
-          )
-        if (elems.exists(e => e.isInstanceOf[VecAccess])) {
-          None
-        } else {
-          Some(elems)
-        }
-      case _ => None
     }
   }
 }
