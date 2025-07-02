@@ -6,6 +6,10 @@ package mhir.ir
   */
 object Precedence {
 
+  /** The minimum (i.e., tightest) possible precedence.
+    */
+  val Min: Int = Precedence(C(0)(U8))
+
   /** The maximum (i.e., loosest) possible precedence.
     */
   val Max: Int = Int.MaxValue

@@ -4,8 +4,19 @@ package mhir.ir
   */
 object ExprPrinter {
 
-  private val Indent: String = "  "
+  val Indent: String = "  "
 
+  /** Converts the given expression to a string that may be multiple lines.
+    *
+    * @param e
+    *   the expression to stringify.
+    * @param maxWidth
+    *   the maximum line width. A best effort will be made to keep the code
+    *   within this limit, but it is not guaranteed.
+    * @param parentPrecedence
+    *   the precedence of the parent of the given expression. This will be used
+    *   to determine whether the output should be wrapped in parentheses.
+    */
   def display(
       e: Expr,
       maxWidth: Int = 80,
@@ -19,10 +30,22 @@ object ExprPrinter {
     }
   }
 
-  private def displayMultiLine(
+  /** Converts the given expression to a string in which the top-level
+    * expression is split across multiple lines (if possible).
+    *
+    * @param e
+    *   the expression to stringify.
+    * @param maxWidth
+    *   the maximum line width. A best effort will be made to keep the code
+    *   within this limit, but it is not guaranteed.
+    * @param parentPrecedence
+    *   the precedence of the parent of the given expression. This will be used
+    *   to determine whether the output should be wrapped in parentheses.
+    */
+  def displayMultiLine(
       e: Expr,
       maxWidth: Int,
-      parentPrecedence: Int
+      parentPrecedence: Int = Precedence.Max
   ): String = {
     val myPrecedence = Precedence(e)
     val str = e match {
@@ -355,7 +378,7 @@ object ExprPrinter {
       .mkString("\n")
   }
 
-  private def indent(s: String): String = {
+  def indent(s: String): String = {
     s.split("\n").map(line => s"$Indent$line").mkString("\n")
   }
 
@@ -499,6 +522,15 @@ object ExprPrinter {
     s"$f(${args.map(e => displayOneLine(e, Precedence.Max)).mkString(", ")})"
   }
 
+  /** Converts a function call-like expression to a multi-line string.
+    *
+    * @param f
+    *   the function name.
+    * @param args
+    *   the function arguments.
+    * @param maxWidth
+    *   the maximum line width. See [[display]].
+    */
   def displayFunCallMultiLine(
       f: String,
       args: Seq[Expr],
@@ -513,7 +545,7 @@ object ExprPrinter {
       parentPrecedence: Int,
       childPrecedence: Int
   ): Boolean = {
-    parentPrecedence <= childPrecedence
+    parentPrecedence < Precedence.Max && parentPrecedence <= childPrecedence
   }
 
   /** Produce Scala code that I can copy and paste (e.g., to take some large
