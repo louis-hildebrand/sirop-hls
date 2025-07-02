@@ -39,11 +39,11 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e, maxWidth = 15) == expectedMultiLine)
   }
 
-  test("x.__1") {
-    val x = Param("x", -1)(TyTuple(U8, I32))
-    val e = x.__1
-    assert(ExprPrinter.displayOneLine(e) == s"x.1")
-    assert(ExprPrinter.display(e) == s"x.1")
+  test("x.__0 + x.__1") {
+    val x = Param("x", -1)(TyTuple(U8, U8))
+    val e = Sum(x.__0, x.__1)()
+    assert(ExprPrinter.displayOneLine(e) == s"x.0 + x.1")
+    assert(ExprPrinter.display(e) == s"x.0 + x.1")
   }
 
   test("mux.__2") {

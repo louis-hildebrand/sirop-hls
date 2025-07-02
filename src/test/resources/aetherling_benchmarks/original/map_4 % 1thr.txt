@@ -1,0 +1,12 @@
+module0 (I :: UInt8T) =
+    n13 = Const_GenN UInt8V 5 1 UInt8T
+    n6 = ATupleN UInt8T UInt8T I n13
+    n7 = AddN UInt8T n6
+
+module1 (I :: (TSeqT 50 0 (SSeqT 4 UInt8T))) =
+    n1 = FIFON (TSeqT 50 0 (SSeqT 4 UInt8T)) 1 "I"
+    n9 = Map_tN 50 0 (Map_sN 4 module0 I) n1
+    n10 = FIFON (TSeqT 50 0 (SSeqT 4 UInt8T)) 1 "n9"
+    n11 = FIFON (TSeqT 50 0 (SSeqT 4 UInt8T)) 1 "n10"
+    n12 = FIFON (TSeqT 50 0 (SSeqT 4 UInt8T)) 1 "n11"
+

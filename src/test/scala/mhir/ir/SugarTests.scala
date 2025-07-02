@@ -82,6 +82,14 @@ class SugarTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == "1:u8 + (let x = 42:u8 in x)")
   }
 
+  test("Lets") {
+    val x = Param("x")()
+    val y = Param("y")()
+    val actual = Lets(x -> C(5)(U8), y -> C(-21)(I32))(x + y)
+    val expected = Let(x, C(5)(U8), Let(y, C(-21)(I32), x + y)())()
+    assert(actual == expected)
+  }
+
   test("Default[Bool]:Display") {
     val e = Default(TyBool)
     assert(ExprPrinter.displayOneLine(e) == "default[bool]")

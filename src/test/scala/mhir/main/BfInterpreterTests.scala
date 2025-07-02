@@ -37,7 +37,7 @@ class BfInterpreterTests extends AnyFunSuite {
   test("[]") {
     val program = "[]."
     val input = ""
-    val expectedOutput = "\0"
+    val expectedOutput = "\u0000"
     val actualOutput = BfInterpreter.run(
       tapeLength = 1,
       maxOutputLength = expectedOutput.length,

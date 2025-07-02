@@ -411,7 +411,15 @@ case class StmMap(
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmMap has type $t.")
     }
-    val newF = f.tchk(context)
+    val newF = {
+      val withAnnotatedInput = f.param.typ match {
+        case Missing =>
+          val x = f.param.rebuild(t1).asInstanceOf[Param]
+          Function(x, f.body)()
+        case _ => f
+      }
+      withAnnotatedInput.tchk(context)
+    }
     val t2 = newF.typ match {
       case TyArrow(t, t2) if t ~= t1 => t2
       case t =>
@@ -1461,5 +1469,15 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
       Stm2Vec(stm)(), // flat vector
       TyVec(t, n) ::+ (v => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)))())())
     )().tchk().lower()
+  }
+}
+
+/** Like `FIFON` in
+  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]].
+  */
+object Fifo {
+  def apply(x: Expr): Expr = {
+    // TODO: Is it really a no-op?
+    x
   }
 }

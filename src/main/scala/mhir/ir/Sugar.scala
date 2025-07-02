@@ -115,6 +115,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 }
 
+/** Like a [[Let]] expression, but can have more than one assignment.
+  */
+object Lets {
+  def apply(assignments: (Param, Expr)*)(body: Expr): Expr = {
+    assignments.foldRight(body)({ case ((x, v), acc) => Let(x, v, acc)() })
+  }
+}
+
 /** The default value for a given data type.
   *
   * For example, the default integer is zero, the default boolean is false, and
@@ -366,6 +374,21 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     val t = ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ).get
     Equal(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower()
   }
+
+  override def precedence: Int = Precedence.Equal
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "===", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      Seq(this.e1, this.e2),
+      "!==",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
+  }
 }
 
 /** Decides whether one value is strictly less than another, even if the values
@@ -414,6 +437,21 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     val t = ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ).get
     LessThan(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower()
   }
+
+  override def precedence: Int = Precedence.LessThan
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "<<", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      Seq(this.e1, this.e2),
+      "<<",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
+  }
 }
 
 /** The sum of multiple values, even ones with slightly different types.
@@ -460,6 +498,21 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
       val typ = this.typ.asInstanceOf[TyAnyInt]
       Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
     }
+  }
+
+  override def precedence: Int = Precedence.Sum
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(this.terms, "++", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      this.terms,
+      "++",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
   }
 }
 
@@ -508,6 +561,21 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
       val typ = this.typ.asInstanceOf[TyAnyInt]
       Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
     }
+  }
+
+  override def precedence: Int = Precedence.Prod
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(this.factors, "**", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      this.factors,
+      "**",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
   }
 }
 
@@ -597,6 +665,21 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
     val e2 = this.e2.lower()
     Div(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
   }
+
+  override def precedence: Int = Precedence.Div
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "//", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      Seq(this.e1, this.e2),
+      "//",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
+  }
 }
 
 /** Computes [[Mod]] of two values, even ones with slightly different types.
@@ -644,5 +727,20 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
     val e1 = this.e1.lower()
     val e2 = this.e2.lower()
     Mod(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
+  }
+
+  override def precedence: Int = Precedence.Mod
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "%%", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      Seq(this.e1, this.e2),
+      "%%",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
   }
 }

@@ -103,6 +103,8 @@ case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
   *
   * To ensure variables are unique and facilitate generating new variables, each
   * variable's name is constructed from a prefix together with a unique number.
+  * For variables which do not really have an ID (e.g., directly after parsing),
+  * just use an ID of -1.
   *
   * @param prefix
   *   the prefix for the variable name.
@@ -110,7 +112,7 @@ case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
   *   the unique number for the variable name.
   */
 case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
-  val name: String = if (id <= 0) prefix else s"${prefix}_$id"
+  val name: String = if (this.id <= 0) prefix else s"${prefix}_$id"
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Param = {
     require(newChildren.isEmpty)
