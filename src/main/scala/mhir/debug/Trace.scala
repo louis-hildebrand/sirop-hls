@@ -1,5 +1,6 @@
 package mhir.debug
 
+import mhir.ir.ExprPrinter
 import mhir.ir.evaluate._
 import os.Path
 
@@ -80,7 +81,7 @@ object FullTraceNode {
       n = s.n,
       state = s.state,
       accumulators = s.currentValByDataAcc.map({ case (x, v) =>
-        x.name -> PrettyPrinter.show(v, evalVec = true)()
+        x.name -> ExprPrinter.display(v)
       }),
       inputs = s.inputs.map({ case (x, s) => x.name -> FullTraceNode(s) })
     )
@@ -115,7 +116,7 @@ object SummarizedTraceNode {
       n = s.n,
       state = s.state,
       accumulators = s.currentValByDataAcc.map({ case (x, v) =>
-        x.name -> PrettyPrinter.show(v, evalVec = true)()
+        x.name -> ExprPrinter.display(v)
       }),
       inputLengths = s.inputs.map({ case (x, s) => x.name -> s.n })
     )

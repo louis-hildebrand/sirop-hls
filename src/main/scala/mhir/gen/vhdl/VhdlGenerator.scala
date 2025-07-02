@@ -1,6 +1,5 @@
 package mhir.gen.vhdl
 
-import mhir.debug.PrettyPrinter
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -187,8 +186,8 @@ object VhdlGenerator {
     val (externalProducerPorts, externalProducerSignals) =
       externalProducerInterface(whereUsedByInput, readyCondByProducer)
 
-    val comment = PrettyPrinter
-      .show(s)(Map())
+    val comment = ExprPrinter
+      .display(s)
       .split("\n")
       .map(x => s"-- $x")
       .mkString("\n")

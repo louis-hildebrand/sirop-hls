@@ -110,7 +110,7 @@ case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
   *   the unique number for the variable name.
   */
 case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
-  val name: String = s"${prefix}_$id"
+  val name: String = if (id <= 0) prefix else s"${prefix}_$id"
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Param = {
     require(newChildren.isEmpty)
@@ -994,6 +994,16 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def displayOneLine(): String = {
     ExprPrinter.displayFunCallOneLine(this.className, this.children)
+  }
+
+  /** Convert this expression to a string, with this expression being wrapped.
+    *
+    * @note
+    *   there is no need to wrap the final result in parentheses; that will be
+    *   handled outside this method.
+    */
+  def displayMultiLine(maxWidth: Int): String = {
+    ExprPrinter.displayFunCallMultiLine(this.className, this.children, maxWidth)
   }
 
   def typecheck(implicit context: Map[Param, Type]): Expr
