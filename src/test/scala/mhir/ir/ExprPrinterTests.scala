@@ -363,6 +363,25 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expectedMultiLine)
   }
 
+  test("[[0, 1], [2, 3]]") {
+    val e = VecLiteral(
+      VecLiteral(C(0)(U8), C(1)(U8))(),
+      VecLiteral(C(2)(U8), C(3)(U8))()
+    )()
+
+    val expectedOneLine = s"[[0:u8, 1:u8], [2:u8, 3:u8]]"
+    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""[
+         |  [0:u8, 1:u8],
+         |  [2:u8, 3:u8]
+         |]
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e, maxWidth = 80)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
   test("HugeExpression") {
     val e = StmFold(
       StmCount3D(C(2)(U8), C(2)(U8), C(3)(U8))(),
