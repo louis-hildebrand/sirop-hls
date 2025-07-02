@@ -18,6 +18,30 @@ object Precedence {
     */
   val FunCall: Int = Precedence(mhir.ir.FunCall(C(0)(), C(0)())())
 
+  /** The precedence of a sum.
+    */
+  val Sum: Int = Precedence(mhir.ir.Sum(C(0)(), C(0)())())
+
+  /** The precedence of a product.
+    */
+  val Prod: Int = Precedence(mhir.ir.Prod(C(1)(), C(1)())())
+
+  /** The precedence of a quotient.
+    */
+  val Div: Int = Precedence(mhir.ir.Div(C(1)(), C(1)())())
+
+  /** The precedence of [[mhir.ir.Mod]].
+    */
+  val Mod: Int = Precedence(mhir.ir.Mod(C(1)(), C(1)())())
+
+  /** The precedence of [[mhir.ir.Equal]].
+    */
+  val Equal: Int = Precedence(mhir.ir.Equal(C(1)(), C(1)())())
+
+  /** The precedence of [[mhir.ir.LessThan]].
+    */
+  val LessThan: Int = Precedence(mhir.ir.LessThan(C(1)(), C(1)())())
+
   /** Gets the precedence of the given expression.
     *
     * Lower numbers indicate that the given operator binds "more tightly." For

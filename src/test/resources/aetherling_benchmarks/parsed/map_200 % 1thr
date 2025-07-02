@@ -1,3 +1,3 @@
-let module0 = (I : u8) => let n11 = 5:u8 in let n5 = (I, n11) in SmartSum(n5.0, n5.1) in
+let module0 = (I : u8) => let n11 = 5:u8 in let n5 = (I, n11) in n5.0 ++ n5.1 in
 (I : Vec[u8, 200:u8]) =>
   let n1 = I in let n7 = VecMap(n1, module0) in let n8 = n7 in let n9 = n8 in n9

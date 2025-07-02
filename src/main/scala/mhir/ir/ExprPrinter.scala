@@ -345,7 +345,19 @@ object ExprPrinter {
       .mkString(s"$start\n", ",\n", s"\n$end")
   }
 
-  private def displayMultiLineInfixOp(
+  /** Display an infix operation as a multi-line string, with each operand on
+    * separate lines.
+    *
+    * @param elems
+    *   the operands.
+    * @param op
+    *   the symbol for the operation.
+    * @param maxWidth
+    *   the maximum line width. See [[display]].
+    * @param precedence
+    *   the precedence of the operation.
+    */
+  def displayMultiLineInfixOp(
       elems: Seq[Expr],
       op: String,
       maxWidth: Int,
@@ -412,23 +424,13 @@ object ExprPrinter {
       case c: IntCst =>
         s"${c.i}:${c.typ}"
       case Sum(terms @ _*) =>
-        terms.map(e => displayOneLine(e, myPrecedence)).mkString(" + ")
+        displayOneLineInfixOp(terms, "+", myPrecedence)
       case Prod(factors @ _*) =>
-        factors.map(e => displayOneLine(e, myPrecedence)).mkString(" * ")
+        displayOneLineInfixOp(factors, "*", myPrecedence)
       case Div(e1, e2) =>
-        // If the precedence of e1 is equal to the precedence of this
-        // expression, then there's actually no need for parentheses
-        // because the expression will be parsed left-to-right.
-        val e1Str = displayOneLine(e1, myPrecedence + 1)
-        val e2Str = displayOneLine(e2, myPrecedence)
-        s"$e1Str / $e2Str"
+        displayOneLineInfixOp(Seq(e1, e2), "/", myPrecedence)
       case Mod(e1, e2) =>
-        // If the precedence of e1 is equal to the precedence of this
-        // expression, then there's actually no need for parentheses
-        // because the expression will be parsed left-to-right.
-        val e1Str = displayOneLine(e1, myPrecedence + 1)
-        val e2Str = displayOneLine(e2, myPrecedence)
-        s"$e1Str % $e2Str"
+        displayOneLineInfixOp(Seq(e1, e2), "%", myPrecedence)
       case PadTo(e, w) =>
         s"pad$w(${displayOneLine(e, Precedence.Max)})"
       case TruncateTo(e, w) =>
@@ -450,9 +452,9 @@ object ExprPrinter {
       case Not(e) =>
         s"!${displayOneLine(e, myPrecedence)}"
       case And(terms @ _*) =>
-        terms.map(e => displayOneLine(e, myPrecedence)).mkString(" && ")
+        displayOneLineInfixOp(terms, "&&", myPrecedence)
       case Or(terms @ _*) =>
-        terms.map(e => displayOneLine(e, myPrecedence)).mkString(" || ")
+        displayOneLineInfixOp(terms, "||", myPrecedence)
       case Mux(c, t, f) =>
         val cStr = displayOneLine(c, Precedence.Max)
         val tStr = displayOneLine(t, Precedence.Max)
@@ -505,6 +507,34 @@ object ExprPrinter {
     } else {
       str
     }
+  }
+
+  /** Display an infix operation as a single-line string.
+    *
+    * @param elems
+    *   the operands.
+    * @param op
+    *   the symbol for the operation.
+    * @param precedence
+    *   the precedence of the operation.
+    */
+  def displayOneLineInfixOp(
+      elems: Seq[Expr],
+      op: String,
+      precedence: Int
+  ): String = {
+    elems.zipWithIndex
+      .map({ case (e, i) =>
+        if (i == 0) {
+          // If the precedence of the first operand is equal to the precedence
+          // of this expression, then there's actually no need for parentheses
+          // because the expression will be parsed left-to-right.
+          displayOneLine(e, precedence + 1)
+        } else {
+          displayOneLine(e, precedence)
+        }
+      })
+      .mkString(s" $op ")
   }
 
   /** Converts a function call-like expression to a single-line string.
