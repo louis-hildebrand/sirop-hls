@@ -1,7 +1,8 @@
-let module0 = (I : u8) => let n13 = 5:u8 in let n6 = (I, n13) in n6.0 ++ n6.1 in
+// Output type: Stm[Vec[u8, 40:u6], 5:u3] -> Stm[Vec[u8, 40:u6], 5:u3]
+let module0: u8 -> u8 = (I : u8) => let n13: u8 = 5:u8 in let n6: (u8, u8) = (I, n13) in n6.0 ++ n6.1 in
 (I : Stm[Vec[u8, 40:u6], 5:u3]) =>
-  let n1 = I in
-  let n9 = StmMap(n1, (I : Missing) => VecMap(I, module0)) in
-  let n10 = n9 in
-  let n11 = n10 in
+  let n1: Stm[Vec[u8, 40:u6], 5:u3] = I in
+  let n9: Stm[Vec[u8, 40:u6], 5:u3] = StmMap(n1, (I : Vec[u8, 40:u6]) => VecMap(I, module0)) in
+  let n10: Stm[Vec[u8, 40:u6], 5:u3] = n9 in
+  let n11: Stm[Vec[u8, 40:u6], 5:u3] = n10 in
   n11
