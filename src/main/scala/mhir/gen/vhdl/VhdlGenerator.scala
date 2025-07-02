@@ -1,6 +1,5 @@
 package mhir.gen.vhdl
 
-import mhir.debug.PrettyPrinter
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
