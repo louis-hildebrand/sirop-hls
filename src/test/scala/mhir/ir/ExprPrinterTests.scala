@@ -1,5 +1,8 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
+import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.{StmCount3D, StmFold, StmMap}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
@@ -361,8 +364,41 @@ class ExprPrinterTests extends AnyFunSuite {
   }
 
   test("HugeExpression") {
-    // TODO: Test that the expression printer can display a large expression in
-    //       a reasonable amount of time
-    pending
+    val e = StmFold(
+      StmCount3D(C(2)(U8), C(2)(U8), C(3)(U8))(),
+      C(0)(U8),
+      U8 ::+ (acc =>
+        TyStm(TyStm((U8, U8, U8), 3), 2) ::+ (s =>
+          StmMap(
+            StmFold(
+              s,
+              C(0)(U8),
+              U8 ::+ (acc =>
+                TyStm((U8, U8, U8), 3) ::+ (s =>
+                  StmMap(
+                    StmFold(
+                      s,
+                      C(0)(U8),
+                      U8 ::+ (acc =>
+                        (U8, U8, U8) ::+ (x => acc + x.__0 + x.__1 + x.__2)
+                      )
+                    )(),
+                    U8 ::+ (x => acc + x)
+                  )()
+                )
+              )
+            )(),
+            U8 ::+ (x => acc + x)
+          )()
+        )
+      )
+    )().tchk().lower()
+    val start = System.nanoTime()
+    val str = ExprPrinter.display(e)
+    val duration = (System.nanoTime() - start) / 10000000000L
+    // Not a big deal how exactly the code is formatted, as long as the pretty
+    // printer doesn't take forever
+    assert(str.nonEmpty)
+    assert(duration < 10)
   }
 }
