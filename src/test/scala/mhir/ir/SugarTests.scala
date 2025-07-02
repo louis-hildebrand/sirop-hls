@@ -57,12 +57,49 @@ class SugarTests extends AnyFunSuite {
     assert(e2 != e1)
   }
 
+  test("Let:Display") {
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(Missing)
+    val e = Let(x, C(42)(U8), Let(y, C(-1)(I9), Sum(ToSigned(x)(), y)())())()
+
+    val expectedOneLine = "let x: u8 = 42:u8 in let y = -1:i9 in sgn(x) + y"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""let x: u8 = 42:u8 in
+         |let y = -1:i9 in
+         |sgn(x) + y
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.display(e, maxWidth = 30)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("Let+1:Display") {
+    val x = Param("x", -1)(Missing)
+    val e = Sum(C(1)(U8), Let(x, C(42)(U8), x)())()
+    assert(ExprPrinter.displayOneLine(e) == "1:u8 + (let x = 42:u8 in x)")
+    assert(ExprPrinter.display(e) == "1:u8 + (let x = 42:u8 in x)")
+  }
+
   test("Lets") {
     val x = Param("x")()
     val y = Param("y")()
     val actual = Lets(x -> C(5)(U8), y -> C(-21)(I32))(x + y)
     val expected = Let(x, C(5)(U8), Let(y, C(-21)(I32), x + y)())()
     assert(actual == expected)
+  }
+
+  test("Default[Bool]:Display") {
+    val e = Default(TyBool)
+    assert(ExprPrinter.displayOneLine(e) == "default[bool]")
+    assert(ExprPrinter.display(e) == "default[bool]")
+  }
+
+  test("Default[I16]:Display") {
+    val e = Default(I16)
+    assert(ExprPrinter.displayOneLine(e) == "default[i16]")
+    assert(ExprPrinter.display(e) == "default[i16]")
   }
 
   test("ReshapeData:Valid") {

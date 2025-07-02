@@ -2,6 +2,7 @@ package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
+import mhir.ir.{ExprPrinter => EP}
 
 /** A let expression.
   *
@@ -58,6 +59,46 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     Let(newX, v.subAndEraseType(subs), newIn.subAndEraseType(subs))()
   }
 
+  override def precedence: Int = Precedence.Max
+
+  override def displayOneLine(): String = {
+    val xStr = this.x.typ match {
+      case Missing => this.x.name
+      case t       => s"${this.x.name}: $t"
+    }
+    val vStr =
+      EP.displayOneLine(this.v, parentPrecedence = this.precedence)
+    val inStr =
+      EP.displayOneLine(this.in, parentPrecedence = this.precedence)
+    s"let $xStr = $vStr in $inStr"
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    val xStr = this.x.typ match {
+      case Missing => this.x.name
+      case t       => s"${this.x.name}: $t"
+    }
+    val vStr = {
+      val str = EP.display(
+        this.v,
+        maxWidth = maxWidth - EP.Indent.length,
+        parentPrecedence = this.precedence
+      )
+      if (str.contains("\n")) {
+        s"(\n${EP.indent(str)}\n)"
+      } else {
+        str
+      }
+    }
+    val inStr = this.in match {
+      case _: Let =>
+        EP.displayMultiLine(this.in, maxWidth = maxWidth)
+      case _ =>
+        EP.display(this.in, maxWidth = maxWidth)
+    }
+    s"let $xStr = $vStr in\n$inStr"
+  }
+
   private def asFunCall(): FunCall = {
     FunCall(Function(this.x, this.in)(), this.v)()
   }
@@ -108,6 +149,12 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
 
   override def lowerSyntaxSugar(): Expr =
     Default.getDefault(this.typ).tchk().lower()
+
+  override def precedence: Int = Precedence.Min
+
+  override def displayOneLine(): String = s"default[${this.typ}]"
+
+  override def displayMultiLine(maxWidth: Int): String = this.displayOneLine()
 }
 
 /** Companion object for [[Default]].

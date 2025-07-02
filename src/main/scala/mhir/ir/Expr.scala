@@ -998,6 +998,16 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     ExprPrinter.displayFunCallOneLine(this.className, this.children)
   }
 
+  /** Convert this expression to a string, with this expression being wrapped.
+    *
+    * @note
+    *   there is no need to wrap the final result in parentheses; that will be
+    *   handled outside this method.
+    */
+  def displayMultiLine(maxWidth: Int): String = {
+    ExprPrinter.displayFunCallMultiLine(this.className, this.children, maxWidth)
+  }
+
   def typecheck(implicit context: Map[Param, Type]): Expr
 
   /** Remove syntax sugar from this node and its children.
