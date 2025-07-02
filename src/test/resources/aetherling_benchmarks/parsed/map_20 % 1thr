@@ -1,1 +1,7 @@
-Let(module0, (I : u8) => Let(n13, 5:u8, Let(n6, t(I, n13), SmartSum(n6.__0, n6.__1))), (I : Stm[Vec[u8, 20:u5], 10:u4]) => Let(n1, I, Let(n9, StmMap(n1, (I : Missing) => VecMap(I, module0)), Let(n10, n9, Let(n11, n10, n11)))))
+let module0 = (I : u8) => let n13 = 5:u8 in let n6 = (I, n13) in SmartSum(n6.0, n6.1) in
+(I : Stm[Vec[u8, 20:u5], 10:u4]) =>
+  let n1 = I in
+  let n9 = StmMap(n1, (I : Missing) => VecMap(I, module0)) in
+  let n10 = n9 in
+  let n11 = n10 in
+  n11

@@ -6,7 +6,7 @@ import mhir.sugar.{Fifo, StmMap, VecMap}
 import org.scalatest.funsuite.AnyFunSuite
 import os.Path
 
-class AtherlingParserTests extends AnyFunSuite {
+class AetherlingParserTests extends AnyFunSuite {
 
   /** The directory containing benchmarks written in Aetherling's space-time
     * language.
@@ -30,6 +30,11 @@ class AtherlingParserTests extends AnyFunSuite {
     * forget to review the outputs and change this field back to `false`.
     */
   private val SaveOutput: Boolean = false
+
+  private def save(f: Path, code: String): Unit = {
+    if (os.exists(f)) os.remove(f)
+    os.write(f, code)
+  }
 
   test("SaveOutput") {
     assert(!SaveOutput)
@@ -102,10 +107,10 @@ class AtherlingParserTests extends AnyFunSuite {
     for (f <- files) {
       val code = os.read(f)
       val parsed = AetherlingParser.parse(code)
-      val actual = mhir.debug.PrettyPrinter.show(parsed)
+      val actual = ExprPrinter.display(parsed)
       val expectedPath = ParsedCodeDir / f.baseName
       if (SaveOutput) {
-        os.write(expectedPath, actual)
+        save(expectedPath, actual)
       } else {
         val expected = os.read(expectedPath)
         assert(actual == expected)

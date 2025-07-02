@@ -1,1 +1,12 @@
-Let(module0, (I : u8) => Let(n11, 5:u8, Let(n5, t(I, n11), SmartSum(n5.__0, n5.__1))), (I : Stm[u8, 200:u8]) => Let(n1, I, Let(n7, StmMap(n1, (I : u8) => Let(n11, 5:u8, Let(n5, t(I, n11), SmartSum(n5.__0, n5.__1)))), Let(n8, n7, Let(n9, n8, n9)))))
+let module0 = (I : u8) => let n11 = 5:u8 in let n5 = (I, n11) in SmartSum(n5.0, n5.1) in
+(I : Stm[u8, 200:u8]) =>
+  let n1 = I in
+  let n7 = (
+    StmMap(
+      n1,
+      (I : u8) => let n11 = 5:u8 in let n5 = (I, n11) in SmartSum(n5.0, n5.1)
+    )
+  ) in
+  let n8 = n7 in
+  let n9 = n8 in
+  n9
