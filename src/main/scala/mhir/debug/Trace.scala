@@ -81,7 +81,6 @@ object FullTraceNode {
       n = s.n,
       state = s.state,
       accumulators = s.currentValByDataAcc.map({ case (x, v) =>
-        // TODO: evalVec = true?
         x.name -> ExprPrinter.display(v)
       }),
       inputs = s.inputs.map({ case (x, s) => x.name -> FullTraceNode(s) })
@@ -117,7 +116,6 @@ object SummarizedTraceNode {
       n = s.n,
       state = s.state,
       accumulators = s.currentValByDataAcc.map({ case (x, v) =>
-        // TODO: evalVec = true?
         x.name -> ExprPrinter.display(v)
       }),
       inputLengths = s.inputs.map({ case (x, s) => x.name -> s.n })
