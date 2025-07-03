@@ -6,6 +6,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
 import mhir.optimize.{Simplifier => S}
+import mhir.sugar.Streamifier.Streamify
 
 /** A compiler for programs written in
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s space-time
@@ -69,7 +70,12 @@ object Compiler {
       println(ExprPrinter.display(simplified))
     }
 
-    simplified match {
+    val finalProgram = makeSynthesizable(simplified)
+    if (args.showFinal) {
+      println(ExprPrinter.display(finalProgram))
+    }
+
+    finalProgram match {
       case f: Function =>
         VhdlGenerator.emitVhdl(f, args.outDir)
       case s: StmBuild =>
@@ -80,6 +86,10 @@ object Compiler {
         )
     }
 
-    simplified
+    finalProgram
+  }
+
+  private def makeSynthesizable(e: Expr): Expr = {
+    e.streamify()
   }
 }

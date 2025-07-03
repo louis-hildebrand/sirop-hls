@@ -32,6 +32,10 @@ class CompilerTests extends AnyFunSuite {
     assert(TestRunner.testExistingProject(outDir) == TestPassed)
   }
 
+  test("map:1:no-simplify") {
+    pending
+  }
+
   test("map:20") {
     val inFile = BenchmarksDir / "map_20.txt"
     val outDir = VhdlDir / "aetherling_map_20_test"
@@ -56,16 +60,17 @@ class CompilerTests extends AnyFunSuite {
     assert(TestRunner.testExistingProject(outDir) == TestPassed)
   }
 
+  test("map:20:no-simplify") {
+    pending
+  }
+
   test("map:200") {
     val outDir = VhdlDir / "aetherling_map_200_test"
     if (os.exists(outDir)) os.remove.all(outDir)
     val args = Args(inFile = BenchmarksDir / "map_200.txt", outDir = outDir)
     val f = Compiler.compile(args)
-    val input = TestInput(
-      Seq(
-        Some(StmLiteral(VecLiteral((0 until 200).map(i => C(i)(U8)): _*)())())
-      )
-    )
+    val input =
+      TestInput(Seq(Some(VecLiteral((0 until 200).map(i => C(i)(U8)): _*)())))
     val expectedOutput = StmLiteral(
       VecLiteral((0 until 200).map(i => C(i + 5)(U8)): _*)()
     )()
@@ -75,5 +80,9 @@ class CompilerTests extends AnyFunSuite {
       dir = outDir
     )
     assert(TestRunner.testExistingProject(outDir) == TestPassed)
+  }
+
+  test("map:200:no-simplify") {
+    pending
   }
 }

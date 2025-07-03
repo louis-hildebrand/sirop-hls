@@ -20,6 +20,8 @@ import os.Path
   *   whether to display the program immediately after lowering.
   * @param showSimplified
   *   whether to display the program immediately after simplification.
+  * @param showFinal
+  *   whether to display the final program used to generate VHDL.
   */
 case class Args(
     inFile: Path,
@@ -29,7 +31,8 @@ case class Args(
     showParsed: Boolean = false,
     showChecked: Boolean = false,
     showLowered: Boolean = false,
-    showSimplified: Boolean = false
+    showSimplified: Boolean = false,
+    showFinal: Boolean = false
 )
 
 /** Companion object for [[Args]].
@@ -61,6 +64,7 @@ object Args {
     var showChecked = false
     var showLowered = false
     var showSimplified = false
+    var showFinal = false
     for (a <- args.drop(2)) {
       a match {
         case "-h" | "--help" =>
@@ -75,6 +79,8 @@ object Args {
           showLowered = true
         case "--show-simplified" =>
           showSimplified = true
+        case "--show-final" =>
+          showFinal = true
         case _ =>
           throw new BadArgsException(s"unrecognized argument: $a")
       }
@@ -87,7 +93,8 @@ object Args {
       showParsed = showParsed,
       showChecked = showChecked,
       showLowered = showLowered,
-      showSimplified = showSimplified
+      showSimplified = showSimplified,
+      showFinal = showFinal
     )
   }
 
@@ -101,7 +108,7 @@ object Args {
       }
     }
     println(
-      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified]"
+      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final]"
     )
   }
 
@@ -118,6 +125,7 @@ object Args {
          |  --show-checked     show the program after type checking
          |  --show-lowered     show the program after lowering
          |  --show-simplified  show the simplified program
+         |  --show-final       show the final program right before VHDL generation
          |""".stripMargin.stripTrailing
     )
   }
