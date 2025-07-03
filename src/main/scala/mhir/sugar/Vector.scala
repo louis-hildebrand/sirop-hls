@@ -4,6 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.StreamReplicator.StreamReplication
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.sugar.Streamifier.Streamify
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -71,22 +72,19 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           U32 ::+ (i => FunCall(f, VecAccess(v, i)())())
         )().tchk().lower()
       case TyArrow(t1, _: TyStm) =>
-        val (x, stm) = f match {
-          case f: Function => AsStm2Stm(f)
-          case f =>
-            throw new IllegalArgumentException(
-              s"Cannot lower VecMap with function $f."
-            )
-        }
+        val streamifiedF = f.streamify().asInstanceOf[Function]
+        val (x, stm) =
+          (streamifiedF.param, streamifiedF.body.asInstanceOf[StmBuild])
         val n = this.v.typ.asInstanceOf[TyVec].n
         val i = Param("i")(U32)
         val replicatedStm = stm.replicate(n, i = i, varsToReplicate = Set(x))
-        t1 match {
+        val result = t1 match {
           case _: TyStm =>
             replicatedStm.subPreserveType(x -> v)
           case _ =>
             replicatedStm.subPreserveType(x -> StmCst(1, v)().tchk().lower())
         }
+        result.tchk().lower()
       case t =>
         throw new IllegalArgumentException(
           s"Cannot lower VecMap with function of type $t."

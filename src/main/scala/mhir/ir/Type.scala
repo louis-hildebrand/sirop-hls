@@ -423,3 +423,18 @@ object TyStm {
 object TyOption {
   def apply(t: Type): Type = TyTuple(t, TyBool)
 }
+
+/** Destructor for data types (as defined by [[Type.isData]]).
+  */
+object TyData {
+
+  /** Checks whether the given type is data (as defined by [[Type.isData]]).
+    */
+  def unapply(t: Type): Option[Unit] = {
+    if (t.isData) {
+      Some(())
+    } else {
+      None
+    }
+  }
+}

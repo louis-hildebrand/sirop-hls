@@ -111,6 +111,40 @@ class ExprTests extends AnyFunSuite {
     assert(actual2.typ != Missing)
   }
 
+  test("Substitute:StmBuildWithShadowing") {
+    val n = Param("n")(U8)
+    val s = Param("s")(TyStm(U8, n))
+    val stm = StmBuild(
+      n,
+      StmData(s)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (s, True),
+        n -> (C(0)(U8), Sum(C(1)(U8), n)())
+      )
+    )().tchk()
+    val n2 = Param("n2")(U8)
+    val s2 = Param("s2")(TyStm(U8, n2))
+    val subs = Map[Expr, Expr](n -> n2, s -> s2)
+    val expected = {
+      val nn = Param("nn")(U8)
+      val ss = Param("ss")(TyStm(U8, n))
+      StmBuild(
+        n2,
+        StmData(ss)(),
+        True,
+        Map[Param, (Expr, Expr)](
+          ss -> (s2, True),
+          nn -> (C(0)(U8), Sum(C(1)(U8), nn)())
+        )
+      )()
+    }
+    val actual1 = stm.subPreserveType(subs)
+    assert(actual1 == expected)
+    val actual2 = stm.subAndEraseType(subs)
+    assert(actual2 == expected)
+  }
+
   test("SubstituteInType1") {
     val n = Param("n")(U8)
     val e = Tuple(VecBuild(n * 2, U8 ::+ (i => i))(), n + 1)().tchk()
@@ -322,6 +356,29 @@ class ExprTests extends AnyFunSuite {
     assert(typed.hashCode == untyped.hashCode)
     assert(typed == untyped)
     assert(untyped == typed)
+  }
+
+  test("StmBuild:Equals:Shadowing") {
+    val s = Param("s")()
+    val stm1 = {
+      val a = Param("a")()
+      StmBuild(
+        10,
+        StmData(a)(),
+        True,
+        Map[Param, (Expr, Expr)](a -> (s, True))
+      )()
+    }
+    val f1 = Function(s, stm1)()
+    val stm2 = StmBuild(
+      10,
+      StmData(s)(),
+      True,
+      Map[Param, (Expr, Expr)](s -> (s, True))
+    )()
+    val f2 = Function(s, stm2)()
+    assert(stm1 == stm2)
+    assert(f1 == f2)
   }
 
   test("StmBuild:NotEquals:DifferentLengths") {

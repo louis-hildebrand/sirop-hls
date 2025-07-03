@@ -251,13 +251,12 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 val renamingSubs: Map[Expr, Expr] =
                   s.accVars.map(x => x -> x.freshCopy).toMap
                 StmBuild(
-                  s.n.subAndEraseType(renamingSubs).subAndEraseType(subs),
+                  s.n.subAndEraseType(subs),
                   s.data.subAndEraseType(renamingSubs).subAndEraseType(subs),
                   s.valid.subAndEraseType(renamingSubs).subAndEraseType(subs),
                   s.equations.map({ case (x, (z, next)) =>
                     val newX = renamingSubs(x).asInstanceOf[Param]
-                    val newZ =
-                      z.subAndEraseType(renamingSubs).subAndEraseType(subs)
+                    val newZ = z.subAndEraseType(subs)
                     val newNext =
                       next.subAndEraseType(renamingSubs).subAndEraseType(subs)
                     newX -> (newZ, newNext)

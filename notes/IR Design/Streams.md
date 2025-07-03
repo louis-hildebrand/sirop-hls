@@ -271,7 +271,7 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
 			- Perhaps have evaluator and partial evaluator behave differently depending on whether the input is data or a stream? But then the partial evaluator may also only work on typed expressions
 		- Split `Function` primitive into `DataFunction` (data -> data) and `Component` (stream -> stream), with semantics of `Component` *not* defined by substitution?
 			- But then what about functions from data to stream (e.g., `Vec2Stm`?)? Can we always use `Component` instead?
-				- Maybe this would actually simplify `AsStm2Stm`!
+				- Maybe this would actually simplify `Streamifier`!
 		- Add a new primitive called `ForkJoin` which takes as input one stream and outputs one stream which may use the input multiple times?
 			- *Disadvantage:* need new primitive
 	- *Challenge:* need to watch out for deadlocks...
