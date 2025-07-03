@@ -1,4 +1,4 @@
-package mhir.main
+package mhir.main.bf
 
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
@@ -17,7 +17,7 @@ import mhir.sugar.{Min, VecShiftLeft}
   * @param maxOutputLength
   *   the maximum length of the output.
   */
-class BfInterpreter(
+class Interpreter(
     val tapeLength: Int,
     val programLength: Int,
     val inputLength: Int,
@@ -315,25 +315,25 @@ class BfInterpreter(
   }
 }
 
-/** Companion object for [[BfInterpreter]].
+/** Companion object for [[Interpreter]].
   */
-object BfInterpreter {
+object Interpreter {
 
-  /** Factory for [[BfInterpreter]].
+  /** Factory for [[Interpreter]].
     */
   def apply(
       tapeLength: Int = 32768,
       programLength: Int,
       inputLength: Int,
       maxOutputLength: Int
-  ): BfInterpreter = {
-    new BfInterpreter(tapeLength, programLength, inputLength, maxOutputLength)
+  ): Interpreter = {
+    new Interpreter(tapeLength, programLength, inputLength, maxOutputLength)
   }
 
   /** Run the given program with the given input and return the output.
     *
-    * This is shorthand for initializing a [[BfInterpreter]] and then calling
-    * the [[BfInterpreter.run]] method.
+    * This is shorthand for initializing an [[Interpreter]] and then calling the
+    * [[Interpreter.run]] method.
     *
     * @param tapeLength
     *   the number of cells in the data array.
@@ -352,7 +352,7 @@ object BfInterpreter {
       program: String,
       input: String
   ): String = {
-    val bfi = BfInterpreter(
+    val bfi = Interpreter(
       tapeLength = tapeLength,
       programLength = program.length,
       inputLength = input.length,

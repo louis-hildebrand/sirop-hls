@@ -1,8 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.ir._
+import os.{Path, RelPath}
 
-import os.Path
 import scala.sys.process._
 
 sealed trait TestResult
@@ -18,11 +18,25 @@ object TestRunner {
   private val RUN_TEST_SH = VHDL_DIR / "run_test.sh"
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
 
+  /** See [[testExistingProject(dir:Path*]].
+    *
+    * @param dir
+    *   the name of the VHDL project, relative to the `vhdl` directory within
+    *   this repository.
+    * @return
+    *   the test result.
+    */
   def testExistingProject(dir: String): TestResult = {
-    val fullDir = VHDL_DIR / dir
-    testExistingProject(fullDir)
+    testExistingProject(VHDL_DIR / RelPath(dir))
   }
 
+  /** Test an existing VHDL project that has both a design and a testbench.
+    *
+    * @param dir
+    *   the path to the VHDL project.
+    * @return
+    *   the test result.
+    */
   def testExistingProject(dir: Path): TestResult = {
     val cmd = s"$RUN_TEST_SH $dir"
     cmd.! match {

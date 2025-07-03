@@ -8,7 +8,8 @@
   * The core IR, type checker, and evaluator are defined in [[mhir.ir]]. Syntax
   * sugar for high-level constructs is defined in [[mhir.sugar]]. The backend
   * for generating VHDL is defined in [[mhir.gen]]. The optimizer is in
-  * [[mhir.optimize]]. Finally, see [[mhir.debug]] for help debugging the
+  * [[mhir.optimize]]. Parsers are in [[mhir.parse]]. Command-line programs are
+  * in [[mhir.main]]. Finally, see [[mhir.debug]] for help debugging the
   * compiler.
   */
 

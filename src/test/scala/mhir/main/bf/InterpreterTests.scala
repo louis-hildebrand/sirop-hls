@@ -1,17 +1,17 @@
-package mhir.main
+package mhir.main.bf
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tags.Slow
 
-/** Tests for [[BfInterpreter]].
+/** Tests for [[mhir.main.bf.Interpreter]].
   */
 @Slow
-class BfInterpreterTests extends AnyFunSuite {
+class InterpreterTests extends AnyFunSuite {
   test("H") {
     val program = "Should print 'H': +++++++++[>++++++++<-]>."
     val input = ""
     val expectedOutput = "H"
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 2,
       maxOutputLength = expectedOutput.length + 2,
       program = program,
@@ -25,7 +25,7 @@ class BfInterpreterTests extends AnyFunSuite {
       "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
     val input = ""
     val expectedOutput = "Hello World!"
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 32,
       maxOutputLength = expectedOutput.length,
       program = program,
@@ -38,7 +38,7 @@ class BfInterpreterTests extends AnyFunSuite {
     val program = "[]."
     val input = ""
     val expectedOutput = "\u0000"
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 1,
       maxOutputLength = expectedOutput.length,
       program = program,
@@ -51,7 +51,7 @@ class BfInterpreterTests extends AnyFunSuite {
     val program = "+++++ +++++[>+++++ +++++ +++++ +++++ +++++ +<-]>."
     val input = ""
     val expectedOutput = Seq(4.toChar).mkString("")
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 2,
       maxOutputLength = expectedOutput.length,
       program = program,
@@ -64,7 +64,7 @@ class BfInterpreterTests extends AnyFunSuite {
     val program = "-."
     val input = ""
     val expectedOutput = Seq(255.toChar).mkString("")
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 1,
       maxOutputLength = expectedOutput.length,
       program = program,
@@ -78,7 +78,7 @@ class BfInterpreterTests extends AnyFunSuite {
       ">,>+++++++++,>+++++++++++[<++++++<++++++<+>>>-]<<.>.<<-.>.>.<<."
     val input = "\n"
     val expectedOutput = "LK"
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 8,
       maxOutputLength = expectedOutput.length,
       program = program,
@@ -92,7 +92,7 @@ class BfInterpreterTests extends AnyFunSuite {
       "[]++++++++++[>>+>+>++++++[<<+<+++>>>-]<<<<-]\n\"A*$\";?@![#>>+<<]>[>>]<<<<[>++<[-]]>.>."
     val input = ""
     val expectedOutput = "H"
-    val actualOutput = BfInterpreter.run(
+    val actualOutput = Interpreter.run(
       tapeLength = 8,
       maxOutputLength = expectedOutput.length,
       program = program,

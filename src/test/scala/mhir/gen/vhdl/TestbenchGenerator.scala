@@ -9,14 +9,37 @@ import os.Path
 case class TestInput(elems: Seq[Option[Expr]])
 
 object TestbenchGenerator {
+
+  /** Create a testbench for a VHDL design.
+    *
+    * @param inputs
+    *   the inputs to provide to the design.
+    * @param e
+    *   the expression from which VHDL was generated. This will be used to
+    *   determine the expected output.
+    * @param dataTyp
+    *   the output type of the design.
+    * @param dir
+    *   the directory of the VHDL project (the whole directory containing the
+    *   design, not the `test` subdirectory).
+    */
   def makeTestbench(
       // TODO: Make it possible to test multiple values for one input?
       inputs: Seq[TestInput],
       e: Expr,
+      // TODO: Delete this argument and update VhdlGenerator
       dataTyp: VhdlType,
       dir: Path
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
+    makeTestbench(inputsByVar, out, dir)
+  }
+
+  def makeTestbench(
+      inputsByVar: Map[Param, TestInput],
+      out: StmLiteral,
+      dir: Path
+  ): Unit = {
     val outElemType = VhdlType(out.tchk().typ.asInstanceOf[TyStm].t)
     val inputProcesses = inputsByVar
       .map({ case (x, inputs) =>
@@ -38,7 +61,7 @@ object TestbenchGenerator {
                  |""".stripMargin.stripTrailing
           })
           .mkString("\n\n")
-        s"""-- Generate inputs ($x.name)
+        s"""-- Generate inputs (${x.name})
            |process
            |begin
            |${indent(steps)}
@@ -78,8 +101,8 @@ object TestbenchGenerator {
       })
       .mkString("\n")
     val expected =
-      VhdlConversionGenerator.fromStdLogicVector("expected", dataTyp)
-    val data = VhdlConversionGenerator.fromStdLogicVector("data", dataTyp)
+      VhdlConversionGenerator.fromStdLogicVector("expected", outElemType)
+    val data = VhdlConversionGenerator.fromStdLogicVector("data", outElemType)
     val str =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -96,10 +119,10 @@ object TestbenchGenerator {
          |    constant CLK_CYCLE  : time := 20 ns;
          |    signal   test_done  : boolean := false;
          |    signal   clk        : std_logic := '0';
-         |    signal   data       : std_logic_vector(${dataTyp.bitWidth - 1} downto 0);
+         |    signal   data       : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
-         |    signal   expected   : std_logic_vector(${dataTyp.bitWidth - 1} downto 0);
+         |    signal   expected   : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};

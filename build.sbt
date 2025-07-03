@@ -7,6 +7,8 @@ ThisBuild / parallelExecution := false
 ThisBuild / logBuffered := false
 ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions += "-deprecation"
+ThisBuild / showSuccess := false
+Global / excludeLintKeys += showSuccess
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 libraryDependencies += "org.scala-lang" %% "toolkit" % "0.1.7"
