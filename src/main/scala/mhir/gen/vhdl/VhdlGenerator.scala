@@ -3,7 +3,7 @@ package mhir.gen.vhdl
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-import java.nio.file.Path
+import os.Path
 import scala.annotation.tailrec
 
 /** The main class for generating VHDL from an [[mhir.ir.Expr]].

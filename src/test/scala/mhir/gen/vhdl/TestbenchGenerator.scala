@@ -4,7 +4,7 @@ import mhir.debug.indent
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-import java.nio.file.{Files, Path}
+import os.Path
 
 case class TestInput(elems: Seq[Option[Expr]])
 
@@ -152,10 +152,10 @@ object TestbenchGenerator {
          |end tb;
          |""".stripMargin
 
-    val testDir = dir.resolve("test")
-    Files.createDirectory(testDir)
-    val testbenchFile = testDir.resolve("test_top.vhd")
-    Files.writeString(testbenchFile, str)
+    val testDir = dir / "test"
+    os.makeDir.all(testDir)
+    val testbenchFile = testDir / "test_top.vhd"
+    os.write(testbenchFile, str)
   }
 
   /** Find the expected output by passing all the given inputs. Also record

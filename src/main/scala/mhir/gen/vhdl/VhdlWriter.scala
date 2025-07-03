@@ -2,14 +2,14 @@ package mhir.gen.vhdl
 
 import mhir.debug.indent
 
-import java.nio.file.{Files, Path}
+import os.Path
 
 object VhdlWriter {
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
       findTypesUsedIn(top).flatMap(t => t.descendants + t)
-    val designDir = dir.resolve("design")
-    Files.createDirectory(designDir)
+    val designDir = dir / "design"
+    os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir)
@@ -83,8 +83,8 @@ object VhdlWriter {
          |end package body;
          |""".stripMargin
 
-    val file = dir.resolve("conversions.vhd")
-    Files.writeString(file, contents)
+    val file = dir / "conversions.vhd"
+    os.write(file, contents)
   }
 
   private def emitTypedefs(typesToDefine: Set[VhdlType], dir: Path): Unit = {
@@ -130,8 +130,8 @@ object VhdlWriter {
          |end package body;
          |""".stripMargin
 
-    val file = dir.resolve("typedefs.vhd")
-    Files.writeString(file, contents)
+    val file = dir / "typedefs.vhd"
+    os.write(file, contents)
   }
 
   private def findTypesUsedIn(c: VhdlComponent): Set[VhdlType] = {
@@ -152,8 +152,8 @@ object VhdlWriter {
   }
 
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
-    val file = dir.resolve(s"${c.name}.vhd")
-    Files.writeString(file, c.vhdl)
+    val file = dir / s"${c.name}.vhd"
+    os.write(file, c.vhdl)
     for ((child, _) <- c.children) {
       emitComponents(child, dir)
     }
