@@ -55,7 +55,7 @@ object TestRunner {
   ): TestResult = {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
-    val dataTyp = e match {
+    e match {
       case s: StmBuild => VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
       case f: Function => VhdlGenerator.emitVhdl(f, VHDL_TEST_DIR)
       case _ =>
@@ -63,7 +63,7 @@ object TestRunner {
           s"Only streams and functions are supported (got expression $e)."
         )
     }
-    TestbenchGenerator.makeTestbench(inputs, e, dataTyp, VHDL_TEST_DIR)
+    TestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
   }
 }

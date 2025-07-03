@@ -22,11 +22,10 @@ object VhdlGenerator {
     * @param dir
     *   the directory in which to save the design.
     */
-  def emitVhdl(s: StmBuild, dir: Path): VhdlType = {
+  def emitVhdl(s: StmBuild, dir: Path): Unit = {
     validateExpr(s)
-    val (topComponent, typ) = stmBuildToVhdl(s, Set(), "top")
+    val topComponent = stmBuildToVhdl(s, Set(), "top")
     VhdlWriter.emit(topComponent, dir)
-    typ
   }
 
   /** Creates a VHDL design for the given function and saves it in the given
@@ -37,12 +36,11 @@ object VhdlGenerator {
     * @param dir
     *   the directory in which to save the design.
     */
-  def emitVhdl(f: Function, dir: Path): VhdlType = {
+  def emitVhdl(f: Function, dir: Path): Unit = {
     validateExpr(f)
     val (inputs, stm) = unwrapTopLevelFunction(f)
-    val (topComponent, typ) = stmBuildToVhdl(stm, inputs.toSet, "top")
+    val topComponent = stmBuildToVhdl(stm, inputs.toSet, "top")
     VhdlWriter.emit(topComponent, dir)
-    typ
   }
 
   def unwrapTopLevelFunction(f: Function): (Seq[Param], StmBuild) = {
@@ -89,7 +87,7 @@ object VhdlGenerator {
       stm: StmBuild,
       inputs: Set[Param],
       name: String
-  ): (VhdlComponent, VhdlType) = {
+  ): VhdlComponent = {
     val whereUsedByInput = findWhereUsedByInput(stm, inputs)
 
     // TODO: Define a new trait representing producer streams?
@@ -225,7 +223,7 @@ object VhdlGenerator {
       children = internalProducers
     )
 
-    (component, VhdlType(s.data.typ))
+    component
   }
 
   private def findWhereUsedByInput(
@@ -423,7 +421,7 @@ object VhdlGenerator {
         val inputsUsedInThisChild = z.freeVars()
         val zStm = z.asInstanceOf[StmBuild]
         val componentName = Param("stm")().name
-        val (component, _) =
+        val component =
           stmBuildToVhdl(zStm, inputsUsedInThisChild, componentName)
         val portMap = PortMap(
           Map(

@@ -17,8 +17,6 @@ object TestbenchGenerator {
     * @param e
     *   the expression from which VHDL was generated. This will be used to
     *   determine the expected output.
-    * @param dataTyp
-    *   the output type of the design.
     * @param dir
     *   the directory of the VHDL project (the whole directory containing the
     *   design, not the `test` subdirectory).
@@ -27,14 +25,22 @@ object TestbenchGenerator {
       // TODO: Make it possible to test multiple values for one input?
       inputs: Seq[TestInput],
       e: Expr,
-      // TODO: Delete this argument and update VhdlGenerator
-      dataTyp: VhdlType,
       dir: Path
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
     makeTestbench(inputsByVar, out, dir)
   }
 
+  /** Creates a testbench for a VHDL design.
+    *
+    * @param inputsByVar
+    *   the inputs to provide to the design.
+    * @param out
+    *   the expected output.
+    * @param dir
+    *   the directory of the VHDL project (the whole directory containing the
+    *   design, not the `test` subdirectory).
+    */
   def makeTestbench(
       inputsByVar: Map[Param, TestInput],
       out: StmLiteral,
