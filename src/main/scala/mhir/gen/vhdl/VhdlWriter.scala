@@ -9,6 +9,8 @@ object VhdlWriter {
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qpf"
   private val DefaultQsf =
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qsf"
+  private val DefaultSdc =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.sdc"
 
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
@@ -18,8 +20,13 @@ object VhdlWriter {
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir)
+    emitProjectFiles(dir, designDir)
+  }
+
+  private def emitProjectFiles(dir: Path, designDir: Path): Unit = {
     os.copy(DefaultQpf, dir / "top.qpf")
     os.copy(DefaultQsf, dir / "top.qsf")
+    os.copy(DefaultSdc, dir / "top.sdc")
     for (p <- os.list(designDir)) {
       os.write.append(
         dir / "top.qsf",
