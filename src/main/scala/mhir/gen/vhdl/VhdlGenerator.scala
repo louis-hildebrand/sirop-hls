@@ -1,9 +1,10 @@
 package mhir.gen.vhdl
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-
 import os.Path
+
 import scala.annotation.tailrec
 
 /** The main class for generating VHDL from an [[mhir.ir.Expr]].
@@ -318,45 +319,47 @@ object VhdlGenerator {
       valid: Expr,
       allRequiredProducersValidSig: Signal
   ): Seq[Decl] = {
-    val VhdlExpr(nVhdl, nDecls) = VhdlExprGenerator.exprToVhdl(n)
+    val VhdlExpr(nVhdl, nDecls) =
+      VhdlExprGenerator.exprToVhdl(ReshapeData(n, U32)().tchk().lower())
     val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
       Signal(
         category = "Handshake (output)",
-        name = "num_outputs",
-        typ = VhdlUnsigned(32),
-        init = Some("(others => '0')"),
-        assignStmt = Some("num_outputs <= next_num_outputs;"),
-        cond = Some("true")
-      ),
-      Signal(
-        category = "Handshake (output)",
-        name = "next_num_outputs",
-        typ = VhdlUnsigned(32),
+        name = "data_internal",
+        typ = VhdlType(data.typ),
         init = None,
+        // NOTE: this one assign statement handles updating data_internal,
+        //       valid_internal, and remaining_outputs.
+        //       Maybe a bit hacky, but the final VHDL is a bit more readable
+        //       in my opinion.
         assignStmt = Some(
-          "next_num_outputs <= num_outputs + 1 when transfer_ok else num_outputs;"
+          s"""data_internal <= $dataVhdl;
+             |if ((remaining_outputs /= 0) and ($validVhdl) and ${allRequiredProducersValidSig.name}) then
+             |  valid_internal <= true;
+             |  remaining_outputs <= remaining_outputs - 1;
+             |else
+             |  valid_internal <= false;
+             |end if;
+             |""".stripMargin.stripTrailing
         ),
-        cond = None
+        cond = Some("transfer_ok or can_update_acc")
       ),
       Signal(
         category = "Handshake (output)",
         name = "valid_internal",
         typ = VhdlBool,
         init = Some("false"),
-        assignStmt = Some(
-          s"valid_internal <= (next_num_outputs < $nVhdl) and ($validVhdl) and ${allRequiredProducersValidSig.name};"
-        ),
-        cond = Some("transfer_ok or can_update_acc")
+        assignStmt = None,
+        cond = None
       ),
       Signal(
         category = "Handshake (output)",
-        name = "data_internal",
-        typ = VhdlType(data.typ),
-        init = None,
-        assignStmt = Some(s"data_internal <= $dataVhdl;"),
-        cond = Some("transfer_ok or can_update_acc")
+        name = "remaining_outputs",
+        typ = VhdlUnsigned(32),
+        init = Some(nVhdl),
+        assignStmt = None,
+        cond = None
       ),
       Signal(
         category = "Handshake (output)",
