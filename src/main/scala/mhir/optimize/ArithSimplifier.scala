@@ -92,24 +92,28 @@ private[optimize] object BlackBox {
 private[optimize] object ArithSimplifier {
 
   def simplifyArithmetic(expr: Expr)(facts: FactSet): Expr = {
-    // Try simplifying without the library first
-    val e = simplifyBoolExpr(expr.tchk())
-    val a =
-      try {
-        Some(toSimplifiedArithExpr(e)(facts))
-      } catch {
-        case _: ArithmeticException => None
-      }
-    a.flatMap(a => fromArithExpr(a, e.typ)).map(e => unwrapMux(e)) match {
-      case None => e
-      case Some(newE) =>
-        if (e.typ != Missing) {
-          assert(
-            newE.typ == e.typ,
-            s"arithmetic simplification should preserve type annotations (expected ${e.typ}, found ${newE.typ})"
-          )
+    // The ArithExpr library does not support parallel execution due to some
+    // uses of global mutable state (e.g., `PerformSimplification`).
+    this.synchronized {
+      // Try simplifying without the library first
+      val e = simplifyBoolExpr(expr.tchk())
+      val a =
+        try {
+          Some(toSimplifiedArithExpr(e)(facts))
+        } catch {
+          case _: ArithmeticException => None
         }
-        newE
+      a.flatMap(a => fromArithExpr(a, e.typ)).map(e => unwrapMux(e)) match {
+        case None => e
+        case Some(newE) =>
+          if (e.typ != Missing) {
+            assert(
+              newE.typ == e.typ,
+              s"arithmetic simplification should preserve type annotations (expected ${e.typ}, found ${newE.typ})"
+            )
+          }
+          newE
+      }
     }
   }
 
