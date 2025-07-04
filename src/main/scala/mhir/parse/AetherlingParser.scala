@@ -6,7 +6,8 @@ import mhir.sugar.{Fifo, StmMap, VecMap}
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
-/** Parser for [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]].
+/** Parser for [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s
+  * space-time language.
   */
 object AetherlingParser {
 
@@ -45,7 +46,7 @@ object AetherlingParser {
     * }}}
     *
     * @param code
-    *   an Atherling program.
+    *   an Aetherling program.
     * @throws SyntaxError
     *   if the program is syntactically invalid.
     */

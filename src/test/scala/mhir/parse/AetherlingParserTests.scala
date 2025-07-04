@@ -51,7 +51,7 @@ class AetherlingParserTests extends AnyFunSuite {
       val parsed = AetherlingParser.parse(code).tchk()
       val actual =
         s"// Output type: ${parsed.typ.toString}\n${ExprPrinter.display(parsed)}\n"
-      val expectedPath = ParsedCodeDir / f.baseName
+      val expectedPath = ParsedCodeDir / s"${f.baseName}.txt"
       if (SaveOutput) {
         save(expectedPath, actual)
       } else {

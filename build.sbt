@@ -2,6 +2,8 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.19"
 ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions += "-deprecation"
+ThisBuild / showSuccess := false
+Global / excludeLintKeys += showSuccess
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 libraryDependencies += "org.scala-lang" %% "toolkit" % "0.1.7"

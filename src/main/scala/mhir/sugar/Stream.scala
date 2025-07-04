@@ -4,147 +4,15 @@ import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-
-object AsStm2Stm {
-
-  /** Convert the given function into a function from stream to stream.
-    *
-    * @param f
-    *   The original function, which could be (1) scalar to scalar, (2) scalar
-    *   to stream, or (3) stream to stream.
-    */
-  def apply(f: Function): (Param, StmBuild) = {
-    val f0 = f.lower().asInstanceOf[Function]
-    val f1 = f0.typ match {
-      case TyArrow(TyStm(t1, n1), _: TyStm) =>
-        // stream -> stream (e.g., StmMap, StmPrefix, StmSuffix)
-        // We need to be careful about the identity function.
-        // We want to be able to reset `f` itself, but *not* the input stream.
-        val identity: Function = Missing ::+ (x => x)
-        if (f0 == identity) {
-          val s2 = Param("s2")(TyStm(t1, -1))
-          TyStm(t1, n1) ::+ (s1 =>
-            StmBuild(
-              n1,
-              StmData(s2)(),
-              True,
-              Map[Param, (Expr, Expr)](
-                s2 -> (s1, True)
-              )
-            )().tchk()
-          )
-        } else {
-          assert(
-            f0.body.isInstanceOf[StmBuild],
-            "the function in AsStm2Stm should return a StmBuild"
-          )
-          f0
-        }
-      case TyArrow(t1, _: TyStm) =>
-        // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
-        // The scalar input to the original function (`f.param`) can appear in
-        // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
-        // StmCst), or even both (if you have something weird like a
-        // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
-        // zipped together).
-        // In the first cycle, whenever `f.param` appears, directly read the
-        // value from the stream instead.
-        // Also save that value in a new accumulator variable.
-        // In subsequent cycles, whenever `f.param` appears, read from the
-        // new accumulator variable.
-        // Existing accumulators whose *seed* depends on `f.param` can only be
-        // initialized after the first cycle.
-        // If *those* accumulators are needed in the first cycle, inline the
-        // seed (but with `f.param` being read from the stream).
-        // This does not make sense for input streams: Default[Stm[...]] is
-        // not defined, it doesn't make sense to inline a stream in this way,
-        // and it doesn't make sense to conjure up a stream out of nowhere
-        // after the first cycle).
-        // Try to get rid of input streams by fusion.
-        val stm = f0.body.asInstanceOf[StmBuild].fuseCompletely()
-        for (x <- stm.accVars) {
-          if (!x.typ.isData) {
-            throw new IllegalArgumentException(
-              s"Accumulator $x with non-data type ${x.typ} has no default."
-            )
-          }
-        }
-        val input = Param("input")(TyStm(t1, 1))
-        val s = Param("s")(TyStm(t1, -1))
-        val isFirstStep = Param("is_first_step")(TyBool)
-        val y = Param("y")(t1)
-        val yFromStmOrReg = Mux(isFirstStep, StmData(s)(), y)().tchk()
-        val subs = (
-          stm.seedByVar
-            .map({ case (x, z) =>
-              x -> Mux(
-                isFirstStep,
-                z.subPreserveType(f0.param -> StmData(s)().tchk()),
-                x
-              )().tchk()
-            })
-            .foldLeft(Map[Expr, Expr]())(_ + _)
-            + (f0.param -> yFromStmOrReg)
-        )
-        val newData = stm.data.subPreserveType(subs)
-        val newValid = stm.valid.subPreserveType(subs)
-        val newEquations = {
-          val equationsToAdd = Map[Param, (Expr, Expr)](
-            // Input stream
-            s -> (input, isFirstStep),
-            // Whether we still need to read from the input stream
-            isFirstStep -> (True, False),
-            // Register for the value from the input stream
-            y -> (Default(t1), yFromStmOrReg)
-          )
-          val updatedOldEquations = stm.nextByVar.map({ case (x, next) =>
-            assert(
-              !x.typ.isInstanceOf[TyStm],
-              "the stream must not take any other streams as input"
-            )
-            x -> (Default(x.typ), next.subPreserveType(subs))
-          })
-          updatedOldEquations ++ equationsToAdd
-        }
-        val newF = Function(
-          input,
-          StmBuild(stm.n, newData, newValid, newEquations)()
-        )().tchk().lower().asInstanceOf[Function]
-        assert(!newF.contains(f0.param))
-        newF
-      case TyArrow(_: TyStm, _) =>
-        throw new IllegalArgumentException(
-          "Reducing a stream to a scalar is forbidden."
-        )
-      case TyArrow(t1, _) =>
-        // scalar -> scalar (e.g., x => x + 1)
-        val s1 = Param("s1")(TyStm(t1, 1))
-        val s2 = Param("s2")(TyStm(t1, -1))
-        Function(
-          s1,
-          StmBuild(
-            1,
-            f0.body.subPreserveType(f0.param -> StmData(s2)().tchk()),
-            True,
-            Map[Param, (Expr, Expr)](s2 -> (s1, True))
-          )()
-        )().tchk().asInstanceOf[Function]
-      case t =>
-        throw new IllegalArgumentException(
-          s"Function in AsStm2Stm has type $t."
-        )
-    }
-    (f1.param, f1.body.asInstanceOf[StmBuild])
-  }
-}
+import mhir.sugar.Streamifier.Streamify
 
 object AsFusedStm2Stm {
   def apply(f: Function): (Param, StmBuild) = {
-    val (x, body) = AsStm2Stm(f)
+    val f1 = f.lower().streamify().asInstanceOf[Function]
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (x, body.fuseCompletely())
+    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
   }
 }
 
