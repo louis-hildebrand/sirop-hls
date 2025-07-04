@@ -5,6 +5,11 @@ import mhir.debug.indent
 import os.Path
 
 object VhdlWriter {
+  private val DefaultQpf =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qpf"
+  private val DefaultQsf =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qsf"
+
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
       findTypesUsedIn(top).flatMap(t => t.descendants + t)
@@ -13,6 +18,14 @@ object VhdlWriter {
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir)
+    os.copy(DefaultQpf, dir / "top.qpf")
+    os.copy(DefaultQsf, dir / "top.qsf")
+    for (p <- os.list(designDir)) {
+      os.write.append(
+        dir / "top.qsf",
+        s"set_global_assignment -name VHDL_FILE ${p.relativeTo(dir)}\n"
+      )
+    }
   }
 
   private def emitConversionsPackage(types: Set[VhdlType], dir: Path): Unit = {
@@ -21,8 +34,18 @@ object VhdlWriter {
         name = "bool2sl",
         args = Seq(("b", VhdlBool)),
         returnType = VhdlStdLogic,
-        decls =
-          Seq(VhdlVariable("x", VhdlStdLogic, "x := '1' when (b) else '0';")),
+        decls = Seq(
+          VhdlVariable(
+            "x",
+            VhdlStdLogic,
+            s"""if (b) then
+               |    x := '1';
+               |else
+               |    x := '0';
+               |end if;
+               |""".stripMargin.stripTrailing
+          )
+        ),
         ret = "x"
       ),
       VhdlFunction(

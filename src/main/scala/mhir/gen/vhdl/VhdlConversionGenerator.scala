@@ -47,7 +47,16 @@ object VhdlConversionGenerator {
       args = Seq(("b", VhdlBool)),
       returnType = VhdlStdLogicVec(1),
       decls = Seq(
-        VhdlVariable("x", VhdlStdLogicVec(1), "x := \"1\" when (b) else \"0\";")
+        VhdlVariable(
+          "x",
+          VhdlStdLogicVec(1),
+          s"""if (b) then
+             |    x := "1";
+             |else
+             |    x := "0";
+             |end if;
+             |""".stripMargin.stripTrailing
+        )
       ),
       ret = "x"
     )

@@ -202,9 +202,13 @@ private[gen] case class VhdlComponent(
         val stmts = signals
           .filter(s => s.cond.nonEmpty && s.assignStmt.isDefined)
           .sortBy(s => s.name)
-          .map(s =>
-            s"if (${s.cond.get}) then\n${indent(s.assignStmt.get)}\nend if;"
-          )
+          .map(s => {
+            val cond = s.cond.get
+            cond match {
+              case "true" => s.assignStmt.get
+              case _ => s"if ($cond) then\n${indent(s.assignStmt.get)}\nend if;"
+            }
+          })
         if (stmts.isEmpty) {
           None
         } else {
