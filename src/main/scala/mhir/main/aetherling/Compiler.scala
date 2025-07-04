@@ -90,6 +90,22 @@ object Compiler {
   }
 
   private def makeSynthesizable(e: Expr): Expr = {
-    e.streamify()
+    inlineFunCalls(e).streamify()
+  }
+
+  private def inlineFunCalls(e: Expr): Expr = {
+    val result = e match {
+      case FunCall(f, arg) =>
+        inlineFunCalls(f) match {
+          case Function(x, body) =>
+            body.subPreserveType(x -> arg)
+          case f =>
+            FunCall(f, arg)()
+        }
+      case Function(x, body) =>
+        Function(x, inlineFunCalls(body))()
+      case e => e
+    }
+    result.tchk()
   }
 }
