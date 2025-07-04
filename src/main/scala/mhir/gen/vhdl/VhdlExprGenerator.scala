@@ -66,16 +66,37 @@ private object VhdlExprGenerator {
 
       case True  => VhdlExpr("true", Seq())
       case False => VhdlExpr("false", Seq())
-      case mux @ Mux(c, t, f) =>
+      case Mux(c, t, f) =>
         val cv = exprToVhdl(c)
         val tv = exprToVhdl(t)
         val fv = exprToVhdl(f)
-        val tempVar = intermediateVar(
-          "ite",
-          s"(${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl})",
-          VhdlType(mux.typ),
-          mode
-        )
+        val tempVar = {
+          val name = Param("ite")().name
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(t.typ),
+                assignStmt = Some(
+                  s"$name <= (${tv.vhdl}) when (${cv.vhdl}) else (${fv.vhdl});"
+                )
+              )
+            case InFunctionMode =>
+              val stmt =
+                s"""if (${cv.vhdl}) then
+                   |    $name := ${tv.vhdl};
+                   |else
+                   |    $name := ${fv.vhdl};
+                   |end if;
+                   |""".stripMargin.stripTrailing
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(t.typ),
+                assignStmt = stmt
+              )
+          }
+        }
         VhdlExpr(tempVar.name, tempVar +: (cv.decls ++ tv.decls ++ fv.decls))
       case Equal(e1, e2)    => VhdlOp("=", Seq(e1, e2).map(exprToVhdl))
       case LessThan(e1, e2) => VhdlOp("<", Seq(e1, e2).map(exprToVhdl))
@@ -113,8 +134,24 @@ private object VhdlExprGenerator {
         }
       case TupleAccess(t, IntCst(i)) =>
         val tv = exprToVhdl(t)
-        val tempVar =
-          intermediateVar("tupaccess_t", tv.vhdl, VhdlType(t.typ), mode)
+        val tempVar = {
+          val name = Param("tupaccess_t")().name
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(t.typ),
+                assignStmt = Some(s"$name <= ${tv.vhdl};")
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(t.typ),
+                assignStmt = s"$name := ${tv.vhdl};"
+              )
+          }
+        }
         VhdlExpr(s"${tempVar.name}.i_$i", tempVar +: tv.decls)
 
       case Function(x, body) =>
@@ -195,27 +232,6 @@ private object VhdlExprGenerator {
         lhs.decls ++ rhs.decls
       )
     }
-  }
-
-  private def intermediateVar(
-      namePrefix: String,
-      assign: String,
-      typ: VhdlType,
-      mode: ExprGenMode
-  ): VarOrSigDecl = {
-    val name = Param(namePrefix)().name
-    mode match {
-      case NormalMode =>
-        Signal(
-          category = "Intermediate signals",
-          name = name,
-          typ = typ,
-          assignStmt = Some(s"$name <= $assign;")
-        )
-      case InFunctionMode =>
-        VhdlVariable(name = name, typ = typ, assignStmt = s"$name := $assign;")
-    }
-
   }
 
   def valueToVhdl(v: Expr): String = {

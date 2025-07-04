@@ -75,7 +75,7 @@ function parse_args {
 
 function compile {
     echo "Compiling" "$@"
-    vcom -2008 -autoorder "$@"
+    vcom -2002 -autoorder "$@"
 }
 
 function run_simulation {
