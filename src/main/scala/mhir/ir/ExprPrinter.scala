@@ -154,9 +154,7 @@ object ExprPrinter {
           maxWidth = maxWidth - Indent.length,
           parentPrecedence = Precedence.Max
         )
-        s"""(${x.name} : ${x.typ}) =>
-           |${indent(bodyStr)}
-           |""".stripMargin.stripTrailing
+        s"(${x.name} : ${x.typ}) =>\n${indent(bodyStr)}"
 
       case Sum(terms @ _*) =>
         displayMultiLineInfixOp(
@@ -292,30 +290,34 @@ object ExprPrinter {
           display(data, maxWidth = w1, parentPrecedence = Precedence.Max)
         val validStr =
           display(valid, maxWidth = w1, parentPrecedence = Precedence.Max)
-        val equationsStr = equations.toSeq
-          .sortBy({ case (x, _) => x.name })
-          .map({ case (x, (z, next)) =>
-            val zStr = display(
-              z,
-              maxWidth = maxWidth - 2 * Indent.length - ",".length,
-              parentPrecedence = Precedence.Max
-            )
-            val nextStr = display(
-              next,
-              maxWidth = maxWidth - 2 * Indent.length,
-              parentPrecedence = Precedence.Max
-            )
-            s"(${x.name} : ${x.typ}) = (\n${indent(zStr)},\n${indent(nextStr)}\n)"
-          })
-          .map(str => s"$str;")
-          .mkString("\n")
-        s"""sbuild(
-           |${indent(nStr)};
-           |${indent(dataStr)};
-           |${indent(validStr)};
-           |${indent(equationsStr)}
-           |)
-           |""".stripMargin.stripTrailing
+        val indentedEquationsStr = if (equations.isEmpty) {
+          ""
+        } else {
+          val str = equations.toSeq
+            .sortBy({ case (x, _) => x.name })
+            .map({ case (x, (z, next)) =>
+              val zStr = display(
+                z,
+                maxWidth = maxWidth - 2 * Indent.length - ",".length,
+                parentPrecedence = Precedence.Max
+              )
+              val nextStr = display(
+                next,
+                maxWidth = maxWidth - 2 * Indent.length,
+                parentPrecedence = Precedence.Max
+              )
+              s"(${x.name} : ${x.typ}) = (\n${indent(zStr)},\n${indent(nextStr)}\n)"
+            })
+            .map(str => s"$str;")
+            .mkString("\n")
+          "\n" + indent(str)
+        }
+        // Don't use a multi-line string with .stripMargin here because one of
+        // the sub-expressions may have a line starting with '|'.
+        // Example:
+        //   c1 && c2
+        //     || c3 && c4
+        s"sbuild(\n${indent(nStr)};\n${indent(dataStr)};\n${indent(validStr)};$indentedEquationsStr\n)"
 
       case e: SyntaxSugar =>
         e.displayMultiLine(maxWidth)

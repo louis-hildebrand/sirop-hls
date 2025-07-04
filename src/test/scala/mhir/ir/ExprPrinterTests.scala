@@ -316,6 +316,34 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expectedMultiLine)
   }
 
+  test("mux with long condition") {
+    val c1 = Param("c1", -1)(TyBool)
+    val c2 = Param("c2", -1)(TyBool)
+    val c3 = Param("c3", -1)(TyBool)
+    val c4 = Param("c4", -1)(TyBool)
+    val c = (c1 && c2) || (c3 && c4)
+    val e = Function(c1, Mux(c, C(1)(U8), C(0)(U8))())()
+
+    val expectedOneLine =
+      s"(c1 : bool) => if (c1 && c2 || c3 && c4) then { 1:u8 } else { 0:u8 }"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """(c1 : bool) =>
+         |  if (
+         |    c1 && c2
+         |      || c3 && c4
+         |  ) then {
+         |    1:u8
+         |  } else {
+         |    0:u8
+         |  }
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.display(e, maxWidth = 25)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
   test("StmBuild") {
     val s = Param("s", -1)(TyStm(U8, C(-1)()))
     val i = Param("i", -1)(U8)
@@ -361,6 +389,29 @@ class ExprPrinterTests extends AnyFunSuite {
          |)
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.display(e) == expectedMultiLine)
+  }
+
+  test("StmBuild with multi-line mux") {
+    val c1 = Param("c1", -1)(TyBool)
+    val c2 = Param("c2", -1)(TyBool)
+    val c3 = Param("c3", -1)(TyBool)
+    val c4 = Param("c4", -1)(TyBool)
+    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True)()
+
+    val expectedOneLine = "sbuild(10:u8; c1 && c2 || c3 && c4; true; )"
+    val actualOneLine = ExprPrinter.displayOneLine(s)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""sbuild(
+         |  10:u8;
+         |  c1 && c2
+         |    || c3 && c4;
+         |  true;
+         |)
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(s, maxWidth = 20)
+    assert(actualMultiLine == expectedMultiLine)
   }
 
   test("[[0, 1], [2, 3]]") {
