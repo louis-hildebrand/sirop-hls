@@ -616,7 +616,7 @@ class OptimizationTests extends AnyFunSuite {
 
   /** Stm2Vec(Vec2Stm(v)) --> StmCst(1, v)
     */
-  test("Stm2Vec(Vec2Stm(v))") {
+  test("Stm2Vec(Vec2Stm(v))", Slow) {
     val n = Param("n")(U16)
     val v = Param("v")(TyVec(U16, n))
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]

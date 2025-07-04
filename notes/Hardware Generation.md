@@ -35,6 +35,11 @@
 - How long are elements valid?
 	- Data is valid only for one cycle
 	- We could consider a more elaborate protocol if necessary (e.g., data is valid until the producer lowers the `valid` signal), but stick to the existing rule for now
+- Data and valid signals should be in registers
+	- *Disadvantage:* each `StmBuild` will add one cycle of latency, as opposed to the data just flowing through all at once
+	- *Advantages:*
+		- Makes it possible to avoid long combinational paths in hardware (and so the hardware will hopefully meet timing requirements)
+		- Seems to fix a bug where VHDL impure functions (which are used to implement expressions like `FunCall(Function(...), arg)`) behave strangely when called from combinational code
 ## Compiling Streams
 - `StmBuild`:
 	- Accumulators can be partitioned into three sets:

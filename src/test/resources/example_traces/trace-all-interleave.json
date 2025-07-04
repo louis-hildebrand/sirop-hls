@@ -5,21 +5,21 @@
             "n": 4,
             "state": "valid (0:u8)",
             "accumulators": {
-                "b_4": "true"
+                "b": "true"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (0:u8)",
                     "accumulators": {
-                        "i_1": "0:u8"
+                        "i": "0:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (42:u8)",
@@ -27,12 +27,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 4,
                             "state": "valid (42:u8)",
                             "accumulators": {
-                                "j_3": "42:u8"
+                                "j": "42:u8"
                             },
                             "inputs": {
                                 
@@ -47,21 +47,21 @@
             "n": 3,
             "state": "valid (42:u8)",
             "accumulators": {
-                "b_4": "false"
+                "b": "false"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (1:u8)",
                     "accumulators": {
-                        "i_1": "1:u8"
+                        "i": "1:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 2,
                     "state": "valid (42:u8)",
@@ -69,12 +69,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 4,
                             "state": "valid (42:u8)",
                             "accumulators": {
-                                "j_3": "42:u8"
+                                "j": "42:u8"
                             },
                             "inputs": {
                                 
@@ -89,21 +89,21 @@
             "n": 2,
             "state": "valid (1:u8)",
             "accumulators": {
-                "b_4": "true"
+                "b": "true"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (1:u8)",
                     "accumulators": {
-                        "i_1": "1:u8"
+                        "i": "1:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "invalid",
@@ -111,12 +111,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 3,
                             "state": "valid (43:u8)",
                             "accumulators": {
-                                "j_3": "43:u8"
+                                "j": "43:u8"
                             },
                             "inputs": {
                                 
@@ -131,21 +131,21 @@
             "n": 1,
             "state": "stalled",
             "accumulators": {
-                "b_4": "false"
+                "b": "false"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2:u8"
+                        "i": "2:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "invalid",
@@ -153,12 +153,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 2,
                             "state": "valid (44:u8)",
                             "accumulators": {
-                                "j_3": "44:u8"
+                                "j": "44:u8"
                             },
                             "inputs": {
                                 
@@ -173,21 +173,21 @@
             "n": 1,
             "state": "valid (45:u8)",
             "accumulators": {
-                "b_4": "false"
+                "b": "false"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2:u8"
+                        "i": "2:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 1,
                     "state": "valid (45:u8)",
@@ -195,12 +195,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 1,
                             "state": "valid (45:u8)",
                             "accumulators": {
-                                "j_3": "45:u8"
+                                "j": "45:u8"
                             },
                             "inputs": {
                                 
@@ -215,21 +215,21 @@
             "n": 0,
             "state": "empty",
             "accumulators": {
-                "b_4": "true"
+                "b": "true"
             },
             "inputs": {
-                "s1_5": {
+                "s1": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
                     "accumulators": {
-                        "i_1": "2:u8"
+                        "i": "2:u8"
                     },
                     "inputs": {
                         
                     }
                 },
-                "s2_6": {
+                "s2": {
                     "$type": "mhir.debug.FullTraceNode",
                     "n": 0,
                     "state": "empty",
@@ -237,12 +237,12 @@
                         
                     },
                     "inputs": {
-                        "s_2": {
+                        "s": {
                             "$type": "mhir.debug.FullTraceNode",
                             "n": 0,
                             "state": "empty",
                             "accumulators": {
-                                "j_3": "46:u8"
+                                "j": "46:u8"
                             },
                             "inputs": {
                                 

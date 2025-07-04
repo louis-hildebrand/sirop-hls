@@ -61,18 +61,6 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
   implicit def typeTuple3(t: (Type, Type, Type)): TyTuple =
     TyTuple(t._1, t._2, t._3)
 
-  /** Reset any internal state in this package. For example, the [[Param]] class
-    * has an internal counter for generating fresh variables.
-    */
-  def resetState(): Unit = {
-    // StmBuild and Function both have a Param in the companion object.
-    // Force initialization of the companion object so that the param is
-    // initialized.
-    StmBuild.forceInit()
-    Function.forceInit()
-    Param.resetCounter()
-  }
-
   /** Helper methods and shorthands for common operations related to all
     * [[Expr]]s.
     */

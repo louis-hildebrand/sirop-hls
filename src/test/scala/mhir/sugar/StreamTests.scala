@@ -1946,7 +1946,7 @@ class StreamTests extends AnyFunSuite {
     )
   }
 
-  test("StmRepeat:3D") {
+  test("StmRepeat:3D", Slow) {
     val s = StmMap(StmCount(C(2)(U8))(), U8 ::+ (i => StmCst2D(3, 4, i)()))()
     val expected = Seq(
       Seq(
@@ -2123,7 +2123,7 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
-  test("StmTranspose") {
+  test("StmTranspose", Slow) {
     val s = Param("s")()
     val n = Param("n")()
     val m = Param("m")()

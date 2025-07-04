@@ -327,18 +327,28 @@ object VhdlGenerator {
         name = "num_outputs",
         typ = VhdlUnsigned(32),
         init = Some("(others => '0')"),
-        assignStmt = Some("num_outputs <= num_outputs + 1;"),
-        cond = Some("transfer_ok")
+        assignStmt = Some("num_outputs <= next_num_outputs;"),
+        cond = Some("true")
+      ),
+      Signal(
+        category = "Handshake (output)",
+        name = "next_num_outputs",
+        typ = VhdlUnsigned(32),
+        init = None,
+        assignStmt = Some(
+          "next_num_outputs <= num_outputs + 1 when transfer_ok else num_outputs;"
+        ),
+        cond = None
       ),
       Signal(
         category = "Handshake (output)",
         name = "valid_internal",
         typ = VhdlBool,
-        init = None,
+        init = Some("false"),
         assignStmt = Some(
-          s"valid_internal <= (num_outputs < $nVhdl) and ($validVhdl) and ${allRequiredProducersValidSig.name};"
+          s"valid_internal <= (next_num_outputs < $nVhdl) and ($validVhdl) and ${allRequiredProducersValidSig.name};"
         ),
-        cond = None
+        cond = Some("transfer_ok or can_update_acc")
       ),
       Signal(
         category = "Handshake (output)",
@@ -346,7 +356,7 @@ object VhdlGenerator {
         typ = VhdlType(data.typ),
         init = None,
         assignStmt = Some(s"data_internal <= $dataVhdl;"),
-        cond = None
+        cond = Some("transfer_ok or can_update_acc")
       ),
       Signal(
         category = "Handshake (output)",
@@ -365,15 +375,13 @@ object VhdlGenerator {
         init = None,
         assignStmt = Some(
           "can_update_acc <="
-          // If a data element was transferred, then we must update all the
-          // accumulators.
-            + " transfer_ok or"
-            // If not, this stream can still keep working, except that:
-            //  * If it has some valid data to send, it cannot advance until
-            //    that data is sent.
-            + " (not valid_internal"
+          // This stream can keep working as long as the following conditions
+          // are satisfied:
+          //  * If it has some valid data to send, it cannot advance until
+          //    that data is sent.
+            + " (not valid_internal or transfer_ok)"
             //  * All required producers must have valid data.
-            + s" and ${allRequiredProducersValidSig.name});"
+            + s" and ${allRequiredProducersValidSig.name};"
         ),
         cond = None
       )

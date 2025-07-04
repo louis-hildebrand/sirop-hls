@@ -39,6 +39,14 @@ case class StmNode(
     * @param ready
     *   Whether the consumer is ready to receive output.
     */
+  // TODO: In hardware, the data of each StmBuild is stored in a register and
+  //       therefore each StmBuild adds one cycle of latency. This method does
+  //       not reproduce that latency. Hopefully there are no functional
+  //       differences (it seems so, based on the VHDL generator tests) and
+  //       omitting the latency should only speed up simulation, so this seems
+  //       like a good default. But maybe it would be useful to also have the
+  //       option to simulate the circuit in a more accurate way (e.g., to
+  //       measure latency without needing to go to VHDL).
   private def transferData(ready: Boolean): StmNode = {
     val requiredProducers =
       getRequiredProducers(this.inputs, this.currentValByDataAcc.toMap)
