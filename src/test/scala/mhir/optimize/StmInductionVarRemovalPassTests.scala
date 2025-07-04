@@ -6,8 +6,9 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{StmCst, StmRange, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.tagobjects.Slow
+import org.scalatest.tags.Slow
 
+@Slow
 class StmInductionVarRemovalPassTests extends AnyFunSuite {
   private def assertEquationsEqual(
       expected: Formula,
@@ -243,7 +244,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assertOneAccumulator(opt)
   }
 
-  test("MonotonicBool:SimpleCounter", Slow) {
+  test("MonotonicBool:SimpleCounter") {
     val n = Param("n")(U8)
     val i0 = Param("i0")(I8)
     val k0 = Param("k0")(I8)
@@ -302,7 +303,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assertOneAccumulator(opt)
   }
 
-  test("MonotonicBool:BoundedCounter:i8", Slow) {
+  test("MonotonicBool:BoundedCounter:i8") {
     val n = Param("n")(U8)
     val i0 = Param("i0")(I8)
     val k = Param("k")(I8)
@@ -348,7 +349,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assertOneAccumulator(opt)
   }
 
-  test("MonotonicBool:BoundedCounter:u32", Slow) {
+  test("MonotonicBool:BoundedCounter:u32") {
     val n = Param("n")(U8)
     val i0 = Param("i0")(U32)
     val k = Param("k")(U32)
@@ -499,7 +500,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   }
 
   // Shift register that stops at a certain point
-  test("PiecewiseVecShiftLeft:StopShifting", Slow) {
+  test("PiecewiseVecShiftLeft:StopShifting") {
     val n = Param("n")(U8)
     val m = Param("m")(U8)
     val i = Param("i")(U8)
@@ -532,7 +533,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
   }
 
   // Shift register that only starts shifting after some delay
-  test("PiecewiseVecShiftLeft:Delayed", Slow) {
+  test("PiecewiseVecShiftLeft:Delayed") {
     val n = Param("n")(U8)
     val m = Param("m")(U8)
     val i = Param("i")(U8)
@@ -729,7 +730,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(f == expectedF)
   }
 
-  test("Stm2Vec2Stm", Slow) {
+  test("Stm2Vec2Stm") {
     val n = Param("n")(U8)
     val input = Param("input")(TyStm(I16, n))
     val t = Param("t")(I33)
@@ -789,7 +790,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(opt == expected)
   }
 
-  test("Stm2ReversedVec2Stm", Slow) {
+  test("Stm2ReversedVec2Stm") {
     val n = Param("n")(U8)
     val input = Param("input")(TyStm(I16, n))
     val s = Param("s")(TyStm(I16, -1))
