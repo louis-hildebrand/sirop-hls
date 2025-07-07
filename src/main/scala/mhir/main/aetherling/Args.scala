@@ -32,7 +32,8 @@ case class Args(
     showChecked: Boolean = false,
     showLowered: Boolean = false,
     showSimplified: Boolean = false,
-    showFinal: Boolean = false
+    showFinal: Boolean = false,
+    overwrite: Boolean = false
 )
 
 /** Companion object for [[Args]].
@@ -65,6 +66,7 @@ object Args {
     var showLowered = false
     var showSimplified = false
     var showFinal = false
+    var overwrite = false
     for (a <- args.drop(2)) {
       a match {
         case "-h" | "--help" =>
@@ -81,6 +83,8 @@ object Args {
           showSimplified = true
         case "--show-final" =>
           showFinal = true
+        case "--overwrite" =>
+          overwrite = true
         case _ =>
           throw new BadArgsException(s"unrecognized argument: $a")
       }
@@ -94,7 +98,8 @@ object Args {
       showChecked = showChecked,
       showLowered = showLowered,
       showSimplified = showSimplified,
-      showFinal = showFinal
+      showFinal = showFinal,
+      overwrite = overwrite
     )
   }
 
@@ -108,7 +113,7 @@ object Args {
       }
     }
     println(
-      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final]"
+      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final] [--overwrite]"
     )
   }
 
@@ -126,6 +131,8 @@ object Args {
          |  --show-lowered     show the program after lowering
          |  --show-simplified  show the simplified program
          |  --show-final       show the final program right before VHDL generation
+         |  --overwrite        what to do if directory OUT already exists: if true then
+         |                     delete the existing directory, if false then raise an error
          |""".stripMargin.stripTrailing
     )
   }

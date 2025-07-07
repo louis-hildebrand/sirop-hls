@@ -75,6 +75,15 @@ object Compiler {
       println(ExprPrinter.display(finalProgram))
     }
 
+    if (os.exists(args.outDir)) {
+      if (args.overwrite) {
+        os.remove.all(args.outDir)
+      } else {
+        throw new RuntimeException(
+          s"Output directory ${args.outDir} already exists."
+        )
+      }
+    }
     finalProgram match {
       case f: Function =>
         VhdlGenerator.emitVhdl(f, args.outDir)

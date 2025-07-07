@@ -3,6 +3,11 @@
 This project is an intermediate representation and compiler for streaming accelerators.
 The goal is to be able to take a high-level algorithm, expressed using familiar functional building blocks like `map` and `fold`, and turn it into a high-performance streaming accelerator (e.g., in VHDL).
 
+## Evaluation
+
+There are some benchmarks from [Aetherling](https://dl.acm.org/doi/10.1145/3385412.3385983) in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original).
+To compile these and measure their resource usage, use [aetherling_measure.py](./src/test/python/aetherling_measure.py).
+
 ## Documentation
 
 Documentation for the Scala code can be generated and opened using the following command (assuming you're in the project root directory).
