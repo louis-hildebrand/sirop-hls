@@ -2,6 +2,8 @@
 """
 This script takes all the required measurements for the Aetherling benchmarks.
 """
+from __future__ import annotations
+
 import csv
 import os
 import subprocess
@@ -14,13 +16,33 @@ from subprocess import CalledProcessError
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
 AETHERLING_BENCHMARKS_DIR = ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
-VHDL_DIR = ROOT_DIR.joinpath("vhdl")
+VHDL_DIR = ROOT_DIR.joinpath("vhdl", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 LOG_DIR = ROOT_DIR.joinpath("logs")
 RESULTS_DIR = ROOT_DIR.joinpath("results")
 
 
-@dataclass
+@dataclass(frozen=True, order=True)
+class Benchmark:
+    """
+    A benchmark with a specific throughput.
+    """
+    name: str
+    throughput: int
+
+    @classmethod
+    def parse(cls, name: str) -> Benchmark:
+        parts = name.split("_")
+        if len(parts) != 2:
+            raise ValueError(f"Invalid benchmark name: {name}")
+        return Benchmark(name=parts[0], throughput=int(parts[1]))
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.name}_{self.throughput}"
+
+
+@dataclass(frozen=True)
 class ResourceUsage:
     """
     The resource usage of a VHDL design.
@@ -28,27 +50,6 @@ class ResourceUsage:
     alm: int
     bram: int
     dsp: int
-
-
-def try_int(x: str) -> int | str:
-    """
-    Try to convert a string to an int, otherwise return the original string.
-    """
-    try:
-        return int(x)
-    except ValueError:
-        return x
-
-
-def sort_nat(xs: list[str]) -> list[str]:
-    """
-    Sort a list of strings, but try to keep numbers in ascending order.
-
-    ## Example:
-    >>> sort_nat(['map_10', 'map_1', 'map_20', 'map_2'])
-    ['map_1', 'map_2', 'map_10', 'map_20']
-    """
-    return sorted(xs, key=lambda x: tuple(try_int(y) for y in x.split("_")))
 
 
 def generate_vhdl(benchmarks: list[str], log: Path) -> None:
@@ -93,7 +94,7 @@ def main(args: list[str]) -> None:
     for p in bench_paths:
         if not p.exists():
             sys.exit(f"Path {p.as_posix()} does not exist.")
-    benchmarks = sort_nat([p.stem for p in bench_paths])
+    benchmarks = sorted([Benchmark.parse(p.stem) for p in bench_paths])
 
     now = datetime.now()
     log = LOG_DIR.joinpath(now.strftime("aetherling_%Y%m%d_%H%M%S.log"))
@@ -102,7 +103,7 @@ def main(args: list[str]) -> None:
     out_path = RESULTS_DIR.joinpath("aetherling.csv")
     out_path.parent.mkdir(exist_ok=True)
 
-    print(f"Running benchmarks : {', '.join(benchmarks)}")
+    print(f"Running benchmarks : {', '.join([b.full_name for b in benchmarks])}")
     print(f"Output file        : {out_path.as_posix()}")
     print(f"Log file           : {log.as_posix()}")
     print()
@@ -112,20 +113,22 @@ def main(args: list[str]) -> None:
     os.chdir(ROOT_DIR)
 
     print("Generating VHDL...")
-    generate_vhdl(benchmarks, log=log)
+    VHDL_DIR.mkdir(exist_ok=True)
+    generate_vhdl([b.full_name for b in benchmarks], log=log)
 
     with open(out_path, "w", encoding="utf-8") as out_file:
-        writer = csv.DictWriter(out_file, fieldnames=["bench", "alm", "bram", "dsp"])
+        writer = csv.DictWriter(out_file, fieldnames=["bench_name", "bench_throughput", "alm", "bram", "dsp"])
         writer.writeheader()
         for bench in benchmarks:
-            print(f"Measuring resource usage for {bench}... ", flush=True, end="")
-            ru = measure_resource_usage(bench, log=log)
+            print(f"Measuring resource usage for {bench.full_name}... ", flush=True, end="")
+            ru = measure_resource_usage(bench.full_name, log=log)
             if ru is None:
                 print("failed")
-                writer.writerow({"bench": bench, "alm": "", "bram": "", "dsp": ""})
+                writer.writerow({"bench_name": bench.name, "bench_throughput": bench.throughput, "alm": "", "bram": "", "dsp": ""})
             else:
                 print("OK")
-                writer.writerow({"bench": bench, "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp})
+                writer.writerow({"bench_name": bench.name, "bench_throughput": bench.throughput, "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp})
+            out_file.flush()
 
 
 if __name__ == "__main__":

@@ -6,7 +6,25 @@ The goal is to be able to take a high-level algorithm, expressed using familiar 
 ## Evaluation
 
 There are some benchmarks from [Aetherling](https://dl.acm.org/doi/10.1145/3385412.3385983) in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original).
-To compile these and measure their resource usage, use [aetherling_measure.py](./src/test/python/aetherling_measure.py).
+
+To run these, first create a Python virtual environment and install the required dependencies.
+```shell
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+To measure the resource utilization for each benchmark, run
+```shell
+python src/test/python/aetherling_measure.py
+```
+
+To plot the results, run
+```shell
+python src/test/python/aetherling_plot.py
+```
+
+The raw data and plots will be placed in [results/](./results).
 
 ## Documentation
 

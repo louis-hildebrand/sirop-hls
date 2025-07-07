@@ -57,5 +57,9 @@ Thumbs.db
 .metals/
 metals.sbt
 
+# Vim
+*.swp
+
 # Custom
 /img/
+.venv/
