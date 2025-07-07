@@ -1,6 +1,5 @@
 package mhir.gen.vhdl
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import os.Path
@@ -319,8 +318,7 @@ object VhdlGenerator {
       valid: Expr,
       allRequiredProducersValidSig: Signal
   ): Seq[Decl] = {
-    val VhdlExpr(nVhdl, nDecls) =
-      VhdlExprGenerator.exprToVhdl(ReshapeData(n, U32)().tchk().lower())
+    val VhdlExpr(nVhdl, nDecls) = VhdlExprGenerator.exprToVhdl(n)
     val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
@@ -356,7 +354,7 @@ object VhdlGenerator {
       Signal(
         category = "Handshake (output)",
         name = "remaining_outputs",
-        typ = VhdlUnsigned(32),
+        typ = VhdlType(n.typ),
         init = Some(nVhdl),
         assignStmt = None,
         cond = None
