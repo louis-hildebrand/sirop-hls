@@ -598,22 +598,23 @@ object VhdlGenerator {
     (ports.flatten.toSeq, signals.flatten.toSeq)
   }
 
-  def valueToStdLogicVector(v: Expr, len: String): String = {
+  def valueToStdLogicVector(v: Expr): String = {
     mhir.ir.eval(v).tchk() match {
-      case False     => "\"0\""
-      case True      => "\"1\""
-      case IntCst(k) => s"std_logic_vector(to_signed($k, $len))"
+      case False => "\"0\""
+      case True  => "\"1\""
+      case c: IntCst =>
+        c.typ.asInstanceOf[TyAnyInt] match {
+          case TyUInt(w) => s"std_logic_vector(to_unsigned(${c.i}, $w))"
+          case TySInt(w) => s"std_logic_vector(to_signed(${c.i}, $w))"
+        }
       case Tuple(elems @ _*) =>
         if (elems.isEmpty) {
           "\"\""
         } else {
-          elems
-            .map(e => valueToStdLogicVector(e, getBitWidth(e.typ).toString))
-            .map(x => s"($x)")
-            .mkString(" & ")
+          elems.map(valueToStdLogicVector).map(x => s"($x)").mkString(" & ")
         }
       case vec: VecLiteral =>
-        valueToStdLogicVector(Tuple(vec.elems: _*)(), len)
+        valueToStdLogicVector(Tuple(vec.elems: _*)())
       case _ =>
         throw new IllegalArgumentException(
           s"Cannot convert value $v to a std_logic_vector. Is it really a value?"

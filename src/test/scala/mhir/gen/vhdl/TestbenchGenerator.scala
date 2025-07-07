@@ -59,8 +59,7 @@ object TestbenchGenerator {
             case Some(v) =>
               val elemType = x.typ.asInstanceOf[TyStm].t
               val bitWidth = VhdlType(elemType).bitWidth
-              val slv =
-                VhdlGenerator.valueToStdLogicVector(v, bitWidth.toString)
+              val slv = VhdlGenerator.valueToStdLogicVector(v)
               s"""${x.name}_valid <= '1';
                  |${x.name}_data <= $slv;
                  |wait until rising_edge(clk) and sl2bool(${x.name}_ready);
@@ -81,8 +80,7 @@ object TestbenchGenerator {
       .mkString("\n\n")
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
-        val expected =
-          VhdlGenerator.valueToStdLogicVector(v.tchk(), "expected'length")
+        val expected = VhdlGenerator.valueToStdLogicVector(v.tchk())
         s"""expected <= $expected;
            |wait until rising_edge(clk) and valid = '1';
            |assert(data = expected) report "Wrong `data` at step $i.";
