@@ -6,6 +6,11 @@ The goal is to be able to take a high-level algorithm, expressed using familiar 
 ## Evaluation
 
 There are some benchmarks from [Aetherling](https://dl.acm.org/doi/10.1145/3385412.3385983) in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original).
+> NOTE
+>
+> The Verilog files in the Aetherling repository seem to be named according to latency.
+When they were copied into this repository, they were renamed to show the throughput instead (so that the naming of benchmarks is consistent).
+So, for example, map_40.v in the Aetherling repository (which has a latency of 40 cycles and a throughput of 5 elements per cycle) was renamed to map_5.v.
 
 To run these, first create a Python virtual environment and install the required dependencies.
 ```shell
@@ -14,17 +19,19 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-To measure the resource utilization for each benchmark, run
+To measure the resource utilization for each benchmark, run the following command.
+It will take a long time.
+The raw data will be placed in [results/](./results).
 ```shell
 python src/test/python/aetherling_measure.py
 ```
 
-To plot the results, run
+To plot the results, run the following command.
+This will plot whatever is in the [results/](./results) directory, so you do not need to re-run the measurements if you just want to see the plot.
+The plot will also be placed in [results/](./results).
 ```shell
 python src/test/python/aetherling_plot.py
 ```
-
-The raw data and plots will be placed in [results/](./results).
 
 ## Documentation
 

@@ -1,7 +1,7 @@
 #!/bin/python3
 
 """
-This script plots the results from aetherling_measure.py.
+This script plots the results for the Aetherling benchmarks.
 """
 
 from __future__ import annotations
@@ -39,6 +39,15 @@ class Benchmark:
         return f"{self.name}_{self.throughput}"
 
 
+@dataclass(frozen=True, order=True)
+class BenchmarkImpl:
+    """
+    A VHDL or Verilog which implements a specific benchmark.
+    """
+    bench: Benchmark
+    language: str
+
+
 @dataclass
 class ResourceUsage:
     """
@@ -53,53 +62,88 @@ def read_results() -> dict[Benchmark, ResourceUsage]:
     """
     Read the CSV file back into a dictionary.
     """
+    def get_bench(row) -> BenchmarkImpl:
+        return BenchmarkImpl(
+            bench=Benchmark(
+                name=row["bench_name"],
+                throughput=int(row["bench_throughput"])
+            ),
+            language=row["language"]
+        )
+    def get_results(row) -> ResourceUsage:
+        return ResourceUsage(
+            alm=int(row["alm"]),
+            bram=int(row["bram"]),
+            dsp=int(row["dsp"])
+        )
     with open(RESULTS_FILE, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         return {
-            Benchmark(name=row["bench_name"], throughput=int(row["bench_throughput"])) : ResourceUsage(alm=int(row["alm"]), bram=int(row["bram"]), dsp=int(row["dsp"]))
+            get_bench(row) : get_results(row)
             for row in rows
             if row["alm"] and row["bram"] and row["dsp"]
         }
 
 
-def plot_resource_usages(results: dict[Benchmark, ResourceUsage]) -> None:
+def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot throughput vs resource usage for each benchmark.
     """
-    benchmark_names = {bench.name for bench in results.keys()}
+    benchmark_names = {res.bench.name for res in results.keys()}
     fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names))
     axes = list(axes)
     if not isinstance(axes[0], list):
         axes = [[ax] for ax in axes]
     for col, bench_name in enumerate(benchmark_names):
-        benchmarks = [b for b in results.keys() if b.name == bench_name]
-        benchmarks = sorted(benchmarks, key=lambda b: b.throughput)
+        verilog_benchmarks = [
+            b
+            for b in results.keys()
+            if b.bench.name == bench_name and b.language == "verilog"
+        ]
+        verilog_benchmarks = sorted(verilog_benchmarks, key=lambda b: (b.language, b.bench.throughput))
+        vhdl_benchmarks = [
+            b
+            for b in results.keys()
+            if b.bench.name == bench_name and b.language == "vhdl"
+        ]
+        vhdl_benchmarks = sorted(vhdl_benchmarks, key=lambda b: (b.language, b.bench.throughput))
         # Plot ALM usage
         alm_ax = axes[0][col]
-        xs = [b.throughput for b in benchmarks]
-        ys = [results[b].alm for b in benchmarks]
-        alm_ax.plot(xs, ys, marker="o")
+        xs = [b.bench.throughput for b in verilog_benchmarks]
+        ys = [results[b].alm for b in verilog_benchmarks]
+        verilog_artist, = alm_ax.plot(xs, ys, marker="o", label="Aetherling")
+        xs = [b.bench.throughput for b in vhdl_benchmarks]
+        ys = [results[b].alm for b in vhdl_benchmarks]
+        vhdl_artist, = alm_ax.plot(xs, ys, marker="o", label="Ours")
         alm_ax.get_xaxis().set_ticks([])
         alm_ax.set_ylabel("ALMs")
         # Plot BRAM usage
         bram_ax = axes[1][col]
-        xs = [b.throughput for b in benchmarks]
-        ys = [results[b].bram for b in benchmarks]
-        bram_ax.plot(xs, ys, marker="o")
+        xs = [b.bench.throughput for b in verilog_benchmarks]
+        ys = [results[b].bram for b in verilog_benchmarks]
+        bram_ax.plot(xs, ys, marker="o", label="Aetherling")
+        xs = [b.bench.throughput for b in vhdl_benchmarks]
+        ys = [results[b].bram for b in vhdl_benchmarks]
+        bram_ax.plot(xs, ys, marker="o", label="Ours")
         bram_ax.get_xaxis().set_ticks([])
         bram_ax.set_ylabel("BRAMs")
         if all(y == 0 for y in ys):
             bram_ax.set_ylim(-1, 1)
         # Plot DSP usage
         dsp_ax = axes[2][col]
-        xs = [b.throughput for b in benchmarks]
-        ys = [results[b].dsp for b in benchmarks]
-        dsp_ax.plot(xs, ys, marker="o")
-        dsp_ax.get_xaxis().set_ticks([b.throughput for b in benchmarks])
+        xs = [b.bench.throughput for b in verilog_benchmarks]
+        ys = [results[b].dsp for b in verilog_benchmarks]
+        dsp_ax.plot(xs, ys, marker="o", label="Aetherling")
+        xs = [b.bench.throughput for b in vhdl_benchmarks]
+        ys = [results[b].dsp for b in vhdl_benchmarks]
+        dsp_ax.plot(xs, ys, marker="o", label="Ours")
+        dsp_ax.get_xaxis().set_ticks([b.bench.throughput for b in vhdl_benchmarks])
         dsp_ax.set_ylabel("DSPs")
         if all(y == 0 for y in ys):
             dsp_ax.set_ylim(-1, 1)
+        # Settings for the whole column
+        alm_ax.legend(handles=[vhdl_artist, verilog_artist])
         alm_ax.set_title(bench_name)
         dsp_ax.set_xlabel("Throughput")
     fig.tight_layout()

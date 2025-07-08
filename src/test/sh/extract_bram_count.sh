@@ -3,4 +3,13 @@
 # Extract the BRAM count from the resource report.
 # This script must be called from within the root directory of the VHDL project.
 
-cat output_files/top.fit.summary | sed -nE 's/Total RAM Blocks : ([0-9]+) .*/\1/p'
+cd output_files
+sed_command='s/Total RAM Blocks : ([0-9]+) .*/\1/p'
+if [[ -f top.fit.summary ]]; then
+    cat top.fit.summary | sed -nE "$sed_command"
+elif [[ -f Top.fit.summary ]]; then
+    cat Top.fit.summary | sed -nE "$sed_command"
+else
+    >&2 echo "Could not find resource usage report."
+    exit 1
+fi
