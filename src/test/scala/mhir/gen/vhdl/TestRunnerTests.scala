@@ -7,11 +7,11 @@ import org.scalatest.funsuite.AnyFunSuite
   */
 @VhdlTest
 class TestRunnerTests extends AnyFunSuite {
-  test("run_test.sh:or-gate") {
+  test("test_vhdl.sh:or-gate") {
     assert(TestRunner.testExistingProject("examples/or-gate") == TestPassed)
   }
 
-  test("run_test.sh:stm-count-sum") {
+  test("test_vhdl.sh:stm-count-sum") {
     // The files are deliberately out of order (stm_1_scan.vhd depends on
     // stm_2_count.vhd but the former comes before the latter in an
     // alphabetical listing of the files).
@@ -20,7 +20,7 @@ class TestRunnerTests extends AnyFunSuite {
     )
   }
 
-  test("run_test.sh:design-compile-error") {
+  test("test_vhdl.sh:design-compile-error") {
     assert(
       TestRunner.testExistingProject(
         "examples/design-compile-error"
@@ -28,7 +28,7 @@ class TestRunnerTests extends AnyFunSuite {
     )
   }
 
-  test("run_test.sh:testbench-compile-error") {
+  test("test_vhdl.sh:testbench-compile-error") {
     assert(
       TestRunner.testExistingProject(
         "examples/testbench-compile-error"
@@ -36,7 +36,7 @@ class TestRunnerTests extends AnyFunSuite {
     )
   }
 
-  test("run_test.sh:wrong-output") {
+  test("test_vhdl.sh:wrong-output") {
     assert(
       TestRunner.testExistingProject(
         "examples/wrong-output"
@@ -44,7 +44,7 @@ class TestRunnerTests extends AnyFunSuite {
     )
   }
 
-  test("run_test.sh:infinite-loop") {
+  test("test_vhdl.sh:infinite-loop") {
     assert(
       TestRunner.testExistingProject(
         "examples/infinite-loop"

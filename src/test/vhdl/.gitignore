@@ -1,0 +1,11 @@
+# Ignore everything...
+*
+
+# ... but don't ignore .gitignore itself
+!.gitignore
+!/run_test.sh
+
+# ... and don't ignore the example .vhd files
+!/examples/**/
+!/examples/**/design/*.vhd
+!/examples/**/test/*.vhd

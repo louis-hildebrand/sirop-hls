@@ -14,8 +14,8 @@ case object SimulationTimeout extends TestResult
 case object UnknownFailure extends TestResult
 
 object TestRunner {
-  private val VHDL_DIR = os.pwd / "vhdl"
-  private val RUN_TEST_SH = VHDL_DIR / "run_test.sh"
+  private val VHDL_DIR = os.pwd / "src" / "test" / "vhdl"
+  private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_vhdl.sh"
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
 
   /** See [[testExistingProject(dir:Path*]].

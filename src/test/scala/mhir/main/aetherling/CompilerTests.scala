@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class CompilerTests extends AnyFunSuite {
   private val BenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original"
-  private val VhdlDir = os.pwd / "vhdl"
+  private val VhdlDir = os.pwd / "src" / "test" / "vhdl"
 
   test("map:1") {
     val inFile = BenchmarksDir / "map_1.txt"

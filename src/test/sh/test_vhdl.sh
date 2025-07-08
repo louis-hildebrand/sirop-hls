@@ -12,7 +12,7 @@ SIMULATION_TIMEOUT=6
 SIMULATION_FAILED=7
 
 function print_basic_usage {
-    echo "Usage: run_test.sh PROJ_DIR [-h|--help] [-v|--verbose] [-i|--interactive]"
+    echo "Usage: test_vhdl.sh PROJ_DIR [-h|--help] [-v|--verbose] [-i|--interactive]"
 }
 
 function print_usage {
