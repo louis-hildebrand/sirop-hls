@@ -291,3 +291,17 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
 			- Just count on the programmer to not write such programs
 			- Provide a function in the higher-level IR (`StmDuplicateSafely`?) which converts stream to vector and then inserts one `Vec2Stm` for *each* consumer? Programmer can use this if in doubt
 			- ==TODO:== is it possible to perform a static analysis that can guarantee absence of deadlocks?
+
+## Other Kinds of Streams
+- Stream with a "done" signal?
+	- ==TODO:== implement this!
+	- *Advantages:*
+		- No more need for each stream to keep track of its own length ==> lower resource usage?
+			- e.g., `map` is done when its input is done - basically just pass through the `done` signal. But with bounded streams, it must have a `remaining_outputs` down-counter, which is almost certainly more expensive
+		- More expressive in some ways
+			- e.g., can implement things like `filter` which do not have a fixed size
+	- *Disadvantages:*
+		- Nested streams may be trickier
+			- Just keep track of the stream length (if known) via the type?
+- Unbounded stream?
+	- But then how would the evaluator know when to stop?
