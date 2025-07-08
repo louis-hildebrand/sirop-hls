@@ -90,6 +90,12 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot throughput vs resource usage for each benchmark.
     """
+
+    AETHERLING_LABEL = "Aetherling"
+    AETHERLING_MARKER = "^"
+    OUR_LABEL = "Ours"
+    OUR_MARKER = "o"
+
     benchmark_names = {res.bench.name for res in results.keys()}
     fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names))
     axes = list(axes)
@@ -112,20 +118,20 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         alm_ax = axes[0][col]
         xs = [b.bench.throughput for b in verilog_benchmarks]
         ys = [results[b].alm for b in verilog_benchmarks]
-        verilog_artist, = alm_ax.plot(xs, ys, marker="o", label="Aetherling")
+        verilog_artist, = alm_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         xs = [b.bench.throughput for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
-        vhdl_artist, = alm_ax.plot(xs, ys, marker="o", label="Ours")
+        vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         alm_ax.get_xaxis().set_ticks([])
         alm_ax.set_ylabel("ALMs")
         # Plot BRAM usage
         bram_ax = axes[1][col]
         xs = [b.bench.throughput for b in verilog_benchmarks]
         ys = [results[b].bram for b in verilog_benchmarks]
-        bram_ax.plot(xs, ys, marker="o", label="Aetherling")
+        bram_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         xs = [b.bench.throughput for b in vhdl_benchmarks]
         ys = [results[b].bram for b in vhdl_benchmarks]
-        bram_ax.plot(xs, ys, marker="o", label="Ours")
+        bram_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         bram_ax.get_xaxis().set_ticks([])
         bram_ax.set_ylabel("BRAMs")
         if all(y == 0 for y in ys):
@@ -134,10 +140,10 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         dsp_ax = axes[2][col]
         xs = [b.bench.throughput for b in verilog_benchmarks]
         ys = [results[b].dsp for b in verilog_benchmarks]
-        dsp_ax.plot(xs, ys, marker="o", label="Aetherling")
+        dsp_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         xs = [b.bench.throughput for b in vhdl_benchmarks]
         ys = [results[b].dsp for b in vhdl_benchmarks]
-        dsp_ax.plot(xs, ys, marker="o", label="Ours")
+        dsp_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         dsp_ax.get_xaxis().set_ticks([b.bench.throughput for b in vhdl_benchmarks])
         dsp_ax.set_ylabel("DSPs")
         if all(y == 0 for y in ys):
