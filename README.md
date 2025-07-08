@@ -13,6 +13,7 @@ When they were copied into this repository, they were renamed to show the throug
 So, for example, map_40.v in the Aetherling repository (which has a latency of 40 cycles and a throughput of 5 elements per cycle) was renamed to map_5.v.
 
 To run these, first create a Python virtual environment and install the required dependencies.
+The scripts were developed and tested with Python 3.10.
 ```shell
 python3 -m venv .venv
 source .venv/bin/activate
