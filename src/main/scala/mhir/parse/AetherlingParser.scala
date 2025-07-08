@@ -30,19 +30,89 @@ object AetherlingParser {
     *   expr       ::= "(" expr ")"
     *                | ident
     *                | quot_ident
+    *                // ----- basic operators
+    *                | "IdN " expr
+    *                | "AbsN " typ " " expr
+    *                | "NotN " expr
+    *                | "AndN " expr
+    *                | "OrN " expr
     *                | "AddN " typ " " expr
+    *                | "SubN " typ " " expr
+    *                | "MulN " typ " " expr
+    *                | "DivN " typ " " expr
+    *                | "LSRN " typ " " expr
+    *                | "LSLN " typ " " expr
+    *                | "LtN " typ " " expr
+    *                | "EqN " typ " " expr
+    *                | "IfN " typ " " expr
+    *                // ----- generators
+    *                | "Lut_GenN " ???
     *                | "Const_GenN " const " " nat " " typ
-    *                | "ATupleN " typ " " typ " " expr " " expr
-    *                | "FIFON " typ " " nat " " expr
-    *                | "Map_tN " nat " " nat " " expr " " expr
+    *                | "Counter_sN " nat " " nat " " typ " " nat
+    *                | "Counter_tN " nat " " nat " " nat " " typ " " nat
+    *                | "Counter_tsN " nat " " nat " " nat " " nat " " typ " " nat
+    *                | "Counter_tnN " nat_list " " nat_list " " nat " " typ " " nat
+    *                // ----- sequence operators
+    *                | "Shift_sN " nat " " nat " " typ " " expr
+    *                | "Shift_tN " nat " " nat " " nat " " typ " " expr
+    *                | "Shift_tsN " nat " " nat " " nat " " nat " " typ " " expr
+    *                | "Shift_ttN " nat " " nat " " nat " " nat " " nat " " typ " " expr
+    *                | "Shift_tnN " nat " " nat_list " " nat " " nat_list " " nat " " typ " " expr
+    *                | "Up_1d_sN " nat " " typ " " expr
+    *                | "Up_1d_tN " nat " " nat " " typ " " expr
+    *                | "Down_1d_sN " nat " " nat " " typ " " expr
+    *                | "Down_1d_tN " nat " " nat " " nat " " typ " " expr
+    *                | "Partition_s_ssN " nat " " nat " " typ " " expr
+    *                | "Partition_t_ttN " nat " " nat " " nat " " nat " " typ " " expr
+    *                | "Unpartition_s_ssN " nat " " nat " " typ " " expr
+    *                | "Unpartition_t_ttN " nat " " nat " " nat " " nat " " typ " " expr
+    *                | "SerializeN " nat " " nat " " typ " " expr
+    *                | "DeserializeN " nat " " nat " " typ " " expr
+    *                | "Add_1_sN " expr " " expr
+    *                | "Add_1_0_tN " expr " " expr
+    *                | "Remove_1_sN " expr " " expr
+    *                | "Remove_1_0_tN " expr " " expr
+    *                // ----- higher-order operators
     *                | "Map_sN " nat " " expr " " expr
-    *                | ... (TODO)
-    *   const      ::= "UInt8V " nat
+    *                | "Map_tN " nat " " nat " " expr " " expr
+    *                | "Map2_sN " nat " " expr " " expr " " expr
+    *                | "Map2_tN " nat " " nat " " expr " " expr " " expr
+    *                | "Reduce_sN " nat " " expr " " expr
+    *                | "Reduce_tN " nat " " nat " " expr " " expr
+    *                // ----- tuple operators
+    *                | "FstN " typ " " typ " " expr
+    *                | "SndN " typ " " typ " " expr
+    *                | "ATupleN " typ " " typ " " expr " " expr
+    *                | "STupleN " typ " " expr " " expr
+    *                | "STupleAppendN " nat " " typ " " expr " " expr
+    *                | "STupleToSSeqN " nat " " typ " " expr
+    *                | "SSeqToSTupleN " nat " " typ " " expr
+    *                // ----- miscellaneous
+    *                | "InputN " ???
+    *                | "ErrorN " ???
+    *                | "FIFON " typ " " nat " " expr
+    *                | "ReshapeN (" typ ") (" typ ")"
+    *   const      ::= "UnitV"
+    *                | "BitV " bool
+    *                | "Int8V " nat
+    *                | "UInt8V " nat
+    *                | "FixP1_7V " float
+    *                | "Int16V " nat
+    *                | "UInt16V " nat
+    *                | "Int32V " nat
     *                | "UInt32V " nat
-    *                | ... (TODO)
+    *                | "ATupleV " const " " const
+    *                | "STupleV " const_list
+    *                | "SSeqV " const_list
+    *                | "TSeqV {vals = " const_list ", i_v = " nat "}"
+    *   const_list ::= "[]"
+    *                | "[" const ("," const)* "]"
     *   ident      ::= letter (letter | digit)*
     *   quot_ident ::= "\"" ident "\""
     *   nat        ::= digit+
+    *   nat_list   ::= "[]"
+    *                | "[" nat ("," nat)* "]"
+    *   bool       ::= "True" | "False"
     * }}}
     *
     * @param code
@@ -201,6 +271,16 @@ object AetherlingParser {
       val (e, suffix1) = parseExpr(suffix0, modules)
       val suffix2 = expect(suffix1, ")")
       (e, suffix2)
+    } else if (code.startsWith("IdN ")) {
+      ???
+    } else if (code.startsWith("AbsN ")) {
+      ???
+    } else if (code.startsWith("NotN ")) {
+      ???
+    } else if (code.startsWith("AndN ")) {
+      ???
+    } else if (code.startsWith("OrN ")) {
+      ???
     } else if (code.startsWith("AddN ")) {
       val suffix0 = expect(code, "AddN ")
       // TODO: Add a node like `AssertType` which is removed by the type
@@ -209,6 +289,24 @@ object AetherlingParser {
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
       (e.__0 + e.__1, suffix3)
+    } else if (code.startsWith("SubN ")) {
+      ???
+    } else if (code.startsWith("MulN ")) {
+      ???
+    } else if (code.startsWith("DivN ")) {
+      ???
+    } else if (code.startsWith("LSRN ")) {
+      ???
+    } else if (code.startsWith("LSLN ")) {
+      ???
+    } else if (code.startsWith("LtN ")) {
+      ???
+    } else if (code.startsWith("EqN ")) {
+      ???
+    } else if (code.startsWith("IfN ")) {
+      ???
+    } else if (code.startsWith("Lut_GenN ")) {
+      ???
     } else if (code.startsWith("Const_GenN ")) {
       val suffix0 = expect(code, "Const_GenN ")
       val (c, suffix1) = parseConst(suffix0)
@@ -218,26 +316,61 @@ object AetherlingParser {
       // TODO: Assert type?
       val (_, suffix5) = parseTyp(suffix4)
       (c, suffix5)
-    } else if (code.startsWith("ATupleN ")) {
+    } else if (code.startsWith("Counter_sN ")) {
+      ???
+    } else if (code.startsWith("Counter_tN ")) {
+      ???
+    } else if (code.startsWith("Counter_tsN ")) {
+      ???
+    } else if (code.startsWith("Counter_tnN ")) {
+      ???
+    } else if (code.startsWith("Shift_sN ")) {
+      ???
+    } else if (code.startsWith("Shift_tN ")) {
+      ???
+    } else if (code.startsWith("Shift_tsN ")) {
+      ???
+    } else if (code.startsWith("Shift_ttN ")) {
+      ???
+    } else if (code.startsWith("Shift_tnN ")) {
+      ???
+    } else if (code.startsWith("Up_1d_sN")) {
+      ???
+    } else if (code.startsWith("Up_1d_tN ")) {
+      ???
+    } else if (code.startsWith("Down_1d_sN ")) {
+      ???
+    } else if (code.startsWith("Down_1d_tN ")) {
+      ???
+    } else if (code.startsWith("Partition_s_ssN ")) {
+      ???
+    } else if (code.startsWith("Partition_t_ttN ")) {
+      ???
+    } else if (code.startsWith("Unpartition_s_ssN ")) {
+      ???
+    } else if (code.startsWith("Unpartition_t_ttN ")) {
+      ???
+    } else if (code.startsWith("SerializeN ")) {
+      ???
+    } else if (code.startsWith("DeserializeN ")) {
+      ???
+    } else if (code.startsWith("Add_1_sN ")) {
+      ???
+    } else if (code.startsWith("Add_1_0_tN")) {
+      ???
+    } else if (code.startsWith("Remove_1_sN ")) {
+      ???
+    } else if (code.startsWith("Remove_1_0_tN ")) {
+      ???
+    } else if (code.startsWith("Map_sN ")) {
+      val suffix0 = expect(code, "Map_sN ")
       // TODO: Assert type?
-      val suffix0 = expect(code, "ATupleN ")
-      val (_, suffix1) = parseTyp(suffix0)
+      val (_, suffix1) = parseNat(suffix0)
       val suffix2 = expect(suffix1, " ")
-      val (_, suffix3) = parseTyp(suffix2)
+      val (f, suffix3) = parseExpr(suffix2, modules)
       val suffix4 = expect(suffix3, " ")
-      val (e0, suffix5) = parseExpr(suffix4, modules)
-      val suffix6 = expect(suffix5, " ")
-      val (e1, suffix7) = parseExpr(suffix6, modules)
-      (Tuple(e0, e1)(), suffix7)
-    } else if (code.startsWith("FIFON ")) {
-      val suffix0 = expect(code, "FIFON ")
-      // TODO: Assert type?
-      val (_, suffix1) = parseTyp(suffix0)
-      val suffix2 = expect(suffix1, " ")
-      val (_, suffix3) = parseNat(suffix2)
-      val suffix4 = expect(suffix3, " ")
-      val (e, suffix5) = parseExpr(suffix4, modules)
-      (Fifo(e), suffix5)
+      val (v, suffix5) = parseExpr(suffix4, modules)
+      (VecMap(v, f)(), suffix5)
     } else if (code.startsWith("Map_tN ")) {
       val suffix0 = expect(code, "Map_tN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -255,15 +388,52 @@ object AetherlingParser {
           Function(Param("I", -1)(Missing), f)()
       }
       (StmMap(s, g)(), suffix7)
-    } else if (code.startsWith("Map_sN ")) {
-      val suffix0 = expect(code, "Map_sN ")
+    } else if (code.startsWith("Map2_sN ")) {
+      ???
+    } else if (code.startsWith("Map2_tN ")) {
+      ???
+    } else if (code.startsWith("Reduce_sN ")) {
+      ???
+    } else if (code.startsWith("Reduce_tN ")) {
+      ???
+    } else if (code.startsWith("FstN ")) {
+      ???
+    } else if (code.startsWith("SndN ")) {
+      ???
+    } else if (code.startsWith("ATupleN ")) {
       // TODO: Assert type?
-      val (_, suffix1) = parseNat(suffix0)
+      val suffix0 = expect(code, "ATupleN ")
+      val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
-      val (f, suffix3) = parseExpr(suffix2, modules)
+      val (_, suffix3) = parseTyp(suffix2)
       val suffix4 = expect(suffix3, " ")
-      val (v, suffix5) = parseExpr(suffix4, modules)
-      (VecMap(v, f)(), suffix5)
+      val (e0, suffix5) = parseExpr(suffix4, modules)
+      val suffix6 = expect(suffix5, " ")
+      val (e1, suffix7) = parseExpr(suffix6, modules)
+      (Tuple(e0, e1)(), suffix7)
+    } else if (code.startsWith("STupleN ")) {
+      ???
+    } else if (code.startsWith("STupleAppendN ")) {
+      ???
+    } else if (code.startsWith("STupleToSSeqN ")) {
+      ???
+    } else if (code.startsWith("SSeqToSTupleN ")) {
+      ???
+    } else if (code.startsWith("InputN ")) {
+      ???
+    } else if (code.startsWith("ErrorN ")) {
+      ???
+    } else if (code.startsWith("FIFON ")) {
+      val suffix0 = expect(code, "FIFON ")
+      // TODO: Assert type?
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (Fifo(e), suffix5)
+    } else if (code.startsWith("ReshapeN ")) {
+      ???
     } else if (code.startsWith("\"")) {
       parseQuotedIdentifier(code)
     } else if (code.head.isLetter) {
@@ -274,14 +444,36 @@ object AetherlingParser {
   }
 
   private def parseConst(code: String): (Expr, String) = {
-    if (code.startsWith("UInt8V ")) {
+    if (code.startsWith("UnitV")) {
+      ???
+    } else if (code.startsWith("BitV ")) {
+      ???
+    } else if (code.startsWith("Int8V ")) {
+      ???
+    } else if (code.startsWith("UInt8V ")) {
       val suffix0 = expect(code, "UInt8V ")
       val (n, suffix1) = parseNat(suffix0)
       (C(n)(U8), suffix1)
+    } else if (code.startsWith("FixP1_7V ")) {
+      ???
+    } else if (code.startsWith("Int16V ")) {
+      ???
+    } else if (code.startsWith("UInt16V ")) {
+      ???
+    } else if (code.startsWith("Int32V ")) {
+      ???
     } else if (code.startsWith("UInt32V ")) {
       val suffix0 = expect(code, "UInt32V ")
       val (n, suffix1) = parseNat(suffix0)
       (C(n)(U32), suffix1)
+    } else if (code.startsWith("ATupleV ")) {
+      ???
+    } else if (code.startsWith("STupleV ")) {
+      ???
+    } else if (code.startsWith("SSeqV ")) {
+      ???
+    } else if (code.startsWith("TSeqV ")) {
+      ???
     } else {
       throw new SyntaxError(s"Expected a constant but got $code")
     }
