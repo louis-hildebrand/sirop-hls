@@ -5,20 +5,18 @@ The goal is to be able to take a high-level algorithm, expressed using familiar 
 
 ## Evaluation
 
-There are some benchmarks from [Aetherling](https://dl.acm.org/doi/10.1145/3385412.3385983) in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original).
-> NOTE
->
-> The Verilog files in the Aetherling repository seem to be named according to latency.
-When they were copied into this repository, they were renamed to show the throughput instead (so that the naming of benchmarks is consistent).
-So, for example, map_40.v in the Aetherling repository (which has a latency of 40 cycles and a throughput of 5 elements per cycle) was renamed to map_5.v.
-
-To run these, first create a Python virtual environment and install the required dependencies.
-The scripts were developed and tested with Python 3.10.
+Many of the evaluation scripts are written in Python.
+They were developed and tested in Python 3.10.
+To create a Python virtual environment and install the required dependencies, use the following commands.
 ```shell
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### Compared to Aetherling
+
+There are some benchmarks from [Aetherling](https://dl.acm.org/doi/10.1145/3385412.3385983) in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original).
 
 To measure the resource utilization for each benchmark, run the following command.
 It will take a long time.
@@ -32,6 +30,31 @@ This will plot whatever is in the [results/](./results) directory, so you do not
 The plot will also be placed in [results/](./results).
 ```shell
 python src/test/python/aetherling_plot.py
+```
+
+#### Getting the Benchmarks from Aetherling
+
+If you want to see for yourself that Aetherling indeed produces the benchmarks in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original), follow these instructions.
+
+First, clone my fork of Aetherling from https://github.com/louis-hildebrand/aetherling and follow the setup instructions.
+The fork includes some tweaks to Aetherling's test code so that only the space/time code and Verilog code we need are produced.
+
+Once everything is set up, run the tests by executing the following command (while inside the Aetherling repo).
+```shell
+stack test --test-arguments '--num-threads 1'
+```
+
+This should generate a bunch of .txt and .v files in the `test/no_bench/` directory (still within the Aetherling repo).
+To copy those to this repo, run the following commands, where `MHIR_REPO` is set to the path to this repo:
+```shell
+MHIR_REPO=...
+find ./test/no_bench/ -name '*.txt' -exec cp {} "$MHIR_REPO/src/test/resources/aetherling_benchmarks/original" \;
+find ./test/no_bench/ -name '*.v' -exec cp {} "$MHIR_REPO/src/test/resources/aetherling_benchmarks/verilog" \;
+```
+
+Finally, rename the benchmarks using the following command:
+```shell
+"$MHIR_REPO/src/test/sh/rename_benchmarks.sh"
 ```
 
 ## Documentation

@@ -91,9 +91,9 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     Plot throughput vs resource usage for each benchmark.
     """
 
-    AETHERLING_LABEL = "Aetherling"
+    AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
     AETHERLING_MARKER = "^"
-    OUR_LABEL = "Ours"
+    OUR_LABEL = "Aetherling \u2192 mhir \u2192 VHDL"
     OUR_MARKER = "o"
 
     benchmark_names = {res.bench.name for res in results.keys()}

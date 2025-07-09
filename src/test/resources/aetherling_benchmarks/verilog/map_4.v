@@ -100,10 +100,8 @@ module InitialDelayCounter(
 );
   reg  value; // @[InitialDelayCounter.scala 8:34]
   reg [31:0] _RAND_0;
-  wire  _T_1; // @[InitialDelayCounter.scala 17:17]
-  wire  _T_4; // @[InitialDelayCounter.scala 17:53]
-  assign _T_1 = value < 1'h1; // @[InitialDelayCounter.scala 17:17]
-  assign _T_4 = value + 1'h1; // @[InitialDelayCounter.scala 17:53]
+  wire  _T_1 = value < 1'h1; // @[InitialDelayCounter.scala 17:17]
+  wire  _T_4 = value + 1'h1; // @[InitialDelayCounter.scala 17:53]
   assign valid_down = value; // @[InitialDelayCounter.scala 16:16]
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
 `define RANDOMIZE
@@ -252,8 +250,8 @@ module MapS(
   wire  other_ops_2_valid_down; // @[MapS.scala 10:86]
   wire [7:0] other_ops_2_I; // @[MapS.scala 10:86]
   wire [7:0] other_ops_2_O; // @[MapS.scala 10:86]
-  wire  _T; // @[MapS.scala 23:83]
-  wire  _T_1; // @[MapS.scala 23:83]
+  wire  _T = fst_op_valid_down & other_ops_0_valid_down; // @[MapS.scala 23:83]
+  wire  _T_1 = _T & other_ops_1_valid_down; // @[MapS.scala 23:83]
   Module_0 fst_op ( // @[MapS.scala 9:22]
     .clock(fst_op_clock),
     .reset(fst_op_reset),
@@ -286,8 +284,6 @@ module MapS(
     .I(other_ops_2_I),
     .O(other_ops_2_O)
   );
-  assign _T = fst_op_valid_down & other_ops_0_valid_down; // @[MapS.scala 23:83]
-  assign _T_1 = _T & other_ops_1_valid_down; // @[MapS.scala 23:83]
   assign valid_down = _T_1 & other_ops_2_valid_down; // @[MapS.scala 23:14]
   assign O_0 = fst_op_O; // @[MapS.scala 17:8]
   assign O_1 = other_ops_0_O; // @[MapS.scala 21:12]

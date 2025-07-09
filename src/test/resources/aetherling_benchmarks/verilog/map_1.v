@@ -70,10 +70,8 @@ module InitialDelayCounter(
 );
   reg  value; // @[InitialDelayCounter.scala 8:34]
   reg [31:0] _RAND_0;
-  wire  _T_1; // @[InitialDelayCounter.scala 17:17]
-  wire  _T_4; // @[InitialDelayCounter.scala 17:53]
-  assign _T_1 = value < 1'h1; // @[InitialDelayCounter.scala 17:17]
-  assign _T_4 = value + 1'h1; // @[InitialDelayCounter.scala 17:53]
+  wire  _T_1 = value < 1'h1; // @[InitialDelayCounter.scala 17:17]
+  wire  _T_4 = value + 1'h1; // @[InitialDelayCounter.scala 17:53]
   assign valid_down = value; // @[InitialDelayCounter.scala 16:16]
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
 `define RANDOMIZE
