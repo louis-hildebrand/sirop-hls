@@ -1,9 +1,13 @@
 package mhir.ir
 package typecheck
 
+import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypecheckerTests extends AnyFunSuite {
+  private val X = new ParamStore("X")
+  private val Y = new ParamStore("Y")
+
   private def assertAllNodesHaveType(e: Expr): Unit = {
     assert(e.typ != Missing)
     e.children.foreach(e => assertAllNodesHaveType(e))
@@ -172,6 +176,42 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("TruncateTo:i8 to u0") {
     assert(TruncateTo(yI8, 0)().tchk().typ == U0)
+  }
+
+  test("uint << uint") {
+    assert((X(U8) << Y(U8)).tchk().typ == U8)
+    assert((X(U8) << Y(U16)).tchk().typ == U8)
+    assert((X(U8) << Y(U32)).tchk().typ == U8)
+    assert((X(U16) << Y(U8)).tchk().typ == U16)
+    assert((X(U16) << Y(U16)).tchk().typ == U16)
+    assert((X(U16) << Y(U32)).tchk().typ == U16)
+    assert((X(U32) << Y(U8)).tchk().typ == U32)
+    assert((X(U32) << Y(U16)).tchk().typ == U32)
+    assert((X(U32) << Y(U32)).tchk().typ == U32)
+  }
+
+  test("sint << uint") {
+    assert((X(I8) << Y(U8)).tchk().typ == I8)
+    assert((X(I8) << Y(U16)).tchk().typ == I8)
+    assert((X(I8) << Y(U32)).tchk().typ == I8)
+    assert((X(I16) << Y(U8)).tchk().typ == I16)
+    assert((X(I16) << Y(U16)).tchk().typ == I16)
+    assert((X(I16) << Y(U32)).tchk().typ == I16)
+    assert((X(I32) << Y(U8)).tchk().typ == I32)
+    assert((X(I32) << Y(U16)).tchk().typ == I32)
+    assert((X(I32) << Y(U32)).tchk().typ == I32)
+  }
+
+  test("bool << u8") {
+    assertThrows[TypeError]((X(TyBool) << Y(U8)).tchk())
+  }
+
+  test("u8 << bool") {
+    assertThrows[TypeError]((X(U8) << Y(TyBool)).tchk())
+  }
+
+  test("u8 << i8") {
+    assertThrows[TypeError]((X(U8) << Y(I8)).tchk())
   }
 
   test("IntAndBoolFunction") {

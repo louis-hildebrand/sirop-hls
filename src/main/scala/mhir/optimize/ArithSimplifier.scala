@@ -95,8 +95,7 @@ private[optimize] object ArithSimplifier {
     // The ArithExpr library does not support parallel execution due to some
     // uses of global mutable state (e.g., `PerformSimplification`).
     this.synchronized {
-      // Try simplifying without the library first
-      val e = simplifyBoolExpr(expr.tchk())
+      val e = simplifyWithoutLibrary(expr.tchk())
       val a =
         try {
           Some(toSimplifiedArithExpr(e)(facts))
@@ -306,6 +305,23 @@ private[optimize] object ArithSimplifier {
         unwrapMux(c)
       case Mux(c, False, True) =>
         Not(unwrapMux(c))()
+      case e =>
+        e
+    }
+  }
+
+  @tailrec
+  private def simplifyWithoutLibrary(e: Expr): Expr = {
+    require(e.hasType)
+    e match {
+      case LLShift(_: IntCst, _: IntCst) =>
+        mhir.ir.eval(e)
+      case LLShift(e, IntCst(0)) =>
+        // TODO: Should this actually be done after calling the library in
+        //       case e2 is simplified to 0 but is not originally 0?
+        simplifyWithoutLibrary(e)
+      case e if e.typ == TyBool =>
+        simplifyBoolExpr(e)
       case e =>
         e
     }

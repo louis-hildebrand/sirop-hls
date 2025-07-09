@@ -48,7 +48,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
         Tuple(i + j, i + (-1 * j), (-1 * i) + j, (-1 * i) + (-1 * j))(),
         Tuple(i * j, i * (-1 * j), (-1 * i) * j, (-1 * i) * (-1 * j))(),
         Tuple(i / j, i / (-1 * j), (-1 * i) / j, (-1 * i) / (-1 * j))(),
-        Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))()
+        Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))(),
+        Tuple(
+          i << ToUnsigned(-1 + j)(),
+          ToUnsigned(i)() << ToUnsigned(-1 + j)()
+        )()
       )(),
       True,
       Map[Param, (Expr, Expr)](

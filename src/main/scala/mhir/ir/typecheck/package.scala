@@ -201,6 +201,10 @@ package object typecheck {
                   + " Expected a signed integer."
               )
           }
+        case ll @ LLShift(e1, e2) =>
+          val newE1 = e1.tchk.expectAnyInt()
+          val newE2 = e2.tchk.expectUInt()
+          ll.rebuild(newE1.typ, Seq(newE1, newE2))
 
         case True  => True
         case False => False

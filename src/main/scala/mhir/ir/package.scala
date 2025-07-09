@@ -93,6 +93,10 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       */
     def %(that: Expr): Expr = SmartMod(this.expr, that)()
 
+    /** See [[LLShift]].
+      */
+    def <<(that: Expr): Expr = LLShift(this.expr, that)()
+
     /** See [[SmartEqual]].
       */
     def ===(that: Expr): Expr = SmartEqual(this.expr, that)()

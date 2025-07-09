@@ -173,6 +173,10 @@ object PartialEvalPass {
                 }
               case e => ToUnsigned(e)()
             }
+          case ll @ LLShift(e1, e2) =>
+            val newChildren = Seq(e1, e2).map(doPartialEval)
+            ArithSimplifier
+              .simplifyArithmetic(ll.rebuild(ll.typ, newChildren))(facts)
 
           case True  => True
           case False => False

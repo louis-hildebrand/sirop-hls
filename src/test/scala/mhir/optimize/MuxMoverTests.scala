@@ -51,6 +51,13 @@ class MuxMoverTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("MoveUp:mux(c, x, y) << 1") {
+    val e = Mux(c1, x, y)() << C(1)(U8)
+    val actual = MuxMover.moveUp(e)
+    val expected = Mux(c1, x << C(1)(U8), y << C(1)(U8))()
+    assert(actual == expected)
+  }
+
   test("MoveUp:mux(c1, x, mux(c2, y, z)) + 1") {
     val e = Sum(Mux(c1, x, Mux(c2, y, z)())(), C(1)(U8))()
     val actual = MuxMover.moveUp(e)

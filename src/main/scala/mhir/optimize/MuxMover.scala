@@ -34,6 +34,7 @@ object MuxMover {
       case TruncateTo(e, w)   => moveUp1(e, TruncateTo(_, w)())
       case ToSigned(e)        => moveUp1(e, ToSigned(_)())
       case ToUnsigned(e)      => moveUp1(e, ToUnsigned(_)())
+      case LLShift(e1, e2)    => moveUp2(Seq(e1, e2), LLShift(_, _)())
       case True               => True
       case False              => False
       case Equal(e1, e2)      => moveUp2(Seq(e1, e2), Equal(_, _)())

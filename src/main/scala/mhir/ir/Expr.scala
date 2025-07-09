@@ -418,6 +418,23 @@ case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
   }
 }
 
+/** Logical left shift.
+  *
+  * @param e1
+  *   the number to shift.
+  * @param e2
+  *   the number of bits to shift by.
+  */
+case class LLShift(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => LLShift(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** An expression which must have type [[TyBool]] if it is well-typed.
   *
   * Note that the type may temporarily be [[Missing]] rather than [[TyBool]] if

@@ -67,11 +67,12 @@ object Precedence {
       case _: Not                    => 2
       case _: Prod | _: Div | _: Mod => 3
       case _: Sum                    => 4
-      case _: LessThan               => 5
-      case _: Equal                  => 6
-      case _: And                    => 7
-      case _: Or                     => 8
-      case _: Function | _: Mux      => 9
+      case _: LLShift                => 5
+      case _: LessThan               => 6
+      case _: Equal                  => 7
+      case _: And                    => 8
+      case _: Or                     => 9
+      case _: Function | _: Mux      => 10
       case e: SyntaxSugar            => e.precedence
     }
   }
