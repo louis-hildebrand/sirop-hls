@@ -44,7 +44,7 @@ class AetherlingParserTests extends AnyFunSuite {
     val files = os
       .list(OriginalCodeDir)
       .filter(os.isFile)
-      .filter(p => p.baseName.startsWith("map"))
+      .filter(p => p.baseName.startsWith("map_"))
     assert(files.nonEmpty)
     for (f <- files) {
       val code = os.read(f)
@@ -60,6 +60,10 @@ class AetherlingParserTests extends AnyFunSuite {
       }
     }
     assume(!SaveOutput)
+  }
+
+  test("sum") {
+    pending
   }
 
   test("conv2d") {
