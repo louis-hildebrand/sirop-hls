@@ -272,11 +272,22 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.ir.eval(result) == StmLiteral(C(2345)())())
   }
 
-  test("VecFoldComb:Sum") {
+  test("VecFoldComb:SumAndProd") {
+    val v = VecBuild(4, U32 ::+ (i => i + 1))()
+    val sum =
+      VecFoldComb(
+        v,
+        Tuple(C(0)(U32), C(1)(U32))(),
+        (U32, U32) ::+ (acc => U32 ::+ (a => Tuple(acc.__0 + a, acc.__0 * a)()))
+      )().tchk().lower()
+    assert(mhir.ir.eval(sum) == Tuple(C(10)(), C(24)())())
+  }
+
+  test("VecReduceComb:Sum") {
     val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
-      VecFoldComb(oneTwoThreeVec, C(7)(U32), PlusFunction(U32))().tchk().lower()
-    assert(mhir.ir.eval(sum) == C(13)())
+      VecReduceComb(oneTwoThreeVec, PlusFunction(U32))().tchk().lower()
+    assert(mhir.ir.eval(sum) == C(6)())
   }
 
   test("VecFoldComb:HornersMethod") {

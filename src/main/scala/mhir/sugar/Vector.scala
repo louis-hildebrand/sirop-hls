@@ -180,7 +180,7 @@ case class VecFoldComb(
     }
     val z = this.z.tchk
     val t2 = z.typ
-    val f = this.f.tchk.expectType(t1 ->: t2 ->: t2)
+    val f = this.f.tchk.expectType(t2 ->: t1 ->: t2)
     this.rebuild(t2, Seq(v, z, f))
   }
 
@@ -199,6 +199,55 @@ case class VecFoldComb(
           s"Cannot use $className on a vector with non-constant size $e."
         )
     }
+  }
+}
+
+/** Combinational reduce over a vector
+  *
+  * This is a bit like [[VecFoldComb]], but the first element of the vector is
+  * used as the initial value.
+  */
+case class VecReduceComb(v: Expr /* Vec<T; n> */, f: Expr /* T -> T -> T */ )(
+    typ: Type = Missing
+) extends SyntaxSugar(v, f)(typ) /* T */ {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, f) => VecReduceComb(v, f)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val v = this.v.tchk
+    val typ = v.typ match {
+      case TyVec(t, _) => t
+      case t =>
+        throw new TypeError(
+          s"Vector in $className has type $t. Expected a vector."
+        )
+    }
+    val f = this.f.tchk.expectType(typ ->: typ ->: typ)
+    this.rebuild(typ, Seq(v, f))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v = this.v.lower()
+    val f = this.f.lower()
+    val head = VecAccess(v, 0)()
+    val n = v.typ.asInstanceOf[TyVec].n match {
+      case IntCst(n) if n > 0 => n
+      case IntCst(n) if n <= 0 =>
+        throw new IllegalArgumentException(
+          s"Cannot reduce over empty vector (length $n)."
+        )
+      case e =>
+        throw new IllegalArgumentException(
+          s"Cannot reduce over vector with non-constant size $e."
+        )
+    }
+    val tail = VecSuffix(v, C(n - 1)())()
+    VecFoldComb(tail, head, f)().tchk().lower()
   }
 }
 
