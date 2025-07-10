@@ -252,24 +252,53 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("Fold") {
+  test("VecFoldSeq:sum") {
     val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
-      VecFold(
-        oneTwoThreeVec,
-        C(7)(U32),
-        U32 ::+ (e1 => U32 ::+ (e2 => e1 + e2))
-      )().tchk()
+      VecFoldSeq(oneTwoThreeVec, C(7)(U32), PlusFunction(U32))().tchk()
     assert(mhir.ir.eval(sum) == StmLiteral(IntCst(13)())())
   }
 
-  ignore("SumRows") {
+  test("VecFoldSeq:HornersMethod") {
+    // [2, 3, 4, 5]
+    // i.e., 2x^3 + 3x^2 + 4x + 5
+    // i.e., 5 + x*(4 + x*(3 + x*2))
+    val v = VecBuild(4, U32 ::+ (i => i + 2))()
+    val x = C(10)(U32)
+    val result =
+      VecFoldSeq(v, C(0)(U32), U32 ::+ (acc => U32 ::+ (a => a + x * acc)))()
+        .tchk()
+        .lower()
+    assert(mhir.ir.eval(result) == StmLiteral(C(2345)())())
+  }
+
+  test("VecFoldComb:Sum") {
+    val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
+    val sum =
+      VecFoldComb(oneTwoThreeVec, C(7)(U32), PlusFunction(U32))().tchk().lower()
+    assert(mhir.ir.eval(sum) == C(13)())
+  }
+
+  test("VecFoldComb:HornersMethod") {
+    // [2, 3, 4, 5]
+    // i.e., 2x^3 + 3x^2 + 4x + 5
+    // i.e., 5 + x*(4 + x*(3 + x*2))
+    val v = VecBuild(4, U32 ::+ (i => i + 2))()
+    val x = C(10)(U32)
+    val result =
+      VecFoldComb(v, C(0)(U32), U32 ::+ (acc => U32 ::+ (a => a + x * acc)))()
+        .tchk()
+        .lower()
+    assert(mhir.ir.eval(result) == C(2345)())
+  }
+
+  test("SumRows") {
     val v =
       VecBuild(3, U32 ::+ (i => VecBuild(2, U32 ::+ (j => i + j))()))()
     val v2 =
       VecMap(
         v,
-        TyVec(U32, 3) ::+ (v => VecFold(v, 0, PlusFunction(U32))())
+        TyVec(U32, 2) ::+ (v => VecFoldComb(v, C(0)(U32), PlusFunction(U32))())
       )()
     assert(mhir.ir.eval(v2) == VecLiteral(1, 3, 5)())
   }

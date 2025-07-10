@@ -71,7 +71,7 @@ class OptimizationTests extends AnyFunSuite {
     val n = 3
     val v = Param("v")(TyVec(I16, C(n)(U8)))
     val z = Param("z")(I16)
-    val original = VecFold(v, z, PlusFunction(I16))()
+    val original = VecFoldSeq(v, z, PlusFunction(I16))()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)

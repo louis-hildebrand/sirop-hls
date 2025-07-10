@@ -93,15 +93,27 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 }
 
-case class VecFold(
+/** Sequential fold over a vector.
+  *
+  * This produces a stream of length one containing the result, since it may
+  * take multiple steps.
+  *
+  * @param v
+  *   the vector to fold over.
+  * @param z
+  *   the initial value.
+  * @param f
+  *   the function to use for folding.
+  */
+case class VecFoldSeq(
     v: Expr /* Vec<T1; n> */,
     z: Expr /* T2 */,
-    f: Function /* T1 -> T2 -> T2 */
+    f: Function /* T2 -> T1 -> T2 */
 )(typ: Type = Missing) /* Stm<T2; 1> */
     extends SyntaxSugar(v, z, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v, z, f: Function) => VecFold(v, z, f)(typ)
+      case Seq(v, z, f: Function) => VecFoldSeq(v, z, f)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -133,6 +145,65 @@ case class VecFold(
   }
 }
 
+/** Combinational fold over a vector.
+  *
+  * This produces the result as-is in one step.
+  *
+  * @param v
+  *   the vector to fold over.
+  * @param z
+  *   the initial value.
+  * @param f
+  *   the function to use for folding.
+  */
+case class VecFoldComb(
+    v: Expr /* Vec<T1; n> */,
+    z: Expr /* T2 */,
+    f: Expr /* T2 -> T1 -> T2 */
+)(typ: Type = Missing) /* T2 */
+    extends SyntaxSugar(v, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, z, f) => VecFoldComb(v, z, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val v = this.v.tchk
+    val t1 = v.typ match {
+      case TyVec(t, _) => t
+      case t =>
+        throw new TypeError(
+          s"Vector in $className has type $t. Expected a vector."
+        )
+    }
+    val z = this.z.tchk
+    val t2 = z.typ
+    val f = this.f.tchk.expectType(t1 ->: t2 ->: t2)
+    this.rebuild(t2, Seq(v, z, f))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    val v = this.v.lower()
+    val z = this.z.lower()
+    val f = this.f.lower()
+    val n = v.typ.asInstanceOf[TyVec].n
+    n match {
+      case IntCst(n) =>
+        (0 until n.toInt)
+          .foldLeft(z)({ case (acc, i) => f(acc)(VecAccess(v, C(i)())()) })
+          .tchk()
+      case e =>
+        throw new IllegalArgumentException(
+          s"Cannot use $className on a vector with non-constant size $e."
+        )
+    }
+  }
+}
+
+/** Sequential, inclusive scan over a vector.
+  */
 object VecScanInclusive {
   def apply(
       v: Expr /* Vec<A; n> */,
@@ -143,6 +214,8 @@ object VecScanInclusive {
   }
 }
 
+/** Sequential, exclusive scan over a vector.
+  */
 object VecScanExclusive {
   def apply(
       v: Expr /* Vec<A; n> */,
