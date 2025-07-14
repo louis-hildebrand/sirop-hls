@@ -1,7 +1,7 @@
-module0 (I :: (TSeqT 840 0 UInt8T)) =
-    n1 = FIFON (TSeqT 840 0 UInt8T) 1 "I"
-    n4 = Reduce_tN 840 0 (AddN UInt8T I) n1
-    n5 = FIFON (TSeqT 1 839 UInt8T) 1 "n4"
-    n6 = FIFON (TSeqT 1 839 UInt8T) 1 "n5"
-    n7 = FIFON (TSeqT 1 839 UInt8T) 1 "n6"
+module0 (I :: (TSeqT 840 0 UInt32T)) =
+    n1 = FIFON (TSeqT 840 0 UInt32T) 1 "I"
+    n4 = Reduce_tN 840 0 (AddN UInt32T I) n1
+    n5 = FIFON (TSeqT 1 839 UInt32T) 1 "n4"
+    n6 = FIFON (TSeqT 1 839 UInt32T) 1 "n5"
+    n7 = FIFON (TSeqT 1 839 UInt32T) 1 "n6"
 

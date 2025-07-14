@@ -1,9 +1,9 @@
-module0 (I :: (TSeqT 168 0 (SSeqT 5 UInt8T))) =
-    n1 = FIFON (TSeqT 168 0 (SSeqT 5 UInt8T)) 1 "I"
-    n6 = Map_tN 168 0 (Reduce_sN 5 (AddN UInt8T I) I) n1
-    n9 = Reduce_tN 168 0 (Map_sN 1 (AddN UInt8T I) I) n6
-    n10 = ReshapeN ((TSeqT 1 167 (SSeqT 1 UInt8T))) ((TSeqT 1 167 UInt8T)) n9
-    n11 = FIFON (TSeqT 1 167 UInt8T) 1 "n10"
-    n12 = FIFON (TSeqT 1 167 UInt8T) 1 "n11"
-    n13 = FIFON (TSeqT 1 167 UInt8T) 1 "n12"
+module0 (I :: (TSeqT 168 0 (SSeqT 5 UInt32T))) =
+    n1 = FIFON (TSeqT 168 0 (SSeqT 5 UInt32T)) 1 "I"
+    n6 = Map_tN 168 0 (Reduce_sN 5 (AddN UInt32T I) I) n1
+    n9 = Reduce_tN 168 0 (Map_sN 1 (AddN UInt32T I) I) n6
+    n10 = ReshapeN ((TSeqT 1 167 (SSeqT 1 UInt32T))) ((TSeqT 1 167 UInt32T)) n9
+    n11 = FIFON (TSeqT 1 167 UInt32T) 1 "n10"
+    n12 = FIFON (TSeqT 1 167 UInt32T) 1 "n11"
+    n13 = FIFON (TSeqT 1 167 UInt32T) 1 "n12"
 
