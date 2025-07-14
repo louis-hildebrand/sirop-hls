@@ -221,7 +221,9 @@ case class VecFoldComb(
   * used as the initial value.
   *
   * This is meant to mirror the `reduce_s` primitive from
-  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]].
+  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]. Therefore,
+  * strange expressions like `reduce_s (map_s (add I) I) I` must unfortunately
+  * be supported.
   */
 case class VecReduceComb(
     v: Expr /* Vec<T; n> */,

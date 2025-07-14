@@ -235,6 +235,32 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(s) == expected)
   }
 
+  test("StmMap:2D-1D:StmReduce") {
+    val s = StmCount2D(C(3)(U8), C(3)(U8))().tchk()
+    val actual =
+      StmMap(
+        s,
+        Missing ::+ (row =>
+          StmReduce(
+            row,
+            Missing ::+ (x =>
+              Tuple(x.__0.__0 + x.__1.__0, x.__0.__1 * x.__1.__1)()
+            )
+          )()
+        )
+      )().tchk().lower()
+    val expected = StmLiteral({
+      val s: Seq[Seq[(Int, Int)]] =
+        (0 until 3).map(i => (0 until 3).map(j => (i, j)))
+      s.map(row =>
+        row.reduce[(Int, Int)]({ case (acc, a) =>
+          (acc._1 + a._1, acc._2 * a._2)
+        })
+      ).map({ case (x, y) => Tuple(x, y)() })
+    }: _*)()
+    assert(mhir.ir.eval(actual) == expected)
+  }
+
   test("StmMap:2D-1D:Access") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
@@ -1367,6 +1393,39 @@ class StreamTests extends AnyFunSuite {
     // scan([2, 3, 4, 5])
     val expected = StmLiteral(0, 2, 5, 9)()
     assert(mhir.ir.eval(sums) == expected)
+  }
+
+  test("StmReduce:Stm[Int,4]:Sum") {
+    val s = StmCount(C(4)(U8))()
+    val sum = StmReduce(s, Missing ::+ (x => x.__0 + x.__1))().tchk().lower()
+    val expected = StmLiteral(C(6)())()
+    val actual = mhir.ir.eval(sum)
+    assert(actual == expected)
+  }
+
+  test("StmReduce:Stm[Int,4]:HornersMethod") {
+    // [2, 3, 4, 5]
+    // i.e., 2x^3 + 3x^2 + 4x + 5
+    // i.e., 5 + x*(4 + x*(3 + x*2))
+    val s = StmRange(C(4)(U16), C(2)(U16), C(1)(U16))()
+    val x = C(10)(U16)
+    val sum =
+      StmReduce(s, Missing ::+ (a => a.__1 + x * a.__0))().tchk().lower()
+    val expected = StmLiteral(C(2345)())()
+    val actual = mhir.ir.eval(sum)
+    assert(actual == expected)
+  }
+
+  test("StmReduce:Stm[Vec[Int,1],4]:Sum") {
+    ???
+  }
+
+  test("StmReduce:Stm[Stm[Int,1],4]:Sum") {
+    ???
+  }
+
+  test("StmReduce:Stm[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]") {
+    ???
   }
 
   test("Vec2Stm:1D") {

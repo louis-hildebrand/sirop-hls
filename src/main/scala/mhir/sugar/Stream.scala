@@ -664,6 +664,81 @@ case class StmScanExclusive(
   }
 }
 
+/** Reduction over a stream.
+  *
+  * This is a bit like [[StmFold]], but the head of the stream is used as the
+  * initial value.
+  *
+  * This is meant to mirror the `reduce_t` primitive from
+  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]. Therefore,
+  * strange expressions like `reduce_t (map_s (add I) I) I` must unfortunately
+  * be supported.
+  *
+  * @param s
+  *   `Stm[T, n]`. The stream to reduce over.
+  * @param f
+  *   `(T, T) -> T`. The function to use for reducing.
+  */
+case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, f) => StmReduce(s, f)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val s = this.s.tchk
+    val typ = s.typ match {
+      case TyStm(t, _) => t
+      case t =>
+        throw new TypeError(
+          s"Stream in $className has type $t. Expected a stream."
+        )
+    }
+    val annotatedFunc = this.f match {
+      case Function(x, body) if !x.hasType =>
+        val newX = x.rebuild(TyTuple(typ, typ)).asInstanceOf[Param]
+        Function(newX, body)()
+      case f =>
+        f
+    }
+    val f = annotatedFunc.tchk.expectType((typ, typ) ->: typ)
+    this.rebuild(TyStm(typ, 1), Seq(s, f))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val s = this.s.lower()
+    val f = this.f.lower()
+    val elemTyp = this.s.typ.asInstanceOf[TyStm].t
+    val n = this.s.typ.asInstanceOf[TyStm].n
+    val acc = Param("acc")(elemTyp)
+    val t = Param("t")(U32)
+    val sAcc = Param("s")(s.typ)
+    val firstStep = Param("first_step")(TyBool)
+    StmBuild(
+      1,
+      f(Tuple(acc, StmData(sAcc)())()),
+      t + 1 === n,
+      Map[Param, (Expr, Expr)](
+        firstStep -> (True, False),
+        t -> (C(0)(U32), C(1)(U32) + t),
+        sAcc -> (s, True),
+        acc -> (
+          Default(elemTyp),
+          Mux(
+            firstStep,
+            StmData(sAcc)(),
+            f(Tuple(acc, StmData(sAcc)())())
+          )()
+        )
+      )
+    )().tchk().lower()
+  }
+}
+
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
