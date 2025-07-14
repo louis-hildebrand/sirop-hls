@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -19,7 +20,20 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    ???
+    requireType()
+    val e = this.e.lower()
+    (e.typ, this.targetTyp) match {
+      case (t1, t2) if t1 ~= t2 =>
+        e
+      case (TyVec(t1, IntCst(1)), t2) if t1 ~= t2 =>
+        VecAccess(e, 0)().tchk().lower()
+      case (TyStm(_, n1), TyStm(t2, n2)) if Type.sameLen(n1, n2) =>
+        StmMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower()
+      case (t1, t2) =>
+        throw new IllegalArgumentException(
+          s"Reshaping from $t1 to $t2 is not currently supported."
+        )
+    }
   }
 
   override def displayOneLine(): String = {
