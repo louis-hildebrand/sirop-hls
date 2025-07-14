@@ -2,17 +2,17 @@
 """
 This script takes all the required measurements for the Aetherling benchmarks.
 """
-from __future__ import annotations
-
 import csv
 import os
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError
+
+from benchmark import Benchmark
+from resource_usage import ResourceUsage
 
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
@@ -26,42 +26,6 @@ RESULTS_DIR = ROOT_DIR.joinpath("results")
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.qsf")
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.sdc")
-
-
-@dataclass(frozen=True, order=True)
-class Benchmark:
-    """
-    A benchmark with a specific throughput.
-    """
-    name: str
-    throughput: int
-
-    @classmethod
-    def parse(cls, name: str) -> Benchmark:
-        """
-        Parse the given benchmark full name (e.g., 'map_20').
-        """
-        parts = name.split("_")
-        if len(parts) != 2:
-            raise ValueError(f"Invalid benchmark name: {name}")
-        return Benchmark(name=parts[0], throughput=int(parts[1]))
-
-    @property
-    def full_name(self) -> str:
-        """
-        Return the full name of this benchmark (e.g., 'map_20').
-        """
-        return f"{self.name}_{self.throughput}"
-
-
-@dataclass(frozen=True)
-class ResourceUsage:
-    """
-    The resource usage of a VHDL design.
-    """
-    alm: int
-    bram: int
-    dsp: int
 
 
 def generate_verilog(benchmarks: list[str]) -> None:
@@ -170,14 +134,14 @@ def main(args: list[str]) -> None:
             if ru is None:
                 print("failed")
                 writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput,
+                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
                     "language": "verilog",
                     "alm": "", "bram": "", "dsp": ""
                 })
             else:
                 print("OK")
                 writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput,
+                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
                     "language": "verilog",
                     "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp
                 })
@@ -187,14 +151,14 @@ def main(args: list[str]) -> None:
             if ru is None:
                 print("failed")
                 writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput,
+                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
                     "language": "vhdl",
                     "alm": "", "bram": "", "dsp": ""
                 })
             else:
                 print("OK")
                 writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput,
+                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
                     "language": "vhdl",
                     "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp
                 })

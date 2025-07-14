@@ -1,0 +1,60 @@
+"""
+Dataclasses for describing a benchmark.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from fractions import Fraction
+
+
+@dataclass(frozen=True, order=True)
+class Benchmark:
+    """
+    A benchmark with a specific throughput.
+    """
+    name: str
+    throughput: Fraction
+
+    @classmethod
+    def parse(cls, name: str) -> Benchmark:
+        """
+        Parse the given benchmark full name (e.g., 'map_20').
+        """
+        parts = name.split("_")
+        if len(parts) == 2:
+            name = parts[0]
+            throughput = Fraction(int(parts[1]))
+        elif len(parts) == 3:
+            name = parts[0]
+            throughput = Fraction(int(parts[1]), int(parts[2]))
+        else:
+            raise ValueError(f"Invalid benchmark name: {name}")
+        return Benchmark(name=name, throughput=throughput)
+
+    @property
+    def full_name(self) -> str:
+        """
+        Return the full name of this benchmark (e.g., 'map_20').
+        """
+        if self.throughput.denominator == 1:
+            return f"{self.name}_{self.throughput.numerator}"
+        return f"{self.name}_{self.throughput.numerator}_{self.throughput.denominator}"
+
+    @property
+    def throughput_str(self) -> str:
+        """
+        Returns the throughput of this benchmark as a string (e.g., "1/105").
+        """
+        if self.throughput.denominator == 1:
+            return str(self.throughput.numerator)
+        return f"{self.throughput.numerator}/{self.throughput.denominator}"
+
+
+@dataclass(frozen=True, order=True)
+class BenchmarkImpl:
+    """
+    A VHDL or Verilog which implements a specific benchmark.
+    """
+    bench: Benchmark
+    language: str
