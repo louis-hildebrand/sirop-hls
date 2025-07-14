@@ -62,7 +62,25 @@ class AetherlingParserTests extends AnyFunSuite {
   }
 
   test("sum") {
-    pending
+    val files = os
+      .list(OriginalCodeDir)
+      .filter(os.isFile)
+      .filter(p => p.baseName.startsWith("sum_"))
+    assert(files.nonEmpty)
+    for (f <- files) {
+      val code = os.read(f)
+      val parsed = AetherlingParser.parse(code).tchk()
+      val actual =
+        s"// Output type: ${parsed.typ.toString}\n${ExprPrinter.display(parsed)}\n"
+      val expectedPath = ParsedCodeDir / s"${f.baseName}.txt"
+      if (SaveOutput) {
+        save(expectedPath, actual)
+      } else {
+        val expected = os.read(expectedPath)
+        assert(actual == expected)
+      }
+    }
+    assume(!SaveOutput)
   }
 
   test("conv2d") {

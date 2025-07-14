@@ -1,7 +1,7 @@
 package mhir.parse
 
 import mhir.ir._
-import mhir.sugar.{Fifo, StmMap, VecMap}
+import mhir.sugar.{Fifo, ReshapeSeq, StmMap, StmReduce, VecMap, VecReduceComb}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
@@ -88,10 +88,9 @@ object AetherlingParser {
     *                | "STupleToSSeqN " nat " " typ " " expr
     *                | "SSeqToSTupleN " nat " " typ " " expr
     *                // ----- miscellaneous
-    *                | "InputN " ???
     *                | "ErrorN " ???
     *                | "FIFON " typ " " nat " " expr
-    *                | "ReshapeN (" typ ") (" typ ")"
+    *                | "ReshapeN (" typ ") (" typ ") " expr
     *   const      ::= "UnitV"
     *                | "BitV " bool
     *                | "Int8V " nat
@@ -370,7 +369,7 @@ object AetherlingParser {
       val (f, suffix3) = parseExpr(suffix2, modules)
       val suffix4 = expect(suffix3, " ")
       val (v, suffix5) = parseExpr(suffix4, modules)
-      (VecMap(v, f)(), suffix5)
+      (VecMap(v, makeUnaryFunction(f, modules))(), suffix5)
     } else if (code.startsWith("Map_tN ")) {
       val suffix0 = expect(code, "Map_tN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -380,9 +379,9 @@ object AetherlingParser {
       val (f, suffix5) = parseExpr(suffix4, modules)
       val suffix6 = expect(suffix5, " ")
       val (s, suffix7) = parseExpr(suffix6, modules)
-      // The function in StmMap must be a literal function
       val g: Function = f match {
         case x: Param if modules.contains(x) =>
+          // The function in StmMap must be a literal function, so inline
           modules(x)
         case _ =>
           Function(Param("I", -1)(Missing), f)()
@@ -393,9 +392,23 @@ object AetherlingParser {
     } else if (code.startsWith("Map2_tN ")) {
       ???
     } else if (code.startsWith("Reduce_sN ")) {
-      ???
+      val suffix0 = expect(code, "Reduce_sN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (f, suffix3) = parseExpr(suffix2, modules)
+      val suffix4 = expect(suffix3, " ")
+      val (v, suffix5) = parseExpr(suffix4, modules)
+      (VecReduceComb(v, makeUnaryFunction(f, modules))(), suffix5)
     } else if (code.startsWith("Reduce_tN ")) {
-      ???
+      val suffix0 = expect(code, "Reduce_tN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (f, suffix5) = parseExpr(suffix4, modules)
+      val suffix6 = expect(suffix5, " ")
+      val (s, suffix7) = parseExpr(suffix6, modules)
+      (StmReduce(s, makeUnaryFunction(f, modules))(), suffix7)
     } else if (code.startsWith("FstN ")) {
       ???
     } else if (code.startsWith("SndN ")) {
@@ -432,14 +445,41 @@ object AetherlingParser {
       val suffix4 = expect(suffix3, " ")
       val (e, suffix5) = parseExpr(suffix4, modules)
       (Fifo(e), suffix5)
-    } else if (code.startsWith("ReshapeN ")) {
-      ???
+    } else if (code.startsWith("ReshapeN (")) {
+      val suffix0 = expect(code, "ReshapeN (")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, ") (")
+      val (targetTyp, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, ") ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (ReshapeSeq(e, targetTyp)(), suffix5)
     } else if (code.startsWith("\"")) {
       parseQuotedIdentifier(code)
     } else if (code.head.isLetter) {
       parseIdentifier(code)
     } else {
       throw new SyntaxError(s"Expected an expression but got $code")
+    }
+  }
+
+  /** Turn an Aetherling expression that stands in for a function into a proper
+    * function.
+    *
+    * In Aetherling, functions can sometimes be implicit. For example, you would
+    * write `map_s (add I) my_seq` rather than `map_s (I => add I) my_seq`. `I`
+    * is implicitly understood to be the parameter of the function. But you
+    * could also write `map_s module0 I` where `module0` is a previously-defined
+    * function, in which case `module0` is already a function.
+    */
+  private def makeUnaryFunction(
+      e: Expr,
+      modules: Map[Param, Function]
+  ): Expr = {
+    e match {
+      case f: Param if modules.contains(f) =>
+        f
+      case body =>
+        Function(Param("I", -1)(Missing), body)()
     }
   }
 
