@@ -1417,15 +1417,59 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmReduce:Stm[Vec[Int,1],4]:Sum") {
-    ???
+    val s = Param("s")(TyStm(TyVec(U8, 1), 4))
+    val sum = StmReduce(
+      s,
+      Missing ::+ (v => VecMap(v, Missing ::+ (x => x.__0 + x.__1))())
+    )().tchk().lower()
+    val sVal =
+      StmLiteral((0 until 4).map(t => VecLiteral(C(t)(U8))()): _*)().tchk()
+    val expected = StmLiteral(VecLiteral(C(6)())())()
+    val actual = mhir.ir.eval(sum.subPreserveType(s -> sVal))
+    assert(actual == expected)
   }
 
   test("StmReduce:Stm[Stm[Int,1],4]:Sum") {
-    ???
+    val s = Param("s")(TyStm(TyStm(U8, 1), 4))
+    val sum = StmReduce(
+      s,
+      Missing ::+ (s => StmMap(s, Missing ::+ (x => x.__0 + x.__1))())
+    )().tchk().lower()
+    val sVal = StmLiteral(C(1)(U8), C(11)(U8), C(21)(U8), C(31)(U8))().tchk()
+    val expected = StmLiteral(C(64)())()
+    val actual = mhir.ir.eval(sum.subPreserveType(s -> sVal))
+    assert(actual == expected)
   }
 
   test("StmReduce:Stm[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]") {
-    ???
+    val s = Param("s")(TyStm(TyVec(TyStm(TyStm(TyVec(U8, 1), 1), 1), 1), 4))
+    val sum = StmReduce(
+      s,
+      Missing ::+ (v =>
+        VecMap(
+          v,
+          Missing ::+ (s =>
+            StmMap(
+              s,
+              Missing ::+ (s =>
+                StmMap(
+                  s,
+                  Missing ::+ (v =>
+                    VecMap(v, Missing ::+ (x => x.__0 + x.__1))()
+                  )
+                )()
+              )
+            )()
+          )
+        )()
+      )
+    )().tchk().lower()
+    val sVal = StmLiteral(
+      Seq(1, 2, 3, 4).map(t => VecLiteral(VecLiteral(C(t)(U8))())()): _*
+    )().tchk()
+    val expected = StmLiteral(VecLiteral(VecLiteral(C(10)())())())()
+    val actual = mhir.ir.eval(sum.subPreserveType(s -> sVal))
+    assert(actual == expected)
   }
 
   test("Vec2Stm:1D") {

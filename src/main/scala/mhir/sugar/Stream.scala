@@ -6,6 +6,8 @@ import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
 
+import scala.annotation.tailrec
+
 object AsFusedStm2Stm {
   def apply(f: Function): (Param, StmBuild) = {
     val f1 = f.lower().streamify().asInstanceOf[Function]
@@ -690,37 +692,42 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val s = this.s.tchk
-    val typ = s.typ match {
+    // The type of the accumulator, but possibly wrapped in a bunch of vectors
+    // and streams of length 1
+    val wrappedTyp = s.typ match {
       case TyStm(t, _) => t
       case t =>
         throw new TypeError(
           s"Stream in $className has type $t. Expected a stream."
         )
     }
-    val annotatedFunc = this.f match {
+    val tupledTyp = tupleElemType(wrappedTyp, this.f)
+    val annotatedF = this.f match {
       case Function(x, body) if !x.hasType =>
-        val newX = x.rebuild(TyTuple(typ, typ)).asInstanceOf[Param]
+        val newX = x.rebuild(tupledTyp).asInstanceOf[Param]
         Function(newX, body)()
       case f =>
         f
     }
-    val f = annotatedFunc.tchk.expectType((typ, typ) ->: typ)
-    this.rebuild(TyStm(typ, 1), Seq(s, f))
+    val f = annotatedF.tchk.expectType(tupledTyp ->: wrappedTyp)
+    this.rebuild(TyStm(wrappedTyp, 1), Seq(s, f))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val s = this.s.lower()
-    val f = this.f.lower()
-    val elemTyp = this.s.typ.asInstanceOf[TyStm].t
+    val wrappedTyp = this.typ.asInstanceOf[TyStm].t
+    val f = unwrapFunc(wrappedTyp, this.f).lower()
+    val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
     val n = this.s.typ.asInstanceOf[TyStm].n
     val acc = Param("acc")(elemTyp)
     val t = Param("t")(U32)
     val sAcc = Param("s")(s.typ)
+    val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
     val firstStep = Param("first_step")(TyBool)
     StmBuild(
       1,
-      f(Tuple(acc, StmData(sAcc)())()),
+      wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
       t + 1 === n,
       Map[Param, (Expr, Expr)](
         firstStep -> (True, False),
@@ -728,14 +735,71 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
         sAcc -> (s, True),
         acc -> (
           Default(elemTyp),
-          Mux(
-            firstStep,
-            StmData(sAcc)(),
-            f(Tuple(acc, StmData(sAcc)())())
-          )()
+          Mux(firstStep, sData, f(Tuple(acc, sData)()))()
         )
       )
     )().tchk().lower()
+  }
+
+  private def tupleElemType(wrappedTyp: Type, f: Expr): Type = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        TyVec(tupleElemType(t, g), 1)
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        TyStm(tupleElemType(t, g), 1)
+      case _ =>
+        (wrappedTyp, wrappedTyp)
+    }
+  }
+
+  @tailrec
+  private def unwrapTyp(wrappedTyp: Type, f: Expr): Type = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        unwrapTyp(t, g)
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        unwrapTyp(t, g)
+      case _ =>
+        wrappedTyp
+    }
+  }
+
+  @tailrec
+  private def unwrapFunc(wrappedTyp: Type, f: Expr): Expr = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        unwrapFunc(t, g)
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        unwrapFunc(t, g)
+      case _ =>
+        f
+    }
+  }
+
+  private def unwrapElem(wrappedTyp: Type, f: Expr, x: Expr): Expr = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        VecAccess(unwrapElem(t, g, x), 0)()
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        // Streams should be moved to the outside during lowering, so no need
+        // to do anything here
+        unwrapElem(t, g, x)
+      case _ =>
+        x
+    }
+  }
+
+  private def wrapResult(wrappedTyp: Type, f: Expr, x: Expr): Expr = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        VecBuild(1, U8 ::+ (_ => wrapResult(t, g, x)))()
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        // Streams should be moved to the outside during lowering, so no need
+        // to do anything here
+        wrapResult(t, g, x)
+      case _ =>
+        x
+    }
   }
 }
 
