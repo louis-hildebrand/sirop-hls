@@ -283,13 +283,6 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.ir.eval(sum) == Tuple(C(10)(), C(24)())())
   }
 
-  test("VecReduceComb:Sum") {
-    val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
-    val sum =
-      VecReduceComb(oneTwoThreeVec, PlusFunction(U32))().tchk().lower()
-    assert(mhir.ir.eval(sum) == C(6)())
-  }
-
   test("VecFoldComb:HornersMethod") {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
@@ -301,6 +294,99 @@ class VectorTests extends AnyFunSuite {
         .tchk()
         .lower()
     assert(mhir.ir.eval(result) == C(2345)())
+  }
+
+  test("VecReduceComb:Vec[Int,3]:Sum") {
+    val v = VecBuild(3, U32 ::+ (i => i + 1))()
+    val sum =
+      VecReduceComb(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower()
+    assert(mhir.ir.eval(sum) == VecLiteral(C(6)())())
+  }
+
+  test("VecReduceComb:Vec[Int,4]:HornersMethod") {
+    // [2, 3, 4, 5]
+    // i.e., 2x^3 + 3x^2 + 4x + 5
+    // i.e., 5 + x*(4 + x*(3 + x*2))
+    val v = VecBuild(4, U32 ::+ (i => i + 2))()
+    val x = C(10)(U32)
+    val result =
+      VecReduceComb(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
+        .tchk()
+        .lower()
+    assert(mhir.ir.eval(result) == VecLiteral(C(2345)())())
+  }
+
+  test("VecReduceComb:Vec[Vec[Int,1],4]:Sum") {
+    val v = Param("v")(TyVec(TyVec(U8, 1), 4))
+    val sum = VecReduceComb(
+      v,
+      Missing ::+ (v => VecMap(v, Missing ::+ (x => x.__0 + x.__1))())
+    )().tchk().lower()
+
+    val vVal = VecLiteral(
+      VecLiteral(C(1)(U8))(),
+      VecLiteral(C(2)(U8))(),
+      VecLiteral(C(3)(U8))(),
+      VecLiteral(C(4)(U8))()
+    )().tchk()
+    val expected = VecLiteral(VecLiteral(10)())()
+    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    assert(actual == expected)
+  }
+
+  test("VecReduceComb:Vec[Stm[Int,1],5]:Sum") {
+    val v = Param("v")(TyVec(TyStm(U8, 1), 5))
+    val sum = VecReduceComb(
+      v,
+      Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1))())
+    )().tchk().lower()
+
+    val vVal =
+      StmLiteral(
+        VecLiteral(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8), C(5)(U8))()
+      )().tchk()
+    val expected = StmLiteral(VecLiteral(15)())()
+    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    assert(actual == expected)
+  }
+
+  test("VecReduceComb:Vec[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]:Sum") {
+    val v = Param("v")(TyVec(TyVec(TyStm(TyStm(TyVec(U8, 1), 1), 1), 1), 5))
+    val sum = VecReduceComb(
+      v,
+      Missing ::+ (v =>
+        VecMap(
+          v,
+          Missing ::+ (s =>
+            StmMap(
+              s,
+              Missing ::+ (s =>
+                StmMap(
+                  s,
+                  Missing ::+ (v =>
+                    VecMap(v, Missing ::+ (x => x.__0 + x.__1))()
+                  )
+                )()
+              )
+            )()
+          )
+        )()
+      )
+    )().tchk().lower()
+
+    val vVal =
+      StmLiteral(
+        VecLiteral(
+          VecLiteral(VecLiteral(C(1)(U8))())(),
+          VecLiteral(VecLiteral(C(2)(U8))())(),
+          VecLiteral(VecLiteral(C(3)(U8))())(),
+          VecLiteral(VecLiteral(C(4)(U8))())(),
+          VecLiteral(VecLiteral(C(5)(U8))())()
+        )()
+      )().tchk()
+    val expected = StmLiteral(VecLiteral(VecLiteral(VecLiteral(15)())())())()
+    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    assert(actual == expected)
   }
 
   test("SumRows") {

@@ -2,7 +2,6 @@ package mhir.parse
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{Fifo, StmMap, VecMap}
 import org.scalatest.funsuite.AnyFunSuite
 import os.Path
 

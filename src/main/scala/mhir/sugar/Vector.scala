@@ -1,10 +1,12 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamReplicator.StreamReplication
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
+
+import scala.annotation.tailrec
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -46,18 +48,28 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val newV = v.tchk(context)
-    newV.typ match {
-      case TyVec(t1, n) =>
-        val newF = f.tchk(context)
-        newF.typ match {
-          case TyArrow(t, t2) if t ~= t1 =>
-            this.rebuild(TyVec(t2, n), Seq(newV, newF))
-          case t =>
-            throw new TypeError(
-              s"Function of VecMap has type $t. Expected a function with input type $t1."
-            )
-        }
-      case t => throw new TypeError(s"Vector of VecMap has type $t.")
+    val (t1, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Vector of $className has type $t. Expected a vector."
+        )
+    }
+    val annotatedF = this.f match {
+      case Function(x, body) if !x.hasType =>
+        val newX = x.rebuild(t1).asInstanceOf[Param]
+        Function(newX, body)()
+      case f =>
+        f
+    }
+    val newF = annotatedF.tchk(context)
+    newF.typ match {
+      case TyArrow(t, t2) if t ~= t1 =>
+        this.rebuild(TyVec(t2, n), Seq(newV, newF))
+      case t =>
+        throw new TypeError(
+          s"Function of VecMap has type $t. Expected a function with input type $t1."
+        )
     }
   }
 
@@ -194,6 +206,7 @@ case class VecFoldComb(
         (0 until n.toInt)
           .foldLeft(z)({ case (acc, i) => f(acc)(VecAccess(v, C(i)())()) })
           .tchk()
+          .lower()
       case e =>
         throw new IllegalArgumentException(
           s"Cannot use $className on a vector with non-constant size $e."
@@ -206,10 +219,15 @@ case class VecFoldComb(
   *
   * This is a bit like [[VecFoldComb]], but the first element of the vector is
   * used as the initial value.
+  *
+  * This is meant to mirror the `reduce_s` primitive from
+  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]].
   */
-case class VecReduceComb(v: Expr /* Vec<T; n> */, f: Expr /* T -> T -> T */ )(
-    typ: Type = Missing
-) extends SyntaxSugar(v, f)(typ) /* T */ {
+case class VecReduceComb(
+    v: Expr /* Vec<T; n> */,
+    f: Expr /* (T, T) -> T */
+)(typ: Type = Missing) /* Vec<T; 1> */
+    extends SyntaxSugar(v, f)(typ) /* T */ {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(v, f) => VecReduceComb(v, f)(typ)
@@ -219,23 +237,33 @@ case class VecReduceComb(v: Expr /* Vec<T; n> */, f: Expr /* T -> T -> T */ )(
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val v = this.v.tchk
-    val typ = v.typ match {
+    // The type of the accumulator, but possibly wrapped in a bunch of vectors
+    // and streams of length 1
+    val wrappedTyp = v.typ match {
       case TyVec(t, _) => t
       case t =>
         throw new TypeError(
           s"Vector in $className has type $t. Expected a vector."
         )
     }
-    val f = this.f.tchk.expectType(typ ->: typ ->: typ)
-    this.rebuild(typ, Seq(v, f))
+    val tupledTyp = tupleElemType(wrappedTyp, this.f)
+    val annotatedF = this.f match {
+      case Function(x, body) if !x.hasType =>
+        val newX = x.rebuild(tupledTyp).asInstanceOf[Param]
+        Function(newX, body)()
+      case f =>
+        f
+    }
+    val f = annotatedF.tchk.expectType(tupledTyp ->: wrappedTyp)
+    this.rebuild(TyVec(wrappedTyp, 1), Seq(v, f))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val v = this.v.lower()
-    val f = this.f.lower()
-    val head = VecAccess(v, 0)()
-    val n = v.typ.asInstanceOf[TyVec].n match {
+    val wrappedTyp = this.typ.asInstanceOf[TyVec].t
+    val f = unwrapFunc(wrappedTyp, this.f).lower()
+    val n = this.v.typ.asInstanceOf[TyVec].n match {
       case IntCst(n) if n > 0 => n
       case IntCst(n) if n <= 0 =>
         throw new IllegalArgumentException(
@@ -246,8 +274,82 @@ case class VecReduceComb(v: Expr /* Vec<T; n> */, f: Expr /* T -> T -> T */ )(
           s"Cannot reduce over vector with non-constant size $e."
         )
     }
-    val tail = VecSuffix(v, C(n - 1)())()
-    VecFoldComb(tail, head, f)().tchk().lower()
+    val result = (v: Expr) => {
+      val elem =
+        (i: Int) => unwrapElem(wrappedTyp, this.f, VecAccess(v, i)())
+      (1 until n.toInt)
+        .foldLeft(elem(0))({ case (acc, i) => f(Tuple(acc, elem(i))()) })
+    }
+    wrapResult(result, v).tchk().lower()
+  }
+
+  private def tupleElemType(wrappedTyp: Type, f: Expr): Type = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        TyVec(tupleElemType(t, g), 1)
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        TyStm(tupleElemType(t, g), 1)
+      case _ =>
+        (wrappedTyp, wrappedTyp)
+    }
+  }
+
+  @tailrec
+  private def unwrapFunc(wrappedTyp: Type, f: Expr): Expr = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        unwrapFunc(t, g)
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        unwrapFunc(t, g)
+      case _ =>
+        f
+    }
+  }
+
+  private def unwrapElem(wrappedTyp: Type, f: Expr, x: Expr): Expr = {
+    (wrappedTyp, f) match {
+      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
+        VecAccess(unwrapElem(t, g, x), 0)()
+      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
+        // Streams should be moved to the outside during lowering, so no need
+        // to do anything here
+        unwrapElem(t, g, x)
+      case _ =>
+        x
+    }
+  }
+
+  private def wrapResult(result: Expr => Expr, v: Expr): Expr = {
+    def wrap(t: Type, x: Expr): Expr = {
+      assert(x.hasType)
+      if (t == x.typ) {
+        x
+      } else {
+        t match {
+          case TyVec(t, IntCst(1)) =>
+            VecBuild(1, U8 ::+ (_ => wrap(t, x)))()
+          case TyStm(t, IntCst(1)) =>
+            wrap(t, x)
+          case t =>
+            throw new IllegalArgumentException(
+              s"Cannot wrap result of $className to have type $t."
+            )
+        }
+      }
+    }
+    this.typ.lower match {
+      case TyStm(t, m) =>
+        require(
+          Type.sameLen(m, 1),
+          s"Cannot wrap result of $className into a stream of length $m."
+        )
+        val vv = Param("v")(v.typ.asInstanceOf[TyStm].t)
+        val res = result(vv).tchk()
+        StmMap(v, Function(vv, wrap(t, res))())()
+      case t =>
+        val res = result(v).tchk()
+        wrap(t, res)
+    }
   }
 }
 
