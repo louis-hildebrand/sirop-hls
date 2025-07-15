@@ -1,13 +1,14 @@
 package mhir.main.aetherling
 
-import mhir.gen.vhdl.{TestInput, TestPassed, TestRunner, TestbenchGenerator}
+import mhir.gen.TestPassed
+import mhir.gen.vhdl.{TestInput, TestbenchGenerator, VhdlTestRunner}
 import mhir.ir._
-import mhir.testing.VhdlTest
+import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for [[mhir.main.aetherling.Compiler]].
   */
-@VhdlTest
+@HardwareTest
 class CompilerTests extends AnyFunSuite {
   private val BenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original"
@@ -30,7 +31,7 @@ class CompilerTests extends AnyFunSuite {
       out = expectedOutput,
       dir = outDir
     )
-    assert(TestRunner.testExistingProject(outDir) == TestPassed)
+    assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
   }
 
   test("map:1") {

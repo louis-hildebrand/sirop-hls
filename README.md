@@ -75,11 +75,11 @@ The following command runs all the tests
 sbt test
 ```
 
-Some tests involve generating and simulating VHDL.
-These are tagged with `@mhir.testing.VhdlTest`.
-Therefore, the following command will run all tests *except* the VHDL tests.
+Some tests involve generating and simulating VHDL or Verilog.
+These are tagged with `@mhir.testing.HardwareTest`.
+Therefore, the following command will run all tests *except* the hardware tests.
 ```shell
-sbt 'testOnly * -- -l mhir.testing.VhdlTest'
+sbt 'testOnly * -- -l mhir.testing.HardwareTest'
 ```
 
 Running the VHDL tests requires a VHDL compiler and simulator.

@@ -1,2 +1,11 @@
+# Ignore everything...
 *
+
+# ... but don't ignore .gitignore itself
 !.gitignore
+
+# ... and don't ignore the example .v files
+!/examples/
+!/examples/**/
+!/examples/**/Top.v
+!/examples/**/Test.v

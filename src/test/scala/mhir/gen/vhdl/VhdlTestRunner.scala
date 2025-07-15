@@ -1,19 +1,20 @@
 package mhir.gen.vhdl
 
+import mhir.gen.{
+  DesignCompileFailed,
+  SimulationFailed,
+  SimulationTimeout,
+  TestPassed,
+  TestResult,
+  TestbenchCompileFailed,
+  UnknownFailure
+}
 import mhir.ir._
 import os.{Path, RelPath}
 
 import scala.sys.process._
 
-sealed trait TestResult
-case object TestPassed extends TestResult
-case object DesignCompileFailed extends TestResult
-case object TestbenchCompileFailed extends TestResult
-case object SimulationFailed extends TestResult
-case object SimulationTimeout extends TestResult
-case object UnknownFailure extends TestResult
-
-object TestRunner {
+object VhdlTestRunner {
   private val VHDL_DIR = os.pwd / "src" / "test" / "vhdl"
   private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_vhdl.sh"
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
