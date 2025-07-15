@@ -13,6 +13,7 @@ from subprocess import CalledProcessError
 from typing import TextIO
 
 from lib.benchmark import Benchmark, BenchmarkImpl
+from lib.read_results import read_all_results
 from lib.resource_usage import ResourceUsage
 
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
@@ -110,6 +111,20 @@ def measure_resource_usage(project_dir: Path, top: str, log: Path) -> ResourceUs
     return ResourceUsage(alm=alm, bram=bram, dsp=dsp)
 
 
+def save_result(writer: csv.DictWriter, b: BenchmarkImpl, ru: ResourceUsage | None) -> None:
+    """
+    Save one resource usage result to a CSV file.
+    """
+    writer.writerow({
+        "bench_name": b.bench.name,
+        "bench_throughput": b.bench.throughput_str,
+        "language": b.language.lower(),
+        "alm": "" if ru is None else ru.alm,
+        "bram": "" if ru is None else ru.bram,
+        "dsp": "" if ru is None else ru.dsp,
+    })
+
+
 def measure_and_save_resource_usage(
     b: BenchmarkImpl,
     writer: csv.DictWriter,
@@ -130,17 +145,32 @@ def measure_and_save_resource_usage(
         if b.language.lower() == "verilog"
         else VHDL_DIR.joinpath(bench.full_name)
     )
-    ru = measure_resource_usage(project_dir=project_dir, top="Top", log=log)
+    top = "Top" if b.language.lower() == "verilog" else "top"
+    ru = measure_resource_usage(project_dir=project_dir, top=top, log=log)
     print("failed" if ru is None else "OK")
-    writer.writerow({
-        "bench_name": bench.name,
-        "bench_throughput": bench.throughput_str,
-        "language": b.language.lower(),
-        "alm": "" if ru is None else ru.alm,
-        "bram": "" if ru is None else ru.bram,
-        "dsp": "" if ru is None else ru.dsp,
-    })
+    save_result(writer, b, ru)
     f.flush()
+
+
+def merge_results(old: Path, new: Path) -> None:
+    """
+    Combine the old and new results.
+
+    If a given benchmark has both an old result and a new result, only the new
+    result will be kept.
+    """
+    old_results = read_all_results(old)
+    new_results = read_all_results(new)
+    combined_results = old_results | new_results
+    with open(new, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
+        )
+        writer.writeheader()
+        for b, ru in combined_results.items():
+            save_result(writer, b, ru)
+    old.unlink()
 
 
 def main(args: list[str]) -> None:
@@ -161,6 +191,9 @@ def main(args: list[str]) -> None:
 
     out_path = RESULTS_DIR.joinpath("aetherling.csv")
     out_path.parent.mkdir(exist_ok=True)
+    backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
+    if out_path.exists():
+        shutil.copy(src=out_path, dst=backup_out_path)
 
     VHDL_DIR.mkdir(exist_ok=True)
     VERILOG_DIR.mkdir(exist_ok=True, parents=True)
@@ -180,26 +213,28 @@ def main(args: list[str]) -> None:
     print("Generating VHDL projects (ours)...")
     generate_vhdl([b.full_name for b in benchmarks], log=log)
 
-    with open(out_path, "w", encoding="utf-8") as out_file:
-        writer = csv.DictWriter(
-            out_file,
-            fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
-        )
-        writer.writeheader()
-        for bench in benchmarks:
-            measure_and_save_resource_usage(
-                BenchmarkImpl(bench, "verilog"),
-                writer=writer,
-                f=out_file,
-                log=log,
+    try:
+        with open(out_path, "w", encoding="utf-8", newline="") as out_file:
+            writer = csv.DictWriter(
+                out_file,
+                fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
             )
-            measure_and_save_resource_usage(
-                BenchmarkImpl(bench, "vhdl"),
-                writer=writer,
-                f=out_file,
-                log=log,
-            )
-    # TODO: Merge old and new results
+            writer.writeheader()
+            for bench in benchmarks:
+                measure_and_save_resource_usage(
+                    BenchmarkImpl(bench, "verilog"),
+                    writer=writer,
+                    f=out_file,
+                    log=log,
+                )
+                measure_and_save_resource_usage(
+                    BenchmarkImpl(bench, "vhdl"),
+                    writer=writer,
+                    f=out_file,
+                    log=log,
+                )
+    finally:
+        merge_results(old=backup_out_path, new=out_path)
 
 
 if __name__ == "__main__":

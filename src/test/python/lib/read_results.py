@@ -10,9 +10,10 @@ from .benchmark import Benchmark, BenchmarkImpl
 from .resource_usage import ResourceUsage
 
 
-def read_results(results_file: Path) -> dict[BenchmarkImpl, ResourceUsage]:
+def read_all_results(results_file: Path) -> dict[BenchmarkImpl, ResourceUsage | None]:
     """
-    Read the CSV file back into a dictionary.
+    Read all results from the CSV, even ones where the resource usage is
+    missing.
     """
     def get_bench(row) -> BenchmarkImpl:
         return BenchmarkImpl(
@@ -22,7 +23,9 @@ def read_results(results_file: Path) -> dict[BenchmarkImpl, ResourceUsage]:
             ),
             language=row["language"]
         )
-    def get_results(row) -> ResourceUsage:
+    def get_results(row) -> ResourceUsage | None:
+        if not row["alm"] or not row["bram"] or not row["dsp"]:
+            return None
         return ResourceUsage(
             alm=int(row["alm"]),
             bram=int(row["bram"]),
@@ -31,8 +34,12 @@ def read_results(results_file: Path) -> dict[BenchmarkImpl, ResourceUsage]:
     with open(results_file, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-        return {
-            get_bench(row) : get_results(row)
-            for row in rows
-            if row["alm"] and row["bram"] and row["dsp"]
-        }
+        return {get_bench(row) : get_results(row) for row in rows}
+
+
+def read_valid_results(results_file: Path) -> dict[BenchmarkImpl, ResourceUsage]:
+    """
+    Read results from the CSV and only return those where the resource usage is
+    not `None`.
+    """
+    return {b: ru for (b, ru) in read_all_results(results_file).items() if ru is not None}

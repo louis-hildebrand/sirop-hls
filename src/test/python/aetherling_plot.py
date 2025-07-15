@@ -10,7 +10,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from lib.benchmark import BenchmarkImpl
-from lib.read_results import read_results
+from lib.read_results import read_valid_results
 from lib.resource_usage import ResourceUsage
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
@@ -38,7 +38,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names))
+    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False)
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -118,7 +118,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = read_results(RESULTS_FILE)
+    results = read_valid_results(RESULTS_FILE)
     if not results:
         sys.exit("No results to plot.")
     plot_resource_usages(results)
