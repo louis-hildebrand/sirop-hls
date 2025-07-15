@@ -35,6 +35,9 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot throughput vs resource usage for each benchmark.
     """
+    plt.rcParams.update({
+        "text.usetex": True
+    })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
@@ -72,7 +75,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         ys = [results[b].alm for b in vhdl_benchmarks]
         vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         alm_ax.get_xaxis().set_ticks([])
-        alm_ax.set_ylabel("ALMs")
         # Plot BRAM usage
         bram_ax = axes[1][col]
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
@@ -80,7 +82,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
         bram_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
         bram_ax.get_xaxis().set_ticks([])
-        bram_ax.set_ylabel("BRAMs")
         if all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys):
             bram_ax.set_ylim(-1, 1)
         # Plot DSP usage
@@ -96,12 +97,15 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
             ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
         )
-        dsp_ax.set_ylabel("DSPs")
         if all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys):
             dsp_ax.set_ylim(-1, 1)
         # Settings for the whole column
         alm_ax.set_title(bench_name)
         dsp_ax.set_xlabel("Throughput")
+    # Settings for entire rows
+    axes[0][0].set_ylabel("ALMs")
+    axes[1][0].set_ylabel("BRAMs")
+    axes[2][0].set_ylabel("DSPs")
     if verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
