@@ -10,14 +10,19 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError
+from typing import TextIO
 
-from benchmark import Benchmark
-from resource_usage import ResourceUsage
+from lib.benchmark import Benchmark, BenchmarkImpl
+from lib.resource_usage import ResourceUsage
 
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
-AETHERLING_SPACETIME_DIR = ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
-AETHERLING_VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
+AETHERLING_SPACETIME_DIR = (
+    ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
+)
+AETHERLING_VERILOG_DIR = (
+    ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
+)
 VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
@@ -37,7 +42,10 @@ def generate_verilog(benchmarks: list[str]) -> None:
         proj_dir = VERILOG_DIR.joinpath(bench)
         shutil.rmtree(proj_dir, ignore_errors=True)
         proj_dir.mkdir()
-        shutil.copy(src=AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v"), dst=proj_dir.joinpath("Top.v"))
+        shutil.copy(
+            src=AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v"),
+            dst=proj_dir.joinpath("Top.v")
+        )
         qpf = proj_dir.joinpath("Top.qpf")
         shutil.copy(src=DEFAULT_QPF, dst=qpf)
         qpf.write_text(qpf.read_text(encoding="utf-8").replace("top", "Top"), encoding="utf-8")
@@ -76,16 +84,63 @@ def measure_resource_usage(project_dir: Path, top: str, log: Path) -> ResourceUs
     os.chdir(project_dir)
     with open(log, "a", encoding="utf-8") as f:
         try:
-            subprocess.run(["quartus_sh", "--flow", "compile", top], stdout=f, stderr=subprocess.STDOUT, check=True)
+            subprocess.run(
+                ["quartus_sh", "--flow", "compile", top],
+                stdout=f,
+                stderr=subprocess.STDOUT,
+                check=True
+            )
         except CalledProcessError:
             return None
-    result = subprocess.run([TEST_SH_DIR.joinpath("extract_alm_count.sh")], check=True, capture_output=True, text=True, encoding="utf-8")
+    result = subprocess.run(
+        [TEST_SH_DIR.joinpath("extract_alm_count.sh")],
+        check=True, capture_output=True, text=True, encoding="utf-8"
+    )
     alm = int(result.stdout)
-    result = subprocess.run([TEST_SH_DIR.joinpath("extract_bram_count.sh")], check=True, capture_output=True, text=True, encoding="utf-8")
+    result = subprocess.run(
+        [TEST_SH_DIR.joinpath("extract_bram_count.sh")],
+        check=True, capture_output=True, text=True, encoding="utf-8"
+    )
     bram = int(result.stdout)
-    result = subprocess.run([TEST_SH_DIR.joinpath("extract_dsp_count.sh")], check=True, capture_output=True, text=True, encoding="utf-8")
+    result = subprocess.run(
+        [TEST_SH_DIR.joinpath("extract_dsp_count.sh")],
+        check=True, capture_output=True, text=True, encoding="utf-8"
+    )
     dsp = int(result.stdout)
     return ResourceUsage(alm=alm, bram=bram, dsp=dsp)
+
+
+def measure_and_save_resource_usage(
+    b: BenchmarkImpl,
+    writer: csv.DictWriter,
+    f: TextIO,
+    log: Path,
+) -> None:
+    """
+    Measure the resource usage for the given benchmark and save the results.
+    """
+    bench = b.bench
+    print(
+        f"Measuring resource usage for {bench.full_name} ({b.language})...",
+        flush=True,
+        end="",
+    )
+    project_dir = (
+        VERILOG_DIR.joinpath(bench.full_name)
+        if b.language.lower() == "verilog"
+        else VHDL_DIR.joinpath(bench.full_name)
+    )
+    ru = measure_resource_usage(project_dir=project_dir, top="Top", log=log)
+    print("failed" if ru is None else "OK")
+    writer.writerow({
+        "bench_name": bench.name,
+        "bench_throughput": bench.throughput_str,
+        "language": b.language.lower(),
+        "alm": "" if ru is None else ru.alm,
+        "bram": "" if ru is None else ru.bram,
+        "dsp": "" if ru is None else ru.dsp,
+    })
+    f.flush()
 
 
 def main(args: list[str]) -> None:
@@ -126,44 +181,25 @@ def main(args: list[str]) -> None:
     generate_vhdl([b.full_name for b in benchmarks], log=log)
 
     with open(out_path, "w", encoding="utf-8") as out_file:
-        writer = csv.DictWriter(out_file, fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"])
+        writer = csv.DictWriter(
+            out_file,
+            fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
+        )
         writer.writeheader()
         for bench in benchmarks:
-            print(f"Measuring resource usage for {bench.full_name} (Verilog)...", flush=True, end="")
-            ru = measure_resource_usage(project_dir=VERILOG_DIR.joinpath(bench.full_name), top="Top", log=log)
-            if ru is None:
-                print("failed")
-                writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
-                    "language": "verilog",
-                    "alm": "", "bram": "", "dsp": ""
-                })
-            else:
-                print("OK")
-                writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
-                    "language": "verilog",
-                    "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp
-                })
-
-            print(f"Measuring resource usage for {bench.full_name} (VHDL)... ", flush=True, end="")
-            ru = measure_resource_usage(project_dir=VHDL_DIR.joinpath(bench.full_name), top="top", log=log)
-            if ru is None:
-                print("failed")
-                writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
-                    "language": "vhdl",
-                    "alm": "", "bram": "", "dsp": ""
-                })
-            else:
-                print("OK")
-                writer.writerow({
-                    "bench_name": bench.name, "bench_throughput": bench.throughput_str,
-                    "language": "vhdl",
-                    "alm": ru.alm, "bram": ru.bram, "dsp": ru.dsp
-                })
-
-            out_file.flush()
+            measure_and_save_resource_usage(
+                BenchmarkImpl(bench, "verilog"),
+                writer=writer,
+                f=out_file,
+                log=log,
+            )
+            measure_and_save_resource_usage(
+                BenchmarkImpl(bench, "vhdl"),
+                writer=writer,
+                f=out_file,
+                log=log,
+            )
+    # TODO: Merge old and new results
 
 
 if __name__ == "__main__":

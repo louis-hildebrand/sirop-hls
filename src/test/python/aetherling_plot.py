@@ -4,48 +4,24 @@
 This script plots the results for the Aetherling benchmarks.
 """
 
-import csv
 import sys
-from fractions import Fraction
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from benchmark import Benchmark, BenchmarkImpl
-from resource_usage import ResourceUsage
+from lib.benchmark import BenchmarkImpl
+from lib.read_results import read_results
+from lib.resource_usage import ResourceUsage
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
 RESULTS_DIR = ROOT_DIR.joinpath("results")
 RESULTS_FILE = RESULTS_DIR.joinpath("aetherling.csv")
 PLOT_FILE = RESULTS_DIR.joinpath("aetherling.pdf")
 
-
-def read_results() -> dict[BenchmarkImpl, ResourceUsage]:
-    """
-    Read the CSV file back into a dictionary.
-    """
-    def get_bench(row) -> BenchmarkImpl:
-        return BenchmarkImpl(
-            bench=Benchmark(
-                name=row["bench_name"],
-                throughput=Fraction(row["bench_throughput"])
-            ),
-            language=row["language"]
-        )
-    def get_results(row) -> ResourceUsage:
-        return ResourceUsage(
-            alm=int(row["alm"]),
-            bram=int(row["bram"]),
-            dsp=int(row["dsp"])
-        )
-    with open(RESULTS_FILE, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-        return {
-            get_bench(row) : get_results(row)
-            for row in rows
-            if row["alm"] and row["bram"] and row["dsp"]
-        }
+AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
+AETHERLING_MARKER = "^"
+OUR_LABEL = "Aetherling \u2192 mhir \u2192 VHDL"
+OUR_MARKER = "o"
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -59,28 +35,35 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot throughput vs resource usage for each benchmark.
     """
-
-    AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-    AETHERLING_MARKER = "^"
-    OUR_LABEL = "Aetherling \u2192 mhir \u2192 VHDL"
-    OUR_MARKER = "o"
-
     benchmark_names = dedup([res.bench.name for res in results.keys()])
+    if not benchmark_names:
+        raise ValueError("No benchmarks to plot.")
     fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names))
+    verilog_artist = None
+    vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
         verilog_benchmarks = [
             b
             for b in results.keys()
             if b.bench.name == bench_name and b.language == "verilog"
         ]
-        verilog_benchmarks = sorted(verilog_benchmarks, key=lambda b: (b.language, b.bench.throughput))
+        verilog_benchmarks = sorted(
+            verilog_benchmarks,
+            key=lambda b: (b.language, b.bench.throughput)
+        )
         vhdl_benchmarks = [
             b
             for b in results.keys()
             if b.bench.name == bench_name and b.language == "vhdl"
         ]
-        vhdl_benchmarks = sorted(vhdl_benchmarks, key=lambda b: (b.language, b.bench.throughput))
-        assert [b.bench.throughput for b in verilog_benchmarks] == [b.bench.throughput for b in vhdl_benchmarks]
+        vhdl_benchmarks = sorted(
+            vhdl_benchmarks,
+            key=lambda b: (b.language, b.bench.throughput)
+        )
+        assert (
+            [b.bench.throughput for b in verilog_benchmarks]
+                == [b.bench.throughput for b in vhdl_benchmarks]
+        )
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         # Plot ALM usage
         alm_ax = axes[0][col]
@@ -119,6 +102,8 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         # Settings for the whole column
         alm_ax.set_title(bench_name)
         dsp_ax.set_xlabel("Throughput")
+    if verilog_artist is None or vhdl_artist is None:
+        raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
         [vhdl_artist, verilog_artist],
         [OUR_LABEL, AETHERLING_LABEL],
@@ -133,7 +118,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = read_results()
+    results = read_results(RESULTS_FILE)
     if not results:
         sys.exit("No results to plot.")
     plot_resource_usages(results)
