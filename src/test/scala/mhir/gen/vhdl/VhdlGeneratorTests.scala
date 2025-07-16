@@ -1,4 +1,5 @@
-package mhir.gen.vhdl
+package mhir.gen
+package vhdl
 
 import mhir.gen.TestPassed
 import mhir.ir.Lowering.ExprLowering

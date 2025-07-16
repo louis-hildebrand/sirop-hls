@@ -1,4 +1,5 @@
-package mhir.gen.vhdl
+package mhir.gen
+package vhdl
 
 import mhir.gen.{
   DesignCompileFailed,
@@ -14,6 +15,8 @@ import os.{Path, RelPath}
 
 import scala.sys.process._
 
+/** Provides methods for testing a VHDL project.
+  */
 object VhdlTestRunner {
   private val VHDL_DIR = os.pwd / "src" / "test" / "vhdl"
   private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_vhdl.sh"
@@ -64,7 +67,7 @@ object VhdlTestRunner {
           s"Only streams and functions are supported (got expression $e)."
         )
     }
-    TestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
+    VhdlTestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
   }
 }

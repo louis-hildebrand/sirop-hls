@@ -1,4 +1,5 @@
-package mhir.gen.vhdl
+package mhir.gen
+package vhdl
 
 import mhir.debug.indent
 import mhir.ir._
@@ -6,9 +7,7 @@ import mhir.ir.typecheck.TypeCheck
 
 import os.Path
 
-case class TestInput(elems: Seq[Option[Expr]])
-
-object TestbenchGenerator {
+object VhdlTestbenchGenerator {
 
   /** Create a testbench for a VHDL design.
     *

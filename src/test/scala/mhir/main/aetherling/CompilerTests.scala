@@ -1,7 +1,8 @@
 package mhir.main.aetherling
 
-import mhir.gen.TestPassed
-import mhir.gen.vhdl.{TestInput, TestbenchGenerator, VhdlTestRunner}
+import mhir.gen.verilog.{VerilogTestRunner, VerilogTestbenchGenerator}
+import mhir.gen.{TestInput, TestPassed}
+import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
 import mhir.ir._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,7 +13,10 @@ import org.scalatest.funsuite.AnyFunSuite
 class CompilerTests extends AnyFunSuite {
   private val BenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original"
+  private val VerilogBenchmarksDir =
+    os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "verilog"
   private val VhdlDir = os.pwd / "src" / "test" / "vhdl"
+  private val VerilogDir = os.pwd / "src" / "test" / "verilog"
 
   private def runTest(
       benchmark: String,
@@ -26,12 +30,24 @@ class CompilerTests extends AnyFunSuite {
     val args = Args(inFile = inFile, outDir = outDir, simplify = simplify)
     val f = Compiler.compile(args)
     val testInput = TestInput(input.elems.map(e => Some(e)))
-    TestbenchGenerator.makeTestbench(
+    VhdlTestbenchGenerator.makeTestbench(
       inputsByVar = Map(f.asInstanceOf[Function].param -> testInput),
       out = expectedOutput,
       dir = outDir
     )
     assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
+  }
+
+  // TODO: Generalize all these tests
+  test("Aetherling map_1") {
+    val projectDir = VerilogDir / "aetherling_map_1_test"
+    if (os.exists(projectDir)) os.remove.all(projectDir)
+    os.makeDir.all(projectDir)
+    os.copy(VerilogBenchmarksDir / "map_1.v", projectDir / "Top.v")
+    val inputs = TestInput((0 until 200).map(i => Some(C(i)(U8))))
+    val outputs = StmLiteral((0 until 200).map(i => C(i + 5)(U8)): _*)()
+    VerilogTestbenchGenerator.makeTestbench(inputs, outputs, projectDir)
+    assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
   }
 
   test("map:1") {
