@@ -1,26 +1,23 @@
 #!/bin/python3
 
 """
-This script plots the results for the Aetherling benchmarks.
+This script plots the resource usages for the Aetherling benchmarks.
 """
 
 import sys
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 
+import lib.constants as c
 from lib.benchmark import BenchmarkImpl
-from lib.read_results import read_valid_results
+from lib.read_results import read_valid_resource_usage_results
 from lib.resource_usage import ResourceUsage
 
-ROOT_DIR = Path(__file__).parent.parent.parent.parent.resolve()
-RESULTS_DIR = ROOT_DIR.joinpath("results")
-RESULTS_FILE = RESULTS_DIR.joinpath("aetherling.csv")
-PLOT_FILE = RESULTS_DIR.joinpath("aetherling.pdf")
+PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_resource_usage.pdf")
 
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "^"
-OUR_LABEL = "Aetherling \u2192 mhir \u2192 VHDL"
+OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
 
 
@@ -33,7 +30,7 @@ def dedup(xs: list[str]) -> list[str]:
 
 def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
-    Plot throughput vs resource usage for each benchmark.
+    Plot resource usage vs throughput for each benchmark.
     """
     plt.rcParams.update({
         "text.usetex": True
@@ -68,28 +65,45 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
                 == [b.bench.throughput for b in vhdl_benchmarks]
         )
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
+        xscale = "log" if bench_name == "map" else "linear"
+        yscale = xscale
         # Plot ALM usage
         alm_ax = axes[0][col]
         ys = [results[b].alm for b in verilog_benchmarks]
         verilog_artist, = alm_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         ys = [results[b].alm for b in vhdl_benchmarks]
         vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
-        alm_ax.get_xaxis().set_ticks([])
+        alm_ax.set_xscale(xscale)
+        alm_ax.set_yscale(yscale)
         # Plot BRAM usage
         bram_ax = axes[1][col]
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
         bram_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
         bram_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
-        bram_ax.get_xaxis().set_ticks([])
-        if all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys):
+        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
+        if all_zero:
             bram_ax.set_ylim(-1, 1)
+        bram_ax.set_xscale(xscale)
+        if not all_zero:
+            bram_ax.set_yscale(yscale)
         # Plot DSP usage
         dsp_ax = axes[2][col]
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
         dsp_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
         dsp_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
+        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
+        if all_zero:
+            dsp_ax.set_ylim(-1, 1)
+        dsp_ax.set_xscale(xscale)
+        if not all_zero:
+            dsp_ax.set_yscale(yscale)
+        # Settings for the whole column
+        alm_ax.set_title(bench_name)
+        dsp_ax.set_xlabel("Target throughput")
+        alm_ax.set_xticks([])
+        bram_ax.set_xticks([])
         tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
         dsp_ax.set_xticks(
             [float(b.bench.throughput) for b in vhdl_benchmarks],
@@ -97,11 +111,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
             ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
         )
-        if all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys):
-            dsp_ax.set_ylim(-1, 1)
-        # Settings for the whole column
-        alm_ax.set_title(bench_name)
-        dsp_ax.set_xlabel("Throughput")
     # Settings for entire rows
     axes[0][0].set_ylabel("ALMs")
     axes[1][0].set_ylabel("BRAMs")
@@ -122,7 +131,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = read_valid_results(RESULTS_FILE)
+    results = read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
     if not results:
         sys.exit("No results to plot.")
     plot_resource_usages(results)
