@@ -63,3 +63,5 @@ metals.sbt
 # Custom
 /img/
 .venv/
+/results*/*.pdf
+/results*/*.csv.bak
