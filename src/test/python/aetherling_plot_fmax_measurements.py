@@ -9,15 +9,17 @@ import sys
 import matplotlib.pyplot as plt
 
 import lib.constants as c
+import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
-from lib.read_results import read_valid_fmax_results
+from lib.fmax import Fmax
 
-PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_fmax.pdf")
+PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_fmax_measurements.pdf")
 
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-AETHERLING_MARKER = "^"
+AETHERLING_MARKER = "s"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
+DEFAULT_ERR = 10
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -27,7 +29,7 @@ def dedup(xs: list[str]) -> list[str]:
     return list(dict.fromkeys(xs))
 
 
-def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
+def plot_fmax(results: dict[BenchmarkImpl, Fmax]) -> None:
     """
     Plot fmax vs throughput for each benchmark.
     """
@@ -37,7 +39,8 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names))
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), squeeze=False)
+    axes = axes[0]
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -63,13 +66,78 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
             [b.bench.throughput for b in verilog_benchmarks]
                 == [b.bench.throughput for b in vhdl_benchmarks]
         )
-        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         # Plot fmax
         ax = axes[col]
-        ys = [results[b] for b in verilog_benchmarks]
-        verilog_artist, = ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
-        ys = [results[b] for b in vhdl_benchmarks]
-        vhdl_artist, = ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
+        xs = []
+        ys = []
+        loerr = []
+        uperr = []
+        lolims = []
+        uplims = []
+        for b in verilog_benchmarks:
+            xs.append(float(b.bench.throughput))
+            fmax = results[b]
+            ys.append(fmax.lower)
+            if fmax.lower is None:
+                assert fmax.upper is not None
+                loerr.append(DEFAULT_ERR)
+                uperr.append(0)
+                lolims.append(False)
+                uplims.append(True)
+            elif fmax.upper is None:
+                loerr.append(0)
+                uperr.append(DEFAULT_ERR)
+                lolims.append(True)
+                uplims.append(False)
+            else:
+                loerr.append(0)
+                uperr.append(fmax.upper - fmax.lower - 1)
+                lolims.append(False)
+                uplims.append(False)
+        verilog_artist, *_ = ax.errorbar(
+            xs,
+            ys,
+            yerr=[loerr, uperr],
+            lolims=lolims,
+            uplims=uplims,
+            marker=AETHERLING_MARKER,
+            label=AETHERLING_LABEL,
+        )
+        xs = []
+        ys = []
+        loerr = []
+        uperr = []
+        lolims = []
+        uplims = []
+        for b in vhdl_benchmarks:
+            xs.append(float(b.bench.throughput))
+            fmax = results[b]
+            ys.append(fmax.lower)
+            if fmax.lower is None:
+                assert fmax.upper is not None
+                loerr.append(DEFAULT_ERR)
+                uperr.append(0)
+                lolims.append(False)
+                uplims.append(True)
+            elif fmax.upper is None:
+                loerr.append(0)
+                uperr.append(DEFAULT_ERR)
+                lolims.append(True)
+                uplims.append(False)
+            else:
+                loerr.append(0)
+                uperr.append(fmax.upper - fmax.lower - 1)
+                lolims.append(False)
+                uplims.append(False)
+        vhdl_artist, *_ = ax.errorbar(
+            xs,
+            ys,
+            yerr=[loerr, uperr],
+            lolims=lolims,
+            uplims=uplims,
+            marker=OUR_MARKER,
+            label=OUR_LABEL,
+        )
         ax.set_title(bench_name)
         ax.set_xlabel("Target throughput")
         tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
@@ -97,7 +165,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = read_valid_fmax_results(c.FMAX_CSV)
+    results = crud.read_valid_fmax_measurements(c.FMAX_MEASUREMENT_CSV)
     if not results:
         sys.exit("No results to plot.")
     plot_fmax(results)

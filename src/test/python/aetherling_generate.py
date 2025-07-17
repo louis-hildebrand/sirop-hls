@@ -8,10 +8,10 @@ import os
 import shutil
 import subprocess
 from argparse import ArgumentParser, Namespace
-from subprocess import CalledProcessError
 
 import lib.constants as c
 import lib.list_benchmarks as lb
+from lib import synth
 
 
 def generate_verilog(benchmarks: list[str]) -> None:
@@ -53,39 +53,7 @@ def generate_vhdl(benchmarks: list[str]) -> None:
     subprocess.run(["sbt", "; ".join(tasks)], check=True)
 
 
-def synthesize_verilog(benchmarks: list[str]) -> None:
-    """
-    Synthesize each Verilog project.
-    """
-    bench_paths = [c.VERILOG_DIR.joinpath(b) for b in benchmarks]
-    for proj_dir in bench_paths:
-        os.chdir(proj_dir)
-        try:
-            subprocess.run(
-                ["quartus_sh", "--flow", "compile", "Top"],
-                check=True
-            )
-        except CalledProcessError:
-            print(f"Failed to synthesize {proj_dir}.")
-
-
-def synthesize_vhdl(benchmarks: list[str]) -> None:
-    """
-    Synthesize each VHDL project.
-    """
-    bench_paths = [c.VHDL_DIR.joinpath(b) for b in benchmarks]
-    for proj_dir in bench_paths:
-        os.chdir(proj_dir)
-        try:
-            subprocess.run(
-                ["quartus_sh", "--flow", "compile", "top"],
-                check=True,
-            )
-        except CalledProcessError:
-            print(f"Failed to synthesize {proj_dir}.")
-
-
-def main(benchmarks: list[str], skip_verilog: bool = False, skip_vhdl: bool = False) -> None:
+def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth: bool) -> None:
     """
     Script entry point
     """
@@ -98,15 +66,25 @@ def main(benchmarks: list[str], skip_verilog: bool = False, skip_vhdl: bool = Fa
         c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
         print("Generating Verilog...")
         generate_verilog(benchmarks)
-        print("Synthesizing Verilog...")
-        synthesize_verilog(benchmarks)
+        if not skip_synth:
+            print("Synthesizing Verilog...")
+            for b in benchmarks:
+                proj_dir = c.VERILOG_DIR.joinpath(b)
+                ok = synth.synthesize_design(proj_dir)
+                if not ok:
+                    print(f" failed to synthesize {proj_dir}")
 
     if not skip_vhdl:
         c.VHDL_DIR.mkdir(exist_ok=True, parents=True)
         print("Generating VHDL...")
         generate_vhdl(benchmarks)
-        print("Synthesizing VHDL...")
-        synthesize_vhdl(benchmarks)
+        if not skip_synth:
+            print("Synthesizing VHDL...")
+            for b in benchmarks:
+                proj_dir = c.VHDL_DIR.joinpath(b)
+                ok = synth.synthesize_design(proj_dir)
+                if not ok:
+                    print(f" failed to synthesize {proj_dir}")
 
     print()
 
@@ -135,6 +113,11 @@ def parse_args() -> Namespace:
         action="store_true",
         help="don't generate or synthesize any VHDL code"
     )
+    parser.add_argument(
+        "--skip-synth",
+        action="store_true",
+        help="don't synthesize any projects; only generate the HDL code"
+    )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
     return args
@@ -146,4 +129,5 @@ if __name__ == "__main__":
         benchmarks=_args.benchmarks,
         skip_verilog=_args.skip_verilog,
         skip_vhdl=_args.skip_vhdl,
+        skip_synth=_args.skip_synth
     )

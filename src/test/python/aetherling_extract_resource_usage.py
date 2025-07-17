@@ -13,8 +13,8 @@ from typing import TextIO
 
 import lib.constants as c
 import lib.list_benchmarks as lb
+import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl
-from lib.read_results import read_all_resource_usage_results
 from lib.resource_usage import ResourceUsage
 
 
@@ -44,20 +44,6 @@ def extract_resource_usage(project_dir: Path) -> ResourceUsage | None:
     return ResourceUsage(alm=alm, bram=bram, dsp=dsp)
 
 
-def save_result(writer: csv.DictWriter, b: BenchmarkImpl, ru: ResourceUsage | None) -> None:
-    """
-    Save one resource usage result to a CSV file.
-    """
-    writer.writerow({
-        "bench_name": b.bench.name,
-        "bench_throughput": b.bench.throughput_str,
-        "language": b.language.lower(),
-        "alm": "" if ru is None else ru.alm,
-        "bram": "" if ru is None else ru.bram,
-        "dsp": "" if ru is None else ru.dsp,
-    })
-
-
 def extract_and_save_resource_usage(
     b: BenchmarkImpl,
     writer: csv.DictWriter,
@@ -79,31 +65,8 @@ def extract_and_save_resource_usage(
     )
     ru = extract_resource_usage(project_dir)
     print("failed" if ru is None else "OK")
-    save_result(writer, b, ru)
+    crud.save_resource_usage(writer, b, ru)
     f.flush()
-
-
-def merge_results(old: Path, new: Path) -> None:
-    """
-    Combine the old and new results.
-
-    If a given benchmark has both an old result and a new result, only the new
-    result will be kept.
-    """
-    if not old.exists():
-        return
-    old_results = read_all_resource_usage_results(old)
-    new_results = read_all_resource_usage_results(new)
-    combined_results = old_results | new_results
-    with open(new, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
-        )
-        writer.writeheader()
-        for b, ru in combined_results.items():
-            save_result(writer, b, ru)
-    old.unlink()
 
 
 def main(bench_names: list[str]) -> None:
@@ -122,7 +85,7 @@ def main(bench_names: list[str]) -> None:
     c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
 
     print("-" * 80)
-    print("- Measuring resource usage...")
+    print("- Extracting resource usage...")
     print(f"- Benchmarks  : {', '.join(bench_names)}")
     print(f"- Output file : {out_path.as_posix()}")
     print("-" * 80)
@@ -146,7 +109,7 @@ def main(bench_names: list[str]) -> None:
                     f=out_file,
                 )
     finally:
-        merge_results(old=backup_out_path, new=out_path)
+        crud.merge_resource_usages(old=backup_out_path, new=out_path)
 
     print()
     print()

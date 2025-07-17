@@ -1,7 +1,7 @@
 #!/bin/python3
 
 """
-This script plots the resource usages for the Aetherling benchmarks.
+This script plots the maximum clock frequency for the Aetherling benchmarks.
 """
 
 import sys
@@ -11,9 +11,8 @@ import matplotlib.pyplot as plt
 import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
-from lib.resource_usage import ResourceUsage
 
-PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_resource_usage.pdf")
+PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_fmax_estimates.pdf")
 
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "^"
@@ -28,9 +27,9 @@ def dedup(xs: list[str]) -> list[str]:
     return list(dict.fromkeys(xs))
 
 
-def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
+def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     """
-    Plot resource usage vs throughput for each benchmark.
+    Plot fmax vs throughput for each benchmark.
     """
     plt.rcParams.update({
         "text.usetex": True
@@ -38,7 +37,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False)
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -65,56 +64,23 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
                 == [b.bench.throughput for b in vhdl_benchmarks]
         )
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
-        xscale = "log" if bench_name == "map" else "linear"
-        yscale = xscale
-        # Plot ALM usage
-        alm_ax = axes[0][col]
-        ys = [results[b].alm for b in verilog_benchmarks]
-        verilog_artist, = alm_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
-        ys = [results[b].alm for b in vhdl_benchmarks]
-        vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
-        alm_ax.set_xscale(xscale)
-        alm_ax.set_yscale(yscale)
-        # Plot BRAM usage
-        bram_ax = axes[1][col]
-        verilog_ys = [results[b].bram for b in verilog_benchmarks]
-        bram_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
-        vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
-        bram_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
-        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
-        if all_zero:
-            bram_ax.set_ylim(-1, 1)
-        bram_ax.set_xscale(xscale)
-        if not all_zero:
-            bram_ax.set_yscale(yscale)
-        # Plot DSP usage
-        dsp_ax = axes[2][col]
-        verilog_ys = [results[b].dsp for b in verilog_benchmarks]
-        dsp_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
-        vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
-        dsp_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
-        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
-        if all_zero:
-            dsp_ax.set_ylim(-1, 1)
-        dsp_ax.set_xscale(xscale)
-        if not all_zero:
-            dsp_ax.set_yscale(yscale)
-        # Settings for the whole column
-        alm_ax.set_title(bench_name)
-        dsp_ax.set_xlabel("Target throughput")
-        alm_ax.set_xticks([])
-        bram_ax.set_xticks([])
+        # Plot fmax
+        ax = axes[col]
+        ys = [results[b] for b in verilog_benchmarks]
+        verilog_artist, = ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        ys = [results[b] for b in vhdl_benchmarks]
+        vhdl_artist, = ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
+        ax.set_title(bench_name)
+        ax.set_xlabel("Target throughput")
         tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
-        dsp_ax.set_xticks(
+        ax.set_xticks(
             [float(b.bench.throughput) for b in vhdl_benchmarks],
             tick_labels,
             rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
             ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
         )
     # Settings for entire rows
-    axes[0][0].set_ylabel("ALMs")
-    axes[1][0].set_ylabel("BRAMs")
-    axes[2][0].set_ylabel("DSPs")
+    axes[0].set_ylabel("fmax")
     if verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
@@ -131,10 +97,10 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
+    results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
     if not results:
         sys.exit("No results to plot.")
-    plot_resource_usages(results)
+    plot_fmax(results)
 
 
 if __name__ == "__main__":
