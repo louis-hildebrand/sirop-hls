@@ -25,12 +25,12 @@ class Fmax:
     A measurement of the maximum frequency of a design.
     """
 
-    lower: float | None
+    lower: int | None
     """
     Inclusive lower bound for fmax.
     The design can definitely be synthesized with this target frequency.
     """
-    upper: float | None
+    upper: int | None
     """
     Upper bound (exclusive) for fmax.
     The synthesizer failed to meet the timing requirements with this target frequency.
@@ -126,8 +126,9 @@ def set_target_freq(proj_dir: Path, freq: float) -> None:
     found = False
     updated_lines: list[str] = []
     for line in text.splitlines():
-        updated_line = re.sub(r"-period\s+\d+\.\d+", f"-period {period:.3f}", line)
-        found = found or updated_line != line
+        pattern = r"-period\s+\d+\.\d+"
+        updated_line = re.sub(pattern, f"-period {period:.3f}", line)
+        found = found or re.search(pattern, line)
         updated_lines.append(updated_line)
     if not found:
         raise RuntimeError(f"No existing clock constraint found in {sdc_path}.")
@@ -150,13 +151,17 @@ def can_synthesize_at_frequency(proj_dir: Path, freq: int) -> tuple[bool, float]
     return (success, fmax)
 
 
-def measure_fmax(proj_dir: Path, start_freq: int = 200, max_steps: int = 4) -> Fmax | None:
+def measure_fmax(
+    proj_dir: Path,
+    start_freq: int = 200,
+    lower: int | None = None,
+    upper: int | None = None,
+    max_steps: int = 4
+) -> Fmax | None:
     """
     Measure the maximum clock frequency by repeatedly trying to synthesize the design with
     different target frequencies.
     """
-    lower: float | None = None
-    upper: float | None = None
     steps: list[Step] = []
     next_freq: int = start_freq
     while True:
@@ -205,3 +210,35 @@ def measure_fmax(proj_dir: Path, start_freq: int = 200, max_steps: int = 4) -> F
             next_next_freq = lower + (upper - lower) // 2
         next_freq = next_next_freq
     return Fmax(lower=lower, upper=upper, steps=steps)
+
+
+def continue_measurement(proj_dir: Path, old_fmax: Fmax, max_steps: int = 4) -> Fmax | None:
+    """
+    Measure the max clock frequency of a design, with a previous measurement as a starting point.
+    """
+    if old_fmax.steps and old_fmax.steps[-1].success is None:
+        start_freq = old_fmax.steps[-1].freq
+    elif old_fmax.lower is None and old_fmax.upper is None:
+        start_freq = 200
+    elif old_fmax.lower is None:
+        assert old_fmax.upper is not None
+        start_freq = old_fmax.upper - 10
+    elif old_fmax.upper is None:
+        assert old_fmax.lower is not None
+        start_freq = old_fmax.lower + 10
+    else:
+        start_freq = old_fmax.lower + (old_fmax.upper - old_fmax.lower) // 2
+    new_fmax = measure_fmax(
+        proj_dir,
+        start_freq=start_freq,
+        lower=old_fmax.lower,
+        upper=old_fmax.upper,
+        max_steps=max_steps,
+    )
+    if new_fmax is None:
+        return old_fmax
+    return Fmax(
+        lower=new_fmax.lower,
+        upper=new_fmax.upper,
+        steps=[s for s in old_fmax.steps if s.success is not None] + new_fmax.steps
+    )

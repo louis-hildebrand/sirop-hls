@@ -221,8 +221,8 @@ def read_all_fmax_measurements(results_file: Path) -> dict[BenchmarkImpl, Fmax |
     def get_result(row) -> Fmax | None:
         if not row["fmax_lower"] and not row["fmax_upper"]:
             return None
-        lower = None if not row["fmax_lower"] else float(row["fmax_lower"])
-        upper = None if not row["fmax_upper"] else float(row["fmax_upper"])
+        lower = None if not row["fmax_lower"] else int(row["fmax_lower"])
+        upper = None if not row["fmax_upper"] else int(row["fmax_upper"])
         steps = get_steps(row["steps"])
         return Fmax(lower=lower, upper=upper, steps=steps)
     with open(results_file, "r", encoding="utf-8", newline="") as f:

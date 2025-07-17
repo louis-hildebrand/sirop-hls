@@ -5,8 +5,6 @@ This script measures the maximum clock frequency for a given design by repeatedl
 synthesize it with different target frequencies.
 """
 
-# TODO: Add option to pick up measurement where the previous one left off?
-
 import csv
 import shutil
 from argparse import ArgumentParser, Namespace
@@ -30,6 +28,9 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():
         shutil.copy(src=out_path, dst=backup_out_path)
+        old_results = crud.read_all_fmax_measurements(backup_out_path)
+    else:
+        old_results = {}
 
     c.VHDL_DIR.mkdir(exist_ok=True)
     c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
@@ -51,7 +52,12 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
         for bench in benchmarks:
             if not skip_verilog:
                 print(f"Measuring fmax for {bench.full_name} (Verilog)... ")
-                fmax = fm.measure_fmax(c.VERILOG_DIR.joinpath(bench.full_name))
+                proj_dir = c.VERILOG_DIR.joinpath(bench.full_name)
+                old_fmax = old_results.get(BenchmarkImpl(bench, "verilog"), None)
+                if old_fmax is not None:
+                    fmax = fm.continue_measurement(proj_dir, old_fmax)
+                else:
+                    fmax = fm.measure_fmax(proj_dir)
                 if fmax is None:
                     print(f"  failed to measure fmax for {bench.full_name} (Verilog)")
                 else:
@@ -63,7 +69,12 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
                     out_file.flush()
             if not skip_vhdl:
                 print(f"Measuring fmax for {bench.full_name} (VHDL)... ")
-                fmax = fm.measure_fmax(c.VHDL_DIR.joinpath(bench.full_name))
+                proj_dir = c.VHDL_DIR.joinpath(bench.full_name)
+                old_fmax = old_results.get(BenchmarkImpl(bench, "vhdl"), None)
+                if old_fmax is not None:
+                    fmax = fm.continue_measurement(proj_dir, old_fmax)
+                else:
+                    fmax = fm.measure_fmax(proj_dir)
                 if fmax is None:
                     print(f"  failed to measure fmax for {bench.full_name} (VHDL)")
                 else:
