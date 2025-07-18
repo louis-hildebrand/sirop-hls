@@ -894,6 +894,142 @@ class StreamTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("StmMap2:Prod") {
+    val n = 6
+    val s1 = StmCount(C(n)(U8))()
+    val s2 = StmRange(n, C(10)(U8), C(1)(U8))()
+    val combined = StmMap2(s1, s2, TimesFunction(U8))()
+    val expected = StmLiteral((0 until n).map(i => C(i * (10 + i))(U8)): _*)()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:StmConcat") {
+    val n = 3
+    val m1 = 4
+    val m2 = 5
+    val s1 = StmCount2D(C(n)(U8), C(m1)(U8))()
+    val s2 = StmCount2D(C(n)(U8), C(m2)(U8))()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (s1 => Missing ::+ (s2 => StmConcat(s1, s2)()))
+    )()
+    val expected = StmLiteral(
+      (0 until n).flatMap(i => {
+        val s1Elems =
+          (0 until m1).map(j => Tuple(C(i)(U8), C(j)(U8))())
+        val s2Elems =
+          (0 until m2).map(j => Tuple(C(i)(U8), C(j)(U8))())
+        s1Elems ++ s2Elems
+      }): _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:StmPrepend") {
+    val n = 3
+    val m = 4
+    val s1 = StmCount(C(n)(U8))().tchk()
+    val s2 = StmSplit(StmRange(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (i => Missing ::+ (s => StmPrepend(s, i)()))
+    )()
+    val expected = StmLiteral(
+      (0 until n * m)
+        .map(_ + 10)
+        .grouped(m)
+        .zipWithIndex
+        .flatMap({ case (xs, i) => i +: xs })
+        .map(C(_)(U8))
+        .toSeq: _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:StmAppend") {
+    val n = 3
+    val m = 4
+    val s1 = StmSplit(StmRange(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
+    val s2 = StmCount(C(n)(U8))().tchk()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (s => Missing ::+ (i => StmAppend(s, i)()))
+    )()
+    val expected = StmLiteral(
+      (0 until n * m)
+        .map(_ + 10)
+        .grouped(m)
+        .zipWithIndex
+        .flatMap({ case (xs, i) => xs :+ i })
+        .map(C(_)(U8))
+        .toSeq: _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:IgnoreFirstInput") {
+    val n = 3
+    val m1 = 4
+    val m2 = 7
+    val s1 = StmCount2D(C(n)(U8), C(m1)(U8))()
+    val s2 = StmCount2D(C(n)(U8), C(m2)(U8))()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (_ => Missing ::+ (s2 => StmSuffix(s2, 2)()))
+    )()
+    val expected = StmLiteral(
+      (0 until n).flatMap(i =>
+        (0 until m2).map(j => Tuple(C(i)(U8), C(j)(U8))()).takeRight(2)
+      ): _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:IgnoreSecondInput") {
+    val n = 3
+    val m1 = 4
+    val m2 = 7
+    val s1 = StmCount2D(C(n)(U8), C(m1)(U8))()
+    val s2 = StmCount2D(C(n)(U8), C(m2)(U8))()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (s1 => Missing ::+ (_ => StmSuffix(s1, 2)()))
+    )()
+    val expected = StmLiteral(
+      (0 until n).flatMap(i =>
+        (0 until m1).map(j => Tuple(C(i)(U8), C(j)(U8))()).takeRight(2)
+      ): _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("StmMap2:IgnoreBothInputs") {
+    val n = 3
+    val m1 = 4
+    val m2 = 7
+    val s1 = StmCount2D(C(n)(U8), C(m1)(U8))()
+    val s2 = StmCount2D(C(n)(U8), C(m2)(U8))()
+    val combined = StmMap2(
+      s1,
+      s2,
+      Missing ::+ (_ => Missing ::+ (_ => StmCst(1, Tuple(42, True)())()))
+    )()
+    val expected = StmLiteral((0 until n).map(_ => Tuple(42, True)()): _*)()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
   test("StmFold:RepeatedData") {
     val n = 4
     val f =
