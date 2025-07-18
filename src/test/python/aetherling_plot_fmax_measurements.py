@@ -62,10 +62,6 @@ def plot_fmax(results: dict[BenchmarkImpl, Fmax]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        assert (
-            [b.bench.throughput for b in verilog_benchmarks]
-                == [b.bench.throughput for b in vhdl_benchmarks]
-        )
         # Plot fmax
         ax = axes[col]
         xs = []

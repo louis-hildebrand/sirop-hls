@@ -153,10 +153,10 @@ def can_synthesize_at_frequency(proj_dir: Path, freq: int) -> tuple[bool, float]
 
 def measure_fmax(
     proj_dir: Path,
+    max_steps: int,
     start_freq: int = 200,
     lower: int | None = None,
     upper: int | None = None,
-    max_steps: int = 4
 ) -> Fmax | None:
     """
     Measure the maximum clock frequency by repeatedly trying to synthesize the design with
@@ -212,7 +212,7 @@ def measure_fmax(
     return Fmax(lower=lower, upper=upper, steps=steps)
 
 
-def continue_measurement(proj_dir: Path, old_fmax: Fmax, max_steps: int = 4) -> Fmax | None:
+def continue_measurement(proj_dir: Path, old_fmax: Fmax, max_steps: int) -> Fmax | None:
     """
     Measure the max clock frequency of a design, with a previous measurement as a starting point.
     """

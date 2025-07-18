@@ -17,7 +17,13 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl
 
 
-def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhdl: bool) -> None:
+def main(
+    bench_names: list[str],
+    save_to_csv: bool,
+    skip_verilog: bool,
+    skip_vhdl: bool,
+    max_steps: int
+) -> None:
     """
     Script entry point.
     """
@@ -55,9 +61,9 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
                 proj_dir = c.VERILOG_DIR.joinpath(bench.full_name)
                 old_fmax = old_results.get(BenchmarkImpl(bench, "verilog"), None)
                 if old_fmax is not None:
-                    fmax = fm.continue_measurement(proj_dir, old_fmax)
+                    fmax = fm.continue_measurement(proj_dir, old_fmax, max_steps=max_steps)
                 else:
-                    fmax = fm.measure_fmax(proj_dir)
+                    fmax = fm.measure_fmax(proj_dir, max_steps=max_steps)
                 if fmax is None:
                     print(f"  failed to measure fmax for {bench.full_name} (Verilog)")
                 else:
@@ -72,9 +78,9 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
                 proj_dir = c.VHDL_DIR.joinpath(bench.full_name)
                 old_fmax = old_results.get(BenchmarkImpl(bench, "vhdl"), None)
                 if old_fmax is not None:
-                    fmax = fm.continue_measurement(proj_dir, old_fmax)
+                    fmax = fm.continue_measurement(proj_dir, old_fmax, max_steps=max_steps)
                 else:
-                    fmax = fm.measure_fmax(proj_dir)
+                    fmax = fm.measure_fmax(proj_dir, max_steps=max_steps)
                 if fmax is None:
                     print(f"  failed to measure fmax for {bench.full_name} (VHDL)")
                 else:
@@ -123,6 +129,12 @@ def parse_args() -> Namespace:
         action="store_true",
         help="don't process the VHDL implementation of the benchmarks"
     )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=4,
+        help="maximum number of synthesis steps to attempt"
+    )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
     return args
@@ -135,4 +147,5 @@ if __name__ == "__main__":
         save_to_csv=not _args.no_save,
         skip_verilog=_args.skip_verilog,
         skip_vhdl=_args.skip_vhdl,
+        max_steps=_args.max_steps,
     )
