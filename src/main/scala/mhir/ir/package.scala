@@ -364,6 +364,31 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
           e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
       }
     }
+
+    /** If this expression is a function literal without input type annotations,
+      * then recursively annotate it with the given types.
+      *
+      * @note
+      *   the resulting expression will not necessarily be type checked.
+      *
+      * @param typ
+      *   the input types.
+      */
+    def annotateFunc(typ: Type*): Expr = {
+      require(typ.nonEmpty)
+      this.expr match {
+        case Function(x, body) =>
+          val newX =
+            if (x.hasType) x else x.rebuild(typ.head).asInstanceOf[Param]
+          val newBody = if (typ.tail.isEmpty) {
+            body
+          } else {
+            new ExprOps(body).annotateFunc(typ.tail: _*)
+          }
+          Function(newX, newBody)()
+        case f => f
+      }
+    }
   }
 
   /** Helper methods for [[StmBuild]].

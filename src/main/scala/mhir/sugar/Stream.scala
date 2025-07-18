@@ -295,15 +295,7 @@ case class StmMap(
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmMap has type $t.")
     }
-    val newF = {
-      val withAnnotatedInput = f.param.typ match {
-        case Missing =>
-          val x = f.param.rebuild(t1).asInstanceOf[Param]
-          Function(x, f.body)()
-        case _ => f
-      }
-      withAnnotatedInput.tchk(context)
-    }
+    val newF = f.annotateFunc(t1).tchk
     val t2 = newF.typ match {
       case TyArrow(t, t2) if t ~= t1 => t2
       case t =>
@@ -443,20 +435,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
         s"Stream lengths in $className do not match: $n1 and $n2."
       )
     }
-    val f = {
-      val withTypeAnnotations = this.f match {
-        case Function(x, body) =>
-          val newX = if (x.hasType) x else x.rebuild(t1).asInstanceOf[Param]
-          val newBody = body match {
-            case Function(y, body) =>
-              val newY = if (y.hasType) y else y.rebuild(t2).asInstanceOf[Param]
-              Function(newY, body)()
-            case f => f
-          }
-          Function(newX, newBody)()
-      }
-      withTypeAnnotations.tchk.asInstanceOf[Function]
-    }
+    val f = this.f.annotateFunc(t1, t2).tchk
     val t3 = f.typ match {
       case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
         ft3
@@ -907,14 +886,8 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
         )
     }
     val tupledTyp = tupleElemType(wrappedTyp, this.f)
-    val annotatedF = this.f match {
-      case Function(x, body) if !x.hasType =>
-        val newX = x.rebuild(tupledTyp).asInstanceOf[Param]
-        Function(newX, body)()
-      case f =>
-        f
-    }
-    val f = annotatedF.tchk.expectType(tupledTyp ->: wrappedTyp)
+    val f =
+      this.f.annotateFunc(tupledTyp).tchk.expectType(tupledTyp ->: wrappedTyp)
     this.rebuild(TyStm(wrappedTyp, 1), Seq(s, f))
   }
 

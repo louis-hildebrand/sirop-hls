@@ -55,14 +55,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           s"Vector of $className has type $t. Expected a vector."
         )
     }
-    val annotatedF = this.f match {
-      case Function(x, body) if !x.hasType =>
-        val newX = x.rebuild(t1).asInstanceOf[Param]
-        Function(newX, body)()
-      case f =>
-        f
-    }
-    val newF = annotatedF.tchk(context)
+    val newF = this.f.annotateFunc(t1).tchk
     newF.typ match {
       case TyArrow(t, t2) if t ~= t1 =>
         this.rebuild(TyVec(t2, n), Seq(newV, newF))
@@ -138,21 +131,7 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
         s"Vector lengths in $className do not match: $n1 and $n2."
       )
     }
-    val f = {
-      val withTypeAnnotations = this.f match {
-        case Function(x, body) =>
-          val newX = if (x.hasType) x else x.rebuild(t1).asInstanceOf[Param]
-          val newBody = body match {
-            case Function(y, body) =>
-              val newY = if (y.hasType) y else y.rebuild(t2).asInstanceOf[Param]
-              Function(newY, body)()
-            case f => f
-          }
-          Function(newX, newBody)()
-        case f => f
-      }
-      withTypeAnnotations.tchk
-    }
+    val f = this.f.annotateFunc(t1, t2).tchk
     val t3 = f.typ match {
       case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
         ft3
@@ -320,14 +299,8 @@ case class VecReduceComb(
         )
     }
     val tupledTyp = tupleElemType(wrappedTyp, this.f)
-    val annotatedF = this.f match {
-      case Function(x, body) if !x.hasType =>
-        val newX = x.rebuild(tupledTyp).asInstanceOf[Param]
-        Function(newX, body)()
-      case f =>
-        f
-    }
-    val f = annotatedF.tchk.expectType(tupledTyp ->: wrappedTyp)
+    val f =
+      this.f.annotateFunc(tupledTyp).tchk.expectType(tupledTyp ->: wrappedTyp)
     this.rebuild(TyVec(wrappedTyp, 1), Seq(v, f))
   }
 
