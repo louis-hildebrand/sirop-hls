@@ -20,11 +20,13 @@ object VerilogTestbenchGenerator {
     *   the directory of the Verilog project.
     */
   def makeTestbench(
-      inputs: TestInput,
+      inputs: Seq[TestInput],
       expectedOutput: StmLiteral,
       dir: Path
   ): Unit = {
-    val checkedInputs = TestInput(inputs.elems.map(e => e.map(e => e.tchk())))
+    val checkedInputs = inputs.map(inputs =>
+      TestInput(inputs.elems.map(e => e.map(e => e.tchk())))
+    )
     val checkedOutputs = expectedOutput.tchk().asInstanceOf[StmLiteral]
     val code = getTestbenchCode(checkedInputs, checkedOutputs)
     emitTestbench(code, dir)
@@ -36,20 +38,46 @@ object VerilogTestbenchGenerator {
   }
 
   private def getTestbenchCode(
-      inputs: TestInput,
+      inputs: Seq[TestInput],
       expectedOutput: StmLiteral
   ): String = {
-    val inputMap: Seq[Option[Map[String, String]]] =
-      inputs.elems.map(e => e.map(mapPortsToValues("I")))
+    val inputMap: Seq[Option[Map[String, (String, Int)]]] = {
+      val n = inputs.head.elems.length
+      (0 until n).map(t => {
+        if (inputs.map(_.elems(t)).forall(_.isDefined)) {
+          Some(
+            inputs
+              .map(_.elems(t).get)
+              .zipWithIndex
+              .flatMap({ case (x, i) =>
+                val prefix = if (inputs.length == 1) "I" else s"I$i"
+                mapPortsToValues(prefix)(x)
+              })
+              .toMap
+          )
+        } else if (inputs.map(_.elems(t)).forall(_.isEmpty)) {
+          None
+        } else {
+          throw new IllegalArgumentException(
+            s"At time t = $t, some inputs are valid and some are not."
+          )
+        }
+      })
+    }
     val outputMap: Seq[Map[String, String]] =
-      expectedOutput.elems.map(mapPortsToValues("O"))
-    val inputAtomWidth =
-      getAtomWidth(inputs.elems.find(x => x.isDefined).get.get.typ)
+      expectedOutput.elems
+        .map(mapPortsToValues("O"))
+        .map(_.map({ case (name, (v, _)) => name -> v }))
     val outputAtomWidth =
       getAtomWidth(expectedOutput.elems.head.typ)
     val inputNames: Seq[String] =
       inputMap.find(x => x.isDefined).get.get.keys.toSeq
     val outputNames: Seq[String] = outputMap.head.keys.toSeq
+    val inputRegDecls = inputMap
+      .find(x => x.isDefined)
+      .get
+      .get
+      .map({ case (name, (_, w)) => s"reg [${w - 1}:0] $name;" })
     val inputPortMappings = inputNames.map(i => s".$i($i)").mkString(", ")
     val outputPortMappings = outputNames.map(o => s".$o($o)").mkString(", ")
     val inputAssignments = inputMap
@@ -61,7 +89,7 @@ object VerilogTestbenchGenerator {
            |""".stripMargin.stripTrailing
         case Some(valByPort) =>
           val assignments = valByPort
-            .map({ case (port, v) => s"$port = $v;" })
+            .map({ case (port, (v, _)) => s"$port = $v;" })
             .mkString("\n    ")
           s"""@(posedge clock) begin
            |    valid_up = 1;
@@ -84,7 +112,7 @@ object VerilogTestbenchGenerator {
        |
        |    reg clock, reset, valid_up;
        |    wire valid_down;
-       |    reg [${inputAtomWidth - 1}:0] ${inputNames.mkString(", ")};
+       |    ${inputRegDecls.mkString("\n    ")}
        |    wire [${outputAtomWidth - 1}:0] ${outputNames.mkString(", ")};
        |
        |    Top DUT (
@@ -165,16 +193,18 @@ object VerilogTestbenchGenerator {
     }
   }
 
-  private def mapPortsToValues(prefix: String)(e: Expr): Map[String, String] = {
+  private def mapPortsToValues(
+      prefix: String
+  )(e: Expr): Map[String, (String, Int)] = {
     e match {
-      case False => Map(prefix -> "0")
-      case True  => Map(prefix -> "1")
+      case False => Map(prefix -> ("0", 1))
+      case True  => Map(prefix -> ("1", 1))
       case c: IntCst =>
         val w = c.typ.asInstanceOf[TyAnyInt].w
         if (c.i < 0) {
-          Map(prefix -> s"-$w'd${-c.i}")
+          Map(prefix -> (s"-$w'd${-c.i}", w))
         } else {
-          Map(prefix -> s"$w'd${c.i}")
+          Map(prefix -> (s"$w'd${c.i}", w))
         }
       case VecLiteral(elems @ _*) =>
         elems.zipWithIndex
