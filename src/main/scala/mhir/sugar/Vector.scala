@@ -105,6 +105,77 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 }
 
+case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(v1, v2, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v1, v2, f) => VecMap2(v1, v2, f)(typ)
+      case _              => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val v1 = this.v1.tchk
+    val (t1, n1) = v1.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First vector in $className has type $t."
+            + " Expected a vector."
+        )
+    }
+    val v2 = this.v2.tchk
+    val (t2, n2) = v2.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Second vector in $className has type $t."
+            + " Expected a vector."
+        )
+    }
+    if (!Type.sameLen(n1, n2)) {
+      throw new TypeError(
+        s"Vector lengths in $className do not match: $n1 and $n2."
+      )
+    }
+    val f = {
+      val withTypeAnnotations = this.f match {
+        case Function(x, body) =>
+          val newX = if (x.hasType) x else x.rebuild(t1).asInstanceOf[Param]
+          val newBody = body match {
+            case Function(y, body) =>
+              val newY = if (y.hasType) y else y.rebuild(t2).asInstanceOf[Param]
+              Function(newY, body)()
+            case f => f
+          }
+          Function(newX, newBody)()
+        case f => f
+      }
+      withTypeAnnotations.tchk
+    }
+    val t3 = f.typ match {
+      case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
+        ft3
+      case t =>
+        throw new TypeError(
+          s"Function in $className has type $t."
+            + s" Expected a function with input types $t1 and $t2."
+        )
+    }
+    this.rebuild(TyVec(t3, n1), Seq(v1, v2, f))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v1 = this.v1.lower()
+    val t1 = v1.typ.asInstanceOf[TyVec].t
+    val v2 = this.v2.lower()
+    val t2 = v2.typ.asInstanceOf[TyVec].t
+    val f = this.f.lower()
+    VecMap(VecZip(v1, v2), (t1, t2) ::+ (x => f(x.__0)(x.__1)))().tchk().lower()
+  }
+}
+
 /** Sequential fold over a vector.
   *
   * This produces a stream of length one containing the result, since it may

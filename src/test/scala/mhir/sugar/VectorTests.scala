@@ -655,6 +655,46 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("VecMap2:Prod") {
+    val n = 6
+    val v1 = VecBuild(n, U8 ::+ (i => i))()
+    val v2 = VecBuild(n, U8 ::+ (i => i + 10))()
+    val combined = VecMap2(v1, v2, TimesFunction(U8))()
+    val expected = VecLiteral((0 until n).map(i => C(i * (i + 10))(U8)): _*)()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("VecMap2:VecConcat") {
+    val n = 3
+    val m1 = 4
+    val m2 = 5
+    val v1 = VecBuild(
+      n,
+      U8 ::+ (i => VecBuild(m1, U8 ::+ (j => Tuple(C(1)(U8), i, j)()))())
+    )()
+    val v2 = VecBuild(
+      n,
+      U8 ::+ (i => VecBuild(m2, U8 ::+ (j => Tuple(C(2)(U8), i, j)()))())
+    )()
+    val combined = VecMap2(
+      v1,
+      v2,
+      Missing ::+ (v1 => Missing ::+ (v2 => VecConcat(v1, v2)()))
+    )()
+    val expected = VecLiteral(
+      (0 until n).map(i => {
+        val v1Elems =
+          (0 until m1).map(j => Tuple(C(1)(U8), C(i)(U8), C(j)(U8))())
+        val v2Elems =
+          (0 until m2).map(j => Tuple(C(2)(U8), C(i)(U8), C(j)(U8))())
+        VecLiteral(v1Elems ++ v2Elems: _*)()
+      }): _*
+    )()
+    val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
   test("VecZip") {
     val v0 = VecBuild(3, U32 ::+ (i => i))()
     val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
