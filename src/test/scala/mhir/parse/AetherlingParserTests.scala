@@ -39,14 +39,16 @@ class AetherlingParserTests extends AnyFunSuite {
     assert(!SaveOutput)
   }
 
-  test("map") {
-    val files = os
-      .list(OriginalCodeDir)
-      .filter(os.isFile)
-      .filter(p => p.baseName.startsWith("map_"))
+  private val files = os.list(OriginalCodeDir).filter(os.isFile)
+
+  test("NonEmpty") {
     assert(files.nonEmpty)
-    for (f <- files) {
+  }
+
+  for (f <- files) {
+    test(f.baseName) {
       val code = os.read(f)
+      val unchecked = AetherlingParser.parse(code)
       val parsed = AetherlingParser.parse(code).tchk()
       val actual =
         s"// Output type: ${parsed.typ.toString}\n${ExprPrinter.display(parsed)}\n"
@@ -58,44 +60,5 @@ class AetherlingParserTests extends AnyFunSuite {
         assert(actual == expected)
       }
     }
-    assume(!SaveOutput)
-  }
-
-  test("sum") {
-    val files = os
-      .list(OriginalCodeDir)
-      .filter(os.isFile)
-      .filter(p => p.baseName.startsWith("sum_"))
-    assert(files.nonEmpty)
-    for (f <- files) {
-      val code = os.read(f)
-      val parsed = AetherlingParser.parse(code).tchk()
-      val actual =
-        s"// Output type: ${parsed.typ.toString}\n${ExprPrinter.display(parsed)}\n"
-      val expectedPath = ParsedCodeDir / s"${f.baseName}.txt"
-      if (SaveOutput) {
-        save(expectedPath, actual)
-      } else {
-        val expected = os.read(expectedPath)
-        assert(actual == expected)
-      }
-    }
-    assume(!SaveOutput)
-  }
-
-  test("conv2d") {
-    pending
-  }
-
-  test("conv2d_b2b") {
-    pending
-  }
-
-  test("sharpen") {
-    pending
-  }
-
-  test("camera") {
-    pending
   }
 }

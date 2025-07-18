@@ -1,7 +1,16 @@
 package mhir.parse
 
 import mhir.ir._
-import mhir.sugar.{Fifo, ReshapeSeq, StmMap, StmReduce, VecMap, VecReduceComb}
+import mhir.sugar.{
+  Fifo,
+  ReshapeSeq,
+  StmMap,
+  StmMap2,
+  StmReduce,
+  VecMap,
+  VecMap2,
+  VecReduceComb
+}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
@@ -291,7 +300,11 @@ object AetherlingParser {
     } else if (code.startsWith("SubN ")) {
       ???
     } else if (code.startsWith("MulN ")) {
-      ???
+      val suffix0 = expect(code, "MulN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (e.__0 * e.__1, suffix3)
     } else if (code.startsWith("DivN ")) {
       ???
     } else if (code.startsWith("LSRN ")) {
@@ -388,9 +401,37 @@ object AetherlingParser {
       }
       (StmMap(s, g)(), suffix7)
     } else if (code.startsWith("Map2_sN ")) {
-      ???
+      val suffix0 = expect(code, "Map2_sN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (f, suffix3) = parseExpr(suffix2, modules)
+      val suffix4 = expect(suffix3, " ")
+      val (v1, suffix5) = parseExpr(suffix4, modules)
+      val suffix6 = expect(suffix5, " ")
+      val (v2, suffix7) = parseExpr(suffix6, modules)
+      (VecMap2(v1, v2, makeBinaryFunction(f, modules))(), suffix7)
     } else if (code.startsWith("Map2_tN ")) {
-      ???
+      val suffix0 = expect(code, "Map2_tN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (f, suffix5) = parseExpr(suffix4, modules)
+      val suffix6 = expect(suffix5, " ")
+      val (s1, suffix7) = parseExpr(suffix6, modules)
+      val suffix8 = expect(suffix7, " ")
+      val (s2, suffix9) = parseExpr(suffix8, modules)
+      val g: Function = f match {
+        case x: Param if modules.contains(x) =>
+          // The function in StmMap2 must be a literal function, so inline
+          modules(x)
+        case _ =>
+          Function(
+            Param("I0", -1)(Missing),
+            Function(Param("I1", -1)(Missing), f)()
+          )()
+      }
+      (StmMap2(s1, s2, g)(), suffix9)
     } else if (code.startsWith("Reduce_sN ")) {
       val suffix0 = expect(code, "Reduce_sN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -480,6 +521,23 @@ object AetherlingParser {
         f
       case body =>
         Function(Param("I", -1)(Missing), body)()
+    }
+  }
+
+  /** Similar to [[makeUnaryFunction]], but for functions of two inputs.
+    */
+  private def makeBinaryFunction(
+      e: Expr,
+      modules: Map[Param, Function]
+  ): Expr = {
+    e match {
+      case f: Param if modules.contains(f) =>
+        f
+      case body =>
+        Function(
+          Param("I0", -1)(Missing),
+          Function(Param("I1", -1)(Missing), body)()
+        )()
     }
   }
 

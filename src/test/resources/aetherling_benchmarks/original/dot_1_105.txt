@@ -1,0 +1,15 @@
+module0 (I0 :: UInt32T) (I1 :: UInt32T) =
+    n10 = ATupleN UInt32T UInt32T I0 I1
+    n11 = MulN UInt32T n10
+
+module1 (I0 :: (TSeqT 105 0 (SSeqT 8 UInt32T))) (I1 :: (TSeqT 105 0 (SSeqT 8 UInt32T))) =
+    n1 = FIFON (TSeqT 105 0 (SSeqT 8 UInt32T)) 1 "I0"
+    n3 = FIFON (TSeqT 105 0 (SSeqT 8 UInt32T)) 1 "I1"
+    n4 = Map2_tN 105 0 (Map2_sN 8 module0 I0 I1) n1 n3
+    n16 = Map_tN 105 0 (Reduce_sN 8 (AddN UInt32T I) I) n4
+    n19 = Reduce_tN 105 0 (Map_sN 1 (AddN UInt32T I) I) n16
+    n20 = ReshapeN ((TSeqT 1 104 (SSeqT 1 UInt32T))) ((TSeqT 1 104 UInt32T)) n19
+    n21 = FIFON (TSeqT 1 104 UInt32T) 1 "n20"
+    n22 = FIFON (TSeqT 1 104 UInt32T) 1 "n21"
+    n23 = FIFON (TSeqT 1 104 UInt32T) 1 "n22"
+
