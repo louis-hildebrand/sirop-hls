@@ -45,26 +45,13 @@ sbt 'testOnly *AetherlingBenchmarkTests'
 
 If you want to see for yourself that Aetherling indeed produces the benchmarks in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original), follow these instructions.
 
-First, clone my fork of Aetherling from https://github.com/louis-hildebrand/aetherling and follow the setup instructions.
-The fork includes some tweaks to Aetherling's test code so that only the space/time code and Verilog code we need are produced.
+1. Clone my fork of Aetherling from https://github.com/louis-hildebrand/aetherling and follow the setup instructions.
+The fork includes extra benchmarks and some tweaks to Aetherling's test code so that only the space/time code and Verilog code we need are produced.
 
-Once everything is set up, run the tests by executing the following command (while inside the Aetherling repo).
-```shell
-stack test --test-arguments '--num-threads 1'
-```
+2. Move into the root of the Aetherling repo.
 
-This should generate a bunch of .txt and .v files in the `test/no_bench/` directory (still within the Aetherling repo).
-To copy those to this repo, run the following commands, where `MHIR_REPO` is set to the path to this repo:
-```shell
-MHIR_REPO=...
-find ./test/no_bench/ -name '*.txt' -exec cp {} "$MHIR_REPO/src/test/resources/aetherling_benchmarks/original" \;
-find ./test/no_bench/ -name '*.v' -exec cp {} "$MHIR_REPO/src/test/resources/aetherling_benchmarks/verilog" \;
-```
-
-Finally, rename the benchmarks using the following command:
-```shell
-"$MHIR_REPO/src/test/sh/rename_benchmarks.sh"
-```
+3. While staying in the root of the Aetherling repo, run [src/test/sh/generate_aetherling_benchmarks.sh]().
+This should get Aetherling to generate a bunch of .txt and .v files and then copy them into this repo.
 
 ## Documentation
 
