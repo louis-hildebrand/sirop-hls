@@ -1,13 +1,13 @@
-module0 (I0 :: UInt32T) (I1 :: UInt32T) =
-    n7 = ATupleN UInt32T UInt32T I0 I1
-    n8 = MulN UInt32T n7
+module0 (I0 :: UInt16T) (I1 :: UInt16T) =
+    n7 = ATupleN UInt16T UInt16T I0 I1
+    n8 = MulN UInt16T n7
 
-module1 (I0 :: (TSeqT 840 0 UInt32T)) (I1 :: (TSeqT 840 0 UInt32T)) =
-    n1 = FIFON (TSeqT 840 0 UInt32T) 1 "I0"
-    n3 = FIFON (TSeqT 840 0 UInt32T) 1 "I1"
+module1 (I0 :: (TSeqT 840 0 UInt16T)) (I1 :: (TSeqT 840 0 UInt16T)) =
+    n1 = FIFON (TSeqT 840 0 UInt16T) 1 "I0"
+    n3 = FIFON (TSeqT 840 0 UInt16T) 1 "I1"
     n4 = Map2_tN 840 0 module0 n1 n3
-    n11 = Reduce_tN 840 0 (AddN UInt32T I) n4
-    n12 = FIFON (TSeqT 1 839 UInt32T) 1 "n11"
-    n13 = FIFON (TSeqT 1 839 UInt32T) 1 "n12"
-    n14 = FIFON (TSeqT 1 839 UInt32T) 1 "n13"
+    n11 = Reduce_tN 840 0 (AddN UInt16T I) n4
+    n12 = FIFON (TSeqT 1 839 UInt16T) 1 "n11"
+    n13 = FIFON (TSeqT 1 839 UInt16T) 1 "n12"
+    n14 = FIFON (TSeqT 1 839 UInt16T) 1 "n13"
 

@@ -29,10 +29,16 @@ object AetherlingParser {
     *   prog       ::= module+
     *   module     ::= ident param+ " =" assignment+ "\n\n"
     *   param      ::= " (" ident " :: " typ ")"
-    *   typ        ::= "BitT"
+    *   typ        ::= "UnitT"
+    *                | "BitT"
+    *                | "Int8T"
     *                | "UInt8T"
+    *                | "Int16T"
+    *                | "UInt16T"
+    *                | "Int32T"
     *                | "UInt32T"
     *                | "(ATupleT " typ " " typ ")"
+    *                | "(STuple " nat " " typ ")"
     *                | "(SSeqT " nat " " typ ")"
     *                | "(TSeqT " nat " " nat " " typ ")"
     *   assignment ::= "\n    " ident " = " expr
@@ -227,10 +233,20 @@ object AetherlingParser {
   }
 
   private def parseTyp(code: String): (Type, String) = {
-    if (code.startsWith("BitT")) {
+    if (code.startsWith("UnitT")) {
+      (TyTuple(), expect(code, "UnitT"))
+    } else if (code.startsWith("BitT")) {
       (TyBool, expect(code, "BitT"))
+    } else if (code.startsWith("Int8T")) {
+      (I8, expect(code, "Int8T"))
     } else if (code.startsWith("UInt8T")) {
       (U8, expect(code, "UInt8T"))
+    } else if (code.startsWith("Int16T")) {
+      (I16, expect(code, "Int16T"))
+    } else if (code.startsWith("UInt16T")) {
+      (U16, expect(code, "UInt16T"))
+    } else if (code.startsWith("Int32T")) {
+      (I32, expect(code, "Int32T"))
     } else if (code.startsWith("UInt32T")) {
       (U32, expect(code, "UInt32T"))
     } else if (code.startsWith("(ATupleT ")) {
@@ -240,6 +256,8 @@ object AetherlingParser {
       val (t1, suffix3) = parseTyp(suffix2)
       val suffix4 = expect(suffix3, ")")
       (TyTuple(t0, t1), suffix4)
+    } else if (code.startsWith("(STuple ")) {
+      ???
     } else if (code.startsWith("(SSeqT ")) {
       val suffix0 = expect(code, "(SSeqT ")
       val (n, suffix1) = parseNat(suffix0)

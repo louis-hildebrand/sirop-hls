@@ -145,28 +145,28 @@ object AetherlingBenchmarkTests {
   private val dotIO: Map[String, (Seq[TestInput], StmLiteral)] =
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
       .map(par => {
-        val flatInputs1 = 0 until 840
-        val flatInputs2 = 839 to 0 by -1
+        val flatInputs1 = (0 until 840).map(_ % 16)
+        val flatInputs2 = (839 to 0 by -1).map(_ % 16)
         val result =
           flatInputs1.zip(flatInputs2).map({ case (x, y) => x * y }).sum
         val (inputs1, inputs2) = par match {
           case 1 =>
             (
-              TestInput(flatInputs1.map(e => Some(C(e)(U32)))),
-              TestInput(flatInputs2.map(e => Some(C(e)(U32))))
+              TestInput(flatInputs1.map(e => Some(C(e)(U16)))),
+              TestInput(flatInputs2.map(e => Some(C(e)(U16))))
             )
           case _ =>
             (
               TestInput(
                 flatInputs1
                   .grouped(par)
-                  .map(xs => Some(VecLiteral(xs.map(C(_)(U32)): _*)()))
+                  .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
                   .toSeq
               ),
               TestInput(
                 flatInputs2
                   .grouped(par)
-                  .map(xs => Some(VecLiteral(xs.map(C(_)(U32)): _*)()))
+                  .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
                   .toSeq
               )
             )
@@ -174,7 +174,7 @@ object AetherlingBenchmarkTests {
         s"dot_1_${840 / par}" -> (
           Seq(inputs1, inputs2),
           StmLiteral(
-            C(result)(U32)
+            C(result)(U16)
           )()
         )
       })
