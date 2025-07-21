@@ -5,6 +5,7 @@ Constants.
 from pathlib import Path
 
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
+VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
 AETHERLING_SPACETIME_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
@@ -19,6 +20,6 @@ RESULTS_DIR = ROOT_DIR.joinpath("results")
 RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("aetherling_resource_usage.csv")
 FMAX_ESTIMATE_CSV = RESULTS_DIR.joinpath("aetherling_fmax_estimates.csv")
 FMAX_MEASUREMENT_CSV = RESULTS_DIR.joinpath("aetherling_fmax_measurements.csv")
-DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.qpf")
-DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.qsf")
-DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "top.sdc")
+DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
+DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")
+DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")

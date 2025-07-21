@@ -6,11 +6,11 @@ import os.Path
 
 object VhdlWriter {
   private val DefaultQpf =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qpf"
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qpf"
   private val DefaultQsf =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.qsf"
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qsf"
   private val DefaultSdc =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "top.sdc"
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.sdc"
 
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =

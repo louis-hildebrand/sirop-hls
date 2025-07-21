@@ -5,7 +5,6 @@ This script generates and synthesizes VHDL and Verilog projects for the given be
 """
 
 import os
-import shutil
 import subprocess
 from argparse import ArgumentParser, Namespace
 
@@ -19,25 +18,13 @@ def generate_verilog(benchmarks: list[str]) -> None:
     Create a Verilog project for each benchmark using the Verilog files generated
     by Aetherling.
     """
-    for bench in benchmarks:
+    def make_task(bench: str) -> str:
         proj_dir = c.VERILOG_DIR.joinpath(bench)
-        shutil.rmtree(proj_dir, ignore_errors=True)
-        proj_dir.mkdir()
-        shutil.copy(
-            src=c.AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v"),
-            dst=proj_dir.joinpath("Top.v")
-        )
-        qpf = proj_dir.joinpath("Top.qpf")
-        shutil.copy(src=c.DEFAULT_QPF, dst=qpf)
-        qpf.write_text(qpf.read_text(encoding="utf-8").replace("top", "Top"), encoding="utf-8")
-        qsf = proj_dir.joinpath("Top.qsf")
-        shutil.copy(src=c.DEFAULT_QSF, dst=qsf)
-        qsf.write_text(qsf.read_text(encoding="utf-8").replace("top", "Top"), encoding="utf-8")
-        with open(qsf, "a", encoding="utf-8") as f:
-            f.write("set_global_assignment -name VERILOG_FILE Top.v")
-        sdc = proj_dir.joinpath("Top.sdc")
-        shutil.copy(src=c.DEFAULT_SDC, dst=sdc)
-        sdc.write_text(sdc.read_text(encoding="utf-8").replace("clk", "clock"), encoding="utf-8")
+        top = c.AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v")
+        return f"Test / runMain {c.VERILOG_PROJ_INITIALIZER} {proj_dir} {top} --overwrite"
+    tasks = [make_task(b) for b in benchmarks]
+    os.chdir(c.ROOT_DIR)
+    subprocess.run(["sbt"] + tasks, check=True)
 
 
 def generate_vhdl(benchmarks: list[str]) -> None:

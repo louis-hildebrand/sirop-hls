@@ -98,6 +98,12 @@ function main {
         echoerr "Failed to compile design."
         exit "$DESIGN_COMPILE_FAILED"
     }
+    if [[ -e Mul.v ]]; then
+        compile Mul.v || {
+            echoerr "Failed to compile design."
+            exit "$DESIGN_COMPILE_FAILED"
+        }
+    fi
 
     echo ""
     compile Test.v || {

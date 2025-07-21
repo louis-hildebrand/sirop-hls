@@ -1,6 +1,10 @@
 package mhir.main.aetherling
 
-import mhir.gen.verilog.{VerilogTestRunner, VerilogTestbenchGenerator}
+import mhir.gen.verilog.{
+  VerilogProjectInitializer,
+  VerilogTestRunner,
+  VerilogTestbenchGenerator
+}
 import mhir.gen.{TestInput, TestPassed}
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
 import mhir.ir._
@@ -28,7 +32,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     test(s"$benchName:vhdl:simplified") {
       val (inputs, outputs) = AetherlingBenchmarkTests.ioByBenchmark(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
-      val outDir = VhdlDir / s"aetherling_${benchName}_test"
+      val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir)
       val f = Compiler.compile(args)
@@ -43,7 +47,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     test(s"$benchName:vhdl:unsimplified") {
       val (inputs, outputs) = AetherlingBenchmarkTests.ioByBenchmark(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
-      val outDir = VhdlDir / s"aetherling_${benchName}_test"
+      val outDir = VhdlDir / "aetherling" / s"${benchName}_test_unsimplified"
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir, simplify = false)
       val f = Compiler.compile(args)
@@ -57,10 +61,12 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
     test(s"$benchName:verilog") {
       val (inputs, outputs) = AetherlingBenchmarkTests.ioByBenchmark(benchName)
-      val projectDir = VerilogDir / s"aetherling_${benchName}_test"
-      if (os.exists(projectDir)) os.remove.all(projectDir)
-      os.makeDir.all(projectDir)
-      os.copy(VerilogBenchmarksDir / s"$benchName.v", projectDir / "Top.v")
+      val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
+      VerilogProjectInitializer.initProj(
+        projectDir,
+        VerilogBenchmarksDir / s"$benchName.v",
+        overwrite = true
+      )
       VerilogTestbenchGenerator.makeTestbench(inputs, outputs, projectDir)
       assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
     }
