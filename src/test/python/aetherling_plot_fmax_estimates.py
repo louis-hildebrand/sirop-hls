@@ -12,8 +12,6 @@ import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
 
-PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_fmax_estimates.pdf")
-
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "^"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
@@ -90,7 +88,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         bbox_to_anchor=(0.5, -0.1)
     )
     fig.tight_layout()
-    fig.savefig(PLOT_FILE, bbox_inches="tight")
+    fig.savefig(c.FMAX_ESTIMATE_PDF, bbox_inches="tight")
 
 
 def main() -> None:

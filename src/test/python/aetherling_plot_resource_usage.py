@@ -13,8 +13,6 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
 from lib.resource_usage import ResourceUsage
 
-PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_resource_usage.pdf")
-
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "^"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
@@ -124,7 +122,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         bbox_to_anchor=(0.5, -0.1)
     )
     fig.tight_layout()
-    fig.savefig(PLOT_FILE, bbox_inches="tight")
+    fig.savefig(c.RESOURCE_USAGE_PDF, bbox_inches="tight")
 
 
 def main() -> None:

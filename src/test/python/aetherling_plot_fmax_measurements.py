@@ -13,8 +13,6 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
 from lib.fmax import Fmax
 
-PLOT_FILE = c.RESULTS_DIR.joinpath("aetherling_fmax_measurements.pdf")
-
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "s"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
@@ -154,7 +152,7 @@ def plot_fmax(results: dict[BenchmarkImpl, Fmax]) -> None:
         bbox_to_anchor=(0.5, -0.1)
     )
     fig.tight_layout()
-    fig.savefig(PLOT_FILE, bbox_inches="tight")
+    fig.savefig(c.FMAX_MEASUREMENT_PDF, bbox_inches="tight")
 
 
 def main() -> None:
