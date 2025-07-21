@@ -89,7 +89,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test_unsimplified"
       if (os.exists(outDir)) os.remove.all(outDir)
-      val args = Args(inFile = inFile, outDir = outDir, simplify = false)
+      val args = Args(inFile = inFile, outDir = outDir, optimize = false)
       val f = Compiler.compile(args)
       VhdlTestbenchGenerator.makeTestbench(
         inputsByVar = getVhdlInputs(f, inputs),

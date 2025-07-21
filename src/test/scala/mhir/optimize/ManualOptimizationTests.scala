@@ -8,7 +8,13 @@ import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
 
-class OptimizationTests extends AnyFunSuite {
+/** Examples of how some high-level transformations in, for example, SHIR can be
+  * expressed as sequences of smaller transformations in the minimalist IR. For
+  * each test case, the existence of the sequence of transformations in the
+  * minimalist IR is proven by simply manually writing it (rather than automatic
+  * exploration, as with equality saturation).
+  */
+class ManualOptimizationTests extends AnyFunSuite {
 
   /** The optimizer can produce a nice design for a simple map on a 1D stream,
     * even though the lowering pass spits out something a bit gross (since it

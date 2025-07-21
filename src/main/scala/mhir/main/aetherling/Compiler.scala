@@ -5,7 +5,7 @@ import mhir.ir._
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
-import mhir.optimize.{Simplifier => S}
+import mhir.optimize.{Optimizer => Opt}
 import mhir.sugar.Streamifier.Streamify
 import os.Path
 
@@ -62,16 +62,16 @@ object Compiler {
       println(ExprPrinter.display(lowered))
     }
 
-    val simplified = if (args.simplify) {
-      S.simplify(lowered)
+    val optimized = if (args.optimize) {
+      Opt.optimize(lowered)
     } else {
       lowered
     }
-    if (args.showSimplified) {
-      println(ExprPrinter.display(simplified))
+    if (args.showOptimized) {
+      println(ExprPrinter.display(optimized))
     }
 
-    val finalProgram = makeSynthesizable(simplified)
+    val finalProgram = makeSynthesizable(optimized)
     if (args.showFinal) {
       println(ExprPrinter.display(finalProgram))
     }

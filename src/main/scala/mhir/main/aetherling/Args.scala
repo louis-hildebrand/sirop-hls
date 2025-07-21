@@ -10,8 +10,8 @@ import os.Path
   *   the path to the directory in which to emit the VHDL.
   * @param help
   *   whether to show the help message and exit.
-  * @param simplify
-  *   whether to simplify the program before generating VHDL.
+  * @param optimize
+  *   whether to optimize the program before generating VHDL.
   * @param emitHdl
   *   whether to emit VHDL code.
   * @param showParsed
@@ -20,8 +20,8 @@ import os.Path
   *   whether to display the program immediately after type checking.
   * @param showLowered
   *   whether to display the program immediately after lowering.
-  * @param showSimplified
-  *   whether to display the program immediately after simplification.
+  * @param showOptimized
+  *   whether to display the program immediately after optimization.
   * @param showFinal
   *   whether to display the final program used to generate VHDL.
   */
@@ -29,12 +29,12 @@ case class Args(
     inFile: Path,
     outDir: Path,
     help: Boolean = false,
-    simplify: Boolean = true,
+    optimize: Boolean = true,
     emitHdl: Boolean = true,
     showParsed: Boolean = false,
     showChecked: Boolean = false,
     showLowered: Boolean = false,
-    showSimplified: Boolean = false,
+    showOptimized: Boolean = false,
     showFinal: Boolean = false,
     overwrite: Boolean = false
 )
@@ -63,20 +63,20 @@ object Args {
     val src = Path(srcFilename, base = os.pwd)
     val out = Path(outDirName, base = os.pwd)
     var help = false
-    var simplify = true
+    var optimize = true
     var emitHdl = true
     var showParsed = false
     var showChecked = false
     var showLowered = false
-    var showSimplified = false
+    var showOptimized = false
     var showFinal = false
     var overwrite = false
     for (a <- args.drop(2)) {
       a match {
         case "-h" | "--help" =>
           help = true
-        case "--no-simplify" =>
-          simplify = false
+        case "--no-optimize" =>
+          optimize = false
         case "--no-hdl" =>
           emitHdl = false
         case "--show-parsed" =>
@@ -85,8 +85,8 @@ object Args {
           showChecked = true
         case "--show-lowered" =>
           showLowered = true
-        case "--show-simplified" =>
-          showSimplified = true
+        case "--show-optimized" =>
+          showOptimized = true
         case "--show-final" =>
           showFinal = true
         case "--overwrite" =>
@@ -99,12 +99,12 @@ object Args {
       src,
       out,
       help = help,
-      simplify = simplify,
+      optimize = optimize,
       emitHdl = emitHdl,
       showParsed = showParsed,
       showChecked = showChecked,
       showLowered = showLowered,
-      showSimplified = showSimplified,
+      showOptimized = showOptimized,
       showFinal = showFinal,
       overwrite = overwrite
     )
@@ -120,7 +120,7 @@ object Args {
       }
     }
     println(
-      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--no-hdl] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final] [--overwrite]"
+      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-optimize] [--no-hdl] [--show-parsed] [--show-checked] [--show-lowered] [--show-optimized] [--show-final] [--overwrite]"
     )
   }
 
@@ -132,12 +132,12 @@ object Args {
          |  SRC                path to the Aetherling program to compile
          |  OUT                path to the directory in which to emit the VHDL code
          |  -h, --help         print the help message and exit
-         |  --no-simplify      do not simplify the program
+         |  --no-optimize      do not optimize the program
          |  --no-hdl           do not emit any HDL code
          |  --show-parsed      show the program after parsing
          |  --show-checked     show the program after type checking
          |  --show-lowered     show the program after lowering
-         |  --show-simplified  show the simplified program
+         |  --show-optimized   show the program after optimization
          |  --show-final       show the final program right before VHDL generation
          |  --overwrite        what to do if directory OUT already exists: if true then
          |                     delete the existing directory, if false then raise an error
