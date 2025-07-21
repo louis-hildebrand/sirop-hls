@@ -132,6 +132,12 @@ case object Param {
   def apply(prefix: String)(typ: Type = Missing): Param = {
     new Param(prefix, idCtr.incrementAndGet())(typ)
   }
+
+  /** Reset the internal counter for fresh variables to its initial value.
+    */
+  def reset(): Unit = {
+    this.idCtr.set(0)
+  }
 }
 
 /** A function.
@@ -190,6 +196,10 @@ object Function {
     * be used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
+
+  /** Force initialization of this object.
+    */
+  private[ir] def forceInit(): Unit = {}
 }
 
 /** A function application.
@@ -839,6 +849,10 @@ object StmBuild {
     * used for anything else</i>.
     */
   private val HashCodeParam = Param("hashCode")()
+
+  /** Force initialization of this object.
+    */
+  private[ir] def forceInit(): Unit = {}
 }
 
 /** Access the data of another stream.

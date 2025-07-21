@@ -12,6 +12,8 @@ import os.Path
   *   whether to show the help message and exit.
   * @param simplify
   *   whether to simplify the program before generating VHDL.
+  * @param emitHdl
+  *   whether to emit VHDL code.
   * @param showParsed
   *   whether to display the program immediately after parsing.
   * @param showChecked
@@ -28,6 +30,7 @@ case class Args(
     outDir: Path,
     help: Boolean = false,
     simplify: Boolean = true,
+    emitHdl: Boolean = true,
     showParsed: Boolean = false,
     showChecked: Boolean = false,
     showLowered: Boolean = false,
@@ -61,6 +64,7 @@ object Args {
     val out = Path(outDirName, base = os.pwd)
     var help = false
     var simplify = true
+    var emitHdl = true
     var showParsed = false
     var showChecked = false
     var showLowered = false
@@ -73,6 +77,8 @@ object Args {
           help = true
         case "--no-simplify" =>
           simplify = false
+        case "--no-hdl" =>
+          emitHdl = false
         case "--show-parsed" =>
           showParsed = true
         case "--show-checked" =>
@@ -94,6 +100,7 @@ object Args {
       out,
       help = help,
       simplify = simplify,
+      emitHdl = emitHdl,
       showParsed = showParsed,
       showChecked = showChecked,
       showLowered = showLowered,
@@ -113,7 +120,7 @@ object Args {
       }
     }
     println(
-      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final] [--overwrite]"
+      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-simplify] [--no-hdl] [--show-parsed] [--show-checked] [--show-lowered] [--show-simplified] [--show-final] [--overwrite]"
     )
   }
 
@@ -126,6 +133,7 @@ object Args {
          |  OUT                path to the directory in which to emit the VHDL code
          |  -h, --help         print the help message and exit
          |  --no-simplify      do not simplify the program
+         |  --no-hdl           do not emit any HDL code
          |  --show-parsed      show the program after parsing
          |  --show-checked     show the program after type checking
          |  --show-lowered     show the program after lowering

@@ -1,0 +1,10 @@
+(I_17 : Stm[Vec[u8, 20:u5], 10:u4]) =>
+  sbuild(
+    10:u4;
+    vbuild(20:u5, (x_27 : u32) => 5:u8 + data(I_23)[x_27]);
+    true;
+    (I_23 : Stm[Vec[u8, 20:u5], -1:i1]) = (
+      I_17,
+      true
+    );
+  )

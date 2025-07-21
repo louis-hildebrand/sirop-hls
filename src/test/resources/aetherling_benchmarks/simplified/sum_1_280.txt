@@ -1,0 +1,46 @@
+(I : Stm[Vec[u32, 3:u2], 280:u9]) =>
+  sbuild(
+    1:u1;
+    data(x_41)[0:u0];
+    true;
+    (x_41 : Stm[Vec[u32, 1:u1], -1:i1]) = (
+      sbuild(
+        1:u1;
+        vbuild(1:u1, (x_47 : u8) => acc_45 + data(s_44)[0:u0]);
+        t_43 == 279:u32;
+        (acc_45 : u32) = (
+          0:u32,
+          if (first_step_42) then {
+            data(s_44)[0:u0]
+          } else {
+            acc_45 + data(s_44)[0:u0]
+          }
+        );
+        (first_step_42 : bool) = (
+          true,
+          false
+        );
+        (s_44 : Stm[Vec[u32, 1:u1], 280:u9]) = (
+          sbuild(
+            280:u9;
+            vbuild(
+              1:u1,
+              (x_52 : u8) =>
+                data(I_48)[0:u0] + data(I_48)[1:u1] + data(I_48)[2:u2]
+            );
+            true;
+            (I_48 : Stm[Vec[u32, 3:u2], -1:i1]) = (
+              I,
+              true
+            );
+          ),
+          true
+        );
+        (t_43 : u32) = (
+          0:u32,
+          1:u32 + t_43
+        );
+      ),
+      true
+    );
+  )

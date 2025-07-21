@@ -1,0 +1,67 @@
+(I0_137 : Stm[Vec[u16, 5:u3], 168:u8]) =>
+  (I1_177 : Stm[Vec[u16, 5:u3], 168:u8]) =>
+    sbuild(
+      1:u1;
+      data(x_197)[0:u0];
+      true;
+      (x_197 : Stm[Vec[u16, 1:u1], -1:i1]) = (
+        sbuild(
+          1:u1;
+          vbuild(1:u1, (x_203 : u8) => acc_201 + data(s_200)[0:u0]);
+          t_199 == 167:u32;
+          (acc_201 : u16) = (
+            0:u16,
+            if (first_step_198) then {
+              data(s_200)[0:u0]
+            } else {
+              acc_201 + data(s_200)[0:u0]
+            }
+          );
+          (first_step_198 : bool) = (
+            true,
+            false
+          );
+          (s_200 : Stm[Vec[u16, 1:u1], 168:u8]) = (
+            sbuild(
+              168:u8;
+              vbuild(
+                1:u1,
+                (x_208 : u8) =>
+                  data(I_204)[0:u0]
+                    + data(I_204)[1:u1]
+                    + data(I_204)[2:u2]
+                    + data(I_204)[3:u2]
+                    + data(I_204)[4:u3]
+              );
+              true;
+              (I_204 : Stm[Vec[u16, 5:u3], -1:i1]) = (
+                sbuild(
+                  168:u8;
+                  vbuild(
+                    5:u3,
+                    (x_215 : u32) =>
+                      data(I0_209)[x_215] * data(I1_213)[x_215]
+                  );
+                  true;
+                  (I0_209 : Stm[Vec[u16, 5:u3], -1:i1]) = (
+                    I0_137,
+                    true
+                  );
+                  (I1_213 : Stm[Vec[u16, 5:u3], -1:i1]) = (
+                    I1_177,
+                    true
+                  );
+                ),
+                true
+              );
+            ),
+            true
+          );
+          (t_199 : u32) = (
+            0:u32,
+            1:u32 + t_199
+          );
+        ),
+        true
+      );
+    )

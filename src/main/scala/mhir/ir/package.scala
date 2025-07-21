@@ -560,4 +560,12 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
     }
 
   }
+
+  /** Reset all global mutable state in this package.
+    */
+  def reset(): Unit = {
+    Function.forceInit()
+    StmBuild.forceInit()
+    Param.reset()
+  }
 }

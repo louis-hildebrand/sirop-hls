@@ -7,6 +7,7 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
 import mhir.optimize.{Simplifier => S}
 import mhir.sugar.Streamifier.Streamify
+import os.Path
 
 /** A compiler for programs written in
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s space-time
@@ -75,24 +76,8 @@ object Compiler {
       println(ExprPrinter.display(finalProgram))
     }
 
-    if (os.exists(args.outDir)) {
-      if (args.overwrite) {
-        os.remove.all(args.outDir)
-      } else {
-        throw new RuntimeException(
-          s"Output directory ${args.outDir} already exists."
-        )
-      }
-    }
-    finalProgram match {
-      case f: Function =>
-        VhdlGenerator.emitVhdl(f, args.outDir)
-      case s: StmBuild =>
-        VhdlGenerator.emitVhdl(s, args.outDir)
-      case e =>
-        throw new RuntimeException(
-          s"Cannot compile program which is neither a stream nor a function: $e."
-        )
+    if (args.emitHdl) {
+      emit(finalProgram, outDir = args.outDir, overwrite = args.overwrite)
     }
 
     finalProgram
@@ -116,5 +101,31 @@ object Compiler {
       case e => e
     }
     result.tchk()
+  }
+
+  private def emit(
+      finalProgram: Expr,
+      outDir: Path,
+      overwrite: Boolean
+  ): Unit = {
+    if (os.exists(outDir)) {
+      if (overwrite) {
+        os.remove.all(outDir)
+      } else {
+        throw new RuntimeException(
+          s"Output directory $outDir already exists."
+        )
+      }
+    }
+    finalProgram match {
+      case f: Function =>
+        VhdlGenerator.emitVhdl(f, outDir)
+      case s: StmBuild =>
+        VhdlGenerator.emitVhdl(s, outDir)
+      case e =>
+        throw new RuntimeException(
+          s"Cannot compile program which is neither a stream nor a function: $e."
+        )
+    }
   }
 }
