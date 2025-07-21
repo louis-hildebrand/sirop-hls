@@ -1,4 +1,4 @@
-# Use the * operator rather than a Xilinx IP block
+// Use the * operator rather than a Xilinx IP block
 `define VERILATOR
 
 module BlackBoxMulUInt8(

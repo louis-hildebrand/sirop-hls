@@ -15,4 +15,4 @@ find ./test/no_bench/ -name '*.txt' -exec cp {} "$mhir_repo_root/src/test/resour
 find ./test/no_bench/ -name '*.v' -exec cp {} "$mhir_repo_root/src/test/resources/aetherling_benchmarks/verilog" \;
 "$mhir_repo_root/src/test/sh/rename_benchmarks.sh"
 
-echo -e '# Use the * operator rather than a Xilinx IP block\n`define VERILATOR\n' | cat - ./chiselAetherling/src/main/resources/verilogAetherling/mul.v > "$mhir_repo_root/src/main/resources/mhir/gen/verilog/Mul.v"
+echo -e '// Use the * operator rather than a Xilinx IP block\n`define VERILATOR\n' | cat - ./chiselAetherling/src/main/resources/verilogAetherling/mul.v > "$mhir_repo_root/src/main/resources/mhir/gen/verilog/Mul.v"
