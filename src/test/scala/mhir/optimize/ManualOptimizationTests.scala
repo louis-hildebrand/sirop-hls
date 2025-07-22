@@ -105,9 +105,10 @@ class ManualOptimizationTests extends AnyFunSuite {
 
     // Effective simplification
     val ideal =
-      StmCst(1, z + VecAccess(v, 0)() + VecAccess(v, 1)() + VecAccess(v, 2)())()
-        .tchk()
-        .lower()
+      StmCst(
+        1,
+        Sum(z, VecAccess(v, 0)(), VecAccess(v, 1)(), VecAccess(v, 2)())()
+      )().tchk().lower()
     assert(optimized == ideal)
   }
 

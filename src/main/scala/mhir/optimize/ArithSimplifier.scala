@@ -232,6 +232,7 @@ private[optimize] object ArithSimplifier {
       a: ae.ArithExpr,
       typ: Type
   ): Option[Expr] = {
+    assert(typ != Missing)
     val result = a match {
       case ae.Cst(c) =>
         Some(IntCst(c)(typ))
@@ -310,21 +311,59 @@ private[optimize] object ArithSimplifier {
     }
   }
 
-  @tailrec
   private def simplifyWithoutLibrary(e: Expr): Expr = {
     require(e.hasType)
-    e match {
-      case LLShift(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(e)
-      case LLShift(e, IntCst(0)) =>
-        // TODO: Should this actually be done after calling the library in
-        //       case e2 is simplified to 0 but is not originally 0?
-        simplifyWithoutLibrary(e)
+    val simplified = e match {
+      case ll: LLShift => simplifyLLShift(ll)
+      case s: Sum      => simplifySum(s)
+      case p: Prod     => simplifyProd(p)
       case e if e.typ == TyBool =>
         simplifyBoolExpr(e)
       case e =>
         e
     }
+    simplified.tchk()
+  }
+
+  private def simplifyLLShift(ll: LLShift): Expr = {
+    ll match {
+      case LLShift(_: IntCst, _: IntCst) =>
+        mhir.ir.eval(ll)
+      case LLShift(e, IntCst(0)) =>
+        // TODO: Should this actually be done after calling the library in
+        //       case e2 is simplified to 0 but is not originally 0?
+        simplifyWithoutLibrary(e)
+      case _ =>
+        ll
+    }
+  }
+
+  private def simplifySum(sum: Sum): Expr = {
+    Sum(
+      sum.terms
+        .map(simplifyWithoutLibrary)
+        // Flatten to represent associativity
+        .flatMap({
+          case s: Sum => s.terms
+          case e      => Seq(e)
+        })
+        // Sort to represent commutativity
+        .sorted(ExprOrdering): _*
+    )()
+  }
+
+  private def simplifyProd(prod: Prod): Expr = {
+    Prod(
+      prod.factors
+        .map(simplifyWithoutLibrary)
+        // Flatten to represent associativity
+        .flatMap({
+          case p: Prod => p.factors
+          case e       => Seq(e)
+        })
+        // Sort to represent commutativity
+        .sorted(ExprOrdering): _*
+    )()
   }
 
   private def simplifyBoolExpr(e: Expr): Expr = {
@@ -419,8 +458,23 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyAnd(and: And): Expr = {
+    val flat = And(
+      and.terms
+        .map(simplifyWithoutLibrary)
+        // Flatten to represent associativity
+        .flatMap({
+          case a: And => a.terms
+          case e      => Seq(e)
+        })
+        // Filter out True to represent the fact that x && true == x
+        .filter(_ != True)
+        // Deduplicate to represent the fact that x && x == x
+        .distinct
+        // Sort to represent commutativity
+        .sorted(ExprOrdering): _*
+    )()
     // TODO: While simplifying a given term, assume all previous terms are true?
-    val out = and.remove(True) match {
+    val out = flat match {
       case And(terms @ _*) if terms.contains(False) =>
         False
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
@@ -448,8 +502,23 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyOr(or: Or): Expr = {
+    val flat = Or(
+      or.terms
+        .map(simplifyWithoutLibrary)
+        // Flatten to represent associativity
+        .flatMap({
+          case a: Or => a.terms
+          case e     => Seq(e)
+        })
+        // Filter out False to represent the fact that x || false == x
+        .filter(_ != False)
+        // Deduplicate to represent the fact that x || x == x
+        .distinct
+        // Sort to represent commutativity
+        .sorted(ExprOrdering): _*
+    )()
     // TODO: While simplifying a given term, assume all previous terms are false?
-    val out = or.remove(False) match {
+    val out = flat match {
       case Or(terms @ _*) if terms.contains(True) =>
         True
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?

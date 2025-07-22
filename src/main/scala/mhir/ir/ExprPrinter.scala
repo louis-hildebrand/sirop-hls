@@ -433,9 +433,19 @@ object ExprPrinter {
       case c: IntCst =>
         s"${c.i}:${c.typ}"
       case Sum(terms @ _*) =>
-        displayOneLineInfixOp(terms, "+", myPrecedence)
+        displayOneLineInfixOp(
+          terms,
+          "+",
+          myPrecedence,
+          canElideFirstParens = false
+        )
       case Prod(factors @ _*) =>
-        displayOneLineInfixOp(factors, "*", myPrecedence)
+        displayOneLineInfixOp(
+          factors,
+          "*",
+          myPrecedence,
+          canElideFirstParens = false
+        )
       case Div(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), "/", myPrecedence)
       case Mod(e1, e2) =>
@@ -463,9 +473,19 @@ object ExprPrinter {
       case Not(e) =>
         s"!${displayOneLine(e, myPrecedence)}"
       case And(terms @ _*) =>
-        displayOneLineInfixOp(terms, "&&", myPrecedence)
+        displayOneLineInfixOp(
+          terms,
+          "&&",
+          myPrecedence,
+          canElideFirstParens = false
+        )
       case Or(terms @ _*) =>
-        displayOneLineInfixOp(terms, "||", myPrecedence)
+        displayOneLineInfixOp(
+          terms,
+          "||",
+          myPrecedence,
+          canElideFirstParens = false
+        )
       case Mux(c, t, f) =>
         val cStr = displayOneLine(c, Precedence.Max)
         val tStr = displayOneLine(t, Precedence.Max)
@@ -528,15 +548,19 @@ object ExprPrinter {
     *   the symbol for the operation.
     * @param precedence
     *   the precedence of the operation.
+    * @param canElideFirstParens
+    *   whether it is acceptable to drop the parentheses for the first term when
+    *   its precedence is equal to the precedence of this expression.
     */
   def displayOneLineInfixOp(
       elems: Seq[Expr],
       op: String,
-      precedence: Int
+      precedence: Int,
+      canElideFirstParens: Boolean = true
   ): String = {
     elems.zipWithIndex
       .map({ case (e, i) =>
-        if (i == 0) {
+        if (i == 0 && canElideFirstParens) {
           // If the precedence of the first operand is equal to the precedence
           // of this expression, then there's actually no need for parentheses
           // because the expression will be parsed left-to-right.

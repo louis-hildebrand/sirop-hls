@@ -280,19 +280,19 @@ case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
 /** Companion object for [[Sum]].
   */
 case object Sum {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
-    val terms = unsortedTerms
-      // Flatten nested sums to represent associativity
-      .flatMap({
-        case s: Sum => s.terms
-        case e      => Seq(e)
-      })
-      // Sort terms to represent commutativity
-      .sorted(ExprOrdering)
+
+  /** Constructs an expression representing the sum of the given terms.
+    *
+    * @note
+    *   the expression for the sum is not necessarily a [[Sum]].
+    */
+  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms  => new Sum(terms: _*)(typ)
+      case terms  =>
+        // Sorting makes the tests less brittle
+        new Sum(terms.sorted(ExprOrdering): _*)(typ)
     }
   }
 }
@@ -313,20 +313,19 @@ case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
 /** Companion object for [[Prod]].
   */
 case object Prod {
-  def apply(unsortedFactors: Expr*)(typ: Type = Missing): Expr = {
-    val factors: Seq[Expr] =
-      unsortedFactors
-        // Flatten nested sums to represent associativity
-        .flatMap({
-          case p: Prod => p.factors
-          case e       => Seq(e)
-        })
-        // Sort terms to represent commutativity
-        .sorted(ExprOrdering)
+
+  /** Constructs an expression representing the product of the given factors.
+    *
+    * @note
+    *   the expression for the product is not necessarily a [[Prod]].
+    */
+  def apply(factors: Expr*)(typ: Type = Missing): Expr = {
     factors match {
       case Seq()   => IntCst(1)(typ)
       case Seq(e)  => e
-      case factors => new Prod(factors: _*)(typ)
+      case factors =>
+        // Sorting makes the tests less brittle
+        new Prod(factors.sorted(ExprOrdering): _*)(typ)
     }
   }
 }
@@ -593,18 +592,14 @@ case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
 /** Companion object for [[And]].
   */
 case object And {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
-    val terms: Seq[Expr] =
-      unsortedTerms
-        // Flatten nested ANDs to represent associativity
-        .flatMap({
-          case a: And => a.terms
-          case e      => Seq(e)
-        })
-        // Deduplicate to represent the fact that x && x == x
-        .distinct
-        // Sort terms to represent commutativity
-        .sorted(ExprOrdering)
+
+  /** Constructs an expression representing the logical conjunction of the given
+    * terms.
+    *
+    * @note
+    *   the returned expression is not necessarily an [[And]].
+    */
+  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => True
       case Seq(e) => e
@@ -614,7 +609,8 @@ case object And {
         } else {
           typ
         }
-        new And(terms: _*)(newTyp)
+        // Sorting makes the tests less brittle
+        new And(terms.sorted(ExprOrdering): _*)(newTyp)
     }
   }
 }
@@ -643,18 +639,14 @@ case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
 /** Companion object for [[Or]].
   */
 case object Or {
-  def apply(unsortedTerms: Expr*)(typ: Type = Missing): Expr = {
-    val terms: Seq[Expr] =
-      unsortedTerms
-        // Flatten nested ORs to represent associativity
-        .flatMap({
-          case a: Or => a.terms
-          case e     => Seq(e)
-        })
-        // Deduplicate to represent the fact that x || x == x
-        .distinct
-        // Sort terms to represent commutativity
-        .sorted(ExprOrdering)
+
+  /** Constructs an expression representing the logical disjunction of the given
+    * terms.
+    *
+    * @note
+    *   the returned expression is not necessarily an [[Or]].
+    */
+  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => False
       case Seq(e) => e
@@ -664,7 +656,8 @@ case object Or {
         } else {
           typ
         }
-        new Or(terms: _*)(newTyp)
+        // Sorting makes the tests less brittle
+        new Or(terms.sorted(ExprOrdering): _*)(newTyp)
     }
   }
 }

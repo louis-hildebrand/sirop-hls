@@ -3,6 +3,7 @@ package mhir.optimize
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.{PartialEvalPass => PE}
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -246,16 +247,16 @@ class IntConversionMoverTests extends AnyFunSuite {
   // Widen: bigger example ---------------------------------------------------------------------------------------------
 
   test("Widen:ToSigned(Truncate(x) + 1) - ToSigned(Truncate(x))") {
-    //     sgn(trunc(x:u16, 8) + 1:u8) + -1:i9 * sgn(trunc(x:u16, 8))
-    // --> sgn(trunc(x:u16 + pad(1:u8, 16), 8)) + -1:i9 * sgn(trunc(x:u16, 8))
-    // --> trunc(sgn(x:u16 + pad(1:u8, 16)), 9) + -1:i9 * trunc(sgn(x:u16), 9)
-    // --> trunc(sgn(x:u16 + pad(1:u8, 16)), 9) + trunc(pad(-1:i9, 17) * sgn(x:u16), 9)
-    // --> trunc(sgn(x:u16 + pad(1:u8, 16)) + pad(-1:i9, 17) * sgn(x:u16), 9)
-    // --> trunc(sgn(x:u16) + sgn(pad(1:u8, 16)) + pad(-1:i9, 17) * sgn(x:u16), 9)
-    // --> trunc(sgn(x:u16) + pad(sgn(1:u8), 17) + pad(-1:i9, 17) * sgn(x:u16), 9)
+    //     sgn(trunc8(x:u16) + 1:u8) + -1:i9 * sgn(trunc8(x:u16))
+    // --> sgn(trunc8(x:u16 + pad16(1:u8))) + -1:i9 * sgn(trunc8(x:u16))
+    // --> trunc9(sgn(x:u16 + pad16(1:u8))) + -1:i9 * trunc9(sgn(x:u16))
+    // --> trunc9(sgn(x:u16 + pad16(1:u8))) + trunc9(pad17(-1:i9) * sgn(x:u16))
+    // --> trunc9(sgn(x:u16 + pad16(1:u8)) + pad17(-1:i9) * sgn(x:u16))
+    // --> trunc9((sgn(x:u16) + sgn(pad16(1:u8))) + pad17(-1:i9) * sgn(x:u16))
+    // --> trunc9((sgn(x:u16) + pad17(sgn(1:u8))) + pad17(-1:i9) * sgn(x:u16))
     //
     // By the way, this is useful because the partial evaluator could simplify that to:
-    //     trunc(sgn(x:u16) + 1:i17 + -1:i17 * sgn(x:u16), 9)
+    //     trunc9(sgn(x:u16) + 1:i17 + -1:i17 * sgn(x:u16))
     // Which is basically:
     //     trunc(sgn(x) + 1 - sgn(x))
     // And the arithmetic simplifier can then recognize the simplification opportunity.
@@ -266,8 +267,7 @@ class IntConversionMoverTests extends AnyFunSuite {
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(
       Sum(
-        ToSigned(x(U16))(),
-        PadTo(ToSigned(C(1)(U8))(), 17)(),
+        Sum(ToSigned(x(U16))(), PadTo(ToSigned(C(1)(U8))(), 17)())(),
         Prod(PadTo(C(-1)(I9), 17)(), ToSigned(x(U16))())()
       )(),
       9

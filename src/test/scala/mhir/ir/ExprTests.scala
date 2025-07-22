@@ -244,6 +244,17 @@ class ExprTests extends AnyFunSuite {
     assert(actualInputStm.typ == TyStm(U8, 20))
   }
 
+  test("VecAccess:Equals") {
+    val v = Param("v")()
+    val e0 = VecAccess(v, C(1)(U8))()
+    val e1 = VecAccess(v, C(1)(U32))()
+    val e2 = VecAccess(v, C(2)(U32))()
+    assert(e0 == e1)
+    assert(e1 == e0)
+    assert(e0 != e2)
+    assert(e2 != e0)
+  }
+
   test("Function:Equals") {
     val f = {
       val x = Param("x")(U8)
@@ -268,8 +279,11 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("StmBuild:Equals:NoAccumulatorVars") {
-    val s1 = StmBuild(3, True, True, Map[Param, (Expr, Expr)]())()
-    val s2 = StmBuild(3, True, True, Map[Param, (Expr, Expr)]())()
+    val v = Param("v")()
+    val s1 =
+      StmBuild(3, VecAccess(v, C(1)(U8))(), True, Map[Param, (Expr, Expr)]())()
+    val s2 =
+      StmBuild(3, VecAccess(v, C(1)(U16))(), True, Map[Param, (Expr, Expr)]())()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)

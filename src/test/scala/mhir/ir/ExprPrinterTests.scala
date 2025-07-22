@@ -205,15 +205,100 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expected)
   }
 
-  test("(x / y) / (z / w)") {
+  test("NestedSum") {
+    val w = Param("w", -1)(U8)
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = Sum(Sum(w, x)(), Sum(y, z)())()
+
+    // Show nesting because, although the value is the same, the AST is
+    // different
+    val expectedOneLine = "(w + x) + (y + z)"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """(w + x)
+        |  + (y + z)
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("NestedProd") {
+    val w = Param("w", -1)(U8)
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = Prod(Prod(w, x)(), Prod(y, z)())()
+
+    // Show nesting because, although the value is the same, the AST is
+    // different
+    val expectedOneLine = "(w * x) * (y * z)"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """(w * x)
+        |  * (y * z)
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("NestedDiv") {
     val x = Param("x", -1)(U8)
     val y = Param("y", -1)(U8)
     val z = Param("z", -1)(U8)
     val w = Param("w", -1)(U8)
     val e = Div(Div(x, y)(), Div(z, w)())()
-    val expected = s"x / y / (z / w)"
+    // No need for parentheses in this case: the AST is unambiguous
+    val expected = "x / y / (z / w)"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
+  }
+
+  test("NestedAnd") {
+    val w = Param("w", -1)(U8)
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = And(And(w, x)(), And(y, z)())()
+
+    // Show nesting because, although the value is the same, the AST is
+    // different
+    val expectedOneLine = "(w && x) && (y && z)"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """(w && x)
+        |  && (y && z)
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("NestedOr") {
+    val w = Param("w", -1)(U8)
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = Or(Or(w, x)(), Or(y, z)())()
+
+    // Show nesting because, although the value is the same, the AST is
+    // different
+    val expectedOneLine = "(w || x) || (y || z)"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """(w || x)
+        |  || (y || z)
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    assert(actualMultiLine == expectedMultiLine)
   }
 
   test("false || true == (true && false)") {
