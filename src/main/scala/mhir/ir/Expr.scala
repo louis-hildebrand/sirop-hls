@@ -270,7 +270,7 @@ object C {
   *   the expressions to add up.
   */
 case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
-  require(terms.nonEmpty, "Sum must have at least one term.")
+  require(terms.length >= 2, "Sum must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Sum(newChildren: _*)(typ)
@@ -303,7 +303,7 @@ case object Sum {
   *   the expressions to multiply.
   */
 case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
-  require(factors.nonEmpty, "Prod must have at least one factor.")
+  require(factors.length >= 2, "Prod must have at least two factors.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Prod(newChildren: _*)(typ)
@@ -574,7 +574,7 @@ case object Not {
   *   the operands.
   */
 case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
-  require(terms.nonEmpty, "And must have at least one term.")
+  require(terms.length >= 2, "And must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     And(newChildren: _*)(typ)
@@ -621,7 +621,7 @@ case object And {
   *   the operands.
   */
 case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
-  require(terms.nonEmpty, "Or must have at least one term.")
+  require(terms.length >= 2, "Or must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Or(newChildren: _*)(typ)
