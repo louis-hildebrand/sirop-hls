@@ -2,7 +2,6 @@ package mhir.gen.vhdl
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.PartialEvalPass
 
 /** @param vhdl
   *   VHDL code for this expression
@@ -202,7 +201,7 @@ private object VhdlExprGenerator {
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
           val elems =
             (0 until n.toInt).map(i =>
-              PartialEvalPass.partialEval(FunCall(f, C(i)(idxTyp))())
+              f.body.subPreserveType(f.param -> C(i)(idxTyp))
             )
           exprToVhdl(VecLiteral(elems: _*)().tchk())
         } else {
