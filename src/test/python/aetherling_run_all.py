@@ -29,21 +29,33 @@ def open_plot(f: Path) -> None:
 
 def main(
     bench_names: list[str],
+    *,
     fmax: Literal["estimate", "measure"],
     view_plots: bool,
     clean: bool,
+    skip_verilog: bool,
+    skip_vhdl: bool,
 ) -> None:
     """
     Script entry point.
     """
-    aetherling_generate.main(bench_names, skip_verilog=False, skip_vhdl=False, skip_synth=False)
+    aetherling_generate.main(
+        bench_names,
+        skip_verilog=skip_verilog,
+        skip_vhdl=skip_vhdl,
+        skip_synth=False
+    )
 
     if clean:
         c.RESOURCE_USAGE_CSV.unlink()
         c.FMAX_ESTIMATE_CSV.unlink()
         c.FMAX_MEASUREMENT_CSV.unlink()
 
-    aetherling_extract_resource_usage.main(bench_names)
+    aetherling_extract_resource_usage.main(
+        bench_names,
+        skip_verilog=skip_verilog,
+        skip_vhdl=skip_vhdl,
+    )
     aetherling_plot_resource_usage.main()
     if view_plots:
         open_plot(c.RESOURCE_USAGE_PDF)
@@ -51,8 +63,8 @@ def main(
     if fmax == "estimate":
         aetherling_extract_fmax_estimate.main(
             bench_names,
-            skip_verilog=False,
-            skip_vhdl=False,
+            skip_verilog=skip_verilog,
+            skip_vhdl=skip_vhdl,
             save_to_csv=True,
         )
         aetherling_plot_fmax_estimates.main()
@@ -61,8 +73,8 @@ def main(
     else:
         aetherling_measure_fmax.main(
             bench_names,
-            skip_verilog=False,
-            skip_vhdl=False,
+            skip_verilog=skip_verilog,
+            skip_vhdl=skip_vhdl,
             save_to_csv=True,
             max_steps=10,
         )
@@ -104,6 +116,16 @@ def parse_args() -> Namespace:
         action="store_true",
         help="delete the previous results before running the experiments",
     )
+    parser.add_argument(
+        "--skip-verilog",
+        action="store_true",
+        help="skip the Verilog implementation of each benchmark",
+    )
+    parser.add_argument(
+        "--skip-vhdl",
+        action="store_true",
+        help="skip the VHDL implementation of each benchmark",
+    )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
     return args
@@ -116,4 +138,6 @@ if __name__ == "__main__":
         fmax=_args.fmax,
         view_plots=_args.view_plots,
         clean=_args.clean,
+        skip_verilog=_args.skip_verilog,
+        skip_vhdl=_args.skip_vhdl,
     )

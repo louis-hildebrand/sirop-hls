@@ -1,0 +1,1 @@
+- For synthesis, Aetherling seems to want to use Xilinx IP blocks for multiplication. For simplicity, I'll just use Verilog's built-in `*` operator instead

@@ -6,7 +6,7 @@ import csv
 import os
 import shutil
 import subprocess
-import sys
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from subprocess import CalledProcessError
 from typing import TextIO
@@ -69,7 +69,7 @@ def extract_and_save_resource_usage(
     f.flush()
 
 
-def main(bench_names: list[str]) -> None:
+def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
     """
     Script entry point.
     """
@@ -94,20 +94,22 @@ def main(bench_names: list[str]) -> None:
         with open(out_path, "w", encoding="utf-8", newline="") as out_file:
             writer = csv.DictWriter(
                 out_file,
-                fieldnames=["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
+                fieldnames=crud.RESOURCE_USAGE_HEADERS,
             )
             writer.writeheader()
             for bench in benchmarks:
-                extract_and_save_resource_usage(
-                    BenchmarkImpl(bench, "verilog"),
-                    writer=writer,
-                    f=out_file,
-                )
-                extract_and_save_resource_usage(
-                    BenchmarkImpl(bench, "vhdl"),
-                    writer=writer,
-                    f=out_file,
-                )
+                if not skip_verilog:
+                    extract_and_save_resource_usage(
+                        BenchmarkImpl(bench, "verilog"),
+                        writer=writer,
+                        f=out_file,
+                    )
+                if not skip_vhdl:
+                    extract_and_save_resource_usage(
+                        BenchmarkImpl(bench, "vhdl"),
+                        writer=writer,
+                        f=out_file,
+                    )
     finally:
         crud.merge_resource_usages(old=backup_out_path, new=out_path)
 
@@ -115,5 +117,40 @@ def main(bench_names: list[str]) -> None:
     print()
 
 
+def parse_args() -> Namespace:
+    """
+    Parse the command line arguments
+    """
+    parser = ArgumentParser(
+        description=(
+            "This script extracts the resource usage"
+            " for a design that has already been synthesized."
+        )
+    )
+    parser.add_argument(
+        "benchmarks",
+        nargs="*",
+        help="the benchmarks to process"
+    )
+    parser.add_argument(
+        "--skip-verilog",
+        action="store_true",
+        help="don't process the Verilog implementation of the benchmarks"
+    )
+    parser.add_argument(
+        "--skip-vhdl",
+        action="store_true",
+        help="don't process the VHDL implementation of the benchmarks"
+    )
+    args = parser.parse_args()
+    args.benchmarks = lb.names_from_args(args.benchmarks)
+    return args
+
+
 if __name__ == "__main__":
-    main(lb.names_from_args(sys.argv[1:]))
+    _args = parse_args()
+    main(
+        bench_names=_args.benchmarks,
+        skip_verilog=_args.skip_verilog,
+        skip_vhdl=_args.skip_vhdl,
+    )
