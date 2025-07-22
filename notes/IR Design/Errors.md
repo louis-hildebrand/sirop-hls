@@ -50,7 +50,11 @@
 - Solution by error case:
 	- Type error: throw an exception
 	- Trying to raise `ready` signal when producer stream is empty: throw an exception (or just hang if the producer supposedly has more elements but its `valid` signal is always `false`)
-	- Reading data from stream without raising `ready` signal: return default value (==TODO:== with warning?)
+	- Reading data from stream without raising `ready` signal: undefined value (==TODO:== with warning?)
+		- Why not return a consistent default value (e.g., 0)?
+			- In hardware, this requires one extra MUX
+				- Extra hardware in each StmBuild
+				- The MUX depends on the `ready` signal, which is currently not put into registers. Therefore, this MUX opens the door for long combinational chains in the stream pipeline
 	- Out-of-bounds vector access, division by zero, overflow: return default value with warning, throw exception if the value seems to be used
 		- Throw an exception?
 			- *Advantage:* optimizer may be able to simplify the expression since it's explicitly represented in the IR

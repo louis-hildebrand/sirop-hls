@@ -158,17 +158,15 @@ object VhdlTestbenchGenerator {
          |    process
          |    begin
          |        -- What happens if the consumer is not ready?
-         |        expected <= (others => '0');
+         |        -- The stream producer must wait.
          |        ready <= '0';
          |        wait until rising_edge(clk) and valid = '1';
-         |        assert(data = expected) report "Wrong `data` when ready = '0'.";
+         |        wait until rising_edge(clk) and valid = '1';
          |        ready <= '1';
          |
          |${indent(testSteps, 2)}
          |
-         |        expected <= (others => '0');
          |        wait until rising_edge(clk);
-         |        assert(data = expected) report "Wrong `data` after completion.";
          |        assert(valid = '0') report "Wrong `valid` after completion";
          |
          |        test_done <= true;

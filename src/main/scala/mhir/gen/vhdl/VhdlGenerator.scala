@@ -299,8 +299,7 @@ object VhdlGenerator {
       OutPort(
         name = "data",
         typ = VhdlStdLogicVec(dataType.bitWidth),
-        assign =
-          Some(s"(others => '0') when not transfer_ok else $dataInternalSlv")
+        assign = Some(dataInternalSlv)
       ),
       OutPort(
         name = "valid",
