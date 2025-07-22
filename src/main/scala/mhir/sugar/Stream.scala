@@ -899,7 +899,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
     val n = this.s.typ.asInstanceOf[TyStm].n
     val acc = Param("acc")(elemTyp)
-    val t = Param("t")(U32)
+    val t = Param("t")(n.typ)
     val sAcc = Param("s")(s.typ)
     val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
     val firstStep = Param("first_step")(TyBool)
@@ -909,7 +909,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
       t + 1 === n,
       Map[Param, (Expr, Expr)](
         firstStep -> (True, False),
-        t -> (C(0)(U32), C(1)(U32) + t),
+        t -> (C(0)(n.typ), C(1)(n.typ) + t),
         sAcc -> (s, True),
         acc -> (
           Default(elemTyp),
