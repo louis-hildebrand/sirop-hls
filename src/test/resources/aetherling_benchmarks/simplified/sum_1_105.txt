@@ -26,14 +26,10 @@
             vbuild(
               1:u1,
               (x_82 : u8) =>
-                data(I_78)[0:u0]
-                  + data(I_78)[1:u1]
-                  + data(I_78)[2:u2]
-                  + data(I_78)[3:u2]
-                  + data(I_78)[4:u3]
-                  + data(I_78)[5:u3]
-                  + data(I_78)[6:u3]
-                  + data(I_78)[7:u3]
+                ((data(I_78)[0:u0] + data(I_78)[1:u1])
+                  + (data(I_78)[2:u2] + data(I_78)[3:u2]))
+                  + ((data(I_78)[4:u3] + data(I_78)[5:u3])
+                    + (data(I_78)[6:u3] + data(I_78)[7:u3]))
             );
             true;
             (I_78 : Stm[Vec[u32, 8:u4], -1:i1]) = (

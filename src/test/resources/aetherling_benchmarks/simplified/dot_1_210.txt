@@ -27,10 +27,8 @@
               vbuild(
                 1:u1,
                 (x_202 : u8) =>
-                  data(I_198)[0:u0]
-                    + data(I_198)[1:u1]
-                    + data(I_198)[2:u2]
-                    + data(I_198)[3:u2]
+                  (data(I_198)[0:u0] + data(I_198)[1:u1])
+                    + (data(I_198)[2:u2] + data(I_198)[3:u2])
               );
               true;
               (I_198 : Stm[Vec[u16, 4:u3], -1:i1]) = (
