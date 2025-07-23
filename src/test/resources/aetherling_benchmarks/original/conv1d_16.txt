@@ -1,0 +1,22 @@
+module0 (I0 :: Int8T) (I1 :: Int8T) =
+    n24 = ATupleN Int8T Int8T I0 I1
+    n25 = MulN Int8T n24
+
+module1 (I :: (SSeqT 3 Int8T)) =
+    n33 = Const_GenN SSeqV [Int8V (-1),Int8V 0,Int8V 1] 1 (SSeqT 3 Int8T)
+    n21 = Map2_sN 3 module0 I n33
+    n28 = Reduce_sN 3 (AddN Int8T I) n21
+
+module2 (I :: (SSeqT 16 Int8T)) =
+    n1 = FIFON (SSeqT 16 Int8T) 1 "I"
+    n2 = Shift_sN 16 1 Int8T n1
+    n3 = Shift_sN 16 1 Int8T n2
+    n4 = Map2_sN 16 (STupleN Int8T I0 I1) n3 n2
+    n8 = Map2_sN 16 (STupleAppendN 3 Int8T I0 I1) n4 n1
+    n12 = Partition_s_ssN 16 1 (STupleT 3 Int8T) n8
+    n17 = Map_sN 16 (Remove_1_sN (STupleToSSeqN 3 Int8T I) I) n12
+    n29 = Map_sN 16 module1 n17
+    n30 = FIFON (SSeqT 16 (SSeqT 1 Int8T)) 1 "n29"
+    n31 = FIFON (SSeqT 16 (SSeqT 1 Int8T)) 1 "n30"
+    n32 = FIFON (SSeqT 16 (SSeqT 1 Int8T)) 1 "n31"
+

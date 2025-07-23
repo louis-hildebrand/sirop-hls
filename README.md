@@ -45,8 +45,11 @@ sbt 'testOnly *AetherlingBenchmarkTests'
 
 If you want to see for yourself that Aetherling indeed produces the benchmarks in [src/test/resources/aetherling_benchmarks/original](src/test/resources/aetherling_benchmarks/original), follow these instructions.
 
-1. Clone my fork of Aetherling from https://github.com/louis-hildebrand/aetherling and follow the setup instructions.
-The fork includes extra benchmarks and some tweaks to Aetherling's test code so that only the space/time code and Verilog code we need are produced.
+1. Clone https://github.com/louis-hildebrand/aetherling and follow the setup instructions.
+Compared to the main Aetherling repo, this fork includes
+   1. extra benchmarks,
+   2. bug fixes,
+   3. and tweaks to Aetherling's test code so that only the space/time code and Verilog code we need are produced.
 
 2. Move into the root of the Aetherling repo.
 

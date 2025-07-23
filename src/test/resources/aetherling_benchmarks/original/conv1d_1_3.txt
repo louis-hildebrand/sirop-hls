@@ -1,0 +1,21 @@
+module0 (I0 :: Int8T) (I1 :: Int8T) =
+    n27 = ATupleN Int8T Int8T I0 I1
+    n28 = MulN Int8T n27
+
+module1 (I :: (TSeqT 3 0 Int8T)) =
+    n36 = Const_GenN TSeqV {vals = [Int8V (-1),Int8V 0,Int8V 1], i_v = 0} 2 (TSeqT 3 0 Int8T)
+    n24 = Map2_tN 3 0 module0 I n36
+    n31 = Reduce_tN 3 0 (AddN Int8T I) n24
+
+module2 (I :: (TSeqT 16 0 (TSeqT 1 2 Int8T))) =
+    n1 = FIFON (TSeqT 16 0 (TSeqT 1 2 Int8T)) 1 "I"
+    n2 = Shift_tnN 16 [1] 0 [2] 1 Int8T n1
+    n3 = Shift_tnN 16 [1] 0 [2] 1 Int8T n2
+    n4 = Map2_tN 16 0 (Map2_tN 1 2 (STupleN Int8T I0 I1) I0 I1) n3 n2
+    n11 = Map2_tN 16 0 (Map2_tN 1 2 (STupleAppendN 3 Int8T I0 I1) I0 I1) n4 n1
+    n20 = Map_tN 16 0 (SerializeN 3 0 Int8T I) n11
+    n32 = Map_tN 16 0 module1 n20
+    n33 = FIFON (TSeqT 16 0 (TSeqT 1 2 Int8T)) 1 "n32"
+    n34 = FIFON (TSeqT 16 0 (TSeqT 1 2 Int8T)) 1 "n33"
+    n35 = FIFON (TSeqT 16 0 (TSeqT 1 2 Int8T)) 1 "n34"
+
