@@ -10,3 +10,7 @@
 - Relies heavily on good arithmetic simplification
 - Fragile: the Stm2Vec . Vec2Stm test case keeps breaking
 - Hard to debug, since expressions in the IR tend to be large and optimization requires many steps, any of which could fail
+- Functions can in theory be curried (and in some cases they need to be, like in `StmMap` or `StmFold`), but in practice the hardware generator doesn't allow curried functions
+- `StmMap` and `StmFold` are pretty ugly
+	- Need to fuse body completely, which can lead to gross-looking code
+	- Function needs to be a literal function and, in some cases, it must literally return a `StmBuild`
