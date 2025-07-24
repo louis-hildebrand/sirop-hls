@@ -73,6 +73,7 @@ object Precedence {
       case _: And                    => 8
       case _: Or                     => 9
       case _: Function | _: Mux      => 10
+      case _: LetStm                 => Precedence.Max
       case e: SyntaxSugar            => e.precedence
     }
   }

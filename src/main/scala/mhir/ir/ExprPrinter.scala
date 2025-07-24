@@ -325,6 +325,30 @@ object ExprPrinter {
         //   c1 && c2
         //     || c3 && c4
         s"sbuild(\n${indent(nStr)};\n${indent(dataStr)};\n${indent(validStr)};$indentedEquationsStr\n)"
+      case LetStm(x, in, out) =>
+        val xStr = x.typ match {
+          case Missing => x.name
+          case t       => s"${x.name}: $t"
+        }
+        val inStr = {
+          val str = display(
+            in,
+            maxWidth = maxWidth - Indent.length,
+            parentPrecedence = myPrecedence
+          )
+          if (str.contains("\n")) {
+            s"(\n${indent(str)}\n)"
+          } else {
+            str
+          }
+        }
+        val outStr = out match {
+          case _: LetStm =>
+            displayMultiLine(out, maxWidth = maxWidth)
+          case _ =>
+            display(out, maxWidth = maxWidth)
+        }
+        s"let stm $xStr = $inStr in\n$outStr"
 
       case e: SyntaxSugar =>
         e.displayMultiLine(maxWidth)
@@ -512,6 +536,14 @@ object ExprPrinter {
         s"sbuild($nStr; $dataStr; $validStr; $equationsStr)"
       case StmData(s) =>
         displayFunCallOneLine("data", Seq(s))
+      case LetStm(x, in, out) =>
+        val xStr = x.typ match {
+          case Missing => x.name
+          case t       => s"${x.name}: $t"
+        }
+        val inStr = displayOneLine(in, parentPrecedence = myPrecedence)
+        val outStr = displayOneLine(out, parentPrecedence = myPrecedence)
+        s"let stm $xStr = $inStr in $outStr"
       case VecBuild(n, f) =>
         displayFunCallOneLine("vbuild", Seq(n, f))
       case VecAccess(v, i) =>
@@ -616,7 +648,7 @@ object ExprPrinter {
   /** Produce Scala code that I can copy and paste (e.g., to take some large
     * expression and use it in a test case).
     */
-  def showScala(e: Expr): String = {
+  private def showScala(e: Expr): String = {
     e match {
       case tup @ Tuple(elems @ _*) =>
         val children = elems.map(e => showScala(e))
@@ -672,6 +704,8 @@ object ExprPrinter {
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
             })})"
         s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)(${showScala(s.typ)})"
+      case let @ LetStm(x, in, out) =>
+        s"LetStm(${showScala(x)},${showScala(in)},${showScala(out)})(${showScala(let.typ)})"
       case s @ StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"

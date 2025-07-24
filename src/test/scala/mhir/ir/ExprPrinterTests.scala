@@ -2,7 +2,7 @@ package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{StmCount3D, StmFold, StmMap}
+import mhir.sugar.{StmCount, StmCount3D, StmCst, StmFold, StmMap, StmZip}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
@@ -511,6 +511,33 @@ class ExprPrinterTests extends AnyFunSuite {
          |)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(s, maxWidth = 20)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("LetStm") {
+    val n = 6
+    val s1 = Param("s1", -1)(Missing)
+    val s1Val = StmCount(C(n)(U8))()
+    val s2 = Param("s2", -1)(Missing)
+    val s2Val = StmCst(C(n)(U8), True)()
+    val let =
+      LetStm(
+        s1,
+        s1Val,
+        LetStm(s2, s2Val, StmZip(StmZip(s1, s2)(), StmZip(s2, s1)())())()
+      )()
+
+    val expectedOneLine =
+      s"let stm s1 = StmCount($n:u8) in let stm s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2), StmZip(s2, s1))"
+    val actualOneLine = ExprPrinter.displayOneLine(let)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""let stm s1 = StmCount($n:u8) in
+         |let stm s2 = StmCst($n:u8, true) in
+         |StmZip(StmZip(s1, s2), StmZip(s2, s1))
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(let, maxWidth = 80)
     assert(actualMultiLine == expectedMultiLine)
   }
 
