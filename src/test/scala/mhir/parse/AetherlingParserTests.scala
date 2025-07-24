@@ -48,6 +48,7 @@ class AetherlingParserTests extends AnyFunSuite {
 
   for (f <- files) {
     test(f.baseName) {
+      mhir.ir.reset()
       val code = os.read(f)
       val parsed = AetherlingParser.parse(code).tchk()
       val actual =

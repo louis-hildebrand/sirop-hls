@@ -1190,6 +1190,14 @@ case class StmSuffix(
   }
 }
 
+/** Discard the first element of the given stream and insert the given value at
+  * the end.
+  *
+  * @param stm
+  *   the stream to shift.
+  * @param e
+  *   the element to insert.
+  */
 case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
@@ -1218,20 +1226,18 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   }
 }
 
+/** Discard the last element of the given stream and insert the given value at
+  * the beginning.
+  *
+  * @param stm
+  *   the stream to shift.
+  * @param e
+  *   the element to insert.
+  */
 case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
     extends SyntaxSugar(stm, e)(typ) {
-  def apply(
-      stm: Expr /* Stm<A; n> */,
-      e: Expr /* A */,
-      // Ideally we would get this shape information from the type system
-      stmShape: Seq[Expr]
-  ): Expr /* Stm<A; n> */ = {
-    val n = stmShape.head
-    StmPrepend(StmPrefix(stm, n - 1)(), e)()
-  }
-
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s, e) => StmShiftRight(s, e)(typ)
@@ -1253,6 +1259,113 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
     StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
+  }
+}
+
+/** Discard the last element of the given stream and insert an undefined value
+  * at the beginning.
+  *
+  * @param stm
+  *   the stream to shift.
+  */
+case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmShiftRightGarbage(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newS = stm.tchk(context)
+    val (t, n) = newS.typ match {
+      case TyStm(t, n) => (t, n)
+      case t => throw new TypeError(s"Stream in $className has type $t.")
+    }
+    this.rebuild(TyStm(t, n), Seq(newS))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val t = this.stm.typ.asInstanceOf[TyStm].t
+    // TODO: Actually insert some kind of undefined value?
+    StmShiftRight(this.stm, Default(t))().tchk().lower()
+  }
+}
+
+/** Shift right on a stream of vectors, similar to
+  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s `shift_ts`.
+  *
+  * Note that [[StmVecShiftRightGarbage]] is <i>NOT</i> equivalent to
+  * [[StmShiftRightGarbage]]. [[StmVecShiftRightGarbage]] is equivalent to (but
+  * more space-efficient than) flattening the sequence, then shifting, and then
+  * re-nesting.
+  *
+  * @example
+  *   consider the following stream (of type `Stm[Vec[Int, 2], 2]`):
+  *
+  * `{{ [0, 1], [2, 3] }}`.
+  *
+  * Calling [[StmShiftRightGarbage]] on this stream would yield the following
+  * stream:
+  *
+  * `{{ [u, u], [0, 1] }}`.
+  *
+  * Calling [[StmVecShiftRightGarbage]] would yield the following stream:
+  *
+  * `{{ [u, 0], [1, 2] }}`.
+  *
+  * @param stm
+  *   the stream to shift.
+  */
+case class StmVecShiftRightGarbage(stm: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmVecShiftRightGarbage(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val stm = this.stm.tchk
+    stm.typ match {
+      case TyStm(_: TyVec, _) => ()
+      case t =>
+        throw new TypeError(
+          s"Stream in $className has type $t."
+            + " Expected a stream of vectors."
+        )
+    }
+    this.rebuild(stm.typ, Seq(stm))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val stm = this.stm.lower()
+    stm.typ match {
+      case TyStm(TyVec(t, m), n) =>
+        val x = Param("x")(t)
+        val s = Param("s")(TyStm(TyVec(t, m), -1))
+        StmBuild(
+          n,
+          VecShiftRight(StmData(s)(), x)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            // The last element in each vector needs to be held until the next
+            // step
+            // TODO: Actually insert some kind of undefined value?
+            x -> (Default(t), VecAccess(StmData(s)(), ToUnsigned(-1 + m)())()),
+            s -> (stm, True)
+          )
+        )().tchk().lower()
+      case t =>
+        throw new TypeError(
+          s"Stream in $className has type $t."
+            + " Expected a stream of vectors."
+        )
+    }
   }
 }
 
@@ -1438,7 +1551,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     StmMap(
       Stm2Vec(stm)() /* flat vector */,
       TyVec(t, n) ::+ (v =>
-        Vec2Stm(VecJoin(VecReverse(VecSplit(v, elemSize)))())()
+        Vec2Stm(VecJoin(VecReverse(VecSplit(v, elemSize)()))())()
       )
     )().tchk().lower()
   }
@@ -1648,7 +1761,9 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     val n = stm.typ.asInstanceOf[TyStm].n
     StmMap(
       Stm2Vec(stm)(), // flat vector
-      TyVec(t, n) ::+ (v => Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)))())())
+      TyVec(t, n) ::+ (v =>
+        Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)()))())()
+      )
     )().tchk().lower()
   }
 }

@@ -594,6 +594,14 @@ case class VecSuffix(
   }
 }
 
+/** Discard the first element of the given vector and insert the given value at
+  * the end.
+  *
+  * @param vec
+  *   the vector to shift.
+  * @param e
+  *   the element to insert.
+  */
 case class VecShiftLeft(
     vec: Expr /* Vec<A; n> */,
     e: Expr /* A */
@@ -639,6 +647,14 @@ case class VecShiftLeft(
   }
 }
 
+/** Discard the last element of the given vector and insert the given value at
+  * the beginning.
+  *
+  * @param vec
+  *   the vector to shift.
+  * @param e
+  *   the element to insert.
+  */
 case class VecShiftRight(
     vec: Expr /* Vec<A; n> */,
     e: Expr /* A */
@@ -668,6 +684,41 @@ case class VecShiftRight(
     requireType()
     val n = vec.typ.asInstanceOf[TyVec].n
     VecPrepend(VecPrefix(vec, ToUnsigned(n - 1)())(), e)().tchk().lower()
+  }
+}
+
+/** Discard the last element of the given vector and insert an undefined value
+  * at the beginning.
+  *
+  * @param vec
+  *   the vector to shift.
+  */
+case class VecShiftRightGarbage(vec: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(vec)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecShiftRightGarbage(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newV = vec.tchk(context)
+    val (t, n) = newV.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First argument in ${VecShiftRight.getClass.getSimpleName} has type $t. Expected a vector."
+        )
+    }
+    this.rebuild(TyVec(t, n), Seq(newV))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val t = this.vec.typ.asInstanceOf[TyVec].t
+    // TODO: Actually insert some kind of undefined value?
+    VecShiftRight(this.vec, Default(t))().tchk().lower()
   }
 }
 
@@ -764,17 +815,50 @@ object VecReverse {
   }
 }
 
-object VecSplit {
-  def apply(
-      vec: Expr /* Vec<A; n> */,
-      m: Expr
-  ): VecBuild /* Vec<Vec<A; m>; n/m> */ = {
-    val n = VecLength(vec)()
-    // n must be divisible by m
+/** Convert a flat vector to a nested vector.
+  *
+  * @note
+  *   `n`, the size of the flat vector, must be divisible by `m`.
+  *
+  * @param vec
+  *   (`Vec[T, n]`) the vector to split.
+  * @param m
+  *   (`Int`) the size of the new inner dimension.
+  * @return
+  *   (`Vec[Vec[T, m], n/m]`)
+  */
+case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(vec, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, m) => VecSplit(v, m)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val vec = this.vec.tchk
+    val (t, n) = vec.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Vector in $className has type $t."
+            + " Expected a vector."
+        )
+    }
+    val m = this.m.tchk.expectUInt()
+    this.rebuild(TyVec(TyVec(t, m), n / m), Seq(vec, m))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = VecLength(this.vec)()
     VecBuild(
-      n / m,
-      U32 ::+ (i => VecBuild(m, U32 ::+ (j => VecAccess(vec, i * m + j)()))())
-    )()
+      n / this.m,
+      U32 ::+ (i =>
+        VecBuild(m, U32 ::+ (j => VecAccess(this.vec, i * this.m + j)()))()
+      )
+    )().tchk().lower()
   }
 }
 

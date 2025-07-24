@@ -43,8 +43,8 @@ package object typecheck {
           val newBody = body.tchk(context + (x -> t))
           Function(x, newBody)(TyArrow(t, newBody.typ))
         case fc @ FunCall(f, arg) =>
-          val newF = f.tchk
           val newArg = arg.tchk
+          val newF = f.annotateFunc(newArg.typ).tchk
           newF.typ match {
             case TyArrow(t1, t2) =>
               if (newArg.typ ~= t1) {

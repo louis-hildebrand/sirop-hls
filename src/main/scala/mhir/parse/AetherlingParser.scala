@@ -1,16 +1,7 @@
 package mhir.parse
 
 import mhir.ir._
-import mhir.sugar.{
-  Fifo,
-  ReshapeSeq,
-  StmMap,
-  StmMap2,
-  StmReduce,
-  VecMap,
-  VecMap2,
-  VecReduceComb
-}
+import mhir.sugar._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
@@ -38,7 +29,7 @@ object AetherlingParser {
     *                | "Int32T"
     *                | "UInt32T"
     *                | "(ATupleT " typ " " typ ")"
-    *                | "(STuple " nat " " typ ")"
+    *                | "(STupleT " nat " " typ ")"
     *                | "(SSeqT " nat " " typ ")"
     *                | "(TSeqT " nat " " nat " " typ ")"
     *   assignment ::= "\n    " ident " = " expr
@@ -108,12 +99,12 @@ object AetherlingParser {
     *                | "ReshapeN (" typ ") (" typ ") " expr
     *   const      ::= "UnitV"
     *                | "BitV " bool
-    *                | "Int8V " nat
+    *                | "Int8V " int
     *                | "UInt8V " nat
     *                | "FixP1_7V " float
-    *                | "Int16V " nat
+    *                | "Int16V " int
     *                | "UInt16V " nat
-    *                | "Int32V " nat
+    *                | "Int32V " int
     *                | "UInt32V " nat
     *                | "ATupleV " const " " const
     *                | "STupleV " const_list
@@ -126,6 +117,9 @@ object AetherlingParser {
     *   nat        ::= digit+
     *   nat_list   ::= "[]"
     *                | "[" nat ("," nat)* "]"
+    *   int        ::= nat
+    *                | "-" nat
+    *                | "(" int ")"
     *   bool       ::= "True" | "False"
     * }}}
     *
@@ -256,8 +250,13 @@ object AetherlingParser {
       val (t1, suffix3) = parseTyp(suffix2)
       val suffix4 = expect(suffix3, ")")
       (TyTuple(t0, t1), suffix4)
-    } else if (code.startsWith("(STuple ")) {
-      ???
+    } else if (code.startsWith("(STupleT ")) {
+      val suffix0 = expect(code, "(STupleT ")
+      val (n, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (t, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, ")")
+      (TyVec(t, n), suffix4)
     } else if (code.startsWith("(SSeqT ")) {
       val suffix0 = expect(code, "(SSeqT ")
       val (n, suffix1) = parseNat(suffix0)
@@ -280,12 +279,54 @@ object AetherlingParser {
   }
 
   private def parseNat(code: String): (Int, String) = {
-    val (nStr, suffix) = code.span(c => c.isDigit)
-    if (nStr.isEmpty) {
+    if (code.nonEmpty && code.head.isDigit) {
+      val (nStr, suffix) = code.span(c => c.isDigit)
+      assert(nStr.nonEmpty)
+      val n = Integer.parseUnsignedInt(nStr)
+      (n, suffix)
+    } else {
       throw new SyntaxError(s"Expected a natural number but got $code")
     }
-    val n = Integer.parseUnsignedInt(nStr)
-    (n, suffix)
+  }
+
+  private def parseNatList(code: String): (Seq[Int], String) = {
+    if (code.startsWith("[]")) {
+      (Seq(), expect(code, "[]"))
+    } else {
+      val suffix0 = expect(code, "[")
+      val (elems, suffix1) = parseOneOrMoreNat(suffix0, Seq())
+      val suffix2 = expect(suffix1, "]")
+      (elems, suffix2)
+    }
+  }
+
+  @tailrec
+  private def parseOneOrMoreNat(
+      code: String,
+      elems: Seq[Int]
+  ): (Seq[Int], String) = {
+    val (elem0, suffix0) = parseNat(code)
+    if (suffix0.startsWith(",")) {
+      val suffix1 = expect(suffix0, ",")
+      parseOneOrMoreNat(suffix1, elems :+ elem0)
+    } else {
+      (elems :+ elem0, suffix0)
+    }
+  }
+
+  private def parseInt(code: String): (Int, String) = {
+    if (code.startsWith("(")) {
+      val suffix0 = expect(code, "(")
+      val (n, suffix1) = parseInt(suffix0)
+      val suffix2 = expect(suffix1, ")")
+      (n, suffix2)
+    } else if (code.startsWith("-")) {
+      val suffix0 = expect(code, "-")
+      val (n, suffix1) = parseNat(suffix0)
+      (-n, suffix1)
+    } else {
+      parseNat(code)
+    }
   }
 
   private def parseExpr(
@@ -355,15 +396,81 @@ object AetherlingParser {
     } else if (code.startsWith("Counter_tnN ")) {
       ???
     } else if (code.startsWith("Shift_sN ")) {
-      ???
+      val suffix0 = expect(code, "Shift_sN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (delay, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (v, suffix7) = parseExpr(suffix6, modules)
+      if (delay == 1) {
+        (VecShiftRightGarbage(v)(), suffix7)
+      } else {
+        ???
+      }
     } else if (code.startsWith("Shift_tN ")) {
-      ???
+      val suffix0 = expect(code, "Shift_tN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (delay, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (_, suffix7) = parseTyp(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (s, suffix9) = parseExpr(suffix8, modules)
+      if (delay == 1) {
+        (StmShiftRightGarbage(s)(), suffix9)
+      } else {
+        ???
+      }
     } else if (code.startsWith("Shift_tsN ")) {
-      ???
+      // Shift_tsN seems to have type
+      //     TSeq no io (SSeq ni t) -> TSeq no io (SSeq ni t)
+      // Or, in the notation of this IR:
+      //     Stm[Vec[t, ni], no] -> Stm[Vec[t, ni], no]
+      val suffix0 = expect(code, "Shift_tsN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (delay, suffix7) = parseNat(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (_, suffix9) = parseTyp(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (s, suffix11) = parseExpr(suffix10, modules)
+      if (delay == 1) {
+        (StmVecShiftRightGarbage(s)(), suffix11)
+      } else {
+        ???
+      }
     } else if (code.startsWith("Shift_ttN ")) {
       ???
     } else if (code.startsWith("Shift_tnN ")) {
-      ???
+      // This seems to me like just a generalization of shift_tt to handle an
+      // arbitrary amount of nesting
+      val suffix0 = expect(code, "Shift_tnN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (nis, suffix3) = parseNatList(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (iis, suffix7) = parseNatList(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (delay, suffix9) = parseNat(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (_, suffix11) = parseTyp(suffix10)
+      val suffix12 = expect(suffix11, " ")
+      val (s, suffix13) = parseExpr(suffix12, modules)
+      if (delay == 1) {
+        (makeNestedStmShift(s, nis, iis), suffix13)
+      } else {
+        ???
+      }
     } else if (code.startsWith("Up_1d_sN")) {
       ???
     } else if (code.startsWith("Up_1d_tN ")) {
@@ -373,7 +480,15 @@ object AetherlingParser {
     } else if (code.startsWith("Down_1d_tN ")) {
       ???
     } else if (code.startsWith("Partition_s_ssN ")) {
-      ???
+      val suffix0 = expect(code, "Partition_s_ssN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (ni, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (v, suffix7) = parseExpr(suffix6, modules)
+      (VecSplit(v, ni)(), suffix7)
     } else if (code.startsWith("Partition_t_ttN ")) {
       ???
     } else if (code.startsWith("Unpartition_s_ssN ")) {
@@ -381,7 +496,19 @@ object AetherlingParser {
     } else if (code.startsWith("Unpartition_t_ttN ")) {
       ???
     } else if (code.startsWith("SerializeN ")) {
-      ???
+      // SerializeN seems to have type
+      //     TSeq 1 (n + i - 1) (STuple n t) -> TSeq n i t
+      // Or, in the notation of this IR:
+      //     Stm[Vec[t, n], 1] -> Stm[t, n]
+      val suffix0 = expect(code, "SerializeN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (s, suffix7) = parseExpr(suffix6, modules)
+      (StmJoin(StmMap(s, Missing ::+ (v => Vec2Stm(v)()))())(), suffix7)
     } else if (code.startsWith("DeserializeN ")) {
       ???
     } else if (code.startsWith("Add_1_sN ")) {
@@ -389,7 +516,16 @@ object AetherlingParser {
     } else if (code.startsWith("Add_1_0_tN")) {
       ???
     } else if (code.startsWith("Remove_1_sN ")) {
-      ???
+      // Remove_1_sN seems to have type
+      //     (A -> B) -> SSeq 1 A -> B
+      // Or, in the notation of this IR:
+      //     (A -> B) -> Vec[A, 1] -> B
+      val suffix0 = expect(code, "Remove_1_sN ")
+      val (f, suffix1) = parseExpr(suffix0, modules)
+      val suffix2 = expect(suffix1, " ")
+      val (v, suffix3) = parseExpr(suffix2, modules)
+      val g = makeUnaryFunction(f, modules)
+      (g(VecAccess(v, 0)()), suffix3)
     } else if (code.startsWith("Remove_1_0_tN ")) {
       ???
     } else if (code.startsWith("Map_sN ")) {
@@ -484,11 +620,31 @@ object AetherlingParser {
       val (e1, suffix7) = parseExpr(suffix6, modules)
       (Tuple(e0, e1)(), suffix7)
     } else if (code.startsWith("STupleN ")) {
-      ???
+      val suffix0 = expect(code, "STupleN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e0, suffix3) = parseExpr(suffix2, modules)
+      val suffix4 = expect(suffix3, " ")
+      val (e1, suffix5) = parseExpr(suffix4, modules)
+      (VecBuild(2, U8 ::+ (i => Mux(i === 0, e0, e1)()))(), suffix5)
     } else if (code.startsWith("STupleAppendN ")) {
-      ???
+      val suffix0 = expect(code, "STupleAppendN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (tup, suffix5) = parseExpr(suffix4, modules)
+      val suffix6 = expect(suffix5, " ")
+      val (elem, suffix7) = parseExpr(suffix6, modules)
+      (VecAppend(tup, elem)(), suffix7)
     } else if (code.startsWith("STupleToSSeqN ")) {
-      ???
+      val suffix0 = expect(code, "STupleToSSeqN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (e, suffix5)
     } else if (code.startsWith("SSeqToSTupleN ")) {
       ???
     } else if (code.startsWith("InputN ")) {
@@ -559,13 +715,32 @@ object AetherlingParser {
     }
   }
 
+  private def makeNestedStmShift(
+      s: Expr,
+      nis: Seq[Int],
+      iis: Seq[Int]
+  ): Expr = {
+    (nis, iis) match {
+      case (Seq(), Seq()) =>
+        StmShiftRightGarbage(s)()
+      case (ni +: nis, _ +: iis) =>
+        StmSplit(makeNestedStmShift(StmJoin(s)(), nis, iis), ni)()
+      case (_, _) =>
+        throw new IllegalArgumentException(
+          s"Length mismatch in shift_tn: $nis vs $iis."
+        )
+    }
+  }
+
   private def parseConst(code: String): (Expr, String) = {
     if (code.startsWith("UnitV")) {
       ???
     } else if (code.startsWith("BitV ")) {
       ???
     } else if (code.startsWith("Int8V ")) {
-      ???
+      val suffix0 = expect(code, "Int8V ")
+      val (n, suffix1) = parseInt(suffix0)
+      (C(n)(I8), suffix1)
     } else if (code.startsWith("UInt8V ")) {
       val suffix0 = expect(code, "UInt8V ")
       val (n, suffix1) = parseNat(suffix0)
@@ -587,11 +762,43 @@ object AetherlingParser {
     } else if (code.startsWith("STupleV ")) {
       ???
     } else if (code.startsWith("SSeqV ")) {
-      ???
-    } else if (code.startsWith("TSeqV ")) {
-      ???
+      val suffix0 = expect(code, "SSeqV ")
+      val (elems, suffix1) = parseConstList(suffix0)
+      (VecLiteral(elems: _*)(), suffix1)
+    } else if (code.startsWith("TSeqV {vals = ")) {
+      val suffix0 = expect(code, "TSeqV {vals = ")
+      val (elems, suffix1) = parseConstList(suffix0)
+      val suffix2 = expect(suffix1, ", i_v = ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, "}")
+      (StmLiteral(elems: _*)(), suffix4)
     } else {
       throw new SyntaxError(s"Expected a constant but got $code")
+    }
+  }
+
+  private def parseConstList(code: String): (Seq[Expr], String) = {
+    if (code.startsWith("[]")) {
+      (Seq(), expect(code, "[]"))
+    } else {
+      val suffix0 = expect(code, "[")
+      val (elems, suffix1) = parseOneOrMoreConst(suffix0, Seq())
+      val suffix2 = expect(suffix1, "]")
+      (elems, suffix2)
+    }
+  }
+
+  @tailrec
+  private def parseOneOrMoreConst(
+      code: String,
+      elems: Seq[Expr]
+  ): (Seq[Expr], String) = {
+    val (elem0, suffix0) = parseConst(code)
+    if (suffix0.startsWith(",")) {
+      val suffix1 = expect(suffix0, ",")
+      parseOneOrMoreConst(suffix1, elems :+ elem0)
+    } else {
+      (elems :+ elem0, suffix0)
     }
   }
 
