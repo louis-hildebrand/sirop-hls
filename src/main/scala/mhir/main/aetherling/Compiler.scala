@@ -3,6 +3,7 @@ package mhir.main.aetherling
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Uncurrier.Uncurry
 import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
 import mhir.optimize.{Optimizer => Opt}
@@ -84,7 +85,7 @@ object Compiler {
   }
 
   private def makeSynthesizable(e: Expr): Expr = {
-    inlineFunCalls(e).streamify()
+    uncurryBody(inlineFunCalls(e).streamify())
   }
 
   private def inlineFunCalls(e: Expr): Expr = {
@@ -99,6 +100,16 @@ object Compiler {
       case Function(x, body) =>
         Function(x, inlineFunCalls(body))()
       case e => e
+    }
+    result.tchk()
+  }
+
+  private def uncurryBody(e: Expr): Expr = {
+    val result = e match {
+      case Function(x, body) =>
+        Function(x, uncurryBody(body))()
+      case e =>
+        e.uncurry()
     }
     result.tchk()
   }

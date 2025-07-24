@@ -362,6 +362,31 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("VecAccess(VecBuild(...), i)") {
+    val s =
+      StmBuild(2, VecAccess(VecBuild(3, U8 ::+ (i => 42 + i))(), 1)(), True)()
+        .tchk()
+        .lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("f( (42, True, -1) )") {
+    val f = (U8, TyBool, I16) ::+ (x => x.__0)
+    val s =
+      StmBuild(2, f(Tuple(C(42)(U8), True, C(-1)(I16))()), True)()
+        .tchk()
+        .lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("Tuple(10, 20, 30).__1") {
+    val s =
+      StmBuild(2, Tuple(C(10)(), C(20)(), C(30)())().__1, True)()
+        .tchk()
+        .lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("CurriedFunCall") {
     val n = 7
     val f = (U32, U32) ::+ (x => U32 ::+ (y => y + x.__0 * y + x.__1))

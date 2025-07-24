@@ -188,12 +188,30 @@ private object VhdlExprGenerator {
         val av = exprToVhdl(arg)
         VhdlExpr(s"${fv.vhdl}(${av.vhdl})", fv.decls ++ av.decls)
 
-      case VecLiteral(elems @ _*) =>
+      case v @ VecLiteral(elems @ _*) =>
         val vhdlElems = elems.map(exprToVhdl)
-        val assignments = vhdlElems.zipWithIndex
-          .map({ case (e, i) => s"$i => ${e.vhdl}" })
-          .mkString(", ")
-        VhdlExpr(s"($assignments)", vhdlElems.flatMap(e => e.decls))
+        val tempVar = {
+          val name = Param("vec")().name
+          val vec = vhdlElems.zipWithIndex
+            .map({ case (e, i) => s"$i => ${e.vhdl}" })
+            .mkString("(", ", ", ")")
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(v.typ),
+                assignStmt = Some(s"$name <= $vec;")
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(v.typ),
+                assignStmt = s"$name := $vec;"
+              )
+          }
+        }
+        VhdlExpr(tempVar.name, tempVar +: vhdlElems.flatMap(e => e.decls))
       case VecBuild(len, f) =>
         if (len.freeVars().isEmpty) {
           // TODO: Use for-generate here instead?
