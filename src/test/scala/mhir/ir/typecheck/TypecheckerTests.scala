@@ -279,6 +279,27 @@ class TypecheckerTests extends AnyFunSuite {
     assertAllNodesHaveType(checked)
   }
 
+  test("let stm x = s in StmZip(x, x)") {
+    val n = 10
+    val s = Param("s")(TyStm(U8, n))
+    val let = {
+      val x = Param("x")()
+      val s1 = Param("s1")(TyStm(U8, -1))
+      val s2 = Param("s2")(TyStm(U8, -1))
+      val zipped = StmBuild(
+        n,
+        Tuple(StmData(s1)(), StmData(s2)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s1 -> (x, True),
+          s2 -> (x, True)
+        )
+      )()
+      LetStm(x, s, zipped)()
+    }
+    assert(let.tchk().typ == TyStm((U8, U8), 10))
+  }
+
   test("FreeVar") {
     val x = Param("x")()
     assertThrows[TypeError](x.tchk())

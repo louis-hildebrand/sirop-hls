@@ -865,6 +865,29 @@ case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   }
 }
 
+/** Bind a name to an input stream and use that name, possibly many times, to
+  * produce an output stream.
+  *
+  * [[LetStm]] makes it possible to describe graphs of stream components, in
+  * which one stream producer may have multiple consumers.
+  *
+  * @param x
+  *   name for the input stream.
+  * @param in
+  *   input stream.
+  * @param out
+  *   output stream, which may refer to the variable many times.
+  */
+case class LetStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
+    extends Expr(x, in, out)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x: Param, in, out) => LetStm(x, in, out)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** Constructs a fixed-length vector.
   *
   * Vectors are collections that support random access. Moreover, it is possible
