@@ -1,0 +1,192 @@
+(I_1051 : Stm[Vec[i8, 1:u1], 16:u5]) =>
+  sbuild(
+    16:u5;
+    vbuild(
+      1:u1,
+      (x_1111 : u8) =>
+        (data(I_1107)[1:u32] * [-1:i8, 0:i8, 1:i8][1:u32]
+          + data(I_1107)[2:u32] * [-1:i8, 0:i8, 1:i8][2:u32])
+          + data(I_1107)[0:u32] * [-1:i8, 0:i8, 1:i8][0:u32]
+    );
+    true;
+    (I_1107 : Stm[Vec[i8, 3:u2], -1:i1]) = (
+      sbuild(
+        16:u5;
+        data(I_1112)[0:u0];
+        true;
+        (I_1112 : Stm[Vec[Vec[i8, pad3(1:u1) + pad3(2:u2)], 1:u1], -1:i1]) = (
+          sbuild(
+            16:u5;
+            vbuild(
+              1:u1,
+              (x_1125 : u32) =>
+                vbuild(
+                  3:u3,
+                  (x_1127 : u32) =>
+                    if (x_1127 < 2:u32) then {
+                      data(I0_1119)[0:u32][x_1127]
+                    } else {
+                      data(I1_1116)[0:u32]
+                    }
+                )
+            );
+            true;
+            (I0_1119 : Stm[Vec[Vec[i8, 2:u2], 1:u1], -1:i1]) = (
+              sbuild(
+                16:u5;
+                vbuild(
+                  1:u1,
+                  (x_1138 : u32) =>
+                    vbuild(
+                      2:u2,
+                      (x_1140 : u8) =>
+                        if (x_1140 == 0:u8) then {
+                          data(I0_1131)[0:u32]
+                        } else {
+                          data(I1_1128)[0:u32]
+                        }
+                    )
+                );
+                true;
+                (I0_1131 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+                  sbuild(
+                    16:u6;
+                    if (i_1148 == 1:u32) then {
+                      data(s2_1150)
+                    } else {
+                      data(s1_1149)
+                    };
+                    true;
+                    (i_1148 : u32) = (
+                      0:u32,
+                      if (i_1148 == 1:u32) then {
+                        1:u32
+                      } else {
+                        1:u32 + i_1148
+                      }
+                    );
+                    (s1_1149 : Stm[Vec[i8, 1:u1], 1:u1]) = (
+                      sbuild(
+                        1:u1;
+                        vbuild(1:u1, (x_1151 : u32) => 0:i8);
+                        true;
+                      ),
+                      i_1148 != 1:u32
+                    );
+                    (s2_1150 : Stm[Vec[i8, 1:u1], pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5)))]) = (
+                      sbuild(
+                        15:u5;
+                        data(s_1152);
+                        i_1153 < 15:u32;
+                        (i_1153 : u32) = (
+                          0:u32,
+                          1:u32 + i_1153
+                        );
+                        (s_1152 : Stm[Vec[i8, 1:u1], 16:u5]) = (
+                          sbuild(
+                            16:u6;
+                            if (i_1155 == 1:u32) then {
+                              data(s2_1157)
+                            } else {
+                              data(s1_1156)
+                            };
+                            true;
+                            (i_1155 : u32) = (
+                              0:u32,
+                              if (i_1155 == 1:u32) then {
+                                1:u32
+                              } else {
+                                1:u32 + i_1155
+                              }
+                            );
+                            (s1_1156 : Stm[Vec[i8, 1:u1], 1:u1]) = (
+                              sbuild(
+                                1:u1;
+                                vbuild(1:u1, (x_1158 : u32) => 0:i8);
+                                true;
+                              ),
+                              i_1155 != 1:u32
+                            );
+                            (s2_1157 : Stm[Vec[i8, 1:u1], pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5)))]) = (
+                              sbuild(
+                                15:u5;
+                                data(s_1159);
+                                i_1160 < 15:u32;
+                                (i_1160 : u32) = (
+                                  0:u32,
+                                  1:u32 + i_1160
+                                );
+                                (s_1159 : Stm[Vec[i8, 1:u1], 16:u5]) = (
+                                  I_1051,
+                                  true
+                                );
+                              ),
+                              i_1155 == 1:u32
+                            );
+                          ),
+                          true
+                        );
+                      ),
+                      i_1148 == 1:u32
+                    );
+                  ),
+                  true
+                );
+                (I1_1128 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+                  sbuild(
+                    16:u6;
+                    if (i_1141 == 1:u32) then {
+                      data(s2_1143)
+                    } else {
+                      data(s1_1142)
+                    };
+                    true;
+                    (i_1141 : u32) = (
+                      0:u32,
+                      if (i_1141 == 1:u32) then {
+                        1:u32
+                      } else {
+                        1:u32 + i_1141
+                      }
+                    );
+                    (s1_1142 : Stm[Vec[i8, 1:u1], 1:u1]) = (
+                      sbuild(
+                        1:u1;
+                        vbuild(1:u1, (x_1144 : u32) => 0:i8);
+                        true;
+                      ),
+                      i_1141 != 1:u32
+                    );
+                    (s2_1143 : Stm[Vec[i8, 1:u1], pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5)))]) = (
+                      sbuild(
+                        15:u5;
+                        data(s_1145);
+                        i_1146 < 15:u32;
+                        (i_1146 : u32) = (
+                          0:u32,
+                          1:u32 + i_1146
+                        );
+                        (s_1145 : Stm[Vec[i8, 1:u1], 16:u5]) = (
+                          I_1051,
+                          true
+                        );
+                      ),
+                      i_1141 == 1:u32
+                    );
+                  ),
+                  true
+                );
+              ),
+              true
+            );
+            (I1_1116 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+              I_1051,
+              true
+            );
+          ),
+          true
+        );
+      ),
+      true
+    );
+  )

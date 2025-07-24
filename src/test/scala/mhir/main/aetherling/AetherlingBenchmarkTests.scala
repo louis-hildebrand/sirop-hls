@@ -6,7 +6,7 @@ import mhir.gen.verilog.{
   VerilogTestbenchGenerator
 }
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
-import mhir.gen.{TestInput, TestOutput, TestPassed}
+import mhir.gen.{TestInput, TestOutput, TestPassed, Undefined}
 import mhir.ir._
 import mhir.testing.HardwareTestObj
 import org.scalatest.funsuite.AnyFunSuite
@@ -203,6 +203,60 @@ object AetherlingBenchmarkTests {
       })
       .toMap
 
+  private val conv1dIO: Map[String, (Seq[TestInput], TestOutput)] =
+    Seq((1, 3), (1, 1), (2, 1), (4, 1), (8, 1), (16, 1))
+      .map({ case (numer, denom) =>
+        // Square wave with 50% duty cycle and period 8
+        val flatInputs = (0 until 16).map(t => if (t % 8 < 4) -42 else 42)
+        val flatOutputs = {
+          (Seq(Undefined(I8), Undefined(I8))
+            ++ flatInputs.sliding(3).map(v => C(v(2) - v(0))(I8)).toSeq)
+        }
+        val (inputs, outputs) = (numer, denom) match {
+          case (1, 1) =>
+            (
+              TestInput(
+                flatInputs.map(C(_)(I8)).map(VecLiteral(_)()).map(Some(_))
+              ),
+              TestOutput(flatOutputs.map(VecLiteral(_)()))
+            )
+          case (n, 1) if n > 1 =>
+            // n valid per cycle
+            (
+              TestInput(
+                flatInputs
+                  .grouped(n)
+                  .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
+                  .map(Some(_))
+                  .toSeq
+              ),
+              TestOutput(
+                flatOutputs
+                  .grouped(n)
+                  .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
+                  .toSeq
+              )
+            )
+          case (1, d) if d > 0 =>
+            // 1 valid per d cycles
+            (
+              TestInput(
+                flatInputs.flatMap(x => Seq(Some(C(x)(I8)), None, None))
+              ),
+              TestOutput(flatOutputs)
+            )
+          case _ =>
+            ???
+        }
+        val benchName = if (denom == 1) {
+          s"conv1d_$numer"
+        } else {
+          s"conv1d_${numer}_$denom"
+        }
+        benchName -> (Seq(inputs), outputs)
+      })
+      .toMap
+
   /** Maps benchmark names (e.g., "map_1") to inputs and expected outputs.
     *
     * @note
@@ -212,5 +266,6 @@ object AetherlingBenchmarkTests {
     mapIO
       ++ sumIO
       ++ dotIO
+      ++ conv1dIO
   )
 }
