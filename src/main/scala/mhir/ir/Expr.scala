@@ -886,6 +886,21 @@ case class LetStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  private def asFunCall(): FunCall = {
+    FunCall(Function(this.x, this.out)(), this.in)()
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: LetStm => this.asFunCall() == that.asFunCall()
+      case _            => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    this.asFunCall().hashCode()
+  }
 }
 
 /** Constructs a fixed-length vector.

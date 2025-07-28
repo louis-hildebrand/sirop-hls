@@ -2,7 +2,7 @@ package mhir.ir
 
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
-import mhir.sugar.VecShiftLeft
+import mhir.sugar.{StmZip, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {
@@ -276,6 +276,38 @@ class ExprTests extends AnyFunSuite {
     val g = Function(y, (y + 1) * (x + 2))()
     assert(f != g)
     assert(g != f)
+  }
+
+  test("LetStm:Equals") {
+    val in = StmBuild(5, C(42)(U16), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in, StmZip(s1, s1)())()
+    assert(e0 == e1)
+    assert(e1 == e0)
+    assert(e0.hashCode() == e1.hashCode())
+  }
+
+  test("LetStm:NotEquals:DifferentInput") {
+    val in0 = StmBuild(5, C(42)(I8), True)()
+    val in1 = StmBuild(5, C(-1)(I8), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in0, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in1, StmZip(s1, s1)())()
+    assert(e0 != e1)
+    assert(e1 != e0)
+  }
+
+  test("LetStm:NotEquals:DifferentOutput") {
+    val in = StmBuild(5, C(42)(U16), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in, StmZip(s1, s0)())()
+    assert(e0 != e1)
+    assert(e1 != e0)
   }
 
   test("StmBuild:Equals:NoAccumulatorVars") {
