@@ -389,6 +389,23 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
         case f => f
       }
     }
+
+    /** Count the number of occurrences of expression `x` within this
+      * expression.
+      *
+      * @param x
+      *   the expression to search for.
+      */
+    def countOccurrences(x: Param): Int = {
+      def count(e: Expr): Int = {
+        if (e == x) {
+          1
+        } else {
+          e.children.map(count).sum
+        }
+      }
+      count(this.expr)
+    }
   }
 
   /** Helper methods for [[StmBuild]].

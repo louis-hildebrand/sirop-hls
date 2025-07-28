@@ -340,6 +340,15 @@ object PartialEvalPass {
                 )()
             }
           case StmData(s) => StmData(doPartialEval(s))()
+          case LetStm(x, in, out) =>
+            val newIn = partialEval(in)
+            val newOut = partialEval(out)
+            val numUses = newOut.countOccurrences(x)
+            if (numUses <= 1) {
+              newOut.subPreserveType(x -> newIn)
+            } else {
+              LetStm(x, newIn, newOut)()
+            }
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)
             doPartialEval(k) match {
