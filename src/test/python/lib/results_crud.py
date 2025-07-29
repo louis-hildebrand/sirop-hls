@@ -260,3 +260,72 @@ def merge_fmax_measurements(old: Path, new: Path) -> None:
         for b, ru in combined_results.items():
             save_fmax_measurement(writer, b, ru)
     old.unlink()
+
+
+LATENCY_HEADERS = ["bench_name", "bench_throughput", "language", "latency"]
+
+
+def save_latency(writer: csv.DictWriter, b: BenchmarkImpl, latency: int | None) -> None:
+    """
+    Save one latency result to a CSV file.
+    """
+    writer.writerow({
+        "bench_name": b.bench.name,
+        "bench_throughput": b.bench.throughput_str,
+        "language": b.language.lower(),
+        "latency": "" if latency is None else str(latency)
+    })
+
+
+def read_all_latency_results(results_file: Path) -> dict[BenchmarkImpl, int | None]:
+    """
+    Read all results from the CSV, even ones where the latency is missing.
+    """
+    def get_bench(row) -> BenchmarkImpl:
+        return BenchmarkImpl(
+            bench=Benchmark(
+                name=row["bench_name"],
+                throughput=Fraction(row["bench_throughput"])
+            ),
+            language=row["language"]
+        )
+    def get_result(row) -> int | None:
+        if not row["latency"]:
+            return None
+        return int(row["latency"])
+    with open(results_file, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        return {get_bench(row) : get_result(row) for row in rows}
+
+
+def read_valid_latency_results(results_file: Path) -> dict[BenchmarkImpl, int]:
+    """
+    Read results from the CSV and only return those where the latency is
+    not `None`.
+    """
+    return {
+        b: lat
+        for (b, lat) in read_all_latency_results(results_file).items()
+        if lat is not None
+    }
+
+
+def merge_latency_results(old: Path, new: Path) -> None:
+    """
+    Combine the old and new latency results.
+
+    If a given benchmark has both an old result and a new result, only the new
+    result will be kept.
+    """
+    if not old.exists():
+        return
+    old_results = read_all_latency_results(old)
+    new_results = read_all_latency_results(new)
+    combined_results = old_results | new_results
+    with open(new, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=LATENCY_HEADERS)
+        writer.writeheader()
+        for b, ru in combined_results.items():
+            save_latency(writer, b, ru)
+    old.unlink()
