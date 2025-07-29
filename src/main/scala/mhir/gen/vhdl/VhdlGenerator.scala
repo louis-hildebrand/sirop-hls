@@ -47,8 +47,11 @@ object VhdlGenerator {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], StmBuild) = {
       e match {
-        case s: StmBuild    => (inputs, s)
-        case Function(x, e) => unwrap(e, x +: inputs)
+        case s: StmBuild => (inputs, s)
+        case Function(x, e) =>
+          val y = Param(s"I${inputs.length}", -1)(x.typ)
+          assert(!e.freeVars().contains(y))
+          unwrap(e.subPreserveType(x -> y), y +: inputs)
         case e =>
           throw new IllegalArgumentException(
             "Cannot generate top-level component for expression."

@@ -279,7 +279,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
+    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
   }
 
   test("StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
@@ -290,7 +290,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input $s is used more than once."))
+    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
   }
 
   test("SimpleLet") {

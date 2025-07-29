@@ -24,10 +24,31 @@ object VhdlTestbenchGenerator {
       // TODO: Make it possible to test multiple values for one input?
       inputs: Seq[TestInput],
       e: Expr,
-      dir: Path
+      dir: Path,
+      testNotReady: Boolean = true
   ): Unit = {
     val (out, inputsByVar) = getExpectedOutput(e, inputs)
-    makeTestbench(inputsByVar, out, dir)
+    makeTestbench(inputsByVar, out, dir, testNotReady = testNotReady)
+  }
+
+  def makeTestbench(
+      inputs: Seq[TestInput],
+      out: TestOutput,
+      dir: Path,
+      testNotReady: Boolean
+  ): Unit = {
+    makeTestbench(
+      inputsByVar = inputs.zipWithIndex
+        .map({ case (in, i) =>
+          val typ = TyStm(in.elems.head.get.tchk().typ, -1)
+          val x = Param(s"I$i", -1)(typ)
+          x -> in
+        })
+        .toMap,
+      out = out,
+      dir = dir,
+      testNotReady = testNotReady
+    )
   }
 
   /** Creates a testbench for a VHDL design.
@@ -40,12 +61,13 @@ object VhdlTestbenchGenerator {
     *   the directory of the VHDL project (the whole directory containing the
     *   design, not the `test` subdirectory).
     */
-  def makeTestbench(
+  private def makeTestbench(
       inputsByVar: Map[Param, TestInput],
-      out: StmLiteral,
-      dir: Path
+      out: TestOutput,
+      dir: Path,
+      testNotReady: Boolean
   ): Unit = {
-    val outElemType = VhdlType(out.tchk().typ.asInstanceOf[TyStm].t)
+    val outElemType = VhdlType(out.elems.head.tchk().typ)
     val inputProcesses = inputsByVar
       .map({ case (x, inputs) =>
         val steps = inputs.elems
@@ -56,8 +78,6 @@ object VhdlTestbenchGenerator {
                  |wait until rising_edge(clk);
                  |""".stripMargin.stripTrailing
             case Some(v) =>
-              val elemType = x.typ.asInstanceOf[TyStm].t
-              val bitWidth = VhdlType(elemType).bitWidth
               val slv = VhdlGenerator.valueToStdLogicVector(v)
               s"""${x.name}_valid <= '1';
                  |${x.name}_data <= $slv;
@@ -103,6 +123,22 @@ object VhdlTestbenchGenerator {
         )
       })
       .mkString("\n")
+    val notReadyTests = if (testNotReady) {
+      """-- If the consumer is not ready, the producer must keep working until
+        |-- it has a valid value and then it must wait
+        |ready <= '0';
+        |wait until rising_edge(clk) and valid = '1';
+        |wait until rising_edge(clk);
+        |assert(valid = '1') report "Design dropped its valid signal.";
+        |""".stripMargin.stripTrailing
+    } else {
+      ""
+    }
+    val t0 = if (testNotReady) {
+      "-2; -- to account for the two cycles where valid = '1' but ready = '0'"
+    } else {
+      "0;"
+    }
     val expected =
       VhdlConversionGenerator.fromStdLogicVector("expected", outElemType)
     val data = VhdlConversionGenerator.fromStdLogicVector("data", outElemType)
@@ -121,11 +157,12 @@ object VhdlTestbenchGenerator {
          |
          |    constant CLK_CYCLE  : time := 20 ns;
          |    signal   test_done  : boolean := false;
-         |    signal   clk        : std_logic := '0';
+         |    signal   clk        : std_logic := '1';
          |    signal   data       : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
          |    signal   expected   : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
+         |    signal   t          : integer := $t0
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
@@ -149,6 +186,13 @@ object VhdlTestbenchGenerator {
          |        end if;
          |    end process;
          |
+         |    -- Keep track of time
+         |    process
+         |    begin
+         |        wait until rising_edge(clk);
+         |        t <= t + 1;
+         |    end process;
+         |
          |${indent(inputProcesses)}
          |
          |    data_t <= $data;
@@ -157,14 +201,14 @@ object VhdlTestbenchGenerator {
          |    -- Check outputs
          |    process
          |    begin
-         |        -- What happens if the consumer is not ready?
-         |        -- The stream producer must wait.
-         |        ready <= '0';
-         |        wait until rising_edge(clk) and valid = '1';
-         |        wait until rising_edge(clk) and valid = '1';
+         |${indent(notReadyTests, 2)}
+         |
          |        ready <= '1';
          |
          |${indent(testSteps, 2)}
+         |
+         |        wait until falling_edge(clk);
+         |        report "LATENCY: " & integer'image(t) & " cycles" severity note;
          |
          |        wait until rising_edge(clk);
          |        assert(valid = '0') report "Wrong `valid` after completion";
@@ -179,6 +223,7 @@ object VhdlTestbenchGenerator {
     val testDir = dir / "test"
     os.makeDir.all(testDir)
     val testbenchFile = testDir / "test_top.vhd"
+    if (os.isFile(testbenchFile)) os.remove(testbenchFile)
     os.write(testbenchFile, str)
   }
 
@@ -188,7 +233,7 @@ object VhdlTestbenchGenerator {
   private def getExpectedOutput(
       e: Expr,
       inputs: Seq[TestInput]
-  ): (StmLiteral, Map[Param, TestInput]) = {
+  ): (TestOutput, Map[Param, TestInput]) = {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case f: Function => VhdlGenerator.unwrapTopLevelFunction(f)
@@ -210,6 +255,7 @@ object VhdlTestbenchGenerator {
       })
     val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
-    (evaluated, inputByParam)
+    val outputs = TestOutput(evaluated.elems)
+    (outputs, inputByParam)
   }
 }

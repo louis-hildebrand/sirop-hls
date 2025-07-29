@@ -13,8 +13,10 @@ import aetherling_extract_fmax_estimate
 import aetherling_extract_resource_usage
 import aetherling_generate
 import aetherling_measure_fmax
+import aetherling_measure_latency
 import aetherling_plot_fmax_estimates
 import aetherling_plot_fmax_measurements
+import aetherling_plot_latency
 import aetherling_plot_resource_usage
 import lib.constants as c
 import lib.list_benchmarks as lb
@@ -47,9 +49,10 @@ def main(
     )
 
     if clean:
-        c.RESOURCE_USAGE_CSV.unlink()
-        c.FMAX_ESTIMATE_CSV.unlink()
-        c.FMAX_MEASUREMENT_CSV.unlink()
+        c.RESOURCE_USAGE_CSV.unlink(missing_ok=True)
+        c.LATENCY_CSV.unlink(missing_ok=True)
+        c.FMAX_ESTIMATE_CSV.unlink(missing_ok=True)
+        c.FMAX_MEASUREMENT_CSV.unlink(missing_ok=True)
 
     aetherling_extract_resource_usage.main(
         bench_names,
@@ -59,6 +62,15 @@ def main(
     aetherling_plot_resource_usage.main()
     if view_plots:
         open_plot(c.RESOURCE_USAGE_PDF)
+
+    aetherling_measure_latency.main(
+        bench_names,
+        skip_verilog=skip_verilog,
+        skip_vhdl=skip_vhdl,
+    )
+    aetherling_plot_latency.main()
+    if view_plots:
+        open_plot(c.LATENCY_PDF)
 
     if fmax == "estimate":
         aetherling_extract_fmax_estimate.main(
