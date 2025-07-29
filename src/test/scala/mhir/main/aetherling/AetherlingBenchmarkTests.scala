@@ -79,7 +79,8 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       VhdlTestbenchGenerator.makeTestbench(
         inputsByVar = getVhdlInputs(f, inputs),
         out = outputs,
-        dir = outDir
+        dir = outDir,
+        testNotReady = false
       )
       assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
     }
@@ -94,7 +95,8 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       VhdlTestbenchGenerator.makeTestbench(
         inputsByVar = getVhdlInputs(f, inputs),
         out = outputs,
-        dir = outDir
+        dir = outDir,
+        testNotReady = false
       )
       assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
     }
