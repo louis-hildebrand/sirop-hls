@@ -31,6 +31,26 @@ object VhdlTestbenchGenerator {
     makeTestbench(inputsByVar, out, dir, testNotReady = testNotReady)
   }
 
+  def makeTestbench(
+      inputs: Seq[TestInput],
+      out: TestOutput,
+      dir: Path,
+      testNotReady: Boolean
+  ): Unit = {
+    makeTestbench(
+      inputsByVar = inputs.zipWithIndex
+        .map({ case (in, i) =>
+          val typ = TyStm(in.elems.head.get.tchk().typ, -1)
+          val x = Param(s"I$i", -1)(typ)
+          x -> in
+        })
+        .toMap,
+      out = out,
+      dir = dir,
+      testNotReady = testNotReady
+    )
+  }
+
   /** Creates a testbench for a VHDL design.
     *
     * @param inputsByVar
@@ -41,13 +61,13 @@ object VhdlTestbenchGenerator {
     *   the directory of the VHDL project (the whole directory containing the
     *   design, not the `test` subdirectory).
     */
-  def makeTestbench(
+  private def makeTestbench(
       inputsByVar: Map[Param, TestInput],
-      out: StmLiteral,
+      out: TestOutput,
       dir: Path,
       testNotReady: Boolean
   ): Unit = {
-    val outElemType = VhdlType(out.tchk().typ.asInstanceOf[TyStm].t)
+    val outElemType = VhdlType(out.elems.head.tchk().typ)
     val inputProcesses = inputsByVar
       .map({ case (x, inputs) =>
         val steps = inputs.elems
@@ -203,6 +223,7 @@ object VhdlTestbenchGenerator {
     val testDir = dir / "test"
     os.makeDir.all(testDir)
     val testbenchFile = testDir / "test_top.vhd"
+    if (os.isFile(testbenchFile)) os.remove(testbenchFile)
     os.write(testbenchFile, str)
   }
 
@@ -212,7 +233,7 @@ object VhdlTestbenchGenerator {
   private def getExpectedOutput(
       e: Expr,
       inputs: Seq[TestInput]
-  ): (StmLiteral, Map[Param, TestInput]) = {
+  ): (TestOutput, Map[Param, TestInput]) = {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case f: Function => VhdlGenerator.unwrapTopLevelFunction(f)
@@ -234,6 +255,7 @@ object VhdlTestbenchGenerator {
       })
     val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
-    (evaluated, inputByParam)
+    val outputs = TestOutput(evaluated.elems)
+    (outputs, inputByParam)
   }
 }

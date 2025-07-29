@@ -22,25 +22,25 @@ object VerilogTestbenchGenerator {
     */
   def makeTestbench(
       inputs: Seq[TestInput],
-      expectedOutput: StmLiteral,
+      expectedOutput: TestOutput,
       dir: Path
   ): Unit = {
-    val checkedInputs = inputs.map(inputs =>
-      TestInput(inputs.elems.map(e => e.map(e => e.tchk())))
-    )
-    val checkedOutputs = expectedOutput.tchk().asInstanceOf[StmLiteral]
+    val checkedInputs =
+      inputs.map(inputs => TestInput(inputs.elems.map(_.map(_.tchk()))))
+    val checkedOutputs = TestOutput(expectedOutput.elems.map(_.tchk()))
     val code = getTestbenchCode(checkedInputs, checkedOutputs)
     emitTestbench(code, dir)
   }
 
   private def emitTestbench(code: String, dir: Path): Unit = {
     val f = dir / "Test.v"
+    if (os.isFile(f)) os.remove(f)
     os.write(f, code)
   }
 
   private def getTestbenchCode(
       inputs: Seq[TestInput],
-      expectedOutput: StmLiteral
+      expectedOutput: TestOutput
   ): String = {
     val inputMap: Seq[Option[Map[String, (String, Int)]]] = {
       val n = inputs.head.elems.length
