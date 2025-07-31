@@ -1034,7 +1034,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def precedence: Int = Precedence.FunCall
 
-  /** See [[ExprPrinter.displayOneLine]].
+  /** See [[mhir.ir.ExprPrinter.displayOneLine]].
     *
     * @note
     *   there is no need to wrap the final result in parentheses; that will be

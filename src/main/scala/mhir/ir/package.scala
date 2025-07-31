@@ -412,7 +412,7 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       * @return
       *   true if this expression is [[True]] and false if this expression is
       *   [[False]].
-      * @throws TypeError
+      * @throws mhir.ir.typecheck.TypeError
       *   if this expression is not a boolean constant.
       */
     def toBool: Boolean = {
