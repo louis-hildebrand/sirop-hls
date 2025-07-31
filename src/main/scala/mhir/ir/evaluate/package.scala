@@ -4,4 +4,4 @@ package mhir.ir
   *
   * To evaluate an expression, use the method [[Eval.eval]].
   */
-package object evaluate {}
+package object evaluate

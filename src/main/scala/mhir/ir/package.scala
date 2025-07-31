@@ -406,6 +406,25 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       }
       count(this.expr)
     }
+
+    /** Convert this expression to a boolean.
+      *
+      * @return
+      *   true if this expression is [[True]] and false if this expression is
+      *   [[False]].
+      * @throws TypeError
+      *   if this expression is not a boolean constant.
+      */
+    def toBool: Boolean = {
+      this.expr match {
+        case True  => true
+        case False => false
+        case e =>
+          throw new TypeError(
+            s"Expected a boolean constant but found $e."
+          )
+      }
+    }
   }
 
   /** Helper methods for [[StmBuild]].

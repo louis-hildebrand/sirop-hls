@@ -11,19 +11,24 @@ import scala.language.{existentials, implicitConversions}
   */
 trait Eval {
 
+  private val MaxInvalidSteps = 10000
+
   /** Evaluates an expression.
     *
     * @param e
     *   the expression to evaluate.
+    * @param suppressWarnings
+    *   if true, then no exceptions will be thrown for warnings.
+    *
     * @throws mhir.ir.typecheck.TypeError
     *   if the expression is ill-typed.
     * @throws EvalException
     *   if the evaluator encounters an undefined value <i>and it seems to affect
     *   the final value</i>, or if a stream seems to be deadlocked.
     */
-  def eval(e: Expr): Expr = {
+  def eval(e: Expr, suppressWarnings: Boolean = false): Expr = {
     val Value(v, warnings) = evalBigStep(e.tchk().lower())
-    if (warnings.isEmpty) {
+    if (warnings.isEmpty || suppressWarnings) {
       v
     } else {
       throw UndefinedValException(warnings)
@@ -32,17 +37,34 @@ trait Eval {
 
   @tailrec
   private def evalPipeline(
-      s: StmNode,
+      pipe: StmPipeline,
       elems: Seq[Expr],
-      numInvalid: Int
+      invalidSteps: Int = 0,
+      maxInvalid: Int = MaxInvalidSteps
   ): Expr = {
-    s.state match {
-      case Empty =>
-        StmLiteral(elems.reverse: _*)(s.hw.typ)
-      case Valid(v) => evalPipeline(s.step(), v +: elems, numInvalid = 0)
-      case Stalled | Invalid =>
-        evalPipeline(s.step(), elems, numInvalid = numInvalid + 1)
-      case Deadlocked(rs) => throw new DeadlockError(rs)
+    if (pipe.isEmpty) {
+      StmLiteral(elems.reverse: _*)(pipe.typ)
+    } else if (pipe.isStuck) {
+      throw new DeadlockError(pipe.deadlockReasons.toSeq)
+    } else if (invalidSteps >= maxInvalid) {
+      throw new DeadlockError(Seq(TooManySteps))
+    } else {
+      pipe.sink.out match {
+        case Some(v) =>
+          evalPipeline(
+            pipe.step(),
+            v +: elems,
+            invalidSteps = 0,
+            maxInvalid = maxInvalid
+          )
+        case None =>
+          evalPipeline(
+            pipe.step(),
+            elems,
+            invalidSteps = invalidSteps + 1,
+            maxInvalid = maxInvalid
+          )
+      }
     }
   }
 
@@ -372,10 +394,8 @@ trait Eval {
         val warnings = elemValues.flatMap(v => v.warnings).toSet
         Value(v, warnings)
 
-      case s: StmBuild =>
-        Value(evalPipeline(StmNode(s), Seq(), 0), Set())
-      case s: StmLiteral =>
-        Value(evalPipeline(StmNode(stmLiteralToStmBuild(s)), Seq(), 0), Set())
+      case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
+        Value(evalPipeline(StmPipeline(s), Seq()), Set())
       case _: StmData =>
         throw new IllegalArgumentException(
           s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."

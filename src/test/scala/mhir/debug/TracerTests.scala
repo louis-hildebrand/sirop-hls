@@ -3,7 +3,6 @@ package mhir.debug
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
 class TracerTests extends AnyFunSuite {
@@ -28,6 +27,7 @@ class TracerTests extends AnyFunSuite {
   }
 
   test("Counter") {
+    mhir.ir.reset()
     val n = 3
     val i = Param("i", -1)(U8)
     val j = Param("j", -1)(U8)
@@ -42,20 +42,17 @@ class TracerTests extends AnyFunSuite {
     )().tchk().lower().asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(s)
-    val topTrace = Tracer.traceTop(s)
     if (SaveTraces) {
       save(fullTrace, "trace-all-counter.json")
-      save(topTrace, "trace-top-counter.json")
     } else {
       val expectedFullTrace = os.read(TracesDir / "trace-all-counter.json")
       assert(fullTrace.json == expectedFullTrace)
-      val expectedTopTrace = os.read(TracesDir / "trace-top-counter.json")
-      assert(topTrace.json == expectedTopTrace)
     }
     assume(!SaveTraces)
   }
 
   test("Stm2Vec") {
+    mhir.ir.reset()
     val n = IntCst(4)(U8)
     val i = Param("i", -1)(U8)
     val input =
@@ -92,20 +89,17 @@ class TracerTests extends AnyFunSuite {
     )().tchk().lower().asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(stm2vec)
-    val topTrace = Tracer.traceTop(stm2vec)
     if (SaveTraces) {
       save(fullTrace, "trace-all-stm2vec.json")
-      save(topTrace, "trace-top-stm2vec.json")
     } else {
       val expectedFullTrace = os.read(TracesDir / "trace-all-stm2vec.json")
       assert(fullTrace.json == expectedFullTrace)
-      val expectedTopTrace = os.read(TracesDir / "trace-top-stm2vec.json")
-      assert(topTrace.json == expectedTopTrace)
     }
     assume(!SaveTraces)
   }
 
   test("Interleave") {
+    mhir.ir.reset()
     val stm1 = {
       val i = Param("i", -1)(U8)
       StmBuild(
@@ -152,15 +146,11 @@ class TracerTests extends AnyFunSuite {
     }
 
     val fullTrace = Tracer.traceAll(s)
-    val topTrace = Tracer.traceTop(s)
     if (SaveTraces) {
       save(fullTrace, "trace-all-interleave.json")
-      save(topTrace, "trace-top-interleave.json")
     } else {
       val expectedFullTrace = os.read(TracesDir / "trace-all-interleave.json")
       assert(fullTrace.json == expectedFullTrace)
-      val expectedTopTrace = os.read(TracesDir / "trace-top-interleave.json")
-      assert(topTrace.json == expectedTopTrace)
     }
     assume(!SaveTraces)
   }
