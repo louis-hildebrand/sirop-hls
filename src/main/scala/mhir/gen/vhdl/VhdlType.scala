@@ -3,7 +3,7 @@ package mhir.gen.vhdl
 import mhir.debug.indent
 import mhir.ir._
 
-private[gen] sealed trait VhdlType {
+private[vhdl] sealed trait VhdlType {
 
   /** The VHDL code used to <i>refer to</i> this type, e.g., in signal
     * declarations.
@@ -27,9 +27,15 @@ private[gen] sealed trait VhdlType {
   /** The number of bits required by this type.
     */
   def bitWidth: Int
+
+  /** Constructs a `std_logic_vector` type with the same bit width as this type.
+    */
+  def toStdLogicVec: VhdlType = {
+    VhdlStdLogicVec(this.bitWidth)
+  }
 }
 
-private[gen] object VhdlType {
+private[vhdl] object VhdlType {
   def apply(t: Type): VhdlType = {
     t match {
       case TyUInt(w)        => VhdlUnsigned(w)
@@ -52,7 +58,7 @@ private[gen] object VhdlType {
   * @param width
   *   the bit width.
   */
-private[gen] case class VhdlSigned(width: Int) extends VhdlType {
+private[vhdl] case class VhdlSigned(width: Int) extends VhdlType {
   override def vhdlName: String = s"signed(${width - 1} downto 0)"
   override def vhdlTypeMark: String = "signed"
 
@@ -68,7 +74,7 @@ private[gen] case class VhdlSigned(width: Int) extends VhdlType {
   * @param width
   *   the bit width.
   */
-private[gen] case class VhdlUnsigned(width: Int) extends VhdlType {
+private[vhdl] case class VhdlUnsigned(width: Int) extends VhdlType {
   override def vhdlName: String = s"unsigned(${width - 1} downto 0)"
   override def vhdlTypeMark: String = "unsigned"
 
@@ -79,7 +85,7 @@ private[gen] case class VhdlUnsigned(width: Int) extends VhdlType {
   override def bitWidth: Int = width
 }
 
-private[gen] case object VhdlBool extends VhdlType {
+private[vhdl] case object VhdlBool extends VhdlType {
   override def vhdlName: String = "boolean"
 
   override def vhdlDefinition: Option[String] = None
@@ -89,7 +95,7 @@ private[gen] case object VhdlBool extends VhdlType {
   override def bitWidth: Int = 1
 }
 
-private[gen] case object VhdlStdLogic extends VhdlType {
+private[vhdl] case object VhdlStdLogic extends VhdlType {
   override def vhdlName: String = "std_logic"
 
   override def vhdlDefinition: Option[String] = None
@@ -99,7 +105,7 @@ private[gen] case object VhdlStdLogic extends VhdlType {
   override def bitWidth: Int = 1
 }
 
-private[gen] case class VhdlStdLogicVec(n: Int) extends VhdlType {
+private[vhdl] case class VhdlStdLogicVec(n: Int) extends VhdlType {
   override def vhdlName: String = s"std_logic_vector(${n - 1} downto 0)"
   override def vhdlTypeMark: String = "std_logic_vector"
 
@@ -110,7 +116,8 @@ private[gen] case class VhdlStdLogicVec(n: Int) extends VhdlType {
   override def bitWidth: Int = n
 }
 
-private[gen] case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
+private[vhdl] case class VhdlRecord(fieldTypes: Seq[VhdlType])
+    extends VhdlType {
   override def vhdlName: String = {
     val fieldTypeNames = fieldTypes
       .map(t => {
@@ -150,7 +157,7 @@ private[gen] case class VhdlRecord(fieldTypes: Seq[VhdlType]) extends VhdlType {
   override def bitWidth: Int = fieldTypes.map(t => t.bitWidth).sum
 }
 
-private[gen] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
+private[vhdl] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
   override def vhdlName: String = {
     val elemTypeName = t.vhdlName
     val strippedElemTypeName = if (elemTypeName.startsWith("\\")) {

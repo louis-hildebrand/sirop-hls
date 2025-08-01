@@ -59,14 +59,7 @@ object VhdlTestRunner {
   ): TestResult = {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
-    e match {
-      case s: StmBuild => VhdlGenerator.emitVhdl(s, VHDL_TEST_DIR)
-      case f: Function => VhdlGenerator.emitVhdl(f, VHDL_TEST_DIR)
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Only streams and functions are supported (got expression $e)."
-        )
-    }
+    VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR)
     VhdlTestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
     testExistingProject(VHDL_TEST_DIR)
   }

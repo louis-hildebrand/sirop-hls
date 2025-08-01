@@ -63,7 +63,7 @@ sealed trait StmNode {
 
   /** The IDs of the stream producers that provide input to this node.
     */
-  protected def producerIds: Set[StmNodeId] =
+  private def producerIds: Set[StmNodeId] =
     this.pipe.connections.inNeighbours(this.id)
 
   /** The stream producers that provide input to this node.
@@ -362,7 +362,7 @@ case class StmBufferNode(
   /** Whether this node can accept new input.
     */
   private def canUpdate: Boolean = {
-    !this.valid || this.transferOk
+    !this.valid || this.allConsumersReady
   }
 }
 
