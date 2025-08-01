@@ -244,6 +244,69 @@ class ExprTests extends AnyFunSuite {
     assert(actualInputStm.typ == TyStm(U8, 20))
   }
 
+  test("FreeVars:Function") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+
+    val f = Function(x, Sum(x, y)())()
+    assert(f.freeVars() == Set(y))
+
+    val e = f(x)
+    assert(e.freeVars() == Set(x, y))
+  }
+
+  test("FreeVars:StmBuild") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+    val c = Param("c")(TyBool)
+
+    // Accumulator variables are bound within the data, valid, and next
+    // expressions.
+    val s0 = StmBuild(
+      5,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)())
+      )
+    )().tchk()
+    assert(s0.freeVars() == Set(y, z, c))
+
+    // Accumulator variables are not found within the stream length.
+    val s1 = StmBuild(
+      x,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)())
+      )
+    )().tchk()
+    assert(s1.freeVars() == Set(x, y, z, c))
+
+    // Accumulator variables are not found within the accumulator seeds.
+    val s2 = StmBuild(
+      5,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (x, Sum(x, z)())
+      )
+    )().tchk()
+    assert(s2.freeVars() == Set(x, y, z, c))
+  }
+
+  test("FreeVars:LetStm") {
+    val x = Param("x")(TyStm(U8, 2))
+    val s = Param("s")(TyStm(U8, 2))
+
+    val e0 = LetStm(x, s, x)()
+    assert(e0.freeVars() == Set(s))
+
+    val e1 = LetStm(x, x, x)()
+    assert(e1.freeVars() == Set(x))
+  }
+
   test("VecAccess:Equals") {
     val v = Param("v")()
     val e0 = VecAccess(v, C(1)(U8))()

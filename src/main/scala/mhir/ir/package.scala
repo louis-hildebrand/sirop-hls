@@ -342,10 +342,14 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
     def contains[T <: Expr](cls: Class[T]): Boolean =
       this.contains(e => cls.isInstance(e))
 
+    /** Finds all the free variables in this expression.
+      */
     def freeVars(): Set[Param] = {
       this.expr match {
         case x: Param       => Set(x)
         case Function(x, e) => e.freeVars() - x
+        case LetStm(x, in, out) =>
+          in.freeVars() ++ (out.freeVars() - x)
         case stm @ StmBuild(n, data, valid, eqns) =>
           (
             // Free variables in the stream length and seeds are definitely free,
