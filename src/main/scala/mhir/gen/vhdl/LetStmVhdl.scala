@@ -23,7 +23,7 @@ private[vhdl] object LetStmVhdl {
     val LetStm(x, in, out) = let
 
     for (y <- inputs) {
-      val n = Tuple(in, out)().countOccurrences(y)
+      val n = Tuple(in, out)().countFreeOccurrences(y)
       if (n > 1) {
         throw new IllegalArgumentException(
           s"Input $y is used more than once."

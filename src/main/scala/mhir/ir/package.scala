@@ -422,18 +422,35 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       }
     }
 
-    /** Count the number of occurrences of expression `x` within this
-      * expression.
+    /** Count the number of times that `x` occurs free within this expression.
       *
       * @param x
-      *   the expression to search for.
+      *   the variable to search for.
       */
-    def countOccurrences(x: Param): Int = {
+    def countFreeOccurrences(x: Param): Int = {
       def count(e: Expr): Int = {
         if (e == x) {
           1
         } else {
-          e.children.map(count).sum
+          e match {
+            case Function(y, _) if y == x =>
+              0
+            case LetStm(y, in, _) if y == x =>
+              count(in)
+            case stm @ StmBuild(n, data, valid, equations) =>
+              val n0 =
+                count(n) + stm.seedByVar.map({ case (_, z) => count(z) }).sum
+              if (stm.accVars.contains(x)) {
+                n0
+              } else {
+                (n0
+                  + count(data)
+                  + count(valid)
+                  + stm.nextByVar.map({ case (_, next) => count(next) }).sum)
+              }
+            case e =>
+              e.children.map(count).sum
+          }
         }
       }
       count(this.expr)
