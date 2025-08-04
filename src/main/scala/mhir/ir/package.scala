@@ -232,8 +232,23 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 //       substitution (i.e., the value to be replaced)
                 val newX = x.freshCopy
                 Function(
+                  // TODO: What about substitutions in the type annotation,
+                  //       like with subPreserveType?
                   newX,
                   body.subAndEraseType(x -> newX).subAndEraseType(subs)
+                )()
+              case LetStm(x, in, out) =>
+                // Rename both
+                //   (1) to avoid variable capture and
+                //   (2) in case f.param appears free in the old value of a
+                //       substitution (i.e., the value to be replaced)
+                val newX = x.freshCopy
+                LetStm(
+                  newX,
+                  // TODO: What about substitutions in the type annotation,
+                  //       like with subPreserveType?
+                  in.subAndEraseType(subs),
+                  out.subAndEraseType(x -> newX).subAndEraseType(subs)
                 )()
               case s: StmBuild =>
                 // Rename both
@@ -293,9 +308,22 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 //       substitution (i.e., the value to be replaced)
                 val newX = x.freshCopy
                 Function(
+                  // There may be substitutions to do within the type annotation
                   newX.subPreserveType(subs).asInstanceOf[Param],
                   body.subPreserveType(x -> newX).subPreserveType(subs)
                 )(f.typ)
+              case let @ LetStm(x, in, out) =>
+                // Rename both
+                //   (1) to avoid variable capture and
+                //   (2) in case f.param appears free in the old value of a
+                //       substitution (i.e., the value to be replaced)
+                val newX = x.freshCopy
+                LetStm(
+                  // There may be substitutions to do within the type annotation
+                  newX.subPreserveType(subs).asInstanceOf[Param],
+                  in.subPreserveType(subs),
+                  out.subPreserveType(x -> newX).subPreserveType(subs)
+                )(let.typ)
               case s: StmBuild =>
                 // Rename both
                 //   (1) to avoid variable capture and

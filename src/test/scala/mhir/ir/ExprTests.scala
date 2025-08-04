@@ -2,7 +2,7 @@ package mhir.ir
 
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
-import mhir.sugar.{StmZip, VecShiftLeft}
+import mhir.sugar.{StmConcat, StmZip, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {
@@ -143,6 +143,26 @@ class ExprTests extends AnyFunSuite {
     assert(actual1 == expected)
     val actual2 = stm.subAndEraseType(subs)
     assert(actual2 == expected)
+  }
+
+  test("Substitute:LetStm") {
+    val n = 10
+    val s0 = Param("s0")(TyStm(U8, n))
+    val s1 = Param("s1")(TyStm(U8, n))
+    val e = LetStm(s0, s0, StmConcat(s0, s1)())().tchk()
+    val replacement = StmConcat(s0, s1)().tchk()
+    val subs = Map[Expr, Expr](s0 -> replacement, s1 -> replacement)
+    val expected = {
+      val s0New = Param("s0'")()
+      LetStm(s0New, replacement, StmConcat(s0New, replacement)())().tchk()
+    }
+
+    val actual0 = e.subPreserveType(subs)
+    assert(actual0 == expected)
+    assert(actual0.typ ~= expected.typ)
+
+    val actual1 = e.subAndEraseType(subs)
+    assert(actual1 == expected)
   }
 
   test("SubstituteInType1") {
