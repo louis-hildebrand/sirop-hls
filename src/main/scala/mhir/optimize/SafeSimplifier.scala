@@ -22,7 +22,13 @@ object SafeSimplifier {
   private def simplifyStreams(e: Expr): Expr = {
     val result = e match {
       case s: StmBuild =>
-        StmSimplifier.simplify(s)(FactSet())
+        val newEquations = s.equations.map({
+          case (x, (producer, next)) if x.typ.isInstanceOf[TyStm] =>
+            x -> (simplifyStreams(producer), next)
+          case eqn => eqn
+        })
+        val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
+        StmSimplifier.simplify(newS)(FactSet())
       case e =>
         e.map(simplifyStreams)
     }

@@ -430,9 +430,9 @@ object TyData {
 
   /** Checks whether the given type is data (as defined by [[Type.isData]]).
     */
-  def unapply(t: Type): Option[Unit] = {
+  def unapply(t: Type): Option[Type] = {
     if (t.isData) {
-      Some(())
+      Some(t)
     } else {
       None
     }

@@ -10,11 +10,15 @@ import scala.annotation.tailrec
 
 object AsFusedStm2Stm {
   def apply(f: Function): (Param, StmBuild) = {
-    val f1 = f.lower().streamify().asInstanceOf[Function]
+    val (x, stm) = f.lower().streamify() match {
+      case Function(x, stm: StmBuild) => (x, stm)
+      case _ =>
+        ???
+    }
     // It is essential to fuse everything.
     // If f is a chain of stream producers, we want to reset them all, not
     // just the last producer.
-    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
+    (x, stm.fuseCompletely())
   }
 }
 

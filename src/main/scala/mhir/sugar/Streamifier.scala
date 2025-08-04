@@ -1,10 +1,11 @@
 package mhir.sugar
 
-import mhir.ir.StreamFuser.StreamFusion
+import mhir.gen.vhdl.VhdlGenerator
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-import scala.annotation.tailrec
+import scala.collection.immutable.ListMap
 
 /** Transformation for converting a non-streaming program to a streaming
   * program.
@@ -21,78 +22,140 @@ import scala.annotation.tailrec
   * }}}
   */
 object Streamifier {
-  implicit class Streamify(expr: Expr) {
+  implicit class Streamify(func: Expr) {
     def streamify(): Expr = {
       require(
-        this.expr.hasType,
+        this.func.hasType,
         "Expression must be type-checked before it can be streamified."
       )
-      val f = Streamifier.streamify(this.expr, Seq())
+      val (inputList, stm) =
+        VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
+      val oldToNewInputs = ListMap(
+        inputList.map(x => x -> makeStreamParam(x)): _*
+      )
+      val newStm = stm match {
+        case e if e.typ.isData =>
+          streamifyScalar2Scalar(e, oldToNewInputs)
+        case x: Param if oldToNewInputs.contains(x) =>
+          wrapIdentity(x)
+        case _ =>
+          streamifyBody(stm, oldToNewInputs)
+      }
+      val f = rewrapTopLevelFunction(newStm, oldToNewInputs)
+      assert(
+        this.func.contains(classOf[SyntaxSugar])
+          || !f.contains(classOf[SyntaxSugar]),
+        s"streamification should not introduce syntax sugar if the original expression had none (found expression $f)"
+      )
       f.tchk()
     }
   }
 
-  @tailrec
-  private def streamify(e: Expr, inputs: Seq[Param]): Expr = {
-    e match {
-      case Function(x, body) =>
-        x.typ match {
-          case TyData(_) | _: TyStm => ()
-          case t =>
-            throw new IllegalArgumentException(
-              s"Functions with inputs of type $t are not supported."
-            )
-        }
-        streamify(body, inputs :+ x)
-      case e if e.typ.isData =>
-        streamifyScalar2Scalar(e, inputs)
+  private def rewrapTopLevelFunction(
+      stm: Expr,
+      oldToNewInputs: ListMap[Param, Param]
+  ): Expr = {
+    // Need to use LetStm for data inputs because the param may have multiple
+    // consumers
+    val withLets = oldToNewInputs.foldRight(stm)({ case ((oldX, newX), acc) =>
+      oldX.typ match {
+        case TyData(_) =>
+          LetStm(newX, newX, acc)()
+        case t =>
+          assert(t.isInstanceOf[TyStm])
+          acc
+      }
+    })
+    // Put back parameters
+    oldToNewInputs.foldRight(withLets)({ case ((_, newX), acc) =>
+      Function(newX, acc)()
+    })
+  }
+
+  private def makeStreamParam(x: Param): Param = {
+    x.typ match {
+      case _: TyStm  => x
+      case TyData(t) => x.rebuild(TyStm(t, 1)).asInstanceOf[Param]
+      case t =>
+        throw new IllegalArgumentException(
+          s"Functions with inputs of type $t are not supported."
+        )
+    }
+  }
+
+  private def streamifyBody(
+      stm: Expr,
+      oldToNewInputs: ListMap[Param, Param]
+  ): Expr = {
+    require(stm.typ.isInstanceOf[TyStm])
+    stm match {
+      case x: Param if oldToNewInputs.contains(x) =>
+        oldToNewInputs(x)
       case s: StmBuild =>
-        streamifyInputs(s, inputs)
-      case x: Param if inputs.contains(x) =>
-        wrapIdentity(x, inputs)
+        streamifyStmBuild(s, oldToNewInputs)
+      case LetStm(x, in, out) =>
+        LetStm(
+          x,
+          streamifyBody(in, oldToNewInputs),
+          streamifyBody(out, oldToNewInputs + (x -> x))
+        )()
       case e =>
         throw new IllegalArgumentException(s"Cannot streamify expression $e.")
     }
   }
 
-  private def streamifyScalar2Scalar(e: Expr, inputs: Seq[Param]): Expr = {
+  private def streamifyScalar2Scalar(
+      e: Expr,
+      oldToNewInputs: ListMap[Param, Param]
+  ): Expr = {
+    val oldInputs = oldToNewInputs.keys.toSeq
     require(
-      inputs.forall(x => x.typ.isData), {
+      oldInputs.forall(x => x.typ.isData), {
         val inputsStr =
-          inputs.map(x => s"${x.name}:${x.typ}").mkString(", ")
+          oldInputs.map(x => s"${x.name}:${x.typ}").mkString(", ")
         s"Cannot streamify function with data output type ${e.typ} but non-data inputs $inputsStr."
       }
     )
-    val newInputs = inputs
-      .map(x => x -> x.freshCopy.rebuild(TyStm(x.typ, 1)).asInstanceOf[Param])
-      .toMap
-    val newAccumulators = inputs
+    val newAccumulators = oldInputs
       .map(x => x -> x.freshCopy.rebuild(TyStm(x.typ, -1)).asInstanceOf[Param])
       .toMap
     val subs: Map[Expr, Expr] =
-      inputs.map(x => x -> StmData(newAccumulators(x))().tchk()).toMap
-    val stm = StmBuild(
+      oldInputs.map(x => x -> StmData(newAccumulators(x))().tchk()).toMap
+    StmBuild(
       C(1)(),
       e.subPreserveType(subs),
       True,
-      inputs
-        .map(x => newAccumulators(x) -> (newInputs(x), True))
+      oldInputs
+        .map(x => newAccumulators(x) -> (oldToNewInputs(x), True))
         .toMap
     )()
-    inputs.foldRight(stm: Expr)({ case (x, acc) =>
-      Function(newInputs(x), acc)()
-    })
   }
 
-  private def streamifyInputs(
+  private def streamifyStmBuild(
       originalStm: StmBuild,
-      inputs: Seq[Param]
+      oldToNewInputs: ListMap[Param, Param]
   ): Expr = {
-    if (inputs.forall(x => x.typ.isInstanceOf[TyStm])) {
+    val withStreamifiedProducers =
+      StmBuild(
+        originalStm.n,
+        originalStm.data,
+        originalStm.valid,
+        originalStm.equations.map({ case (x, (z, next)) =>
+          x.typ match {
+            case TyData(_) =>
+              x -> (z, next)
+            case _: TyStm =>
+              x -> (streamifyBody(z, oldToNewInputs), next)
+          }
+        })
+      )().tchk().asInstanceOf[StmBuild]
+    val oldInputs = oldToNewInputs.keys.toSeq
+    if (oldInputs.forall(_.typ.isInstanceOf[TyStm])) {
+      // TODO: Would it be more accurate to find which data inputs are used
+      //       directly in this StmBuild (as opposed to in a producer) and do
+      //       nothing in case there are no such inputs?
       // Inputs are already streams, so nothing to do
-      inputs.foldRight(originalStm: Expr)({ case (x, acc) =>
-        Function(x, acc)()
-      })
+      originalStm
     } else {
       // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
       // The scalar input to the original function (`f.param`) can appear in
@@ -107,35 +170,30 @@ object Streamifier {
       // Also use the default value for the seeds of the existing accumulators
       // and initialize them in the first step, since the seed may depend on
       // the input.
-      //
-      // Try to get rid of input streams by fusion in case they also depend on
-      // those inputs.
-      // TODO: Is there a better way than fusion?
-      val stm = originalStm.fuseCompletely()
 
       // For each input that is data rather than a stream, define:
-      // (1) new input param (a stream rather than data)
+      // (1) new input param whose type is a stream rather than data
+      //     - this is already provided as input
       // (2) new accumulator for the new input stream
       // (3) new accumulator to hold the value from the new input stream once
       //     it's been read
-      val (newInput, newStmAcc, newRegAcc) = {
-        val (a, b, c) = inputs
-          .flatMap(x =>
-            if (x.typ.isData) {
-              val in = x.freshCopy.rebuild(TyStm(x.typ, 1)).asInstanceOf[Param]
-              val s = Param(s"${x.prefix}_stm")(TyStm(x.typ, -1))
-              val reg = Param(s"${x.prefix}_data")(x.typ)
-              Some((x -> in, x -> s, x -> reg))
+      val (newStmAcc, newRegAcc) = {
+        val (a, b) = oldInputs
+          .flatMap(oldX =>
+            if (oldX.typ.isData) {
+              val s = Param(s"${oldX.prefix}_stm")(TyStm(oldX.typ, -1))
+              val reg = Param(s"${oldX.prefix}_data")(oldX.typ)
+              Some((oldX -> s, oldX -> reg))
             } else {
               None
             }
           )
-          .unzip3
-        (a.toMap, b.toMap, c.toMap)
+          .unzip
+        (a.toMap, b.toMap)
       }
 
       val isFirstStep = Param("is_first_step")(TyBool)
-      val subs = inputs
+      val subs = oldInputs
         .flatMap(x =>
           if (x.typ.isData) {
             val mux = Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
@@ -143,16 +201,17 @@ object Streamifier {
           } else None
         )
         .toMap[Expr, Expr]
-      val newData = stm.data.subPreserveType(subs)
-      val newValid = !isFirstStep && stm.valid.subPreserveType(subs)
+      val newData = withStreamifiedProducers.data.subPreserveType(subs)
+      val newValid =
+        !isFirstStep && withStreamifiedProducers.valid.subPreserveType(subs)
       val newEquations = {
-        val equationsToAdd = (inputs
+        val equationsToAdd = (oldInputs
           .flatMap(x =>
             if (x.typ.isData) {
               Seq(
-                newStmAcc(x) -> (newInput(x), isFirstStep),
+                newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
                 newRegAcc(x) -> (
-                  Default(x.typ),
+                  Default(x.typ).tchk().lower(),
                   Mux(
                     isFirstStep,
                     StmData(newStmAcc(x))(),
@@ -166,32 +225,30 @@ object Streamifier {
           )
           .toMap
           + (isFirstStep -> (True, False)))
-        val updatedOldEquations = stm.equations.map({ case (x, (z, next)) =>
-          // TODO: Only make the seed default[T] if it actually depends on at
-          //       least one input?
-          if (x.typ.isData) {
-            val newNext = Mux(
-              isFirstStep,
-              z.subPreserveType(subs),
-              next.subPreserveType(subs)
-            )()
-            x -> (Default(x.typ), newNext)
-          } else {
-            x -> (z, Mux(isFirstStep, False, next.subPreserveType(subs))())
-          }
-        })
+        val updatedOldEquations =
+          withStreamifiedProducers.equations.map({ case (x, (z, next)) =>
+            // TODO: Only make the seed default[T] if it actually depends on at
+            //       least one input?
+            if (x.typ.isData) {
+              val newNext = Mux(
+                isFirstStep,
+                z.subPreserveType(subs),
+                next.subPreserveType(subs)
+              )()
+              x -> (Default(x.typ).tchk().lower(), newNext)
+            } else {
+              x -> (z, Mux(isFirstStep, False, next.subPreserveType(subs))())
+            }
+          })
         updatedOldEquations ++ equationsToAdd
       }
-      val newStm = StmBuild(stm.n, newData, newValid, newEquations)()
-      inputs.foldRight(newStm: Expr)({ case (x, acc) =>
-        Function(newInput.getOrElse(x, x), acc)()
-      })
+      StmBuild(withStreamifiedProducers.n, newData, newValid, newEquations)()
     }
   }
 
-  private def wrapIdentity(x: Param, inputs: Seq[Param]): Expr = {
-    require(inputs.contains(x))
+  private def wrapIdentity(x: Param): Expr = {
     // e.g., (s : Stm[T, n]) => s
+    // e.g., let s = ... in s
     // The hardware generator needs the body of the function to be a
     // StmBuild.
     // Similarly, the lowering passes for StmMap and StmScanInclusive
@@ -205,7 +262,7 @@ object Streamifier {
     )
     val typ = x.typ.asInstanceOf[TyStm]
     val y = x.freshCopy
-    val stm = StmBuild(
+    StmBuild(
       typ.n,
       StmData(y)(),
       True,
@@ -213,6 +270,5 @@ object Streamifier {
         y -> (x, True)
       )
     )()
-    inputs.foldRight(stm: Expr)({ case (x, acc) => Function(x, acc)() })
   }
 }

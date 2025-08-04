@@ -22,22 +22,27 @@ object VhdlGenerator {
     */
   def emitVhdl(f: Expr, dir: Path): Unit = {
     validateExpr(f)
-    val (inputs, stm) = f match {
-      case f: Function => unwrapTopLevelFunction(f)
-      case e           => (Seq(), e)
-    }
+    val (inputs, stm) = unwrapTopLevelFunction(f, rename = true)
     val topComponent = AnyStmVhdl(stm, inputs.toSet, "top")
     VhdlWriter.emit(topComponent, dir)
   }
 
-  def unwrapTopLevelFunction(f: Function): (Seq[Param], Expr) = {
+  // TODO: Move this somewhere else, since it's used in many places?
+  def unwrapTopLevelFunction(
+      f: Expr,
+      rename: Boolean
+  ): (Seq[Param], Expr) = {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
       e match {
         case Function(x, e) =>
-          val y = Param(s"I${inputs.length}", -1)(x.typ)
-          assert(!e.freeVars().contains(y))
-          unwrap(e.subPreserveType(x -> y), y +: inputs)
+          if (rename) {
+            val y = Param(s"I${inputs.length}", -1)(x.typ)
+            assert(!e.freeVars().contains(y))
+            unwrap(e.subPreserveType(x -> y), y +: inputs)
+          } else {
+            unwrap(e, x +: inputs)
+          }
         case e =>
           (inputs, e)
       }
@@ -53,7 +58,7 @@ object VhdlGenerator {
     (inputSeq.reverse, stm)
   }
 
-  private def validateExpr(e: Expr): Unit = {
+  def validateExpr(e: Expr): Unit = {
     require(
       e.typ != Missing,
       "Expression must be type checked before hardware generation."
@@ -66,6 +71,24 @@ object VhdlGenerator {
       e.freeVars().isEmpty,
       s"Cannot generate hardware for expression with free variables (${e.freeVars()})."
     )
+    val (inputs, stm) = e match {
+      case f: Function => unwrapTopLevelFunction(f, rename = false)
+      case e           => (Seq(), e)
+    }
+    for (x <- inputs) {
+      require(
+        x.typ.isInstanceOf[TyStm],
+        s"Top-level parameter has type ${x.typ}."
+          + " All top-level parameters must be streams."
+      )
+      val numOccurrences = stm.countFreeOccurrences(x)
+      require(
+        numOccurrences <= 1,
+        s"Top-level parameter $x is used $numOccurrences times."
+          + " No top-level parameter should be used more than once."
+          + " To describe a stream with multiple consumers, consider using LetStm."
+      )
+    }
   }
 
   def valueToStdLogicVector(v: Expr): String = {

@@ -236,7 +236,7 @@ object VhdlTestbenchGenerator {
   ): (TestOutput, Map[Param, TestInput]) = {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
-      case f: Function => VhdlGenerator.unwrapTopLevelFunction(f)
+      case f: Function => VhdlGenerator.unwrapTopLevelFunction(f, rename = true)
       case e =>
         throw new IllegalArgumentException(
           s"I don't know how to find expected output for expression $e."
