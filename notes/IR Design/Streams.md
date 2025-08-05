@@ -275,7 +275,9 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
 			- No dependency on the `valid` signal of the producer, nor on the `ready` signal of the consumer
 				- This works as long as the buffer has exactly one producer and at most one consumer
 		- *Solution 2:* insert one shared buffer, keep track of which consumers have read the value, continue once all consumers have read?
-			- *Advantages:* probably less memory use (as long as you don't have a massive number of consumers)
+			- *Advantages:*
+				- Probably less memory use (as long as you don't have a massive number of consumers)
+				- A bit easier to write the fusion rule based on this solution?
 			- *Disadvantage:*
 				- More complex hardware generation?
 					- With solution 1 you can write a generic VHDL entity for the buffer, whereas here the buffer would need to support an arbitrary number of consumers

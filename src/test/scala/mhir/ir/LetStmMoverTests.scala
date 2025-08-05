@@ -1,7 +1,6 @@
-package mhir.sugar
+package mhir.ir
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 

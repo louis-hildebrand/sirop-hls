@@ -41,14 +41,14 @@ object Tracer {
       Trace(
         structure = pipe.connections,
         sink = pipe.sinkId,
-        trace(pipe, Seq(), maxCycles)
+        steps = trace(pipe, Seq(), maxCycles)
       )
     } catch {
       case ex: EvalException =>
         Trace(
           structure = pipe.connections,
           sink = pipe.sinkId,
-          Seq(ErrorTraceStep(ex))
+          steps = Seq(ErrorTraceStep(ex))
         )
     }
   }

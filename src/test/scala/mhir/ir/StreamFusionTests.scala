@@ -1,7 +1,8 @@
 package mhir.ir
 
+import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.StreamFuser.{StmBuildFusion, StreamFusion}
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,7 +33,7 @@ class StreamFusionTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (counter, True)
         )
-      )().tchk().asInstanceOf[StmBuild]
+      )().tchk().lower().asInstanceOf[StmBuild]
     }
     val fused = original.fuseCompletely()
 
@@ -205,5 +206,61 @@ class StreamFusionTests extends AnyFunSuite {
     assert(!actual3.accVars.contains(x2))
     assert(!actual3.seedByVar.exists({ case (_, z) => z == c1 }))
     assert(!actual3.seedByVar.exists({ case (_, z) => z == c2 }))
+  }
+
+  test("LetStm:FuseCompletely:InterleaveSelf") {
+    val n = 10
+    val input = Param("input")(TyStm(U8, n))
+    val s = Param("s")()
+    // If
+    //   s = [a, b, c, ...]
+    // Then the interleaved stream will be
+    //   interleave3(s) = [a, a, a, b, b, b, c, c, c, ...]
+    val interleave3 = (s: Expr) => {
+      val t = Param("t")(U8)
+      val s0 = Param("s0")(TyStm(U8, n))
+      val s1 = Param("s1")(TyStm(U8, n))
+      val s2 = Param("s2")(TyStm(U8, n))
+      StmBuild(
+        3 * n,
+        Mux(
+          t equ C(0)(U8),
+          StmData(s0)(),
+          Mux(t equ C(1)(U8), StmData(s1)(), StmData(s2)())()
+        )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          t -> (C(0)(U8), Mux(t equ C(2)(U8), C(0)(U8), Sum(C(1)(U8), t)())()),
+          s0 -> (s, t equ C(0)(U8)),
+          s1 -> (s, t equ C(1)(U8)),
+          s2 -> (s, t equ C(2)(U8))
+        )
+      )()
+    }
+    val original = LetStm(s, input, interleave3(s))().tchk().lower()
+
+    val fused = original.fuseCompletely()
+
+    // Correct behaviour
+    val examples = Seq(
+      StmLiteral((0 until n).map(t => C(t)(U8)): _*)().tchk(),
+      StmLiteral((0 until n).map(t => C(t * t)(U8)): _*)().tchk(),
+      StmLiteral((0 until n).map(t => C(t % 3)(U8)): _*)().tchk()
+    )
+    for (stm <- examples) {
+      val expected = mhir.ir.eval(LetStm(input, stm, original)())
+      val actual = mhir.ir.eval(LetStm(input, stm, fused)())
+      assert(actual == expected)
+    }
+
+    // Successful fusion
+    assert(fused.hasType)
+    assert(
+      fused.seedByVar.forall({ case (x, z) =>
+        z == input || !x.typ.isInstanceOf[TyStm]
+      })
+    )
+
+    VhdlGenerator.validateExpr(Function(input, fused)().tchk())
   }
 }

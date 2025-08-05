@@ -1,6 +1,5 @@
-package mhir.sugar
+package mhir.ir
 
-import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 /** Transformations for moving [[mhir.ir.LetStm]] around within an expression.
