@@ -269,11 +269,18 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
 		- In general, the consumer's `ready` signal depends on the producers' `valid` signals
 		- In this case, the duplicated stream must wait until all its producers are ready - so its `valid` signal depends on the consumers' `ready` signals
 		- If consumer is waiting for producer and producer is waiting for consumer, then there will be a deadlock!
-		- *Solution:* insert single-element buffers before each consumer
+		- *Solution 1:* insert single-element buffers before each consumer
 			- The buffer raises its `ready` signal whenever it has no elements
 			- The buffer raises its `valid` signal whenever it has an element
 			- No dependency on the `valid` signal of the producer, nor on the `ready` signal of the consumer
 				- This works as long as the buffer has exactly one producer and at most one consumer
+		- *Solution 2:* insert one shared buffer, keep track of which consumers have read the value, continue once all consumers have read?
+			- *Advantages:* probably less memory use (as long as you don't have a massive number of consumers)
+			- *Disadvantage:*
+				- More complex hardware generation?
+					- With solution 1 you can write a generic VHDL entity for the buffer, whereas here the buffer would need to support an arbitrary number of consumers
+					- With solution 2, the buffer would need to remember to lower the `valid` signal for consumers who have already read the current value
+			- ==TODO:== maybe this would be worth trying out
 	- ... due to the consumers having incompatible access patterns
 		- e.g., `StmConcat(s, s)` (stream gets read twice, which is not valid)
 		- e.g., `StmZip(StmPrefix(s, 2), StmSuffix(s, 2))` (first element must be available at the same step as second-last element, which will not be the case for a stream of length >= 3)
