@@ -868,8 +868,42 @@ case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
 /** Bind a name to an input stream and use that name, possibly many times, to
   * produce an output stream.
   *
-  * [[LetStm]] makes it possible to describe graphs of stream components, in
-  * which one stream producer may have multiple consumers.
+  * [[LetStm]] makes it possible to describe graphs of stream components in
+  * which some stream producers have multiple consumers.
+  *
+  * ==Restrictions==
+  *
+  * Consumers can read a given element from the shared stream at different clock
+  * cycles. However, all consumers must accept a given element from the shared
+  * stream before the next one becomes available.
+  *
+  * ===Valid Example===
+  *
+  * The following expression is valid, even though the `StmMap` introduces a
+  * delay of one cycle compared to directly reading the stream.
+  * {{{
+  *     let stm s = ... in
+  *     StmZip(s, StmMap(s, _ + 5))
+  * }}}
+  * The hardware implementation of this [[LetStm]] must include at least one
+  * buffer to hold the current element while it is passed through
+  * [[mhir.sugar.StmMap]]. However, the buffer only needs to hold one element at
+  * a time.
+  *
+  * ===Invalid Example===
+  *
+  * The following example is invalid because the shared stream is read out of
+  * order (assuming the shared stream has at least two elements).
+  * {{{
+  *     let stm s = ... in
+  *     StmConcat(s, s)
+  * }}}
+  * The hardware implementation of this design would need to involve reading the
+  * entire stream into some kind of memory (e.g., a shift register). Since this
+  * may be expensive, it must be handled explicitly. This particular example can
+  * instead be described using [[mhir.sugar.StmRepeat]], which reads the input
+  * stream into a shift register and then repeatedly reads from the shift
+  * register.
   *
   * @param x
   *   name for the input stream.

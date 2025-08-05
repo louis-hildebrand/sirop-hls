@@ -183,6 +183,20 @@ class StreamifierTests extends AnyFunSuite {
     VhdlGenerator.validateExpr(actual)
   }
 
+  test("c => StmConcat(StmCst(3, c), StmCst(5, c))") {
+    val f =
+      (U8 ::+ (c => StmConcat(StmCst(3, c)(), StmCst(5, c)())())).tchk().lower()
+    val actual = f.streamify().asInstanceOf[Function]
+    val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
+    for (c <- examples) {
+      val cStm = StmLiteral(c)()
+      val actualVal = mhir.ir.eval(LetStm(actual.param, cStm, actual.body)())
+      val expectedVal = mhir.ir.eval(f(c))
+      assert(actualVal == expectedVal)
+    }
+    VhdlGenerator.validateExpr(actual)
+  }
+
   test("u8 -> Stm[i16, 10] -> Stm[(u8, i16), 10]") {
     val n = 10
     val f = (U8 ::+ (c =>

@@ -57,6 +57,8 @@ object Streamifier {
   ): Expr = {
     // Need to use LetStm for data inputs because the param may have multiple
     // consumers
+    // Is it valid to use LetStm here? Yes. The shared stream has only one
+    // element, so obviously the consumers will never read it out of order.
     val withLets = oldToNewInputs.foldRight(stm)({ case ((oldX, newX), acc) =>
       oldX.typ match {
         case TyData(_) =>
