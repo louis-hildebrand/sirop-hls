@@ -211,45 +211,79 @@ class StreamFusionTests extends AnyFunSuite {
   test("LetStm:FuseCompletely:InterleaveSelf") {
     val n = 10
     val input = Param("input")(TyStm(U8, n))
-    val s = Param("s")()
+    val stmId = (s: Expr) => {
+      val sAcc = Param("s")(TyStm(U8, n))
+      StmBuild(
+        n,
+        StmData(sAcc)(),
+        True,
+        Map[Param, (Expr, Expr)](sAcc -> (s, True))
+      )()
+    }
     // If
-    //   s = [a, b, c, ...]
+    //   sA = [a, b, c, ...]
+    // and
+    //   sB = [z, y, x, ...]
     // Then the interleaved stream will be
-    //   interleave3(s) = [a, a, a, b, b, b, c, c, c, ...]
-    val interleave3 = (s: Expr) => {
+    //   interleave(s) = [a, a, a, z, b, b, b, y, c, c, c, x, ...]
+    val interleave = (sA: Expr, sB: Expr) => {
       val t = Param("t")(U8)
       val s0 = Param("s0")(TyStm(U8, n))
       val s1 = Param("s1")(TyStm(U8, n))
       val s2 = Param("s2")(TyStm(U8, n))
+      val s3 = Param("s3")(TyStm(U8, n))
       StmBuild(
         3 * n,
         Mux(
           t equ C(0)(U8),
           StmData(s0)(),
-          Mux(t equ C(1)(U8), StmData(s1)(), StmData(s2)())()
+          Mux(
+            t equ C(1)(U8),
+            StmData(s1)(),
+            Mux(t equ C(2)(U8), StmData(s2)(), StmData(s3)())()
+          )()
         )(),
         True,
         Map[Param, (Expr, Expr)](
-          t -> (C(0)(U8), Mux(t equ C(2)(U8), C(0)(U8), Sum(C(1)(U8), t)())()),
-          s0 -> (s, t equ C(0)(U8)),
-          s1 -> (s, t equ C(1)(U8)),
-          s2 -> (s, t equ C(2)(U8))
+          t -> (
+            C(0)(U8),
+            Mux(
+              t equ C(3)(U8),
+              C(0)(U8),
+              Sum(C(1)(U8), t)()
+            )()
+          ),
+          s0 -> (stmId(sA), t equ C(0)(U8)),
+          s1 -> (sA, t equ C(1)(U8)),
+          s2 -> (sA, t equ C(2)(U8)),
+          s3 -> (sB, t equ C(3)(U8))
         )
       )()
     }
-    val original = LetStm(s, input, interleave3(s))().tchk().lower()
+    val sA = Param("s_a")()
+    val sB = Param("s_b")(TyStm(U8, n))
+    val original = LetStm(sA, input, interleave(sA, sB))().tchk().lower()
 
     val fused = original.fuseCompletely()
 
     // Correct behaviour
     val examples = Seq(
-      StmLiteral((0 until n).map(t => C(t)(U8)): _*)().tchk(),
-      StmLiteral((0 until n).map(t => C(t * t)(U8)): _*)().tchk(),
-      StmLiteral((0 until n).map(t => C(t % 3)(U8)): _*)().tchk()
+      (
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
+      ),
+      (
+        StmLiteral((0 until n).map(t => C(t * t)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
+      ),
+      (
+        StmLiteral((0 until n).map(t => C(t % 3)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
+      )
     )
-    for (stm <- examples) {
-      val expected = mhir.ir.eval(LetStm(input, stm, original)())
-      val actual = mhir.ir.eval(LetStm(input, stm, fused)())
+    for ((a, b) <- examples) {
+      val expected = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, original)())())
+      val actual = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, fused)())())
       assert(actual == expected)
     }
 
@@ -257,10 +291,10 @@ class StreamFusionTests extends AnyFunSuite {
     assert(fused.hasType)
     assert(
       fused.seedByVar.forall({ case (x, z) =>
-        z == input || !x.typ.isInstanceOf[TyStm]
+        z == input || z == sB || !x.typ.isInstanceOf[TyStm]
       })
     )
 
-    VhdlGenerator.validateExpr(Function(input, fused)().tchk())
+    VhdlGenerator.validateExpr(Function(input, Function(sB, fused)())().tchk())
   }
 }

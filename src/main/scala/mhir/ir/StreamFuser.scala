@@ -155,22 +155,25 @@ object StreamFuser {
           .filter({ case (x, _) => !varsToRemove.contains(x) })
           .map({ case (x, (z, next)) =>
             val newZ = z // shouldn't refer to the producer anyway
-            val newNext = Mux(bufValid, next.subPreserveType(subs), x)()
+            val newNext = Mux(
+              bufValid,
+              next.subPreserveType(subs),
+              x.typ match {
+                case _: TyStm => False
+                case _        => x
+              }
+            )()
             x -> (newZ, newNext)
           })
         updatedOldEquations ++ equationsToAdd
       }
-      val result = StmBuild(
-        newN,
-        newData,
-        newValid,
-        newEquations
-      )().tchk().asInstanceOf[StmBuild]
+      val result = StmBuild(newN, newData, newValid, newEquations)()
+      val checkedResult = result.tchk().asInstanceOf[StmBuild]
       assert(
-        !result.contains(classOf[SyntaxSugar]),
+        !checkedResult.contains(classOf[SyntaxSugar]),
         "no syntax sugar should be introduced by deduplicating StmBuild producers"
       )
-      result
+      checkedResult
     }
   }
 
