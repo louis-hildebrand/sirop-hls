@@ -61,8 +61,10 @@ object LetStmMover {
           x match {
             case Some(x) =>
               val LetStm(y, in, out) = s.seedByVar(x).asInstanceOf[LetStm]
+              val newY = y.freshCopy
+              val newOut = out.tchk().subPreserveType(y -> newY)
               LetStm(
-                y,
+                newY,
                 in,
                 pullOutLet(
                   StmBuild(
@@ -71,7 +73,7 @@ object LetStmMover {
                     s.valid,
                     s.equations.map({ case (x2, (z, next)) =>
                       if (x2 == x) {
-                        x2 -> (out, next)
+                        x2 -> (newOut, next)
                       } else {
                         x2 -> (z, next)
                       }

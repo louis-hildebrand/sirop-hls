@@ -72,64 +72,87 @@ class LetStmMoverTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VariableCapture") {
+  test("VariableCapture:LetStm") {
     val n = 6
     val a = Param("a")(TyStm(U8, n))
     val b = Param("b")(TyStm(U8, n))
-    val i = Param("i")(U8)
-    val s0 = Param("s0")(TyStm(U8, n))
-    val s1 = Param("s1")(TyStm(U8, n))
     // let a = (let b = ...) in StmZip(a, b) <-- b is free!
-    val original =
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        n,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(42)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val zipped = {
+      val s0 = Param("s0")(TyStm(U8, n))
+      val s1 = Param("s1")(TyStm(U8, n))
+      StmBuild(
+        n,
+        Tuple(StmData(s0)(), StmData(s1)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s0 -> (a, True),
+          s1 -> (b, True)
+        )
+      )()
+    }
+    val original = LetStm(a, LetStm(b, count, b)(), zipped)().tchk().lower()
+    val actual = LetStmMover.moveUp(original)
+    val expected = {
+      // Rename the bound variable, but not the one inside `zipped`
+      val b2 = Param("b")(TyStm(U8, n))
+      LetStm(b2, count, LetStm(a, b2, zipped)())().tchk()
+    }
+    assert(actual == expected)
+  }
+
+  test("VariableCapture:StmBuild") {
+    val n = 5
+    val b = Param("b")()
+    val s0 = Param("s0")(TyStm(U8, n))
+    val s1 = Param("s1")(TyStm(TyBool, n))
+    // StmZip(let b = ..., b) <-- b is free!
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        n,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(42)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val original = StmBuild(
+      n,
+      Tuple(StmData(s0)(), StmData(s1)())(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s0 -> (LetStm(b, count, b)(), True),
+        s1 -> (b.rebuild(TyStm(TyBool, n)), True)
+      )
+    )().tchk().lower()
+    val actual = LetStmMover.moveUp(original)
+    val expected = {
+      val b2 = Param("b")()
       LetStm(
-        a,
-        LetStm(
-          b,
-          StmBuild(
-            n,
-            i,
-            True,
-            Map[Param, (Expr, Expr)](
-              i -> (C(42)(U8), C(1)(U8) + i)
-            )
-          )(),
-          b
-        )(),
+        b2,
+        count,
         StmBuild(
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map[Param, (Expr, Expr)](
-            s0 -> (a, True),
-            s1 -> (b, True)
+            // Rename this occurrence of `b`
+            s0 -> (b2, True),
+            // Don't rename this occurrence of `b`
+            s1 -> (b.rebuild(TyStm(TyBool, n)), True)
           )
-        )()
-      )().tchk().lower()
-    val actual = LetStmMover.moveUp(original)
-    val expected = {
-      val b2 = Param("b")(TyStm(U8, n))
-      LetStm(
-        b2,
-        StmBuild(
-          n,
-          i,
-          True,
-          Map[Param, (Expr, Expr)](
-            i -> (C(42)(U8), Sum(C(1)(U8), i)())
-          )
-        )(),
-        LetStm(
-          a,
-          b2,
-          StmBuild(
-            n,
-            Tuple(StmData(s0)(), StmData(s1)())(),
-            True,
-            Map[Param, (Expr, Expr)](
-              s0 -> (a, True),
-              s1 -> (b, True)
-            )
-          )()
         )()
       )().tchk()
     }
