@@ -93,6 +93,9 @@ object Streamifier {
     stm match {
       case x: Param if oldToNewInputs.contains(x) =>
         oldToNewInputs(x)
+      case x: Param =>
+        // Leave free variables as-is
+        x
       case s: StmBuild =>
         streamifyStmBuild(s, oldToNewInputs)
       case LetStm(x, in, out) =>
