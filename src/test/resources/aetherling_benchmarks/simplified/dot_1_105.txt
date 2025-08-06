@@ -1,53 +1,45 @@
-(I0_151 : Stm[Vec[u16, 8:u4], 105:u7]) =>
-  (I1_191 : Stm[Vec[u16, 8:u4], 105:u7]) =>
+(I0 : Stm[Vec[u16, 8:u4], 105:u7]) =>
+  (I1 : Stm[Vec[u16, 8:u4], 105:u7]) =>
     sbuild(
       1:u1;
-      data(x_211)[0:u0];
+      data(x)[0:u0];
       true;
-      (x_211 : Stm[Vec[u16, 1:u1], -1:i1]) = (
+      (x : Stm[Vec[u16, 1:u1], -1:i1]) = (
         sbuild(
           1:u1;
-          vbuild(1:u1, (x_217 : u8) => acc_215 + data(s_214)[0:u0]);
-          t_213 == 104:u7;
-          (acc_215 : u16) = (
+          vbuild(1:u1, (i : u8) => acc + data(s)[0:u0]);
+          t == 104:u7;
+          (acc : u16) = (
             0:u16,
-            if (first_step_212) then {
-              data(s_214)[0:u0]
-            } else {
-              acc_215 + data(s_214)[0:u0]
-            }
+            if (first_step) then { data(s)[0:u0] } else { acc + data(s)[0:u0] }
           );
-          (first_step_212 : bool) = (
+          (first_step : bool) = (
             true,
             false
           );
-          (s_214 : Stm[Vec[u16, 1:u1], 105:u7]) = (
+          (s : Stm[Vec[u16, 1:u1], 105:u7]) = (
             sbuild(
               105:u7;
               vbuild(
                 1:u1,
-                (x_222 : u8) =>
-                  ((data(I_218)[0:u0] + data(I_218)[1:u1])
-                    + (data(I_218)[2:u2] + data(I_218)[3:u2]))
-                    + ((data(I_218)[4:u3] + data(I_218)[5:u3])
-                      + (data(I_218)[6:u3] + data(I_218)[7:u3]))
+                (i : u8) =>
+                  ((data(I)[0:u0] + data(I)[1:u1])
+                    + (data(I)[2:u2] + data(I)[3:u2]))
+                    + ((data(I)[4:u3] + data(I)[5:u3])
+                      + (data(I)[6:u3] + data(I)[7:u3]))
               );
               true;
-              (I_218 : Stm[Vec[u16, 8:u4], -1:i1]) = (
+              (I : Stm[Vec[u16, 8:u4], -1:i1]) = (
                 sbuild(
                   105:u7;
-                  vbuild(
-                    8:u4,
-                    (x_229 : u32) =>
-                      data(I0_224)[x_229] * data(I1_225)[x_229]
-                  );
+                  vbuild(8:u4, (i : u32) => data(I0)[i] * data(I1)[i]);
                   true;
-                  (I0_224 : Stm[Vec[u16, 8:u4], -1:i1]) = (
-                    I0_151,
+                  (I0 : Stm[Vec[u16, 8:u4], -1:i1]) = (
+                    I0,
                     true
                   );
-                  (I1_225 : Stm[Vec[u16, 8:u4], -1:i1]) = (
-                    I1_191,
+                  (I1 : Stm[Vec[u16, 8:u4], -1:i1]) = (
+                    I1,
                     true
                   );
                 ),
@@ -56,9 +48,9 @@
             ),
             true
           );
-          (t_213 : u7) = (
+          (t : u7) = (
             0:u7,
-            1:u7 + t_213
+            1:u7 + t
           );
         ),
         true

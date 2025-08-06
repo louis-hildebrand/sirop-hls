@@ -1,35 +1,35 @@
-(I0_40 : Stm[u16, 840:u10]) =>
-  (I1_60 : Stm[u16, 840:u10]) =>
+(I0 : Stm[u16, 840:u10]) =>
+  (I1 : Stm[u16, 840:u10]) =>
     sbuild(
       1:u1;
-      acc_73 + data(s_72);
-      t_71 == 839:u10;
-      (acc_73 : u16) = (
+      acc + data(s);
+      t == 839:u10;
+      (acc : u16) = (
         0:u16,
-        if (first_step_70) then { data(s_72) } else { acc_73 + data(s_72) }
+        if (first_step) then { data(s) } else { acc + data(s) }
       );
-      (first_step_70 : bool) = (
+      (first_step : bool) = (
         true,
         false
       );
-      (s_72 : Stm[u16, 840:u10]) = (
+      (s : Stm[u16, 840:u10]) = (
         sbuild(
           840:u10;
-          data(I0_78) * data(I1_76);
+          data(I0) * data(I1);
           true;
-          (I0_78 : Stm[u16, -1:i1]) = (
-            I0_40,
+          (I0 : Stm[u16, -1:i1]) = (
+            I0,
             true
           );
-          (I1_76 : Stm[u16, -1:i1]) = (
-            I1_60,
+          (I1 : Stm[u16, -1:i1]) = (
+            I1,
             true
           );
         ),
         true
       );
-      (t_71 : u10) = (
+      (t : u10) = (
         0:u10,
-        1:u10 + t_71
+        1:u10 + t
       );
     )

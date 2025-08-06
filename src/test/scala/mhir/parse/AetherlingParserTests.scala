@@ -3,6 +3,7 @@ package mhir.parse
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
+import mhir.optimize.{NameSimplifier => NS}
 import os.Path
 
 class AetherlingParserTests extends AnyFunSuite {
@@ -48,10 +49,11 @@ class AetherlingParserTests extends AnyFunSuite {
   for (f <- files) {
     test(f.baseName) {
       val code = os.read(f)
-      val unchecked = AetherlingParser.parse(code)
       val parsed = AetherlingParser.parse(code).tchk()
       val actual =
-        s"// Output type: ${parsed.typ.toString}\n${ExprPrinter.display(parsed)}\n"
+        (s"// Output type: ${parsed.typ.toString}"
+          + s"\n${ExprPrinter.display(NS.simplify(parsed))}"
+          + "\n")
       val expectedPath = ParsedCodeDir / s"${f.baseName}.txt"
       if (SaveOutput) {
         save(expectedPath, actual)

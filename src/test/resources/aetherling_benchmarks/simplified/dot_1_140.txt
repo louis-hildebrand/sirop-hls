@@ -1,53 +1,43 @@
-(I0_139 : Stm[Vec[u16, 6:u3], 140:u8]) =>
-  (I1_179 : Stm[Vec[u16, 6:u3], 140:u8]) =>
+(I0 : Stm[Vec[u16, 6:u3], 140:u8]) =>
+  (I1 : Stm[Vec[u16, 6:u3], 140:u8]) =>
     sbuild(
       1:u1;
-      data(x_199)[0:u0];
+      data(x)[0:u0];
       true;
-      (x_199 : Stm[Vec[u16, 1:u1], -1:i1]) = (
+      (x : Stm[Vec[u16, 1:u1], -1:i1]) = (
         sbuild(
           1:u1;
-          vbuild(1:u1, (x_205 : u8) => acc_203 + data(s_202)[0:u0]);
-          t_201 == 139:u8;
-          (acc_203 : u16) = (
+          vbuild(1:u1, (i : u8) => acc + data(s)[0:u0]);
+          t == 139:u8;
+          (acc : u16) = (
             0:u16,
-            if (first_step_200) then {
-              data(s_202)[0:u0]
-            } else {
-              acc_203 + data(s_202)[0:u0]
-            }
+            if (first_step) then { data(s)[0:u0] } else { acc + data(s)[0:u0] }
           );
-          (first_step_200 : bool) = (
+          (first_step : bool) = (
             true,
             false
           );
-          (s_202 : Stm[Vec[u16, 1:u1], 140:u8]) = (
+          (s : Stm[Vec[u16, 1:u1], 140:u8]) = (
             sbuild(
               140:u8;
               vbuild(
                 1:u1,
-                (x_210 : u8) =>
-                  ((data(I_206)[1:u1] + data(I_206)[2:u2])
-                    + data(I_206)[0:u0])
-                    + ((data(I_206)[4:u3] + data(I_206)[5:u3])
-                      + data(I_206)[3:u2])
+                (i : u8) =>
+                  ((data(I)[1:u1] + data(I)[2:u2]) + data(I)[0:u0])
+                    + ((data(I)[4:u3] + data(I)[5:u3]) + data(I)[3:u2])
               );
               true;
-              (I_206 : Stm[Vec[u16, 6:u3], -1:i1]) = (
+              (I : Stm[Vec[u16, 6:u3], -1:i1]) = (
                 sbuild(
                   140:u8;
-                  vbuild(
-                    6:u3,
-                    (x_217 : u32) =>
-                      data(I0_212)[x_217] * data(I1_215)[x_217]
-                  );
+                  vbuild(6:u3, (i : u32) => data(I0)[i] * data(I1)[i]);
                   true;
-                  (I0_212 : Stm[Vec[u16, 6:u3], -1:i1]) = (
-                    I0_139,
+                  (I0 : Stm[Vec[u16, 6:u3], -1:i1]) = (
+                    I0,
                     true
                   );
-                  (I1_215 : Stm[Vec[u16, 6:u3], -1:i1]) = (
-                    I1_179,
+                  (I1 : Stm[Vec[u16, 6:u3], -1:i1]) = (
+                    I1,
                     true
                   );
                 ),
@@ -56,9 +46,9 @@
             ),
             true
           );
-          (t_201 : u8) = (
+          (t : u8) = (
             0:u8,
-            1:u8 + t_201
+            1:u8 + t
           );
         ),
         true

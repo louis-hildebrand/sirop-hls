@@ -1,10 +1,2 @@
-(I_19 : Stm[u8, 200:u8]) =>
-  sbuild(
-    200:u8;
-    5:u8 + data(I_23);
-    true;
-    (I_23 : Stm[u8, -1:i1]) = (
-      I_19,
-      true
-    );
-  )
+(I : Stm[u8, 200:u8]) =>
+  sbuild(200:u8; 5:u8 + data(I); true; (I : Stm[u8, -1:i1]) = (I, true))
