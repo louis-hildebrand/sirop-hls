@@ -311,4 +311,31 @@ class StreamifierTests extends AnyFunSuite {
     val actual = original.streamify()
     assert(actual == original)
   }
+
+  // The length of the top-level stream must not depend on any input.
+  // If it did, what expression would we use to represent the stream's type?
+  test("TopStreamLengthDependingOnInput") {
+    val f = (U8 ::+ (n => StmCount(n)())).tchk().lower()
+    val exc = intercept[IllegalArgumentException](f.streamify())
+    assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
+  }
+
+  // The lengths of non-top-level streams should not depend on any input.
+  // TODO: Maybe it would be possible to allow it by fusion. But there's no
+  //       clear use case for it, as far as I know, and it's extra complexity.
+  test("ProducerStreamLengthDependingOnInput") {
+    val f = (U8 ::+ (n => StmFold(StmCount(n)(), C(0)(U8), PlusFunction(U8))()))
+      .tchk()
+      .lower()
+    val exc = intercept[IllegalArgumentException](f.streamify())
+    assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
+  }
+
+  test("VecLengthDependingOnInput") {
+    val f = (U8 ::+ (n => StmCst(1, VecBuild(n, U8 ::+ (i => i + 1))())()))
+      .tchk()
+      .lower()
+    val exc = intercept[IllegalArgumentException](f.streamify())
+    assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
+  }
 }

@@ -28,6 +28,10 @@ object Streamifier {
         this.func.hasType,
         "Expression must be type-checked before it can be streamified."
       )
+      require(
+        !this.func.contains(classOf[SyntaxSugar]),
+        "Expression must be lowered before it can be streamified."
+      )
       val (inputList, stm) =
         VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
       val oldToNewInputs = ListMap(
@@ -90,6 +94,12 @@ object Streamifier {
       oldToNewInputs: ListMap[Param, Param]
   ): Expr = {
     require(stm.typ.isInstanceOf[TyStm])
+    if (stm.typ.freeVars().intersect(oldToNewInputs.keySet).nonEmpty) {
+      throw new IllegalArgumentException(
+        "Types cannot depend on any inputs."
+          ++ s" (Found type ${stm.typ})"
+      )
+    }
     stm match {
       case x: Param if oldToNewInputs.contains(x) =>
         oldToNewInputs(x)
