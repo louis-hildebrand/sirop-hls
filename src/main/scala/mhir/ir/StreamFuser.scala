@@ -120,6 +120,15 @@ object StreamFuser {
           acc && e
         })
       }
+      val anyConsumersNeedBuffer = {
+        val readyExprs = equations.map({ case (_, ready) => ready })
+        readyExprs.tail.foldLeft(readyExprs.head: Expr)({ case (acc, e) =>
+          acc || e
+        })
+      }
+      // Only update the buffer when needed! Otherwise, the fused stream may
+      // get stuck once the producer is empty.
+      val updateBuffer = !bufValid && anyConsumersNeedBuffer
       // Replace StmData(x) with reading from the buffer
       val subs = equations
         .map({ case (x, _) => StmData(x)() -> bufData })
@@ -128,40 +137,40 @@ object StreamFuser {
       val newN = consumer.n // shouldn't refer to the producer anyway
       val newData = consumer.data.subPreserveType(subs)
       // Stall if the buffer is not valid, like with StmBuild-StmBuild fusion
-      val newValid = consumer.valid.subPreserveType(subs) && bufValid
+      val newValid = consumer.valid.subPreserveType(subs) && !updateBuffer
       val newEquations = {
         val varsToRemove = equations.map(_._1).toSet
         val equationsToAdd =
           (flagEqns
-            // Drop all the flags once the buffer is updated
+            // Drop all the flags once the buffer is invalidated
             .map({ case (x, (z, next)) => x -> (z, bufValid && next) })
             ++ Map(
+              producer -> (producer, updateBuffer),
               bufData -> (
                 Default(producerElemTyp).tchk().lower(),
-                Mux(bufValid, bufData, StmData(producer)())()
+                Mux(updateBuffer, StmData(producer)(), bufData)()
               ),
               bufValid -> (
                 False,
-                // If the buffer is currently invalid, then we will read from
-                // the producer and therefore the buffer will become valid.
+                // The buffer becomes valid after we update it.
                 // If the buffer is currently valid and all flags will be
-                // raised, invalidate the buffer so that we move on to the next
-                // element from the producer stream.
-                !bufValid || !allFlagsWillBeRaised
-              ),
-              producer -> (producer, !bufValid)
+                // raised, invalidate the buffer because all consumers are done
+                // reading the current element.
+                updateBuffer || (bufValid && !allFlagsWillBeRaised)
+              )
             ))
         val updatedOldEquations = consumer.equations
           .filter({ case (x, _) => !varsToRemove.contains(x) })
           .map({ case (x, (z, next)) =>
             val newZ = z // shouldn't refer to the producer anyway
+            // Don't do anything while the buffer is being updated
             val newNext = Mux(
-              bufValid,
-              next.subPreserveType(subs),
+              updateBuffer,
               x.typ match {
                 case _: TyStm => False
                 case _        => x
-              }
+              },
+              next.subPreserveType(subs)
             )()
             x -> (newZ, newNext)
           })
