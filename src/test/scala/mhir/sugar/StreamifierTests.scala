@@ -2,28 +2,10 @@ package mhir.sugar
 
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
-import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Streamifier.Streamify
-
-// TODO: Just use StmZip directly? Unfortunately it doesn't work right now since
-//       I have yet to update the stream fusion pass, AsFusedStm2Stm, etc.
-object SimpleStmZip {
-  def apply(n: Int, s0: Expr, t0: Type, s1: Expr, t1: Type)(): Expr = {
-    val s0Param = Param("s0")(TyStm(t0, -1))
-    val s1Param = Param("s1")(TyStm(t1, -1))
-    StmBuild(
-      n,
-      Tuple(StmData(s0Param)(), StmData(s1Param)())(),
-      True,
-      Map[Param, (Expr, Expr)](
-        s0Param -> (s0, True),
-        s1Param -> (s1, True)
-      )
-    )()
-  }
-}
+import org.scalatest.funsuite.AnyFunSuite
 
 class StreamifierTests extends AnyFunSuite {
   test("u8") {
@@ -175,15 +157,9 @@ class StreamifierTests extends AnyFunSuite {
 
   test("u8 -> Stm[(u8, u8), n]:UsedInProducers") {
     val n = 7
-    val f = (U8 ::+ (c =>
-      SimpleStmZip(
-        n,
-        StmCst(n, c)(),
-        U8,
-        StmRange(n, c, C(1)(U8))(),
-        U8
-      )()
-    )).tchk().lower()
+    val f = (U8 ::+ (c => StmZip(StmCst(n, c)(), StmRange(n, c, C(1)(U8))())()))
+      .tchk()
+      .lower()
     val actual = f.streamify()
     val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
     for (c <- examples) {
@@ -194,25 +170,93 @@ class StreamifierTests extends AnyFunSuite {
     VhdlGenerator.validateExpr(actual)
   }
 
-  test("c => StmConcat(StmCst(3, c), StmCst(5, c))") {
-    val f =
-      (U8 ::+ (c => StmConcat(StmCst(3, c)(), StmCst(5, c)())())).tchk().lower()
+  test("c => StmConcat(StmCst(3, c), StmCst(5, 42))") {
+    val f = {
+      val c = Param("c")(U8)
+      val n1 = 3
+      val cst1 = StmBuild(n1, c, True)()
+      val n2 = 5
+      val cst2 = StmBuild(n2, C(42)(U8), True)()
+      val concat = {
+        val t = Param("t")(U8)
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n1 + n2,
+          Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+            s0 -> (cst1, t lt C(n1)(U8)),
+            s1 -> (cst2, t geq C(n1)(U8))
+          )
+        )()
+      }
+      Function(c, concat)().tchk().lower()
+    }
     val actual = f.streamify().asInstanceOf[Function]
-    val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
+
+    // Check correct behaviour
+    val examples = Seq(0, 42, 200).map(C(_)(U8))
     for (c <- examples) {
       val cStm = StmLiteral(c)()
       val actualVal = mhir.ir.eval(LetStm(actual.param, cStm, actual.body)())
       val expectedVal = mhir.ir.eval(f(c))
       assert(actualVal == expectedVal)
     }
+
+    // Check that the streamifier doesn't needlessly complicate StmBuilds that
+    // don't actually use the input directly.
+    // In this case, the StmConcat and StmCst(5, 42) do not need to store a
+    // copy of the input.
+    val expected = {
+      val c = Param("c")(TyStm(U8, 1))
+      val n1 = 3
+      val cst1 = {
+        val isFirstStep = Param("is_first_step")(TyBool)
+        val cBuf = Param("c_buf")(U8)
+        val cStm = Param("c_stm")(TyStm(U8, 1))
+        StmBuild(
+          n1,
+          // This MUX is not really necessary, but it should be straightforward
+          // for the optimizer to remove it and it would make the streamifier
+          // code, which is already quite long, a little bit more complex
+          Mux(isFirstStep, StmData(cStm)(), cBuf)(),
+          True && !isFirstStep,
+          Map[Param, (Expr, Expr)](
+            isFirstStep -> (True, False),
+            cBuf -> (Default(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)()),
+            cStm -> (c, isFirstStep)
+          )
+        )()
+      }
+      val n2 = 5
+      val cst2 = StmBuild(n2, C(42)(U8), True)()
+      val concat = {
+        val t = Param("t")(U8)
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n1 + n2,
+          Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+            s0 -> (cst1, t lt C(n1)(U8)),
+            s1 -> (cst2, t geq C(n1)(U8))
+          )
+        )()
+      }
+      Function(c, LetStm(c, c, concat)())().tchk().lower()
+    }
+    assert(actual == expected)
+
     VhdlGenerator.validateExpr(actual)
   }
 
   test("u8 -> Stm[i16, 10] -> Stm[(u8, i16), 10]") {
     val n = 10
-    val f = (U8 ::+ (c =>
-      TyStm(I16, n) ::+ (s => SimpleStmZip(n, StmCst(n, c)(), U8, s, I16)())
-    ))
+    val f = (U8 ::+ (c => TyStm(I16, n) ::+ (s => StmZip(StmCst(n, c)(), s)())))
       .tchk()
       .lower()
     val actual = f.streamify()
@@ -231,9 +275,7 @@ class StreamifierTests extends AnyFunSuite {
   test("Stm[i16, 10] -> u32 -> Stm[(i16, u32), 10]") {
     val n = 10
     val f = (U32 ::+ (c =>
-      TyStm(I16, n) ::+ (s =>
-        SimpleStmZip(n, s, I16, StmRange(n, c, C(1)(U32))(), U32)()
-      )
+      TyStm(I16, n) ::+ (s => StmZip(s, StmRange(n, c, C(1)(U32))())())
     )).tchk().lower()
     val actual = f.streamify()
     val examples = Seq(
@@ -257,16 +299,10 @@ class StreamifierTests extends AnyFunSuite {
         TyStm(I8, n) ::+ (s =>
           LetStm(
             zippedOnce,
-            SimpleStmZip(n, s, I8, StmCst(n, c)(), U16)(),
+            StmZip(s, StmCst(n, c)())(),
             LetStm(
               zippedTwice,
-              SimpleStmZip(
-                n,
-                zippedOnce,
-                (I8, U16),
-                StmRange(n, c, C(1)(U16))(),
-                U16
-              )(),
+              StmZip(zippedOnce, StmRange(n, c, C(1)(U16))())(),
               zippedTwice
             )()
           )()

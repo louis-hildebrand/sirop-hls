@@ -164,13 +164,12 @@ object Streamifier {
           }
         })
       )().tchk().asInstanceOf[StmBuild]
-    val oldInputs = oldToNewInputs.keys.toSeq
-    if (oldInputs.forall(_.typ.isInstanceOf[TyStm])) {
-      // TODO: Would it be more accurate to find which data inputs are used
-      //       directly in this StmBuild (as opposed to in a producer) and do
-      //       nothing in case there are no such inputs?
-      // Inputs are already streams, so nothing to do
-      originalStm
+    val oldInputs = findDataInputsUsedHere(
+      withStreamifiedProducers,
+      oldToNewInputs.keySet
+    )
+    if (oldInputs.isEmpty) {
+      withStreamifiedProducers
     } else {
       // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
       // The scalar input to the original function (`f.param`) can appear in
@@ -194,50 +193,43 @@ object Streamifier {
       //     it's been read
       val (newStmAcc, newRegAcc) = {
         val (a, b) = oldInputs
-          .flatMap(oldX =>
-            if (oldX.typ.isData) {
-              val s = Param(s"${oldX.prefix}_stm")(TyStm(oldX.typ, -1))
-              val reg = Param(s"${oldX.prefix}_data")(oldX.typ)
-              Some((oldX -> s, oldX -> reg))
-            } else {
-              None
-            }
-          )
+          .map(oldX => {
+            assert(oldX.typ.isData)
+            val s = Param(s"${oldX.prefix}_stm")(TyStm(oldX.typ, -1))
+            val reg = Param(s"${oldX.prefix}_data")(oldX.typ)
+            (oldX -> s, oldX -> reg)
+          })
           .unzip
         (a.toMap, b.toMap)
       }
 
       val isFirstStep = Param("is_first_step")(TyBool)
       val subs = oldInputs
-        .flatMap(x =>
-          if (x.typ.isData) {
-            val mux = Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
-            Some(x -> mux.tchk())
-          } else None
-        )
+        .map(x => {
+          assert(x.typ.isData)
+          val mux = Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
+          x -> mux.tchk()
+        })
         .toMap[Expr, Expr]
       val newData = withStreamifiedProducers.data.subPreserveType(subs)
       val newValid =
         !isFirstStep && withStreamifiedProducers.valid.subPreserveType(subs)
       val newEquations = {
         val equationsToAdd = (oldInputs
-          .flatMap(x =>
-            if (x.typ.isData) {
-              Seq(
-                newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
-                newRegAcc(x) -> (
-                  Default(x.typ).tchk().lower(),
-                  Mux(
-                    isFirstStep,
-                    StmData(newStmAcc(x))(),
-                    newRegAcc(x)
-                  )()
-                )
+          .flatMap(x => {
+            assert(x.typ.isData)
+            Seq(
+              newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
+              newRegAcc(x) -> (
+                Default(x.typ).tchk().lower(),
+                Mux(
+                  isFirstStep,
+                  StmData(newStmAcc(x))(),
+                  newRegAcc(x)
+                )()
               )
-            } else {
-              Seq()
-            }
-          )
+            )
+          })
           .toMap
           + (isFirstStep -> (True, False)))
         val updatedOldEquations =
@@ -259,6 +251,28 @@ object Streamifier {
       }
       StmBuild(withStreamifiedProducers.n, newData, newValid, newEquations)()
     }
+  }
+
+  private def findDataInputsUsedHere(
+      stm: StmBuild,
+      inputs: Set[Param]
+  ): Set[Param] = {
+    // Ignore producer streams
+    val withoutProducers = StmBuild(
+      n = stm.n,
+      data = stm.data,
+      valid = stm.valid,
+      equations = stm.equations.map({ case (y, (z, next)) =>
+        if (y.typ.isInstanceOf[TyStm]) {
+          y -> (Param("ignore")(z.typ), next)
+        } else {
+          y -> (z, next)
+        }
+      })
+    )()
+    inputs
+      .filter(_.typ.isData)
+      .intersect(withoutProducers.freeVars())
   }
 
   private def wrapIdentity(x: Param): Expr = {
