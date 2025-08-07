@@ -30,7 +30,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
               (I1 : i8) =>
                 vbuild(
                   2:u2,
-                  (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                  (i : u8) => if (i === 0:u0) then { I0 } else { I1 }
                 )
           )
     )
@@ -52,9 +52,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
     StmMap(
       n11,
       (I : Stm[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1]) =>
-        StmJoin(
-          StmMap(I, (x_2 : Vec[i8, SafeSum(2:u2, 1:u1)]) => Vec2Stm(x_2))
-        )
+        StmJoin(StmMap(I, (x : Vec[i8, SafeSum(2:u2, 1:u1)]) => Vec2Stm(x)))
     )
   ) in
   let n32: Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = (

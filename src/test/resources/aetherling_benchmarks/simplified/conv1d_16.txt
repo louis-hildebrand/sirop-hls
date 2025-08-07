@@ -1,32 +1,33 @@
-(I_73 : Stm[Vec[i8, 16:u5], 1:u1]) =>
+(I : Stm[Vec[i8, 16:u5], 1:u1]) =>
+  let stm I: Stm[Vec[i8, 16:u5], 1:u1] = I in
   sbuild(
     1:u1;
     vbuild(
       16:u5,
-      (x_75 : u32) =>
+      (i : u32) =>
         vbuild(
           1:u1,
-          (x_77 : u8) =>
+          (j : u8) =>
             ((
-              (if (x_75 < 2:u32) then {
+              (if (i < 2:u32) then {
                 0:i8
               } else {
-                data(I_74)[usgn(-2:i33 + sgn(x_75))]
+                data(I)[usgn(-2:i33 + sgn(i))]
               })
                 * [-1:i8, 0:i8, 1:i8][0:u32])
-              + data(I_74)[x_75] * [-1:i8, 0:i8, 1:i8][2:u32])
+              + data(I)[i] * [-1:i8, 0:i8, 1:i8][2:u32])
               + (
-                (if (x_75 < 1:u32) then {
+                (if (i < 1:u32) then {
                   0:i8
                 } else {
-                  data(I_74)[usgn(-1:i33 + sgn(x_75))]
+                  data(I)[usgn(-1:i33 + sgn(i))]
                 })
                   * [-1:i8, 0:i8, 1:i8][1:u32])
         )
     );
     true;
-    (I_74 : Stm[Vec[i8, 16:u5], -1:i1]) = (
-      I_73,
+    (I : Stm[Vec[i8, 16:u5], -1:i1]) = (
+      I,
       true
     );
   )

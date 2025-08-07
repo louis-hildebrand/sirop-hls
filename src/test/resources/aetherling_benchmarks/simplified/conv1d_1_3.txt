@@ -1,311 +1,229 @@
-(I_965 : Stm[i8, 16:u5 * pad5(1:u1)]) =>
+(I : Stm[i8, 16:u5 * pad5(1:u1)]) =>
+  let stm n1: Stm[i8, 16:u5 * pad5(1:u1)] = I in
+  let stm n2: Stm[i8, (16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1)] = (
+    sbuild(
+      16:u6;
+      if (i == 1:u32) then { data(s2) } else { data(s1) };
+      true;
+      (i : u32) = (
+        0:u32,
+        if (i == 1:u32) then { 1:u32 } else { 1:u32 + i }
+      );
+      (s1 : Stm[i8, 1:u1]) = (
+        sbuild(1:u1; 0:i8; true; ),
+        i != 1:u32
+      );
+      (s2 : Stm[i8, pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5 * pad5(1:u1))))]) = (
+        sbuild(
+          15:u5;
+          data(s);
+          i < 15:u32;
+          (i : u32) = (
+            0:u32,
+            1:u32 + i
+          );
+          (s : Stm[i8, 16:u5 * pad5(1:u1)]) = (
+            n1,
+            true
+          );
+        ),
+        i == 1:u32
+      );
+    )
+  ) in
   sbuild(
     16:u5;
-    data(I0_1034) * data(I1_1039) + acc_1033;
-    t_1032 == 2:u2;
-    (I0_1034 : Stm[i8, -1:i1]) = (
+    data(I0) * v[i] + acc;
+    t == 2:u2;
+    (I0 : Stm[i8, -1:i1]) = (
       sbuild(
         48:u8;
-        x_data_1049[i_1051];
-        !is_first_step_1047;
-        (i_1051 : u32) = (
+        x_data[i];
+        !is_first_step;
+        (i : u32) = (
           0:u32,
           if (
-            !is_first_step_1047 && out_ctr_1052 == 2:u32
-              || out_ctr_1052 == 3:u32 && is_first_step_1047
+            !is_first_step && out_ctr == 2:u32
+              || out_ctr == 3:u32 && is_first_step
           ) then {
             0:u32
-          } else if (is_first_step_1047) then {
+          } else if (is_first_step) then {
             0:u32
           } else {
-            1:u32 + i_1051
+            1:u32 + i
           }
         );
-        (is_first_step_1047 : bool) = (
+        (is_first_step : bool) = (
           true,
-          !is_first_step_1047 && out_ctr_1052 == 2:u32
-            || out_ctr_1052 == 3:u32 && is_first_step_1047
+          !is_first_step && out_ctr == 2:u32
+            || out_ctr == 3:u32 && is_first_step
         );
-        (out_ctr_1052 : u32) = (
+        (out_ctr : u32) = (
           0:u32,
           if (
-            !is_first_step_1047 && out_ctr_1052 == 2:u32
-              || out_ctr_1052 == 3:u32 && is_first_step_1047
+            !is_first_step && out_ctr == 2:u32
+              || out_ctr == 3:u32 && is_first_step
           ) then {
             0:u32
-          } else if (is_first_step_1047) then {
-            out_ctr_1052
+          } else if (is_first_step) then {
+            out_ctr
           } else {
-            1:u32 + out_ctr_1052
+            1:u32 + out_ctr
           }
         );
-        (x_data_1049 : Vec[i8, pad3(1:u1) + pad3(2:u2)]) = (
-          vbuild(3:u3, (x_1054 : u32) => 0:i8),
+        (x_data : Vec[i8, pad3(1:u1) + pad3(2:u2)]) = (
+          vbuild(3:u3, (i : u32) => 0:i8),
           if (
-            !is_first_step_1047 && out_ctr_1052 == 2:u32
-              || out_ctr_1052 == 3:u32 && is_first_step_1047
+            !is_first_step && out_ctr == 2:u32
+              || out_ctr == 3:u32 && is_first_step
           ) then {
-            vbuild(3:u3, (x_1055 : u32) => 0:i8)
-          } else if (is_first_step_1047) then {
-            data(x_stm_1050)
+            vbuild(3:u3, (i : u32) => 0:i8)
+          } else if (is_first_step) then {
+            data(x_stm)
           } else {
-            x_data_1049
+            x_data
           }
         );
-        (x_stm_1050 : Stm[Vec[i8, pad3(1:u1) + pad3(2:u2)], -1:i1]) = (
+        (x_stm : Stm[Vec[i8, pad3(1:u1) + pad3(2:u2)], -1:i1]) = (
           sbuild(
             16:u5;
             vbuild(
               3:u3,
-              (x_1065 : u32) =>
-                if (x_1065 < 2:u32) then {
-                  data(I0_1056)[x_1065]
-                } else {
-                  data(I1_1062)
-                }
+              (i : u32) =>
+                if (i < 2:u32) then { data(I0)[i] } else { data(I1) }
             );
             true;
-            (I0_1056 : Stm[Vec[i8, 2:u2], -1:i1]) = (
+            (I0 : Stm[Vec[i8, 2:u2], -1:i1]) = (
               sbuild(
                 16:u5;
                 vbuild(
                   2:u2,
-                  (x_1075 : u8) =>
-                    if (x_1075 == 0:u8) then {
-                      data(I0_1068)
-                    } else {
-                      data(I1_1069)
-                    }
+                  (i : u8) =>
+                    if (i == 0:u8) then { data(I0) } else { data(I1) }
                 );
                 true;
-                (I0_1068 : Stm[i8, -1:i1]) = (
+                (I0 : Stm[i8, -1:i1]) = (
                   sbuild(
                     16:u6;
-                    if (i_1082 == 1:u32) then {
-                      data(s2_1084)
-                    } else {
-                      data(s1_1083)
-                    };
+                    if (i == 1:u32) then { data(s2) } else { data(s1) };
                     true;
-                    (i_1082 : u32) = (
+                    (i : u32) = (
                       0:u32,
-                      if (i_1082 == 1:u32) then {
-                        1:u32
-                      } else {
-                        1:u32 + i_1082
-                      }
+                      if (i == 1:u32) then { 1:u32 } else { 1:u32 + i }
                     );
-                    (s1_1083 : Stm[i8, 1:u1]) = (
+                    (s1 : Stm[i8, 1:u1]) = (
                       sbuild(1:u1; 0:i8; true; ),
-                      i_1082 != 1:u32
+                      i != 1:u32
                     );
-                    (s2_1084 : Stm[i8, pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn((16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1))))]) = (
+                    (s2 : Stm[i8, pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn((16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1))))]) = (
                       sbuild(
                         15:u5;
-                        data(s_1085);
-                        i_1086 < 15:u32;
-                        (i_1086 : u32) = (
+                        data(s);
+                        i < 15:u32;
+                        (i : u32) = (
                           0:u32,
-                          1:u32 + i_1086
+                          1:u32 + i
                         );
-                        (s_1085 : Stm[i8, (16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1)]) = (
-                          sbuild(
-                            16:u6;
-                            if (i_1088 == 1:u32) then {
-                              data(s2_1090)
-                            } else {
-                              data(s1_1089)
-                            };
-                            true;
-                            (i_1088 : u32) = (
-                              0:u32,
-                              if (i_1088 == 1:u32) then {
-                                1:u32
-                              } else {
-                                1:u32 + i_1088
-                              }
-                            );
-                            (s1_1089 : Stm[i8, 1:u1]) = (
-                              sbuild(1:u1; 0:i8; true; ),
-                              i_1088 != 1:u32
-                            );
-                            (s2_1090 : Stm[i8, pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5 * pad5(1:u1))))]) = (
-                              sbuild(
-                                15:u5;
-                                data(s_1091);
-                                i_1092 < 15:u32;
-                                (i_1092 : u32) = (
-                                  0:u32,
-                                  1:u32 + i_1092
-                                );
-                                (s_1091 : Stm[i8, 16:u5 * pad5(1:u1)]) = (
-                                  I_965,
-                                  true
-                                );
-                              ),
-                              i_1088 == 1:u32
-                            );
-                          ),
+                        (s : Stm[i8, (16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1)]) = (
+                          n2,
                           true
                         );
                       ),
-                      i_1082 == 1:u32
+                      i == 1:u32
                     );
                   ),
                   true
                 );
-                (I1_1069 : Stm[i8, -1:i1]) = (
-                  sbuild(
-                    16:u6;
-                    if (i_1076 == 1:u32) then {
-                      data(s2_1078)
-                    } else {
-                      data(s1_1077)
-                    };
-                    true;
-                    (i_1076 : u32) = (
-                      0:u32,
-                      if (i_1076 == 1:u32) then {
-                        1:u32
-                      } else {
-                        1:u32 + i_1076
-                      }
-                    );
-                    (s1_1077 : Stm[i8, 1:u1]) = (
-                      sbuild(1:u1; 0:i8; true; ),
-                      i_1076 != 1:u32
-                    );
-                    (s2_1078 : Stm[i8, pad5(1:u1) * usgn(pad6(pad2(-1:i1) * pad2(sgn(1:u1))) + pad6(sgn(16:u5 * pad5(1:u1))))]) = (
-                      sbuild(
-                        15:u5;
-                        data(s_1079);
-                        i_1080 < 15:u32;
-                        (i_1080 : u32) = (
-                          0:u32,
-                          1:u32 + i_1080
-                        );
-                        (s_1079 : Stm[i8, 16:u5 * pad5(1:u1)]) = (
-                          I_965,
-                          true
-                        );
-                      ),
-                      i_1076 == 1:u32
-                    );
-                  ),
+                (I1 : Stm[i8, -1:i1]) = (
+                  n2,
                   true
                 );
               ),
               true
             );
-            (I1_1062 : Stm[i8, -1:i1]) = (
-              I_965,
+            (I1 : Stm[i8, -1:i1]) = (
+              n1,
               true
             );
           ),
-          is_first_step_1047
+          is_first_step
         );
       ),
       true
     );
-    (I1_1039 : Stm[i8, -1:i1]) = (
-      sbuild(
-        48:u7;
-        v_1041[i_1042];
-        !filling_1043;
-        (filling_1043 : bool) = (
-          true,
-          i_1042 < 2:u32 && filling_1043
-        );
-        (i_1042 : u32) = (
-          0:u32,
-          if (i_1042 == 2:u32) then { 0:u32 } else { 1:u32 + i_1042 }
-        );
-        (s_1040 : Stm[i8, -1:i1]) = (
-          {{-1:i8, 0:i8, 1:i8}},
-          filling_1043
-        );
-        (v_1041 : Vec[i8, 3:u2]) = (
-          vbuild(3:u2, (x_1045 : u32) => 0:i8),
-          if (filling_1043) then {
-            vbuild(
-              3:u2,
-              (x_1046 : u32) =>
-                if (x_1046 == 2:u32) then {
-                  data(s_1040)
-                } else {
-                  v_1041[1:u32 + x_1046]
-                }
-            )
-          } else {
-            v_1041
-          }
-        );
-      ),
-      true
-    );
-    (acc_1033 : i8) = (
+    (acc : i8) = (
       0:i8,
       if (
-        t_1032 != 2:u2 && in_ctr_1038 == 2:u32 && out_ctr_1035 == 1:u32
-          || (
-            in_ctr_1038 == 2:u32
-              && out_ctr_1035 == 0:u32
-              && t_1032 == 2:u2)
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:i8
-      } else if (first_step_1036) then {
-        data(I0_1034) * data(I1_1039)
+      } else if (first_step) then {
+        data(I0) * v[i]
       } else {
-        data(I0_1034) * data(I1_1039) + acc_1033
+        data(I0) * v[i] + acc
       }
     );
-    (first_step_1036 : bool) = (
+    (first_step : bool) = (
       true,
-      t_1032 != 2:u2 && in_ctr_1038 == 2:u32 && out_ctr_1035 == 1:u32
-        || in_ctr_1038 == 2:u32 && out_ctr_1035 == 0:u32 && t_1032 == 2:u2
+      t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+        || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
     );
-    (in_ctr_1038 : u32) = (
-      0:u32,
-      if (
-        t_1032 != 2:u2 && in_ctr_1038 == 2:u32 && out_ctr_1035 == 1:u32
-          || (
-            in_ctr_1038 == 2:u32
-              && out_ctr_1035 == 0:u32
-              && t_1032 == 2:u2)
-      ) then {
-        0:u32
-      } else {
-        1:u32 + in_ctr_1038
-      }
-    );
-    (out_ctr_1035 : u32) = (
-      0:u32,
-      if (
-        t_1032 != 2:u2 && in_ctr_1038 == 2:u32 && out_ctr_1035 == 1:u32
-          || (
-            in_ctr_1038 == 2:u32
-              && out_ctr_1035 == 0:u32
-              && t_1032 == 2:u2)
-      ) then {
-        0:u32
-      } else if (t_1032 == 2:u2) then {
-        1:u32 + out_ctr_1035
-      } else {
-        out_ctr_1035
-      }
-    );
-    (t_1032 : u2) = (
+    (i : u2) = (
       0:u2,
       if (
-        t_1032 != 2:u2 && in_ctr_1038 == 2:u32 && out_ctr_1035 == 1:u32
-          || (
-            in_ctr_1038 == 2:u32
-              && out_ctr_1035 == 0:u32
-              && t_1032 == 2:u2)
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:u2
       } else {
-        1:u2 + t_1032
+        1:u2 + i
+      }
+    );
+    (in_ctr : u32) = (
+      0:u32,
+      if (
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      ) then {
+        0:u32
+      } else {
+        1:u32 + in_ctr
+      }
+    );
+    (out_ctr : u32) = (
+      0:u32,
+      if (
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      ) then {
+        0:u32
+      } else if (t == 2:u2) then {
+        1:u32 + out_ctr
+      } else {
+        out_ctr
+      }
+    );
+    (t : u2) = (
+      0:u2,
+      if (
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      ) then {
+        0:u2
+      } else {
+        1:u2 + t
+      }
+    );
+    (v : Vec[i8, 3:u2]) = (
+      [-1:i8, 0:i8, 1:i8],
+      if (
+        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
+          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      ) then {
+        [-1:i8, 0:i8, 1:i8]
+      } else {
+        v
       }
     );
   )
