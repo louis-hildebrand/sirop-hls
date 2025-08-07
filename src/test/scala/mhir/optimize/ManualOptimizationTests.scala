@@ -46,12 +46,12 @@ class ManualOptimizationTests extends AnyFunSuite {
         for (fVal <- fExamples) {
           val expected =
             mhir.ir.eval(
-              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, original)())())()
+              Let(n, C(nVal)(U8), Let(f, fVal, Let(s, sVal, original)())())()
                 .tchk()
             )
           val actual =
             mhir.ir.eval(
-              Let(n, C(nVal)(U8), Let(s, sVal, Let(f, fVal, optimized)())())()
+              Let(n, C(nVal)(U8), Let(f, fVal, Let(s, sVal, optimized)())())()
                 .tchk()
             )
           assert(actual == expected)
@@ -199,7 +199,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         Let(
           n,
           C(3)(U16),
-          Let(input, StmCount(n)(), Let(z, C(42)(U16), e)())()
+          Let(z, C(42)(U16), Let(input, StmCount(n)(), e)())()
         )()
     val expected =
       StmLiteral(
@@ -252,7 +252,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         Let(
           n,
           C(3)(U16),
-          Let(input, StmCount(n)(), Let(z, C(42)(U16), e)())()
+          Let(z, C(42)(U16), Let(input, StmCount(n)(), e)())()
         )()
     val expected =
       StmLiteral(

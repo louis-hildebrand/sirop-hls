@@ -90,6 +90,29 @@ class SugarTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("LetStm") {
+    val n = 10
+    val s = Param("s")(TyStm(U8, n))
+    val x = Param("x")()
+    val zipped = {
+      val s1 = Param("s1")(TyStm(U8, -1))
+      val s2 = Param("s2")(TyStm(U8, -1))
+      StmBuild(
+        n,
+        Tuple(StmData(s1)(), StmData(s2)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s1 -> (x, True),
+          s2 -> (x, True)
+        )
+      )()
+    }
+    val let = Let(x, s, zipped)()
+    val actual = let.tchk().lower()
+    val expected = LetStm(x, s, zipped)()
+    assert(actual == expected)
+  }
+
   test("Default[Bool]:Display") {
     val e = Default(TyBool)
     assert(ExprPrinter.displayOneLine(e) == "default[bool]")

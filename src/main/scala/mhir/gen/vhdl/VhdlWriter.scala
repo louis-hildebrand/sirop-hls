@@ -198,7 +198,7 @@ object VhdlWriter {
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
     c match {
       case _: StmNoOpComponent =>
-        os.copy(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
+        os.copy.over(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
       case _: StmBufferComponent =>
         os.copy.over(from = StmBufferSrc, to = dir / "stm_buffer.vhd")
       case c: CustomVhdlComponent =>

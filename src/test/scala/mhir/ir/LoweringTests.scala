@@ -22,15 +22,12 @@ class LoweringTests extends AnyFunSuite {
   }
 
   test("LowerLet") {
-    val s = Param("s")()
-    val s1 = Param("s1")(TyStm(TyStm(U32, 2), 2))
-    val e = Let(s, s1, s)().tchk()
+    val x = Param("x")()
+    val y = Param("y")((U8, I16))
+    val e = Let(x, y, x)().tchk()
     val actual = e.lower().asInstanceOf[FunCall]
-    assert(actual == FunCall(Function(s, s)(), s1)())
-    assert(
-      actual.f.asInstanceOf[Function].param.typ
-        == TyStm(U32, Prod(PadTo(2, 4)(), PadTo(2, 4)())())
-    )
+    assert(actual == FunCall(Function(x, x)(), y)())
+    assert(actual.f.asInstanceOf[Function].param.typ == TyTuple(U8, I16))
   }
 
   test("UncurryFunction:1arg") {

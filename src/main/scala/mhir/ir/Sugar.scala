@@ -40,11 +40,16 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    requireType()
     val x = this.x.lower().asInstanceOf[Param]
     val v = this.v.lower()
     val in = this.in.lower()
-    val f = Let(x, v, in)().asFunCall()
-    if (this.typ != Missing) f.tchk() else f
+    (v.typ, in.typ) match {
+      case (_: TyStm, _: TyStm) =>
+        LetStm(x, v, in)().tchk().lower()
+      case _ =>
+        Let(x, v, in)().asFunCall().tchk().lower()
+    }
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
