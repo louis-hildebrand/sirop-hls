@@ -402,6 +402,22 @@ package object typecheck {
                 s"Argument of ${StmData.getClass.getSimpleName} has type $t."
               )
           }
+        case let @ LetStm(x, in, out) =>
+          val newIn = in.tchk
+          val newX = x.typ match {
+            case Missing =>
+              x.rebuild(newIn.typ).asInstanceOf[Param]
+            case t =>
+              if (t ~= newIn.typ) {
+                x
+              } else {
+                throw new TypeError(
+                  s"Cannot bind variable of type $t to stream of type ${newIn.typ}."
+                )
+              }
+          }
+          val newOut = out.tchk(context + (newX -> newIn.typ))
+          let.rebuild(newOut.typ, Seq(newX, newIn, newOut))
         case sn @ StmNextK(s, k) =>
           val newK = k.tchk
           newK.typ match {

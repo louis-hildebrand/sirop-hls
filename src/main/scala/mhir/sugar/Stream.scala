@@ -10,25 +10,29 @@ import scala.annotation.tailrec
 
 object AsFusedStm2Stm {
   def apply(f: Function): (Param, StmBuild) = {
-    val f1 = f.lower().streamify().asInstanceOf[Function]
-    // It is essential to fuse everything.
-    // If f is a chain of stream producers, we want to reset them all, not
-    // just the last producer.
-    (f1.param, f1.body.asInstanceOf[StmBuild].fuseCompletely())
+    f.lower().streamify() match {
+      case Function(x, body) =>
+        // It is essential to fuse everything for StmMap and StmScan.
+        // If f is a chain of stream producers, we want to reset them all, not
+        // just the last producer.
+        (x, body.fuseCompletely())
+      case _ =>
+        ???
+    }
   }
 }
 
 object AsFusedStm2Stm2Stm {
   def apply(f: Function): (Param, Param, StmBuild) = {
-    val (x1, x2, stm) = f.lower().streamify() match {
-      case Function(x1, Function(x2, stm: StmBuild)) => (x1, x2, stm)
+    f.lower().streamify() match {
+      case Function(x1, Function(x2, body)) =>
+        // It is essential to fuse everything for StmMap and StmScan.
+        // If f is a chain of stream producers, we want to reset them all, not
+        // just the last producer.
+        (x1, x2, body.fuseCompletely())
       case _ =>
         ???
     }
-    // It is essential to fuse everything.
-    // If f is a chain of stream producers, we want to reset them all, not
-    // just the last producer.
-    (x1, x2, stm.fuseCompletely())
   }
 }
 

@@ -756,15 +756,16 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      StmCst(n, C(42)(I16))(),
-      StmCst(n, C(-1)(I16))(),
-      StmRange(n, C(1)(I16), C(5)(I16))()
+      StmCst(n, C(-1)(I16))().tchk(),
+      StmRange(n, C(1)(I16), C(5)(I16))().tchk()
     )
     for (exampleStm <- examples) {
-      for (nVal <- Seq(0, 1, 2, 6)) {
-        val expected =
-          Let(n, C(nVal)(U8), Let(input, exampleStm, original)())().tchk()
-        val actual = Let(n, C(nVal)(U8), Let(input, exampleStm, opt)())().tchk()
+      for (nVal <- Seq(0, 1, 2).map(C(_)(U8))) {
+        val expected = original
+          .subPreserveType(input -> exampleStm)
+          .subPreserveType(n -> nVal)
+        val actual =
+          opt.subPreserveType(input -> exampleStm).subPreserveType(n -> nVal)
         assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
       }
     }

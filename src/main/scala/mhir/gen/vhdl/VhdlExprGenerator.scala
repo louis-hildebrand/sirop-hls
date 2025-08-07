@@ -9,7 +9,7 @@ import mhir.ir.typecheck.TypeCheck
   *   Declarations required for this expression, including all its
   *   sub-expressions
   */
-private[gen] case class VhdlExpr(vhdl: String, decls: Seq[Decl])
+private[vhdl] case class VhdlExpr(vhdl: String, decls: Seq[Decl])
 
 private object VhdlOp {
   def apply(op: String, terms: Seq[VhdlExpr]): VhdlExpr = {
@@ -115,7 +115,7 @@ private object VhdlExprGenerator {
         throw new IllegalArgumentException(
           s"Invalid argument to ${StmData.getClass.getSimpleName}: $e"
         )
-      case _: StmBuild =>
+      case _: StmBuild | _: LetStm =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
         )

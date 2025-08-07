@@ -11,10 +11,15 @@ object VhdlWriter {
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qsf"
   private val DefaultSdc =
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.sdc"
+  private val StmBufferSrc =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "stm_buffer.vhd"
+  private val StmNoOpSrc =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "stm_nop.vhd"
 
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
       findTypesUsedIn(top).flatMap(t => t.descendants + t)
+    if (os.isDir(dir)) os.remove.all(dir)
     val designDir = dir / "design"
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
@@ -165,11 +170,20 @@ object VhdlWriter {
   }
 
   private def findTypesUsedIn(c: VhdlComponent): Set[VhdlType] = {
-    (c.inPorts.map(p => p.typ)
-      ++ c.outPorts.map(p => p.typ)
-      ++ c.signals.map(s => s.typ)
-      ++ c.functions.flatMap(f => findTypesUsedIn(f))
-      ++ c.children.flatMap({ case (c, _) => findTypesUsedIn(c) })).toSet
+    c match {
+      case c: StmBufferComponent =>
+        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
+      case c: StmNoOpComponent =>
+        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
+      case c: CustomVhdlComponent =>
+        (c.inPorts.map(p => p.typ)
+          ++ c.outPorts.map(p => p.typ)
+          ++ c.signals.map(s => s.typ)
+          ++ c.functions.flatMap(f => findTypesUsedIn(f))
+          ++ c.children.flatMap({ case VhdlEntityInstantiation(_, c, _) =>
+            findTypesUsedIn(c)
+          })).toSet
+    }
   }
 
   private def findTypesUsedIn(f: VhdlFunction): Set[VhdlType] = {
@@ -182,10 +196,16 @@ object VhdlWriter {
   }
 
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
-    val file = dir / s"${c.name}.vhd"
-    os.write(file, c.vhdl)
-    for ((child, _) <- c.children) {
-      emitComponents(child, dir)
+    c match {
+      case _: StmNoOpComponent =>
+        os.copy.over(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
+      case _: StmBufferComponent =>
+        os.copy.over(from = StmBufferSrc, to = dir / "stm_buffer.vhd")
+      case c: CustomVhdlComponent =>
+        os.write(dir / s"${c.name}.vhd", c.vhdl)
+        for (VhdlEntityInstantiation(_, child, _) <- c.children) {
+          emitComponents(child, dir)
+        }
     }
   }
 }

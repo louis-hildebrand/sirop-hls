@@ -61,12 +61,13 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Function    => 23
       case _: StmBuild    => 24
       case _: StmData     => 25
-      case _: VecBuild    => 26
-      case _: VecAccess   => 27
-      case _: VecLiteral  => 28
-      case _: StmLiteral  => 29
-      case _: StmNextK    => 30
-      case _: SyntaxSugar => 31
+      case _: LetStm      => 26
+      case _: VecBuild    => 27
+      case _: VecAccess   => 28
+      case _: VecLiteral  => 29
+      case _: StmLiteral  => 30
+      case _: StmNextK    => 31
+      case _: SyntaxSugar => 32
     }
   }
 }

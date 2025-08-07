@@ -1,47 +1,43 @@
 (I : Stm[Vec[u32, 8:u4], 105:u7]) =>
   sbuild(
     1:u1;
-    data(x_71)[0:u0];
+    data(x)[0:u0];
     true;
-    (x_71 : Stm[Vec[u32, 1:u1], -1:i1]) = (
+    (x : Stm[Vec[u32, 1:u1], -1:i1]) = (
       sbuild(
         1:u1;
-        vbuild(1:u1, (x_77 : u8) => acc_75 + data(s_74)[0:u0]);
-        t_73 == 104:u7;
-        (acc_75 : u32) = (
+        vbuild(1:u1, (i : u8) => acc + data(s)[0:u0]);
+        t == 104:u7;
+        (acc : u32) = (
           0:u32,
-          if (first_step_72) then {
-            data(s_74)[0:u0]
-          } else {
-            acc_75 + data(s_74)[0:u0]
-          }
+          if (first_step) then { data(s)[0:u0] } else { acc + data(s)[0:u0] }
         );
-        (first_step_72 : bool) = (
+        (first_step : bool) = (
           true,
           false
         );
-        (s_74 : Stm[Vec[u32, 1:u1], 105:u7]) = (
+        (s : Stm[Vec[u32, 1:u1], 105:u7]) = (
           sbuild(
             105:u7;
             vbuild(
               1:u1,
-              (x_82 : u8) =>
-                ((data(I_78)[0:u0] + data(I_78)[1:u1])
-                  + (data(I_78)[2:u2] + data(I_78)[3:u2]))
-                  + ((data(I_78)[4:u3] + data(I_78)[5:u3])
-                    + (data(I_78)[6:u3] + data(I_78)[7:u3]))
+              (i : u8) =>
+                ((data(I)[0:u0] + data(I)[1:u1])
+                  + (data(I)[2:u2] + data(I)[3:u2]))
+                  + ((data(I)[4:u3] + data(I)[5:u3])
+                    + (data(I)[6:u3] + data(I)[7:u3]))
             );
             true;
-            (I_78 : Stm[Vec[u32, 8:u4], -1:i1]) = (
+            (I : Stm[Vec[u32, 8:u4], -1:i1]) = (
               I,
               true
             );
           ),
           true
         );
-        (t_73 : u7) = (
+        (t : u7) = (
           0:u7,
-          1:u7 + t_73
+          1:u7 + t
         );
       ),
       true

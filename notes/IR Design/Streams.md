@@ -261,36 +261,63 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
 - Sometimes it is useful to have *multiple* consumers for the same producer
 	- e.g., `StmZip(StmMap(s, f), StmMap(s, g))`
 	- Aetherling programs are generally directed acyclic *graphs*, so if we want to be able to lower Aetherling programs down to our IR we'll need to support graphs
-	- Obviously you can just give each consumer its own copy of the producer (as in substitution), but this leads to duplicated hardware
-	- *Challenge:* will things like stream fusion now be broken? And since stream fusion is required for multi-dimensional map and scan, does that mean those will be broken too?
-	- *Challenge:* how to represent these graphs in the IR? How to define semantics to match implementation in hardware?
-		- Just use something like `FunCall(s -> <an expression using s many times>, StmBuild(...))`?
-			- *Problems:*
-				- Partial evaluator will just perform the substitution, which will lead to duplicated hardware
-				- Evaluator will just perform the substitution, which duplicates the input stream. So in some cases, the interpreter will work but the hardware will deadlock
-			- Perhaps have evaluator and partial evaluator behave differently depending on whether the input is data or a stream? But then the partial evaluator may also only work on typed expressions
-		- Split `Function` primitive into `DataFunction` (data -> data) and `Component` (stream -> stream), with semantics of `Component` *not* defined by substitution?
-			- But then what about functions from data to stream (e.g., `Vec2Stm`?)? Can we always use `Component` instead?
-				- Maybe this would actually simplify `Streamifier`!
-		- Add a new primitive called `ForkJoin` which takes as input one stream and outputs one stream which may use the input multiple times?
-			- *Disadvantage:* need new primitive
-	- *Challenge:* need to watch out for deadlocks...
-		- ... due to combinational loop in the handshake interfaces
-			- In general, the consumer's `ready` signal depends on the producers' `valid` signals
-			- In this case, the duplicated stream must wait until all its producers are ready - so its `valid` signal depends on the consumers' `ready` signals
-			- If consumer is waiting for producer and producer is waiting for consumer, then there will be a deadlock!
-			- *Solution:* insert buffers before each consumer
-				- The buffer raises its `ready` signal whenever it has no elements
-				- The buffer raises its `valid` signal whenever it has an element
-				- No dependency on the `valid` signal of the producer, nor on the `ready` signal of the consumer
-					- This works as long as the buffer has exactly one producer and at most one consumer
-		- ... due to the consumers having incompatible access patterns
-			- e.g., `StmConcat(s, s)` (stream gets read twice, which is not valid)
-			- e.g., `StmZip(StmPrefix(s, 2), StmSuffix(s, 2))` (first element must be available at the same step as second-last element, which will not be the case for a stream of length >= 3)
+- Why not just give each consumer its own copy of the producer (as in substitution)?
+	- Duplicated hardware, therefore wasted area
+	- Doesn't work if the producer is a variable
+- *Challenge:* need to watch out for deadlocks...
+	- ... due to combinational loop in the handshake interfaces
+		- In general, the consumer's `ready` signal depends on the producers' `valid` signals
+		- In this case, the duplicated stream must wait until all its producers are ready - so its `valid` signal depends on the consumers' `ready` signals
+		- If consumer is waiting for producer and producer is waiting for consumer, then there will be a deadlock!
+		- *Solution 1:* insert single-element buffers before each consumer
+			- The buffer raises its `ready` signal whenever it has no elements
+			- The buffer raises its `valid` signal whenever it has an element
+			- No dependency on the `valid` signal of the producer, nor on the `ready` signal of the consumer
+				- This works as long as the buffer has exactly one producer and at most one consumer
+		- *Solution 2:* insert one shared buffer, keep track of which consumers have read the value, continue once all consumers have read?
+			- *Advantages:*
+				- Probably less memory use (as long as you don't have a massive number of consumers)
+				- A bit easier to write the fusion rule based on this solution?
+			- *Disadvantage:*
+				- More complex hardware generation?
+					- With solution 1 you can write a generic VHDL entity for the buffer, whereas here the buffer would need to support an arbitrary number of consumers
+					- With solution 2, the buffer would need to remember to lower the `valid` signal for consumers who have already read the current value
+			- ==TODO:== maybe this would be worth trying out
+	- ... due to the consumers having incompatible access patterns
+		- e.g., `StmConcat(s, s)` (stream gets read twice, which is not valid)
+		- e.g., `StmZip(StmPrefix(s, 2), StmSuffix(s, 2))` (first element must be available at the same step as second-last element, which will not be the case for a stream of length >= 3)
 		- *Solutions:*
-			- Just count on the programmer to not write such programs
+			- Just count on the programmer to not write such programs; declare it to be undefined behaviour
 			- Provide a function in the higher-level IR (`StmDuplicateSafely`?) which converts stream to vector and then inserts one `Vec2Stm` for *each* consumer? Programmer can use this if in doubt
+				- Why not make this safe version the primitive?
+					- It will presumably use a lot more hardware
+					- Seems tricky to prove that you can use the simpler single-element buffer version when you started with the safe version
+						- e.g., for the Aetherling benchmarks, I'd prefer to just assume the Aetherling program is correct rather than proving it in each and every case
+					- The safe version seems less general. I think it's already possible to implement the safe version with what we have, but not possible to implement the single-element buffer version
 			- ==TODO:== is it possible to perform a static analysis that can guarantee absence of deadlocks?
+- *Challenge:* how to represent these graphs in the IR? How to define semantics to match implementation in hardware?
+	- Just allow function param to be used multiple times, even if it's a stream. Update evaluator to handle function calls differently depending on the input type.
+		- *Advantage:* no need for new primitives
+		- *Problems:*
+			- Need to update semantics of `Function` and `FunCall` anyway, so maybe the advantage of avoiding one primitive isn't that big
+			- This special-case semantics of `Function` and `FunCall` seems pretty gross to me
+			- Seems easy to forget about the difference in semantics and introduce bugs or ruin the quality of the design
+				- e.g., partial evaluator will just perform the substitution, which will lead to duplicated hardware
+	- Add a new primitive (perhaps called `LetStm`) which assigns one stream to a variable and outputs one stream which may use the variable multiple times
+		- *Disadvantage:* need new primitive
+		- *Advantages:*
+			- Easier hardware gen? The VHDL generator won't have to check the type of a function, how many times the input is used, etc. Just add a new case for `LetStm`
+			- When adding the new primitive, the Scala compiler will give me more guidance on what parts of my codebase need to be updated to handle the new primitive
+	- Split `Function` primitive into `DataFunction` (data -> data) and `StreamFunction` (stream -> stream), with semantics of `StreamFunction` *not* defined by substitution?
+		- But then what about functions from data to stream (e.g., `Vec2Stm`?)? Can we always use `StreamFunction` instead?
+			- Maybe this would actually simplify `Streamifier`!
+- *Challenge:* will things like stream fusion now be broken? And since stream fusion is required for multi-dimensional map and scan, does that mean those will be broken too?
+	- e.g., how to fuse when the producer is `let s = input_stm in StmZip(StmMap(s, f), StmMap(s, g))`?
+		- Just move `LetStm` up as much as possible!
+	- e.g., how to handle `StmMap` when the function body is a `LetStm`?
+		- Once everything has been fused together, hopefully the variable bound by `LetStm` will only be used once. Then it should be possible to eliminate the `LetStm` and proceed as usual
+			- ==TODO:== is this true in general? Will I need to go through the accumulators of the `StmBuild` and de-duplicate all stream inputs?
+			- ==TODO:== What about something like `StmMap(mat, (row: Stm[Int, 10]) => let stm s = row in StmZip(s, s))`?
 
 ## Other Kinds of Streams
 - Stream with a "done" signal?

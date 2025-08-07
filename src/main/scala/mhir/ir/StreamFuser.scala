@@ -11,35 +11,182 @@ import scala.annotation.tailrec
   * producers, which eliminates the handshake protocol overhead and may reveal
   * more optimization opportunities.
   *
-  * To fuse a stream with <i>all</i> its inputs, use the extension method
-  * [[StreamFuser.StreamFusion.fuseCompletely]]. To fuse with a specific input,
-  * use the extension method [[StreamFuser.StreamFusion.fuseWith]]. In either
-  * case, the implicit class [[StreamFuser.StreamFusion]] must be in scope.
-  *
   * @example
+  *   To fuse a stream with <i>all</i> its inputs, use the extension method
+  *   [[StreamFuser.StreamFusion.fuseCompletely]]. The implicit class
+  *   [[StreamFuser.StreamFusion]] must be in scope.
   *
   * {{{
   *   import mhir.ir.StreamFuser.StreamFusion
   *   stm.fuseCompletely()
   * }}}
+  *
+  * @example
+  *   To fuse with a specific input in [[StmBuild]], use the extension method
+  *   [[StreamFuser.StmBuildFusion.fuseWith]]. The implicit class
+  *   [[StreamFuser.StmBuildFusion]] must be in scope.
+  *
+  * {{{
+  *   import mhir.ir.StreamFuser.StmBuildFusion
+  *   stm.fuseWith(x)
+  * }}}
   */
 object StreamFuser {
-  implicit class StreamFusion(stm: StmBuild) {
+  implicit class StreamFusion(stm: Expr) {
 
-    /** Fuse a `StmBuild` with its statically-known stream inputs until it has
-      * no more statically-known stream inputs. Note that this requires the
+    /** Fuse a stream producer with its statically-known stream inputs until it
+      * has no more statically-known stream inputs. Note that this requires the
       * stream inputs to each have their own accumulator variable; they cannot
       * be in a tuple.
       *
       * Fusion is guaranteed to preserve type annotations.
       */
-    @tailrec
     final def fuseCompletely(): StmBuild = {
-      stm.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {
-        case Some((x, _)) => stm.fuseWith(x).fuseCompletely()
-        case _            => stm
+      require(
+        this.stm.hasType,
+        "Expression must have been type checked before fusion."
+          + s" (Found expression ${this.stm})"
+      )
+      require(
+        !this.stm.contains(classOf[SyntaxSugar]),
+        "Expression must be lowered before fusion."
+          + s" (Found expression ${this.stm})"
+      )
+      val withMovedLets = LetStmMover.moveUp(this.stm)
+      val fused = inlineAndFuse(withMovedLets)
+      deduplicateProducers(fused)
+    }
+
+    @tailrec
+    private def inlineAndFuse(stm: Expr): StmBuild = {
+      stm match {
+        case LetStm(x, in, out) =>
+          inlineAndFuse(out.subPreserveType(x -> in))
+        case s: StmBuild =>
+          s.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {
+            case Some((x, _)) => inlineAndFuse(s.fuseWith(x))
+            case _            => s
+          }
+        case _ =>
+          ???
       }
     }
+
+    private def deduplicateProducers(stm: StmBuild): StmBuild = {
+      assert(stm.hasType)
+      assert(stm.seedByVar.forall({ case (x, z) =>
+        !x.typ.isInstanceOf[TyStm] || z.isInstanceOf[Param]
+      }))
+      // Find input streams which appear in multiple recurrences
+      val reusedProducers = stm.equations
+        .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+        .map({ case (x, (z, ready)) => (x, z.asInstanceOf[Param], ready) })
+        .groupBy({ case (_, z, _) => z })
+        .map({ case (z, xs) =>
+          z -> xs.map({ case (x, _, ready) => (x, ready) }).toSet
+        })
+        .filter({ case (_, xs) => xs.size > 1 })
+      reusedProducers.foldLeft(stm)({ case (acc, (z, eqns)) =>
+        deduplicateProducer(
+          consumer = acc,
+          producer = z,
+          equations = eqns.toSeq
+        )
+      })
+    }
+
+    private def deduplicateProducer(
+        consumer: StmBuild,
+        producer: Param,
+        equations: Seq[(Param, Expr)]
+    ): StmBuild = {
+      val producerElemTyp = producer.typ.asInstanceOf[TyStm].t
+      // Add one buffer to hold the latest element from the consumer
+      val bufData = Param(s"${producer.prefix}_buf_data")(producerElemTyp)
+      val bufValid = Param(s"${producer.prefix}_buf_valid")(TyBool)
+      // Keep track of whether the consumers have read from the buffer yet
+      val flagEqns: Map[Param, (Expr, Expr)] =
+        equations
+          .map({ case (x, ready) =>
+            val didRead = Param(s"${x.prefix}_read")(TyBool)
+            val willRead = ready
+            // Handle resetting the values later
+            didRead -> (False, didRead || willRead)
+          })
+          .toMap
+      val allFlagsWillBeRaised = {
+        val nextFlags = flagEqns.map({ case (_, (_, next)) => next })
+        nextFlags.tail.foldLeft(nextFlags.head: Expr)({ case (acc, e) =>
+          acc && e
+        })
+      }
+      val anyConsumersNeedBuffer = {
+        val readyExprs = equations.map({ case (_, ready) => ready })
+        readyExprs.tail.foldLeft(readyExprs.head: Expr)({ case (acc, e) =>
+          acc || e
+        })
+      }
+      // Only update the buffer when needed! Otherwise, the fused stream may
+      // get stuck once the producer is empty.
+      val updateBuffer = !bufValid && anyConsumersNeedBuffer
+      // Replace StmData(x) with reading from the buffer
+      val subs = equations
+        .map({ case (x, _) => StmData(x)() -> bufData })
+        .toMap[Expr, Expr]
+      // Build new StmBuild
+      val newN = consumer.n // shouldn't refer to the producer anyway
+      val newData = consumer.data.subPreserveType(subs)
+      // Stall if the buffer is not valid, like with StmBuild-StmBuild fusion
+      val newValid = consumer.valid.subPreserveType(subs) && !updateBuffer
+      val newEquations = {
+        val varsToRemove = equations.map(_._1).toSet
+        val equationsToAdd =
+          (flagEqns
+            // Drop all the flags once the buffer is invalidated
+            .map({ case (x, (z, next)) => x -> (z, bufValid && next) })
+            ++ Map(
+              producer -> (producer, updateBuffer),
+              bufData -> (
+                Default(producerElemTyp).tchk().lower(),
+                Mux(updateBuffer, StmData(producer)(), bufData)()
+              ),
+              bufValid -> (
+                False,
+                // The buffer becomes valid after we update it.
+                // If the buffer is currently valid and all flags will be
+                // raised, invalidate the buffer because all consumers are done
+                // reading the current element.
+                updateBuffer || (bufValid && !allFlagsWillBeRaised)
+              )
+            ))
+        val updatedOldEquations = consumer.equations
+          .filter({ case (x, _) => !varsToRemove.contains(x) })
+          .map({ case (x, (z, next)) =>
+            val newZ = z // shouldn't refer to the producer anyway
+            // Don't do anything while the buffer is being updated
+            val newNext = Mux(
+              updateBuffer,
+              x.typ match {
+                case _: TyStm => False
+                case _        => x
+              },
+              next.subPreserveType(subs)
+            )()
+            x -> (newZ, newNext)
+          })
+        updatedOldEquations ++ equationsToAdd
+      }
+      val result = StmBuild(newN, newData, newValid, newEquations)()
+      val checkedResult = result.tchk().asInstanceOf[StmBuild]
+      assert(
+        !checkedResult.contains(classOf[SyntaxSugar]),
+        "no syntax sugar should be introduced by deduplicating StmBuild producers"
+      )
+      checkedResult
+    }
+  }
+
+  implicit class StmBuildFusion(stm: StmBuild) {
 
     /** Fuse a <code>StmBuild</code> with the input stream represented by
       * variable <code>x</code> (which must be one of the accumulator variables
@@ -48,8 +195,14 @@ object StreamFuser {
     def fuseWith(x: Param): StmBuild = {
       val consumerStm = stm
       require(
-        consumerStm.typ != Missing,
-        "The consumer must have been type checked before fusion."
+        this.stm.hasType,
+        "Expression must have been type checked before fusion."
+          + s" (Found expression ${this.stm})"
+      )
+      require(
+        !this.stm.contains(classOf[SyntaxSugar]),
+        "Expression must be lowered before fusion."
+          + s" (Found expression ${this.stm})"
       )
       val fused = consumerStm.seedByVar.get(x) match {
         case Some(e: StmBuild) =>
@@ -98,7 +251,11 @@ object StreamFuser {
         fused.freeVars() == stm.freeVars(),
         "fusion should not have changed the set of free variables"
       )
-      assert(fused.typ == stm.typ, "fusion should preserve type annotations")
+      assert(fused.typ ~= stm.typ, "fusion should preserve type annotations")
+      assert(
+        !fused.contains(classOf[SyntaxSugar]),
+        "StmBuild fusion should not introduce any syntax sugar"
+      )
       fused
     }
 
@@ -137,7 +294,9 @@ object StreamFuser {
         // CASE 2: Consumer is not ready (i.e., not reading from producer).
         //         Proceed as usual, but with the default value for the producer
         //         output (this should not be read).
-        consumer.valid.subPreserveType(StmData(x)() -> Default(producerTyp.t))
+        consumer.valid.subPreserveType(
+          StmData(x)() -> Default(producerTyp.t).tchk().lower()
+        )
       )().tchk()
       val data = Mux(
         ready,
@@ -149,7 +308,9 @@ object StreamFuser {
         // CASE 2: Consumer is not ready (i.e., not reading from producer).
         //         Proceed as usual, but with the default value for the producer
         //         output (this should not be read).
-        consumer.data.subPreserveType(StmData(x)() -> Default(producerTyp.t))
+        consumer.data.subPreserveType(
+          StmData(x)() -> Default(producerTyp.t).tchk().lower()
+        )
       )().tchk()
       (data, valid)
     }

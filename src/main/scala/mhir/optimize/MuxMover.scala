@@ -50,6 +50,7 @@ object MuxMover {
             Mux(c, moveUp(t), moveUp(f))()
         }
       case _: StmBuild     => e
+      case _: LetStm       => e
       case StmData(s)      => moveUp1(s, StmData(_)())
       case _: VecBuild     => e
       case VecAccess(v, i) => moveUp2(Seq(v, i), VecAccess(_, _)())

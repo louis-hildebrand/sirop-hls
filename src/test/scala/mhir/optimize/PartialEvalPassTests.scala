@@ -4,7 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
-import mhir.sugar.{Max, StmCount}
+import mhir.sugar.{Max, StmCount, StmMap, StmZip}
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -324,6 +324,36 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e =
       TruncateTo(ToUnsigned(x)(), 8)() equ TruncateTo(ToUnsigned(y)(), 8)()
     assert(PE.partialEval(e) == (x equ y))
+  }
+
+  test("LetStm:ZeroUses") {
+    val count = PE.partialEval(StmCount(C(42)(U8))().tchk().lower())
+    val e = {
+      val s = Param("s")()
+      LetStm(s, StmCount(C(10)(U8))(), count)().tchk().lower()
+    }
+    val actual = PE.partialEval(e)
+    assert(actual == count)
+  }
+
+  test("LetStm:OneUse") {
+    val count = StmCount(C(10)(U8))().tchk().lower()
+    val s = Param("s")(TyStm(U8, 10))
+    val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower()
+    val e = LetStm(s, count, map)().tchk().lower()
+    val expected = PE.partialEval(map.subPreserveType(s -> count))
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("LetStm:TwoUses") {
+    val s0 = Param("s0")(TyStm(U8, 10))
+    val s1 = Param("s1")(TyStm(U8, 10))
+    val zipped = PE.partialEval(StmZip(s1, StmMap(s1, U8 ::+ (x => x + 5))())())
+    val e = LetStm(s1, s0, zipped)()
+    val expected = e
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
   }
 
   test("ReusedParam:FreeAndBoundTupleVar") {

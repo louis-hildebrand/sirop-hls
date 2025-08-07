@@ -2,7 +2,7 @@ package mhir.ir
 
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
-import mhir.sugar.VecShiftLeft
+import mhir.sugar.{StmConcat, StmZip, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {
@@ -145,6 +145,26 @@ class ExprTests extends AnyFunSuite {
     assert(actual2 == expected)
   }
 
+  test("Substitute:LetStm") {
+    val n = 10
+    val s0 = Param("s0")(TyStm(U8, n))
+    val s1 = Param("s1")(TyStm(U8, n))
+    val e = LetStm(s0, s0, StmConcat(s0, s1)())().tchk()
+    val replacement = StmConcat(s0, s1)().tchk()
+    val subs = Map[Expr, Expr](s0 -> replacement, s1 -> replacement)
+    val expected = {
+      val s0New = Param("s0'")()
+      LetStm(s0New, replacement, StmConcat(s0New, replacement)())().tchk()
+    }
+
+    val actual0 = e.subPreserveType(subs)
+    assert(actual0 == expected)
+    assert(actual0.typ ~= expected.typ)
+
+    val actual1 = e.subAndEraseType(subs)
+    assert(actual1 == expected)
+  }
+
   test("SubstituteInType1") {
     val n = Param("n")(U8)
     val e = Tuple(VecBuild(n * 2, U8 ::+ (i => i))(), n + 1)().tchk()
@@ -244,6 +264,69 @@ class ExprTests extends AnyFunSuite {
     assert(actualInputStm.typ == TyStm(U8, 20))
   }
 
+  test("FreeVars:Function") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+
+    val f = Function(x, Sum(x, y)())()
+    assert(f.freeVars() == Set(y))
+
+    val e = f(x)
+    assert(e.freeVars() == Set(x, y))
+  }
+
+  test("FreeVars:StmBuild") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+    val c = Param("c")(TyBool)
+
+    // Accumulator variables are bound within the data, valid, and next
+    // expressions.
+    val s0 = StmBuild(
+      5,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)())
+      )
+    )().tchk()
+    assert(s0.freeVars() == Set(y, z, c))
+
+    // Accumulator variables are not found within the stream length.
+    val s1 = StmBuild(
+      x,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)())
+      )
+    )().tchk()
+    assert(s1.freeVars() == Set(x, y, z, c))
+
+    // Accumulator variables are not found within the accumulator seeds.
+    val s2 = StmBuild(
+      5,
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr)](
+        x -> (x, Sum(x, z)())
+      )
+    )().tchk()
+    assert(s2.freeVars() == Set(x, y, z, c))
+  }
+
+  test("FreeVars:LetStm") {
+    val x = Param("x")(TyStm(U8, 2))
+    val s = Param("s")(TyStm(U8, 2))
+
+    val e0 = LetStm(x, s, x)()
+    assert(e0.freeVars() == Set(s))
+
+    val e1 = LetStm(x, x, x)()
+    assert(e1.freeVars() == Set(x))
+  }
+
   test("VecAccess:Equals") {
     val v = Param("v")()
     val e0 = VecAccess(v, C(1)(U8))()
@@ -276,6 +359,38 @@ class ExprTests extends AnyFunSuite {
     val g = Function(y, (y + 1) * (x + 2))()
     assert(f != g)
     assert(g != f)
+  }
+
+  test("LetStm:Equals") {
+    val in = StmBuild(5, C(42)(U16), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in, StmZip(s1, s1)())()
+    assert(e0 == e1)
+    assert(e1 == e0)
+    assert(e0.hashCode() == e1.hashCode())
+  }
+
+  test("LetStm:NotEquals:DifferentInput") {
+    val in0 = StmBuild(5, C(42)(I8), True)()
+    val in1 = StmBuild(5, C(-1)(I8), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in0, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in1, StmZip(s1, s1)())()
+    assert(e0 != e1)
+    assert(e1 != e0)
+  }
+
+  test("LetStm:NotEquals:DifferentOutput") {
+    val in = StmBuild(5, C(42)(U16), True)()
+    val s0 = Param("s")()
+    val s1 = Param("s")()
+    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(s1, in, StmZip(s1, s0)())()
+    assert(e0 != e1)
+    assert(e1 != e0)
   }
 
   test("StmBuild:Equals:NoAccumulatorVars") {

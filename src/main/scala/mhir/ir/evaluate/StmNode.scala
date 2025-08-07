@@ -1,273 +1,417 @@
 package mhir.ir
 package evaluate
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeError
-
-/** One stream-producing component in a pipeline. This is similar to
-  * <code>StmBuild</code>, but with extra data to allow evaluation.
-  *
-  * @param hw
-  *   The static information of this component.
-  * @param n
-  *   The length of this stream.
-  * @param currentValByDataAcc
-  *   For each data accumulator, the current value.
-  * @param inputs
-  *   The producer nodes that feed into this node.
-  * @param state
-  *   The current state of this node.
+/** A node in a streaming pipeline.
   */
-case class StmNode(
-    hw: StmNodeHardware,
-    n: Long,
-    currentValByDataAcc: Map[Param, Expr],
-    inputs: Map[Param, StmNode],
-    state: NodeState,
-    invalidSteps: Int
-) {
+sealed trait StmNode {
 
-  /** Compute the new state of the pipeline after one cycle.
+  /** The stream pipeline that this node is part of.
     */
-  def step(): StmNode = {
-    this.transferData(true).computeNextOutputs()
-  }
+  def pipe: StmPipeline
 
-  /** At each ready/valid interface, update the nodes according to whether or
-    * not data was transferred.
+  /** The ID of this node.
+    */
+  def id: StmNodeId
+
+  /** The output of this node.
+    */
+  def out: Option[Expr]
+
+  /** Whether this node has valid output.
+    */
+  def valid: Boolean = out.nonEmpty
+
+  /** The `ready` signal from this node to a given producer.
     *
-    * @param ready
-    *   Whether the consumer is ready to receive output.
+    * @param input
+    *   the producer stream for which to get the `ready` signal.
     */
-  // TODO: In hardware, the data of each StmBuild is stored in a register and
-  //       therefore each StmBuild adds one cycle of latency. This method does
-  //       not reproduce that latency. Hopefully there are no functional
-  //       differences (it seems so, based on the VHDL generator tests) and
-  //       omitting the latency should only speed up simulation, so this seems
-  //       like a good default. But maybe it would be useful to also have the
-  //       option to simulate the circuit in a more accurate way (e.g., to
-  //       measure latency without needing to go to VHDL).
-  private def transferData(ready: Boolean): StmNode = {
-    val requiredProducers =
-      getRequiredProducers(this.inputs, this.currentValByDataAcc.toMap)
-    val transferOk = this.state.isInstanceOf[Valid] && ready
-    val canStep = this.state != Empty && (transferOk || (!this.state
-      .isInstanceOf[Valid] && allRequiredProducersValid(requiredProducers)))
-    val newInputs = this.inputs.map({ case (x, node) =>
-      val ready = canStep && requiredProducers.contains(x)
-      x -> node.transferData(ready)
-    })
-    val newDataAccumulators = if (canStep) {
-      val subs =
-        currentValByDataAcc ++ getDataByInput(this.inputs, requiredProducers)
-      this.hw.nextByDataAcc.map({ case (x, nextExpr) =>
-        x -> eval(nextExpr.subPreserveType(subs))
-      })
-    } else {
-      this.currentValByDataAcc
-    }
-    StmNode(
-      hw = this.hw,
-      n = if (transferOk) this.n - 1 else this.n,
-      currentValByDataAcc = newDataAccumulators,
-      inputs = newInputs,
-      state = Stalled,
-      invalidSteps = this.invalidSteps
-    )
+  def ready(input: StmNodeId): Boolean
+
+  /** Computes the next state of this node.
+    */
+  def step(newPipe: StmPipeline): StmNode
+
+  /** The type of the stream produced by this node.
+    */
+  def typ: TyStm
+
+  /** Whether this node has successfully produced all the outputs it was
+    * supposed to and no longer has valid output.
+    */
+  def isEmpty: Boolean
+
+  /** Causes for this node being stuck. If empty, then this node is not stuck.
+    */
+  def deadlockReasons: Set[DeadlockReason]
+
+  /** Whether this node is stuck and will no longer produce any output despite
+    * (supposedly) being non-empty.
+    */
+  def isStuck: Boolean = deadlockReasons.nonEmpty
+
+  /** The IDs of the consumers of this node.
+    */
+  private def consumerIds: Set[StmNodeId] = {
+    this.pipe.connections.outNeighbours(this.id)
   }
 
-  /** Traverse the pipeline source-to-sink, computing node outputs along the
-    * way.
+  /** The consumers of this node.
     */
-  private def computeNextOutputs(): StmNode = {
-    assert(
-      this.state == Stalled,
-      "transferData() must be called before computeNextOutputs(), and transferData() should set all nodes' states to Stalled"
-    )
+  private def consumers: Set[StmNode] =
+    this.consumerIds.map(this.pipe.nodes(_))
 
-    val newInputs =
-      this.inputs.map({ case (x, node) => x -> node.computeNextOutputs() })
+  /** The IDs of the stream producers that provide input to this node.
+    */
+  private def producerIds: Set[StmNodeId] =
+    this.pipe.connections.inNeighbours(this.id)
 
-    val requiredProducers =
-      getRequiredProducers(newInputs, this.currentValByDataAcc.toMap)
+  /** The stream producers that provide input to this node.
+    */
+  protected def producers: Set[StmNode] =
+    this.producerIds.map(this.pipe.nodes(_))
 
-    val deadlockReasons = checkDeadlocks(requiredProducers)
-    val newState = if (this.n <= 0) {
-      Empty
-    } else if (deadlockReasons.nonEmpty) {
-      Deadlocked(deadlockReasons.toSeq)
-    } else if (!allRequiredProducersValid(requiredProducers)) {
-      Stalled
+  /** Checks whether all consumers of this node are ready for this node.
+    */
+  protected def allConsumersReady: Boolean =
+    this.consumers.forall(_.ready(this.id))
+
+  /** Whether the output of this node will be sent to its consumer(s) at the
+    * next step.
+    */
+  protected def transferOk: Boolean = this.allConsumersReady && this.valid
+}
+
+/** A custom stream producer, from [[StmBuild]].
+  *
+  * @param id
+  *   the ID of this node.
+  * @param hw
+  *   the parts of the stream which do not change during evaluation.
+  * @param out
+  *   the current output.
+  * @param n
+  *   the number of remaining outputs, not including the current one.
+  * @param acc
+  *   the current value of each data accumulator.
+  * @param invalidSteps
+  *   the number of steps that this node has taken where it was not waiting for
+  *   a producer and therefore had the opportunity to produce output, but did
+  *   not produce any valid output.
+  */
+case class StmBuildNode(
+    pipe: StmPipeline,
+    id: StmNodeId,
+    hw: StmNodeHardware,
+    out: Option[Expr],
+    n: Long,
+    acc: Map[Param, Expr],
+    invalidSteps: Int
+) extends StmNode {
+  override def ready(input: StmNodeId): Boolean = {
+    val x = this.hw.inputs
+      .find({ case (_, node) => node == input })
+      .map({ case (x, _) => x }) match {
+      case Some(x) =>
+        x
+      case None =>
+        throw new IllegalArgumentException(
+          s"Node with ID $input is not an input of node with ID ${this.id}."
+        )
+    }
+    this.canUpdateAcc && this.readyInternal(x)
+  }
+
+  override def step(newPipe: StmPipeline): StmBuildNode = {
+    if (this.isEmpty) {
+      StmBuildNode(
+        newPipe,
+        this.id,
+        this.hw,
+        this.out,
+        this.n,
+        this.acc,
+        this.invalidSteps
+      )
     } else {
-      val subs =
-        currentValByDataAcc ++ getDataByInput(newInputs, requiredProducers)
-      val evaluatedValid = eval(this.hw.valid.subPreserveType(subs))
-      evaluatedValid match {
-        case True =>
-          val evaluatedData = eval(this.hw.data.subPreserveType(subs))
-          Valid(evaluatedData)
-        case False =>
-          Invalid
-        case v =>
-          throw new TypeError(
-            s"Valid signal evaluated to $v. It must evaluate to a boolean."
-          )
+      val newOut = if (this.transferOk || this.canUpdateAcc) {
+        val valid = (
+          this.n != 0
+            && this.allRequiredProducersValid
+            && this.validInternal
+        )
+        if (valid) {
+          val data = eval(this.hw.data.subPreserveType(this.accAndInputs))
+          Some(data)
+        } else {
+          None
+        }
+      } else {
+        this.out
       }
+      val decrementN = (
+        (this.transferOk || this.canUpdateAcc)
+          && this.n != 0
+          && this.allRequiredProducersValid
+          && this.validInternal
+      )
+      val newN = if (decrementN) this.n - 1 else this.n
+      val updateAcc = (
+        this.canUpdateAcc
+        // Not really necessary, but in software it may save some time.
+        // In hardware, it would probably be better to omit this to save
+        // resources.
+          && this.n != 0
+      )
+      val newAcc = if (updateAcc) {
+        this.hw.nextByDataAcc.map({ case (x, next) =>
+          val evalNext = eval(
+            next.subPreserveType(this.accAndInputs),
+            // Who cares if the final accumulator values invoke undefined
+            // behaviour?
+            // They won't be used anyway.
+            suppressWarnings = newN == 0
+          )
+          x -> evalNext
+        })
+      } else {
+        this.acc
+      }
+      val newInvalidSteps = if (!this.canUpdateAcc) {
+        this.invalidSteps
+      } else if (newOut.nonEmpty) {
+        0
+      } else {
+        this.invalidSteps + 1
+      }
+      StmBuildNode(
+        pipe = newPipe,
+        id = this.id,
+        hw = this.hw,
+        out = newOut,
+        n = newN,
+        acc = newAcc,
+        invalidSteps = newInvalidSteps
+      )
     }
-    val newInvalidSteps = newState match {
-      case _: Valid => 0
-      case Invalid  => this.invalidSteps + 1
-      case _        => this.invalidSteps
-    }
-    StmNode(
-      hw = this.hw,
-      n = this.n,
-      currentValByDataAcc = this.currentValByDataAcc,
-      inputs = newInputs,
-      state = newState,
-      invalidSteps = newInvalidSteps
-    )
   }
 
-  private def getRequiredProducers(
-      producers: Map[Param, StmNode],
-      currentValByDataAcc: Map[Expr, Expr]
-  ): Map[Param, StmNode] = {
-    producers
-      .filter({ case (x, _) =>
-        val readyExpr = this.hw.readyByInput(x)
-        if (readyExpr.contains(classOf[StmData])) {
-          throw new IllegalArgumentException(
-            s"${StmData.getClass.getSimpleName} cannot be used in a ready expression."
-          )
-        }
-        eval(readyExpr.subPreserveType(currentValByDataAcc)) match {
-          case True  => true
-          case False => false
-          case v =>
-            throw new TypeError(
-              s"Ready signal evaluated to $v. It must evaluate to a boolean."
-            )
+  override def typ: TyStm = this.hw.typ
+
+  override def isEmpty: Boolean = !this.valid && this.n == 0
+
+  override def deadlockReasons: Set[DeadlockReason] = {
+    if (this.n == 0) {
+      Set()
+    } else {
+      this.requiredProducers.flatMap((node: StmNode) => {
+        if (node.isEmpty) {
+          Set[DeadlockReason](EmptyStreamRead)
+        } else if (node.isStuck) {
+          node.deadlockReasons
+        } else {
+          Set[DeadlockReason]()
         }
       })
+    }
   }
 
-  private def getDataByInput(
-      inputs: Map[Param, StmNode],
-      requiredProducers: Map[Param, StmNode]
-  ): Map[Expr, Expr] = {
-    inputs.map({ case (x, node) =>
-      if (requiredProducers.contains(x)) {
-        // If `canStep` is true, then all required producers must have
-        // valid data.
-        val v = node.state.asInstanceOf[Valid].v
+  /** The value of the `ready` expression in the [[StmBuild]] for each input
+    * stream.
+    *
+    * @note
+    *   the actual `ready` signal (as provided by [[ready]]) may not be the same
+    *   as this. For example, when zipping two streams, you must wait until both
+    *   streams have valid input before raising the `ready` signal for either of
+    *   them.
+    */
+  private lazy val readyInternal: Map[Param, Boolean] = {
+    this.hw.readyByInput.map({ case (x, readyExpr) =>
+      if (readyExpr.contains(classOf[StmData])) {
+        throw new IllegalArgumentException(
+          s"${StmData.getClass.getSimpleName} cannot be used in a ready expression."
+        )
+      }
+      val ready =
+        eval(readyExpr.subPreserveType(this.acc.toMap[Expr, Expr])).toBool
+      x -> ready
+    })
+  }
+
+  /** The value of the `valid` expression in the [[StmBuild]].
+    *
+    * @note
+    *   the actual `valid` signal (as provided by [[out]]) may not be the same
+    *   as this. For example, if not all the required producers have valid
+    *   output ([[allRequiredProducersValid]]), then this node must wait.
+    * @note
+    *   it is an error to access this value unless all required producers have
+    *   valid output.
+    */
+  private lazy val validInternal: Boolean = {
+    eval(this.hw.valid.subPreserveType(this.accAndInputs)).toBool
+  }
+
+  /** All substitutions for the variables that are bounds within this stream:
+    * both accumulator variables and [[StmData]].
+    *
+    * @note
+    *   it is an error to access this value unless all required producers have
+    *   valid output.
+    */
+  private def accAndInputs: Map[Expr, Expr] = {
+    val producerData = this.hw.inputs.map({ case (x, id) =>
+      if (this.requiredProducerIds.contains(id)) {
+        val out = this.pipe.nodes(id).out
+        assert(
+          out.nonEmpty,
+          s"producer data should only be accessed when all producers are valid (attempt to read invalid producer $id)"
+        )
+        val v = this.pipe.nodes(id).out.get
         StmData(x)() -> v
       } else {
         val typ = x.typ.asInstanceOf[TyStm].t
-        StmData(x)() -> Default(typ).lower()
+        StmData(x)() -> Default(typ)
       }
     })
+    this.acc ++ producerData
   }
 
-  private def allRequiredProducersValid(
-      requiredProducers: Map[Param, StmNode]
-  ): Boolean = {
-    requiredProducers.forall({ case (_, n) => n.state.isInstanceOf[Valid] })
-  }
-
-  private def checkDeadlocks(
-      requiredProducers: Map[Param, StmNode]
-  ): Set[DeadlockReason] = {
-    val reasons: Set[DeadlockReason] = requiredProducers
-      .flatMap({ case (_, s) =>
-        s.state match {
-          case Empty                        => Set(EmptyStreamRead)
-          case Deadlocked(reasons)          => reasons
-          case _: Valid | Invalid | Stalled => Set()
-        }
-      })
-      .toSet
-    if (this.invalidSteps >= StmNode.MaxInvalidSteps) reasons + TooManySteps
-    else reasons
-  }
-}
-
-/** Companion object for [[StmNode]].
-  */
-object StmNode {
-
-  /** If a stream takes this many steps without producing a valid element,
-    * assume it is stuck in an infinite loop.
+  /** The IDs of all the nodes that must produce valid output before this node
+    * can take a step.
     */
-  private[ir] val MaxInvalidSteps = 10000
-
-  def apply(s: StmBuild): StmNode = {
-    StmNode.init(s).computeNextOutputs()
+  private def requiredProducerIds: Set[StmNodeId] = {
+    this.hw.inputs
+      .filter({ case (x, _) => this.readyInternal(x) })
+      .map({ case (_, id) => id })
+      .toSet
   }
 
-  private def init(s: StmBuild): StmNode = {
-    require(
-      s.typ != Missing,
-      s"Stream must be type checked before it can be converted to a ${StmNode.getClass.getSimpleName}."
-    )
-    val n = eval(s.n) match {
-      case IntCst(n) => n
-      case e =>
-        throw new TypeError(
-          s"Stream length evaluated to $e. It must evaluate to an integer."
-        )
-    }
-    val (inputStmBuilds, accumulators) =
-      s.equations.partition({ case (x, _) => x.typ.isInstanceOf[TyStm] })
-    val (inputs, readyByInput) = inputStmBuilds
-      .map({
-        case (x, (z: StmBuild, ready)) => (x -> StmNode.init(z), x -> ready)
-        case (x, (z: StmLiteral, ready)) =>
-          val stm = stmLiteralToStmBuild(z)
-          (x -> StmNode.init(stm), x -> ready)
-        case (x, (z, _)) =>
-          throw new IllegalArgumentException(
-            s"Initial value for stream-valued accumulator ${x.name} is $z. Expected a StmBuild."
-          )
-      })
-      .unzip
-    StmNode(
-      hw = StmNodeHardware(
-        data = s.data,
-        valid = s.valid,
-        nextByDataAcc = accumulators.map({ case (x, (_, next)) => x -> next }),
-        readyByInput = readyByInput.toMap,
-        typ = s.typ.asInstanceOf[TyStm]
-      ),
-      n = n,
-      currentValByDataAcc = accumulators.map({ case (x, (z, _)) =>
-        x -> eval(z)
-      }),
-      inputs = inputs.toMap,
-      state = Stalled,
-      invalidSteps = 0
-    )
+  /** All the nodes that must produce valid output before this node can take a
+    * step.
+    */
+  private def requiredProducers: Set[StmNode] = {
+    this.requiredProducerIds.map(this.pipe.nodes(_))
+  }
+
+  /** Whether all the required producers (see [[requiredProducers]]) have valid
+    * output.
+    */
+  private def allRequiredProducersValid: Boolean = {
+    this.requiredProducers.forall(_.valid)
+  }
+
+  /** Whether this node can update its accumulators and output at the next step.
+    */
+  private lazy val canUpdateAcc: Boolean = {
+    ((!this.valid || this.transferOk)
+    && this.allRequiredProducersValid)
   }
 }
 
-/** The parts of a stream-producing component which do not change at runtime.
+/** A stream producer which buffers one element.
   *
+  * @param pipe
+  *   the stream pipeline that this node is part of.
+  * @param id
+  *   the ID of this node.
   * @param data
-  *   The expression for this node's output.
-  * @param valid
-  *   An expression indicating whether the data is valid.
-  * @param nextByDataAcc
-  *   An expression for the next value for each data accumulator.
-  * @param readyByInput
-  *   For each input, an expression saying whether this node will consume that
-  *   input.
+  *   the data inside the buffer.
   * @param typ
-  *   The stream type.
+  *   the type of the stream produced by this node.
   */
-case class StmNodeHardware(
-    data: Expr,
-    valid: Expr,
-    nextByDataAcc: Map[Param, Expr],
-    readyByInput: Map[Param, Expr],
+case class StmBufferNode(
+    pipe: StmPipeline,
+    id: StmNodeId,
+    data: Option[Expr],
     typ: TyStm
-)
+) extends StmNode {
+  override def out: Option[Expr] = data
+
+  override def ready(input: StmNodeId): Boolean = {
+    // TODO: Check that the given node ID is indeed the input to this node?
+    this.canUpdate
+  }
+
+  override def step(newPipe: StmPipeline): StmNode = {
+    val newData = if (this.canUpdate) this.producer.out else this.data
+    StmBufferNode(pipe = newPipe, id = this.id, data = newData, typ = this.typ)
+  }
+
+  override def isEmpty: Boolean = !this.valid && this.producer.isEmpty
+
+  override def deadlockReasons: Set[DeadlockReason] = {
+    this.producer.deadlockReasons
+  }
+
+  /** The unique producer for this stream.
+    */
+  private def producer: StmNode = {
+    val producers = this.producers
+    if (producers.size == 1) {
+      producers.head
+    } else {
+      throw new IllegalArgumentException(
+        s"Wrong number of inputs to node ${this.id}:"
+          + s" expected one, but found ${producers.size}:"
+          + s" ${producers.mkString(", ")}"
+      )
+    }
+  }
+
+  /** Whether this node can accept new input.
+    */
+  private def canUpdate: Boolean = {
+    !this.valid || this.allConsumersReady
+  }
+}
+
+/** A stream producer that supports more than one consumer.
+  *
+  * This simply forwards its input, but sets the `ready` signal to be the
+  * logical AND of the `ready` signals from all the consumers. Therefore, the
+  * producer will not be able to advance until all consumers are ready.
+  *
+  * @param pipe
+  *   the stream pipeline that this node is part of.
+  * @param id
+  *   the ID of this node.
+  * @param typ
+  *   the type of the stream produced by this node.
+  */
+case class StmMultiConsumerNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
+    extends StmNode {
+  override def out: Option[Expr] = {
+    if (!this.allConsumersReady) None else producer.out
+  }
+
+  override def ready(input: StmNodeId): Boolean = {
+    // TODO: Check that the given node ID is indeed the input to this node?
+    this.allConsumersReady
+  }
+
+  override def step(newPipe: StmPipeline): StmNode = {
+    StmMultiConsumerNode(newPipe, id, typ)
+  }
+
+  override def isEmpty: Boolean = !this.valid && this.producer.isEmpty
+
+  override def deadlockReasons: Set[DeadlockReason] = {
+    this.producer.deadlockReasons
+  }
+
+  /** The unique producer for this stream.
+    */
+  private def producer: StmNode = {
+    val producers = this.producers
+    if (producers.size == 1) {
+      producers.head
+    } else {
+      throw new IllegalArgumentException(
+        s"Wrong number of inputs to node ${this.id}:"
+          + s" expected one, but found ${producers.size}:"
+          + s" ${producers.mkString(", ")}"
+      )
+    }
+  }
+}

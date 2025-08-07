@@ -7,7 +7,7 @@ import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.StmSimplifier
+import mhir.optimize.{SafeSimplifier, StmSimplifier}
 import mhir.sugar._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -273,24 +273,156 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("s => StmConcat(s, s)") {
     val n = 5
-    val s = Param("s")(TyStm(U8, n))
+    val s = Param("s", -1)(TyStm(U8, n))
     val concat = StmConcat(s, s)().tchk().lower()
     val f = Function(s, concat)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
+    assert(exc.getMessage.contains("Top-level parameter s is used 2 times."))
   }
 
-  test("StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
+  test("s => StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
     val n = 5
-    val s = Param("s")(TyStm(U8, n))
+    val s = Param("s", -1)(TyStm(U8, n))
     val zip = StmZip(StmPrefix(s, 2)(), StmSuffix(s, 2)())().tchk().lower()
     val f = Function(s, zip)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
+    assert(exc.getMessage.contains("Top-level parameter s is used 2 times."))
+  }
+
+  test("s => let s0 = s in StmZip(s0, s)") {
+    val n = 5
+    val s = Param("my_input", -1)(TyStm(U8, n))
+    val s0 = Param("s0")(TyStm(U8, n))
+    val zip = StmZip(s0, s)().tchk().lower()
+    val f = Function(s, LetStm(s0, s, zip)())().tchk().asInstanceOf[Function]
+    val exc = intercept[IllegalArgumentException](
+      VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
+    )
+    assert(
+      exc.getMessage.contains("Top-level parameter my_input is used 2 times.")
+    )
+  }
+
+  // Producer is a no-op
+  test("s => let x = s in StmZip(x, StmZip(x, x))") {
+    val s = Param("s")(TyStm(I16, 6))
+    val x = Param("x")(TyStm(I16, 6))
+    val f =
+      Function(s, LetStm(x, s, StmZip(x, StmZip(x, x)())())())().tchk().lower()
+    val inputs = Seq(
+      TestInput(
+        Seq(
+          Some(C(0)(I16)),
+          Some(C(-1)(I16)),
+          Some(C(42)(I16)),
+          Some(C(99)(I16)),
+          Some(C(-100)(I16)),
+          Some(C(1)(I16))
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  // Consumer is a no-op (using the bound variable)
+  test("s => let x = StmMap(s, +5) in x") {
+    val s = Param("s")(TyStm(I16, 6))
+    val x = Param("x")(TyStm(I16, 6))
+    val f =
+      Function(
+        s,
+        LetStm(x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
+      )().tchk().lower()
+    val inputs = Seq(
+      TestInput(
+        Seq(
+          Some(C(0)(I16)),
+          Some(C(-1)(I16)),
+          Some(C(42)(I16)),
+          Some(C(99)(I16)),
+          Some(C(-100)(I16)),
+          Some(C(1)(I16))
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  // Consumer is a no-op (using an input variable)
+  // Bound variable is unused
+  test("s => let x = StmCount(10) in s") {
+    val s = Param("s")(TyStm(I16, 6))
+    val x = Param("x")(TyStm(U32, 10))
+    val f =
+      Function(s, LetStm(x, StmCount(C(10)(U32))(), s)())().tchk().lower()
+    val inputs = Seq(
+      TestInput(
+        Seq(
+          Some(C(0)(I16)),
+          Some(C(-1)(I16)),
+          Some(C(42)(I16)),
+          Some(C(99)(I16)),
+          Some(C(-100)(I16)),
+          Some(C(1)(I16))
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  // Input stream is used by the consumer
+  test("s => let idx = StmCount(10) in StmZip(idx, s)") {
+    val s = Param("s")(TyStm(U8, 10))
+    val idx = Param("idx")(TyStm(U8, 10))
+    val f =
+      Function(
+        s,
+        LetStm(idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
+      )().tchk().lower()
+    val inputs = Seq(
+      TestInput(
+        (0 until 10).map(t => t * (t + 1)).map(C(_)(U8)).map(Some(_))
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  // Input stream is unused
+  // Consumer type is different from producer type
+  test("s => let x = StmCount(10) in StmMap(x, x => x % 2 == 0)") {
+    val s = Param("s")(TyStm(U8, 10))
+    val x = Param("x")(TyStm(U8, 10))
+    val f =
+      Function(
+        s,
+        LetStm(
+          x,
+          StmCount(C(10)(U8))(),
+          StmMap(x, U8 ::+ (y => y % 2 === 0))()
+        )()
+      )().tchk().lower()
+    val inputs = Seq(
+      TestInput(
+        (0 until 10).map(t => t * (t + 1)).map(C(_)(U8)).map(Some(_))
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("LetStm:More complex example") {
+    val s = Param("s")(TyStm(U8, 5))
+    val plusFive = StmMap(s, U8 ::+ (x => x + C(5)(U8)))().tchk()
+    val e = SafeSimplifier.simplify(
+      StmMap(
+        LetStm(s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
+        (U8, U8) ::+ (x => Tuple(x.__0, x.__1, C(3)(U8) * x.__0 + x.__1)())
+      )().tchk().lower()
+    )
+    assert(VhdlTestRunner.testExpr(e) == TestPassed)
   }
 
   test("SimpleLet") {

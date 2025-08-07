@@ -2,15 +2,15 @@ package mhir.gen.vhdl
 
 import mhir.debug.indent
 
-private[gen] sealed trait Decl {
+private[vhdl] sealed trait Decl {
   def vhdlDecl: String
 }
 
-private[gen] sealed trait VhdlFunctionMode
-private[gen] object PureFunction extends VhdlFunctionMode
-private[gen] object ImpureFunction extends VhdlFunctionMode
+private[vhdl] sealed trait VhdlFunctionMode
+private[vhdl] object PureFunction extends VhdlFunctionMode
+private[vhdl] object ImpureFunction extends VhdlFunctionMode
 
-private[gen] case class VhdlFunction(
+private[vhdl] case class VhdlFunction(
     name: String,
     args: Seq[(String, VhdlType)],
     returnType: VhdlType,
@@ -69,24 +69,24 @@ private[gen] case class VhdlFunction(
   override def vhdlDecl: String = vhdlImpl
 }
 
-private[gen] trait Port
-private[gen] case class InPort(
+private[vhdl] trait Port
+private[vhdl] case class InPort(
     name: String,
     typ: VhdlType
 ) extends Port
 
-private[gen] case class OutPort(
+private[vhdl] case class OutPort(
     name: String,
     typ: VhdlType,
     assign: Option[String]
 ) extends Port
 
-private[gen] sealed trait VarOrSigDecl extends Decl {
+private[vhdl] sealed trait VarOrSigDecl extends Decl {
   val name: String
   val typ: VhdlType
 }
 
-private[gen] case class VhdlVariable(
+private[vhdl] case class VhdlVariable(
     name: String,
     typ: VhdlType,
     assignStmt: String
@@ -94,7 +94,7 @@ private[gen] case class VhdlVariable(
   override def vhdlDecl: String = s"variable $name : ${typ.vhdlName};"
 }
 
-private[gen] case class Signal(
+private[vhdl] case class Signal(
     category: String,
     name: String,
     typ: VhdlType,
@@ -112,42 +112,90 @@ private[gen] case class Signal(
   }
 }
 
-private[gen] case class PortMap(map: Map[String, String])
+/** The arguments to use for a VHDL `port map`.
+  *
+  * @param map
+  *   a map from port names to signal names.
+  */
+private[vhdl] case class PortMap(map: Map[String, String])
 
 /** One component (entity + architecture) in VHDL.
+  */
+private[vhdl] sealed trait VhdlComponent
+
+/** The predefined stm_buffer component.
+  *
+  * @param bitWidth
+  *   the bit width to use when instantiating this component.
+  */
+private[vhdl] case class StmBufferComponent(bitWidth: Int) extends VhdlComponent
+
+/** The predefined `stm_nop` component.
+  *
+  * @param bitWidth
+  *   the bit width to use when instantiating this component.
+  */
+private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent
+
+/** A custom component, like for a [[mhir.ir.StmBuild]].
   *
   * @param comment
-  *   The expression in the IR from which this component was generated
+  *   a comment to put at the top of the file. This can be used to record the
+  *   expression in the IR from which this component was generated
   * @param name
-  *   Name of the component
+  *   name of the component
   * @param inPorts
-  *   Input ports
+  *   input ports
   * @param outPorts
-  *   Output ports
+  *   output ports
   * @param signals
-  *   Internal signals
+  *   internal signals
+  * @param functions
+  *   the functions that must be declared within this component.
+  * @param children
+  *   other components that must be instantiated by this component.
   */
-private[gen] case class VhdlComponent(
+private[vhdl] case class CustomVhdlComponent(
     comment: String,
     name: String,
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
     signals: Seq[Signal],
     functions: Seq[VhdlFunction],
-    children: Seq[(VhdlComponent, PortMap)]
-) {
+    children: Seq[VhdlEntityInstantiation]
+) extends VhdlComponent {
   checkPortMaps()
 
   private def checkPortMaps(): Unit = {
-    for ((child, map) <- children) {
-      val expectedPorts =
-        (child.inPorts.map(p => p.name) ++ child.outPorts.map(p =>
-          p.name
-        )).toSet
+    for (VhdlEntityInstantiation(name, child, map) <- children) {
+      val expectedPorts = child match {
+        case child: CustomVhdlComponent =>
+          (child.inPorts.map(_.name) ++ child.outPorts.map(_.name)).toSet
+        case _: StmNoOpComponent =>
+          Set(
+            "data_out",
+            "valid_out",
+            "consumer_ready",
+            "data_in",
+            "valid_in",
+            "producer_ready"
+          )
+        case _: StmBufferComponent =>
+          Set(
+            "clk",
+            "data_out",
+            "valid_out",
+            "consumer_ready",
+            "data_in",
+            "valid_in",
+            "producer_ready"
+          )
+      }
       val actualPorts = map.map.keySet
       assert(
         expectedPorts == actualPorts,
-        s"wrong ports for component ${child.name} (expected $expectedPorts but got $actualPorts)"
+        s"wrong ports for component $name"
+          + s" (expected $expectedPorts but got $actualPorts)"
       )
     }
   }
@@ -170,10 +218,32 @@ private[gen] case class VhdlComponent(
       .mkString("\n\n")
     val funDecls = functions.map(f => f.vhdlDecl).mkString("\n\n")
     val portMaps = children
-      .map({ case (c, pm) =>
+      .map({ case VhdlEntityInstantiation(name, c, pm) =>
         val assignments =
-          pm.map.map({ case (k, v) => s"$k => $v" }).mkString(", ")
-        s"${c.name.toUpperCase} : entity work.${c.name} port map($assignments);"
+          pm.map
+            .map({ case (k, v) => s"$k => $v" })
+            .toSeq
+            .sorted
+            .mkString(",\n" + " ".repeat(16))
+        c match {
+          case c: CustomVhdlComponent =>
+            s"""$name : entity work.${c.name}
+               |            port map(
+               |                $assignments);
+               |""".stripMargin.stripTrailing
+          case c: StmNoOpComponent =>
+            s"""$name : entity work.stm_nop
+               |            generic map(BIT_WIDTH => ${c.bitWidth})
+               |            port map(
+               |                $assignments);
+               |""".stripMargin.stripTrailing
+          case c: StmBufferComponent =>
+            s"""$name : entity work.stm_buffer
+               |            generic map(BIT_WIDTH => ${c.bitWidth})
+               |            port map(
+               |                $assignments);
+               |""".stripMargin.stripTrailing
+        }
       })
       .sortBy(x => x)
     val combStmts = {
@@ -193,7 +263,11 @@ private[gen] case class VhdlComponent(
           .filter(p => p.assign.isDefined)
           .map(p => s"${p.name} <= ${p.assign.get};")
           .mkString("\n")
-        Seq(s"-- Output ports\n$block")
+        if (block.isBlank) {
+          Seq()
+        } else {
+          Seq(s"-- Output ports\n$block")
+        }
       }
       (signalAssignments ++ outPortAssignments).mkString("\n\n")
     }
@@ -216,6 +290,17 @@ private[gen] case class VhdlComponent(
         }
       })
       .mkString("\n\n")
+    val process = if (clkStmts.isBlank) {
+      ""
+    } else {
+      s"""process
+         |begin
+         |    wait until rising_edge(clk);
+         |
+         |${indent(clkStmts)}
+         |end process ;
+         |""".stripMargin.stripTrailing
+    }
     comment + "\n" +
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -238,13 +323,23 @@ private[gen] case class VhdlComponent(
          |
          |${indent(combStmts)}
          |
-         |    process
-         |    begin
-         |        wait until rising_edge(clk);
-         |
-         |${indent(clkStmts, 2)}
-         |    end process ;
+         |${indent(process)}
          |end;
          |""".stripMargin
   }
 }
+
+/** An instantiation of a VHDL entity.
+  *
+  * @param name
+  *   the name to use for this instance.
+  * @param c
+  *   the component to instantiate.
+  * @param args
+  *   the arguments to pass to the component.
+  */
+private[vhdl] case class VhdlEntityInstantiation(
+    name: String,
+    c: VhdlComponent,
+    args: PortMap
+)

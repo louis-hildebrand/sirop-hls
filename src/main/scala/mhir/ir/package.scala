@@ -232,8 +232,23 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 //       substitution (i.e., the value to be replaced)
                 val newX = x.freshCopy
                 Function(
+                  // TODO: What about substitutions in the type annotation,
+                  //       like with subPreserveType?
                   newX,
                   body.subAndEraseType(x -> newX).subAndEraseType(subs)
+                )()
+              case LetStm(x, in, out) =>
+                // Rename both
+                //   (1) to avoid variable capture and
+                //   (2) in case f.param appears free in the old value of a
+                //       substitution (i.e., the value to be replaced)
+                val newX = x.freshCopy
+                LetStm(
+                  newX,
+                  // TODO: What about substitutions in the type annotation,
+                  //       like with subPreserveType?
+                  in.subAndEraseType(subs),
+                  out.subAndEraseType(x -> newX).subAndEraseType(subs)
                 )()
               case s: StmBuild =>
                 // Rename both
@@ -293,9 +308,22 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
                 //       substitution (i.e., the value to be replaced)
                 val newX = x.freshCopy
                 Function(
+                  // There may be substitutions to do within the type annotation
                   newX.subPreserveType(subs).asInstanceOf[Param],
                   body.subPreserveType(x -> newX).subPreserveType(subs)
                 )(f.typ)
+              case let @ LetStm(x, in, out) =>
+                // Rename both
+                //   (1) to avoid variable capture and
+                //   (2) in case f.param appears free in the old value of a
+                //       substitution (i.e., the value to be replaced)
+                val newX = x.freshCopy
+                LetStm(
+                  // There may be substitutions to do within the type annotation
+                  newX.subPreserveType(subs).asInstanceOf[Param],
+                  in.subPreserveType(subs),
+                  out.subPreserveType(x -> newX).subPreserveType(subs)
+                )(let.typ)
               case s: StmBuild =>
                 // Rename both
                 //   (1) to avoid variable capture and
@@ -342,10 +370,14 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
     def contains[T <: Expr](cls: Class[T]): Boolean =
       this.contains(e => cls.isInstance(e))
 
+    /** Finds all the free variables in this expression.
+      */
     def freeVars(): Set[Param] = {
       this.expr match {
         case x: Param       => Set(x)
         case Function(x, e) => e.freeVars() - x
+        case LetStm(x, in, out) =>
+          in.freeVars() ++ (out.freeVars() - x)
         case stm @ StmBuild(n, data, valid, eqns) =>
           (
             // Free variables in the stream length and seeds are definitely free,
@@ -387,6 +419,59 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
           }
           Function(newX, newBody)()
         case f => f
+      }
+    }
+
+    /** Count the number of times that `x` occurs free within this expression.
+      *
+      * @param x
+      *   the variable to search for.
+      */
+    def countFreeOccurrences(x: Param): Int = {
+      def count(e: Expr): Int = {
+        if (e == x) {
+          1
+        } else {
+          e match {
+            case Function(y, _) if y == x =>
+              0
+            case LetStm(y, in, _) if y == x =>
+              count(in)
+            case stm @ StmBuild(n, data, valid, equations) =>
+              val n0 =
+                count(n) + stm.seedByVar.map({ case (_, z) => count(z) }).sum
+              if (stm.accVars.contains(x)) {
+                n0
+              } else {
+                (n0
+                  + count(data)
+                  + count(valid)
+                  + stm.nextByVar.map({ case (_, next) => count(next) }).sum)
+              }
+            case e =>
+              e.children.map(count).sum
+          }
+        }
+      }
+      count(this.expr)
+    }
+
+    /** Convert this expression to a boolean.
+      *
+      * @return
+      *   true if this expression is [[True]] and false if this expression is
+      *   [[False]].
+      * @throws mhir.ir.typecheck.TypeError
+      *   if this expression is not a boolean constant.
+      */
+    def toBool: Boolean = {
+      this.expr match {
+        case True  => true
+        case False => false
+        case e =>
+          throw new TypeError(
+            s"Expected a boolean constant but found $e."
+          )
       }
     }
   }

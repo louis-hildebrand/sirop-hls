@@ -31,7 +31,7 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     *
     * The key set in the map contains all the nodes in this graph.
     */
-  private lazy val inNeighbours: Map[T, Set[T]] = {
+  lazy val inNeighbours: Map[T, Set[T]] = {
     val neighboursByNode = edges
       .groupBy({ case (_, v) => v })
       .mapValues(xs => xs.map({ case (u, _) => u }))
@@ -86,6 +86,28 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     DiGraph(sccNodes, sccEdges)
   }
 
+  /** Creates a new graph with the given node.
+    *
+    * @param u
+    *   the node to add.
+    * @return
+    *   the updated graph.
+    */
+  def addNode(u: T): DiGraph[T] = {
+    DiGraph(this.nodes + u, this.edges)
+  }
+
+  /** Creates a new graph with new edges added.
+    *
+    * @param edgesToAdd
+    *   the edges to add.
+    * @return
+    *   the updated graph.
+    */
+  def addEdges(edgesToAdd: (T, T)*): DiGraph[T] = {
+    DiGraph(this.nodes, this.edges ++ edgesToAdd)
+  }
+
   /** Remove the given node from this graph.
     *
     * @param u
@@ -122,4 +144,8 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
       transitiveDependencies(newXs)
     }
   }
+}
+
+object DiGraph {
+  def apply[T](): DiGraph[T] = new DiGraph(nodes = Set(), edges = Set())
 }

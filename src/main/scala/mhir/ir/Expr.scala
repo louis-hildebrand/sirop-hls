@@ -865,6 +865,78 @@ case class StmData(s: Expr)(typ: Type = Missing) extends Expr(s)(typ) {
   }
 }
 
+/** Bind a name to an input stream and use that name, possibly many times, to
+  * produce an output stream.
+  *
+  * [[LetStm]] makes it possible to describe graphs of stream components in
+  * which some stream producers have multiple consumers.
+  *
+  * ==Restrictions==
+  *
+  * Consumers can read a given element from the shared stream at different clock
+  * cycles. However, all consumers must accept a given element from the shared
+  * stream before the next one becomes available.
+  *
+  * ===Valid Example===
+  *
+  * The following expression is valid, even though the `StmMap` introduces a
+  * delay of one cycle compared to directly reading the stream.
+  * {{{
+  *     let stm s = ... in
+  *     StmZip(s, StmMap(s, _ + 5))
+  * }}}
+  * The hardware implementation of this [[LetStm]] must include at least one
+  * buffer to hold the current element while it is passed through
+  * [[mhir.sugar.StmMap]]. However, the buffer only needs to hold one element at
+  * a time.
+  *
+  * ===Invalid Example===
+  *
+  * The following example is invalid because the shared stream is read out of
+  * order (assuming the shared stream has at least two elements).
+  * {{{
+  *     let stm s = ... in
+  *     StmConcat(s, s)
+  * }}}
+  * The hardware implementation of this design would need to involve reading the
+  * entire stream into some kind of memory (e.g., a shift register). Since this
+  * may be expensive, it must be handled explicitly. This particular example can
+  * instead be described using [[mhir.sugar.StmRepeat]], which reads the input
+  * stream into a shift register and then repeatedly reads from the shift
+  * register.
+  *
+  * @param x
+  *   name for the input stream.
+  * @param in
+  *   input stream.
+  * @param out
+  *   output stream, which may refer to the variable many times.
+  */
+case class LetStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
+    extends Expr(x, in, out)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(x: Param, in, out) => LetStm(x, in, out)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  private def asFunCall(): FunCall = {
+    FunCall(Function(this.x, this.out)(), this.in)()
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: LetStm => this.asFunCall() == that.asFunCall()
+      case _            => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    this.asFunCall().hashCode()
+  }
+}
+
 /** Constructs a fixed-length vector.
   *
   * Vectors are collections that support random access. Moreover, it is possible
@@ -996,7 +1068,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def precedence: Int = Precedence.FunCall
 
-  /** See [[ExprPrinter.displayOneLine]].
+  /** See [[mhir.ir.ExprPrinter.displayOneLine]].
     *
     * @note
     *   there is no need to wrap the final result in parentheses; that will be

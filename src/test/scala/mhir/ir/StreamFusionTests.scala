@@ -1,7 +1,8 @@
 package mhir.ir
 
+import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamFuser.StreamFusion
+import mhir.ir.StreamFuser.{StmBuildFusion, StreamFusion}
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,7 +33,7 @@ class StreamFusionTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (counter, True)
         )
-      )().tchk().asInstanceOf[StmBuild]
+      )().tchk().lower().asInstanceOf[StmBuild]
     }
     val fused = original.fuseCompletely()
 
@@ -205,5 +206,149 @@ class StreamFusionTests extends AnyFunSuite {
     assert(!actual3.accVars.contains(x2))
     assert(!actual3.seedByVar.exists({ case (_, z) => z == c1 }))
     assert(!actual3.seedByVar.exists({ case (_, z) => z == c2 }))
+  }
+
+  test("LetStm:FuseCompletely:InterleaveSelf") {
+    val n = 10
+    val input = Param("input")(TyStm(U8, n))
+    val stmId = (s: Expr) => {
+      val sAcc = Param("s")(TyStm(U8, n))
+      StmBuild(
+        n,
+        StmData(sAcc)(),
+        True,
+        Map[Param, (Expr, Expr)](sAcc -> (s, True))
+      )()
+    }
+    // If
+    //   sA = [a, b, c, ...]
+    // and
+    //   sB = [z, y, x, ...]
+    // Then the interleaved stream will be
+    //   interleave(s) = [a, a, a, z, b, b, b, y, c, c, c, x, ...]
+    val interleave = (sA: Expr, sB: Expr) => {
+      val t = Param("t")(U8)
+      val s0 = Param("s0")(TyStm(U8, n))
+      val s1 = Param("s1")(TyStm(U8, n))
+      val s2 = Param("s2")(TyStm(U8, n))
+      val s3 = Param("s3")(TyStm(U8, n))
+      StmBuild(
+        3 * n,
+        Mux(
+          t equ C(0)(U8),
+          StmData(s0)(),
+          Mux(
+            t equ C(1)(U8),
+            StmData(s1)(),
+            Mux(t equ C(2)(U8), StmData(s2)(), StmData(s3)())()
+          )()
+        )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          t -> (
+            C(0)(U8),
+            Mux(
+              t equ C(3)(U8),
+              C(0)(U8),
+              Sum(C(1)(U8), t)()
+            )()
+          ),
+          s0 -> (stmId(sA), t equ C(0)(U8)),
+          s1 -> (sA, t equ C(1)(U8)),
+          s2 -> (sA, t equ C(2)(U8)),
+          s3 -> (sB, t equ C(3)(U8))
+        )
+      )()
+    }
+    val sA = Param("s_a")()
+    val sB = Param("s_b")(TyStm(U8, n))
+    val original = LetStm(sA, input, interleave(sA, sB))().tchk().lower()
+
+    val fused = original.fuseCompletely()
+
+    // Correct behaviour
+    val examples = Seq(
+      (
+        StmLiteral((0 until n).map(x => C(x + 1)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(x => C(x + 2)(U8)): _*)().tchk()
+      ),
+      (
+        StmLiteral((0 until n).map(t => C(t * t)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
+      ),
+      (
+        StmLiteral((0 until n).map(t => C(t % 3)(U8)): _*)().tchk(),
+        StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
+      )
+    )
+    for ((a, b) <- examples) {
+      val expected = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, original)())())
+      val actual = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, fused)())())
+      assert(actual == expected)
+    }
+
+    // Successful fusion
+    assert(fused.hasType)
+    assert(
+      fused.seedByVar.forall({ case (x, z) =>
+        z == input || z == sB || !x.typ.isInstanceOf[TyStm]
+      })
+    )
+
+    VhdlGenerator.validateExpr(Function(input, Function(sB, fused)())().tchk())
+  }
+
+  /** Suppose the original StmBuild reads once from the producer stream and then
+    * use the value many times. The fusion transformation must not make the
+    * mistake of pre-emptively fetching the next element from the producer,
+    * since this will cause the stream to get stuck if the producer is empty.
+    */
+  test("LetStm:FuseCompletely:ReadOnceUseRepeatedly") {
+    val s = Param("s")(TyStm(U8, 1))
+    val original = LetStm(
+      s,
+      s, {
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s0Buf = Param("s0_buf")(U8)
+        val s1 = Param("s1")(TyStm(U8, -1))
+        val s1Buf = Param("s1_buf")(U8)
+        val isFirstStep = Param("is_first_step")(TyBool)
+        StmBuild(
+          3,
+          Tuple(s0Buf, s1Buf)(),
+          !isFirstStep,
+          Map[Param, (Expr, Expr)](
+            s0 -> (s, isFirstStep),
+            s0Buf -> (C(0)(U8), Mux(isFirstStep, StmData(s0)(), s0Buf)()),
+            s1 -> (s, isFirstStep),
+            s1Buf -> (C(0)(U8), Mux(isFirstStep, StmData(s1)(), s1Buf)()),
+            isFirstStep -> (True, False)
+          )
+        )()
+      }
+    )().tchk().lower()
+    val fused = original.fuseCompletely()
+
+    // Correct behaviour
+    val examples = Seq(42, 0, 201).map(C(_)(U8)).map(StmLiteral(_)().tchk())
+    for (input <- examples) {
+      val originalVal = mhir.ir.eval(original.subPreserveType(s -> input))
+      val c = input.asInstanceOf[StmLiteral].elems.head
+      val expectedVal =
+        StmLiteral(Tuple(c, c)(), Tuple(c, c)(), Tuple(c, c)())().tchk()
+      assert(originalVal == expectedVal)
+      val fusedVal = mhir.ir.eval(fused.subPreserveType(s -> input))
+      assert(fusedVal == originalVal)
+    }
+
+    // Successful fusion
+    assert(fused.hasType)
+    assert(
+      fused.seedByVar.forall({ case (y, z) =>
+        z == s || !y.typ.isInstanceOf[TyStm]
+      })
+    )
+
+    VhdlGenerator.validateExpr(Function(s, fused)().tchk())
   }
 }

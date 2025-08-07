@@ -33,6 +33,12 @@ class EvalTests extends AnyFunSuite {
     assert(actual == e)
   }
 
+  test("StmLiteral(1, 2, 3)") {
+    val e = StmLiteral(C(1)(U8), C(2)(U8), C(3)(U8))().tchk()
+    val actual = mhir.ir.eval(e)
+    assert(actual == e)
+  }
+
   test("StmBuild") {
     val i = Param("i")(U16)
     val s =
@@ -272,5 +278,107 @@ class EvalTests extends AnyFunSuite {
     )()
     assert(evaluated == expected)
     assert(evaluated.typ == TyVec(TyVec((U32, U32, U32), C(2)(U8)), C(3)(U8)))
+  }
+
+  test("LetStm:Valid") {
+    // StmCount(5)
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        5,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val s = Param("s")(TyStm(U8, 5))
+    // StmMap(s, x => x + 5)
+    val plusFive = {
+      val a = Param("a")(TyStm(U8, 5))
+      StmBuild(
+        5,
+        Sum(C(5)(U8), StmData(a)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          a -> (s, True)
+        )
+      )()
+    }
+    // StmZip(s, plusFive)
+    val zipped = {
+      val s0 = Param("s0")(TyStm(U8, 5))
+      val s1 = Param("s1")(TyStm(U8, 5))
+      StmBuild(
+        5,
+        Tuple(StmData(s0)(), StmData(s1)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s0 -> (s, True),
+          s1 -> (plusFive, True)
+        )
+      )()
+    }
+    // StmMap(let stm s = count in zipped, (x, y) => (x, y, 3 * x + y))
+    val e = {
+      val a = Param("a")(TyStm((U8, U8), 5))
+      StmBuild(
+        5,
+        Tuple(
+          StmData(a)().__0,
+          StmData(a)().__1,
+          Sum(Prod(C(3)(U8), StmData(a)().__0)(), StmData(a)().__1)()
+        )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          a -> (LetStm(s, count, zipped)(), True)
+        )
+      )().tchk()
+    }
+    val expected = StmLiteral(
+      Tuple(C(0)(U8), C(5)(U8), C(5)(U8))(),
+      Tuple(C(1)(U8), C(6)(U8), C(9)(U8))(),
+      Tuple(C(2)(U8), C(7)(U8), C(13)(U8))(),
+      Tuple(C(3)(U8), C(8)(U8), C(17)(U8))(),
+      Tuple(C(4)(U8), C(9)(U8), C(21)(U8))()
+    )()
+    val actual = mhir.ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("LetStm:WrongAccessOrder") {
+    // StmCount(5)
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        5,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val s = Param("s")(TyStm(U8, 5))
+    // StmConcat(s, s)
+    val concat = {
+      val t = Param("t")(U8)
+      val s0 = Param("s0")(TyStm(U8, 5))
+      val s1 = Param("s1")(TyStm(U8, 5))
+      StmBuild(
+        5,
+        Mux(t lt C(5)(U8), StmData(s0)(), StmData(s1)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+          s0 -> (s, t lt C(5)(U8)),
+          s1 -> (s, t geq C(5)(U8))
+        )
+      )()
+    }
+    val e = LetStm(s, count, concat)().tchk()
+    val exc = intercept[DeadlockError](mhir.ir.eval(e))
+    assert(exc.reasons == Seq(TooManySteps))
   }
 }

@@ -3,12 +3,14 @@ package mhir.optimize
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-/** Pass for making expressions like [[Sum]] and [[Or]] into binary trees.
+/** Pass for making expressions like [[mhir.ir.Sum]] and [[mhir.ir.Or]] into
+  * binary trees.
   */
 object BinOpTreeMaker {
 
-  /** Convert flat operators with many operands (e.g., [[Sum]], [[Prod]],
-    * [[And]], [[Or]]) into roughly balanced binary trees.
+  /** Convert flat operators with many operands (e.g., [[mhir.ir.Sum]],
+    * [[mhir.ir.Prod]], [[mhir.ir.And]], [[mhir.ir.Or]]) into roughly balanced
+    * binary trees.
     *
     * For example, consider a flat sum with 4 operands. If this is converted to
     * a VHDL expression like `x + y + z + w`, that defines a linear chain of
