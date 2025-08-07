@@ -4,8 +4,7 @@ ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions += "-deprecation"
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
-// TODO: Make this an error again
-  "-Wconf:cat=other-match-analysis:warning"
+  "-Wconf:cat=other-match-analysis:error"
 )
 ThisBuild / showSuccess := false
 Global / excludeLintKeys += showSuccess

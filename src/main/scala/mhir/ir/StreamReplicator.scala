@@ -60,6 +60,8 @@ object StreamReplicator {
           )
         case let: LetStm =>
           replicateLetStm(let, m = m, i = i, varsToReplicate = varsToReplicate)
+        case e =>
+          throw new IllegalArgumentException(s"Cannot replicate expression: $e")
       }
       result.tchk()
     }
