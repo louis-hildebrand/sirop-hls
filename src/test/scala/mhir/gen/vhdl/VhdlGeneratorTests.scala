@@ -273,36 +273,38 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("s => StmConcat(s, s)") {
     val n = 5
-    val s = Param("s")(TyStm(U8, n))
+    val s = Param("s", -1)(TyStm(U8, n))
     val concat = StmConcat(s, s)().tchk().lower()
     val f = Function(s, concat)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
+    assert(exc.getMessage.contains("Top-level parameter s is used 2 times."))
   }
 
   test("s => StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
     val n = 5
-    val s = Param("s")(TyStm(U8, n))
+    val s = Param("s", -1)(TyStm(U8, n))
     val zip = StmZip(StmPrefix(s, 2)(), StmSuffix(s, 2)())().tchk().lower()
     val f = Function(s, zip)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
+    assert(exc.getMessage.contains("Top-level parameter s is used 2 times."))
   }
 
   test("s => let s0 = s in StmZip(s0, s)") {
     val n = 5
-    val s = Param("s")(TyStm(U8, n))
+    val s = Param("my_input", -1)(TyStm(U8, n))
     val s0 = Param("s0")(TyStm(U8, n))
     val zip = StmZip(s0, s)().tchk().lower()
     val f = Function(s, LetStm(s0, s, zip)())().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
-    assert(exc.getMessage.startsWith(s"Input I0 is used more than once."))
+    assert(
+      exc.getMessage.contains("Top-level parameter my_input is used 2 times.")
+    )
   }
 
   // Producer is a no-op
