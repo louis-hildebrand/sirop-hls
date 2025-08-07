@@ -101,6 +101,26 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("VecBuild:LetStm") {
+    val n = 5
+    val m = 9
+    val i = Param("i")(U8)
+    val s = Param("s")(TyStm(U8, m))
+    val let =
+      LetStm(s, StmRange(m, C(0)(U8), i)(), StmZip(StmCount(C(m)(U8))(), s)())()
+    val e = VecBuild(n, Function(i, let)())().tchk().lower()
+    val expected =
+      StmLiteral(
+        (0 until m).map(t =>
+          VecLiteral(
+            (0 until n).map(i => Tuple(C(t)(U8), C(i * t)(U8))()): _*
+          )()
+        ): _*
+      )().tchk()
+    val actual = mhir.ir.eval(e)
+    assert(actual == expected)
+  }
+
   test("VecAccess") {
     val n = 5
     val m = 4

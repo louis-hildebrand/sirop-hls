@@ -41,13 +41,7 @@ object Lowering {
           val f = vb.f.lower().asInstanceOf[Function]
           vb.typ.asInstanceOf[TyVec].t.lower match {
             case _: TyStm =>
-              val (i, s) = f match {
-                case Function(i, s: StmBuild) => (i, s)
-                case Function(_, body) =>
-                  throw new IllegalArgumentException(
-                    s"Cannot lower VecBuild whose function has body $body. Expected StmBuild."
-                  )
-              }
+              val Function(i, s) = f
               new mhir.ir.StreamReplicator.StreamReplication(s)
                 .replicate(n, i, Set())
             case t if t.isData => VecBuild(n, f)().tchk()

@@ -78,10 +78,10 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
         )().tchk().lower()
       case TyArrow(t1, _: TyStm) =>
         val streamifiedF = f.streamify().asInstanceOf[Function]
-        val (x, stm) =
-          (streamifiedF.param, streamifiedF.body.asInstanceOf[StmBuild])
         val n = this.v.typ.asInstanceOf[TyVec].n
         val i = Param("i")(U32)
+        val x = streamifiedF.param
+        val stm = streamifiedF.body
         val replicatedStm = stm.replicate(n, i = i, varsToReplicate = Set(x))
         val result = t1 match {
           case _: TyStm =>
