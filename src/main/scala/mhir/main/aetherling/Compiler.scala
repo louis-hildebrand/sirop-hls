@@ -58,7 +58,7 @@ object Compiler {
       println(ExprPrinter.display(checked))
     }
 
-    val lowered = checked.lower()
+    val lowered = translateStmLiteral(checked).lower()
     if (args.showLowered) {
       println(ExprPrinter.display(lowered))
     }
@@ -84,8 +84,21 @@ object Compiler {
     finalProgram
   }
 
+  private def translateStmLiteral(e: Expr): Expr = {
+    val result = e match {
+      case s: StmLiteral => s.toStmBuild
+      case e             => e.map(translateStmLiteral)
+    }
+    val checked = result.tchk()
+    assert(checked.typ ~= e.typ)
+    checked
+  }
+
   private def makeSynthesizable(e: Expr): Expr = {
-    uncurryBody(inlineFunCalls(e).streamify())
+    val e1 = inlineFunCalls(e)
+    val e2 = e1.streamify()
+    val e3 = uncurryBody(e2)
+    e3
   }
 
   private def inlineFunCalls(e: Expr): Expr = {
