@@ -36,15 +36,17 @@ object DotPrinter {
     }
     os.makeDir.all(dir)
     for ((step, i) <- trace.steps.zipWithIndex) {
-      step match {
+      val dot = step match {
         case step: ValidTraceStep =>
-          os.write(
-            dir / s"step_$i.dot",
-            toDot(step, trace.structure, trace.sink)
-          )
-        case _: ErrorTraceStep =>
-          ???
+          toDot(step, trace.structure, trace.sink)
+        case step: ErrorTraceStep =>
+          val label = step.err.toString
+          s"""digraph g {
+             |    v [shape="plain", label="$label"];
+             |}
+             |""".stripMargin
       }
+      os.write(dir / s"step_$i.dot", dot)
     }
     os.proc(os.pwd / "src" / "main" / "sh" / "dots_to_svg.sh", dir.toString())
       .call(cwd = os.pwd)
