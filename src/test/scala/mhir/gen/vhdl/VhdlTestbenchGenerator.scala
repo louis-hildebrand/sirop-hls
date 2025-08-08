@@ -136,8 +136,6 @@ object VhdlTestbenchGenerator {
     } else {
       "0;"
     }
-    val expected =
-      VhdlConversionGenerator.fromStdLogicVector("expected", outElemType)
     val data = VhdlConversionGenerator.fromStdLogicVector("data", outElemType)
     val str =
       s"""library IEEE;
@@ -158,12 +156,10 @@ object VhdlTestbenchGenerator {
          |    signal   data       : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
-         |    signal   expected   : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   t          : integer := $t0
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
-         |    signal   expected_t : ${outElemType.vhdlName};
          |
          |    -- Input streams
          |${indent(inputStmSignals)}
@@ -193,7 +189,6 @@ object VhdlTestbenchGenerator {
          |${indent(inputProcesses)}
          |
          |    data_t <= $data;
-         |    expected_t <= $expected;
          |
          |    -- Check outputs
          |    process
