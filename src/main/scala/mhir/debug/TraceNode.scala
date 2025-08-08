@@ -25,7 +25,7 @@ object TraceNode {
     s match {
       case s: StmBuildNode         => StmBuildTraceNode(s)
       case s: StmBufferNode        => StmBufferTraceNode(s)
-      case _: StmMultiConsumerNode => StatelessTraceNode(s.out)
+      case s: StmMultiConsumerNode => StatelessTraceNode(s)
     }
   }
 }
@@ -94,6 +94,19 @@ object StmBufferTraceNode {
 
 /** A trace node representing a stateless streaming component.
   */
-case class StatelessTraceNode(out: Option[Expr]) extends TraceNode {
-  override def ready: Set[StmNodeId] = Set()
+case class StatelessTraceNode(out: Option[Expr], ready: Set[StmNodeId])
+    extends TraceNode
+
+/** Companion object for [[StatelessTraceNode]].
+  */
+object StatelessTraceNode {
+
+  /** Factory for [[StatelessTraceNode]].
+    *
+    * @param s
+    *   the stream node to save to a trace node.
+    */
+  def apply(s: StmMultiConsumerNode): StatelessTraceNode = {
+    StatelessTraceNode(s.out, ready = s.producerIds.filter(s.ready))
+  }
 }

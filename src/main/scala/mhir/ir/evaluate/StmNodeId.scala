@@ -6,4 +6,6 @@ package mhir.ir.evaluate
   * @param id
   *   a name for the stream node.
   */
-case class StmNodeId(id: String) extends AnyVal
+case class StmNodeId(id: String) extends AnyVal {
+  override def toString: String = this.id
+}

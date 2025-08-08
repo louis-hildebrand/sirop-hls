@@ -63,7 +63,7 @@ object DotPrinter {
       g: DiGraph[StmNodeId],
       sinkId: StmNodeId
   ): String = {
-    val nodes = nodesToDot()
+    val nodes = nodesToDot(step)
     val edges = edgesToDot(step, g, sinkId)
     ("digraph g {"
       + "\n    rankdir=\"TB\";"
@@ -75,9 +75,39 @@ object DotPrinter {
       + "\n}\n")
   }
 
-  private def nodesToDot(): String = {
-    // TODO: Implement this properly
-    "sink [shape=\"point\"];"
+  private def nodesToDot(step: ValidTraceStep): String = {
+    val nodes =
+      step.nodes.map({ case (id, node) => nodeToDot(id, node) }).mkString("\n")
+    s"""$nodes\nsink [shape="point"];"""
+  }
+
+  private def nodeToDot(id: StmNodeId, node: TraceNode): String = {
+    node match {
+      case node: StmBuildTraceNode  => stmBuildNodeToDot(id, node)
+      case node: StmBufferTraceNode => stmBufferNodeToDot(id, node)
+      case _: StatelessTraceNode    => s"$id;"
+    }
+  }
+
+  private def stmBuildNodeToDot(
+      id: StmNodeId,
+      node: StmBuildTraceNode
+  ): String = {
+    val acc =
+      (s"{n|${node.n}}" +: node.accumulators
+        .map({ case (x, v) => s"{$x|$v}" })
+        .toSeq)
+        .mkString("|")
+    val label = s"$id|$acc"
+    s"""$id [shape="record", label="$label"];"""
+  }
+
+  private def stmBufferNodeToDot(
+      id: StmNodeId,
+      node: StmBufferTraceNode
+  ): String = {
+    val data = node.data.map(_.toString()).getOrElse("-")
+    s"""$id [shape="Mrecord", label="$id|$data"];"""
   }
 
   private def edgesToDot(
