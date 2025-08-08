@@ -85,6 +85,11 @@ The test suite `TestRunnerTests` verifies that VHDL can be compiled and simulate
 sbt 'testOnly *TestRunnerTests'
 ```
 
+### Debugging
+
+There are some classes that help with debugging in [the debug package](./src/main/scala/mhir/debug).
+Consult the package documentation for more information.
+
 ### Git Pre-Commit Hook
 
 A Git pre-commit hook is available to check formatting and run some of the tests ([githooks/pre-commit](./githooks/pre-commit)).

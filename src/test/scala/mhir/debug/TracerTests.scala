@@ -23,7 +23,7 @@ class TracerTests extends AnyFunSuite {
   private def save(trace: Trace, filename: String): Unit = {
     val p = TracesDir / filename
     if (os.exists(p)) os.remove(p)
-    trace.dump(p)
+    trace.dumpJson(p)
   }
 
   test("Counter") {
@@ -150,6 +150,86 @@ class TracerTests extends AnyFunSuite {
       save(fullTrace, "trace-all-interleave.json")
     } else {
       val expectedFullTrace = os.read(TracesDir / "trace-all-interleave.json")
+      assert(fullTrace.json == expectedFullTrace)
+    }
+    assume(!SaveTraces)
+  }
+
+  test("LetStm") {
+    mhir.ir.reset()
+    // StmScan(
+    //     let s = StmRange(5, 2, 1) in
+    //         StmZip(s, StmMap(x => x + 5)),
+    //     (acc : (u8, u8)) => (x : (u8, u8)) =>
+    //         (acc.0 + x.0, acc.1 * x.1)
+    // )
+    val stm = {
+      // StmRange(5, 2, 1)
+      val count = {
+        val i = Param("i")(U16)
+        StmBuild(
+          5,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(2)(U16), Sum(C(1)(U16), i)())
+          )
+        )()
+      }
+      val s = Param("s")(TyStm(U16, 5))
+      // StmMap(s, x => x + 5)
+      val plusFive = {
+        val a = Param("a")(TyStm(U16, 5))
+        StmBuild(
+          5,
+          Sum(C(5)(U16), StmData(a)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            a -> (s, True)
+          )
+        )()
+      }
+      // StmZip(s, plusFive)
+      val zipped = {
+        val s0 = Param("s0")(TyStm(U16, 5))
+        val s1 = Param("s1")(TyStm(U16, 5))
+        StmBuild(
+          5,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (s, True),
+            s1 -> (plusFive, True)
+          )
+        )()
+      }
+      val scan = {
+        val sAcc = Param("s")(TyStm((U16, U16), -1))
+        val acc = Param("acc")((U16, U16))
+        StmBuild(
+          5,
+          acc,
+          True,
+          Map[Param, (Expr, Expr)](
+            sAcc -> (LetStm(s, count, zipped)(), True),
+            acc -> (
+              Tuple(C(0)(U16), C(1)(U16))(),
+              Tuple(
+                acc.__0 + StmData(sAcc)().__0,
+                acc.__1 * StmData(sAcc)().__1
+              )()
+            )
+          )
+        )().tchk()
+      }
+      scan
+    }
+
+    val fullTrace = Tracer.traceAll(stm)
+    if (SaveTraces) {
+      save(fullTrace, "trace-all-let-stm.json")
+    } else {
+      val expectedFullTrace = os.read(TracesDir / "trace-all-let-stm.json")
       assert(fullTrace.json == expectedFullTrace)
     }
     assume(!SaveTraces)

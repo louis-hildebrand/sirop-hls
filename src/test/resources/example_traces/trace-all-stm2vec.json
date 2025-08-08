@@ -28,7 +28,10 @@
                     ],
                     "accumulators": {
                         "i": "42:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -39,7 +42,10 @@
                     "accumulators": {
                         "v": "[0:i32, 0:i32, 0:i32, 0:i32]",
                         "t": "0:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 }
             }
         },
@@ -54,7 +60,10 @@
                     ],
                     "accumulators": {
                         "i": "43:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -65,7 +74,10 @@
                     "accumulators": {
                         "v": "[0:i32, 0:i32, 0:i32, 0:i32]",
                         "t": "0:u8"
-                    }
+                    },
+                    "ready": [
+                        "sbuild_1"
+                    ]
                 }
             }
         },
@@ -80,7 +92,10 @@
                     ],
                     "accumulators": {
                         "i": "44:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -91,7 +106,10 @@
                     "accumulators": {
                         "v": "[0:i32, 0:i32, 0:i32, 42:i32]",
                         "t": "1:u8"
-                    }
+                    },
+                    "ready": [
+                        "sbuild_1"
+                    ]
                 }
             }
         },
@@ -106,7 +124,10 @@
                     ],
                     "accumulators": {
                         "i": "45:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -117,7 +138,10 @@
                     "accumulators": {
                         "v": "[0:i32, 0:i32, 42:i32, 43:i32]",
                         "t": "2:u8"
-                    }
+                    },
+                    "ready": [
+                        "sbuild_1"
+                    ]
                 }
             }
         },
@@ -132,7 +156,10 @@
                     ],
                     "accumulators": {
                         "i": "46:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -143,7 +170,10 @@
                     "accumulators": {
                         "v": "[0:i32, 42:i32, 43:i32, 44:i32]",
                         "t": "3:u8"
-                    }
+                    },
+                    "ready": [
+                        "sbuild_1"
+                    ]
                 }
             }
         },
@@ -158,7 +188,10 @@
                     ],
                     "accumulators": {
                         "i": "46:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -169,7 +202,10 @@
                     "accumulators": {
                         "v": "[42:i32, 43:i32, 44:i32, 45:i32]",
                         "t": "4:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 }
             }
         },
@@ -184,7 +220,10 @@
                     ],
                     "accumulators": {
                         "i": "46:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -195,7 +234,10 @@
                     "accumulators": {
                         "v": "[42:i32, 43:i32, 44:i32, 45:i32]",
                         "t": "4:u8"
-                    }
+                    },
+                    "ready": [
+                        
+                    ]
                 }
             }
         }

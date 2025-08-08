@@ -63,7 +63,7 @@ sealed trait StmNode {
 
   /** The IDs of the stream producers that provide input to this node.
     */
-  private def producerIds: Set[StmNodeId] =
+  def producerIds: Set[StmNodeId] =
     this.pipe.connections.inNeighbours(this.id)
 
   /** The stream producers that provide input to this node.

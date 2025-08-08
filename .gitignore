@@ -65,3 +65,4 @@ metals.sbt
 .venv/
 /results*/*.pdf
 /results*/*.csv.bak
+/traces/
