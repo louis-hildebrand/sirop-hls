@@ -23,7 +23,7 @@ class TracerTests extends AnyFunSuite {
   private def save(trace: Trace, filename: String): Unit = {
     val p = TracesDir / filename
     if (os.exists(p)) os.remove(p)
-    trace.dump(p)
+    trace.dumpJson(p)
   }
 
   test("Counter") {

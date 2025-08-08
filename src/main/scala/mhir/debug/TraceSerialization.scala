@@ -41,7 +41,7 @@ object TraceSerialization {
   implicit val evalExceptionWriter: Writer[EvalException] =
     upickle.default.writer[String].comap(_.toString)
 
-  implicit val statelessTraceNodeWriter: Writer[StatelessTraceNode.type] =
+  implicit val statelessTraceNodeWriter: Writer[StatelessTraceNode] =
     upickle.default.macroW
   implicit val stmBufferTraceNodeWriter: Writer[StmBufferTraceNode] =
     upickle.default.macroW

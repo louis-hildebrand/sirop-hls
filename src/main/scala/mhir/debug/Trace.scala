@@ -10,7 +10,7 @@ import os.Path
   *   a graph showing the nodes in the graph and their connections, which should
   *   not change during execution.
   * @param sink
-  *   the node which gives the output of the entire pipeline.
+  *   the ID of the node which gives the output of the entire pipeline.
   * @param steps
   *   the state of the pipeline at each time step.
   */
@@ -31,7 +31,7 @@ case class Trace(
     * @param path
     *   the file in which to save the trace.
     */
-  def dump(path: Path): Unit = {
+  def dumpJson(path: Path): Unit = {
     os.write(path, this.json)
   }
 
@@ -40,5 +40,5 @@ case class Trace(
     * @param path
     *   the name of the file in which to save the trace.
     */
-  def dump(path: String): Unit = this.dump(os.pwd / path)
+  def dumpJson(path: String): Unit = this.dumpJson(os.pwd / path)
 }

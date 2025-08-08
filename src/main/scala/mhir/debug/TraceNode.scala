@@ -1,17 +1,16 @@
 package mhir.debug
 
 import mhir.ir._
-import mhir.ir.evaluate.{
-  StmBufferNode,
-  StmBuildNode,
-  StmMultiConsumerNode,
-  StmNode
-}
+import mhir.ir.evaluate._
 
 /** One node in a trace, showing the current state of a given node in the stream
   * pipeline.
   */
-sealed trait TraceNode
+sealed trait TraceNode {
+  def out: Option[Expr]
+
+  def ready: Set[StmNodeId]
+}
 
 /** Companion object for [[TraceNode]].
   */
@@ -26,7 +25,7 @@ object TraceNode {
     s match {
       case s: StmBuildNode         => StmBuildTraceNode(s)
       case s: StmBufferNode        => StmBufferTraceNode(s)
-      case _: StmMultiConsumerNode => StatelessTraceNode
+      case _: StmMultiConsumerNode => StatelessTraceNode(s.out)
     }
   }
 }
@@ -43,7 +42,8 @@ object TraceNode {
 case class StmBuildTraceNode(
     n: Long,
     out: Option[Expr],
-    accumulators: Map[String, String]
+    accumulators: Map[String, String],
+    ready: Set[StmNodeId]
 ) extends TraceNode
 
 /** Companion object for [[StmBuildTraceNode]].
@@ -59,7 +59,12 @@ object StmBuildTraceNode {
     val acc = s.acc.map({ case (x, v) =>
       x.name -> ExprPrinter.displayOneLine(v)
     })
-    StmBuildTraceNode(n = s.n, out = s.out, accumulators = acc)
+    StmBuildTraceNode(
+      n = s.n,
+      out = s.out,
+      accumulators = acc,
+      ready = s.producerIds.filter(s.ready)
+    )
   }
 }
 
@@ -68,7 +73,10 @@ object StmBuildTraceNode {
   * @param data
   *   the current contents of the buffer.
   */
-case class StmBufferTraceNode(data: Option[Expr]) extends TraceNode
+case class StmBufferTraceNode(data: Option[Expr], ready: Set[StmNodeId])
+    extends TraceNode {
+  override def out: Option[Expr] = this.data
+}
 
 /** Companion object for [[StmBufferTraceNode]].
   */
@@ -80,10 +88,12 @@ object StmBufferTraceNode {
     *   the stream node to save to a trace node.
     */
   def apply(s: StmBufferNode): StmBufferTraceNode = {
-    StmBufferTraceNode(data = s.data)
+    StmBufferTraceNode(data = s.data, ready = s.producerIds.filter(s.ready))
   }
 }
 
 /** A trace node representing a stateless streaming component.
   */
-object StatelessTraceNode extends TraceNode
+case class StatelessTraceNode(out: Option[Expr]) extends TraceNode {
+  override def ready: Set[StmNodeId] = Set()
+}
