@@ -285,6 +285,8 @@ object PartialEvalPass {
                 doPartialEval(
                   Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
+              case (VecLiteral(elems @ _*), IntCst(i)) =>
+                elems(i.toInt)
               case (VecBuild(_, f), i) =>
                 // Out-of-bounds vector access is undefined behaviour, so just
                 // don't worry about it

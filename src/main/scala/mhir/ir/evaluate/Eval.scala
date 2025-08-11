@@ -68,25 +68,6 @@ trait Eval {
     }
   }
 
-  private[ir] def stmLiteralToStmBuild(s: StmLiteral): StmBuild = {
-    val t = s.typ.asInstanceOf[TyStm].t
-    val n = s.typ.asInstanceOf[TyStm].n
-    // The index type must be at least wide enough to fit the value 1, since
-    // the index accumulator is updated by i + 1
-    val idxTyp = TyAnyInt.tightest(0, math.max(1, s.elems.length))
-    val i = Param("i")(idxTyp)
-    val v = Param("v")(TyVec(t, n))
-    StmBuild(
-      s.elems.length,
-      VecAccess(v, i)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(0)(idxTyp), i + 1),
-        v -> (VecLiteral(s.elems: _*)(TyVec(t, n)), v)
-      )
-    )().tchk().lower().asInstanceOf[StmBuild]
-  }
-
   private[ir] def evalBigStep(e: Expr): Value = {
     val result: Value = e match {
       case x: Param =>

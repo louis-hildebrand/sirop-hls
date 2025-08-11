@@ -679,12 +679,19 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("FuseVecAccess") {
+  test("VecAccess(VecBuild)") {
     val e =
       VecAccess(VecBuild(5, U8 ::+ (i => 7 + i))(), C(3)(U8))().tchk().lower()
     val actual = PE.partialEval(e)
     val expected = C(10)()
     assert(actual == expected)
+  }
+
+  test("VecAccess(VecLiteral)") {
+    val v = VecLiteral(C(41)(U8), C(42)(U8), C(43)(U8))()
+    assert(PE.partialEval(VecAccess(v, 0)()) == C(41)(U8))
+    assert(PE.partialEval(VecAccess(v, 1)()) == C(42)(U8))
+    assert(PE.partialEval(VecAccess(v, 2)()) == C(43)(U8))
   }
 
   test("NestedMux") {

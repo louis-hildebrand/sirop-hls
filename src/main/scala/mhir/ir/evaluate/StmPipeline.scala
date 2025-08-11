@@ -124,7 +124,7 @@ object StmPipeline {
         pipe.addEdges(idByVar(x) -> buffer.id)
         pipe.sinkId = buffer.id
       case s: StmLiteral =>
-        init(pipe, stmLiteralToStmBuild(s), idByVar)
+        init(pipe, s.toStmBuild, idByVar)
       case s: StmBuild =>
         val newSink = makeStmBuildNode(s, pipe, idByVar)
         pipe.addNode(newSink)

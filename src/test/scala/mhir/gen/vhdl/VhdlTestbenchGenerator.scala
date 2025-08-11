@@ -99,11 +99,8 @@ object VhdlTestbenchGenerator {
       .mkString("\n\n")
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
-        val expected = VhdlGenerator.valueToStdLogicVector(v.tchk())
-        s"""expected <= $expected;
-           |wait until rising_edge(clk) and valid = '1';
-           |assert(data = expected) report "Wrong `data` at step $i.";
-           |""".stripMargin.stripTrailing
+        ("wait until rising_edge(clk) and valid = '1';\n"
+          + makeAssertions(v.tchk(), t = i))
       })
       .mkString("\n\n")
     val assignments = (
@@ -139,8 +136,6 @@ object VhdlTestbenchGenerator {
     } else {
       "0;"
     }
-    val expected =
-      VhdlConversionGenerator.fromStdLogicVector("expected", outElemType)
     val data = VhdlConversionGenerator.fromStdLogicVector("data", outElemType)
     val str =
       s"""library IEEE;
@@ -161,12 +156,10 @@ object VhdlTestbenchGenerator {
          |    signal   data       : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   valid      : std_logic;
          |    signal   ready      : std_logic := '0';
-         |    signal   expected   : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
          |    signal   t          : integer := $t0
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
-         |    signal   expected_t : ${outElemType.vhdlName};
          |
          |    -- Input streams
          |${indent(inputStmSignals)}
@@ -196,7 +189,6 @@ object VhdlTestbenchGenerator {
          |${indent(inputProcesses)}
          |
          |    data_t <= $data;
-         |    expected_t <= $expected;
          |
          |    -- Check outputs
          |    process
@@ -225,6 +217,45 @@ object VhdlTestbenchGenerator {
     val testbenchFile = testDir / "test_top.vhd"
     if (os.isFile(testbenchFile)) os.remove(testbenchFile)
     os.write(testbenchFile, str)
+  }
+
+  private def makeAssertions(expected: Expr, t: Int): String = {
+    require(expected.hasType)
+    val fullBitWidth = VhdlType(expected.typ).bitWidth
+    makeAssertions(
+      actual = "data",
+      expected = expected,
+      t = t,
+      lsb = 0,
+      msb = fullBitWidth - 1
+    )
+  }
+
+  private def makeAssertions(
+      actual: String,
+      expected: Expr,
+      t: Int,
+      lsb: Int,
+      msb: Int
+  ): String = {
+    require(expected.hasType)
+    (expected.typ, expected) match {
+      case (TyVec(typ, _), VecLiteral(elems @ _*)) =>
+        val elemBitWidth = VhdlType(typ).bitWidth
+        elems.zipWithIndex
+          .map({ case (e, i) =>
+            val newMsb = msb - i * elemBitWidth
+            val newLsb = newMsb - elemBitWidth + 1
+            makeAssertions(actual, e, t, lsb = newLsb, msb = newMsb)
+          })
+          .mkString("\n")
+      case (_, _: Undefined) =>
+        s"-- $actual($msb downto $lsb) : undefined"
+      case (_, v) =>
+        val expectedVhdl = VhdlGenerator.valueToStdLogicVector(v)
+        val actualSlice = s"$actual($msb downto $lsb)"
+        s"""assert ($actualSlice = $expectedVhdl) report "Wrong data at step $t ($msb downto $lsb).";"""
+    }
   }
 
   /** Find the expected output by passing all the given inputs. Also record

@@ -1,0 +1,27 @@
+(I : Stm[Vec[i8, 16:u5], 1:u1]) =>
+  let stm I: Stm[Vec[i8, 16:u5], 1:u1] = I in
+  sbuild(
+    1:u1;
+    vbuild(
+      16:u5,
+      (i : u32) =>
+        vbuild(
+          1:u1,
+          (j : u8) =>
+            0:i8
+              + ((
+                -1:i8
+                  * (if (i < 2:u32) then {
+                    0:i8
+                  } else {
+                    data(I)[usgn(-2:i33 + sgn(i))]
+                  }))
+                + data(I)[i])
+        )
+    );
+    true;
+    (I : Stm[Vec[i8, 16:u5], -1:i1]) = (
+      I,
+      true
+    );
+  )

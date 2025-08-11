@@ -52,7 +52,7 @@ object VerilogTestbenchGenerator {
               .zipWithIndex
               .flatMap({ case (x, i) =>
                 val prefix = if (inputs.length == 1) "I" else s"I$i"
-                mapPortsToValues(prefix)(x)
+                mapPortsToValues(prefix)(x).map({ case (k, v) => k -> v.get })
               })
               .toMap
           )
@@ -65,12 +65,11 @@ object VerilogTestbenchGenerator {
         }
       })
     }
-    val outputMap: Seq[Map[String, String]] =
+    val outputMap: Seq[Map[String, Option[String]]] =
       expectedOutput.elems
         .map(mapPortsToValues("O"))
-        .map(_.map({ case (name, (v, _)) => name -> v }))
-    val outputAtomWidth =
-      getAtomWidth(expectedOutput.elems.head.typ)
+        .map(_.map({ case (name, v) => name -> v.map(_._1) }))
+    val outputAtomWidth = getAtomWidth(expectedOutput.elems.head.typ)
     val inputNames: Seq[String] =
       inputMap.find(x => x.isDefined).get.get.keys.toSeq
     val outputNames: Seq[String] = outputMap.head.keys.toSeq
@@ -102,7 +101,14 @@ object VerilogTestbenchGenerator {
     val outputChecks = outputMap
       .map(valByPort => {
         val checks = valByPort
-          .map({ case (port, v) => s"check_output($v, $port);" })
+          .map({ case (port, v) =>
+            v match {
+              case None =>
+                s"// value for $port is undefined"
+              case Some(v) =>
+                s"check_output($v, $port);"
+            }
+          })
           .mkString("\n")
         s"wait_for_output();\n$checks"
       })
@@ -214,16 +220,17 @@ object VerilogTestbenchGenerator {
 
   private def mapPortsToValues(
       prefix: String
-  )(e: Expr): Map[String, (String, Int)] = {
+  )(e: Expr): Map[String, Option[(String, Int)]] = {
     e match {
-      case False => Map(prefix -> ("0", 1))
-      case True  => Map(prefix -> ("1", 1))
+      case _: Undefined => Map(prefix -> None)
+      case False        => Map(prefix -> Some(("0", 1)))
+      case True         => Map(prefix -> Some(("1", 1)))
       case c: IntCst =>
         val w = c.typ.asInstanceOf[TyAnyInt].w
         if (c.i < 0) {
-          Map(prefix -> (s"-$w'd${-c.i}", w))
+          Map(prefix -> Some((s"-$w'd${-c.i}", w)))
         } else {
-          Map(prefix -> (s"$w'd${c.i}", w))
+          Map(prefix -> Some((s"$w'd${c.i}", w)))
         }
       case VecLiteral(elems @ _*) =>
         elems.zipWithIndex

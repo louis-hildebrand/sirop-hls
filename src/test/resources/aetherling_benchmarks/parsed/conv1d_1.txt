@@ -1,0 +1,62 @@
+// Output type: Stm[Vec[i8, 1:u1], 16:u5] -> Stm[Vec[i8, 1:u1], 16:u5]
+let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n29: (i8, i8) = (I0, I1) in n29.0 ** n29.1 in
+let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
+  (I : Vec[i8, 3:u2]) =>
+    let n38: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8] in
+    let n26: Vec[i8, 3:u2] = VecMap2(I, n38, module0) in
+    VecReduceComb(n26, (I : (i8, i8)) => I.0 ++ I.1)
+) in
+(I : Stm[Vec[i8, 1:u1], 16:u5]) =>
+  let n1: Stm[Vec[i8, 1:u1], 16:u5] = I in
+  let n2: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n1) in
+  let n3: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n2) in
+  let n4: Stm[Vec[Vec[i8, 2:u2], 1:u1], 16:u5] = (
+    StmMap2(
+      n3,
+      n2,
+      (I0 : Vec[i8, 1:u1]) =>
+        (I1 : Vec[i8, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : i8) =>
+              (I1 : i8) =>
+                vbuild(
+                  2:u2,
+                  (i : u8) => if (i === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n11: Stm[Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1], 16:u5] = (
+    StmMap2(
+      n4,
+      n1,
+      (I0 : Vec[Vec[i8, 2:u2], 1:u1]) =>
+        (I1 : Vec[i8, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[i8, 2:u2]) => (I1 : i8) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n22: Stm[Vec[i8, SafeSum(2:u2, 1:u1)], 16:u5] = (
+    StmMap(
+      n11,
+      (I : Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1]) =>
+        ((I : Vec[i8, SafeSum(2:u2, 1:u1)]) => I)(I[0:u0])
+    )
+  ) in
+  let n34: Stm[Vec[i8, 1:u1], 16:u5] = (
+    StmMap(
+      n22,
+      (I : Vec[i8, 3:u2]) =>
+        let n38: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8] in
+        let n26: Vec[i8, 3:u2] = VecMap2(I, n38, module0) in
+        VecReduceComb(n26, (I : (i8, i8)) => I.0 ++ I.1)
+    )
+  ) in
+  let n35: Stm[Vec[i8, 1:u1], 16:u5] = n34 in
+  let n36: Stm[Vec[i8, 1:u1], 16:u5] = n35 in
+  n36

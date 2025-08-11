@@ -1,5 +1,6 @@
 package mhir
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir.evaluate.Eval
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 
@@ -644,6 +645,32 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
         .intersect(this.stm.accVars)
     }
 
+  }
+
+  implicit class StmLiteralOps(stm: StmLiteral) {
+    def toStmBuild: StmBuild = {
+      if (!this.stm.hasType) {
+        throw new IllegalArgumentException(
+          s"StmLiteral must be type-checked before it can be translated to a StmBuild."
+        )
+      }
+      val t = this.stm.typ.asInstanceOf[TyStm].t
+      val n = this.stm.typ.asInstanceOf[TyStm].n
+      // The index type must be at least wide enough to fit the value 1, since
+      // the index accumulator is updated by i + 1
+      val idxTyp = TyAnyInt.tightest(0, math.max(1, this.stm.elems.length))
+      val i = Param("i")(idxTyp)
+      val v = Param("v")(TyVec(t, n))
+      StmBuild(
+        this.stm.elems.length,
+        VecAccess(v, i)(),
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (IntCst(0)(idxTyp), i + 1),
+          v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v)
+        )
+      )().tchk().lower().asInstanceOf[StmBuild]
+    }
   }
 
   /** Reset all global mutable state in this package.

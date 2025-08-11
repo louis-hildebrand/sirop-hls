@@ -784,7 +784,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecSplit:Vec[Int]") {
     val v = VecBuild(6, U32 ::+ (i => i * i))()
-    val split = VecSplit(v, 3).tchk()
+    val split = VecSplit(v, 3)().tchk()
     val expected = VecLiteral(
       VecLiteral(IntCst(0)(), IntCst(1)(), IntCst(4)())(),
       VecLiteral(IntCst(9)(), IntCst(16)(), IntCst(25)())()
@@ -797,7 +797,7 @@ class VectorTests extends AnyFunSuite {
     val m = Param("m")(U32)
     val k = 3
     val vs = VecBuild(nm, U32 ::+ (i => StmRange(k, C(0)(U32), i)()))()
-    val e = VecSplit(vs, m).tchk().lower()
+    val e = VecSplit(vs, m)().tchk().lower()
     for (mVal <- Seq(1, 2, 3, 4, 6, 12)) {
       val nVal = nm / mVal
       val expected = StmLiteral(

@@ -2140,6 +2140,24 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
+  test("StmVecShiftRightGarbage:Stm[Vec[u8,3],2]") {
+    val input = StmLiteral(
+      VecLiteral(C(0)(U8), C(1)(U8), C(2)(U8))(),
+      VecLiteral(C(3)(U8), C(4)(U8), C(5)(U8))()
+    )()
+    val s = StmVecShiftRightGarbage(input)().tchk().lower()
+    val actual = mhir.ir.eval(s)
+    actual match {
+      case StmLiteral(
+            VecLiteral(_, IntCst(0), IntCst(1)),
+            VecLiteral(IntCst(2), IntCst(3), IntCst(4))
+          ) =>
+        ()
+      case e =>
+        fail(s"expected {{ [_, 0, 1], [2, 3, 4] }}, got $e")
+    }
+  }
+
   test("StmZip:1D") {
     val a = StmCount(4)()
     val b = {

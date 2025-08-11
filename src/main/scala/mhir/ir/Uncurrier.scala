@@ -62,8 +62,9 @@ object Uncurrier {
           }
         case fc: FunCall =>
           val (f, args) = getFuncAndArgs(fc, Seq())
-          val argTuple = args.init.foldRight(args.last)({ case (e, acc) =>
-            Tuple(e, acc)()
+          val uncurriedArgs = args.map(_.uncurry())
+          val argTuple = uncurriedArgs.init.foldRight(uncurriedArgs.last)({
+            case (e, acc) => Tuple(e, acc)()
           })
           val uncurried = FunCall(f.uncurry(), argTuple)()
           try {

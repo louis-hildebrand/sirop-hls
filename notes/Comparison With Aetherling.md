@@ -1,19 +1,19 @@
 ## Types
-| Aetherling | Our IR               | Benchmarks | Note                 |
-| ---------- | -------------------- | ---------- | -------------------- |
-| `UnitT`    | `TyTuple()`          | all        |                      |
-| `BitT`     | `TyBool`             |            |                      |
-| `Int8T`    | ???                  | -          |                      |
-| `UInt8T`   | ???                  | all        |                      |
-| `Int16T`   | ???                  | -          |                      |
-| `UInt16T`  | ???                  | -          |                      |
-| `Int32T`   | ???                  | -          |                      |
-| `UInt32T`  | ???                  | cam        |                      |
-| `FixP1_7T` | ???                  | cam        | Fixed-point? 8 bits. |
-| `ATupleT`  | `TyTuple(t1, t2)`    |            |                      |
-| `STupleT`  | `TyTuple(t, ..., t)` |            |                      |
-| `SSeqT`    | `TyVec(n, t)`        |            |                      |
-| `TSeqT`    | `TyStm(n, t)`        |            |                      |
+| Aetherling | Our IR            | Benchmarks | Note                 |
+| ---------- | ----------------- | ---------- | -------------------- |
+| `UnitT`    | `TyTuple()`       | all        |                      |
+| `BitT`     | `TyBool`          |            |                      |
+| `Int8T`    | ???               | -          |                      |
+| `UInt8T`   | ???               | all        |                      |
+| `Int16T`   | ???               | -          |                      |
+| `UInt16T`  | ???               | -          |                      |
+| `Int32T`   | ???               | -          |                      |
+| `UInt32T`  | ???               | cam        |                      |
+| `FixP1_7T` | ???               | cam        | Fixed-point? 8 bits. |
+| `ATupleT`  | `TyTuple(t1, t2)` |            |                      |
+| `STupleT`  | `TyVec(t, n)`     |            |                      |
+| `SSeqT`    | `TyVec(t, n)`     |            |                      |
+| `TSeqT`    | `TyStm(t, n)`     |            |                      |
 ## Integers, Booleans, Tuples
 | Aetherling      | Our IR           | Benchmarks     | Note                           |
 | --------------- | ---------------- | -------------- | ------------------------------ |
@@ -34,10 +34,10 @@
 | `FstN`          | `e.__0`          | cam            |                                |
 | `SndN`          | `e.__1`          | cam            |                                |
 | `ATupleN`       | `Tuple(e1, e2)`? | all            |                                |
-| `STupleN`       | ???              | all but map    | ==What does this do?==         |
-| `STupleAppendN` | ???              | all but map    | ==What does this do?==         |
-| `STupleToSSeqN` | ???              | all but map    | ==What does this do?==         |
-| `SSeqToSTupleN` | ???              | -              |                                |
+| `STupleN`       | `VecBuild`       | all but map    | ==What does this do?==         |
+| `STupleAppendN` | `VecAppend`      | all but map    | ==What does this do?==         |
+| `STupleToSSeqN` | no-op            | all but map    | ==What does this do?==         |
+| `SSeqToSTupleN` | no-op            | -              |                                |
 - ==TODO:== What about functions, function calls, function composition, etc.?
 - ==TODO:== What about registers?
 ## "Generators"
@@ -71,6 +71,23 @@
 | `Add_1_0_tN`        | ???              | -                      |                                                                                                  |
 | `Remove_1_sN`       | ???              | all but map            | ==What does this do?==                                                                           |
 | `Remove_1_0_tN`     | ???              | -                      |                                                                                                  |
+### `Shift_tsN`
+
+time
+-->
+
+original:
+ 9 6 3 0
+10 7 4 1
+11 8 5 2
+
+shifted:
+ 8 5 2 u
+ 9 6 3 0
+10 7 4 1
+
+Need one accumulator to store the last value in each vector, which must be held until the next cycle.
+
 ## "Higher-Order Operators"
 | Aetherling  | Our IR     | Benchmarks  | Note                                       |
 | ----------- | ---------- | ----------- | ------------------------------------------ |

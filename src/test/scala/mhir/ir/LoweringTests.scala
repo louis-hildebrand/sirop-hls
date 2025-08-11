@@ -83,6 +83,18 @@ class LoweringTests extends AnyFunSuite {
     assert(actual.typ == I32)
   }
 
+  test("UncurryFunCall:CurriedArg") {
+    val f = Param("f")(U8 ->: U8 ->: U8)
+    val g = Param("g")(U8 ->: U8 ->: U8)
+    val e = f(g(C(42)(U8))(C(43)(U8)))(C(44)(U8))
+    val actual = e.uncurry()
+    val expected = FunCall(
+      f.lower(),
+      Tuple(FunCall(g.lower(), Tuple(C(42)(U8), C(43)(U8))())(), C(44)(U8))()
+    )()
+    assert(actual == expected)
+  }
+
   test("UncurryFunction:Mux") {
     val g0 = U8 ::+ (_ => IntCst(0)(U8))
     val g1 = U8 ::+ (x => IntCst(100)(U8) / x)

@@ -58,7 +58,7 @@ object Compiler {
       println(ExprPrinter.display(checked))
     }
 
-    val lowered = checked.lower()
+    val lowered = translateStmLiteral(checked).lower()
     if (args.showLowered) {
       println(ExprPrinter.display(lowered))
     }
@@ -84,24 +84,42 @@ object Compiler {
     finalProgram
   }
 
+  private def translateStmLiteral(e: Expr): Expr = {
+    val result = e match {
+      case s: StmLiteral => s.toStmBuild
+      case e             => e.map(translateStmLiteral)
+    }
+    val checked = result.tchk()
+    assert(checked.typ ~= e.typ)
+    checked
+  }
+
   private def makeSynthesizable(e: Expr): Expr = {
-    uncurryBody(inlineFunCalls(e).streamify())
+    val e1 = inlineFunCalls(e)
+    val e2 = e1.streamify()
+    val e3 = uncurryBody(e2)
+    e3
   }
 
   private def inlineFunCalls(e: Expr): Expr = {
-    val result = e match {
-      case FunCall(f, arg) =>
-        inlineFunCalls(f) match {
-          case Function(x, body) =>
-            body.subPreserveType(x -> arg)
-          case f =>
-            FunCall(f, arg)()
-        }
-      case Function(x, body) =>
-        Function(x, inlineFunCalls(body))()
-      case e => e
+    require(e.hasType)
+    if (e.typ.isData) {
+      e
+    } else {
+      val result = e match {
+        case FunCall(f, arg) =>
+          inlineFunCalls(f) match {
+            case Function(x, body) =>
+              body.subPreserveType(x -> arg)
+            case f =>
+              FunCall(f, arg)()
+          }
+        case Function(x, body) =>
+          Function(x, inlineFunCalls(body))()
+        case e => e
+      }
+      result.tchk()
     }
-    result.tchk()
   }
 
   private def uncurryBody(e: Expr): Expr = {
@@ -128,15 +146,6 @@ object Compiler {
         )
       }
     }
-    finalProgram match {
-      case f: Function =>
-        VhdlGenerator.emitVhdl(f, outDir)
-      case s: StmBuild =>
-        VhdlGenerator.emitVhdl(s, outDir)
-      case e =>
-        throw new RuntimeException(
-          s"Cannot compile program which is neither a stream nor a function: $e."
-        )
-    }
+    VhdlGenerator.emitVhdl(finalProgram, outDir)
   }
 }
