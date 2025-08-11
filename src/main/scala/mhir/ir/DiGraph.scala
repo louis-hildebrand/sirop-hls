@@ -120,6 +120,20 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     )
   }
 
+  /** Construct a new graph by transforming each node of this graph.
+    *
+    * @param f
+    *   the function to use to transform each node.
+    */
+  def mapNodes[U](f: T => U): DiGraph[U] = {
+    val oldToNewNodes = this.nodes.map(v => v -> f(v)).toMap
+    val newNodes = oldToNewNodes.values.toSet
+    val newEdges = this.edges.map({ case (u, v) =>
+      (oldToNewNodes(u), oldToNewNodes(v))
+    })
+    DiGraph(newNodes, newEdges)
+  }
+
   /** Get the nodes of this graph in topological order. That is, if there is an
     * edge <code>(u, v)</code>, then <code>v</code> will appear before
     * <code>u</code>.

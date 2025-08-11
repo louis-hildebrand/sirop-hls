@@ -13,20 +13,26 @@ sealed trait StmNode {
     */
   def id: StmNodeId
 
-  /** The output of this node.
-    */
-  def out: Option[Expr]
-
-  /** Whether this node has valid output.
-    */
-  def valid: Boolean = out.nonEmpty
-
-  /** The `ready` signal from this node to a given producer.
+  /** The output from this node to a given consumer.
     *
-    * @param input
-    *   the producer stream for which to get the `ready` signal.
+    * @param consumerId
+    *   the ID of the consumer for which to get the output.
     */
-  def ready(input: StmNodeId): Boolean
+  def out(consumerId: StmNodeId): Option[Expr]
+
+  /** Whether this node has valid output for the given consumer
+    *
+    * @param consumerId
+    *   the ID of the consumer for which to get the `valid` signal.
+    */
+  def valid(consumerId: StmNodeId): Boolean = this.out(consumerId).nonEmpty
+
+  /** Whether this node is ready to receive data from the given producer.
+    *
+    * @param producerId
+    *   the ID of the producer for which to get the `ready` signal.
+    */
+  def ready(producerId: StmNodeId): Boolean
 
   /** Computes the next state of this node.
     */
@@ -52,14 +58,32 @@ sealed trait StmNode {
 
   /** The IDs of the consumers of this node.
     */
-  private def consumerIds: Set[StmNodeId] = {
+  def consumerIds: Set[StmNodeId] = {
     this.pipe.connections.outNeighbours(this.id)
   }
 
   /** The consumers of this node.
     */
-  private def consumers: Set[StmNode] =
+  def consumers: Set[StmNode] =
     this.consumerIds.map(this.pipe.nodes(_))
+
+  /** The unique consumer of this node.
+    *
+    * @throws IllegalArgumentException
+    *   if the number of consumers is not exactly one.
+    */
+  protected def consumer: StmNode = {
+    val consumers = this.consumers
+    if (consumers.size == 1) {
+      consumers.head
+    } else {
+      throw new IllegalArgumentException(
+        s"Wrong number of consumers for node ${this.id}:"
+          + s" expected one, but found ${consumers.size}:"
+          + s" ${consumers.map(_.id).mkString(", ")}"
+      )
+    }
+  }
 
   /** The IDs of the stream producers that provide input to this node.
     */
@@ -71,15 +95,28 @@ sealed trait StmNode {
   protected def producers: Set[StmNode] =
     this.producerIds.map(this.pipe.nodes(_))
 
+  /** The unique producer for this node.
+    *
+    * @throws IllegalArgumentException
+    *   if the number of producers is not exactly one.
+    */
+  protected def producer: StmNode = {
+    val producers = this.producers
+    if (producers.size == 1) {
+      producers.head
+    } else {
+      throw new IllegalArgumentException(
+        s"Wrong number of inputs to node ${this.id}:"
+          + s" expected one, but found ${producers.size}:"
+          + s" ${producers.map(_.id).mkString(", ")}"
+      )
+    }
+  }
+
   /** Checks whether all consumers of this node are ready for this node.
     */
   protected def allConsumersReady: Boolean =
     this.consumers.forall(_.ready(this.id))
-
-  /** Whether the output of this node will be sent to its consumer(s) at the
-    * next step.
-    */
-  protected def transferOk: Boolean = this.allConsumersReady && this.valid
 }
 
 /** A custom stream producer, from [[StmBuild]].
@@ -88,7 +125,7 @@ sealed trait StmNode {
   *   the ID of this node.
   * @param hw
   *   the parts of the stream which do not change during evaluation.
-  * @param out
+  * @param data
   *   the current output.
   * @param n
   *   the number of remaining outputs, not including the current one.
@@ -103,20 +140,22 @@ case class StmBuildNode(
     pipe: StmPipeline,
     id: StmNodeId,
     hw: StmNodeHardware,
-    out: Option[Expr],
+    data: Option[Expr],
     n: Long,
     acc: Map[Param, Expr],
     invalidSteps: Int
 ) extends StmNode {
-  override def ready(input: StmNodeId): Boolean = {
+  override def out(consumerId: StmNodeId): Option[Expr] = this.data
+
+  override def ready(producerId: StmNodeId): Boolean = {
     val x = this.hw.inputs
-      .find({ case (_, node) => node == input })
+      .find({ case (_, node) => node == producerId })
       .map({ case (x, _) => x }) match {
       case Some(x) =>
         x
       case None =>
         throw new IllegalArgumentException(
-          s"Node with ID $input is not an input of node with ID ${this.id}."
+          s"Node with ID $producerId is not an input of node with ID ${this.id}."
         )
     }
     this.canUpdateAcc && this.readyInternal(x)
@@ -128,13 +167,13 @@ case class StmBuildNode(
         newPipe,
         this.id,
         this.hw,
-        this.out,
+        this.data,
         this.n,
         this.acc,
         this.invalidSteps
       )
     } else {
-      val newOut = if (this.transferOk || this.canUpdateAcc) {
+      val newData = if (this.transferOk || this.canUpdateAcc) {
         val valid = (
           this.n != 0
             && this.allRequiredProducersValid
@@ -147,7 +186,7 @@ case class StmBuildNode(
           None
         }
       } else {
-        this.out
+        this.data
       }
       val decrementN = (
         (this.transferOk || this.canUpdateAcc)
@@ -179,7 +218,7 @@ case class StmBuildNode(
       }
       val newInvalidSteps = if (!this.canUpdateAcc) {
         this.invalidSteps
-      } else if (newOut.nonEmpty) {
+      } else if (newData.nonEmpty) {
         0
       } else {
         this.invalidSteps + 1
@@ -188,7 +227,7 @@ case class StmBuildNode(
         pipe = newPipe,
         id = this.id,
         hw = this.hw,
-        out = newOut,
+        data = newData,
         n = newN,
         acc = newAcc,
         invalidSteps = newInvalidSteps
@@ -198,7 +237,7 @@ case class StmBuildNode(
 
   override def typ: TyStm = this.hw.typ
 
-  override def isEmpty: Boolean = !this.valid && this.n == 0
+  override def isEmpty: Boolean = this.data.isEmpty && this.n == 0
 
   override def deadlockReasons: Set[DeadlockReason] = {
     if (this.n == 0) {
@@ -262,13 +301,12 @@ case class StmBuildNode(
   private def accAndInputs: Map[Expr, Expr] = {
     val producerData = this.hw.inputs.map({ case (x, id) =>
       if (this.requiredProducerIds.contains(id)) {
-        val out = this.pipe.nodes(id).out
+        val out = this.pipe.nodes(id).out(this.id)
         assert(
           out.nonEmpty,
           s"producer data should only be accessed when all producers are valid (attempt to read invalid producer $id)"
         )
-        val v = this.pipe.nodes(id).out.get
-        StmData(x)() -> v
+        StmData(x)() -> out.get
       } else {
         val typ = x.typ.asInstanceOf[TyStm].t
         StmData(x)() -> Default(typ)
@@ -298,120 +336,158 @@ case class StmBuildNode(
     * output.
     */
   private def allRequiredProducersValid: Boolean = {
-    this.requiredProducers.forall(_.valid)
+    this.requiredProducers.forall(_.valid(this.id))
   }
 
   /** Whether this node can update its accumulators and output at the next step.
     */
   private lazy val canUpdateAcc: Boolean = {
-    ((!this.valid || this.transferOk)
-    && this.allRequiredProducersValid)
+    (this.data.isEmpty || this.transferOk) && this.allRequiredProducersValid
+  }
+
+  /** Whether the output of this node will be sent to its consumer(s) at the
+    * next step.
+    */
+  protected def transferOk: Boolean = {
+    this.allConsumersReady && this.data.nonEmpty
   }
 }
 
-/** A stream producer which buffers one element.
+/** A node in a streaming pipeline representing a [[mhir.ir.LetStm]].
   *
   * @param pipe
-  *   the stream pipeline that this node is part of.
+  *   the pipeline that this node is part of.
   * @param id
   *   the ID of this node.
   * @param data
-  *   the data inside the buffer.
+  *   the current value in the buffer.
+  * @param consumersWhoRead
+  *   the set of consumers who have already read the currently-buffered value.
   * @param typ
-  *   the type of the stream produced by this node.
+  *   the type of this node.
   */
-case class StmBufferNode(
+case class LetStmNode(
     pipe: StmPipeline,
     id: StmNodeId,
     data: Option[Expr],
+    consumersWhoRead: Set[StmNodeId],
     typ: TyStm
 ) extends StmNode {
-  override def out: Option[Expr] = data
+  override def out(consumerId: StmNodeId): Option[Expr] = {
+    // TODO: Check that the given ID indeed belongs to a consumer of this node?
+    if (this.consumersWhoRead.contains(consumerId)) {
+      None
+    } else {
+      this.data
+    }
+  }
 
-  override def ready(input: StmNodeId): Boolean = {
-    // TODO: Check that the given node ID is indeed the input to this node?
+  override def ready(producerId: StmNodeId): Boolean = {
+    // TODO: Check that the given ID matches this node's producer?
     this.canUpdate
   }
 
   override def step(newPipe: StmPipeline): StmNode = {
-    val newData = if (this.canUpdate) this.producer.out else this.data
-    StmBufferNode(pipe = newPipe, id = this.id, data = newData, typ = this.typ)
+    val newData =
+      if (this.canUpdate && this.producer.isEmpty) {
+        None
+      } else if (this.canUpdate && this.producer.valid(this.id)) {
+        this.producer.out(this.id).asInstanceOf[Some[Expr]]
+      } else {
+        this.data
+      }
+    val newConsumersWhoRead =
+      if (this.canUpdate && this.producer.isEmpty) {
+        Set[StmNodeId]()
+      } else if (this.canUpdate && this.producer.valid(this.id)) {
+        Set[StmNodeId]()
+      } else {
+        val consumersWhoWillRead =
+          this.consumers.filter(_.ready(this.id)).map(_.id)
+        this.consumersWhoRead.union(consumersWhoWillRead)
+      }
+    LetStmNode(
+      pipe = newPipe,
+      id = this.id,
+      data = newData,
+      consumersWhoRead = newConsumersWhoRead,
+      typ = this.typ
+    )
   }
 
-  override def isEmpty: Boolean = !this.valid && this.producer.isEmpty
+  override def isEmpty: Boolean = this.data.isEmpty && this.producer.isEmpty
 
   override def deadlockReasons: Set[DeadlockReason] = {
-    this.producer.deadlockReasons
-  }
-
-  /** The unique producer for this stream.
-    */
-  private def producer: StmNode = {
-    val producers = this.producers
-    if (producers.size == 1) {
-      producers.head
+    if (this.canUpdate) {
+      this.producer.deadlockReasons
     } else {
-      throw new IllegalArgumentException(
-        s"Wrong number of inputs to node ${this.id}:"
-          + s" expected one, but found ${producers.size}:"
-          + s" ${producers.mkString(", ")}"
-      )
+      Set()
     }
   }
 
-  /** Whether this node can accept new input.
-    */
-  private def canUpdate: Boolean = {
-    !this.valid || this.allConsumersReady
+  private lazy val canUpdate: Boolean = {
+    this.consumers.forall(node =>
+      this.consumersWhoRead.contains(node.id) || node.ready(this.id)
+    )
   }
 }
 
-/** A stream producer that supports more than one consumer.
-  *
-  * This simply forwards its input, but sets the `ready` signal to be the
-  * logical AND of the `ready` signals from all the consumers. Therefore, the
-  * producer will not be able to advance until all consumers are ready.
+/** A node that simply passes its input to its output with no modification.
   *
   * @param pipe
-  *   the stream pipeline that this node is part of.
+  *   the pipeline that this node is part of.
   * @param id
   *   the ID of this node.
   * @param typ
   *   the type of the stream produced by this node.
   */
-case class StmMultiConsumerNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
+case class StmNopNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
     extends StmNode {
-  override def out: Option[Expr] = {
-    if (!this.allConsumersReady) None else producer.out
+  override def out(consumerId: StmNodeId): Option[Expr] = {
+    // TODO: Check that the given ID indeed belongs to a consumer of this node?
+    this.producer.out(this.id)
   }
 
-  override def ready(input: StmNodeId): Boolean = {
-    // TODO: Check that the given node ID is indeed the input to this node?
-    this.allConsumersReady
+  override def ready(producerId: StmNodeId): Boolean = {
+    // TODO: Check that the given ID indeed belongs to a producer of this node?
+    this.consumer.ready(this.id)
   }
 
   override def step(newPipe: StmPipeline): StmNode = {
-    StmMultiConsumerNode(newPipe, id, typ)
+    StmNopNode(pipe = newPipe, id = this.id, typ = this.typ)
   }
 
-  override def isEmpty: Boolean = !this.valid && this.producer.isEmpty
+  override def isEmpty: Boolean = this.producer.isEmpty
 
   override def deadlockReasons: Set[DeadlockReason] = {
     this.producer.deadlockReasons
   }
+}
 
-  /** The unique producer for this stream.
-    */
-  private def producer: StmNode = {
-    val producers = this.producers
-    if (producers.size == 1) {
-      producers.head
-    } else {
-      throw new IllegalArgumentException(
-        s"Wrong number of inputs to node ${this.id}:"
-          + s" expected one, but found ${producers.size}:"
-          + s" ${producers.mkString(", ")}"
-      )
-    }
+/** A node that serves as the sink of the entire pipeline.
+  *
+  * @param pipe
+  *   the pipeline that this node is part of.
+  * @param id
+  *   the ID of this node.
+  * @param typ
+  *   the type of the stream produced by this node.
+  */
+case class TerminalNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
+    extends StmNode {
+  override def out(consumerId: StmNodeId): Option[Expr] = {
+    this.producer.out(this.id)
+  }
+
+  override def ready(producerId: StmNodeId): Boolean = true
+
+  override def step(newPipe: StmPipeline): StmNode = {
+    TerminalNode(pipe = newPipe, id = this.id, typ = this.typ)
+  }
+
+  override def isEmpty: Boolean = this.producer.isEmpty
+
+  override def deadlockReasons: Set[DeadlockReason] = {
+    this.producer.deadlockReasons
   }
 }

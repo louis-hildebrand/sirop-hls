@@ -9,6 +9,8 @@ import os.Path
   */
 object DotPrinter {
 
+  private case class Node(id: StmNodeId, isNop: Boolean)
+
   /** Save this trace to a sequence of .dot files which can be converted to
     * images by [[https://graphviz.org/ Graphviz]].
     *
@@ -22,7 +24,7 @@ object DotPrinter {
     */
   def dumpDot(
       trace: Trace,
-      dir: Path = os.pwd / "traces",
+      dir: Path = os.pwd / "traces" / "default",
       overwrite: Boolean = false
   ): Unit = {
     val alreadyExists =
@@ -38,7 +40,7 @@ object DotPrinter {
     for ((step, i) <- trace.steps.zipWithIndex) {
       val dot = step match {
         case step: ValidTraceStep =>
-          toDot(step, trace.structure, trace.sink)
+          toDot(step, trace.structure)
         case step: ErrorTraceStep =>
           val label = step.err.toString
           s"""digraph g {
@@ -50,6 +52,11 @@ object DotPrinter {
     }
     os.proc(os.pwd / "src" / "main" / "sh" / "dots_to_svg.sh", dir.toString())
       .call(cwd = os.pwd)
+    for (f <- os.list(dir)) {
+      if (f.ext == "dot") {
+        os.remove(f)
+      }
+    }
   }
 
   /** Converts this step to the
@@ -60,13 +67,15 @@ object DotPrinter {
     * @param g
     *   the immutable structure of the stream pipeline.
     */
-  def toDot(
-      step: ValidTraceStep,
-      g: DiGraph[StmNodeId],
-      sinkId: StmNodeId
-  ): String = {
+  private def toDot(step: ValidTraceStep, g: DiGraph[StmNodeId]): String = {
     val nodes = nodesToDot(step)
-    val edges = edgesToDot(step, g, sinkId)
+    val edges = edgesToDot(
+      step,
+      g = g.mapNodes(id => {
+        val isNop = step.nodes(id).isInstanceOf[StmNopTraceNode]
+        Node(id, isNop)
+      })
+    )
     ("digraph g {"
       + "\n    rankdir=\"TB\";"
       + "\n    // Nodes"
@@ -78,16 +87,15 @@ object DotPrinter {
   }
 
   private def nodesToDot(step: ValidTraceStep): String = {
-    val nodes =
-      step.nodes.map({ case (id, node) => nodeToDot(id, node) }).mkString("\n")
-    s"""$nodes\nsink [shape="point"];"""
+    step.nodes.map({ case (id, node) => nodeToDot(id, node) }).mkString("\n")
   }
 
   private def nodeToDot(id: StmNodeId, node: TraceNode): String = {
     node match {
-      case node: StmBuildTraceNode  => stmBuildNodeToDot(id, node)
-      case node: StmBufferTraceNode => stmBufferNodeToDot(id, node)
-      case _: StatelessTraceNode    => s"$id;"
+      case node: StmBuildTraceNode => stmBuildNodeToDot(id, node)
+      case node: LetStmTraceNode   => letStmNodeToDot(id, node)
+      case _: StmNopTraceNode      => nopNodeToDot(id)
+      case _: TerminalTraceNode    => terminalNodeToDot(id)
     }
   }
 
@@ -100,54 +108,63 @@ object DotPrinter {
         .map({ case (x, v) => s"{$x|$v}" })
         .toSeq)
         .mkString("|")
-    val label = s"$id|$acc"
-    s"""$id [shape="record", label="$label"];"""
+    s"""$id [shape="record", label="$acc", xlabel="$id"];"""
   }
 
-  private def stmBufferNodeToDot(
+  private def letStmNodeToDot(
       id: StmNodeId,
-      node: StmBufferTraceNode
+      node: LetStmTraceNode
   ): String = {
     val data = node.data.map(_.toString()).getOrElse("-")
-    s"""$id [shape="Mrecord", label="$id|$data"];"""
+    s"""$id [shape="Mrecord", label="$data", xlabel="$id"];"""
+  }
+
+  private def nopNodeToDot(id: StmNodeId): String = {
+    s"""$id [shape="point", style="invis", xlabel="$id"];"""
+  }
+
+  private def terminalNodeToDot(id: StmNodeId): String = {
+    s"""$id [shape="point"];"""
   }
 
   private def edgesToDot(
       step: ValidTraceStep,
-      g: DiGraph[StmNodeId],
-      sinkId: StmNodeId
+      g: DiGraph[Node]
   ): String = {
-    (g.edges.toSeq.map({ case (u, v) => u -> Some(v) }) :+ (sinkId -> None))
-      .sortBy({ case (u, _) => u.id })
+    g.edges.toSeq
+      .map({ case (u, v) => u -> v })
+      .sortBy({ case (u, _) => u.id.id })
       .map({ case (u, v) => edgeToDot(step, from = u, to = v) })
       .mkString("\n")
   }
 
   private def edgeToDot(
       step: ValidTraceStep,
-      from: StmNodeId,
-      to: Option[StmNodeId]
+      from: Node,
+      to: Node
   ): String = {
-    val out = step.nodes.get(from).flatMap(_.out) match {
-      case Some(e) => e.toString
-      case None    => ""
-    }
-    val ready = to.exists(id =>
-      step.nodes.get(id).exists(producer => producer.ready.contains(from))
-    )
-    val transferOk = out.nonEmpty && (ready || to.isEmpty)
+    // TODO: Also show `read` flags in LetStm
+    val out =
+      step.nodes.get(from.id).flatMap(_.out.get(to.id)) match {
+        case Some(e) => e.toString
+        case None    => ""
+      }
+    val ready =
+      step.nodes.get(to.id).exists(producer => producer.ready.contains(from.id))
+    val transferOk = out.nonEmpty && ready
     val color = if (transferOk) "green" else "black"
-    val dir =
-      if (transferOk) "both"
-      else if (ready) "back"
-      else "forward"
-    val style =
-      if (transferOk) "solid"
-      else "dashed"
-    val toId = to match {
-      case Some(id) => id.id
-      case None     => "sink"
+    val style = if (transferOk) "solid" else "dashed"
+    val dir = {
+      val tail = ready && !from.isNop
+      val head = out.nonEmpty && !to.isNop
+      (tail, head) match {
+        case (false, false) => "none"
+        case (false, true)  => "forward"
+        case (true, false)  => "back"
+        case (true, true)   => "both"
+      }
     }
-    s"""${from.id} -> $toId [label="$out", dir="$dir", color="$color", style="$style"];"""
+    val label = if (from.isNop) "" else out
+    s"""${from.id} -> ${to.id} [label="$label", dir="$dir", color="$color", style="$style"];"""
   }
 }

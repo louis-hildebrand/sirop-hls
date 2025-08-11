@@ -23,7 +23,9 @@ object ValidTraceStep {
     *   the stream pipeline whose state to save.
     */
   def apply(pipe: StmPipeline): ValidTraceStep = {
-    ValidTraceStep(pipe.nodes.map({ case (id, node) => id -> TraceNode(node) }))
+    ValidTraceStep(pipe.nodes.flatMap({ case (id, node) =>
+      TraceNode(node).map(tn => id -> tn)
+    }))
   }
 }
 

@@ -7,7 +7,13 @@ import mhir.ir.evaluate._
   * pipeline.
   */
 sealed trait TraceNode {
-  def out: Option[Expr]
+
+  /** The current outputs of this node.
+    *
+    * If an output is invalid (i.e., no output), then it should simply be
+    * omitted from the `Map`.
+    */
+  def out: Map[StmNodeId, Expr]
 
   def ready: Set[StmNodeId]
 }
@@ -21,11 +27,12 @@ object TraceNode {
     * @param s
     *   the stream node to save to a trace node.
     */
-  def apply(s: StmNode): TraceNode = {
+  def apply(s: StmNode): Option[TraceNode] = {
     s match {
-      case s: StmBuildNode         => StmBuildTraceNode(s)
-      case s: StmBufferNode        => StmBufferTraceNode(s)
-      case s: StmMultiConsumerNode => StatelessTraceNode(s)
+      case s: StmBuildNode => Some(StmBuildTraceNode(s))
+      case s: LetStmNode   => Some(LetStmTraceNode(s))
+      case s: TerminalNode => Some(TerminalTraceNode(s))
+      case s: StmNopNode   => Some(StmNopTraceNode(s))
     }
   }
 }
@@ -41,7 +48,7 @@ object TraceNode {
   */
 case class StmBuildTraceNode(
     n: Long,
-    out: Option[Expr],
+    out: Map[StmNodeId, Expr],
     accumulators: Map[String, String],
     ready: Set[StmNodeId]
 ) extends TraceNode
@@ -59,54 +66,98 @@ object StmBuildTraceNode {
     val acc = s.acc.map({ case (x, v) =>
       x.name -> ExprPrinter.displayOneLine(v)
     })
+    val consumers = s.consumers
+    assert(consumers.size == 1)
+    val consumer = consumers.head
     StmBuildTraceNode(
       n = s.n,
-      out = s.out,
+      out = s.out(consumer.id) match {
+        case Some(v) => Map(consumer.id -> v)
+        case None    => Map()
+      },
       accumulators = acc,
       ready = s.producerIds.filter(s.ready)
     )
   }
 }
 
-/** One node in a trace representing a [[mhir.ir.evaluate.StmBufferNode]].
+/** One node in a trace representing a [[mhir.ir.LetStm]].
   *
   * @param data
-  *   the current contents of the buffer.
+  *   the current value in the buffer.
   */
-case class StmBufferTraceNode(data: Option[Expr], ready: Set[StmNodeId])
-    extends TraceNode {
-  override def out: Option[Expr] = this.data
-}
+case class LetStmTraceNode(
+    data: Option[Expr],
+    out: Map[StmNodeId, Expr],
+    ready: Set[StmNodeId]
+) extends TraceNode
 
-/** Companion object for [[StmBufferTraceNode]].
+/** Companion object for [[LetStmTraceNode]].
   */
-object StmBufferTraceNode {
+object LetStmTraceNode {
 
-  /** Factory for [[StmBufferTraceNode]].
-    *
-    * @param s
-    *   the stream node to save to a trace node.
+  /** Factory for [[LetStmTraceNode]].
     */
-  def apply(s: StmBufferNode): StmBufferTraceNode = {
-    StmBufferTraceNode(data = s.data, ready = s.producerIds.filter(s.ready))
+  def apply(s: LetStmNode): LetStmTraceNode = {
+    new LetStmTraceNode(
+      data = s.data,
+      out = s.consumerIds
+        .flatMap(id =>
+          s.out(id) match {
+            case Some(x) => Some(id -> x)
+            case None    => None
+          }
+        )
+        .toMap,
+      ready = s.producerIds.filter(s.ready)
+    )
   }
 }
 
-/** A trace node representing a stateless streaming component.
+/** One node in a trace representing a [[mhir.ir.evaluate.StmNopNode]].
+  *
+  * @param out
+  *   the current output of the stream.
+  * @param ready
+  *   the set of producers for which this node's `ready` signal is raised.
   */
-case class StatelessTraceNode(out: Option[Expr], ready: Set[StmNodeId])
+case class StmNopTraceNode(out: Map[StmNodeId, Expr], ready: Set[StmNodeId])
     extends TraceNode
 
-/** Companion object for [[StatelessTraceNode]].
+/** Companion object for [[StmNopTraceNode]].
   */
-object StatelessTraceNode {
+object StmNopTraceNode {
 
-  /** Factory for [[StatelessTraceNode]].
-    *
-    * @param s
-    *   the stream node to save to a trace node.
+  /** Factory for [[StmNopTraceNode]].
     */
-  def apply(s: StmMultiConsumerNode): StatelessTraceNode = {
-    StatelessTraceNode(s.out, ready = s.producerIds.filter(s.ready))
+  def apply(s: StmNopNode): StmNopTraceNode = {
+    StmNopTraceNode(
+      out = s.consumerIds
+        .flatMap(id =>
+          s.out(id) match {
+            case Some(x) => Some(id -> x)
+            case None    => None
+          }
+        )
+        .toMap,
+      ready = s.producerIds.filter(s.ready)
+    )
+  }
+}
+
+case class TerminalTraceNode(out: Map[StmNodeId, Expr], ready: Set[StmNodeId])
+    extends TraceNode
+
+/** Companion object for [[TerminalTraceNode]].
+  */
+object TerminalTraceNode {
+
+  /** Factory for [[TerminalTraceNode]].
+    */
+  def apply(s: TerminalNode): TerminalTraceNode = {
+    TerminalTraceNode(
+      out = s.out(StmNodeId("")).map(StmNodeId("") -> _).toMap,
+      ready = s.producerIds.filter(s.ready)
+    )
   }
 }
