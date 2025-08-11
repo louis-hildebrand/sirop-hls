@@ -108,7 +108,7 @@ object DotPrinter {
         .map({ case (x, v) => s"{$x|$v}" })
         .toSeq)
         .mkString("|")
-    s"""$id [shape="record", label="$acc", xlabel="$id"];"""
+    s"""$id [shape="record", label="$acc"];"""
   }
 
   private def letStmNodeToDot(
@@ -116,11 +116,11 @@ object DotPrinter {
       node: LetStmTraceNode
   ): String = {
     val data = node.data.map(_.toString()).getOrElse("-")
-    s"""$id [shape="Mrecord", label="$data", xlabel="$id"];"""
+    s"""$id [shape="Mrecord", label="$data"];"""
   }
 
   private def nopNodeToDot(id: StmNodeId): String = {
-    s"""$id [shape="point", style="invis", xlabel="$id"];"""
+    s"""$id [shape="point", style="invis"];"""
   }
 
   private def terminalNodeToDot(id: StmNodeId): String = {
