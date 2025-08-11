@@ -11,8 +11,6 @@ object VhdlWriter {
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qsf"
   private val DefaultSdc =
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.sdc"
-  private val StmBufferSrc =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "stm_buffer.vhd"
   private val StmNoOpSrc =
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "stm_nop.vhd"
 
@@ -171,8 +169,6 @@ object VhdlWriter {
 
   private def findTypesUsedIn(c: VhdlComponent): Set[VhdlType] = {
     c match {
-      case c: StmBufferComponent =>
-        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
       case c: StmNoOpComponent =>
         Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
       case c: CustomVhdlComponent =>
@@ -199,8 +195,6 @@ object VhdlWriter {
     c match {
       case _: StmNoOpComponent =>
         os.copy.over(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
-      case _: StmBufferComponent =>
-        os.copy.over(from = StmBufferSrc, to = dir / "stm_buffer.vhd")
       case c: CustomVhdlComponent =>
         os.write(dir / s"${c.name}.vhd", c.vhdl)
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {

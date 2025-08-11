@@ -94,6 +94,26 @@ private[vhdl] case class VhdlVariable(
   override def vhdlDecl: String = s"variable $name : ${typ.vhdlName};"
 }
 
+/** A signal within a VHDL design
+  *
+  * @param category
+  *   a user-readable category for this signal. This simply allows the signals
+  *   to be grouped in a readable way in the VHDL code; it does not change the
+  *   behaviour of the signal.
+  * @param name
+  *   the name of the signal.
+  * @param typ
+  *   the type of the signal.
+  * @param init
+  *   the initial value of the signal.
+  * @param assignStmt
+  *   the statement which updates the signal (see also: [[cond]]).
+  * @param cond
+  *   the condition under which the signal is updated. If [[None]], then
+  *   [[assignStmt]] will be interpreted as a combinational statement. If
+  *   [[Some]], then [[assignStmt]] will be interpreted as a sequential
+  *   statement which is run if [[cond]] is true.
+  */
 private[vhdl] case class Signal(
     category: String,
     name: String,
@@ -122,13 +142,6 @@ private[vhdl] case class PortMap(map: Map[String, String])
 /** One component (entity + architecture) in VHDL.
   */
 private[vhdl] sealed trait VhdlComponent
-
-/** The predefined stm_buffer component.
-  *
-  * @param bitWidth
-  *   the bit width to use when instantiating this component.
-  */
-private[vhdl] case class StmBufferComponent(bitWidth: Int) extends VhdlComponent
 
 /** The predefined `stm_nop` component.
   *
@@ -180,16 +193,6 @@ private[vhdl] case class CustomVhdlComponent(
             "valid_in",
             "producer_ready"
           )
-        case _: StmBufferComponent =>
-          Set(
-            "clk",
-            "data_out",
-            "valid_out",
-            "consumer_ready",
-            "data_in",
-            "valid_in",
-            "producer_ready"
-          )
       }
       val actualPorts = map.map.keySet
       assert(
@@ -233,12 +236,6 @@ private[vhdl] case class CustomVhdlComponent(
                |""".stripMargin.stripTrailing
           case c: StmNoOpComponent =>
             s"""$name : entity work.stm_nop
-               |            generic map(BIT_WIDTH => ${c.bitWidth})
-               |            port map(
-               |                $assignments);
-               |""".stripMargin.stripTrailing
-          case c: StmBufferComponent =>
-            s"""$name : entity work.stm_buffer
                |            generic map(BIT_WIDTH => ${c.bitWidth})
                |            port map(
                |                $assignments);
