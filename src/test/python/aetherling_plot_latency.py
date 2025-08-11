@@ -127,13 +127,7 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
             linestyle="",
         )
         # Labels and whatnot
-        tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
-        ax.set_xticks(
-            [float(b.bench.throughput) for b in vhdl_benchmarks],
-            tick_labels,
-            rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
-            ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
-        )
+        ax.tick_params(axis="x", rotation=30)
         if bench_name == "map":
             ax.set_xscale("log")
         ax.set_title(bench_name)

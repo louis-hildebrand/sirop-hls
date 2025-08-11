@@ -102,13 +102,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         dsp_ax.set_xlabel("Target throughput")
         alm_ax.set_xticks([])
         bram_ax.set_xticks([])
-        tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
-        dsp_ax.set_xticks(
-            [float(b.bench.throughput) for b in vhdl_benchmarks],
-            tick_labels,
-            rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
-            ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
-        )
+        dsp_ax.tick_params(axis="x", rotation=30)
     # Settings for entire rows
     axes[0][0].set_ylabel("ALMs")
     axes[1][0].set_ylabel("BRAMs")

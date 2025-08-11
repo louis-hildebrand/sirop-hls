@@ -70,13 +70,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         vhdl_artist, = ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         ax.set_title(bench_name)
         ax.set_xlabel("Target throughput")
-        tick_labels = [b.bench.throughput_str for b in vhdl_benchmarks]
-        ax.set_xticks(
-            [float(b.bench.throughput) for b in vhdl_benchmarks],
-            tick_labels,
-            rotation=45 if any(len(lab) > 3 for lab in tick_labels) else 0,
-            ha="right" if any(len(lab) > 3 for lab in tick_labels) else "center"
-        )
+        ax.tick_params(axis="x", rotation=30)
     # Settings for entire rows
     axes[0].set_ylabel("fmax")
     if verilog_artist is None or vhdl_artist is None:
