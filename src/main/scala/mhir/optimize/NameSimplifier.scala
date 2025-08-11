@@ -113,16 +113,17 @@ object NameSimplifier {
         case e =>
           e.map(simplify)
       }
-      assert(
-        result == e,
-        "simplifying names should yield an expression that is equal to the original"
-      )
       if (e.hasType) {
         result.tchk()
       } else {
         result
       }
     }
-    simplify(e)(DepthZero)
+    val result = simplify(e)(DepthZero)
+    assert(
+      result == e,
+      "simplifying names should yield an expression that is equal to the original"
+    )
+    result
   }
 }
