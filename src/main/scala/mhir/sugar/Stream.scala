@@ -1116,19 +1116,27 @@ case class StmPrefix(
     val k = this.k.lower()
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
-      case _           => IntCst(1)()
+      case _           => C(1)().tchk()
     }
     val s = Param("s")(stm.typ) // input stream
-    val i = Param("i")(U32) // index of current row
-    val j = Param("j")(U32) // index within row
+    val iTyp = k.typ.asInstanceOf[TyUInt] match {
+      case TyUInt(0) => TyUInt(1)
+      case t         => t
+    }
+    val i = Param("i")(iTyp) // index of current row
+    val jTyp = perRow.typ.asInstanceOf[TyUInt]
+    val j = Param("j")(jTyp) // index within row
     StmBuild(
       SafeProd(k, perRow)(),
       StmData(s)(),
-      i < k,
+      i !== k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
-        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
+        i -> (
+          C(0)(iTyp),
+          Mux(i === k, i, Mux(j === -1 + perRow, i + 1, i)())()
+        ),
+        j -> (C(0)(jTyp), Mux(j === -1 + perRow, C(0)(jTyp), j + 1)())
       )
     )().tchk().lower()
   }

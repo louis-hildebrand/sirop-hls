@@ -446,7 +446,7 @@ class StreamTests extends AnyFunSuite {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(100)(U8))(),
       TyStm((U8, U8), 100) ::+ (s => StmPrefix(s, 2)())
-    )().tchk()
+    )().tchk().lower()
     val expected = StmLiteral(
       StmLiteral(Tuple(0, 0)(), Tuple(0, 1)())(),
       StmLiteral(Tuple(1, 0)(), Tuple(1, 1)())(),

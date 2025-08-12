@@ -301,20 +301,16 @@ class ManualOptimizationTests extends AnyFunSuite {
     // Successful fusion
     val s = Param("s")(TyStm(U8, -1))
     val i = Param("i")(U32)
-    val j = Param("j")(U32)
+    val j = Param("j")(U8)
     val ideal = optimize(
       StmBuild(
         Sum(PadTo(n, 9)(), C(1)(TyUInt(9)))(),
         Mux(i === 1, StmData(s)(), C(42)(U8))(),
-        Mux(
-          i === 1,
-          j < PadTo(n, 32)(),
-          True
-        )(),
+        ((j !== n) && (i === 1)) || (i !== 1),
         Map[Param, (Expr, Expr)](
           s -> (input, i === 1),
           i -> (C(0)(U32), Mux(i === 1, i, i + 1)()),
-          j -> (C(0)(U32), Mux(i === 1, j + 1, j)())
+          j -> (C(0)(U8), Mux(i === 1, Mux(j === n, j, 1 + j)(), j)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )
