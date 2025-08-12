@@ -1291,14 +1291,30 @@ case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in $className has type $t.")
     }
+    if (!t.isData) {
+      throw new TypeError(
+        s"Invalid element type $t in input stream of of $className."
+      )
+    }
     this.rebuild(TyStm(t, n), Seq(newS))
   }
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    val t = this.stm.typ.asInstanceOf[TyStm].t
-    // TODO: Actually insert some kind of undefined value?
-    StmShiftRight(this.stm, Default(t))().tchk().lower()
+    val stm = this.stm.lower()
+    val TyStm(t, n) = this.stm.typ
+    val s = Param("s")(TyStm(t, -1))
+    val buf = Param("buf")(t)
+    StmBuild(
+      n,
+      buf,
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (stm, True),
+        // TODO: Actually start with some kind of undefined value?
+        buf -> (Default(t), StmData(s)())
+      )
+    )().tchk().lower()
   }
 }
 
