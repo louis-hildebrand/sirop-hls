@@ -44,7 +44,8 @@ object AetherlingBenchmarkLatencyMeasurement {
   // TODO: Test this?
   def measureVerilog(dir: Path): Int = {
     val benchName = dir.baseName
-    val (inputs, outputs) = AetherlingBenchmarkTests.ioByBenchmark(benchName)
+    val (inputs, outputs) =
+      AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:verilog")
     VerilogTestbenchGenerator.makeTestbench(inputs, outputs, dir)
     val proc =
       os.proc("./src/test/sh/test_verilog.sh", dir, "-v").call(cwd = os.pwd)
@@ -54,7 +55,8 @@ object AetherlingBenchmarkLatencyMeasurement {
   // TODO: Test this?
   def measureVhdl(dir: Path): Int = {
     val benchName = dir.baseName
-    val (inputs, outputs) = AetherlingBenchmarkTests.ioByBenchmark(benchName)
+    val (inputs, outputs) =
+      AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
     VhdlTestbenchGenerator.makeTestbench(
       inputs = inputs,
       out = outputs,

@@ -41,14 +41,14 @@ object TraceSerialization {
   implicit val evalExceptionWriter: Writer[EvalException] =
     upickle.default.writer[String].comap(_.toString)
 
-  implicit val statelessTraceNodeWriter: Writer[StatelessTraceNode] =
-    upickle.default.macroW
-  implicit val stmBufferTraceNodeWriter: Writer[StmBufferTraceNode] =
-    upickle.default.macroW
   implicit val stmBuildTraceNodeWriter: Writer[StmBuildTraceNode] =
     upickle.default.macroW
-  // TODO: Write a custom serializer that omits accumulators field if there are
-  //       none, includes `ready` signals, etc.?
+  implicit val letStmTraceNodeWriter: Writer[LetStmTraceNode] =
+    upickle.default.macroW
+  implicit val stmNopTraceNodeWriter: Writer[StmNopTraceNode] =
+    upickle.default.macroW
+  implicit val terminalTraceNodeWriter: Writer[TerminalTraceNode] =
+    upickle.default.macroW
   implicit val traceNodeWriter: Writer[TraceNode] = upickle.default.macroW
 
   implicit val errorTraceStepWriter: Writer[ErrorTraceStep] =

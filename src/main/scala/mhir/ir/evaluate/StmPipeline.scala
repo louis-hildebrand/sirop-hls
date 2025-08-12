@@ -3,8 +3,6 @@ package evaluate
 
 import mhir.ir.typecheck.TypeError
 
-import scala.annotation.tailrec
-
 /** A streaming pipeline.
   *
   * @note
@@ -101,6 +99,27 @@ object StmPipeline {
       nodes = Map()
     )
     init(pipe, e, Map())
+    // Initialize the flags in each LetStmNode so that they will raise their
+    // `ready` signal at the beginning.
+    // This can only happen once we actually know who the consumers for the
+    // LetStmNodes are.
+    pipe.nodes = pipe.nodes.map({
+      case (id, s: LetStmNode) =>
+        val newNode = LetStmNode(
+          pipe = pipe,
+          id = s.id,
+          data = s.data,
+          consumersWhoRead = s.consumerIds,
+          typ = s.typ
+        )
+        id -> newNode
+      case x => x
+    })
+    // Add terminal node
+    val term = TerminalNode(pipe, id = StmNodeId("sink"), typ = pipe.sink.typ)
+    pipe.addEdges(pipe.sinkId -> term.id)
+    pipe.addNode(term)
+    pipe.sinkId = term.id
     pipe
   }
 
@@ -115,14 +134,14 @@ object StmPipeline {
     )
     e match {
       case x: Param if idByVar.contains(x) =>
-        val buffer = {
+        val newNode = {
           val typ = e.typ.asInstanceOf[TyStm]
-          val id = StmNodeId(Param("buf")().name)
-          StmBufferNode(pipe = pipe, id = id, data = None, typ = typ)
+          val id = StmNodeId(Param("nop")().name)
+          StmNopNode(pipe = pipe, id = id, typ = typ)
         }
-        pipe.addNode(buffer)
-        pipe.addEdges(idByVar(x) -> buffer.id)
-        pipe.sinkId = buffer.id
+        pipe.addNode(newNode)
+        pipe.addEdges(idByVar(x) -> newNode.id)
+        pipe.sinkId = newNode.id
       case s: StmLiteral =>
         init(pipe, s.toStmBuild, idByVar)
       case s: StmBuild =>
@@ -134,18 +153,18 @@ object StmPipeline {
         pipe.sinkId = newSink.id
       case LetStm(x, in, out) =>
         init(pipe, in, idByVar)
-        val multiConsumer = {
-          val typ = in.typ.asInstanceOf[TyStm]
-          StmMultiConsumerNode(
+        val newNode =
+          LetStmNode(
             pipe = pipe,
-            id = StmNodeId(Param("multi")().name),
-            typ = typ
+            id = StmNodeId(Param("let")().name),
+            data = None,
+            consumersWhoRead = Set(),
+            typ = in.typ.asInstanceOf[TyStm]
           )
-        }
-        pipe.addNode(multiConsumer)
-        pipe.addEdges(pipe.sinkId -> multiConsumer.id)
-        pipe.sinkId = multiConsumer.id
-        init(pipe, out, idByVar + (x -> multiConsumer.id))
+        pipe.addNode(newNode)
+        pipe.addEdges(pipe.sinkId -> newNode.id)
+        pipe.sinkId = newNode.id
+        init(pipe, out, idByVar + (x -> newNode.id))
       case e =>
         throw new IllegalArgumentException(
           s"Expression cannot be made into a stream pipeline: $e"
@@ -176,7 +195,7 @@ object StmPipeline {
     StmBuildNode(
       pipe = pipe,
       id = StmNodeId(Param("sbuild")().name),
-      out = None,
+      data = None,
       hw = StmNodeHardware(
         data = s.data,
         valid = s.valid,

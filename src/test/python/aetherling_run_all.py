@@ -26,7 +26,8 @@ def open_plot(f: Path) -> None:
     """
     Open the given plot for the user to view.
     """
-    subprocess.run(["open", f.as_posix()], check=False)
+    with subprocess.Popen(["open", f.resolve().as_posix()]):
+        pass
 
 
 def main(

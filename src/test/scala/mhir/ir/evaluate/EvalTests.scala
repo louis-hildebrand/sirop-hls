@@ -280,7 +280,47 @@ class EvalTests extends AnyFunSuite {
     assert(evaluated.typ == TyVec(TyVec((U32, U32, U32), C(2)(U8)), C(3)(U8)))
   }
 
-  test("LetStm:Valid") {
+  test("LetStm:ZipWithSelf") {
+    // StmCount(5)
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        5,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val s = Param("s")(TyStm(U8, 5))
+    // StmZip(s, s)
+    val zipped = {
+      val s0 = Param("s0")(TyStm(U8, 5))
+      val s1 = Param("s1")(TyStm(U8, 5))
+      StmBuild(
+        5,
+        Tuple(StmData(s0)(), StmData(s1)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s0 -> (s, True),
+          s1 -> (s, True)
+        )
+      )()
+    }
+    val e = LetStm(s, count, zipped)().tchk()
+    val expected = StmLiteral(
+      Tuple(C(0)(U8), C(0)(U8))(),
+      Tuple(C(1)(U8), C(1)(U8))(),
+      Tuple(C(2)(U8), C(2)(U8))(),
+      Tuple(C(3)(U8), C(3)(U8))(),
+      Tuple(C(4)(U8), C(4)(U8))()
+    )()
+    val actual = mhir.ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("LetStm:ZipWithPlusFive") {
     // StmCount(5)
     val count = {
       val i = Param("i")(U8)
