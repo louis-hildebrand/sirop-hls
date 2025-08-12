@@ -17,11 +17,7 @@
         sbuild(
           15:u5;
           data(s);
-          i != 15:u5;
-          (i : u5) = (
-            0:u5,
-            if (i == 15:u5) then { 15:u5 } else { 1:u5 + i }
-          );
+          true;
           (s : Stm[Vec[i8, 1:u1], 16:u5]) = (
             n1,
             true
@@ -91,11 +87,7 @@
                       sbuild(
                         15:u5;
                         data(s);
-                        i != 15:u5;
-                        (i : u5) = (
-                          0:u5,
-                          if (i == 15:u5) then { 15:u5 } else { 1:u5 + i }
-                        );
+                        true;
                         (s : Stm[Vec[i8, 1:u1], 16:u5]) = (
                           n2,
                           true

@@ -70,6 +70,40 @@ class ManualOptimizationTests extends AnyFunSuite {
     assert(optimized == ideal)
   }
 
+  /** The optimizer can get rid of the counter in a 1D `StmPrefix`.
+    *
+    * (The counter is needed in the first place in case the `StmPrefix` is used
+    * inside a `StmMap` over a multi-dimensional stream.)
+    */
+  test("StmPrefix:NoCounter") {
+    val n = C(16)(U8)
+    val s = Param("s")(TyStm(U8, n))
+    val k = C(15)(U8)
+    val original = StmPrefix(s, k)().tchk().lower()
+    val optimized = SafeSimplifier.simplify(original)
+
+    // Correctness
+    val sExamples = Seq(
+      StmRange(n, C(42)(U8), C(3)(U8))().tchk()
+    )
+    for (sVal <- sExamples) {
+      val originalVal = mhir.ir.eval(original.subPreserveType(s -> sVal))
+      val optimizedVal = mhir.ir.eval(optimized.subPreserveType(s -> sVal))
+      assert(optimizedVal == originalVal)
+    }
+
+    // Effective simplification
+    val ideal = StmBuild(
+      k,
+      StmData(s)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (s, True)
+      )
+    )().tchk()
+    assert(optimized == ideal)
+  }
+
   /** The optimizer can turn VecFold into a simple sum *provided* the length is
     * a static constant.
     */

@@ -38,7 +38,8 @@ object StmSimplifier {
       val s2 = tl(StmAccRemovalPass.removeUnusedVars(s1))
       val s3 = tl(StmAccRemovalPass.removeConstantVars(s2))
       val s4 = tl(StmAccRemovalPass.deduplicateVars(s3))
-      s4
+      val s5 = tl(StmAccRemovalPass.removePrefixCounter(s4))
+      s5
     }
     if (simplified == s) {
       simplified
