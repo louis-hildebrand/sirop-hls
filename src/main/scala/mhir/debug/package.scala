@@ -8,9 +8,11 @@ package mhir
   * [[Tracer]].
   *
   * Furthermore, it is nice to get traces in a graphical format. [[DotPrinter]]
-  * can convert a trace to an image using [[https://graphviz.org/ Graphviz]].
+  * can convert a trace to a series of images using
+  * [[https://graphviz.org/ Graphviz]].
+  *
+  * To view an expression in the IR as source code, see [[mhir.ir.ExprPrinter]].
   */
-
 package object debug {
   def indent(s: String, n: Int = 1): String = {
     s
