@@ -99,14 +99,54 @@
                       true
                     );
                     (I1 : Stm[Vec[i8, 4:u3], -1:i1]) = (
-                      n2,
+                      sbuild(
+                        4:u3;
+                        data(s);
+                        true;
+                        (s : Stm[Vec[i8, 4:u3], -1:i1]) = (
+                          n2,
+                          true
+                        );
+                      ),
                       true
                     );
                   ),
                   true
                 );
                 (I1 : Stm[Vec[i8, 4:u3], -1:i1]) = (
-                  n1,
+                  sbuild(
+                    4:u3;
+                    data(s);
+                    true;
+                    (s : Stm[Vec[i8, 4:u3], -1:i1]) = (
+                      sbuild(
+                        4:u3;
+                        data(s);
+                        true;
+                        (s : Stm[Vec[i8, 4:u3], -1:i1]) = (
+                          sbuild(
+                            4:u3;
+                            data(s);
+                            true;
+                            (s : Stm[Vec[i8, 4:u3], -1:i1]) = (
+                              sbuild(
+                                4:u3;
+                                data(s);
+                                true;
+                                (s : Stm[Vec[i8, 4:u3], -1:i1]) = (
+                                  n1,
+                                  true
+                                );
+                              ),
+                              true
+                            );
+                          ),
+                          true
+                        );
+                      ),
+                      true
+                    );
+                  ),
                   true
                 );
               ),

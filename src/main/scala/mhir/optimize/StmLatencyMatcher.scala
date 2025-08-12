@@ -66,7 +66,8 @@ object StmLatencyMatcher {
         s.valid match {
           case True =>
             val allReadyTrue = s.equations
-              .forall({ case (_, (_, next)) => next == True })
+              .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+              .forall({ case (_, (_, ready)) => ready == True })
             if (allReadyTrue) {
               val latencies = s.equations
                 .filter({ case (_, (z, _)) => z.freeVars().contains(src) })
