@@ -99,8 +99,8 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
         )
         ax = axes[col]
         # Minimum results
-        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
-        ys = [min_latency(b.bench) for b in verilog_benchmarks]
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
+        ys = [min_latency(b.bench) for b in vhdl_benchmarks]
         min_artist, = ax.plot(
             xs, ys,
             marker=MIN_MARKER,
