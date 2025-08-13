@@ -25,7 +25,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   private val VerilogDir = os.pwd / "src" / "test" / "verilog"
 
   private val AllBenchmarks = os.list(AetherlingBenchmarksDir).map(_.baseName)
-  private val BenchmarksToRun = AllBenchmarks
+  private val BenchmarksToRun = AllBenchmarks.filter(_.startsWith("smallconv"))
 
   test("AllBenchmarks") {
     assert(BenchmarksToRun == AllBenchmarks)

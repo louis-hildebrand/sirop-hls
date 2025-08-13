@@ -1,5 +1,6 @@
 package mhir.ir
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.TypeLowering
 import mhir.ir.typecheck.TypeCheck
 
@@ -17,6 +18,9 @@ import scala.annotation.tailrec
   * }}}
   */
 object StreamReplicator {
+
+  private val logger = Logger(getClass.getName)
+
   implicit class StreamReplication(stm: Expr) {
 
     /** Parallelize this stream by duplicating its body <code>m</code> times.
@@ -35,6 +39,8 @@ object StreamReplicator {
         i: Param,
         varsToReplicate: Set[Param]
     ): Expr = {
+      logger.debug(s"performing stream replication: ${this.stm.className}")
+      logger.trace(s"performing stream replication: ${this.stm}")
       require(
         this.stm.typ.isInstanceOf[TyStm],
         "Expression to replicate must have the type of a stream."

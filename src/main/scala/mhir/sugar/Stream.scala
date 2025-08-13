@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir._
@@ -7,6 +8,10 @@ import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
 
 import scala.annotation.tailrec
+
+private object SL {
+  val logger: Logger = Logger("StreamSyntaxSugar")
+}
 
 object AsFusedStm2Stm {
   def apply(f: Function): (Param, StmBuild) = {
@@ -311,10 +316,15 @@ case class StmMap(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    SL.logger.debug(s"lowering $className")
+    SL.logger.trace(s"lowering $className: $this")
     requireType()
     val input = this.input.lower()
+    SL.logger.trace(s"lowering function in $className...")
     val f = this.f.lower().asInstanceOf[Function]
+    SL.logger.trace(s"lowering length in $className...")
     val n = this.typ.asInstanceOf[TyStm].n
+    SL.logger.trace(s"getting fused function in $className...")
     // Instantiate `f` as a function from stream to stream
     val (s, innerStm) = AsFusedStm2Stm(f)
     assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
@@ -322,6 +332,7 @@ case class StmMap(
       innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
       "the input stream should appear no more than once in the inner StmBuild"
     )
+    SL.logger.trace(s"repeating inner stream in $className...")
     val usesInputStream = innerStm.seedByVar.values.exists(z => z == s)
     val map = if (!usesInputStream) {
       // In theory you could have something like
@@ -402,6 +413,7 @@ case class StmMap(
       )
       ret
     }
+    SL.logger.trace(s"done lowering $className")
     map.tchk().lower()
   }
 }
@@ -453,6 +465,8 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    SL.logger.debug(s"lowering $className")
+    SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s1 = this.s1.lower()
     val s2 = this.s2.lower()
@@ -471,11 +485,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     )
     val map = {
       // How many elements will the inner component read and produce before it must be reset?
-      val (t1, t2, t3) = f.typ match {
-        case TyArrow(t1, TyArrow(t2, t3)) => (t1, t2, t3)
-        case _ =>
-          ???
-      }
+      val TyArrow(t1, TyArrow(t2, t3)) = f.typ
       val inputsFrom1UntilReset = t1 match {
         case TyStm(_, n) => n
         case _           => C(1)().tchk()
@@ -896,6 +906,8 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    SL.logger.debug(s"lowering $className")
+    SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s = this.s.lower()
     val wrappedTyp = this.typ.asInstanceOf[TyStm].t
@@ -1307,6 +1319,8 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    SL.logger.debug(s"lowering $className")
+    SL.logger.trace(s"lowering $className: $this")
     requireType()
     val stm = this.stm.lower()
     val shiftAmount = this.shiftAmount.lower().asInstanceOf[IntCst]
@@ -1387,6 +1401,8 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    SL.logger.debug(s"lowering $className")
+    SL.logger.trace(s"lowering $className: $this")
     requireType()
     val stm = this.stm.lower()
     val shiftAmount = this.shiftAmount.lower().asInstanceOf[IntCst]

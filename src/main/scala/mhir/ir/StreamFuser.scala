@@ -1,5 +1,6 @@
 package mhir.ir
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 
@@ -32,6 +33,9 @@ import scala.annotation.tailrec
   * }}}
   */
 object StreamFuser {
+
+  private val logger = Logger(getClass.getName)
+
   implicit class StreamFusion(stm: Expr) {
 
     /** Fuse a stream producer with its statically-known stream inputs until it
@@ -42,6 +46,7 @@ object StreamFuser {
       * Fusion is guaranteed to preserve type annotations.
       */
     final def fuseCompletely(): StmBuild = {
+      logger.trace(s"fusing completely: ${this.stm}")
       require(
         this.stm.hasType,
         "Expression must have been type checked before fusion."
@@ -54,7 +59,9 @@ object StreamFuser {
       )
       val withMovedLets = LetStmMover.moveUp(this.stm)
       val fused = inlineAndFuse(withMovedLets)
-      deduplicateProducers(fused)
+      val result = deduplicateProducers(fused)
+      logger.trace(s"done fusing completely")
+      result
     }
 
     @tailrec

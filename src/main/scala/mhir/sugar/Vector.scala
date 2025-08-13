@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamReplicator.StreamReplication
 import mhir.ir._
@@ -7,6 +8,10 @@ import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
 
 import scala.annotation.tailrec
+
+private object VL {
+  val logger: Logger = Logger("VectorSyntaxSugar")
+}
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -67,16 +72,22 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
+    VL.logger.trace(s"lowering vector in $className...")
     val v = this.v.lower()
+    VL.logger.trace(s"lowering function in $className...")
     val f = this.f.lower()
-    f.typ.asInstanceOf[TyArrow] match {
+    val result = f.typ.asInstanceOf[TyArrow] match {
       case TyArrow(t1, t2) if t1.isData && t2.isData =>
+        VL.logger.trace(s"lowering $className as standard vector...")
         VecBuild(
           v.typ.asInstanceOf[TyVec].n,
           U32 ::+ (i => FunCall(f, VecAccess(v, i)())())
         )().tchk().lower()
       case TyArrow(t1, _: TyStm) =>
+        VL.logger.trace(s"lowering $className containing streams...")
         val streamifiedF = f.streamify().asInstanceOf[Function]
         val n = this.v.typ.asInstanceOf[TyVec].n
         val i = Param("i")(U32)
@@ -95,6 +106,8 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           s"Cannot lower VecMap with function of type $t."
         )
     }
+    VL.logger.trace(s"done lowering $className")
+    result
   }
 }
 
@@ -145,6 +158,8 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val v1 = this.v1.lower()
     val t1 = v1.typ.asInstanceOf[TyVec].t
@@ -305,6 +320,8 @@ case class VecReduceComb(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val v = this.v.lower()
     val wrappedTyp = this.typ.asInstanceOf[TyVec].t
@@ -722,6 +739,8 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val TyVec(t, n) = this.vec.typ
     VecConcat(
