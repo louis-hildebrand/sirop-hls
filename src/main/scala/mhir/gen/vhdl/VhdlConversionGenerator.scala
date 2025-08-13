@@ -79,15 +79,31 @@ object VhdlConversionGenerator {
   }
 
   private def arrayToSlvConverter(arr: VhdlArray): VhdlFunction = {
-    VhdlFunction(
-      name = toSlvConverterName(arr),
-      args = Seq(("x", arr)),
-      returnType = VhdlStdLogicVec(arr.bitWidth),
-      decls = Seq(),
-      ret = (0 until arr.n)
-        .map(i => toStdLogicVector(s"x($i)", arr.t))
-        .mkString(" & ")
-    )
+    if (arr.n <= 0) {
+      VhdlFunction(
+        name = toSlvConverterName(arr),
+        args = Seq(("x", arr)),
+        returnType = VhdlStdLogicVec(arr.bitWidth),
+        decls = Seq(
+          VhdlVariable(
+            "v",
+            VhdlStdLogicVec(arr.bitWidth),
+            assignStmt = "v := (others => 'X');"
+          )
+        ),
+        ret = "v"
+      )
+    } else {
+      VhdlFunction(
+        name = toSlvConverterName(arr),
+        args = Seq(("x", arr)),
+        returnType = VhdlStdLogicVec(arr.bitWidth),
+        decls = Seq(),
+        ret = (0 until arr.n)
+          .map(i => toStdLogicVector(s"x($i)", arr.t))
+          .mkString(" & ")
+      )
+    }
   }
 
   /** Convert a std_logic_vector to the given type.
@@ -179,23 +195,40 @@ object VhdlConversionGenerator {
     )
   }
 
-  private def arrayFromSlvConverter(vec: VhdlArray): VhdlFunction = {
-    VhdlFunction(
-      name = fromSlvConverterName(vec),
-      args = Seq(("v", VhdlStdLogicVec(vec.bitWidth))),
-      returnType = vec,
-      decls = Seq(),
-      ret = {
-        val elems = (0 until vec.n).map(i => {
-          val msb = vec.bitWidth - 1 - i * vec.t.bitWidth
-          val lsb = msb - vec.t.bitWidth + 1
-          fromStdLogicVector(s"v($msb downto $lsb)", vec.t)
-        })
-        val assignments = elems.zipWithIndex
-          .map({ case (v, i) => s"$i => $v" })
-          .mkString(", ")
-        s"($assignments)"
-      }
-    )
+  private def arrayFromSlvConverter(arr: VhdlArray): VhdlFunction = {
+    if (arr.n <= 0) {
+      val garbageElem = fromStdLogicVector("elem_slv", arr.t)
+      VhdlFunction(
+        name = fromSlvConverterName(arr),
+        args = Seq(("v", arr.toStdLogicVec)),
+        returnType = arr,
+        decls = Seq(
+          VhdlVariable(
+            "elem_slv",
+            arr.t.toStdLogicVec,
+            assignStmt = s"elem_slv := (others => 'X');"
+          )
+        ),
+        ret = s"(others => $garbageElem)"
+      )
+    } else {
+      VhdlFunction(
+        name = fromSlvConverterName(arr),
+        args = Seq(("v", arr.toStdLogicVec)),
+        returnType = arr,
+        decls = Seq(),
+        ret = {
+          val elems = (0 until arr.n).map(i => {
+            val msb = arr.bitWidth - 1 - i * arr.t.bitWidth
+            val lsb = msb - arr.t.bitWidth + 1
+            fromStdLogicVector(s"v($msb downto $lsb)", arr.t)
+          })
+          val assignments = elems.zipWithIndex
+            .map({ case (v, i) => s"$i => $v" })
+            .mkString(", ")
+          s"($assignments)"
+        }
+      )
+    }
   }
 }

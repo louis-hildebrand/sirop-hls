@@ -33,6 +33,10 @@ private object VhdlExprGenerator {
     *   A VHDL expression along with the signals required by that expression
     */
   def exprToVhdl(e: Expr)(implicit mode: ExprGenMode = NormalMode): VhdlExpr = {
+    require(
+      e.hasType,
+      "Expression must be type-checked before it can be converted to a VHDL expression."
+    )
     e match {
       case x: Param => VhdlExpr(x.name, Seq())
       case c: IntCst =>
@@ -196,9 +200,16 @@ private object VhdlExprGenerator {
         val vhdlElems = elems.map(exprToVhdl)
         val tempVar = {
           val name = Param("vec")().name
-          val vec = vhdlElems.zipWithIndex
-            .map({ case (e, i) => s"$i => ${e.vhdl}" })
-            .mkString("(", ", ", ")")
+          val vec = if (elems.isEmpty) {
+            VhdlConversionGenerator.fromStdLogicVector(
+              "(others => 'X')",
+              VhdlType(v.typ)
+            )
+          } else {
+            vhdlElems.zipWithIndex
+              .map({ case (e, i) => s"$i => ${e.vhdl}" })
+              .mkString("(", ", ", ")")
+          }
           mode match {
             case NormalMode =>
               Signal(
@@ -216,7 +227,7 @@ private object VhdlExprGenerator {
           }
         }
         VhdlExpr(tempVar.name, tempVar +: vhdlElems.flatMap(e => e.decls))
-      case VecBuild(len, f) =>
+      case vb @ VecBuild(len, f) =>
         if (len.freeVars().isEmpty) {
           // TODO: Use for-generate here instead?
           val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
@@ -225,7 +236,7 @@ private object VhdlExprGenerator {
             (0 until n.toInt).map(i =>
               f.body.subPreserveType(f.param -> C(i)(idxTyp))
             )
-          exprToVhdl(VecLiteral(elems: _*)().tchk())
+          exprToVhdl(VecLiteral(elems: _*)(vb.typ))
         } else {
           throw new IllegalArgumentException(
             s"VecBuild with non-constant size ($len) is not supported."

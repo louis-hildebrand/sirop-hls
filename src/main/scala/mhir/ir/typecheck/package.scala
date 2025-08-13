@@ -339,7 +339,9 @@ package object typecheck {
         case vl @ VecLiteral(elems @ _*) =>
           elems match {
             case Seq() =>
-              vl.rebuild(TyVec(Missing, 0), Seq())
+              throw new IllegalArgumentException(
+                "Cannot type check empty vector literal."
+              )
             case _ =>
               val newElems = elems.map(e => e.tchk())
               for ((e, i) <- newElems.zipWithIndex.tail) {

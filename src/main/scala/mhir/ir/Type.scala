@@ -393,6 +393,7 @@ case class TyTuple(ts: Type*) extends Type {
   *   the length of the vector.
   */
 case class TyVec(t: Type, n: Expr) extends Type {
+  require(t != Missing, s"Type in TyVec must not be Missing.")
   require(
     n.hasType,
     s"Length in ${TyVec.getClass.getSimpleName} must have a type."

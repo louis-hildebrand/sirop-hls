@@ -138,6 +138,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("StmBuild:EmptyVec") {
+    val s = StmBuild(3, VecBuild(0, U8 ::+ (i => i))(), True)().tchk().lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("StmCst(10, ((True, 42), (99, False)) |> StmIdentity") {
     // Ensure that the overloaded conversion methods can be resolved even when
     // there are two types---namely, (Bool, Int) and (Int, Bool)---with the
