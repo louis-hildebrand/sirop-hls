@@ -24,7 +24,7 @@
         16:u5;
         data(I)[0:u0];
         true;
-        (I : Stm[Vec[Vec[i8, pad3(1:u1) + pad3(2:u2)], 1:u1], -1:i1]) = (
+        (I : Stm[Vec[Vec[i8, 3:u3], 1:u1], -1:i1]) = (
           sbuild(
             16:u5;
             vbuild(

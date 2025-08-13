@@ -1,4 +1,4 @@
-// Output type: Vec[i8, 16:u5] -> Vec[Vec[i8, 1:u1], 16:u5 // 1:u1]
+// Output type: Vec[i8, 16:u5] -> Vec[Vec[i8, 1:u1], 16:u5]
 let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n24: (i8, i8) = (I0, I1) in n24.0 ** n24.1 in
 let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
   (I : Vec[i8, 3:u2]) =>
@@ -19,16 +19,15 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
           vbuild(2:u2, (i : u8) => if (i === 0:u0) then { I0 } else { I1 })
     )
   ) in
-  let n8: Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 16:u5] = VecMap2(n4, n1, (I0 : Vec[i8, 2:u2]) => (I1 : i8) => VecAppend(I0, I1)) in
-  let n12: Vec[Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1], 16:u5 // 1:u1] = VecSplit(n8, 1:u1) in
-  let n17: Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 16:u5 // 1:u1] = (
+  let n8: Vec[Vec[i8, 3:u3], 16:u5] = VecMap2(n4, n1, (I0 : Vec[i8, 2:u2]) => (I1 : i8) => VecAppend(I0, I1)) in
+  let n12: Vec[Vec[Vec[i8, 3:u3], 1:u1], 16:u5] = VecSplit(n8, 1:u1) in
+  let n17: Vec[Vec[i8, 3:u3], 16:u5] = (
     VecMap(
       n12,
-      (I : Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1]) =>
-        ((I : Vec[i8, SafeSum(2:u2, 1:u1)]) => I)(I[0:u0])
+      (I : Vec[Vec[i8, 3:u3], 1:u1]) => ((I : Vec[i8, 3:u3]) => I)(I[0:u0])
     )
   ) in
-  let n29: Vec[Vec[i8, 1:u1], 16:u5 // 1:u1] = VecMap(n17, module1) in
-  let n30: Vec[Vec[i8, 1:u1], 16:u5 // 1:u1] = n29 in
-  let n31: Vec[Vec[i8, 1:u1], 16:u5 // 1:u1] = n30 in
+  let n29: Vec[Vec[i8, 1:u1], 16:u5] = VecMap(n17, module1) in
+  let n30: Vec[Vec[i8, 1:u1], 16:u5] = n29 in
+  let n31: Vec[Vec[i8, 1:u1], 16:u5] = n30 in
   n31

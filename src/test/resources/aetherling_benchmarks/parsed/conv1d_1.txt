@@ -28,7 +28,7 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
           )
     )
   ) in
-  let n11: Stm[Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1], 16:u5] = (
+  let n11: Stm[Vec[Vec[i8, 3:u3], 1:u1], 16:u5] = (
     StmMap2(
       n4,
       n1,
@@ -41,11 +41,10 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
           )
     )
   ) in
-  let n22: Stm[Vec[i8, SafeSum(2:u2, 1:u1)], 16:u5] = (
+  let n22: Stm[Vec[i8, 3:u3], 16:u5] = (
     StmMap(
       n11,
-      (I : Vec[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1]) =>
-        ((I : Vec[i8, SafeSum(2:u2, 1:u1)]) => I)(I[0:u0])
+      (I : Vec[Vec[i8, 3:u3], 1:u1]) => ((I : Vec[i8, 3:u3]) => I)(I[0:u0])
     )
   ) in
   let n34: Stm[Vec[i8, 1:u1], 16:u5] = (

@@ -1,4 +1,4 @@
-// Output type: Stm[Stm[i8, 1:u1], 16:u5] -> Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1]
+// Output type: Stm[Stm[i8, 1:u1], 16:u5] -> Stm[Stm[i8, 1:u1], 16:u5]
 let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n27: (i8, i8) = (I0, I1) in n27.0 ** n27.1 in
 let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
   (I : Stm[i8, 3:u2]) =>
@@ -15,9 +15,9 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
 ) in
 (I : Stm[Stm[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Stm[i8, 1:u1], 16:u5] = I in
-  let n2: Stm[Stm[i8, 1:u1], 1:u1 ** 16:u5 // 1:u1] = StmSplit(StmShiftRightGarbage(StmJoin(n1)), 1:u1) in
-  let n3: Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = StmSplit(StmShiftRightGarbage(StmJoin(n2)), 1:u1) in
-  let n4: Stm[Stm[Vec[i8, 2:u2], 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = (
+  let n2: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n1)), 1:u1) in
+  let n3: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n2)), 1:u1) in
+  let n4: Stm[Stm[Vec[i8, 2:u2], 1:u1], 16:u5] = (
     StmMap2(
       n3,
       n2,
@@ -35,7 +35,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
           )
     )
   ) in
-  let n11: Stm[Stm[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = (
+  let n11: Stm[Stm[Vec[i8, 3:u3], 1:u1], 16:u5] = (
     StmMap2(
       n4,
       n1,
@@ -48,14 +48,14 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
           )
     )
   ) in
-  let n20: Stm[Stm[i8, SafeSum(2:u2, 1:u1) ** 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = (
+  let n20: Stm[Stm[i8, 3:u3], 16:u5] = (
     StmMap(
       n11,
-      (I : Stm[Vec[i8, SafeSum(2:u2, 1:u1)], 1:u1]) =>
-        StmJoin(StmMap(I, (x : Vec[i8, SafeSum(2:u2, 1:u1)]) => Vec2Stm(x)))
+      (I : Stm[Vec[i8, 3:u3], 1:u1]) =>
+        StmJoin(StmMap(I, (x : Vec[i8, 3:u3]) => Vec2Stm(x)))
     )
   ) in
-  let n32: Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = (
+  let n32: Stm[Stm[i8, 1:u1], 16:u5] = (
     StmMap(
       n20,
       (I : Stm[i8, 3:u2]) =>
@@ -71,6 +71,6 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
         StmReduce(n24, (I : (i8, i8)) => I.0 ++ I.1)
     )
   ) in
-  let n33: Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = n32 in
-  let n34: Stm[Stm[i8, 1:u1], 1:u1 ** (1:u1 ** 16:u5 // 1:u1) // 1:u1] = n33 in
+  let n33: Stm[Stm[i8, 1:u1], 16:u5] = n32 in
+  let n34: Stm[Stm[i8, 1:u1], 16:u5] = n33 in
   n34

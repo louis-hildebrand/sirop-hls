@@ -1454,7 +1454,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
           s"Second input in StmConcat has type $t. Expected a stream of $t1."
         )
     }
-    this.rebuild(TyStm(t1, n1 + n2), Seq(newS1, newS2))
+    this.rebuild(TyStm(t1, SafeSum(n1, n2)()), Seq(newS1, newS2))
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -1656,7 +1656,7 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(TyStm(t, m), n) =>
-        this.rebuild(TyStm(t, m * n), Seq(newS))
+        this.rebuild(TyStm(t, SafeProd(m, n)()), Seq(newS))
       case t =>
         throw new TypeError(
           s"Stream in StmJoin has type $t. Expected a nested stream."

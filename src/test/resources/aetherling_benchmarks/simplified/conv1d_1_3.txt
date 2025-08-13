@@ -1,6 +1,6 @@
-(I : Stm[i8, 16:u5 * pad5(1:u1)]) =>
-  let stm n1: Stm[i8, 16:u5 * pad5(1:u1)] = I in
-  let stm n2: Stm[i8, (16:u5 * pad5(1:u1) / pad5(1:u1)) * pad5(1:u1)] = (
+(I : Stm[i8, 16:u5]) =>
+  let stm n1: Stm[i8, 16:u5] = I in
+  let stm n2: Stm[i8, 16:u5] = (
     sbuild(
       16:u5;
       buf[0:u0];
@@ -55,7 +55,7 @@
             1:u32 + out_ctr
           }
         );
-        (x_data : Vec[i8, pad3(1:u1) + pad3(2:u2)]) = (
+        (x_data : Vec[i8, 3:u3]) = (
           vbuild(3:u3, (i : u32) => 0:i8),
           if (
             !is_first_step && out_ctr == 2:u32
@@ -68,7 +68,7 @@
             x_data
           }
         );
-        (x_stm : Stm[Vec[i8, pad3(1:u1) + pad3(2:u2)], -1:i1]) = (
+        (x_stm : Stm[Vec[i8, 3:u3], -1:i1]) = (
           sbuild(
             16:u5;
             vbuild(

@@ -30,17 +30,17 @@
         )
     );
     true;
-    (I : Stm[Vec[Vec[i8, pad3(1:u1) + pad3(2:u2)], 2:u2 / pad2(1:u1)], -1:i1]) = (
+    (I : Stm[Vec[Vec[i8, 3:u3], 2:u2], -1:i1]) = (
       sbuild(
         8:u4;
         vbuild(2:u2, (i : u32) => data(I)[i][0:u0]);
         true;
-        (I : Stm[Vec[Vec[Vec[i8, pad3(1:u1) + pad3(2:u2)], 1:u1], 2:u2 / pad2(1:u1)], -1:i1]) = (
+        (I : Stm[Vec[Vec[Vec[i8, 3:u3], 1:u1], 2:u2], -1:i1]) = (
           sbuild(
             8:u4;
             vbuild(2:u2, (i : u32) => vbuild(1:u1, (j : u32) => data(I)[i]));
             true;
-            (I : Stm[Vec[Vec[i8, pad3(1:u1) + pad3(2:u2)], 2:u2], -1:i1]) = (
+            (I : Stm[Vec[Vec[i8, 3:u3], 2:u2], -1:i1]) = (
               sbuild(
                 8:u4;
                 vbuild(

@@ -1,5 +1,6 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TDiv, TMod, TProd, TSum, TypeCheck}
 import mhir.optimize.{PartialEvalPass => PE}
 
@@ -405,7 +406,12 @@ case class TyVec(t: Type, n: Expr) extends Type {
 /** Companion object for [[TyVec]].
   */
 object TyVec {
-  def apply(t: Type, n: Expr): Type = new TyVec(t, n.tchk())
+
+  /** Factory for [[TyVec]].
+    */
+  def apply(t: Type, n: Expr): Type = {
+    new TyVec(t, PE.partialEval(n.tchk().lower()))
+  }
 }
 
 /** The type of a stream.
@@ -431,7 +437,12 @@ case class TyStm(t: Type, n: Expr) extends Type {
 /** Companion object for [[TyStm]].
   */
 object TyStm {
-  def apply(t: Type, n: Expr): Type = new TyStm(t, n.tchk())
+
+  /** Factory for [[TyStm]].
+    */
+  def apply(t: Type, n: Expr): Type = {
+    new TyStm(t, PE.partialEval(n.tchk().lower()))
+  }
 }
 
 /** The type of an option (like Scala's [[scala.Option]]).

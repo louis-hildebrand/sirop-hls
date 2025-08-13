@@ -179,8 +179,7 @@ class ExprTests extends AnyFunSuite {
         IntCst(42)() + IntCst(1)()
       )()
     assert(actual == expected)
-    val expectedTypeAfterSub =
-      TyTuple(TyVec(U8, IntCst(42)() * IntCst(2)()), U8)
+    val expectedTypeAfterSub = TyTuple(TyVec(U8, C(84)()), U8)
     assert(actual.typ == expectedTypeAfterSub)
   }
 

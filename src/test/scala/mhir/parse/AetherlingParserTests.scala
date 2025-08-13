@@ -62,6 +62,7 @@ class AetherlingParserTests extends AnyFunSuite {
         val expected = os.read(expectedPath)
         assert(actual == expected)
       }
+      assume(!SaveOutput)
     }
   }
 }
