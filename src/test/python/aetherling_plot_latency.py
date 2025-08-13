@@ -8,9 +8,10 @@ import sys
 
 import matplotlib.pyplot as plt
 
+import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
-from lib.benchmark import Benchmark, BenchmarkImpl
+from lib.benchmark import BenchmarkImpl
 
 MIN_LABEL = "Best possible latency"
 MIN_MARKER = ""
@@ -19,40 +20,6 @@ AETHERLING_MARKER = "s"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
 DEFAULT_ERR = 10
-
-
-def min_latency(bench: Benchmark) -> int:
-    """
-    Compute the minimum possible latency for the given benchmark.
-    """
-    if bench.name == "map":
-        # 200 inputs, 200 outputs
-        return 200 // bench.throughput
-    if bench.name == "sum":
-        # 840 inputs, 1 output
-        par = 840 * bench.throughput
-        return 840 // par
-    if bench.name == "dot":
-        # 840 inputs, 1 output
-        par = 840 * bench.throughput
-        return 840 // par
-    if bench.name == "conv1d":
-        # 16 inputs, 16 outputs
-        return 16 // bench.throughput
-    raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
-
-
-def benchmark_order(bench_name: str) -> int:
-    """
-    Decide what order the benchmarks should be laid out in the plot.
-    """
-    return {
-        "map": 0,
-        "sum": 1,
-        "dot": 2,
-        "conv1d": 3
-    }.get(bench_name, 4)
-
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -70,7 +37,7 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
         "text.usetex": True
     })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
-    benchmark_names = sorted(benchmark_names, key=benchmark_order)
+    benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
     fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(7, 3), squeeze=False)
@@ -99,8 +66,10 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
         )
         ax = axes[col]
         # Minimum results
-        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
-        ys = [min_latency(b.bench) for b in vhdl_benchmarks]
+        all_benchmarks = dedup(vhdl_benchmarks + verilog_benchmarks)
+        all_benchmarks = sorted(all_benchmarks, key=lambda b: b.bench.throughput)
+        xs = [float(b.bench.throughput) for b in all_benchmarks]
+        ys = [lb.min_latency(b.bench) for b in all_benchmarks]
         min_artist, = ax.plot(
             xs, ys,
             marker=MIN_MARKER,

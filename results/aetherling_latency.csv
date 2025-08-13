@@ -61,3 +61,10 @@ conv1d,8,verilog,12
 conv1d,8,vhdl,11
 conv1d,16,verilog,11
 conv1d,16,vhdl,3
+smallconv2d,1/9,verilog,
+smallconv2d,1/3,verilog,
+smallconv2d,1,verilog,27
+smallconv2d,2,verilog,17
+smallconv2d,4,verilog,13
+smallconv2d,8,verilog,11
+smallconv2d,16,verilog,10

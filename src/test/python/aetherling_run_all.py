@@ -38,16 +38,18 @@ def main(
     clean: bool,
     skip_verilog: bool,
     skip_vhdl: bool,
+    skip_gen: bool,
 ) -> None:
     """
     Script entry point.
     """
-    aetherling_generate.main(
-        bench_names,
-        skip_verilog=skip_verilog,
-        skip_vhdl=skip_vhdl,
-        skip_synth=False
-    )
+    if not skip_gen:
+        aetherling_generate.main(
+            bench_names,
+            skip_verilog=skip_verilog,
+            skip_vhdl=skip_vhdl,
+            skip_synth=False
+        )
 
     if clean:
         c.RESOURCE_USAGE_CSV.unlink(missing_ok=True)
@@ -111,6 +113,11 @@ def parse_args() -> Namespace:
         help="the benchmarks to process",
     )
     parser.add_argument(
+        "--skip-gen",
+        action="store_true",
+        help="don't re-generate and re-synthesize, just use what's already there"
+    )
+    parser.add_argument(
         "--fmax",
         choices=["measure", "estimate"],
         default="estimate",
@@ -153,4 +160,5 @@ if __name__ == "__main__":
         clean=_args.clean,
         skip_verilog=_args.skip_verilog,
         skip_vhdl=_args.skip_vhdl,
+        skip_gen=_args.skip_gen,
     )
