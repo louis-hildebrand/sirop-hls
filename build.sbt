@@ -14,8 +14,16 @@ Global / excludeLintKeys += showSuccess
 Test / parallelExecution := false
 Test / logBuffered := false
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
-libraryDependencies += "org.scala-lang" %% "toolkit" % "0.1.7"
+// Testing
+libraryDependencies ++= Seq(
+  // Testing
+  "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+  // Files, processes, etc.
+  "org.scala-lang" %% "toolkit" % "0.1.7",
+  // Logging
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+  "ch.qos.logback" % "logback-classic" % "1.4.14"
+)
 Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src/main/"
 
 lazy val root = (project in file("."))

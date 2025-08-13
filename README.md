@@ -88,6 +88,11 @@ The test suite `TestRunnerTests` verifies that VHDL can be compiled and simulate
 sbt 'testOnly *TestRunnerTests'
 ```
 
+### Logging
+
+Logging is performed via the scala-logging library with the logback backend.
+The log level can be adjusted in [logback.xml](./src/main/resources/logback.xml).
+
 ### Debugging
 
 There are some classes that help with debugging in [the debug package](./src/main/scala/mhir/debug).

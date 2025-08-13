@@ -1,5 +1,6 @@
 package mhir.main.aetherling
 
+import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.ir.Lowering.ExprLowering
@@ -15,6 +16,8 @@ import os.Path
   * language.
   */
 object Compiler {
+
+  private val logger = Logger(getClass.getName)
 
   /** The program entry point.
     *
@@ -47,40 +50,53 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
+    logger.debug(s"parsing Aetherling code from ${args.inFile}...")
     val aetherlingCode = os.read(args.inFile)
     val parsed = AetherlingParser.parse(aetherlingCode)
     if (args.showParsed) {
       println(ExprPrinter.display(parsed))
     }
+    logger.trace(s"parsed expression: $parsed")
 
+    logger.debug("type checking expression...")
     val checked = parsed.tchk()
     if (args.showChecked) {
       println(ExprPrinter.display(checked))
     }
+    logger.trace(s"type-checked expression: $checked")
 
+    logger.debug("lowering expression...")
     val lowered = translateStmLiteral(checked).lower()
     if (args.showLowered) {
       println(ExprPrinter.display(lowered))
     }
+    logger.trace(s"lowered expression: $lowered")
 
     val optimized = if (args.optimize) {
-      Opt.optimize(lowered)
+      logger.debug("optimizing expression...")
+      val result = Opt.optimize(lowered)
+      logger.trace(s"optimized expression: $result")
+      result
     } else {
+      logger.debug("skipping optimization")
       lowered
     }
     if (args.showOptimized) {
       println(ExprPrinter.display(optimized))
     }
 
+    logger.debug("ensuring expression is synthesizable...")
     val finalProgram = makeSynthesizable(optimized)
     if (args.showFinal) {
       println(ExprPrinter.display(finalProgram))
     }
+    logger.trace(s"final program: $finalProgram")
 
     if (args.emitHdl) {
       emit(finalProgram, outDir = args.outDir, overwrite = args.overwrite)
     }
 
+    logger.debug("done compiling")
     finalProgram
   }
 
