@@ -8,8 +8,8 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
 ) in
 (I : Stm[Vec[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Vec[i8, 1:u1], 16:u5] = I in
-  let n2: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n1) in
-  let n3: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n2) in
+  let n2: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n1, 1:u1) in
+  let n3: Stm[Vec[i8, 1:u1], 16:u5] = StmShiftRightGarbage(n2, 1:u1) in
   let n4: Stm[Vec[Vec[i8, 2:u2], 1:u1], 16:u5] = (
     StmMap2(
       n3,

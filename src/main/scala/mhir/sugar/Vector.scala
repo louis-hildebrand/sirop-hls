@@ -693,13 +693,13 @@ case class VecShiftRight(
   * @param vec
   *   the vector to shift.
   */
-case class VecShiftRightGarbage(vec: Expr, shiftAmount: Int)(
+case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     typ: Type = Missing
-) extends SyntaxSugar(vec)(typ) {
+) extends SyntaxSugar(vec, shiftAmount)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v) => VecShiftRightGarbage(v, this.shiftAmount)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
+      case Seq(v, m: IntCst) => VecShiftRightGarbage(v, m)(typ)
+      case _                 => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -712,12 +712,13 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: Int)(
           s"First argument in ${VecShiftRight.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
-    if (this.shiftAmount <= 0) {
+    val newShiftAmount = this.shiftAmount.tchk.expectUInt().asInstanceOf[IntCst]
+    if (newShiftAmount.i <= 0) {
       throw new TypeError(
-        s"Shift amount in $className must be strictly positive (got ${this.shiftAmount})."
+        s"Shift amount in $className must be strictly positive (got $newShiftAmount)."
       )
     }
-    this.rebuild(TyVec(t, n), Seq(newV))
+    this.rebuild(TyVec(t, n), Seq(newV, newShiftAmount))
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -726,7 +727,10 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: Int)(
     VecConcat(
       // TODO: Actually insert some kind of undefined value?
       VecBuild(this.shiftAmount, U32 ::+ (_ => Default(t)))(),
-      VecPrefix(this.vec, ToUnsigned(SafeSum(n, -this.shiftAmount)())())()
+      VecPrefix(
+        this.vec,
+        ToUnsigned(SafeSum(n, C(-this.shiftAmount.i)())())()
+      )()
     )().tchk().lower()
   }
 }

@@ -15,8 +15,8 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
 ) in
 (I : Stm[Stm[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Stm[i8, 1:u1], 16:u5] = I in
-  let n2: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n1)), 1:u1) in
-  let n3: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n2)), 1:u1) in
+  let n2: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n1), 1:u1), 1:u1) in
+  let n3: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n2), 1:u1), 1:u1) in
   let n4: Stm[Stm[Vec[i8, 2:u2], 1:u1], 16:u5] = (
     StmMap2(
       n3,

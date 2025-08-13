@@ -46,10 +46,10 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
 ) in
 (I : Stm[Vec[u8, 4:u3], 4:u3]) =>
   let n1: Stm[Vec[u8, 4:u3], 4:u3] = I in
-  let n2: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n1) in
-  let n3: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n2) in
-  let n4: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n3) in
-  let n5: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n4) in
+  let n2: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n1, 4:u3) in
+  let n3: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n2, 4:u3) in
+  let n4: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n3, 1:u1) in
+  let n5: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n4, 1:u1) in
   let n6: Stm[Vec[Vec[u8, 2:u2], 4:u3], 4:u3] = (
     StmMap2(
       n5,
@@ -93,8 +93,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
         )
     )
   ) in
-  let n30: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n2) in
-  let n31: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n30) in
+  let n30: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n2, 1:u1) in
+  let n31: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n30, 1:u1) in
   let n32: Stm[Vec[Vec[u8, 2:u2], 4:u3], 4:u3] = (
     StmMap2(
       n31,
@@ -156,8 +156,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
           )
     )
   ) in
-  let n63: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n1) in
-  let n64: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n63) in
+  let n63: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n1, 1:u1) in
+  let n64: Stm[Vec[u8, 4:u3], 4:u3] = StmVecShiftRightGarbage(n63, 1:u1) in
   let n65: Stm[Vec[Vec[u8, 2:u2], 4:u3], 4:u3] = (
     StmMap2(
       n64,

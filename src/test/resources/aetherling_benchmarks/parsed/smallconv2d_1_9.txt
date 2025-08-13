@@ -46,10 +46,30 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
 ) in
 (I : Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5]) =>
   let n1: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = I in
-  let n2: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n1))), 1:u1), 1:u1) in
-  let n3: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n2))), 1:u1), 1:u1) in
-  let n4: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n3))), 1:u1), 1:u1) in
-  let n5: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n4))), 1:u1), 1:u1) in
+  let n2: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n1)), 4:u3), 1:u1),
+      1:u1
+    )
+  ) in
+  let n3: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n2)), 4:u3), 1:u1),
+      1:u1
+    )
+  ) in
+  let n4: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n3)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
+  let n5: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n4)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
   let n6: Stm[Stm[Stm[Vec[u8, 2:u2], 1:u1], 1:u1], 16:u5] = (
     StmMap2(
       n5,
@@ -105,8 +125,18 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         )
     )
   ) in
-  let n31: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n2))), 1:u1), 1:u1) in
-  let n32: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n31))), 1:u1), 1:u1) in
+  let n31: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n2)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
+  let n32: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n31)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
   let n33: Stm[Stm[Stm[Vec[u8, 2:u2], 1:u1], 1:u1], 16:u5] = (
     StmMap2(
       n32,
@@ -180,8 +210,18 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           )
     )
   ) in
-  let n65: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n1))), 1:u1), 1:u1) in
-  let n66: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmSplit(StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n65))), 1:u1), 1:u1) in
+  let n65: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n1)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
+  let n66: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
+    StmSplit(
+      StmSplit(StmShiftRightGarbage(StmJoin(StmJoin(n65)), 1:u1), 1:u1),
+      1:u1
+    )
+  ) in
   let n67: Stm[Stm[Stm[Vec[u8, 2:u2], 1:u1], 1:u1], 16:u5] = (
     StmMap2(
       n66,
