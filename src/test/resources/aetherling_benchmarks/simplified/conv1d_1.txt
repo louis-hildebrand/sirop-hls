@@ -3,11 +3,11 @@
   let stm n2: Stm[Vec[i8, 1:u1], 16:u5] = (
     sbuild(
       16:u5;
-      buf;
+      buf[0:u0];
       true;
-      (buf : Vec[i8, 1:u1]) = (
-        vbuild(1:u1, (i : u32) => 0:i8),
-        data(s)
+      (buf : Vec[Vec[i8, 1:u1], 1:u1]) = (
+        vbuild(1:u1, (i : u8) => vbuild(1:u1, (j : u32) => 0:i8)),
+        vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[Vec[i8, 1:u1], -1:i1]) = (
         n1,
@@ -61,11 +61,14 @@
                 (I0 : Stm[Vec[i8, 1:u1], -1:i1]) = (
                   sbuild(
                     16:u5;
-                    buf;
+                    buf[0:u0];
                     true;
-                    (buf : Vec[i8, 1:u1]) = (
-                      vbuild(1:u1, (i : u32) => 0:i8),
-                      data(s)
+                    (buf : Vec[Vec[i8, 1:u1], 1:u1]) = (
+                      vbuild(
+                        1:u1,
+                        (i : u8) => vbuild(1:u1, (j : u32) => 0:i8)
+                      ),
+                      vbuild(1:u2, (i : u32) => data(s))
                     );
                     (s : Stm[Vec[i8, 1:u1], -1:i1]) = (
                       n2,

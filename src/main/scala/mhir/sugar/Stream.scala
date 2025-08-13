@@ -1276,11 +1276,12 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   * @param stm
   *   the stream to shift.
   */
-case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(stm)(typ) {
+case class StmShiftRightGarbage(stm: Expr, shiftAmount: Int)(
+    typ: Type = Missing
+) extends SyntaxSugar(stm)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmShiftRightGarbage(s)(typ)
+      case Seq(s) => StmShiftRightGarbage(s, this.shiftAmount)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1296,6 +1297,11 @@ case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
         s"Invalid element type $t in input stream of of $className."
       )
     }
+    if (this.shiftAmount <= 0) {
+      throw new TypeError(
+        s"Shift amount in $className must be strictly positive (got ${this.shiftAmount})."
+      )
+    }
     this.rebuild(TyStm(t, n), Seq(newS))
   }
 
@@ -1304,15 +1310,18 @@ case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
     val stm = this.stm.lower()
     val TyStm(t, n) = this.stm.typ
     val s = Param("s")(TyStm(t, -1))
-    val buf = Param("buf")(t)
+    val buf = Param("buf")(TyVec(t, this.shiftAmount))
     StmBuild(
       n,
-      buf,
+      VecAccess(buf, this.shiftAmount - 1)(),
       True,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        // TODO: Actually start with some kind of undefined value?
-        buf -> (Default(t), StmData(s)())
+        buf -> (
+          // TODO: Actually start with some kind of undefined value?
+          VecBuild(this.shiftAmount, U8 ::+ (_ => Default(t)))(),
+          VecShiftRight(buf, StmData(s)())()
+        )
       )
     )().tchk().lower()
   }
@@ -1368,7 +1377,7 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: Int)(
     }
     if (this.shiftAmount <= 0) {
       throw new TypeError(
-        s"Shift amount in $className must be strictly positive."
+        s"Shift amount in $className must be strictly positive (got ${this.shiftAmount})."
       )
     }
     this.rebuild(stm.typ, Seq(stm))

@@ -2174,6 +2174,35 @@ class StreamTests extends AnyFunSuite {
     assert(actual5 == expected.dropRight(5))
   }
 
+  test("StmShiftRightGarbage:Stm[u8,8]") {
+    def extract(e: Expr): Seq[Expr] = {
+      e.asInstanceOf[StmLiteral].elems
+    }
+
+    val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()
+    val expected = (0 until 8).map(C(_)(U8))
+
+    val s1 = StmShiftRightGarbage(input, 1)().tchk().lower()
+    val actual1 = extract(mhir.ir.eval(s1)).drop(1)
+    assert(actual1 == expected.dropRight(1))
+
+    val s2 = StmShiftRightGarbage(input, 2)().tchk().lower()
+    val actual2 = extract(mhir.ir.eval(s2)).drop(2)
+    assert(actual2 == expected.dropRight(2))
+
+    val s3 = StmShiftRightGarbage(input, 3)().tchk().lower()
+    val actual3 = extract(mhir.ir.eval(s3)).drop(3)
+    assert(actual3 == expected.dropRight(3))
+
+    val s4 = StmShiftRightGarbage(input, 4)().tchk().lower()
+    val actual4 = extract(mhir.ir.eval(s4)).drop(4)
+    assert(actual4 == expected.dropRight(4))
+
+    val s5 = StmShiftRightGarbage(input, 5)().tchk().lower()
+    val actual5 = extract(mhir.ir.eval(s5)).drop(5)
+    assert(actual5 == expected.dropRight(5))
+  }
+
   test("StmZip:1D") {
     val a = StmCount(4)()
     val b = {

@@ -415,16 +415,12 @@ object AetherlingParser {
       val suffix2 = expect(suffix1, " ")
       val (_, suffix3) = parseNat(suffix2)
       val suffix4 = expect(suffix3, " ")
-      val (delay, suffix5) = parseNat(suffix4)
+      val (shiftAmount, suffix5) = parseNat(suffix4)
       val suffix6 = expect(suffix5, " ")
       val (_, suffix7) = parseTyp(suffix6)
       val suffix8 = expect(suffix7, " ")
       val (s, suffix9) = parseExpr(suffix8, modules)
-      if (delay == 1) {
-        (StmShiftRightGarbage(s)(), suffix9)
-      } else {
-        ???
-      }
+      (StmShiftRightGarbage(s, shiftAmount)(), suffix9)
     } else if (code.startsWith("Shift_tsN ")) {
       // Shift_tsN seems to have type
       //     TSeq no io (SSeq ni t) -> TSeq no io (SSeq ni t)
@@ -457,16 +453,12 @@ object AetherlingParser {
       val suffix6 = expect(suffix5, " ")
       val (iis, suffix7) = parseNatList(suffix6)
       val suffix8 = expect(suffix7, " ")
-      val (delay, suffix9) = parseNat(suffix8)
+      val (shiftAmount, suffix9) = parseNat(suffix8)
       val suffix10 = expect(suffix9, " ")
       val (_, suffix11) = parseTyp(suffix10)
       val suffix12 = expect(suffix11, " ")
       val (s, suffix13) = parseExpr(suffix12, modules)
-      if (delay == 1) {
-        (makeNestedStmShift(s, nis, iis), suffix13)
-      } else {
-        ???
-      }
+      (makeNestedStmShift(s, nis, iis, shiftAmount), suffix13)
     } else if (code.startsWith("Up_1d_sN")) {
       ???
     } else if (code.startsWith("Up_1d_tN ")) {
@@ -714,13 +706,14 @@ object AetherlingParser {
   private def makeNestedStmShift(
       s: Expr,
       nis: Seq[Int],
-      iis: Seq[Int]
+      iis: Seq[Int],
+      shiftAmount: Int
   ): Expr = {
     (nis, iis) match {
       case (Seq(), Seq()) =>
-        StmShiftRightGarbage(s)()
+        StmShiftRightGarbage(s, shiftAmount)()
       case (ni +: nis, _ +: iis) =>
-        StmSplit(makeNestedStmShift(StmJoin(s)(), nis, iis), ni)()
+        StmSplit(makeNestedStmShift(StmJoin(s)(), nis, iis, shiftAmount), ni)()
       case (_, _) =>
         throw new IllegalArgumentException(
           s"Length mismatch in shift_tn: $nis vs $iis."
