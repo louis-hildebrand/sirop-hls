@@ -50,14 +50,14 @@ dot,1/120,vhdl,190.55
 dot,1/105,verilog,155.4
 dot,1/105,vhdl,181.98
 conv1d,2,verilog,220.02
-conv1d,2,vhdl,216.83
+conv1d,2,vhdl,196.85
 conv1d,1/3,verilog,192.16
 conv1d,1/3,vhdl,97.68
 conv1d,1,verilog,220.02
 conv1d,1,vhdl,210.93
 conv1d,4,verilog,220.02
-conv1d,4,vhdl,199.96
+conv1d,4,vhdl,212.31
 conv1d,8,verilog,206.48
-conv1d,8,vhdl,214.09
+conv1d,8,vhdl,208.86
 conv1d,16,verilog,208.51
 conv1d,16,vhdl,267.88

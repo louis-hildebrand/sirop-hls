@@ -437,16 +437,12 @@ object AetherlingParser {
       val suffix4 = expect(suffix3, " ")
       val (_, suffix5) = parseNat(suffix4)
       val suffix6 = expect(suffix5, " ")
-      val (delay, suffix7) = parseNat(suffix6)
+      val (shiftAmount, suffix7) = parseNat(suffix6)
       val suffix8 = expect(suffix7, " ")
       val (_, suffix9) = parseTyp(suffix8)
       val suffix10 = expect(suffix9, " ")
       val (s, suffix11) = parseExpr(suffix10, modules)
-      if (delay == 1) {
-        (StmVecShiftRightGarbage(s)(), suffix11)
-      } else {
-        ???
-      }
+      (StmVecShiftRightGarbage(s, shiftAmount)(), suffix11)
     } else if (code.startsWith("Shift_ttN ")) {
       ???
     } else if (code.startsWith("Shift_tnN ")) {

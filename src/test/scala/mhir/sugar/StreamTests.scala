@@ -2140,22 +2140,38 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
-  test("StmVecShiftRightGarbage:Stm[Vec[u8,3],2]") {
+  test("StmVecShiftRightGarbage:Stm[Vec[u8,3],4]") {
+    def extractFlat(e: Expr): Seq[Expr] = {
+      e.asInstanceOf[StmLiteral].elems.flatMap(_.asInstanceOf[VecLiteral].elems)
+    }
+
     val input = StmLiteral(
       VecLiteral(C(0)(U8), C(1)(U8), C(2)(U8))(),
-      VecLiteral(C(3)(U8), C(4)(U8), C(5)(U8))()
+      VecLiteral(C(3)(U8), C(4)(U8), C(5)(U8))(),
+      VecLiteral(C(6)(U8), C(7)(U8), C(8)(U8))(),
+      VecLiteral(C(9)(U8), C(10)(U8), C(11)(U8))()
     )()
-    val s = StmVecShiftRightGarbage(input)().tchk().lower()
-    val actual = mhir.ir.eval(s)
-    actual match {
-      case StmLiteral(
-            VecLiteral(_, IntCst(0), IntCst(1)),
-            VecLiteral(IntCst(2), IntCst(3), IntCst(4))
-          ) =>
-        ()
-      case e =>
-        fail(s"expected {{ [_, 0, 1], [2, 3, 4] }}, got $e")
-    }
+    val expected = (0 until 12).map(C(_)(U8))
+
+    val s1 = StmVecShiftRightGarbage(input, 1)().tchk().lower()
+    val actual1 = extractFlat(mhir.ir.eval(s1)).drop(1)
+    assert(actual1 == expected.dropRight(1))
+
+    val s2 = StmVecShiftRightGarbage(input, 2)().tchk().lower()
+    val actual2 = extractFlat(mhir.ir.eval(s2)).drop(2)
+    assert(actual2 == expected.dropRight(2))
+
+    val s3 = StmVecShiftRightGarbage(input, 3)().tchk().lower()
+    val actual3 = extractFlat(mhir.ir.eval(s3)).drop(3)
+    assert(actual3 == expected.dropRight(3))
+
+    val s4 = StmVecShiftRightGarbage(input, 4)().tchk().lower()
+    val actual4 = extractFlat(mhir.ir.eval(s4)).drop(4)
+    assert(actual4 == expected.dropRight(4))
+
+    val s5 = StmVecShiftRightGarbage(input, 5)().tchk().lower()
+    val actual5 = extractFlat(mhir.ir.eval(s5)).drop(5)
+    assert(actual5 == expected.dropRight(5))
   }
 
   test("StmZip:1D") {

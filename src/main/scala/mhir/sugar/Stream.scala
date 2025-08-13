@@ -1331,23 +1331,27 @@ case class StmShiftRightGarbage(stm: Expr)(typ: Type = Missing)
   *
   * `{{ [0, 1], [2, 3] }}`.
   *
-  * Calling [[StmShiftRightGarbage]] on this stream would yield the following
-  * stream:
+  * Calling [[StmShiftRightGarbage]] on this stream with a shift amount of 1
+  * would yield the following stream:
   *
   * `{{ [u, u], [0, 1] }}`.
   *
-  * Calling [[StmVecShiftRightGarbage]] would yield the following stream:
+  * Calling [[StmVecShiftRightGarbage]] with a shift amount of 1 would yield the
+  * following stream:
   *
   * `{{ [u, 0], [1, 2] }}`.
   *
   * @param stm
   *   the stream to shift.
+  * @param shiftAmount
+  *   the amount to shift by.
   */
-case class StmVecShiftRightGarbage(stm: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(stm)(typ) {
+case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: Int)(
+    typ: Type = Missing
+) extends SyntaxSugar(stm)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmVecShiftRightGarbage(s)(typ)
+      case Seq(s) => StmVecShiftRightGarbage(s, this.shiftAmount)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1362,6 +1366,11 @@ case class StmVecShiftRightGarbage(stm: Expr)(typ: Type = Missing)
             + " Expected a stream of vectors."
         )
     }
+    if (this.shiftAmount <= 0) {
+      throw new TypeError(
+        s"Shift amount in $className must be strictly positive."
+      )
+    }
     this.rebuild(stm.typ, Seq(stm))
   }
 
@@ -1369,25 +1378,40 @@ case class StmVecShiftRightGarbage(stm: Expr)(typ: Type = Missing)
     requireType()
     val stm = this.stm.lower()
     stm.typ match {
-      case TyStm(TyVec(t, m), n) =>
-        val x = Param("x")(t)
-        val s = Param("s")(TyStm(TyVec(t, m), -1))
+      case TyStm(TyVec(t, IntCst(m)), n) if m > 0 =>
+        val buf = Param("buf")(TyVec(t, this.shiftAmount))
+        val s = Param("s")(TyStm(TyVec(t, C(m)()), -1))
+        val data = if (this.shiftAmount >= m) {
+          // All output data comes from the buffer
+          VecPrefix(buf, C(m)())()
+        } else {
+          // Some output data comes directly from the input stream
+          VecConcat(buf, VecPrefix(StmData(s)(), C(m - this.shiftAmount)())())()
+        }
+        val bufNext = if (this.shiftAmount >= m) {
+          // All input data goes into the buffer
+          VecConcat(VecSuffix(buf, C(this.shiftAmount - m)())(), StmData(s)())()
+        } else {
+          // Some input data doesn't go into the buffer
+          VecSuffix(StmData(s)(), C(this.shiftAmount)())()
+        }
         StmBuild(
           n,
-          VecShiftRight(StmData(s)(), x)(),
+          data,
           True,
           Map[Param, (Expr, Expr)](
-            // The last element in each vector needs to be held until the next
-            // step
-            // TODO: Actually insert some kind of undefined value?
-            x -> (Default(t), VecAccess(StmData(s)(), ToUnsigned(-1 + m)())()),
+            buf -> (
+              // TODO: Actually insert some kind of undefined value?
+              VecBuild(this.shiftAmount, U32 ::+ (_ => Default(t)))(),
+              bufNext
+            ),
             s -> (stm, True)
           )
         )().tchk().lower()
       case t =>
         throw new TypeError(
           s"Stream in $className has type $t."
-            + " Expected a stream of vectors."
+            + " Expected a stream of non-empty, fixed-size vectors."
         )
     }
   }
