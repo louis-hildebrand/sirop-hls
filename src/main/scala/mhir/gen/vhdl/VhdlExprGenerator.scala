@@ -66,6 +66,10 @@ private object VhdlExprGenerator {
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
         val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
         VhdlExpr(s"($e1Vhdl) sll to_integer($e2Vhdl)", e1Decls ++ e2Decls)
+      case LRShift(e1, e2) =>
+        val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
+        val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
+        VhdlExpr(s"($e1Vhdl) srl to_integer($e2Vhdl)", e1Decls ++ e2Decls)
 
       case True  => VhdlExpr("true", Seq())
       case False => VhdlExpr("false", Seq())

@@ -67,7 +67,7 @@ object Precedence {
       case _: Not                    => 2
       case _: Prod | _: Div | _: Mod => 3
       case _: Sum                    => 4
-      case _: LLShift                => 5
+      case _: LLShift | _: LRShift   => 5
       case _: LessThan               => 6
       case _: Equal                  => 7
       case _: And                    => 8

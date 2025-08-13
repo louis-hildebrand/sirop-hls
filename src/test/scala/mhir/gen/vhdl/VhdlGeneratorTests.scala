@@ -54,6 +54,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
         Tuple(
           i << ToUnsigned(-1 + j)(),
           ToUnsigned(i)() << ToUnsigned(-1 + j)()
+        )(),
+        Tuple(
+          i >> ToUnsigned(-1 + j)(),
+          ToUnsigned(i)() >> ToUnsigned(-1 + j)()
         )()
       )(),
       True,

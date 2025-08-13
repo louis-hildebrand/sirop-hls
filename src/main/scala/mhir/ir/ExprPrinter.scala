@@ -191,6 +191,13 @@ object ExprPrinter {
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
+      case LRShift(e1, e2) =>
+        displayMultiLineInfixOp(
+          Seq(e1, e2),
+          op = ">>",
+          maxWidth = maxWidth,
+          precedence = myPrecedence
+        )
       case Equal(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
@@ -476,6 +483,8 @@ object ExprPrinter {
         displayOneLineInfixOp(Seq(e1, e2), "%", myPrecedence)
       case LLShift(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), "<<", myPrecedence)
+      case LRShift(e1, e2) =>
+        displayOneLineInfixOp(Seq(e1, e2), ">>", myPrecedence)
       case PadTo(e, w) =>
         s"pad$w(${displayOneLine(e, Precedence.Max)})"
       case TruncateTo(e, w) =>
@@ -685,6 +694,8 @@ object ExprPrinter {
         s"ToUnsigned(${showScala(x)})(${showScala(tu.typ)})"
       case ll @ LLShift(e1, e2) =>
         s"LLShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
+      case lr @ LRShift(e1, e2) =>
+        s"LRShift(${showScala(e1)},${showScala(e2)})(${showScala(lr.typ)})"
       case True  => "True"
       case False => "False"
       case eq @ Equal(x, y) =>

@@ -177,6 +177,10 @@ object PartialEvalPass {
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
               .simplifyArithmetic(ll.rebuild(ll.typ, newChildren))(facts)
+          case lr @ LRShift(e1, e2) =>
+            val newChildren = Seq(e1, e2).map(doPartialEval)
+            ArithSimplifier
+              .simplifyArithmetic(lr.rebuild(lr.typ, newChildren))(facts)
 
           case True  => True
           case False => False

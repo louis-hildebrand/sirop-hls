@@ -98,6 +98,10 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       */
     def <<(that: Expr): Expr = LLShift(this.expr, that)()
 
+    /** See [[LRShift]].
+      */
+    def >>(that: Expr): Expr = LRShift(this.expr, that)()
+
     /** See [[SmartEqual]].
       */
     def ===(that: Expr): Expr = SmartEqual(this.expr, that)()
@@ -438,7 +442,7 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
               0
             case LetStm(y, in, _) if y == x =>
               count(in)
-            case stm @ StmBuild(n, data, valid, equations) =>
+            case stm @ StmBuild(n, data, valid, _) =>
               val n0 =
                 count(n) + stm.seedByVar.map({ case (_, z) => count(z) }).sum
               if (stm.accVars.contains(x)) {

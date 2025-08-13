@@ -53,21 +53,22 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: ToSigned    => 15
       case _: ToUnsigned  => 16
       case _: LLShift     => 17
-      case _: Param       => 18
-      case _: TupleAccess => 19
-      case _: FunCall     => 20
-      case _: Mux         => 21
-      case _: Tuple       => 22
-      case _: Function    => 23
-      case _: StmBuild    => 24
-      case _: StmData     => 25
-      case _: LetStm      => 26
-      case _: VecBuild    => 27
-      case _: VecAccess   => 28
-      case _: VecLiteral  => 29
-      case _: StmLiteral  => 30
-      case _: StmNextK    => 31
-      case _: SyntaxSugar => 32
+      case _: LRShift     => 18
+      case _: Param       => 19
+      case _: TupleAccess => 20
+      case _: FunCall     => 21
+      case _: Mux         => 22
+      case _: Tuple       => 23
+      case _: Function    => 24
+      case _: StmBuild    => 25
+      case _: StmData     => 26
+      case _: LetStm      => 27
+      case _: VecBuild    => 28
+      case _: VecAccess   => 29
+      case _: VecLiteral  => 30
+      case _: StmLiteral  => 31
+      case _: StmNextK    => 32
+      case _: SyntaxSugar => 33
     }
   }
 }

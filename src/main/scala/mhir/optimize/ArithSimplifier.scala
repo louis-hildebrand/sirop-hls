@@ -315,6 +315,7 @@ private[optimize] object ArithSimplifier {
     require(e.hasType)
     val simplified = e match {
       case ll: LLShift => simplifyLLShift(ll)
+      case lr: LRShift => simplifyLRShift(lr)
       case s: Sum      => simplifySum(s)
       case p: Prod     => simplifyProd(p)
       case e if e.typ == TyBool =>
@@ -333,8 +334,19 @@ private[optimize] object ArithSimplifier {
         // TODO: Should this actually be done after calling the library in
         //       case e2 is simplified to 0 but is not originally 0?
         simplifyWithoutLibrary(e)
-      case _ =>
-        ll
+      case LLShift(e1, e2) =>
+        LLShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
+    }
+  }
+
+  private def simplifyLRShift(lr: LRShift): Expr = {
+    lr match {
+      case LRShift(_: IntCst, _: IntCst) =>
+        mhir.ir.eval(lr)
+      case LRShift(e, IntCst(0)) =>
+        simplifyWithoutLibrary(e)
+      case LRShift(e1, e2) =>
+        LRShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
     }
   }
 

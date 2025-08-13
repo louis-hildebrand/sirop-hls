@@ -222,6 +222,23 @@ trait Eval {
               s"Operands of LLShift evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
         }
+      case LRShift(e1, e2) =>
+        val Value(n1, warn1) = evalBigStep(e1)
+        val Value(n2, warn2) = evalBigStep(e2)
+        (n1, n2) match {
+          case (IntCst(k1), IntCst(k2)) =>
+            val w = n1.typ.asInstanceOf[TyAnyInt].w
+            val result = maskOutHigherBits(k1, w) >>> k2
+            val extendedResult = n1.typ.asInstanceOf[TyAnyInt] match {
+              case TySInt(w) => signExtendToLong(result, w)
+              case TyUInt(_) => result
+            }
+            Value(C(extendedResult)(n1.typ), warn1 ++ warn2)
+          case (v1, v2) =>
+            throw new TypeError(
+              s"Operands of LRShift evaluated to $v1 and $v2. They must each evaluate to an integer."
+            )
+        }
 
       case True  => Value(True, Set())
       case False => Value(False, Set())
@@ -422,28 +439,33 @@ trait Eval {
   }
 
   private def truncate(n: Long, typ: TyAnyInt): Long = {
-    val mask = (0 until typ.w).foldLeft(0L)({ case (n, _) =>
-      (n << 1) | 1
-    })
-    val masked = n & mask
+    val masked = maskOutHigherBits(n, typ.w)
     typ match {
       case _: TySInt =>
         // Need to sign extend because the value is stored in a Scala
         // Long, which is a 64-bit signed int
-        assert(
-          masked.isInstanceOf[Long],
-          "expect value to be stored in a 64-bit int"
-        )
-        val msbIsOne = (masked & (1L << (typ.w - 1))) != 0
-        if (msbIsOne) {
-          (typ.w until 64).foldLeft(masked)({ case (n, i) =>
-            n | (1L << i)
-          })
-        } else {
-          masked
-        }
+        signExtendToLong(masked, typ.w)
       case _: TyUInt =>
+        // Higher bits are already zero, as they should be
         masked
+    }
+  }
+
+  private def maskOutHigherBits(n: Long, w: Int): Long = {
+    val mask = (0 until w).foldLeft(0L)({ case (n, _) =>
+      (n << 1) | 1
+    })
+    n & mask
+  }
+
+  private def signExtendToLong(n: Long, w: Int): Long = {
+    val msbIsOne = (n & (1L << (w - 1))) != 0
+    if (msbIsOne) {
+      (w until 64).foldLeft(n)({ case (n, i) =>
+        n | (1L << i)
+      })
+    } else {
+      n
     }
   }
 

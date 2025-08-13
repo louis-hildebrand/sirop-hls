@@ -350,6 +350,21 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.displayMultiLine(e, maxWidth = 80) == expectedMultiLine)
   }
 
+  test("a >> b") {
+    val a = Param("a", -1)(U8)
+    val b = Param("b", -1)(U8)
+    val e = LRShift(a, b)()
+
+    val expectedOneLine = "a >> b"
+    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""a
+         |  >> b
+         |""".stripMargin.stripTrailing
+    assert(ExprPrinter.displayMultiLine(e, maxWidth = 80) == expectedMultiLine)
+  }
+
   test("mux + 1") {
     val e = Sum(C(1)(U8), Mux(True, C(42)(U8), C(99)(U8))())()
     val expected = s"1:u8 + (if (true) then { 42:u8 } else { 99:u8 })"
