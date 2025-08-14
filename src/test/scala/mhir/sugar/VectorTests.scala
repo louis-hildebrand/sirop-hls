@@ -736,6 +736,53 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("VecMap2:Vec[Stm[T, 3], 4]") {
+    val v0 = Param("v0")(TyVec(TyStm(U8, 3), 4))
+    val v1 = Param("v1")(TyVec(TyStm(I16, 3), 4))
+    val map = VecMap2(
+      v0,
+      v1,
+      TyStm(U8, 3) ::+ (s0 => TyStm(I16, 3) ::+ (s1 => StmZip(s0, s1)()))
+    )().tchk().lower()
+
+    val v0Val = VecLiteral(
+      StmLiteral(C(0)(U8), C(1)(U8), C(2)(U8))(),
+      StmLiteral(C(3)(U8), C(4)(U8), C(5)(U8))(),
+      StmLiteral(C(6)(U8), C(7)(U8), C(8)(U8))(),
+      StmLiteral(C(9)(U8), C(10)(U8), C(11)(U8))()
+    )().tchk().lower()
+    val v1Val = VecLiteral(
+      StmLiteral(C(0)(I16), C(-10)(I16), C(-20)(I16))(),
+      StmLiteral(C(-30)(I16), C(-40)(I16), C(-50)(I16))(),
+      StmLiteral(C(-60)(I16), C(-70)(I16), C(-80)(I16))(),
+      StmLiteral(C(-90)(I16), C(-100)(I16), C(-110)(I16))()
+    )().tchk().lower()
+    val expected = StmLiteral(
+      VecLiteral(
+        Tuple(C(0)(U8), C(0)(I16))(),
+        Tuple(C(3)(U8), C(-30)(I16))(),
+        Tuple(C(6)(U8), C(-60)(I16))(),
+        Tuple(C(9)(U8), C(-90)(I16))()
+      )(),
+      VecLiteral(
+        Tuple(C(1)(U8), C(-10)(I16))(),
+        Tuple(C(4)(U8), C(-40)(I16))(),
+        Tuple(C(7)(U8), C(-70)(I16))(),
+        Tuple(C(10)(U8), C(-100)(I16))()
+      )(),
+      VecLiteral(
+        Tuple(C(2)(U8), C(-20)(I16))(),
+        Tuple(C(5)(U8), C(-50)(I16))(),
+        Tuple(C(8)(U8), C(-80)(I16))(),
+        Tuple(C(11)(U8), C(-110)(I16))()
+      )()
+    )().tchk()
+    val actual = mhir.ir.eval(
+      map.subPreserveType(Map[Expr, Expr](v0 -> v0Val, v1 -> v1Val))
+    )
+    assert(actual == expected)
+  }
+
   test("VecZip") {
     val v0 = VecBuild(3, U32 ::+ (i => i))()
     val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
