@@ -42,7 +42,7 @@ class StreamReplicationTests extends AnyFunSuite {
     }
     val i = Param("i")(U8)
     val replicated =
-      original.replicate(m = m, i = i, varsToReplicate = Set(input))
+      original.replicate(m = C(m)(U8), i = i, varsToReplicate = Set(input))
 
     // Check correct behaviour
     val examples = Seq(
@@ -105,7 +105,7 @@ class StreamReplicationTests extends AnyFunSuite {
     }
     val i = Param("i")(U8)
     val replicated =
-      original.replicate(m = m, i = i, varsToReplicate = Set(input))
+      original.replicate(m = C(m)(U16), i = i, varsToReplicate = Set(input))
 
     // Check correct behaviour
     val examples = Seq(
@@ -135,15 +135,23 @@ class StreamReplicationTests extends AnyFunSuite {
     assert(actualTyp == expectedTyp)
   }
 
-  test("InvalidParam") {
-    val x = Param("x", -1)(TyStm(U8, 5))
+  test("FreeVariable:Stm[U8, 5]") {
+    val n = 5
+    val m = 4
+    val s = Param("s", -1)(TyStm(TyVec(U8, 2), n))
     val i = Param("i")(U8)
-    val exc = intercept[IllegalArgumentException](
-      x.replicate(m = 4, i = i, varsToReplicate = Set())
-    )
-    assert(
-      exc.getMessage
-        .contains("Variable x is not in the list of variables to replicate.")
-    )
+    val replicated = s.replicate(m = C(m)(U8), i = i, varsToReplicate = Set())
+    val sVal = StmLiteral(
+      (0 until n).map(t => VecLiteral(C(t)(U8), C(t * t)(U8))()): _*
+    )().tchk()
+    val expected = StmLiteral(
+      (0 until n).map(t =>
+        VecLiteral(
+          (0 until m).map(_ => VecLiteral(C(t)(U8), C(t * t)(U8))()): _*
+        )()
+      ): _*
+    )().tchk()
+    val actual = mhir.ir.eval(replicated.subPreserveType(s -> sVal))
+    assert(actual == expected)
   }
 }
