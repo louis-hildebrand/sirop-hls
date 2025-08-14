@@ -61,15 +61,13 @@ case class StreamTimeRecurrence(z: Expr, f: Function) extends Formula {
       Seq()
     } else {
       val head = mhir.ir.eval(z)
-      val tailRec =
-        StreamTimeRecurrence(
-          Mux(
-            FunCall(FunCall(f, C(tMin)(timeTyp))(), head)(),
-            StmNextK(head, 1)(),
-            head
-          )(),
-          f
-        )
+      val nextHead =
+        mhir.ir.eval(FunCall(FunCall(f, C(tMin)(timeTyp))(), head)()) match {
+          case True  => StmNextK(head, 1)().tchk()
+          case False => head
+          case _     => ???
+        }
+      val tailRec = StreamTimeRecurrence(nextHead, f)
       val tail = tailRec.evalSeq(tMin + 1, iterations - 1)
       head +: tail
     }
