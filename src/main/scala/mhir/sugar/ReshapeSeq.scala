@@ -29,6 +29,8 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
         VecAccess(e, 0)().tchk().lower()
       case (TyStm(_, n1), TyStm(t2, n2)) if Type.sameLen(n1, n2) =>
         StmMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower()
+      case (TyVec(_, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>
+        VecMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower()
       case (t1, t2) =>
         throw new IllegalArgumentException(
           s"Reshaping from $t1 to $t2 is not currently supported."
