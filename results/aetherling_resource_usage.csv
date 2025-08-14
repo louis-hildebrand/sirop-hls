@@ -64,7 +64,12 @@ conv1d,16,vhdl,91,0,0
 smallconv2d,1/9,verilog,144,0,0
 smallconv2d,1/3,verilog,115,0,0
 smallconv2d,1,verilog,69,0,0
+smallconv2d,1,vhdl,479,2,0
 smallconv2d,2,verilog,88,0,0
+smallconv2d,2,vhdl,635,0,0
 smallconv2d,4,verilog,100,1,0
+smallconv2d,4,vhdl,937,0,0
 smallconv2d,8,verilog,187,2,0
+smallconv2d,8,vhdl,1578,0,0
 smallconv2d,16,verilog,243,3,0
+smallconv2d,16,vhdl,361,0,0
