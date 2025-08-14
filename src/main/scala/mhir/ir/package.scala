@@ -1,6 +1,6 @@
 package mhir
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.evaluate.Eval
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 
@@ -656,6 +656,15 @@ package object ir extends Eval with mhir.ir.typecheck.CommonIntTypes {
       if (!this.stm.hasType) {
         throw new IllegalArgumentException(
           s"StmLiteral must be type-checked before it can be translated to a StmBuild."
+        )
+      }
+      val isLowered = (
+        !this.stm.contains(classOf[SyntaxSugar])
+          && this.stm.typ == this.stm.typ.lower
+      )
+      if (!isLowered) {
+        throw new IllegalArgumentException(
+          s"StmLiteral must be lowered before it can be translated to a StmBuild."
         )
       }
       val t = this.stm.typ.asInstanceOf[TyStm].t

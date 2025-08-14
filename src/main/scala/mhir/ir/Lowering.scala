@@ -64,7 +64,63 @@ object Lowering {
                 s"Cannot lower ${VecAccess.getClass.getSimpleName} whose first argument has type $t."
               )
           }
-        case e @ (_: IntCst | _: Param | _: StmLiteral | _: VecLiteral) =>
+        case v: VecLiteral =>
+          val loweredElems = v.elems.map(_.lower())
+          val TyVec(elemTyp, nExpr) = v.typ
+          elemTyp.lower match {
+            case TyStm(elemTyp, mExpr) =>
+              // Move streams to the outside
+              val elemGrid =
+                if (loweredElems.forall(_.isInstanceOf[StmLiteral])) {
+                  loweredElems.map(_.asInstanceOf[StmLiteral].elems)
+                } else {
+                  throw new IllegalArgumentException(
+                    "If a VecLiteral contains elements which are streams, they must all be StmLiterals."
+                  )
+                }
+              val n = nExpr.asInstanceOf[IntCst].i.toInt
+              val m = mExpr.asInstanceOf[IntCst].i.toInt
+              assert(elemGrid.length == n)
+              assert(elemGrid.forall(row => row.length == m))
+              StmLiteral(
+                (0 until m).map(j =>
+                  VecLiteral(
+                    (0 until n).map(i => elemGrid(i)(j)): _*
+                  )(TyVec(elemTyp, n))
+                ): _*
+              )(TyStm(TyVec(elemTyp, n), m))
+            case _ =>
+              v.rebuild(v.typ, loweredElems)
+          }
+        case s: StmLiteral =>
+          val loweredElems = s.elems.map(_.lower())
+          val TyStm(elemTyp, nExpr) = s.typ
+          elemTyp.lower match {
+            case TyStm(elemTyp, mExpr) =>
+              // Flatten nested streams
+              val elemGrid =
+                if (loweredElems.forall(_.isInstanceOf[StmLiteral])) {
+                  loweredElems.map(_.asInstanceOf[StmLiteral].elems)
+                } else {
+                  throw new IllegalArgumentException(
+                    s"If a StmLiteral contains elements which are streams, they must all be StmLiterals."
+                  )
+                }
+              val n = nExpr.asInstanceOf[IntCst].i.toInt
+              val m = mExpr.asInstanceOf[IntCst].i.toInt
+              assert(elemGrid.length == n)
+              assert(elemGrid.forall(row => row.length == m))
+              StmLiteral(
+                (0 until n * m).map({ t =>
+                  val i = t / m
+                  val j = t % m
+                  elemGrid(i)(j)
+                }): _*
+              )(TyStm(elemTyp, n * m))
+            case _ =>
+              s.rebuild(s.typ, loweredElems)
+          }
+        case e @ (_: IntCst | _: Param) =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.
           e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
