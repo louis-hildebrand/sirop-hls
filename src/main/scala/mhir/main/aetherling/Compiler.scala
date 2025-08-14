@@ -66,7 +66,7 @@ object Compiler {
     logger.trace(s"type-checked expression: $checked")
 
     logger.debug("lowering expression...")
-    val lowered = translateStmLiteral(checked).lower()
+    val lowered = translateStmLiteral(checked.lower())
     if (args.showLowered) {
       println(ExprPrinter.display(lowered))
     }
@@ -102,7 +102,7 @@ object Compiler {
 
   private def translateStmLiteral(e: Expr): Expr = {
     val result = e match {
-      case s: StmLiteral => s.toStmBuild
+      case s: StmLiteral => s.lower().asInstanceOf[StmLiteral].toStmBuild
       case e             => e.map(translateStmLiteral)
     }
     val checked = result.tchk()

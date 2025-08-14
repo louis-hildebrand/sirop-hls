@@ -113,6 +113,8 @@ object Streamifier {
       case x: Param =>
         // Leave free variables as-is
         x
+      case s: StmLiteral =>
+        streamifyStmBuild(s.toStmBuild, oldToNewInputs)
       case s: StmBuild =>
         streamifyStmBuild(s, oldToNewInputs)
       case LetStm(x, in, out) =>
