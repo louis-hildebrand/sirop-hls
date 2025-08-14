@@ -308,7 +308,7 @@ object PartialEvalPass {
             val onlyElem = len match {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
-                tryEvalStmNext(s) match {
+                tryEvalStmNext(s)(facts) match {
                   case Some((out, _)) if !out.contains(classOf[StmData]) =>
                     Some(doPartialEval(out)(facts))
                   case _ => None
@@ -356,8 +356,8 @@ object PartialEvalPass {
                 s"${facts.getClass.getSimpleName}@${facts.hashCode}"
               s"partially evaluating (with facts $factsStr): $e"
             })
-            val newIn = partialEval(in)
-            val newOut = partialEval(out)
+            val newIn = doPartialEval(in)
+            val newOut = doPartialEval(out)
             val numUses = newOut.countFreeOccurrences(x)
             if (numUses <= 1) {
               newOut.subPreserveType(x -> newIn)
@@ -502,7 +502,7 @@ object PartialEvalPass {
   private def tryEvalStmNext(
       stm: StmBuild,
       stepsWithoutValid: Int = 0
-  ): Option[(Expr, StmBuild)] = {
+  )(implicit facts: FactSet): Option[(Expr, StmBuild)] = {
     if (stepsWithoutValid >= 10) {
       None
     } else {
@@ -519,7 +519,7 @@ object PartialEvalPass {
               val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
               val inputStreamOptions = s.equations.flatMap({
                 case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
-                  partialEval(next.subPreserveType(currentValByVar)) match {
+                  doPartialEval(next.subPreserveType(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
                       val head = mhir.ir.eval(Default(t))
@@ -548,13 +548,16 @@ object PartialEvalPass {
                     val (_, tail) = inputStreams(x)
                     x -> (tail, next)
                   case (x, (_, next)) =>
-                    val evaluatedNext = partialEval(next.subPreserveType(subs))
+                    val evaluatedNext =
+                      doPartialEval(next.subPreserveType(subs))
                     x -> (evaluatedNext, next)
                 })
-                val evaluatedValid = partialEval(s.valid.subPreserveType(subs))
+                val evaluatedValid = doPartialEval(
+                  s.valid.subPreserveType(subs)
+                )
                 evaluatedValid match {
                   case True =>
-                    val v = partialEval(s.data.subPreserveType(subs))
+                    val v = doPartialEval(s.data.subPreserveType(subs))
                     Some(
                       (
                         v,
