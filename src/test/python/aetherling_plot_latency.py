@@ -22,6 +22,16 @@ OUR_MARKER = "o"
 DEFAULT_ERR = 10
 
 
+def axis_scale(bench_name: str) -> str:
+    """
+    Decide whether the given benchmark should be plotted with a log scale or linear scale.
+    """
+    if bench_name in {"map", "conv1d", "smallconv2d"}:
+        return "log"
+    else:
+        return "linear"
+
+
 def dedup(xs: list[str]) -> list[str]:
     """
     Deduplicate elements in a list while preserving order.
@@ -40,7 +50,7 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(7, 3), squeeze=False)
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(10, 2.5), squeeze=False)
     axes = axes[0]
     min_artist = None
     verilog_artist = None
@@ -97,10 +107,11 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
         )
         # Labels and whatnot
         ax.tick_params(axis="x", rotation=30)
-        if bench_name == "map":
-            ax.set_xscale("log")
+        if axis_scale(bench_name) == "log":
+            ax.set_xscale("log", base=2)
         ax.set_title(bench_name)
         ax.set_xlabel("Target throughput")
+
     # Settings for entire rows
     axes[0].set_ylabel("Latency (cycles)")
     if min_artist is None or verilog_artist is None or vhdl_artist is None:
@@ -109,7 +120,7 @@ def plot_latency(results: dict[BenchmarkImpl, int]) -> None:
         [min_artist, vhdl_artist, verilog_artist],
         [MIN_LABEL, OUR_LABEL, AETHERLING_LABEL],
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.2)
+        bbox_to_anchor=(0.5, -0.3)
     )
     fig.tight_layout()
     fig.savefig(c.LATENCY_PDF, bbox_inches="tight")
