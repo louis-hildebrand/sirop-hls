@@ -36,6 +36,27 @@ object Lowering {
       val desugared = expr match {
         case s: SyntaxSugar =>
           s.lowerSyntaxSugar()
+        case mux: Mux =>
+          mux.requireType()
+          val c = mux.c.lower()
+          val t = mux.t.lower()
+          val f = mux.f.lower()
+          t.typ match {
+            case TyStm(elemTyp, n) =>
+              val sT = Param("s_t")(TyStm(elemTyp, -1))
+              val sF = Param("s_f")(TyStm(elemTyp, -1))
+              StmBuild(
+                n,
+                Mux(c, StmData(sT)(), StmData(sF)())(),
+                True,
+                Map[Param, (Expr, Expr)](
+                  sT -> (t, True),
+                  sF -> (f, True)
+                )
+              )().tchk().lower()
+            case _ =>
+              Mux(c, t, f)().tchk()
+          }
         case vb: VecBuild =>
           vb.requireType()
           val n = vb.len.lower()
