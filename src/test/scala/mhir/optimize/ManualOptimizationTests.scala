@@ -382,7 +382,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         Mux(i === 4, True, j >= 1)(),
         Map[Param, (Expr, Expr)](
           s -> (input, i !== 4),
-          i -> (C(0)(U8), Mux(j < 1, i, Mux(i === 4, i, i + 1)())()),
+          i -> (C(0)(U8), Mux(i === 4, C(4)(U8), Mux(j < 1, i, i + 1)())()),
           j -> (C(0)(U8), Mux(i === 4, j, j + 1)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
