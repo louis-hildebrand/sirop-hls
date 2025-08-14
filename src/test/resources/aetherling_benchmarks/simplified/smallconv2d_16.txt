@@ -1,5 +1,4 @@
 (I : Stm[Vec[u8, 16:u5], 1:u1]) =>
-  let stm I: Stm[Vec[u8, 16:u5], 1:u1] = I in
   sbuild(
     1:u1;
     vbuild(

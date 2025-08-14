@@ -40,7 +40,7 @@ map,8,vhdl,26
 map,10,vhdl,21
 map,20,vhdl,11
 map,40,vhdl,6
-map,200,vhdl,3
+map,200,vhdl,2
 sum,1/840,vhdl,841
 sum,1/420,vhdl,423
 sum,1/280,vhdl,283
@@ -60,7 +60,7 @@ conv1d,4,vhdl,13
 conv1d,8,verilog,12
 conv1d,8,vhdl,11
 conv1d,16,verilog,11
-conv1d,16,vhdl,3
+conv1d,16,vhdl,2
 smallconv2d,1/9,verilog,
 smallconv2d,1/9,vhdl,208
 smallconv2d,1/3,verilog,
@@ -74,4 +74,4 @@ smallconv2d,4,vhdl,23
 smallconv2d,8,verilog,11
 smallconv2d,8,vhdl,21
 smallconv2d,16,verilog,10
-smallconv2d,16,vhdl,3
+smallconv2d,16,vhdl,2
