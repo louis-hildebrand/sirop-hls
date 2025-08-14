@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
@@ -9,6 +10,9 @@ import mhir.sugar.{Cast, SafeSum}
 /** Partial evaluation, arithmetic simplification, and related functionality.
   */
 object PartialEvalPass {
+
+  private val logger = Logger(getClass.getName)
+
   def pe(e: Expr): Expr = {
     // Mostly for debugging, since the debugger really doesn't seem to handle
     // implicit and default parameters well
@@ -347,6 +351,11 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(x, in, out) =>
+            logger.trace({
+              val factsStr =
+                s"${facts.getClass.getSimpleName}@${facts.hashCode}"
+              s"partially evaluating (with facts $factsStr): $e"
+            })
             val newIn = partialEval(in)
             val newOut = partialEval(out)
             val numUses = newOut.countFreeOccurrences(x)
