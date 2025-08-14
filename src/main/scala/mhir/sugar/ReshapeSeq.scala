@@ -1,6 +1,6 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -22,11 +22,13 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val e = this.e.lower()
-    (e.typ, this.targetTyp) match {
+    (e.typ, this.targetTyp.lower) match {
       case (t1, t2) if t1 ~= t2 =>
         e
       case (TyVec(t1, IntCst(1)), t2) if t1 ~= t2 =>
         VecAccess(e, 0)().tchk().lower()
+      case (t1, TyVec(t2, IntCst(1))) if t1 ~= t2 =>
+        VecBuild(1, U8 ::+ (_ => e))().tchk().lower()
       case (TyStm(_, n1), TyStm(t2, n2)) if Type.sameLen(n1, n2) =>
         StmMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower()
       case (TyVec(_, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>

@@ -40,4 +40,16 @@ class ReshapeSeqTests extends AnyFunSuite {
     val actual = mhir.ir.eval(reshaped.subPreserveType(v -> vVal))
     assert(actual == expected)
   }
+
+  test("u8 -> Vec[u8, 1]") {
+    val x = Param("x")(U8)
+    val reshaped = ReshapeSeq(x, TyVec(U8, 1))().tchk().lower()
+
+    val examples = Seq(0, 1, 42).map(C(_)(U8))
+    for (xVal <- examples) {
+      val expected = VecLiteral(xVal)().tchk()
+      val actual = mhir.ir.eval(reshaped.subPreserveType(x -> xVal))
+      assert(actual == expected)
+    }
+  }
 }
