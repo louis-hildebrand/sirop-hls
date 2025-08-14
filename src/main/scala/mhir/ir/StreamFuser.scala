@@ -3,6 +3,7 @@ package mhir.ir
 import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.PartialEvalPass
 
 import scala.annotation.tailrec
 
@@ -58,9 +59,12 @@ object StreamFuser {
           + s" (Found expression ${this.stm})"
       )
       val withMovedLets = LetStmMover.moveUp(this.stm)
+      logger.trace(s"after moving up lets: $withMovedLets")
       val fused = inlineAndFuse(withMovedLets)
+      logger.trace(s"after fusion: $fused")
       val result = deduplicateProducers(fused)
-      logger.trace(s"done fusing completely")
+      logger.trace(s"after deduplicating producers: $result")
+      logger.trace("done fusing completely")
       result
     }
 
@@ -71,8 +75,13 @@ object StreamFuser {
           inlineAndFuse(out.subPreserveType(x -> in))
         case s: StmBuild =>
           s.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {
-            case Some((x, _)) => inlineAndFuse(s.fuseWith(x))
-            case _            => s
+            case Some((x, _)) =>
+              val fusedOnce = s.fuseWith(x)
+              // Partial evaluation is not required, but may make the process
+              // faster if you're fusing many times
+              val simplified = PartialEvalPass.partialEval(fusedOnce)
+              inlineAndFuse(simplified)
+            case _ => s
           }
         case _ =>
           ???

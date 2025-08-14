@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
@@ -22,8 +23,12 @@ import scala.collection.immutable.ListMap
   * }}}
   */
 object Streamifier {
+
+  private val logger = Logger(getClass.getName)
+
   implicit class Streamify(func: Expr) {
     def streamify(): Expr = {
+      logger.trace(s"streamifying expression: ${this.func}")
       require(
         this.func.hasType,
         "Expression must be type-checked before it can be streamified."
@@ -51,7 +56,9 @@ object Streamifier {
           || !f.contains(classOf[SyntaxSugar]),
         s"streamification should not introduce syntax sugar if the original expression had none (found expression $f)"
       )
-      f.tchk()
+      val result = f.tchk()
+      logger.trace(s"done streamifying: $result")
+      result
     }
   }
 

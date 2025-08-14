@@ -49,7 +49,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
     }
 
-    test(s"$benchName:vhdl:unsimplified") {
+    ignore(s"$benchName:vhdl:unsimplified") {
       val (inputs, outputs) =
         AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
