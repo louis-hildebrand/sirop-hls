@@ -35,6 +35,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl:simplified") {
+      if (benchName == "smallconvb2b_16") ??? // Waaay too slow
       val (inputs, outputs) =
         AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
@@ -82,13 +83,84 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         VerilogBenchmarksDir / s"$benchName.v",
         overwrite = true
       )
-      VerilogTestbenchGenerator.makeTestbench(inputs, outputs, projectDir)
-      assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
+      time("generating Verilog testbench") {
+        VerilogTestbenchGenerator.makeTestbench(inputs, outputs, projectDir)
+      }
+      time("running Verilog simulation") {
+        assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
+      }
     }
   }
 }
 
 object AetherlingBenchmarkTests {
+
+  /** Finds the width and height of a rectangular array.
+    *
+    * @param arr
+    *   the array.
+    * @return
+    *   (width, height)
+    */
+  private def dim[T](arr: Seq[Seq[T]]): (Int, Int) = {
+    val height = arr.length
+    val width = {
+      val widths = arr.map(_.length).toSet
+      require(widths.size == 1)
+      widths.head
+    }
+    (width, height)
+  }
+
+  /** Performs a 2D convolution
+    *
+    * @param inputs
+    *   the input array. `None` values are considered undefined.
+    * @param kernel
+    *   the kernel.
+    * @param kernelDenom
+    *   a number by which to divide each element after the convolution.
+    * @return
+    *   the result of the convolution and division. `None` represents undefined
+    *   values.
+    */
+  private def conv2d(
+      inputs: Seq[Seq[Option[Int]]],
+      kernel: Seq[Seq[Int]],
+      kernelDenom: Int
+  ): Seq[Seq[Option[Int]]] = {
+    val (inputWidth, inputHeight) = dim(inputs)
+    val (kernelWidth, kernelHeight) = dim(kernel)
+    val outputs =
+      ((1 - kernelHeight) to (inputHeight - kernelHeight)).map({ i =>
+        ((1 - kernelWidth) to (inputWidth - kernelWidth)).map({ j =>
+          // (i, j) is the current position of the top-left element of the
+          // kernel within the input
+          if (i < 0 || j < 0) {
+            None
+          } else {
+            val relevantInputs =
+              (0 until kernelHeight).flatMap(deltaI =>
+                (0 until kernelWidth).map(deltaJ =>
+                  inputs(i + deltaI)(j + deltaJ)
+                )
+              )
+            if (relevantInputs.forall(_.nonEmpty)) {
+              val dot = relevantInputs
+                .map(_.get)
+                .zip(kernel.flatten)
+                .map({ case (x, y) => x * y })
+                .sum
+              Some(dot / kernelDenom)
+            } else {
+              None
+            }
+          }
+        })
+      })
+    assert(dim(outputs) == dim(inputs))
+    outputs
+  }
 
   private val mapIO: Map[String, (Seq[TestInput], TestOutput)] = {
     val flatInputs = (0 until 200).map(i => C(i)(U8))
@@ -265,22 +337,15 @@ object AetherlingBenchmarkTests {
         })
       )
     val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
-    val kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)).flatten
-    val kernelDenom = 16
     val basicOutputs: Seq[Expr] =
-      (-1 to 2).flatMap(i =>
-        (-1 to 2).map(j =>
-          if (i < 1 || j < 1) {
-            Undefined(U8)
-          } else {
-            val inputs = (-1 to 1).flatMap(deltaI =>
-              (-1 to 1).map(deltaJ => basicInputs(i + deltaI)(j + deltaJ))
-            )
-            val dot = inputs.zip(kernel).map({ case (x, y) => x * y }).sum
-            C(dot / kernelDenom)(U8)
-          }
-        )
-      )
+      conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 16
+      ).flatten.map({
+        case Some(x) => C(x)(U8)
+        case None    => Undefined(U8)
+      })
     val normalCases = Seq(1, 2, 4, 8, 16)
       .map({ par =>
         val (inputs, outputs) = par match {
@@ -336,6 +401,87 @@ object AetherlingBenchmarkTests {
     normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
   }
 
+  private val smallConvB2bIO: Map[String, (Seq[TestInput], TestOutput)] = {
+    // Checkerboard pattern (2x2 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until 4).map(i =>
+        (0 until 4).map(j => {
+          val even = ((i % 4) < 2) == ((j % 4) < 2)
+          if (even) 15 else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
+    val basicOutputs = {
+      val step1 = conv2d(
+        inputs = basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 16
+      )
+      val step2 = conv2d(
+        inputs = step1,
+        kernel = Seq(Seq(1, 4), Seq(2, 1)),
+        kernelDenom = 8
+      )
+      step2.flatten.map({
+        case Some(x) => C(x)(U8)
+        case None    => Undefined(U8)
+      })
+    }
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val (inputs, outputs) = par match {
+          case 1 =>
+            (
+              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
+              TestOutput(basicOutputs.map(VecLiteral(_)()))
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            (
+              TestInput(
+                basicInputExprs
+                  .grouped(n)
+                  .map(VecLiteral(_: _*)())
+                  .map(Some(_))
+                  .toSeq
+              ),
+              TestOutput(
+                basicOutputs
+                  .grouped(n)
+                  .map(VecLiteral(_: _*)())
+                  .toSeq
+              )
+            )
+        }
+        s"smallconvb2b_$par" -> (Seq(inputs), outputs)
+      })
+      .flatMap({ case (name, io) =>
+        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+      })
+      .toMap
+    val verilogUnderutilizedCases = Seq(3, 9)
+      .map({ denom =>
+        val inputs = TestInput(
+          basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
+        )
+        val outputs = TestOutput(
+          basicOutputs.flatMap(x =>
+            x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+          )
+        )
+        s"smallconvb2b_1_$denom:verilog" -> (Seq(inputs), outputs)
+      })
+      .toMap
+    val vhdlUnderutilizedCases = Seq(3, 9)
+      .map({ denom =>
+        val inputs = TestInput(basicInputExprs.map(Some(_)))
+        val outputs = TestOutput(basicOutputs)
+        s"smallconvb2b_1_$denom:vhdl" -> (Seq(inputs), outputs)
+      })
+    normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
+  }
+
   /** Maps benchmark names (e.g., "dot_1_105:vhdl") to inputs and expected
     * outputs.
     *
@@ -348,5 +494,6 @@ object AetherlingBenchmarkTests {
       ++ dotIO
       ++ conv1dIO
       ++ smallConv2dIO
+      ++ smallConvB2bIO
   )
 }
