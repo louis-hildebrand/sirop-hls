@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
@@ -14,8 +15,14 @@ import mhir.optimize.{PartialEvalPass => PE}
   * make expressions easier to analyze.
   */
 object SafeSimplifier {
+
+  private val logger = Logger(getClass.getName)
+
   def simplify(e: Expr): Expr = {
+    logger.trace(s"performing conservative simplification: $e")
+    logger.trace("partially evaluating...")
     val pe = PE.partialEval(e)
+    logger.trace(s"after partial evaluation: $pe")
     simplifyStreams(pe)
   }
 

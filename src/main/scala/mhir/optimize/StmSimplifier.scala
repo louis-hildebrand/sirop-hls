@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
@@ -14,12 +15,18 @@ import scala.annotation.tailrec
   */
 object StmSimplifier {
 
+  private val logger = Logger(getClass.getName)
+
   /** Perform common-sense simplifications that should pretty much always be
     * beneficial, like partially evaluating and removing unused accumulator
     * elements.
     */
   def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
-    simplifyUntilFixpoint(simplifyInputs(tl(stm))(facts))(facts)
+    logger.trace(s"simplifying stream: $stm")
+    val s0 = simplifyInputs(tl(stm))(facts)
+    val s1 = simplifyUntilFixpoint(s0, i = 0)(facts)
+    logger.trace(s"done simplifying stream: $s1")
+    s1
   }
 
   private def simplifyInputs(s: StmBuild)(facts: FactSet): StmBuild = {
@@ -32,7 +39,9 @@ object StmSimplifier {
   }
 
   @tailrec
-  private def simplifyUntilFixpoint(s: StmBuild)(facts: FactSet): StmBuild = {
+  private def simplifyUntilFixpoint(s: StmBuild, i: Int)(
+      facts: FactSet
+  ): StmBuild = {
     val simplified = {
       val s1 = tl(PartialEvalPass.partialEval(s)(facts))
       val s2 = tl(StmAccRemovalPass.removeUnusedVars(s1))
@@ -42,11 +51,15 @@ object StmSimplifier {
       s5
     }
     if (simplified == s) {
+      logger.trace(s"stream has reached fixpoint after ${i + 1} iterations")
       simplified
     } else {
+      logger.trace(
+        s"stream has not reached fixpoint yet after ${i + 1} iterations. Continuing simplification"
+      )
       // New partial evaluation opportunities may have been revealed by
       // inlining constant-valued accumulator elements
-      simplifyUntilFixpoint(simplified)(facts)
+      simplifyUntilFixpoint(simplified, i = i + 1)(facts)
     }
   }
 

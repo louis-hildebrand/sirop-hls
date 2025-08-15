@@ -3,6 +3,7 @@ package mhir.main.aetherling
 import mhir.ir._
 import org.scalatest.funsuite.AnyFunSuite
 import mhir.optimize.{NameSimplifier => NS}
+import org.scalatest.tagobjects.Slow
 
 /** Tests to ensure the simplified minimalist IR expressions for the Aetherling
   * benchmarks don't change unexpectedly.
@@ -30,14 +31,19 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     */
   private val SaveChanges: Boolean = false
 
+  private val SlowBenchmarks: Set[String] = Set("conv1d", "smallconv2d")
+
   test("SaveChanges") {
     assert(!SaveChanges)
   }
 
   for (f <- os.list(AetherlingBenchmarksDir)) {
     val benchName = f.baseName
+    val isSlow =
+      SlowBenchmarks.exists(name => benchName.startsWith(s"${name}_"))
+    val tags = if (isSlow) Seq(Slow) else Seq()
 
-    test(benchName) {
+    test(benchName, tags: _*) {
       mhir.ir.reset()
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"

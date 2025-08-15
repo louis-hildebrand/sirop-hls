@@ -367,9 +367,17 @@ object AetherlingParser {
     } else if (code.startsWith("DivN ")) {
       ???
     } else if (code.startsWith("LSRN ")) {
-      ???
+      val suffix0 = expect(code, "LSRN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (e.__0 >> e.__1, suffix3)
     } else if (code.startsWith("LSLN ")) {
-      ???
+      val suffix0 = expect(code, "LSLN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (e.__0 << e.__1, suffix3)
     } else if (code.startsWith("LtN ")) {
       ???
     } else if (code.startsWith("EqN ")) {
@@ -474,9 +482,29 @@ object AetherlingParser {
       val (v, suffix7) = parseExpr(suffix6, modules)
       (VecSplit(v, ni)(), suffix7)
     } else if (code.startsWith("Partition_t_ttN ")) {
-      ???
+      val suffix0 = expect(code, "Partition_t_ttN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (ni, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (_, suffix7) = parseNat(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (_, suffix9) = parseTyp(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (s, suffix11) = parseExpr(suffix10, modules)
+      (StmSplit(s, ni)(), suffix11)
     } else if (code.startsWith("Unpartition_s_ssN ")) {
-      ???
+      val suffix0 = expect(code, "Unpartition_s_ssN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (v, suffix7) = parseExpr(suffix6, modules)
+      (VecJoin(v)(), suffix7)
     } else if (code.startsWith("Unpartition_t_ttN ")) {
       ???
     } else if (code.startsWith("SerializeN ")) {

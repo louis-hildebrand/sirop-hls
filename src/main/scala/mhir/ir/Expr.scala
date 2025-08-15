@@ -175,7 +175,8 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       case _ => false
     }
   }
-  override def hashCode(): Int = {
+
+  override lazy val hashCode: Int = {
     // This implementation should be correct, but it may cause excessive
     // collisions when dealing with nested functions. For example,
     // x => y => x - y and x => y => y - x will be assigned the same hash code.
@@ -765,7 +766,7 @@ case class StmBuild(
     }
   }
 
-  override def hashCode(): Int = {
+  override lazy val hashCode: Int = {
     // This implementation should be correct, but it may cause excessive
     // collisions since it maps all variables to the same one variable.
     val subs: Map[Expr, Expr] =
@@ -949,7 +950,7 @@ case class LetStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
     }
   }
 
-  override def hashCode(): Int = {
+  override lazy val hashCode: Int = {
     this.asFunCall().hashCode()
   }
 }

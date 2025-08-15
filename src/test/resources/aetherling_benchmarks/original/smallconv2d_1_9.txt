@@ -1,0 +1,38 @@
+module0 (I :: (TSeqT 3 0 (TSeqT 3 0 UInt8T))) =
+    n146 = Const_GenN TSeqV {vals = [TSeqV {vals = [UInt8V 0,UInt8V 1,UInt8V 0], i_v = 0},TSeqV {vals = [UInt8V 1,UInt8V 2,UInt8V 1], i_v = 0},TSeqV {vals = [UInt8V 0,UInt8V 1,UInt8V 0], i_v = 0}], i_v = 0} 3 (TSeqT 3 0 (TSeqT 3 0 UInt8T))
+    n105 = Map2_tN 3 0 (Map2_tN 3 0 (ATupleN UInt8T UInt8T I0 I1) I0 I1) I n146
+    n116 = Map_tN 3 0 (Map_tN 3 0 (LSLN UInt8T I) I) n105
+    n121 = Map_tN 3 0 (Reduce_tN 3 0 (AddN UInt8T I) I) n116
+    n126 = Reduce_tN 3 0 (Map_tN 1 2 (AddN UInt8T I) I) n121
+    n147 = Const_GenN TSeqV {vals = [TSeqV {vals = [UInt8V 4], i_v = 2}], i_v = 2} 15 (TSeqT 1 2 (TSeqT 1 2 UInt8T))
+    n129 = Map2_tN 1 2 (Map2_tN 1 2 (ATupleN UInt8T UInt8T I0 I1) I0 I1) n126 n147
+    n140 = Map_tN 1 2 (Map_tN 1 2 (LSRN UInt8T I) I) n129
+
+module1 (I :: (TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T)))) =
+    n1 = FIFON (TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T))) 1 "I"
+    n2 = Shift_tnN 16 [1,1] 0 [2,2] 4 UInt8T n1
+    n3 = Shift_tnN 16 [1,1] 0 [2,2] 4 UInt8T n2
+    n4 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n3
+    n5 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n4
+    n6 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleN UInt8T I0 I1) I0 I1) I0 I1) n5 n4
+    n16 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleAppendN 3 UInt8T I0 I1) I0 I1) I0 I1) n6 n3
+    n30 = Map_tN 16 0 (Map_tN 1 2 (SerializeN 3 0 UInt8T I) I) n16
+    n31 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n2
+    n32 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n31
+    n33 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleN UInt8T I0 I1) I0 I1) I0 I1) n32 n31
+    n43 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleAppendN 3 UInt8T I0 I1) I0 I1) I0 I1) n33 n2
+    n57 = Map_tN 16 0 (Map_tN 1 2 (SerializeN 3 0 UInt8T I) I) n43
+    n58 = Map2_tN 16 0 (Map2_tN 1 2 (STupleN (TSeqT 3 0 UInt8T) I0 I1) I0 I1) n30 n57
+    n65 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n1
+    n66 = Shift_tnN 16 [1,1] 0 [2,2] 1 UInt8T n65
+    n67 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleN UInt8T I0 I1) I0 I1) I0 I1) n66 n65
+    n77 = Map2_tN 16 0 (Map2_tN 1 2 (Map2_tN 1 2 (STupleAppendN 3 UInt8T I0 I1) I0 I1) I0 I1) n67 n1
+    n91 = Map_tN 16 0 (Map_tN 1 2 (SerializeN 3 0 UInt8T I) I) n77
+    n92 = Map2_tN 16 0 (Map2_tN 1 2 (STupleAppendN 3 (TSeqT 3 0 UInt8T) I0 I1) I0 I1) n58 n91
+    n101 = Map_tN 16 0 (SerializeN 3 0 (TSeqT 3 0 UInt8T) I) n92
+    n141 = Map_tN 16 0 module0 n101
+    n142 = ReshapeN ((TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T)))) ((TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T)))) n141
+    n143 = FIFON (TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T))) 1 "n142"
+    n144 = FIFON (TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T))) 1 "n143"
+    n145 = FIFON (TSeqT 16 0 (TSeqT 1 2 (TSeqT 1 2 UInt8T))) 1 "n144"
+

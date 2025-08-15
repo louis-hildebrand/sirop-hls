@@ -7,7 +7,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
-import mhir.optimize.{Optimizer => Opt}
+import mhir.optimize.{PartialEvalPass => PE, Optimizer => Opt}
 import mhir.sugar.Streamifier.Streamify
 import os.Path
 
@@ -53,44 +53,37 @@ object Compiler {
     logger.debug(s"parsing Aetherling code from ${args.inFile}...")
     val aetherlingCode = os.read(args.inFile)
     val parsed = AetherlingParser.parse(aetherlingCode)
-    if (args.showParsed) {
-      println(ExprPrinter.display(parsed))
-    }
     logger.trace(s"parsed expression: $parsed")
 
     logger.debug("type checking expression...")
     val checked = parsed.tchk()
-    if (args.showChecked) {
-      println(ExprPrinter.display(checked))
-    }
     logger.trace(s"type-checked expression: $checked")
 
     logger.debug("lowering expression...")
-    val lowered = translateStmLiteral(checked).lower()
-    if (args.showLowered) {
-      println(ExprPrinter.display(lowered))
-    }
+    val lowered = translateStmLiteral(checked.lower())
     logger.trace(s"lowered expression: $lowered")
 
     val optimized = if (args.optimize) {
       logger.debug("optimizing expression...")
-      val result = Opt.optimize(lowered)
+      val synthesizable = makeSynthesizable(PE.partialEval(lowered))
+      val result = Opt.optimize(synthesizable)
       logger.trace(s"optimized expression: $result")
       result
     } else {
-      logger.debug("skipping optimization")
-      lowered
-    }
-    if (args.showOptimized) {
-      println(ExprPrinter.display(optimized))
+      logger.debug(
+        "skipping optimization;"
+          + " performing minimal transformations to ensure program is synthesizable"
+      )
+      val synthesizable = makeSynthesizable(lowered)
+      logger.trace(s"synthesizable program: $synthesizable")
+
+      synthesizable
     }
 
-    logger.debug("ensuring expression is synthesizable...")
-    val finalProgram = makeSynthesizable(optimized)
+    val finalProgram = optimized
     if (args.showFinal) {
       println(ExprPrinter.display(finalProgram))
     }
-    logger.trace(s"final program: $finalProgram")
 
     if (args.emitHdl) {
       emit(finalProgram, outDir = args.outDir, overwrite = args.overwrite)
@@ -102,7 +95,7 @@ object Compiler {
 
   private def translateStmLiteral(e: Expr): Expr = {
     val result = e match {
-      case s: StmLiteral => s.toStmBuild
+      case s: StmLiteral => s.lower().asInstanceOf[StmLiteral].toStmBuild
       case e             => e.map(translateStmLiteral)
     }
     val checked = result.tchk()

@@ -8,15 +8,15 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
 ) in
 (I : Vec[i8, 16:u5]) =>
   let n1: Vec[i8, 16:u5] = I in
-  let n2: Vec[i8, 16:u5] = VecShiftRightGarbage(n1) in
-  let n3: Vec[i8, 16:u5] = VecShiftRightGarbage(n2) in
+  let n2: Vec[i8, 16:u5] = VecShiftRightGarbage(n1, 1:u1) in
+  let n3: Vec[i8, 16:u5] = VecShiftRightGarbage(n2, 1:u1) in
   let n4: Vec[Vec[i8, 2:u2], 16:u5] = (
     VecMap2(
       n3,
       n2,
       (I0 : i8) =>
         (I1 : i8) =>
-          vbuild(2:u2, (i : u8) => if (i === 0:u0) then { I0 } else { I1 })
+          vbuild(2:u2, (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 })
     )
   ) in
   let n8: Vec[Vec[i8, 3:u3], 16:u5] = VecMap2(n4, n1, (I0 : Vec[i8, 2:u2]) => (I1 : i8) => VecAppend(I0, I1)) in

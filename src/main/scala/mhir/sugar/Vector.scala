@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.StreamReplicator.StreamReplication
 import mhir.ir._
@@ -7,6 +8,10 @@ import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
 
 import scala.annotation.tailrec
+
+private object VL {
+  val logger: Logger = Logger("VectorSyntaxSugar")
+}
 
 case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -67,21 +72,22 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val v = this.v.lower()
     val f = this.f.lower()
-    f.typ.asInstanceOf[TyArrow] match {
+    val result = f.typ.asInstanceOf[TyArrow] match {
       case TyArrow(t1, t2) if t1.isData && t2.isData =>
+        VL.logger.trace(s"lowering $className as standard vector...")
         VecBuild(
           v.typ.asInstanceOf[TyVec].n,
           U32 ::+ (i => FunCall(f, VecAccess(v, i)())())
         )().tchk().lower()
       case TyArrow(t1, _: TyStm) =>
-        val streamifiedF = f.streamify().asInstanceOf[Function]
+        VL.logger.trace(s"lowering $className containing streams...")
+        val Function(x, stm) = f.streamify()
         val n = this.v.typ.asInstanceOf[TyVec].n
         val i = Param("i")(U32)
-        val x = streamifiedF.param
-        val stm = streamifiedF.body
         val replicatedStm = stm.replicate(n, i = i, varsToReplicate = Set(x))
         val result = t1 match {
           case _: TyStm =>
@@ -95,9 +101,23 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           s"Cannot lower VecMap with function of type $t."
         )
     }
+    VL.logger.trace(s"done lowering $className")
+    result
   }
 }
 
+/** Map over two vectors of the same length.
+  *
+  * @param v1
+  *   (`Vec[A, n]`) the first vector.
+  * @param v2
+  *   (`Vec[B, n]`) the second vector.
+  * @param f
+  *   (`A -> B -> C`) a function to apply to each corresponding pair of elements
+  *   in the vectors (`v1[0]` with `v2[0]`, `v1[1]` with `v2[1]`, etc.).
+  * @note
+  *   the result will have type `Vec[C, n]`
+  */
 case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
     extends SyntaxSugar(v1, v2, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -145,13 +165,45 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
+    val n = this.v1.typ.asInstanceOf[TyVec].n
     val v1 = this.v1.lower()
-    val t1 = v1.typ.asInstanceOf[TyVec].t
     val v2 = this.v2.lower()
-    val t2 = v2.typ.asInstanceOf[TyVec].t
     val f = this.f.lower()
-    VecMap(VecZip(v1, v2), (t1, t2) ::+ (x => f(x.__0)(x.__1)))().tchk().lower()
+    val lowered = f.typ match {
+      case TyArrow(TyData(_), TyArrow(TyData(_), TyData(_))) =>
+        VL.logger.trace(s"lowering $className as standard vector...")
+        VecBuild(
+          n,
+          U32 ::+ (i => f(VecAccess(v1, i)())(VecAccess(v2, i)()))
+        )().tchk().lower()
+      case TyArrow(t1, TyArrow(t2, _: TyStm)) =>
+        VL.logger.trace(s"lowering $className containing streams...")
+        val Function(x1, Function(x2, stm)) = f.streamify()
+        val i = Param("i")(U32)
+        val replicatedStm =
+          stm.replicate(n, i = i, varsToReplicate = Set(x1, x2))
+        val withV1 = t1 match {
+          case _: TyStm =>
+            replicatedStm.subPreserveType(x1 -> v1)
+          case _ =>
+            replicatedStm.subPreserveType(x2 -> StmCst(1, v2)().tchk().lower())
+        }
+        val withV2 = t2 match {
+          case _: TyStm =>
+            withV1.subPreserveType(x2 -> v2)
+          case _ =>
+            withV1.subPreserveType(x2 -> StmCst(1, v2)()).tchk().lower()
+        }
+        withV2.tchk().lower()
+      case t =>
+        throw new IllegalArgumentException(
+          s"Cannot lower $className with function of type $t."
+        )
+    }
+    VL.logger.trace(s"done lowering $className")
+    lowered
   }
 }
 
@@ -305,6 +357,8 @@ case class VecReduceComb(
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val v = this.v.lower()
     val wrappedTyp = this.typ.asInstanceOf[TyVec].t
@@ -693,13 +747,13 @@ case class VecShiftRight(
   * @param vec
   *   the vector to shift.
   */
-case class VecShiftRightGarbage(vec: Expr, shiftAmount: Int)(
+case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     typ: Type = Missing
-) extends SyntaxSugar(vec)(typ) {
+) extends SyntaxSugar(vec, shiftAmount)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(v) => VecShiftRightGarbage(v, this.shiftAmount)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
+      case Seq(v, m: IntCst) => VecShiftRightGarbage(v, m)(typ)
+      case _                 => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -712,21 +766,27 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: Int)(
           s"First argument in ${VecShiftRight.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
-    if (this.shiftAmount <= 0) {
+    val newShiftAmount = this.shiftAmount.tchk.expectUInt().asInstanceOf[IntCst]
+    if (newShiftAmount.i <= 0) {
       throw new TypeError(
-        s"Shift amount in $className must be strictly positive (got ${this.shiftAmount})."
+        s"Shift amount in $className must be strictly positive (got $newShiftAmount)."
       )
     }
-    this.rebuild(TyVec(t, n), Seq(newV))
+    this.rebuild(TyVec(t, n), Seq(newV, newShiftAmount))
   }
 
   override def lowerSyntaxSugar(): Expr = {
+    VL.logger.debug(s"lowering $className")
+    VL.logger.trace(s"lowering $className: $this")
     requireType()
     val TyVec(t, n) = this.vec.typ
     VecConcat(
       // TODO: Actually insert some kind of undefined value?
       VecBuild(this.shiftAmount, U32 ::+ (_ => Default(t)))(),
-      VecPrefix(this.vec, ToUnsigned(SafeSum(n, -this.shiftAmount)())())()
+      VecPrefix(
+        this.vec,
+        ToUnsigned(SafeSum(n, C(-this.shiftAmount.i)())())()
+      )()
     )().tchk().lower()
   }
 }
@@ -801,11 +861,11 @@ object VecZip {
   def apply(
       a: Expr /* Vec<A; n> */,
       b: Expr /* Vec<B; n> */
-  ): VecBuild /* Vec<(A, B); n> */ =
-    VecBuild(
-      VecLength(a)(),
-      U32 ::+ (i => Tuple(VecAccess(a, i)(), VecAccess(b, i)())())
-    )()
+  ): Expr /* Vec<(A, B); n> */ = {
+    VecMap2(a, b, Missing ::+ (x => Missing ::+ (y => Tuple(x, y)())))()
+      .tchk()
+      .lower()
+  }
 }
 
 object VecRepeat {

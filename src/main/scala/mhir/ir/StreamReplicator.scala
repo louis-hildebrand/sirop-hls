@@ -1,5 +1,6 @@
 package mhir.ir
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.TypeLowering
 import mhir.ir.typecheck.TypeCheck
 
@@ -17,6 +18,9 @@ import scala.annotation.tailrec
   * }}}
   */
 object StreamReplicator {
+
+  private val logger = Logger(getClass.getName)
+
   implicit class StreamReplication(stm: Expr) {
 
     /** Parallelize this stream by duplicating its body <code>m</code> times.
@@ -35,6 +39,13 @@ object StreamReplicator {
         i: Param,
         varsToReplicate: Set[Param]
     ): Expr = {
+      logger.trace(
+        s"performing stream replication on ${this.stm.className}: ${this.stm}"
+      )
+      require(
+        m.typ.isInstanceOf[TyUInt],
+        "Number of times to replicate body must be an unsigned integer."
+      )
       require(
         this.stm.typ.isInstanceOf[TyStm],
         "Expression to replicate must have the type of a stream."
@@ -45,12 +56,21 @@ object StreamReplicator {
       )
       val result = this.stm match {
         case x: Param =>
-          require(
-            varsToReplicate.contains(x),
-            s"Variable $x is not in the list of variables to replicate."
-          )
-          val TyStm(t, k) = x.typ.asInstanceOf[TyStm]
-          x.rebuild(TyStm(TyVec(t, m), k))
+          if (varsToReplicate.contains(x)) {
+            val TyStm(t, k) = x.typ.asInstanceOf[TyStm]
+            x.rebuild(TyStm(TyVec(t, m), k))
+          } else {
+            val TyStm(elemTyp, n) = x.typ
+            val s = Param("s")(TyStm(elemTyp, -1))
+            StmBuild(
+              n,
+              VecBuild(m, m.typ ::+ (_ => StmData(s)()))(),
+              True,
+              Map[Param, (Expr, Expr)](
+                s -> (x, True)
+              )
+            )().tchk()
+          }
         case stm: StmBuild =>
           replicateStmBuild(
             stm,

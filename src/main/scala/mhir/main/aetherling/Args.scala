@@ -14,14 +14,6 @@ import os.Path
   *   whether to optimize the program before generating VHDL.
   * @param emitHdl
   *   whether to emit VHDL code.
-  * @param showParsed
-  *   whether to display the program immediately after parsing.
-  * @param showChecked
-  *   whether to display the program immediately after type checking.
-  * @param showLowered
-  *   whether to display the program immediately after lowering.
-  * @param showOptimized
-  *   whether to display the program immediately after optimization.
   * @param showFinal
   *   whether to display the final program used to generate VHDL.
   */
@@ -31,10 +23,6 @@ case class Args(
     help: Boolean = false,
     optimize: Boolean = true,
     emitHdl: Boolean = true,
-    showParsed: Boolean = false,
-    showChecked: Boolean = false,
-    showLowered: Boolean = false,
-    showOptimized: Boolean = false,
     showFinal: Boolean = false,
     overwrite: Boolean = false
 )
@@ -65,10 +53,6 @@ object Args {
     var help = false
     var optimize = true
     var emitHdl = true
-    var showParsed = false
-    var showChecked = false
-    var showLowered = false
-    var showOptimized = false
     var showFinal = false
     var overwrite = false
     for (a <- args.drop(2)) {
@@ -79,14 +63,6 @@ object Args {
           optimize = false
         case "--no-hdl" =>
           emitHdl = false
-        case "--show-parsed" =>
-          showParsed = true
-        case "--show-checked" =>
-          showChecked = true
-        case "--show-lowered" =>
-          showLowered = true
-        case "--show-optimized" =>
-          showOptimized = true
         case "--show-final" =>
           showFinal = true
         case "--overwrite" =>
@@ -101,10 +77,6 @@ object Args {
       help = help,
       optimize = optimize,
       emitHdl = emitHdl,
-      showParsed = showParsed,
-      showChecked = showChecked,
-      showLowered = showLowered,
-      showOptimized = showOptimized,
       showFinal = showFinal,
       overwrite = overwrite
     )
@@ -120,7 +92,7 @@ object Args {
       }
     }
     println(
-      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-optimize] [--no-hdl] [--show-parsed] [--show-checked] [--show-lowered] [--show-optimized] [--show-final] [--overwrite]"
+      s"Usage: runMain $cls SRC OUT [-h|--help] [--no-optimize] [--no-hdl] [--show-final] [--overwrite]"
     )
   }
 
@@ -134,10 +106,6 @@ object Args {
          |  -h, --help         print the help message and exit
          |  --no-optimize      do not optimize the program
          |  --no-hdl           do not emit any HDL code
-         |  --show-parsed      show the program after parsing
-         |  --show-checked     show the program after type checking
-         |  --show-lowered     show the program after lowering
-         |  --show-optimized   show the program after optimization
          |  --show-final       show the final program right before VHDL generation
          |  --overwrite        what to do if directory OUT already exists: if true then
          |                     delete the existing directory, if false then raise an error

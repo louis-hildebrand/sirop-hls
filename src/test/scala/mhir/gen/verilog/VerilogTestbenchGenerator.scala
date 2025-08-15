@@ -80,7 +80,7 @@ object VerilogTestbenchGenerator {
       .map({ case (name, (_, w)) => s"reg [${w - 1}:0] $name;" })
     val inputPortMappings = inputNames.map(i => s".$i($i)").mkString(", ")
     val outputPortMappings = outputNames.map(o => s".$o($o)").mkString(", ")
-    val inputAssignments = inputMap
+    val inputAssignments = (inputMap :+ None)
       .map({
         case None =>
           s"""@(posedge clock) begin
@@ -142,8 +142,8 @@ object VerilogTestbenchGenerator {
        |    task check_output (input [${outputAtomWidth - 1}:0] expected, input [${outputAtomWidth - 1}:0] actual);
        |    begin
        |        $$display("OUTPUT : %h", actual);
-       |        if (actual != expected) begin
-       |            $$error("ASSERTION FAILED: expected %h, got %h", expected, actual);
+       |        if (actual !== expected) begin
+       |            $$error("ASSERTION FAILED: expected %d, got %d", expected, actual);
        |        end
        |    end
        |    endtask

@@ -8,6 +8,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
+import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
@@ -33,6 +34,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         "text.usetex": True
     })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
+    benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
     fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names))
@@ -57,15 +59,12 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        assert (
-            [b.bench.throughput for b in verilog_benchmarks]
-                == [b.bench.throughput for b in vhdl_benchmarks]
-        )
-        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         # Plot fmax
         ax = axes[col]
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         ys = [results[b] for b in verilog_benchmarks]
         verilog_artist, = ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b] for b in vhdl_benchmarks]
         vhdl_artist, = ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
         ax.set_title(bench_name)

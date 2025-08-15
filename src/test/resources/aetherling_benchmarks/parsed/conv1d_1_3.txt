@@ -15,8 +15,8 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
 ) in
 (I : Stm[Stm[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Stm[i8, 1:u1], 16:u5] = I in
-  let n2: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n1)), 1:u1) in
-  let n3: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n2)), 1:u1) in
+  let n2: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n1), 1:u1), 1:u1) in
+  let n3: Stm[Stm[i8, 1:u1], 16:u5] = StmSplit(StmShiftRightGarbage(StmJoin(n2), 1:u1), 1:u1) in
   let n4: Stm[Stm[Vec[i8, 2:u2], 1:u1], 16:u5] = (
     StmMap2(
       n3,
@@ -30,7 +30,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
               (I1 : i8) =>
                 vbuild(
                   2:u2,
-                  (i : u8) => if (i === 0:u0) then { I0 } else { I1 }
+                  (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
                 )
           )
     )
@@ -52,7 +52,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
     StmMap(
       n11,
       (I : Stm[Vec[i8, 3:u3], 1:u1]) =>
-        StmJoin(StmMap(I, (x : Vec[i8, 3:u3]) => Vec2Stm(x)))
+        StmJoin(StmMap(I, (x_2 : Vec[i8, 3:u3]) => Vec2Stm(x_2)))
     )
   ) in
   let n32: Stm[Stm[i8, 1:u1], 16:u5] = (

@@ -8,6 +8,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
+import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
@@ -17,6 +18,16 @@ AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "^"
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
+
+
+def axis_scale(bench_name: str) -> str:
+    """
+    Decide whether the given benchmark should be plotted with a log scale or linear scale.
+    """
+    if bench_name in {"map", "conv1d", "smallconv2d"}:
+        return "log"
+    else:
+        return "linear"
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -34,9 +45,10 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         "text.usetex": True
     })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
+    benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False)
+    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(10, 5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -58,43 +70,47 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        assert (
-            [b.bench.throughput for b in verilog_benchmarks]
-                == [b.bench.throughput for b in vhdl_benchmarks]
-        )
-        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
-        xscale = "log" if bench_name == "map" else "linear"
+        xscale = axis_scale(bench_name)
         yscale = xscale
         # Plot ALM usage
         alm_ax = axes[0][col]
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         ys = [results[b].alm for b in verilog_benchmarks]
         verilog_artist, = alm_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
         vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
-        alm_ax.set_xscale(xscale)
+        if xscale == "log":
+            alm_ax.set_xscale("log", base=2)
         alm_ax.set_yscale(yscale)
         # Plot BRAM usage
         bram_ax = axes[1][col]
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
         bram_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
         bram_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
         all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
         if all_zero:
             bram_ax.set_ylim(-1, 1)
-        bram_ax.set_xscale(xscale)
+        if xscale == "log":
+            bram_ax.set_xscale("log", base=2)
         if not all_zero:
             bram_ax.set_yscale(yscale)
         # Plot DSP usage
         dsp_ax = axes[2][col]
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
         dsp_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
         dsp_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
         all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
         if all_zero:
             dsp_ax.set_ylim(-1, 1)
-        dsp_ax.set_xscale(xscale)
+        if xscale == "log":
+            dsp_ax.set_xscale("log", base=2)
         if not all_zero:
             dsp_ax.set_yscale(yscale)
         # Settings for the whole column

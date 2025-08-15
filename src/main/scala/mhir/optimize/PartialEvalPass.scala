@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
@@ -9,6 +10,9 @@ import mhir.sugar.{Cast, SafeSum}
 /** Partial evaluation, arithmetic simplification, and related functionality.
   */
 object PartialEvalPass {
+
+  private val logger = Logger(getClass.getName)
+
   def pe(e: Expr): Expr = {
     // Mostly for debugging, since the debugger really doesn't seem to handle
     // implicit and default parameters well
@@ -304,7 +308,7 @@ object PartialEvalPass {
             val onlyElem = len match {
               case IntCst(1) =>
                 // Maybe we can find the first element statically and just return it directly!
-                tryEvalStmNext(s) match {
+                tryEvalStmNext(s)(facts) match {
                   case Some((out, _)) if !out.contains(classOf[StmData]) =>
                     Some(doPartialEval(out)(facts))
                   case _ => None
@@ -347,8 +351,13 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(x, in, out) =>
-            val newIn = partialEval(in)
-            val newOut = partialEval(out)
+            logger.trace({
+              val factsStr =
+                s"${facts.getClass.getSimpleName}@${facts.hashCode}"
+              s"partially evaluating (with facts $factsStr): $e"
+            })
+            val newIn = doPartialEval(in)
+            val newOut = doPartialEval(out)
             val numUses = newOut.countFreeOccurrences(x)
             if (numUses <= 1) {
               newOut.subPreserveType(x -> newIn)
@@ -493,7 +502,7 @@ object PartialEvalPass {
   private def tryEvalStmNext(
       stm: StmBuild,
       stepsWithoutValid: Int = 0
-  ): Option[(Expr, StmBuild)] = {
+  )(implicit facts: FactSet): Option[(Expr, StmBuild)] = {
     if (stepsWithoutValid >= 10) {
       None
     } else {
@@ -510,7 +519,7 @@ object PartialEvalPass {
               val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
               val inputStreamOptions = s.equations.flatMap({
                 case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
-                  partialEval(next.subPreserveType(currentValByVar)) match {
+                  doPartialEval(next.subPreserveType(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
                       val head = mhir.ir.eval(Default(t))
@@ -539,13 +548,16 @@ object PartialEvalPass {
                     val (_, tail) = inputStreams(x)
                     x -> (tail, next)
                   case (x, (_, next)) =>
-                    val evaluatedNext = partialEval(next.subPreserveType(subs))
+                    val evaluatedNext =
+                      doPartialEval(next.subPreserveType(subs))
                     x -> (evaluatedNext, next)
                 })
-                val evaluatedValid = partialEval(s.valid.subPreserveType(subs))
+                val evaluatedValid = doPartialEval(
+                  s.valid.subPreserveType(subs)
+                )
                 evaluatedValid match {
                   case True =>
-                    val v = partialEval(s.data.subPreserveType(subs))
+                    val v = doPartialEval(s.data.subPreserveType(subs))
                     Some(
                       (
                         v,

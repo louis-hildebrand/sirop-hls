@@ -19,6 +19,21 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("VecBuild:Stream with free variables") {
+    val n = 3
+    val m = 4
+    val s = Param("s")(TyStm(U32, m))
+    val e = VecBuild(n, U32 ::+ (_ => s))().tchk().lower()
+    val sVal = StmRange(m, C(999)(U32), C(10)(U32))().tchk()
+    val expected = StmLiteral(
+      (0 until m).map(t =>
+        VecLiteral((0 until n).map(_ => IntCst(999 + 10 * t)()): _*)()
+      ): _*
+    )()
+    val actual = mhir.ir.eval(e.subPreserveType(s -> sVal))
+    assert(actual == expected)
+  }
+
   test("NestedVecBuild:StmRange") {
     val n = 3
     val m = 4
@@ -118,6 +133,19 @@ class VectorTests extends AnyFunSuite {
         ): _*
       )().tchk()
     val actual = mhir.ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("VecBuild:VecBuild(2, i => if (i == 0) then stm0 else stm1)") {
+    val n = 8
+    val s0 = StmCount(C(n)(U8))().tchk()
+    val s1 = StmRange(n, C(42)(U8), C(2)(U8))().tchk()
+    val original =
+      VecBuild(2, U8 ::+ (i => Mux(i === 0, s0, s1)()))().tchk().lower()
+    val expected = StmLiteral(
+      (0 until n).map(t => VecLiteral(C(t)(U8), C(42 + 2 * t)(U8))()): _*
+    )().tchk()
+    val actual = mhir.ir.eval(original)
     assert(actual == expected)
   }
 
@@ -733,6 +761,77 @@ class VectorTests extends AnyFunSuite {
       }): _*
     )()
     val actual = mhir.ir.eval(combined)
+    assert(actual == expected)
+  }
+
+  test("VecMap2:Vec[Stm[T, 3], 4]") {
+    val v0 = Param("v0")(TyVec(TyStm(U8, 3), 4))
+    val v1 = Param("v1")(TyVec(TyStm(I16, 3), 4))
+    val map = VecMap2(
+      v0,
+      v1,
+      TyStm(U8, 3) ::+ (s0 => TyStm(I16, 3) ::+ (s1 => StmZip(s0, s1)()))
+    )().tchk().lower()
+
+    val v0Val = VecLiteral(
+      StmLiteral(C(0)(U8), C(1)(U8), C(2)(U8))(),
+      StmLiteral(C(3)(U8), C(4)(U8), C(5)(U8))(),
+      StmLiteral(C(6)(U8), C(7)(U8), C(8)(U8))(),
+      StmLiteral(C(9)(U8), C(10)(U8), C(11)(U8))()
+    )().tchk().lower()
+    val v1Val = VecLiteral(
+      StmLiteral(C(0)(I16), C(-10)(I16), C(-20)(I16))(),
+      StmLiteral(C(-30)(I16), C(-40)(I16), C(-50)(I16))(),
+      StmLiteral(C(-60)(I16), C(-70)(I16), C(-80)(I16))(),
+      StmLiteral(C(-90)(I16), C(-100)(I16), C(-110)(I16))()
+    )().tchk().lower()
+    val expected = StmLiteral(
+      VecLiteral(
+        Tuple(C(0)(U8), C(0)(I16))(),
+        Tuple(C(3)(U8), C(-30)(I16))(),
+        Tuple(C(6)(U8), C(-60)(I16))(),
+        Tuple(C(9)(U8), C(-90)(I16))()
+      )(),
+      VecLiteral(
+        Tuple(C(1)(U8), C(-10)(I16))(),
+        Tuple(C(4)(U8), C(-40)(I16))(),
+        Tuple(C(7)(U8), C(-70)(I16))(),
+        Tuple(C(10)(U8), C(-100)(I16))()
+      )(),
+      VecLiteral(
+        Tuple(C(2)(U8), C(-20)(I16))(),
+        Tuple(C(5)(U8), C(-50)(I16))(),
+        Tuple(C(8)(U8), C(-80)(I16))(),
+        Tuple(C(11)(U8), C(-110)(I16))()
+      )()
+    )().tchk()
+    val actual = mhir.ir.eval(
+      map.subPreserveType(Map[Expr, Expr](v0 -> v0Val, v1 -> v1Val))
+    )
+    assert(actual == expected)
+  }
+
+  test("VecMap2(VecAppend)") {
+    val v0 = VecLiteral(
+      VecLiteral(
+        StmLiteral(C(42)(U8), C(44)(U8), C(46)(U8))(),
+        StmLiteral(C(99)(U8), C(98)(U8), C(97)(U8))()
+      )()
+    )()
+    val v1 = VecLiteral(StmLiteral((0 until 3).map(C(_)(U8)): _*)())()
+    val original = VecMap2(
+      v0,
+      v1,
+      TyVec(TyStm(U8, 3), 2) ::+ (i0 =>
+        TyStm(U8, 3) ::+ (i1 => VecAppend(i0, i1)())
+      )
+    )().tchk().lower()
+    val expected = StmLiteral(
+      VecLiteral(VecLiteral(C(42)(U8), C(99)(U8), C(0)(U8))())(),
+      VecLiteral(VecLiteral(C(44)(U8), C(98)(U8), C(1)(U8))())(),
+      VecLiteral(VecLiteral(C(46)(U8), C(97)(U8), C(2)(U8))())()
+    )().tchk()
+    val actual = mhir.ir.eval(original)
     assert(actual == expected)
   }
 

@@ -58,3 +58,40 @@ class BenchmarkImpl:
     """
     bench: Benchmark
     language: str
+
+
+def min_latency(bench: Benchmark) -> int:
+    """
+    Compute the minimum possible latency for the given benchmark.
+    """
+    if bench.name == "map":
+        # 200 inputs, 200 outputs
+        return 200 // bench.throughput
+    if bench.name == "sum":
+        # 840 inputs, 1 output
+        par = 840 * bench.throughput
+        return 840 // par
+    if bench.name == "dot":
+        # 840 inputs, 1 output
+        par = 840 * bench.throughput
+        return 840 // par
+    if bench.name == "conv1d":
+        # 16 inputs, 16 outputs
+        return 16 // bench.throughput
+    if bench.name == "smallconv2d":
+        # 16 inputs, 16 outputs
+        return 16 // bench.throughput
+    raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
+
+
+def benchmark_order(bench_name: str) -> int:
+    """
+    Decide what order the benchmarks should be laid out in the plots.
+    """
+    return {
+        "map": 0,
+        "sum": 1,
+        "dot": 2,
+        "conv1d": 3,
+        "smallconv2d": 4
+    }.get(bench_name, 5)
