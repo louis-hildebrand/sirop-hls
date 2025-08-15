@@ -75,3 +75,15 @@ smallconv2d,8,verilog,11
 smallconv2d,8,vhdl,21
 smallconv2d,16,verilog,10
 smallconv2d,16,vhdl,2
+smallconvb2b,1/9,verilog,
+smallconvb2b,1/9,vhdl,223
+smallconvb2b,1/3,verilog,
+smallconvb2b,1/3,vhdl,107
+smallconvb2b,1,verilog,33
+smallconvb2b,1,vhdl,42
+smallconvb2b,2,verilog,21
+smallconvb2b,2,vhdl,40
+smallconvb2b,4,verilog,17
+smallconvb2b,4,vhdl,36
+smallconvb2b,8,verilog,15
+smallconvb2b,8,vhdl,34
