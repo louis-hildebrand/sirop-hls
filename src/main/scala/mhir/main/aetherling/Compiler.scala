@@ -10,6 +10,7 @@ import mhir.parse.AetherlingParser
 import mhir.optimize.{PartialEvalPass => PE, Optimizer => Opt}
 import mhir.sugar.Streamifier.Streamify
 import os.Path
+import mhir.logging.time
 
 /** A compiler for programs written in
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s space-time
@@ -17,7 +18,7 @@ import os.Path
   */
 object Compiler {
 
-  private val logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** The program entry point.
     *
@@ -50,34 +51,22 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
-    logger.debug(s"parsing Aetherling code from ${args.inFile}...")
-    val aetherlingCode = os.read(args.inFile)
-    val parsed = AetherlingParser.parse(aetherlingCode)
-    logger.trace(s"parsed expression: $parsed")
-
-    logger.debug("type checking expression...")
-    val checked = parsed.tchk()
-    logger.trace(s"type-checked expression: $checked")
-
-    logger.debug("lowering expression...")
-    val lowered = translateStmLiteral(checked.lower())
-    logger.trace(s"lowered expression: $lowered")
+    val parsed = parse(args.inFile)
+    val checked = typecheck(parsed)
+    val lowered = lower(checked)
 
     val optimized = if (args.optimize) {
-      logger.debug("optimizing expression...")
-      val synthesizable = makeSynthesizable(PE.partialEval(lowered))
-      val result = Opt.optimize(synthesizable)
-      logger.trace(s"optimized expression: $result")
-      result
+      logger.info("optimization is enabled")
+      val pe = time("initial partial evaluation") {
+        PE.partialEval(lowered)
+      }
+      val synthesizable = makeSynthesizable(pe)
+      time("optimization") {
+        Opt.optimize(synthesizable)
+      }
     } else {
-      logger.debug(
-        "skipping optimization;"
-          + " performing minimal transformations to ensure program is synthesizable"
-      )
-      val synthesizable = makeSynthesizable(lowered)
-      logger.trace(s"synthesizable program: $synthesizable")
-
-      synthesizable
+      logger.info("skipping optimization")
+      makeSynthesizable(lowered)
     }
 
     val finalProgram = optimized
@@ -89,8 +78,56 @@ object Compiler {
       emit(finalProgram, outDir = args.outDir, overwrite = args.overwrite)
     }
 
-    logger.debug("done compiling")
+    logger.info("done compiling")
     finalProgram
+  }
+
+  private def parse(f: Path): Expr = {
+    logger.info(s"parsing Aetherling code from $f")
+    time("parsing") {
+      val aetherlingCode = os.read(f)
+      AetherlingParser.parse(aetherlingCode)
+    }
+  }
+
+  private def typecheck(e: Expr): Expr = {
+    time("type checking") {
+      e.tchk()
+    }
+  }
+
+  private def lower(e: Expr): Expr = {
+    time("lowering") {
+      translateStmLiteral(e.lower())
+    }
+  }
+
+  private def makeSynthesizable(e: Expr): Expr = {
+    time("making expression synthesizable") {
+      val e1 = inlineFunCalls(e)
+      val e2 = e1.streamify()
+      val e3 = uncurryBody(e2)
+      e3
+    }
+  }
+
+  private def emit(
+      finalProgram: Expr,
+      outDir: Path,
+      overwrite: Boolean
+  ): Unit = {
+    time("generating VHDL") {
+      if (os.exists(outDir)) {
+        if (overwrite) {
+          os.remove.all(outDir)
+        } else {
+          throw new RuntimeException(
+            s"Output directory $outDir already exists."
+          )
+        }
+      }
+      VhdlGenerator.emitVhdl(finalProgram, outDir)
+    }
   }
 
   private def translateStmLiteral(e: Expr): Expr = {
@@ -101,13 +138,6 @@ object Compiler {
     val checked = result.tchk()
     assert(checked.typ ~= e.typ)
     checked
-  }
-
-  private def makeSynthesizable(e: Expr): Expr = {
-    val e1 = inlineFunCalls(e)
-    val e2 = e1.streamify()
-    val e3 = uncurryBody(e2)
-    e3
   }
 
   private def inlineFunCalls(e: Expr): Expr = {
@@ -139,22 +169,5 @@ object Compiler {
         e.uncurry()
     }
     result.tchk()
-  }
-
-  private def emit(
-      finalProgram: Expr,
-      outDir: Path,
-      overwrite: Boolean
-  ): Unit = {
-    if (os.exists(outDir)) {
-      if (overwrite) {
-        os.remove.all(outDir)
-      } else {
-        throw new RuntimeException(
-          s"Output directory $outDir already exists."
-        )
-      }
-    }
-    VhdlGenerator.emitVhdl(finalProgram, outDir)
   }
 }

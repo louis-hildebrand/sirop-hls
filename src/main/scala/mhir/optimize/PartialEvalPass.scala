@@ -65,13 +65,13 @@ object PartialEvalPass {
           case Function(x, body) =>
             Function(x, doPartialEval(body)(facts.clearRange(x)))()
           case FunCall(f: Expr, arg: Expr) =>
+            val peArg = doPartialEval(arg)
             doPartialEval(f) match {
               case Function(x, body) =>
-                val a = doPartialEval(arg)
                 assert(x.typ != Missing)
-                assert(a.typ ~= x.typ)
-                doPartialEval(body.subPreserveType(x -> a))
-              case f => FunCall(f, doPartialEval(arg))()
+                assert(peArg.typ ~= x.typ)
+                partialEval(body.subPreserveType(x -> peArg))
+              case f => FunCall(f, peArg)()
             }
 
           case IntCst(_) => e
@@ -351,19 +351,17 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(x, in, out) =>
-            logger.trace({
-              val factsStr =
-                s"${facts.getClass.getSimpleName}@${facts.hashCode}"
-              s"partially evaluating (with facts $factsStr): $e"
-            })
+            logger.trace(s"partially evaluating : let stm $x = ...")
             val newIn = doPartialEval(in)
             val newOut = doPartialEval(out)
             val numUses = newOut.countFreeOccurrences(x)
-            if (numUses <= 1) {
+            val newLet = if (numUses <= 1) {
               newOut.subPreserveType(x -> newIn)
             } else {
               LetStm(x, newIn, newOut)()
             }
+            logger.trace(s"done partially evaluating: let stm $x = ...")
+            newLet
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)
             doPartialEval(k) match {

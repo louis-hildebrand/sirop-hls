@@ -316,7 +316,6 @@ case class StmMap(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    SL.logger.debug(s"lowering $className")
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val input = this.input.lower()
@@ -465,7 +464,6 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    SL.logger.debug(s"lowering $className")
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s1 = this.s1.lower()
@@ -906,7 +904,6 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    SL.logger.debug(s"lowering $className")
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s = this.s.lower()
@@ -1319,7 +1316,6 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    SL.logger.debug(s"lowering $className")
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val stm = this.stm.lower()
@@ -1401,7 +1397,6 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    SL.logger.debug(s"lowering $className")
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val stm = this.stm.lower()
