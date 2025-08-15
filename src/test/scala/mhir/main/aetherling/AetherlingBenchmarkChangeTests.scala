@@ -39,11 +39,9 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
 
   for (f <- os.list(AetherlingBenchmarksDir)) {
     val benchName = f.baseName
-    val tags = if (SlowBenchmarks.exists(name => benchName.startsWith(name))) {
-      Seq(Slow)
-    } else {
-      Seq()
-    }
+    val isSlow =
+      SlowBenchmarks.exists(name => benchName.startsWith(s"${name}_"))
+    val tags = if (isSlow) Seq(Slow) else Seq()
 
     test(benchName, tags: _*) {
       mhir.ir.reset()

@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -18,6 +19,8 @@ private object DepthTwo extends VecBuildDepth
 /** Transformation to simplify variable names in an expression.
   */
 object NameSimplifier {
+
+  private val logger = Logger(getClass.getName)
 
   /** Simplify the variable names in the given expression by removing the
     * numerical suffixes where possible.
@@ -119,9 +122,16 @@ object NameSimplifier {
         result
       }
     }
+    logger.trace(s"simplifying names: $e")
     val result = simplify(e)(DepthZero)
+    logger.trace(s"done simplifying names: $result")
     assert(
-      result == e,
+      {
+        logger.trace("checking that new expression is equivalent to original")
+        val equiv = result == e
+        logger.trace("done checking equivalence")
+        equiv
+      },
       "simplifying names should yield an expression that is equal to the original"
     )
     result

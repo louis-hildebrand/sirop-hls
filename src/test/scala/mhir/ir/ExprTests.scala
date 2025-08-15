@@ -348,7 +348,7 @@ class ExprTests extends AnyFunSuite {
     }
     assert(f == g)
     assert(g == f)
-    assert(f.hashCode() == g.hashCode())
+    assert(f.hashCode == g.hashCode)
   }
 
   test("Function:NotEquals:DifferentBody") {
@@ -368,7 +368,7 @@ class ExprTests extends AnyFunSuite {
     val e1 = LetStm(s1, in, StmZip(s1, s1)())()
     assert(e0 == e1)
     assert(e1 == e0)
-    assert(e0.hashCode() == e1.hashCode())
+    assert(e0.hashCode == e1.hashCode)
   }
 
   test("LetStm:NotEquals:DifferentInput") {
