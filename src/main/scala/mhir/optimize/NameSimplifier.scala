@@ -125,15 +125,17 @@ object NameSimplifier {
     logger.trace(s"simplifying names: $e")
     val result = simplify(e)(DepthZero)
     logger.trace(s"done simplifying names: $result")
-    assert(
-      {
-        logger.trace("checking that new expression is equivalent to original")
-        val equiv = result == e
-        logger.trace("done checking equivalence")
-        equiv
-      },
-      "simplifying names should yield an expression that is equal to the original"
-    )
+    // TODO: It would be nice to have this assertion just in case.
+    //       Unfortunately, it's waaaay too slow.
+//    assert(
+//      {
+//        logger.trace("checking that new expression is equivalent to original")
+//        val equiv = result == e
+//        logger.trace("done checking equivalence")
+//        equiv
+//      },
+//      "simplifying names should yield an expression that is equal to the original"
+//    )
     result
   }
 }

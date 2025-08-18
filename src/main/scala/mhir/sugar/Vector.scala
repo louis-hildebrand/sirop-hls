@@ -357,7 +357,6 @@ case class VecReduceComb(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    VL.logger.debug(s"lowering $className")
     VL.logger.trace(s"lowering $className: $this")
     requireType()
     val v = this.v.lower()
@@ -776,7 +775,6 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    VL.logger.debug(s"lowering $className")
     VL.logger.trace(s"lowering $className: $this")
     requireType()
     val TyVec(t, n) = this.vec.typ

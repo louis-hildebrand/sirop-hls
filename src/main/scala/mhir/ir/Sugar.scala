@@ -1,8 +1,11 @@
 package mhir.ir
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP}
+import mhir.logging.time
+import org.slf4j.event.Level
 
 /** A let expression.
   *
@@ -40,16 +43,18 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    requireType()
-    val x = this.x.lower().asInstanceOf[Param]
-    val v = this.v.lower()
-    val in = this.in.lower()
-    (v.typ, in.typ) match {
-      case (_: TyStm, _: TyStm) =>
-        LetStm(x, v, in)().tchk().lower()
-      case _ =>
-        Let(x, v, in)().asFunCall().tchk().lower()
-    }
+    time(s"lowering $className (${this.x})", Level.TRACE) {
+      requireType()
+      val x = this.x.lower().asInstanceOf[Param]
+      val v = this.v.lower()
+      val in = this.in.lower()
+      (v.typ, in.typ) match {
+        case (_: TyStm, _: TyStm) =>
+          LetStm(x, v, in)().tchk().lower()
+        case _ =>
+          Let(x, v, in)().asFunCall().tchk().lower()
+      }
+    }(Let.logger)
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
@@ -118,6 +123,10 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def hashCode(): Int = {
     this.asFunCall().hashCode()
   }
+}
+
+object Let {
+  private implicit val logger: Logger = Logger(getClass.getName)
 }
 
 /** Like a [[Let]] expression, but can have more than one assignment.

@@ -75,3 +75,17 @@ smallconv2d,8,verilog,240.04
 smallconv2d,8,vhdl,148.13
 smallconv2d,16,verilog,238.27
 smallconv2d,16,vhdl,261.03
+smallconvb2b,1/9,verilog,257.93
+smallconvb2b,1/9,vhdl,129.77
+smallconvb2b,1/3,verilog,217.63
+smallconvb2b,1/3,vhdl,109.51
+smallconvb2b,1,verilog,250.19
+smallconvb2b,1,vhdl,135.48
+smallconvb2b,2,verilog,286.45
+smallconvb2b,2,vhdl,114.1
+smallconvb2b,4,verilog,240.04
+smallconvb2b,4,vhdl,107.97
+smallconvb2b,8,verilog,240.04
+smallconvb2b,8,vhdl,108.61
+smallconvb2b,16,vhdl,311.14
+smallconvb2b,16,verilog,228.99

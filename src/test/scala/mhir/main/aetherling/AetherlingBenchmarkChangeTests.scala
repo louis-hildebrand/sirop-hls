@@ -31,7 +31,8 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     */
   private val SaveChanges: Boolean = false
 
-  private val SlowBenchmarks: Set[String] = Set("conv1d", "smallconv2d")
+  private val SlowBenchmarks: Set[String] =
+    Set("conv1d", "smallconv2d", "smallconvb2b")
 
   test("SaveChanges") {
     assert(!SaveChanges)

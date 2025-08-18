@@ -5,6 +5,7 @@ This script plots the latency for the Aetherling benchmarks.
 """
 
 import sys
+from typing import TypeVar
 
 import matplotlib.pyplot as plt
 
@@ -22,17 +23,19 @@ OUR_MARKER = "o"
 DEFAULT_ERR = 10
 
 
+T = TypeVar("T")
+
+
 def axis_scale(bench_name: str) -> str:
     """
     Decide whether the given benchmark should be plotted with a log scale or linear scale.
     """
-    if bench_name in {"map", "conv1d", "smallconv2d"}:
+    if bench_name in {"map", "conv1d", "smallconv2d", "smallconvb2b"}:
         return "log"
-    else:
-        return "linear"
+    return "linear"
 
 
-def dedup(xs: list[str]) -> list[str]:
+def dedup(xs: list[T]) -> list[T]:
     """
     Deduplicate elements in a list while preserving order.
     """

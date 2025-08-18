@@ -37,7 +37,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names))
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(10, 2.5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -78,7 +78,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         [vhdl_artist, verilog_artist],
         [OUR_LABEL, AETHERLING_LABEL],
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.1)
+        bbox_to_anchor=(0.5, -0.3)
     )
     fig.tight_layout()
     fig.savefig(c.FMAX_ESTIMATE_PDF, bbox_inches="tight")

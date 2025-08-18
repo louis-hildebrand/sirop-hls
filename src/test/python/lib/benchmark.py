@@ -81,6 +81,9 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "smallconv2d":
         # 16 inputs, 16 outputs
         return 16 // bench.throughput
+    if bench.name == "smallconvb2b":
+        # 16 inputs, 16 outputs
+        return 16 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 
@@ -93,5 +96,6 @@ def benchmark_order(bench_name: str) -> int:
         "sum": 1,
         "dot": 2,
         "conv1d": 3,
-        "smallconv2d": 4
-    }.get(bench_name, 5)
+        "smallconv2d": 4,
+        "smallconvb2b": 5
+    }.get(bench_name, 6)
