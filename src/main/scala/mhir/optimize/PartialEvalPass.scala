@@ -70,7 +70,7 @@ object PartialEvalPass {
               case Function(x, body) =>
                 assert(x.typ != Missing)
                 assert(peArg.typ ~= x.typ)
-                partialEval(body.subPreserveType(x -> peArg))
+                doPartialEval(body.subPreserveType(x -> peArg))
               case f => FunCall(f, peArg)()
             }
 
@@ -198,7 +198,9 @@ object PartialEvalPass {
                 (cond, trueE, falseE) match {
                   case _ if trueE == falseE => trueE
                   case _ if trueE.typ == TyBool =>
-                    doPartialEval((cond && trueE) || (!cond && falseE))
+                    ArithSimplifier.simplifyArithmetic(
+                      (cond && trueE) || (!cond && falseE)
+                    )(facts)
                   case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
                     doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
                   case (
@@ -210,18 +212,10 @@ object PartialEvalPass {
                         && isEqual(n0, n1)(facts).getOrElse(false)
                         && isSmaller(i0, n0)(facts).getOrElse(false) =>
                     doPartialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
-                  // True branch is special case of false branch
-                  case _
-                      if trueE.typ.isData
-                        && isEqual(trueE, falseE)(facts.assumeTrue(cond))
-                          .getOrElse(false) =>
-                    falseE
-                  // False branch is special case of true branch
-                  case _
-                      if trueE.typ.isData
-                        && isEqual(trueE, falseE)(facts.assumeFalse(cond))
-                          .getOrElse(false) =>
+                  case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
                     trueE
+                  case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
+                    falseE
                   case _ =>
                     Mux(cond, trueE, falseE)()
                 }
@@ -256,7 +250,7 @@ object PartialEvalPass {
           case TupleAccess(t: Expr, IntCst(i)) =>
             doPartialEval(t) match {
               case tuple: Tuple =>
-                doPartialEval(tuple.elems(i.toInt))
+                tuple.elems(i.toInt)
               case Mux(c, t, f) =>
                 // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
@@ -275,12 +269,7 @@ object PartialEvalPass {
               //   if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)
               // The type checker must still be able to verify afterwards that
               // the two branches are compatible.
-              val simplifiedN = doPartialEval(n)
-              if (isEqual(simplifiedN, n)(FactSet()).getOrElse(false)) {
-                simplifiedN
-              } else {
-                n
-              }
+              doPartialEval(n)(FactSet())
             }
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
             val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
@@ -310,7 +299,7 @@ object PartialEvalPass {
                 // Maybe we can find the first element statically and just return it directly!
                 tryEvalStmNext(s)(facts) match {
                   case Some((out, _)) if !out.contains(classOf[StmData]) =>
-                    Some(doPartialEval(out)(facts))
+                    Some(out)
                   case _ => None
                 }
               case _ =>
@@ -343,9 +332,10 @@ object PartialEvalPass {
                   equations.map({ case (x, (z, next)) =>
                     // The recurrence variables shouldn't occur free in z, so use
                     // the old facts for z
-                    x -> (doPartialEval(z)(facts), doPartialEval(next)(
-                      newFacts
-                    ))
+                    x -> (
+                      doPartialEval(z)(facts),
+                      doPartialEval(next)(newFacts)
+                    )
                   })
                 )()
             }
@@ -371,7 +361,6 @@ object PartialEvalPass {
 
           case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
             e.map(doPartialEval)
-
         }
     }
     val typedExpr = pe.tchk()
@@ -382,20 +371,54 @@ object PartialEvalPass {
     typedExpr
   }
 
+  private def trueBranchIsMoreGeneral(
+      c: Expr,
+      t: Expr,
+      f: Expr
+  )(implicit facts: FactSet): Boolean = {
+    if (!t.typ.isData) {
+      false
+    } else {
+      assert(t.typ != Missing)
+      val eq = Equal(t, f)().tchk()
+      val newFacts = facts.assumeFalse(c)
+      ArithSimplifier.simplifyArithmetic(eq)(newFacts) == True
+    }
+  }
+
+  private def falseBranchIsMoreGeneral(
+      c: Expr,
+      t: Expr,
+      f: Expr
+  )(implicit facts: FactSet): Boolean = {
+    if (!t.typ.isData) {
+      false
+    } else {
+      assert(t.typ != Missing)
+      val eq = Equal(t, f)().tchk()
+      val newFacts = facts.assumeTrue(c)
+      ArithSimplifier.simplifyArithmetic(eq)(newFacts) == True
+    }
+  }
+
   def isEqual(e1: Expr, e2: Expr)(
       facts: FactSet = FactSet()
   ): Option[Boolean] = {
-    val eq =
-      try {
-        (e1 === e2).tchk().lower()
-      } catch {
-        case _: TypeError =>
-          return None
+    if (e1 == e2) {
+      Some(true)
+    } else {
+      val eq =
+        try {
+          (e1 === e2).tchk().lower()
+        } catch {
+          case _: TypeError =>
+            return None
+        }
+      partialEval(eq)(facts) match {
+        case True  => Some(true)
+        case False => Some(false)
+        case _     => None
       }
-    partialEval(eq)(facts) match {
-      case True  => Some(true)
-      case False => Some(false)
-      case _     => None
     }
   }
 

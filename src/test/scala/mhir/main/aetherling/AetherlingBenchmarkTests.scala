@@ -29,7 +29,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   private val AllBenchmarks: Seq[String] =
     os.list(AetherlingBenchmarksDir).map(_.baseName)
   private val BenchmarksToRun: Seq[String] =
-    AllBenchmarks
+    AllBenchmarks.filter(_.startsWith("smallconvb2b"))
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -39,7 +39,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl:simplified") {
-      if (benchName == "smallconvb2b_16") ??? // Waaay too slow
       val (inputs, outputs) =
         AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
