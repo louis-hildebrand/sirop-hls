@@ -347,7 +347,9 @@ object AetherlingParser {
     } else if (code.startsWith("AndN ")) {
       ???
     } else if (code.startsWith("OrN ")) {
-      ???
+      val suffix0 = expect(code, "OrN ")
+      val (e, suffix1) = parseExpr(suffix0, modules)
+      (e.__0 || e.__1, suffix1)
     } else if (code.startsWith("AddN ")) {
       val suffix0 = expect(code, "AddN ")
       // TODO: Add a node like `AssertType` which is removed by the type
@@ -357,7 +359,19 @@ object AetherlingParser {
       val (e, suffix3) = parseExpr(suffix2, modules)
       (e.__0 + e.__1, suffix3)
     } else if (code.startsWith("SubN ")) {
-      ???
+      val suffix0 = expect(code, "SubN ")
+      val (typ, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      val sub = typ match {
+        case _: TyUInt =>
+          ToUnsigned(e.__0 - e.__1)()
+        case _: TySInt =>
+          e.__0 - e.__1
+        case t =>
+          throw new SyntaxError(s"Cannot make subtraction for type $t.")
+      }
+      (sub, suffix3)
     } else if (code.startsWith("MulN ")) {
       val suffix0 = expect(code, "MulN ")
       val (_, suffix1) = parseTyp(suffix0)
@@ -379,11 +393,19 @@ object AetherlingParser {
       val (e, suffix3) = parseExpr(suffix2, modules)
       (e.__0 << e.__1, suffix3)
     } else if (code.startsWith("LtN ")) {
-      ???
+      val suffix0 = expect(code, "LtN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (e.__0 < e.__1, suffix3)
     } else if (code.startsWith("EqN ")) {
       ???
     } else if (code.startsWith("IfN ")) {
-      ???
+      val suffix0 = expect(code, "IfN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (Mux(e.__0, e.__1.__0, e.__1.__1)(), suffix3)
     } else if (code.startsWith("Lut_GenN ")) {
       ???
     } else if (code.startsWith("Const_GenN ")) {

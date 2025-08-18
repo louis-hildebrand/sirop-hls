@@ -89,3 +89,17 @@ smallconvb2b,8,verilog,252,2,0
 smallconvb2b,8,vhdl,1829,0,0
 smallconvb2b,16,vhdl,354,0,0
 smallconvb2b,16,verilog,382,3,0
+smallsharpen,1/9,verilog,165,1,0
+smallsharpen,1/9,vhdl,629,2,0
+smallsharpen,1/3,verilog,138,1,0
+smallsharpen,1/3,vhdl,511,2,0
+smallsharpen,1,verilog,90,1,0
+smallsharpen,1,vhdl,586,2,0
+smallsharpen,2,verilog,121,1,0
+smallsharpen,2,vhdl,830,0,0
+smallsharpen,4,verilog,180,1,0
+smallsharpen,4,vhdl,1169,0,0
+smallsharpen,8,verilog,319,2,0
+smallsharpen,8,vhdl,2009,0,0
+smallsharpen,16,verilog,525,4,0
+smallsharpen,16,vhdl,734,0,0
