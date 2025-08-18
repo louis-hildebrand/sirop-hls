@@ -87,3 +87,5 @@ smallconvb2b,4,verilog,240.04
 smallconvb2b,4,vhdl,107.97
 smallconvb2b,8,verilog,240.04
 smallconvb2b,8,vhdl,108.61
+smallconvb2b,16,vhdl,311.14
+smallconvb2b,16,verilog,228.99
