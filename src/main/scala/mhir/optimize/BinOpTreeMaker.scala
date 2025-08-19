@@ -66,6 +66,20 @@ object BinOpTreeMaker {
         val lhs = makeBinOpTrees(Prod(lhsFactors: _*)())
         val rhs = makeBinOpTrees(Prod(rhsFactors: _*)())
         Prod(lhs, rhs)()
+      case s @ WrappingSum(_, _) => s
+      case WrappingSum(terms @ _*) =>
+        assert(terms.length >= 3)
+        val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
+        val lhs = makeBinOpTrees(WrappingSum(lhsTerms: _*)())
+        val rhs = makeBinOpTrees(WrappingSum(rhsTerms: _*)())
+        WrappingSum(lhs, rhs)()
+      case p @ WrappingProd(_, _) => p
+      case WrappingProd(factors @ _*) =>
+        assert(factors.length >= 3)
+        val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
+        val lhs = makeBinOpTrees(WrappingProd(lhsFactors: _*)())
+        val rhs = makeBinOpTrees(WrappingProd(rhsFactors: _*)())
+        WrappingProd(lhs, rhs)()
       case a @ And(_, _) => a
       case And(terms @ _*) =>
         assert(terms.length >= 3)

@@ -151,6 +151,68 @@ package object typecheck {
               s"Left-hand side of ${m.className} has type $t1, but right-hand side has type $t2."
             )
           }
+        case s @ WrappingSum(terms @ _*) =>
+          val newTerms = terms.map(e => e.tchk)
+          for ((t, i) <- newTerms.zipWithIndex) {
+            if (!t.typ.isInstanceOf[TyAnyInt]) {
+              throw new TypeError(
+                s"Term $i of ${s.className} has type ${t.typ}."
+                  + " Expected an integer."
+              )
+            }
+          }
+          val elemTypes = newTerms.map(e => e.typ.asInstanceOf[TyAnyInt])
+          if (elemTypes.toSet.size > 1) {
+            throw new TypeError(
+              s"Operands of ${s.className} have different types: ${elemTypes.mkString(", ")}."
+            )
+          } else {
+            s.rebuild(elemTypes.head, newTerms)
+          }
+        case d @ WrappingDiff(e1, e2) =>
+          val newLhs = e1.tchk
+          val t1 = newLhs.typ match {
+            case t: TyAnyInt => t
+            case t =>
+              throw new TypeError(
+                s"Left-hand side of ${d.className} has type $t."
+                  + " Expected an integer"
+              )
+          }
+          val newRhs = e2.tchk
+          val t2 = newRhs.typ match {
+            case t: TyAnyInt => t
+            case t =>
+              throw new TypeError(
+                s"Right-hand side of ${d.className} has type $t."
+                  + " Expected an integer."
+              )
+          }
+          if (t1 ~= t2) {
+            d.rebuild(t1, Seq(newLhs, newRhs))
+          } else {
+            throw new TypeError(
+              s"Left-hand side of ${d.className} has type $t1, but right-hand side has type $t2."
+            )
+          }
+        case p @ WrappingProd(factors @ _*) =>
+          val newFactors = factors.map(e => e.tchk)
+          for ((t, i) <- newFactors.zipWithIndex) {
+            if (!t.typ.isInstanceOf[TyAnyInt]) {
+              throw new TypeError(
+                s"Term $i of ${p.className} has type ${t.typ}."
+                  + " Expected an integer."
+              )
+            }
+          }
+          val elemTypes = newFactors.map(e => e.typ.asInstanceOf[TyAnyInt])
+          if (elemTypes.toSet.size > 1) {
+            throw new TypeError(
+              s"Operands of ${p.className} have different types: ${elemTypes.mkString(", ")}."
+            )
+          } else {
+            p.rebuild(elemTypes.head, newFactors)
+          }
         case pad @ PadTo(e, targetWidth) =>
           val newE = e.tchk
           newE.typ match {

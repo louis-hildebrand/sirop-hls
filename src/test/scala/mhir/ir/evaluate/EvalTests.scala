@@ -27,6 +27,72 @@ class EvalTests extends AnyFunSuite {
     assert(mhir.ir.eval(IntCst(3)()) == IntCst(3)())
   }
 
+  test("WrappingSum(U8, U8)") {
+    assert(mhir.ir.eval(WrappingSum(C(10)(U8), C(32)(U8))()) == C(42)(U8))
+    assert(mhir.ir.eval(WrappingSum(C(255)(U8), C(3)(U8))()) == C(2)(U8))
+    assert(
+      mhir.ir.eval(WrappingSum(C(255)(U8), C(255)(U8), C(255)(U8))())
+        == C(253)(U8)
+    )
+  }
+
+  test("WrappingSum(U16, U16)") {
+    assert(mhir.ir.eval(WrappingSum(C(10)(U16), C(32)(U16))()) == C(42)(U16))
+    assert(mhir.ir.eval(WrappingSum(C(255)(U16), C(3)(U16))()) == C(258)(U16))
+    assert(
+      mhir.ir.eval(WrappingSum(C(255)(U16), C(65530)(U16))())
+        == C(249)(U16)
+    )
+  }
+
+  test("WrappingSum(I8, I8)") {
+    assert(mhir.ir.eval(WrappingSum(C(1)(I8), C(-4)(I8))()) == C(-3)(I8))
+    assert(mhir.ir.eval(WrappingSum(C(120)(I8), C(12)(I8))()) == C(-124)(I8))
+    assert(mhir.ir.eval(WrappingSum(C(-10)(I8), C(-128)(I8))()) == C(118)(I8))
+  }
+
+  test("WrappingDiff(U8, U8)") {
+    assert(mhir.ir.eval(WrappingDiff(C(42)(U8), C(3)(U8))()) == C(39)(U8))
+    assert(mhir.ir.eval(WrappingDiff(C(42)(U8), C(42)(U8))()) == C(0)(U8))
+    assert(mhir.ir.eval(WrappingDiff(C(42)(U8), C(43)(U8))()) == C(255)(U8))
+  }
+
+  test("WrappingDiff(U16, U16)") {
+    assert(mhir.ir.eval(WrappingDiff(C(42)(U16), C(3)(U16))()) == C(39)(U16))
+    assert(mhir.ir.eval(WrappingDiff(C(42)(U16), C(42)(U16))()) == C(0)(U16))
+    assert(
+      mhir.ir.eval(WrappingDiff(C(42)(U16), C(43)(U16))())
+        == C(65535)(U16)
+    )
+  }
+
+  test("WrappingDiff(I8, I8)") {
+    assert(mhir.ir.eval(WrappingDiff(C(42)(I8), C(-1)(I8))()) == C(43)(I8))
+    assert(mhir.ir.eval(WrappingDiff(C(42)(I8), C(-125)(I8))()) == C(-89)(I8))
+    assert(mhir.ir.eval(WrappingDiff(C(-120)(I8), C(10)(I8))()) == C(126)(I8))
+  }
+
+  test("WrappingProd(U8, U8)") {
+    assert(mhir.ir.eval(WrappingProd(C(6)(U8), C(7)(U8))()) == C(42)(U8))
+    assert(mhir.ir.eval(WrappingProd(C(100)(U8), C(7)(U8))()) == C(188)(U8))
+  }
+
+  test("WrappingProd(U16, U16)") {
+    assert(mhir.ir.eval(WrappingProd(C(6)(U16), C(7)(U16))()) == C(42)(U16))
+    assert(mhir.ir.eval(WrappingProd(C(100)(U16), C(7)(U16))()) == C(700)(U16))
+    assert(
+      mhir.ir.eval(WrappingProd(C(100)(U16), C(700)(U16))())
+        == C(4464)(U16)
+    )
+  }
+
+  test("WrappingProd(I8, I8)") {
+    assert(mhir.ir.eval(WrappingProd(C(6)(I8), C(7)(I8))()) == C(42)(I8))
+    assert(mhir.ir.eval(WrappingProd(C(6)(I8), C(-7)(I8))()) == C(-42)(I8))
+    assert(mhir.ir.eval(WrappingProd(C(16)(I8), C(15)(I8))()) == C(-16)(I8))
+    assert(mhir.ir.eval(WrappingProd(C(-16)(I8), C(14)(I8))()) == C(32)(I8))
+  }
+
   test("StmLiteral()") {
     val e = StmLiteral()(TyStm(U8, 0))
     val actual = mhir.ir.eval(e)

@@ -7,6 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class TypecheckerTests extends AnyFunSuite {
   private val X = new ParamStore("X")
   private val Y = new ParamStore("Y")
+  private val Z = new ParamStore("Y")
 
   private def assertAllNodesHaveType(e: Expr): Unit = {
     assert(e.typ != Missing)
@@ -118,6 +119,38 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](Sum(xU8, yU16)().tchk())
   }
 
+  test("WrappingSum(u8, u8, u8)") {
+    assert(WrappingSum(X(U8), Y(U8), Z(U8))().tchk().typ == U8)
+  }
+
+  test("WrappingSum(i16, i16") {
+    assert(WrappingSum(X(I16), Y(I16))().tchk().typ == I16)
+  }
+
+  test("WrappingSum(u8, i8)") {
+    assertThrows[TypeError](WrappingSum(X(U8), Y(I8))().tchk())
+  }
+
+  test("WrappingSum(i16, i32)") {
+    assertThrows[TypeError](WrappingSum(X(I16), Y(I32))().tchk())
+  }
+
+  test("WrappingDiff(u8, u8)") {
+    assert(WrappingDiff(X(U8), Y(U8))().tchk().typ == U8)
+  }
+
+  test("WrappingDiff(i16, i16") {
+    assert(WrappingDiff(X(I16), Y(I16))().tchk().typ == I16)
+  }
+
+  test("WrappingDiff(u8, i8)") {
+    assertThrows[TypeError](WrappingDiff(X(U8), Y(I8))().tchk())
+  }
+
+  test("WrappingDiff(i16, i32)") {
+    assertThrows[TypeError](WrappingDiff(X(I16), Y(I32))().tchk())
+  }
+
   test("u8 * u8 * u8") {
     assert(Prod(xU8, yU8, zU8)().tchk().typ == U8)
   }
@@ -136,6 +169,22 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("u8 * u16") {
     assertThrows[TypeError](Prod(xU8, yU16)().tchk())
+  }
+
+  test("WrappingProd(u8, u8, u8)") {
+    assert(WrappingProd(X(U8), Y(U8), Z(U8))().tchk().typ == U8)
+  }
+
+  test("WrappingProd(i16, i16") {
+    assert(WrappingProd(X(I16), Y(I16))().tchk().typ == I16)
+  }
+
+  test("WrappingProd(u8, i8)") {
+    assertThrows[TypeError](WrappingProd(X(U8), Y(I8))().tchk())
+  }
+
+  test("WrappingProd(i16, i32)") {
+    assertThrows[TypeError](WrappingProd(X(I16), Y(I32))().tchk())
   }
 
   test("u8 / u8") {

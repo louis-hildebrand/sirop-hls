@@ -267,6 +267,9 @@ object C {
 
 /** The sum of many values.
   *
+  * @note
+  *   overflow is undefined behaviour.
+  *
   * @param terms
   *   the expressions to add up.
   */
@@ -299,6 +302,9 @@ case object Sum {
 }
 
 /** The product of many values.
+  *
+  * @note
+  *   overflow is undefined behaviour.
   *
   * @param factors
   *   the expressions to multiply.
@@ -358,6 +364,92 @@ case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.length == 2)
     Mod(newChildren.head, newChildren(1))(typ)
+  }
+}
+
+/** The sum of the given expressions, with overflow wrapping around as usual in
+  * 2's complement.
+  *
+  * @param terms
+  *   the expressions to add.
+  */
+case class WrappingSum(terms: Expr*)(typ: Type = Missing)
+    extends IntExpr(terms: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    WrappingSum(newChildren: _*)(typ)
+  }
+}
+
+/** Companion object for [[WrappingSum]].
+  */
+object WrappingSum {
+
+  /** Constructs an expression representing the sum of the given terms, with
+    * overflow wrapping around as usual in 2's complement.
+    *
+    * @note
+    *   the expression for the sum is not necessarily a [[WrappingSum]].
+    */
+  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
+    terms match {
+      case Seq()  => IntCst(0)(typ)
+      case Seq(e) => e
+      case terms  =>
+        // Sorting makes the tests less brittle
+        new WrappingSum(terms.sorted(ExprOrdering): _*)(typ)
+    }
+  }
+}
+
+/** The difference of two numbers, with overflow wrapping around as usual in 2's
+  * complement.
+  *
+  * @param e1
+  *   the first term (the minuend).
+  * @param e2
+  *   the second term (the subtrahend).
+  */
+case class WrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => WrappingDiff(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** The product of the given expressions, with overflow wrapping around as usual
+  * in 2's complement.
+  *
+  * @param factors
+  *   the expressions to multiply.
+  */
+case class WrappingProd(factors: Expr*)(typ: Type = Missing)
+    extends IntExpr(factors: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    WrappingProd(newChildren: _*)(typ)
+  }
+}
+
+/** Companion object for [[WrappingProd]].
+  */
+object WrappingProd {
+
+  /** Constructs an expression representing the product of the given
+    * expressions, with overflow wrapping around as usual in 2's complement.
+    *
+    * @note
+    *   the expression for the product is not necessarily a [[WrappingProd]].
+    */
+  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
+    terms match {
+      case Seq()  => IntCst(1)(typ)
+      case Seq(e) => e
+      case terms  =>
+        // Sorting makes the tests less brittle
+        new WrappingProd(terms.sorted(ExprOrdering): _*)(typ)
+    }
   }
 }
 

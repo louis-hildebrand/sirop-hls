@@ -65,6 +65,29 @@ class MuxMoverTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("MoveUp:mux(c, x, y) +% z +% 1") {
+    val e = WrappingSum(Mux(c1, x, y)(), z, C(1)(U8))()
+    val actual = MuxMover.moveUp(e)
+    val expected =
+      Mux(c1, WrappingSum(x, z, C(1)(U8))(), WrappingSum(y, z, C(1)(U8))())()
+    assert(actual == expected)
+  }
+
+  test("MoveUp:mux(c, x, y) -% z") {
+    val e = WrappingDiff(Mux(c1, x, y)(), z)()
+    val actual = MuxMover.moveUp(e)
+    val expected = Mux(c1, WrappingDiff(x, z)(), WrappingDiff(y, z)())()
+    assert(actual == expected)
+  }
+
+  test("MoveUp:mux(c, x, y) *% z *% 3") {
+    val e = WrappingProd(Mux(c1, x, y)(), z, C(3)(U8))()
+    val actual = MuxMover.moveUp(e)
+    val expected =
+      Mux(c1, WrappingProd(x, z, C(3)(U8))(), WrappingProd(y, z, C(3)(U8))())()
+    assert(actual == expected)
+  }
+
   test("MoveUp:mux(c1, x, mux(c2, y, z)) + 1") {
     val e = Sum(Mux(c1, x, Mux(c2, y, z)())(), C(1)(U8))()
     val actual = MuxMover.moveUp(e)

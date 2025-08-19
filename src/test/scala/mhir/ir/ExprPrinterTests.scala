@@ -39,6 +39,61 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e, maxWidth = 15) == expectedMultiLine)
   }
 
+  test("WrappingSum") {
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = WrappingSum(x, y, z)()
+
+    val expectedOneLine = "x +% y +% z"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """x
+        |  +% y
+        |  +% z
+        |""".stripMargin.stripTrailing()
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("WrappingDiff") {
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val e = WrappingDiff(x, y)()
+
+    val expectedOneLine = "x -% y"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """x
+        |  -% y
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("WrappingProd") {
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(U8)
+    val z = Param("z", -1)(U8)
+    val e = WrappingProd(x, y, z)()
+
+    val expectedOneLine = "x *% y *% z"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """x
+        |  *% y
+        |  *% z
+        |""".stripMargin.stripTrailing()
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
   test("x.__0 + x.__1") {
     val x = Param("x", -1)(TyTuple(U8, U8))
     val e = Sum(x.__0, x.__1)()
@@ -222,7 +277,7 @@ class ExprPrinterTests extends AnyFunSuite {
       """(w + x)
         |  + (y + z)
         |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
   }
 
@@ -243,7 +298,7 @@ class ExprPrinterTests extends AnyFunSuite {
       """(w * x)
         |  * (y * z)
         |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
   }
 
@@ -276,7 +331,7 @@ class ExprPrinterTests extends AnyFunSuite {
       """(w && x)
         |  && (y && z)
         |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
   }
 
@@ -297,7 +352,7 @@ class ExprPrinterTests extends AnyFunSuite {
       """(w || x)
         |  || (y || z)
         |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(e, 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
   }
 
@@ -347,7 +402,7 @@ class ExprPrinterTests extends AnyFunSuite {
       s"""a
          |  << b
          |""".stripMargin.stripTrailing
-    assert(ExprPrinter.displayMultiLine(e, maxWidth = 80) == expectedMultiLine)
+    assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
   }
 
   test("a >> b") {
@@ -362,7 +417,7 @@ class ExprPrinterTests extends AnyFunSuite {
       s"""a
          |  >> b
          |""".stripMargin.stripTrailing
-    assert(ExprPrinter.displayMultiLine(e, maxWidth = 80) == expectedMultiLine)
+    assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
   }
 
   test("mux + 1") {
@@ -552,7 +607,7 @@ class ExprPrinterTests extends AnyFunSuite {
          |let stm s2 = StmCst($n:u8, true) in
          |StmZip(StmZip(s1, s2), StmZip(s2, s1))
          |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(let, maxWidth = 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(let)
     assert(actualMultiLine == expectedMultiLine)
   }
 
@@ -571,7 +626,7 @@ class ExprPrinterTests extends AnyFunSuite {
          |  [2:u8, 3:u8]
          |]
          |""".stripMargin.stripTrailing
-    val actualMultiLine = ExprPrinter.displayMultiLine(e, maxWidth = 80)
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
   }
 

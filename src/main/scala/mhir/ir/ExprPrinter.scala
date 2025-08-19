@@ -44,7 +44,7 @@ object ExprPrinter {
     */
   def displayMultiLine(
       e: Expr,
-      maxWidth: Int,
+      maxWidth: Int = 80,
       parentPrecedence: Int = Precedence.Max
   ): String = {
     val myPrecedence = Precedence(e)
@@ -181,6 +181,27 @@ object ExprPrinter {
         displayMultiLineInfixOp(
           Seq(e1, e2),
           op = "%",
+          maxWidth = maxWidth,
+          precedence = myPrecedence
+        )
+      case WrappingSum(terms @ _*) =>
+        displayMultiLineInfixOp(
+          terms,
+          op = "+%",
+          maxWidth = maxWidth,
+          precedence = myPrecedence
+        )
+      case WrappingDiff(e1, e2) =>
+        displayMultiLineInfixOp(
+          Seq(e1, e2),
+          op = "-%",
+          maxWidth = maxWidth,
+          precedence = myPrecedence
+        )
+      case WrappingProd(factors @ _*) =>
+        displayMultiLineInfixOp(
+          factors,
+          op = "*%",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -481,6 +502,27 @@ object ExprPrinter {
         displayOneLineInfixOp(Seq(e1, e2), "/", myPrecedence)
       case Mod(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), "%", myPrecedence)
+      case WrappingSum(terms @ _*) =>
+        displayOneLineInfixOp(
+          terms,
+          "+%",
+          myPrecedence,
+          canElideFirstParens = false
+        )
+      case WrappingDiff(e1, e2) =>
+        displayOneLineInfixOp(
+          Seq(e1, e2),
+          "-%",
+          myPrecedence,
+          canElideFirstParens = false
+        )
+      case WrappingProd(factors @ _*) =>
+        displayOneLineInfixOp(
+          factors,
+          "*%",
+          myPrecedence,
+          canElideFirstParens = false
+        )
       case LLShift(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), "<<", myPrecedence)
       case LRShift(e1, e2) =>
@@ -684,6 +726,12 @@ object ExprPrinter {
         s"Div(${showScala(x)},${showScala(y)})(${showScala(d.typ)})"
       case m @ Mod(x, y) =>
         s"Mod(${showScala(x)},${showScala(y)})(${showScala(m.typ)})"
+      case s @ WrappingSum(terms @ _*) =>
+        s"WrappingSum(${terms.map(e => showScala(e)).mkString(",")})(${showScala(s.typ)})"
+      case d @ WrappingDiff(x, y) =>
+        s"WrappingDiff(${showScala(x)},${showScala(y)})(${showScala(d.typ)})"
+      case p @ WrappingProd(factors @ _*) =>
+        s"WrappingProd(${factors.map(e => showScala(e)).mkString(",")})(${showScala(p.typ)})"
       case pt @ PadTo(x, w) =>
         s"PadTo(${showScala(x)},$w)(${showScala(pt.typ)})"
       case tt @ TruncateTo(x, w) =>

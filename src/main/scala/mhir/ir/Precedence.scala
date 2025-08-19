@@ -64,17 +64,17 @@ object Precedence {
           _: StmBuild | _: StmData | _: StmNextK | _: VecBuild =>
         // These all look like function calls
         Precedence.FunCall
-      case _: Not                    => 2
-      case _: Prod | _: Div | _: Mod => 3
-      case _: Sum                    => 4
-      case _: LLShift | _: LRShift   => 5
-      case _: LessThan               => 6
-      case _: Equal                  => 7
-      case _: And                    => 8
-      case _: Or                     => 9
-      case _: Function | _: Mux      => 10
-      case _: LetStm                 => Precedence.Max
-      case e: SyntaxSugar            => e.precedence
+      case _: Not                                      => 2
+      case _: Prod | _: WrappingProd | _: Div | _: Mod => 3
+      case _: Sum | _: WrappingSum | _: WrappingDiff   => 4
+      case _: LLShift | _: LRShift                     => 5
+      case _: LessThan                                 => 6
+      case _: Equal                                    => 7
+      case _: And                                      => 8
+      case _: Or                                       => 9
+      case _: Function | _: Mux                        => 10
+      case _: LetStm                                   => Precedence.Max
+      case e: SyntaxSugar                              => e.precedence
     }
   }
 }

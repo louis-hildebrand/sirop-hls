@@ -118,6 +118,100 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(IntCst(0)() % e) == IntCst(0)())
   }
 
+  test("WrappingSum:AllInts") {
+    assert(PE.partialEval(WrappingSum(C(10)(U8), C(32)(U8))()) == C(42)(U8))
+    assert(PE.partialEval(WrappingSum(C(255)(U8), C(3)(U8))()) == C(2)(U8))
+    assert(PE.partialEval(WrappingSum(C(255)(U16), C(3)(U16))()) == C(258)(U16))
+    assert(PE.partialEval(WrappingSum(C(120)(I8), C(12)(I8))()) == C(-124)(I8))
+    assert(PE.partialEval(WrappingSum(C(-10)(I8), C(-128)(I8))()) == C(118)(I8))
+  }
+
+  test("WrappingSum:NestedWithConstants") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val original =
+      WrappingSum(WrappingSum(x, C(250)(U8))(), WrappingSum(y, C(10)(U8))())()
+        .tchk()
+    val expected = WrappingSum(C((250 + 10) % 256)(U8), x, y)()
+    val actual = PE.partialEval(original)
+    assert(actual == expected)
+  }
+
+  test("WrappingSum:NestedWithoutConstants") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+    val w = Param("w")(U8)
+    val original =
+      WrappingSum(x, WrappingSum(y, WrappingSum(z, w)())())().tchk()
+    val expected = WrappingSum(w, x, y, z)()
+    val actual = PE.partialEval(original)
+    assert(actual == expected)
+  }
+
+  test("WrappingDiff:AllInts") {
+    assert(PE.partialEval(WrappingDiff(C(42)(U8), C(43)(U8))()) == C(255)(U8))
+    assert(
+      PE.partialEval(WrappingDiff(C(42)(U16), C(43)(U16))())
+        == C(65535)(U16)
+    )
+    assert(PE.partialEval(WrappingDiff(C(42)(I8), C(-125)(I8))()) == C(-89)(I8))
+    assert(PE.partialEval(WrappingDiff(C(-120)(I8), C(10)(I8))()) == C(126)(I8))
+  }
+
+  test("WrappingProd:AllInts") {
+    assert(PE.partialEval(WrappingProd(C(100)(U8), C(7)(U8))()) == C(188)(U8))
+    assert(
+      PE.partialEval(WrappingProd(C(100)(U16), C(7)(U16))()) == C(700)(U16)
+    )
+    assert(
+      PE.partialEval(WrappingProd(C(100)(U16), C(700)(U16))())
+        == C(4464)(U16)
+    )
+    assert(PE.partialEval(WrappingProd(C(16)(I8), C(15)(I8))()) == C(-16)(I8))
+    assert(PE.partialEval(WrappingProd(C(-16)(I8), C(14)(I8))()) == C(32)(I8))
+  }
+
+  test("WrappingProd:NestedWithConstants") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val original =
+      WrappingProd(WrappingProd(x, C(130)(U8))(), WrappingProd(y, C(3)(U8))())()
+        .tchk()
+    val expected = WrappingProd(C((130 * 3) % 256)(U8), x, y)()
+    val actual = PE.partialEval(original)
+    assert(actual == expected)
+  }
+
+  test("WrappingProd:NestedWithoutConstants") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+    val w = Param("w")(U8)
+    val original =
+      WrappingProd(x, WrappingProd(y, WrappingProd(z, w)())())().tchk()
+    val expected = WrappingProd(w, x, y, z)()
+    val actual = PE.partialEval(original)
+    assert(actual == expected)
+  }
+
+  test("StandardArithmetic:(x + x + x) / 3") {
+    val x = Param("x")(U8)
+    val original = Div(Sum(x, x, x)(), C(3)(U8))()
+    val simplified = PE.partialEval(original)
+    assert(simplified == x)
+  }
+
+  /* Do NOT simplify (x + x + x) / 3 to x: it may not work if there's
+   * overflow!
+   */
+  test("WrappingArithmetic:(x + x + x) / 3") {
+    val x = Param("x")(U8)
+    val original = Div(WrappingSum(x, x, x)(), C(3)(U8))()
+    val simplified = PE.partialEval(original)
+    assert(simplified == original)
+  }
+
   test("LLShift") {
     val e = Param("x")(U8)
 

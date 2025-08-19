@@ -157,6 +157,48 @@ trait Eval {
               s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
         }
+      case s @ WrappingSum(terms @ _*) =>
+        val termValues = terms.map(e => evalBigStep(e))
+        if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
+          val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
+          val warnings = termValues.flatMap(v => v.warnings).toSet
+          val result = xs.sum
+          val typ = e.typ.asInstanceOf[TyAnyInt]
+          Value(IntCst(truncate(result, typ))(e.typ), warnings)
+        } else {
+          throw new IllegalArgumentException(
+            s"Operands of ${s.className} evaluated to $termValues."
+              + " They must all evaluate to integers."
+          )
+        }
+      case d @ WrappingDiff(e1, e2) =>
+        val Value(v1, e1Warn) = evalBigStep(e1)
+        val Value(v2, e2Warn) = evalBigStep(e2)
+        (v1, v2) match {
+          case (IntCst(n1), IntCst(n2)) =>
+            val result = n1 - n2
+            val typ = e1.typ.asInstanceOf[TyAnyInt]
+            Value(IntCst(truncate(result, typ))(e.typ), e1Warn ++ e2Warn)
+          case (v1, v2) =>
+            throw new IllegalArgumentException(
+              s"Operands of ${d.className} evaluated to $v1 and $v2."
+                + " They must each evaluate to an integer."
+            )
+        }
+      case p @ WrappingProd(factors @ _*) =>
+        val factorValues = factors.map(e => evalBigStep(e))
+        if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
+          val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
+          val warnings = factorValues.flatMap(v => v.warnings).toSet
+          val result = xs.product
+          val typ = e.typ.asInstanceOf[TyAnyInt]
+          Value(IntCst(truncate(result, typ))(e.typ), warnings)
+        } else {
+          throw new IllegalArgumentException(
+            s"Operands of ${p.className} evaluated to $factorValues."
+              + " They must all evaluate to integers."
+          )
+        }
       case PadTo(e, targetWidth) =>
         val v = evalBigStep(e)
         assert(

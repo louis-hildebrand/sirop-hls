@@ -69,6 +69,66 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("WrappingSum") {
+    val n = 10
+    val x = Param("x")(U8) // U8, overflow high
+    val y = Param("y")(U16) // U16, overflow high
+    val z = Param("z")(I16) // I16, overflow high
+    val w = Param("w")(I16) // I16, overflow low
+    val s = StmBuild(
+      n,
+      Tuple(x, y, z, w)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        x -> (C(254)(U8), WrappingSum(x, C(1)(U8))()),
+        y -> (C(65534)(U16), WrappingSum(y, C(1)(U16))()),
+        z -> (C(32765)(I16), WrappingSum(z, C(1)(I16))()),
+        w -> (C(-32766)(I16), WrappingSum(w, C(-1)(I16))())
+      )
+    )().tchk().lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("WrappingDiff") {
+    val n = 10
+    val x = Param("x")(U8) // U8, overflow low
+    val y = Param("y")(U16) // U16, overflow low
+    val z = Param("z")(I16) // I16, overflow low
+    val w = Param("w")(I16) // I16, overflow high
+    val s = StmBuild(
+      n,
+      Tuple(x, y, z, w)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        x -> (C(2)(U8), WrappingDiff(x, C(1)(U8))()),
+        y -> (C(2)(U16), WrappingDiff(y, C(1)(U16))()),
+        z -> (C(-32766)(I16), WrappingDiff(z, C(1)(I16))()),
+        w -> (C(32765)(I16), WrappingDiff(w, C(-1)(I16))())
+      )
+    )().tchk().lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("WrappingProd") {
+    val n = 10
+    val x = Param("x")(U8) // U8, overflow high
+    val y = Param("y")(U16) // U16, overflow high
+    val z = Param("z")(I16) // I16, overflow high
+    val w = Param("w")(I16) // I16, overflow low
+    val s = StmBuild(
+      n,
+      Tuple(x, y, z, w)(),
+      True,
+      Map[Param, (Expr, Expr)](
+        x -> (C(50)(U8), WrappingProd(x, C(3)(U8))()),
+        y -> (C(2000)(U16), WrappingProd(y, C(5)(U16))()),
+        z -> (C(1000)(I16), WrappingProd(z, C(5)(I16))()),
+        w -> (C(-2000)(I16), WrappingProd(w, C(3)(I16))())
+      )
+    )().tchk().lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("StmRange(10, -2, 3)") {
     val s =
       StmRange(10, C(-2)(I8), C(3)(I8))().tchk().lower().asInstanceOf[StmBuild]

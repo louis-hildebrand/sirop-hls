@@ -314,10 +314,13 @@ private[optimize] object ArithSimplifier {
   private def simplifyWithoutLibrary(e: Expr): Expr = {
     require(e.hasType)
     val simplified = e match {
-      case ll: LLShift => simplifyLLShift(ll)
-      case lr: LRShift => simplifyLRShift(lr)
-      case s: Sum      => simplifySum(s)
-      case p: Prod     => simplifyProd(p)
+      case ll: LLShift     => simplifyLLShift(ll)
+      case lr: LRShift     => simplifyLRShift(lr)
+      case s: Sum          => simplifySum(s)
+      case p: Prod         => simplifyProd(p)
+      case s: WrappingSum  => simplifyWrappingSum(s)
+      case d: WrappingDiff => simplifyWrappingDiff(d)
+      case p: WrappingProd => simplifyWrappingProd(p)
       case e if e.typ == TyBool =>
         simplifyBoolExpr(e)
       case e =>
@@ -376,6 +379,63 @@ private[optimize] object ArithSimplifier {
         // Sort to represent commutativity
         .sorted(ExprOrdering): _*
     )()
+  }
+
+  private def simplifyWrappingSum(sum: WrappingSum): Expr = {
+    if (sum.terms.forall(_.isInstanceOf[IntCst])) {
+      mhir.ir.eval(sum)
+    } else {
+      val (constants, otherTerms) =
+        sum.terms
+          .map(simplifyWithoutLibrary)
+          // Flatten to represent associativity
+          // This is valid because (x % n) + (y % n) == (x + y) % n
+          .flatMap({
+            case s: WrappingSum => s.terms
+            case e              => Seq(e)
+          })
+          .partition(_.isInstanceOf[IntCst])
+      val const = mhir.ir.eval(WrappingSum(constants: _*)())
+      val allTerms = if (const == IntCst(0)()) {
+        otherTerms
+      } else {
+        const +: otherTerms
+      }
+      WrappingSum(allTerms: _*)().tchk()
+    }
+  }
+
+  private def simplifyWrappingDiff(diff: WrappingDiff): Expr = {
+    diff match {
+      case WrappingDiff(_: IntCst, _: IntCst) =>
+        mhir.ir.eval(diff)
+      case _ => diff
+    }
+  }
+
+  private def simplifyWrappingProd(prod: WrappingProd): Expr = {
+    if (prod.factors.forall(_.isInstanceOf[IntCst])) {
+      mhir.ir.eval(prod)
+    } else {
+      val (constants, otherFactors) =
+        prod.factors
+          .map(simplifyWithoutLibrary)
+          // Flatten to represent associativity
+          // This is valid because (x % n) * (y % n) == (x * y) % n
+          .flatMap({
+            case p: WrappingProd => p.factors
+            case e               => Seq(e)
+          })
+          .partition(_.isInstanceOf[IntCst])
+      val const = mhir.ir.eval(WrappingProd(constants: _*)())
+      if (const == IntCst(0)()) {
+        C(0)(prod.typ)
+      } else if (const == IntCst(1)()) {
+        WrappingProd(otherFactors: _*)().tchk()
+      } else {
+        WrappingProd(const +: otherFactors: _*)().tchk()
+      }
+    }
   }
 
   private def simplifyBoolExpr(e: Expr): Expr = {

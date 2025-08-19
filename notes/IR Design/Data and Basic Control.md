@@ -5,7 +5,7 @@
 	- Comparison (`===`) is only valid for data types
 	- The `default` primitive can only be used for data types
 	- Data types can only contain other data types (e.g., cannot have a tuple of streams)
-- ==TODO:== support arbitrary-width integers
+- Integers can have arbitrary bit width
 	- In SHIR:
 		- Hierarchy of `IntTypeT` (in `AlgoDataType.scala`):
 			- SignedIntTypeT
@@ -172,3 +172,11 @@
 			- Try replacing multiplication and division with bit shifting
 			- Turn list of terms into binary tree (hopefully roughly balanced)
 			- Equality saturation could probably also do all this implicitly
+	- There are "wrapping" variants for addition, subtraction, and multiplication
+		- How do these differ from the "normal" versions?
+			- Overflow: usually undefined behaviour, but is allowed here
+			- Optimizer can more aggressively simplify standard addition and multiplication
+				- e.g., `(x + x + x) / 3` can be simplified to just `x`, but only if the operation is guaranteed to not overflow!
+					- e.g., what if `x = 10:u4`?
+						- *Original result:* `10:u4 + 10:u4 + 10:u4 = 14:u4` and then `14:u4 / 3 = 4:u4`
+						- *Optimized result:* `10:u4`
