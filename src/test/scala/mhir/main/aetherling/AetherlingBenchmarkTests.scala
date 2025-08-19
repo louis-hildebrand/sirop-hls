@@ -29,7 +29,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   private val AllBenchmarks: Seq[String] =
     os.list(AetherlingBenchmarksDir).map(_.baseName)
   private val BenchmarksToRun: Seq[String] =
-    AllBenchmarks.filter(_.startsWith("smallsharpen"))
+    AllBenchmarks
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
