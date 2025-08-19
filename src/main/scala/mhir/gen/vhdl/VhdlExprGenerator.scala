@@ -49,8 +49,13 @@ private object VhdlExprGenerator {
       case Prod(factors @ _*) =>
         val w = e.typ.asInstanceOf[TyAnyInt].w
         makeProduct(factors.map(exprToVhdl), bitWidth = w)
-      case Div(e1, e2) => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
-      case Mod(e1, e2) => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
+      case Div(e1, e2)             => VhdlOp("/", Seq(e1, e2).map(exprToVhdl))
+      case Mod(e1, e2)             => VhdlOp("rem", Seq(e1, e2).map(exprToVhdl))
+      case WrappingSum(terms @ _*) => VhdlOp("+", terms.map(exprToVhdl))
+      case WrappingDiff(e1, e2)    => VhdlOp("-", Seq(e1, e2).map(exprToVhdl))
+      case WrappingProd(factors @ _*) =>
+        val w = e.typ.asInstanceOf[TyAnyInt].w
+        makeProduct(factors.map(exprToVhdl), bitWidth = w)
       case PadTo(e, w) =>
         val ev = exprToVhdl(e)
         VhdlExpr(s"pad(${ev.vhdl}, $w)", ev.decls)
