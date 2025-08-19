@@ -1,12 +1,12 @@
 // Output type: Stm[u8, 200:u8] -> Stm[u8, 200:u8]
-let module0: u8 -> u8 = (I : u8) => let n11: u8 = 5:u8 in let n5: (u8, u8) = (I, n11) in n5.0 ++ n5.1 in
+let module0: u8 -> u8 = (I : u8) => let n11: u8 = 5:u8 in let n5: (u8, u8) = (I, n11) in n5.0 +% n5.1 in
 (I : Stm[u8, 200:u8]) =>
   let n1: Stm[u8, 200:u8] = I in
   let n7: Stm[u8, 200:u8] = (
     StmMap(
       n1,
       (I : u8) =>
-        let n11: u8 = 5:u8 in let n5: (u8, u8) = (I, n11) in n5.0 ++ n5.1
+        let n11: u8 = 5:u8 in let n5: (u8, u8) = (I, n11) in n5.0 +% n5.1
     )
   ) in
   let n8: Stm[u8, 200:u8] = n7 in

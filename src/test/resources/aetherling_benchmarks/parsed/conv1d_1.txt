@@ -1,10 +1,10 @@
 // Output type: Stm[Vec[i8, 1:u1], 16:u5] -> Stm[Vec[i8, 1:u1], 16:u5]
-let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n29: (i8, i8) = (I0, I1) in n29.0 ** n29.1 in
+let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n29: (i8, i8) = (I0, I1) in n29.0 *% n29.1 in
 let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
   (I : Vec[i8, 3:u2]) =>
     let n38: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8] in
     let n26: Vec[i8, 3:u2] = VecMap2(I, n38, module0) in
-    VecReduceComb(n26, (I : (i8, i8)) => I.0 ++ I.1)
+    VecReduceComb(n26, (I : (i8, i8)) => I.0 +% I.1)
 ) in
 (I : Stm[Vec[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Vec[i8, 1:u1], 16:u5] = I in
@@ -53,7 +53,7 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
       (I : Vec[i8, 3:u2]) =>
         let n38: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8] in
         let n26: Vec[i8, 3:u2] = VecMap2(I, n38, module0) in
-        VecReduceComb(n26, (I : (i8, i8)) => I.0 ++ I.1)
+        VecReduceComb(n26, (I : (i8, i8)) => I.0 +% I.1)
     )
   ) in
   let n35: Stm[Vec[i8, 1:u1], 16:u5] = n34 in

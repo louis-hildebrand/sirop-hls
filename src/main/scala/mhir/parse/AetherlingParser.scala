@@ -357,27 +357,19 @@ object AetherlingParser {
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
-      (e.__0 + e.__1, suffix3)
+      (WrappingSum(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("SubN ")) {
       val suffix0 = expect(code, "SubN ")
-      val (typ, suffix1) = parseTyp(suffix0)
+      val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
-      val sub = typ match {
-        case _: TyUInt =>
-          ToUnsigned(e.__0 - e.__1)()
-        case _: TySInt =>
-          e.__0 - e.__1
-        case t =>
-          throw new SyntaxError(s"Cannot make subtraction for type $t.")
-      }
-      (sub, suffix3)
+      (WrappingDiff(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("MulN ")) {
       val suffix0 = expect(code, "MulN ")
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
-      (e.__0 * e.__1, suffix3)
+      (WrappingProd(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("DivN ")) {
       ???
     } else if (code.startsWith("LSRN ")) {

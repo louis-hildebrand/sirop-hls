@@ -1,5 +1,5 @@
 // Output type: Stm[Vec[u16, 4:u3], 210:u8] -> Stm[Vec[u16, 4:u3], 210:u8] -> Stm[u16, 1:u1]
-let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n10: (u16, u16) = (I0, I1) in n10.0 ** n10.1 in
+let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n10: (u16, u16) = (I0, I1) in n10.0 *% n10.1 in
 (I0 : Stm[Vec[u16, 4:u3], 210:u8]) =>
   (I1 : Stm[Vec[u16, 4:u3], 210:u8]) =>
     let n1: Stm[Vec[u16, 4:u3], 210:u8] = I0 in
@@ -16,14 +16,14 @@ let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n10: (u16, u16)
       StmMap(
         n4,
         (I : Vec[u16, 4:u3]) =>
-          VecReduceComb(I, (I : (u16, u16)) => I.0 ++ I.1)
+          VecReduceComb(I, (I : (u16, u16)) => I.0 +% I.1)
       )
     ) in
     let n19: Stm[Vec[u16, 1:u1], 1:u1] = (
       StmReduce(
         n16,
         (I : Vec[(u16, u16), 1:u1]) =>
-          VecMap(I, (I : (u16, u16)) => I.0 ++ I.1)
+          VecMap(I, (I : (u16, u16)) => I.0 +% I.1)
       )
     ) in
     let n20: Stm[u16, 1:u1] = ReshapeSeq[Stm[u16, 1:u1]](n19) in

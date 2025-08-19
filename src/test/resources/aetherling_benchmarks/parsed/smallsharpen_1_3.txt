@@ -34,7 +34,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         (I : Vec[Stm[u8, 3:u2], 3:u2]) =>
           VecMap(
             I,
-            (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 ++ I.1)
+            (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
           )
       )
     ) in
@@ -45,7 +45,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecReduceComb(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 ++ I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
           )
       )
     ) in
@@ -56,7 +56,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecMap(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 ++ I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
           )
       )
     ) in
@@ -81,12 +81,12 @@ let module1: u8 -> u8 -> u8 = (
     (I1 : u8) =>
       let n176: u8 = 15:u8 in
       let n150: (u8, u8) = (I0, I1) in
-      let n151: u8 = usgn(n150.0 ++ n150.1 ** -1:i1) in
+      let n151: u8 = n150.0 -% n150.1 in
       let n153: (u8, u8) = (n176, n151) in
       let n154: bool = n153.0 << n153.1 in
       let n177: u8 = 15:u8 in
       let n155: (u8, u8) = (I1, I0) in
-      let n156: u8 = usgn(n155.0 ++ n155.1 ** -1:i1) in
+      let n156: u8 = n155.0 -% n155.1 in
       let n158: (u8, u8) = (n177, n156) in
       let n159: bool = n158.0 << n158.1 in
       let n160: (bool, bool) = (n154, n159) in
@@ -99,7 +99,7 @@ let module1: u8 -> u8 -> u8 = (
       let n169: (u8, u8) = (n166, n179) in
       let n170: u8 = n169.0 >> n169.1 in
       let n171: (u8, u8) = (I1, n170) in
-      n171.0 ++ n171.1
+      n171.0 +% n171.1
 ) in
 (I : Stm[Stm[u8, 1:u1], 16:u5]) =>
   let n1: Stm[Stm[u8, 1:u1], 16:u5] = I in
@@ -322,7 +322,7 @@ let module1: u8 -> u8 -> u8 = (
               VecMap(
                 I,
                 (I : Stm[u8, 3:u2]) =>
-                  StmReduce(I, (I : (u8, u8)) => I.0 ++ I.1)
+                  StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
               )
           )
         ) in
@@ -333,7 +333,7 @@ let module1: u8 -> u8 -> u8 = (
               VecReduceComb(
                 I,
                 (I : Stm[(u8, u8), 1:u1]) =>
-                  StmMap(I, (I : (u8, u8)) => I.0 ++ I.1)
+                  StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
               )
           )
         ) in
@@ -344,7 +344,7 @@ let module1: u8 -> u8 -> u8 = (
               VecMap(
                 I,
                 (I : Stm[(u8, u8), 1:u1]) =>
-                  StmMap(I, (I : (u8, u8)) => I.0 ++ I.1)
+                  StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
               )
           )
         ) in
@@ -380,12 +380,12 @@ let module1: u8 -> u8 -> u8 = (
               (I1 : u8) =>
                 let n176: u8 = 15:u8 in
                 let n150: (u8, u8) = (I0, I1) in
-                let n151: u8 = usgn(n150.0 ++ n150.1 ** -1:i1) in
+                let n151: u8 = n150.0 -% n150.1 in
                 let n153: (u8, u8) = (n176, n151) in
                 let n154: bool = n153.0 << n153.1 in
                 let n177: u8 = 15:u8 in
                 let n155: (u8, u8) = (I1, I0) in
-                let n156: u8 = usgn(n155.0 ++ n155.1 ** -1:i1) in
+                let n156: u8 = n155.0 -% n155.1 in
                 let n158: (u8, u8) = (n177, n156) in
                 let n159: bool = n158.0 << n158.1 in
                 let n160: (bool, bool) = (n154, n159) in
@@ -398,7 +398,7 @@ let module1: u8 -> u8 -> u8 = (
                 let n169: (u8, u8) = (n166, n179) in
                 let n170: u8 = n169.0 >> n169.1 in
                 let n171: (u8, u8) = (I1, n170) in
-                n171.0 ++ n171.1
+                n171.0 +% n171.1
           )
     )
   ) in
