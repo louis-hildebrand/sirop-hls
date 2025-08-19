@@ -95,6 +95,21 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
+          case _: WrappingSum =>
+            val newChildren = e.children.map(e => doPartialEval(e))
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
+          case _: WrappingDiff =>
+            val newChildren = e.children.map(e => doPartialEval(e))
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
+          case _: WrappingProd =>
+            val newChildren = e.children.map(e => doPartialEval(e))
+            ArithSimplifier.simplifyArithmetic(
+              e.rebuild(e.typ, newChildren)
+            )(facts)
           case PadTo(e, w) =>
             doPartialEval(e) match {
               case v: IntCst => mhir.ir.eval(PadTo(v, w)())
