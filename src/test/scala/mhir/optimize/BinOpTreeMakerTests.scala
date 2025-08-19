@@ -81,9 +81,24 @@ class BinOpTreeMakerTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("x0 +% x1 +% x3 +% x4") {
+    val e = WrappingSum(x0, x1, x2, x3)().tchk()
+    val expected = WrappingSum(WrappingSum(x0, x1)(), WrappingSum(x2, x3)())()
+    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    assert(actual == expected)
+  }
+
   test("x0 * x1 * x3 * x4") {
     val e = Prod(x0, x1, x2, x3)().tchk()
     val expected = Prod(Prod(x0, x1)(), Prod(x2, x3)())()
+    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    assert(actual == expected)
+  }
+
+  test("x0 *% x1 *% x2 *% x3") {
+    val e = WrappingProd(x0, x1, x2, x3)().tchk()
+    val expected =
+      WrappingProd(WrappingProd(x0, x1)(), WrappingProd(x2, x3)())()
     val actual = BinOpTreeMaker.makeBinOpTrees(e)
     assert(actual == expected)
   }
