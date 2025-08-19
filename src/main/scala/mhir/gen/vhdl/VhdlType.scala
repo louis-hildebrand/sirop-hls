@@ -184,14 +184,26 @@ private[vhdl] case class VhdlArray(n: Int, t: VhdlType) extends VhdlType {
 
   override def bitWidth: Int = n * t.bitWidth
 
+  val idxBitWidth: Int = {
+    if (this.n <= 0) {
+      0
+    } else {
+      (n - 1).toBinaryString.length
+    }
+  }
+
   def vecAccessFunDef: VhdlFunction = {
     val cases =
       ((0 until n).map(i => s"when $i => x := v($i);") :+ "when others =>")
         .mkString("\n")
+    assert(
+      this.idxBitWidth < 32,
+      s"cannot generate vec_access function when index bit width is ${this.idxBitWidth}"
+    )
     val body = s"case to_integer(i) is\n${indent(cases)}\nend case;"
     VhdlFunction(
       name = "vec_access",
-      args = Seq(("v", this), ("i", VhdlUnsigned(-1))),
+      args = Seq(("v", this), ("i", VhdlUnsigned(this.idxBitWidth))),
       returnType = t,
       decls = Seq(
         VhdlVariable("x", t, assignStmt = body)
