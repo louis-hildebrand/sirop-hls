@@ -1,11 +1,21 @@
 package mhir.main.aetherling
 
+import com.typesafe.scalalogging.Logger
 import mhir.gen.verilog.VerilogTestbenchGenerator
 import mhir.gen.vhdl.VhdlTestbenchGenerator
 import os.Path
 
+import scala.sys.exit
+
+sealed trait LatencyResult
+case class OkLatencyResult(latency: Int) extends LatencyResult
+case class ErrLatencyResult(latency: Option[Int], simExitCode: Int)
+    extends LatencyResult
+
 object AetherlingBenchmarkLatencyMeasurement {
   private val LatencyRegex = "LATENCY:\\s+([0-9]+) cycles".r
+
+  private val logger = Logger(getClass.getName)
 
   def main(args: Array[String]): Unit = {
     if (args.contains("--help")) {
@@ -26,7 +36,14 @@ object AetherlingBenchmarkLatencyMeasurement {
         s"Can't tell whether directory $dir is a Verilog project or a VHDL project."
       )
     }
-    println(latency)
+    latency match {
+      case OkLatencyResult(latency) => println(latency)
+      case ErrLatencyResult(Some(latency), simExitCode) =>
+        println(latency)
+        exit(simExitCode)
+      case ErrLatencyResult(None, simExitCode) =>
+        exit(simExitCode)
+    }
   }
 
   private def printUsage(): Unit = {
@@ -42,18 +59,29 @@ object AetherlingBenchmarkLatencyMeasurement {
   }
 
   // TODO: Test this?
-  def measureVerilog(dir: Path): Int = {
+  def measureVerilog(dir: Path): LatencyResult = {
     val benchName = dir.baseName
     val (inputs, outputs) =
       AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:verilog")
     VerilogTestbenchGenerator.makeTestbench(inputs, outputs, dir)
-    val proc =
-      os.proc("./src/test/sh/test_verilog.sh", dir, "-v").call(cwd = os.pwd)
-    parseLatency(proc.out.trim)
+    val proc = os
+      .proc("./src/test/sh/test_verilog.sh", dir, "-v")
+      .call(
+        cwd = os.pwd,
+        check = false
+      )
+    if (proc.exitCode != 0) {
+      logger.error(s"Simulation exited with nonzero code: ${proc.exitCode}")
+    }
+    val latency = parseLatency(proc.out.trim)
+    (proc.exitCode, latency) match {
+      case (0, Some(latency)) => OkLatencyResult(latency)
+      case (code, latency)    => ErrLatencyResult(latency, code)
+    }
   }
 
   // TODO: Test this?
-  def measureVhdl(dir: Path): Int = {
+  def measureVhdl(dir: Path): LatencyResult = {
     val benchName = dir.baseName
     val (inputs, outputs) =
       AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
@@ -63,22 +91,35 @@ object AetherlingBenchmarkLatencyMeasurement {
       dir = dir,
       testNotReady = false
     )
-    val proc =
-      os.proc("./src/test/sh/test_vhdl.sh", dir, "-v").call(cwd = os.pwd)
-    parseLatency(proc.out.trim)
+    val proc = os
+      .proc("./src/test/sh/test_vhdl.sh", dir, "-v")
+      .call(
+        cwd = os.pwd,
+        check = false
+      )
+    if (proc.exitCode != 0) {
+      logger.error(s"Simulation exited with nonzero code: ${proc.exitCode}")
+    }
+    val latency = parseLatency(proc.out.trim)
+    (proc.exitCode, latency) match {
+      case (0, Some(latency)) => OkLatencyResult(latency)
+      case (code, latency)    => ErrLatencyResult(latency, code)
+    }
   }
 
-  private def parseLatency(stdout: String): Int = {
+  private def parseLatency(stdout: String): Option[Int] = {
     val matches = LatencyRegex.findAllMatchIn(stdout).toSeq
     if (matches.isEmpty) {
-      throw new RuntimeException("No latency found in testbench output.")
+      logger.error("No latency found in testbench output.")
+      None
     } else if (matches.length >= 2) {
-      throw new RuntimeException(
+      logger.error(
         s"Expected to find only one latency in testbench output, but found ${matches.length}."
       )
+      None
     } else {
       val latency = matches.head.group(1)
-      Integer.parseInt(latency)
+      Some(Integer.parseInt(latency))
     }
   }
 }

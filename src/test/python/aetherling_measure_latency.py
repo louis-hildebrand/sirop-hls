@@ -15,9 +15,10 @@ import lib.constants as c
 import lib.list_benchmarks as lb
 import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl
+from lib.latency import LatencyResult
 
 
-def measure_latency(proj_dir: Path) -> int | None:
+def measure_latency(proj_dir: Path) -> LatencyResult:
     """
     Measure the latency of one design.
     """
@@ -30,10 +31,12 @@ def measure_latency(proj_dir: Path) -> int | None:
         text=True,
         encoding="utf-8",
     )
-    if result.returncode != 0:
-        print(result.stderr)
-        return None
-    return int(result.stdout)
+    sim_success = result.returncode == 0
+    try:
+        latency = int(result.stdout)
+    except ValueError:
+        latency = None
+    return LatencyResult(latency=latency, sim_success=sim_success)
 
 
 def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
@@ -78,7 +81,7 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
                         flush=True,
                     )
                     latency = measure_latency(c.VHDL_DIR.joinpath(bench.full_name))
-                    print(f"{latency} cycles" if latency is not None else "ERROR")
+                    print(latency)
                     crud.save_latency(writer, BenchmarkImpl(bench, "vhdl"), latency)
     finally:
         crud.merge_latency_results(old=backup_out_path, new=out_path)
