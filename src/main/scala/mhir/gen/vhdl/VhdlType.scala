@@ -38,10 +38,11 @@ private[vhdl] sealed trait VhdlType {
 private[vhdl] object VhdlType {
   def apply(t: Type): VhdlType = {
     t match {
-      case TyUInt(w)        => VhdlUnsigned(w)
-      case TySInt(w)        => VhdlSigned(w)
-      case TyBool           => VhdlBool
-      case TyTuple(ts @ _*) => VhdlRecord(ts.map(t => VhdlType(t)))
+      case TyUInt(w)           => VhdlUnsigned(w)
+      case TySInt(w)           => VhdlSigned(w)
+      case TyFix(TyUInt(w), _) => VhdlUnsigned(w)
+      case TyBool              => VhdlBool
+      case TyTuple(ts @ _*)    => VhdlRecord(ts.map(t => VhdlType(t)))
       case TyVec(t, len) if len.freeVars().isEmpty =>
         val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
         VhdlArray(n.toInt, VhdlType(t))

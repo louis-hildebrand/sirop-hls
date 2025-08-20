@@ -53,7 +53,7 @@ object Precedence {
     */
   def apply(e: Expr): Int = {
     e match {
-      case _: IntCst | _: BoolCst | _: Param =>
+      case _: IntCst | _: FixCst | _: BoolCst | _: Param =>
         // Atomic expressions: nothing to split up
         0
       case _: Tuple | _: VecLiteral | _: StmLiteral =>
@@ -64,17 +64,17 @@ object Precedence {
           _: StmBuild | _: StmData | _: StmNextK | _: VecBuild =>
         // These all look like function calls
         Precedence.FunCall
-      case _: Not                                      => 2
-      case _: Prod | _: WrappingProd | _: Div | _: Mod => 3
-      case _: Sum | _: WrappingSum | _: WrappingDiff   => 4
-      case _: LLShift | _: LRShift                     => 5
-      case _: LessThan                                 => 6
-      case _: Equal                                    => 7
-      case _: And                                      => 8
-      case _: Or                                       => 9
-      case _: Function | _: Mux                        => 10
-      case _: LetStm                                   => Precedence.Max
-      case e: SyntaxSugar                              => e.precedence
+      case _: Not                                                      => 2
+      case _: Prod | _: WrappingProd | _: IntFixProd | _: Div | _: Mod => 3
+      case _: Sum | _: WrappingSum | _: WrappingDiff                   => 4
+      case _: LLShift | _: LRShift                                     => 5
+      case _: LessThan                                                 => 6
+      case _: Equal                                                    => 7
+      case _: And                                                      => 8
+      case _: Or                                                       => 9
+      case _: Function | _: Mux                                        => 10
+      case _: LetStm      => Precedence.Max
+      case e: SyntaxSugar => e.precedence
     }
   }
 }

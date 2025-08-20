@@ -57,6 +57,8 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: ToUnsigned   => 19000
       case _: LLShift      => 20000
       case _: LRShift      => 21000
+      case _: FixCst       => 21500
+      case _: IntFixProd   => 21750
       case _: Param        => 22000
       case _: TupleAccess  => 23000
       case _: FunCall      => 24000

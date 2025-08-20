@@ -282,6 +282,22 @@ trait Eval {
             )
         }
 
+      case c: FixCst => Value(c, Set())
+      case p @ IntFixProd(e1, e2) =>
+        val Value(v1, warn1) = evalBigStep(e1)
+        val Value(v2, warn2) = evalBigStep(e2)
+        (v1, v2) match {
+          case (v1 @ IntCst(k), v2 @ FixCst(numer)) =>
+            val result = (k * numer) >>> v2.typ.shift
+            val typ = v1.typ.asInstanceOf[TyUInt]
+            Value(IntCst(truncate(result, typ))(typ), warn1 ++ warn2)
+          case (v1, v2) =>
+            throw new TypeError(
+              s"Operands of ${p.className} evaluated to $v1 and $v2."
+                + " The first must evaluate to an integer and the second must evaluate to a fixed-point number."
+            )
+        }
+
       case True  => Value(True, Set())
       case False => Value(False, Set())
       case Not(e) =>

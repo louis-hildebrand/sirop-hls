@@ -100,6 +100,8 @@ object VhdlGenerator {
           case TyUInt(w) => s"std_logic_vector(to_unsigned(${c.i}, $w))"
           case TySInt(w) => s"std_logic_vector(to_signed(${c.i}, $w))"
         }
+      case c: FixCst =>
+        valueToStdLogicVector(C(c.numer)(c.typ.t))
       case Tuple(elems @ _*) =>
         if (elems.isEmpty) {
           "\"\""
