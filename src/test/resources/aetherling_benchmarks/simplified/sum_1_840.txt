@@ -1,11 +1,11 @@
 (I : Stm[u32, 840:u10]) =>
   sbuild(
     1:u1;
-    acc + data(s);
+    acc +% data(s);
     t == 839:u10;
     (acc : u32) = (
       0:u32,
-      if (first_step) then { data(s) } else { acc + data(s) }
+      if (first_step) then { data(s) } else { acc +% data(s) }
     );
     (first_step : bool) = (
       true,

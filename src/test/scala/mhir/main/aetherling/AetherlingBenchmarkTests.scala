@@ -86,6 +86,13 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         "I haven't managed to figure out how the Verilog designs with"
           + " throughput < 1 work."
       )
+      assume(
+        !benchName.startsWith("smallsharpen"),
+        "None of the sharpening benchmarks work as expected in Verilog."
+          + " In the timing diagram, it appears the image and blurred image"
+          + " are arriving at the final stage (for sharpening one pixel)"
+          + " at different times."
+      )
       val (inputs, outputs) =
         AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:verilog")
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
@@ -493,6 +500,91 @@ object AetherlingBenchmarkTests {
     normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
   }
 
+  private val smallSharpenIO: Map[String, (Seq[TestInput], TestOutput)] = {
+    def sharpen1(a: Int, b: Int): Int = {
+      val threshold = 15
+      val passedThreshold = (a - b > threshold) || (b - a > threshold)
+      val h = if (passedThreshold) (b - a) / 4 else 0
+      b + h
+    }
+    def sharpenImage(img: Seq[Seq[Int]]): Seq[Option[Int]] = {
+      val blurredImg = conv2d(
+        img.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 1
+      ).map(row =>
+        // Handle overflow before dividing
+        row.map(x => x.map(x => (x % 256) / 16))
+      )
+      blurredImg.flatten
+        .zip(img.flatten)
+        .map({
+          case (None, _)    => None
+          case (Some(a), b) => Some(sharpen1(a, b))
+        })
+    }
+    val basicInputs: Seq[Seq[Int]] =
+      (1 to 16).map(_ * 5).grouped(4).toSeq
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
+    val basicOutputs = sharpenImage(basicInputs).map({
+      case Some(x) => C(x)(U8)
+      case None    => Undefined(U8)
+    })
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val (inputs, outputs) = par match {
+          case 1 =>
+            (
+              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
+              TestOutput(basicOutputs.map(VecLiteral(_)()))
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            (
+              TestInput(
+                basicInputExprs
+                  .grouped(n)
+                  .map(VecLiteral(_: _*)())
+                  .map(Some(_))
+                  .toSeq
+              ),
+              TestOutput(
+                basicOutputs
+                  .grouped(n)
+                  .map(VecLiteral(_: _*)())
+                  .toSeq
+              )
+            )
+        }
+        s"smallsharpen_$par" -> (Seq(inputs), outputs)
+      })
+      .flatMap({ case (name, io) =>
+        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+      })
+      .toMap
+    val verilogUnderutilizedCases = Seq(3, 9)
+      .map({ denom =>
+        val inputs = TestInput(
+          basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
+        )
+        val outputs = TestOutput(
+          basicOutputs.flatMap(x =>
+            x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+          )
+        )
+        s"smallsharpen_1_$denom:verilog" -> (Seq(inputs), outputs)
+      })
+      .toMap
+    val vhdlUnderutilizedCases = Seq(3, 9)
+      .map({ denom =>
+        val inputs = TestInput(basicInputExprs.map(Some(_)))
+        val outputs = TestOutput(basicOutputs)
+        s"smallsharpen_1_$denom:vhdl" -> (Seq(inputs), outputs)
+      })
+    normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
+  }
+
   /** Maps benchmark names (e.g., "dot_1_105:vhdl") to inputs and expected
     * outputs.
     *
@@ -506,5 +598,6 @@ object AetherlingBenchmarkTests {
       ++ conv1dIO
       ++ smallConv2dIO
       ++ smallConvB2bIO
+      ++ smallSharpenIO
   )
 }

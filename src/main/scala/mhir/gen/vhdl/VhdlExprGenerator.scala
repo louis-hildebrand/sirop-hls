@@ -250,7 +250,18 @@ private object VhdlExprGenerator {
       case VecAccess(v, i) =>
         // TODO: Have a special case for when the index is static?
         val vv = exprToVhdl(v)
-        val iv = exprToVhdl(i)
+        val iv: VhdlExpr = {
+          val actualWidth = i.typ.asInstanceOf[TyUInt].w
+          val expectedWidth =
+            VhdlType(v.typ).asInstanceOf[VhdlArray].idxBitWidth
+          if (actualWidth > expectedWidth) {
+            exprToVhdl(TruncateTo(i, expectedWidth)().tchk())
+          } else if (actualWidth < expectedWidth) {
+            exprToVhdl(PadTo(i, expectedWidth)().tchk())
+          } else {
+            exprToVhdl(i)
+          }
+        }
         VhdlExpr(s"vec_access(${vv.vhdl}, ${iv.vhdl})", vv.decls ++ iv.decls)
 
       case _: SyntaxSugar =>

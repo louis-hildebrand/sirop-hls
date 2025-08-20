@@ -15,16 +15,18 @@ from lib.benchmark import BenchmarkImpl
 from lib.resource_usage import ResourceUsage
 
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-AETHERLING_MARKER = "^"
+AETHERLING_MARKER = "s"
+AETHERLING_MARKER_SIZE = 4
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
+OUR_MARKER_SIZE = 3
 
 
 def axis_scale(bench_name: str) -> str:
     """
     Decide whether the given benchmark should be plotted with a log scale or linear scale.
     """
-    if bench_name in {"map", "conv1d", "smallconv2d", "smallconvb2b"}:
+    if bench_name in {"map", "conv1d", "smallconv2d", "smallconvb2b", "smallsharpen"}:
         return "log"
     return "linear"
 
@@ -47,7 +49,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(10, 5))
+    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(12, 5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
@@ -75,10 +77,18 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         alm_ax = axes[0][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         ys = [results[b].alm for b in verilog_benchmarks]
-        verilog_artist, = alm_ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        verilog_artist, = alm_ax.plot(
+            xs, ys,
+            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
+            label=AETHERLING_LABEL,
+        )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
-        vhdl_artist, = alm_ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
+        vhdl_artist, = alm_ax.plot(
+            xs, ys,
+            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
+            label=OUR_LABEL,
+        )
         if xscale == "log":
             alm_ax.set_xscale("log", base=2)
         alm_ax.set_yscale(yscale)
@@ -86,10 +96,18 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         bram_ax = axes[1][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
-        bram_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        bram_ax.plot(
+            xs, verilog_ys,
+            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
+            label=AETHERLING_LABEL,
+        )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
-        bram_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
+        bram_ax.plot(
+            xs, vhdl_ys,
+            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
+            label=OUR_LABEL,
+        )
         all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
         if all_zero:
             bram_ax.set_ylim(-1, 1)
@@ -101,10 +119,18 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         dsp_ax = axes[2][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
-        dsp_ax.plot(xs, verilog_ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        dsp_ax.plot(
+            xs, verilog_ys,
+            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
+            label=AETHERLING_LABEL,
+        )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
-        dsp_ax.plot(xs, vhdl_ys, marker=OUR_MARKER, label=OUR_LABEL)
+        dsp_ax.plot(
+            xs, vhdl_ys,
+            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
+            label=OUR_LABEL,
+        )
         all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
         if all_zero:
             dsp_ax.set_ylim(-1, 1)

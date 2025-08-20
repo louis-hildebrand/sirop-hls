@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .benchmark import Benchmark, BenchmarkImpl
 from .fmax import Fmax, Step
+from .latency import LatencyResult
 from .resource_usage import ResourceUsage
 
 RESOURCE_USAGE_HEADERS = ["bench_name", "bench_throughput", "language", "alm", "bram", "dsp"]
@@ -262,10 +263,10 @@ def merge_fmax_measurements(old: Path, new: Path) -> None:
     old.unlink()
 
 
-LATENCY_HEADERS = ["bench_name", "bench_throughput", "language", "latency"]
+LATENCY_HEADERS = ["bench_name", "bench_throughput", "language", "latency", "sim_success"]
 
 
-def save_latency(writer: csv.DictWriter, b: BenchmarkImpl, latency: int | None) -> None:
+def save_latency(writer: csv.DictWriter, b: BenchmarkImpl, result: LatencyResult) -> None:
     """
     Save one latency result to a CSV file.
     """
@@ -273,11 +274,12 @@ def save_latency(writer: csv.DictWriter, b: BenchmarkImpl, latency: int | None) 
         "bench_name": b.bench.name,
         "bench_throughput": b.bench.throughput_str,
         "language": b.language.lower(),
-        "latency": "" if latency is None else str(latency)
+        "latency": "" if result.latency is None else str(result.latency),
+        "sim_success": result.sim_success,
     })
 
 
-def read_all_latency_results(results_file: Path) -> dict[BenchmarkImpl, int | None]:
+def read_all_latency_results(results_file: Path) -> dict[BenchmarkImpl, LatencyResult]:
     """
     Read all results from the CSV, even ones where the latency is missing.
     """
@@ -289,17 +291,22 @@ def read_all_latency_results(results_file: Path) -> dict[BenchmarkImpl, int | No
             ),
             language=row["language"]
         )
-    def get_result(row) -> int | None:
-        if not row["latency"]:
-            return None
-        return int(row["latency"])
+    def get_result(row) -> LatencyResult:
+        latency = int(row["latency"]) if row["latency"] else None
+        if row["sim_success"] == "True":
+            sim_success = True
+        elif row["sim_success"] == "False":
+            sim_success = False
+        else:
+            raise ValueError(f"Invalid value for sim_success: {row['sim_success']}")
+        return LatencyResult(latency=latency, sim_success=sim_success)
     with open(results_file, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         return {get_bench(row) : get_result(row) for row in rows}
 
 
-def read_valid_latency_results(results_file: Path) -> dict[BenchmarkImpl, int]:
+def read_valid_latency_results(results_file: Path) -> dict[BenchmarkImpl, LatencyResult]:
     """
     Read results from the CSV and only return those where the latency is
     not `None`.
@@ -307,7 +314,7 @@ def read_valid_latency_results(results_file: Path) -> dict[BenchmarkImpl, int]:
     return {
         b: lat
         for (b, lat) in read_all_latency_results(results_file).items()
-        if lat is not None
+        if lat.latency is not None
     }
 
 

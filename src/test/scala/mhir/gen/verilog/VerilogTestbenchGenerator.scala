@@ -141,7 +141,7 @@ object VerilogTestbenchGenerator {
        |
        |    task check_output (input [${outputAtomWidth - 1}:0] expected, input [${outputAtomWidth - 1}:0] actual);
        |    begin
-       |        $$display("OUTPUT : %h", actual);
+       |        $$display("OUTPUT : %d", actual);
        |        if (actual !== expected) begin
        |            $$error("ASSERTION FAILED: expected %d, got %d", expected, actual);
        |        end

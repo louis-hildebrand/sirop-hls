@@ -10,6 +10,7 @@ if ! [[ -e ./chiselAetherling ]]; then
     exit 1
 fi
 
+rm -rf ./test/no_bench/
 stack test --test-arguments '--num-threads 1'
 find ./test/no_bench/ -name '*.txt' -exec cp {} "$mhir_repo_root/src/test/resources/aetherling_benchmarks/original" \;
 find ./test/no_bench/ -name '*.v' -exec cp {} "$mhir_repo_root/src/test/resources/aetherling_benchmarks/verilog" \;

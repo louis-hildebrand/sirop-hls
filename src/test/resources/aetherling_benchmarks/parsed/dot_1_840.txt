@@ -1,5 +1,5 @@
 // Output type: Stm[u16, 840:u10] -> Stm[u16, 840:u10] -> Stm[u16, 1:u1]
-let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n7: (u16, u16) = (I0, I1) in n7.0 ** n7.1 in
+let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n7: (u16, u16) = (I0, I1) in n7.0 *% n7.1 in
 (I0 : Stm[u16, 840:u10]) =>
   (I1 : Stm[u16, 840:u10]) =>
     let n1: Stm[u16, 840:u10] = I0 in
@@ -9,10 +9,10 @@ let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n7: (u16, u16) 
         n1,
         n3,
         (I0 : u16) =>
-          (I1 : u16) => let n7: (u16, u16) = (I0, I1) in n7.0 ** n7.1
+          (I1 : u16) => let n7: (u16, u16) = (I0, I1) in n7.0 *% n7.1
       )
     ) in
-    let n11: Stm[u16, 1:u1] = StmReduce(n4, (I : (u16, u16)) => I.0 ++ I.1) in
+    let n11: Stm[u16, 1:u1] = StmReduce(n4, (I : (u16, u16)) => I.0 +% I.1) in
     let n12: Stm[u16, 1:u1] = n11 in
     let n13: Stm[u16, 1:u1] = n12 in
     n13

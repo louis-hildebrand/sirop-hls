@@ -1,5 +1,5 @@
 // Output type: Stm[Vec[u8, 2:u2], 100:u7] -> Stm[Vec[u8, 2:u2], 100:u7]
-let module0: u8 -> u8 = (I : u8) => let n13: u8 = 5:u8 in let n6: (u8, u8) = (I, n13) in n6.0 ++ n6.1 in
+let module0: u8 -> u8 = (I : u8) => let n13: u8 = 5:u8 in let n6: (u8, u8) = (I, n13) in n6.0 +% n6.1 in
 (I : Stm[Vec[u8, 2:u2], 100:u7]) =>
   let n1: Stm[Vec[u8, 2:u2], 100:u7] = I in
   let n9: Stm[Vec[u8, 2:u2], 100:u7] = StmMap(n1, (I : Vec[u8, 2:u2]) => VecMap(I, module0)) in
