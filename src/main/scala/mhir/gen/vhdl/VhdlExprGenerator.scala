@@ -80,6 +80,41 @@ private object VhdlExprGenerator {
         val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
         VhdlExpr(s"($e1Vhdl) srl to_integer($e2Vhdl)", e1Decls ++ e2Decls)
 
+      case c: FixCst =>
+        exprToVhdl(C(c.numer)(c.typ.t))
+      case IntFixProd(e1, e2) =>
+        val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
+        val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
+        val w1 = e1.typ.asInstanceOf[TyAnyInt].w
+        val w2 = e2.typ.asInstanceOf[TyFix] match {
+          case TyFix(TyUInt(w2), shift) => math.max(w2, shift)
+        }
+        val lsb = e2.typ.asInstanceOf[TyFix].shift
+        val msb = lsb + w1 - 1
+        val tempVar = {
+          val name = Param("int_fix_prod")().name
+          val typ = TyUInt(w1 + w2)
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(typ),
+                assignStmt = Some(s"$name <= ($e1Vhdl) * pad($e2Vhdl, $w2);")
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(typ),
+                assignStmt = s"$name := ($e1Vhdl) * ($e2Vhdl);"
+              )
+          }
+        }
+        VhdlExpr(
+          s"${tempVar.name}($msb downto $lsb)",
+          tempVar +: (e1Decls ++ e2Decls)
+        )
+
       case True  => VhdlExpr("true", Seq())
       case False => VhdlExpr("false", Seq())
       case Mux(c, t, f) =>

@@ -321,6 +321,7 @@ private[optimize] object ArithSimplifier {
       case s: WrappingSum  => simplifyWrappingSum(s)
       case d: WrappingDiff => simplifyWrappingDiff(d)
       case p: WrappingProd => simplifyWrappingProd(p)
+      case p: IntFixProd   => simplifyIntFixProd(p)
       case e if e.typ == TyBool =>
         simplifyBoolExpr(e)
       case e =>
@@ -436,6 +437,61 @@ private[optimize] object ArithSimplifier {
         WrappingProd(const +: otherFactors: _*)().tchk()
       }
     }
+  }
+
+  private def simplifyIntFixProd(prod: IntFixProd): Expr = {
+    val newProd = prod.map(simplifyWithoutLibrary).tchk()
+    newProd match {
+      case IntFixProd(_: IntCst, _: FixCst) =>
+        mhir.ir.eval(newProd)
+      case IntFixProd(x, FixCst(0)) =>
+        C(0)(x.typ)
+      case IntFixProd(x @ IntCst(0), _) =>
+        C(0)(x.typ)
+      case IntFixProd(x, c: FixCst) if isPowerOfTwo(c.numer) =>
+        val netRightShift = c.typ.shift - log2(c.numer)
+        if (netRightShift > 0) {
+          LRShift(x, netRightShift)().tchk()
+        } else if (netRightShift < 0) {
+          LLShift(x, -netRightShift)().tchk()
+        } else {
+          x
+        }
+      case e => e
+    }
+  }
+
+  /** Decides whether the given number is a power of two.
+    */
+  private def isPowerOfTwo(n: Long): Boolean = {
+    // https://stackoverflow.com/a/19383296
+    //
+    // Positive example:
+    //   n     : 00010000
+    //   n - 1 : 00001111
+    //   &     : 00000000
+    //
+    // Negative example:
+    //   n     : 00010001
+    //   n - 1 : 00010000
+    //   &     : 00010000
+    (n > 0) && ((n & (n - 1)) == 0)
+  }
+
+  /** Finds the log base 2 of the given number, <i>which must be a power of
+    * two</i>.
+    *
+    * @param n
+    *   a power of two.
+    * @return
+    *   `shift` such that `n == (1 << shift)`.
+    */
+  private def log2(n: Long): Int = {
+    @tailrec
+    def loop(n: Long, shift: Int): Int = {
+      if (n == 0) shift else loop(n >>> 1, shift + 1)
+    }
+    loop(n >>> 1, 0)
   }
 
   private def simplifyBoolExpr(e: Expr): Expr = {

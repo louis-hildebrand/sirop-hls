@@ -1,5 +1,5 @@
 ## Data Types
-- Data types: int, bool, tuple, vector
+- Data types: int, fixed-point number, bool, tuple, vector
 	- Each can be straightforwardly translated to wires in hardware
 - Seems useful to distinguish between "data types" (int, bool, tuple, vec) and others (stream, function, memory)
 	- Comparison (`===`) is only valid for data types
@@ -151,6 +151,15 @@
 			- Allow any unsigned int type, handle it during hardware generation? VecBuild will use the narrowest type possible (and error if the existing type is too narrow).
 				- ==Then VecAccess should probably truncate index (see [[Errors]])==
 					- But if I do that, then the partial evaluator would probably have a harder time fusing out-of-bounds vector accesses :( Maybe I should actually make it undefined (nondeterministic) behaviour...
+- Fixed-point numbers are represented by an unsigned numerator with an implicit right shift
+	- e.g., `fix8_7` is an 8-bit integer implicitly shifted right by 7
+		- In other words, it is a value `n / 2^7`, where `n : u8`
+		- This matches Aetherling's `FixP1_7T` type
+	- Runtime representation: just the numerator
+	- Can multiply integer by fixed-point number
+		- This just controls which bits are extracted from the product!
+			- Normal multiplication of two `u8` values: result is `u16`, extract lower 8 bits to get a `u8`
+			- Multiplication of `u8` by `fix8_7`: result is `u16`, drop lower 7 bits, and drop MSB to get a `u8`
 ## Arithmetic and Control Expressions
 - `IfThenElse` vs `Mux`
 	- In typical software languages, if-then-else is "lazily evaluated" - only the branch that's taken will be evaluated

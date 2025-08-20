@@ -272,6 +272,12 @@ package object typecheck {
           val newE2 = e2.tchk.expectUInt()
           lr.rebuild(newE1.typ, Seq(newE1, newE2))
 
+        case c: FixCst => c
+        case p @ IntFixProd(e1, e2) =>
+          val newE1 = e1.tchk.expectUInt()
+          val newE2 = e2.tchk.expectFixPoint()
+          p.rebuild(newE1.typ, Seq(newE1, newE2))
+
         case True  => True
         case False => False
         case mux @ Mux(c, t, f) =>
@@ -553,6 +559,21 @@ package object typecheck {
         case _: TyAnyInt => this.expr
         case t =>
           throw new TypeError(s"Expected an integer but found $t.")
+      }
+    }
+
+    /** Insist that this expression has the type of a fixed-point number.
+      *
+      * @return
+      *   this expression, unchanged.
+      * @throws TypeError
+      *   if this expression does not have the expected type.
+      */
+    def expectFixPoint(): Expr = {
+      this.expr.typ match {
+        case _: TyFix => this.expr
+        case t =>
+          throw new TypeError(s"Expected a fixed-point number but found $t.")
       }
     }
 

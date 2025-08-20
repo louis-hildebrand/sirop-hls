@@ -36,19 +36,21 @@ object MuxMover {
         moveUp2(Seq(e1, e2), WrappingDiff(_, _)())
       case WrappingProd(factors @ _*) =>
         moveUpMany(factors, xs => WrappingProd(xs: _*)())
-      case PadTo(e, w)      => moveUp1(e, PadTo(_, w)())
-      case TruncateTo(e, w) => moveUp1(e, TruncateTo(_, w)())
-      case ToSigned(e)      => moveUp1(e, ToSigned(_)())
-      case ToUnsigned(e)    => moveUp1(e, ToUnsigned(_)())
-      case LLShift(e1, e2)  => moveUp2(Seq(e1, e2), LLShift(_, _)())
-      case LRShift(e1, e2)  => moveUp2(Seq(e1, e2), LRShift(_, _)())
-      case True             => True
-      case False            => False
-      case Equal(e1, e2)    => moveUp2(Seq(e1, e2), Equal(_, _)())
-      case LessThan(e1, e2) => moveUp2(Seq(e1, e2), LessThan(_, _)())
-      case Not(e)           => moveUp1(e, Not(_)())
-      case And(terms @ _*)  => moveUpMany(terms, xs => And(xs: _*)())
-      case Or(terms @ _*)   => moveUpMany(terms, xs => Or(xs: _*)())
+      case PadTo(e, w)        => moveUp1(e, PadTo(_, w)())
+      case TruncateTo(e, w)   => moveUp1(e, TruncateTo(_, w)())
+      case ToSigned(e)        => moveUp1(e, ToSigned(_)())
+      case ToUnsigned(e)      => moveUp1(e, ToUnsigned(_)())
+      case LLShift(e1, e2)    => moveUp2(Seq(e1, e2), LLShift(_, _)())
+      case LRShift(e1, e2)    => moveUp2(Seq(e1, e2), LRShift(_, _)())
+      case c: FixCst          => c
+      case IntFixProd(e1, e2) => moveUp2(Seq(e1, e2), IntFixProd(_, _)())
+      case True               => True
+      case False              => False
+      case Equal(e1, e2)      => moveUp2(Seq(e1, e2), Equal(_, _)())
+      case LessThan(e1, e2)   => moveUp2(Seq(e1, e2), LessThan(_, _)())
+      case Not(e)             => moveUp1(e, Not(_)())
+      case And(terms @ _*)    => moveUpMany(terms, xs => And(xs: _*)())
+      case Or(terms @ _*)     => moveUpMany(terms, xs => Or(xs: _*)())
       case Mux(c, t, f) =>
         moveUp(c) match {
           case Mux(cc, ct, cf) =>

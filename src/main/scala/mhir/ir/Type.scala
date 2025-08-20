@@ -52,7 +52,7 @@ sealed trait Type {
       case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
       case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
-      case t @ (Missing | TyBool | _: TySInt | _: TyUInt) => t
+      case t @ (Missing | TyBool | _: TySInt | _: TyUInt | _: TyFix) => t
     }
   }
 
@@ -64,7 +64,7 @@ sealed trait Type {
     */
   def freeVars(): Set[Param] = {
     this match {
-      case Missing | TyBool | _: TyAnyInt => Set()
+      case Missing | TyBool | _: TyAnyInt | _: TyFix => Set()
       case TyArrow(t1, t2) =>
         t1.freeVars() ++ t2.freeVars()
       case TyTuple(ts @ _*) =>
@@ -84,9 +84,7 @@ sealed trait Type {
     */
   def uncurry: Type = {
     this match {
-      case Missing | TyBool => this
-      case TySInt(w)        => TySInt(w)
-      case TyUInt(w)        => TyUInt(w)
+      case Missing | TyBool | _: TyAnyInt | _: TyFix => this
       case TyArrow(tIn, tOut: TyArrow) =>
         tOut.uncurry.asInstanceOf[TyArrow] match {
           case TyArrow(t1, t2) => TyArrow(TyTuple(tIn.uncurry, t1), t2)
@@ -106,6 +104,8 @@ sealed trait Type {
       case (TyBool, TyBool)         => true
       case (TySInt(w1), TySInt(w2)) => w1 == w2
       case (TyUInt(w1), TyUInt(w2)) => w1 == w2
+      case (TyFix(t1, shift1), TyFix(t2, shift2)) =>
+        t1 == t2 && shift1 == shift2
       case (TyArrow(t1, t2), TyArrow(t3, t4)) =>
         (t1 ~= t3) && (t2 ~= t4)
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
@@ -133,6 +133,8 @@ sealed trait Type {
       case (TyBool, TyBool)         => true
       case (TyUInt(w1), TyUInt(w2)) => w1 == w2
       case (TySInt(w1), TySInt(w2)) => w1 == w2
+      case (TyFix(t1, shift1), TyFix(t2, shift2)) =>
+        t1 == t2 && shift1 == shift2
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length
         && ts1.zip(ts2).forall({ case (t1, t2) => t1 ~~= t2 }))
@@ -152,7 +154,7 @@ sealed trait Type {
     */
   def isData: Boolean = {
     this match {
-      case _: TyAnyInt | TyBool            => true
+      case _: TyAnyInt | _: TyFix | TyBool => true
       case TyTuple(ts @ _*)                => ts.forall(t => t.isData)
       case TyVec(t, _)                     => t.isData
       case Missing | _: TyArrow | _: TyStm => false
@@ -345,6 +347,25 @@ object TyUInt {
     )
     TyUInt(upperBound.bitLength)
   }
+}
+
+/** The type of a fixed-point number with numerator of type [[t]] and
+  * denominator [[2^shift]].
+  *
+  * @example
+  *   Values of type `TyFix(U8, 7)` are represented as unsigned 8-bit integers,
+  *   but implicitly divided by `2^7` (i.e., 128). The smallest nonzero number
+  *   that can be represented by this type is `1/128` and the largest number
+  *   that can be represented by this type is `255/128`.
+  *
+  * @param t
+  *   the type of the numerator.
+  * @param shift
+  *   the amount by which values of this type are implicitly shifted. In other
+  *   words, this is the number of bits to the right of the radix point.
+  */
+case class TyFix(t: TyUInt, shift: Int) extends Type {
+  override def toString: String = s"fix${t.w}_${this.shift}"
 }
 
 /** The type of a boolean.

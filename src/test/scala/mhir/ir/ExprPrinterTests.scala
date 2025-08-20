@@ -94,6 +94,37 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(actualMultiLine == expectedMultiLine)
   }
 
+  test("FixCst") {
+    val c = FixCst(8)(TyFix(U8, 7))
+    val expected = "(8/2e7):fix8_7"
+    val actual = ExprPrinter.display(c)
+    assert(actual == expected)
+  }
+
+  test("FixCst:Tiny") {
+    val c = FixCst(1)(TyFix(U32, 62))
+    val expected = "(1/2e62):fix32_62"
+    val actual = ExprPrinter.display(c)
+    assert(actual == expected)
+  }
+
+  test("IntFixProd") {
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(TyFix(U8, 7))
+    val e = IntFixProd(x, y)()
+
+    val expectedOneLine = "x *_ y"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """x
+        |  *_ y
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
   test("x.__0 + x.__1") {
     val x = Param("x", -1)(TyTuple(U8, U8))
     val e = Sum(x.__0, x.__1)()

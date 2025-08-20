@@ -57,6 +57,20 @@ class TypeTests extends AnyFunSuite {
     }
   }
 
+  test("IsCompatibleWith:Fix") {
+    val types = Seq(TyFix(U8, 7), TyFix(U8, 9), TyFix(U16, 7))
+    for (t <- types) {
+      assert(t ~= t)
+    }
+    for (i <- types.indices) {
+      for (j <- types.indices) {
+        if (i != j) {
+          assert(!(types(i) ~= types(j)))
+        }
+      }
+    }
+  }
+
   test("IsCompatibleWith:Vec") {
     assert(TyVec(I16, n) ~= TyVec(I16, n))
     assert(TyVec(U8, m) ~= TyVec(U8, m))

@@ -554,6 +554,47 @@ case class LRShift(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 }
 
+/** A fixed-point number constant.
+  *
+  * @param numer
+  *   the numerator of the fixed-point number. The denominator is determined by
+  *   [[typ]].
+  */
+case class FixCst(numer: Long)(override val typ: TyFix) extends Expr()(typ) {
+  if (!this.typ.t.contains(numer)) {
+    throw OverflowException(numer, this.typ.t)
+  }
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    if (typ != Missing && typ != this.typ) {
+      throw new IllegalArgumentException(
+        s"Wrong type passed to rebuild: expected ${this.typ}, got $typ"
+      )
+    }
+    newChildren match {
+      case Seq() => this
+      case _     => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** The product of an integer and a fixed-point number.
+  *
+  * @param e1
+  *   the integer factor.
+  * @param e2
+  *   the fixed-point factor.
+  */
+case class IntFixProd(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends Expr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => IntFixProd(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** An expression which must have type [[TyBool]] if it is well-typed.
   *
   * Note that the type may temporarily be [[Missing]] rather than [[TyBool]] if

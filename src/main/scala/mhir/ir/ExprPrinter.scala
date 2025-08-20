@@ -49,7 +49,7 @@ object ExprPrinter {
   ): String = {
     val myPrecedence = Precedence(e)
     val str = e match {
-      case _: Param | _: BoolCst | _: IntCst =>
+      case _: Param | _: BoolCst | _: IntCst | _: FixCst =>
         displayOneLine(e, parentPrecedence)
 
       case Tuple(elems @ _*) =>
@@ -202,6 +202,13 @@ object ExprPrinter {
         displayMultiLineInfixOp(
           factors,
           op = "*%",
+          maxWidth = maxWidth,
+          precedence = myPrecedence
+        )
+      case IntFixProd(e1, e2) =>
+        displayMultiLineInfixOp(
+          Seq(e1, e2),
+          op = "*_",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -484,6 +491,8 @@ object ExprPrinter {
         displayFunCallOneLine(displayOneLine(f, myPrecedence + 1), Seq(arg))
       case c: IntCst =>
         s"${c.i}:${c.typ}"
+      case c: FixCst =>
+        s"(${c.numer}/2e${c.typ.shift}):${c.typ}"
       case Sum(terms @ _*) =>
         displayOneLineInfixOp(
           terms,
@@ -520,6 +529,13 @@ object ExprPrinter {
         displayOneLineInfixOp(
           factors,
           "*%",
+          myPrecedence,
+          canElideFirstParens = false
+        )
+      case IntFixProd(e1, e2) =>
+        displayOneLineInfixOp(
+          Seq(e1, e2),
+          "*_",
           myPrecedence,
           canElideFirstParens = false
         )
@@ -744,6 +760,9 @@ object ExprPrinter {
         s"LLShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
       case lr @ LRShift(e1, e2) =>
         s"LRShift(${showScala(e1)},${showScala(e2)})(${showScala(lr.typ)})"
+      case c @ FixCst(numer) => s"FixCst($numer)(${showScala(c.typ)})"
+      case p @ IntFixProd(e1, e2) =>
+        s"IntFixProd(${showScala(e1)},${showScala(e2)})(${showScala(p.typ)})"
       case True  => "True"
       case False => "False"
       case eq @ Equal(x, y) =>

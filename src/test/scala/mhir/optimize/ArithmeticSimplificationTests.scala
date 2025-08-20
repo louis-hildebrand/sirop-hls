@@ -212,6 +212,124 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(simplified == original)
   }
 
+  test("IntFixProd:BothConstant") {
+    val oneOver16 = FixCst(8)(TyFix(U8, 7))
+    assert(
+      PE.partialEval(IntFixProd(C(15)(U8), oneOver16)())
+        == C(0)(U8)
+    )
+    assert(
+      PE.partialEval(IntFixProd(C(16)(U8), oneOver16)())
+        == C(1)(U8)
+    )
+    assert(
+      PE.partialEval(IntFixProd(C(17)(U8), oneOver16)())
+        == C(1)(U8)
+    )
+    assert(
+      PE.partialEval(IntFixProd(C(65)(U8), oneOver16)())
+        == C(4)(U8)
+    )
+
+    val fiveOver128 = FixCst(5)(TyFix(U8, 7))
+    assert(
+      PE.partialEval(IntFixProd(C(128)(U8), fiveOver128)())
+        == C(5)(U8)
+    )
+    assert(
+      PE.partialEval(IntFixProd(C(64)(U8), fiveOver128)())
+        == C(2)(U8)
+    )
+    assert(
+      PE.partialEval(IntFixProd(C(50)(U8), fiveOver128)())
+        == C(1)(U8)
+    )
+
+    assert(
+      PE.partialEval(IntFixProd(C(255)(U8), FixCst(255)(TyFix(U8, 7)))())
+        == C(252)()
+    )
+  }
+
+  /** Just shift right instead of multiplying.
+    */
+  test("IntFixProd:x *_ 1/4") {
+    val x = Param("x")(U32)
+    val y = FixCst(32)(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    val expected = x >> C(2)(U8)
+    assert(simplified == expected)
+  }
+
+  /** Just shift right instead of multiplying.
+    */
+  test("IntFixProd:x *_ 1/16") {
+    val x = Param("x")(U8)
+    val y = FixCst(8)(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    val expected = x >> C(4)(U8)
+    assert(simplified == expected)
+  }
+
+  /** Just shift right instead of multiplying.
+    */
+  test("IntFixProd:x *_ 2^n") {
+    val xVal = C(42)(U8)
+    for (n <- 1 to 24) {
+      val x = Param("x")(U8)
+      val y = FixCst(1L << (n + 7))(TyFix(U32, 7))
+      val original = IntFixProd(x, y)().tchk()
+      val simplified = PE.partialEval(original)
+
+      // Correctness
+      val actualVal = mhir.ir.eval(simplified.subPreserveType(x -> xVal))
+      val expectedVal = mhir.ir.eval(original.subPreserveType(x -> xVal))
+      assert(actualVal == expectedVal)
+
+      // Effective simplification
+      val expected = x << C(n)(U8)
+      assert(simplified == expected)
+    }
+  }
+
+  /** I don't think you can turn this one into a simple shift.
+    */
+  test("IntFixProd:x *_ 5/128") {
+    val x = Param("x")(U8)
+    val y = FixCst(5)(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    assert(simplified == original)
+  }
+
+  test("IntFixProd:x *_ 0") {
+    val x = Param("x")(U8)
+    val y = FixCst(0)(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    assert(simplified == C(0)(U8))
+    assert(simplified.typ == U8)
+  }
+
+  test("IntFixProd:0 *_ y") {
+    val x = C(0)(U8)
+    val y = Param("y")(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    assert(simplified == C(0)(U8))
+    assert(simplified.typ == U8)
+  }
+
+  test("IntFixProd:x *_ 1") {
+    val x = Param("x")(U8)
+    val y = FixCst(128)(TyFix(U8, 7))
+    val original = IntFixProd(x, y)().tchk()
+    val simplified = PE.partialEval(original)
+    assert(simplified == x)
+  }
+
   test("LLShift") {
     val e = Param("x")(U8)
 

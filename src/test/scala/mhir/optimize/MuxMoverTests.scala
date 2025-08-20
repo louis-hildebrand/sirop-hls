@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import mhir.ir._
+import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 
 class MuxMoverTests extends AnyFunSuite {
@@ -13,6 +14,10 @@ class MuxMoverTests extends AnyFunSuite {
   private val b1 = Param("b1")(TyBool)
   private val b2 = Param("b2")(TyBool)
   private val b3 = Param("b3")(TyBool)
+
+  private val X = new ParamStore("x")
+  private val Y = new ParamStore("y")
+  private val Z = new ParamStore("z")
 
   test("MoveUp:x / y") {
     val e = Div(x, y)()
@@ -85,6 +90,29 @@ class MuxMoverTests extends AnyFunSuite {
     val actual = MuxMover.moveUp(e)
     val expected =
       Mux(c1, WrappingProd(x, z, C(3)(U8))(), WrappingProd(y, z, C(3)(U8))())()
+    assert(actual == expected)
+  }
+
+  test("MoveUp:mux(c, x, y) *_ z") {
+    val z = FixCst(8)(TyFix(U8, 7))
+    val e = IntFixProd(Mux(c1, X(U8), Y(U8))(), z)()
+    val actual = MuxMover.moveUp(e)
+    val expected = Mux(
+      c1,
+      IntFixProd(X(U8), z)(),
+      IntFixProd(Y(U8), z)()
+    )()
+    assert(actual == expected)
+  }
+
+  test("MoveUp:x *_ mux(c, y, z)") {
+    val e = IntFixProd(X(U8), Mux(c1, Y(TyFix(U8, 7)), Z(TyFix(U8, 7)))())()
+    val actual = MuxMover.moveUp(e)
+    val expected = Mux(
+      c1,
+      IntFixProd(X(U8), Y(TyFix(U8, 7)))(),
+      IntFixProd(X(U8), Z(TyFix(U8, 7)))()
+    )()
     assert(actual == expected)
   }
 

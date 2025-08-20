@@ -129,6 +129,26 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("IntFixProd") {
+    val n = 256
+    val i = Param("i")(U8)
+    val s = StmBuild(
+      n,
+      Tuple(
+        i,
+        IntFixProd(i, FixCst(8)(TyFix(U8, 7)))(), // 8/128 = 1/16
+        IntFixProd(i, FixCst(32)(TyFix(U8, 7)))(), // 32/128 = 1/4
+        IntFixProd(i, FixCst(5)(TyFix(U8, 7)))(), // 5/128
+        IntFixProd(i, FixCst(64)(TyFix(U8, 10)))() // 64/1024 = 1/16
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (C(0)(U8), Sum(C(1)(U8), i)())
+      )
+    )().tchk().lower()
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("StmRange(10, -2, 3)") {
     val s =
       StmRange(10, C(-2)(I8), C(3)(I8))().tchk().lower().asInstanceOf[StmBuild]
