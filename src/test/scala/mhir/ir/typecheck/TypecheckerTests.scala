@@ -227,6 +227,30 @@ class TypecheckerTests extends AnyFunSuite {
     assert(TruncateTo(yI8, 0)().tchk().typ == U0)
   }
 
+  test("FixCst") {
+    assert(FixCst(8)(TyFix(U8, 7)).tchk().typ == TyFix(U8, 7))
+    assert(FixCst(1)(TyFix(U8, 7)).tchk().typ == TyFix(U8, 7))
+    assert(FixCst(1)(TyFix(U16, 10)).tchk().typ == TyFix(U16, 10))
+  }
+
+  test("IntFixProd") {
+    assert(IntFixProd(X(U8), Y(TyFix(U8, 7)))().tchk().typ == U8)
+    assert(IntFixProd(X(U16), Y(TyFix(U8, 7)))().tchk().typ == U16)
+    assert(IntFixProd(X(U32), Y(TyFix(U8, 7)))().tchk().typ == U32)
+  }
+
+  test("bool *_ fix") {
+    assertThrows[TypeError](IntFixProd(X(TyBool), Y(TyFix(U8, 7)))().tchk())
+  }
+
+  test("u8 *_ u8") {
+    assertThrows[TypeError](IntFixProd(X(U8), Y(U8))().tchk())
+  }
+
+  test("fix *_ u8") {
+    assertThrows[TypeError](IntFixProd(X(TyFix(U8, 7)), Y(U8))().tchk())
+  }
+
   test("uint << uint") {
     assert((X(U8) << Y(U8)).tchk().typ == U8)
     assert((X(U8) << Y(U16)).tchk().typ == U8)

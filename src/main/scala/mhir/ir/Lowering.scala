@@ -172,9 +172,7 @@ object Lowering {
   implicit class TypeLowering(typ: Type) {
     def lower: Type = {
       typ match {
-        case Missing | TyBool => typ
-        case TySInt(w)        => TySInt(w)
-        case TyUInt(w)        => TyUInt(w)
+        case Missing | TyBool | _: TyAnyInt | _: TyFix => typ
         case TyArrow(t1, t2)  => TyArrow(t1.lower, t2.lower)
         case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.lower): _*)
         case TyVec(t, n) =>
