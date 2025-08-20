@@ -85,21 +85,18 @@
   ) in
   sbuild(
     16:u5;
-    ((if (
-      15:i9 < -1:i9 * sgn(data(I0)) + sgn(data(I1))
-        || 15:i9 < -1:i9 * sgn(data(I1)) + sgn(data(I0))
-    ) then {
-      usgn(-1:i9 * sgn(data(I0)) + sgn(data(I1)))
+    ((if (15:u8 < data(I0) -% data(I1) || 15:u8 < data(I1) -% data(I0)) then {
+      data(I1) -% data(I0)
     } else {
       0:u8
     })
       >> 2:u8)
-      + data(I1);
+      +% data(I1);
     true;
     (I0 : Stm[u8, -1:i1]) = (
       sbuild(
         16:u5;
-        (acc_20027185 + acc_20027191) + (data(I0) << v[i]) >> 4:u8;
+        (acc_20027185 +% acc_20027191) +% (data(I0) << v[i]) >> 4:u8;
         t_20027187 == 2:u2 && t_20027189 == 2:u2;
         (I0 : Stm[u8, -1:i1]) = (
           sbuild(
@@ -606,7 +603,7 @@
             } else if (first_step_20027184) then {
               data(I0) << v[i]
             } else {
-              (data(I0) << v[i]) + acc_20027185
+              (data(I0) << v[i]) +% acc_20027185
             }
           } else if (
             (
@@ -622,7 +619,7 @@
           } else if (first_step_20027184) then {
             data(I0) << v[i]
           } else {
-            (data(I0) << v[i]) + acc_20027185
+            (data(I0) << v[i]) +% acc_20027185
           }
         );
         (acc_20027191 : u8) = (
@@ -641,9 +638,9 @@
             0:u8
           } else if (t_20027189 == 2:u2) then {
             if (first_step_20027183) then {
-              (data(I0) << v[i]) + acc_20027185
+              (data(I0) << v[i]) +% acc_20027185
             } else {
-              (acc_20027185 + acc_20027191) + (data(I0) << v[i])
+              (acc_20027185 +% acc_20027191) +% (data(I0) << v[i])
             }
           } else {
             acc_20027191

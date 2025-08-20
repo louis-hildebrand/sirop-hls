@@ -86,7 +86,7 @@
   let stm n142: Stm[u8, 16:u5] = (
     sbuild(
       16:u5;
-      (acc_251312 + acc_251317) + (data(I0) << v[i]) >> 4:u8;
+      (acc_251312 +% acc_251317) +% (data(I0) << v[i]) >> 4:u8;
       t_251313 == 2:u2 && t_251320 == 2:u2;
       (I0 : Stm[u8, -1:i1]) = (
         sbuild(
@@ -582,7 +582,7 @@
         } else if (first_step_251316) then {
           data(I0) << v[i]
         } else {
-          (data(I0) << v[i]) + acc_251312
+          (data(I0) << v[i]) +% acc_251312
         }
       );
       (acc_251317 : u8) = (
@@ -601,9 +601,9 @@
           0:u8
         } else if (t_251313 == 2:u2) then {
           if (first_step_251321) then {
-            (data(I0) << v[i]) + acc_251312
+            (data(I0) << v[i]) +% acc_251312
           } else {
-            (acc_251312 + acc_251317) + (data(I0) << v[i])
+            (acc_251312 +% acc_251317) +% (data(I0) << v[i])
           }
         } else {
           acc_251317
@@ -848,7 +848,7 @@
   ) in
   sbuild(
     16:u5;
-    (acc_251877 + acc_251883) + (data(I0) << v[i]) >> 3:u8;
+    (acc_251877 +% acc_251883) +% (data(I0) << v[i]) >> 3:u8;
     t_251878 == 1:u2 && t_251885 == 1:u2;
     (I0 : Stm[u8, -1:i1]) = (
       sbuild(
@@ -1176,7 +1176,7 @@
       } else if (first_step_251887) then {
         data(I0) << v[i]
       } else {
-        (data(I0) << v[i]) + acc_251877
+        (data(I0) << v[i]) +% acc_251877
       }
     );
     (acc_251883 : u8) = (
@@ -1195,9 +1195,9 @@
         0:u8
       } else if (t_251878 == 1:u2) then {
         if (first_step_251888) then {
-          (data(I0) << v[i]) + acc_251877
+          (data(I0) << v[i]) +% acc_251877
         } else {
-          (acc_251877 + acc_251883) + (data(I0) << v[i])
+          (acc_251877 +% acc_251883) +% (data(I0) << v[i])
         }
       } else {
         acc_251883

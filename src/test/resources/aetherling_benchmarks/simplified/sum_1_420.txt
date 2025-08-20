@@ -6,11 +6,11 @@
     (x : Stm[Vec[u32, 1:u1], -1:i1]) = (
       sbuild(
         1:u1;
-        vbuild(1:u1, (i : u8) => acc + data(s)[0:u0]);
+        vbuild(1:u1, (i : u8) => acc +% data(s)[0:u0]);
         t == 419:u9;
         (acc : u32) = (
           0:u32,
-          if (first_step) then { data(s)[0:u0] } else { acc + data(s)[0:u0] }
+          if (first_step) then { data(s)[0:u0] } else { acc +% data(s)[0:u0] }
         );
         (first_step : bool) = (
           true,
@@ -19,7 +19,7 @@
         (s : Stm[Vec[u32, 1:u1], 420:u9]) = (
           sbuild(
             420:u9;
-            vbuild(1:u1, (i : u8) => data(I)[0:u0] + data(I)[1:u1]);
+            vbuild(1:u1, (i : u8) => data(I)[0:u0] +% data(I)[1:u1]);
             true;
             (I : Stm[Vec[u32, 2:u2], -1:i1]) = (
               I,

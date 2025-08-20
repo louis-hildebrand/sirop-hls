@@ -85,7 +85,7 @@
   ) in
   sbuild(
     16:u5;
-    (acc_60843 + acc_60849) + (data(I0) << v[i]) >> 4:u8;
+    (acc_60843 +% acc_60849) +% (data(I0) << v[i]) >> 4:u8;
     t_60840 == 2:u2 && t_60844 == 2:u2;
     (I0 : Stm[u8, -1:i1]) = (
       sbuild(
@@ -567,9 +567,9 @@
         0:u8
       } else if (t_60844 == 2:u2) then {
         if (first_step_60846) then {
-          (data(I0) << v[i]) + acc_60849
+          (data(I0) << v[i]) +% acc_60849
         } else {
-          (acc_60843 + acc_60849) + (data(I0) << v[i])
+          (acc_60843 +% acc_60849) +% (data(I0) << v[i])
         }
       } else {
         acc_60843
@@ -595,7 +595,7 @@
         } else if (first_step_60838) then {
           data(I0) << v[i]
         } else {
-          (data(I0) << v[i]) + acc_60849
+          (data(I0) << v[i]) +% acc_60849
         }
       } else if (
         t_60844 != 2:u2 && in_ctr_60845 == 2:u32 && out_ctr_60839 == 1:u32
@@ -608,7 +608,7 @@
       } else if (first_step_60838) then {
         data(I0) << v[i]
       } else {
-        (data(I0) << v[i]) + acc_60849
+        (data(I0) << v[i]) +% acc_60849
       }
     );
     (first_step_60838 : bool) = (

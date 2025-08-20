@@ -17,7 +17,7 @@
   ) in
   sbuild(
     16:u5;
-    data(I0) * v[i] + acc;
+    data(I0) *% v[i] +% acc;
     t == 2:u2;
     (I0 : Stm[i8, -1:i1]) = (
       sbuild(
@@ -127,9 +127,9 @@
       ) then {
         0:i8
       } else if (first_step) then {
-        data(I0) * v[i]
+        data(I0) *% v[i]
       } else {
-        data(I0) * v[i] + acc
+        data(I0) *% v[i] +% acc
       }
     );
     (first_step : bool) = (
