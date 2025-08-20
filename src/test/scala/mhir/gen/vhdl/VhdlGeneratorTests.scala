@@ -136,9 +136,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
       n,
       Tuple(
         i,
-        IntFixProd(i, FixCst(8)(TyFix(U8, 7)))(),
-        IntFixProd(i, FixCst(32)(TyFix(U8, 7)))(),
-        IntFixProd(i, FixCst(5)(TyFix(U8, 7)))()
+        IntFixProd(i, FixCst(8)(TyFix(U8, 7)))(), // 8/128 = 1/16
+        IntFixProd(i, FixCst(32)(TyFix(U8, 7)))(), // 32/128 = 1/4
+        IntFixProd(i, FixCst(5)(TyFix(U8, 7)))(), // 5/128
+        IntFixProd(i, FixCst(64)(TyFix(U8, 10)))() // 64/1024 = 1/16
       )(),
       True,
       Map[Param, (Expr, Expr)](

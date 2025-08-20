@@ -86,7 +86,9 @@ private object VhdlExprGenerator {
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
         val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
         val w1 = e1.typ.asInstanceOf[TyAnyInt].w
-        val w2 = e2.typ.asInstanceOf[TyFix].t.w
+        val w2 = e2.typ.asInstanceOf[TyFix] match {
+          case TyFix(TyUInt(w2), shift) => math.max(w2, shift)
+        }
         val lsb = e2.typ.asInstanceOf[TyFix].shift
         val msb = lsb + w1 - 1
         val tempVar = {
@@ -98,7 +100,7 @@ private object VhdlExprGenerator {
                 category = "Intermediate signals",
                 name = name,
                 typ = VhdlType(typ),
-                assignStmt = Some(s"$name <= ($e1Vhdl) * ($e2Vhdl);")
+                assignStmt = Some(s"$name <= ($e1Vhdl) * pad($e2Vhdl, $w2);")
               )
             case InFunctionMode =>
               VhdlVariable(
