@@ -55,7 +55,7 @@ object VhdlTestRunner {
 
   def testExpr(
       e: Expr,
-      inputs: Seq[TestInput] = Seq()
+      inputs: Seq[DirectTestInput] = Seq()
   ): TestResult = {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)

@@ -22,7 +22,7 @@ object VhdlTestbenchGenerator {
     */
   def makeTestbench(
       // TODO: Make it possible to test multiple values for one input?
-      inputs: Seq[TestInput],
+      inputs: Seq[DirectTestInput],
       e: Expr,
       dir: Path,
       testNotReady: Boolean = true
@@ -32,8 +32,8 @@ object VhdlTestbenchGenerator {
   }
 
   def makeTestbench(
-      inputs: Seq[TestInput],
-      out: TestOutput,
+      inputs: Seq[DirectTestInput],
+      out: DirectTestOutput,
       dir: Path,
       testNotReady: Boolean
   ): Unit = {
@@ -62,75 +62,21 @@ object VhdlTestbenchGenerator {
     *   design, not the `test` subdirectory).
     */
   private def makeTestbench(
-      inputsByVar: Map[Param, TestInput],
-      out: TestOutput,
+      inputsByVar: Map[Param, DirectTestInput],
+      out: DirectTestOutput,
       dir: Path,
       testNotReady: Boolean
   ): Unit = {
-    val outElemType = VhdlType(out.elems.head.tchk().typ)
-    val inputProcesses = inputsByVar
-      .map({ case (x, inputs) =>
-        val steps = inputs.elems
-          .map({
-            case None =>
-              s"""${x.name}_valid <= '0';
-                 |${x.name}_data <= (others => '0');
-                 |wait until rising_edge(clk);
-                 |""".stripMargin.stripTrailing
-            case Some(v) =>
-              val slv = VhdlGenerator.valueToStdLogicVector(v)
-              s"""${x.name}_valid <= '1';
-                 |${x.name}_data <= $slv;
-                 |wait until rising_edge(clk) and sl2bool(${x.name}_ready);
-                 |""".stripMargin.stripTrailing
-          })
-          .mkString("\n\n")
-        s"""-- Generate inputs (${x.name})
-           |process
-           |begin
-           |${indent(steps)}
-           |
-           |    ${x.name}_valid <= '0';
-           |    ${x.name}_data <= (others => '0');
-           |    wait;
-           |end process;
-           |""".stripMargin.stripTrailing
-      })
+    val outElemType = VhdlType(out.elemTyp)
+    val portMap = getPortMap(inputsByVar.keys.toSeq)
+    val inputStreamSignals = inputsByVar
+      .map({ case (x, _) => getInputStreamDecls(x) })
       .mkString("\n\n")
-    val testSteps = out.elems.zipWithIndex
-      .map({ case (v, i) =>
-        ("wait until rising_edge(clk) and valid = '1';\n"
-          + makeAssertions(v.tchk(), t = i))
-      })
+    val inputStreamProcesses = inputsByVar
+      .map({ case (x, in) => getInputStreamProcess(x, in) })
       .mkString("\n\n")
-    val assignments = (
-      Seq("clk", "data", "valid", "ready")
-        ++ inputsByVar.keys.flatMap(x =>
-          Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
-        )
-    ).map(x => s"$x => $x").mkString(", ")
-    val inputStmSignals = inputsByVar.keys
-      .flatMap(x => {
-        val elemType = x.typ.asInstanceOf[TyStm].t
-        val vhdlType = VhdlStdLogicVec(VhdlType(elemType).bitWidth)
-        Seq(
-          s"signal ${x.name}_data  : ${vhdlType.vhdlName};",
-          s"signal ${x.name}_valid : std_logic;",
-          s"signal ${x.name}_ready : std_logic := '0';"
-        )
-      })
-      .mkString("\n")
-    val notReadyTests = if (testNotReady) {
-      """-- If the consumer is not ready, the producer must keep working until
-        |-- it has a valid value and then it must wait
-        |ready <= '0';
-        |wait until rising_edge(clk) and valid = '1';
-        |wait until rising_edge(clk);
-        |assert(valid = '1') report "Design dropped its valid signal.";
-        |""".stripMargin.stripTrailing
-    } else {
-      ""
-    }
+    val outStreamSignals = getOutputStreamSignals
+    val outCheckProcess = getOutputCheckProcess(out, testNotReady)
     val t0 = if (testNotReady) {
       "-2; -- to account for the two cycles where valid = '1' but ready = '0'"
     } else {
@@ -141,6 +87,7 @@ object VhdlTestbenchGenerator {
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
+         |use std.textio.all;
          |use work.typedefs.all;
          |use work.conversions.all;
          |
@@ -161,12 +108,15 @@ object VhdlTestbenchGenerator {
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
          |
-         |    -- Input streams
-         |${indent(inputStmSignals)}
+         |${indent(inputStreamSignals)}
+         |
+         |${indent(outStreamSignals)}
          |
          |begin
          |
-         |    DUT: entity work.top port map($assignments);
+         |${indent(portMap)}
+         |
+         |    data_t <= $data;
          |
          |    -- Generate clock signal
          |    process
@@ -186,29 +136,9 @@ object VhdlTestbenchGenerator {
          |        t <= t + 1;
          |    end process;
          |
-         |${indent(inputProcesses)}
+         |${indent(inputStreamProcesses)}
          |
-         |    data_t <= $data;
-         |
-         |    -- Check outputs
-         |    process
-         |    begin
-         |${indent(notReadyTests, 2)}
-         |
-         |        ready <= '1';
-         |
-         |${indent(testSteps, 2)}
-         |
-         |        wait until falling_edge(clk);
-         |        report "LATENCY: " & integer'image(t) & " cycles" severity note;
-         |
-         |        wait until rising_edge(clk);
-         |        assert(valid = '0') report "Wrong `valid` after completion";
-         |
-         |        test_done <= true;
-         |        assert false report "Test done." severity note;
-         |        wait;
-         |    end process;
+         |${indent(outCheckProcess)}
          |end tb;
          |""".stripMargin
 
@@ -217,6 +147,101 @@ object VhdlTestbenchGenerator {
     val testbenchFile = testDir / "test_top.vhd"
     if (os.isFile(testbenchFile)) os.remove(testbenchFile)
     os.write(testbenchFile, str)
+  }
+
+  private def getPortMap(inputVars: Seq[Param]): String = {
+    val assignments = (
+      Seq("clk", "data", "valid", "ready")
+        ++ inputVars.flatMap(x =>
+          Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
+        )
+    ).map(x => s"$x => $x").mkString(", ")
+    s"DUT : entity work.top port map($assignments);"
+  }
+
+  private def getInputStreamDecls(x: Param): String = {
+    val elemType = x.typ.asInstanceOf[TyStm].t
+    val vhdlType = VhdlStdLogicVec(VhdlType(elemType).bitWidth)
+    s"""-- Input stream: ${x.name}
+       |signal ${x.name}_data  : ${vhdlType.vhdlName};
+       |signal ${x.name}_valid : std_logic;
+       |signal ${x.name}_ready : std_logic := '0';
+       |""".stripMargin.stripTrailing
+  }
+
+  private def getInputStreamProcess(x: Param, in: DirectTestInput): String = {
+    val steps = in.elems
+      .map({
+        case None =>
+          s"""${x.name}_valid <= '0';
+             |${x.name}_data <= (others => '0');
+             |wait until rising_edge(clk);
+             |""".stripMargin.stripTrailing
+        case Some(v) =>
+          val slv = VhdlGenerator.valueToStdLogicVector(v)
+          s"""${x.name}_valid <= '1';
+             |${x.name}_data <= $slv;
+             |wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+             |""".stripMargin.stripTrailing
+      })
+      .mkString("\n\n")
+    s"""-- Generate inputs (${x.name})
+       |process
+       |begin
+       |${indent(steps)}
+       |
+       |    ${x.name}_valid <= '0';
+       |    ${x.name}_data <= (others => '0');
+       |    wait;
+       |end process;
+       |""".stripMargin.stripTrailing
+  }
+
+  private def getOutputStreamSignals: String = {
+    "-- Expected outputs: hardcoded"
+  }
+
+  private def getOutputCheckProcess(
+      out: DirectTestOutput,
+      testNotReady: Boolean
+  ): String = {
+    val notReadyTests = if (testNotReady) {
+      """-- If the consumer is not ready, the producer must keep working until
+        |-- it has a valid value and then it must wait
+        |ready <= '0';
+        |wait until rising_edge(clk) and valid = '1';
+        |wait until rising_edge(clk);
+        |assert(valid = '1') report "Design dropped its valid signal.";
+        |""".stripMargin.stripTrailing
+    } else {
+      ""
+    }
+    val testSteps = out.elems.zipWithIndex
+      .map({ case (v, i) =>
+        ("wait until rising_edge(clk) and valid = '1';\n"
+          + makeAssertions(v.tchk(), t = i))
+      })
+      .mkString("\n\n")
+    s"""-- Check outputs
+       |process
+       |begin
+       |${indent(notReadyTests)}
+       |
+       |    ready <= '1';
+       |
+       |${indent(testSteps)}
+       |
+       |    wait until falling_edge(clk);
+       |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
+       |
+       |    wait until rising_edge(clk);
+       |    assert(valid = '0') report "Wrong `valid` after completion";
+       |
+       |    test_done <= true;
+       |    assert false report "Test done." severity note;
+       |    wait;
+       |end process;
+       |""".stripMargin.stripTrailing
   }
 
   private def makeAssertions(expected: Expr, t: Int): String = {
@@ -263,8 +288,8 @@ object VhdlTestbenchGenerator {
     */
   private def getExpectedOutput(
       e: Expr,
-      inputs: Seq[TestInput]
-  ): (TestOutput, Map[Param, TestInput]) = {
+      inputs: Seq[DirectTestInput]
+  ): (DirectTestOutput, Map[Param, DirectTestInput]) = {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case f: Function => VhdlGenerator.unwrapTopLevelFunction(f, rename = true)
@@ -286,7 +311,7 @@ object VhdlTestbenchGenerator {
       })
     val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
-    val outputs = TestOutput(evaluated.elems)
+    val outputs = DirectTestOutput(evaluated.elems)
     (outputs, inputByParam)
   }
 }

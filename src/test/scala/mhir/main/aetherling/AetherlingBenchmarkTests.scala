@@ -7,7 +7,7 @@ import mhir.gen.verilog.{
   VerilogTestbenchGenerator
 }
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
-import mhir.gen.{TestInput, TestOutput, TestPassed, Undefined}
+import mhir.gen.{DirectTestInput, DirectTestOutput, TestPassed, Undefined}
 import mhir.ir._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -180,7 +180,7 @@ object AetherlingBenchmarkTests {
     outputs
   }
 
-  private val mapIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val mapIO: Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     val flatInputs = (0 until 200).map(i => C(i)(U8))
     val flatOutputs = (0 until 200).map(i => C(i + 5)(U8))
     Seq(1, 2, 4, 5, 8, 10, 20, 40, 200)
@@ -188,18 +188,18 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(flatInputs.map(e => Some(e))),
-              TestOutput(flatOutputs)
+              DirectTestInput(flatInputs.map(e => Some(e))),
+              DirectTestOutput(flatOutputs)
             )
           case _ =>
             (
-              TestInput(
+              DirectTestInput(
                 flatInputs
                   .grouped(par)
                   .map(xs => Some(VecLiteral(xs: _*)()))
                   .toSeq
               ),
-              TestOutput(
+              DirectTestOutput(
                 flatOutputs
                   .grouped(par)
                   .map(xs => VecLiteral(xs: _*)())
@@ -215,23 +215,23 @@ object AetherlingBenchmarkTests {
       .toMap
   }
 
-  private val sumIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val sumIO: Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     val flatInputs = (0 until 840).map(i => C(i)(U32))
     val sum = C((0 until 840).sum)(U32)
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
       .map(par => {
         val inputs = par match {
           case 1 =>
-            TestInput(flatInputs.map(e => Some(e)))
+            DirectTestInput(flatInputs.map(e => Some(e)))
           case _ =>
-            TestInput(
+            DirectTestInput(
               flatInputs
                 .grouped(par)
                 .map(xs => Some(VecLiteral(xs: _*)()))
                 .toSeq
             )
         }
-        s"sum_1_${840 / par}" -> (Seq(inputs), TestOutput(Seq(sum)))
+        s"sum_1_${840 / par}" -> (Seq(inputs), DirectTestOutput(Seq(sum)))
       })
       .flatMap({ case (name, io) =>
         Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
@@ -239,7 +239,7 @@ object AetherlingBenchmarkTests {
       .toMap
   }
 
-  private val dotIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val dotIO: Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     val flatInputs1 = (0 until 840).map(_ % 16)
     val flatInputs2 = (839 to 0 by -1).map(_ % 16)
     val result =
@@ -249,18 +249,18 @@ object AetherlingBenchmarkTests {
         val (inputs1, inputs2) = par match {
           case 1 =>
             (
-              TestInput(flatInputs1.map(e => Some(C(e)(U16)))),
-              TestInput(flatInputs2.map(e => Some(C(e)(U16))))
+              DirectTestInput(flatInputs1.map(e => Some(C(e)(U16)))),
+              DirectTestInput(flatInputs2.map(e => Some(C(e)(U16))))
             )
           case _ =>
             (
-              TestInput(
+              DirectTestInput(
                 flatInputs1
                   .grouped(par)
                   .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
                   .toSeq
               ),
-              TestInput(
+              DirectTestInput(
                 flatInputs2
                   .grouped(par)
                   .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
@@ -270,7 +270,7 @@ object AetherlingBenchmarkTests {
         }
         s"dot_1_${840 / par}" -> (
           Seq(inputs1, inputs2),
-          TestOutput(Seq(C(result)(U16)))
+          DirectTestOutput(Seq(C(result)(U16)))
         )
       })
       .flatMap({ case (name, io) =>
@@ -279,7 +279,8 @@ object AetherlingBenchmarkTests {
       .toMap
   }
 
-  private val conv1dIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val conv1dIO
+      : Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     // Square wave with 50% duty cycle and period 8
     val flatInputs = (0 until 16).map(t => if (t % 8 < 4) -42 else 42)
     val flatOutputs =
@@ -290,23 +291,23 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(
+              DirectTestInput(
                 flatInputs.map(C(_)(I8)).map(VecLiteral(_)()).map(Some(_))
               ),
-              TestOutput(flatOutputs.map(VecLiteral(_)()))
+              DirectTestOutput(flatOutputs.map(VecLiteral(_)()))
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
             (
-              TestInput(
+              DirectTestInput(
                 flatInputs
                   .grouped(n)
                   .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
                   .map(Some(_))
                   .toSeq
               ),
-              TestOutput(
+              DirectTestOutput(
                 flatOutputs
                   .grouped(n)
                   .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
@@ -323,29 +324,30 @@ object AetherlingBenchmarkTests {
     val vhdlUnderutilizedCase =
       "conv1d_1_3:vhdl" -> (
         Seq(
-          TestInput(
+          DirectTestInput(
             flatInputs.flatMap(x => Seq(Some(C(x)(I8)), None, None))
           )
         ),
-        TestOutput(flatOutputs)
+        DirectTestOutput(flatOutputs)
       )
     val verilogUnderutilizedCase =
       "conv1d_1_3:verilog" -> (
         Seq(
-          TestInput(
+          DirectTestInput(
             flatInputs.flatMap(x =>
               Seq(Some(C(x)(I8)), Some(C(x)(I8)), Some(C(x)(I8)))
             )
           )
         ),
-        TestOutput(
+        DirectTestOutput(
           flatOutputs.flatMap(x => Seq(x, Undefined(I8), Undefined(I8)))
         )
       )
     (normalCases + vhdlUnderutilizedCase) + verilogUnderutilizedCase
   }
 
-  private val smallConv2dIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallConv2dIO
+      : Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
       (0 until 4).map(i =>
@@ -369,21 +371,23 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+              DirectTestInput(
+                basicInputExprs.map(VecLiteral(_)()).map(Some(_))
+              ),
+              DirectTestOutput(basicOutputs.map(VecLiteral(_)()))
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
             (
-              TestInput(
+              DirectTestInput(
                 basicInputExprs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
                   .map(Some(_))
                   .toSeq
               ),
-              TestOutput(
+              DirectTestOutput(
                 basicOutputs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
@@ -399,10 +403,10 @@ object AetherlingBenchmarkTests {
       .toMap
     val verilogUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(
+        val inputs = DirectTestInput(
           basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
         )
-        val outputs = TestOutput(
+        val outputs = DirectTestOutput(
           basicOutputs.flatMap(x =>
             x +: (0 until (denom - 1)).map(_ => Undefined(U8))
           )
@@ -412,14 +416,15 @@ object AetherlingBenchmarkTests {
       .toMap
     val vhdlUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
+        val inputs = DirectTestInput(basicInputExprs.map(Some(_)))
+        val outputs = DirectTestOutput(basicOutputs)
         s"smallconv2d_1_$denom:vhdl" -> (Seq(inputs), outputs)
       })
     normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
   }
 
-  private val smallConvB2bIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallConvB2bIO
+      : Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
       (0 until 4).map(i =>
@@ -450,21 +455,23 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+              DirectTestInput(
+                basicInputExprs.map(VecLiteral(_)()).map(Some(_))
+              ),
+              DirectTestOutput(basicOutputs.map(VecLiteral(_)()))
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
             (
-              TestInput(
+              DirectTestInput(
                 basicInputExprs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
                   .map(Some(_))
                   .toSeq
               ),
-              TestOutput(
+              DirectTestOutput(
                 basicOutputs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
@@ -480,10 +487,10 @@ object AetherlingBenchmarkTests {
       .toMap
     val verilogUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(
+        val inputs = DirectTestInput(
           basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
         )
-        val outputs = TestOutput(
+        val outputs = DirectTestOutput(
           basicOutputs.flatMap(x =>
             x +: (0 until (denom - 1)).map(_ => Undefined(U8))
           )
@@ -493,14 +500,15 @@ object AetherlingBenchmarkTests {
       .toMap
     val vhdlUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
+        val inputs = DirectTestInput(basicInputExprs.map(Some(_)))
+        val outputs = DirectTestOutput(basicOutputs)
         s"smallconvb2b_1_$denom:vhdl" -> (Seq(inputs), outputs)
       })
     normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
   }
 
-  private val smallSharpenIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallSharpenIO
+      : Map[String, (Seq[DirectTestInput], DirectTestOutput)] = {
     def sharpen1(a: Int, b: Int): Int = {
       val threshold = 15
       val passedThreshold = (a - b > threshold) || (b - a > threshold)
@@ -535,21 +543,23 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+              DirectTestInput(
+                basicInputExprs.map(VecLiteral(_)()).map(Some(_))
+              ),
+              DirectTestOutput(basicOutputs.map(VecLiteral(_)()))
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
             (
-              TestInput(
+              DirectTestInput(
                 basicInputExprs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
                   .map(Some(_))
                   .toSeq
               ),
-              TestOutput(
+              DirectTestOutput(
                 basicOutputs
                   .grouped(n)
                   .map(VecLiteral(_: _*)())
@@ -565,10 +575,10 @@ object AetherlingBenchmarkTests {
       .toMap
     val verilogUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(
+        val inputs = DirectTestInput(
           basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
         )
-        val outputs = TestOutput(
+        val outputs = DirectTestOutput(
           basicOutputs.flatMap(x =>
             x +: (0 until (denom - 1)).map(_ => Undefined(U8))
           )
@@ -578,8 +588,8 @@ object AetherlingBenchmarkTests {
       .toMap
     val vhdlUnderutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
+        val inputs = DirectTestInput(basicInputExprs.map(Some(_)))
+        val outputs = DirectTestOutput(basicOutputs)
         s"smallsharpen_1_$denom:vhdl" -> (Seq(inputs), outputs)
       })
     normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
@@ -591,7 +601,7 @@ object AetherlingBenchmarkTests {
     * @note
     *   this must be manually updated whenever a new benchmark is added.
     */
-  val ioByBenchmark: Map[String, (Seq[TestInput], TestOutput)] = (
+  val ioByBenchmark: Map[String, (Seq[DirectTestInput], DirectTestOutput)] = (
     mapIO
       ++ sumIO
       ++ dotIO
