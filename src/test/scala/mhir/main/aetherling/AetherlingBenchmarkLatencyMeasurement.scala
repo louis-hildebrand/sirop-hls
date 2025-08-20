@@ -85,11 +85,10 @@ object AetherlingBenchmarkLatencyMeasurement {
     val benchName = dir.baseName
     val (inputs, outputs) =
       AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
-    VhdlTestbenchGenerator.makeTestbench(
+    VhdlTestbenchGenerator.makeFileBasedTestbench(
       inputs = inputs,
       out = outputs,
-      dir = dir,
-      testNotReady = false
+      dir = dir
     )
     val proc = os
       .proc("./src/test/sh/test_vhdl.sh", dir, "-v")

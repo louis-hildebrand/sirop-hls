@@ -31,20 +31,32 @@ object VhdlTestbenchGenerator {
     makeTestbench(inputsByVar, out, dir, testNotReady = testNotReady)
   }
 
-  def makeTestbench(
+  def makeFileBasedTestbench(
       inputs: Seq[DirectTestInput],
       out: DirectTestOutput,
       dir: Path,
-      testNotReady: Boolean
+      testNotReady: Boolean = false
   ): Unit = {
+    val directInputsByVar = toNamedArgs(inputs)
+    val fileInputsByVar = directInputsByVar.map({ case (x, in) =>
+      val dataFile = dir / "test" / s"${x.name}_data.txt"
+      val validFile = dir / "test" / s"${x.name}_valid.txt"
+      x -> TestInputFromFiles(
+        data = dataFile,
+        valid = validFile,
+        elemTyp = in.elemTyp,
+        len = in.len
+      )
+    })
+    val testDir = dir / "test"
+    os.makeDir.all(testDir)
+    for ((x, in) <- directInputsByVar) {
+      val fIn = fileInputsByVar(x)
+      emitTestInputDataFile(fIn.data, in)
+      emitTestInputValidFile(fIn.valid, in)
+    }
     makeTestbench(
-      inputsByVar = inputs.zipWithIndex
-        .map({ case (in, i) =>
-          val typ = TyStm(in.elems.head.get.tchk().typ, -1)
-          val x = Param(s"I$i", -1)(typ)
-          x -> in
-        })
-        .toMap,
+      inputsByVar = fileInputsByVar,
       out = out,
       dir = dir,
       testNotReady = testNotReady
@@ -62,7 +74,7 @@ object VhdlTestbenchGenerator {
     *   design, not the `test` subdirectory).
     */
   private def makeTestbench(
-      inputsByVar: Map[Param, DirectTestInput],
+      inputsByVar: Map[Param, TestInput],
       out: DirectTestOutput,
       dir: Path,
       testNotReady: Boolean
@@ -70,10 +82,16 @@ object VhdlTestbenchGenerator {
     val outElemType = VhdlType(out.elemTyp)
     val portMap = getPortMap(inputsByVar.keys.toSeq)
     val inputStreamSignals = inputsByVar
-      .map({ case (x, _) => getInputStreamDecls(x) })
+      .map({
+        case (x, _: DirectTestInput)     => getInputStreamDecls(x)
+        case (x, in: TestInputFromFiles) => getInputStreamDecls(x, in)
+      })
       .mkString("\n\n")
     val inputStreamProcesses = inputsByVar
-      .map({ case (x, in) => getInputStreamProcess(x, in) })
+      .map({
+        case (x, in: DirectTestInput)   => getInputStreamProcess(x, in)
+        case (x, _: TestInputFromFiles) => getInputStreamProcess(x)
+      })
       .mkString("\n\n")
     val outStreamSignals = getOutputStreamSignals
     val outCheckProcess = getOutputCheckProcess(out, testNotReady)
@@ -149,6 +167,67 @@ object VhdlTestbenchGenerator {
     os.write(testbenchFile, str)
   }
 
+  private def toNamedArgs[T <: TestInput](inputs: Seq[T]): Map[Param, T] = {
+    inputs.zipWithIndex
+      .map({ case (in, i) =>
+        val x = Param(s"I$i", -1)(TyStm(in.elemTyp, -1))
+        x -> in
+      })
+      .toMap
+  }
+
+  private def emitTestInputDataFile(f: Path, in: DirectTestInput): Unit = {
+    for (x <- in.elems) {
+      val str = x match {
+        case Some(v) => valueToBinary(v)
+        case None    => valueToBinary(mhir.ir.eval(Default(in.elemTyp)))
+      }
+      os.write.append(f, s"$str\n")
+    }
+  }
+
+  private def valueToBinary(e: Expr): String = {
+    e match {
+      case False => "0"
+      case True  => "1"
+      case c: IntCst =>
+        val w = c.typ.asInstanceOf[TyAnyInt].w
+        if (c.i < 0) {
+          val bin = c.i.toBinaryString
+          assert(bin.head == '1')
+          assert(bin.length == 64)
+          val truncated = bin.takeRight(w)
+          assert(truncated.head == '1')
+          truncated
+        } else {
+          val bin = c.i.toBinaryString
+          assert(bin.length <= w)
+          val padded = ("0" * (w - bin.length)) + bin
+          if (c.typ.isInstanceOf[TySInt]) {
+            assert(padded.head == '0')
+          }
+          padded
+        }
+      case c: FixCst =>
+        valueToBinary(C(c.numer)(c.typ.t))
+      case Tuple(elems @ _*) =>
+        elems.map(valueToBinary).mkString("")
+      case VecLiteral(elems @ _*) =>
+        elems.map(valueToBinary).mkString("")
+      case _ => ???
+    }
+  }
+
+  private def emitTestInputValidFile(f: Path, in: DirectTestInput): Unit = {
+    for (x <- in.elems) {
+      val str = x match {
+        case Some(_) => "true"
+        case None    => "false"
+      }
+      os.write.append(f, s"$str\n")
+    }
+  }
+
   private def getPortMap(inputVars: Seq[Param]): String = {
     val assignments = (
       Seq("clk", "data", "valid", "ready")
@@ -164,6 +243,53 @@ object VhdlTestbenchGenerator {
     val vhdlType = VhdlStdLogicVec(VhdlType(elemType).bitWidth)
     s"""-- Input stream: ${x.name}
        |signal ${x.name}_data  : ${vhdlType.vhdlName};
+       |signal ${x.name}_valid : std_logic;
+       |signal ${x.name}_ready : std_logic := '0';
+       |""".stripMargin.stripTrailing
+  }
+
+  private def getInputStreamDecls(x: Param, in: TestInputFromFiles): String = {
+    val elemBitWidth = VhdlType(in.elemTyp).bitWidth
+    s"""constant ${x.name}_LEN   : natural := ${in.len};
+       |constant ${x.name}_WIDTH : natural := $elemBitWidth;
+       |type ${x.name}_data_ram_type is array (0 to ${x.name}_LEN-1) of std_logic_vector(${x.name}_WIDTH-1 downto 0);
+       |type ${x.name}_valid_ram_type is array (0 to ${x.name}_LEN-1) of std_logic;
+       |
+       |impure function init_${x.name}_data_ram return ${x.name}_data_ram_type is
+       |    file f : text open read_mode is "${in.data}";
+       |    variable ok : boolean;
+       |    variable current_line : line;
+       |    variable ram : ${x.name}_data_ram_type;
+       |    variable bv : bit_vector(${x.name}_WIDTH-1 downto 0);
+       |begin
+       |    for i in 0 to ${x.name}_LEN - 1 loop
+       |        readline(f, current_line);
+       |        read(current_line, bv, ok);
+       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
+       |        ram(i) := to_stdlogicvector(bv);
+       |    end loop;
+       |    return ram;
+       |end function;
+       |
+       |impure function init_${x.name}_valid_ram return ${x.name}_valid_ram_type is
+       |    file f : text open read_mode is "${in.valid}";
+       |    variable ok : boolean;
+       |    variable current_line : line;
+       |    variable ram : ${x.name}_valid_ram_type;
+       |    variable b : boolean;
+       |begin
+       |    for i in 0 to ${x.name}_LEN - 1 loop
+       |        readline(f, current_line);
+       |        read(current_line, b, ok);
+       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
+       |        ram(i) := bool2sl(b);
+       |    end loop;
+       |    return ram;
+       |end function;
+       |
+       |signal ${x.name}_data_ram : ${x.name}_data_ram_type := init_${x.name}_data_ram;
+       |signal ${x.name}_valid_ram : ${x.name}_valid_ram_type := init_${x.name}_valid_ram;
+       |signal ${x.name}_data  : std_logic_vector(${x.name}_WIDTH-1 downto 0);
        |signal ${x.name}_valid : std_logic;
        |signal ${x.name}_ready : std_logic := '0';
        |""".stripMargin.stripTrailing
@@ -192,6 +318,22 @@ object VhdlTestbenchGenerator {
        |
        |    ${x.name}_valid <= '0';
        |    ${x.name}_data <= (others => '0');
+       |    wait;
+       |end process;
+       |""".stripMargin.stripTrailing
+  }
+
+  private def getInputStreamProcess(x: Param): String = {
+    s"""-- Generate inputs (${x.name})
+       |process
+       |begin
+       |    for i in 0 to ${x.name}_LEN - 1 loop
+       |        ${x.name}_valid <= ${x.name}_valid_ram(i);
+       |        ${x.name}_data <= ${x.name}_data_ram(i);
+       |        wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+       |    end loop;
+       |
+       |    report "Finished giving inputs for ${x.name}." severity note;
        |    wait;
        |end process;
        |""".stripMargin.stripTrailing

@@ -47,11 +47,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       val args = Args(inFile = inFile, outDir = outDir)
       Compiler.compile(args)
       time("generating VHDL testbench") {
-        VhdlTestbenchGenerator.makeTestbench(
+        VhdlTestbenchGenerator.makeFileBasedTestbench(
           inputs = inputs,
           out = outputs,
-          dir = outDir,
-          testNotReady = false
+          dir = outDir
         )
       }
       time("running VHDL simulation") {
@@ -68,11 +67,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       val args = Args(inFile = inFile, outDir = outDir, optimize = false)
       Compiler.compile(args)
       time("generating VHDL testbench") {
-        VhdlTestbenchGenerator.makeTestbench(
+        VhdlTestbenchGenerator.makeFileBasedTestbench(
           inputs = inputs,
           out = outputs,
-          dir = outDir,
-          testNotReady = false
+          dir = outDir
         )
       }
       time("running VHDL simulation") {

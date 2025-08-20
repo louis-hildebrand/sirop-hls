@@ -462,7 +462,7 @@ object TyStm {
 
   /** Factory for [[TyStm]].
     */
-  def apply(t: Type, n: Expr): Type = {
+  def apply(t: Type, n: Expr): TyStm = {
     new TyStm(t, PE.partialEval(n.tchk().lower()))
   }
 }
