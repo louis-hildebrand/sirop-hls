@@ -201,6 +201,12 @@ object PartialEvalPass {
             ArithSimplifier
               .simplifyArithmetic(lr.rebuild(lr.typ, newChildren))(facts)
 
+          case c: FixCst => c
+          case p @ IntFixProd(e1, e2) =>
+            val newChildren = Seq(e1, e2).map(doPartialEval)
+            ArithSimplifier
+              .simplifyArithmetic(p.rebuild(p.typ, newChildren))(facts)
+
           case True  => True
           case False => False
           case Mux(c, t, f) =>
