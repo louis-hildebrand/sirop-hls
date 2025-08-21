@@ -1,10 +1,11 @@
 package mhir.gen
+package vhdl
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import os.Path
 
-/** A sequence of inputs to provide to the design under test.
+/** A sequence of inputs to provide to a VHDL design under test.
   */
 sealed trait TestInput {
 

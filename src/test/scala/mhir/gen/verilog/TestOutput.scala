@@ -1,10 +1,11 @@
-package mhir.gen
+package mhir.gen.verilog
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import os.Path
 
-/** A sequence of outputs that a design is expected to produce.
+/** A sequence of outputs that a Verilog design under test is expected to
+  * produce.
   */
 sealed trait TestOutput {
 
@@ -15,6 +16,10 @@ sealed trait TestOutput {
   /** The length of this stream.
     */
   def len: Int
+
+  /** Type check the elements within this test output, if any.
+    */
+  def tchk(): TestOutput
 }
 
 /** A sequence of expected outputs to hard-code into the testbench source code.
@@ -26,9 +31,11 @@ case class DirectTestOutput(elems: Seq[Expr]) extends TestOutput {
   override def elemTyp: Type = this.elems.head.tchk().typ
 
   override def len: Int = this.elems.length
+
+  override def tchk(): DirectTestOutput = DirectTestOutput(elems.map(_.tchk()))
 }
 
-/** A sequence of test outputs to read from files.
+/** A sequence of expected outputs to read from files.
   *
   * @param data
   *   the path to the file containing the expected data.
@@ -43,4 +50,6 @@ case class DirectTestOutput(elems: Seq[Expr]) extends TestOutput {
   *   the length of the stream.
   */
 case class TestOutputFromFile(data: Path, mask: Path, elemTyp: Type, len: Int)
-    extends TestOutput
+    extends TestOutput {
+  override def tchk(): TestOutputFromFile = this
+}

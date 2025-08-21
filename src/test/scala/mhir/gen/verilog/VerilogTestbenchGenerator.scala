@@ -1,11 +1,12 @@
 package mhir.gen
 package verilog
 
-import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.debug.indent
+import mhir.gen.verilog.{
+  VerilogTestbenchInputGenerator => InGen,
+  VerilogTestbenchOutputGenerator => OutGen
+}
 import os.Path
-
-import scala.annotation.tailrec
 
 object VerilogTestbenchGenerator {
 
@@ -21,14 +22,13 @@ object VerilogTestbenchGenerator {
     *   the directory of the Verilog project.
     */
   def makeTestbench(
-      inputs: Seq[DirectTestInput],
-      expectedOutput: DirectTestOutput,
+      io: TestIO,
       dir: Path
   ): Unit = {
-    val checkedInputs =
-      inputs.map(inputs => DirectTestInput(inputs.elems.map(_.map(_.tchk()))))
-    val checkedOutputs = DirectTestOutput(expectedOutput.elems.map(_.tchk()))
-    val code = getTestbenchCode(checkedInputs, checkedOutputs)
+    val code = getTestbenchCode(
+      io.inputs.tchk().asInstanceOf[DirectTestInput],
+      io.expectedOutput.tchk().asInstanceOf[DirectTestOutput]
+    )
     emitTestbench(code, dir)
   }
 
@@ -39,114 +39,28 @@ object VerilogTestbenchGenerator {
   }
 
   private def getTestbenchCode(
-      inputs: Seq[DirectTestInput],
+      inputs: DirectTestInput,
       expectedOutput: DirectTestOutput
   ): String = {
-    val inputMap: Seq[Option[Map[String, (String, Int)]]] = {
-      val n = inputs.head.elems.length
-      (0 until n).map(t => {
-        if (inputs.map(_.elems(t)).forall(_.isDefined)) {
-          Some(
-            inputs
-              .map(_.elems(t).get)
-              .zipWithIndex
-              .flatMap({ case (x, i) =>
-                val prefix = if (inputs.length == 1) "I" else s"I$i"
-                mapPortsToValues(prefix)(x).map({ case (k, v) => k -> v.get })
-              })
-              .toMap
-          )
-        } else if (inputs.map(_.elems(t)).forall(_.isEmpty)) {
-          None
-        } else {
-          throw new IllegalArgumentException(
-            s"At time t = $t, some inputs are valid and some are not."
-          )
-        }
-      })
-    }
-    val outputMap: Seq[Map[String, Option[String]]] =
-      expectedOutput.elems
-        .map(mapPortsToValues("O"))
-        .map(_.map({ case (name, v) => name -> v.map(_._1) }))
-    val outputAtomWidth = getAtomWidth(expectedOutput.elems.head.typ)
-    val inputNames: Seq[String] =
-      inputMap.find(x => x.isDefined).get.get.keys.toSeq
-    val outputNames: Seq[String] = outputMap.head.keys.toSeq
-    val inputRegDecls = inputMap
-      .find(x => x.isDefined)
-      .get
-      .get
-      .map({ case (name, (_, w)) => s"reg [${w - 1}:0] $name;" })
-    val inputPortMappings = inputNames.map(i => s".$i($i)").mkString(", ")
-    val outputPortMappings = outputNames.map(o => s".$o($o)").mkString(", ")
-    val inputAssignments = (inputMap :+ None)
-      .map({
-        case None =>
-          s"""@(posedge clock) begin
-           |    valid_up = 0;
-           |end
-           |""".stripMargin.stripTrailing
-        case Some(valByPort) =>
-          val assignments = valByPort
-            .map({ case (port, (v, _)) => s"$port = $v;" })
-            .mkString("\n    ")
-          s"""@(posedge clock) begin
-           |    valid_up = 1;
-           |    $assignments
-           |end
-           |""".stripMargin.stripTrailing
-      })
-      .mkString("\n\n")
-    val outputChecks = outputMap
-      .map(valByPort => {
-        val checks = valByPort
-          .map({ case (port, v) =>
-            v match {
-              case None =>
-                s"// value for $port is undefined"
-              case Some(v) =>
-                s"check_output($v, $port);"
-            }
-          })
-          .mkString("\n")
-        s"wait_for_output();\n$checks"
-      })
-      .mkString("\n\n")
+    val portMap =
+      getPortMap(InGen.getNames(inputs), OutGen.getNames(expectedOutput))
+    val inputDecls = InGen.getDirectInputDecls(inputs)
+    val inputGenBlock = InGen.getBlock(inputs)
+    val outputDecls = OutGen.getDecls(expectedOutput)
+    val outputCheckBlock = OutGen.getBlock(expectedOutput)
     s"""`timescale 1ns/1ps
        |
        |module Test;
        |
        |    reg clock, reset, valid_up;
        |    wire valid_down;
-       |    ${inputRegDecls.mkString("\n    ")}
-       |    wire [${outputAtomWidth - 1}:0] ${outputNames.mkString(", ")};
        |    reg [31:0] t;
        |
-       |    Top DUT (
-       |        .clock(clock),
-       |        .reset(reset),
-       |        .valid_up(valid_up),
-       |        .valid_down(valid_down),
-       |        $inputPortMappings,
-       |        $outputPortMappings
-       |    );
+       |${indent(inputDecls)}
        |
-       |    task wait_for_output ();
-       |    begin
-       |        wait(clock == 1 && valid_down);
-       |        wait(clock == 0);
-       |    end
-       |    endtask
+       |${indent(outputDecls)}
        |
-       |    task check_output (input [${outputAtomWidth - 1}:0] expected, input [${outputAtomWidth - 1}:0] actual);
-       |    begin
-       |        $$display("OUTPUT : %d", actual);
-       |        if (actual !== expected) begin
-       |            $$error("ASSERTION FAILED: expected %d, got %d", expected, actual);
-       |        end
-       |    end
-       |    endtask
+       |${indent(portMap)}
        |
        |    task initialize ();
        |    begin
@@ -178,72 +92,28 @@ object VerilogTestbenchGenerator {
        |        end
        |    end
        |
-       |    initial begin
-       |        $$display("Started test stimuli generator.");
-       |        valid_up = 0;
-       |        initialize();
+       |${indent(inputGenBlock)}
        |
-       |${indent(inputAssignments, 2)}
-       |    end
-       |
-       |    initial begin
-       |        $$display("Started output checker.");
-       |
-       |${indent(outputChecks, 2)}
-       |
-       |        @(negedge clock) begin
-       |            $$display("LATENCY: %d cycles", t);
-       |        end
-       |
-       |        $$display("Simulation done.");
-       |        $$stop(0);
-       |    end
+       |${indent(outputCheckBlock)}
        |
        |endmodule
        |""".stripMargin
   }
 
-  @tailrec
-  private def getAtomWidth(t: Type): Int = {
-    t match {
-      case Missing =>
-        throw new IllegalArgumentException(
-          s"Cannot find bit width for type $Missing."
-        )
-      case TyBool      => 1
-      case TyAnyInt(w) => w
-      case TyVec(t, _) => getAtomWidth(t)
-      case _ =>
-        ???
-    }
-  }
-
-  private def mapPortsToValues(
-      prefix: String
-  )(e: Expr): Map[String, Option[(String, Int)]] = {
-    e match {
-      case _: Undefined => Map(prefix -> None)
-      case False        => Map(prefix -> Some(("0", 1)))
-      case True         => Map(prefix -> Some(("1", 1)))
-      case c: IntCst =>
-        val w = c.typ.asInstanceOf[TyAnyInt].w
-        if (c.i < 0) {
-          Map(prefix -> Some((s"-$w'd${-c.i}", w)))
-        } else {
-          Map(prefix -> Some((s"$w'd${c.i}", w)))
-        }
-      case VecLiteral(elems @ _*) =>
-        elems.zipWithIndex
-          .flatMap({ case (e, i) =>
-            mapPortsToValues(s"${prefix}_$i")(e)
-          })
-          .toMap
-      case _ =>
-        ???
-    }
-  }
-
-  private def indent(s: String, n: Int = 1): String = {
-    s.linesIterator.map(ln => "    ".repeat(n) + ln).mkString("\n")
+  private def getPortMap(
+      inputNames: Seq[String],
+      outputNames: Seq[String]
+  ): String = {
+    val inputPortMappings = inputNames.map(i => s".$i($i)").mkString(", ")
+    val outputPortMappings = outputNames.map(o => s".$o($o)").mkString(", ")
+    s"""Top DUT (
+       |    .clock(clock),
+       |    .reset(reset),
+       |    .valid_up(valid_up),
+       |    .valid_down(valid_down),
+       |    $inputPortMappings,
+       |    $outputPortMappings
+       |);
+       |""".stripMargin.stripTrailing
   }
 }

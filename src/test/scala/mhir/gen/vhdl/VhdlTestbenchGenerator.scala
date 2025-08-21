@@ -31,42 +31,61 @@ object VhdlTestbenchGenerator {
     makeTestbench(inputsByVar, out, dir, testNotReady = testNotReady)
   }
 
+  /** Make a testbench where all inputs and expected outputs are stored in
+    * files.
+    *
+    * @param io
+    *   the expected inputs and outputs. These may or may not already be stored
+    *   in files.
+    * @param dir
+    *   the directory of the VHDL project (the whole directory containing the
+    *   design, not the test subdirectory).
+    * @param testNotReady
+    *   whether to test that the design behaves correctly when the consumer is
+    *   not ready. If `false`, the testbench will immediately raise the `ready`
+    *   signal and keep it raised the whole time.
+    */
   def makeFileBasedTestbench(
-      inputs: Seq[DirectTestInput],
-      out: DirectTestOutput,
+      io: TestIO,
       dir: Path,
       testNotReady: Boolean = false
   ): Unit = {
     val testDir = dir / "test"
-    val directInputsByVar = toNamedArgs(inputs)
-    val fileInputsByVar = directInputsByVar.map({ case (x, in) =>
-      val dataFile = testDir / s"${x.name}_data.txt"
-      val validFile = testDir / s"${x.name}_valid.txt"
-      x -> TestInputFromFiles(
-        data = dataFile,
-        valid = validFile,
-        elemTyp = in.elemTyp,
-        len = in.len
-      )
-    })
-    val fileOutput = {
-      val dataFile = testDir / "out_data.txt"
-      val maskFile = testDir / "out_mask.txt"
-      TestOutputFromFile(
-        data = dataFile,
-        mask = maskFile,
-        elemTyp = out.elemTyp,
-        len = out.len
-      )
-    }
     os.makeDir.all(testDir)
-    for ((x, in) <- directInputsByVar) {
-      val fIn = fileInputsByVar(x)
-      emitTestInputDataFile(fIn.data, in)
-      emitTestInputValidFile(fIn.valid, in)
+
+    val inputsByVar = toNamedArgs(io.inputs)
+    val fileInputsByVar = inputsByVar.map({
+      case (x, in: DirectTestInput) =>
+        val dataFile = testDir / s"${x.name}_data.txt"
+        val validFile = testDir / s"${x.name}_valid.txt"
+        val fileInput = TestInputFromFiles(
+          data = dataFile,
+          valid = validFile,
+          elemTyp = in.elemTyp,
+          len = in.len
+        )
+        emitTestInputDataFile(fileInput.data, in)
+        emitTestInputValidFile(fileInput.valid, in)
+        x -> fileInput
+      case (x, in: TestInputFromFiles) => x -> in
+    })
+
+    val fileOutput = io.expectedOutput match {
+      case out: DirectTestOutput =>
+        val dataFile = testDir / "out_data.txt"
+        val maskFile = testDir / "out_mask.txt"
+        val fileOutput = TestOutputFromFile(
+          data = dataFile,
+          mask = maskFile,
+          elemTyp = io.expectedOutput.elemTyp,
+          len = io.expectedOutput.len
+        )
+        emitTestOutputDataFile(fileOutput.data, out)
+        emitTestOutputMaskFile(fileOutput.mask, out)
+        fileOutput
+      case out: TestOutputFromFile => out
     }
-    emitTestOutputDataFile(fileOutput.data, out)
-    emitTestOutputMaskFile(fileOutput.mask, out)
+
     makeTestbench(
       inputsByVar = fileInputsByVar,
       out = fileOutput,
