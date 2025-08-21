@@ -75,7 +75,7 @@ object VhdlTestbenchGenerator {
     */
   private def makeTestbench(
       inputsByVar: Map[Param, TestInput],
-      out: DirectTestOutput,
+      out: TestOutput,
       dir: Path,
       testNotReady: Boolean
   ): Unit = {
@@ -93,8 +93,14 @@ object VhdlTestbenchGenerator {
         case (x, _: TestInputFromFiles) => getInputStreamProcess(x)
       })
       .mkString("\n\n")
-    val outStreamSignals = getOutputStreamSignals
-    val outCheckProcess = getOutputCheckProcess(out, testNotReady)
+    val outStreamSignals = out match {
+      case _: DirectTestOutput     => getOutputStreamSignals(outElemType)
+      case out: TestOutputFromFile => getOutputStreamSignals(out)
+    }
+    val outCheckProcess = out match {
+      case out: DirectTestOutput => getOutputCheckProcess(out, testNotReady)
+      case _: TestOutputFromFile => getOutputCheckProcess(testNotReady)
+    }
     val t0 = if (testNotReady) {
       "-2; -- to account for the two cycles where valid = '1' but ready = '0'"
     } else {
@@ -115,13 +121,10 @@ object VhdlTestbenchGenerator {
          |
          |architecture tb of testbench is
          |
-         |    constant CLK_CYCLE  : time := 20 ns;
-         |    signal   test_done  : boolean := false;
-         |    signal   clk        : std_logic := '1';
-         |    signal   data       : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
-         |    signal   valid      : std_logic;
-         |    signal   ready      : std_logic := '0';
-         |    signal   t          : integer := $t0
+         |    constant CLK_CYCLE   : time := 20 ns;
+         |    signal   test_done   : boolean := false;
+         |    signal   clk         : std_logic := '1';
+         |    signal   t           : integer := $t0
          |
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
@@ -339,8 +342,16 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def getOutputStreamSignals: String = {
-    "-- Expected outputs: hardcoded"
+  private def getOutputStreamSignals(outElemType: VhdlType): String = {
+    s"""-- Expected outputs
+       |signal data            : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
+       |signal valid           : std_logic;
+       |signal ready           : std_logic := '0';
+       |""".stripMargin.stripTrailing
+  }
+
+  private def getOutputStreamSignals(out: TestOutputFromFile): String = {
+    ???
   }
 
   private def getOutputCheckProcess(
@@ -360,12 +371,25 @@ object VhdlTestbenchGenerator {
     }
     val testSteps = out.elems.zipWithIndex
       .map({ case (v, i) =>
-        ("wait until rising_edge(clk) and valid = '1';\n"
-          + makeAssertions(v.tchk(), t = i))
+        val checkedV = v.tchk()
+        val mask = getMask(checkedV)
+        val expected = expectedToVhdl(checkedV)
+        s"""wait until rising_edge(clk) and valid = '1';
+           |mask            := "$mask";
+           |expected        := $expected;
+           |masked_data     := data and mask;
+           |masked_expected := expected and mask;
+           |assert(masked_data = masked_expected) report "Wrong data at step $i.";
+           |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
+    val w = VhdlType(out.elemTyp).bitWidth
     s"""-- Check outputs
-       |process
+       |out_check : process
+       |    variable masked_data     : std_logic_vector(${w - 1} downto 0);
+       |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
+       |    variable expected        : std_logic_vector(${w - 1} downto 0);
+       |    variable mask            : std_logic_vector(${w - 1} downto 0);
        |begin
        |${indent(notReadyTests)}
        |
@@ -386,42 +410,37 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def makeAssertions(expected: Expr, t: Int): String = {
-    require(expected.hasType)
-    val fullBitWidth = VhdlType(expected.typ).bitWidth
-    makeAssertions(
-      actual = "data",
-      expected = expected,
-      t = t,
-      lsb = 0,
-      msb = fullBitWidth - 1
-    )
+  private def getOutputCheckProcess(testNotReady: Boolean): String = {
+    ???
   }
 
-  private def makeAssertions(
-      actual: String,
-      expected: Expr,
-      t: Int,
-      lsb: Int,
-      msb: Int
-  ): String = {
+  private def getMask(expected: Expr): String = {
     require(expected.hasType)
-    (expected.typ, expected) match {
-      case (TyVec(typ, _), VecLiteral(elems @ _*)) =>
-        val elemBitWidth = VhdlType(typ).bitWidth
-        elems.zipWithIndex
-          .map({ case (e, i) =>
-            val newMsb = msb - i * elemBitWidth
-            val newLsb = newMsb - elemBitWidth + 1
-            makeAssertions(actual, e, t, lsb = newLsb, msb = newMsb)
-          })
-          .mkString("\n")
-      case (_, _: Undefined) =>
-        s"-- $actual($msb downto $lsb) : undefined"
-      case (_, v) =>
-        val expectedVhdl = VhdlGenerator.valueToStdLogicVector(v)
-        val actualSlice = s"$actual($msb downto $lsb)"
-        s"""assert ($actualSlice = $expectedVhdl) report "Wrong data at step $t ($msb downto $lsb).";"""
+    expected match {
+      case VecLiteral(elems @ _*) =>
+        elems.map(getMask).mkString("")
+      case Tuple(elems @ _*) =>
+        elems.map(getMask).mkString("")
+      case Undefined(typ) =>
+        "0" * VhdlType(typ).bitWidth
+      case v =>
+        assert(!v.contains(classOf[Undefined]))
+        "1" * VhdlType(v.typ).bitWidth
+    }
+  }
+
+  private def expectedToVhdl(expected: Expr): String = {
+    require(expected.hasType)
+    expected match {
+      case VecLiteral(elems @ _*) =>
+        elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
+      case Tuple(elems @ _*) =>
+        elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
+      case Undefined(typ) =>
+        "\"" + "X" * VhdlType(typ).bitWidth + "\""
+      case v =>
+        assert(!v.contains(classOf[Undefined]))
+        VhdlGenerator.valueToStdLogicVector(v)
     }
   }
 
