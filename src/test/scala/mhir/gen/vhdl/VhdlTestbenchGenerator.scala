@@ -37,10 +37,11 @@ object VhdlTestbenchGenerator {
       dir: Path,
       testNotReady: Boolean = false
   ): Unit = {
+    val testDir = dir / "test"
     val directInputsByVar = toNamedArgs(inputs)
     val fileInputsByVar = directInputsByVar.map({ case (x, in) =>
-      val dataFile = dir / "test" / s"${x.name}_data.txt"
-      val validFile = dir / "test" / s"${x.name}_valid.txt"
+      val dataFile = testDir / s"${x.name}_data.txt"
+      val validFile = testDir / s"${x.name}_valid.txt"
       x -> TestInputFromFiles(
         data = dataFile,
         valid = validFile,
@@ -48,16 +49,27 @@ object VhdlTestbenchGenerator {
         len = in.len
       )
     })
-    val testDir = dir / "test"
+    val fileOutput = {
+      val dataFile = testDir / "out_data.txt"
+      val maskFile = testDir / "out_mask.txt"
+      TestOutputFromFile(
+        data = dataFile,
+        mask = maskFile,
+        elemTyp = out.elemTyp,
+        len = out.len
+      )
+    }
     os.makeDir.all(testDir)
     for ((x, in) <- directInputsByVar) {
       val fIn = fileInputsByVar(x)
       emitTestInputDataFile(fIn.data, in)
       emitTestInputValidFile(fIn.valid, in)
     }
+    emitTestOutputDataFile(fileOutput.data, out)
+    emitTestOutputMaskFile(fileOutput.mask, out)
     makeTestbench(
       inputsByVar = fileInputsByVar,
-      out = out,
+      out = fileOutput,
       dir = dir,
       testNotReady = testNotReady
     )
@@ -94,12 +106,13 @@ object VhdlTestbenchGenerator {
       })
       .mkString("\n\n")
     val outStreamSignals = out match {
-      case _: DirectTestOutput     => getOutputStreamSignals(outElemType)
-      case out: TestOutputFromFile => getOutputStreamSignals(out)
+      case _: DirectTestOutput     => getOutputCheckDecls(outElemType)
+      case out: TestOutputFromFile => getOutputCheckDecls(out)
     }
     val outCheckProcess = out match {
       case out: DirectTestOutput => getOutputCheckProcess(out, testNotReady)
-      case _: TestOutputFromFile => getOutputCheckProcess(testNotReady)
+      case _: TestOutputFromFile =>
+        getOutputCheckProcess(testNotReady, out.elemTyp)
     }
     val t0 = if (testNotReady) {
       "-2; -- to account for the two cycles where valid = '1' but ready = '0'"
@@ -189,10 +202,36 @@ object VhdlTestbenchGenerator {
     }
   }
 
+  private def emitTestInputValidFile(f: Path, in: DirectTestInput): Unit = {
+    for (x <- in.elems) {
+      val str = x match {
+        case Some(_) => "true"
+        case None    => "false"
+      }
+      os.write.append(f, s"$str\n")
+    }
+  }
+
+  private def emitTestOutputDataFile(f: Path, out: DirectTestOutput): Unit = {
+    for (v <- out.elems) {
+      val str = valueToBinary(v)
+      os.write.append(f, s"$str\n")
+    }
+  }
+
+  private def emitTestOutputMaskFile(f: Path, out: DirectTestOutput): Unit = {
+    for (v <- out.elems) {
+      val str = getMask(v.tchk())
+      os.write.append(f, s"$str\n")
+    }
+  }
+
+  // TODO: Merge this with VhdlGenerator.valueToStdLogicVector?
   private def valueToBinary(e: Expr): String = {
     e match {
-      case False => "0"
-      case True  => "1"
+      case Undefined(typ) => "0" * VhdlType(typ).bitWidth
+      case False          => "0"
+      case True           => "1"
       case c: IntCst =>
         val w = c.typ.asInstanceOf[TyAnyInt].w
         if (c.i < 0) {
@@ -221,16 +260,6 @@ object VhdlTestbenchGenerator {
     }
   }
 
-  private def emitTestInputValidFile(f: Path, in: DirectTestInput): Unit = {
-    for (x <- in.elems) {
-      val str = x match {
-        case Some(_) => "true"
-        case None    => "false"
-      }
-      os.write.append(f, s"$str\n")
-    }
-  }
-
   private def getPortMap(inputVars: Seq[Param]): String = {
     val assignments = (
       Seq("clk", "data", "valid", "ready")
@@ -255,6 +284,7 @@ object VhdlTestbenchGenerator {
     val elemBitWidth = VhdlType(in.elemTyp).bitWidth
     s"""constant ${x.name}_LEN   : natural := ${in.len};
        |constant ${x.name}_WIDTH : natural := $elemBitWidth;
+       |
        |type ${x.name}_data_ram_type is array (0 to ${x.name}_LEN-1) of std_logic_vector(${x.name}_WIDTH-1 downto 0);
        |type ${x.name}_valid_ram_type is array (0 to ${x.name}_LEN-1) of std_logic;
        |
@@ -342,7 +372,7 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def getOutputStreamSignals(outElemType: VhdlType): String = {
+  private def getOutputCheckDecls(outElemType: VhdlType): String = {
     s"""-- Expected outputs
        |signal data            : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
        |signal valid           : std_logic;
@@ -350,8 +380,52 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def getOutputStreamSignals(out: TestOutputFromFile): String = {
-    ???
+  private def getOutputCheckDecls(out: TestOutputFromFile): String = {
+    val elemBitWidth = VhdlType(out.elemTyp).bitWidth
+    s"""-- Expected outputs
+       |constant OUT_LEN   : natural := ${out.len};
+       |constant OUT_WIDTH : natural := $elemBitWidth;
+       |
+       |type out_ram_type is array (0 to OUT_LEN-1) of std_logic_vector(OUT_WIDTH-1 downto 0);
+       |
+       |impure function init_out_data_ram return out_ram_type is
+       |    file f : text open read_mode is "${out.data}";
+       |    variable ok : boolean;
+       |    variable current_line : line;
+       |    variable ram : out_ram_type;
+       |    variable bv : bit_vector(OUT_WIDTH-1 downto 0);
+       |begin
+       |    for i in 0 to OUT_LEN - 1 loop
+       |        readline(f, current_line);
+       |        read(current_line, bv, ok);
+       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
+       |        ram(i) := to_stdlogicvector(bv);
+       |    end loop;
+       |    return ram;
+       |end function;
+       |
+       |impure function init_out_mask_ram return out_ram_type is
+       |    file f : text open read_mode is "${out.mask}";
+       |    variable ok : boolean;
+       |    variable current_line : line;
+       |    variable ram : out_ram_type;
+       |    variable bv : bit_vector(OUT_WIDTH-1 downto 0);
+       |begin
+       |    for i in 0 to OUT_LEN - 1 loop
+       |        readline(f, current_line);
+       |        read(current_line, bv, ok);
+       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
+       |        ram(i) := to_stdlogicvector(bv);
+       |    end loop;
+       |    return ram;
+       |end function;
+       |
+       |signal data            : std_logic_vector(OUT_WIDTH-1 downto 0);
+       |signal valid           : std_logic;
+       |signal ready           : std_logic := '0';
+       |signal out_data_ram : out_ram_type := init_out_data_ram;
+       |signal out_mask_ram : out_ram_type := init_out_mask_ram;
+       |""".stripMargin.stripTrailing
   }
 
   private def getOutputCheckProcess(
@@ -386,10 +460,10 @@ object VhdlTestbenchGenerator {
     val w = VhdlType(out.elemTyp).bitWidth
     s"""-- Check outputs
        |out_check : process
+       |    variable mask            : std_logic_vector(${w - 1} downto 0);
+       |    variable expected        : std_logic_vector(${w - 1} downto 0);
        |    variable masked_data     : std_logic_vector(${w - 1} downto 0);
        |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
-       |    variable expected        : std_logic_vector(${w - 1} downto 0);
-       |    variable mask            : std_logic_vector(${w - 1} downto 0);
        |begin
        |${indent(notReadyTests)}
        |
@@ -406,12 +480,57 @@ object VhdlTestbenchGenerator {
        |    test_done <= true;
        |    assert false report "Test done." severity note;
        |    wait;
-       |end process;
+       |end process out_check;
        |""".stripMargin.stripTrailing
   }
 
-  private def getOutputCheckProcess(testNotReady: Boolean): String = {
-    ???
+  private def getOutputCheckProcess(
+      testNotReady: Boolean,
+      elemTyp: Type
+  ): String = {
+    val notReadyTests = if (testNotReady) {
+      """-- If the consumer is not ready, the producer must keep working until
+        |-- it has a valid value and then it must wait
+        |ready <= '0';
+        |wait until rising_edge(clk) and valid = '1';
+        |wait until rising_edge(clk);
+        |assert(valid = '1') report "Design dropped its valid signal.";
+        |""".stripMargin.stripTrailing
+    } else {
+      ""
+    }
+    val w = VhdlType(elemTyp).bitWidth
+    s"""-- Check outputs
+       |out_check : process
+       |    variable mask            : std_logic_vector(${w - 1} downto 0);
+       |    variable expected        : std_logic_vector(${w - 1} downto 0);
+       |    variable masked_data     : std_logic_vector(${w - 1} downto 0);
+       |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
+       |begin
+       |${indent(notReadyTests)}
+       |
+       |    ready <= '1';
+       |
+       |    for i in 0 to OUT_LEN - 1 loop
+       |        wait until rising_edge(clk) and valid = '1';
+       |        expected        := out_data_ram(i);
+       |        mask            := out_mask_ram(i);
+       |        masked_data     := data and mask;
+       |        masked_expected := expected and mask;
+       |        assert(masked_data = masked_expected) report "Wrong data at step " & integer'image(i) & ".";
+       |    end loop;
+       |
+       |    wait until falling_edge(clk);
+       |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
+       |
+       |    wait until rising_edge(clk);
+       |    assert(valid = '0') report "Wrong `valid` after completion";
+       |
+       |    test_done <= true;
+       |    assert false report "Test done." severity note;
+       |    wait;
+       |end process out_check;
+       |""".stripMargin.stripTrailing
   }
 
   private def getMask(expected: Expr): String = {
