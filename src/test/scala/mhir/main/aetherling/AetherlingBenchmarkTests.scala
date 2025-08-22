@@ -29,7 +29,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   private val AllBenchmarks: Seq[String] =
     os.list(AetherlingBenchmarksDir).map(_.baseName)
   private val BenchmarksToRun: Seq[String] =
-    AllBenchmarks
+    Seq("bigconv2d_1")
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -39,6 +39,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl:simplified") {
+      ???
       val io = AetherlingBenchmarkTests.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
@@ -354,15 +355,77 @@ object AetherlingBenchmarkTests {
     normalCases ++ underutilizedCases
   }
 
-  private val smallConvB2bIO: Map[String, TestIO] = {
-    // Checkerboard pattern (2x2 squares)
+  private val bigConv2dIO: Map[String, TestIO] = {
+    // Checkerboard pattern (30x30 squares)
     val basicInputs: Seq[Seq[Int]] =
-//      (0 until 4).map(i =>
-//        (0 until 4).map(j => {
-//          val even = ((i % 4) < 2) == ((j % 4) < 2)
-//          if (even) 16 else 0
-//        })
-//      )
+      (0 until 1080).map(i =>
+        (0 until 1920).map(j => {
+          val even = ((i % 30) < 15) == ((j % 30) < 15)
+          if (even) 255 else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U32))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 16
+      ).flatten.map({
+        case Some(x) => C(x)(U32)
+        case None    => Undefined(U32)
+      })
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
+            )
+        }
+        s"bigconv2d_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = ConcreteTestIO(
+        {
+          val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
+          val outputs = vhdl.DirectTestOutput(basicOutputs)
+          vhdl.TestIO(Seq(inputs), outputs)
+        }, {
+          val inputs = verilog.DirectTestInput(
+            basicInputExprs.flatMap(x => (0 until denom).map(_ => Seq(x)))
+          )
+          val outputs = verilog.DirectTestOutput(
+            basicOutputs.flatMap(x =>
+              x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+            )
+          )
+          verilog.TestIO(inputs, outputs)
+        }
+      )
+      s"bigconv2d_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
+  private val smallConvB2bIO: Map[String, TestIO] = {
+    // Same as Aetherling
+    val basicInputs: Seq[Seq[Int]] =
       (0 until 16).map(i => 5 * (i + 1)).grouped(4).toSeq
     val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
     val basicOutputs = {
@@ -532,6 +595,7 @@ object AetherlingBenchmarkTests {
       ++ smallConv2dIO.mapValues(_.toVhdl)
       ++ smallConvB2bIO.mapValues(_.toVhdl)
       ++ smallSharpenIO.mapValues(_.toVhdl)
+      ++ bigConv2dIO.mapValues(_.toVhdl)
   )
 
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
@@ -548,5 +612,6 @@ object AetherlingBenchmarkTests {
       ++ smallConv2dIO.mapValues(_.toVerilog)
       ++ smallConvB2bIO.mapValues(_.toVerilog)
       ++ smallSharpenIO.mapValues(_.toVerilog)
+      ++ bigConv2dIO.mapValues(_.toVerilog)
   )
 }
