@@ -134,8 +134,12 @@ object VhdlTestbenchGenerator {
         getOutputCheckProcess(testNotReady, out.elemTyp)
     }
     val t0 = if (testNotReady) {
-      "-2; -- to account for the two cycles where valid = '1' but ready = '0'"
+      "-3; -- to account for the three cycles where valid = '1' but ready = '0'"
     } else {
+      // TODO: If there are inputs, they won't be valid until one clock cycle
+      //       later. But maybe the design doesn't need the input immediately,
+      //       or maybe there are no inputs. Be conservative and count that
+      //       initial cycle as well.
       "0;"
     }
     val data = VhdlConversionGenerator.fromStdLogicVector("data", outElemType)
@@ -351,15 +355,16 @@ object VhdlTestbenchGenerator {
     val steps = in.elems
       .map({
         case None =>
-          s"""${x.name}_valid <= '0';
+          s"""wait until falling_edge(clk); -- prepare input well before the next rising edge
+             |${x.name}_valid <= '0';
              |${x.name}_data <= (others => '0');
-             |wait until rising_edge(clk);
              |""".stripMargin.stripTrailing
         case Some(v) =>
           val slv = VhdlGenerator.valueToStdLogicVector(v)
-          s"""${x.name}_valid <= '1';
+          s"""wait until falling_edge(clk); -- prepare input well before the next rising edge
+             |${x.name}_valid <= '1';
              |${x.name}_data <= $slv;
-             |wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+             |wait until rising_edge(clk) and sl2bool(${x.name}_ready); -- must wait for the design to accept the input
              |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
@@ -380,9 +385,14 @@ object VhdlTestbenchGenerator {
        |process
        |begin
        |    for i in 0 to ${x.name}_LEN - 1 loop
+       |        -- Prepare input well before the next rising edge
+       |        wait until falling_edge(clk);
        |        ${x.name}_valid <= ${x.name}_valid_ram(i);
        |        ${x.name}_data <= ${x.name}_data_ram(i);
-       |        wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+       |        if ${x.name}_valid_ram(i) = '1' then
+       |            -- Must wait until the design has accepted the input
+       |            wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+       |        end if;
        |    end loop;
        |
        |    report "Finished giving inputs for ${x.name}." severity note;
@@ -467,7 +477,9 @@ object VhdlTestbenchGenerator {
         val checkedV = v.tchk()
         val mask = getMask(checkedV)
         val expected = expectedToVhdl(checkedV)
-        s"""wait until rising_edge(clk) and valid = '1';
+        s"""-- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
+           |wait until falling_edge(clk) and valid = '1';
+           |ready <= '1';
            |mask            := "$mask";
            |expected        := $expected;
            |masked_data     := data and mask;
@@ -485,8 +497,6 @@ object VhdlTestbenchGenerator {
        |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
        |begin
        |${indent(notReadyTests)}
-       |
-       |    ready <= '1';
        |
        |${indent(testSteps)}
        |
@@ -528,10 +538,10 @@ object VhdlTestbenchGenerator {
        |begin
        |${indent(notReadyTests)}
        |
-       |    ready <= '1';
-       |
        |    for i in 0 to OUT_LEN - 1 loop
-       |        wait until rising_edge(clk) and valid = '1';
+       |        -- Wait until falling edge to give output time to settle down
+       |        wait until falling_edge(clk) and valid = '1';
+       |        ready <= '1';
        |        expected        := out_data_ram(i);
        |        mask            := out_mask_ram(i);
        |        masked_data     := data and mask;
@@ -542,7 +552,7 @@ object VhdlTestbenchGenerator {
        |    wait until falling_edge(clk);
        |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
        |
-       |    wait until rising_edge(clk);
+       |    wait until falling_edge(clk);
        |    assert(valid = '0') report "Wrong `valid` after completion";
        |
        |    test_done <= true;
