@@ -73,10 +73,6 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |    initialize();
        |
        |${indent(inputAssignments)}
-       |
-       |    @(posedge clock) begin
-       |        valid_up = 0;
-       |    end
        |end
        |""".stripMargin.stripTrailing
   }
@@ -119,10 +115,6 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |            valid_up = 1;
        |            $portList = input_data_ram[i];
        |        end
-       |    end
-       |
-       |    @(negedge clock) begin
-       |        valid_up = 0;
        |    end
        |end
        |""".stripMargin.stripTrailing
