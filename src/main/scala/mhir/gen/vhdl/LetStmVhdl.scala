@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 /** VHDL converter for [[LetStm]].
   */
@@ -67,7 +68,17 @@ private[vhdl] object LetStmVhdl {
         assert(xs.size == 1)
         instantiateNoOpBufferConsumer(xs.head.name, producerElemTyp)
       case y: Param if inputs.contains(y) =>
-        instantiateNoOpInputConsumer(y)
+        val stmId = {
+          val TyStm(t, n) = y.typ
+          val s = Param("s")(TyStm(t, -1))
+          StmBuild(
+            n,
+            StmData(s)(),
+            True,
+            Map[Param, (Expr, Expr)](s -> (y, True))
+          )().tchk()
+        }
+        instantiateCustomConsumer(stmId, xs.map(_.name))
       case _ =>
         instantiateCustomConsumer(newOut, xs.map(_.name))
     }
@@ -323,29 +334,6 @@ private[vhdl] object LetStmVhdl {
       )
     )
     VhdlEntityInstantiation("CONSUMER", component, portMap)
-  }
-
-  /** Instantiates a component for the consumer which simply forwards an input
-    * stream.
-    *
-    * @param x
-    *   the input stream to pass along.
-    */
-  private def instantiateNoOpInputConsumer(
-      x: Param
-  ): VhdlEntityInstantiation = {
-    val bitWidth = VhdlType(x.typ.asInstanceOf[TyStm].t).bitWidth
-    val portMap = PortMap(
-      Map(
-        "data_out" -> "data",
-        "valid_out" -> "valid",
-        "consumer_ready" -> "ready",
-        "data_in" -> s"${x.name}_data",
-        "valid_in" -> s"${x.name}_valid",
-        "producer_ready" -> s"${x.name}_ready"
-      )
-    )
-    VhdlEntityInstantiation("CONSUMER", StmNoOpComponent(bitWidth), portMap)
   }
 
   /** Instantiates a component for the consumer which is not a no-op.
