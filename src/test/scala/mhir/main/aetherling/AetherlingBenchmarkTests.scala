@@ -357,18 +357,22 @@ object AetherlingBenchmarkTests {
   private val smallConvB2bIO: Map[String, TestIO] = {
     // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
-      (0 until 4).map(i =>
-        (0 until 4).map(j => {
-          val even = ((i % 4) < 2) == ((j % 4) < 2)
-          if (even) 15 else 0
-        })
-      )
+//      (0 until 4).map(i =>
+//        (0 until 4).map(j => {
+//          val even = ((i % 4) < 2) == ((j % 4) < 2)
+//          if (even) 16 else 0
+//        })
+//      )
+      (0 until 16).map(i => 5 * (i + 1)).grouped(4).toSeq
     val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
     val basicOutputs = {
       val step1 = conv2d(
         inputs = basicInputs.map(_.map(Some(_))),
         kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
-        kernelDenom = 16
+        kernelDenom = 1
+      ).map(row =>
+        // Handle overflow before dividing
+        row.map(x => x.map(x => (x % 256) / 16))
       )
       val step2 = conv2d(
         inputs = step1,
