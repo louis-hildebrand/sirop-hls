@@ -7,7 +7,7 @@ import mhir.gen.verilog.{
   VerilogTestbenchGenerator
 }
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
-import mhir.gen.{TestInput, TestOutput, TestPassed, Undefined}
+import mhir.gen.{TestPassed, Undefined, vhdl, verilog}
 import mhir.ir._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -39,41 +39,30 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl:simplified") {
-      val (inputs, outputs) =
-        AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
+      val io = AetherlingBenchmarkTests.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir)
       Compiler.compile(args)
       time("generating VHDL testbench") {
-        VhdlTestbenchGenerator.makeTestbench(
-          inputs = inputs,
-          out = outputs,
-          dir = outDir,
-          testNotReady = false
-        )
+        VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
       time("running VHDL simulation") {
         assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
       }
     }
 
+    // Hopefully these also work, they're just so slow
     ignore(s"$benchName:vhdl:unsimplified") {
-      val (inputs, outputs) =
-        AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:vhdl")
+      val io = AetherlingBenchmarkTests.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test_unsimplified"
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir, optimize = false)
       Compiler.compile(args)
       time("generating VHDL testbench") {
-        VhdlTestbenchGenerator.makeTestbench(
-          inputs = inputs,
-          out = outputs,
-          dir = outDir,
-          testNotReady = false
-        )
+        VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
       time("running VHDL simulation") {
         assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
@@ -81,20 +70,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
-      assume(
-        !benchName.contains("1_3") && !benchName.contains("1_9"),
-        "I haven't managed to figure out how the Verilog designs with"
-          + " throughput < 1 work."
-      )
-      assume(
-        !benchName.startsWith("smallsharpen"),
-        "None of the sharpening benchmarks work as expected in Verilog."
-          + " In the timing diagram, it appears the image and blurred image"
-          + " are arriving at the final stage (for sharpening one pixel)"
-          + " at different times."
-      )
-      val (inputs, outputs) =
-        AetherlingBenchmarkTests.ioByBenchmark(s"$benchName:verilog")
+      val io = AetherlingBenchmarkTests.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(
         projectDir,
@@ -102,7 +78,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         overwrite = true
       )
       time("generating Verilog testbench") {
-        VerilogTestbenchGenerator.makeTestbench(inputs, outputs, projectDir)
+        VerilogTestbenchGenerator.makeFileBasedTestbench(io, projectDir)
       }
       time("running Verilog simulation") {
         assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
@@ -180,106 +156,85 @@ object AetherlingBenchmarkTests {
     outputs
   }
 
-  private val mapIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val mapIO: Map[String, AbstractTestIO] = {
     val flatInputs = (0 until 200).map(i => C(i)(U8))
     val flatOutputs = (0 until 200).map(i => C(i + 5)(U8))
     Seq(1, 2, 4, 5, 8, 10, 20, 40, 200)
       .map(par => {
-        val (inputs, outputs) = par match {
+        val io = par match {
           case 1 =>
-            (
-              TestInput(flatInputs.map(e => Some(e))),
-              TestOutput(flatOutputs)
-            )
+            AbstractTestIO(flatInputs.map(Seq(_)), flatOutputs)
           case _ =>
-            (
-              TestInput(
-                flatInputs
-                  .grouped(par)
-                  .map(xs => Some(VecLiteral(xs: _*)()))
-                  .toSeq
-              ),
-              TestOutput(
-                flatOutputs
-                  .grouped(par)
-                  .map(xs => VecLiteral(xs: _*)())
-                  .toSeq
-              )
+            AbstractTestIO(
+              flatInputs
+                .grouped(par)
+                .map(xs => VecLiteral(xs: _*)())
+                .toSeq
+                .map(Seq(_)),
+              flatOutputs
+                .grouped(par)
+                .map(xs => VecLiteral(xs: _*)())
+                .toSeq
             )
         }
-        s"map_$par" -> (Seq(inputs), outputs)
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        s"map_$par" -> io
       })
       .toMap
   }
 
-  private val sumIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val sumIO: Map[String, AbstractTestIO] = {
     val flatInputs = (0 until 840).map(i => C(i)(U32))
     val sum = C((0 until 840).sum)(U32)
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
       .map(par => {
         val inputs = par match {
           case 1 =>
-            TestInput(flatInputs.map(e => Some(e)))
+            flatInputs
           case _ =>
-            TestInput(
-              flatInputs
-                .grouped(par)
-                .map(xs => Some(VecLiteral(xs: _*)()))
-                .toSeq
-            )
+            flatInputs
+              .grouped(par)
+              .map(xs => VecLiteral(xs: _*)())
+              .toSeq
         }
-        s"sum_1_${840 / par}" -> (Seq(inputs), TestOutput(Seq(sum)))
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        val outputs = Seq(sum)
+        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
+        s"sum_1_${840 / par}" -> io
       })
       .toMap
   }
 
-  private val dotIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val dotIO: Map[String, AbstractTestIO] = {
     val flatInputs1 = (0 until 840).map(_ % 16)
     val flatInputs2 = (839 to 0 by -1).map(_ % 16)
     val result =
       flatInputs1.zip(flatInputs2).map({ case (x, y) => x * y }).sum
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
-      .map(par => {
+      .map({ par =>
         val (inputs1, inputs2) = par match {
           case 1 =>
-            (
-              TestInput(flatInputs1.map(e => Some(C(e)(U16)))),
-              TestInput(flatInputs2.map(e => Some(C(e)(U16))))
-            )
+            (flatInputs1.map(C(_)(U16)), flatInputs2.map(C(_)(U16)))
           case _ =>
             (
-              TestInput(
-                flatInputs1
-                  .grouped(par)
-                  .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
-                  .toSeq
-              ),
-              TestInput(
-                flatInputs2
-                  .grouped(par)
-                  .map(xs => Some(VecLiteral(xs.map(C(_)(U16)): _*)()))
-                  .toSeq
-              )
+              flatInputs1
+                .grouped(par)
+                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
+                .toSeq,
+              flatInputs2
+                .grouped(par)
+                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
+                .toSeq
             )
         }
-        s"dot_1_${840 / par}" -> (
-          Seq(inputs1, inputs2),
-          TestOutput(Seq(C(result)(U16)))
-        )
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        assert(inputs1.length == inputs2.length)
+        val in = inputs1.zip(inputs2).map({ case (x, y) => Seq(x, y) })
+        val out = Seq(C(result)(U16))
+        val io = AbstractTestIO(in, out)
+        s"dot_1_${840 / par}" -> io
       })
       .toMap
   }
 
-  private val conv1dIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val conv1dIO: Map[String, TestIO] = {
     // Square wave with 50% duty cycle and period 8
     val flatInputs = (0 until 16).map(t => if (t % 8 < 4) -42 else 42)
     val flatOutputs =
@@ -290,62 +245,48 @@ object AetherlingBenchmarkTests {
         val (inputs, outputs) = par match {
           case 1 =>
             (
-              TestInput(
-                flatInputs.map(C(_)(I8)).map(VecLiteral(_)()).map(Some(_))
-              ),
-              TestOutput(flatOutputs.map(VecLiteral(_)()))
+              flatInputs.map(C(_)(I8)).map(VecLiteral(_)()),
+              flatOutputs.map(VecLiteral(_)())
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
             (
-              TestInput(
-                flatInputs
-                  .grouped(n)
-                  .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
-                  .map(Some(_))
-                  .toSeq
-              ),
-              TestOutput(
-                flatOutputs
-                  .grouped(n)
-                  .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
-                  .toSeq
-              )
+              flatInputs
+                .grouped(n)
+                .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
+                .toSeq,
+              flatOutputs
+                .grouped(n)
+                .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
+                .toSeq
             )
         }
-        s"conv1d_$par" -> (Seq(inputs), outputs)
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
+        s"conv1d_$par" -> io
       })
       .toMap
-    val vhdlUnderutilizedCase =
-      "conv1d_1_3:vhdl" -> (
-        Seq(
-          TestInput(
-            flatInputs.flatMap(x => Seq(Some(C(x)(I8)), None, None))
-          )
+    val underutilizedCase = {
+      val io = ConcreteTestIO(
+        vhdl.TestIO(
+          Seq(vhdl.DirectTestInput(flatInputs.map(C(_)(I8)).map(Some(_)))),
+          vhdl.DirectTestOutput(flatOutputs)
         ),
-        TestOutput(flatOutputs)
-      )
-    val verilogUnderutilizedCase =
-      "conv1d_1_3:verilog" -> (
-        Seq(
-          TestInput(
-            flatInputs.flatMap(x =>
-              Seq(Some(C(x)(I8)), Some(C(x)(I8)), Some(C(x)(I8)))
-            )
+        verilog.TestIO(
+          verilog.DirectTestInput(
+            flatInputs.map(C(_)(I8)).flatMap(x => Seq(x, x, x)).map(Seq(_))
+          ),
+          verilog.DirectTestOutput(
+            flatOutputs.flatMap(x => Seq(x, Undefined(I8), Undefined(I8)))
           )
-        ),
-        TestOutput(
-          flatOutputs.flatMap(x => Seq(x, Undefined(I8), Undefined(I8)))
         )
       )
-    (normalCases + vhdlUnderutilizedCase) + verilogUnderutilizedCase
+      "conv1d_1_3" -> io
+    }
+    normalCases + underutilizedCase
   }
 
-  private val smallConv2dIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallConv2dIO: Map[String, TestIO] = {
     // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
       (0 until 4).map(i =>
@@ -366,60 +307,54 @@ object AetherlingBenchmarkTests {
       })
     val normalCases = Seq(1, 2, 4, 8, 16)
       .map({ par =>
-        val (inputs, outputs) = par match {
+        val io = par match {
           case 1 =>
-            (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
-            (
-              TestInput(
-                basicInputExprs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .map(Some(_))
-                  .toSeq
-              ),
-              TestOutput(
-                basicOutputs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .toSeq
-              )
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
             )
         }
-        s"smallconv2d_$par" -> (Seq(inputs), outputs)
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        s"smallconv2d_$par" -> io
       })
       .toMap
-    val verilogUnderutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val inputs = TestInput(
-          basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
-        )
-        val outputs = TestOutput(
-          basicOutputs.flatMap(x =>
-            x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = ConcreteTestIO(
+        {
+          val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
+          val outputs = vhdl.DirectTestOutput(basicOutputs)
+          vhdl.TestIO(Seq(inputs), outputs)
+        }, {
+          val inputs = verilog.DirectTestInput(
+            basicInputExprs.flatMap(x => (0 until denom).map(_ => Seq(x)))
           )
-        )
-        s"smallconv2d_1_$denom:verilog" -> (Seq(inputs), outputs)
-      })
-      .toMap
-    val vhdlUnderutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
-        s"smallconv2d_1_$denom:vhdl" -> (Seq(inputs), outputs)
-      })
-    normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
+          val outputs = verilog.DirectTestOutput(
+            basicOutputs.flatMap(x =>
+              x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+            )
+          )
+          verilog.TestIO(inputs, outputs)
+        }
+      )
+      s"smallconv2d_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
   }
 
-  private val smallConvB2bIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallConvB2bIO: Map[String, TestIO] = {
     // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
       (0 until 4).map(i =>
@@ -447,60 +382,57 @@ object AetherlingBenchmarkTests {
     }
     val normalCases = Seq(1, 2, 4, 8, 16)
       .map({ par =>
-        val (inputs, outputs) = par match {
+        val io = par match {
           case 1 =>
-            (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
-            (
-              TestInput(
-                basicInputExprs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .map(Some(_))
-                  .toSeq
-              ),
-              TestOutput(
-                basicOutputs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .toSeq
-              )
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
             )
         }
-        s"smallconvb2b_$par" -> (Seq(inputs), outputs)
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        s"smallconvb2b_$par" -> io
       })
       .toMap
-    val verilogUnderutilizedCases = Seq(3, 9)
+    val underutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(
-          basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
+        val io = ConcreteTestIO(
+          {
+            val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
+            val outputs = vhdl.DirectTestOutput(basicOutputs)
+            vhdl.TestIO(Seq(inputs), outputs)
+          }, {
+            val inputs = verilog.DirectTestInput(
+              basicInputExprs
+                .flatMap(x => (0 until denom).map(_ => x))
+                .map(Seq(_))
+            )
+            val outputs = verilog.DirectTestOutput(
+              basicOutputs.flatMap(x =>
+                x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+              )
+            )
+            verilog.TestIO(inputs, outputs)
+          }
         )
-        val outputs = TestOutput(
-          basicOutputs.flatMap(x =>
-            x +: (0 until (denom - 1)).map(_ => Undefined(U8))
-          )
-        )
-        s"smallconvb2b_1_$denom:verilog" -> (Seq(inputs), outputs)
+        s"smallconvb2b_1_$denom" -> io
       })
-      .toMap
-    val vhdlUnderutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
-        s"smallconvb2b_1_$denom:vhdl" -> (Seq(inputs), outputs)
-      })
-    normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
+    normalCases ++ underutilizedCases
   }
 
-  private val smallSharpenIO: Map[String, (Seq[TestInput], TestOutput)] = {
+  private val smallSharpenIO: Map[String, TestIO] = {
     def sharpen1(a: Int, b: Int): Int = {
       val threshold = 15
       val passedThreshold = (a - b > threshold) || (b - a > threshold)
@@ -532,72 +464,85 @@ object AetherlingBenchmarkTests {
     })
     val normalCases = Seq(1, 2, 4, 8, 16)
       .map({ par =>
-        val (inputs, outputs) = par match {
+        val io = par match {
           case 1 =>
-            (
-              TestInput(basicInputExprs.map(VecLiteral(_)()).map(Some(_))),
-              TestOutput(basicOutputs.map(VecLiteral(_)()))
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
             )
           case n =>
             assert(n > 1)
             // n valid per cycle
-            (
-              TestInput(
-                basicInputExprs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .map(Some(_))
-                  .toSeq
-              ),
-              TestOutput(
-                basicOutputs
-                  .grouped(n)
-                  .map(VecLiteral(_: _*)())
-                  .toSeq
-              )
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
             )
         }
-        s"smallsharpen_$par" -> (Seq(inputs), outputs)
-      })
-      .flatMap({ case (name, io) =>
-        Seq(s"$name:vhdl" -> io, s"$name:verilog" -> io)
+        s"smallsharpen_$par" -> io
       })
       .toMap
-    val verilogUnderutilizedCases = Seq(3, 9)
+    val underutilizedCases = Seq(3, 9)
       .map({ denom =>
-        val inputs = TestInput(
-          basicInputExprs.flatMap(x => (0 until denom).map(_ => Some(x)))
+        val io = ConcreteTestIO(
+          {
+            val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
+            val outputs = vhdl.DirectTestOutput(basicOutputs)
+            vhdl.TestIO(Seq(inputs), outputs)
+          }, {
+            val inputs = verilog.DirectTestInput(
+              basicInputExprs
+                .flatMap(x => (0 until denom).map(_ => x))
+                .map(Seq(_))
+            )
+            val outputs = verilog.DirectTestOutput(
+              basicOutputs.flatMap(x =>
+                x +: (0 until (denom - 1)).map(_ => Undefined(U8))
+              )
+            )
+            verilog.TestIO(inputs, outputs)
+          }
         )
-        val outputs = TestOutput(
-          basicOutputs.flatMap(x =>
-            x +: (0 until (denom - 1)).map(_ => Undefined(U8))
-          )
-        )
-        s"smallsharpen_1_$denom:verilog" -> (Seq(inputs), outputs)
+        s"smallsharpen_1_$denom" -> io
       })
-      .toMap
-    val vhdlUnderutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val inputs = TestInput(basicInputExprs.map(Some(_)))
-        val outputs = TestOutput(basicOutputs)
-        s"smallsharpen_1_$denom:vhdl" -> (Seq(inputs), outputs)
-      })
-    normalCases ++ verilogUnderutilizedCases ++ vhdlUnderutilizedCases
+    normalCases ++ underutilizedCases
   }
 
-  /** Maps benchmark names (e.g., "dot_1_105:vhdl") to inputs and expected
-    * outputs.
+  /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
+    * for the VHDL testbench.
     *
     * @note
-    *   this must be manually updated whenever a new benchmark is added.
+    *   this must be manually updated for each new benchmark.
     */
-  val ioByBenchmark: Map[String, (Seq[TestInput], TestOutput)] = (
-    mapIO
-      ++ sumIO
-      ++ dotIO
-      ++ conv1dIO
-      ++ smallConv2dIO
-      ++ smallConvB2bIO
-      ++ smallSharpenIO
+  val vhdlIO: Map[String, vhdl.TestIO] = (
+    mapIO.mapValues(_.toVhdl)
+      ++ sumIO.mapValues(_.toVhdl)
+      ++ dotIO.mapValues(_.toVhdl)
+      ++ conv1dIO.mapValues(_.toVhdl)
+      ++ smallConv2dIO.mapValues(_.toVhdl)
+      ++ smallConvB2bIO.mapValues(_.toVhdl)
+      ++ smallSharpenIO.mapValues(_.toVhdl)
+  )
+
+  /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
+    * for the Verilog benchmark.
+    *
+    * @note
+    *   this must be manually updated for each new benchmark.
+    */
+  val verilogIO: Map[String, verilog.TestIO] = (
+    mapIO.mapValues(_.toVerilog)
+      ++ sumIO.mapValues(_.toVerilog)
+      ++ dotIO.mapValues(_.toVerilog)
+      ++ conv1dIO.mapValues(_.toVerilog)
+      ++ smallConv2dIO.mapValues(_.toVerilog)
+      ++ smallConvB2bIO.mapValues(_.toVerilog)
+      ++ smallSharpenIO.mapValues(_.toVerilog)
   )
 }
