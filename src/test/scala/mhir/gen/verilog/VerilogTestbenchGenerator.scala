@@ -26,10 +26,27 @@ object VerilogTestbenchGenerator {
       dir: Path
   ): Unit = {
     val code = getTestbenchCode(
-      io.inputs.tchk().asInstanceOf[DirectTestInput],
+      io.inputs.tchk(),
       io.expectedOutput.tchk().asInstanceOf[DirectTestOutput]
     )
     emitTestbench(code, dir)
+  }
+
+  def makeFileBasedTestbench(io: TestIO, dir: Path): Unit = {
+    val in = io.inputs match {
+      case in: DirectTestInput =>
+        val f = dir / "inputs.txt"
+        InGen.emitInputDataFile(f, in)
+        TestInputFromFile(f, in.elemTypes, in.len)
+      case in: TestInputFromFile => in
+    }
+    val out = io.expectedOutput match {
+      case in: DirectTestOutput =>
+        // TODO
+        in
+      case in: TestOutputFromFile => in
+    }
+    makeTestbench(TestIO(in, out), dir)
   }
 
   private def emitTestbench(code: String, dir: Path): Unit = {
@@ -39,13 +56,19 @@ object VerilogTestbenchGenerator {
   }
 
   private def getTestbenchCode(
-      inputs: DirectTestInput,
+      inputs: TestInput,
       expectedOutput: DirectTestOutput
   ): String = {
     val portMap =
       getPortMap(InGen.getNames(inputs), OutGen.getNames(expectedOutput))
-    val inputDecls = InGen.getDirectInputDecls(inputs)
-    val inputGenBlock = InGen.getBlock(inputs)
+    val inputDecls = inputs match {
+      case in: DirectTestInput   => InGen.getDirectInputDecls(in)
+      case in: TestInputFromFile => InGen.getFileInputDecls(in)
+    }
+    val inputGenBlock = inputs match {
+      case in: DirectTestInput   => InGen.getDirectInputBlock(in)
+      case in: TestInputFromFile => InGen.getFileInputBlock(in)
+    }
     val outputDecls = OutGen.getDecls(expectedOutput)
     val outputCheckBlock = OutGen.getBlock(expectedOutput)
     s"""`timescale 1ns/1ps
@@ -66,6 +89,10 @@ object VerilogTestbenchGenerator {
        |    begin
        |        $$display("Initializing design...");
        |        reset = 1;
+       |
+       |        prepare_inputs();
+       |        prepare_outputs();
+       |
        |        @(posedge clock) begin
        |            reset = 0;
        |        end

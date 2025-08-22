@@ -89,7 +89,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         overwrite = true
       )
       time("generating Verilog testbench") {
-        VerilogTestbenchGenerator.makeTestbench(io, projectDir)
+        VerilogTestbenchGenerator.makeFileBasedTestbench(io, projectDir)
       }
       time("running Verilog simulation") {
         assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
