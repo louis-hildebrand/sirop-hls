@@ -25,10 +25,7 @@ object VerilogTestbenchGenerator {
       io: TestIO,
       dir: Path
   ): Unit = {
-    val code = getTestbenchCode(
-      io.inputs.tchk(),
-      io.expectedOutput.tchk().asInstanceOf[DirectTestOutput]
-    )
+    val code = getTestbenchCode(io.inputs.tchk(), io.expectedOutput.tchk())
     emitTestbench(code, dir)
   }
 
@@ -41,10 +38,13 @@ object VerilogTestbenchGenerator {
       case in: TestInputFromFile => in
     }
     val out = io.expectedOutput match {
-      case in: DirectTestOutput =>
-        // TODO
-        in
-      case in: TestOutputFromFile => in
+      case out: DirectTestOutput =>
+        val dataFile = dir / "out_data.txt"
+        val maskFile = dir / "out_mask.txt"
+        OutGen.emitOutputDataFile(dataFile, out)
+        OutGen.emitOutputMaskFile(maskFile, out)
+        TestOutputFromFile(dataFile, maskFile, out.elemTyp, out.len)
+      case out: TestOutputFromFile => out
     }
     makeTestbench(TestIO(in, out), dir)
   }
@@ -57,7 +57,7 @@ object VerilogTestbenchGenerator {
 
   private def getTestbenchCode(
       inputs: TestInput,
-      expectedOutput: DirectTestOutput
+      expectedOutput: TestOutput
   ): String = {
     val portMap =
       getPortMap(InGen.getNames(inputs), OutGen.getNames(expectedOutput))
@@ -69,8 +69,14 @@ object VerilogTestbenchGenerator {
       case in: DirectTestInput   => InGen.getDirectInputBlock(in)
       case in: TestInputFromFile => InGen.getFileInputBlock(in)
     }
-    val outputDecls = OutGen.getDecls(expectedOutput)
-    val outputCheckBlock = OutGen.getBlock(expectedOutput)
+    val outputDecls = expectedOutput match {
+      case out: DirectTestOutput   => OutGen.getDirectOutputDecls(out)
+      case out: TestOutputFromFile => OutGen.getFileOutputDecls(out)
+    }
+    val outputCheckBlock = expectedOutput match {
+      case out: DirectTestOutput   => OutGen.getDirectOutputBlock(out)
+      case out: TestOutputFromFile => OutGen.getFileOutputBlock(out)
+    }
     s"""`timescale 1ns/1ps
        |
        |module Test;
