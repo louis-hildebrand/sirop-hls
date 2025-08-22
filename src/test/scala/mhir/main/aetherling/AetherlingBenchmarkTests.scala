@@ -53,6 +53,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       }
     }
 
+    // Hopefully these also work, they're just so slow
     ignore(s"$benchName:vhdl:unsimplified") {
       val io = AetherlingBenchmarkTests.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
@@ -69,13 +70,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
-      assume(
-        !benchName.startsWith("smallsharpen"),
-        "None of the sharpening benchmarks work as expected in Verilog."
-          + " In the timing diagram, it appears the image and blurred image"
-          + " are arriving at the final stage (for sharpening one pixel)"
-          + " at different times."
-      )
       val io = AetherlingBenchmarkTests.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(
