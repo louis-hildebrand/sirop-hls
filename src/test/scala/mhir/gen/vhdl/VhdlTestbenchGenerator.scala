@@ -579,16 +579,21 @@ object VhdlTestbenchGenerator {
 
   private def expectedToVhdl(expected: Expr): String = {
     require(expected.hasType)
-    expected match {
-      case VecLiteral(elems @ _*) =>
-        elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
-      case Tuple(elems @ _*) =>
-        elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
-      case Undefined(typ) =>
-        "\"" + "X" * VhdlType(typ).bitWidth + "\""
-      case v =>
-        assert(!v.contains(classOf[Undefined]))
-        VhdlGenerator.valueToStdLogicVector(v)
+    if (!expected.contains(classOf[Undefined])) {
+      VhdlGenerator.valueToStdLogicVector(expected)
+    } else {
+      expected match {
+        case Undefined(typ) =>
+          "\"" + "X" * VhdlType(typ).bitWidth + "\""
+        case Tuple(elems @ _*) =>
+          assert(elems.nonEmpty)
+          elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
+        case VecLiteral(elems @ _*) =>
+          assert(elems.nonEmpty)
+          elems.map(expectedToVhdl).map(x => s"($x)").mkString(" & ")
+        case _ =>
+          ???
+      }
     }
   }
 
