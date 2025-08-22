@@ -91,6 +91,9 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${in.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${in.len});
+       |        end
        |        code = $$fscanf(fd, "%b\\n", input_data_ram[i]);
        |        if (code != 1) begin
        |            $$error("An error occurred while reading input file (step %d).", i);

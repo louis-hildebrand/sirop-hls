@@ -119,6 +119,9 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        code = $$fscanf(fd, "%b\\n", output_data_ram[i]);
        |        if (code != 1) begin
        |            $$error("An error occurred while reading output data file (step %d).", i);
@@ -141,6 +144,9 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        code = $$fscanf(fd, "%b\\n", output_mask_ram[i]);
        |        if (code != 1) begin
        |            $$error("An error occurred while reading output mask file (step %d).", i);
@@ -178,13 +184,15 @@ object VerilogTestbenchOutputGenerator {
        |    $$display("Started output checker.");
        |
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        wait_for_output();
        |        data = $outPortList;
        |        expected = output_data_ram[i];
        |        mask = output_mask_ram[i];
        |        masked_data = data & mask;
        |        masked_expected = expected & mask;
-       |        $$display("OUTPUT : %h", data);
        |        if (masked_data !== masked_expected) begin
        |            $$error("ASSERTION FAILED: expected %h, got %h", masked_expected, masked_data);
        |        end
