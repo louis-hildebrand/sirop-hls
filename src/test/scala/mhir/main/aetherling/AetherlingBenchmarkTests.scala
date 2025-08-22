@@ -70,11 +70,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
     test(s"$benchName:verilog") {
       assume(
-        !benchName.contains("1_3") && !benchName.contains("1_9"),
-        "I haven't managed to figure out how the Verilog designs with"
-          + " throughput < 1 work."
-      )
-      assume(
         !benchName.startsWith("smallsharpen"),
         "None of the sharpening benchmarks work as expected in Verilog."
           + " In the timing diagram, it appears the image and blurred image"
@@ -284,8 +279,12 @@ object AetherlingBenchmarkTests {
           vhdl.DirectTestOutput(flatOutputs)
         ),
         verilog.TestIO(
-          verilog.DirectTestInput(flatInputs.map(C(_)(I8)).map(Seq(_))),
-          verilog.DirectTestOutput(flatOutputs)
+          verilog.DirectTestInput(
+            flatInputs.map(C(_)(I8)).flatMap(x => Seq(x, x, x)).map(Seq(_))
+          ),
+          verilog.DirectTestOutput(
+            flatOutputs.flatMap(x => Seq(x, Undefined(I8), Undefined(I8)))
+          )
         )
       )
       "conv1d_1_3" -> io

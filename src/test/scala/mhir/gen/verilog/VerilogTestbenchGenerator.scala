@@ -114,8 +114,9 @@ object VerilogTestbenchGenerator {
        |
        |    initial begin
        |        $$display("Started clock counter.");
-       |        // Start timing from the moment resetting is done
-       |        @(negedge reset) begin
+       |        // Start timing once the input becomes valid
+       |        wait(valid_up == 1);
+       |        @(posedge clock) begin
        |            t = 0;
        |        end
        |        forever begin

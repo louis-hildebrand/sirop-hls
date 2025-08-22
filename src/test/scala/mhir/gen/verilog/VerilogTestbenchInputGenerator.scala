@@ -52,7 +52,7 @@ private[verilog] object VerilogTestbenchInputGenerator {
       .map({ elems =>
         val lhs = ports.mkString("{ ", ", ", " }")
         val rhs = toVerilog(elems)
-        s"""@(posedge clock) begin
+        s"""@(negedge clock) begin
              |    valid_up = 1;
              |    $lhs = $rhs;
              |end
@@ -115,13 +115,13 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |    initialize();
        |
        |    for (i = 0; i < ${in.len}; i = i + 1) begin
-       |        @(posedge clock) begin
+       |        @(negedge clock) begin
        |            valid_up = 1;
        |            $portList = input_data_ram[i];
        |        end
        |    end
        |
-       |    @(posedge clock) begin
+       |    @(negedge clock) begin
        |        valid_up = 0;
        |    end
        |end
