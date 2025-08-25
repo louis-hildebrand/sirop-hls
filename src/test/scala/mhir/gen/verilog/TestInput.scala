@@ -1,7 +1,6 @@
 package mhir.gen.verilog
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import os.Path
 
 /** A sequence of inputs to provide to a Verilog design under test.
@@ -23,36 +22,36 @@ sealed trait TestInput {
     * This determines the widths of the input registers in the testbench.
     */
   def elemTypes: Seq[Type]
-
-  /** Type check the data, if applicable.
-    */
-  def tchk(): TestInput
 }
 
 /** A sequence of inputs to hard-code in the testbench.
   *
-  * @param steps
-  *   values for each input at each time step. For example,
-  *   {{{Seq(Seq(0, 1), Seq(2, 3), Seq(4, 5))}}} means assign { I0, I1 } = { 0,
-  *   1 } at time step 0, assign { I0, I1 } = { 2, 3 } at time step 1, and
-  *   assign { I0, I1 } = { 4, 5 } at time step 2.
+  * @param f
+  *   a function that computes the values for each input at each time step. For
+  *   example, if
+  *   {{{Seq(0, 1, 2).map(f) == Seq(Seq(0, 1), Seq(2, 3), Seq(4, 5))}}} it means
+  *   assign { I0, I1 } = { 0, 1 } at time step 0, assign { I0, I1 } = { 2, 3 }
+  *   at time step 1, and assign { I0, I1 } = { 4, 5 } at time step 2.
+  * @param hold
+  *   the number of cycles for which to hold each input element.
   */
-case class DirectTestInput(steps: Seq[Seq[Expr]]) extends TestInput {
-  override def elemTypes: Seq[Type] = steps.head.map(_.tchk().typ)
-
-  override def len: Int = steps.length
-
-  override def tchk(): DirectTestInput = DirectTestInput(
-    steps.map(elems => elems.map(_.tchk()))
-  )
+case class DirectTestInput(
+    f: Int => Seq[Expr],
+    elemTypes: Seq[Type],
+    len: Int,
+    hold: Int
+) extends TestInput {
+  def steps: Iterator[Seq[Expr]] = {
+    Stream.from(0).take(len).map(f).iterator
+  }
 }
 
 /** A sequence of inputs to read from a file.
   *
   * @param f
   *   the path to the file containing the input data.
+  * @param hold
+  *   the number of cycles for which to hold each input element.
   */
-case class TestInputFromFile(f: Path, elemTypes: Seq[Type], len: Int)
-    extends TestInput {
-  override def tchk(): TestInputFromFile = this
-}
+case class TestInputFromFile(f: Path, elemTypes: Seq[Type], len: Int, hold: Int)
+    extends TestInput

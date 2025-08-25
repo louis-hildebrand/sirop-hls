@@ -1,7 +1,7 @@
 package mhir.gen.verilog
 
 import mhir.debug.indent
-import mhir.gen.Undefined
+import mhir.gen.{Binary, Undefined}
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import os.Path
@@ -49,17 +49,26 @@ object VerilogTestbenchOutputGenerator {
   }
 
   def getDirectOutputBlock(output: DirectTestOutput): String = {
-    val outAtomWidth = getAtomWidth(output.elems.head.typ)
+    val outAtomWidth = getAtomWidth(output.elemTyp)
     val outputChecks = outputMap(output)
       .map(valByPort => {
-        val checks = valByPort
-          .map({ case (port, v) =>
-            v match {
+        val checks = valByPort.zipWithIndex
+          .map({ case ((port, v), i) =>
+            val validCheck = v match {
               case None =>
                 s"// value for $port is undefined"
               case Some(v) =>
                 s"check_output($v, $port);"
             }
+            val skips = if (i == valByPort.size - 1 || output.skip <= 0) {
+              ""
+            } else {
+              s"""
+                 |// Skip ${output.skip} invalid elements
+                 |for (j = 0; j < ${output.skip}; j = j + 1) wait_for_output();
+                 |""".stripMargin.stripTrailing
+            }
+            validCheck + skips
           })
           .mkString("\n")
         s"wait_for_output();\n$checks"
@@ -90,6 +99,8 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |initial begin : out_check
+       |    integer j;
+       |
        |    $$display("Started output checker.");
        |
        |${indent(outputChecks)}
@@ -107,10 +118,11 @@ object VerilogTestbenchOutputGenerator {
   def getFileOutputBlock(out: TestOutputFromFile): String = {
     val totWidth = widthByPort(out).values.sum
     val outPortList = getNames(out).mkString("{ ", ", ", " }")
+    val bitsPerRow = Binary.paddedBitWidth(out.elemTyp)
     s"""// Output checking
        |
        |task read_output_data ();
-       |    integer fd, i, code;
+       |    integer fd, i, msb;
        |begin
        |    $$display("Reading output data from ${out.data}...");
        |    fd = $$fopen("${out.data}", "r");
@@ -122,11 +134,8 @@ object VerilogTestbenchOutputGenerator {
        |        if ((i & 32'h0000ffff) == 0) begin
        |            $$display("%d%%", (100 * i) / ${out.len});
        |        end
-       |        code = $$fscanf(fd, "%b\\n", output_data_ram[i]);
-       |        if (code != 1) begin
-       |            $$error("An error occurred while reading output data file (step %d).", i);
-       |            $$fclose(fd);
-       |            $$stop(0);
+       |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
+       |            output_data_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
        |    end
        |    $$fclose(fd);
@@ -135,7 +144,7 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |task read_output_masks ();
-       |    integer fd, i, code;
+       |    integer fd, i, msb;
        |begin
        |    $$display("Reading output masks from ${out.mask}...");
        |    fd = $$fopen("${out.mask}", "r");
@@ -147,11 +156,8 @@ object VerilogTestbenchOutputGenerator {
        |        if ((i & 32'h0000ffff) == 0) begin
        |            $$display("%d%%", (100 * i) / ${out.len});
        |        end
-       |        code = $$fscanf(fd, "%b\\n", output_mask_ram[i]);
-       |        if (code != 1) begin
-       |            $$error("An error occurred while reading output mask file (step %d).", i);
-       |            $$fclose(fd);
-       |            $$stop(0);
+       |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
+       |            output_mask_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
        |    end
        |    $$fclose(fd);
@@ -174,7 +180,7 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |initial begin : out_check
-       |    integer i;
+       |    integer i, j;
        |    reg [${totWidth - 1}:0] data;
        |    reg [${totWidth - 1}:0] expected;
        |    reg [${totWidth - 1}:0] mask;
@@ -196,6 +202,17 @@ object VerilogTestbenchOutputGenerator {
        |        if (masked_data !== masked_expected) begin
        |            $$error("ASSERTION FAILED: expected %h, got %h", masked_expected, masked_data);
        |        end
+       |
+       |        if (i != ${out.len - 1}) begin
+       |            // Skip ${out.skip} invalids
+       |            for (j = 0; j < ${out.skip}; j = j + 1) begin
+       |                wait_for_output();
+       |                expected = 'x;
+       |                mask = 'x;
+       |                masked_data = 'x;
+       |                masked_expected = 'x;
+       |            end
+       |        end
        |    end
        |
        |    @(negedge clock) begin
@@ -208,17 +225,10 @@ object VerilogTestbenchOutputGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  def emitOutputDataFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = valueToBinary(v)
-      os.write.append(f, s"$str\n")
-    }
-  }
-
-  def emitOutputMaskFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = getMask(v.tchk())
-      os.write.append(f, s"$str\n")
+  def emitOutputFiles(data: Path, mask: Path, out: DirectTestOutput): Unit = {
+    for (v <- out.elements) {
+      os.write.append(data, Binary(v))
+      os.write.append(mask, Binary.mask(v.tchk()))
     }
   }
 
@@ -242,7 +252,7 @@ object VerilogTestbenchOutputGenerator {
 
   private def outputMap(
       output: DirectTestOutput
-  ): Seq[Map[String, Option[String]]] = {
+  ): Iterator[Map[String, Option[String]]] = {
     def portsToValues(prefix: String)(e: Expr): Map[String, Option[String]] = {
       e match {
         case _: Undefined => Map(prefix -> None)
@@ -266,7 +276,7 @@ object VerilogTestbenchOutputGenerator {
       }
     }
 
-    output.elems.map(portsToValues("O"))
+    output.elements.map(portsToValues("O"))
   }
 
   @tailrec
@@ -281,69 +291,6 @@ object VerilogTestbenchOutputGenerator {
       case TyVec(t, _) => getAtomWidth(t)
       case _ =>
         ???
-    }
-  }
-
-  // TODO: Merge this with VhdlGenerator.valueToStdLogicVector?
-  private def valueToBinary(e: Expr): String = {
-    e match {
-      case Undefined(typ) => valueToBinary(mhir.ir.eval(Default(typ)))
-      case False          => "0"
-      case True           => "1"
-      case c: IntCst =>
-        val w = c.typ.asInstanceOf[TyAnyInt].w
-        if (c.i < 0) {
-          val bin = c.i.toBinaryString
-          assert(bin.head == '1')
-          assert(bin.length == 64)
-          val truncated = bin.takeRight(w)
-          assert(truncated.head == '1')
-          truncated
-        } else {
-          val bin = c.i.toBinaryString
-          assert(bin.length <= w)
-          val padded = ("0" * (w - bin.length)) + bin
-          if (c.typ.isInstanceOf[TySInt]) {
-            assert(padded.head == '0')
-          }
-          padded
-        }
-      case c: FixCst =>
-        valueToBinary(C(c.numer)(c.typ.t))
-      case Tuple(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case VecLiteral(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case _ => ???
-    }
-  }
-
-  private def bitWidth(typ: Type): Int = {
-    typ match {
-      case typ: TyAnyInt       => typ.w
-      case typ: TyFix          => typ.t.w
-      case TyBool              => 1
-      case TyTuple(ts @ _*)    => ts.map(bitWidth).sum
-      case TyVec(t, IntCst(n)) => bitWidth(t) * n.toInt
-      case typ =>
-        throw new IllegalArgumentException(
-          s"Cannot get bit width for type $typ."
-        )
-    }
-  }
-
-  private def getMask(expected: Expr): String = {
-    require(expected.hasType)
-    expected match {
-      case VecLiteral(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Tuple(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Undefined(typ) =>
-        "0" * bitWidth(typ)
-      case v =>
-        assert(!v.contains(classOf[Undefined]))
-        "1" * bitWidth(v.typ)
     }
   }
 }

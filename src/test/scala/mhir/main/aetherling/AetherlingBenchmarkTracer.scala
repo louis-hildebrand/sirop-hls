@@ -21,14 +21,14 @@ object AetherlingBenchmarkTracer {
     *   the name of the benchmark (e.g., `conv1d_2`).
     */
   def trace(benchName: String): Trace = {
-    val io = AetherlingBenchmarkTests.vhdlIO(benchName)
+    val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
     val args =
       Args(inFile = inFile, outDir = os.pwd / "deleteme", emitHdl = false)
     val f = Compiler.compile(args)
     val stm = io.inputs.foldLeft(f)({
       case (f, in: DirectTestInput) =>
-        val inStm = StmLiteral(in.elems.flatten: _*)()
+        val inStm = StmLiteral(in.elements.flatten.toSeq: _*)()
           .tchk()
           .asInstanceOf[StmLiteral]
           .toStmBuild
