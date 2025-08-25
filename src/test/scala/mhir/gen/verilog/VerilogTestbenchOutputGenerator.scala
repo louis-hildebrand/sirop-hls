@@ -114,7 +114,7 @@ object VerilogTestbenchOutputGenerator {
   def getFileOutputBlock(out: TestOutputFromFile): String = {
     val totWidth = widthByPort(out).values.sum
     val outPortList = getNames(out).mkString("{ ", ", ", " }")
-    val bitsPerRow = Binary.paddedWidth(out.elemTyp)
+    val bitsPerRow = Binary.paddedBitWidth(out.elemTyp)
     s"""// Output checking
        |
        |task read_output_data ();

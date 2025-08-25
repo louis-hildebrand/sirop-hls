@@ -270,7 +270,7 @@ object VhdlTestbenchGenerator {
 
   private def getInputStreamDecls(x: Param, in: TestInputFromFiles): String = {
     val elemBitWidth = VhdlType(in.elemTyp).bitWidth
-    val bytesPerRow = Binary.paddedWidth(in.elemTyp) / 8
+    val bytesPerRow = Binary.paddedBitWidth(in.elemTyp) / 8
     s"""constant ${x.name}_LEN   : natural := ${in.len};
        |constant ${x.name}_WIDTH : natural := $elemBitWidth;
        |
@@ -384,7 +384,7 @@ object VhdlTestbenchGenerator {
 
   private def getOutputCheckDecls(out: TestOutputFromFile): String = {
     val elemBitWidth = VhdlType(out.elemTyp).bitWidth
-    val bytesPerRow = Binary.paddedWidth(out.elemTyp) / 8
+    val bytesPerRow = Binary.paddedBitWidth(out.elemTyp) / 8
     s"""-- Expected outputs
        |constant OUT_LEN   : natural := ${out.len};
        |constant OUT_WIDTH : natural := $elemBitWidth;

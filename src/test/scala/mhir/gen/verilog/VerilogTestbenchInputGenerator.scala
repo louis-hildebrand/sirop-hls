@@ -85,7 +85,7 @@ private[verilog] object VerilogTestbenchInputGenerator {
 
   def getFileInputBlock(in: TestInputFromFile): String = {
     val portList = getNames(in).mkString("{ ", ", ", " }")
-    val bitsPerRow = Binary.paddedWidth(in.elemTypes: _*)
+    val bitsPerRow = Binary.paddedBitWidth(in.elemTypes: _*)
     s"""// Input generation
        |
        |task prepare_inputs ();

@@ -24,16 +24,26 @@ sealed trait TestIO {
 case class AbstractTestIO(in: AbstractTestInput, out: AbstractTestOutput)
     extends TestIO {
 
+  /** Converts to the format required by the VHDL testbench generator.
+    */
   def toVhdl: vhdl.TestIO = {
     vhdl.TestIO(inputs = in.toVhdl, expectedOutput = out.toVhdl)
   }
 
+  /** Converts to the format required by the Verilog testbench generator.
+    */
   def toVerilog: verilog.TestIO = {
     verilog.TestIO(inputs = in.toVerilog, expectedOutput = out.toVerilog)
   }
 }
 
+/** Companion object for [[AbstractTestIO]].
+  */
 object AbstractTestIO {
+
+  /** Constructs an [[AbstractTestIO]] using pre-computed input and output
+    * sequences.
+    */
   def apply(
       in: Seq[Seq[Expr]],
       out: Seq[Expr],
