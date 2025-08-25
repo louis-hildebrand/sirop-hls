@@ -52,19 +52,23 @@ object VerilogTestbenchOutputGenerator {
     val outAtomWidth = getAtomWidth(output.elemTyp)
     val outputChecks = outputMap(output)
       .map(valByPort => {
-        val checks = valByPort
-          .map({ case (port, v) =>
+        val checks = valByPort.zipWithIndex
+          .map({ case ((port, v), i) =>
             val validCheck = v match {
               case None =>
                 s"// value for $port is undefined"
               case Some(v) =>
                 s"check_output($v, $port);"
             }
-            val skips =
-              s"""// Skip ${output.skip} invalid elements
+            val skips = if (i == valByPort.size - 1 || output.skip <= 0) {
+              ""
+            } else {
+              s"""
+                 |// Skip ${output.skip} invalid elements
                  |for (j = 0; j < ${output.skip}; j = j + 1) wait_for_output();
                  |""".stripMargin.stripTrailing
-            validCheck + "\n" + skips
+            }
+            validCheck + skips
           })
           .mkString("\n")
         s"wait_for_output();\n$checks"
@@ -191,13 +195,15 @@ object VerilogTestbenchOutputGenerator {
        |            $$error("ASSERTION FAILED: expected %h, got %h", masked_expected, masked_data);
        |        end
        |
-       |        // Skip ${out.skip} invalids
-       |        for (j = 0; j < ${out.skip}; j = j + 1) begin
-       |            wait_for_output();
-       |            expected = 'x;
-       |            mask = 'x;
-       |            masked_data = 'x;
-       |            masked_expected = 'x;
+       |        if (i != ${out.len - 1}) begin
+       |            // Skip ${out.skip} invalids
+       |            for (j = 0; j < ${out.skip}; j = j + 1) begin
+       |                wait_for_output();
+       |                expected = 'x;
+       |                mask = 'x;
+       |                masked_data = 'x;
+       |                masked_expected = 'x;
+       |            end
        |        end
        |    end
        |
