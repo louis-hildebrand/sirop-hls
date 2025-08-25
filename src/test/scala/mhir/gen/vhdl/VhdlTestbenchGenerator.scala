@@ -56,32 +56,30 @@ object VhdlTestbenchGenerator {
     val inputsByVar = toNamedArgs(io.inputs)
     val fileInputsByVar = inputsByVar.map({
       case (x, in: DirectTestInput) =>
-        val dataFile = testDir / s"${x.name}_data.txt"
-        val validFile = testDir / s"${x.name}_valid.txt"
+        val dataFile = testDir / s"${x.name}_data.bin"
+        val validFile = testDir / s"${x.name}_valid.bin"
         val fileInput = TestInputFromFiles(
           data = dataFile,
           valid = validFile,
           elemTyp = in.elemTyp,
           len = in.len
         )
-        emitTestInputDataFile(fileInput.data, in)
-        emitTestInputValidFile(fileInput.valid, in)
+        emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
         x -> fileInput
       case (x, in: TestInputFromFiles) => x -> in
     })
 
     val fileOutput = io.expectedOutput match {
       case out: DirectTestOutput =>
-        val dataFile = testDir / "out_data.txt"
-        val maskFile = testDir / "out_mask.txt"
+        val dataFile = testDir / "out_data.bin"
+        val maskFile = testDir / "out_mask.bin"
         val fileOutput = TestOutputFromFile(
           data = dataFile,
           mask = maskFile,
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        emitTestOutputDataFile(fileOutput.data, out)
-        emitTestOutputMaskFile(fileOutput.mask, out)
+        emitTestOutputFiles(data = fileOutput.data, mask = fileOutput.mask, out)
         fileOutput
       case out: TestOutputFromFile => out
     }
@@ -165,6 +163,9 @@ object VhdlTestbenchGenerator {
          |    -- Easier debugging
          |    signal   data_t     : ${outElemType.vhdlName};
          |
+         |    -- Binary file I/O
+         |    type binary_file is file of character;
+         |
          |${indent(inputStreamSignals)}
          |
          |${indent(outStreamSignals)}
@@ -215,71 +216,35 @@ object VhdlTestbenchGenerator {
       .toMap
   }
 
-  private def emitTestInputDataFile(f: Path, in: DirectTestInput): Unit = {
-    for (x <- in.elems) {
-      val str = x match {
-        case Some(v) => valueToBinary(v)
-        case None    => valueToBinary(mhir.ir.eval(Default(in.elemTyp)))
+  private def emitTestInputFiles(
+      data: Path,
+      valid: Path,
+      in: DirectTestInput
+  ): Unit = {
+    for (x <- in.elements) {
+      val binaryData = x match {
+        case Some(v) => Binary(v)
+        case None    => Binary(mhir.ir.eval(Default(in.elemTyp)))
       }
-      os.write.append(f, s"$str\n")
-    }
-  }
+      os.write.append(data, binaryData)
 
-  private def emitTestInputValidFile(f: Path, in: DirectTestInput): Unit = {
-    for (x <- in.elems) {
-      val str = x match {
-        case Some(_) => "true"
-        case None    => "false"
+      // TODO: Pack this data even further?
+      val binaryValid: Array[Byte] = x match {
+        case Some(_) => Array((0 until 8).map(_ => 1.toByte): _*)
+        case None    => Array((0 until 8).map(_ => 0.toByte): _*)
       }
-      os.write.append(f, s"$str\n")
+      os.write.append(valid, binaryValid)
     }
   }
 
-  private def emitTestOutputDataFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = valueToBinary(v)
-      os.write.append(f, s"$str\n")
-    }
-  }
-
-  private def emitTestOutputMaskFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = getMask(v.tchk())
-      os.write.append(f, s"$str\n")
-    }
-  }
-
-  // TODO: Merge this with VhdlGenerator.valueToStdLogicVector?
-  private def valueToBinary(e: Expr): String = {
-    e match {
-      case Undefined(typ) => "0" * VhdlType(typ).bitWidth
-      case False          => "0"
-      case True           => "1"
-      case c: IntCst =>
-        val w = c.typ.asInstanceOf[TyAnyInt].w
-        if (c.i < 0) {
-          val bin = c.i.toBinaryString
-          assert(bin.head == '1')
-          assert(bin.length == 64)
-          val truncated = bin.takeRight(w)
-          assert(truncated.head == '1')
-          truncated
-        } else {
-          val bin = c.i.toBinaryString
-          assert(bin.length <= w)
-          val padded = ("0" * (w - bin.length)) + bin
-          if (c.typ.isInstanceOf[TySInt]) {
-            assert(padded.head == '0')
-          }
-          padded
-        }
-      case c: FixCst =>
-        valueToBinary(C(c.numer)(c.typ.t))
-      case Tuple(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case VecLiteral(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case _ => ???
+  private def emitTestOutputFiles(
+      data: Path,
+      mask: Path,
+      out: DirectTestOutput
+  ): Unit = {
+    for (v <- out.elements) {
+      os.write.append(data, Binary(v))
+      os.write.append(mask, Binary.mask(v.tchk()))
     }
   }
 
@@ -305,41 +270,49 @@ object VhdlTestbenchGenerator {
 
   private def getInputStreamDecls(x: Param, in: TestInputFromFiles): String = {
     val elemBitWidth = VhdlType(in.elemTyp).bitWidth
+    val bytesPerRow = Binary.paddedBitWidth(in.elemTyp) / 8
     s"""constant ${x.name}_LEN   : natural := ${in.len};
        |constant ${x.name}_WIDTH : natural := $elemBitWidth;
        |
+       |type ${x.name}_data_file_type is file of std_logic_vector(${x.name}_WIDTH-1 downto 0);
+       |type ${x.name}_valid_file_type is file of std_logic_vector(7 downto 0);
        |type ${x.name}_data_ram_type is array (0 to ${x.name}_LEN-1) of std_logic_vector(${x.name}_WIDTH-1 downto 0);
        |type ${x.name}_valid_ram_type is array (0 to ${x.name}_LEN-1) of std_logic;
        |
        |impure function init_${x.name}_data_ram return ${x.name}_data_ram_type is
-       |    file f : text open read_mode is "${in.data}";
-       |    variable ok : boolean;
-       |    variable current_line : line;
+       |    file f : binary_file;
+       |    variable c : character;
+       |    variable row : std_logic_vector(${x.name}_WIDTH-1 downto 0);
+       |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
        |    variable ram : ${x.name}_data_ram_type;
-       |    variable bv : bit_vector(${x.name}_WIDTH-1 downto 0);
        |begin
+       |    file_open(f, "${in.data}");
        |    for i in 0 to ${x.name}_LEN - 1 loop
-       |        readline(f, current_line);
-       |        read(current_line, bv, ok);
-       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
-       |        ram(i) := to_stdlogicvector(bv);
+       |        msb := ${8 * bytesPerRow - 1};
+       |        while msb >= 7 loop
+       |            read(f, c);
+       |            row(msb downto msb-7) := std_logic_vector(to_unsigned(character'pos(c), 8));
+       |            msb := msb - 8;
+       |        end loop;
+       |        ram(i) := row;
        |    end loop;
+       |    file_close(f);
        |    return ram;
        |end function;
        |
        |impure function init_${x.name}_valid_ram return ${x.name}_valid_ram_type is
-       |    file f : text open read_mode is "${in.valid}";
-       |    variable ok : boolean;
-       |    variable current_line : line;
+       |    file f : binary_file;
+       |    variable c : character;
+       |    variable byte : std_logic_vector(7 downto 0);
        |    variable ram : ${x.name}_valid_ram_type;
-       |    variable b : boolean;
        |begin
+       |    file_open(f, "${in.valid}");
        |    for i in 0 to ${x.name}_LEN - 1 loop
-       |        readline(f, current_line);
-       |        read(current_line, b, ok);
-       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
-       |        ram(i) := bool2sl(b);
+       |        read(f, c);
+       |        byte := std_logic_vector(to_unsigned(character'pos(c), 8));
+       |        ram(i) := byte(0);
        |    end loop;
+       |    file_close(f);
        |    return ram;
        |end function;
        |
@@ -352,7 +325,7 @@ object VhdlTestbenchGenerator {
   }
 
   private def getInputStreamProcess(x: Param, in: DirectTestInput): String = {
-    val steps = in.elems
+    val steps = in.elements
       .map({
         case None =>
           s"""wait until falling_edge(clk); -- prepare input well before the next rising edge
@@ -411,6 +384,7 @@ object VhdlTestbenchGenerator {
 
   private def getOutputCheckDecls(out: TestOutputFromFile): String = {
     val elemBitWidth = VhdlType(out.elemTyp).bitWidth
+    val bytesPerRow = Binary.paddedBitWidth(out.elemTyp) / 8
     s"""-- Expected outputs
        |constant OUT_LEN   : natural := ${out.len};
        |constant OUT_WIDTH : natural := $elemBitWidth;
@@ -418,34 +392,44 @@ object VhdlTestbenchGenerator {
        |type out_ram_type is array (0 to OUT_LEN-1) of std_logic_vector(OUT_WIDTH-1 downto 0);
        |
        |impure function init_out_data_ram return out_ram_type is
-       |    file f : text open read_mode is "${out.data}";
-       |    variable ok : boolean;
-       |    variable current_line : line;
+       |    file f : binary_file;
+       |    variable c : character;
+       |    variable row : std_logic_vector(OUT_WIDTH-1 downto 0);
+       |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
        |    variable ram : out_ram_type;
-       |    variable bv : bit_vector(OUT_WIDTH-1 downto 0);
        |begin
+       |    file_open(f, "${out.data}");
        |    for i in 0 to OUT_LEN - 1 loop
-       |        readline(f, current_line);
-       |        read(current_line, bv, ok);
-       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
-       |        ram(i) := to_stdlogicvector(bv);
+       |        msb := ${8 * bytesPerRow - 1};
+       |        while msb >= 7 loop
+       |            read(f, c);
+       |            row(msb downto msb-7) := std_logic_vector(to_unsigned(character'pos(c), 8));
+       |            msb := msb - 8;
+       |        end loop;
+       |        ram(i) := row;
        |    end loop;
+       |    file_close(f);
        |    return ram;
        |end function;
        |
        |impure function init_out_mask_ram return out_ram_type is
-       |    file f : text open read_mode is "${out.mask}";
-       |    variable ok : boolean;
-       |    variable current_line : line;
+       |    file f : binary_file;
+       |    variable c : character;
+       |    variable row : std_logic_vector(OUT_WIDTH-1 downto 0);
+       |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
        |    variable ram : out_ram_type;
-       |    variable bv : bit_vector(OUT_WIDTH-1 downto 0);
        |begin
+       |    file_open(f, "${out.mask}");
        |    for i in 0 to OUT_LEN - 1 loop
-       |        readline(f, current_line);
-       |        read(current_line, bv, ok);
-       |        assert ok report "Failed to read file (line " & integer'image(i) & ").";
-       |        ram(i) := to_stdlogicvector(bv);
+       |        msb := ${8 * bytesPerRow - 1};
+       |        while msb >= 7 loop
+       |            read(f, c);
+       |            row(msb downto msb-7) := std_logic_vector(to_unsigned(character'pos(c), 8));
+       |            msb := msb - 8;
+       |        end loop;
+       |        ram(i) := row;
        |    end loop;
+       |    file_close(f);
        |    return ram;
        |end function;
        |
@@ -472,7 +456,7 @@ object VhdlTestbenchGenerator {
     } else {
       ""
     }
-    val testSteps = out.elems.zipWithIndex
+    val testSteps = out.elements.zipWithIndex
       .map({ case (v, i) =>
         val checkedV = v.tchk()
         val mask = getMask(checkedV)
@@ -620,7 +604,7 @@ object VhdlTestbenchGenerator {
     }
     val substituted = inputs
       .foldLeft(e)({ case (acc, in) =>
-        val arg = StmLiteral(in.elems.flatten: _*)()
+        val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
         FunCall(acc, arg)()
       })
     val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]

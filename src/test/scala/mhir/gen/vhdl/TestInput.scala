@@ -20,15 +20,24 @@ sealed trait TestInput {
 
 /** A sequence of inputs to provide directly in the testbench source code.
   *
-  * @param elems
-  *   the elements of the sequence. `None` means that no input should be
-  *   provided in the given clock cycle (i.e., `valid = 0`). `Some(x)` means
-  *   that data `x` should be sent as input (i.e., `valid = 1`).
+  * @param f
+  *   a function which computes the element at the given index in the sequence.
   */
-case class DirectTestInput(elems: Seq[Option[Expr]]) extends TestInput {
-  def elemTyp: Type = elems.flatten.head.tchk().typ
+case class DirectTestInput(f: Int => Option[Expr], elemTyp: Type, len: Int)
+    extends TestInput {
+  def elements: Iterator[Option[Expr]] = {
+    Stream.from(0).take(len).map(f).iterator
+  }
+}
 
-  def len: Int = elems.length
+object DirectTestInput {
+  def apply(elems: Seq[Option[Expr]]): DirectTestInput = {
+    DirectTestInput(
+      (i: Int) => elems(i),
+      elemTyp = elems.flatten.head.tchk().typ,
+      len = elems.length
+    )
+  }
 }
 
 /** A sequence of inputs to read from files.

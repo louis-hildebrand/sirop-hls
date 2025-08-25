@@ -19,14 +19,22 @@ sealed trait TestOutput {
 }
 
 /** A sequence of expected outputs to hard-code into the testbench source code.
-  *
-  * @param elems
-  *   the expected sequence of <i>valid</i> outputs.
   */
-case class DirectTestOutput(elems: Seq[Expr]) extends TestOutput {
-  override def elemTyp: Type = this.elems.head.tchk().typ
+case class DirectTestOutput(f: Int => Expr, elemTyp: Type, len: Int)
+    extends TestOutput {
+  def elements: Iterator[Expr] = {
+    Stream.from(0).take(len).map(f).iterator
+  }
+}
 
-  override def len: Int = this.elems.length
+object DirectTestOutput {
+  def apply(elems: Seq[Expr]): DirectTestOutput = {
+    DirectTestOutput(
+      i => elems(i),
+      elemTyp = elems.head.tchk().typ,
+      len = elems.length
+    )
+  }
 }
 
 /** A sequence of expected outputs to read from files.

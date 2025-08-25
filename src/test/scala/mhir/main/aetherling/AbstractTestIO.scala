@@ -18,35 +18,41 @@ sealed trait TestIO {
   def toVerilog: verilog.TestIO
 }
 
-/** Inputs and expected outputs in a format that basically works for both VHDL
-  * and Verilog.
+/** Inputs and expected outputs in a format that can be converted to either of
+  * the formats for VHDL and Verilog testbenches.
   */
-case class AbstractTestIO(inputs: Seq[Seq[Expr]], expectedOutput: Seq[Expr])
+case class AbstractTestIO(in: AbstractTestInput, out: AbstractTestOutput)
     extends TestIO {
+
+  /** Converts to the format required by the VHDL testbench generator.
+    */
   def toVhdl: vhdl.TestIO = {
-    val nStreams = inputs.head.length
-    val in = (0 until nStreams).map({ i =>
-      vhdl.DirectTestInput(inputs.map(xs => xs(i)).map(Some(_)))
-    })
-    val out = vhdl.DirectTestOutput(this.expectedOutput)
-    vhdl.TestIO(inputs = in, expectedOutput = out)
+    vhdl.TestIO(inputs = in.toVhdl, expectedOutput = out.toVhdl)
   }
 
+  /** Converts to the format required by the Verilog testbench generator.
+    */
   def toVerilog: verilog.TestIO = {
-    val in = verilog.DirectTestInput(this.inputs)
-    val out = verilog.DirectTestOutput(this.expectedOutput)
-    verilog.TestIO(inputs = in, expectedOutput = out)
+    verilog.TestIO(inputs = in.toVerilog, expectedOutput = out.toVerilog)
   }
 }
 
-/** Separate inputs and expected outputs for the VHDL and Verilog cases.
-  *
-  * Use this class when the VHDL and Verilog require very different stimuli
-  * (e.g., for designs with sub-1 throughput).
+/** Companion object for [[AbstractTestIO]].
   */
-case class ConcreteTestIO(vhdlIO: vhdl.TestIO, verilogIO: verilog.TestIO)
-    extends TestIO {
-  override def toVhdl: vhdl.TestIO = this.vhdlIO
+object AbstractTestIO {
 
-  override def toVerilog: verilog.TestIO = this.verilogIO
+  /** Constructs an [[AbstractTestIO]] using pre-computed input and output
+    * sequences.
+    */
+  def apply(
+      in: Seq[Seq[Expr]],
+      out: Seq[Expr],
+      hold: Int = 1,
+      skip: Int = 0
+  ): AbstractTestIO = {
+    new AbstractTestIO(
+      AbstractTestInput(in, hold = hold),
+      AbstractTestOutput(out, skip = skip)
+    )
+  }
 }
