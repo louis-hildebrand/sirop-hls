@@ -49,7 +49,7 @@ object VerilogTestbenchOutputGenerator {
   }
 
   def getDirectOutputBlock(output: DirectTestOutput): String = {
-    val outAtomWidth = getAtomWidth(output.elems.head.typ)
+    val outAtomWidth = getAtomWidth(output.elemTyp)
     val outputChecks = outputMap(output)
       .map(valByPort => {
         val checks = valByPort
@@ -216,17 +216,13 @@ object VerilogTestbenchOutputGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  def emitOutputDataFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = valueToBinary(v)
-      os.write.append(f, s"$str\n")
-    }
-  }
+  def emitOutputFiles(data: Path, mask: Path, out: DirectTestOutput): Unit = {
+    for (v <- out.elements) {
+      val dataStr = valueToBinary(v)
+      os.write.append(data, s"$dataStr\n")
 
-  def emitOutputMaskFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = getMask(v.tchk())
-      os.write.append(f, s"$str\n")
+      val maskStr = getMask(v.tchk())
+      os.write.append(mask, s"$maskStr\n")
     }
   }
 
@@ -250,7 +246,7 @@ object VerilogTestbenchOutputGenerator {
 
   private def outputMap(
       output: DirectTestOutput
-  ): Seq[Map[String, Option[String]]] = {
+  ): Iterator[Map[String, Option[String]]] = {
     def portsToValues(prefix: String)(e: Expr): Map[String, Option[String]] = {
       e match {
         case _: Undefined => Map(prefix -> None)
@@ -274,7 +270,7 @@ object VerilogTestbenchOutputGenerator {
       }
     }
 
-    output.elems.map(portsToValues("O"))
+    output.elements.map(portsToValues("O"))
   }
 
   @tailrec

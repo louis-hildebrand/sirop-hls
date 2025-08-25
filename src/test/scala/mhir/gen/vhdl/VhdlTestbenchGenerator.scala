@@ -64,8 +64,7 @@ object VhdlTestbenchGenerator {
           elemTyp = in.elemTyp,
           len = in.len
         )
-        emitTestInputDataFile(fileInput.data, in)
-        emitTestInputValidFile(fileInput.valid, in)
+        emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
         x -> fileInput
       case (x, in: TestInputFromFiles) => x -> in
     })
@@ -80,8 +79,7 @@ object VhdlTestbenchGenerator {
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        emitTestOutputDataFile(fileOutput.data, out)
-        emitTestOutputMaskFile(fileOutput.mask, out)
+        emitTestOutputFiles(data = fileOutput.data, mask = fileOutput.mask, out)
         fileOutput
       case out: TestOutputFromFile => out
     }
@@ -215,37 +213,37 @@ object VhdlTestbenchGenerator {
       .toMap
   }
 
-  private def emitTestInputDataFile(f: Path, in: DirectTestInput): Unit = {
-    for (x <- in.elems) {
-      val str = x match {
+  private def emitTestInputFiles(
+      data: Path,
+      valid: Path,
+      in: DirectTestInput
+  ): Unit = {
+    for (x <- in.elements) {
+      val dataStr = x match {
         case Some(v) => valueToBinary(v)
         case None    => valueToBinary(mhir.ir.eval(Default(in.elemTyp)))
       }
-      os.write.append(f, s"$str\n")
-    }
-  }
+      os.write.append(data, s"$dataStr\n")
 
-  private def emitTestInputValidFile(f: Path, in: DirectTestInput): Unit = {
-    for (x <- in.elems) {
-      val str = x match {
+      val validStr = x match {
         case Some(_) => "true"
         case None    => "false"
       }
-      os.write.append(f, s"$str\n")
+      os.write.append(valid, s"$validStr\n")
     }
   }
 
-  private def emitTestOutputDataFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = valueToBinary(v)
-      os.write.append(f, s"$str\n")
-    }
-  }
+  private def emitTestOutputFiles(
+      data: Path,
+      mask: Path,
+      out: DirectTestOutput
+  ): Unit = {
+    for (v <- out.elements) {
+      val dataStr = valueToBinary(v)
+      os.write.append(data, s"$dataStr\n")
 
-  private def emitTestOutputMaskFile(f: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elems) {
-      val str = getMask(v.tchk())
-      os.write.append(f, s"$str\n")
+      val maskStr = getMask(v.tchk())
+      os.write.append(mask, s"$maskStr\n")
     }
   }
 
@@ -352,7 +350,7 @@ object VhdlTestbenchGenerator {
   }
 
   private def getInputStreamProcess(x: Param, in: DirectTestInput): String = {
-    val steps = in.elems
+    val steps = in.elements
       .map({
         case None =>
           s"""wait until falling_edge(clk); -- prepare input well before the next rising edge
@@ -472,7 +470,7 @@ object VhdlTestbenchGenerator {
     } else {
       ""
     }
-    val testSteps = out.elems.zipWithIndex
+    val testSteps = out.elements.zipWithIndex
       .map({ case (v, i) =>
         val checkedV = v.tchk()
         val mask = getMask(checkedV)
@@ -620,7 +618,7 @@ object VhdlTestbenchGenerator {
     }
     val substituted = inputs
       .foldLeft(e)({ case (acc, in) =>
-        val arg = StmLiteral(in.elems.flatten: _*)()
+        val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
         FunCall(acc, arg)()
       })
     val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]

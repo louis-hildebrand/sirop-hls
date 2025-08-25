@@ -18,36 +18,31 @@ sealed trait TestIO {
   def toVerilog: verilog.TestIO
 }
 
-/** Inputs and expected outputs in a format that basically works for both VHDL
-  * and Verilog.
-  *
-  * @param inputs
-  *   the sequence of inputs to provide.
-  * @param expectedOutput
-  *   the sequence of expected outputs.
-  * @param hold
-  *   the number of cycles for which to hold each input element.
-  * @param skip
-  *   the number of invalid output elements following each valid output element.
+/** Inputs and expected outputs in a format that can be converted to either of
+  * the formats for VHDL and Verilog testbenches.
   */
-case class AbstractTestIO(
-    inputs: Seq[Seq[Expr]],
-    expectedOutput: Seq[Expr],
-    hold: Int = 1,
-    skip: Int = 0
-) extends TestIO {
+case class AbstractTestIO(in: AbstractTestInput, out: AbstractTestOutput)
+    extends TestIO {
+
   def toVhdl: vhdl.TestIO = {
-    val nStreams = inputs.head.length
-    val in = (0 until nStreams).map({ i =>
-      vhdl.DirectTestInput(inputs.map(xs => xs(i)).map(Some(_)))
-    })
-    val out = vhdl.DirectTestOutput(this.expectedOutput)
-    vhdl.TestIO(inputs = in, expectedOutput = out)
+    vhdl.TestIO(inputs = in.toVhdl, expectedOutput = out.toVhdl)
   }
 
   def toVerilog: verilog.TestIO = {
-    val in = verilog.DirectTestInput(this.inputs, hold = hold)
-    val out = verilog.DirectTestOutput(this.expectedOutput, skip = skip)
-    verilog.TestIO(inputs = in, expectedOutput = out)
+    verilog.TestIO(inputs = in.toVerilog, expectedOutput = out.toVerilog)
+  }
+}
+
+object AbstractTestIO {
+  def apply(
+      in: Seq[Seq[Expr]],
+      out: Seq[Expr],
+      hold: Int = 1,
+      skip: Int = 0
+  ): AbstractTestIO = {
+    new AbstractTestIO(
+      AbstractTestInput(in, hold = hold),
+      AbstractTestOutput(out, skip = skip)
+    )
   }
 }

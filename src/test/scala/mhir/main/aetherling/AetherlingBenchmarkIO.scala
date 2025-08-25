@@ -1,7 +1,8 @@
 package mhir.main.aetherling
 
-import mhir.gen.{Undefined, vhdl, verilog}
+import mhir.gen.{Undefined, verilog, vhdl}
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 /** Inputs and expected outputs to use in tests for each Aetherling benchmark.
   */
@@ -75,25 +76,25 @@ object AetherlingBenchmarkIO {
   }
 
   private def mapIO: Map[String, AbstractTestIO] = {
-    val flatInputs = (0 until 200).map(i => C(i)(U8))
-    val flatOutputs = (0 until 200).map(i => C(i + 5)(U8))
+    val n = 200
+    val sequentialIn = AbstractTestInput(
+      (t: Int) => (_: Int) => C(t)(U8),
+      elemTypes = Seq(U8),
+      len = n,
+      hold = 1
+    )
+    val sequentialOut = AbstractTestOutput(
+      (t: Int) => C(t + 5)(U8),
+      elemTyp = U8,
+      len = n,
+      skip = 0
+    )
     Seq(1, 2, 4, 5, 8, 10, 20, 40, 200)
-      .map(par => {
+      .map({ par =>
         val io = par match {
-          case 1 =>
-            AbstractTestIO(flatInputs.map(Seq(_)), flatOutputs)
+          case 1 => AbstractTestIO(sequentialIn, sequentialOut)
           case _ =>
-            AbstractTestIO(
-              flatInputs
-                .grouped(par)
-                .map(xs => VecLiteral(xs: _*)())
-                .toSeq
-                .map(Seq(_)),
-              flatOutputs
-                .grouped(par)
-                .map(xs => VecLiteral(xs: _*)())
-                .toSeq
-            )
+            AbstractTestIO(sequentialIn.vec(par), sequentialOut.vec(par))
         }
         s"map_$par" -> io
       })
@@ -101,53 +102,48 @@ object AetherlingBenchmarkIO {
   }
 
   private def sumIO: Map[String, AbstractTestIO] = {
-    val flatInputs = (0 until 840).map(i => C(i)(U32))
-    val sum = C((0 until 840).sum)(U32)
+    val n = 840
+    val sequentialIn = AbstractTestInput(
+      (t: Int) => (_: Int) => C(t)(U32),
+      elemTypes = Seq(U32),
+      len = n,
+      hold = 1
+    )
+    val sum = C((0 until n).sum)(U32)
+    val out = AbstractTestOutput(Seq(sum))
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
-      .map(par => {
-        val inputs = par match {
-          case 1 =>
-            flatInputs
-          case _ =>
-            flatInputs
-              .grouped(par)
-              .map(xs => VecLiteral(xs: _*)())
-              .toSeq
+      .map({ par =>
+        val in = par match {
+          case 1 => sequentialIn
+          case _ => sequentialIn.vec(par)
         }
-        val outputs = Seq(sum)
-        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
-        s"sum_1_${840 / par}" -> io
+        s"sum_1_${840 / par}" -> AbstractTestIO(in, out)
       })
       .toMap
   }
 
   private def dotIO: Map[String, AbstractTestIO] = {
-    val flatInputs1 = (0 until 840).map(_ % 16)
-    val flatInputs2 = (839 to 0 by -1).map(_ % 16)
-    val result =
-      flatInputs1.zip(flatInputs2).map({ case (x, y) => x * y }).sum
+    val n = 840
+    val result = (0 until n)
+      .zip((n - 1) until 0 by -1)
+      .map({ case (x, y) => (x % 16, y % 16) })
+      .map({ case (x, y) => x * y })
+      .sum
+    val sequentialIn = new AbstractTestInput(
+      (t: Int) =>
+        (i: Int) => if (i == 0) C(t % 16)(U16) else C((n - 1 - t) % 16)(U16),
+      elemTypes = Seq(U16, U16),
+      len = n,
+      hold = 1
+    )
+    val out = AbstractTestOutput(Seq(C(result)(U16)))
     Seq(1, 2, 3, 4, 5, 6, 7, 8)
       .map({ par =>
-        val (inputs1, inputs2) = par match {
-          case 1 =>
-            (flatInputs1.map(C(_)(U16)), flatInputs2.map(C(_)(U16)))
-          case _ =>
-            (
-              flatInputs1
-                .grouped(par)
-                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
-                .toSeq,
-              flatInputs2
-                .grouped(par)
-                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
-                .toSeq
-            )
+        val in = par match {
+          case 1 => sequentialIn
+          case _ => sequentialIn.vec(par)
         }
-        assert(inputs1.length == inputs2.length)
-        val in = inputs1.zip(inputs2).map({ case (x, y) => Seq(x, y) })
-        val out = Seq(C(result)(U16))
-        val io = AbstractTestIO(in, out)
-        s"dot_1_${840 / par}" -> io
+        s"dot_1_${840 / par}" -> AbstractTestIO(in, out)
       })
       .toMap
   }
@@ -158,36 +154,22 @@ object AetherlingBenchmarkIO {
     val flatOutputs =
       (Seq(Undefined(I8), Undefined(I8))
         ++ flatInputs.sliding(3).map(v => C(v(2) - v(0))(I8)).toSeq)
+    val sequentialIn = AbstractTestInput(flatInputs.map(C(_)(I8)).map(Seq(_)))
+    val sequentialOut = AbstractTestOutput(flatOutputs)
     val normalCases = Seq(1, 2, 4, 8, 16)
       .map({ par =>
-        val (inputs, outputs) = par match {
-          case 1 =>
-            (
-              flatInputs.map(C(_)(I8)).map(VecLiteral(_)()),
-              flatOutputs.map(VecLiteral(_)())
-            )
-          case n =>
-            assert(n > 1)
-            // n valid per cycle
-            (
-              flatInputs
-                .grouped(n)
-                .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
-                .toSeq,
-              flatOutputs
-                .grouped(n)
-                .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
-                .toSeq
-            )
+        val in = sequentialIn.vec(par)
+        val out = par match {
+          case 1 => sequentialOut.vec(1)
+          case _ => sequentialOut.vec(1).vec(par)
         }
-        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
-        s"conv1d_$par" -> io
+        s"conv1d_$par" -> AbstractTestIO(in, out)
       })
       .toMap
     val underutilizedCase = {
       val io = AbstractTestIO(
-        inputs = flatInputs.map(C(_)(I8)).map(Seq(_)),
-        expectedOutput = flatOutputs,
+        in = flatInputs.map(C(_)(I8)).map(Seq(_)),
+        out = flatOutputs,
         hold = 3,
         skip = 2
       )
@@ -220,8 +202,8 @@ object AetherlingBenchmarkIO {
         val io = par match {
           case 1 =>
             AbstractTestIO(
-              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
-              basicOutputs.map(VecLiteral(_)())
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
             )
           case n =>
             assert(n > 1)
@@ -229,12 +211,12 @@ object AetherlingBenchmarkIO {
             AbstractTestIO(
               basicInputExprs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .map(Seq(_))
                 .toSeq,
               basicOutputs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .toSeq
             )
         }
@@ -243,8 +225,8 @@ object AetherlingBenchmarkIO {
       .toMap
     val underutilizedCases = Seq(3, 9).map({ denom =>
       val io = AbstractTestIO(
-        inputs = basicInputExprs.map(Seq(_)),
-        expectedOutput = basicOutputs,
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
         hold = denom,
         skip = denom - 1
       )
@@ -281,8 +263,8 @@ object AetherlingBenchmarkIO {
         val io = par match {
           case 1 =>
             AbstractTestIO(
-              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
-              basicOutputs.map(VecLiteral(_)())
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
             )
           case n =>
             assert(n > 1)
@@ -290,12 +272,12 @@ object AetherlingBenchmarkIO {
             AbstractTestIO(
               basicInputExprs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .map(Seq(_))
                 .toSeq,
               basicOutputs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .toSeq
             )
         }
@@ -304,8 +286,8 @@ object AetherlingBenchmarkIO {
       .toMap
     val underutilizedCases = Seq(3, 9).map({ denom =>
       val io = AbstractTestIO(
-        inputs = basicInputExprs.map(Seq(_)),
-        expectedOutput = basicOutputs,
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
         hold = denom,
         skip = denom - 1
       )
@@ -349,8 +331,8 @@ object AetherlingBenchmarkIO {
         val io = par match {
           case 1 =>
             AbstractTestIO(
-              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
-              basicOutputs.map(VecLiteral(_)())
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
             )
           case n =>
             assert(n > 1)
@@ -358,12 +340,12 @@ object AetherlingBenchmarkIO {
             AbstractTestIO(
               basicInputExprs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .map(Seq(_))
                 .toSeq,
               basicOutputs
                 .grouped(n)
-                .map(VecLiteral(_: _*)())
+                .map(VecLiteral(_: _*)().tchk())
                 .toSeq
             )
         }
@@ -372,8 +354,8 @@ object AetherlingBenchmarkIO {
       .toMap
     val underutilizedCases = Seq(3, 9).map({ denom =>
       val io = AbstractTestIO(
-        inputs = basicInputExprs.map(Seq(_)),
-        expectedOutput = basicOutputs,
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
         hold = denom,
         skip = denom - 1
       )

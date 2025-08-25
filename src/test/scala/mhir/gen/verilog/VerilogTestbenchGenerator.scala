@@ -21,7 +21,7 @@ object VerilogTestbenchGenerator {
       io: TestIO,
       dir: Path
   ): Unit = {
-    val code = getTestbenchCode(io.inputs.tchk(), io.expectedOutput.tchk())
+    val code = getTestbenchCode(io.inputs, io.expectedOutput)
     emitTestbench(code, dir)
   }
 
@@ -42,8 +42,7 @@ object VerilogTestbenchGenerator {
       case out: DirectTestOutput =>
         val dataFile = dir / "out_data.txt"
         val maskFile = dir / "out_mask.txt"
-        OutGen.emitOutputDataFile(dataFile, out)
-        OutGen.emitOutputMaskFile(maskFile, out)
+        OutGen.emitOutputFiles(data = dataFile, mask = maskFile, out)
         TestOutputFromFile(
           data = dataFile,
           mask = maskFile,
