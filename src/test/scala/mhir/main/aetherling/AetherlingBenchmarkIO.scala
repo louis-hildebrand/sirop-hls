@@ -1,0 +1,416 @@
+package mhir.main.aetherling
+
+import mhir.gen.{Undefined, vhdl, verilog}
+import mhir.ir._
+
+/** Inputs and expected outputs to use in tests for each Aetherling benchmark.
+  */
+object AetherlingBenchmarkIO {
+
+  /** Finds the width and height of a rectangular array.
+    *
+    * @param arr
+    *   the array.
+    * @return
+    *   (width, height)
+    */
+  private def dim[T](arr: Seq[Seq[T]]): (Int, Int) = {
+    val height = arr.length
+    val width = {
+      val widths = arr.map(_.length).toSet
+      require(widths.size == 1)
+      widths.head
+    }
+    (width, height)
+  }
+
+  /** Performs a 2D convolution
+    *
+    * @param inputs
+    *   the input array. `None` values are considered undefined.
+    * @param kernel
+    *   the kernel.
+    * @param kernelDenom
+    *   a number by which to divide each element after the convolution.
+    * @return
+    *   the result of the convolution and division. `None` represents undefined
+    *   values.
+    */
+  private def conv2d(
+      inputs: Seq[Seq[Option[Int]]],
+      kernel: Seq[Seq[Int]],
+      kernelDenom: Int
+  ): Seq[Seq[Option[Int]]] = {
+    val (inputWidth, inputHeight) = dim(inputs)
+    val (kernelWidth, kernelHeight) = dim(kernel)
+    val outputs =
+      ((1 - kernelHeight) to (inputHeight - kernelHeight)).map({ i =>
+        ((1 - kernelWidth) to (inputWidth - kernelWidth)).map({ j =>
+          // (i, j) is the current position of the top-left element of the
+          // kernel within the input
+          if (i < 0 || j < 0) {
+            None
+          } else {
+            val relevantInputs =
+              (0 until kernelHeight).flatMap(deltaI =>
+                (0 until kernelWidth).map(deltaJ =>
+                  inputs(i + deltaI)(j + deltaJ)
+                )
+              )
+            if (relevantInputs.forall(_.nonEmpty)) {
+              val dot = relevantInputs
+                .map(_.get)
+                .zip(kernel.flatten)
+                .map({ case (x, y) => x * y })
+                .sum
+              Some(dot / kernelDenom)
+            } else {
+              None
+            }
+          }
+        })
+      })
+    assert(dim(outputs) == dim(inputs))
+    outputs
+  }
+
+  private def mapIO: Map[String, AbstractTestIO] = {
+    val flatInputs = (0 until 200).map(i => C(i)(U8))
+    val flatOutputs = (0 until 200).map(i => C(i + 5)(U8))
+    Seq(1, 2, 4, 5, 8, 10, 20, 40, 200)
+      .map(par => {
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(flatInputs.map(Seq(_)), flatOutputs)
+          case _ =>
+            AbstractTestIO(
+              flatInputs
+                .grouped(par)
+                .map(xs => VecLiteral(xs: _*)())
+                .toSeq
+                .map(Seq(_)),
+              flatOutputs
+                .grouped(par)
+                .map(xs => VecLiteral(xs: _*)())
+                .toSeq
+            )
+        }
+        s"map_$par" -> io
+      })
+      .toMap
+  }
+
+  private def sumIO: Map[String, AbstractTestIO] = {
+    val flatInputs = (0 until 840).map(i => C(i)(U32))
+    val sum = C((0 until 840).sum)(U32)
+    Seq(1, 2, 3, 4, 5, 6, 7, 8)
+      .map(par => {
+        val inputs = par match {
+          case 1 =>
+            flatInputs
+          case _ =>
+            flatInputs
+              .grouped(par)
+              .map(xs => VecLiteral(xs: _*)())
+              .toSeq
+        }
+        val outputs = Seq(sum)
+        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
+        s"sum_1_${840 / par}" -> io
+      })
+      .toMap
+  }
+
+  private def dotIO: Map[String, AbstractTestIO] = {
+    val flatInputs1 = (0 until 840).map(_ % 16)
+    val flatInputs2 = (839 to 0 by -1).map(_ % 16)
+    val result =
+      flatInputs1.zip(flatInputs2).map({ case (x, y) => x * y }).sum
+    Seq(1, 2, 3, 4, 5, 6, 7, 8)
+      .map({ par =>
+        val (inputs1, inputs2) = par match {
+          case 1 =>
+            (flatInputs1.map(C(_)(U16)), flatInputs2.map(C(_)(U16)))
+          case _ =>
+            (
+              flatInputs1
+                .grouped(par)
+                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
+                .toSeq,
+              flatInputs2
+                .grouped(par)
+                .map(xs => VecLiteral(xs.map(C(_)(U16)): _*)())
+                .toSeq
+            )
+        }
+        assert(inputs1.length == inputs2.length)
+        val in = inputs1.zip(inputs2).map({ case (x, y) => Seq(x, y) })
+        val out = Seq(C(result)(U16))
+        val io = AbstractTestIO(in, out)
+        s"dot_1_${840 / par}" -> io
+      })
+      .toMap
+  }
+
+  private def conv1dIO: Map[String, TestIO] = {
+    // Square wave with 50% duty cycle and period 8
+    val flatInputs = (0 until 16).map(t => if (t % 8 < 4) -42 else 42)
+    val flatOutputs =
+      (Seq(Undefined(I8), Undefined(I8))
+        ++ flatInputs.sliding(3).map(v => C(v(2) - v(0))(I8)).toSeq)
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val (inputs, outputs) = par match {
+          case 1 =>
+            (
+              flatInputs.map(C(_)(I8)).map(VecLiteral(_)()),
+              flatOutputs.map(VecLiteral(_)())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            (
+              flatInputs
+                .grouped(n)
+                .map(xs => VecLiteral(xs.map(C(_)(I8)): _*)())
+                .toSeq,
+              flatOutputs
+                .grouped(n)
+                .map(xs => VecLiteral(xs.map(VecLiteral(_)()): _*)())
+                .toSeq
+            )
+        }
+        val io = AbstractTestIO(inputs.map(Seq(_)), outputs)
+        s"conv1d_$par" -> io
+      })
+      .toMap
+    val underutilizedCase = {
+      val io = AbstractTestIO(
+        inputs = flatInputs.map(C(_)(I8)).map(Seq(_)),
+        expectedOutput = flatOutputs,
+        hold = 3,
+        skip = 2
+      )
+      "conv1d_1_3" -> io
+    }
+    normalCases + underutilizedCase
+  }
+
+  private def smallConv2dIO: Map[String, TestIO] = {
+    // Checkerboard pattern (2x2 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until 4).map(i =>
+        (0 until 4).map(j => {
+          val even = ((i % 4) < 2) == ((j % 4) < 2)
+          if (even) 15 else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 16
+      ).flatten.map({
+        case Some(x) => C(x)(U8)
+        case None    => Undefined(U8)
+      })
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
+            )
+        }
+        s"smallconv2d_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallconv2d_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
+  private def smallConvB2bIO: Map[String, TestIO] = {
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until 16).map(i => 5 * (i + 1)).grouped(4).toSeq
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
+    val basicOutputs = {
+      val step1 = conv2d(
+        inputs = basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 1
+      ).map(row =>
+        // Handle overflow before dividing
+        row.map(x => x.map(x => (x % 256) / 16))
+      )
+      val step2 = conv2d(
+        inputs = step1,
+        kernel = Seq(Seq(1, 4), Seq(2, 1)),
+        kernelDenom = 8
+      )
+      step2.flatten.map({
+        case Some(x) => C(x)(U8)
+        case None    => Undefined(U8)
+      })
+    }
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
+            )
+        }
+        s"smallconvb2b_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallconvb2b_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
+  private def smallSharpenIO: Map[String, TestIO] = {
+    def sharpen1(a: Int, b: Int): Int = {
+      val threshold = 15
+      val passedThreshold = (a - b > threshold) || (b - a > threshold)
+      val h = if (passedThreshold) (b - a) / 4 else 0
+      b + h
+    }
+    def sharpenImage(img: Seq[Seq[Int]]): Seq[Option[Int]] = {
+      val blurredImg = conv2d(
+        img.map(_.map(Some(_))),
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1)),
+        kernelDenom = 1
+      ).map(row =>
+        // Handle overflow before dividing
+        row.map(x => x.map(x => (x % 256) / 16))
+      )
+      blurredImg.flatten
+        .zip(img.flatten)
+        .map({
+          case (None, _)    => None
+          case (Some(a), b) => Some(sharpen1(a, b))
+        })
+    }
+    val basicInputs: Seq[Seq[Int]] =
+      (1 to 16).map(_ * 5).grouped(4).toSeq
+    val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
+    val basicOutputs = sharpenImage(basicInputs).map({
+      case Some(x) => C(x)(U8)
+      case None    => Undefined(U8)
+    })
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)())
+                .toSeq
+            )
+        }
+        s"smallsharpen_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallsharpen_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
+  /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
+    * for the VHDL testbench.
+    *
+    * @note
+    *   this must be manually updated for each new benchmark.
+    */
+  val vhdlIO: Map[String, vhdl.TestIO] = (
+    mapIO.mapValues(_.toVhdl)
+      ++ sumIO.mapValues(_.toVhdl)
+      ++ dotIO.mapValues(_.toVhdl)
+      ++ conv1dIO.mapValues(_.toVhdl)
+      ++ smallConv2dIO.mapValues(_.toVhdl)
+      ++ smallConvB2bIO.mapValues(_.toVhdl)
+      ++ smallSharpenIO.mapValues(_.toVhdl)
+  )
+
+  /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
+    * for the Verilog benchmark.
+    *
+    * @note
+    *   this must be manually updated for each new benchmark.
+    */
+  val verilogIO: Map[String, verilog.TestIO] = (
+    mapIO.mapValues(_.toVerilog)
+      ++ sumIO.mapValues(_.toVerilog)
+      ++ dotIO.mapValues(_.toVerilog)
+      ++ conv1dIO.mapValues(_.toVerilog)
+      ++ smallConv2dIO.mapValues(_.toVerilog)
+      ++ smallConvB2bIO.mapValues(_.toVerilog)
+      ++ smallSharpenIO.mapValues(_.toVerilog)
+  )
+}

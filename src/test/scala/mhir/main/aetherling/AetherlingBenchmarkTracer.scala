@@ -21,7 +21,7 @@ object AetherlingBenchmarkTracer {
     *   the name of the benchmark (e.g., `conv1d_2`).
     */
   def trace(benchName: String): Trace = {
-    val io = AetherlingBenchmarkTests.vhdlIO(benchName)
+    val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
     val args =
       Args(inFile = inFile, outDir = os.pwd / "deleteme", emitHdl = false)
