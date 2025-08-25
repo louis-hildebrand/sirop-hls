@@ -26,13 +26,17 @@ sealed trait TestOutput {
   *
   * @param elems
   *   the expected sequence of <i>valid</i> outputs.
+  * @param skip
+  *   the number of invalid output elements following each valid output element.
   */
-case class DirectTestOutput(elems: Seq[Expr]) extends TestOutput {
+case class DirectTestOutput(elems: Seq[Expr], skip: Int) extends TestOutput {
   override def elemTyp: Type = this.elems.head.tchk().typ
 
   override def len: Int = this.elems.length
 
-  override def tchk(): DirectTestOutput = DirectTestOutput(elems.map(_.tchk()))
+  override def tchk(): DirectTestOutput = {
+    DirectTestOutput(elems.map(_.tchk()), skip = skip)
+  }
 }
 
 /** A sequence of expected outputs to read from files.
@@ -48,8 +52,15 @@ case class DirectTestOutput(elems: Seq[Expr]) extends TestOutput {
   *   the type of the elements within the stream.
   * @param len
   *   the length of the stream.
+  * @param skip
+  *   the number of invalid output elements following each valid output element.
   */
-case class TestOutputFromFile(data: Path, mask: Path, elemTyp: Type, len: Int)
-    extends TestOutput {
+case class TestOutputFromFile(
+    data: Path,
+    mask: Path,
+    elemTyp: Type,
+    len: Int,
+    skip: Int
+) extends TestOutput {
   override def tchk(): TestOutputFromFile = this
 }

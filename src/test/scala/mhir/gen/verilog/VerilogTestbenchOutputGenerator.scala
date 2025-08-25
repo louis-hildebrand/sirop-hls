@@ -54,12 +54,17 @@ object VerilogTestbenchOutputGenerator {
       .map(valByPort => {
         val checks = valByPort
           .map({ case (port, v) =>
-            v match {
+            val validCheck = v match {
               case None =>
                 s"// value for $port is undefined"
               case Some(v) =>
                 s"check_output($v, $port);"
             }
+            val skips =
+              s"""// Skip ${output.skip} invalid elements
+                 |for (j = 0; j < ${output.skip}; j = j + 1) wait_for_output();
+                 |""".stripMargin.stripTrailing
+            validCheck + "\n" + skips
           })
           .mkString("\n")
         s"wait_for_output();\n$checks"
@@ -90,6 +95,8 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |initial begin : out_check
+       |    integer j;
+       |
        |    $$display("Started output checker.");
        |
        |${indent(outputChecks)}
@@ -168,7 +175,7 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |initial begin : out_check
-       |    integer i;
+       |    integer i, j;
        |    reg [${totWidth - 1}:0] data;
        |    reg [${totWidth - 1}:0] expected;
        |    reg [${totWidth - 1}:0] mask;
@@ -187,6 +194,15 @@ object VerilogTestbenchOutputGenerator {
        |        $$display("OUTPUT : %h", data);
        |        if (masked_data !== masked_expected) begin
        |            $$error("ASSERTION FAILED: expected %h, got %h", masked_expected, masked_data);
+       |        end
+       |
+       |        // Skip ${out.skip} invalids
+       |        for (j = 0; j < ${out.skip}; j = j + 1) begin
+       |            wait_for_output();
+       |            expected = 'x;
+       |            mask = 'x;
+       |            masked_data = 'x;
+       |            masked_expected = 'x;
        |        end
        |    end
        |

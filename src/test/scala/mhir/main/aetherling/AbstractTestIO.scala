@@ -20,9 +20,22 @@ sealed trait TestIO {
 
 /** Inputs and expected outputs in a format that basically works for both VHDL
   * and Verilog.
+  *
+  * @param inputs
+  *   the sequence of inputs to provide.
+  * @param expectedOutput
+  *   the sequence of expected outputs.
+  * @param hold
+  *   the number of cycles for which to hold each input element.
+  * @param skip
+  *   the number of invalid output elements following each valid output element.
   */
-case class AbstractTestIO(inputs: Seq[Seq[Expr]], expectedOutput: Seq[Expr])
-    extends TestIO {
+case class AbstractTestIO(
+    inputs: Seq[Seq[Expr]],
+    expectedOutput: Seq[Expr],
+    hold: Int = 1,
+    skip: Int = 0
+) extends TestIO {
   def toVhdl: vhdl.TestIO = {
     val nStreams = inputs.head.length
     val in = (0 until nStreams).map({ i =>
@@ -33,20 +46,8 @@ case class AbstractTestIO(inputs: Seq[Seq[Expr]], expectedOutput: Seq[Expr])
   }
 
   def toVerilog: verilog.TestIO = {
-    val in = verilog.DirectTestInput(this.inputs)
-    val out = verilog.DirectTestOutput(this.expectedOutput)
+    val in = verilog.DirectTestInput(this.inputs, hold = hold)
+    val out = verilog.DirectTestOutput(this.expectedOutput, skip = skip)
     verilog.TestIO(inputs = in, expectedOutput = out)
   }
-}
-
-/** Separate inputs and expected outputs for the VHDL and Verilog cases.
-  *
-  * Use this class when the VHDL and Verilog require very different stimuli
-  * (e.g., for designs with sub-1 throughput).
-  */
-case class ConcreteTestIO(vhdlIO: vhdl.TestIO, verilogIO: verilog.TestIO)
-    extends TestIO {
-  override def toVhdl: vhdl.TestIO = this.vhdlIO
-
-  override def toVerilog: verilog.TestIO = this.verilogIO
 }

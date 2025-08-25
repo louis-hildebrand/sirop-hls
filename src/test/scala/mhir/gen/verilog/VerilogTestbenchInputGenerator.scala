@@ -56,6 +56,10 @@ private[verilog] object VerilogTestbenchInputGenerator {
              |    valid_up = 1;
              |    $lhs = $rhs;
              |end
+             |// Hold for a total of ${inputs.hold} cycles
+             |for (j = 1; j < ${inputs.hold}; j = j + 1) begin
+             |    @(negedge clock);
+             |end
              |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
@@ -68,6 +72,8 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |endtask
        |
        |initial begin : in_gen
+       |    integer j;
+       |
        |    $$display("Started test stimuli generator.");
        |    valid_up = 0;
        |    initialize();
@@ -104,7 +110,7 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |endtask
        |
        |initial begin : in_gen
-       |    integer i;
+       |    integer i, j;
        |
        |    $$display("Started test stimuli generator.");
        |    valid_up = 0;
@@ -114,6 +120,10 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |        @(negedge clock) begin
        |            valid_up = 1;
        |            $portList = input_data_ram[i];
+       |        end
+       |        // Hold for a total of ${in.hold} cycles
+       |        for (j = 1; j < ${in.hold}; j = j + 1) begin
+       |            @(negedge clock);
        |        end
        |    end
        |end

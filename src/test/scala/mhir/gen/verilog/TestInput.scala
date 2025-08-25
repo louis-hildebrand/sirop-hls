@@ -36,23 +36,27 @@ sealed trait TestInput {
   *   {{{Seq(Seq(0, 1), Seq(2, 3), Seq(4, 5))}}} means assign { I0, I1 } = { 0,
   *   1 } at time step 0, assign { I0, I1 } = { 2, 3 } at time step 1, and
   *   assign { I0, I1 } = { 4, 5 } at time step 2.
+  * @param hold
+  *   the number of cycles for which to hold each input element.
   */
-case class DirectTestInput(steps: Seq[Seq[Expr]]) extends TestInput {
+case class DirectTestInput(steps: Seq[Seq[Expr]], hold: Int) extends TestInput {
   override def elemTypes: Seq[Type] = steps.head.map(_.tchk().typ)
 
   override def len: Int = steps.length
 
-  override def tchk(): DirectTestInput = DirectTestInput(
-    steps.map(elems => elems.map(_.tchk()))
-  )
+  override def tchk(): DirectTestInput = {
+    DirectTestInput(steps.map(elems => elems.map(_.tchk())), hold = hold)
+  }
 }
 
 /** A sequence of inputs to read from a file.
   *
   * @param f
   *   the path to the file containing the input data.
+  * @param hold
+  *   the number of cycles for which to hold each input element.
   */
-case class TestInputFromFile(f: Path, elemTypes: Seq[Type], len: Int)
+case class TestInputFromFile(f: Path, elemTypes: Seq[Type], len: Int, hold: Int)
     extends TestInput {
   override def tchk(): TestInputFromFile = this
 }

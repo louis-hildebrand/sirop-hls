@@ -267,19 +267,11 @@ object AetherlingBenchmarkTests {
       })
       .toMap
     val underutilizedCase = {
-      val io = ConcreteTestIO(
-        vhdl.TestIO(
-          Seq(vhdl.DirectTestInput(flatInputs.map(C(_)(I8)).map(Some(_)))),
-          vhdl.DirectTestOutput(flatOutputs)
-        ),
-        verilog.TestIO(
-          verilog.DirectTestInput(
-            flatInputs.map(C(_)(I8)).flatMap(x => Seq(x, x, x)).map(Seq(_))
-          ),
-          verilog.DirectTestOutput(
-            flatOutputs.flatMap(x => Seq(x, Undefined(I8), Undefined(I8)))
-          )
-        )
+      val io = AbstractTestIO(
+        inputs = flatInputs.map(C(_)(I8)).map(Seq(_)),
+        expectedOutput = flatOutputs,
+        hold = 3,
+        skip = 2
       )
       "conv1d_1_3" -> io
     }
@@ -332,22 +324,11 @@ object AetherlingBenchmarkTests {
       })
       .toMap
     val underutilizedCases = Seq(3, 9).map({ denom =>
-      val io = ConcreteTestIO(
-        {
-          val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
-          val outputs = vhdl.DirectTestOutput(basicOutputs)
-          vhdl.TestIO(Seq(inputs), outputs)
-        }, {
-          val inputs = verilog.DirectTestInput(
-            basicInputExprs.flatMap(x => (0 until denom).map(_ => Seq(x)))
-          )
-          val outputs = verilog.DirectTestOutput(
-            basicOutputs.flatMap(x =>
-              x +: (0 until (denom - 1)).map(_ => Undefined(U8))
-            )
-          )
-          verilog.TestIO(inputs, outputs)
-        }
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
       )
       s"smallconv2d_1_$denom" -> io
     })
@@ -355,14 +336,7 @@ object AetherlingBenchmarkTests {
   }
 
   private val smallConvB2bIO: Map[String, TestIO] = {
-    // Checkerboard pattern (2x2 squares)
     val basicInputs: Seq[Seq[Int]] =
-//      (0 until 4).map(i =>
-//        (0 until 4).map(j => {
-//          val even = ((i % 4) < 2) == ((j % 4) < 2)
-//          if (even) 16 else 0
-//        })
-//      )
       (0 until 16).map(i => 5 * (i + 1)).grouped(4).toSeq
     val basicInputExprs = basicInputs.flatten.map(C(_)(U8))
     val basicOutputs = {
@@ -410,29 +384,15 @@ object AetherlingBenchmarkTests {
         s"smallconvb2b_$par" -> io
       })
       .toMap
-    val underutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val io = ConcreteTestIO(
-          {
-            val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
-            val outputs = vhdl.DirectTestOutput(basicOutputs)
-            vhdl.TestIO(Seq(inputs), outputs)
-          }, {
-            val inputs = verilog.DirectTestInput(
-              basicInputExprs
-                .flatMap(x => (0 until denom).map(_ => x))
-                .map(Seq(_))
-            )
-            val outputs = verilog.DirectTestOutput(
-              basicOutputs.flatMap(x =>
-                x +: (0 until (denom - 1)).map(_ => Undefined(U8))
-              )
-            )
-            verilog.TestIO(inputs, outputs)
-          }
-        )
-        s"smallconvb2b_1_$denom" -> io
-      })
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallconvb2b_1_$denom" -> io
+    })
     normalCases ++ underutilizedCases
   }
 
@@ -492,29 +452,15 @@ object AetherlingBenchmarkTests {
         s"smallsharpen_$par" -> io
       })
       .toMap
-    val underutilizedCases = Seq(3, 9)
-      .map({ denom =>
-        val io = ConcreteTestIO(
-          {
-            val inputs = vhdl.DirectTestInput(basicInputExprs.map(Some(_)))
-            val outputs = vhdl.DirectTestOutput(basicOutputs)
-            vhdl.TestIO(Seq(inputs), outputs)
-          }, {
-            val inputs = verilog.DirectTestInput(
-              basicInputExprs
-                .flatMap(x => (0 until denom).map(_ => x))
-                .map(Seq(_))
-            )
-            val outputs = verilog.DirectTestOutput(
-              basicOutputs.flatMap(x =>
-                x +: (0 until (denom - 1)).map(_ => Undefined(U8))
-              )
-            )
-            verilog.TestIO(inputs, outputs)
-          }
-        )
-        s"smallsharpen_1_$denom" -> io
-      })
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        inputs = basicInputExprs.map(Seq(_)),
+        expectedOutput = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallsharpen_1_$denom" -> io
+    })
     normalCases ++ underutilizedCases
   }
 
