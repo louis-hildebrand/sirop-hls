@@ -1,6 +1,5 @@
-package mhir.gen.verilog
+package mhir.gen
 
-import mhir.gen.Undefined
 import mhir.ir._
 
 object Binary {

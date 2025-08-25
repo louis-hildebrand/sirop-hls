@@ -1,7 +1,7 @@
 package mhir.gen.verilog
 
 import mhir.debug.indent
-import mhir.gen.Undefined
+import mhir.gen.{Binary, Undefined}
 import mhir.ir._
 import os.Path
 
