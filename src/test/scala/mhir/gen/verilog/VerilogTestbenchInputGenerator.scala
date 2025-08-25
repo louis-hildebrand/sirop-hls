@@ -85,10 +85,11 @@ private[verilog] object VerilogTestbenchInputGenerator {
 
   def getFileInputBlock(in: TestInputFromFile): String = {
     val portList = getNames(in).mkString("{ ", ", ", " }")
+    val bitsPerRow = Binary.paddedWidth(in.elemTypes: _*)
     s"""// Input generation
        |
        |task prepare_inputs ();
-       |    integer fd, i, code;
+       |    integer fd, i, code, msb;
        |begin
        |    $$display("Reading inputs from ${in.f} ...");
        |    fd = $$fopen("${in.f}", "r");
@@ -97,11 +98,8 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${in.len}; i = i + 1) begin
-       |        code = $$fscanf(fd, "%b\\n", input_data_ram[i]);
-       |        if (code != 1) begin
-       |            $$error("An error occurred while reading input file (step %d).", i);
-       |            $$fclose(fd);
-       |            $$stop(0);
+       |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
+       |            input_data_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
        |    end
        |    $$fclose(fd);
@@ -132,8 +130,7 @@ private[verilog] object VerilogTestbenchInputGenerator {
 
   def emitInputDataFile(f: Path, in: DirectTestInput): Unit = {
     for (elems <- in.steps) {
-      val str = elems.map(valueToBinary).mkString("")
-      os.write.append(f, s"$str\n")
+      os.write.append(f, Binary(elems: _*))
     }
   }
 
@@ -180,39 +177,5 @@ private[verilog] object VerilogTestbenchInputGenerator {
           ???
       })
       .mkString("{ ", ", ", " }")
-  }
-
-  // TODO: Merge this with VhdlGenerator.valueToStdLogicVector?
-  private def valueToBinary(e: Expr): String = {
-    e match {
-      case Undefined(typ) => valueToBinary(mhir.ir.eval(Default(typ)))
-      case False          => "0"
-      case True           => "1"
-      case c: IntCst =>
-        val w = c.typ.asInstanceOf[TyAnyInt].w
-        if (c.i < 0) {
-          val bin = c.i.toBinaryString
-          assert(bin.head == '1')
-          assert(bin.length == 64)
-          val truncated = bin.takeRight(w)
-          assert(truncated.head == '1')
-          truncated
-        } else {
-          val bin = c.i.toBinaryString
-          assert(bin.length <= w)
-          val padded = ("0" * (w - bin.length)) + bin
-          if (c.typ.isInstanceOf[TySInt]) {
-            assert(padded.head == '0')
-          }
-          padded
-        }
-      case c: FixCst =>
-        valueToBinary(C(c.numer)(c.typ.t))
-      case Tuple(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case VecLiteral(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case _ => ???
-    }
   }
 }

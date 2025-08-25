@@ -114,10 +114,11 @@ object VerilogTestbenchOutputGenerator {
   def getFileOutputBlock(out: TestOutputFromFile): String = {
     val totWidth = widthByPort(out).values.sum
     val outPortList = getNames(out).mkString("{ ", ", ", " }")
+    val bitsPerRow = Binary.paddedWidth(out.elemTyp)
     s"""// Output checking
        |
        |task read_output_data ();
-       |    integer fd, i, code;
+       |    integer fd, i, code, msb;
        |begin
        |    $$display("Reading output data from ${out.data}...");
        |    fd = $$fopen("${out.data}", "r");
@@ -126,11 +127,8 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
-       |        code = $$fscanf(fd, "%b\\n", output_data_ram[i]);
-       |        if (code != 1) begin
-       |            $$error("An error occurred while reading output data file (step %d).", i);
-       |            $$fclose(fd);
-       |            $$stop(0);
+       |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
+       |            output_data_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
        |    end
        |    $$fclose(fd);
@@ -139,7 +137,7 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |task read_output_masks ();
-       |    integer fd, i, code;
+       |    integer fd, i, code, msb;
        |begin
        |    $$display("Reading output masks from ${out.mask}...");
        |    fd = $$fopen("${out.mask}", "r");
@@ -148,11 +146,8 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
-       |        code = $$fscanf(fd, "%b\\n", output_mask_ram[i]);
-       |        if (code != 1) begin
-       |            $$error("An error occurred while reading output mask file (step %d).", i);
-       |            $$fclose(fd);
-       |            $$stop(0);
+       |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
+       |            output_mask_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
        |    end
        |    $$fclose(fd);
@@ -218,11 +213,8 @@ object VerilogTestbenchOutputGenerator {
 
   def emitOutputFiles(data: Path, mask: Path, out: DirectTestOutput): Unit = {
     for (v <- out.elements) {
-      val dataStr = valueToBinary(v)
-      os.write.append(data, s"$dataStr\n")
-
-      val maskStr = getMask(v.tchk())
-      os.write.append(mask, s"$maskStr\n")
+      os.write.append(data, Binary(v))
+      os.write.append(mask, Binary.mask(v.tchk()))
     }
   }
 
@@ -285,69 +277,6 @@ object VerilogTestbenchOutputGenerator {
       case TyVec(t, _) => getAtomWidth(t)
       case _ =>
         ???
-    }
-  }
-
-  // TODO: Merge this with VhdlGenerator.valueToStdLogicVector?
-  private def valueToBinary(e: Expr): String = {
-    e match {
-      case Undefined(typ) => valueToBinary(mhir.ir.eval(Default(typ)))
-      case False          => "0"
-      case True           => "1"
-      case c: IntCst =>
-        val w = c.typ.asInstanceOf[TyAnyInt].w
-        if (c.i < 0) {
-          val bin = c.i.toBinaryString
-          assert(bin.head == '1')
-          assert(bin.length == 64)
-          val truncated = bin.takeRight(w)
-          assert(truncated.head == '1')
-          truncated
-        } else {
-          val bin = c.i.toBinaryString
-          assert(bin.length <= w)
-          val padded = ("0" * (w - bin.length)) + bin
-          if (c.typ.isInstanceOf[TySInt]) {
-            assert(padded.head == '0')
-          }
-          padded
-        }
-      case c: FixCst =>
-        valueToBinary(C(c.numer)(c.typ.t))
-      case Tuple(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case VecLiteral(elems @ _*) =>
-        elems.map(valueToBinary).mkString("")
-      case _ => ???
-    }
-  }
-
-  private def bitWidth(typ: Type): Int = {
-    typ match {
-      case typ: TyAnyInt       => typ.w
-      case typ: TyFix          => typ.t.w
-      case TyBool              => 1
-      case TyTuple(ts @ _*)    => ts.map(bitWidth).sum
-      case TyVec(t, IntCst(n)) => bitWidth(t) * n.toInt
-      case typ =>
-        throw new IllegalArgumentException(
-          s"Cannot get bit width for type $typ."
-        )
-    }
-  }
-
-  private def getMask(expected: Expr): String = {
-    require(expected.hasType)
-    expected match {
-      case VecLiteral(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Tuple(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Undefined(typ) =>
-        "0" * bitWidth(typ)
-      case v =>
-        assert(!v.contains(classOf[Undefined]))
-        "1" * bitWidth(v.typ)
     }
   }
 }

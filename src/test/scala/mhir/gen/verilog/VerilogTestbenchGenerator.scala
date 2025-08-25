@@ -28,7 +28,7 @@ object VerilogTestbenchGenerator {
   def makeFileBasedTestbench(io: TestIO, dir: Path): Unit = {
     val in = io.inputs match {
       case in: DirectTestInput =>
-        val f = dir / "inputs.txt"
+        val f = dir / "inputs.bin"
         InGen.emitInputDataFile(f, in)
         TestInputFromFile(
           f,
@@ -40,8 +40,8 @@ object VerilogTestbenchGenerator {
     }
     val out = io.expectedOutput match {
       case out: DirectTestOutput =>
-        val dataFile = dir / "out_data.txt"
-        val maskFile = dir / "out_mask.txt"
+        val dataFile = dir / "out_data.bin"
+        val maskFile = dir / "out_mask.bin"
         OutGen.emitOutputFiles(data = dataFile, mask = maskFile, out)
         TestOutputFromFile(
           data = dataFile,
