@@ -2,7 +2,7 @@
 
 set -u
 
-TIMEOUT='30m'
+DEFAULT_TIMEOUT='10s'
 SHOW_WAVES='true'
 TIME_RESOLUTION='100ps'
 
@@ -14,7 +14,7 @@ SIMULATION_TIMEOUT=6
 SIMULATION_FAILED=7
 
 function print_basic_usage {
-    echo "Usage: test_vhdl.sh PROJ_DIR [-h|--help] [-v|--verbose] [-i|--interactive]"
+    echo "Usage: test_vhdl.sh PROJ_DIR [-h|--help] [-v|--verbose] [-i|--interactive] [--time-limit=TL]"
 }
 
 function print_usage {
@@ -25,6 +25,7 @@ function print_usage {
     echo "  -h, --help         Print the help message and exit"
     echo "  -v, --verbose      Show the output from the VHDL compiler and simulator"
     echo "  -i, --interactive  Open the simulator GUI"
+    echo "  --time-limit=TL    Set the timeout value to pass to the timeout command (default: $DEFAULT_TIMEOUT)"
     echo
     echo "Status codes:"
     echo "  $BAD_ARGS  Bad args"
@@ -64,11 +65,14 @@ function parse_args {
 
     verbose_mode='false'
     interactive_mode='false'
+    time_limit="$DEFAULT_TIMEOUT"
     for arg in "${@:2}"; do
         if [[ "$arg" = "--verbose" ]] || [[ "$arg" = "-v" ]]; then
             verbose_mode='true'
         elif [[ "$arg" = "--interactive" ]] || [[ "$arg" = "-i" ]]; then
             interactive_mode='true'
+        elif [[ "$arg" =~ ^--time-limit= ]]; then
+            time_limit="${arg#--time-limit=}"
         else
             usage_error "Unrecognized argument: $arg"
         fi
@@ -89,7 +93,7 @@ function run_simulation {
         vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     else
         tcl_script="set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
-        timeout "$TIMEOUT" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
+        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     fi
 }
 

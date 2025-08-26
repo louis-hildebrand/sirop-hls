@@ -24,6 +24,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "verilog"
   private val VhdlDir = os.pwd / "src" / "test" / "vhdl"
   private val VerilogDir = os.pwd / "src" / "test" / "verilog"
+  private val TimeLimit: String = "0" // 0 means no timeout
 
   private val AllBenchmarks: Seq[String] =
     os.list(AetherlingBenchmarksDir).map(_.baseName)
@@ -51,9 +52,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       time("generating VHDL testbench") {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      time("running VHDL simulation") {
-        assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
+      val result = time("running VHDL simulation") {
+        VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
+      assert(result == TestPassed)
     }
 
     // Hopefully these also work, they're just so slow
@@ -67,9 +69,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       time("generating VHDL testbench") {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      time("running VHDL simulation") {
-        assert(VhdlTestRunner.testExistingProject(outDir) == TestPassed)
+      val result = time("running VHDL simulation") {
+        VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
+      assert(result == TestPassed)
     }
 
     test(s"$benchName:verilog") {
@@ -87,9 +90,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       time("generating Verilog testbench") {
         VerilogTestbenchGenerator.makeFileBasedTestbench(io, projectDir)
       }
-      time("running Verilog simulation") {
-        assert(VerilogTestRunner.testExistingProject(projectDir) == TestPassed)
+      val result = time("running Verilog simulation") {
+        VerilogTestRunner.testExistingProject(projectDir, timeLimit = TimeLimit)
       }
+      assert(result == TestPassed)
     }
   }
 }

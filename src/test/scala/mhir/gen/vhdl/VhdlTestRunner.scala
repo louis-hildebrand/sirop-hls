@@ -41,9 +41,11 @@ object VhdlTestRunner {
     * @return
     *   the test result.
     */
-  def testExistingProject(dir: Path): TestResult = {
+  def testExistingProject(dir: Path, timeLimit: String = ""): TestResult = {
     val cmd = s"$RUN_TEST_SH $dir"
-    cmd.! match {
+    val cmdWithTimeout =
+      if (timeLimit.isBlank) cmd else s"$cmd --time-limit=$timeLimit"
+    cmdWithTimeout.! match {
       case 0 => TestPassed
       case 4 => DesignCompileFailed
       case 5 => TestbenchCompileFailed
