@@ -503,9 +503,6 @@ object VhdlTestbenchGenerator {
        |    wait until falling_edge(clk);
        |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
        |
-       |    wait until rising_edge(clk);
-       |    assert(valid = '0') report "Wrong `valid` after completion";
-       |
        |    test_done <= true;
        |    assert false report "Test done." severity note;
        |    wait;
@@ -551,9 +548,6 @@ object VhdlTestbenchGenerator {
        |
        |    wait until falling_edge(clk);
        |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
-       |
-       |    wait until falling_edge(clk);
-       |    assert(valid = '0') report "Wrong `valid` after completion";
        |
        |    test_done <= true;
        |    assert false report "Test done." severity note;

@@ -264,20 +264,7 @@ private[vhdl] object StmBuildVhdl {
         name = "data_internal",
         typ = VhdlType(data.typ),
         init = None,
-        // NOTE: this one assign statement handles updating data_internal,
-        //       valid_internal, and remaining_outputs.
-        //       Maybe a bit hacky, but the final VHDL is a bit more readable
-        //       in my opinion.
-        assignStmt = Some(
-          s"""data_internal <= $dataVhdl;
-             |if ((remaining_outputs /= 0) and ($validVhdl) and ${allRequiredProducersValidSig.name}) then
-             |  valid_internal <= true;
-             |  remaining_outputs <= remaining_outputs - 1;
-             |else
-             |  valid_internal <= false;
-             |end if;
-             |""".stripMargin.stripTrailing
-        ),
+        assignStmt = Some(s"data_internal <= $dataVhdl;"),
         cond = Some("transfer_ok or can_update_acc")
       ),
       Signal(
@@ -285,16 +272,10 @@ private[vhdl] object StmBuildVhdl {
         name = "valid_internal",
         typ = VhdlBool,
         init = Some("false"),
-        assignStmt = None,
-        cond = None
-      ),
-      Signal(
-        category = "Handshake (output)",
-        name = "remaining_outputs",
-        typ = VhdlType(n.typ),
-        init = Some(nVhdl),
-        assignStmt = None,
-        cond = None
+        assignStmt = Some(
+          s"valid_internal <= ($validVhdl) and ${allRequiredProducersValidSig.name};"
+        ),
+        cond = Some("transfer_ok or can_update_acc")
       ),
       Signal(
         category = "Handshake (output)",
