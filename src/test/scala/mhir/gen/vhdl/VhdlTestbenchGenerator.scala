@@ -1,13 +1,16 @@
 package mhir.gen
 package vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.debug.indent
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-
+import mhir.logging.time
 import os.Path
 
 object VhdlTestbenchGenerator {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Create a testbench for a VHDL design.
     *
@@ -64,7 +67,9 @@ object VhdlTestbenchGenerator {
           elemTyp = in.elemTyp,
           len = in.len
         )
-        emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
+        time("writing input files") {
+          emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
+        }
         x -> fileInput
       case (x, in: TestInputFromFiles) => x -> in
     })
@@ -79,7 +84,13 @@ object VhdlTestbenchGenerator {
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        emitTestOutputFiles(data = fileOutput.data, mask = fileOutput.mask, out)
+        time("writing output files") {
+          emitTestOutputFiles(
+            data = fileOutput.data,
+            mask = fileOutput.mask,
+            out
+          )
+        }
         fileOutput
       case out: TestOutputFromFile => out
     }
