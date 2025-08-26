@@ -3,6 +3,8 @@
 set -u
 
 TIMEOUT='30m'
+SHOW_WAVES='true'
+TIME_RESOLUTION='100ps'
 
 BAD_ARGS=2
 MISSING_PROJ=3
@@ -80,9 +82,14 @@ function compile {
 
 function run_simulation {
     if [[ "$interactive_mode" == 'true' ]]; then
-        vsim -i -do "add wave sim:/Test/*; add wave sim:/Test/in_gen/*; add wave sim:/Test/out_check/*; add wave sim:/Test/DUT/*; run -all" -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L work -voptargs="+acc" Test
+        tcl_script="run -all"
+        if [[ "$SHOW_WAVES" == "true" ]]; then
+            tcl_script="add wave sim:/Test/*; add wave sim:/Test/in_gen/*; add wave sim:/Test/out_check/*; add wave sim:/Test/DUT/*;  $tcl_script"
+        fi
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L work -voptargs="+acc" Test
     else
-        timeout "$TIMEOUT" vsim -c -do "run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L work -voptargs="+acc" Test
+        tcl_script="run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
+        timeout "$TIMEOUT" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera_ver -L lpm_ver -L sgate_ver -L altera_mf_ver -L altera_lnsim_ver -L cyclonev_ver -L cyclonev_hssi_ver -L cyclonev_pcie_hip_ver -L work -voptargs="+acc" Test
 
     fi
 }

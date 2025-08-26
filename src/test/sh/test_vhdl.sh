@@ -3,6 +3,8 @@
 set -u
 
 TIMEOUT='30m'
+SHOW_WAVES='true'
+TIME_RESOLUTION='100ps'
 
 BAD_ARGS=2
 MISSING_PROJ=3
@@ -80,9 +82,14 @@ function compile {
 
 function run_simulation {
     if [[ "$interactive_mode" == 'true' ]]; then
-        vsim -i -do "add wave sim:/testbench/*; add wave sim:/testbench/out_check/*; add wave sim:/testbench/DUT/*; run -all" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        tcl_script="run -all"
+        if [[ "$SHOW_WAVES" == "true" ]]; then
+            tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check/*; add wave sim:/testbench/DUT/*; $tcl_script"
+        fi
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     else
-        timeout "$TIMEOUT" vsim -c -do "set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]" -t 1ps -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        tcl_script="set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
+        timeout "$TIMEOUT" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
     fi
 }
 
