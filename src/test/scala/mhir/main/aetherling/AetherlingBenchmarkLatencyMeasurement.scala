@@ -37,9 +37,10 @@ object AetherlingBenchmarkLatencyMeasurement {
       )
     }
     latency match {
-      case OkLatencyResult(latency) => println(latency)
+      case OkLatencyResult(latency) =>
+        println(s"LATENCY: $latency cycles")
       case ErrLatencyResult(Some(latency), simExitCode) =>
-        println(latency)
+        println(s"LATENCY: $latency cycles")
         exit(simExitCode)
       case ErrLatencyResult(None, simExitCode) =>
         exit(simExitCode)
@@ -62,7 +63,7 @@ object AetherlingBenchmarkLatencyMeasurement {
   def measureVerilog(dir: Path): LatencyResult = {
     val benchName = dir.baseName
     val io = AetherlingBenchmarkIO.verilogIO(benchName)
-    VerilogTestbenchGenerator.makeTestbench(io, dir)
+    VerilogTestbenchGenerator.makeFileBasedTestbench(io, dir)
     val proc = os
       .proc("./src/test/sh/test_verilog.sh", dir, "-v")
       .call(

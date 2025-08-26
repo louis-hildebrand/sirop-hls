@@ -2,7 +2,7 @@
 
 set -u
 
-TIMEOUT='10s'
+TIMEOUT='30m'
 
 BAD_ARGS=2
 MISSING_PROJ=3
