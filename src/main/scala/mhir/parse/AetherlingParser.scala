@@ -364,7 +364,9 @@ object AetherlingParser {
     } else if (code.startsWith("AbsN ")) {
       ???
     } else if (code.startsWith("NotN ")) {
-      ???
+      val suffix0 = expect(code, "NotN ")
+      val (e, suffix1) = parseExpr(suffix0, modules)
+      (Not(e)(), suffix1)
     } else if (code.startsWith("AndN ")) {
       ???
     } else if (code.startsWith("OrN ")) {
@@ -416,7 +418,11 @@ object AetherlingParser {
       val (e, suffix3) = parseExpr(suffix2, modules)
       (e.__0 < e.__1, suffix3)
     } else if (code.startsWith("EqN ")) {
-      ???
+      val suffix0 = expect(code, "EqN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (SmartEqual(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("IfN ")) {
       val suffix0 = expect(code, "IfN ")
       val (_, suffix1) = parseTyp(suffix0)
@@ -715,9 +721,21 @@ object AetherlingParser {
       val (s, suffix7) = parseExpr(suffix6, modules)
       (StmReduce(s, makeUnaryFunction(f, modules))(), suffix7)
     } else if (code.startsWith("FstN ")) {
-      ???
+      val suffix0 = expect(code, "FstN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (e.__0, suffix5)
     } else if (code.startsWith("SndN ")) {
-      ???
+      val suffix0 = expect(code, "SndN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (e.__1, suffix5)
     } else if (code.startsWith("ATupleN ")) {
       // TODO: Assert type?
       val suffix0 = expect(code, "ATupleN ")
