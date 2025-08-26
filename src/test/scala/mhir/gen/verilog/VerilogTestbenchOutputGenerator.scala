@@ -50,25 +50,23 @@ object VerilogTestbenchOutputGenerator {
 
   def getDirectOutputBlock(output: DirectTestOutput): String = {
     val outAtomWidth = getAtomWidth(output.elemTyp)
-    val outputChecks = outputMap(output)
-      .map(valByPort => {
-        val checks = valByPort.zipWithIndex
-          .map({ case ((port, v), i) =>
+    val outMap = outputMap(output).toSeq
+    val outputChecks = outMap.zipWithIndex
+      .map({ case (valByPort, t) =>
+        val checks = valByPort
+          .map({ case (port, v) =>
             val validCheck = v match {
-              case None =>
-                s"// value for $port is undefined"
-              case Some(v) =>
-                s"check_output($v, $port);"
+              case None    => s"// value for $port is undefined"
+              case Some(v) => s"check_output($v, $port);"
             }
-            val skips = if (i == valByPort.size - 1 || output.skip <= 0) {
-              ""
+            val skips = if (t == outMap.size - 1 || output.skip <= 0) {
+              "// Ignore trailing invalids"
             } else {
-              s"""
-                 |// Skip ${output.skip} invalid elements
+              s"""// Skip ${output.skip} invalid elements
                  |for (j = 0; j < ${output.skip}; j = j + 1) wait_for_output();
                  |""".stripMargin.stripTrailing
             }
-            validCheck + skips
+            validCheck + "\n" + skips
           })
           .mkString("\n")
         s"wait_for_output();\n$checks"
@@ -122,7 +120,7 @@ object VerilogTestbenchOutputGenerator {
     s"""// Output checking
        |
        |task read_output_data ();
-       |    integer fd, i, code, msb;
+       |    integer fd, i, msb;
        |begin
        |    $$display("Reading output data from ${out.data}...");
        |    fd = $$fopen("${out.data}", "r");
@@ -131,6 +129,9 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
        |            output_data_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
@@ -141,7 +142,7 @@ object VerilogTestbenchOutputGenerator {
        |endtask
        |
        |task read_output_masks ();
-       |    integer fd, i, code, msb;
+       |    integer fd, i, msb;
        |begin
        |    $$display("Reading output masks from ${out.mask}...");
        |    fd = $$fopen("${out.mask}", "r");
@@ -150,6 +151,9 @@ object VerilogTestbenchOutputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
        |            output_mask_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
@@ -184,13 +188,15 @@ object VerilogTestbenchOutputGenerator {
        |    $$display("Started output checker.");
        |
        |    for (i = 0; i < ${out.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${out.len});
+       |        end
        |        wait_for_output();
        |        data = $outPortList;
        |        expected = output_data_ram[i];
        |        mask = output_mask_ram[i];
        |        masked_data = data & mask;
        |        masked_expected = expected & mask;
-       |        $$display("OUTPUT : %h", data);
        |        if (masked_data !== masked_expected) begin
        |            $$error("ASSERTION FAILED: expected %h, got %h", masked_expected, masked_data);
        |        end
@@ -218,9 +224,12 @@ object VerilogTestbenchOutputGenerator {
   }
 
   def emitOutputFiles(data: Path, mask: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elements) {
-      os.write.append(data, Binary(v))
-      os.write.append(mask, Binary.mask(v.tchk()))
+    for (xs <- out.elements.grouped(1000)) {
+      val binaryData = xs.map(Binary(_))
+      os.write.append(data, binaryData)
+
+      val binaryMask = xs.map(v => Binary.mask(v.tchk()))
+      os.write.append(mask, binaryMask)
     }
   }
 

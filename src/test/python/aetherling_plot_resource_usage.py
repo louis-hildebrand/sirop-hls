@@ -26,9 +26,9 @@ def axis_scale(bench_name: str) -> str:
     """
     Decide whether the given benchmark should be plotted with a log scale or linear scale.
     """
-    if bench_name in {"map", "conv1d", "smallconv2d", "smallconvb2b", "smallsharpen"}:
-        return "log"
-    return "linear"
+    if bench_name in {"sum", "dot"}:
+        return "linear"
+    return "log"
 
 
 def dedup(xs: list[str]) -> list[str]:

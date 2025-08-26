@@ -24,6 +24,7 @@ object AetherlingParser {
     *                | "BitT"
     *                | "Int8T"
     *                | "UInt8T"
+    *                | "FixP1_7T"
     *                | "Int16T"
     *                | "UInt16T"
     *                | "Int32T"
@@ -235,6 +236,8 @@ object AetherlingParser {
       (I8, expect(code, "Int8T"))
     } else if (code.startsWith("UInt8T")) {
       (U8, expect(code, "UInt8T"))
+    } else if (code.startsWith("FixP1_7T")) {
+      (TyFix(U8, 7), expect(code, "FixP1_7T"))
     } else if (code.startsWith("Int16T")) {
       (I16, expect(code, "Int16T"))
     } else if (code.startsWith("UInt16T")) {
@@ -329,6 +332,15 @@ object AetherlingParser {
     }
   }
 
+  private def parseFloat(code: String): (Float, String) = {
+    val (prefix, suffix) = code.span({
+      case c if c.isDigit  => true
+      case '.' | 'e' | '-' => true
+      case _               => false
+    })
+    (prefix.toFloat, suffix)
+  }
+
   private def parseExpr(
       code: String,
       modules: ListMap[Param, Function]
@@ -371,7 +383,11 @@ object AetherlingParser {
       val (e, suffix3) = parseExpr(suffix2, modules)
       (WrappingProd(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("DivN ")) {
-      ???
+      val suffix0 = expect(code, "DivN ")
+      val (_, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (IntFixProd(e.__0, e.__1)(), suffix3)
     } else if (code.startsWith("LSRN ")) {
       val suffix0 = expect(code, "LSRN ")
       val (_, suffix1) = parseTyp(suffix0)
@@ -773,7 +789,10 @@ object AetherlingParser {
       val (n, suffix1) = parseNat(suffix0)
       (C(n)(U8), suffix1)
     } else if (code.startsWith("FixP1_7V ")) {
-      ???
+      val suffix0 = expect(code, "FixP1_7V ")
+      val (float, suffix1) = parseFloat(suffix0)
+      val c = FixCst((float * 128).round)(TyFix(U8, 7))
+      (c, suffix1)
     } else if (code.startsWith("Int16V ")) {
       ???
     } else if (code.startsWith("UInt16V ")) {

@@ -1,13 +1,16 @@
 package mhir.gen
 package vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.debug.indent
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-
+import mhir.logging.time
 import os.Path
 
 object VhdlTestbenchGenerator {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Create a testbench for a VHDL design.
     *
@@ -64,7 +67,9 @@ object VhdlTestbenchGenerator {
           elemTyp = in.elemTyp,
           len = in.len
         )
-        emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
+        time("writing input files") {
+          emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
+        }
         x -> fileInput
       case (x, in: TestInputFromFiles) => x -> in
     })
@@ -79,7 +84,13 @@ object VhdlTestbenchGenerator {
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        emitTestOutputFiles(data = fileOutput.data, mask = fileOutput.mask, out)
+        time("writing output files") {
+          emitTestOutputFiles(
+            data = fileOutput.data,
+            mask = fileOutput.mask,
+            out
+          )
+        }
         fileOutput
       case out: TestOutputFromFile => out
     }
@@ -216,23 +227,25 @@ object VhdlTestbenchGenerator {
       .toMap
   }
 
+  private val ChunkSize = 1000
+
   private def emitTestInputFiles(
       data: Path,
       valid: Path,
       in: DirectTestInput
   ): Unit = {
-    for (x <- in.elements) {
-      val binaryData = x match {
+    for (xs <- in.elements.grouped(ChunkSize)) {
+      val binaryData = xs.map({
         case Some(v) => Binary(v)
         case None    => Binary(mhir.ir.eval(Default(in.elemTyp)))
-      }
+      })
       os.write.append(data, binaryData)
 
       // TODO: Pack this data even further?
-      val binaryValid: Array[Byte] = x match {
+      val binaryValid = xs.map({
         case Some(_) => Array((0 until 8).map(_ => 1.toByte): _*)
         case None    => Array((0 until 8).map(_ => 0.toByte): _*)
-      }
+      })
       os.write.append(valid, binaryValid)
     }
   }
@@ -242,9 +255,12 @@ object VhdlTestbenchGenerator {
       mask: Path,
       out: DirectTestOutput
   ): Unit = {
-    for (v <- out.elements) {
-      os.write.append(data, Binary(v))
-      os.write.append(mask, Binary.mask(v.tchk()))
+    for (xs <- out.elements.grouped(ChunkSize)) {
+      val binaryData = xs.map(Binary(_))
+      os.write.append(data, binaryData)
+
+      val binaryMask = xs.map(v => Binary.mask(v.tchk()))
+      os.write.append(mask, binaryMask)
     }
   }
 

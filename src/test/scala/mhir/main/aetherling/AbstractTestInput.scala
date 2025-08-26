@@ -74,6 +74,18 @@ case class AbstractTestInput(
     )
   }
 
+  /** Constructs a new [[AbstractTestInput]] that is the same as this one but
+    * with an updated [[hold]] value.
+    */
+  def withHold(newHold: Int): AbstractTestInput = {
+    new AbstractTestInput(
+      f = this.f,
+      elemTypes = this.elemTypes,
+      len = this.len,
+      hold = newHold
+    )
+  }
+
   private def nStreams: Int = elemTypes.length
 }
 

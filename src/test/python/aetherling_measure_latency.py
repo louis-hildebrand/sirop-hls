@@ -5,7 +5,6 @@ This script measures the latency (in clock cycles) for the given benchmarks by s
 """
 
 import csv
-import os
 import shutil
 import subprocess
 from argparse import ArgumentParser, Namespace
@@ -22,10 +21,8 @@ def measure_latency(proj_dir: Path) -> LatencyResult:
     """
     Measure the latency of one design.
     """
-    sbt_command = f"Test / runMain {c.LATENCY_MEASUREMENT_CLS} {proj_dir.resolve().as_posix()}"
-    os.chdir(c.ROOT_DIR)
     result = subprocess.run(
-        ["sbt", "-error", sbt_command],
+        [c.TEST_SH_DIR.joinpath("measure_latency_with_logging.sh"), proj_dir.resolve().as_posix()],
         check=False,
         capture_output=True,
         text=True,
@@ -72,7 +69,7 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
                         flush=True,
                     )
                     latency = measure_latency(c.VERILOG_DIR.joinpath(bench.full_name))
-                    print(f"{latency} cycles" if latency is not None else "ERROR")
+                    print(latency)
                     crud.save_latency(writer, BenchmarkImpl(bench, "verilog"), latency)
                 if not skip_vhdl:
                     print(

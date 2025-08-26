@@ -1331,7 +1331,7 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         s -> (stm, True),
         buf -> (
           // TODO: Actually start with some kind of undefined value?
-          VecBuild(shiftAmount, U8 ::+ (_ => Default(t)))(),
+          VecBuild(shiftAmount, U32 ::+ (_ => Default(t)))(),
           VecShiftRight(buf, StmData(s)())()
         )
       )

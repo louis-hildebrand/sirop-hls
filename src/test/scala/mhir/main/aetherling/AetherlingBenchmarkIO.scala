@@ -235,6 +235,72 @@ object AetherlingBenchmarkIO {
     normalCases ++ underutilizedCases
   }
 
+  private def bigConv2dIO: Map[String, TestIO] = {
+    // Checkerboard pattern (30x30 squares)
+    val basicInputFun: Int => Int => Long =
+      (i: Int) =>
+        (j: Int) => {
+          val even = ((i % 30) < 15) == ((j % 30) < 15)
+          if (even) 255 else 0
+        }
+    // TODO: Make a helper method for this
+    val kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
+    val basicOutputs: Int => Option[Long] = { (t: Int) =>
+      val i = t / 1920 - 2
+      val j = t % 1920 - 2
+      // (i, j) is the current position of the top-left element of the
+      // kernel within the input
+      if (i < 0 || j < 0) {
+        None
+      } else {
+        val relevantInputs =
+          (0 until 3).flatMap(deltaI =>
+            (0 until 3).map(deltaJ => basicInputFun(i + deltaI)(j + deltaJ))
+          )
+        val dot = relevantInputs
+          .zip(kernel.flatten)
+          .map({ case (x, y) => x * y })
+          .sum
+        Some((dot % (1L << 32)) / 16)
+      }
+    }
+    val sequentialIn = new AbstractTestInput(
+      f = (t: Int) =>
+        (_: Int) => {
+          val i = t / 1920
+          val j = t % 1920
+          C(basicInputFun(i)(j))(U32)
+        },
+      elemTypes = Seq(U32),
+      len = 1920 * 1080,
+      hold = 1
+    )
+    val sequentialOut = new AbstractTestOutput(
+      f = (t: Int) =>
+        basicOutputs(t) match {
+          case Some(x) => C(x)(U32)
+          case None    => Undefined(U32)
+        },
+      elemTyp = U32,
+      len = 1920 * 1080,
+      skip = 1
+    )
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = AbstractTestIO(sequentialIn.vec(par), sequentialOut.vec(par))
+        s"bigconv2d_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        sequentialIn.withHold(denom),
+        sequentialOut.withSkip(denom - 1)
+      )
+      s"bigconv2d_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
   private def smallConvB2bIO: Map[String, TestIO] = {
     val basicInputs: Seq[Seq[Int]] =
       (0 until 16).map(i => 5 * (i + 1)).grouped(4).toSeq
@@ -376,6 +442,7 @@ object AetherlingBenchmarkIO {
       ++ dotIO.mapValues(_.toVhdl)
       ++ conv1dIO.mapValues(_.toVhdl)
       ++ smallConv2dIO.mapValues(_.toVhdl)
+      ++ bigConv2dIO.mapValues(_.toVhdl)
       ++ smallConvB2bIO.mapValues(_.toVhdl)
       ++ smallSharpenIO.mapValues(_.toVhdl)
   )
@@ -392,6 +459,7 @@ object AetherlingBenchmarkIO {
       ++ dotIO.mapValues(_.toVerilog)
       ++ conv1dIO.mapValues(_.toVerilog)
       ++ smallConv2dIO.mapValues(_.toVerilog)
+      ++ bigConv2dIO.mapValues(_.toVerilog)
       ++ smallConvB2bIO.mapValues(_.toVerilog)
       ++ smallSharpenIO.mapValues(_.toVerilog)
   )

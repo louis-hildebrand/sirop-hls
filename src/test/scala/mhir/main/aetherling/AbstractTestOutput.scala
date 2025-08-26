@@ -54,6 +54,18 @@ case class AbstractTestOutput(
       skip = this.skip
     )
   }
+
+  /** Constructs a new [[AbstractTestOutput]] that is the same as this one but
+    * with an updated [[skip]] value.
+    */
+  def withSkip(newSkip: Int): AbstractTestOutput = {
+    new AbstractTestOutput(
+      f = this.f,
+      elemTyp = this.elemTyp,
+      len = this.len,
+      skip = newSkip
+    )
+  }
 }
 
 /** Companion object for [[AbstractTestOutput]].

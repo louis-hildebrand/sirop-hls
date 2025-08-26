@@ -1,7 +1,7 @@
 package mhir.gen.verilog
 
 import mhir.debug.indent
-import mhir.gen.{Binary, Undefined}
+import mhir.gen.Binary
 import mhir.ir._
 import os.Path
 
@@ -98,6 +98,9 @@ private[verilog] object VerilogTestbenchInputGenerator {
        |        $$stop(0);
        |    end
        |    for (i = 0; i < ${in.len}; i = i + 1) begin
+       |        if ((i & 32'h0000ffff) == 0) begin
+       |            $$display("%d%%", (100 * i) / ${in.len});
+       |        end
        |        for (msb = ${bitsPerRow - 1}; msb >= 7; msb = msb - 8) begin
        |            input_data_ram[i][msb -: 8] = $$fgetc(fd);
        |        end
@@ -129,8 +132,9 @@ private[verilog] object VerilogTestbenchInputGenerator {
   }
 
   def emitInputDataFile(f: Path, in: DirectTestInput): Unit = {
-    for (elems <- in.steps) {
-      os.write.append(f, Binary(elems: _*))
+    for (steps <- in.steps.grouped(1000)) {
+      val bin = steps.map(elems => Binary(elems: _*))
+      os.write.append(f, bin)
     }
   }
 

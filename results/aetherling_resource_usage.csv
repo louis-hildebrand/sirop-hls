@@ -103,3 +103,15 @@ smallsharpen,8,verilog,312,2,0
 smallsharpen,8,vhdl,1984,0,0
 smallsharpen,16,verilog,502,4,0
 smallsharpen,16,vhdl,677,0,0
+bigconv2d,1,verilog,6426,22,21
+bigconv2d,1/3,verilog,10258,17,9
+bigconv2d,1/3,vhdl,1311,14,6
+bigconv2d,1,vhdl,1819,14,0
+bigconv2d,2,verilog,557,30,42
+bigconv2d,2,vhdl,2636,14,0
+bigconv2d,4,verilog,1071,46,84
+bigconv2d,4,vhdl,4067,14,0
+bigconv2d,8,verilog,2022,77,168
+bigconv2d,8,vhdl,6883,14,0
+bigconv2d,16,verilog,10203,0,336
+bigconv2d,16,vhdl,23916,0,0
