@@ -50,25 +50,23 @@ object VerilogTestbenchOutputGenerator {
 
   def getDirectOutputBlock(output: DirectTestOutput): String = {
     val outAtomWidth = getAtomWidth(output.elemTyp)
-    val outputChecks = outputMap(output)
-      .map(valByPort => {
-        val checks = valByPort.zipWithIndex
-          .map({ case ((port, v), i) =>
+    val outMap = outputMap(output).toSeq
+    val outputChecks = outMap.zipWithIndex
+      .map({ case (valByPort, t) =>
+        val checks = valByPort
+          .map({ case (port, v) =>
             val validCheck = v match {
-              case None =>
-                s"// value for $port is undefined"
-              case Some(v) =>
-                s"check_output($v, $port);"
+              case None    => s"// value for $port is undefined"
+              case Some(v) => s"check_output($v, $port);"
             }
-            val skips = if (i == valByPort.size - 1 || output.skip <= 0) {
-              ""
+            val skips = if (t == outMap.size - 1 || output.skip <= 0) {
+              "// Ignore trailing invalids"
             } else {
-              s"""
-                 |// Skip ${output.skip} invalid elements
+              s"""// Skip ${output.skip} invalid elements
                  |for (j = 0; j < ${output.skip}; j = j + 1) wait_for_output();
                  |""".stripMargin.stripTrailing
             }
-            validCheck + skips
+            validCheck + "\n" + skips
           })
           .mkString("\n")
         s"wait_for_output();\n$checks"
