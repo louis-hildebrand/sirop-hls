@@ -86,10 +86,10 @@ function run_simulation {
         if [[ "$SHOW_WAVES" == "true" ]]; then
             tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check/*; add wave sim:/testbench/DUT/*; $tcl_script"
         fi
-        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     else
         tcl_script="set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
-        timeout "$TIMEOUT" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L altera -L lpm -L sgate -L altera_mf -L altera_lnsim -L cyclonev -L cyclonev_hssi -L work -voptargs="+acc" testbench
+        timeout "$TIMEOUT" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     fi
 }
 
