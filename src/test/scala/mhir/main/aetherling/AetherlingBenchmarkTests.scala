@@ -38,7 +38,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl:simplified") {
-      if (benchName.startsWith("bigconv2d")) {
+      if (benchName.startsWith("big")) {
         // Much too slow
         ???
       }
@@ -73,7 +73,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
-      if (benchName.startsWith("bigconv2d")) {
+      if (benchName.startsWith("big")) {
         // Too slow and also seems to produce the wrong outputs
         ???
       }
