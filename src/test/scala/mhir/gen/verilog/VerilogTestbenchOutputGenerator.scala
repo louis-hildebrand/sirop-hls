@@ -226,9 +226,12 @@ object VerilogTestbenchOutputGenerator {
   }
 
   def emitOutputFiles(data: Path, mask: Path, out: DirectTestOutput): Unit = {
-    for (v <- out.elements) {
-      os.write.append(data, Binary(v))
-      os.write.append(mask, Binary.mask(v.tchk()))
+    for (xs <- out.elements.grouped(1000)) {
+      val binaryData = xs.map(Binary(_))
+      os.write.append(data, binaryData)
+
+      val binaryMask = xs.map(v => Binary.mask(v.tchk()))
+      os.write.append(mask, binaryMask)
     }
   }
 

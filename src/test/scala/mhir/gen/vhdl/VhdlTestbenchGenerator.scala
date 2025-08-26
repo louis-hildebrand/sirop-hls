@@ -227,23 +227,25 @@ object VhdlTestbenchGenerator {
       .toMap
   }
 
+  private val ChunkSize = 1000
+
   private def emitTestInputFiles(
       data: Path,
       valid: Path,
       in: DirectTestInput
   ): Unit = {
-    for (x <- in.elements) {
-      val binaryData = x match {
+    for (xs <- in.elements.grouped(ChunkSize)) {
+      val binaryData = xs.map({
         case Some(v) => Binary(v)
         case None    => Binary(mhir.ir.eval(Default(in.elemTyp)))
-      }
+      })
       os.write.append(data, binaryData)
 
       // TODO: Pack this data even further?
-      val binaryValid: Array[Byte] = x match {
+      val binaryValid = xs.map({
         case Some(_) => Array((0 until 8).map(_ => 1.toByte): _*)
         case None    => Array((0 until 8).map(_ => 0.toByte): _*)
-      }
+      })
       os.write.append(valid, binaryValid)
     }
   }
@@ -253,9 +255,12 @@ object VhdlTestbenchGenerator {
       mask: Path,
       out: DirectTestOutput
   ): Unit = {
-    for (v <- out.elements) {
-      os.write.append(data, Binary(v))
-      os.write.append(mask, Binary.mask(v.tchk()))
+    for (xs <- out.elements.grouped(ChunkSize)) {
+      val binaryData = xs.map(Binary(_))
+      os.write.append(data, binaryData)
+
+      val binaryMask = xs.map(v => Binary.mask(v.tchk()))
+      os.write.append(mask, binaryMask)
     }
   }
 

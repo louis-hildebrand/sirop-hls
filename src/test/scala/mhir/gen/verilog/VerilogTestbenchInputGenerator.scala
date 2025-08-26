@@ -132,8 +132,9 @@ private[verilog] object VerilogTestbenchInputGenerator {
   }
 
   def emitInputDataFile(f: Path, in: DirectTestInput): Unit = {
-    for (elems <- in.steps) {
-      os.write.append(f, Binary(elems: _*))
+    for (steps <- in.steps.grouped(1000)) {
+      val bin = steps.map(elems => Binary(elems: _*))
+      os.write.append(f, bin)
     }
   }
 
