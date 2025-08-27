@@ -472,7 +472,17 @@ object AetherlingParser {
       val (_, suffix11) = parseNat(suffix10)
       (StmVecRange(no, ni, C(0)(typ), C(delta)(typ))(), suffix11)
     } else if (code.startsWith("Counter_tnN ")) {
-      ???
+      val suffix0 = expect(code, "Counter_tnN ")
+      val (ns, suffix1) = parseNatList(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (is, suffix3) = parseNatList(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (delta, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (typ, suffix7) = parseTyp(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (_, suffix9) = parseNat(suffix8)
+      (makeNestedStmCounter(1, ns, is, delta, typ), suffix9)
     } else if (code.startsWith("Shift_sN ")) {
       val suffix0 = expect(code, "Shift_sN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -827,9 +837,27 @@ object AetherlingParser {
       case (ni +: nis, _ +: iis) =>
         StmSplit(makeNestedStmShift(StmJoin(s)(), nis, iis, shiftAmount), ni)()
       case (_, _) =>
-        throw new IllegalArgumentException(
+        throw new SyntaxError(
           s"Length mismatch in shift_tn: $nis vs $iis."
         )
+    }
+  }
+
+  private def makeNestedStmCounter(
+      nProd: Int,
+      ns: Seq[Int],
+      is: Seq[Int],
+      delta: Int,
+      typ: Type
+  ): Expr = {
+    (ns, is) match {
+      case (Seq(_), Seq(_)) =>
+        StmRange(nProd, C(0)(typ), C(delta)(typ))()
+      case (n +: ns, _ +: is) =>
+        val innerCount = makeNestedStmCounter(nProd * n, ns, is, delta, typ)
+        StmSplit(innerCount, n)()
+      case _ =>
+        throw new SyntaxError(s"Length mismatch in counter_tn: $ns vs $is.")
     }
   }
 

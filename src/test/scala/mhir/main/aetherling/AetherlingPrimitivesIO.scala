@@ -20,6 +20,11 @@ object AetherlingPrimitivesIO {
           AbstractTestInput(Seq()),
           AbstractTestOutput((0 until 70).map(3 * _).map(C(_)(U8))).vec(7)
         )
+      case "count_tn_1" =>
+        AbstractTestIO(
+          AbstractTestInput(Seq()),
+          AbstractTestOutput((0 until 6).map(2 * _).map(C(_)(U8)), skip = 3)
+        )
       case _ =>
         ???
     }
