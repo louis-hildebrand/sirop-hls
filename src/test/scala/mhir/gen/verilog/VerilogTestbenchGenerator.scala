@@ -64,6 +64,7 @@ object VerilogTestbenchGenerator {
   }
 
   private def emitTestbench(code: String, dir: Path): Unit = {
+    logger.info(s"saving testbench in $dir")
     val f = dir / "Test.v"
     if (os.isFile(f)) os.remove(f)
     os.write(f, code)
@@ -76,10 +77,12 @@ object VerilogTestbenchGenerator {
     val portMap =
       getPortMap(InGen.getNames(inputs), OutGen.getNames(expectedOutput))
     val inputDecls = inputs match {
+      case in if in.len == 0     => InGen.emptyInputDecls
       case in: DirectTestInput   => InGen.getDirectInputDecls(in)
       case in: TestInputFromFile => InGen.getFileInputDecls(in)
     }
     val inputGenBlock = inputs match {
+      case in if in.len == 0     => InGen.emptyInputBlock
       case in: DirectTestInput   => InGen.getDirectInputBlock(in)
       case in: TestInputFromFile => InGen.getFileInputBlock(in)
     }
@@ -152,14 +155,17 @@ object VerilogTestbenchGenerator {
       inputNames: Seq[String],
       outputNames: Seq[String]
   ): String = {
-    val inputPortMappings = inputNames.map(i => s".$i($i)").mkString(", ")
+    val inputPortMappings = if (inputNames.isEmpty) {
+      ""
+    } else {
+      inputNames.map(i => s".$i($i)").mkString("\n    ", ", ", ",")
+    }
     val outputPortMappings = outputNames.map(o => s".$o($o)").mkString(", ")
     s"""Top DUT (
        |    .clock(clock),
        |    .reset(reset),
        |    .valid_up(valid_up),
-       |    .valid_down(valid_down),
-       |    $inputPortMappings,
+       |    .valid_down(valid_down),$inputPortMappings
        |    $outputPortMappings
        |);
        |""".stripMargin.stripTrailing

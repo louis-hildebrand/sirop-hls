@@ -25,6 +25,8 @@ private[verilog] object VerilogTestbenchInputGenerator {
     })
   }
 
+  def emptyInputDecls: String = ""
+
   def getDirectInputDecls(inputs: DirectTestInput): String = {
     val ports = widthByPort(inputs)
       .map({ case (name, w) => s"reg [${w - 1}:0] $name;" })
@@ -43,6 +45,21 @@ private[verilog] object VerilogTestbenchInputGenerator {
     s"""// Inputs
        |$ports
        |reg [${totWidth - 1}:0] input_data_ram [0:${in.len - 1}];
+       |""".stripMargin.stripTrailing
+  }
+
+  def emptyInputBlock: String = {
+    s"""// Input generation
+       |
+       |task prepare_inputs ();
+       |begin
+       |    $$display("No inputs to prepare.");
+       |end
+       |endtask
+       |
+       |initial begin : in_gen
+       |    initialize();
+       |end
        |""".stripMargin.stripTrailing
   }
 

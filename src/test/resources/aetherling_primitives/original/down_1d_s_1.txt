@@ -1,0 +1,4 @@
+module0  =
+    n1 = Counter_sN 8 3 UInt8T 0
+    n2 = Down_1d_sN 8 2 UInt8T n1
+

@@ -35,6 +35,8 @@ object VhdlGenerator {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
       e match {
+        case Function(x, e) if x.typ == TyTuple() =>
+          unwrap(e, inputs)
         case Function(x, e) =>
           if (rename) {
             val y = Param(s"I${inputs.length}", -1)(x.typ)
