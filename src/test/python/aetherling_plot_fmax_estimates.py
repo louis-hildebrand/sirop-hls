@@ -34,7 +34,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(10, 2.5))
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(16, 2.5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):

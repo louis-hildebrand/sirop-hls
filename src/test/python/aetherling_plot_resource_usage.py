@@ -46,7 +46,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(12, 5))
+    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(16, 5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
