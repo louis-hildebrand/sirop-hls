@@ -42,9 +42,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot resource usage vs throughput for each benchmark.
     """
-    plt.rcParams.update({
-        "text.usetex": True
-    })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
