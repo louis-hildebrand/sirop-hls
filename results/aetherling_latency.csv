@@ -115,3 +115,11 @@ bigconv2d,8,verilog,,True
 bigconv2d,8,vhdl,,False
 bigconv2d,16,verilog,,True
 bigconv2d,16,vhdl,,False
+bigconvb2b,1,verilog,,False
+bigconvb2b,1,vhdl,,False
+bigsharpen,1/3,verilog,,False
+bigsharpen,1,verilog,,False
+bigsharpen,2,verilog,,False
+bigsharpen,4,verilog,,False
+bigsharpen,8,verilog,,False
+bigsharpen,16,verilog,,False
