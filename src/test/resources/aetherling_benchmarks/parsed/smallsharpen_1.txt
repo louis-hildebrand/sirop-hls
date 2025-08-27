@@ -369,7 +369,35 @@ let module1: u8 -> u8 -> u8 = (
     StmMap2(
       n154,
       n155,
-      (I0 : Vec[u8, 1:u1]) => (I1 : Vec[u8, 1:u1]) => VecMap2(I0, I1, module1)
+      (I0 : Vec[u8, 1:u1]) =>
+        (I1 : Vec[u8, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u8) =>
+              (I1 : u8) =>
+                let n189: u8 = 15:u8 in
+                let n163: (u8, u8) = (I0, I1) in
+                let n164: u8 = n163.0 -% n163.1 in
+                let n166: (u8, u8) = (n189, n164) in
+                let n167: bool = n166.0 << n166.1 in
+                let n190: u8 = 15:u8 in
+                let n168: (u8, u8) = (I1, I0) in
+                let n169: u8 = n168.0 -% n168.1 in
+                let n171: (u8, u8) = (n190, n169) in
+                let n172: bool = n171.0 << n171.1 in
+                let n173: (bool, bool) = (n167, n172) in
+                let n174: bool = n173.0 || n173.1 in
+                let n191: u8 = 0:u8 in
+                let n177: (u8, u8) = (n169, n191) in
+                let n178: (bool, (u8, u8)) = (n174, n177) in
+                let n179: u8 = if (n178.0) then { (n178.1).0 } else { (n178.1).1 } in
+                let n192: u8 = 2:u8 in
+                let n182: (u8, u8) = (n179, n192) in
+                let n183: u8 = n182.0 >> n182.1 in
+                let n184: (u8, u8) = (I1, n183) in
+                n184.0 +% n184.1
+          )
     )
   ) in
   let n186: Stm[Vec[u8, 1:u1], 16:u5] = n156 in

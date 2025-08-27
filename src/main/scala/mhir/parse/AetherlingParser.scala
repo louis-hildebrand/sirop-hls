@@ -679,7 +679,7 @@ object AetherlingParser {
       val (v1, suffix5) = parseExpr(suffix4, modules)
       val suffix6 = expect(suffix5, " ")
       val (v2, suffix7) = parseExpr(suffix6, modules)
-      (VecMap2(v1, v2, makeBinaryFunction(f, modules))(), suffix7)
+      (VecMap2(v1, v2, makeInlinedBinaryFunction(f, modules))(), suffix7)
     } else if (code.startsWith("Map2_tN ")) {
       val suffix0 = expect(code, "Map2_tN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -691,17 +691,7 @@ object AetherlingParser {
       val (s1, suffix7) = parseExpr(suffix6, modules)
       val suffix8 = expect(suffix7, " ")
       val (s2, suffix9) = parseExpr(suffix8, modules)
-      val g: Function = f match {
-        case x: Param if modules.contains(x) =>
-          // The function in StmMap2 must be a literal function, so inline
-          modules(x)
-        case _ =>
-          Function(
-            Param("I0", -1)(Missing),
-            Function(Param("I1", -1)(Missing), f)()
-          )()
-      }
-      (StmMap2(s1, s2, g)(), suffix9)
+      (StmMap2(s1, s2, makeInlinedBinaryFunction(f, modules))(), suffix9)
     } else if (code.startsWith("Reduce_sN ")) {
       val suffix0 = expect(code, "Reduce_sN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -826,19 +816,17 @@ object AetherlingParser {
     }
   }
 
-  /** Similar to [[makeUnaryFunction]], but for functions of two inputs.
-    */
-  private def makeBinaryFunction(
-      e: Expr,
+  private def makeInlinedBinaryFunction(
+      f: Expr,
       modules: Map[Param, Function]
-  ): Expr = {
-    e match {
-      case f: Param if modules.contains(f) =>
-        f
-      case body =>
+  ): Function = {
+    f match {
+      case x: Param if modules.contains(x) =>
+        modules(x)
+      case _ =>
         Function(
           Param("I0", -1)(Missing),
-          Function(Param("I1", -1)(Missing), body)()
+          Function(Param("I1", -1)(Missing), f)()
         )()
     }
   }
