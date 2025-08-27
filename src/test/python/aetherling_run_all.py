@@ -39,6 +39,7 @@ def main(
     skip_verilog: bool,
     skip_vhdl: bool,
     skip_gen: bool,
+    skip_latency: bool,
 ) -> None:
     """
     Script entry point.
@@ -53,7 +54,8 @@ def main(
 
     if clean:
         c.RESOURCE_USAGE_CSV.unlink(missing_ok=True)
-        c.LATENCY_CSV.unlink(missing_ok=True)
+        if not skip_latency:
+            c.LATENCY_CSV.unlink(missing_ok=True)
         c.FMAX_ESTIMATE_CSV.unlink(missing_ok=True)
         c.FMAX_MEASUREMENT_CSV.unlink(missing_ok=True)
 
@@ -66,14 +68,15 @@ def main(
     if view_plots:
         open_plot(c.RESOURCE_USAGE_PDF)
 
-    aetherling_measure_latency.main(
-        bench_names,
-        skip_verilog=skip_verilog,
-        skip_vhdl=skip_vhdl,
-    )
-    aetherling_plot_latency.main()
-    if view_plots:
-        open_plot(c.LATENCY_PDF)
+    if not skip_latency:
+        aetherling_measure_latency.main(
+            bench_names,
+            skip_verilog=skip_verilog,
+            skip_vhdl=skip_vhdl,
+        )
+        aetherling_plot_latency.main()
+        if view_plots:
+            open_plot(c.LATENCY_PDF)
 
     if fmax == "estimate":
         aetherling_extract_fmax_estimate.main(
@@ -116,6 +119,11 @@ def parse_args() -> Namespace:
         "--skip-gen",
         action="store_true",
         help="don't re-generate and re-synthesize, just use what's already there"
+    )
+    parser.add_argument(
+        "--skip-latency",
+        action="store_true",
+        help="skip the latency measurement step"
     )
     parser.add_argument(
         "--fmax",
@@ -161,4 +169,5 @@ if __name__ == "__main__":
         skip_verilog=_args.skip_verilog,
         skip_vhdl=_args.skip_vhdl,
         skip_gen=_args.skip_gen,
+        skip_latency=_args.skip_latency,
     )

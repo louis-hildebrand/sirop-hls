@@ -28,16 +28,22 @@ def extract_resource_usage(project_dir: Path) -> ResourceUsage | None:
             [c.TEST_SH_DIR.joinpath("extract_alm_count.sh")],
             check=True, capture_output=True, text=True, encoding="utf-8"
         )
+        if not result.stdout:
+            return None
         alm = int(result.stdout)
         result = subprocess.run(
             [c.TEST_SH_DIR.joinpath("extract_bram_count.sh")],
             check=True, capture_output=True, text=True, encoding="utf-8"
         )
+        if not result.stdout:
+            return None
         bram = int(result.stdout)
         result = subprocess.run(
             [c.TEST_SH_DIR.joinpath("extract_dsp_count.sh")],
             check=True, capture_output=True, text=True, encoding="utf-8"
         )
+        if not result.stdout:
+            return None
         dsp = int(result.stdout)
     except CalledProcessError:
         return None

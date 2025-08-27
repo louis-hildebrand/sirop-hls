@@ -30,14 +30,11 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     """
     Plot fmax vs throughput for each benchmark.
     """
-    plt.rcParams.update({
-        "text.usetex": True
-    })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(10, 2.5))
+    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(16, 2.5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):

@@ -42,14 +42,11 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     Plot resource usage vs throughput for each benchmark.
     """
-    plt.rcParams.update({
-        "text.usetex": True
-    })
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(12, 5))
+    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(16, 5))
     verilog_artist = None
     vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
