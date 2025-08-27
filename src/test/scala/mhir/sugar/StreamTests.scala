@@ -99,6 +99,18 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(s.tchk()) == StmLiteral.ints(2, -1, -4))
   }
 
+  test("StmVecRange(4, 3, 1, 5)") {
+    val s = StmVecRange(4, 3, C(1)(U8), C(5)(U8))().tchk().lower()
+    val expected = StmLiteral(
+      VecLiteral(C(1)(U8), C(6)(U8), C(11)(U8))(),
+      VecLiteral(C(16)(U8), C(21)(U8), C(26)(U8))(),
+      VecLiteral(C(31)(U8), C(36)(U8), C(41)(U8))(),
+      VecLiteral(C(46)(U8), C(51)(U8), C(56)(U8))()
+    )().tchk()
+    val actual = mhir.ir.eval(s)
+    assert(actual == expected)
+  }
+
   test("StmCst2D") {
     val s = StmCst2D(3, 4, 42)().tchk()
     val expected = StmLiteral(

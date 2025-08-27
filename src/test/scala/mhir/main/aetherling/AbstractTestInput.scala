@@ -99,7 +99,10 @@ object AbstractTestInput {
   def apply(elems: Seq[Seq[Expr]], hold: Int = 1): AbstractTestInput = {
     new AbstractTestInput(
       f = (t: Int) => (i: Int) => elems(t)(i),
-      elemTypes = elems.head.map(_.typ),
+      elemTypes = elems.headOption match {
+        case Some(xs) => xs.map(_.typ)
+        case None     => Seq()
+      },
       len = elems.length,
       hold = hold
     )
