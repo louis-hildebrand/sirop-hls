@@ -170,6 +170,65 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   }
 }
 
+/** A counter that produces a stream of vectors.
+  *
+  * This is equivalent to, but possibly more resource-efficient than, the
+  * following:
+  * {{{
+  *   StmRange(n * m, z, delta) |> StmSplit(m) |> StmMap(Stm2Vec)
+  * }}}
+  *
+  * @param n
+  *   the length of the stream.
+  * @param m
+  *   the length of each vector.
+  * @param z
+  *   the initial value.
+  * @param delta
+  *   the step size.
+  * @note
+  *   the stream will have type `Stm[Vec[T, m], n]`, where `T` is the type of
+  *   `z` and `delta`.
+  */
+case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
+    typ: Type = Missing
+) extends SyntaxSugar(n, m, z, delta)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, m, z, delta) => StmVecRange(n, m, z, delta)(typ)
+      case _                   => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val n = this.n.tchk.expectUInt()
+    val m = this.m.tchk.expectUInt()
+    val z = this.z.tchk.expectAnyInt()
+    val delta = this.delta.tchk.expectType(z.typ)
+    this.rebuild(TyStm(TyVec(z.typ, m), n), Seq(n, m, z, delta))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = this.n.lower()
+    val m = this.m.lower()
+    val z = this.z.lower()
+    val delta = this.delta.lower()
+    val v = Param("v")(TyVec(z.typ, m))
+    StmBuild(
+      n,
+      v,
+      True,
+      Map[Param, (Expr, Expr)](
+        v -> (
+          VecBuild(m, m.typ ::+ (i => z + i * delta))(),
+          VecBuild(m, m.typ ::+ (i => VecAccess(v, i)() + m * delta))()
+        )
+      )
+    )().tchk().lower()
+  }
+}
+
 // TODO: What if c is a stream?
 case class StmCst2D(
     n: Expr /* Int */,

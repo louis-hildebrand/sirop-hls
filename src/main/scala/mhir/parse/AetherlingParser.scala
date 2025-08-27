@@ -458,7 +458,19 @@ object AetherlingParser {
       val (_, suffix9) = parseNat(suffix8)
       (StmRange(n, C(0)(typ), C(delta)(typ))(), suffix9)
     } else if (code.startsWith("Counter_tsN ")) {
-      ???
+      val suffix0 = expect(code, "Counter_tsN ")
+      val (no, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (ni, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (delta, suffix7) = parseNat(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (typ, suffix9) = parseTyp(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (_, suffix11) = parseNat(suffix10)
+      (StmVecRange(no, ni, C(0)(typ), C(delta)(typ))(), suffix11)
     } else if (code.startsWith("Counter_tnN ")) {
       ???
     } else if (code.startsWith("Shift_sN ")) {
