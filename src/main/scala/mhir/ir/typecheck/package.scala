@@ -603,7 +603,7 @@ package object typecheck {
       *   if this expression does not have the expected type.
       */
     def expectType(t: Type): Expr = {
-      if (this.expr.typ != t) {
+      if (!(this.expr.typ ~= t)) {
         throw new TypeError(s"Expected type $t but found ${this.expr.typ}.")
       }
       this.expr
