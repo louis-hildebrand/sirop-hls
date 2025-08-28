@@ -6,7 +6,7 @@
       buf[0:u0];
       true;
       (buf : Vec[i8, 1:u1]) = (
-        vbuild(1:u1, (i : u8) => 0:i8),
+        vbuild(1:u1, (i : u32) => 0:i8),
         vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[i8, -1:i1]) = (
@@ -92,7 +92,7 @@
                     buf[0:u0];
                     true;
                     (buf : Vec[i8, 1:u1]) = (
-                      vbuild(1:u1, (i : u8) => 0:i8),
+                      vbuild(1:u1, (i : u32) => 0:i8),
                       vbuild(1:u2, (i : u32) => data(s))
                     );
                     (s : Stm[i8, -1:i1]) = (
