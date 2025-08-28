@@ -13,10 +13,19 @@ import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
 
+TARGET_FREQ = 175
+
+
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-AETHERLING_MARKER = "^"
+AETHERLING_MARKER = "s"
+AETHERLING_MARKER_SIZE = 4
 OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
 OUR_MARKER = "o"
+OUR_MARKER_SIZE = 3
+TARGET_LABEL = "Target frequency"
+
+
+SCALE = "log"
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -37,6 +46,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(16, 2.5))
     verilog_artist = None
     vhdl_artist = None
+    target_artist = None
     for col, bench_name in enumerate(benchmark_names):
         verilog_benchmarks = [
             b
@@ -56,24 +66,41 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        # Plot fmax
         ax = axes[col]
+        # Verilog
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         ys = [results[b] for b in verilog_benchmarks]
-        verilog_artist, = ax.plot(xs, ys, marker=AETHERLING_MARKER, label=AETHERLING_LABEL)
+        verilog_artist, = ax.plot(
+            xs, ys,
+            marker=AETHERLING_MARKER,
+            markersize=AETHERLING_MARKER_SIZE,
+            label=AETHERLING_LABEL,
+        )
+        # VHDL
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b] for b in vhdl_benchmarks]
-        vhdl_artist, = ax.plot(xs, ys, marker=OUR_MARKER, label=OUR_LABEL)
+        vhdl_artist, = ax.plot(
+            xs, ys,
+            marker=OUR_MARKER,
+            markersize=OUR_MARKER_SIZE,
+            label=OUR_LABEL,
+        )
+        # Target
+        xs = sorted({b.bench.throughput for b in verilog_benchmarks + vhdl_benchmarks})
+        ys = [TARGET_FREQ for b in xs]
+        target_artist, = ax.plot(xs, ys, marker="none", linestyle=":", color=(0.5, 0.5, 0.5))
+        # Title, etc.
         ax.set_title(bench_name)
         ax.set_xlabel("Target throughput")
-        ax.tick_params(axis="x", rotation=30)
+        if bench_name not in {"sum", "dot"}:
+            ax.set_xscale(SCALE)
     # Settings for entire rows
-    axes[0].set_ylabel("fmax")
-    if verilog_artist is None or vhdl_artist is None:
+    axes[0].set_ylabel("fmax (MHz)")
+    if verilog_artist is None or vhdl_artist is None or target_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
-        [vhdl_artist, verilog_artist],
-        [OUR_LABEL, AETHERLING_LABEL],
+        [vhdl_artist, verilog_artist, target_artist],
+        [OUR_LABEL, AETHERLING_LABEL, TARGET_LABEL],
         loc="lower center",
         bbox_to_anchor=(0.5, -0.3)
     )
