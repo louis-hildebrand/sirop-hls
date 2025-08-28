@@ -516,22 +516,31 @@ package object ir
           s"StmLiteral must be lowered before it can be translated to a StmBuild."
         )
       }
-      val t = this.stm.typ.asInstanceOf[TyStm].t
-      val n = this.stm.typ.asInstanceOf[TyStm].n
-      // The index type must be at least wide enough to fit the value 1, since
-      // the index accumulator is updated by i + 1
-      val idxTyp = TyAnyInt.tightest(0, math.max(1, this.stm.elems.length))
-      val i = Param("i")(idxTyp)
-      val v = Param("v")(TyVec(t, n))
-      StmBuild(
-        this.stm.elems.length,
-        VecAccess(v, i)(),
-        True,
-        Map[Param, (Expr, Expr)](
-          i -> (IntCst(0)(idxTyp), i + 1),
-          v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v)
-        )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      val TyStm(t, n) = this.stm.typ
+      val lowered = this.stm.elems match {
+        case Seq()  => StmBuild(0, Default(t).lower(), True)()
+        case Seq(e) => StmBuild(1, e, True)()
+        case _      =>
+          // The index type must be at least wide enough to fit the value 1, since
+          // the index accumulator is updated by i + 1
+          val idxTyp = TyAnyInt.tightest(0, math.max(1, this.stm.elems.length))
+          val i = Param("i")(idxTyp)
+          val v = Param("v")(TyVec(t, n))
+          StmBuild(
+            this.stm.elems.length,
+            VecAccess(v, i)(),
+            True,
+            Map[Param, (Expr, Expr)](
+              i -> (C(0)(idxTyp), Sum(C(1)(idxTyp), i)()),
+              v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v)
+            )
+          )()
+      }
+      assert(
+        !lowered.contains(classOf[SyntaxSugar]),
+        s"converting ${stm.className} to a StmBuild should not introduce any syntax sugar"
+      )
+      lowered.tchk().asInstanceOf[StmBuild]
     }
   }
 
