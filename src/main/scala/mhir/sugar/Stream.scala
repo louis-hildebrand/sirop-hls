@@ -52,6 +52,9 @@ case class StmReset(
       Seq(n, s, outputsUntilReset) ++
         inputs.flatMap({ case (x, (s, num)) => Seq(x, s, num) }): _*
     )(typ) {
+
+  private val logger: Logger = Logger(getClass.getName)
+
   private def accVars: Set[Param] = this.inputs.keySet
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -278,6 +281,7 @@ case class StmReset(
 
   private def lowerEmptyPipeline(): Option[Expr] = {
     if (Type.sameLen(this.n, C(0)())) {
+      logger.trace(s"lowering $className with n = 0: $this")
       Some(StmBuild(0, Default(s.typ.asInstanceOf[TyStm].t), True)())
     } else {
       None
@@ -286,6 +290,7 @@ case class StmReset(
 
   private def lowerForNEqualsOne(): Option[Expr] = {
     if (Type.sameLen(n, C(1)())) {
+      logger.trace(s"lowering $className with n = 1: $this")
       Some(s)
     } else {
       None
@@ -294,6 +299,7 @@ case class StmReset(
 
   private def lowerStateless(): Option[Expr] = {
     if (isStateless(this.s)) {
+      logger.trace(s"lowering $className with stateless pipeline: $this")
       Some(repeatExternalInputs(multiplyLengths(s), this.accVars))
     } else {
       None
@@ -367,6 +373,7 @@ case class StmReset(
   }
 
   private def lowerByFusion(): Expr = {
+    logger.warn(s"lowering $className by fusion: $this")
     val innerStm = this.s.fuseCompletely()
     assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
     for ((x, _) <- this.inputs) {
