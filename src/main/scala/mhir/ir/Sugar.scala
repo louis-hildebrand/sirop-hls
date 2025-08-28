@@ -58,15 +58,47 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
-    val newX = x.freshCopy
-    val newIn = in.subPreserveType(x -> newX)
-    Let(newX, v.subPreserveType(subs), newIn.subPreserveType(subs))(this.typ)
+    val wouldCapture = subs.exists({ case (_, rhs) =>
+      rhs.freeVars().contains(this.x)
+    })
+    val newX = if (wouldCapture) this.x.freshCopy else this.x
+    val newSubs =
+      subs
+        // Substitutions with `x` free on the LHS will never match
+        // again, since `x` is now bound.
+        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        // Rename the bound variable if necessary
+        .++(if (this.x == newX) Seq() else Seq(x -> newX))
+    Let(
+      // There may be substitutions to do within the type annotation
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      // `x` is not bound here, so use the old subs
+      this.v.subPreserveType(subs),
+      // `x` is bound here, so use the new subs
+      this.in.subPreserveType(newSubs)
+    )(this.typ)
   }
 
   override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
-    val newX = x.freshCopy
-    val newIn = in.subAndEraseType(x -> newX)
-    Let(newX, v.subAndEraseType(subs), newIn.subAndEraseType(subs))()
+    val wouldCapture = subs.exists({ case (_, rhs) =>
+      rhs.freeVars().contains(this.x)
+    })
+    val newX = if (wouldCapture) this.x.freshCopy else this.x
+    val newSubs =
+      subs
+        // Substitutions with `x` free on the LHS will never match
+        // again, since `x` is now bound.
+        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        // Rename the bound variable if necessary
+        .++(if (this.x == newX) Seq() else Seq(x -> newX))
+    Let(
+      // There may be substitutions to do within the type annotation
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      // `x` is not bound here, so use the old subs
+      this.v.subAndEraseType(subs),
+      // `x` is bound here, so use the new subs
+      this.in.subAndEraseType(newSubs)
+    )()
   }
 
   override def precedence: Int = Precedence.Max
