@@ -54,7 +54,7 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified == original)
     // You can still rename the first param
-    assert(simplified.toString() == "(x : i8) => (x_3 : i8) => x + x_3")
+    assert(simplified.toString() == "(x : i8) => (x_2 : i8) => x + x_2")
   }
 
   /** Parameters with unique prefixes can obviously be renamed.
@@ -108,8 +108,8 @@ class NameSimplifierTests extends AnyFunSuite {
     // You can still rename the first param
     val expectedStr =
       """let stm x: Stm[u8, 5:u3] = x_1 in
-        |let stm x_4: Stm[u8, 5:u3] = let stm x: Stm[u8, 5:u3] = x in x in
-        |StmZip(x, x_4)
+        |let stm x_2: Stm[u8, 5:u3] = let stm x: Stm[u8, 5:u3] = x in x in
+        |StmZip(x, x_2)
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)
     assert(actualStr == expectedStr)

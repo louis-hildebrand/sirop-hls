@@ -1,5 +1,6 @@
 package mhir.ir
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.{StmConcat, VecShiftLeft}
 import org.scalatest.funsuite.AnyFunSuite
@@ -130,24 +131,105 @@ class SubstitutionTests extends AnyFunSuite {
     assert(actual2 == expected)
   }
 
-  test("Substitute:LetStm") {
+  test("Substitute:LetStm:VariableCapture") {
     val n = 10
-    val s0 = Param("s0")(TyStm(U8, n))
-    val s1 = Param("s1")(TyStm(U8, n))
-    val e = LetStm(s0, s0, StmConcat(s0, s1)())().tchk()
-    val replacement = StmConcat(s0, s1)().tchk()
-    val subs = Map[Expr, Expr](s0 -> replacement, s1 -> replacement)
+    val x = Param("x")(TyStm(U8, n))
+    val y = Param("y")(TyStm(U8, n))
+    val e = LetStm(x, x, StmConcat(x, y)())()
+    val subs = Map[Expr, Expr](y -> x)
     val expected = {
-      val s0New = Param("s0'")()
-      LetStm(s0New, replacement, StmConcat(s0New, replacement)())().tchk()
+      val z = Param("z")(TyStm(U8, n))
+      LetStm(z, x, StmConcat(z, x)())()
     }
 
     val actual0 = e.subPreserveType(subs)
     assert(actual0 == expected)
-    assert(actual0.typ ~= expected.typ)
 
     val actual1 = e.subAndEraseType(subs)
     assert(actual1 == expected)
+  }
+
+  test("Substitute:LetStm:SubBoundVar") {
+    val n = 10
+    val x = Param("x")(TyStm(U8, n))
+    val y = Param("y")(TyStm(U8, n))
+    val z = Param("z")(TyStm(U8, n))
+    val e = LetStm(x, x, StmConcat(x, y)())()
+    val subs = Map[Expr, Expr](x -> z)
+    val expected = LetStm(x, z, StmConcat(x, y)())()
+
+    val actual0 = e.subPreserveType(subs)
+    assert(actual0 == expected)
+
+    val actual1 = e.subAndEraseType(subs)
+    assert(actual1 == expected)
+  }
+
+  test("Substitute:LetStm:Big") {
+    val n = 10
+    // let x1 = StmMap(x0, +1) in
+    // let x2 = StmMap(x1, +1) in
+    // ...
+    // let x20 = StmMap(x19, +1) in
+    // let x21 = StmMap2(x20, a, _ + _) in
+    // let x22 = StmMap(x21, +2) in
+    // let x23 = StmMap(x22, +2) in
+    // ...
+    // let x41 = StmMap(x40, +2) in
+    // x41
+    def before(x: Param, a: Param, numBefore: Int, numAfter: Int): Expr = {
+      if (numBefore == 0) {
+        val nextX = Param("x")(TyStm(U16, n))
+        val s0Var = Param("s0")(TyStm(U16, -1))
+        val s1Var = Param("s1")(TyStm(U16, -1))
+        val map2 = StmBuild(
+          n,
+          Sum(StmData(s0Var)(), StmData(s1Var)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0Var -> (x, True),
+            s1Var -> (a, True)
+          )
+        )()
+        LetStm(nextX, map2, after(nextX, numAfter))()
+      } else {
+        val nextX = Param("x")(TyStm(U16, n))
+        val sVar = Param("s")(TyStm(U16, -1))
+        val map = StmBuild(
+          n,
+          Sum(C(1)(U16), StmData(sVar)())(),
+          True,
+          Map[Param, (Expr, Expr)](sVar -> (x, True))
+        )()
+        LetStm(nextX, map, before(nextX, a, numBefore - 1, numAfter))()
+      }
+    }
+    def after(x: Param, numAfter: Int): Expr = {
+      if (numAfter == 0) {
+        x
+      } else {
+        val nextX = Param("x")(TyStm(U16, n))
+        val sVar = Param("s")(TyStm(U16, -1))
+        val map = StmBuild(
+          n,
+          Sum(C(2)(U16), StmData(sVar)())(),
+          True,
+          Map[Param, (Expr, Expr)](sVar -> (x, True))
+        )()
+        LetStm(nextX, map, after(nextX, numAfter - 1))()
+      }
+    }
+    val a = Param("a")(TyStm(U16, n))
+    val b = Param("b")(TyStm(U16, n))
+    val x0 = Param("x")(TyStm(U16, n))
+    val original = before(x0, a, numBefore = 20, numAfter = 20).tchk().lower()
+    // Checking may take a very long time (since StmBuild.equals is slow).
+    // The important thing for this test is that substitution should not take a
+    // million years.
+    val actual0 = original.subPreserveType(a -> b)
+    assert(actual0.typ == original.typ)
+
+    original.subAndEraseType(a -> b)
   }
 
   test("SubstituteInType1") {
