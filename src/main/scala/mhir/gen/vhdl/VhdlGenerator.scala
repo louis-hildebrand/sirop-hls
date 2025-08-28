@@ -40,7 +40,11 @@ object VhdlGenerator {
         case Function(x, e) =>
           if (rename) {
             val y = Param(s"I${inputs.length}", -1)(x.typ)
-            assert(!e.freeVars().contains(y))
+            // If this assertion fails, then one of the following is true:
+            //  (1) a previous parameter is called the same thing, but that
+            //      should not happen.
+            //  (2) the expression has a free variable, but that's not allowed.
+            assert(x == y || !e.freeVars().contains(y))
             unwrap(e.subPreserveType(x -> y), y +: inputs)
           } else {
             unwrap(e, x +: inputs)
