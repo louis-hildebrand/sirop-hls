@@ -244,6 +244,7 @@ case class StmReset(
     val loweredPipeline = r
       .lowerEmptyPipeline()
       .orElse(r.lowerForNEqualsOne())
+      .orElse(r.lowerStateless())
       .getOrElse(r.lowerByFusion()) // :(
       .tchk()
       .lower()
@@ -288,6 +289,80 @@ case class StmReset(
       Some(s)
     } else {
       None
+    }
+  }
+
+  private def lowerStateless(): Option[Expr] = {
+    if (isStateless(this.s)) {
+      Some(repeatExternalInputs(multiplyLengths(s), this.accVars))
+    } else {
+      None
+    }
+  }
+
+  private def isStateless(stm: Expr): Boolean = {
+    stm match {
+      case s: StmBuild        => s.accVars.forall(_.typ.isInstanceOf[TyStm])
+      case _: Param           => true
+      case LetStm(_, in, out) => isStateless(in) && isStateless(out)
+      case _                  => ???
+    }
+  }
+
+  private def multiplyLengths(stm: Expr): Expr = {
+    stm match {
+      case s: StmBuild =>
+        StmBuild(
+          SafeProd(this.n, s.n)(),
+          s.data,
+          s.valid,
+          s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (multiplyLengths(s), ready)
+            case eqn => eqn
+          })
+        )()
+      case x: Param => x
+      case LetStm(x, in, out) =>
+        LetStm(x, multiplyLengths(in), multiplyLengths(out))()
+      case _ =>
+        ???
+    }
+  }
+
+  private def repeatExternalInputs(
+      stm: Expr,
+      inputStreams: Set[Param]
+  ): Expr = {
+    stm match {
+      case x: Param if inputStreams.contains(x) =>
+        // Streams that are on the input list or were bound by a LetStm are
+        // fine: we read them in order.
+        x
+      case x: Param =>
+        // Streams that are not on the input list will be read once *per
+        // iteration* of this StmReset.
+        // Therefore, they must be repeated.
+        StmJoin(StmRepeat(x, n)())()
+      case LetStm(x, in, out) =>
+        LetStm(
+          x,
+          repeatExternalInputs(in, inputStreams),
+          repeatExternalInputs(out, inputStreams + x)
+        )()
+      case s: StmBuild =>
+        StmBuild(
+          s.n,
+          s.data,
+          s.valid,
+          s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (repeatExternalInputs(s, inputStreams), ready)
+            case eqn => eqn
+          })
+        )()
+      case _ =>
+        ???
     }
   }
 
