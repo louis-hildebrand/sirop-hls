@@ -96,26 +96,42 @@
     (I0 : Stm[u8, -1:i1]) = (
       sbuild(
         16:u5;
-        (acc_349 +% acc_350) +% (data(I0) << v[i]) >> 4:u8;
-        t_347 == 2:u2 && t_353 == 2:u2;
+        (acc_311 +% acc_312) +% (data(I0) << v[i]) >> 4:u8;
+        t_309 == 2:u2 && t_316 == 2:u2;
         (I0 : Stm[u8, -1:i1]) = (
           sbuild(
             144:u11;
             x_data[i];
             !is_first_step;
+            (I_ctr : u32) = (
+              0:u32,
+              if (
+                !is_first_step && I_ctr == 3:u32 && out_ctr_251 == 8:u32
+                  || (
+                    I_ctr == 2:u32
+                      && out_ctr_251 == 9:u32
+                      && is_first_step)
+              ) then {
+                0:u32
+              } else if (is_first_step) then {
+                1:u32 + I_ctr
+              } else {
+                I_ctr
+              }
+            );
             (i : u32) = (
               0:u32,
               if (
-                !is_first_step && in_ctr == 3:u32 && out_ctr_282 == 8:u32
+                !is_first_step && I_ctr == 3:u32 && out_ctr_251 == 8:u32
                   || (
-                    in_ctr == 2:u32
-                      && out_ctr_282 == 9:u32
+                    I_ctr == 2:u32
+                      && out_ctr_251 == 9:u32
                       && is_first_step)
               ) then {
                 0:u32
               } else if (
-                !is_first_step && out_ctr_278 == 2:u32
-                  || out_ctr_278 == 3:u32 && is_first_step
+                !is_first_step && out_ctr_247 == 2:u32
+                  || out_ctr_247 == 3:u32 && is_first_step
               ) then {
                 0:u32
               } else if (is_first_step) then {
@@ -124,87 +140,69 @@
                 1:u32 + i
               }
             );
-            (in_ctr : u32) = (
-              0:u32,
-              if (
-                !is_first_step && in_ctr == 3:u32 && out_ctr_282 == 8:u32
-                  || (
-                    in_ctr == 2:u32
-                      && out_ctr_282 == 9:u32
-                      && is_first_step)
-              ) then {
-                0:u32
-              } else if (is_first_step) then {
-                1:u32 + in_ctr
-              } else {
-                in_ctr
-              }
-            );
             (is_first_step : bool) = (
               true,
               (
-                ((
-                  (in_ctr != 2:u32 || out_ctr_282 != 9:u32)
-                    && out_ctr_278 == 3:u32)
-                  || in_ctr == 2:u32 && out_ctr_282 == 9:u32)
+                ((I_ctr != 2:u32 || out_ctr_251 != 9:u32) && out_ctr_247 == 3:u32
+                  || I_ctr == 2:u32 && out_ctr_251 == 9:u32)
                   && is_first_step)
                 || (
                   ((
-                    (in_ctr != 3:u32 || out_ctr_282 != 8:u32)
-                      && out_ctr_278 == 2:u32)
-                    || in_ctr == 3:u32 && out_ctr_282 == 8:u32)
+                    (I_ctr != 3:u32 || out_ctr_251 != 8:u32)
+                      && out_ctr_247 == 2:u32)
+                    || I_ctr == 3:u32 && out_ctr_251 == 8:u32)
                     && !is_first_step)
             );
-            (out_ctr_278 : u32) = (
+            (out_ctr_247 : u32) = (
               0:u32,
               if (
-                !is_first_step && in_ctr == 3:u32 && out_ctr_282 == 8:u32
+                !is_first_step && I_ctr == 3:u32 && out_ctr_251 == 8:u32
                   || (
-                    in_ctr == 2:u32
-                      && out_ctr_282 == 9:u32
+                    I_ctr == 2:u32
+                      && out_ctr_251 == 9:u32
                       && is_first_step)
               ) then {
                 0:u32
               } else if (
-                !is_first_step && out_ctr_278 == 2:u32
-                  || out_ctr_278 == 3:u32 && is_first_step
+                !is_first_step && out_ctr_247 == 2:u32
+                  || out_ctr_247 == 3:u32 && is_first_step
               ) then {
                 0:u32
               } else if (is_first_step) then {
-                out_ctr_278
+                out_ctr_247
               } else {
-                1:u32 + out_ctr_278
+                1:u32 + out_ctr_247
               }
             );
-            (out_ctr_282 : u32) = (
+            (out_ctr_251 : u32) = (
               0:u32,
               if (
-                !is_first_step && in_ctr == 3:u32 && out_ctr_282 == 8:u32
+                !is_first_step && I_ctr == 3:u32 && out_ctr_251 == 8:u32
                   || (
-                    in_ctr == 2:u32
-                      && out_ctr_282 == 9:u32
+                    I_ctr == 2:u32
+                      && out_ctr_251 == 9:u32
                       && is_first_step)
               ) then {
                 0:u32
               } else if (is_first_step) then {
-                out_ctr_282
+                out_ctr_251
               } else {
-                1:u32 + out_ctr_282
+                1:u32 + out_ctr_251
               }
             );
             (x_data : Vec[u8, 3:u3]) = (
               vbuild(3:u3, (i : u32) => 0:u8),
               if (
-                !is_first_step && in_ctr == 3:u32 && out_ctr_282 == 8:u32
+                !is_first_step && I_ctr == 3:u32 && out_ctr_251 == 8:u32
                   || (
-                    in_ctr == 2:u32
-                      && out_ctr_282 == 9:u32
+                    I_ctr == 2:u32
+                      && out_ctr_251 == 9:u32
                       && is_first_step)
               ) then {
                 vbuild(3:u3, (i : u32) => 0:u8)
               } else if (
-                !is_first_step && out_ctr_278 == 2:u32
-                  || out_ctr_278 == 3:u32 && is_first_step
+                !is_first_step && out_ctr_247 == 2:u32
+                  || out_ctr_247 == 3:u32 && is_first_step
               ) then {
                 vbuild(3:u3, (i : u32) => 0:u8)
               } else if (is_first_step) then {
@@ -568,289 +566,256 @@
           ),
           true
         );
-        (acc_349 : u8) = (
-          0:u8,
+        (I_ctr_315 : u32) = (
+          0:u32,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
-            0:u8
-          } else if (t_353 == 2:u2) then {
-            if (first_step_346) then {
-              (data(I0) << v[i]) +% acc_350
-            } else {
-              (acc_349 +% acc_350) +% (data(I0) << v[i])
-            }
+            0:u32
+          } else if (
+            t_316 != 2:u2 && I_ctr_315 == 2:u32 && out_ctr_313 == 1:u32
+              || (
+                I_ctr_315 == 2:u32
+                  && out_ctr_313 == 0:u32
+                  && t_316 == 2:u2)
+          ) then {
+            0:u32
           } else {
-            acc_349
+            1:u32 + I_ctr_315
           }
         );
-        (acc_350 : u8) = (
+        (I_ctr_333 : u32) = (
+          0:u32,
+          if (
+            (
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
+              || (
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
+          ) then {
+            0:u32
+          } else {
+            1:u32 + I_ctr_333
+          }
+        );
+        (acc_311 : u8) = (
           0:u8,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u8
-          } else if (t_347 == 2:u2 && t_353 == 2:u2) then {
-            if (in_ctr_352 == 2:u32 && out_ctr_355 == 0:u32) then {
-              0:u8
-            } else if (first_step_351) then {
-              data(I0) << v[i]
+          } else if (t_316 == 2:u2) then {
+            if (first_step_308) then {
+              (data(I0) << v[i]) +% acc_312
             } else {
-              (data(I0) << v[i]) +% acc_350
+              (acc_311 +% acc_312) +% (data(I0) << v[i])
             }
-          } else if (
-            t_353 != 2:u2 && in_ctr_352 == 2:u32 && out_ctr_355 == 1:u32
+          } else {
+            acc_311
+          }
+        );
+        (acc_312 : u8) = (
+          0:u8,
+          if (
+            (
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_352 == 2:u32
-                  && out_ctr_355 == 0:u32
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u8
-          } else if (first_step_351) then {
+          } else if (
+            t_316 != 2:u2 && I_ctr_315 == 2:u32 && out_ctr_313 == 1:u32
+              || (
+                I_ctr_315 == 2:u32
+                  && out_ctr_313 == 0:u32
+                  && t_316 == 2:u2)
+          ) then {
+            0:u8
+          } else if (first_step_314) then {
             data(I0) << v[i]
           } else {
-            (data(I0) << v[i]) +% acc_350
+            (data(I0) << v[i]) +% acc_312
           }
         );
-        (first_step_346 : bool) = (
+        (first_step_308 : bool) = (
           true,
           ((
-            (in_ctr_371 != 8:u32 || out_ctr_372 != 1:u32)
-              && (t_347 != 2:u2 || t_353 != 2:u2)
-              && t_353 != 2:u2
-              && first_step_346)
-            || in_ctr_371 == 8:u32 && out_ctr_372 == 1:u32)
-            && (t_347 != 2:u2 || t_353 != 2:u2)
+            (I_ctr_333 != 8:u32 || out_ctr_334 != 1:u32)
+              && t_316 != 2:u2
+              && first_step_308)
+            || I_ctr_333 == 8:u32 && out_ctr_334 == 1:u32)
+            && (t_309 != 2:u2 || t_316 != 2:u2)
             || (
-              in_ctr_371 == 8:u32
-                && out_ctr_372 == 0:u32
-                && t_347 == 2:u2
-                && t_353 == 2:u2)
+              I_ctr_333 == 8:u32
+                && out_ctr_334 == 0:u32
+                && t_309 == 2:u2
+                && t_316 == 2:u2)
         );
-        (first_step_351 : bool) = (
+        (first_step_314 : bool) = (
           true,
-          (((t_353 != 2:u2 && in_ctr_352 == 2:u32 && out_ctr_355 == 1:u32
-            || in_ctr_352 == 2:u32 && out_ctr_355 == 0:u32 && t_353 == 2:u2)
-            && (t_347 != 2:u2 || t_353 != 2:u2)
-            || (
-              in_ctr_352 == 2:u32
-                && out_ctr_355 == 0:u32
-                && t_347 == 2:u2
-                && t_353 == 2:u2))
-            && (in_ctr_371 != 8:u32 || out_ctr_372 != 1:u32)
-            || in_ctr_371 == 8:u32 && out_ctr_372 == 1:u32)
-            && (t_347 != 2:u2 || t_353 != 2:u2)
+          ((t_316 != 2:u2 && I_ctr_315 == 2:u32 && out_ctr_313 == 1:u32
+            || I_ctr_315 == 2:u32 && out_ctr_313 == 0:u32 && t_316 == 2:u2)
+            && (I_ctr_333 != 8:u32 || out_ctr_334 != 1:u32)
+            || I_ctr_333 == 8:u32 && out_ctr_334 == 1:u32)
+            && (t_309 != 2:u2 || t_316 != 2:u2)
             || (
               ((
-                (in_ctr_371 != 8:u32 || out_ctr_372 != 0:u32)
-                  && in_ctr_352 == 2:u32
-                  && out_ctr_355 == 0:u32)
-                || in_ctr_371 == 8:u32 && out_ctr_372 == 0:u32)
-                && t_347 == 2:u2
-                && t_353 == 2:u2)
+                (I_ctr_333 != 8:u32 || out_ctr_334 != 0:u32)
+                  && I_ctr_315 == 2:u32
+                  && out_ctr_313 == 0:u32)
+                || I_ctr_333 == 8:u32 && out_ctr_334 == 0:u32)
+                && t_309 == 2:u2
+                && t_316 == 2:u2)
         );
         (i : u4) = (
           0:u4,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u4
           } else {
             1:u4 + i
           }
         );
-        (in_ctr_352 : u32) = (
+        (out_ctr_313 : u32) = (
           0:u32,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u32
-          } else if (t_347 == 2:u2 && t_353 == 2:u2) then {
-            if (in_ctr_352 == 2:u32 && out_ctr_355 == 0:u32) then {
-              0:u32
-            } else {
-              1:u32 + in_ctr_352
-            }
           } else if (
-            t_353 != 2:u2 && in_ctr_352 == 2:u32 && out_ctr_355 == 1:u32
+            t_316 != 2:u2 && I_ctr_315 == 2:u32 && out_ctr_313 == 1:u32
               || (
-                in_ctr_352 == 2:u32
-                  && out_ctr_355 == 0:u32
-                  && t_353 == 2:u2)
+                I_ctr_315 == 2:u32
+                  && out_ctr_313 == 0:u32
+                  && t_316 == 2:u2)
           ) then {
             0:u32
+          } else if (t_316 == 2:u2) then {
+            1:u32 + out_ctr_313
           } else {
-            1:u32 + in_ctr_352
+            out_ctr_313
           }
         );
-        (in_ctr_371 : u32) = (
+        (out_ctr_334 : u32) = (
           0:u32,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u32
+          } else if (t_309 == 2:u2 && t_316 == 2:u2) then {
+            1:u32 + out_ctr_334
           } else {
-            1:u32 + in_ctr_371
+            out_ctr_334
           }
         );
-        (out_ctr_355 : u32) = (
-          0:u32,
-          if (
-            (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
-              || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
-          ) then {
-            0:u32
-          } else if (t_347 == 2:u2 && t_353 == 2:u2) then {
-            if (in_ctr_352 == 2:u32 && out_ctr_355 == 0:u32) then {
-              0:u32
-            } else {
-              1:u32 + out_ctr_355
-            }
-          } else if (
-            t_353 != 2:u2 && in_ctr_352 == 2:u32 && out_ctr_355 == 1:u32
-              || (
-                in_ctr_352 == 2:u32
-                  && out_ctr_355 == 0:u32
-                  && t_353 == 2:u2)
-          ) then {
-            0:u32
-          } else if (t_353 == 2:u2) then {
-            1:u32 + out_ctr_355
-          } else {
-            out_ctr_355
-          }
-        );
-        (out_ctr_372 : u32) = (
-          0:u32,
-          if (
-            (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
-              || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
-          ) then {
-            0:u32
-          } else if (t_347 == 2:u2 && t_353 == 2:u2) then {
-            1:u32 + out_ctr_372
-          } else {
-            out_ctr_372
-          }
-        );
-        (t_347 : u2) = (
+        (t_309 : u2) = (
           0:u2,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u2
-          } else if (t_353 == 2:u2) then {
-            1:u2 + t_347
+          } else if (t_316 == 2:u2) then {
+            1:u2 + t_309
           } else {
-            t_347
+            t_309
           }
         );
-        (t_353 : u2) = (
+        (t_316 : u2) = (
           0:u2,
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             0:u2
-          } else if (t_347 == 2:u2 && t_353 == 2:u2) then {
-            if (in_ctr_352 == 2:u32 && out_ctr_355 == 0:u32) then {
-              0:u2
-            } else {
-              3:u2
-            }
           } else if (
-            t_353 != 2:u2 && in_ctr_352 == 2:u32 && out_ctr_355 == 1:u32
+            t_316 != 2:u2 && I_ctr_315 == 2:u32 && out_ctr_313 == 1:u32
               || (
-                in_ctr_352 == 2:u32
-                  && out_ctr_355 == 0:u32
-                  && t_353 == 2:u2)
+                I_ctr_315 == 2:u32
+                  && out_ctr_313 == 0:u32
+                  && t_316 == 2:u2)
           ) then {
             0:u2
           } else {
-            1:u2 + t_353
+            1:u2 + t_316
           }
         );
         (v : Vec[u8, 9:u4]) = (
           [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8],
           if (
             (
-              (t_347 != 2:u2 || t_353 != 2:u2)
-                && in_ctr_371 == 8:u32
-                && out_ctr_372 == 1:u32)
+              (t_309 != 2:u2 || t_316 != 2:u2)
+                && I_ctr_333 == 8:u32
+                && out_ctr_334 == 1:u32)
               || (
-                in_ctr_371 == 8:u32
-                  && out_ctr_372 == 0:u32
-                  && t_347 == 2:u2
-                  && t_353 == 2:u2)
+                I_ctr_333 == 8:u32
+                  && out_ctr_334 == 0:u32
+                  && t_309 == 2:u2
+                  && t_316 == 2:u2)
           ) then {
             [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8]
           } else {
