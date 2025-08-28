@@ -6,6 +6,7 @@ import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
+import mhir.ir.{ExprPrinter => EP}
 
 import scala.annotation.{elidable, tailrec}
 
@@ -162,6 +163,69 @@ case class StmReset(
         newX -> (newStm, newNum)
       })
     )()
+  }
+
+  override def displayOneLine(): String = {
+    val nStr = EP.displayOneLine(this.n, Precedence.Max)
+    val pipeStr = EP.displayOneLine(this.s, Precedence.Max)
+    val outStr =
+      EP.displayOneLine(this.outputsUntilReset, Precedence.Max)
+    val inputsStr = this.inputs.toSeq
+      .sortBy({ case (x, _) => x.name })
+      .map({ case (x, (stm, num)) =>
+        val stmStr = EP.displayOneLine(stm, Precedence.Max)
+        val numStr = EP.displayOneLine(num, Precedence.Max)
+        s"(${x.name} : ${x.typ}) = ($stmStr, $numStr)"
+      })
+      .mkString("; ")
+    s"reset($nStr; $outStr; $inputsStr) { $pipeStr }"
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    val w1 = maxWidth - EP.Indent.length - ";".length
+    val nStr = EP.display(
+      this.n,
+      maxWidth = w1,
+      parentPrecedence = Precedence.Max
+    )
+    val outStr = EP.display(
+      this.outputsUntilReset,
+      maxWidth = w1,
+      parentPrecedence = Precedence.Max
+    )
+    val pipeStr =
+      EP.display(this.s, maxWidth = w1, parentPrecedence = Precedence.Max)
+    val indentedPipeStr = EP.indent(pipeStr)
+    val indentedInputsStr = if (this.inputs.isEmpty) {
+      ""
+    } else {
+      val str = this.inputs.toSeq
+        .sortBy({ case (x, _) => x.name })
+        .map({ case (x, (stm, num)) =>
+          val stmStr = EP.display(
+            stm,
+            maxWidth = maxWidth - 2 * EP.Indent.length - ",".length,
+            parentPrecedence = Precedence.Max
+          )
+          val indentedStmStr = EP.indent(stmStr)
+          val numStr = EP.display(
+            num,
+            maxWidth = maxWidth - 2 * EP.Indent.length,
+            parentPrecedence = Precedence.Max
+          )
+          val indentedNumStr = EP.indent(numStr)
+          s"(${x.name} : ${x.typ}) = (\n$indentedStmStr,\n$indentedNumStr\n)"
+        })
+        .map(str => s"$str;")
+        .mkString("\n")
+      "\n" + EP.indent(str)
+    }
+    // Don't use a multi-line string with .stripMargin here because one of
+    // the sub-expressions may have a line starting with '|'.
+    // Example:
+    //   c1 && c2
+    //     || c3 && c4
+    s"reset(\n${EP.indent(nStr)};\n${EP.indent(outStr)};$indentedInputsStr\n) {\n$indentedPipeStr\n}"
   }
 
   override def lowerSyntaxSugar(): Expr = {
