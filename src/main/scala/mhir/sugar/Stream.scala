@@ -1121,29 +1121,34 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s = this.s.lower()
-    val wrappedTyp = this.typ.asInstanceOf[TyStm].t
-    val f = unwrapFunc(wrappedTyp, this.f).lower()
-    val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
     val n = this.s.typ.asInstanceOf[TyStm].n
-    val acc = Param("acc")(elemTyp)
-    val t = Param("t")(n.typ)
-    val sAcc = Param("s")(s.typ)
-    val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
-    val firstStep = Param("first_step")(TyBool)
-    StmBuild(
-      1,
-      wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
-      t + 1 === n,
-      Map[Param, (Expr, Expr)](
-        firstStep -> (True, False),
-        t -> (C(0)(n.typ), C(1)(n.typ) + t),
-        sAcc -> (s, True),
-        acc -> (
-          Default(elemTyp),
-          Mux(firstStep, sData, f(Tuple(acc, sData)()))()
+    if (Type.sameLen(n, C(1)())) {
+      // Reduce over a stream of length 1 is a no-op
+      s
+    } else {
+      val wrappedTyp = this.typ.asInstanceOf[TyStm].t
+      val f = unwrapFunc(wrappedTyp, this.f).lower()
+      val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
+      val acc = Param("acc")(elemTyp)
+      val t = Param("t")(n.typ)
+      val sAcc = Param("s")(s.typ)
+      val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
+      val firstStep = Param("first_step")(TyBool)
+      StmBuild(
+        1,
+        wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
+        t + 1 === n,
+        Map[Param, (Expr, Expr)](
+          firstStep -> (True, False),
+          t -> (C(0)(n.typ), C(1)(n.typ) + t),
+          sAcc -> (s, True),
+          acc -> (
+            Default(elemTyp),
+            Mux(firstStep, sData, f(Tuple(acc, sData)()))()
+          )
         )
-      )
-    )().tchk().lower()
+      )().tchk().lower()
+    }
   }
 
   private def tupleElemType(wrappedTyp: Type, f: Expr): Type = {
