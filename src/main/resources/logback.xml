@@ -40,4 +40,5 @@
         <appender-ref ref="STDOUT" />
         <appender-ref ref="STDERR" />
     </root>
+    <logger name="mhir.optimize.StmSimplifier$" level="INFO" />
 </configuration>
