@@ -6,8 +6,9 @@ import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.Streamifier.Streamify
+import mhir.ir.{ExprPrinter => EP}
 
-import scala.annotation.tailrec
+import scala.annotation.{elidable, tailrec}
 
 private object SL {
   val logger: Logger = Logger("StreamSyntaxSugar")
@@ -27,17 +28,424 @@ object AsFusedStm2Stm {
   }
 }
 
-object AsFusedStm2Stm2Stm {
-  def apply(f: Function): (Param, Param, StmBuild) = {
-    f.lower().streamify() match {
-      case Function(x1, Function(x2, body)) =>
-        // It is essential to fuse everything for StmMap and StmScan.
-        // If f is a chain of stream producers, we want to reset them all, not
-        // just the last producer.
-        (x1, x2, body.fuseCompletely())
+/** Reset all internal state in the given stream pipeline after the given number
+  * of inputs and outputs have been read.
+  *
+  * @param n
+  *   the total number of repetitions of the stream pipeline.
+  * @param s
+  *   the stream pipeline.
+  * @param outputsUntilReset
+  *   the number of outputs that must be produced before the pipeline is reset.
+  * @param inputs
+  *   the inputs to the pipeline, which will not be reset. For each input, there
+  *   is (1) a name, (2) the input stream, and (3) the number of inputs that
+  *   must be read before this pipeline is reset.
+  */
+case class StmReset(
+    n: Expr,
+    s: Expr,
+    outputsUntilReset: Expr,
+    inputs: Map[Param, (Expr, Expr)]
+)(typ: Type = Missing)
+    extends SyntaxSugar(
+      Seq(n, s, outputsUntilReset) ++
+        inputs.flatMap({ case (x, (s, num)) => Seq(x, s, num) }): _*
+    )(typ) {
+
+  private val logger: Logger = Logger(getClass.getName)
+
+  private def accVars: Set[Param] = this.inputs.keySet
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, s, out, xs @ _*) if xs.length % 3 == 0 =>
+        val inputs = xs
+          .grouped(3)
+          .map({
+            case Seq(x: Param, s, num) => x -> (s, num)
+            case _ => throw new BadRebuildError(this, newChildren)
+          })
+          .toMap
+        StmReset(n, s, out, inputs)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val n = this.n.tchk.expectUInt()
+    val s = this.s.tchk.expectStream()
+    val stmTyp = s.typ match {
+      case t: TyStm => t
+      case t =>
+        throw new TypeError(
+          s"Stream pipeline in $className has type $t."
+            + "Expected a stream."
+        )
+    }
+    val outputsUntilReset = this.outputsUntilReset.tchk.expectUInt()
+    val inputs = this.inputs.map({ case (x, (s, num)) =>
+      if (!x.hasType) {
+        throw new TypeError(
+          s"Missing type annotation for variable in $className."
+        )
+      }
+      val newS = s.tchk.expectType(x.typ)
+      val newNum = num.tchk.expectUInt()
+      x -> (newS, newNum)
+    })
+    val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
+    StmReset(n, s, outputsUntilReset, inputs)(typ)
+  }
+
+  override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+    val rhsFreeVars = subs.toSeq
+      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .toSet
+    val renamings = this.accVars
+      .flatMap({ x =>
+        val wouldCapture = rhsFreeVars.contains(x)
+        if (wouldCapture) Some(x -> x.freshCopy) else None
+      })
+      .toMap
+    val newSubs =
+      subs
+        // Substitutions where an accumulator variable appears
+        // free on the left-hand side are no longer needed: that
+        // variable is bound now.
+        .filter({ case (lhs, _) =>
+          lhs.freeVars().intersect(this.accVars).isEmpty
+        })
+        .++(renamings)
+    StmReset(
+      this.n.subPreserveType(subs),
+      this.s.subPreserveType(newSubs),
+      this.outputsUntilReset.subPreserveType(subs),
+      this.inputs.map({ case (x, (stm, num)) =>
+        // There may be substitutions to do in the type
+        val renamedX = renamings.getOrElse(x, x)
+        val newX =
+          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
+        val newStm = stm.subPreserveType(subs)
+        val newNum = num.subPreserveType(subs)
+        newX -> (newStm, newNum)
+      })
+    )(this.typ)
+  }
+
+  override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    val rhsFreeVars = subs.toSeq
+      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .toSet
+    val renamings = this.accVars
+      .flatMap({ x =>
+        val wouldCapture = rhsFreeVars.contains(x)
+        if (wouldCapture) Some(x -> x.freshCopy) else None
+      })
+      .toMap
+    val newSubs =
+      subs
+        // Substitutions where an accumulator variable appears
+        // free on the left-hand side are no longer needed: that
+        // variable is bound now.
+        .filter({ case (lhs, _) =>
+          lhs.freeVars().intersect(this.accVars).isEmpty
+        })
+        .++(renamings)
+    StmReset(
+      this.n.subAndEraseType(subs),
+      this.s.subAndEraseType(newSubs),
+      this.outputsUntilReset.subAndEraseType(subs),
+      this.inputs.map({ case (x, (stm, num)) =>
+        // There may be substitutions to do in the type
+        val renamedX = renamings.getOrElse(x, x)
+        val newX =
+          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
+        val newStm = stm.subAndEraseType(subs)
+        val newNum = num.subAndEraseType(subs)
+        newX -> (newStm, newNum)
+      })
+    )()
+  }
+
+  override def displayOneLine(): String = {
+    val nStr = EP.displayOneLine(this.n, Precedence.Max)
+    val pipeStr = EP.displayOneLine(this.s, Precedence.Max)
+    val outStr =
+      EP.displayOneLine(this.outputsUntilReset, Precedence.Max)
+    val inputsStr = this.inputs.toSeq
+      .sortBy({ case (x, _) => x.name })
+      .map({ case (x, (stm, num)) =>
+        val stmStr = EP.displayOneLine(stm, Precedence.Max)
+        val numStr = EP.displayOneLine(num, Precedence.Max)
+        s"(${x.name} : ${x.typ}) = ($stmStr, $numStr)"
+      })
+      .mkString("; ")
+    s"reset($nStr; $outStr; $inputsStr) { $pipeStr }"
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    val w1 = maxWidth - EP.Indent.length - ";".length
+    val nStr = EP.display(
+      this.n,
+      maxWidth = w1,
+      parentPrecedence = Precedence.Max
+    )
+    val outStr = EP.display(
+      this.outputsUntilReset,
+      maxWidth = w1,
+      parentPrecedence = Precedence.Max
+    )
+    val pipeStr =
+      EP.display(this.s, maxWidth = w1, parentPrecedence = Precedence.Max)
+    val indentedPipeStr = EP.indent(pipeStr)
+    val indentedInputsStr = if (this.inputs.isEmpty) {
+      ""
+    } else {
+      val str = this.inputs.toSeq
+        .sortBy({ case (x, _) => x.name })
+        .map({ case (x, (stm, num)) =>
+          val stmStr = EP.display(
+            stm,
+            maxWidth = maxWidth - 2 * EP.Indent.length - ",".length,
+            parentPrecedence = Precedence.Max
+          )
+          val indentedStmStr = EP.indent(stmStr)
+          val numStr = EP.display(
+            num,
+            maxWidth = maxWidth - 2 * EP.Indent.length,
+            parentPrecedence = Precedence.Max
+          )
+          val indentedNumStr = EP.indent(numStr)
+          s"(${x.name} : ${x.typ}) = (\n$indentedStmStr,\n$indentedNumStr\n)"
+        })
+        .map(str => s"$str;")
+        .mkString("\n")
+      "\n" + EP.indent(str)
+    }
+    // Don't use a multi-line string with .stripMargin here because one of
+    // the sub-expressions may have a line starting with '|'.
+    // Example:
+    //   c1 && c2
+    //     || c3 && c4
+    s"reset(\n${EP.indent(nStr)};\n${EP.indent(outStr)};$indentedInputsStr\n) {\n$indentedPipeStr\n}"
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val n = this.n.lower()
+    val s = this.s.lower()
+    val outputsUntilReset = this.outputsUntilReset.lower()
+    val inputs = this.inputs.map({ case (x, (s, num)) =>
+      x.lower().asInstanceOf[Param] -> (s.lower(), num.lower())
+    })
+    val r =
+      StmReset(n, s, outputsUntilReset, inputs)().tchk().asInstanceOf[StmReset]
+    // In general, you could handle resetting by fusing everything, but that
+    // gets very gross if the pipeline is deep.
+    // Try to avoid that if at all possible.
+    val loweredPipeline = r
+      .lowerEmptyPipeline()
+      .orElse(r.lowerForNEqualsOne())
+      .orElse(r.lowerStateless())
+      .getOrElse(r.lowerByFusion()) // :(
+      .tchk()
+      .lower()
+    val ret = {
+      val subs = this.inputs.map({ case (x, (s, _)) => x -> s })
+      loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
+    }
+    assertNoNewFreeVars(ret.freeVars()) // Sanity check
+    ret
+  }
+
+  @elidable(elidable.ASSERTION)
+  private def assertNoNewFreeVars(freeVars: Set[Param]): Unit = {
+    val originalFreeVars = {
+      val boundInputVars = this.inputs.map({ case (x, _) => x }).toSet
+      val freeVarsInPipeline = s.freeVars() -- boundInputVars
+      val freeVarsInInputs = this.inputs
+        .flatMap({ case (_, (stm, num)) => stm.freeVars() ++ num.freeVars() })
+        .toSet
+      (this.n.freeVars()
+        ++ this.outputsUntilReset.freeVars()
+        ++ freeVarsInPipeline
+        ++ freeVarsInInputs)
+    }
+    assert(
+      freeVars.subsetOf(originalFreeVars),
+      s"the set of free variables should be unchanged by $className"
+        + s" (expected $originalFreeVars, got $freeVars)"
+    )
+  }
+
+  private def lowerEmptyPipeline(): Option[Expr] = {
+    if (Type.sameLen(this.n, C(0)())) {
+      logger.trace(s"lowering $className with n = 0: $this")
+      Some(StmBuild(0, Default(s.typ.asInstanceOf[TyStm].t), True)())
+    } else {
+      None
+    }
+  }
+
+  private def lowerForNEqualsOne(): Option[Expr] = {
+    if (Type.sameLen(n, C(1)())) {
+      logger.trace(s"lowering $className with n = 1: $this")
+      Some(s)
+    } else {
+      None
+    }
+  }
+
+  private def lowerStateless(): Option[Expr] = {
+    if (isStateless(this.s)) {
+      logger.trace(s"lowering $className with stateless pipeline: $this")
+      Some(repeatExternalInputs(multiplyLengths(s), this.accVars))
+    } else {
+      None
+    }
+  }
+
+  private def isStateless(stm: Expr): Boolean = {
+    stm match {
+      case s: StmBuild        => s.accVars.forall(_.typ.isInstanceOf[TyStm])
+      case _: Param           => true
+      case LetStm(_, in, out) => isStateless(in) && isStateless(out)
+      case _                  => ???
+    }
+  }
+
+  private def multiplyLengths(stm: Expr): Expr = {
+    stm match {
+      case s: StmBuild =>
+        StmBuild(
+          SafeProd(this.n, s.n)(),
+          s.data,
+          s.valid,
+          s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (multiplyLengths(s), ready)
+            case eqn => eqn
+          })
+        )()
+      case x: Param => x
+      case LetStm(x, in, out) =>
+        LetStm(x, multiplyLengths(in), multiplyLengths(out))()
       case _ =>
         ???
     }
+  }
+
+  private def repeatExternalInputs(
+      stm: Expr,
+      inputStreams: Set[Param]
+  ): Expr = {
+    stm match {
+      case x: Param if inputStreams.contains(x) =>
+        // Streams that are on the input list or were bound by a LetStm are
+        // fine: we read them in order.
+        x
+      case x: Param =>
+        // Streams that are not on the input list will be read once *per
+        // iteration* of this StmReset.
+        // Therefore, they must be repeated.
+        StmJoin(StmRepeat(x, n)())()
+      case LetStm(x, in, out) =>
+        LetStm(
+          x,
+          repeatExternalInputs(in, inputStreams),
+          repeatExternalInputs(out, inputStreams + x)
+        )()
+      case s: StmBuild =>
+        StmBuild(
+          s.n,
+          s.data,
+          s.valid,
+          s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (repeatExternalInputs(s, inputStreams), ready)
+            case eqn => eqn
+          })
+        )()
+      case _ =>
+        ???
+    }
+  }
+
+  private def lowerByFusion(): Expr = {
+    logger.warn(s"lowering $className by fusion: $this")
+    val innerStm = this.s.fuseCompletely()
+    assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
+    for ((x, _) <- this.inputs) {
+      val numOccurrences = innerStm.seedByVar.count({ case (_, z) => z == x })
+      assert(
+        numOccurrences <= 1,
+        "no input stream should appear more than once in the fused stream"
+          + s" (found $numOccurrences of $x)"
+      )
+    }
+    val inCounters = this.inputs.map({ case (x, _) =>
+      x -> Param(s"${x.prefix}_ctr")(U32)
+    })
+    val outCtr = Param("out_ctr")(U32)
+    val innerWithInputCounters = this.inputs.foldLeft(innerStm)({
+      case (stm, (x, (_, inputsUntilReset))) =>
+        val inCtr = inCounters(x)
+        inputsUntilReset match {
+          case IntCst(1) =>
+            // If there's only one input, then there's no need for an input
+            // counter.
+            // (The input counter is hard to remove in the case of a
+            // function from non-stream to stream.)
+            // Either
+            //  (1) The input will be read *after* all outputs are produced,
+            //      but this means the input stream is actually unused.
+            //  (2) All inputs will be read no later than the last output.
+            // Add the input counter anyway just to keep the rest of the
+            // lowering pass simple, but it should now be trivial for the
+            // optimizer to recognize that it is constant.
+            stm.addAccumulator(inCtr, C(1)(U32), C(1)(U32))
+          case _ =>
+            stm.seedByVar
+              .find({ case (_, z) => z == x })
+              .map(_._1) match {
+              case Some(inStmVar) =>
+                stm.addInputCounter(inStmVar, inCtr)
+              case None =>
+                // The input is unused!
+                val k = ReshapeData(inputsUntilReset, U32)().tchk().lower()
+                stm.addAccumulator(inCtr, k, k)
+            }
+        }
+    })
+    val innerWithCtrs = innerWithInputCounters.addOutputCounter(outCtr)
+    // Want to reset depending on the *next* values of the in/out counters.
+    val shouldReset = this.inputs
+      .foldLeft(
+        innerWithCtrs.nextByVar(outCtr) === this.outputsUntilReset
+      )({ case (acc, (x, (_, inputsUntilReset))) =>
+        val inCtr = inCounters(x)
+        acc && (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
+      })
+      .tchk()
+    val outerStm = StmBuild(
+      SafeProd(n, outputsUntilReset)(),
+      innerWithCtrs.data,
+      innerWithCtrs.valid,
+      innerWithCtrs.equations.map({
+        case (x, (z: Param, ready)) if this.inputs.contains(z) =>
+          // Never reset these input streams
+          x -> (z, ready)
+        case (x, (z, ready)) if x.typ.isInstanceOf[TyStm] =>
+          // Repeat other input streams to give the illusion that they
+          // are being reset
+          x -> (StmJoin(StmRepeat(z, n)())(), ready)
+        case (x, (z, next)) =>
+          // Reset all data accumulators
+          x -> (z, Mux(shouldReset, z, next)())
+      })
+    )()
+    outerStm
   }
 }
 
@@ -378,101 +786,25 @@ case class StmMap(
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val input = this.input.lower()
-    SL.logger.trace(s"lowering function in $className...")
     val f = this.f.lower().asInstanceOf[Function]
-    SL.logger.trace(s"lowering length in $className...")
-    val n = this.typ.asInstanceOf[TyStm].n
-    SL.logger.trace(s"getting fused function in $className...")
+    val TyStm(_, n) = this.typ
     // Instantiate `f` as a function from stream to stream
-    val (s, innerStm) = AsFusedStm2Stm(f)
-    assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
-    assert(
-      innerStm.seedByVar.count({ case (_, z) => z == s }) <= 1,
-      "the input stream should appear no more than once in the inner StmBuild"
-    )
-    SL.logger.trace(s"repeating inner stream in $className...")
-    val usesInputStream = innerStm.seedByVar.values.exists(z => z == s)
-    val map = if (!usesInputStream) {
-      // In theory you could have something like
-      //     StmMap(StmCount2D(...), _ => StmCst(1, 42))
-      // which doesn't actually use the input stream at all.
-      // In this case, there's no need for resetting the stream and all that.
-      StmRepeat(innerStm, n)()
-    } else {
-      // How many elements will the inner component read and produce before it must be reset?
-      val inputsUntilReset = f.typ.asInstanceOf[TyArrow].t1 match {
-        case TyStm(_, n) => n
-        case _           => IntCst(1)()
-      }
-      val outputsUntilReset = f.typ.asInstanceOf[TyArrow].t2 match {
-        case TyStm(_, n) => n
-        case _           => IntCst(1)()
-      }
-      val map = n match {
-        // TODO: Why this special case? Is it just to make the resulting stream
-        //       easier to simplify? Should I add something similar in the
-        //       partial evaluator?
-        case IntCst(1) =>
-          // No need to reset
-          innerStm
-        case n =>
-          val inCtr = Param("in_ctr")(U32)
-          val outCtr = Param("out_ctr")(U32)
-          val innerWithInCtr = inputsUntilReset match {
-            case IntCst(1) =>
-              // If there's only one input, then there's no need for an input
-              // counter.
-              // (The input counter is hard to remove in the case of a function
-              // from non-stream to stream.)
-              // Either
-              //  (1) The input will be read *after* all outputs are produced,
-              //      but this means the input stream is actually unused.
-              //  (2) All inputs will be read no later than the last output.
-              // Add the input counter anyway just to keep the rest of the
-              // lowering pass simple, but it should now be trivial for the
-              // optimizer to recognize that it is constant.
-              innerStm.addAccumulator(inCtr, IntCst(1)(U32), IntCst(1)(U32))
-            case _ =>
-              val inStmVar =
-                innerStm.seedByVar.find({ case (_, z) => z == s }).get._1
-              innerStm.addInputCounter(inStmVar, inCtr)
-          }
-          val innerWithCtrs = innerWithInCtr.addOutputCounter(outCtr)
-          // Want to reset depending on the *next* values of the in/out counters.
-          val shouldReset = (
-            (innerWithCtrs.nextByVar(inCtr) === inputsUntilReset)
-              && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
-          ).tchk()
-          val outerStm = StmBuild(
-            SafeProd(n, outputsUntilReset)(),
-            innerWithCtrs.data,
-            innerWithCtrs.valid,
-            innerWithCtrs.equations.map({
-              case (x, (z, ready)) if z == s =>
-                // Never reset the primary input stream
-                x -> (z, ready)
-              case (x, (z, ready)) if x.typ.isInstanceOf[TyStm] =>
-                // Repeat other input streams to give the illusion that they
-                // are being reset
-                x -> (StmJoin(StmRepeat(z, n)())(), ready)
-              case (x, (z, next)) =>
-                // Reset data accumulators
-                x -> (z, Mux(shouldReset, z, next)())
-            })
-          )()
-          outerStm
-      }
-      val ret = map.subPreserveType(s -> input)
-      val originalFreeVars =
-        input.freeVars() ++ f.freeVars() ++ n.freeVars()
-      assert(
-        ret.freeVars() == originalFreeVars,
-        s"the set of free variables should be unchanged by StmMap (expected $originalFreeVars, got ${ret.freeVars()})"
-      )
-      ret
+    val Function(s, innerStm) = f.streamify()
+    val TyArrow(t1, t2) = f.typ
+    val inputsUntilReset = t1 match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)()
     }
-    SL.logger.trace(s"done lowering $className")
-    map.tchk().lower()
+    val outputsUntilReset = t2 match {
+      case TyStm(_, n) => n
+      case _           => IntCst(1)()
+    }
+    StmReset(
+      n,
+      innerStm,
+      outputsUntilReset,
+      Map(s -> (input, inputsUntilReset))
+    )().tchk().lower()
   }
 }
 
@@ -530,124 +862,29 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     val f = this.f.lower().asInstanceOf[Function]
     val n = this.typ.asInstanceOf[TyStm].n
     // Instantiate `f` as a function from stream to stream
-    val (s1Param, s2Param, innerStm) = AsFusedStm2Stm2Stm(f)
-    assert(innerStm.typ.isInstanceOf[TyStm], "innerStm should be a stream")
-    assert(
-      innerStm.seedByVar.count({ case (_, z) => z == s1Param }) <= 1,
-      "the first input stream should appear no more than once in the inner StmBuild"
-    )
-    assert(
-      innerStm.seedByVar.count({ case (_, z) => z == s2Param }) <= 1,
-      "the second input stream should appear no more than once in the inner StmBuild"
-    )
-    val map = {
-      // How many elements will the inner component read and produce before it must be reset?
-      val TyArrow(t1, TyArrow(t2, t3)) = f.typ
-      val inputsFrom1UntilReset = t1 match {
-        case TyStm(_, n) => n
-        case _           => C(1)().tchk()
-      }
-      val inputsFrom2UntilReset = t2 match {
-        case TyStm(_, n) => n
-        case _           => C(1)().tchk()
-      }
-      val outputsUntilReset = t3 match {
-        case TyStm(_, n) => n
-        case _           => IntCst(1)()
-      }
-      val map = {
-        val in1Ctr = Param("in1_ctr")(U32)
-        val in2Ctr = Param("in2_ctr")(U32)
-        val outCtr = Param("out_ctr")(U32)
-        val innerWithIn1Ctr = inputsFrom1UntilReset match {
-          case IntCst(1) =>
-            // If there's only one input, then there's no need for an input
-            // counter.
-            // (The input counter is hard to remove in the case of a function
-            // from non-stream to stream.)
-            // Either
-            //  (1) The input will be read *after* all outputs are produced,
-            //      but this means the input stream is actually unused.
-            //  (2) All inputs will be read no later than the last output.
-            // Add the input counter anyway just to keep the rest of the
-            // lowering pass simple, but it should now be trivial for the
-            // optimizer to recognize that it is constant.
-            innerStm.addAccumulator(in1Ctr, C(1)(U32), C(1)(U32))
-          case _ =>
-            innerStm.seedByVar
-              .find({ case (_, z) => z == s1Param })
-              .map(_._1) match {
-              case Some(inStmVar) =>
-                innerStm.addInputCounter(inStmVar, in1Ctr)
-              case None =>
-                // The first input is unused!
-                val k = ReshapeData(inputsFrom1UntilReset, U32)().tchk().lower()
-                innerStm.addAccumulator(in1Ctr, k, k)
-            }
-        }
-        val innerWithIn2Ctr = inputsFrom2UntilReset match {
-          case IntCst(1) =>
-            // If there's only one input, then there's no need for an input
-            // counter.
-            // (The input counter is hard to remove in the case of a function
-            // from non-stream to stream.)
-            // Either
-            //  (1) The input will be read *after* all outputs are produced,
-            //      but this means the input stream is actually unused.
-            //  (2) All inputs will be read no later than the last output.
-            // Add the input counter anyway just to keep the rest of the
-            // lowering pass simple, but it should now be trivial for the
-            // optimizer to recognize that it is constant.
-            innerWithIn1Ctr.addAccumulator(in2Ctr, C(1)(U32), C(1)(U32))
-          case _ =>
-            innerWithIn1Ctr.seedByVar
-              .find({ case (_, z) => z == s2Param })
-              .map(_._1) match {
-              case Some(inStmVar) =>
-                innerWithIn1Ctr.addInputCounter(inStmVar, in2Ctr)
-              case None =>
-                // The second input is unused!
-                val k = ReshapeData(inputsFrom2UntilReset, U32)().tchk().lower()
-                innerWithIn1Ctr.addAccumulator(in2Ctr, k, k)
-            }
-        }
-        val innerWithCtrs = innerWithIn2Ctr.addOutputCounter(outCtr)
-        // Want to reset depending on the *next* values of the in/out counters.
-        val shouldReset = (
-          (innerWithCtrs.nextByVar(in1Ctr) === inputsFrom1UntilReset)
-            && (innerWithCtrs.nextByVar(in2Ctr) === inputsFrom2UntilReset)
-            && (innerWithCtrs.nextByVar(outCtr) === outputsUntilReset)
-        ).tchk()
-        val outerStm = StmBuild(
-          SafeProd(n, outputsUntilReset)(),
-          innerWithCtrs.data,
-          innerWithCtrs.valid,
-          innerWithCtrs.equations.map({
-            case (x, (z, ready)) if z == s1Param || z == s2Param =>
-              // Never reset the primary input streams
-              x -> (z, ready)
-            case (x, (z, ready)) if x.typ.isInstanceOf[TyStm] =>
-              // Repeat other input streams to give the illusion that they
-              // are being reset
-              x -> (StmJoin(StmRepeat(z, n)())(), ready)
-            case (x, (z, next)) =>
-              // Reset data accumulators
-              x -> (z, Mux(shouldReset, z, next)())
-          })
-        )()
-        outerStm
-      }
-      val ret =
-        map.subPreserveType(Map[Expr, Expr](s1Param -> s1, s2Param -> s2))
-      val originalFreeVars =
-        s1.freeVars() ++ s2.freeVars() ++ f.freeVars() ++ n.freeVars()
-      assert(
-        ret.freeVars() == originalFreeVars,
-        s"the set of free variables should be unchanged by $className (expected $originalFreeVars, got ${ret.freeVars()})"
-      )
-      ret
+    val Function(s1Param, Function(s2Param, innerStm)) = f.streamify()
+    val TyArrow(t1, TyArrow(t2, t3)) = f.typ
+    val inputsFrom1UntilReset = t1 match {
+      case TyStm(_, n) => n
+      case _           => C(1)().tchk()
     }
-    map.tchk().lower()
+    val inputsFrom2UntilReset = t2 match {
+      case TyStm(_, n) => n
+      case _           => C(1)().tchk()
+    }
+    val outputsUntilReset = t3 match {
+      case TyStm(_, n) => n
+      case _           => C(1)()
+    }
+    StmReset(
+      n,
+      innerStm,
+      outputsUntilReset,
+      Map(
+        s1Param -> (s1, inputsFrom1UntilReset),
+        s2Param -> (s2, inputsFrom2UntilReset)
+      )
+    )().tchk().lower()
   }
 }
 
@@ -966,29 +1203,34 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     SL.logger.trace(s"lowering $className: $this")
     requireType()
     val s = this.s.lower()
-    val wrappedTyp = this.typ.asInstanceOf[TyStm].t
-    val f = unwrapFunc(wrappedTyp, this.f).lower()
-    val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
     val n = this.s.typ.asInstanceOf[TyStm].n
-    val acc = Param("acc")(elemTyp)
-    val t = Param("t")(n.typ)
-    val sAcc = Param("s")(s.typ)
-    val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
-    val firstStep = Param("first_step")(TyBool)
-    StmBuild(
-      1,
-      wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
-      t + 1 === n,
-      Map[Param, (Expr, Expr)](
-        firstStep -> (True, False),
-        t -> (C(0)(n.typ), C(1)(n.typ) + t),
-        sAcc -> (s, True),
-        acc -> (
-          Default(elemTyp),
-          Mux(firstStep, sData, f(Tuple(acc, sData)()))()
+    if (Type.sameLen(n, C(1)())) {
+      // Reduce over a stream of length 1 is a no-op
+      s
+    } else {
+      val wrappedTyp = this.typ.asInstanceOf[TyStm].t
+      val f = unwrapFunc(wrappedTyp, this.f).lower()
+      val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
+      val acc = Param("acc")(elemTyp)
+      val t = Param("t")(n.typ)
+      val sAcc = Param("s")(s.typ)
+      val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
+      val firstStep = Param("first_step")(TyBool)
+      StmBuild(
+        1,
+        wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
+        t + 1 === n,
+        Map[Param, (Expr, Expr)](
+          firstStep -> (True, False),
+          t -> (C(0)(n.typ), C(1)(n.typ) + t),
+          sAcc -> (s, True),
+          acc -> (
+            Default(elemTyp),
+            Mux(firstStep, sData, f(Tuple(acc, sData)()))()
+          )
         )
-      )
-    )().tchk().lower()
+      )().tchk().lower()
+    }
   }
 
   private def tupleElemType(wrappedTyp: Type, f: Expr): Type = {

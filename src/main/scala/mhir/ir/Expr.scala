@@ -879,8 +879,6 @@ case class StmBuild(
           true
         } else if (this.n != that.n) {
           false
-        } else if (this.seedByVar.values.toSet != that.seedByVar.values.toSet) {
-          false
         } else if (this.equations.size != that.equations.size) {
           false
         } else if (this.hashCode != that.hashCode) {
@@ -888,8 +886,12 @@ case class StmBuild(
         } else {
           assert(this.accVars.size == that.accVars.size)
           existsVarRenamingThatMakesEqual(
-            domain = this.accVars.toSeq,
-            codomain = that.accVars.toSeq,
+            // Use the accumulator names as a hint for finding the right
+            // pairing (if one exists).
+            // If two streams are equal, I think they'll *usually* have the
+            // same, or at least very similar, accumulator names
+            domain = this.accVars.toSeq.sortBy(_.name),
+            codomain = that.accVars.toSeq.sortBy(_.name),
             map = Map(),
             inverse = Map(),
             that

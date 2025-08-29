@@ -119,11 +119,22 @@
       ),
       true
     );
+    (I_ctr : u32) = (
+      0:u32,
+      if (
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      ) then {
+        0:u32
+      } else {
+        1:u32 + I_ctr
+      }
+    );
     (acc : i8) = (
       0:i8,
       if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:i8
       } else if (first_step) then {
@@ -134,36 +145,25 @@
     );
     (first_step : bool) = (
       true,
-      t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-        || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+      t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+        || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
     );
     (i : u2) = (
       0:u2,
       if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:u2
       } else {
         1:u2 + i
       }
     );
-    (in_ctr : u32) = (
-      0:u32,
-      if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        0:u32
-      } else {
-        1:u32 + in_ctr
-      }
-    );
     (out_ctr : u32) = (
       0:u32,
       if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:u32
       } else if (t == 2:u2) then {
@@ -175,8 +175,8 @@
     (t : u2) = (
       0:u2,
       if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         0:u2
       } else {
@@ -186,8 +186,8 @@
     (v : Vec[i8, 3:u2]) = (
       [-1:i8, 0:i8, 1:i8],
       if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
+        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
+          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
       ) then {
         [-1:i8, 0:i8, 1:i8]
       } else {

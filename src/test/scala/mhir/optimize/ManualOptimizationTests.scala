@@ -7,6 +7,7 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
+import mhir.optimize.{PartialEvalPass => PE}
 
 /** Examples of how some high-level transformations in, for example, SHIR can be
   * expressed as sequences of smaller transformations in the minimalist IR. For
@@ -27,11 +28,11 @@ class ManualOptimizationTests extends AnyFunSuite {
     val original = StmMap(s, I32 ::+ (x => FunCall(f, x)()))()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
-      val s1 = tl(s)
+      val s1 = tl(PE.partialEval(s))
       val s2 = tl(StmSimplifier.simplify(s1)())
       s2
     }
-    val optimized = optimize(original)
+    val optimized = optimize(original.tchk().lower())
 
     // Correctness
     val nExamples = Seq(0, 1, 4)
@@ -184,12 +185,12 @@ class ManualOptimizationTests extends AnyFunSuite {
     val f = U16 ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val g = U16 ::+ (x => x + 7)
     val s = StmMap(StmMap(input, f)(), g)().tchk().lower()
-    val optimize = (s: StmBuild) => {
+    val optimize = (s: Expr) => {
       val s1 = s.fuseCompletely()
       val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
       StmSimplifier.simplify(s2)()
     }
-    val actual = optimize(s.asInstanceOf[StmBuild])
+    val actual = optimize(s)
 
     // Correct behaviour
     // (Using one example input, f, and g)
@@ -203,7 +204,6 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmMap(input, U16 ::+ (x => FunCall(g, FunCall(f, x)())()))()
         .tchk()
         .lower()
-        .asInstanceOf[StmBuild]
     )
     assert(actual == ideal)
   }
