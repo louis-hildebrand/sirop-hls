@@ -51,6 +51,12 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
+    time("compilation") {
+      doCompile(args)
+    }
+  }
+
+  private def doCompile(args: Args): Expr = {
     val parsed = parse(args.inFile)
     val checked = typecheck(parsed)
     val lowered = lower(checked)
@@ -78,7 +84,6 @@ object Compiler {
       emit(finalProgram, outDir = args.outDir, overwrite = args.overwrite)
     }
 
-    logger.info("done compiling")
     finalProgram
   }
 
