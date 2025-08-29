@@ -200,12 +200,8 @@ private[vhdl] object StmBuildVhdl {
           (seed, u) match {
             case (x2: Param, Nowhere) if x2 == x =>
               u = Here
-            case (s: StmBuild, Nowhere) if s.freeVars().contains(x) =>
+            case (s, Nowhere) if s.freeVars().contains(x) =>
               u = InChild
-            case (_, Nowhere) if seed.freeVars().contains(x) =>
-              throw new IllegalArgumentException(
-                s"Input $x is used improperly in initial value for accumulator $acc."
-              )
             case _ if seed.freeVars().contains(x) =>
               assert(u != Nowhere)
               throw new IllegalArgumentException(
