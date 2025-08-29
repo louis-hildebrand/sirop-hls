@@ -263,7 +263,7 @@ object StreamFuser {
           )
       }
       assert(
-        !fused.contains(x),
+        !fused.accVars.contains(x),
         s"the stream variable ${x.name} should have been removed completely by fusion"
       )
       assert(
