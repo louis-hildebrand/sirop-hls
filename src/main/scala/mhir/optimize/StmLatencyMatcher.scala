@@ -27,34 +27,39 @@ object StmLatencyMatcher {
       e.hasType,
       s"Cannot match latencies in expression of type ${e.typ}."
     )
-    val result = e match {
-      case s: StmBuild =>
-        val newEquations = s.equations
-          .map({
-            case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (matchLatencies(z), next)
-            case eqn => eqn
-          })
-        StmBuild(
-          n = s.n,
-          data = s.data,
-          valid = s.valid,
-          equations = newEquations
-        )()
-      case LetStm(x, in, out) =>
-        val out1 = matchLatencies(out)
-        latencyOfLongestPath(x, out1) match {
-          case Some(lat) =>
-            val out2 = increaseLatencyTo(out1, x, lat)
-            LetStm(x, in, out2)()
-          case None =>
-            e
-        }
-      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
-        Function(x, matchLatencies(body))()
-      case _ =>
-        e
+    def rec(e: Expr): Expr = {
+      e match {
+        case s: StmBuild =>
+          val newEquations = s.equations
+            .map({
+              case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
+                x -> (matchLatencies(z), next)
+              case eqn => eqn
+            })
+          StmBuild(
+            n = s.n,
+            data = s.data,
+            valid = s.valid,
+            equations = newEquations
+          )()
+        case LetStm(x, in, out) =>
+          val out1 = matchLatencies(out)
+          latencyOfLongestPath(x, out1) match {
+            case Some(lat) =>
+              val out2 = increaseLatencyTo(out1, x, lat)
+              LetStm(x, in, out2)()
+            case None => e
+          }
+        case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+          Function(x, matchLatencies(body))()
+        case _ =>
+          e
+      }
     }
+    // There may be some strange things happening after the joins, but that
+    // shouldn't prevent latency matching because the strange things
+    // contribute the same latency to all paths.
+    val result = rec(LetStmMover.moveDown(e))
     val checkedResult = result.tchk()
     assert(checkedResult.typ ~= e.typ)
     checkedResult
@@ -129,18 +134,24 @@ object StmLatencyMatcher {
       acc: Param,
       s: StmBuild
   ): Option[Int] = {
-    val (inputStm, ready) = s.equations(acc)
+    val inputStm = s.seedByVar(acc)
+    latencyOfLongestPath(src, inputStm)
+      .flatMap(before => latency(src, acc, s).map(thru => before + thru))
+  }
+
+  /** Finds the latency that the given [[mhir.ir.StmBuild]] contributes to the
+    * path from `src` via `acc`.
+    *
+    * In other words, this is the latency of the longest path from `src` through
+    * `s` via `acc`, minus the latency of the longest path from `src` to `acc`.
+    */
+  private def latency(
+      src: Param,
+      acc: Param,
+      s: StmBuild
+  ): Option[Int] = {
     s.valid match {
-      case True =>
-        ready match {
-          case True => latencyOfLongestPath(src, inputStm).map(_ + 1)
-          case _ =>
-            logger.warn(
-              s"failed to find latency from $src through StmBuild via input $acc due to the `ready` expression"
-            )
-            logger.trace(s"ready expression: $ready)}")
-            None
-        }
+      case True => Some(1)
       case _ =>
         logger.warn(
           s"failed to find latency from $src through StmBuild due to the `valid` expression"
@@ -171,12 +182,11 @@ object StmLatencyMatcher {
             )
           )()
         case s: StmBuild =>
-          assert(s.valid == True)
           val newEquations = s.equations
             .map({
-              case (x, (z, next)) if z.freeVars().contains(src) =>
-                assert(next == True)
-                x -> (increaseLatencyTo(z, src, targetLatency - 1), next)
+              case (x, (z, ready)) if z.freeVars().contains(src) =>
+                val newTarget = latency(src, x, s).map(targetLatency - _).get
+                x -> (increaseLatencyTo(z, src, newTarget), ready)
               case eqn => eqn
             })
           StmBuild(

@@ -63,7 +63,15 @@
         vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[u8, -1:i1]) = (
-        n2,
+        sbuild(
+          16:u5;
+          data(s);
+          true;
+          (s : Stm[u8, -1:i1]) = (
+            sbuild(16:u5; data(s); true; (s : Stm[u8, -1:i1]) = (n2, true)),
+            true
+          );
+        ),
         true
       );
     )
@@ -78,25 +86,60 @@
         vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[u8, -1:i1]) = (
-        n1,
+        sbuild(
+          16:u5;
+          data(s);
+          true;
+          (s : Stm[u8, -1:i1]) = (
+            sbuild(
+              16:u5;
+              data(s);
+              true;
+              (s : Stm[u8, -1:i1]) = (
+                sbuild(
+                  16:u5;
+                  data(s);
+                  true;
+                  (s : Stm[u8, -1:i1]) = (
+                    sbuild(
+                      16:u5;
+                      data(s);
+                      true;
+                      (s : Stm[u8, -1:i1]) = (
+                        n1,
+                        true
+                      );
+                    ),
+                    true
+                  );
+                ),
+                true
+              );
+            ),
+            true
+          );
+        ),
         true
       );
     )
   ) in
   sbuild(
     16:u5;
-    (acc_257 +% acc_261) +% (data(I0) << v[i]) >> 4:u8;
+    (acc_257 +% acc_261)
+      +% (data(I0)
+        << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i])
+      >> 4:u8;
     t_255 == 2:u2 && t_262 == 2:u2;
     (I0 : Stm[u8, -1:i1]) = (
       sbuild(
         144:u11;
-        x_data[i];
-        !is_first_step;
+        if (is_first_step) then { data(x_stm)[0:u32] } else { x_data[i] };
+        true;
         (I_ctr : u32) = (
           0:u32,
           if (
             !is_first_step && I_ctr == 3:u32 && out_ctr_203 == 8:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32 && is_first_step
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32 && is_first_step
           ) then {
             0:u32
           } else if (is_first_step) then {
@@ -109,25 +152,20 @@
           0:u32,
           if (
             !is_first_step && I_ctr == 3:u32 && out_ctr_203 == 8:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32 && is_first_step
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32 && is_first_step
           ) then {
             0:u32
-          } else if (
-            !is_first_step && out_ctr_199 == 2:u32
-              || out_ctr_199 == 3:u32 && is_first_step
-          ) then {
-            0:u32
-          } else if (is_first_step) then {
+          } else if (out_ctr_199 == 2:u32) then {
             0:u32
           } else {
-            1:u32 + i
+            1:u32 + (if (is_first_step) then { 0:u32 } else { i })
           }
         );
         (is_first_step : bool) = (
           true,
           (
-            ((I_ctr != 2:u32 || out_ctr_203 != 9:u32) && out_ctr_199 == 3:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32)
+            ((I_ctr != 2:u32 || out_ctr_203 != 8:u32) && out_ctr_199 == 2:u32
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32)
               && is_first_step)
             || (
               ((I_ctr != 3:u32 || out_ctr_203 != 8:u32) && out_ctr_199 == 2:u32
@@ -138,16 +176,11 @@
           0:u32,
           if (
             !is_first_step && I_ctr == 3:u32 && out_ctr_203 == 8:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32 && is_first_step
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32 && is_first_step
           ) then {
             0:u32
-          } else if (
-            !is_first_step && out_ctr_199 == 2:u32
-              || out_ctr_199 == 3:u32 && is_first_step
-          ) then {
+          } else if (out_ctr_199 == 2:u32) then {
             0:u32
-          } else if (is_first_step) then {
-            out_ctr_199
           } else {
             1:u32 + out_ctr_199
           }
@@ -156,11 +189,9 @@
           0:u32,
           if (
             !is_first_step && I_ctr == 3:u32 && out_ctr_203 == 8:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32 && is_first_step
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32 && is_first_step
           ) then {
             0:u32
-          } else if (is_first_step) then {
-            out_ctr_203
           } else {
             1:u32 + out_ctr_203
           }
@@ -169,13 +200,10 @@
           vbuild(3:u3, (i : u32) => 0:u8),
           if (
             !is_first_step && I_ctr == 3:u32 && out_ctr_203 == 8:u32
-              || I_ctr == 2:u32 && out_ctr_203 == 9:u32 && is_first_step
+              || I_ctr == 2:u32 && out_ctr_203 == 8:u32 && is_first_step
           ) then {
             vbuild(3:u3, (i : u32) => 0:u8)
-          } else if (
-            !is_first_step && out_ctr_199 == 2:u32
-              || out_ctr_199 == 3:u32 && is_first_step
-          ) then {
+          } else if (out_ctr_199 == 2:u32) then {
             vbuild(3:u3, (i : u32) => 0:u8)
           } else if (is_first_step) then {
             data(x_stm)
@@ -217,45 +245,40 @@
                     (s_f : Stm[u8, -1:i1]) = (
                       sbuild(
                         48:u8;
-                        x_data[i];
-                        !is_first_step;
+                        if (is_first_step) then {
+                          data(x_stm)[0:u32]
+                        } else {
+                          x_data[i]
+                        };
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
                         );
                         (x_data : Vec[u8, 3:u3]) = (
                           vbuild(3:u3, (i : u32) => 0:u8),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(3:u3, (i : u32) => 0:u8)
                           } else if (is_first_step) then {
                             data(x_stm)
@@ -306,14 +329,70 @@
                                   true
                                 );
                                 (I1 : Stm[u8, -1:i1]) = (
-                                  n31,
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      n31,
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
                               true
                             );
                             (I1 : Stm[u8, -1:i1]) = (
-                              n2,
+                              sbuild(
+                                16:u5;
+                                data(s);
+                                true;
+                                (s : Stm[u8, -1:i1]) = (
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      sbuild(
+                                        16:u5;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u8, -1:i1]) = (
+                                          sbuild(
+                                            16:u5;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u8, -1:i1]) = (
+                                              sbuild(
+                                                16:u5;
+                                                data(s);
+                                                true;
+                                                (s : Stm[u8, -1:i1]) = (
+                                                  sbuild(
+                                                    16:u5;
+                                                    data(s);
+                                                    true;
+                                                    (s : Stm[u8, -1:i1]) = (
+                                                      n2,
+                                                      true
+                                                    );
+                                                  ),
+                                                  true
+                                                );
+                                              ),
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
+                                  true
+                                );
+                              ),
                               true
                             );
                           ),
@@ -325,45 +404,40 @@
                     (s_t : Stm[u8, -1:i1]) = (
                       sbuild(
                         48:u8;
-                        x_data[i];
-                        !is_first_step;
+                        if (is_first_step) then {
+                          data(x_stm)[0:u32]
+                        } else {
+                          x_data[i]
+                        };
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
                         );
                         (x_data : Vec[u8, 3:u3]) = (
                           vbuild(3:u3, (i : u32) => 0:u8),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(3:u3, (i : u32) => 0:u8)
                           } else if (is_first_step) then {
                             data(x_stm)
@@ -414,14 +488,54 @@
                                   true
                                 );
                                 (I1 : Stm[u8, -1:i1]) = (
-                                  n4,
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      n4,
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
                               true
                             );
                             (I1 : Stm[u8, -1:i1]) = (
-                              n3,
+                              sbuild(
+                                16:u5;
+                                data(s);
+                                true;
+                                (s : Stm[u8, -1:i1]) = (
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      sbuild(
+                                        16:u5;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u8, -1:i1]) = (
+                                          sbuild(
+                                            16:u5;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u8, -1:i1]) = (
+                                              n3,
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
+                                  true
+                                );
+                              ),
                               true
                             );
                           ),
@@ -441,45 +555,40 @@
                     (s : Stm[u8, -1:i1]) = (
                       sbuild(
                         48:u8;
-                        x_data[i];
-                        !is_first_step;
+                        if (is_first_step) then {
+                          data(x_stm)[0:u32]
+                        } else {
+                          x_data[i]
+                        };
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
                         );
                         (x_data : Vec[u8, 3:u3]) = (
                           vbuild(3:u3, (i : u32) => 0:u8),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(3:u3, (i : u32) => 0:u8)
                           } else if (is_first_step) then {
                             data(x_stm)
@@ -530,14 +639,88 @@
                                   true
                                 );
                                 (I1 : Stm[u8, -1:i1]) = (
-                                  n65,
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      n65,
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
                               true
                             );
                             (I1 : Stm[u8, -1:i1]) = (
-                              n1,
+                              sbuild(
+                                16:u5;
+                                data(s);
+                                true;
+                                (s : Stm[u8, -1:i1]) = (
+                                  sbuild(
+                                    16:u5;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u8, -1:i1]) = (
+                                      sbuild(
+                                        16:u5;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u8, -1:i1]) = (
+                                          sbuild(
+                                            16:u5;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u8, -1:i1]) = (
+                                              sbuild(
+                                                16:u5;
+                                                data(s);
+                                                true;
+                                                (s : Stm[u8, -1:i1]) = (
+                                                  sbuild(
+                                                    16:u5;
+                                                    data(s);
+                                                    true;
+                                                    (s : Stm[u8, -1:i1]) = (
+                                                      sbuild(
+                                                        16:u5;
+                                                        data(s);
+                                                        true;
+                                                        (s : Stm[u8, -1:i1]) = (
+                                                          sbuild(
+                                                            16:u5;
+                                                            data(
+                                                              s
+                                                            );
+                                                            true;
+                                                            (s : Stm[u8, -1:i1]) = (
+                                                              n1,
+                                                              true
+                                                            );
+                                                          ),
+                                                          true
+                                                        );
+                                                      ),
+                                                      true
+                                                    );
+                                                  ),
+                                                  true
+                                                );
+                                              ),
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
+                                  true
+                                );
+                              ),
                               true
                             );
                           ),
@@ -621,9 +804,13 @@
         0:u8
       } else if (t_262 == 2:u2) then {
         if (first_step_254) then {
-          (data(I0) << v[i]) +% acc_261
+          (data(I0)
+            << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i])
+            +% acc_261
         } else {
-          (acc_257 +% acc_261) +% (data(I0) << v[i])
+          (acc_257 +% acc_261)
+            +% (data(I0)
+              << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i])
         }
       } else {
         acc_257
@@ -647,9 +834,11 @@
         if (I_ctr_258 == 2:u32 && out_ctr_260 == 0:u32) then {
           0:u8
         } else if (first_step_263) then {
-          data(I0) << v[i]
+          data(I0) << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i]
         } else {
-          (data(I0) << v[i]) +% acc_261
+          (data(I0)
+            << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i])
+            +% acc_261
         }
       } else if (
         t_262 != 2:u2 && I_ctr_258 == 2:u32 && out_ctr_260 == 1:u32
@@ -657,9 +846,10 @@
       ) then {
         0:u8
       } else if (first_step_263) then {
-        data(I0) << v[i]
+        data(I0) << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i]
       } else {
-        (data(I0) << v[i]) +% acc_261
+        (data(I0) << [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8][i])
+          +% acc_261
       }
     );
     (first_step_254 : bool) = (
@@ -815,24 +1005,6 @@
         0:u2
       } else {
         1:u2 + t_262
-      }
-    );
-    (v : Vec[u8, 9:u4]) = (
-      [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8],
-      if (
-        (
-          (t_255 != 2:u2 || t_262 != 2:u2)
-            && I_ctr_269 == 8:u32
-            && out_ctr_270 == 1:u32)
-          || (
-            I_ctr_269 == 8:u32
-              && out_ctr_270 == 0:u32
-              && t_255 == 2:u2
-              && t_262 == 2:u2)
-      ) then {
-        [0:u8, 1:u8, 0:u8, 1:u8, 2:u8, 1:u8, 0:u8, 1:u8, 0:u8]
-      } else {
-        v
       }
     );
   )

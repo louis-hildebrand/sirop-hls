@@ -1,12 +1,13 @@
 package mhir.optimize
 
+import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.CycleCounter
 import mhir.ir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {
-  test("let s = ... in StmZip(s, s |> StmMap(+5) |> StmMap(*2))") {
+  test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
     val n = 16
     val original = {
       val count = {
@@ -56,7 +57,37 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(s, count, zip)().tchk()
+      val delay = {
+        // The latency through this node cannot be predicted statically, since
+        // it depends on the inputs.
+        // Nevertheless, this should not hinder latency matching because this
+        // delaying comes after the join.
+        val s = Param("s")(TyStm((U8, U8), -1))
+        val i = Param("i")(U8)
+        val buf = Param("buf")((U8, U8))
+        StmBuild(
+          n,
+          buf,
+          i === C(0)(U8),
+          Map[Param, (Expr, Expr)](
+            s -> (zip, i === C(0)(U8)),
+            i -> (
+              C(0)(U8),
+              Mux(
+                i === 0,
+                // Even elements get delayed for longer
+                Mux(StmData(s)().__0 % 2 === 0, C(2)(U8), C(1)(U8))(),
+                ToUnsigned(i - 1)()
+              )()
+            ),
+            buf -> (
+              Default((U8, U8)).lower(),
+              Mux(i === C(0)(U8), StmData(s)(), buf)()
+            )
+          )
+        )()
+      }
+      LetStm(s, count, delay)().tchk().lower()
     }
     val optimized = StmLatencyMatcher.matchLatencies(original)
 
@@ -67,8 +98,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    assert(CycleCounter.count(original) == 5 + (n - 1) * 3)
-    assert(CycleCounter.count(optimized) == 5 + (n - 1) * 1)
+    assert(CycleCounter.count(optimized) < CycleCounter.count(original))
   }
 
   test("ForkTwice") {
@@ -124,7 +154,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(sA, count, LetStm(sB, plusFive, zip)())().tchk()
+      LetStm(sA, count, LetStm(sB, plusFive, zip)())().tchk().lower()
     }
     val optimized = StmLatencyMatcher.matchLatencies(original)
 
@@ -222,7 +252,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(s, count, zip)().tchk()
+      LetStm(s, count, zip)().tchk().lower()
     }
     val optimized = StmLatencyMatcher.matchLatencies(original)
 

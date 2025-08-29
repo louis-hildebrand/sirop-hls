@@ -63,7 +63,23 @@
         vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[u32, -1:i1]) = (
-        n2,
+        sbuild(
+          2073600:u21;
+          data(s);
+          true;
+          (s : Stm[u32, -1:i1]) = (
+            sbuild(
+              2073600:u21;
+              data(s);
+              true;
+              (s : Stm[u32, -1:i1]) = (
+                n2,
+                true
+              );
+            ),
+            true
+          );
+        ),
         true
       );
     )
@@ -78,15 +94,69 @@
         vbuild(1:u2, (i : u32) => data(s))
       );
       (s : Stm[u32, -1:i1]) = (
-        n1,
+        sbuild(
+          2073600:u21;
+          data(s);
+          true;
+          (s : Stm[u32, -1:i1]) = (
+            sbuild(
+              2073600:u21;
+              data(s);
+              true;
+              (s : Stm[u32, -1:i1]) = (
+                sbuild(
+                  2073600:u21;
+                  data(s);
+                  true;
+                  (s : Stm[u32, -1:i1]) = (
+                    sbuild(
+                      2073600:u21;
+                      data(s);
+                      true;
+                      (s : Stm[u32, -1:i1]) = (
+                        n1,
+                        true
+                      );
+                    ),
+                    true
+                  );
+                ),
+                true
+              );
+            ),
+            true
+          );
+        ),
         true
       );
     )
   ) in
   sbuild(
     2073600:u21;
-    ((data(I0)[1:u32] *% v[i][1:u32] +% data(I0)[2:u32] *% v[i][2:u32])
-      +% data(I0)[0:u32] *% v[i][0:u32])
+    (((
+      data(I0)[1:u32]
+        *% (
+          [
+            [1:u32, 2:u32, 1:u32],
+            [2:u32, 4:u32, 2:u32],
+            [1:u32, 2:u32, 1:u32]
+          ][i][1:u32]))
+      +% (
+        data(I0)[2:u32]
+          *% (
+            [
+              [1:u32, 2:u32, 1:u32],
+              [2:u32, 4:u32, 2:u32],
+              [1:u32, 2:u32, 1:u32]
+            ][i][2:u32])))
+      +% (
+        data(I0)[0:u32]
+          *% (
+            [
+              [1:u32, 2:u32, 1:u32],
+              [2:u32, 4:u32, 2:u32],
+              [1:u32, 2:u32, 1:u32]
+            ][i][0:u32])))
       +% ((acc[1:u32] +% acc[2:u32]) +% acc[0:u32])
       >> 4:u3;
     t == 2:u2;
@@ -140,35 +210,37 @@
                     (s_f : Stm[Vec[u32, 1:u1], -1:i1]) = (
                       sbuild(
                         6220800:u23;
-                        vbuild(1:u1, (i_4937 : u32) => x_data[0:u32][i]);
-                        !is_first_step;
+                        vbuild(
+                          1:u1,
+                          (i_5152 : u32) =>
+                            if (is_first_step) then {
+                              data(x_stm)[0:u32][0:u32]
+                            } else {
+                              x_data[0:u32][i]
+                            }
+                        );
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
@@ -178,10 +250,7 @@
                             1:u1,
                             (i : u32) => vbuild(3:u2, (j : u32) => 0:u32)
                           ),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(
                               1:u1,
                               (i : u32) =>
@@ -253,14 +322,70 @@
                                       true
                                     );
                                     (I1 : Stm[u32, -1:i1]) = (
-                                      n26,
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          n26,
+                                          true
+                                        );
+                                      ),
                                       true
                                     );
                                   ),
                                   true
                                 );
                                 (I1 : Stm[u32, -1:i1]) = (
-                                  n2,
+                                  sbuild(
+                                    2073600:u21;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u32, -1:i1]) = (
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          sbuild(
+                                            2073600:u21;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u32, -1:i1]) = (
+                                              sbuild(
+                                                2073600:u21;
+                                                data(s);
+                                                true;
+                                                (s : Stm[u32, -1:i1]) = (
+                                                  sbuild(
+                                                    2073600:u21;
+                                                    data(s);
+                                                    true;
+                                                    (s : Stm[u32, -1:i1]) = (
+                                                      sbuild(
+                                                        2073600:u21;
+                                                        data(s);
+                                                        true;
+                                                        (s : Stm[u32, -1:i1]) = (
+                                                          n2,
+                                                          true
+                                                        );
+                                                      ),
+                                                      true
+                                                    );
+                                                  ),
+                                                  true
+                                                );
+                                              ),
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
@@ -275,35 +400,37 @@
                     (s_t : Stm[Vec[u32, 1:u1], -1:i1]) = (
                       sbuild(
                         6220800:u23;
-                        vbuild(1:u1, (i_4926 : u32) => x_data[0:u32][i]);
-                        !is_first_step;
+                        vbuild(
+                          1:u1,
+                          (i_5141 : u32) =>
+                            if (is_first_step) then {
+                              data(x_stm)[0:u32][0:u32]
+                            } else {
+                              x_data[0:u32][i]
+                            }
+                        );
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
@@ -313,10 +440,7 @@
                             1:u1,
                             (i : u32) => vbuild(3:u2, (j : u32) => 0:u32)
                           ),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(
                               1:u1,
                               (i : u32) =>
@@ -388,14 +512,54 @@
                                       true
                                     );
                                     (I1 : Stm[u32, -1:i1]) = (
-                                      n4,
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          n4,
+                                          true
+                                        );
+                                      ),
                                       true
                                     );
                                   ),
                                   true
                                 );
                                 (I1 : Stm[u32, -1:i1]) = (
-                                  n3,
+                                  sbuild(
+                                    2073600:u21;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u32, -1:i1]) = (
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          sbuild(
+                                            2073600:u21;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u32, -1:i1]) = (
+                                              sbuild(
+                                                2073600:u21;
+                                                data(s);
+                                                true;
+                                                (s : Stm[u32, -1:i1]) = (
+                                                  n3,
+                                                  true
+                                                );
+                                              ),
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
@@ -422,35 +586,37 @@
                     (s : Stm[Vec[u32, 1:u1], -1:i1]) = (
                       sbuild(
                         6220800:u23;
-                        vbuild(1:u1, (i_4950 : u32) => x_data[0:u32][i]);
-                        !is_first_step;
+                        vbuild(
+                          1:u1,
+                          (i_5165 : u32) =>
+                            if (is_first_step) then {
+                              data(x_stm)[0:u32][0:u32]
+                            } else {
+                              x_data[0:u32][i]
+                            }
+                        );
+                        true;
                         (i : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
-                            0:u32
-                          } else if (is_first_step) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
                           } else {
-                            1:u32 + i
+                            1:u32
+                              + (if (is_first_step) then {
+                                0:u32
+                              } else {
+                                i
+                              })
                           }
                         );
                         (is_first_step : bool) = (
                           true,
-                          !is_first_step && out_ctr == 2:u32
-                            || out_ctr == 3:u32 && is_first_step
+                          out_ctr == 2:u32
                         );
                         (out_ctr : u32) = (
                           0:u32,
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             0:u32
-                          } else if (is_first_step) then {
-                            out_ctr
                           } else {
                             1:u32 + out_ctr
                           }
@@ -460,10 +626,7 @@
                             1:u1,
                             (i : u32) => vbuild(3:u2, (j : u32) => 0:u32)
                           ),
-                          if (
-                            !is_first_step && out_ctr == 2:u32
-                              || out_ctr == 3:u32 && is_first_step
-                          ) then {
+                          if (out_ctr == 2:u32) then {
                             vbuild(
                               1:u1,
                               (i : u32) =>
@@ -535,14 +698,90 @@
                                       true
                                     );
                                     (I1 : Stm[u32, -1:i1]) = (
-                                      n55,
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          n55,
+                                          true
+                                        );
+                                      ),
                                       true
                                     );
                                   ),
                                   true
                                 );
                                 (I1 : Stm[u32, -1:i1]) = (
-                                  n1,
+                                  sbuild(
+                                    2073600:u21;
+                                    data(s);
+                                    true;
+                                    (s : Stm[u32, -1:i1]) = (
+                                      sbuild(
+                                        2073600:u21;
+                                        data(s);
+                                        true;
+                                        (s : Stm[u32, -1:i1]) = (
+                                          sbuild(
+                                            2073600:u21;
+                                            data(s);
+                                            true;
+                                            (s : Stm[u32, -1:i1]) = (
+                                              sbuild(
+                                                2073600:u21;
+                                                data(s);
+                                                true;
+                                                (s : Stm[u32, -1:i1]) = (
+                                                  sbuild(
+                                                    2073600:u21;
+                                                    data(s);
+                                                    true;
+                                                    (s : Stm[u32, -1:i1]) = (
+                                                      sbuild(
+                                                        2073600:u21;
+                                                        data(s);
+                                                        true;
+                                                        (s : Stm[u32, -1:i1]) = (
+                                                          sbuild(
+                                                            2073600:u21;
+                                                            data(
+                                                              s
+                                                            );
+                                                            true;
+                                                            (s : Stm[u32, -1:i1]) = (
+                                                              sbuild(
+                                                                2073600:u21;
+                                                                data(
+                                                                  s
+                                                                );
+                                                                true;
+                                                                (s : Stm[u32, -1:i1]) = (
+                                                                  n1,
+                                                                  true
+                                                                );
+                                                              ),
+                                                              true
+                                                            );
+                                                          ),
+                                                          true
+                                                        );
+                                                      ),
+                                                      true
+                                                    );
+                                                  ),
+                                                  true
+                                                );
+                                              ),
+                                              true
+                                            );
+                                          ),
+                                          true
+                                        );
+                                      ),
+                                      true
+                                    );
+                                  ),
                                   true
                                 );
                               ),
@@ -587,11 +826,25 @@
       } else {
         vbuild(
           3:u2,
-          (i_4920 : u32) =>
+          (i_5135 : u32) =>
             if (first_step) then {
-              data(I0)[i_4920] *% v[i][i_4920]
+              data(I0)[i_5135]
+                *% (
+                  [
+                    [1:u32, 2:u32, 1:u32],
+                    [2:u32, 4:u32, 2:u32],
+                    [1:u32, 2:u32, 1:u32]
+                  ][i][i_5135])
             } else {
-              data(I0)[i_4920] *% v[i][i_4920] +% acc[i_4920]
+              (
+                data(I0)[i_5135]
+                  *% (
+                    [
+                      [1:u32, 2:u32, 1:u32],
+                      [2:u32, 4:u32, 2:u32],
+                      [1:u32, 2:u32, 1:u32]
+                    ][i][i_5135]))
+                +% acc[i_5135]
             }
         )
       }
@@ -634,17 +887,6 @@
         0:u2
       } else {
         1:u2 + t
-      }
-    );
-    (v : Vec[Vec[u32, 3:u2], 3:u2]) = (
-      [[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]],
-      if (
-        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
-          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        [[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]]
-      } else {
-        v
       }
     );
   )
