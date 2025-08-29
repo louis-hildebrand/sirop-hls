@@ -213,13 +213,13 @@ class StreamTests extends AnyFunSuite {
       StmCount(IntCst(3)(U8))(),
       Missing ::+ (n => StmRange(4, n, IntCst(1)(U8))())
     )().tchk()
-    val expected = StmLiteral.ints(
+    val expected = StmLiteral(
       Seq(
         Seq(0, 1, 2, 3),
         Seq(1, 2, 3, 4),
         Seq(2, 3, 4, 5)
-      ).flatten: _*
-    )
+      ).flatten.map(C(_)(U8)): _*
+    )().tchk()
     assert(mhir.ir.eval(s) == expected)
   }
 

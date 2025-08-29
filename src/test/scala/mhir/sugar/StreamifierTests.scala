@@ -222,7 +222,7 @@ class StreamifierTests extends AnyFunSuite {
           // for the optimizer to remove it and it would make the streamifier
           // code, which is already quite long, a little bit more complex
           Mux(isFirstStep, StmData(cStm)(), cBuf)(),
-          True && !isFirstStep,
+          True,
           Map[Param, (Expr, Expr)](
             isFirstStep -> (True, False),
             cBuf -> (Default(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)()),
@@ -252,6 +252,64 @@ class StreamifierTests extends AnyFunSuite {
     assert(actual == expected)
 
     VhdlGenerator.validateExpr(actual)
+  }
+
+  test("ReadyDependsDirectlyOnInput") {
+    val even = Param("even")(TyBool)
+    val n = 5
+    val s = Param("s")(TyStm(U8, n))
+    val b = Param("b")(TyBool)
+    val originalStm = StmBuild(
+      2 * n,
+      Mux(even === b, StmData(s)(), C(42)(U8))(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), even === b),
+        b -> (True, !b)
+      )
+    )()
+    val originalFunc = Function(even, originalStm)().tchk().lower()
+    val streamifiedFunc = originalFunc.streamify()
+
+    val expectedF = mhir.ir.eval(originalFunc(False))
+    val actualF =
+      mhir.ir.eval(streamifiedFunc(StmCst(1, False)().tchk().lower()))
+    assert(actualF == expectedF)
+
+    val expectedT = mhir.ir.eval(originalFunc(True))
+    val actualT =
+      mhir.ir.eval(streamifiedFunc(StmCst(1, True)().tchk().lower()))
+    assert(actualT == expectedT)
+  }
+
+  test("ReadyDependsIndirectlyOnInput") {
+    val even = Param("even")(TyBool)
+    val evenAcc = Param("even_reg")(TyBool)
+    val n = 5
+    val s = Param("s")(TyStm(U8, n))
+    val b = Param("b")(TyBool)
+    val originalStm = StmBuild(
+      2 * n,
+      Mux(evenAcc === b, StmData(s)(), C(42)(U8))(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), evenAcc === b),
+        b -> (True, !b),
+        evenAcc -> (even, evenAcc)
+      )
+    )()
+    val originalFunc = Function(even, originalStm)().tchk().lower()
+    val streamifiedFunc = originalFunc.streamify()
+
+    val expectedF = mhir.ir.eval(originalFunc(False))
+    val actualF =
+      mhir.ir.eval(streamifiedFunc(StmCst(1, False)().tchk().lower()))
+    assert(actualF == expectedF)
+
+    val expectedT = mhir.ir.eval(originalFunc(True))
+    val actualT =
+      mhir.ir.eval(streamifiedFunc(StmCst(1, True)().tchk().lower()))
+    assert(actualT == expectedT)
   }
 
   test("u8 -> Stm[i16, 10] -> Stm[(u8, i16), 10]") {
