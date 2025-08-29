@@ -19,19 +19,9 @@ object StmAccRemovalPass {
   def removeConstantVars(stm: StmBuild): StmBuild = {
     val constantVars = findConstantAccumulatorElems(
       stm,
-      // Only remove accumulator elements for which we can definitely perform
-      // constant propagation. Replacing all uses with the initial value
-      // probably wouldn't work if the element is a stream, for example.
-      candidates = stm.seedByVar
-        .filter({ case (_, z) =>
-          z match {
-            case _: IntCst | True | False => true
-            case Tuple()                  => true
-            case _                        => false
-          }
-        })
-        .map({ case (x, _) => x })
-        .toSet
+      // Replacing all uses with the initial value probably wouldn't work if
+      // the element is a stream
+      candidates = stm.accVars.filter(_.typ.isData)
     )
     val replacements = stm.seedByVar
       .filter({ case (x, _) => constantVars.contains(x) })
