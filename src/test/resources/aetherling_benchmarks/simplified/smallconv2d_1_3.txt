@@ -140,7 +140,7 @@
                     (s_f : Stm[Vec[u8, 1:u1], -1:i1]) = (
                       sbuild(
                         48:u7;
-                        vbuild(1:u1, (i_54224 : u32) => x_data[0:u32][i]);
+                        vbuild(1:u1, (i_4949 : u32) => x_data[0:u32][i]);
                         !is_first_step;
                         (i : u32) = (
                           0:u32,
@@ -274,7 +274,7 @@
                     (s_t : Stm[Vec[u8, 1:u1], -1:i1]) = (
                       sbuild(
                         48:u7;
-                        vbuild(1:u1, (i_54213 : u32) => x_data[0:u32][i]);
+                        vbuild(1:u1, (i_4938 : u32) => x_data[0:u32][i]);
                         !is_first_step;
                         (i : u32) = (
                           0:u32,
@@ -420,7 +420,7 @@
                     (s : Stm[Vec[u8, 1:u1], -1:i1]) = (
                       sbuild(
                         48:u7;
-                        vbuild(1:u1, (i_54237 : u32) => x_data[0:u32][i]);
+                        vbuild(1:u1, (i_4962 : u32) => x_data[0:u32][i]);
                         !is_first_step;
                         (i : u32) = (
                           0:u32,
@@ -584,11 +584,11 @@
       } else {
         vbuild(
           3:u2,
-          (i_54207 : u32) =>
+          (i_4932 : u32) =>
             if (first_step) then {
-              data(I0)[i_54207] << v[i][i_54207]
+              data(I0)[i_4932] << v[i][i_4932]
             } else {
-              (data(I0)[i_54207] << v[i][i_54207]) +% acc[i_54207]
+              (data(I0)[i_4932] << v[i][i_4932]) +% acc[i_4932]
             }
         )
       }
