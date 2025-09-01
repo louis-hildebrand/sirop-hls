@@ -52,7 +52,7 @@ sum,1/105,vhdl,108,True
 conv1d,2,verilog,16,True
 conv1d,2,vhdl,17,True
 conv1d,1/3,verilog,57,True
-conv1d,1/3,vhdl,56,True
+conv1d,1/3,vhdl,57,True
 conv1d,1,verilog,24,True
 conv1d,1,vhdl,24,True
 conv1d,4,verilog,12,True
@@ -62,9 +62,9 @@ conv1d,8,vhdl,11,True
 conv1d,16,verilog,9,True
 conv1d,16,vhdl,2,True
 smallconv2d,1/9,verilog,153,True
-smallconv2d,1/9,vhdl,160,True
+smallconv2d,1/9,vhdl,165,True
 smallconv2d,1/3,verilog,58,True
-smallconv2d,1/3,vhdl,65,True
+smallconv2d,1/3,vhdl,71,True
 smallconv2d,1,verilog,25,True
 smallconv2d,1,vhdl,38,True
 smallconv2d,2,verilog,15,True
@@ -76,9 +76,9 @@ smallconv2d,8,vhdl,21,True
 smallconv2d,16,verilog,8,True
 smallconv2d,16,vhdl,2,True
 smallconvb2b,1/9,verilog,163,False
-smallconvb2b,1/9,vhdl,172,True
+smallconvb2b,1/9,vhdl,182,True
 smallconvb2b,1/3,verilog,66,True
-smallconvb2b,1/3,vhdl,106,True
+smallconvb2b,1/3,vhdl,118,True
 smallconvb2b,1,verilog,31,True
 smallconvb2b,1,vhdl,54,True
 smallconvb2b,2,verilog,19,True
@@ -90,9 +90,9 @@ smallconvb2b,8,vhdl,34,True
 smallconvb2b,16,vhdl,2,True
 smallconvb2b,16,verilog,12,True
 smallsharpen,1/9,verilog,153,True
-smallsharpen,1/9,vhdl,386,True
+smallsharpen,1/9,vhdl,466,True
 smallsharpen,1/3,verilog,58,True
-smallsharpen,1/3,vhdl,306,True
+smallsharpen,1/3,vhdl,402,True
 smallsharpen,1,verilog,25,True
 smallsharpen,1,vhdl,39,True
 smallsharpen,2,verilog,15,True
