@@ -115,7 +115,83 @@ object LetStmMover {
         e.map(moveUp)
     }
     val typedResult = result.tchk()
-    assert(typedResult.typ == e.typ, "moving LetStm up should preserve type")
+    assert(typedResult.typ ~= e.typ, "moving LetStm up should preserve type")
     typedResult
+  }
+
+  /** Move [[mhir.ir.LetStm]] down towards the leaves of the AST if possible.
+    *
+    * For example, we want to turn an expression like this:
+    * {{{
+    *   let stm s = ... in
+    *   StmMap(StmZip(s, s), x => x + 5)
+    * }}}
+    * into an expression like this:
+    * {{{
+    *   StmMap(
+    *     let stm s = ... in StmZip(s, s),
+    *     x => x + 5
+    *   )
+    * }}}
+    *
+    * @param e
+    *   the expression to transform.
+    */
+  def moveDown(e: Expr): Expr = {
+    require(
+      e.hasType,
+      "Expression must be type checked before moving LetStm down."
+        + s" (Found expression $e)"
+    )
+    require(
+      !e.contains(classOf[SyntaxSugar]),
+      "Syntax sugar must be removed before moving LetStm down."
+        + s" (Found expression $e)"
+      // ... otherwise, how would we know when it is legal to move the LetStm
+      // down?
+    )
+    def move(e: Expr): Expr = {
+      e match {
+        case LetStm(x, in, out) =>
+          def pullOutStmBuild(let: LetStm): Expr = {
+            let.out match {
+              case s: StmBuild =>
+                val count = s.seedByVar.count({ case (y, z) =>
+                  y.typ.isInstanceOf[TyStm] && z.freeVars().contains(x)
+                })
+                if (count == 1) {
+                  StmBuild(
+                    s.n,
+                    s.data,
+                    s.valid,
+                    s.equations.map({
+                      case (y, (z, ready))
+                          if y.typ.isInstanceOf[TyStm]
+                            && z.freeVars().contains(x) =>
+                        y -> (
+                          pullOutStmBuild(LetStm(let.x, let.in, z)()),
+                          ready
+                        )
+                      case eqn => eqn
+                    })
+                  )()
+                } else {
+                  let
+                }
+              case _ => let
+            }
+          }
+          val withTransformedChildren = LetStm(x, move(in), move(out))()
+          pullOutStmBuild(withTransformedChildren)
+        case e => e.map(move)
+      }
+    }
+    val result = move(e)
+    val checkedResult = result.tchk()
+    assert(
+      checkedResult.typ ~= e.typ,
+      "moving LetStm down should preserve type"
+    )
+    checkedResult
   }
 }

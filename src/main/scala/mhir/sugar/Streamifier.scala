@@ -180,19 +180,26 @@ object Streamifier {
     if (oldInputs.isEmpty) {
       withStreamifiedProducers
     } else {
-      // scalar -> stream (e.g., c => StmCst(n, c), c => StmCountFrom(n, c))
-      // The scalar input to the original function (`f.param`) can appear in
-      // the seed of the stream (as in StmCountFrom), in the `nextF` (as in
-      // StmCst), or even both (if you have something weird like a
-      // StmBuild that constructs StmCountFrom(n, c) and StmCst(n, c) but
-      // zipped together).
-      //
+      // There are some inputs which are not streams but are used in this
+      // StmBuild.
+      // The data input can be used in the seeds of accumulators, in the `next`
+      // expressions for accumulators, in the `data` expression, or in the
+      // `valid` expression.
+      // The input may need to be read across multiple cycles (e.g., consider
+      // something like StmMap(s, x => StmCst(5, x)) ).
       // Replace each such input with a stream.
-      // In the first cycle, halt everything else, read from that new input
-      // stream and save the value into a register.
-      // Also use the default value for the seeds of the existing accumulators
-      // and initialize them in the first step, since the seed may depend on
-      // the input.
+      // In the first step:
+      //   * Read from that new input stream and save the value
+      //     into a register.
+      //   * Uses of the data input must be replaced by reading from the input
+      //     stream.
+      //   * Suppose an accumulator's seed depends on the data input.
+      //     Wherever that accumulator is used in the first step, you must
+      //     instead put the accumulator's seed, but with the use of the data
+      //     input replaced by reading from the stream.
+      // In later steps:
+      //   * Uses of the data input must be replaced by reading from the
+      //     register.
 
       // For each input that is data rather than a stream, define:
       // (1) new input param whose type is a stream rather than data
@@ -212,49 +219,110 @@ object Streamifier {
         (a.toMap, b.toMap)
       }
 
-      val isFirstStep = Param("is_first_step")(TyBool)
-      val subs = oldInputs
-        .map(x => {
-          assert(x.typ.isData)
-          val mux = Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
-          x -> mux.tchk()
+      // Generally, we want to avoid introducing unnecessary latency.
+      // Therefore, in the first cycle, we still continue as usual, except that
+      // in some places you'll need to read from a new stream.
+      // However, the `ready` expression for input streams cannot depend on
+      // StmData!
+      // Therefore, if any `ready` expression depends (directly or indirectly)
+      // on a data input, we must halt everything on the first step so that the
+      // data input can be loaded into a register.
+      // This introduces one extra cycle of latency, which can be problematic if
+      // the expression being streamified is used inside something like StmMap:
+      // the extra latency will apply *for each iteration*.
+      val haltOnFirstStep = {
+        val forbiddenVars =
+          oldInputs ++ withStreamifiedProducers.seedByVar
+            .filter({ case (_, z) => z.freeVars.intersect(oldInputs).nonEmpty })
+            .map({ case (x, _) => x })
+        val halt = withStreamifiedProducers.nextByVar.exists({
+          case (x, ready) if x.typ.isInstanceOf[TyStm] =>
+            ready.freeVars().intersect(forbiddenVars).nonEmpty
+          case _ => false
         })
-        .toMap[Expr, Expr]
+        if (halt) {
+          logger.warn(
+            "streamification must introduce extra latency"
+              + " because the `ready` expression for an input stream depends (directly or indirectly) on a data input"
+          )
+        }
+        halt
+      }
+      val isFirstStep = Param("is_first_step")(TyBool)
+      val subs = {
+        val oldInputSubs = oldInputs
+          .map(x => {
+            assert(x.typ.isData)
+            val mux = Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
+            x -> mux.tchk()
+          })
+          .toMap[Expr, Expr]
+        val oldAccSubs = if (haltOnFirstStep) {
+          Map()
+        } else {
+          withStreamifiedProducers.seedByVar
+            .flatMap({
+              case (x, z) if x.typ.isData =>
+                // TODO: Only do this if the seed actually depends on at least
+                //       one input?
+                val mux = Mux(isFirstStep, z.subPreserveType(oldInputSubs), x)()
+                Some(x -> mux.tchk())
+              case _ => None
+            })
+        }
+        oldInputSubs ++ oldAccSubs
+      }
       val newData = withStreamifiedProducers.data.subPreserveType(subs)
-      val newValid =
-        !isFirstStep && withStreamifiedProducers.valid.subPreserveType(subs)
+      val newValid = if (haltOnFirstStep) {
+        withStreamifiedProducers.valid.subPreserveType(subs) && !isFirstStep
+      } else {
+        withStreamifiedProducers.valid.subPreserveType(subs)
+      }
       val newEquations = {
         val equationsToAdd = (oldInputs
           .flatMap(x => {
             assert(x.typ.isData)
+            val stmData = StmData(newStmAcc(x))()
             Seq(
               newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
               newRegAcc(x) -> (
                 Default(x.typ).tchk().lower(),
-                Mux(
-                  isFirstStep,
-                  StmData(newStmAcc(x))(),
-                  newRegAcc(x)
-                )()
+                Mux(isFirstStep, stmData, newRegAcc(x))()
               )
             )
           })
           .toMap
           + (isFirstStep -> (True, False)))
         val updatedOldEquations =
-          withStreamifiedProducers.equations.map({ case (x, (z, next)) =>
-            // TODO: Only make the seed default[T] if it actually depends on at
-            //       least one input?
-            if (x.typ.isData) {
-              val newNext = Mux(
-                isFirstStep,
-                z.subPreserveType(subs),
+          withStreamifiedProducers.equations.map({
+            case (x, (z, next)) if x.typ.isData =>
+              // TODO: Only make the seed default[T] if it actually depends on at
+              //       least one input?
+              val newSeed = Default(x.typ).lower()
+              val newNext = if (haltOnFirstStep) {
+                Mux(
+                  isFirstStep,
+                  z.subPreserveType(subs),
+                  next.subPreserveType(subs)
+                )()
+              } else {
                 next.subPreserveType(subs)
-              )()
-              x -> (Default(x.typ).tchk().lower(), newNext)
-            } else {
-              x -> (z, Mux(isFirstStep, False, next.subPreserveType(subs))())
-            }
+              }
+              x -> (newSeed, newNext)
+            case (x, (z, ready)) =>
+              val newReady = if (haltOnFirstStep) {
+                val subsFromRegisters = oldInputs
+                  .map(x => x -> newRegAcc(x))
+                  .toMap[Expr, Expr]
+                ready.subPreserveType(subsFromRegisters) && !isFirstStep
+              } else {
+                ready.subPreserveType(subs)
+              }
+              assert(
+                !newReady.contains(classOf[StmData]),
+                "the ready signal cannot use StmData"
+              )
+              x -> (z, newReady)
           })
         updatedOldEquations ++ equationsToAdd
       }

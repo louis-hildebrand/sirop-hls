@@ -17,50 +17,32 @@
   ) in
   sbuild(
     16:u5;
-    data(I0) *% v[i] +% acc;
+    data(I0) *% [-1:i8, 0:i8, 1:i8][i] +% acc;
     t == 2:u2;
     (I0 : Stm[i8, -1:i1]) = (
       sbuild(
         48:u8;
-        x_data[i];
-        !is_first_step;
+        if (is_first_step) then { data(x_stm)[0:u32] } else { x_data[i] };
+        true;
         (i : u32) = (
           0:u32,
-          if (
-            !is_first_step && out_ctr == 2:u32
-              || out_ctr == 3:u32 && is_first_step
-          ) then {
-            0:u32
-          } else if (is_first_step) then {
+          if (out_ctr == 2:u32) then {
             0:u32
           } else {
-            1:u32 + i
+            1:u32 + (if (is_first_step) then { 0:u32 } else { i })
           }
         );
         (is_first_step : bool) = (
           true,
-          !is_first_step && out_ctr == 2:u32
-            || out_ctr == 3:u32 && is_first_step
+          out_ctr == 2:u32
         );
         (out_ctr : u32) = (
           0:u32,
-          if (
-            !is_first_step && out_ctr == 2:u32
-              || out_ctr == 3:u32 && is_first_step
-          ) then {
-            0:u32
-          } else if (is_first_step) then {
-            out_ctr
-          } else {
-            1:u32 + out_ctr
-          }
+          if (out_ctr == 2:u32) then { 0:u32 } else { 1:u32 + out_ctr }
         );
         (x_data : Vec[i8, 3:u3]) = (
           vbuild(3:u3, (i : u32) => 0:i8),
-          if (
-            !is_first_step && out_ctr == 2:u32
-              || out_ctr == 3:u32 && is_first_step
-          ) then {
+          if (out_ctr == 2:u32) then {
             vbuild(3:u3, (i : u32) => 0:i8)
           } else if (is_first_step) then {
             data(x_stm)
@@ -103,14 +85,54 @@
                   true
                 );
                 (I1 : Stm[i8, -1:i1]) = (
-                  n2,
+                  sbuild(
+                    16:u5;
+                    data(s);
+                    true;
+                    (s : Stm[i8, -1:i1]) = (
+                      n2,
+                      true
+                    );
+                  ),
                   true
                 );
               ),
               true
             );
             (I1 : Stm[i8, -1:i1]) = (
-              n1,
+              sbuild(
+                16:u5;
+                data(s);
+                true;
+                (s : Stm[i8, -1:i1]) = (
+                  sbuild(
+                    16:u5;
+                    data(s);
+                    true;
+                    (s : Stm[i8, -1:i1]) = (
+                      sbuild(
+                        16:u5;
+                        data(s);
+                        true;
+                        (s : Stm[i8, -1:i1]) = (
+                          sbuild(
+                            16:u5;
+                            data(s);
+                            true;
+                            (s : Stm[i8, -1:i1]) = (
+                              n1,
+                              true
+                            );
+                          ),
+                          true
+                        );
+                      ),
+                      true
+                    );
+                  ),
+                  true
+                );
+              ),
               true
             );
           ),
@@ -138,9 +160,9 @@
       ) then {
         0:i8
       } else if (first_step) then {
-        data(I0) *% v[i]
+        data(I0) *% [-1:i8, 0:i8, 1:i8][i]
       } else {
-        data(I0) *% v[i] +% acc
+        data(I0) *% [-1:i8, 0:i8, 1:i8][i] +% acc
       }
     );
     (first_step : bool) = (
@@ -181,17 +203,6 @@
         0:u2
       } else {
         1:u2 + t
-      }
-    );
-    (v : Vec[i8, 3:u2]) = (
-      [-1:i8, 0:i8, 1:i8],
-      if (
-        t != 2:u2 && I_ctr == 2:u32 && out_ctr == 1:u32
-          || I_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        [-1:i8, 0:i8, 1:i8]
-      } else {
-        v
       }
     );
   )
