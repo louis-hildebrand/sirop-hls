@@ -906,12 +906,7 @@ class StreamTests extends AnyFunSuite {
           StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)()))()
         )
       )).tchk().lower()
-    val a = StmMap(
-      StmCount2D(C(n)(U8), C(m)(U8))(),
-      TyStm((U8, U8), m) ::+ (s =>
-        StmMap(s, (U8, U8) ::+ (x => x.__0 + 2 * x.__1))()
-      )
-    )().tchk().lower()
+    val a = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower()
     val b = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower()
     val expected = {
       val aVals = (0 until n).map(i => (0 until m).map(j => i + 2 * j))
@@ -945,15 +940,18 @@ class StreamTests extends AnyFunSuite {
       b -> StmCount2D(C(m)(U8), C(k)(U8))().tchk().lower()
     )
     val expected = {
-      val aVals = (0 until n).map(i => (0 until k).map(j => Tuple(i, j)()))
-      val bVals = (0 until m).map(i => (0 until k).map(j => Tuple(i, j)()))
+      val aVals =
+        (0 until n).map(i => (0 until k).map(j => Tuple(C(i)(U8), C(j)(U8))()))
+      val bVals =
+        (0 until m).map(i => (0 until k).map(j => Tuple(C(i)(U8), C(j)(U8))()))
       val expectedVals = aVals.map(rowA => bVals.map(rowB => rowA.zip(rowB)))
       StmLiteral(
         expectedVals.flatten.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
-      )()
+      )().tchk()
     }
-    val actual = mhir.ir.eval(map.subPreserveType(subs))
-    assert(actual == expected)
+    val actual = map.subPreserveType(subs)
+    val actualVal = mhir.ir.eval(actual)
+    assert(actualVal == expected)
   }
 
   test("StmMap2:Prod") {
