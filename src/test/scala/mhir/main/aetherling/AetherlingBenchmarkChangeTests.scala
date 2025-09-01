@@ -54,10 +54,6 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     val tags = if (isSlow) Seq(Slow) else Seq()
 
     test(benchName, tags: _*) {
-      if (benchName == "bigcamera_1" || benchName == "bigcamera_1_4") {
-        // Way too slow
-        ???
-      }
       mhir.ir.reset()
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
