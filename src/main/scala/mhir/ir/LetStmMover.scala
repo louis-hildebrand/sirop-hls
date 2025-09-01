@@ -138,9 +138,6 @@ object LetStmMover {
     *   the expression to transform.
     */
   def moveDown(e: Expr): Expr = {
-    // TODO: Test this method
-    //       (1) Single map
-    //       (2) Two maps
     require(
       e.hasType,
       "Expression must be type checked before moving LetStm down."
