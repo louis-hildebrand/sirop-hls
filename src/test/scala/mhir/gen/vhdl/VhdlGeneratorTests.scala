@@ -680,7 +680,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 50
     val m = 3
     val s = Param("s")(TyStm(TyTuple(U8, I8, TyBool), n))
-    val slide = StmSlideS(s, m = m)().tchk().lower().asInstanceOf[StmBuild]
+    val slide = StmSlideS(s, m = m)().tchk().lower()
 
     val inputs = Seq(
       DirectTestInput(
@@ -697,7 +697,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f0 = Function(s, slide)().tchk().lower()
     assert(VhdlTestRunner.testExpr(f0, inputs) == TestPassed)
 
-    val optimized = StmSimplifier.simplify(slide)().tchk().lower()
+    val optimized = SafeSimplifier.simplify(slide).tchk().lower()
     val f1 = Function(s, optimized)().tchk()
     assert(VhdlTestRunner.testExpr(f1, inputs) == TestPassed)
   }
