@@ -22,13 +22,16 @@ OUR_MARKER = "o"
 OUR_MARKER_SIZE = 3
 
 
-def axis_scale(bench_name: str) -> str:
+def benchmark_title(bench_name: str) -> str | None:
     """
-    Decide whether the given benchmark should be plotted with a log scale or linear scale.
+    Return the title to put at the top of the column for the given benchmark, or `None` if the
+    results for this benchmark should be omitted.
     """
-    if bench_name in {"sum", "dot"}:
-        return "linear"
-    return "log"
+    if bench_name.startswith("small"):
+        return None
+    if bench_name.startswith("big"):
+        bench_name = bench_name[len("big"):]
+    return bench_name
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -44,12 +47,23 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     """
     benchmark_names = dedup([res.bench.name for res in results.keys()])
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
+    benchmark_names_to_plot = [b for b in benchmark_names if benchmark_title(b) is not None]
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=3, ncols=len(benchmark_names), squeeze=False, figsize=(16, 5))
+    fig, axes = plt.subplots(
+        nrows=3, ncols=len(benchmark_names_to_plot),
+        squeeze=False,
+        figsize=(8, 4),
+        layout="compressed",
+        sharey="row",
+        sharex="col",
+    )
     verilog_artist = None
     vhdl_artist = None
-    for col, bench_name in enumerate(benchmark_names):
+    for col, bench_name in enumerate(benchmark_names_to_plot):
+        title = benchmark_title(bench_name)
+        if title is None:
+            continue
         verilog_benchmarks = [
             b
             for b in results.keys()
@@ -68,8 +82,8 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        xscale = axis_scale(bench_name)
-        yscale = xscale
+        # xscale = axis_scale(bench_name)
+        # yscale = xscale
         # Plot ALM usage
         alm_ax = axes[0][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
@@ -86,9 +100,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
             label=OUR_LABEL,
         )
-        if xscale == "log":
-            alm_ax.set_xscale("log", base=2)
-        alm_ax.set_yscale(yscale)
         # Plot BRAM usage
         bram_ax = axes[1][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
@@ -105,13 +116,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
             label=OUR_LABEL,
         )
-        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
-        if all_zero:
-            bram_ax.set_ylim(-1, 1)
-        if xscale == "log":
-            bram_ax.set_xscale("log", base=2)
-        if not all_zero:
-            bram_ax.set_yscale(yscale)
         # Plot DSP usage
         dsp_ax = axes[2][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
@@ -128,32 +132,25 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
             label=OUR_LABEL,
         )
-        all_zero = all(y == 0 for y in verilog_ys) and all(y == 0 for y in vhdl_ys)
-        if all_zero:
-            dsp_ax.set_ylim(-1, 1)
-        if xscale == "log":
-            dsp_ax.set_xscale("log", base=2)
-        if not all_zero:
-            dsp_ax.set_yscale(yscale)
         # Settings for the whole column
-        alm_ax.set_title(bench_name)
-        dsp_ax.set_xlabel("Target throughput")
-        alm_ax.set_xticks([])
-        bram_ax.set_xticks([])
-        dsp_ax.tick_params(axis="x", rotation=30)
+        alm_ax.set_title(title)
+        alm_ax.set_xscale("log", base=2)
     # Settings for entire rows
     axes[0][0].set_ylabel("ALMs")
+    axes[0][0].set_yscale("log")
     axes[1][0].set_ylabel("BRAMs")
+    axes[1][0].set_yscale("log")
     axes[2][0].set_ylabel("DSPs")
+    axes[2][0].set_yscale("log")
+    fig.supxlabel("Target throughput")
     if verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
         [vhdl_artist, verilog_artist],
         [OUR_LABEL, AETHERLING_LABEL],
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.1)
+        bbox_to_anchor=(0.5, -0.15)
     )
-    fig.tight_layout()
     fig.savefig(c.RESOURCE_USAGE_PDF, bbox_inches="tight")
 
 
