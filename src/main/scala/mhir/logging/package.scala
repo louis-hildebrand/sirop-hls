@@ -20,7 +20,7 @@ package object logging {
     * @return
     *   the value produced by the operation.
     */
-  def time[T](name: String, level: Level = Level.INFO)(
+  def time[T](name: String, level: Level = Level.TRACE)(
       op: => T
   )(implicit logger: Logger): T = {
     val start = System.nanoTime()

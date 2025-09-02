@@ -43,7 +43,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    time(s"lowering $className (${this.x})", Level.TRACE) {
+    time(s"lowering $className (${this.x})") {
       requireType()
       val x = this.x.lower().asInstanceOf[Param]
       val v = this.v.lower()

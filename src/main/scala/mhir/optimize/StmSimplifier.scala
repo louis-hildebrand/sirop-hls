@@ -26,7 +26,7 @@ object StmSimplifier {
     */
   def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
-    time("simplifying stream", Level.TRACE) {
+    time("simplifying stream") {
       simplifyUntilFixpoint(tl(stm), i = 0)(facts)
     }
   }
@@ -35,8 +35,8 @@ object StmSimplifier {
   private def simplifyUntilFixpoint(s: StmBuild, i: Int)(
       facts: FactSet
   ): StmBuild = {
-    val simplified = time(s"iteration $i stream simplification", Level.TRACE) {
-      val s1 = time("partially evaluating stream", Level.TRACE) {
+    val simplified = time(s"iteration $i stream simplification") {
+      val s1 = time("partially evaluating stream") {
         implicit val fct: FactSet = facts
         val peStm = StmBuild(
           PE.partialEval(s.n),
@@ -56,25 +56,22 @@ object StmSimplifier {
         )()
         tl(peStm)
       }
-      val s2 = time("removing unused accumulators", Level.TRACE) {
+      val s2 = time("removing unused accumulators") {
         tl(StmAccRemovalPass.removeUnusedVars(s1))
       }
-      val s3 = time("removing constant accumulators", Level.TRACE) {
+      val s3 = time("removing constant accumulators") {
         tl(StmAccRemovalPass.removeConstantVars(s2))
       }
-      val s4 = time("deduplicating accumulators", Level.TRACE) {
+      val s4 = time("deduplicating accumulators") {
         tl(StmAccRemovalPass.deduplicateVars(s3))
       }
-      val s5 = time("removing prefix counters", Level.TRACE) {
+      val s5 = time("removing prefix counters") {
         tl(StmAccRemovalPass.removePrefixCounter(s4))
       }
       s5
     }
     val done =
-      time(
-        "checking whether stream simplification has reached fixpoint",
-        Level.TRACE
-      ) {
+      time("checking whether stream simplification has reached fixpoint") {
         simplified == s
       }
     if (done) {

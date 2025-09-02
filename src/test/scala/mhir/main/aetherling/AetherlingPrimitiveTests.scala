@@ -11,6 +11,7 @@ import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
 import mhir.logging.time
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
+import org.slf4j.event.Level
 
 @HardwareTest
 class AetherlingPrimitiveTests extends AnyFunSuite {
@@ -41,10 +42,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir)
       Compiler.compile(args)
-      time("generating VHDL testbench") {
+      time("generating VHDL testbench", Level.INFO) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      val result = time("running VHDL simulation") {
+      val result = time("running VHDL simulation", Level.INFO) {
         VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
@@ -58,10 +59,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       if (os.exists(outDir)) os.remove.all(outDir)
       val args = Args(inFile = inFile, outDir = outDir, optimize = false)
       Compiler.compile(args)
-      time("generating VHDL testbench") {
+      time("generating VHDL testbench", Level.INFO) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      val result = time("running VHDL simulation") {
+      val result = time("running VHDL simulation", Level.INFO) {
         VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
@@ -75,10 +76,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
         VerilogPrimitivesDir / s"$testName.v",
         overwrite = true
       )
-      time("generating Verilog testbench") {
+      time("generating Verilog testbench", Level.INFO) {
         VerilogTestbenchGenerator.makeTestbench(io, projectDir)
       }
-      val result = time("running Verilog simulation") {
+      val result = time("running Verilog simulation", Level.INFO) {
         VerilogTestRunner.testExistingProject(projectDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)

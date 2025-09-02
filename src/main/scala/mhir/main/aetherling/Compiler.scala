@@ -7,10 +7,11 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir.typecheck.TypeCheck
 import mhir.parse.AetherlingParser
-import mhir.optimize.{PartialEvalPass => PE, Optimizer => Opt}
+import mhir.optimize.{Optimizer => Opt, PartialEvalPass => PE}
 import mhir.sugar.Streamifier.Streamify
 import os.Path
 import mhir.logging.time
+import org.slf4j.event.Level
 
 /** A compiler for programs written in
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]'s space-time
@@ -51,7 +52,7 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
-    time("compilation") {
+    time("compilation", Level.INFO) {
       doCompile(args)
     }
   }
@@ -63,11 +64,11 @@ object Compiler {
 
     val optimized = if (args.optimize) {
       logger.info("optimization is enabled")
-      val pe = time("initial partial evaluation") {
+      val pe = time("initial partial evaluation", Level.INFO) {
         PE.partialEval(lowered)
       }
       val synthesizable = makeSynthesizable(pe)
-      time("optimization") {
+      time("optimization", Level.INFO) {
         Opt.optimize(synthesizable)
       }
     } else {
@@ -89,26 +90,26 @@ object Compiler {
 
   private def parse(f: Path): Expr = {
     logger.info(s"parsing Aetherling code from $f")
-    time("parsing") {
+    time("parsing", Level.INFO) {
       val aetherlingCode = os.read(f)
       AetherlingParser.parse(aetherlingCode)
     }
   }
 
   private def typecheck(e: Expr): Expr = {
-    time("type checking") {
+    time("type checking", Level.INFO) {
       e.tchk()
     }
   }
 
   private def lower(e: Expr): Expr = {
-    time("lowering") {
+    time("lowering", Level.INFO) {
       translateStmLiteral(e.lower())
     }
   }
 
   private def makeSynthesizable(e: Expr): Expr = {
-    time("making expression synthesizable") {
+    time("making expression synthesizable", Level.INFO) {
       val e1 = inlineFunCalls(e)
       val e2 = e1.streamify()
       val e3 = uncurryBody(e2)
@@ -121,7 +122,7 @@ object Compiler {
       outDir: Path,
       overwrite: Boolean
   ): Unit = {
-    time("generating VHDL") {
+    time("generating VHDL", Level.INFO) {
       if (os.exists(outDir)) {
         if (overwrite) {
           os.remove.all(outDir)

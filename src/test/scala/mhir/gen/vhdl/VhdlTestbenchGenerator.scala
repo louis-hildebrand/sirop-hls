@@ -6,6 +6,7 @@ import mhir.debug.indent
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
+import org.slf4j.event.Level
 import os.Path
 
 object VhdlTestbenchGenerator {
@@ -67,7 +68,7 @@ object VhdlTestbenchGenerator {
           elemTyp = in.elemTyp,
           len = in.len
         )
-        time("writing input files") {
+        time("writing input files", Level.INFO) {
           emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
         }
         x -> fileInput
@@ -84,7 +85,7 @@ object VhdlTestbenchGenerator {
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        time("writing output files") {
+        time("writing output files", Level.INFO) {
           emitTestOutputFiles(
             data = fileOutput.data,
             mask = fileOutput.mask,

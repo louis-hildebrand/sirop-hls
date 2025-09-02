@@ -65,7 +65,7 @@ private[ir] trait Substitution {
                   )(f.typ)
                 }
               case let @ LetStm(x, in, out) =>
-                time(s"performing subs $subs in let $x = ...", Level.TRACE) {
+                time(s"performing subs $subs in let $x = ...") {
                   val wouldCapture = subs.exists({ case (_, rhs) =>
                     rhs.freeVars().contains(x)
                   })
@@ -88,7 +88,7 @@ private[ir] trait Substitution {
                   )(let.typ)
                 }
               case s: StmBuild =>
-                time(s"performing subs $subs in StmBuild...", Level.TRACE) {
+                time(s"performing subs $subs in StmBuild...") {
                   val rhsFreeVars = subs.toSeq
                     .flatMap({ case (_, rhs) => rhs.freeVars() })
                     .toSet

@@ -8,6 +8,7 @@ import mhir.gen.verilog.{
   VerilogTestbenchOutputGenerator => OutGen
 }
 import mhir.logging.time
+import org.slf4j.event.Level
 import os.Path
 
 object VerilogTestbenchGenerator {
@@ -33,7 +34,7 @@ object VerilogTestbenchGenerator {
     val in = io.inputs match {
       case in: DirectTestInput =>
         val f = dir / "inputs.bin"
-        time("writing input file") {
+        time("writing input file", Level.INFO) {
           InGen.emitInputDataFile(f, in)
         }
         TestInputFromFile(
@@ -48,7 +49,7 @@ object VerilogTestbenchGenerator {
       case out: DirectTestOutput =>
         val dataFile = dir / "out_data.bin"
         val maskFile = dir / "out_mask.bin"
-        time("writing output files") {
+        time("writing output files", Level.INFO) {
           OutGen.emitOutputFiles(data = dataFile, mask = maskFile, out)
         }
         TestOutputFromFile(
