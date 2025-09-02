@@ -2,24 +2,36 @@ package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.optimize.{BinOpTreeMaker => BOTM}
+import mhir.logging.time
+import mhir.optimize.{BinOpTreeMaker => BOTM, PartialEvalPass => PE}
 
 /** Top-level optimizer.
   */
 object Optimizer {
-  private val logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   def optimize(s: Expr): Expr = {
     logger.trace(s"optimizing expression: $s")
-    val s0 = SafeSimplifier.simplify(s)
-    logger.trace(s"after simplification: $s0")
-    val s1 = StmLatencyMatcher.matchLatencies(s0)
-    logger.trace(s"after matching latencies: $s1")
+    val s0 = time("basic simplifications") {
+      SafeSimplifier.simplify(s)
+    }
+    val s1 = time("greedy fusion") {
+      val fused = GreedyStmFuser.fuse(s0)
+      // Partially evaluate in case there are some instances of LetStm which
+      // now have at most one consumer
+      val pe = PE.partialEval(fused)
+      pe
+    }
+    val s2 = time("latency matching") {
+      StmLatencyMatcher.matchLatencies(s1)
+    }
     // I think the program is more readable like this
-    val s2 = LetStmMover.moveUp(s1)
-    val s3 = BOTM.makeBinOpTrees(s2)
-    logger.trace(s"after balancing binop trees: $s3")
-    logger.trace("done optimizing")
-    s3
+    val s3 = time("moving LetStm up") {
+      LetStmMover.moveUp(s2)
+    }
+    val s4 = time("balancing binop trees") {
+      BOTM.makeBinOpTrees(s3)
+    }
+    s4
   }
 }

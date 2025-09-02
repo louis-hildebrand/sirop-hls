@@ -21,15 +21,16 @@ object SimpleAreaCostModel {
     *   the expression whose resource usage to estimate.
     */
   private def cost(sv: Set[Param])(e: Expr): AreaCost = {
+    require(e.hasType)
     e match {
+      case _: Param => AreaCost.Zero
+      case e if e.typ.isData && isStatic(e, sv) =>
+        AreaCost(BitWidth(e.typ), 0, 0)
       case Tuple(elems @ _*) =>
         elems.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
       case TupleAccess(t, _) => cost(sv)(t)
-      case _: Param          => AreaCost(0, 0, 0)
       case Function(_, body) => cost(sv)(body)
       case FunCall(f, arg)   => cost(sv)(f) + cost(sv)(arg)
-      case c: IntCst         => AreaCost(BitWidth(c.typ), 0, 0)
-      case c: FixCst         => AreaCost(BitWidth(c.typ), 0, 0)
       case sum @ Sum(terms @ _*) =>
         (terms.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
           + AreaCost(9 * BitWidth(sum.typ), 0, 0))
@@ -56,8 +57,6 @@ object SimpleAreaCostModel {
       case LLShift(e1, e2)                     => cost(sv)(e1) + cost(sv)(e2)
       case LRShift(e1, e2) if isStatic(e2, sv) => cost(sv)(e1)
       case LRShift(e1, e2)                     => cost(sv)(e1) + cost(sv)(e2)
-      case True                                => AreaCost(1, 0, 0)
-      case False                               => AreaCost(1, 0, 0)
       case Equal(e1, e2) =>
         cost(sv)(e1) + cost(sv)(e2) + AreaCost(BitWidth(e1.typ), 0, 0)
       case LessThan(e1, e2) =>
@@ -67,6 +66,9 @@ object SimpleAreaCostModel {
         terms.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _) + AreaCost(1, 0, 0)
       case Or(terms @ _*) =>
         terms.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _) + AreaCost(1, 0, 0)
+      case Mux(c, t, f) if isStatic(c, sv) =>
+        // The MUX can disappear in hardware if the index is static
+        cost(sv)(t) max cost(sv)(f)
       case mux @ Mux(c, t, f) =>
         (Seq(c, t, f).map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
           + AreaCost(3 * BitWidth(mux.typ), 0, 0))
