@@ -18,7 +18,7 @@ object SafeSimplifier {
 
   private val logger = Logger(getClass.getName)
 
-  def simplify(e: Expr): Expr = {
+  def simplify(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
     logger.trace(s"performing conservative simplification: $e")
     logger.trace("partially evaluating...")
     val pe = PE.partialEval(e)
@@ -26,7 +26,7 @@ object SafeSimplifier {
     simplifyStreams(pe)
   }
 
-  private def simplifyStreams(e: Expr): Expr = {
+  private def simplifyStreams(e: Expr)(implicit facts: FactSet): Expr = {
     val result = e match {
       case s: StmBuild =>
         val newEquations = s.equations.map({
@@ -35,7 +35,7 @@ object SafeSimplifier {
           case eqn => eqn
         })
         val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
-        StmSimplifier.simplify(newS)(FactSet())
+        StmSimplifier.simplify(newS)(facts)
       case e =>
         e.map(simplifyStreams)
     }
