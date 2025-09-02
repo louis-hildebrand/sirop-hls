@@ -41,5 +41,5 @@
         <appender-ref ref="STDERR" />
     </root>
     <logger name="mhir.optimize.StmSimplifier$" level="INFO" />
-    <logger name="mhir.optimize.StmLatencyMatcher$" level="TRACE" />
+    <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
 </configuration>

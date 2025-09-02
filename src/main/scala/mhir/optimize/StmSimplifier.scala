@@ -6,6 +6,7 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
 import org.slf4j.event.Level
+import mhir.optimize.{PartialEvalPass => PE}
 
 import scala.annotation.tailrec
 
@@ -26,19 +27,8 @@ object StmSimplifier {
   def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
     time("simplifying stream", Level.TRACE) {
-      val s0 = simplifyInputs(tl(stm))(facts)
-      val s1 = simplifyUntilFixpoint(s0, i = 0)(facts)
-      s1
+      simplifyUntilFixpoint(tl(stm), i = 0)(facts)
     }
-  }
-
-  private def simplifyInputs(s: StmBuild)(facts: FactSet): StmBuild = {
-    val newEquations = s.equations.map({
-      case (x, (producer: StmBuild, next)) =>
-        x -> (simplify(producer)(facts), next)
-      case eqn => eqn
-    })
-    StmBuild(s.n, s.data, s.valid, newEquations)()
   }
 
   @tailrec
@@ -46,11 +36,38 @@ object StmSimplifier {
       facts: FactSet
   ): StmBuild = {
     val simplified = time(s"iteration $i stream simplification", Level.TRACE) {
-      val s1 = tl(PartialEvalPass.partialEval(s)(facts))
-      val s2 = tl(StmAccRemovalPass.removeUnusedVars(s1))
-      val s3 = tl(StmAccRemovalPass.removeConstantVars(s2))
-      val s4 = tl(StmAccRemovalPass.deduplicateVars(s3))
-      val s5 = tl(StmAccRemovalPass.removePrefixCounter(s4))
+      val s1 = time("partially evaluating stream", Level.TRACE) {
+        implicit val fct: FactSet = facts
+        val peStm = StmBuild(
+          PE.partialEval(s.n),
+          PE.partialEval(s.data),
+          PE.partialEval(s.valid),
+          s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              // Don't re-traverse input streams: they've already been
+              // simplified
+              val newReady = PE.partialEval(ready)
+              x -> (s, newReady)
+            case (x, (z, next)) =>
+              val newZ = PE.partialEval(z)
+              val newNext = PE.partialEval(next)
+              x -> (newZ, newNext)
+          })
+        )()
+        tl(peStm)
+      }
+      val s2 = time("removing unused accumulators", Level.TRACE) {
+        tl(StmAccRemovalPass.removeUnusedVars(s1))
+      }
+      val s3 = time("removing constant accumulators", Level.TRACE) {
+        tl(StmAccRemovalPass.removeConstantVars(s2))
+      }
+      val s4 = time("deduplicating accumulators", Level.TRACE) {
+        tl(StmAccRemovalPass.deduplicateVars(s3))
+      }
+      val s5 = time("removing prefix counters", Level.TRACE) {
+        tl(StmAccRemovalPass.removePrefixCounter(s4))
+      }
       s5
     }
     val done =
