@@ -305,6 +305,9 @@ object PartialEvalPass {
                 )
               case (VecLiteral(elems @ _*), IntCst(i)) =>
                 elems(i.toInt)
+              case (VecAccess(VecLiteral(elems @ _*), i), j: IntCst) =>
+                val newElems = elems.map(e => doPartialEval(VecAccess(e, j)()))
+                VecAccess(VecLiteral(newElems: _*)(), i)()
               case (VecBuild(_, f), i) =>
                 // Out-of-bounds vector access is undefined behaviour, so just
                 // don't worry about it
