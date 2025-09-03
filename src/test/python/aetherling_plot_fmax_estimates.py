@@ -25,9 +25,6 @@ OUR_MARKER_SIZE = 3
 TARGET_LABEL = "Target frequency"
 
 
-SCALE = "log"
-
-
 def dedup(xs: list[str]) -> list[str]:
     """
     Deduplicate elements in a list while preserving order.
@@ -40,14 +37,21 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
     Plot fmax vs throughput for each benchmark.
     """
     benchmark_names = dedup([res.bench.name for res in results.keys()])
+    benchmark_names = [b for b in benchmark_names if lb.benchmark_title(b) is not None]
     benchmark_names = sorted(benchmark_names, key=lb.benchmark_order)
     if not benchmark_names:
         raise ValueError("No benchmarks to plot.")
-    fig, axes = plt.subplots(nrows=1, ncols=len(benchmark_names), figsize=(16, 2.5))
+    fig, axes = plt.subplots(
+        nrows=1, ncols=len(benchmark_names),
+        figsize=(12, 2.5),
+    )
     verilog_artist = None
     vhdl_artist = None
     target_artist = None
     for col, bench_name in enumerate(benchmark_names):
+        title = lb.benchmark_title(bench_name)
+        if title is None:
+            continue
         verilog_benchmarks = [
             b
             for b in results.keys()
@@ -90,12 +94,11 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         ys = [TARGET_FREQ for b in xs]
         target_artist, = ax.plot(xs, ys, marker="none", linestyle=":", color=(0.5, 0.5, 0.5))
         # Title, etc.
-        ax.set_title(bench_name)
-        ax.set_xlabel("Target throughput")
-        if bench_name not in {"sum", "dot"}:
-            ax.set_xscale(SCALE)
+        ax.set_title(title)
+        ax.set_xscale("log", base=2)
     # Settings for entire rows
     axes[0].set_ylabel("fmax (MHz)")
+    fig.supxlabel("Target throughput")
     if verilog_artist is None or vhdl_artist is None or target_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(

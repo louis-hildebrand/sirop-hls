@@ -33,15 +33,6 @@ OUR_MARKER_SIZE = 3
 T = TypeVar("T")
 
 
-def axis_scale(bench_name: str) -> str:
-    """
-    Decide whether the given benchmark should be plotted with a log scale or linear scale.
-    """
-    if bench_name in {"sum", "dot"}:
-        return "linear"
-    return "log"
-
-
 def dedup(xs: list[T]) -> list[T]:
     """
     Deduplicate elements in a list while preserving order.
@@ -94,17 +85,6 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
             linestyle=":",
             color=(0.5, 0.5, 0.5),
         )
-        # Verilog results (successful simulation)
-        xs = [float(b.bench.throughput) for b in verilog_benchmarks if results[b].sim_success]
-        ys = [results[b].latency for b in verilog_benchmarks if results[b].sim_success]
-        verilog_artist, = ax.plot(
-            xs, ys,
-            marker=AETHERLING_MARKER,
-            label=AETHERLING_LABEL,
-            color=AETHERLING_COLOR,
-            linestyle="",
-            markersize=AETHERLING_MARKER_SIZE,
-        )
         # Verilog results (failed simulation)
         xs = [float(b.bench.throughput) for b in verilog_benchmarks if not results[b].sim_success]
         ys = [results[b].latency for b in verilog_benchmarks if not results[b].sim_success]
@@ -117,16 +97,16 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
             linestyle="",
             markersize=AETHERLING_MARKER_SIZE,
         )
-        # VHDL results (successful simulation)
-        xs = [float(b.bench.throughput) for b in vhdl_benchmarks if results[b].sim_success]
-        ys = [results[b].latency for b in vhdl_benchmarks if results[b].sim_success]
-        vhdl_artist, = ax.plot(
+        # Verilog results (successful simulation)
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks if results[b].sim_success]
+        ys = [results[b].latency for b in verilog_benchmarks if results[b].sim_success]
+        verilog_artist, = ax.plot(
             xs, ys,
-            marker=OUR_MARKER,
-            label=OUR_LABEL,
-            color=OUR_COLOR,
+            marker=AETHERLING_MARKER,
+            label=AETHERLING_LABEL,
+            color=AETHERLING_COLOR,
             linestyle="",
-            markersize=OUR_MARKER_SIZE,
+            markersize=AETHERLING_MARKER_SIZE,
         )
         # VHDL results (failed simulation)
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks if not results[b].sim_success]
@@ -140,15 +120,25 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
             linestyle="",
             markersize=OUR_MARKER_SIZE,
         )
+        # VHDL results (successful simulation)
+        xs = [float(b.bench.throughput) for b in vhdl_benchmarks if results[b].sim_success]
+        ys = [results[b].latency for b in vhdl_benchmarks if results[b].sim_success]
+        vhdl_artist, = ax.plot(
+            xs, ys,
+            marker=OUR_MARKER,
+            label=OUR_LABEL,
+            color=OUR_COLOR,
+            linestyle="",
+            markersize=OUR_MARKER_SIZE,
+        )
         # Labels and whatnot
         ax.tick_params(axis="x", rotation=30)
-        if axis_scale(bench_name) == "log":
-            ax.set_xscale("log", base=2)
+        ax.set_xscale("log", base=2)
         ax.set_title(bench_name)
-        ax.set_xlabel("Target throughput")
 
     # Settings for entire rows
     axes[0].set_ylabel("Latency (cycles)")
+    fig.supxlabel("Target throughput")
     if min_artist is None or verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(

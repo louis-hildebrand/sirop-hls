@@ -103,3 +103,17 @@ def benchmark_order(bench_name: str) -> int:
         "smallconvb2b": 5,
         "smallsharpen": 6,
     }.get(bench_name, 7)
+
+
+def benchmark_title(bench_name: str) -> str | None:
+    """
+    Return the title to put at the top of the column for the given benchmark, or `None` if the
+    results for this benchmark should be omitted from the plots.
+    """
+    if bench_name.startswith("small"):
+        return None
+    if bench_name == "sum":
+        return None
+    if bench_name.startswith("big"):
+        bench_name = bench_name[len("big"):]
+    return bench_name
