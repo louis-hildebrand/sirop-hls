@@ -381,7 +381,35 @@ let module1: u32 -> u32 -> u32 = (
       n154,
       n155,
       (I0 : Vec[u32, 1:u1]) =>
-        (I1 : Vec[u32, 1:u1]) => VecMap2(I0, I1, module1)
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                let n184: u32 = I1 in
+                let n190: u32 = 15:u32 in
+                let n163: (u32, u32) = (I0, I1) in
+                let n164: u32 = n163.0 -% n163.1 in
+                let n166: (u32, u32) = (n190, n164) in
+                let n167: bool = n166.0 << n166.1 in
+                let n191: u32 = 15:u32 in
+                let n168: (u32, u32) = (I1, I0) in
+                let n169: u32 = n168.0 -% n168.1 in
+                let n171: (u32, u32) = (n191, n169) in
+                let n172: bool = n171.0 << n171.1 in
+                let n173: (bool, bool) = (n167, n172) in
+                let n174: bool = n173.0 || n173.1 in
+                let n192: u32 = 0:u32 in
+                let n177: (u32, u32) = (n169, n192) in
+                let n178: (bool, (u32, u32)) = (n174, n177) in
+                let n179: u32 = if (n178.0) then { (n178.1).0 } else { (n178.1).1 } in
+                let n193: fix8_7 = (32/2e7):fix8_7 in
+                let n182: (u32, fix8_7) = (n179, n193) in
+                let n183: u32 = n182.0 *_ n182.1 in
+                let n185: (u32, u32) = (n184, n183) in
+                n185.0 +% n185.1
+          )
     )
   ) in
   let n187: Stm[Vec[u32, 1:u1], 2073600:u21] = n156 in

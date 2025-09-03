@@ -5,6 +5,8 @@ import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
+import org.slf4j.event.Level
 
 import scala.collection.immutable.ListMap
 
@@ -24,11 +26,10 @@ import scala.collection.immutable.ListMap
   */
 object Streamifier {
 
-  private val logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   implicit class Streamify(func: Expr) {
     def streamify(): Expr = {
-      logger.trace(s"streamifying expression: ${this.func}")
       require(
         this.func.hasType,
         "Expression must be type-checked before it can be streamified."
@@ -37,28 +38,30 @@ object Streamifier {
         !this.func.contains(classOf[SyntaxSugar]),
         "Expression must be lowered before it can be streamified."
       )
-      val (inputList, stm) =
-        VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
-      val oldToNewInputs = ListMap(
-        inputList.map(x => x -> makeStreamParam(x)): _*
-      )
-      val newStm = stm match {
-        case e if e.typ.isData =>
-          streamifyScalar2Scalar(e, oldToNewInputs)
-        case x: Param if oldToNewInputs.contains(x) =>
-          wrapIdentity(x)
-        case _ =>
-          streamifyBody(stm, oldToNewInputs)
+      time("streamifying", Level.TRACE) {
+        logger.trace(s"streamifying expression: ${this.func}")
+        val (inputList, stm) =
+          VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
+        val oldToNewInputs = ListMap(
+          inputList.map(x => x -> makeStreamParam(x)): _*
+        )
+        val newStm = stm match {
+          case e if e.typ.isData =>
+            streamifyScalar2Scalar(e, oldToNewInputs)
+          case x: Param if oldToNewInputs.contains(x) =>
+            wrapIdentity(x)
+          case _ =>
+            streamifyBody(stm, oldToNewInputs)
+        }
+        val f = rewrapTopLevelFunction(newStm, oldToNewInputs)
+        assert(
+          this.func.contains(classOf[SyntaxSugar])
+            || !f.contains(classOf[SyntaxSugar]),
+          s"streamification should not introduce syntax sugar if the original expression had none (found expression $f)"
+        )
+        val result = f.tchk()
+        result
       }
-      val f = rewrapTopLevelFunction(newStm, oldToNewInputs)
-      assert(
-        this.func.contains(classOf[SyntaxSugar])
-          || !f.contains(classOf[SyntaxSugar]),
-        s"streamification should not introduce syntax sugar if the original expression had none (found expression $f)"
-      )
-      val result = f.tchk()
-      logger.trace(s"done streamifying: $result")
-      result
     }
   }
 

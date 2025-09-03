@@ -1,0 +1,3084 @@
+// Output type: Stm[Vec[u32, 1:u1], 2073600:u21] -> Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21]
+let module0: u32 -> bool = (
+  (I : u32) =>
+    let n107: u32 = 1920:u32 in
+    let n108: (u32, u32) = (I, n107) in
+    let n109: bool = n108.0 << n108.1 in
+    !n109
+) in
+let module1: u32 -> bool = (
+  (I : u32) =>
+    let n115: u8 = 1:u8 in
+    let n116: (u32, u8) = (I, n115) in
+    let n117: u32 = n116.0 >> n116.1 in
+    let n118: (u32, u8) = (n117, n115) in
+    let n119: u32 = n118.0 << n118.1 in
+    let n120: (u32, u32) = (I, n119) in
+    let n121: bool = n120.0 === n120.1 in
+    !n121
+) in
+let module2: u32 -> (u32, u8) = (I : u32) => let n1046: u8 = 1:u8 in (I, n1046) in
+let module3: u32 -> (u32, u8) = (I : u32) => let n1047: u8 = 1:u8 in (I, n1047) in
+let module4: u32 -> (u32, u8) = (I : u32) => let n1048: u8 = 2:u8 in (I, n1048) in
+let module5: u32 -> (u32, u8) = (I : u32) => let n1049: u8 = 2:u8 in (I, n1049) in
+let module6: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[(bool, bool), 1:u1], 1:u1] -> Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+  (I0 : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+    (I1 : Stm[Vec[(bool, bool), 1:u1], 1:u1]) =>
+      let n144: Stm[Vec[bool, 1:u1], 1:u1] = (
+        StmMap(
+          I1,
+          (I : Vec[(bool, bool), 1:u1]) => VecMap(I, (I : (bool, bool)) => I.0)
+        )
+      ) in
+      let n434: Stm[Vec[bool, 1:u1], 1:u1] = n144 in
+      let n149: Stm[Vec[bool, 1:u1], 1:u1] = (
+        StmMap(
+          I1,
+          (I : Vec[(bool, bool), 1:u1]) => VecMap(I, (I : (bool, bool)) => I.1)
+        )
+      ) in
+      let n364: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+      let n151: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+      let n154: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+        StmMap(
+          n151,
+          (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            vbuild(1:u1, (x_1 : u8) => I[1:u1])
+        )
+      ) in
+      let n155: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n154) in
+      let n158: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n155,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_2 : u8) => I[0:u0])
+        )
+      ) in
+      let n161: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n155,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_3 : u8) => I[2:u2])
+        )
+      ) in
+      let n162: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n158,
+          n161,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n173: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n162,
+          (I : Vec[(u32, u32), 1:u1]) =>
+            VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+        )
+      ) in
+      let n180: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n173, (I : Vec[u32, 1:u1]) => VecMap(I, module2)) in
+      let n185: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n180,
+          (I : Vec[(u32, u8), 1:u1]) =>
+            VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+        )
+      ) in
+      let n188: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n155,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_4 : u8) => I[1:u1])
+        )
+      ) in
+      let n189: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+      let n192: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+        StmMap(
+          n189,
+          (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            vbuild(1:u1, (x_5 : u8) => I[0:u0])
+        )
+      ) in
+      let n193: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n192) in
+      let n196: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n193,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_6 : u8) => I[1:u1])
+        )
+      ) in
+      let n197: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+      let n200: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+        StmMap(
+          n197,
+          (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            vbuild(1:u1, (x_7 : u8) => I[2:u2])
+        )
+      ) in
+      let n201: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n200) in
+      let n204: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n201,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_8 : u8) => I[1:u1])
+        )
+      ) in
+      let n205: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n196,
+          n204,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n216: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n205,
+          (I : Vec[(u32, u32), 1:u1]) =>
+            VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+        )
+      ) in
+      let n223: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n216, (I : Vec[u32, 1:u1]) => VecMap(I, module3)) in
+      let n228: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n223,
+          (I : Vec[(u32, u8), 1:u1]) =>
+            VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+        )
+      ) in
+      let n229: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n188,
+          n228,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n236: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap2(
+          n185,
+          n229,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[(u32, u32), 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : (u32, u32)) => (I0, I1))
+        )
+      ) in
+      let n356: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n236 in
+      let n348: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+      let n243: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+        StmMap2(
+          n158,
+          n196,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : u32) =>
+                  (I1 : u32) =>
+                    vbuild(
+                      2:u2,
+                      (x_9 : u8) => if (x_9 === 0:u0) then { I0 } else { I1 }
+                    )
+              )
+        )
+      ) in
+      let n250: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+        StmMap2(
+          n243,
+          n161,
+          (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+              )
+        )
+      ) in
+      let n257: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+        StmMap2(
+          n250,
+          n204,
+          (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : Vec[u32, 3:u3]) => (I1 : u32) => VecAppend(I0, I1)
+              )
+        )
+      ) in
+      let n268: Stm[Vec[u32, 4:u4], 1:u1] = (
+        StmMap(
+          n257,
+          (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+            ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+        )
+      ) in
+      let n273: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n268,
+          (I : Vec[u32, 4:u4]) =>
+            VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+        )
+      ) in
+      let n280: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n273, (I : Vec[u32, 1:u1]) => VecMap(I, module4)) in
+      let n285: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n280,
+          (I : Vec[(u32, u8), 1:u1]) =>
+            VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+        )
+      ) in
+      let n288: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n193,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_10 : u8) => I[0:u0])
+        )
+      ) in
+      let n291: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n193,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_11 : u8) => I[2:u2])
+        )
+      ) in
+      let n292: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+        StmMap2(
+          n288,
+          n291,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : u32) =>
+                  (I1 : u32) =>
+                    vbuild(
+                      2:u2,
+                      (x_12 : u8) =>
+                        if (x_12 === 0:u0) then { I0 } else { I1 }
+                    )
+              )
+        )
+      ) in
+      let n301: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n201,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_13 : u8) => I[0:u0])
+        )
+      ) in
+      let n302: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+        StmMap2(
+          n292,
+          n301,
+          (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+              )
+        )
+      ) in
+      let n311: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n201,
+          (I : Vec[u32, 3:u2]) => vbuild(1:u1, (x_14 : u8) => I[2:u2])
+        )
+      ) in
+      let n312: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+        StmMap2(
+          n302,
+          n311,
+          (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : Vec[u32, 3:u3]) => (I1 : u32) => VecAppend(I0, I1)
+              )
+        )
+      ) in
+      let n323: Stm[Vec[u32, 4:u4], 1:u1] = (
+        StmMap(
+          n312,
+          (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+            ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+        )
+      ) in
+      let n328: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n323,
+          (I : Vec[u32, 4:u4]) =>
+            VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+        )
+      ) in
+      let n335: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n328, (I : Vec[u32, 1:u1]) => VecMap(I, module5)) in
+      let n340: Stm[Vec[u32, 1:u1], 1:u1] = (
+        StmMap(
+          n335,
+          (I : Vec[(u32, u8), 1:u1]) =>
+            VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+        )
+      ) in
+      let n341: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n285,
+          n340,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n349: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap2(
+          n348,
+          n341,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[(u32, u32), 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : (u32, u32)) => (I0, I1))
+        )
+      ) in
+      let n357: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+        StmMap2(
+          n356,
+          n349,
+          (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+            (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : (u32, (u32, u32))) =>
+                  (I1 : (u32, (u32, u32))) => (I0, I1)
+              )
+        )
+      ) in
+      let n365: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+        StmMap2(
+          n364,
+          n357,
+          (I0 : Vec[bool, 1:u1]) =>
+            (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : bool) =>
+                  (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) => (I0, I1)
+              )
+        )
+      ) in
+      let n376: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap(
+          n365,
+          (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+            VecMap(
+              I,
+              (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                if (I.0) then { (I.1).0 } else { (I.1).1 }
+            )
+        )
+      ) in
+      let n414: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+      let n377: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+      let n378: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n285,
+          n377,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n385: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap2(
+          n340,
+          n378,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[(u32, u32), 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : (u32, u32)) => (I0, I1))
+        )
+      ) in
+      let n392: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+        StmMap2(
+          n188,
+          n185,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[u32, 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+        )
+      ) in
+      let n399: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap2(
+          n228,
+          n392,
+          (I0 : Vec[u32, 1:u1]) =>
+            (I1 : Vec[(u32, u32), 1:u1]) =>
+              VecMap2(I0, I1, (I0 : u32) => (I1 : (u32, u32)) => (I0, I1))
+        )
+      ) in
+      let n406: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n399 in
+      let n407: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+        StmMap2(
+          n385,
+          n406,
+          (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+            (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : (u32, (u32, u32))) =>
+                  (I1 : (u32, (u32, u32))) => (I0, I1)
+              )
+        )
+      ) in
+      let n415: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+        StmMap2(
+          n414,
+          n407,
+          (I0 : Vec[bool, 1:u1]) =>
+            (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : bool) =>
+                  (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) => (I0, I1)
+              )
+        )
+      ) in
+      let n426: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+        StmMap(
+          n415,
+          (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+            VecMap(
+              I,
+              (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                if (I.0) then { (I.1).0 } else { (I.1).1 }
+            )
+        )
+      ) in
+      let n427: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+        StmMap2(
+          n376,
+          n426,
+          (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+            (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : (u32, (u32, u32))) =>
+                  (I1 : (u32, (u32, u32))) => (I0, I1)
+              )
+        )
+      ) in
+      let n435: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+        StmMap2(
+          n434,
+          n427,
+          (I0 : Vec[bool, 1:u1]) =>
+            (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : bool) =>
+                  (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) => (I0, I1)
+              )
+        )
+      ) in
+      StmMap(
+        n435,
+        (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+          VecMap(
+            I,
+            (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+              if (I.0) then { (I.1).0 } else { (I.1).1 }
+          )
+      )
+) in
+let module7: Stm[Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 3840:u12] -> Stm[Vec[Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1], 1:u1], 3840:u12] = (
+  (I : Stm[Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 3840:u12]) =>
+    let n104: Stm[Vec[u32, 1:u1], 3840:u12] = StmVecRange(3840:u12, 1:u1, 0:u32, 1:u32) in
+    let n112: Stm[Vec[bool, 1:u1], 3840:u12] = StmMap(n104, (I : Vec[u32, 1:u1]) => VecMap(I, module0)) in
+    let n124: Stm[Vec[bool, 1:u1], 3840:u12] = StmMap(n104, (I : Vec[u32, 1:u1]) => VecMap(I, module1)) in
+    let n125: Stm[Vec[(bool, bool), 1:u1], 3840:u12] = (
+      StmMap2(
+        n112,
+        n124,
+        (I0 : Vec[bool, 1:u1]) =>
+          (I1 : Vec[bool, 1:u1]) =>
+            VecMap2(I0, I1, (I0 : bool) => (I1 : bool) => (I0, I1))
+      )
+    ) in
+    let n132: Stm[Stm[Vec[(bool, bool), 1:u1], 1:u1], 3840:u12] = StmSplit(n125, 1:u1) in
+    let n133: Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12] = (
+      ReshapeSeq[Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12]](
+        n132
+      )
+    ) in
+    let n134: Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12] = n133 in
+    StmMap2(
+      I,
+      n134,
+      (I0 : Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1]) =>
+        (I1 : Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+              (I1 : Stm[Vec[(bool, bool), 1:u1], 1:u1]) =>
+                let n144: Stm[Vec[bool, 1:u1], 1:u1] = (
+                  StmMap(
+                    I1,
+                    (I : Vec[(bool, bool), 1:u1]) =>
+                      VecMap(I, (I : (bool, bool)) => I.0)
+                  )
+                ) in
+                let n434: Stm[Vec[bool, 1:u1], 1:u1] = n144 in
+                let n149: Stm[Vec[bool, 1:u1], 1:u1] = (
+                  StmMap(
+                    I1,
+                    (I : Vec[(bool, bool), 1:u1]) =>
+                      VecMap(I, (I : (bool, bool)) => I.1)
+                  )
+                ) in
+                let n364: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+                let n151: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                let n154: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                  StmMap(
+                    n151,
+                    (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                      vbuild(1:u1, (x_1 : u8) => I[1:u1])
+                  )
+                ) in
+                let n155: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n154) in
+                let n158: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n155,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_2 : u8) => I[0:u0])
+                  )
+                ) in
+                let n161: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n155,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_3 : u8) => I[2:u2])
+                  )
+                ) in
+                let n162: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n158,
+                    n161,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n173: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n162,
+                    (I : Vec[(u32, u32), 1:u1]) =>
+                      VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+                  )
+                ) in
+                let n180: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n173, (I : Vec[u32, 1:u1]) => VecMap(I, module2)) in
+                let n185: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n180,
+                    (I : Vec[(u32, u8), 1:u1]) =>
+                      VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                  )
+                ) in
+                let n188: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n155,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_4 : u8) => I[1:u1])
+                  )
+                ) in
+                let n189: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                let n192: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                  StmMap(
+                    n189,
+                    (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                      vbuild(1:u1, (x_5 : u8) => I[0:u0])
+                  )
+                ) in
+                let n193: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n192) in
+                let n196: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n193,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_6 : u8) => I[1:u1])
+                  )
+                ) in
+                let n197: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                let n200: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                  StmMap(
+                    n197,
+                    (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                      vbuild(1:u1, (x_7 : u8) => I[2:u2])
+                  )
+                ) in
+                let n201: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n200) in
+                let n204: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n201,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_8 : u8) => I[1:u1])
+                  )
+                ) in
+                let n205: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n196,
+                    n204,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n216: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n205,
+                    (I : Vec[(u32, u32), 1:u1]) =>
+                      VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+                  )
+                ) in
+                let n223: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n216, (I : Vec[u32, 1:u1]) => VecMap(I, module3)) in
+                let n228: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n223,
+                    (I : Vec[(u32, u8), 1:u1]) =>
+                      VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                  )
+                ) in
+                let n229: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n188,
+                    n228,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n236: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n185,
+                    n229,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[(u32, u32), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n356: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n236 in
+                let n348: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+                let n243: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n158,
+                    n196,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) =>
+                            (I1 : u32) =>
+                              vbuild(
+                                2:u2,
+                                (x_9 : u8) =>
+                                  if (x_9 === 0:u0) then { I0 } else { I1 }
+                              )
+                        )
+                  )
+                ) in
+                let n250: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n243,
+                    n161,
+                    (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : Vec[u32, 2:u2]) =>
+                            (I1 : u32) => VecAppend(I0, I1)
+                        )
+                  )
+                ) in
+                let n257: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n250,
+                    n204,
+                    (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : Vec[u32, 3:u3]) =>
+                            (I1 : u32) => VecAppend(I0, I1)
+                        )
+                  )
+                ) in
+                let n268: Stm[Vec[u32, 4:u4], 1:u1] = (
+                  StmMap(
+                    n257,
+                    (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+                      ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+                  )
+                ) in
+                let n273: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n268,
+                    (I : Vec[u32, 4:u4]) =>
+                      VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+                  )
+                ) in
+                let n280: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n273, (I : Vec[u32, 1:u1]) => VecMap(I, module4)) in
+                let n285: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n280,
+                    (I : Vec[(u32, u8), 1:u1]) =>
+                      VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                  )
+                ) in
+                let n288: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n193,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_10 : u8) => I[0:u0])
+                  )
+                ) in
+                let n291: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n193,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_11 : u8) => I[2:u2])
+                  )
+                ) in
+                let n292: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n288,
+                    n291,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) =>
+                            (I1 : u32) =>
+                              vbuild(
+                                2:u2,
+                                (x_12 : u8) =>
+                                  if (x_12 === 0:u0) then {
+                                    I0
+                                  } else {
+                                    I1
+                                  }
+                              )
+                        )
+                  )
+                ) in
+                let n301: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n201,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_13 : u8) => I[0:u0])
+                  )
+                ) in
+                let n302: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n292,
+                    n301,
+                    (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : Vec[u32, 2:u2]) =>
+                            (I1 : u32) => VecAppend(I0, I1)
+                        )
+                  )
+                ) in
+                let n311: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n201,
+                    (I : Vec[u32, 3:u2]) =>
+                      vbuild(1:u1, (x_14 : u8) => I[2:u2])
+                  )
+                ) in
+                let n312: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+                  StmMap2(
+                    n302,
+                    n311,
+                    (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : Vec[u32, 3:u3]) =>
+                            (I1 : u32) => VecAppend(I0, I1)
+                        )
+                  )
+                ) in
+                let n323: Stm[Vec[u32, 4:u4], 1:u1] = (
+                  StmMap(
+                    n312,
+                    (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+                      ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+                  )
+                ) in
+                let n328: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n323,
+                    (I : Vec[u32, 4:u4]) =>
+                      VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+                  )
+                ) in
+                let n335: Stm[Vec[(u32, u8), 1:u1], 1:u1] = StmMap(n328, (I : Vec[u32, 1:u1]) => VecMap(I, module5)) in
+                let n340: Stm[Vec[u32, 1:u1], 1:u1] = (
+                  StmMap(
+                    n335,
+                    (I : Vec[(u32, u8), 1:u1]) =>
+                      VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                  )
+                ) in
+                let n341: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n285,
+                    n340,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n349: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n348,
+                    n341,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[(u32, u32), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n357: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n356,
+                    n349,
+                    (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                      (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : (u32, (u32, u32))) =>
+                            (I1 : (u32, (u32, u32))) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n365: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n364,
+                    n357,
+                    (I0 : Vec[bool, 1:u1]) =>
+                      (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : bool) =>
+                            (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                              (I0, I1)
+                        )
+                  )
+                ) in
+                let n376: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap(
+                    n365,
+                    (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                      VecMap(
+                        I,
+                        (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                          if (I.0) then { (I.1).0 } else { (I.1).1 }
+                      )
+                  )
+                ) in
+                let n414: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+                let n377: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+                let n378: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n285,
+                    n377,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n385: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n340,
+                    n378,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[(u32, u32), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n392: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n188,
+                    n185,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[u32, 1:u1]) =>
+                        VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                  )
+                ) in
+                let n399: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n228,
+                    n392,
+                    (I0 : Vec[u32, 1:u1]) =>
+                      (I1 : Vec[(u32, u32), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n406: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n399 in
+                let n407: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n385,
+                    n406,
+                    (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                      (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : (u32, (u32, u32))) =>
+                            (I1 : (u32, (u32, u32))) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n415: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n414,
+                    n407,
+                    (I0 : Vec[bool, 1:u1]) =>
+                      (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : bool) =>
+                            (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                              (I0, I1)
+                        )
+                  )
+                ) in
+                let n426: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                  StmMap(
+                    n415,
+                    (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                      VecMap(
+                        I,
+                        (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                          if (I.0) then { (I.1).0 } else { (I.1).1 }
+                      )
+                  )
+                ) in
+                let n427: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n376,
+                    n426,
+                    (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                      (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : (u32, (u32, u32))) =>
+                            (I1 : (u32, (u32, u32))) => (I0, I1)
+                        )
+                  )
+                ) in
+                let n435: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                  StmMap2(
+                    n434,
+                    n427,
+                    (I0 : Vec[bool, 1:u1]) =>
+                      (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                        VecMap2(
+                          I0,
+                          I1,
+                          (I0 : bool) =>
+                            (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                              (I0, I1)
+                        )
+                  )
+                ) in
+                StmMap(
+                  n435,
+                  (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                    VecMap(
+                      I,
+                      (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                        if (I.0) then { (I.1).0 } else { (I.1).1 }
+                    )
+                )
+          )
+    )
+) in
+let module8: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] = (
+  (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+    let n1044: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = {{[[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]]}} in
+    let n557: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+      StmMap2(
+        I,
+        n1044,
+        (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            VecMap2(
+              I0,
+              I1,
+              (I0 : Vec[u32, 3:u2]) =>
+                (I1 : Vec[u32, 3:u2]) =>
+                  VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+            )
+      )
+    ) in
+    let n573: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+      StmMap(
+        n557,
+        (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 3:u2]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          )
+      )
+    ) in
+    let n580: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+      StmMap(
+        n573,
+        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[u32, 3:u2]) =>
+              VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n587: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmMap(
+        n580,
+        (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+          VecReduceComb(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n590: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmReduce(
+        n587,
+        (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n591: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n590) in
+    let n1045: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+    let n594: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+      StmMap2(
+        n591,
+        n1045,
+        (I0 : Vec[u32, 1:u1]) =>
+          (I1 : Vec[fix8_7, 1:u1]) =>
+            VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+      )
+    ) in
+    StmMap(
+      n594,
+      (I : Vec[(u32, fix8_7), 1:u1]) =>
+        VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+    )
+) in
+let module9: u32 -> u32 -> u32 = (
+  (I0 : u32) =>
+    (I1 : u32) =>
+      let n638: u32 = I1 in
+      let n1040: u32 = 15:u32 in
+      let n617: (u32, u32) = (I0, I1) in
+      let n618: u32 = n617.0 -% n617.1 in
+      let n620: (u32, u32) = (n1040, n618) in
+      let n621: bool = n620.0 << n620.1 in
+      let n1041: u32 = 15:u32 in
+      let n622: (u32, u32) = (I1, I0) in
+      let n623: u32 = n622.0 -% n622.1 in
+      let n625: (u32, u32) = (n1041, n623) in
+      let n626: bool = n625.0 << n625.1 in
+      let n627: (bool, bool) = (n621, n626) in
+      let n628: bool = n627.0 || n627.1 in
+      let n1042: u32 = 0:u32 in
+      let n631: (u32, u32) = (n623, n1042) in
+      let n632: (bool, (u32, u32)) = (n628, n631) in
+      let n633: u32 = if (n632.0) then { (n632.1).0 } else { (n632.1).1 } in
+      let n1043: fix8_7 = (32/2e7):fix8_7 in
+      let n636: (u32, fix8_7) = (n633, n1043) in
+      let n637: u32 = n636.0 *_ n636.1 in
+      let n639: (u32, u32) = (n638, n637) in
+      n639.0 +% n639.1
+) in
+let module10: (u32, (u32, u32)) -> u32 = (I : (u32, (u32, u32))) => let n643: (u32, u32) = I.1 in n643.0 in
+let module11: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] = (
+  (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+    let n1054: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = {{[[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]]}} in
+    let n748: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+      StmMap2(
+        I,
+        n1054,
+        (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            VecMap2(
+              I0,
+              I1,
+              (I0 : Vec[u32, 3:u2]) =>
+                (I1 : Vec[u32, 3:u2]) =>
+                  VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+            )
+      )
+    ) in
+    let n764: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+      StmMap(
+        n748,
+        (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 3:u2]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          )
+      )
+    ) in
+    let n771: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+      StmMap(
+        n764,
+        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[u32, 3:u2]) =>
+              VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n778: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmMap(
+        n771,
+        (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+          VecReduceComb(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n781: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmReduce(
+        n778,
+        (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n782: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n781) in
+    let n1055: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+    let n785: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+      StmMap2(
+        n782,
+        n1055,
+        (I0 : Vec[u32, 1:u1]) =>
+          (I1 : Vec[fix8_7, 1:u1]) =>
+            VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+      )
+    ) in
+    StmMap(
+      n785,
+      (I : Vec[(u32, fix8_7), 1:u1]) =>
+        VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+    )
+) in
+let module12: u32 -> u32 -> u32 = (
+  (I0 : u32) =>
+    (I1 : u32) =>
+      let n829: u32 = I1 in
+      let n1050: u32 = 15:u32 in
+      let n808: (u32, u32) = (I0, I1) in
+      let n809: u32 = n808.0 -% n808.1 in
+      let n811: (u32, u32) = (n1050, n809) in
+      let n812: bool = n811.0 << n811.1 in
+      let n1051: u32 = 15:u32 in
+      let n813: (u32, u32) = (I1, I0) in
+      let n814: u32 = n813.0 -% n813.1 in
+      let n816: (u32, u32) = (n1051, n814) in
+      let n817: bool = n816.0 << n816.1 in
+      let n818: (bool, bool) = (n812, n817) in
+      let n819: bool = n818.0 || n818.1 in
+      let n1052: u32 = 0:u32 in
+      let n822: (u32, u32) = (n814, n1052) in
+      let n823: (bool, (u32, u32)) = (n819, n822) in
+      let n824: u32 = if (n823.0) then { (n823.1).0 } else { (n823.1).1 } in
+      let n1053: fix8_7 = (32/2e7):fix8_7 in
+      let n827: (u32, fix8_7) = (n824, n1053) in
+      let n828: u32 = n827.0 *_ n827.1 in
+      let n830: (u32, u32) = (n829, n828) in
+      n830.0 +% n830.1
+) in
+let module13: (u32, (u32, u32)) -> u32 = (I : (u32, (u32, u32))) => let n834: (u32, u32) = I.1 in n834.1 in
+let module14: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] = (
+  (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+    let n1060: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = {{[[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]]}} in
+    let n939: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+      StmMap2(
+        I,
+        n1060,
+        (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+            VecMap2(
+              I0,
+              I1,
+              (I0 : Vec[u32, 3:u2]) =>
+                (I1 : Vec[u32, 3:u2]) =>
+                  VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+            )
+      )
+    ) in
+    let n955: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+      StmMap(
+        n939,
+        (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 3:u2]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          )
+      )
+    ) in
+    let n962: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+      StmMap(
+        n955,
+        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+          VecMap(
+            I,
+            (I : Vec[u32, 3:u2]) =>
+              VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n969: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmMap(
+        n962,
+        (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+          VecReduceComb(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n972: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+      StmReduce(
+        n969,
+        (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+          VecMap(
+            I,
+            (I : Vec[(u32, u32), 1:u1]) =>
+              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          )
+      )
+    ) in
+    let n973: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n972) in
+    let n1061: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+    let n976: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+      StmMap2(
+        n973,
+        n1061,
+        (I0 : Vec[u32, 1:u1]) =>
+          (I1 : Vec[fix8_7, 1:u1]) =>
+            VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+      )
+    ) in
+    StmMap(
+      n976,
+      (I : Vec[(u32, fix8_7), 1:u1]) =>
+        VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+    )
+) in
+let module15: u32 -> u32 -> u32 = (
+  (I0 : u32) =>
+    (I1 : u32) =>
+      let n1020: u32 = I1 in
+      let n1056: u32 = 15:u32 in
+      let n999: (u32, u32) = (I0, I1) in
+      let n1000: u32 = n999.0 -% n999.1 in
+      let n1002: (u32, u32) = (n1056, n1000) in
+      let n1003: bool = n1002.0 << n1002.1 in
+      let n1057: u32 = 15:u32 in
+      let n1004: (u32, u32) = (I1, I0) in
+      let n1005: u32 = n1004.0 -% n1004.1 in
+      let n1007: (u32, u32) = (n1057, n1005) in
+      let n1008: bool = n1007.0 << n1007.1 in
+      let n1009: (bool, bool) = (n1003, n1008) in
+      let n1010: bool = n1009.0 || n1009.1 in
+      let n1058: u32 = 0:u32 in
+      let n1013: (u32, u32) = (n1005, n1058) in
+      let n1014: (bool, (u32, u32)) = (n1010, n1013) in
+      let n1015: u32 = if (n1014.0) then { (n1014.1).0 } else { (n1014.1).1 } in
+      let n1059: fix8_7 = (32/2e7):fix8_7 in
+      let n1018: (u32, fix8_7) = (n1015, n1059) in
+      let n1019: u32 = n1018.0 *_ n1018.1 in
+      let n1021: (u32, u32) = (n1020, n1019) in
+      n1021.0 +% n1021.1
+) in
+(I : Stm[Vec[u32, 1:u1], 2073600:u21]) =>
+  let n1: Stm[Vec[u32, 1:u1], 2073600:u21] = I in
+  let n2: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n1, 1920:u11) in
+  let n3: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n2, 1920:u11) in
+  let n4: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n3, 1:u1) in
+  let n5: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n4, 1:u1) in
+  let n6: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n5,
+      n4,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_15 : u8) => if (x_15 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n13: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n6,
+      n3,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n22: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n13, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n29: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n22,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n30: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n2, 1:u1) in
+  let n31: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n30, 1:u1) in
+  let n32: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n31,
+      n30,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_16 : u8) => if (x_16 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n39: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n32,
+      n2,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n48: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n39, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n55: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n48,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n56: Stm[Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n29,
+      n55,
+      (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 3:u3]) =>
+              (I1 : Vec[u32, 3:u3]) =>
+                vbuild(
+                  2:u2,
+                  (x_17 : u8) => if (x_17 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n63: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n1, 1:u1) in
+  let n64: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n63, 1:u1) in
+  let n65: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n64,
+      n63,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_18 : u8) => if (x_18 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n72: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n65,
+      n1,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n81: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n72, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n88: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n81,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n89: Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n56,
+      n88,
+      (I0 : Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[Vec[u32, 3:u3], 2:u2]) =>
+              (I1 : Vec[u32, 3:u3]) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n96: Stm[Vec[Stm[Vec[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 1:u1], 2073600:u21] = (
+    ReshapeSeq[Stm[Vec[Stm[Vec[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 1:u1], 2073600:u21]](
+      n89
+    )
+  ) in
+  let n101: Stm[Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 2073600:u21] = (
+    StmMap(
+      n96,
+      (I : Vec[Stm[Vec[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Stm[Vec[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1]) =>
+            ReshapeSeq[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]](I)
+        )
+    )
+  ) in
+  let n102: Stm[Stm[Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 3840:u12], 540:u21] = StmSplit(n101, 3840:u12) in
+  let n447: Stm[Stm[Vec[Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1], 1:u1], 3840:u12], 540:u21] = (
+    StmMap(
+      n102,
+      (I : Stm[Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1], 3840:u12]) =>
+        let n104: Stm[Vec[u32, 1:u1], 3840:u12] = StmVecRange(3840:u12, 1:u1, 0:u32, 1:u32) in
+        let n112: Stm[Vec[bool, 1:u1], 3840:u12] = StmMap(n104, (I : Vec[u32, 1:u1]) => VecMap(I, module0)) in
+        let n124: Stm[Vec[bool, 1:u1], 3840:u12] = StmMap(n104, (I : Vec[u32, 1:u1]) => VecMap(I, module1)) in
+        let n125: Stm[Vec[(bool, bool), 1:u1], 3840:u12] = (
+          StmMap2(
+            n112,
+            n124,
+            (I0 : Vec[bool, 1:u1]) =>
+              (I1 : Vec[bool, 1:u1]) =>
+                VecMap2(I0, I1, (I0 : bool) => (I1 : bool) => (I0, I1))
+          )
+        ) in
+        let n132: Stm[Stm[Vec[(bool, bool), 1:u1], 1:u1], 3840:u12] = StmSplit(n125, 1:u1) in
+        let n133: Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12] = (
+          ReshapeSeq[Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12]](
+            n132
+          )
+        ) in
+        let n134: Stm[Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1], 3840:u12] = n133 in
+        StmMap2(
+          I,
+          n134,
+          (I0 : Vec[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 1:u1]) =>
+            (I1 : Vec[Stm[Vec[(bool, bool), 1:u1], 1:u1], 1:u1]) =>
+              VecMap2(
+                I0,
+                I1,
+                (I0 : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+                  (I1 : Stm[Vec[(bool, bool), 1:u1], 1:u1]) =>
+                    let n144: Stm[Vec[bool, 1:u1], 1:u1] = (
+                      StmMap(
+                        I1,
+                        (I : Vec[(bool, bool), 1:u1]) =>
+                          VecMap(I, (I : (bool, bool)) => I.0)
+                      )
+                    ) in
+                    let n434: Stm[Vec[bool, 1:u1], 1:u1] = n144 in
+                    let n149: Stm[Vec[bool, 1:u1], 1:u1] = (
+                      StmMap(
+                        I1,
+                        (I : Vec[(bool, bool), 1:u1]) =>
+                          VecMap(I, (I : (bool, bool)) => I.1)
+                      )
+                    ) in
+                    let n364: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+                    let n151: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                    let n154: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                      StmMap(
+                        n151,
+                        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                          vbuild(1:u1, (x_1 : u8) => I[1:u1])
+                      )
+                    ) in
+                    let n155: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n154) in
+                    let n158: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n155,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_2 : u8) => I[0:u0])
+                      )
+                    ) in
+                    let n161: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n155,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_3 : u8) => I[2:u2])
+                      )
+                    ) in
+                    let n162: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n158,
+                        n161,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n173: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n162,
+                        (I : Vec[(u32, u32), 1:u1]) =>
+                          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+                      )
+                    ) in
+                    let n180: Stm[Vec[(u32, u8), 1:u1], 1:u1] = (
+                      StmMap(
+                        n173,
+                        (I : Vec[u32, 1:u1]) => VecMap(I, module2)
+                      )
+                    ) in
+                    let n185: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n180,
+                        (I : Vec[(u32, u8), 1:u1]) =>
+                          VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                      )
+                    ) in
+                    let n188: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n155,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_4 : u8) => I[1:u1])
+                      )
+                    ) in
+                    let n189: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                    let n192: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                      StmMap(
+                        n189,
+                        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                          vbuild(1:u1, (x_5 : u8) => I[0:u0])
+                      )
+                    ) in
+                    let n193: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n192) in
+                    let n196: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n193,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_6 : u8) => I[1:u1])
+                      )
+                    ) in
+                    let n197: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = StmAccess(I0, 0:u0) in
+                    let n200: Stm[Vec[Vec[u32, 3:u2], 1:u1], 1:u1] = (
+                      StmMap(
+                        n197,
+                        (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                          vbuild(1:u1, (x_7 : u8) => I[2:u2])
+                      )
+                    ) in
+                    let n201: Stm[Vec[u32, 3:u2], 1:u1] = ReshapeSeq[Stm[Vec[u32, 3:u2], 1:u1]](n200) in
+                    let n204: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n201,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_8 : u8) => I[1:u1])
+                      )
+                    ) in
+                    let n205: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n196,
+                        n204,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n216: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n205,
+                        (I : Vec[(u32, u32), 1:u1]) =>
+                          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+                      )
+                    ) in
+                    let n223: Stm[Vec[(u32, u8), 1:u1], 1:u1] = (
+                      StmMap(
+                        n216,
+                        (I : Vec[u32, 1:u1]) => VecMap(I, module3)
+                      )
+                    ) in
+                    let n228: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n223,
+                        (I : Vec[(u32, u8), 1:u1]) =>
+                          VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                      )
+                    ) in
+                    let n229: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n188,
+                        n228,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n236: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n185,
+                        n229,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[(u32, u32), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n356: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n236 in
+                    let n348: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+                    let n243: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n158,
+                        n196,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) =>
+                                (I1 : u32) =>
+                                  vbuild(
+                                    2:u2,
+                                    (x_9 : u8) =>
+                                      if (x_9 === 0:u0) then {
+                                        I0
+                                      } else {
+                                        I1
+                                      }
+                                  )
+                            )
+                      )
+                    ) in
+                    let n250: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n243,
+                        n161,
+                        (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : Vec[u32, 2:u2]) =>
+                                (I1 : u32) => VecAppend(I0, I1)
+                            )
+                      )
+                    ) in
+                    let n257: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n250,
+                        n204,
+                        (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : Vec[u32, 3:u3]) =>
+                                (I1 : u32) => VecAppend(I0, I1)
+                            )
+                      )
+                    ) in
+                    let n268: Stm[Vec[u32, 4:u4], 1:u1] = (
+                      StmMap(
+                        n257,
+                        (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+                          ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+                      )
+                    ) in
+                    let n273: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n268,
+                        (I : Vec[u32, 4:u4]) =>
+                          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+                      )
+                    ) in
+                    let n280: Stm[Vec[(u32, u8), 1:u1], 1:u1] = (
+                      StmMap(
+                        n273,
+                        (I : Vec[u32, 1:u1]) => VecMap(I, module4)
+                      )
+                    ) in
+                    let n285: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n280,
+                        (I : Vec[(u32, u8), 1:u1]) =>
+                          VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                      )
+                    ) in
+                    let n288: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n193,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_10 : u8) => I[0:u0])
+                      )
+                    ) in
+                    let n291: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n193,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_11 : u8) => I[2:u2])
+                      )
+                    ) in
+                    let n292: Stm[Vec[Vec[u32, 2:u2], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n288,
+                        n291,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) =>
+                                (I1 : u32) =>
+                                  vbuild(
+                                    2:u2,
+                                    (x_12 : u8) =>
+                                      if (x_12 === 0:u0) then {
+                                        I0
+                                      } else {
+                                        I1
+                                      }
+                                  )
+                            )
+                      )
+                    ) in
+                    let n301: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n201,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_13 : u8) => I[0:u0])
+                      )
+                    ) in
+                    let n302: Stm[Vec[Vec[u32, 3:u3], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n292,
+                        n301,
+                        (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : Vec[u32, 2:u2]) =>
+                                (I1 : u32) => VecAppend(I0, I1)
+                            )
+                      )
+                    ) in
+                    let n311: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n201,
+                        (I : Vec[u32, 3:u2]) =>
+                          vbuild(1:u1, (x_14 : u8) => I[2:u2])
+                      )
+                    ) in
+                    let n312: Stm[Vec[Vec[u32, 4:u4], 1:u1], 1:u1] = (
+                      StmMap2(
+                        n302,
+                        n311,
+                        (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : Vec[u32, 3:u3]) =>
+                                (I1 : u32) => VecAppend(I0, I1)
+                            )
+                      )
+                    ) in
+                    let n323: Stm[Vec[u32, 4:u4], 1:u1] = (
+                      StmMap(
+                        n312,
+                        (I : Vec[Vec[u32, 4:u4], 1:u1]) =>
+                          ((I : Vec[u32, 4:u4]) => I)(I[0:u0])
+                      )
+                    ) in
+                    let n328: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n323,
+                        (I : Vec[u32, 4:u4]) =>
+                          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+                      )
+                    ) in
+                    let n335: Stm[Vec[(u32, u8), 1:u1], 1:u1] = (
+                      StmMap(
+                        n328,
+                        (I : Vec[u32, 1:u1]) => VecMap(I, module5)
+                      )
+                    ) in
+                    let n340: Stm[Vec[u32, 1:u1], 1:u1] = (
+                      StmMap(
+                        n335,
+                        (I : Vec[(u32, u8), 1:u1]) =>
+                          VecMap(I, (I : (u32, u8)) => I.0 >> I.1)
+                      )
+                    ) in
+                    let n341: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n285,
+                        n340,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n349: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n348,
+                        n341,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[(u32, u32), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n357: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n356,
+                        n349,
+                        (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                          (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : (u32, (u32, u32))) =>
+                                (I1 : (u32, (u32, u32))) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n365: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n364,
+                        n357,
+                        (I0 : Vec[bool, 1:u1]) =>
+                          (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : bool) =>
+                                (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                                  (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n376: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap(
+                        n365,
+                        (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                          VecMap(
+                            I,
+                            (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                              if (I.0) then { (I.1).0 } else { (I.1).1 }
+                          )
+                      )
+                    ) in
+                    let n414: Stm[Vec[bool, 1:u1], 1:u1] = n149 in
+                    let n377: Stm[Vec[u32, 1:u1], 1:u1] = n188 in
+                    let n378: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n285,
+                        n377,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n385: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n340,
+                        n378,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[(u32, u32), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n392: Stm[Vec[(u32, u32), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n188,
+                        n185,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[u32, 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : u32) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n399: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n228,
+                        n392,
+                        (I0 : Vec[u32, 1:u1]) =>
+                          (I1 : Vec[(u32, u32), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : u32) => (I1 : (u32, u32)) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n406: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = n399 in
+                    let n407: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n385,
+                        n406,
+                        (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                          (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : (u32, (u32, u32))) =>
+                                (I1 : (u32, (u32, u32))) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n415: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n414,
+                        n407,
+                        (I0 : Vec[bool, 1:u1]) =>
+                          (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : bool) =>
+                                (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                                  (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n426: Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1] = (
+                      StmMap(
+                        n415,
+                        (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                          VecMap(
+                            I,
+                            (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                              if (I.0) then { (I.1).0 } else { (I.1).1 }
+                          )
+                      )
+                    ) in
+                    let n427: Stm[Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n376,
+                        n426,
+                        (I0 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                          (I1 : Vec[(u32, (u32, u32)), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : (u32, (u32, u32))) =>
+                                (I1 : (u32, (u32, u32))) => (I0, I1)
+                            )
+                      )
+                    ) in
+                    let n435: Stm[Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1], 1:u1] = (
+                      StmMap2(
+                        n434,
+                        n427,
+                        (I0 : Vec[bool, 1:u1]) =>
+                          (I1 : Vec[((u32, (u32, u32)), (u32, (u32, u32))), 1:u1]) =>
+                            VecMap2(
+                              I0,
+                              I1,
+                              (I0 : bool) =>
+                                (I1 : ((u32, (u32, u32)), (u32, (u32, u32)))) =>
+                                  (I0, I1)
+                            )
+                      )
+                    ) in
+                    StmMap(
+                      n435,
+                      (I : Vec[(bool, ((u32, (u32, u32)), (u32, (u32, u32)))), 1:u1]) =>
+                        VecMap(
+                          I,
+                          (I : (bool, ((u32, (u32, u32)), (u32, (u32, u32))))) =>
+                            if (I.0) then { (I.1).0 } else { (I.1).1 }
+                        )
+                    )
+              )
+        )
+    )
+  ) in
+  let n448: Stm[Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1], 2073600:u21] = ReshapeSeq[Stm[Stm[Vec[(u32, (u32, u32)), 1:u1], 1:u1], 2073600:u21]](n447) in
+  let n449: Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21]](n448) in
+  let n450: Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21]](n449) in
+  let n455: Stm[Vec[u32, 1:u1], 2073600:u21] = (
+    StmMap(
+      n450,
+      (I : Vec[(u32, (u32, u32)), 1:u1]) =>
+        VecMap(I, (I : (u32, (u32, u32))) => I.0)
+    )
+  ) in
+  let n456: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n455, 1920:u11) in
+  let n457: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n456, 1920:u11) in
+  let n458: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n457, 1:u1) in
+  let n459: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n458, 1:u1) in
+  let n460: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n459,
+      n458,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_19 : u8) => if (x_19 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n467: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n460,
+      n457,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n476: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n467, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n483: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n476,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n484: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n456, 1:u1) in
+  let n485: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n484, 1:u1) in
+  let n486: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n485,
+      n484,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_20 : u8) => if (x_20 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n493: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n486,
+      n456,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n502: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n493, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n509: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n502,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n510: Stm[Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n483,
+      n509,
+      (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 3:u3]) =>
+              (I1 : Vec[u32, 3:u3]) =>
+                vbuild(
+                  2:u2,
+                  (x_21 : u8) => if (x_21 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n517: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n455, 1:u1) in
+  let n518: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n517, 1:u1) in
+  let n519: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n518,
+      n517,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_22 : u8) => if (x_22 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n526: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n519,
+      n455,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n535: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n526, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n542: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n535,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n543: Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n510,
+      n542,
+      (I0 : Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[Vec[u32, 3:u3], 2:u2]) =>
+              (I1 : Vec[u32, 3:u3]) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n550: Stm[Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1], 2073600:u21] = StmSplit(n543, 1:u1) in
+  let n553: Stm[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 2073600:u21] = (
+    StmMap(
+      n550,
+      (I : Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1]) =>
+        ReshapeSeq[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]](I)
+    )
+  ) in
+  let n606: Stm[Stm[Vec[u32, 1:u1], 1:u1], 2073600:u21] = (
+    StmMap(
+      n553,
+      (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+        let n1044: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          {{
+            [
+              [1:u32, 2:u32, 1:u32],
+              [2:u32, 4:u32, 2:u32],
+              [1:u32, 2:u32, 1:u32]
+            ]
+          }}
+        ) in
+        let n557: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+          StmMap2(
+            I,
+            n1044,
+            (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                VecMap2(
+                  I0,
+                  I1,
+                  (I0 : Vec[u32, 3:u2]) =>
+                    (I1 : Vec[u32, 3:u2]) =>
+                      VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                )
+          )
+        ) in
+        let n573: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          StmMap(
+            n557,
+            (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 3:u2]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              )
+          )
+        ) in
+        let n580: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+          StmMap(
+            n573,
+            (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[u32, 3:u2]) =>
+                  VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n587: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmMap(
+            n580,
+            (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+              VecReduceComb(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n590: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmReduce(
+            n587,
+            (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n591: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n590) in
+        let n1045: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+        let n594: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+          StmMap2(
+            n591,
+            n1045,
+            (I0 : Vec[u32, 1:u1]) =>
+              (I1 : Vec[fix8_7, 1:u1]) =>
+                VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+          )
+        ) in
+        StmMap(
+          n594,
+          (I : Vec[(u32, fix8_7), 1:u1]) =>
+            VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+        )
+    )
+  ) in
+  let n607: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n606) in
+  let n608: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n607) in
+  let n609: Stm[Vec[u32, 1:u1], 2073600:u21] = n455 in
+  let n610: Stm[Vec[u32, 1:u1], 2073600:u21] = (
+    StmMap2(
+      n608,
+      n609,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                let n638: u32 = I1 in
+                let n1040: u32 = 15:u32 in
+                let n617: (u32, u32) = (I0, I1) in
+                let n618: u32 = n617.0 -% n617.1 in
+                let n620: (u32, u32) = (n1040, n618) in
+                let n621: bool = n620.0 << n620.1 in
+                let n1041: u32 = 15:u32 in
+                let n622: (u32, u32) = (I1, I0) in
+                let n623: u32 = n622.0 -% n622.1 in
+                let n625: (u32, u32) = (n1041, n623) in
+                let n626: bool = n625.0 << n625.1 in
+                let n627: (bool, bool) = (n621, n626) in
+                let n628: bool = n627.0 || n627.1 in
+                let n1042: u32 = 0:u32 in
+                let n631: (u32, u32) = (n623, n1042) in
+                let n632: (bool, (u32, u32)) = (n628, n631) in
+                let n633: u32 = if (n632.0) then { (n632.1).0 } else { (n632.1).1 } in
+                let n1043: fix8_7 = (32/2e7):fix8_7 in
+                let n636: (u32, fix8_7) = (n633, n1043) in
+                let n637: u32 = n636.0 *_ n636.1 in
+                let n639: (u32, u32) = (n638, n637) in
+                n639.0 +% n639.1
+          )
+    )
+  ) in
+  let n646: Stm[Vec[u32, 1:u1], 2073600:u21] = StmMap(n450, (I : Vec[(u32, (u32, u32)), 1:u1]) => VecMap(I, module10)) in
+  let n647: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n646, 1920:u11) in
+  let n648: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n647, 1920:u11) in
+  let n649: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n648, 1:u1) in
+  let n650: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n649, 1:u1) in
+  let n651: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n650,
+      n649,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_23 : u8) => if (x_23 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n658: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n651,
+      n648,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n667: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n658, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n674: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n667,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n675: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n647, 1:u1) in
+  let n676: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n675, 1:u1) in
+  let n677: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n676,
+      n675,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_24 : u8) => if (x_24 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n684: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n677,
+      n647,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n693: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n684, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n700: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n693,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n701: Stm[Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n674,
+      n700,
+      (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 3:u3]) =>
+              (I1 : Vec[u32, 3:u3]) =>
+                vbuild(
+                  2:u2,
+                  (x_25 : u8) => if (x_25 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n708: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n646, 1:u1) in
+  let n709: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n708, 1:u1) in
+  let n710: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n709,
+      n708,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_26 : u8) => if (x_26 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n717: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n710,
+      n646,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n726: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n717, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n733: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n726,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n734: Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n701,
+      n733,
+      (I0 : Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[Vec[u32, 3:u3], 2:u2]) =>
+              (I1 : Vec[u32, 3:u3]) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n741: Stm[Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1], 2073600:u21] = StmSplit(n734, 1:u1) in
+  let n744: Stm[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 2073600:u21] = (
+    StmMap(
+      n741,
+      (I : Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1]) =>
+        ReshapeSeq[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]](I)
+    )
+  ) in
+  let n797: Stm[Stm[Vec[u32, 1:u1], 1:u1], 2073600:u21] = (
+    StmMap(
+      n744,
+      (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+        let n1054: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          {{
+            [
+              [1:u32, 2:u32, 1:u32],
+              [2:u32, 4:u32, 2:u32],
+              [1:u32, 2:u32, 1:u32]
+            ]
+          }}
+        ) in
+        let n748: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+          StmMap2(
+            I,
+            n1054,
+            (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                VecMap2(
+                  I0,
+                  I1,
+                  (I0 : Vec[u32, 3:u2]) =>
+                    (I1 : Vec[u32, 3:u2]) =>
+                      VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                )
+          )
+        ) in
+        let n764: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          StmMap(
+            n748,
+            (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 3:u2]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              )
+          )
+        ) in
+        let n771: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+          StmMap(
+            n764,
+            (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[u32, 3:u2]) =>
+                  VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n778: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmMap(
+            n771,
+            (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+              VecReduceComb(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n781: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmReduce(
+            n778,
+            (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n782: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n781) in
+        let n1055: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+        let n785: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+          StmMap2(
+            n782,
+            n1055,
+            (I0 : Vec[u32, 1:u1]) =>
+              (I1 : Vec[fix8_7, 1:u1]) =>
+                VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+          )
+        ) in
+        StmMap(
+          n785,
+          (I : Vec[(u32, fix8_7), 1:u1]) =>
+            VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+        )
+    )
+  ) in
+  let n798: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n797) in
+  let n799: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n798) in
+  let n800: Stm[Vec[u32, 1:u1], 2073600:u21] = n646 in
+  let n801: Stm[Vec[u32, 1:u1], 2073600:u21] = (
+    StmMap2(
+      n799,
+      n800,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                let n829: u32 = I1 in
+                let n1050: u32 = 15:u32 in
+                let n808: (u32, u32) = (I0, I1) in
+                let n809: u32 = n808.0 -% n808.1 in
+                let n811: (u32, u32) = (n1050, n809) in
+                let n812: bool = n811.0 << n811.1 in
+                let n1051: u32 = 15:u32 in
+                let n813: (u32, u32) = (I1, I0) in
+                let n814: u32 = n813.0 -% n813.1 in
+                let n816: (u32, u32) = (n1051, n814) in
+                let n817: bool = n816.0 << n816.1 in
+                let n818: (bool, bool) = (n812, n817) in
+                let n819: bool = n818.0 || n818.1 in
+                let n1052: u32 = 0:u32 in
+                let n822: (u32, u32) = (n814, n1052) in
+                let n823: (bool, (u32, u32)) = (n819, n822) in
+                let n824: u32 = if (n823.0) then { (n823.1).0 } else { (n823.1).1 } in
+                let n1053: fix8_7 = (32/2e7):fix8_7 in
+                let n827: (u32, fix8_7) = (n824, n1053) in
+                let n828: u32 = n827.0 *_ n827.1 in
+                let n830: (u32, u32) = (n829, n828) in
+                n830.0 +% n830.1
+          )
+    )
+  ) in
+  let n837: Stm[Vec[u32, 1:u1], 2073600:u21] = StmMap(n450, (I : Vec[(u32, (u32, u32)), 1:u1]) => VecMap(I, module13)) in
+  let n838: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n837, 1920:u11) in
+  let n839: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n838, 1920:u11) in
+  let n840: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n839, 1:u1) in
+  let n841: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n840, 1:u1) in
+  let n842: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n841,
+      n840,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_27 : u8) => if (x_27 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n849: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n842,
+      n839,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n858: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n849, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n865: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n858,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n866: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n838, 1:u1) in
+  let n867: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n866, 1:u1) in
+  let n868: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n867,
+      n866,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_28 : u8) => if (x_28 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n875: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n868,
+      n838,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n884: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n875, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n891: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n884,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n892: Stm[Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n865,
+      n891,
+      (I0 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 3:u3]) =>
+              (I1 : Vec[u32, 3:u3]) =>
+                vbuild(
+                  2:u2,
+                  (x_29 : u8) => if (x_29 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n899: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n837, 1:u1) in
+  let n900: Stm[Vec[u32, 1:u1], 2073600:u21] = StmShiftRightGarbage(n899, 1:u1) in
+  let n901: Stm[Vec[Vec[u32, 2:u2], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n900,
+      n899,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                vbuild(
+                  2:u2,
+                  (x_30 : u8) => if (x_30 === 0:u0) then { I0 } else { I1 }
+                )
+          )
+    )
+  ) in
+  let n908: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n901,
+      n837,
+      (I0 : Vec[Vec[u32, 2:u2], 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[u32, 2:u2]) => (I1 : u32) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n917: Stm[Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1], 2073600:u21] = StmMap(n908, (I : Vec[Vec[u32, 3:u3], 1:u1]) => VecSplit(I, 1:u1)) in
+  let n924: Stm[Vec[Vec[u32, 3:u3], 1:u1], 2073600:u21] = (
+    StmMap(
+      n917,
+      (I : Vec[Vec[Vec[u32, 3:u3], 1:u1], 1:u1]) =>
+        VecMap(
+          I,
+          (I : Vec[Vec[u32, 3:u3], 1:u1]) =>
+            ((I : Vec[u32, 3:u3]) => I)(I[0:u0])
+        )
+    )
+  ) in
+  let n925: Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 2073600:u21] = (
+    StmMap2(
+      n892,
+      n924,
+      (I0 : Vec[Vec[Vec[u32, 3:u3], 2:u2], 1:u1]) =>
+        (I1 : Vec[Vec[u32, 3:u3], 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : Vec[Vec[u32, 3:u3], 2:u2]) =>
+              (I1 : Vec[u32, 3:u3]) => VecAppend(I0, I1)
+          )
+    )
+  ) in
+  let n932: Stm[Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1], 2073600:u21] = StmSplit(n925, 1:u1) in
+  let n935: Stm[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1], 2073600:u21] = (
+    StmMap(
+      n932,
+      (I : Stm[Vec[Vec[Vec[u32, 3:u3], 3:u3], 1:u1], 1:u1]) =>
+        ReshapeSeq[Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]](I)
+    )
+  ) in
+  let n988: Stm[Stm[Vec[u32, 1:u1], 1:u1], 2073600:u21] = (
+    StmMap(
+      n935,
+      (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
+        let n1060: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          {{
+            [
+              [1:u32, 2:u32, 1:u32],
+              [2:u32, 4:u32, 2:u32],
+              [1:u32, 2:u32, 1:u32]
+            ]
+          }}
+        ) in
+        let n939: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
+          StmMap2(
+            I,
+            n1060,
+            (I0 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              (I1 : Vec[Vec[u32, 3:u2], 3:u2]) =>
+                VecMap2(
+                  I0,
+                  I1,
+                  (I0 : Vec[u32, 3:u2]) =>
+                    (I1 : Vec[u32, 3:u2]) =>
+                      VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+                )
+          )
+        ) in
+        let n955: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+          StmMap(
+            n939,
+            (I : Vec[Vec[(u32, u32), 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 3:u2]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              )
+          )
+        ) in
+        let n962: Stm[Vec[Vec[u32, 1:u1], 3:u2], 1:u1] = (
+          StmMap(
+            n955,
+            (I : Vec[Vec[u32, 3:u2], 3:u2]) =>
+              VecMap(
+                I,
+                (I : Vec[u32, 3:u2]) =>
+                  VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n969: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmMap(
+            n962,
+            (I : Vec[Vec[u32, 1:u1], 3:u2]) =>
+              VecReduceComb(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n972: Stm[Vec[Vec[u32, 1:u1], 1:u1], 1:u1] = (
+          StmReduce(
+            n969,
+            (I : Vec[Vec[(u32, u32), 1:u1], 1:u1]) =>
+              VecMap(
+                I,
+                (I : Vec[(u32, u32), 1:u1]) =>
+                  VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              )
+          )
+        ) in
+        let n973: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n972) in
+        let n1061: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+        let n976: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
+          StmMap2(
+            n973,
+            n1061,
+            (I0 : Vec[u32, 1:u1]) =>
+              (I1 : Vec[fix8_7, 1:u1]) =>
+                VecMap2(I0, I1, (I0 : u32) => (I1 : fix8_7) => (I0, I1))
+          )
+        ) in
+        StmMap(
+          n976,
+          (I : Vec[(u32, fix8_7), 1:u1]) =>
+            VecMap(I, (I : (u32, fix8_7)) => I.0 *_ I.1)
+        )
+    )
+  ) in
+  let n989: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n988) in
+  let n990: Stm[Vec[u32, 1:u1], 2073600:u21] = ReshapeSeq[Stm[Vec[u32, 1:u1], 2073600:u21]](n989) in
+  let n991: Stm[Vec[u32, 1:u1], 2073600:u21] = n837 in
+  let n992: Stm[Vec[u32, 1:u1], 2073600:u21] = (
+    StmMap2(
+      n990,
+      n991,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(
+            I0,
+            I1,
+            (I0 : u32) =>
+              (I1 : u32) =>
+                let n1020: u32 = I1 in
+                let n1056: u32 = 15:u32 in
+                let n999: (u32, u32) = (I0, I1) in
+                let n1000: u32 = n999.0 -% n999.1 in
+                let n1002: (u32, u32) = (n1056, n1000) in
+                let n1003: bool = n1002.0 << n1002.1 in
+                let n1057: u32 = 15:u32 in
+                let n1004: (u32, u32) = (I1, I0) in
+                let n1005: u32 = n1004.0 -% n1004.1 in
+                let n1007: (u32, u32) = (n1057, n1005) in
+                let n1008: bool = n1007.0 << n1007.1 in
+                let n1009: (bool, bool) = (n1003, n1008) in
+                let n1010: bool = n1009.0 || n1009.1 in
+                let n1058: u32 = 0:u32 in
+                let n1013: (u32, u32) = (n1005, n1058) in
+                let n1014: (bool, (u32, u32)) = (n1010, n1013) in
+                let n1015: u32 = if (n1014.0) then { (n1014.1).0 } else { (n1014.1).1 } in
+                let n1059: fix8_7 = (32/2e7):fix8_7 in
+                let n1018: (u32, fix8_7) = (n1015, n1059) in
+                let n1019: u32 = n1018.0 *_ n1018.1 in
+                let n1021: (u32, u32) = (n1020, n1019) in
+                n1021.0 +% n1021.1
+          )
+    )
+  ) in
+  let n1023: Stm[Vec[(u32, u32), 1:u1], 2073600:u21] = (
+    StmMap2(
+      n801,
+      n992,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[u32, 1:u1]) =>
+          VecMap2(I0, I1, (I0 : u32) => (I1 : u32) => (I0, I1))
+    )
+  ) in
+  let n1030: Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21] = (
+    StmMap2(
+      n610,
+      n1023,
+      (I0 : Vec[u32, 1:u1]) =>
+        (I1 : Vec[(u32, u32), 1:u1]) =>
+          VecMap2(I0, I1, (I0 : u32) => (I1 : (u32, u32)) => (I0, I1))
+    )
+  ) in
+  let n1037: Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21] = n1030 in
+  let n1038: Stm[Vec[(u32, (u32, u32)), 1:u1], 2073600:u21] = n1037 in
+  n1038

@@ -40,6 +40,15 @@
         <appender-ref ref="STDOUT" />
         <appender-ref ref="STDERR" />
     </root>
+    <!--
+        Enabling ALL trace messages will probably lead to too much noise.
+        Instead, selectively enable trace messages for just the classes you're
+        interested in.
+        (The current list is obviously not exhaustive: add a new line if your
+        class isn't here yet.)
+    -->
+    <logger name="mhir.ir.StreamFuser$" level="INFO"/>
+    <logger name="mhir.ir.Let$" level="INFO"/>
     <logger name="mhir.optimize.StmSimplifier$" level="INFO" />
     <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
 </configuration>

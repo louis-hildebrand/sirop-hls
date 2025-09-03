@@ -222,7 +222,7 @@
                 (if (is_first_step) then {
                   data(x_stm)[0:u32]
                 } else {
-                  x_data[i_3013]
+                  x_data[i_3009]
                 })
                   << (
                     [
@@ -235,162 +235,162 @@
                       0:u8,
                       1:u8,
                       0:u8
-                    ][i_3007]);
+                    ][i_3005]);
                 true;
-                (i_3007 : u4) = (
+                (i_3005 : u4) = (
                   0:u4,
-                  if (out_ctr_3011 == 8:u32) then {
+                  if (out_ctr_3007 == 8:u32) then {
                     0:u4
                   } else {
-                    1:u4 + i_3007
+                    1:u4 + i_3005
                   }
                 );
-                (i_3013 : u32) = (
+                (i_3009 : u32) = (
                   0:u32,
                   if (
                     (
                       !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
                       || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else if (
                     (
                       !is_first_step
-                        && in_ctr_3008 == 1:u32
-                        && out_ctr_3006 == 2:u32)
+                        && in_ctr_3002 == 1:u32
+                        && out_ctr_3004 == 2:u32)
                       || (
-                        in_ctr_3008 == 0:u32
-                          && out_ctr_3006 == 2:u32
+                        in_ctr_3002 == 0:u32
+                          && out_ctr_3004 == 2:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else {
                     1:u32
-                      + (if (is_first_step) then { 0:u32 } else { i_3013 })
+                      + (if (is_first_step) then { 0:u32 } else { i_3009 })
                   }
                 );
-                (in_ctr_3008 : u32) = (
+                (in_ctr_3002 : u32) = (
                   0:u32,
                   if (
                     (
                       !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
                       || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else if (
                     (
                       !is_first_step
-                        && in_ctr_3008 == 1:u32
-                        && out_ctr_3006 == 2:u32)
+                        && in_ctr_3002 == 1:u32
+                        && out_ctr_3004 == 2:u32)
                       || (
-                        in_ctr_3008 == 0:u32
-                          && out_ctr_3006 == 2:u32
+                        in_ctr_3002 == 0:u32
+                          && out_ctr_3004 == 2:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else if (is_first_step) then {
-                    1:u32 + in_ctr_3008
+                    1:u32 + in_ctr_3002
                   } else {
-                    in_ctr_3008
+                    in_ctr_3002
                   }
                 );
-                (in_ctr_3012 : u32) = (
+                (in_ctr_3003 : u32) = (
                   0:u32,
                   if (
                     (
                       !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
                       || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else if (is_first_step) then {
-                    1:u32 + in_ctr_3012
+                    1:u32 + in_ctr_3003
                   } else {
-                    in_ctr_3012
+                    in_ctr_3003
                   }
                 );
                 (is_first_step : bool) = (
                   true,
                   (
                     ((
-                      (in_ctr_3012 != 2:u32 || out_ctr_3010 != 8:u32)
-                        && in_ctr_3008 == 0:u32
-                        && out_ctr_3006 == 2:u32)
-                      || in_ctr_3012 == 2:u32 && out_ctr_3010 == 8:u32)
+                      (in_ctr_3003 != 2:u32 || out_ctr_3001 != 8:u32)
+                        && in_ctr_3002 == 0:u32
+                        && out_ctr_3004 == 2:u32)
+                      || in_ctr_3003 == 2:u32 && out_ctr_3001 == 8:u32)
                       && is_first_step)
                     || (
                       ((
-                        (in_ctr_3012 != 3:u32 || out_ctr_3010 != 8:u32)
-                          && in_ctr_3008 == 1:u32
-                          && out_ctr_3006 == 2:u32)
-                        || in_ctr_3012 == 3:u32 && out_ctr_3010 == 8:u32)
+                        (in_ctr_3003 != 3:u32 || out_ctr_3001 != 8:u32)
+                          && in_ctr_3002 == 1:u32
+                          && out_ctr_3004 == 2:u32)
+                        || in_ctr_3003 == 3:u32 && out_ctr_3001 == 8:u32)
                         && !is_first_step)
                 );
-                (out_ctr_3006 : u32) = (
+                (out_ctr_3001 : u32) = (
                   0:u32,
                   if (
                     (
                       !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
                       || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
+                          && is_first_step)
+                  ) then {
+                    0:u32
+                  } else {
+                    1:u32 + out_ctr_3001
+                  }
+                );
+                (out_ctr_3004 : u32) = (
+                  0:u32,
+                  if (
+                    (
+                      !is_first_step
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
+                      || (
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else if (
                     (
                       !is_first_step
-                        && in_ctr_3008 == 1:u32
-                        && out_ctr_3006 == 2:u32)
+                        && in_ctr_3002 == 1:u32
+                        && out_ctr_3004 == 2:u32)
                       || (
-                        in_ctr_3008 == 0:u32
-                          && out_ctr_3006 == 2:u32
+                        in_ctr_3002 == 0:u32
+                          && out_ctr_3004 == 2:u32
                           && is_first_step)
                   ) then {
                     0:u32
                   } else {
-                    1:u32 + out_ctr_3006
+                    1:u32 + out_ctr_3004
                   }
                 );
-                (out_ctr_3010 : u32) = (
+                (out_ctr_3007 : u32) = (
                   0:u32,
-                  if (
-                    (
-                      !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
-                      || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
-                          && is_first_step)
-                  ) then {
+                  if (out_ctr_3007 == 8:u32) then {
                     0:u32
                   } else {
-                    1:u32 + out_ctr_3010
-                  }
-                );
-                (out_ctr_3011 : u32) = (
-                  0:u32,
-                  if (out_ctr_3011 == 8:u32) then {
-                    0:u32
-                  } else {
-                    1:u32 + out_ctr_3011
+                    1:u32 + out_ctr_3007
                   }
                 );
                 (x_data : Vec[u8, 3:u3]) = (
@@ -398,22 +398,22 @@
                   if (
                     (
                       !is_first_step
-                        && in_ctr_3012 == 3:u32
-                        && out_ctr_3010 == 8:u32)
+                        && in_ctr_3003 == 3:u32
+                        && out_ctr_3001 == 8:u32)
                       || (
-                        in_ctr_3012 == 2:u32
-                          && out_ctr_3010 == 8:u32
+                        in_ctr_3003 == 2:u32
+                          && out_ctr_3001 == 8:u32
                           && is_first_step)
                   ) then {
                     vbuild(3:u3, (i : u32) => 0:u8)
                   } else if (
                     (
                       !is_first_step
-                        && in_ctr_3008 == 1:u32
-                        && out_ctr_3006 == 2:u32)
+                        && in_ctr_3002 == 1:u32
+                        && out_ctr_3004 == 2:u32)
                       || (
-                        in_ctr_3008 == 0:u32
-                          && out_ctr_3006 == 2:u32
+                        in_ctr_3002 == 0:u32
+                          && out_ctr_3004 == 2:u32
                           && is_first_step)
                   ) then {
                     vbuild(3:u3, (i : u32) => 0:u8)
@@ -451,7 +451,7 @@
                           ),
                           vbuild(
                             1:u1,
-                            (i_3971 : u1) =>
+                            (i_4025 : u1) =>
                               if (is_first_step) then {
                                 data(x_stm)[0:u32]
                               } else {

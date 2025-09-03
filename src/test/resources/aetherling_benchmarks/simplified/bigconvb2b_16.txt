@@ -378,20 +378,6 @@
                     (k : u8) =>
                       if (k == 0:u8) then {
                         if (i < 1:u32) then {
-                          buf_3710[0:u32]
-                        } else {
-                          data(I1_3709)[usgn(-1:i33 + sgn(i))]
-                        }
-                      } else {
-                        data(I1_3709)[i]
-                      }
-                  )
-                } else {
-                  vbuild(
-                    2:u2,
-                    (k : u8) =>
-                      if (k == 0:u8) then {
-                        if (i < 1:u32) then {
                           buf_3708[0:u32]
                         } else {
                           data(I1_3707)[usgn(-1:i33 + sgn(i))]
@@ -400,11 +386,25 @@
                         data(I1_3707)[i]
                       }
                   )
+                } else {
+                  vbuild(
+                    2:u2,
+                    (k : u8) =>
+                      if (k == 0:u8) then {
+                        if (i < 1:u32) then {
+                          buf_3706[0:u32]
+                        } else {
+                          data(I1_3705)[usgn(-1:i33 + sgn(i))]
+                        }
+                      } else {
+                        data(I1_3705)[i]
+                      }
+                  )
                 }
             )
         );
         true;
-        (I1_3707 : Stm[Vec[u32, 16:u5], -1:i1]) = (
+        (I1_3705 : Stm[Vec[u32, 16:u5], -1:i1]) = (
           sbuild(
             129600:u17;
             data(s);
@@ -416,7 +416,7 @@
           ),
           true
         );
-        (I1_3709 : Stm[Vec[u32, 16:u5], -1:i1]) = (
+        (I1_3707 : Stm[Vec[u32, 16:u5], -1:i1]) = (
           sbuild(
             129600:u17;
             vbuild(16:u5, (i : u32) => buf[i]);
@@ -440,13 +440,13 @@
           ),
           true
         );
+        (buf_3706 : Vec[u32, 1:u1]) = (
+          vbuild(1:u1, (i : u32) => 0:u32),
+          vbuild(1:u1, (i : u32) => data(I1_3705)[15:u32])
+        );
         (buf_3708 : Vec[u32, 1:u1]) = (
           vbuild(1:u1, (i : u32) => 0:u32),
           vbuild(1:u1, (i : u32) => data(I1_3707)[15:u32])
-        );
-        (buf_3710 : Vec[u32, 1:u1]) = (
-          vbuild(1:u1, (i : u32) => 0:u32),
-          vbuild(1:u1, (i : u32) => data(I1_3709)[15:u32])
         );
       ),
       true
