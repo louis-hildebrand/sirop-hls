@@ -694,6 +694,30 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PE.partialEval(VecAccess(v, 2)()) == C(43)(U8))
   }
 
+  test("VecLiteral(...)[i][IntCst]") {
+    val v = VecLiteral(
+      VecLiteral(C(0)(U8), C(2)(U8), C(4)(U8))(),
+      VecLiteral(C(10)(U8), C(12)(U8), C(14)(U8))(),
+      VecLiteral(C(20)(U8), C(22)(U8), C(24)(U8))()
+    )().tchk()
+    val i = Param("i")(U8)
+
+    val va0 = VecAccess(VecAccess(v, i)(), 0)().tchk()
+    val expected0 =
+      VecAccess(VecLiteral(C(0)(U8), C(10)(U8), C(20)(U8))(), i)().tchk()
+    assert(PE.partialEval(va0) == expected0)
+
+    val va1 = VecAccess(VecAccess(v, i)(), 1)().tchk()
+    val expected1 =
+      VecAccess(VecLiteral(C(2)(U8), C(12)(U8), C(22)(U8))(), i)().tchk()
+    assert(PE.partialEval(va1) == expected1)
+
+    val va2 = VecAccess(VecAccess(v, i)(), 2)().tchk()
+    val expected2 =
+      VecAccess(VecLiteral(C(4)(U8), C(14)(U8), C(24)(U8))(), i)().tchk()
+    assert(PE.partialEval(va2) == expected2)
+  }
+
   test("NestedMux") {
     val i = Param("i")(U8)
     val n = Param("n")(U8)

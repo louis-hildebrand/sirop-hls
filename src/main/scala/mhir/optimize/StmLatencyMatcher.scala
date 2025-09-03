@@ -181,6 +181,9 @@ object StmLatencyMatcher {
               s -> (increaseLatencyTo(x, src, targetLatency - 1), True)
             )
           )()
+        case x: Param =>
+          // TODO: When does this happen?
+          x
         case s: StmBuild =>
           val newEquations = s.equations
             .map({
@@ -204,6 +207,8 @@ object StmLatencyMatcher {
           }
           val newOut = increaseLatencyTo(out, src, targetLatency)
           LetStm(x, newIn, newOut)()
+        case e =>
+          ???
       }
     }
   }
