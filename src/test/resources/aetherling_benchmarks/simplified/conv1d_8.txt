@@ -25,18 +25,18 @@
                     if (i < 1:u32) then {
                       buf[0:u32]
                     } else {
-                      data(I1_205)[usgn(-1:i33 + sgn(i))]
+                      data(I1_204)[usgn(-1:i33 + sgn(i))]
                     }
                   } else {
-                    data(I1_205)[i]
+                    data(I1_204)[i]
                   }
                 } else {
-                  data(I1_204)[i]
+                  data(I1_203)[i]
                 }
             )
         );
         true;
-        (I1_204 : Stm[Vec[i8, 8:u4], -1:i1]) = (
+        (I1_203 : Stm[Vec[i8, 8:u4], -1:i1]) = (
           sbuild(
             2:u2;
             data(s);
@@ -48,7 +48,7 @@
           ),
           true
         );
-        (I1_205 : Stm[Vec[i8, 8:u4], -1:i1]) = (
+        (I1_204 : Stm[Vec[i8, 8:u4], -1:i1]) = (
           sbuild(
             2:u2;
             vbuild(
@@ -74,7 +74,7 @@
         );
         (buf : Vec[i8, 1:u1]) = (
           vbuild(1:u1, (i : u32) => 0:i8),
-          vbuild(1:u1, (i : u32) => data(I1_205)[7:u32])
+          vbuild(1:u1, (i : u32) => data(I1_204)[7:u32])
         );
       ),
       true

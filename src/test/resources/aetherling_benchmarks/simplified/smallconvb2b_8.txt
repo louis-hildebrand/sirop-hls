@@ -80,15 +80,15 @@
                           if (k < 2:u32) then {
                             if (k == 0:u32) then {
                               if (i < 1:u32) then {
-                                buf_2203[0:u32]
+                                buf_2214[0:u32]
                               } else {
-                                data(I1_2197)[usgn(-1:i33 + sgn(i))]
+                                data(I1_2212)[usgn(-1:i33 + sgn(i))]
                               }
                             } else {
-                              data(I1_2197)[i]
+                              data(I1_2212)[i]
                             }
                           } else {
-                            data(I1_2199)[i]
+                            data(I1_2215)[i]
                           }
                       )
                     } else {
@@ -98,15 +98,15 @@
                           if (k < 2:u32) then {
                             if (k == 0:u32) then {
                               if (i < 1:u32) then {
-                                buf_2195[0:u32]
+                                buf_2217[0:u32]
                               } else {
-                                data(I1_2196)[usgn(-1:i33 + sgn(i))]
+                                data(I1_2216)[usgn(-1:i33 + sgn(i))]
                               }
                             } else {
-                              data(I1_2196)[i]
+                              data(I1_2216)[i]
                             }
                           } else {
-                            data(I1_2201)[i]
+                            data(I1_2219)[i]
                           }
                       )
                     }
@@ -117,62 +117,22 @@
                         if (k < 2:u32) then {
                           if (k == 0:u32) then {
                             if (i < 1:u32) then {
-                              buf_2200[0:u32]
+                              buf_2211[0:u32]
                             } else {
-                              data(I1_2202)[usgn(-1:i33 + sgn(i))]
+                              data(I1_2218)[usgn(-1:i33 + sgn(i))]
                             }
                           } else {
-                            data(I1_2202)[i]
+                            data(I1_2218)[i]
                           }
                         } else {
-                          data(I1_2198)[i]
+                          data(I1_2213)[i]
                         }
                     )
                   }
               )
           );
           true;
-          (I1_2196 : Stm[Vec[u8, 8:u4], -1:i1]) = (
-            sbuild(
-              2:u2;
-              vbuild(
-                8:u4,
-                (i : u32) =>
-                  if (i < 1:u32) then {
-                    buf[0:u32]
-                  } else {
-                    data(s)[usgn(-1:i33 + sgn(i))]
-                  }
-              );
-              true;
-              (buf : Vec[u8, 1:u1]) = (
-                vbuild(1:u1, (i : u32) => 0:u8),
-                vbuild(1:u1, (i : u32) => data(s)[7:u32])
-              );
-              (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
-                sbuild(
-                  2:u2;
-                  data(s);
-                  true;
-                  (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
-                    sbuild(
-                      2:u2;
-                      data(s);
-                      true;
-                      (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
-                        n2,
-                        true
-                      );
-                    ),
-                    true
-                  );
-                ),
-                true
-              );
-            ),
-            true
-          );
-          (I1_2197 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+          (I1_2212 : Stm[Vec[u8, 8:u4], -1:i1]) = (
             sbuild(
               2:u2;
               vbuild(
@@ -196,7 +156,7 @@
             ),
             true
           );
-          (I1_2198 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+          (I1_2213 : Stm[Vec[u8, 8:u4], -1:i1]) = (
             sbuild(
               2:u2;
               data(s);
@@ -240,7 +200,7 @@
             ),
             true
           );
-          (I1_2199 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+          (I1_2215 : Stm[Vec[u8, 8:u4], -1:i1]) = (
             sbuild(
               2:u2;
               data(s);
@@ -252,11 +212,23 @@
             ),
             true
           );
-          (I1_2201 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+          (I1_2216 : Stm[Vec[u8, 8:u4], -1:i1]) = (
             sbuild(
               2:u2;
-              data(s);
+              vbuild(
+                8:u4,
+                (i : u32) =>
+                  if (i < 1:u32) then {
+                    buf[0:u32]
+                  } else {
+                    data(s)[usgn(-1:i33 + sgn(i))]
+                  }
+              );
               true;
+              (buf : Vec[u8, 1:u1]) = (
+                vbuild(1:u1, (i : u32) => 0:u8),
+                vbuild(1:u1, (i : u32) => data(s)[7:u32])
+              );
               (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
                 sbuild(
                   2:u2;
@@ -280,7 +252,7 @@
             ),
             true
           );
-          (I1_2202 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+          (I1_2218 : Stm[Vec[u8, 8:u4], -1:i1]) = (
             sbuild(
               2:u2;
               vbuild(
@@ -336,17 +308,45 @@
             ),
             true
           );
-          (buf_2195 : Vec[u8, 1:u1]) = (
-            vbuild(1:u1, (i : u32) => 0:u8),
-            vbuild(1:u1, (i : u32) => data(I1_2196)[7:u32])
+          (I1_2219 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+            sbuild(
+              2:u2;
+              data(s);
+              true;
+              (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
+                sbuild(
+                  2:u2;
+                  data(s);
+                  true;
+                  (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
+                    sbuild(
+                      2:u2;
+                      data(s);
+                      true;
+                      (s : Stm[Vec[u8, 8:u4], -1:i1]) = (
+                        n2,
+                        true
+                      );
+                    ),
+                    true
+                  );
+                ),
+                true
+              );
+            ),
+            true
           );
-          (buf_2200 : Vec[u8, 1:u1]) = (
+          (buf_2211 : Vec[u8, 1:u1]) = (
             vbuild(1:u1, (i : u32) => 0:u8),
-            vbuild(1:u1, (i : u32) => data(I1_2202)[7:u32])
+            vbuild(1:u1, (i : u32) => data(I1_2218)[7:u32])
           );
-          (buf_2203 : Vec[u8, 1:u1]) = (
+          (buf_2214 : Vec[u8, 1:u1]) = (
             vbuild(1:u1, (i : u32) => 0:u8),
-            vbuild(1:u1, (i : u32) => data(I1_2197)[7:u32])
+            vbuild(1:u1, (i : u32) => data(I1_2212)[7:u32])
+          );
+          (buf_2217 : Vec[u8, 1:u1]) = (
+            vbuild(1:u1, (i : u32) => 0:u8),
+            vbuild(1:u1, (i : u32) => data(I1_2216)[7:u32])
           );
         ),
         true
@@ -359,22 +359,22 @@
       8:u4,
       (i : u32) =>
         (((if (i < 1:u32) then {
-          buf_4100[0:u32]
+          buf_4132[0:u32]
         } else {
-          data(I1_4099)[usgn(-1:i33 + sgn(i))]
+          data(I1_4131)[usgn(-1:i33 + sgn(i))]
         })
           << 1:u8)
-          +% (data(I1_4101)[i] << 2:u8))
+          +% (data(I1_4133)[i] << 2:u8))
           +% ((if (i < 1:u32) then {
-            buf_4102[0:u32]
+            buf_4134[0:u32]
           } else {
-            data(I1_4101)[usgn(-1:i33 + sgn(i))]
+            data(I1_4133)[usgn(-1:i33 + sgn(i))]
           })
-            +% data(I1_4099)[i])
+            +% data(I1_4131)[i])
           >> 3:u8
     );
     true;
-    (I1_4099 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+    (I1_4131 : Stm[Vec[u8, 8:u4], -1:i1]) = (
       sbuild(
         2:u2;
         data(s);
@@ -386,7 +386,7 @@
       ),
       true
     );
-    (I1_4101 : Stm[Vec[u8, 8:u4], -1:i1]) = (
+    (I1_4133 : Stm[Vec[u8, 8:u4], -1:i1]) = (
       sbuild(
         2:u2;
         vbuild(
@@ -410,12 +410,12 @@
       ),
       true
     );
-    (buf_4100 : Vec[u8, 1:u1]) = (
+    (buf_4132 : Vec[u8, 1:u1]) = (
       vbuild(1:u1, (i : u32) => 0:u8),
-      vbuild(1:u1, (i : u32) => data(I1_4099)[7:u32])
+      vbuild(1:u1, (i : u32) => data(I1_4131)[7:u32])
     );
-    (buf_4102 : Vec[u8, 1:u1]) = (
+    (buf_4134 : Vec[u8, 1:u1]) = (
       vbuild(1:u1, (i : u32) => 0:u8),
-      vbuild(1:u1, (i : u32) => data(I1_4101)[7:u32])
+      vbuild(1:u1, (i : u32) => data(I1_4133)[7:u32])
     );
   )
