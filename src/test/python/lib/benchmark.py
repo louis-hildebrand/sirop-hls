@@ -75,18 +75,15 @@ def min_latency(bench: Benchmark) -> int:
         # 840 inputs, 1 output
         par = 840 * bench.throughput
         return 840 // par
-    if bench.name == "conv1d":
+    if bench.name in {"conv1d", "smallconv2d", "smallconvb2b", "smallsharpen"}:
         # 16 inputs, 16 outputs
         return 16 // bench.throughput
-    if bench.name == "smallconv2d":
-        # 16 inputs, 16 outputs
-        return 16 // bench.throughput
-    if bench.name == "smallconvb2b":
-        # 16 inputs, 16 outputs
-        return 16 // bench.throughput
-    if bench.name == "smallsharpen":
-        # 16 inputs, 16 outputs
-        return 16 // bench.throughput
+    if bench.name in {"bigconv2d", "bigconvb2b", "bigsharpen"}:
+        # 1920*4 inputs and outputs
+        return 1920 * 4 // bench.throughput
+    if bench.name == "bigcamera":
+        # 1920*8 inputs and outputs
+        return 1920 * 8 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 

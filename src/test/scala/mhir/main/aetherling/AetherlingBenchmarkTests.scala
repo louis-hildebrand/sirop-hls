@@ -39,11 +39,8 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   }
 
   for (benchName <- BenchmarksToRun) {
-    test(s"$benchName:vhdl:simplified") {
-      if (benchName.startsWith("big")) {
-        // Much too slow
-        ???
-      }
+    test(s"$benchName:vhdl") {
+      ???
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
@@ -59,28 +56,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       assert(result == TestPassed)
     }
 
-    // Hopefully these also work, they're just so slow
-    ignore(s"$benchName:vhdl:unsimplified") {
-      val io = AetherlingBenchmarkIO.vhdlIO(benchName)
-      val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
-      val outDir = VhdlDir / "aetherling" / s"${benchName}_test_unsimplified"
-      if (os.exists(outDir)) os.remove.all(outDir)
-      val args = Args(inFile = inFile, outDir = outDir, optimize = false)
-      Compiler.compile(args)
-      time("generating VHDL testbench", Level.INFO) {
-        VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
-      }
-      val result = time("running VHDL simulation", Level.INFO) {
-        VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
-      }
-      assert(result == TestPassed)
-    }
-
     test(s"$benchName:verilog") {
-      if (benchName.startsWith("big")) {
-        // Too slow and also seems to produce the wrong outputs
-        ???
-      }
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(

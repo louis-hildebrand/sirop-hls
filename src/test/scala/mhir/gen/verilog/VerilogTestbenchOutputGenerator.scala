@@ -14,7 +14,8 @@ object VerilogTestbenchOutputGenerator {
       typ match {
         case TyBool | _: TyAnyInt | _: TyFix => Seq(prefix)
         case TyTuple(ts @ _*) =>
-          ts.zipWithIndex.flatMap({ case (t, i) => names(s"${prefix}_$i")(t) })
+          ts.zipWithIndex
+            .flatMap({ case (t, i) => names(s"${prefix}_t${i}b")(t) })
         case TyVec(t, IntCst(n)) =>
           (0 until n.toInt).flatMap(i => names(s"${prefix}_$i")(t))
         case t =>
@@ -239,6 +240,10 @@ object VerilogTestbenchOutputGenerator {
         case TyBool      => Map(prefix -> 1)
         case t: TyAnyInt => Map(prefix -> t.w)
         case t: TyFix    => Map(prefix -> t.t.w)
+        case TyTuple(ts @ _*) =>
+          ts.zipWithIndex
+            .flatMap({ case (t, i) => portsToWidths(s"${prefix}_t${i}b")(t) })
+            .toMap
         case TyVec(t, IntCst(n)) =>
           (0 until n.toInt)
             .flatMap(i => portsToWidths(s"${prefix}_$i")(t))
@@ -266,11 +271,13 @@ object VerilogTestbenchOutputGenerator {
           } else {
             Map(prefix -> Some(s"$w'd${c.i}"))
           }
+        case Tuple(elems @ _*) =>
+          elems.zipWithIndex
+            .flatMap({ case (e, i) => portsToValues(s"${prefix}_t${i}b")(e) })
+            .toMap
         case VecLiteral(elems @ _*) =>
           elems.zipWithIndex
-            .flatMap({ case (e, i) =>
-              portsToValues(s"${prefix}_$i")(e)
-            })
+            .flatMap({ case (e, i) => portsToValues(s"${prefix}_$i")(e) })
             .toMap
         case _ =>
           ???
