@@ -7,6 +7,7 @@ from pathlib import Path
 AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
+STORED_PROGRAM_COMPILER = "mhir.main.stored.Compiler"
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
 AETHERLING_SPACETIME_DIR = (
@@ -16,6 +17,7 @@ AETHERLING_VERILOG_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
 )
 VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
+ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 
