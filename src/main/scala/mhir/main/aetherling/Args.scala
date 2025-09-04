@@ -1,31 +1,18 @@
 package mhir.main.aetherling
 
+import mhir.main.shared.{CompilerOptions, NullTarget, VhdlTarget}
 import os.Path
 
 /** Parsed command-line arguments.
   *
   * @param inFile
   *   the path to the input Aetherling program.
-  * @param outDir
-  *   the path to the directory in which to emit the VHDL.
+  * @param options
+  *   options to pass to the compiler.
   * @param help
   *   whether to show the help message and exit.
-  * @param optimize
-  *   whether to optimize the program before generating VHDL.
-  * @param emitHdl
-  *   whether to emit VHDL code.
-  * @param showFinal
-  *   whether to display the final program used to generate VHDL.
   */
-case class Args(
-    inFile: Path,
-    outDir: Path,
-    help: Boolean = false,
-    optimize: Boolean = true,
-    emitHdl: Boolean = true,
-    showFinal: Boolean = false,
-    overwrite: Boolean = false
-)
+case class Args(inFile: Path, options: CompilerOptions, help: Boolean)
 
 /** Companion object for [[Args]].
   */
@@ -71,15 +58,36 @@ object Args {
           throw new BadArgsException(s"unrecognized argument: $a")
       }
     }
-    new Args(
-      src,
-      out,
+    Args(
+      inFile = src,
+      outDir = out,
       help = help,
       optimize = optimize,
       emitHdl = emitHdl,
       showFinal = showFinal,
       overwrite = overwrite
     )
+  }
+
+  def apply(
+      inFile: Path,
+      outDir: Path,
+      help: Boolean = false,
+      optimize: Boolean = true,
+      emitHdl: Boolean = true,
+      showFinal: Boolean = false,
+      overwrite: Boolean = false
+  ): Args = {
+    val options = CompilerOptions(
+      optimize = optimize,
+      showFinal = showFinal,
+      target = if (emitHdl) {
+        VhdlTarget(outDir = outDir, overwrite = overwrite)
+      } else {
+        NullTarget
+      }
+    )
+    new Args(inFile = inFile, options = options, help = help)
   }
 
   private[main] def printShortUsage(): Unit = {

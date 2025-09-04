@@ -1,6 +1,7 @@
 package mhir.main.aetherling
 
 import mhir.ir._
+import mhir.main.shared.{CompilerOptions, VhdlTarget}
 import org.scalatest.funsuite.AnyFunSuite
 import mhir.optimize.{NameSimplifier => NS}
 import org.scalatest.tagobjects.Slow
