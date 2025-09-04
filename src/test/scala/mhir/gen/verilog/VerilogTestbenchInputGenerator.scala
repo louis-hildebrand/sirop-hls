@@ -11,7 +11,8 @@ private[verilog] object VerilogTestbenchInputGenerator {
       typ match {
         case TyBool | _: TyAnyInt | _: TyFix => Seq(prefix)
         case TyTuple(ts @ _*) =>
-          ts.zipWithIndex.flatMap({ case (t, i) => names(s"${prefix}_$i")(t) })
+          ts.zipWithIndex
+            .flatMap({ case (t, i) => names(s"${prefix}_t${i}b")(t) })
         case TyVec(t, IntCst(n)) =>
           (0 until n.toInt).flatMap(i => names(s"${prefix}_$i")(t))
         case t =>
@@ -23,6 +24,33 @@ private[verilog] object VerilogTestbenchInputGenerator {
       val prefix = if (inputs.numStreams == 1) "I" else s"I$i"
       names(prefix)(t)
     })
+  }
+
+  private def widthByPort(inputs: TestInput): Map[String, Int] = {
+    def portsToWidths(prefix: String)(typ: Type): Map[String, Int] = {
+      typ match {
+        case TyBool      => Map(prefix -> 1)
+        case t: TyAnyInt => Map(prefix -> t.w)
+        case t: TyFix    => Map(prefix -> t.t.w)
+        case TyTuple(ts @ _*) =>
+          ts.zipWithIndex
+            .flatMap({ case (t, i) => portsToWidths(s"${prefix}_t${i}b")(t) })
+            .toMap
+        case TyVec(t, IntCst(n)) =>
+          (0 until n.toInt)
+            .flatMap(i => portsToWidths(s"${prefix}_$i")(t))
+            .toMap
+        case _ =>
+          ???
+      }
+    }
+
+    inputs.elemTypes.zipWithIndex
+      .flatMap({ case (typ, i) =>
+        val prefix = if (inputs.numStreams == 1) "I" else s"I$i"
+        portsToWidths(prefix)(typ)
+      })
+      .toMap
   }
 
   def emptyInputDecls: String = ""
@@ -153,29 +181,6 @@ private[verilog] object VerilogTestbenchInputGenerator {
       val bin = steps.map(elems => Binary(elems: _*))
       os.write.append(f, bin)
     }
-  }
-
-  private def widthByPort(inputs: TestInput): Map[String, Int] = {
-    def portsToWidths(prefix: String)(typ: Type): Map[String, Int] = {
-      typ match {
-        case TyBool      => Map(prefix -> 1)
-        case t: TyAnyInt => Map(prefix -> t.w)
-        case t: TyFix    => Map(prefix -> t.t.w)
-        case TyVec(t, IntCst(n)) =>
-          (0 until n.toInt)
-            .flatMap(i => portsToWidths(s"${prefix}_$i")(t))
-            .toMap
-        case _ =>
-          ???
-      }
-    }
-
-    inputs.elemTypes.zipWithIndex
-      .flatMap({ case (typ, i) =>
-        val prefix = if (inputs.numStreams == 1) "I" else s"I$i"
-        portsToWidths(prefix)(typ)
-      })
-      .toMap
   }
 
   private def toVerilog(exprs: Seq[Expr]): String = {
