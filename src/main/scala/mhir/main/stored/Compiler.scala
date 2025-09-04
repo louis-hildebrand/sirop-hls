@@ -1,7 +1,7 @@
 package mhir.main.stored
 
 import mhir.ir._
-import mhir.main.shared.{Compiler => SC}
+import mhir.main.shared.{BadArgsException, HelpException, Compiler => SC}
 
 /** A compiler for pre-written programs in the higher-level IR.
   */
@@ -17,17 +17,16 @@ object Compiler {
       try {
         Args(args)
       } catch {
+        case HelpException =>
+          Args.printFullUsage()
+          return
         case exc: BadArgsException =>
           println(s"Invalid command-line arguments: ${exc.getMessage}")
           println()
           Args.printShortUsage()
           return
       }
-    if (a.help) {
-      Args.printFullUsage()
-    } else {
-      compile(a)
-    }
+    compile(a)
   }
 
   /** Runs the compiler.

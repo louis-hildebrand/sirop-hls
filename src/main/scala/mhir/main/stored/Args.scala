@@ -1,10 +1,16 @@
 package mhir.main.stored
 
 import mhir.ir.Expr
-import mhir.main.shared.{CompilerOptions, NullTarget, VhdlTarget}
-import os.Path
+import mhir.main.shared.{BadArgsException, CompilerOptions, HelpException}
 
-case class Args(program: Expr, options: CompilerOptions, help: Boolean)
+/** Parsed command-line options.
+  *
+  * @param program
+  *   the expression to compile.
+  * @param options
+  *   compiler options.
+  */
+case class Args(program: Expr, options: CompilerOptions)
 
 /** Companion object for [[Args]].
   */
@@ -16,73 +22,24 @@ object Args {
     *   the raw command-line arguments.
     */
   def apply(args: Array[String]): Args = {
-    val (programName, outDirName) = args match {
-      case Array(src, out, _*) if src.startsWith("-") || out.startsWith("-") =>
-        throw new BadArgsException(
-          "program name and output directory must come first"
-        )
-      case Array(src, out, _*) => (src, out)
+    if (args.contains("-h") || args.contains("--help")) {
+      throw HelpException
+    }
+
+    val programName = args match {
+      case Array(name, _*) if name.startsWith("-") =>
+        throw new BadArgsException("program name must come first")
+      case Array(name, _*) => name
       case _ =>
-        throw new BadArgsException(
-          "program name and output directory are required"
-        )
+        throw new BadArgsException("program name is required")
     }
-    val out = Path(outDirName, base = os.pwd)
-    var help = false
-    var optimize = true
-    var emitHdl = true
-    var showFinal = false
-    var overwrite = false
-    for (a <- args.drop(2)) {
-      a match {
-        case "-h" | "--help" =>
-          help = true
-        case "--no-optimize" =>
-          optimize = false
-        case "--no-hdl" =>
-          emitHdl = false
-        case "--show-final" =>
-          showFinal = true
-        case "--overwrite" =>
-          overwrite = true
-        case _ =>
-          throw new BadArgsException(s"unrecognized argument: $a")
-      }
-    }
-    Args(
-      programName = programName,
-      outDir = out,
-      help = help,
-      optimize = optimize,
-      emitHdl = emitHdl,
-      showFinal = showFinal,
-      overwrite = overwrite
-    )
-  }
 
-  def apply(
-      programName: String,
-      outDir: Path,
-      help: Boolean = false,
-      optimize: Boolean = true,
-      emitHdl: Boolean = true,
-      showFinal: Boolean = false,
-      overwrite: Boolean = false
-  ): Args = {
     val expr = Program(programName)
-    val options = CompilerOptions(
-      optimize = optimize,
-      showFinal = showFinal,
-      target = if (emitHdl) {
-        VhdlTarget(outDir = outDir, overwrite = overwrite)
-      } else {
-        NullTarget
-      }
-    )
-    new Args(program = expr, options = options, help = help)
+    val options = CompilerOptions(args.drop(1))
+    Args(program = expr, options = options)
   }
 
-  private[main] def printShortUsage(): Unit = {
+  private[stored] def printShortUsage(): Unit = {
     val cls: String = {
       val fullName = Compiler.getClass.getCanonicalName
       if (fullName.endsWith("$")) {
@@ -91,25 +48,19 @@ object Args {
         fullName
       }
     }
-    println(
-      s"Usage: runMain $cls PROG OUT [-h|--help] [--no-optimize] [--no-hdl] [--show-final] [--overwrite]"
-    )
+    println(s"Usage: runMain $cls PROG [OPTION]... [-h|--help]")
   }
 
-  private[main] def printFullUsage(): Unit = {
+  private[stored] def printFullUsage(): Unit = {
     this.printShortUsage()
     println()
     println(
       s"""Arguments:
          |  PROG               the name of the program to compile
-         |  OUT                path to the directory in which to emit the VHDL code
          |  -h, --help         print the help message and exit
-         |  --no-optimize      do not optimize the program
-         |  --no-hdl           do not emit any HDL code
-         |  --show-final       show the final program right before VHDL generation
-         |  --overwrite        what to do if directory OUT already exists: if true then
-         |                     delete the existing directory, if false then raise an error
-         |""".stripMargin.stripTrailing
+         |
+         |""".stripMargin
+        ++ CompilerOptions.longUsage
     )
   }
 }

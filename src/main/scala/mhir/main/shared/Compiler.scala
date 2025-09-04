@@ -7,7 +7,7 @@ import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
-import mhir.optimize.{Optimizer => Opt, PartialEvalPass => PE}
+import mhir.optimize.{Optimizer => Opt}
 import mhir.sugar.Streamifier.Streamify
 import org.slf4j.event.Level
 import os.Path
@@ -38,19 +38,9 @@ object Compiler {
   private def doCompile(parsed: Expr, options: CompilerOptions): Expr = {
     val checked = typecheck(parsed)
     val lowered = lower(checked)
-
-    val optimized = if (options.optimize) {
-      logger.info("optimization is enabled")
-      val pe = time("initial partial evaluation", Level.INFO) {
-        PE.partialEval(lowered)
-      }
-      val synthesizable = makeSynthesizable(pe)
-      time("optimization", Level.INFO) {
-        Opt.optimize(synthesizable)
-      }
-    } else {
-      logger.info("skipping optimization")
-      makeSynthesizable(lowered)
+    val synthesizable = makeSynthesizable(lowered)
+    val optimized = time("optimization", Level.INFO) {
+      Opt.optimize(synthesizable, options = options.optFlags)
     }
 
     val finalProgram = optimized

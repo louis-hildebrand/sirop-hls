@@ -3,7 +3,7 @@ package mhir.main.aetherling
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
-import mhir.main.shared.{Compiler => SC}
+import mhir.main.shared.{BadArgsException, HelpException, Compiler => SC}
 import mhir.parse.AetherlingParser
 import org.slf4j.event.Level
 
@@ -25,17 +25,16 @@ object Compiler {
       try {
         Args(args)
       } catch {
+        case HelpException =>
+          Args.printFullUsage()
+          return
         case exc: BadArgsException =>
           println(s"Invalid command-line arguments: ${exc.getMessage}")
           println()
           Args.printShortUsage()
           return
       }
-    if (a.help) {
-      Args.printFullUsage()
-    } else {
-      compile(a)
-    }
+    compile(a)
   }
 
   /** Runs the compiler.

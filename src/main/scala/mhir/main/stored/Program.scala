@@ -1,6 +1,7 @@
 package mhir.main.stored
 
 import mhir.ir._
+import mhir.main.shared.BadArgsException
 import mhir.sugar.StmMap
 
 /** A collection of pre-written programs.

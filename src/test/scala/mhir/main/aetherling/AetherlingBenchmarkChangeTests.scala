@@ -1,9 +1,9 @@
 package mhir.main.aetherling
 
 import mhir.ir._
-import mhir.main.shared.{CompilerOptions, VhdlTarget}
+import mhir.main.shared.{CompilerOptions, NullTarget}
+import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
 import org.scalatest.funsuite.AnyFunSuite
-import mhir.optimize.{NameSimplifier => NS}
 import org.scalatest.tagobjects.Slow
 
 /** Tests to ensure the simplified minimalist IR expressions for the Aetherling
@@ -17,7 +17,6 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original"
   private val SimplifiedAetherlingBenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "simplified"
-  private val VhdlDir = os.pwd / "src" / "test" / "vhdl"
 
   /** Whether to save the parsed programs to
     * [[SimplifiedAetherlingBenchmarksDir]].
@@ -57,8 +56,14 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     test(benchName, tags: _*) {
       mhir.ir.reset()
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
-      val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
-      val args = Args(inFile = inFile, outDir = outDir, emitHdl = false)
+      val args = Args(
+        inFile = inFile,
+        options = CompilerOptions(
+          showFinal = false,
+          target = NullTarget,
+          optFlags = OptimizerOptions.All
+        )
+      )
       val f = Compiler.compile(args)
       val actual = ExprPrinter.display(NS.simplify(f))
       val expectedPath = SimplifiedAetherlingBenchmarksDir / s"$benchName.txt"
