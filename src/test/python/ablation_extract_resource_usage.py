@@ -76,7 +76,7 @@ def parse_args() -> Namespace:
     Parse the command-line arguments.
     """
     parser = ArgumentParser(
-        description="generates VHDL projects from the given pre-written programs."
+        description="extracts the resource usages for the given programs"
     )
     parser.add_argument(
         "programs",

@@ -33,6 +33,7 @@ LATENCY_PDF = RESULTS_DIR.joinpath("aetherling_latency.pdf")
 
 ABLATION_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("ablation_resource_usage.csv")
 ABLATION_FMAX_CSV = RESULTS_DIR.joinpath("ablation_fmax.csv")
+ABLATION_LATENCY_CSV = RESULTS_DIR.joinpath("ablation_latency.csv")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")
