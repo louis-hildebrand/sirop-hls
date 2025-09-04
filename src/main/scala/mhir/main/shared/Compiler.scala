@@ -26,9 +26,13 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(e: Expr, options: CompilerOptions): Expr = {
-    time("compilation", Level.INFO) {
+    val result = time("compilation", Level.INFO) {
       doCompile(e, options)
     }
+    if (options.showFinal) {
+      println(ExprPrinter.display(result))
+    }
+    result
   }
 
   private def doCompile(parsed: Expr, options: CompilerOptions): Expr = {
@@ -50,9 +54,6 @@ object Compiler {
     }
 
     val finalProgram = optimized
-    if (options.showFinal) {
-      println(ExprPrinter.display(finalProgram))
-    }
 
     options.target match {
       case NullTarget => ()
