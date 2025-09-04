@@ -4,6 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Cast
+import mhir.optimize.{PartialEvalPass => PE}
 
 import scala.annotation.tailrec
 
@@ -44,19 +45,10 @@ object StmAccRemovalPass {
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
-    val varEquivClasses = stm.equations
-      .groupBy({ case (x, (z, next)) =>
-        // Deliberately capture x because, for example, the following are
-        // duplicates:
-        //   x: (0, x + 1)
-        //   y: (0, y + 1)
-        (z, Function(x, next)())
-      })
-      .values
-      .map(m => m.keySet)
-      .toSeq
+    val equivClasses =
+      findDuplicateAccumulators(stm) ++ findDuplicateInputs(stm)
     val replacements: Map[Param, Expr] =
-      varEquivClasses
+      equivClasses
         .flatMap(xs => {
           // Accumulators with different integer types may end up in the same
           // equivalence class.
@@ -154,5 +146,84 @@ object StmAccRemovalPass {
         findConstantAccumulatorElems(stm, candidates = constantVars)
       }
     }
+  }
+
+  /** Finds sets of accumulators in the given [[mhir.ir.StmBuild]] which will
+    * always have the same value.
+    *
+    * @return
+    *   equivalence classes of variables. Each equivalence class will have at
+    *   least two elements. Each element of an equivalence class is an
+    *   accumulator in the given stream.
+    * @note
+    *   the return value does not necessarily contain all the accumulators in
+    *   the [[mhir.ir.StmBuild]].
+    */
+  private def findDuplicateAccumulators(stm: StmBuild): Set[Set[Param]] = {
+    // This method proves that each equivalence class contains equivalent
+    // accumulators by induction.
+    //  * Base case. group into initial equivalence classes based on seeds.
+    //  * Step case. using the assumption that the variables in a given
+    //    class are all equal to one another, find the next value and split
+    //    into possibly smaller equivalence classes. If all variables in a given
+    //    class also have the same next value, then they are all equivalent.
+
+    def split(cls: Set[Param]): Set[Set[Param]] = {
+      val testAcc = Param("test_acc")()
+      val subs = cls
+        .map(x => x -> testAcc.rebuild(x.typ))
+        .toMap[Expr, Expr]
+      val nextByVar = cls
+        .map({ x =>
+          val next = stm.nextByVar(x)
+          val nextWithSub = next.subPreserveType(subs)
+          val simplifiedNext = PE.partialEval(nextWithSub)
+          x -> simplifiedNext
+        })
+      val splitClasses = nextByVar
+        .groupBy({ case (_, next) => next })
+        .map({ case (_, eqns) => eqns.map({ case (x, _) => x }) })
+        .toSet
+      splitClasses
+    }
+    @tailrec
+    def fix(
+        maybeEquiv: Set[Set[Param]],
+        confirmedEquiv: Set[Set[Param]]
+    ): Set[Set[Param]] = {
+      val nonTrivialEquivClasses = maybeEquiv.filter(_.size > 1)
+      if (nonTrivialEquivClasses.isEmpty) {
+        confirmedEquiv
+      } else {
+        var newMaybe = Set[Set[Param]]()
+        var newConfirmed = confirmedEquiv
+        for (cls <- nonTrivialEquivClasses) {
+          val splitCls = split(cls)
+          if (splitCls.size == 1) {
+            assert(splitCls.head == cls)
+            newConfirmed = newConfirmed + cls
+          } else {
+            newMaybe = newMaybe ++ splitCls
+          }
+        }
+        fix(newMaybe, newConfirmed)
+      }
+    }
+
+    val initialEquivClasses =
+      stm.seedByVar
+        .filter({ case (x, _) => x.typ.isData })
+        .groupBy({ case (_, z) => z })
+        .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
+        .toSet
+    fix(initialEquivClasses, Set[Set[Param]]())
+  }
+
+  private def findDuplicateInputs(stm: StmBuild): Set[Set[Param]] = {
+    stm.equations
+      .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+      .groupBy({ case (_, (s, ready)) => (s, ready) })
+      .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
+      .toSet
   }
 }

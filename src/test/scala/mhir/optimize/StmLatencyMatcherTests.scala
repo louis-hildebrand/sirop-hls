@@ -4,6 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.CycleCounter
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {
@@ -264,5 +265,94 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     // Non-pessimization
     // (Cycle count should not be increased)
     assert(CycleCounter.count(optimized) == CycleCounter.count(original))
+  }
+
+  test("Reduction") {
+    val n = 4
+    val m = 3
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        n * m,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val original = {
+      val x = Param("x")(TyStm(U8, n * m))
+      val sum = {
+        val s = Param("s")(TyStm(U8, -1))
+        val acc = Param("acc")(U8)
+        val t = Param("t")(U8)
+        StmBuild(
+          n,
+          acc + StmData(s)(),
+          t === C(m - 1)(U8),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True),
+            acc -> (C(0)(U8), acc + StmData(s)()),
+            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          )
+        )().tchk()
+      }
+      val sumPlusFive = {
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          C(5)(U8) + StmData(s)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s -> (sum, True)
+          )
+        )().tchk()
+      }
+      val stm2Vec = {
+        val s = Param("s")(TyStm(U8, -1))
+        val acc = Param("acc")(TyVec(U8, m))
+        val t = Param("t")(U8)
+        StmBuild(
+          n,
+          VecShiftLeft(acc, StmData(s)())(),
+          t === C(m - 1)(U8),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True),
+            acc -> (
+              VecBuild(m, U8 ::+ (_ => Default(U8)))(),
+              VecShiftLeft(acc, StmData(s)())()
+            ),
+            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          )
+        )().tchk()
+      }
+      val zipped = {
+        val s0 = Param("s0")(TyStm(TyVec(U8, m), -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (stm2Vec, True),
+            s1 -> (sumPlusFive, True)
+          )
+        )().tchk()
+      }
+      Let(x, count, zipped)().tchk().lower()
+    }
+    val optimized = StmLatencyMatcher.matchLatencies(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val actualVal = mhir.ir.eval(optimized)
+    assert(actualVal == originalVal)
+
+    // Effective optimization
+    // (Cycle count should be decreased due to improved initiation interval)
+    val originalLatency = CycleCounter.count(original)
+    val newLatency = CycleCounter.count(optimized)
+    assert(newLatency < originalLatency)
   }
 }

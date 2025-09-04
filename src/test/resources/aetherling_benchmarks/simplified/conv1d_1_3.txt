@@ -6,10 +6,7 @@
     t == 2:u2;
     (acc : i8) = (
       0:i8,
-      if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
+      if (t == 2:u2) then {
         0:i8
       } else if (first_step) then {
         data(s)
@@ -19,32 +16,7 @@
     );
     (first_step : bool) = (
       true,
-      t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-        || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-    );
-    (in_ctr : u32) = (
-      0:u32,
-      if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        0:u32
-      } else {
-        1:u32 + in_ctr
-      }
-    );
-    (out_ctr : u32) = (
-      0:u32,
-      if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        0:u32
-      } else if (t == 2:u2) then {
-        1:u32 + out_ctr
-      } else {
-        out_ctr
-      }
+      t == 2:u2
     );
     (s : Stm[i8, 3:u2]) = (
       sbuild(
@@ -171,11 +143,7 @@
             true;
             (i : u2) = (
               0:u2,
-              if (out_ctr == 2:u32) then { 0:u2 } else { 1:u2 + i }
-            );
-            (out_ctr : u32) = (
-              0:u32,
-              if (out_ctr == 2:u32) then { 0:u32 } else { 1:u32 + out_ctr }
+              if (i == 2:u2) then { 0:u2 } else { 1:u2 + i }
             );
           ),
           true
@@ -185,13 +153,6 @@
     );
     (t : u2) = (
       0:u2,
-      if (
-        t != 2:u2 && in_ctr == 2:u32 && out_ctr == 1:u32
-          || in_ctr == 2:u32 && out_ctr == 0:u32 && t == 2:u2
-      ) then {
-        0:u2
-      } else {
-        1:u2 + t
-      }
+      if (t == 2:u2) then { 0:u2 } else { 1:u2 + t }
     );
   )

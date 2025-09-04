@@ -78,7 +78,7 @@ smallconv2d,16,vhdl,2,True
 smallconvb2b,1/9,verilog,163,False
 smallconvb2b,1/9,vhdl,168,True
 smallconvb2b,1/3,verilog,66,True
-smallconvb2b,1/3,vhdl,78,True
+smallconvb2b,1/3,vhdl,64,True
 smallconvb2b,1,verilog,31,True
 smallconvb2b,1,vhdl,27,True
 smallconvb2b,2,verilog,19,True
@@ -92,7 +92,7 @@ smallconvb2b,16,verilog,12,True
 smallsharpen,1/9,verilog,153,True
 smallsharpen,1/9,vhdl,338,True
 smallsharpen,1/3,verilog,58,True
-smallsharpen,1/3,vhdl,194,True
+smallsharpen,1/3,vhdl,59,True
 smallsharpen,1,verilog,25,True
 smallsharpen,1,vhdl,25,True
 smallsharpen,2,verilog,15,True

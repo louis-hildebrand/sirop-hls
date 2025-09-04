@@ -152,6 +152,23 @@ object StmLatencyMatcher {
   ): Option[Int] = {
     s.valid match {
       case True => Some(1)
+      case Equal(t: Param, IntCst(k))
+          if s.accVars.contains(t) && (k + 1).isValidInt =>
+        s.equations.get(t) match {
+          case Some(
+                (
+                  IntCst(0),
+                  Mux(
+                    Equal(t1: Param, IntCst(k1)),
+                    IntCst(0),
+                    Sum(IntCst(1), t2: Param)
+                  )
+                )
+              ) if t1 == t && t2 == t && k1 == k =>
+            Some((k + 1).toInt)
+          case _ =>
+            None
+        }
       case _ =>
         logger.warn(
           s"failed to find latency from $src through StmBuild due to the `valid` expression"
