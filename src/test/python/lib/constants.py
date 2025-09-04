@@ -32,9 +32,19 @@ LATENCY_CSV = RESULTS_DIR.joinpath("aetherling_latency.csv")
 LATENCY_PDF = RESULTS_DIR.joinpath("aetherling_latency.pdf")
 
 ABLATION_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("ablation_resource_usage.csv")
+ABLATION_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("ablation_resource_usage.pdf")
 ABLATION_FMAX_CSV = RESULTS_DIR.joinpath("ablation_fmax.csv")
+ABLATION_FMAX_PDF = RESULTS_DIR.joinpath("ablation_fmax.pdf")
 ABLATION_LATENCY_CSV = RESULTS_DIR.joinpath("ablation_latency.csv")
+ABLATION_LATENCY_PDF = RESULTS_DIR.joinpath("ablation_latency.pdf")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")
+
+AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
+AETHERLING_MARKER = "s"
+AETHERLING_MARKER_SIZE = 4
+OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
+OUR_MARKER = "o"
+OUR_MARKER_SIZE = 3

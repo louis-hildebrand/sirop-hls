@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from .optimization_level import OptimizationLevel
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class ProgramVariant:
     """
     A program compiled with a given set of optimizations.
