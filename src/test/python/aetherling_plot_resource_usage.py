@@ -150,6 +150,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             xs, verilog_ys,
             marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
             label=AETHERLING_LABEL,
+            linestyle="-" if bench_name == "dot" else "",
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
@@ -157,6 +158,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             xs, vhdl_ys,
             marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
             label=OUR_LABEL,
+            linestyle="-" if bench_name == "dot" else "",
         )
         # Settings for the whole column
         alm_ax.set_title(title)
@@ -176,8 +178,8 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     if verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
-        [vhdl_artist, verilog_artist],
-        [OUR_LABEL, AETHERLING_LABEL],
+        [verilog_artist, vhdl_artist],
+        [AETHERLING_LABEL, OUR_LABEL],
         loc="lower center",
         bbox_to_anchor=(0.5, -0.15)
     )

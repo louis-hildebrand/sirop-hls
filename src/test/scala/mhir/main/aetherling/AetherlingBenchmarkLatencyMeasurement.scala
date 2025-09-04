@@ -14,6 +14,7 @@ case class ErrLatencyResult(latency: Option[Int], simExitCode: Int)
 
 object AetherlingBenchmarkLatencyMeasurement {
   private val LatencyRegex = "LATENCY:\\s+([0-9]+) cycles".r
+  private val TimeLimit = "1h"
 
   private val logger = Logger(getClass.getName)
 
@@ -65,7 +66,12 @@ object AetherlingBenchmarkLatencyMeasurement {
     val io = AetherlingBenchmarkIO.verilogIO(benchName)
     VerilogTestbenchGenerator.makeFileBasedTestbench(io, dir)
     val proc = os
-      .proc("./src/test/sh/test_verilog.sh", dir, "-v")
+      .proc(
+        "./src/test/sh/test_verilog.sh",
+        dir,
+        "-v",
+        s"--time-limit=$TimeLimit"
+      )
       .call(
         cwd = os.pwd,
         check = false
@@ -86,7 +92,7 @@ object AetherlingBenchmarkLatencyMeasurement {
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     val proc = os
-      .proc("./src/test/sh/test_vhdl.sh", dir, "-v")
+      .proc("./src/test/sh/test_vhdl.sh", dir, "-v", s"--time-limit=$TimeLimit")
       .call(
         cwd = os.pwd,
         check = false
