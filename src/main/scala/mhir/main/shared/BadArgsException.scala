@@ -1,4 +1,4 @@
-package mhir.main.aetherling
+package mhir.main.shared
 
 /** Thrown to indicate that the given command-line arguments are invalid.
   *

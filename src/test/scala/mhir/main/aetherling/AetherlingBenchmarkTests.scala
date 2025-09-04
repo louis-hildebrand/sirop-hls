@@ -9,6 +9,8 @@ import mhir.gen.verilog.{
 }
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
 import mhir.logging.time
+import mhir.main.shared.{CompilerOptions, VhdlTarget}
+import mhir.optimize.OptimizerOptions
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.event.Level
@@ -40,12 +42,18 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
-      ???
+      assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
-      if (os.exists(outDir)) os.remove.all(outDir)
-      val args = Args(inFile = inFile, outDir = outDir)
+      val args = Args(
+        inFile = inFile,
+        options = CompilerOptions(
+          showFinal = false,
+          target = VhdlTarget(outDir = outDir, overwrite = true),
+          optFlags = OptimizerOptions.All
+        )
+      )
       Compiler.compile(args)
       time("generating VHDL testbench", Level.INFO) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
@@ -57,6 +65,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
+      assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(

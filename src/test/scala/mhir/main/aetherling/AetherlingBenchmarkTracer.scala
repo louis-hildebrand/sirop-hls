@@ -4,7 +4,8 @@ import mhir.debug.{Trace, Tracer}
 import mhir.gen.vhdl.DirectTestInput
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{NameSimplifier => NS}
+import mhir.main.shared.{CompilerOptions, NullTarget}
+import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
 
 /** Class for tracing the execution of an Aetherling benchmark for debugging.
   */
@@ -23,8 +24,14 @@ object AetherlingBenchmarkTracer {
   def trace(benchName: String): Trace = {
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
-    val args =
-      Args(inFile = inFile, outDir = os.pwd / "deleteme", emitHdl = false)
+    val args = Args(
+      inFile = inFile,
+      options = CompilerOptions(
+        showFinal = false,
+        target = NullTarget,
+        optFlags = OptimizerOptions.All
+      )
+    )
     val f = Compiler.compile(args)
     val stm = io.inputs.foldLeft(f)({
       case (f, in: DirectTestInput) =>

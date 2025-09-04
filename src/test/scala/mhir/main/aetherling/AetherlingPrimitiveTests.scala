@@ -9,6 +9,8 @@ import mhir.gen.verilog.{
 }
 import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
 import mhir.logging.time
+import mhir.main.shared.{CompilerOptions, VhdlTarget}
+import mhir.optimize.OptimizerOptions
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.event.Level
@@ -39,8 +41,14 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val io = AetherlingPrimitivesIO(testName).toVhdl
       val inFile = AetherlingPrimitivesDir / s"$testName.txt"
       val outDir = VhdlDir / "aetherling_unit" / s"${testName}_test"
-      if (os.exists(outDir)) os.remove.all(outDir)
-      val args = Args(inFile = inFile, outDir = outDir)
+      val args = Args(
+        inFile = inFile,
+        options = CompilerOptions(
+          showFinal = false,
+          target = VhdlTarget(outDir, overwrite = true),
+          optFlags = OptimizerOptions.All
+        )
+      )
       Compiler.compile(args)
       time("generating VHDL testbench", Level.INFO) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
@@ -57,7 +65,14 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val outDir =
         VhdlDir / "aetherling_unit" / s"${testName}_test_unsimplified"
       if (os.exists(outDir)) os.remove.all(outDir)
-      val args = Args(inFile = inFile, outDir = outDir, optimize = false)
+      val args = Args(
+        inFile = inFile,
+        options = CompilerOptions(
+          showFinal = false,
+          target = VhdlTarget(outDir, overwrite = true),
+          optFlags = OptimizerOptions.Empty
+        )
+      )
       Compiler.compile(args)
       time("generating VHDL testbench", Level.INFO) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
