@@ -1,0 +1,5 @@
+prog_name,prog_opt,alm,bram,dsp
+map,none,9,0,0
+map,simpl,6,0,0
+map,latmatch,6,0,0
+map,fuse,6,0,0

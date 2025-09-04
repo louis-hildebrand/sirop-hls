@@ -34,7 +34,10 @@ def generate_vhdl(benchmarks: list[str]) -> None:
     def make_task(bench: str) -> str:
         in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
         out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
-        return f"runMain {c.AETHERLING_COMPILER} {in_file} {out_dir} --overwrite --show-final"
+        return (
+            f"runMain {c.AETHERLING_COMPILER} {in_file} --show-final"
+            f" --out-dir {out_dir} --overwrite"
+        )
     tasks = [make_task(b) for b in benchmarks]
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "; ".join(tasks)], check=True)

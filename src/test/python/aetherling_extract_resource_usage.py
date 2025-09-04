@@ -3,51 +3,15 @@
 This script extracts the resource usage for all the given benchmarks.
 """
 import csv
-import os
 import shutil
-import subprocess
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
-from subprocess import CalledProcessError
 from typing import TextIO
 
 import lib.constants as c
 import lib.list_benchmarks as lb
 import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl
-from lib.resource_usage import ResourceUsage
-
-
-def extract_resource_usage(project_dir: Path) -> ResourceUsage | None:
-    """
-    Extract the resource usage for a given design.
-    """
-    os.chdir(project_dir)
-    try:
-        result = subprocess.run(
-            [c.TEST_SH_DIR.joinpath("extract_alm_count.sh")],
-            check=True, capture_output=True, text=True, encoding="utf-8"
-        )
-        if not result.stdout:
-            return None
-        alm = int(result.stdout)
-        result = subprocess.run(
-            [c.TEST_SH_DIR.joinpath("extract_bram_count.sh")],
-            check=True, capture_output=True, text=True, encoding="utf-8"
-        )
-        if not result.stdout:
-            return None
-        bram = int(result.stdout)
-        result = subprocess.run(
-            [c.TEST_SH_DIR.joinpath("extract_dsp_count.sh")],
-            check=True, capture_output=True, text=True, encoding="utf-8"
-        )
-        if not result.stdout:
-            return None
-        dsp = int(result.stdout)
-    except CalledProcessError:
-        return None
-    return ResourceUsage(alm=alm, bram=bram, dsp=dsp)
+from lib.resource_usage import extract_resource_usage
 
 
 def extract_and_save_resource_usage(
