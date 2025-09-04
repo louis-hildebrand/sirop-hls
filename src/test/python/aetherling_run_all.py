@@ -34,6 +34,7 @@ def main(
     bench_names: list[str],
     *,
     fmax: Literal["estimate", "measure"],
+    skip_plots: bool,
     view_plots: bool,
     clean: bool,
     skip_verilog: bool,
@@ -64,9 +65,10 @@ def main(
         skip_verilog=skip_verilog,
         skip_vhdl=skip_vhdl,
     )
-    aetherling_plot_resource_usage.main()
-    if view_plots:
-        open_plot(c.RESOURCE_USAGE_PDF)
+    if not skip_plots:
+        aetherling_plot_resource_usage.main()
+        if view_plots:
+            open_plot(c.RESOURCE_USAGE_PDF)
 
     if not skip_latency:
         aetherling_measure_latency.main(
@@ -74,9 +76,10 @@ def main(
             skip_verilog=skip_verilog,
             skip_vhdl=skip_vhdl,
         )
-        aetherling_plot_latency.main()
-        if view_plots:
-            open_plot(c.LATENCY_PDF)
+        if not skip_plots:
+            aetherling_plot_latency.main()
+            if view_plots:
+                open_plot(c.LATENCY_PDF)
 
     if fmax == "estimate":
         aetherling_extract_fmax_estimate.main(
@@ -85,9 +88,10 @@ def main(
             skip_vhdl=skip_vhdl,
             save_to_csv=True,
         )
-        aetherling_plot_fmax_estimates.main()
-        if view_plots:
-            open_plot(c.FMAX_ESTIMATE_PDF)
+        if not skip_plots:
+            aetherling_plot_fmax_estimates.main()
+            if view_plots:
+                open_plot(c.FMAX_ESTIMATE_PDF)
     else:
         aetherling_measure_fmax.main(
             bench_names,
@@ -96,9 +100,10 @@ def main(
             save_to_csv=True,
             max_steps=10,
         )
-        aetherling_plot_fmax_measurements.main()
-        if view_plots:
-            open_plot(c.FMAX_MEASUREMENT_PDF)
+        if not skip_plots:
+            aetherling_plot_fmax_measurements.main()
+            if view_plots:
+                open_plot(c.FMAX_MEASUREMENT_PDF)
 
 
 def parse_args() -> Namespace:
@@ -135,6 +140,11 @@ def parse_args() -> Namespace:
         ),
     )
     parser.add_argument(
+        "--skip-plots",
+        action="store_true",
+        help="skip generating the plots",
+    )
+    parser.add_argument(
         "--view-plots",
         action="store_true",
         help="open the generated plots once they are generated",
@@ -164,6 +174,7 @@ if __name__ == "__main__":
     main(
         bench_names=_args.benchmarks,
         fmax=_args.fmax,
+        skip_plots=_args.skip_plots,
         view_plots=_args.view_plots,
         clean=_args.clean,
         skip_verilog=_args.skip_verilog,
