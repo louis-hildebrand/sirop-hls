@@ -9,6 +9,7 @@ import subprocess
 from argparse import ArgumentParser, Namespace
 
 import lib.constants as c
+from lib.optimization_level import OptimizationLevel
 
 
 def main(programs: list[str]) -> None:
@@ -24,25 +25,29 @@ def main(programs: list[str]) -> None:
     sbt_tasks = []
     for prog in programs:
         # No optimizations
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_none")
+        lvl = OptimizationLevel.NONE
+        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
             f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
             " --opt:no-fuse --opt:no-match-latency --opt:no-simplify"
         )
         # Only basic simplification
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_simpl")
+        lvl = OptimizationLevel.SIMPLIFY
+        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
             f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
             " --opt:no-fuse --opt:no-match-latency"
         )
         # Latency matching
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_latmatch")
+        lvl = OptimizationLevel.MATCH_LATENCY
+        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
             f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
             " --opt:no-fuse"
         )
         # Fusion
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_fuse")
+        lvl = OptimizationLevel.FUSE
+        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
             f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
         )
