@@ -43,7 +43,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 2),
+        figsize=(8, 1.5),
         layout="compressed",
     )
     artists = []
@@ -63,12 +63,16 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         )
         artists.append(artist)
     ax.set_ylabel("Latency (cycles)")
-    ax.set_xticks([])
+    ax.set_xticks(
+        [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
+        program_names
+    )
+    ax.tick_params(axis="x", which="both", length=0)
     fig.legend(
         labels=[str(lvl) for lvl in OptimizationLevel],
         handles=artists,
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.15),
+        bbox_to_anchor=(0.5, -0.2),
         ncols=len(OptimizationLevel),
     )
     fig.savefig(c.ABLATION_LATENCY_PDF, bbox_inches="tight")

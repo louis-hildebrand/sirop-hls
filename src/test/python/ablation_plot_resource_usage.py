@@ -41,10 +41,11 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         "font.family": "Times New Roman",
         "font.size": 10,
     })
-    fig, [alm_ax, bram_ax, dsp_ax] = plt.subplots(
-        nrows=3, ncols=1,
-        figsize=(8, 3.5),
+    fig, alm_ax = plt.subplots(
+        nrows=1, ncols=1,
+        figsize=(8, 1.5),
         layout="compressed",
+        sharex="col",
     )
     artists = []
     for i, lvl in enumerate(OptimizationLevel):
@@ -63,44 +64,48 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             hatch_linewidth=HATCH_WIDTH,
         )
         artists.append(artist)
-        # BRAM usage
-        ys = []
-        for p in program_names:
-            ru = results.get(ProgramVariant(p, lvl))
-            y = ru.bram if ru else 0
-            ys.append(y)
-        bram_ax.bar(
-            xs, ys,
-            width=BAR_WIDTH,
-            label=str(lvl),
-            hatch=BAR_HATCH[i],
-            hatch_linewidth=HATCH_WIDTH,
-        )
-        # ALM usage
-        xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
-        ys = []
-        for p in program_names:
-            ru = results.get(ProgramVariant(p, lvl))
-            y = ru.dsp if ru else 0
-            ys.append(y)
-        dsp_ax.bar(
-            xs, ys,
-            width=BAR_WIDTH,
-            label=str(lvl),
-            hatch=BAR_HATCH[i],
-            hatch_linewidth=HATCH_WIDTH,
-        )
+        # # BRAM usage
+        # ys = []
+        # for p in program_names:
+        #     ru = results.get(ProgramVariant(p, lvl))
+        #     y = ru.bram if ru else 0
+        #     ys.append(y)
+        # bram_ax.bar(
+        #     xs, ys,
+        #     width=BAR_WIDTH,
+        #     label=str(lvl),
+        #     hatch=BAR_HATCH[i],
+        #     hatch_linewidth=HATCH_WIDTH,
+        # )
+        # # ALM usage
+        # xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
+        # ys = []
+        # for p in program_names:
+        #     ru = results.get(ProgramVariant(p, lvl))
+        #     y = ru.dsp if ru else 0
+        #     ys.append(y)
+        # dsp_ax.bar(
+        #     xs, ys,
+        #     width=BAR_WIDTH,
+        #     label=str(lvl),
+        #     hatch=BAR_HATCH[i],
+        #     hatch_linewidth=HATCH_WIDTH,
+        # )
     alm_ax.set_ylabel("ALMs")
-    alm_ax.set_xticks([])
-    bram_ax.set_ylabel("BRAMs")
-    bram_ax.set_xticks([])
-    dsp_ax.set_ylabel("DSPs")
-    dsp_ax.set_xticks([])
+    alm_ax.set_xticks(
+        [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
+        program_names
+    )
+    alm_ax.tick_params(axis="x", which="both", length=0)
+    # bram_ax.set_ylabel("BRAMs")
+    # bram_ax.set_xticks([])
+    # dsp_ax.set_ylabel("DSPs")
+    # dsp_ax.set_xticks([])
     fig.legend(
         labels=[str(lvl) for lvl in OptimizationLevel],
         handles=artists,
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.15),
+        bbox_to_anchor=(0.5, -0.2),
         ncols=len(OptimizationLevel),
     )
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
