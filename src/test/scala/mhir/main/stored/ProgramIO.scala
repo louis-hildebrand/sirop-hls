@@ -12,6 +12,8 @@ object ProgramIO {
       dotIO
     } else if (name.startsWith("conv1d_")) {
       conv1dIO
+    } else if (name.startsWith("conv2d_")) {
+      conv2dIO
     } else {
       ???
     }
@@ -33,5 +35,9 @@ object ProgramIO {
       Seq(DirectTestInput(inputs.map(C(_)(I8)).map(Some(_)))),
       DirectTestOutput(outputs.map(C(_)(I8)))
     )
+  }
+
+  private def conv2dIO: TestIO = {
+    AetherlingBenchmarkIO.vhdlIO("bigconv2d_1")
   }
 }
