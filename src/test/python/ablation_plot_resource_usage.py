@@ -17,7 +17,8 @@ from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", ".."]
+BAR_HATCH = ["..", "xx", "++", ""]
+COLORS = ["red", "green", "orange", "blue"]
 HATCH_WIDTH = 1
 
 
@@ -64,44 +65,20 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             width=BAR_WIDTH,
             label=str(lvl),
             hatch=BAR_HATCH[i],
+            color=COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         if lvl != OptimizationLevel.NONE:
             artists.append(artist)
+        labels = [results[ProgramVariant(p, lvl)].alm for p in program_names]
+        labels = [f"{lab:,}" for lab in labels]
         alm_ax.bar_label(
             artist,
-            labels=[results[ProgramVariant(p, lvl)].alm for p in program_names],
+            labels=labels,
             padding=3,
         )
-        # # BRAM usage
-        # ys = []
-        # for p in program_names:
-        #     ru = results.get(ProgramVariant(p, lvl))
-        #     y = ru.bram if ru else 0
-        #     ys.append(y)
-        # bram_ax.bar(
-        #     xs, ys,
-        #     width=BAR_WIDTH,
-        #     label=str(lvl),
-        #     hatch=BAR_HATCH[i],
-        #     hatch_linewidth=HATCH_WIDTH,
-        # )
-        # # ALM usage
-        # xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
-        # ys = []
-        # for p in program_names:
-        #     ru = results.get(ProgramVariant(p, lvl))
-        #     y = ru.dsp if ru else 0
-        #     ys.append(y)
-        # dsp_ax.bar(
-        #     xs, ys,
-        #     width=BAR_WIDTH,
-        #     label=str(lvl),
-        #     hatch=BAR_HATCH[i],
-        #     hatch_linewidth=HATCH_WIDTH,
-        # )
     # Baseline
-    alm_ax.plot(
+    baseline_artist, *_ = alm_ax.plot(
         [-BAR_WIDTH, len(program_names)],
         [1, 1],
         linestyle=":",
@@ -116,13 +93,12 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         program_names
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    # bram_ax.set_ylabel("BRAMs")
-    # bram_ax.set_xticks([])
-    # dsp_ax.set_ylabel("DSPs")
-    # dsp_ax.set_xticks([])
     fig.legend(
-        labels=[str(lvl) for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE],
-        handles=artists,
+        labels=(
+            [OptimizationLevel.NONE.explanation]
+            + [lvl.explanation for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]
+        ),
+        handles=[baseline_artist] + artists,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.2),
         ncols=len(OptimizationLevel),

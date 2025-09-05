@@ -60,7 +60,7 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
     ax.set_ylabel("fmax (MHz)")
     ax.set_xticks([])
     fig.legend(
-        labels=[str(lvl) for lvl in OptimizationLevel],
+        labels=[lvl.explanation for lvl in OptimizationLevel],
         handles=artists,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.15),

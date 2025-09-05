@@ -17,7 +17,8 @@ from lib.program_variant import ProgramVariant
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", ".."]
+BAR_HATCH = ["..", "xx", "++", ""]
+COLORS = ["red", "green", "orange", "blue"]
 HATCH_WIDTH = 1
 BOTTOM = 0
 
@@ -40,7 +41,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 10,
+        "font.size": 9,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
@@ -55,7 +56,12 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].latency
             baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
-            ys.append(y - baseline)
+            if baseline is None:
+                raise ValueError(f"Missing baseline latency for {p}")
+            if y is None:
+                ys.append(baseline)
+            else:
+                ys.append(y - baseline)
         artist = ax.bar(
             bottom=BOTTOM,
             x=xs,
@@ -63,17 +69,25 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             width=BAR_WIDTH,
             label=str(lvl),
             hatch=BAR_HATCH[i],
+            color=COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         if lvl != OptimizationLevel.NONE:
             artists.append(artist)
+        labels = []
+        for p in program_names:
+            y = results[ProgramVariant(p, lvl)].latency
+            if y is None:
+                labels.append("-")
+            else:
+                labels.append(f"{y:,}")
         ax.bar_label(
             artist,
-            labels=[results[ProgramVariant(p, lvl)].latency for p in program_names],
+            labels=labels,
             padding=3,
         )
     # Baseline
-    ax.plot(
+    baseline_artist, *_ = ax.plot(
         [-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH],
         [BOTTOM, BOTTOM],
         linestyle=":",
@@ -81,7 +95,8 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     )
     # Display settings
     ax.set_xlim(-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH)
-    ax.set_ylim(-15, 5)
+    ax.set_yscale("symlog")
+    ax.set_ylim(-2 * 10**5, 2)
     ax.set_ylabel("Latency difference\n(cycles)")
     ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
@@ -89,8 +104,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     )
     ax.tick_params(axis="x", which="both", length=0)
     fig.legend(
-        labels=[str(lvl) for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE],
-        handles=artists,
+        labels=(
+            [OptimizationLevel.NONE.explanation]
+                + [lvl.explanation for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]
+        ),
+        handles=[baseline_artist] + artists,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.2),
         ncols=len(OptimizationLevel),
