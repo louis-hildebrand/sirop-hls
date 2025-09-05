@@ -2,9 +2,9 @@
   let stm n1: Stm[Vec[i8, 1:u1], 16:u5] = I in
   sbuild(
     16:u5;
-    vbuild(1:u1, (i : u8) => -1:i8 *% buf[0:u0][0:u32] +% data(I1_177)[0:u32]);
+    vbuild(1:u1, (i : u8) => -1:i8 *% buf[0:u0][0:u32] +% data(I1_163)[0:u32]);
     true;
-    (I1_177 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+    (I1_163 : Stm[Vec[i8, 1:u1], -1:i1]) = (
       sbuild(
         16:u5;
         data(s);
@@ -16,7 +16,7 @@
       ),
       true
     );
-    (I1_178 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+    (I1_164 : Stm[Vec[i8, 1:u1], -1:i1]) = (
       sbuild(
         16:u5;
         buf[0:u0];
@@ -34,6 +34,6 @@
     );
     (buf : Vec[Vec[i8, 1:u1], 1:u1]) = (
       vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:i8)),
-      vbuild(1:u2, (i : u32) => data(I1_178))
+      vbuild(1:u2, (i : u32) => data(I1_164))
     );
   )
