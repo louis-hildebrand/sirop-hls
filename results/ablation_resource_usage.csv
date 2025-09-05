@@ -3,3 +3,7 @@ map,none,9,0,0
 map,simpl,6,0,0
 map,latmatch,6,0,0
 map,fuse,6,0,0
+dot,none,56,0,1
+dot,simpl,37,0,1
+dot,latmatch,37,0,1
+dot,fuse,29,0,1
