@@ -298,39 +298,22 @@ object StreamFuser {
         ready: Expr,
         x: Param
     ): (Expr, Expr) = {
-      val producerTyp = producer.typ.asInstanceOf[TyStm]
-      val valid = Mux(
-        ready,
-        // CASE 1: Consumer is ready (i.e., reading from producer).
-        Mux(
-          producer.valid,
-          // CASE 1a: Producer yielded a valid value. Proceed as usual.
-          consumer.valid.subPreserveType(StmData(x)() -> producer.data),
-          // CASE 1b: Producer did NOT yield a valid value.
-          //          The consumer cannot proceed.
-          False
-        )(),
-        // CASE 2: Consumer is not ready (i.e., not reading from producer).
-        //         Proceed as usual, but with the default value for the producer
-        //         output (this should not be read).
-        consumer.valid.subPreserveType(
-          StmData(x)() -> Default(producerTyp.t).tchk().lower()
-        )
-      )().tchk()
-      val data = Mux(
-        ready,
+      val valid = {
+        val cvalid =
+          consumer.valid.subPreserveType(StmData(x)() -> producer.data)
+        val pvalid = producer.valid
+        (cvalid && (!ready || pvalid)).tchk()
+      }
+      val data = {
         // CASE 1: Consumer is ready (i.e., reading from producer).
         //         It doesn't matter whether the producer yielded a valid value:
         //         if it did then fine, if it did not then `valid` will be False
         //         and therefore the `data` doesn't matter.
-        consumer.data.subPreserveType(StmData(x)() -> producer.data),
         // CASE 2: Consumer is not ready (i.e., not reading from producer).
-        //         Proceed as usual, but with the default value for the producer
-        //         output (this should not be read).
-        consumer.data.subPreserveType(
-          StmData(x)() -> Default(producerTyp.t).tchk().lower()
-        )
-      )().tchk()
+        //         The value of StmData(x) is undefined in this case, so might
+        //         as well substitute the same expression.
+        consumer.data.subPreserveType(StmData(x)() -> producer.data).tchk()
+      }
       (data, valid)
     }
 
@@ -355,7 +338,6 @@ object StreamFuser {
     )(
         eqn: (Param, (Expr, Expr))
     ): (Param, (Expr, Expr)) = {
-      val producerTyp = producer.typ.asInstanceOf[TyStm]
       eqn match {
         case (y, (z, next)) =>
           y -> (
@@ -376,11 +358,9 @@ object StreamFuser {
                 }
               )(),
               // CASE 2: Consumer is not reading from producer.
-              //         Update as usual, but with the default value for the
-              //         producer output (this should not be read).
-              next.subPreserveType(
-                StmData(x)() -> Default(producerTyp.t)
-              )
+              //         The value of StmData(x) is undefined in this case, so might
+              //         as well substitute the same expression.
+              next.subPreserveType(StmData(x)() -> producer.data)
             )().tchk().lower()
           )
       }
