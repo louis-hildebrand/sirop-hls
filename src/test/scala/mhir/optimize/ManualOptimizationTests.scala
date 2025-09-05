@@ -340,7 +340,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmBuild(
         Sum(PadTo(n, 9)(), C(1)(TyUInt(9)))(),
         Mux(i === 1, StmData(s)(), C(42)(U8))(),
-        ((j !== n) && (i === 1)) || (i !== 1),
+        (i !== 1) || (j !== n),
         Map[Param, (Expr, Expr)](
           s -> (input, i === 1),
           i -> (C(0)(U32), Mux(i === 1, i, i + 1)()),
@@ -379,7 +379,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmBuild(
         n,
         Mux(i === 4, C(42)(U8), StmData(s)())(),
-        Mux(i === 4, True, j >= 1)(),
+        (i === 4) || j >= 1,
         Map[Param, (Expr, Expr)](
           s -> (input, i !== 4),
           i -> (C(0)(U8), Mux(i === 4, C(4)(U8), Mux(j < 1, i, i + 1)())()),
