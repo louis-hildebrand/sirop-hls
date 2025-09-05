@@ -43,7 +43,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 3.5),
+        figsize=(8, 2),
         layout="compressed",
     )
     artists = []

@@ -3,3 +3,7 @@ map,none,202,True
 map,simpl,201,True
 map,latmatch,201,True
 map,fuse,201,True
+dot,none,845,True
+dot,simpl,843,True
+dot,latmatch,843,True
+dot,fuse,842,True
