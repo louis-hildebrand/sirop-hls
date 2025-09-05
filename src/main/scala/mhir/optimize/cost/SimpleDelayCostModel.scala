@@ -20,11 +20,25 @@ object SimpleDelayCostModel {
       case FunCall(f, arg)   => cost(staticVars)(f) + cost(staticVars)(arg)
       case _: Param | True | False | _: IntCst | _: FixCst => 0
       case Sum(terms @ _*) =>
-        terms.map(cost(staticVars)).max +
-          log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
+        val adderDelay = log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
+        val childDelay = terms
+          .map({
+            // Subtraction has the same cost as addition
+            case Prod(IntCst(-1), e) => cost(staticVars)(e)
+            case e                   => cost(staticVars)(e)
+          })
+          .max
+        adderDelay + childDelay
       case WrappingSum(terms @ _*) =>
-        terms.map(cost(staticVars)).max +
-          log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
+        val adderDelay = log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
+        val childDelay = terms
+          .map({
+            // Subtraction has the same cost as addition
+            case WrappingProd(IntCst(-1), e) => cost(staticVars)(e)
+            case e                           => cost(staticVars)(e)
+          })
+          .max
+        adderDelay + childDelay
       case WrappingDiff(e1, e2) =>
         math.max(cost(staticVars)(e1), cost(staticVars)(e2)) +
           FullCycleDelay / MaxAddsPerCycle

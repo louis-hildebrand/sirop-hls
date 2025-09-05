@@ -33,7 +33,6 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
 
   private val SlowBenchmarks: Set[String] =
     Set(
-      "conv1d",
       "smallconv2d",
       "bigconv2d",
       "smallconvb2b",

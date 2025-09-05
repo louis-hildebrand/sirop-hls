@@ -32,11 +32,25 @@ object SimpleAreaCostModel {
       case Function(_, body) => cost(sv)(body)
       case FunCall(f, arg)   => cost(sv)(f) + cost(sv)(arg)
       case sum @ Sum(terms @ _*) =>
-        (terms.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
-          + AreaCost(9 * BitWidth(sum.typ), 0, 0))
+        val adderArea = AreaCost(9 * BitWidth(sum.typ), 0, 0)
+        val childArea = terms
+          .map({
+            // Subtraction has the same cost as addition
+            case Prod(IntCst(-1), e) => cost(sv)(e)
+            case e                   => cost(sv)(e)
+          })
+          .foldLeft(AreaCost.Zero)(_ + _)
+        adderArea + childArea
       case sum @ WrappingSum(terms @ _*) =>
-        (terms.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
-          + AreaCost(9 * BitWidth(sum.typ), 0, 0))
+        val adderArea = AreaCost(9 * BitWidth(sum.typ), 0, 0)
+        val childArea = terms
+          .map({
+            // Subtraction has the same cost as addition
+            case WrappingProd(IntCst(-1), e) => cost(sv)(e)
+            case e                           => cost(sv)(e)
+          })
+          .foldLeft(AreaCost.Zero)(_ + _)
+        adderArea + childArea
       case diff @ WrappingDiff(e1, e2) =>
         cost(sv)(e1) + cost(sv)(e2) + AreaCost(9 * BitWidth(diff.typ), 0, 0)
       case Prod(factors @ _*) =>

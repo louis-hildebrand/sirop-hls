@@ -7,3 +7,7 @@ dot,none,845,True
 dot,simpl,843,True
 dot,latmatch,843,True
 dot,fuse,842,True
+conv1d,none,27,True
+conv1d,simpl,22,True
+conv1d,latmatch,22,True
+conv1d,fuse,18,True
