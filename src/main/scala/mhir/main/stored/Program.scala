@@ -11,8 +11,8 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map" => Map
-      case "dot" => Dot
+      case "map"    => Map
+      case "dot"    => Dot
       case "conv1d" => Conv1d
       case name =>
         throw new BadArgsException(s"unknown program: $name")
