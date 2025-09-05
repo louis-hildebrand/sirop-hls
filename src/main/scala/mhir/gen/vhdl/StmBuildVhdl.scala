@@ -126,11 +126,6 @@ private[vhdl] object StmBuildVhdl {
     val (externalProducerPorts, externalProducerSignals) =
       externalProducerInterface(whereUsedByInput, readyCondByProducer)
 
-    val comment = ExprPrinter
-      .display(s)
-      .split("\n")
-      .map(x => s"-- $x")
-      .mkString("\n")
     val allDecls = (
       defaultDecls(s.n, s.data, s.valid, allRequiredProducersValidSignal)
         ++ registerDecls(registerEquations)
@@ -144,7 +139,7 @@ private[vhdl] object StmBuildVhdl {
         ++ externalProducerPorts
     )
     val component = CustomVhdlComponent(
-      comment = comment,
+      expr = s,
       name = name,
       inPorts = allPorts.flatMap({
         case p: InPort => Some(p)
@@ -251,7 +246,7 @@ private[vhdl] object StmBuildVhdl {
       valid: Expr,
       allRequiredProducersValidSig: Signal
   ): Seq[Decl] = {
-    val VhdlExpr(nVhdl, nDecls) = VhdlExprGenerator.exprToVhdl(n)
+    val VhdlExpr(_, nDecls) = VhdlExprGenerator.exprToVhdl(n)
     val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(

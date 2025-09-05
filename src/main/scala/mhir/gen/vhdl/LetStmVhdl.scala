@@ -83,13 +83,8 @@ private[vhdl] object LetStmVhdl {
         instantiateCustomConsumer(newOut, xs.map(_.name))
     }
 
-    val comment = ExprPrinter
-      .display(let)
-      .split("\n")
-      .map(x => s"-- $x")
-      .mkString("\n")
     CustomVhdlComponent(
-      comment = comment,
+      expr = let,
       name = name,
       inPorts = allPorts.flatMap({
         case p: InPort => Some(p)
