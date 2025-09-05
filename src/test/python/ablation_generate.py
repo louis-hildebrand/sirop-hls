@@ -28,28 +28,36 @@ def main(programs: list[str]) -> None:
         lvl = OptimizationLevel.NONE
         out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
+            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+            f" --out-dir {out_dir} --overwrite"
+            " --show-final"
             " --opt:no-fuse --opt:no-match-latency --opt:no-simplify"
         )
         # Only basic simplification
         lvl = OptimizationLevel.SIMPLIFY
         out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
+            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+            f" --out-dir {out_dir} --overwrite"
+            " --show-final"
             " --opt:no-fuse --opt:no-match-latency"
         )
         # Latency matching
         lvl = OptimizationLevel.MATCH_LATENCY
         out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
+            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+            f" --out-dir {out_dir} --overwrite"
+            " --show-final"
             " --opt:no-fuse"
         )
         # Fusion
         lvl = OptimizationLevel.FUSE
         out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
         sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog} --out-dir {out_dir} --overwrite"
+            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+            f" --out-dir {out_dir} --overwrite"
+            " --show-final"
         )
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "; ".join(sbt_tasks)], check=True)
