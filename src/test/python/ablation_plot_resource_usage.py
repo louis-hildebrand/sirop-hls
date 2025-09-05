@@ -47,23 +47,32 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         layout="compressed",
         sharex="col",
     )
+    # Resource usages
     artists = []
     for i, lvl in enumerate(OptimizationLevel):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         # ALM usage
         ys = []
         for p in program_names:
-            ru = results.get(ProgramVariant(p, lvl))
-            y = ru.alm if ru else 0
-            ys.append(y)
-        artist, *_ = alm_ax.bar(
-            xs, ys,
+            y = results[ProgramVariant(p, lvl)].alm
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
+            ys.append(y / baseline)
+        artist = alm_ax.bar(
+            bottom=1,
+            x=xs,
+            height=[y - 1 for y in ys],
             width=BAR_WIDTH,
             label=str(lvl),
             hatch=BAR_HATCH[i],
             hatch_linewidth=HATCH_WIDTH,
         )
-        artists.append(artist)
+        if lvl != OptimizationLevel.NONE:
+            artists.append(artist)
+        alm_ax.bar_label(
+            artist,
+            labels=[results[ProgramVariant(p, lvl)].alm for p in program_names],
+            padding=3,
+        )
         # # BRAM usage
         # ys = []
         # for p in program_names:
@@ -91,7 +100,17 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         #     hatch=BAR_HATCH[i],
         #     hatch_linewidth=HATCH_WIDTH,
         # )
-    alm_ax.set_ylabel("ALMs")
+    # Baseline
+    alm_ax.plot(
+        [-BAR_WIDTH, len(program_names)],
+        [1, 1],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
+    )
+    # Display settings
+    alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
+    alm_ax.set_ylim(0.1, 1.2)
+    alm_ax.set_ylabel("ALMs\n(opt / no opt)")
     alm_ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
@@ -102,7 +121,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     # dsp_ax.set_ylabel("DSPs")
     # dsp_ax.set_xticks([])
     fig.legend(
-        labels=[str(lvl) for lvl in OptimizationLevel],
+        labels=[str(lvl) for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE],
         handles=artists,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.2),

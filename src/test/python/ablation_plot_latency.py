@@ -19,6 +19,7 @@ BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
 BAR_HATCH = ["", "xx", "++", ".."]
 HATCH_WIDTH = 1
+BOTTOM = 0
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -46,30 +47,49 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         figsize=(8, 1.5),
         layout="compressed",
     )
+    # Latency results
     artists = []
     for i, lvl in enumerate(OptimizationLevel):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         ys = []
         for p in program_names:
-            res = results.get(ProgramVariant(p, lvl))
-            y = res.latency if res else 0
-            ys.append(y)
-        artist, *_ = ax.bar(
-            xs, ys,
+            y = results[ProgramVariant(p, lvl)].latency
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
+            ys.append(y - baseline)
+        artist = ax.bar(
+            bottom=BOTTOM,
+            x=xs,
+            height=[y - BOTTOM for y in ys],
             width=BAR_WIDTH,
             label=str(lvl),
             hatch=BAR_HATCH[i],
             hatch_linewidth=HATCH_WIDTH,
         )
-        artists.append(artist)
-    ax.set_ylabel("Latency (cycles)")
+        if lvl != OptimizationLevel.NONE:
+            artists.append(artist)
+        ax.bar_label(
+            artist,
+            labels=[results[ProgramVariant(p, lvl)].latency for p in program_names],
+            padding=3,
+        )
+    # Baseline
+    ax.plot(
+        [-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH],
+        [BOTTOM, BOTTOM],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
+    )
+    # Display settings
+    ax.set_xlim(-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH)
+    ax.set_ylim(-15, 5)
+    ax.set_ylabel("Latency difference\n(cycles)")
     ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
     ax.tick_params(axis="x", which="both", length=0)
     fig.legend(
-        labels=[str(lvl) for lvl in OptimizationLevel],
+        labels=[str(lvl) for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE],
         handles=artists,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.2),
