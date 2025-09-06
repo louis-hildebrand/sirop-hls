@@ -5,7 +5,6 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
-import org.slf4j.event.Level
 import mhir.optimize.{PartialEvalPass => PE}
 
 import scala.annotation.tailrec
@@ -16,7 +15,7 @@ import scala.annotation.tailrec
   * it may make the hardware a bit worse (e.g., by distributing a product over a
   * sum).
   */
-object StmSimplifier {
+object StmBuildSimplifier {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 

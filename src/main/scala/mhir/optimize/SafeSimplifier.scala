@@ -35,7 +35,18 @@ object SafeSimplifier {
           case eqn => eqn
         })
         val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
-        StmSimplifier.simplify(newS)(facts)
+        StmBuildSimplifier.simplify(newS)(facts)
+      case LetStm(x, in, out) =>
+        val newIn = simplifyStreams(in)
+        val newOut = simplifyStreams(out)
+        val numUses = newOut.countFreeOccurrences(x)
+        if (numUses <= 0) {
+          newOut
+        } else if (numUses <= 1) {
+          newOut.subPreserveType(x -> newIn)
+        } else {
+          LetStm(x, newIn, newOut)()
+        }
       case e =>
         e.map(simplifyStreams)
     }

@@ -26,10 +26,10 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s = Param("s")(TyStm(I32, n))
     val f = Param("f")(TyArrow(I32, I32))
     val original = StmMap(s, I32 ::+ (x => FunCall(f, x)()))()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower()
     val optimize = (s: Expr) => {
       val s1 = tl(PE.partialEval(s))
-      val s2 = tl(StmSimplifier.simplify(s1)())
+      val s2 = tl(SafeSimplifier.simplify(s1)())
       s2
     }
     val optimized = optimize(original.tchk().lower())
@@ -117,7 +117,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
-      val s2 = tl(StmSimplifier.simplify(s1)())
+      val s2 = tl(StmBuildSimplifier.simplify(s1)())
       s2
     }
     val optimized = optimize(original)
@@ -188,7 +188,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: Expr) => {
       val s1 = s.fuseCompletely()
       val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
-      StmSimplifier.simplify(s2)()
+      StmBuildSimplifier.simplify(s2)()
     }
     val actual = optimize(s)
 
@@ -221,7 +221,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
-      val s2 = tl(StmSimplifier.simplify(s1)())
+      val s2 = tl(StmBuildSimplifier.simplify(s1)())
       s2
     }
     val actual = optimize(s)
@@ -274,7 +274,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
-      val s2 = tl(StmSimplifier.simplify(s1)())
+      val s2 = tl(StmBuildSimplifier.simplify(s1)())
       s2
     }
     val actual = optimize(s)
@@ -320,7 +320,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
       val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
-      val s3 = StmSimplifier.simplify(s2)()
+      val s3 = StmBuildSimplifier.simplify(s2)()
       s3
     }
     val fused = optimize(original)
@@ -361,7 +361,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
       val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
-      val s3 = StmSimplifier.simplify(s2)()
+      val s3 = StmBuildSimplifier.simplify(s2)()
       s3
     }
     val fused = optimize(original)
@@ -432,10 +432,10 @@ class ManualOptimizationTests extends AnyFunSuite {
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
-      val s1 = tl(StmSimplifier.simplify(s0)())
+      val s1 = tl(StmBuildSimplifier.simplify(s0)())
       val s2 = tl({
         val facts = FactSet().range(s1, StmAccRangeAnalysis.findAccRanges(s1))
-        StmSimplifier.simplify(s1)(facts)
+        StmBuildSimplifier.simplify(s1)(facts)
       })
       s2
     }
@@ -479,7 +479,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val v0 = tl(s)
       val v1 = tl(v0.fuseCompletely())
       val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
-      val v3 = tl(StmSimplifier.simplify(v2)())
+      val v3 = tl(StmBuildSimplifier.simplify(v2)())
       val v4 =
         tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
       val v5 = tl({
@@ -521,7 +521,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val v0 = tl(s)
       val v1 = tl(v0.fuseCompletely())
       val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
-      val v3 = tl(StmSimplifier.simplify(v2)())
+      val v3 = tl(StmBuildSimplifier.simplify(v2)())
       val v4 =
         tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
       val v5 = tl({
@@ -574,9 +574,9 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: StmBuild) => {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
-      val s0 = tl(StmSimplifier.simplify(s)(facts))
+      val s0 = tl(StmBuildSimplifier.simplify(s)(facts))
       val s1 = tl(s0.fuseCompletely())
-      val s2 = tl(StmSimplifier.simplify(s1)(facts))
+      val s2 = tl(StmBuildSimplifier.simplify(s1)(facts))
 
       // This step in the transformation chain is not working.
       // Each accumulator has a closed form, but replacing some accumulators
@@ -606,15 +606,15 @@ class ManualOptimizationTests extends AnyFunSuite {
       // case of the other.
 
       val s3 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s2))
-      val s4 = tl(StmSimplifier.simplify(s3)(facts))
+      val s4 = tl(StmBuildSimplifier.simplify(s3)(facts))
       val s5 = tl(
         StmDelayRemovalPass.skipFirstCycles(s4, (n - 1).tchk().lower())(facts)
       )
-      val s6 = tl(StmSimplifier.simplify(s5)(facts))
+      val s6 = tl(StmBuildSimplifier.simplify(s5)(facts))
       // Reset `t` to start at zero rather than n - 1
       val s7 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s6))
       val newFacts = facts.range(s7, StmAccRangeAnalysis.findAccRanges(s7))
-      val s8 = tl(StmSimplifier.simplify(s7)(newFacts))
+      val s8 = tl(StmBuildSimplifier.simplify(s7)(newFacts))
       s8
     }
     val original =

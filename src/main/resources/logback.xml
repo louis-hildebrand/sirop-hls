@@ -49,6 +49,6 @@
     -->
     <logger name="mhir.ir.StreamFuser$" level="INFO"/>
     <logger name="mhir.ir.Let$" level="INFO"/>
-    <logger name="mhir.optimize.StmSimplifier$" level="INFO" />
+    <logger name="mhir.optimize.StmBuildSimplifier$" level="INFO" />
     <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
 </configuration>
