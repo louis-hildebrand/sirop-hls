@@ -3,16 +3,22 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
-import mhir.optimize.{BinOpTreeMaker => BOTM, PartialEvalPass => PE}
+import mhir.optimize.{PartialEvalPass => PE}
 
 import scala.annotation.tailrec
 
 /** Top-level optimizer.
   */
-object Optimizer {
+class Optimizer(
+    simplifier: SafeSimplifier,
+    letStmSimplifier: LetStmSimplifier,
+    fusionPass: StmFusionPass,
+    latencyMatcher: StmLatencyMatcher,
+    binOpBalancer: BinOpTreeBalancingPass
+) {
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def optimize(s: Expr, options: OptimizerOptions): Expr = {
+  def optimize(s: Expr): Expr = {
     logger.trace(s"optimizing expression: $s")
 
     // No flag to skip this step because
@@ -25,48 +31,42 @@ object Optimizer {
     //      bigger examples (e.g., 1920x1080 conv2d) that simulation fails.
     val s0 = PE.partialEval(s)
 
-    val s1 = if (options.simplify) {
-      time("basic simplifications") {
-        SafeSimplifier.simplify(s0)
-      }
-    } else {
-      logger.info(s"skipping basic simplification")
-      s0
+    if (simplifier.disabled) {
+      logger.info("basic stream simplification is disabled")
+    }
+    val s1 = time("basic stream simplification", mute = simplifier.disabled) {
+      simplifier.simplify(s0)
     }
 
-    val s2 = if (options.fuse) {
-      time("greedy fusion") {
-        @tailrec
-        def fix(s: Expr, i: Int): Expr = {
-          val fused = GreedyStmFuser.fuse(s)
-          // Simplify in case there are some instances of LetStm which now have
-          // at most one consumer
-          val simpl = LetStmInliner.simplifyAll(fused)
-          if (simpl == s) {
-            logger.trace(
-              s"reached fixpoint for greedy fusion after ${i + 1} iterations"
-            )
-            simpl
-          } else {
-            // Getting rid of the LetStm may have revealed new fusion
-            // opportunities
-            fix(simpl, i = i + 1)
-          }
+    if (fusionPass.disabled) {
+      logger.info("stream fusion is disabled")
+    }
+    val s2 = time("greedy stream fusion", mute = fusionPass.disabled) {
+      @tailrec
+      def fix(s: Expr, i: Int): Expr = {
+        val fused = fusionPass.fuse(s)
+        // Simplify in case there are some instances of LetStm which now have
+        // at most one consumer
+        val simpl = letStmSimplifier.simplifyAll(fused)
+        if (simpl == s) {
+          logger.trace(
+            s"reached fixpoint for greedy fusion after ${i + 1} iterations"
+          )
+          simpl
+        } else {
+          // Getting rid of the LetStm may have revealed new fusion
+          // opportunities
+          fix(simpl, i = i + 1)
         }
-        fix(s1, i = 0)
       }
-    } else {
-      logger.info("skipping greedy fusion")
-      s1
+      fix(s1, i = 0)
     }
 
-    val s3 = if (options.matchLatency) {
-      time("latency matching") {
-        StmLatencyMatcher.matchLatencies(s2)
-      }
-    } else {
-      logger.info("skipping latency matching")
-      s2
+    if (latencyMatcher.disabled) {
+      logger.info("latency matching is disabled")
+    }
+    val s3 = time("latency matching", mute = latencyMatcher.disabled) {
+      latencyMatcher.matchLatencies(s2)
     }
 
     // I think the program is more readable like this.
@@ -76,15 +76,32 @@ object Optimizer {
       LetStmMover.moveUp(s3)
     }
 
-    val s5 = if (options.balanceBinOpTrees) {
-      time("balancing binop trees") {
-        BOTM.makeBinOpTrees(s4)
-      }
-    } else {
-      logger.info("skipping balancing binop trees")
-      s4
+    if (binOpBalancer.disabled) {
+      logger.info("balancing binop trees is disabled")
+    }
+    val s5 = time("balancing binop trees", mute = binOpBalancer.disabled) {
+      binOpBalancer.balance(s4)
     }
 
     s5
+  }
+}
+
+object Optimizer {
+  def apply(options: OptimizerOptions): Optimizer = {
+    val simplifier = SafeSimplifier(enabled = options.simplify)
+    val letStmSimplifier = LetStmSimplifier(enabled = options.simplify)
+    val fusionPass =
+      StmFusionPass(simplifier = simplifier, enabled = options.fuse)
+    val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
+    val binOpBalancer =
+      BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
+    new Optimizer(
+      simplifier,
+      letStmSimplifier,
+      fusionPass,
+      latencyMatcher,
+      binOpBalancer
+    )
   }
 }

@@ -505,7 +505,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("LetStm:More complex example") {
     val s = Param("s")(TyStm(U8, 5))
     val plusFive = StmMap(s, U8 ::+ (x => x + C(5)(U8)))().tchk()
-    val e = SafeSimplifier.simplify(
+    val e = SafeSimplifier().simplify(
       StmMap(
         LetStm(s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
         (U8, U8) ::+ (x => Tuple(x.__0, x.__1, C(3)(U8) * x.__0 + x.__1)())
@@ -702,7 +702,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f0 = Function(s, slide)().tchk().lower()
     assert(VhdlTestRunner.testExpr(f0, inputs) == TestPassed)
 
-    val optimized = SafeSimplifier.simplify(slide).tchk().lower()
+    val optimized = SafeSimplifier().simplify(slide).tchk().lower()
     val f1 = Function(s, optimized)().tchk()
     assert(VhdlTestRunner.testExpr(f1, inputs) == TestPassed)
   }

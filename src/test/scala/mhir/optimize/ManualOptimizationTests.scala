@@ -17,6 +17,8 @@ import mhir.optimize.{PartialEvalPass => PE}
   */
 class ManualOptimizationTests extends AnyFunSuite {
 
+  private val simplifier = SafeSimplifier()
+
   /** The optimizer can produce a nice design for a simple map on a 1D stream,
     * even though the lowering pass spits out something a bit gross (since it
     * must handle multi-dimensional streams).
@@ -29,7 +31,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val tl = (e: Expr) => e.tchk().lower()
     val optimize = (s: Expr) => {
       val s1 = tl(PE.partialEval(s))
-      val s2 = tl(SafeSimplifier.simplify(s1)())
+      val s2 = tl(simplifier.simplify(s1)())
       s2
     }
     val optimized = optimize(original.tchk().lower())
@@ -81,7 +83,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U8, n))
     val k = C(15)(U8)
     val original = StmPrefix(s, k)().tchk().lower()
-    val optimized = SafeSimplifier.simplify(original)
+    val optimized = simplifier.simplify(original)
 
     // Correctness
     val sExamples = Seq(
@@ -659,14 +661,14 @@ class ManualOptimizationTests extends AnyFunSuite {
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = tl(s.fuseCompletely())
-      val s2 = tl(SafeSimplifier.simplify(s1)())
+      val s2 = tl(simplifier.simplify(s1)())
       val s3 = tl(StmInductionVarRemovalPass().removeInductionVars(s2))
-      val s4 = tl(SafeSimplifier.simplify(s3)())
+      val s4 = tl(simplifier.simplify(s3)())
       val facts = FactSet().range(s4, StmAccRangeAnalysis.findAccRanges(s4))
-      val s5 = tl(SafeSimplifier.simplify(s4)(facts))
+      val s5 = tl(simplifier.simplify(s4)(facts))
       val s6 =
         tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower())())
-      tl(SafeSimplifier.simplify(s6)())
+      tl(simplifier.simplify(s6)())
     }
     val original = tl(Stm2Vec(Vec2Stm(v)())())
     val optimized = optimize(original)

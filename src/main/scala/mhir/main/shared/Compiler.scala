@@ -7,7 +7,7 @@ import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
-import mhir.optimize.{Optimizer => Opt}
+import mhir.optimize.Optimizer
 import mhir.sugar.Streamifier.Streamify
 import org.slf4j.event.Level
 import os.Path
@@ -40,7 +40,7 @@ object Compiler {
     val lowered = lower(checked)
     val synthesizable = makeSynthesizable(lowered)
     val optimized = time("optimization", Level.INFO) {
-      Opt.optimize(synthesizable, options = options.optFlags)
+      Optimizer(options.optFlags).optimize(synthesizable)
     }
 
     val finalProgram = optimized

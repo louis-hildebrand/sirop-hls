@@ -7,6 +7,8 @@ import mhir.ir.typecheck.TypeCheck
 
 class GreedyStmFuserTests extends AnyFunSuite {
 
+  private val fusionPass = new GreedyStmFusionPass(SafeSimplifier())
+
   /* Map(+3) is clearly better than Map(+1) |> Map(+2).
    */
   test("ShouldFuse:Map(+1) |> Map(+2)") {
@@ -24,7 +26,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
       )().tchk().lower()
     }
     val original = mapPlus(mapPlus(input, C(1)(U8)), C(2)(U8))
-    val actual = GreedyStmFuser.fuse(original)
+    val actual = fusionPass.fuse(original)
 
     // Correctness
     val exampleIn = StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
@@ -65,7 +67,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
       }
       vecAccessStm.lower()
     }
-    val actual = GreedyStmFuser.fuse(original)
+    val actual = fusionPass.fuse(original)
 
     // Correctness
     val originalVal = mhir.ir.eval(original)
@@ -131,7 +133,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
       }
       zip.lower()
     }
-    val actual = GreedyStmFuser.fuse(original)
+    val actual = fusionPass.fuse(original)
 
     // Correctness
     val exampleIn = StmLiteral(
@@ -195,7 +197,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
       }
       s1.lower()
     }
-    val actual = GreedyStmFuser.fuse(original)
+    val actual = fusionPass.fuse(original)
 
     // Correctness
     val exampleIn = StmLiteral(

@@ -8,6 +8,9 @@ import mhir.sugar.VecShiftLeft
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {
+
+  private val pass = StmLatencyMatcher()
+
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
     val n = 16
     val original = {
@@ -90,7 +93,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(s, count, delay)().tchk().lower()
     }
-    val optimized = StmLatencyMatcher.matchLatencies(original)
+    val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
     val expectedVal = mhir.ir.eval(original)
@@ -157,7 +160,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(sA, count, LetStm(sB, plusFive, zip)())().tchk().lower()
     }
-    val optimized = StmLatencyMatcher.matchLatencies(original)
+    val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
     val expectedVal = mhir.ir.eval(original)
@@ -255,7 +258,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(s, count, zip)().tchk().lower()
     }
-    val optimized = StmLatencyMatcher.matchLatencies(original)
+    val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
     val expectedVal = mhir.ir.eval(original)
@@ -342,7 +345,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       }
       Let(x, count, zipped)().tchk().lower()
     }
-    val optimized = StmLatencyMatcher.matchLatencies(original)
+    val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
     val originalVal = mhir.ir.eval(original)

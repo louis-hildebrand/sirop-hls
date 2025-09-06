@@ -3,7 +3,18 @@ package mhir.optimize
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-object LetStmInliner {
+trait LetStmSimplifier {
+  def simplify(let: LetStm): Expr
+  def simplifyAll(expr: Expr): Expr
+}
+
+object LetStmSimplifier {
+  def apply(enabled: Boolean = true): LetStmSimplifier = {
+    if (enabled) EnabledLetStmSimplifier else DisabledLetStmSimplifier
+  }
+}
+
+object EnabledLetStmSimplifier extends LetStmSimplifier {
   def simplify(let: LetStm): Expr = {
     let.tchk().asInstanceOf[LetStm] match {
       case let @ LetStm(x, in, out) =>
@@ -26,4 +37,10 @@ object LetStmInliner {
     }
     result.tchk()
   }
+}
+
+object DisabledLetStmSimplifier extends LetStmSimplifier {
+  override def simplify(let: LetStm): Expr = let
+
+  override def simplifyAll(expr: Expr): Expr = expr
 }

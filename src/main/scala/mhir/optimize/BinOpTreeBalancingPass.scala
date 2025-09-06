@@ -3,10 +3,26 @@ package mhir.optimize
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
+trait BinOpTreeBalancingPass {
+  def enabled: Boolean
+  def disabled: Boolean = !enabled
+
+  def balance(e: Expr): Expr
+}
+
+object BinOpTreeBalancingPass {
+  def apply(enabled: Boolean = true): BinOpTreeBalancingPass = {
+    if (enabled) EnabledBinOpTreeBalancingPass
+    else DisabledBinOpTreeBalancingPass
+  }
+}
+
 /** Pass for making expressions like [[mhir.ir.Sum]] and [[mhir.ir.Or]] into
   * binary trees.
   */
-object BinOpTreeMaker {
+object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+
+  override def enabled: Boolean = true
 
   /** Convert flat operators with many operands (e.g., [[mhir.ir.Sum]],
     * [[mhir.ir.Prod]], [[mhir.ir.And]], [[mhir.ir.Or]]) into roughly balanced
@@ -22,7 +38,7 @@ object BinOpTreeMaker {
     * @param e
     *   the expression to process.
     */
-  def makeBinOpTrees(e: Expr): Expr = {
+  def balance(e: Expr): Expr = {
     val typedE = e.tchk()
     val result = typedE match {
       case s @ Sum(_, _) => s
@@ -35,8 +51,8 @@ object BinOpTreeMaker {
         })
         val (lhs, rhs) = if (nLeft < posTerms.length) {
           (
-            makeBinOpTrees(Sum(posTerms.take(nLeft): _*)()),
-            makeBinOpTrees(Sum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
+            balance(Sum(posTerms.take(nLeft): _*)()),
+            balance(Sum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
           )
         } else {
           val negTermsWithoutMinus = negTermsWithMinus.map({
@@ -49,9 +65,9 @@ object BinOpTreeMaker {
           })
           val m = nLeft - posTerms.length
           val lhs =
-            makeBinOpTrees(Sum(posTerms ++ negTermsWithMinus.take(m): _*)())
+            balance(Sum(posTerms ++ negTermsWithMinus.take(m): _*)())
           val rhsPos =
-            makeBinOpTrees(Sum(negTermsWithoutMinus.drop(m): _*)()).tchk()
+            balance(Sum(negTermsWithoutMinus.drop(m): _*)()).tchk()
           assert(rhsPos.typ.isInstanceOf[TySInt])
           (
             lhs,
@@ -63,42 +79,48 @@ object BinOpTreeMaker {
       case Prod(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = makeBinOpTrees(Prod(lhsFactors: _*)())
-        val rhs = makeBinOpTrees(Prod(rhsFactors: _*)())
+        val lhs = balance(Prod(lhsFactors: _*)())
+        val rhs = balance(Prod(rhsFactors: _*)())
         Prod(lhs, rhs)()
       case s @ WrappingSum(_, _) => s
       case WrappingSum(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = makeBinOpTrees(WrappingSum(lhsTerms: _*)())
-        val rhs = makeBinOpTrees(WrappingSum(rhsTerms: _*)())
+        val lhs = balance(WrappingSum(lhsTerms: _*)())
+        val rhs = balance(WrappingSum(rhsTerms: _*)())
         WrappingSum(lhs, rhs)()
       case p @ WrappingProd(_, _) => p
       case WrappingProd(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = makeBinOpTrees(WrappingProd(lhsFactors: _*)())
-        val rhs = makeBinOpTrees(WrappingProd(rhsFactors: _*)())
+        val lhs = balance(WrappingProd(lhsFactors: _*)())
+        val rhs = balance(WrappingProd(rhsFactors: _*)())
         WrappingProd(lhs, rhs)()
       case a @ And(_, _) => a
       case And(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = makeBinOpTrees(And(lhsTerms: _*)())
-        val rhs = makeBinOpTrees(And(rhsTerms: _*)())
+        val lhs = balance(And(lhsTerms: _*)())
+        val rhs = balance(And(rhsTerms: _*)())
         And(lhs, rhs)()
       case o @ Or(_, _) => o
       case Or(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = makeBinOpTrees(Or(lhsTerms: _*)())
-        val rhs = makeBinOpTrees(Or(rhsTerms: _*)())
+        val lhs = balance(Or(lhsTerms: _*)())
+        val rhs = balance(Or(rhsTerms: _*)())
         Or(lhs, rhs)()
       case _ =>
-        e.map(makeBinOpTrees)
+        e.map(balance)
     }
     val typedResult = result.tchk()
     assert(typedResult.typ ~= typedE.typ)
     typedResult
   }
+}
+
+object DisabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+  override def enabled: Boolean = false
+
+  override def balance(e: Expr): Expr = e
 }
