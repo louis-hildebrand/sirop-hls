@@ -1,39 +1,18 @@
 (I : Stm[Vec[i8, 1:u1], 16:u5]) =>
-  let stm n1: Stm[Vec[i8, 1:u1], 16:u5] = I in
   sbuild(
     16:u5;
-    vbuild(1:u1, (i : u8) => -1:i8 *% buf[0:u0][0:u32] +% data(I1_163)[0:u32]);
+    vbuild(1:u1, (i : u8) => -1:i8 *% buf_118[0:u0][0:u32] +% data(I1)[0:u32]);
     true;
-    (I1_163 : Stm[Vec[i8, 1:u1], -1:i1]) = (
-      sbuild(
-        16:u5;
-        data(s);
-        true;
-        (s : Stm[Vec[i8, 1:u1], -1:i1]) = (
-          n1,
-          true
-        );
-      ),
+    (I1 : Stm[Vec[i8, 1:u1], -1:i1]) = (
+      I,
       true
     );
-    (I1_164 : Stm[Vec[i8, 1:u1], -1:i1]) = (
-      sbuild(
-        16:u5;
-        buf[0:u0];
-        true;
-        (buf : Vec[Vec[i8, 1:u1], 1:u1]) = (
-          vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:i8)),
-          vbuild(1:u2, (i : u32) => data(s))
-        );
-        (s : Stm[Vec[i8, 1:u1], -1:i1]) = (
-          n1,
-          true
-        );
-      ),
-      true
-    );
-    (buf : Vec[Vec[i8, 1:u1], 1:u1]) = (
+    (buf_118 : Vec[Vec[i8, 1:u1], 1:u1]) = (
       vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:i8)),
-      vbuild(1:u2, (i : u32) => data(I1_164))
+      vbuild(1:u2, (i : u32) => buf_132[0:u0])
+    );
+    (buf_132 : Vec[Vec[i8, 1:u1], 1:u1]) = (
+      vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:i8)),
+      vbuild(1:u2, (i : u32) => data(I1))
     );
   )
