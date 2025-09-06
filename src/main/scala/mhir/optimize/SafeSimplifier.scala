@@ -39,14 +39,7 @@ object SafeSimplifier {
       case LetStm(x, in, out) =>
         val newIn = simplifyStreams(in)
         val newOut = simplifyStreams(out)
-        val numUses = newOut.countFreeOccurrences(x)
-        if (numUses <= 0) {
-          newOut
-        } else if (numUses <= 1) {
-          newOut.subPreserveType(x -> newIn)
-        } else {
-          LetStm(x, newIn, newOut)()
-        }
+        LetStmInliner.simplify(LetStm(x, newIn, newOut)())
       case e =>
         e.map(simplifyStreams)
     }

@@ -25,7 +25,8 @@ object GreedyStmFuser {
           })
         )().tchk().asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
-          val fused = StmBuildSimplifier.simplify(acc.fuseWith(x))()
+          val fused =
+            SafeSimplifier.simplify(acc.fuseWith(x))().asInstanceOf[StmBuild]
           val oldArea = SimpleAreaCostModel.cost(acc)
           val newArea = SimpleAreaCostModel.cost(fused)
           val oldDelay = SimpleDelayCostModel.cost(acc)

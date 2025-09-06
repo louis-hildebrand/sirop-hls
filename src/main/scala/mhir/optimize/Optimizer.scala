@@ -5,6 +5,8 @@ import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.{BinOpTreeMaker => BOTM, PartialEvalPass => PE}
 
+import scala.annotation.tailrec
+
 /** Top-level optimizer.
   */
 object Optimizer {
@@ -34,11 +36,24 @@ object Optimizer {
 
     val s2 = if (options.fuse) {
       time("greedy fusion") {
-        val fused = GreedyStmFuser.fuse(s1)
-        // Partially evaluate in case there are some instances of LetStm which
-        // now have at most one consumer
-        val pe = PE.partialEval(fused)
-        pe
+        @tailrec
+        def fix(s: Expr, i: Int): Expr = {
+          val fused = GreedyStmFuser.fuse(s)
+          // Simplify in case there are some instances of LetStm which now have
+          // at most one consumer
+          val simpl = LetStmInliner.simplifyAll(fused)
+          if (simpl == s) {
+            logger.trace(
+              s"reached fixpoint for greedy fusion after ${i + 1} iterations"
+            )
+            simpl
+          } else {
+            // Getting rid of the LetStm may have revealed new fusion
+            // opportunities
+            fix(simpl, i = i + 1)
+          }
+        }
+        fix(s1, i = 0)
       }
     } else {
       logger.info("skipping greedy fusion")
