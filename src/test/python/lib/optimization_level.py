@@ -43,7 +43,7 @@ class OptimizationLevel(Enum):
         Return a short explanation of the optimizations included in this level.
         """
         if self == OptimizationLevel.NONE:
-            return "only partial eval"
+            return "only partial evaluation"
         if self == OptimizationLevel.SIMPLIFY:
             return "PE + stream simplification"
         if self == OptimizationLevel.MATCH_LATENCY:

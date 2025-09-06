@@ -64,8 +64,8 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
     fig.legend(
         labels=[lvl.explanation for lvl in OptimizationLevel],
         handles=artists,
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.15),
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0),
         ncols=len(OptimizationLevel),
     )
     fig.savefig(c.ABLATION_FMAX_PDF, bbox_inches="tight")

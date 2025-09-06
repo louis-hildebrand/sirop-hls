@@ -16,13 +16,6 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl
 from lib.resource_usage import ResourceUsage
 
-AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-AETHERLING_MARKER = "s"
-AETHERLING_MARKER_SIZE = 4
-OUR_LABEL = "Aetherling \u2192 Min. IR \u2192 VHDL"
-OUR_MARKER = "o"
-OUR_MARKER_SIZE = 3
-
 
 def dedup(xs: list[str]) -> list[str]:
     """
@@ -116,15 +109,17 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         ys = [results[b].alm for b in verilog_benchmarks]
         verilog_artist, = alm_ax.plot(
             xs, ys,
-            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
-            label=AETHERLING_LABEL,
+            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
+            color=c.AETHERLING_COLOR,
+            label=c.AETHERLING_LABEL,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
         vhdl_artist, = alm_ax.plot(
             xs, ys,
-            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
-            label=OUR_LABEL,
+            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
+            color=c.OUR_COLOR,
+            label=c.OUR_LABEL,
         )
         # Plot BRAM usage
         bram_ax = axes[1][col]
@@ -132,15 +127,17 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
         bram_ax.plot(
             xs, verilog_ys,
-            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
-            label=AETHERLING_LABEL,
+            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
+            color=c.AETHERLING_COLOR,
+            label=c.AETHERLING_LABEL,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
         bram_ax.plot(
             xs, vhdl_ys,
-            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
-            label=OUR_LABEL,
+            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
+            color=c.OUR_COLOR,
+            label=c.OUR_LABEL,
         )
         # Plot DSP usage
         dsp_ax = axes[2][col]
@@ -148,16 +145,18 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
         dsp_ax.plot(
             xs, verilog_ys,
-            marker=AETHERLING_MARKER, markersize=AETHERLING_MARKER_SIZE,
-            label=AETHERLING_LABEL,
+            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
+            color=c.AETHERLING_COLOR,
+            label=c.AETHERLING_LABEL,
             linestyle="-" if bench_name == "dot" else "",
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
         dsp_ax.plot(
             xs, vhdl_ys,
-            marker=OUR_MARKER, markersize=OUR_MARKER_SIZE,
-            label=OUR_LABEL,
+            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
+            color=c.OUR_COLOR,
+            label=c.OUR_LABEL,
             linestyle="-" if bench_name == "dot" else "",
         )
         # Settings for the whole column
@@ -179,9 +178,10 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
         [verilog_artist, vhdl_artist],
-        [AETHERLING_LABEL, OUR_LABEL],
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.15)
+        [c.AETHERLING_LABEL, c.OUR_LABEL],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0),
+        ncols=2,
     )
     fig.savefig(c.RESOURCE_USAGE_PDF, bbox_inches="tight")
 

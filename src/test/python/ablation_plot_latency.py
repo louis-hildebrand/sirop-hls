@@ -19,7 +19,7 @@ from lib.program_variant import ProgramVariant
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
 BAR_HATCH = ["", "xx", "++", "", ".."]
-COLORS = ["yellow", "green", "orange", "blue", "red"]
+COLORS = ["tab:brown", "tab:green", "tab:orange", "tab:blue", "tab:red"]
 HATCH_WIDTH = 1
 BOTTOM = 0
 
@@ -35,7 +35,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 9,
+        "font.size": 8,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
@@ -106,8 +106,8 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
         handles=pu.flip(legend_handles, legend_cols),
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.35),
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0),
         ncols=legend_cols,
     )
     fig.savefig(c.ABLATION_LATENCY_PDF, bbox_inches="tight")
