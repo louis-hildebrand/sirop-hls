@@ -14,7 +14,7 @@ class OptimizationLevel(Enum):
 
     NONE = "none"
     """
-    No optimizations.
+    Nothing but partial evaluation.
     """
 
     SIMPLIFY = "simpl"
@@ -32,6 +32,11 @@ class OptimizationLevel(Enum):
     `MATCH_LATENCY` plus greedy fusion.
     """
 
+    ALL_EXCEPT_SIMPL = "nosimpl"
+    """
+    All optimizations except stream simplification.
+    """
+
     @property
     def explanation(self) -> str:
         """
@@ -44,7 +49,9 @@ class OptimizationLevel(Enum):
         if self == OptimizationLevel.MATCH_LATENCY:
             return "PE + SS + latency matching"
         if self == OptimizationLevel.FUSE:
-            return "PE + SS + LM + fusion"
+            return "PE + SS + LM + fusion (all)"
+        if self == OptimizationLevel.ALL_EXCEPT_SIMPL:
+            return "all except SS"
         raise NotImplementedError(f"no explanation for {self}")
 
     def __str__(self) -> str:

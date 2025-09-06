@@ -40,7 +40,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 10,
+        "font.size": 9,
     })
     fig, alm_ax = plt.subplots(
         nrows=1, ncols=1,
@@ -86,7 +86,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     )
     # Display settings
     alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
-    alm_ax.set_ylim(0.1, 1.2)
+    alm_ax.set_ylim(0.1, 1.4)
     alm_ax.set_ylabel("ALMs\n(opt / no opt)")
     alm_ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],

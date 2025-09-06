@@ -59,6 +59,15 @@ def main(programs: list[str]) -> None:
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
         )
+        # All except stream simplification
+        lvl = OptimizationLevel.ALL_EXCEPT_SIMPL
+        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
+        sbt_tasks.append(
+            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+            f" --out-dir {out_dir} --overwrite"
+            " --show-final"
+            " --opt:no-simplify"
+        )
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "; ".join(sbt_tasks)], check=True)
 
