@@ -11,29 +11,22 @@ import matplotlib.pyplot as plt
 import lib.ablation_results_crud as crud
 import lib.benchmark as lb
 import lib.constants as c
+import lib.plt_utils as pu
 from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["..", "xx", "++", ""]
-COLORS = ["red", "green", "orange", "blue"]
+BAR_HATCH = ["", "xx", "++", "", ".."]
+COLORS = ["yellow", "green", "orange", "blue", "red"]
 HATCH_WIDTH = 1
-
-
-def dedup(xs: list[str]) -> list[str]:
-    """
-    Deduplicate elements in a list while preserving order.
-    """
-    return list(dict.fromkeys(xs))
-
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     """
     Plot resource usage for each program.
     """
-    program_names = dedup([p.name for p in results.keys()])
+    program_names = pu.dedup([p.name for p in results.keys()])
     program_names = sorted(program_names, key=lb.benchmark_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
@@ -70,14 +63,14 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         )
         if lvl != OptimizationLevel.NONE:
             artists.append(artist)
-        labels = [results[ProgramVariant(p, lvl)].alm for p in program_names]
-        labels = [f"{lab:,}" for lab in labels]
-        alm_ax.bar_label(
-            artist,
-            labels=labels,
-            padding=3,
-        )
-    # Baseline
+        # labels = [results[ProgramVariant(p, lvl)].alm for p in program_names]
+        # labels = [f"{lab:,}" for lab in labels]
+        # alm_ax.bar_label(
+        #     artist,
+        #     labels=labels,
+        #     padding=3,
+        # )
+    # Ba# seline
     baseline_artist, *_ = alm_ax.plot(
         [-BAR_WIDTH, len(program_names)],
         [1, 1],
@@ -86,22 +79,25 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     )
     # Display settings
     alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
-    alm_ax.set_ylim(0.1, 1.4)
+    alm_ax.set_ylim(0, 1.1)
     alm_ax.set_ylabel("ALMs\n(opt / no opt)")
     alm_ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
+    legend_cols = (len(OptimizationLevel) + 1) // 2
+    legend_labels=(
+        [OptimizationLevel.NONE.explanation]
+        + [lvl.explanation for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]
+    )
+    legend_handles=[baseline_artist] + artists
     fig.legend(
-        labels=(
-            [OptimizationLevel.NONE.explanation]
-            + [lvl.explanation for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]
-        ),
-        handles=[baseline_artist] + artists,
+        labels=pu.flip(legend_labels, legend_cols),
+        handles=pu.flip(legend_handles, legend_cols),
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.2),
-        ncols=len(OptimizationLevel),
+        bbox_to_anchor=(0.5, -0.35),
+        ncols=legend_cols,
     )
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
 

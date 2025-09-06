@@ -16,7 +16,8 @@ from lib.program_variant import ProgramVariant
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", ".."]
+BAR_HATCH = ["", "xx", "++", "", ".."]
+COLORS = ["yellow", "green", "orange", "blue", "red"]
 HATCH_WIDTH = 1
 
 
@@ -54,6 +55,7 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
             width=BAR_WIDTH,
             label=str(lvl),
             hatch=BAR_HATCH[i],
+            color=COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         artists.append(artist)

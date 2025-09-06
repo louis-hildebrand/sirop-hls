@@ -180,7 +180,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         )
         # Labels and whatnot
         ax.set_xscale("log", base=2)
-        ax.set_yscale("log", base=2)
+        ax.set_yscale("log", base=10)
         ax.set_title(title)
         set_ticks(ax, bench_name)
 
