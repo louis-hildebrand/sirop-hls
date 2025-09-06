@@ -1,6 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
+import mhir.ir.{Expr, ExprPrinter}
+import os.Path
 
 private[vhdl] sealed trait Decl {
   def vhdlDecl: String
@@ -169,7 +171,7 @@ private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent
   *   other components that must be instantiated by this component.
   */
 private[vhdl] case class CustomVhdlComponent(
-    comment: String,
+    expr: Expr,
     name: String,
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
@@ -203,23 +205,67 @@ private[vhdl] case class CustomVhdlComponent(
     }
   }
 
-  def vhdl: String = {
+  def writeVhdl(f: Path): Unit = {
+    writeHeader(f)
+    writeEntity(f)
+    writeArchitecture(f)
+  }
+
+  private def writeHeader(f: Path): Unit = {
+    val comment = ExprPrinter
+      .display(this.expr, maxWidth = 120)
+      .split("\n")
+      .map(x => s"-- $x")
+      .mkString("\n")
+    os.write.append(f, comment)
+    os.write.append(
+      f,
+      """
+        |library IEEE;
+        |use IEEE.std_logic_1164.all;
+        |use IEEE.numeric_std.all;
+        |use work.conversions.all;
+        |use work.typedefs.all;
+        |""".stripMargin
+    )
+  }
+
+  private def writeEntity(f: Path): Unit = {
+    val portDecls =
+      (inPorts.map(p => s"${p.name} : in ${p.typ.vhdlName}")
+        ++ outPorts.map(p => s"${p.name} : out ${p.typ.vhdlName}"))
+        .sortBy(x => x)
+    os.write.append(
+      f,
+      s"""entity $name is
+         |port (
+         |    ${portDecls.mkString(";\n    ")}
+         |);
+         |end;
+         |""".stripMargin
+    )
+  }
+
+  private def writeArchitecture(f: Path): Unit = {
+    os.write.append(f, s"architecture arch of $name is\n")
+
     val signalCategories = signals
       .groupBy(s => s.category)
       .map({ case (name, signals) => name -> signals.sortBy(s => s.name) })
       .toSeq
       .sortBy({ case (cat, _) => cat })
-    val portDecls = (
-      inPorts.map(p => s"${p.name} : in ${p.typ.vhdlName}")
-        ++ outPorts.map(p => s"${p.name} : out ${p.typ.vhdlName}")
-    ).sortBy(x => x)
-    val sigDecls = signalCategories
-      .map({ case (categoryName, signals) =>
-        val block = signals.map(s => s.vhdlDecl).sortBy(x => x).mkString("\n")
-        s"-- $categoryName\n$block"
-      })
-      .mkString("\n\n")
+
+    for ((categoryName, signals) <- signalCategories) {
+      val block = signals.map(s => s.vhdlDecl).sortBy(x => x).mkString("\n")
+      val str = indent(s"-- $categoryName\n$block") + "\n\n"
+      os.write.append(f, str)
+    }
+
     val funDecls = functions.map(f => f.vhdlDecl).mkString("\n\n")
+    os.write.append(f, indent(funDecls) + "\n")
+
+    os.write.append(f, "begin\n")
+
     val portMaps = children
       .map({ case VhdlEntityInstantiation(name, c, pm) =>
         val assignments =
@@ -243,31 +289,37 @@ private[vhdl] case class CustomVhdlComponent(
         }
       })
       .sortBy(x => x)
-    val combStmts = {
-      val signalAssignments =
-        signalCategories.flatMap({ case (categoryName, signals) =>
-          val stmts = signals
-            .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
-            .map(s => s.assignStmt.get)
-          if (stmts.isEmpty) {
-            None
-          } else {
-            Some(s"-- $categoryName\n${stmts.mkString("\n")}")
-          }
-        })
-      val outPortAssignments = {
-        val block = outPorts
-          .filter(p => p.assign.isDefined)
-          .map(p => s"${p.name} <= ${p.assign.get};")
-          .mkString("\n")
-        if (block.isBlank) {
-          Seq()
-        } else {
-          Seq(s"-- Output ports\n$block")
+      .mkString("\n")
+    os.write.append(f, portMaps + "\n\n")
+
+    for ((categoryName, signals) <- signalCategories) {
+      val stmts = signals
+        .filter(s => s.cond.isEmpty && s.assignStmt.isDefined)
+        .map(s => s.assignStmt.get)
+      // Print each statement one-by-one to avoid Java heap overflow
+      // This tends to happen with very large expressions (e.g., designs that
+      // have not been optimized at all - not even partial evaluation)
+      if (stmts.nonEmpty) {
+        os.write.append(f, s"-- $categoryName\n")
+        for (s <- stmts) {
+          os.write.append(f, indent(s) + "\n")
         }
       }
-      (signalAssignments ++ outPortAssignments).mkString("\n\n")
     }
+
+    val outPortAssignments = {
+      val block = outPorts
+        .filter(p => p.assign.isDefined)
+        .map(p => s"${p.name} <= ${p.assign.get};")
+        .mkString("\n")
+      if (block.isBlank) {
+        Seq()
+      } else {
+        Seq(s"-- Output ports\n$block")
+      }
+    }
+    os.write.append(f, indent(outPortAssignments.mkString("\n\n")) + "\n\n")
+
     val clkStmts = signalCategories
       .flatMap({ case (categoryName, signals) =>
         val stmts = signals
@@ -298,31 +350,9 @@ private[vhdl] case class CustomVhdlComponent(
          |end process ;
          |""".stripMargin.stripTrailing
     }
-    comment + "\n" +
-      s"""library IEEE;
-         |use IEEE.std_logic_1164.all;
-         |use IEEE.numeric_std.all;
-         |use work.conversions.all;
-         |use work.typedefs.all;
-         |
-         |entity $name is
-         |port (
-         |    ${portDecls.mkString(";\n    ")}
-         |);
-         |end;
-         |
-         |architecture arch of $name is
-         |${indent(sigDecls)}
-         |
-         |${indent(funDecls)}
-         |begin
-         |    ${portMaps.mkString("\n    ")}
-         |
-         |${indent(combStmts)}
-         |
-         |${indent(process)}
-         |end;
-         |""".stripMargin
+    os.write.append(f, s"${indent(process)}")
+
+    os.write.append(f, "end;\n")
   }
 }
 

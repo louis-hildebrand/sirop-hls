@@ -196,7 +196,7 @@ object VhdlWriter {
       case _: StmNoOpComponent =>
         os.copy.over(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
       case c: CustomVhdlComponent =>
-        os.write(dir / s"${c.name}.vhd", c.vhdl)
+        c.writeVhdl(dir / s"${c.name}.vhd")
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {
           emitComponents(child, dir)
         }

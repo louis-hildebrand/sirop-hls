@@ -1,6 +1,7 @@
 package mhir.gen
 package vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.gen.{
   DesignCompileFailed,
   SimulationFailed,
@@ -11,6 +12,8 @@ import mhir.gen.{
   UnknownFailure
 }
 import mhir.ir._
+import mhir.logging.time
+import org.slf4j.event.Level
 import os.{Path, RelPath}
 
 import scala.sys.process._
@@ -21,6 +24,8 @@ object VhdlTestRunner {
   private val VHDL_DIR = os.pwd / "src" / "test" / "vhdl"
   private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_vhdl.sh"
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** See [[testExistingProject(dir:Path*]].
     *
@@ -61,8 +66,14 @@ object VhdlTestRunner {
   ): TestResult = {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
-    VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR)
-    VhdlTestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
-    testExistingProject(VHDL_TEST_DIR)
+    time("generating VHDL design", Level.INFO) {
+      VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR)
+    }
+    time("generating VHDL testbench", Level.INFO) {
+      VhdlTestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
+    }
+    time("running simulation", Level.INFO) {
+      testExistingProject(VHDL_TEST_DIR)
+    }
   }
 }

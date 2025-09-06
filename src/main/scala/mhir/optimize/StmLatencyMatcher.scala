@@ -4,6 +4,20 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
+trait StmLatencyMatcher {
+  def enabled: Boolean
+  def disabled: Boolean = !enabled
+
+  def matchLatencies(e: Expr): Expr
+}
+
+object StmLatencyMatcher {
+  def apply(enabled: Boolean = true): StmLatencyMatcher = {
+    if (enabled) new EnabledStmLatencyMatcher(LetStmMover)
+    else DisabledStmLatencyMatcher
+  }
+}
+
 /** Transformation that tries to match the latency of different branches of a
   * [[mhir.ir.LetStm]].
   *
@@ -12,9 +26,12 @@ import mhir.ir.typecheck.TypeCheck
   * and therefore increase the real throughput (i.e., total elements / total
   * cycles).
   */
-object StmLatencyMatcher {
+class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
+    extends StmLatencyMatcher {
 
   private val logger = Logger(getClass.getName)
+
+  override def enabled: Boolean = true
 
   /** Inserts extra [[mhir.ir.StmBuild]]s in the stream pipeline to try to match
     * the latency across different branches in [[mhir.ir.LetStm]]s.
@@ -59,7 +76,7 @@ object StmLatencyMatcher {
     // There may be some strange things happening after the joins, but that
     // shouldn't prevent latency matching because the strange things
     // contribute the same latency to all paths.
-    val result = rec(LetStmMover.moveDown(e))
+    val result = rec(letStmMover.moveDown(e))
     val checkedResult = result.tchk()
     assert(checkedResult.typ ~= e.typ)
     checkedResult
@@ -224,9 +241,15 @@ object StmLatencyMatcher {
           }
           val newOut = increaseLatencyTo(out, src, targetLatency)
           LetStm(x, newIn, newOut)()
-        case e =>
+        case _ =>
           ???
       }
     }
   }
+}
+
+object DisabledStmLatencyMatcher extends StmLatencyMatcher {
+  override def enabled: Boolean = false
+
+  override def matchLatencies(e: Expr): Expr = e
 }

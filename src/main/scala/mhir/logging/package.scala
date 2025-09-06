@@ -20,14 +20,19 @@ package object logging {
     * @return
     *   the value produced by the operation.
     */
-  def time[T](name: String, level: Level = Level.TRACE)(
+  def time[T](name: String, level: Level = Level.TRACE, mute: Boolean = false)(
       op: => T
   )(implicit logger: Logger): T = {
-    val start = System.nanoTime()
-    logger.underlying.atLevel(level).log(s"starting $name...")
-    val result = op
-    val duration = (System.nanoTime() - start) / 1000000L
-    logger.underlying.atLevel(level).log(s"finished $name in $duration ms")
+    val result = if (mute) {
+      op
+    } else {
+      val start = System.nanoTime()
+      logger.underlying.atLevel(level).log(s"starting $name...")
+      val result = op
+      val duration = (System.nanoTime() - start) / 1000000L
+      logger.underlying.atLevel(level).log(s"finished $name in $duration ms")
+      result
+    }
     result
   }
 }

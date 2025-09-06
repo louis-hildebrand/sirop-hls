@@ -81,13 +81,25 @@ package object ir
       */
     def +(that: Expr): Expr = SmartSum(this.expr, that)()
 
+    /** See [[WrappingSum]].
+      */
+    def +%(that: Expr): Expr = WrappingSum(this.expr, that)()
+
     /** See [[SmartSum]] and [[SmartProd]].
       */
     def -(that: Expr): Expr = this.expr + that * -1
 
+    /** See [[WrappingDiff]].
+      */
+    def -%(that: Expr): Expr = WrappingDiff(this.expr, that)()
+
     /** See [[SmartProd]].
       */
     def *(that: Expr): Expr = SmartProd(this.expr, that)()
+
+    /** See [[WrappingProd]].
+      */
+    def *%(that: Expr): Expr = WrappingProd(this.expr, that)()
 
     /** See [[SmartDiv]].
       */
@@ -191,7 +203,7 @@ package object ir
       */
     def rebuildAndEraseType(newChildren: Seq[Expr]): Expr = {
       this.expr match {
-        case _: IntCst | _: Param | _: StmLiteral | _: VecLiteral =>
+        case _: IntCst | _: Param | StmLiteral() | VecLiteral() =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.
           this.expr.rebuild(this.expr.typ, newChildren)

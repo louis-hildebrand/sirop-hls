@@ -7,7 +7,7 @@ import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{SafeSimplifier, StmSimplifier}
+import mhir.optimize.{SafeSimplifier, StmBuildSimplifier}
 import mhir.sugar._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -269,7 +269,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
 
     val optimized =
-      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+      StmBuildSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
     assert(VhdlTestRunner.testExpr(optimized) == TestPassed)
   }
 
@@ -283,7 +283,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
 
     val optimized =
-      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+      StmBuildSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
     assert(VhdlTestRunner.testExpr(optimized) == TestPassed)
   }
 
@@ -296,7 +296,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
 
     val optimized =
-      StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+      StmBuildSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
     assert(VhdlTestRunner.testExpr(optimized) == TestPassed)
   }
 
@@ -505,7 +505,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("LetStm:More complex example") {
     val s = Param("s")(TyStm(U8, 5))
     val plusFive = StmMap(s, U8 ::+ (x => x + C(5)(U8)))().tchk()
-    val e = SafeSimplifier.simplify(
+    val e = SafeSimplifier().simplify(
       StmMap(
         LetStm(s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
         (U8, U8) ::+ (x => Tuple(x.__0, x.__1, C(3)(U8) * x.__0 + x.__1)())
@@ -645,10 +645,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f0, inputs) == TestPassed)
 
     def optimize(s: StmBuild): StmBuild = {
-      val s0 = StmSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
+      val s0 =
+        StmBuildSimplifier.simplify(s)().tchk().lower().asInstanceOf[StmBuild]
       val s1 = s0.fuseCompletely().tchk().lower().asInstanceOf[StmBuild]
       val s2 =
-        StmSimplifier.simplify(s1)().tchk().lower().asInstanceOf[StmBuild]
+        StmBuildSimplifier.simplify(s1)().tchk().lower().asInstanceOf[StmBuild]
       s2
     }
     val optimized = optimize(s)
@@ -671,7 +672,11 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )
 
     val optimized =
-      StmSimplifier.simplify(rowSums)().tchk().lower().asInstanceOf[StmBuild]
+      StmBuildSimplifier
+        .simplify(rowSums)()
+        .tchk()
+        .lower()
+        .asInstanceOf[StmBuild]
     val f = Function(s.lower().asInstanceOf[Param], optimized)().tchk()
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
@@ -697,7 +702,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f0 = Function(s, slide)().tchk().lower()
     assert(VhdlTestRunner.testExpr(f0, inputs) == TestPassed)
 
-    val optimized = SafeSimplifier.simplify(slide).tchk().lower()
+    val optimized = SafeSimplifier().simplify(slide).tchk().lower()
     val f1 = Function(s, optimized)().tchk()
     assert(VhdlTestRunner.testExpr(f1, inputs) == TestPassed)
   }

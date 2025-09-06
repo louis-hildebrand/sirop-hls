@@ -10,4 +10,12 @@ dot,fuse,842,True
 conv1d,none,27,True
 conv1d,simpl,22,True
 conv1d,latmatch,22,True
-conv1d,fuse,18,True
+conv1d,fuse,17,True
+conv2d,none,15394,True
+conv2d,simpl,23056,True
+conv2d,latmatch,7698,True
+conv2d,fuse,7683,True
+map,nosimpl,202,True
+dot,nosimpl,845,True
+conv1d,nosimpl,27,True
+conv2d,nosimpl,7716,True

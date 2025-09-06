@@ -5,13 +5,14 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.logging.time
 import mhir.sugar.{Cast, SafeSum}
 
 /** Partial evaluation, arithmetic simplification, and related functionality.
   */
 object PartialEvalPass {
 
-  private val logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   def pe(e: Expr): Expr = {
     // Mostly for debugging, since the debugger really doesn't seem to handle
@@ -365,17 +366,9 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(x, in, out) =>
-            logger.trace(s"partially evaluating : let stm $x = ...")
-            val newIn = doPartialEval(in)
-            val newOut = doPartialEval(out)
-            val numUses = newOut.countFreeOccurrences(x)
-            val newLet = if (numUses <= 1) {
-              newOut.subPreserveType(x -> newIn)
-            } else {
-              LetStm(x, newIn, newOut)()
+            time(s"partially evaluating : let stm $x") {
+              LetStm(x, doPartialEval(in), doPartialEval(out))()
             }
-            logger.trace(s"done partially evaluating: let stm $x = ...")
-            newLet
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)
             doPartialEval(k) match {

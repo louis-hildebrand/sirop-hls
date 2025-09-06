@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
-class BinOpTreeMakerTests extends AnyFunSuite {
+class BinOpTreeBalancingPassTests extends AnyFunSuite {
   private val x0 = Param("x0", -1)(I8)
   private val x1 = Param("x1", -1)(I8)
   private val x2 = Param("x2", -1)(I8)
@@ -18,17 +18,19 @@ class BinOpTreeMakerTests extends AnyFunSuite {
   private val b2 = Param("b2", -1)(TyBool)
   private val b3 = Param("b3", -1)(TyBool)
 
+  private val pass: BinOpTreeBalancingPass = BinOpTreeBalancingPass()
+
   test("x0 + x1 + x2 + x3") {
     val e = Sum(x0, x1, x2, x3)().tchk()
     val expected = Sum(Sum(x0, x1)(), Sum(x2, x3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
   test("x0 + x1 + x2 - x3") {
     val e = Sum(x0, x1, x2, Prod(C(-1)(I8), x3)())().tchk()
     val expected = Sum(Sum(x0, x1)(), Sum(x2, Prod(C(-1)(I8), x3)())())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
@@ -36,7 +38,7 @@ class BinOpTreeMakerTests extends AnyFunSuite {
     val e = Sum(x0, x1, Prod(C(-1)(I8), x2)(), Prod(C(-1)(I8), x3)())().tchk()
     val expected =
       Sum(Sum(x0, x1)(), Prod(C(-1)(I8), Sum(x2, x3)())())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
@@ -49,7 +51,7 @@ class BinOpTreeMakerTests extends AnyFunSuite {
     )().tchk()
     val expected =
       Sum(Sum(x0, Prod(C(-1)(I8), x1)())(), Prod(C(-1)(I8), Sum(x2, x3)())())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
@@ -77,21 +79,21 @@ class BinOpTreeMakerTests extends AnyFunSuite {
         )()
       )()
     )()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
   test("x0 +% x1 +% x3 +% x4") {
     val e = WrappingSum(x0, x1, x2, x3)().tchk()
     val expected = WrappingSum(WrappingSum(x0, x1)(), WrappingSum(x2, x3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
   test("x0 * x1 * x3 * x4") {
     val e = Prod(x0, x1, x2, x3)().tchk()
     val expected = Prod(Prod(x0, x1)(), Prod(x2, x3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
@@ -99,21 +101,21 @@ class BinOpTreeMakerTests extends AnyFunSuite {
     val e = WrappingProd(x0, x1, x2, x3)().tchk()
     val expected =
       WrappingProd(WrappingProd(x0, x1)(), WrappingProd(x2, x3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
   test("b0 && b1 && b2 && b3") {
     val e = And(b0, b1, b2, b3)().tchk()
     val expected = And(And(b0, b1)(), And(b2, b3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 
   test("b0 || b1 || b2 || b3") {
     val e = Or(b0, b1, b2, b3)().tchk()
     val expected = Or(Or(b0, b1)(), Or(b2, b3)())()
-    val actual = BinOpTreeMaker.makeBinOpTrees(e)
+    val actual = pass.balance(e)
     assert(actual == expected)
   }
 }
