@@ -91,7 +91,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     ax.set_xlim(-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH)
     ax.set_yscale("symlog")
     ax.set_ylim(-3 * 10**5, 3 * 10**5)
-    ax.set_ylabel("Latency difference\n(cycles)")
+    ax.set_ylabel("Latency difference\n(cycles, log)")
     ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
