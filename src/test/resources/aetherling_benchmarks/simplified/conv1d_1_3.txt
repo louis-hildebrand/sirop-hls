@@ -90,7 +90,7 @@
                       if (i == 0:u32) then {
                         buf_177[0:u0]
                       } else {
-                        buf_495[0:u0]
+                        buf_446[0:u0]
                       }
                     } else {
                       data(I1)
@@ -103,9 +103,9 @@
                 );
                 (buf_177 : Vec[i8, 1:u1]) = (
                   vbuild(1:u1, (i : u32) => 0:i8),
-                  vbuild(1:u2, (i : u32) => buf_495[0:u0])
+                  vbuild(1:u2, (i : u32) => buf_446[0:u0])
                 );
-                (buf_495 : Vec[i8, 1:u1]) = (
+                (buf_446 : Vec[i8, 1:u1]) = (
                   vbuild(1:u1, (i : u32) => 0:i8),
                   vbuild(1:u2, (i : u32) => data(I1))
                 );
