@@ -248,7 +248,12 @@ object StreamFuser {
               )
             )
             val newProducerEquations =
-              producerStm.equations.map(fusedProducerAccumulator(readyCond))
+              producerStm.equations.map(
+                fusedProducerAccumulator(
+                  producer = producerStm,
+                  ready = readyCond
+                )
+              )
             newConsumerEquations ++ newProducerEquations
           }
           StmBuild(consumerStm.n, newData, newValid, newEquations)(stm.typ)
@@ -340,27 +345,16 @@ object StreamFuser {
     ): (Param, (Expr, Expr)) = {
       eqn match {
         case (y, (z, next)) =>
+          val canStep = !ready || producer.valid
           y -> (
             z,
             Mux(
-              ready,
-              // CASE 1: Consumer is reading from producer.
-              Mux(
-                producer.valid,
-                // CASE 1a: Producer yielded a valid value.
-                //          Update the accumulators.
-                next.subPreserveType(StmData(x)() -> producer.data),
-                // CASE 1b: Producer did NOT yield a valid value.
-                //          Do not update accumulators until it does.
-                y.typ match {
-                  case _: TyStm => False
-                  case _        => y
-                }
-              )(),
-              // CASE 2: Consumer is not reading from producer.
-              //         The value of StmData(x) is undefined in this case, so might
-              //         as well substitute the same expression.
-              next.subPreserveType(StmData(x)() -> producer.data)
+              canStep,
+              next.subPreserveType(StmData(x)() -> producer.data),
+              y.typ match {
+                case _: TyStm => False
+                case _        => y
+              }
             )().tchk().lower()
           )
       }
@@ -377,19 +371,17 @@ object StreamFuser {
       *   The original recurrence equation
       */
     private def fusedProducerAccumulator(
-        readyCond: Expr
+        producer: StmBuild,
+        ready: Expr
     )(eqn: (Param, (Expr, Expr))): (Param, (Expr, Expr)) = {
       eqn match {
         case (x, (z, next)) =>
+          val canStep = !producer.valid || ready
           x -> (
             z,
             Mux(
-              readyCond,
-              // CASE 1: Consumer is reading from producer.
-              //         Update accumulators.
+              canStep,
               next,
-              // CASE 2: Consumer is not reading from input.
-              //         Producer does nothing.
               x.typ match {
                 case _: TyStm => False
                 case _        => x
