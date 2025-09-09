@@ -153,16 +153,16 @@ class NameSimplifierTests extends AnyFunSuite {
     assert(actualStr == expectedStr)
   }
 
-  /** Accumulators with the same prefix within the same StmBuild cannot be
-    * renamed. However, other accumulators with unique prefixes should still be
-    * renamed.
+  /** Accumulators with the same prefix within the same StmBuild cannot have
+    * their numeric ID completely removed. However, other accumulators with
+    * unique prefixes should still be renamed.
     */
   test("StmBuild:TwoAccumulatorsSamePrefix") {
     mhir.ir.reset()
     val original = {
-      val b1 = Param("b")(TyBool)
-      val b2 = Param("b")(TyBool)
       val a = Param("a")(U8)
+      val b2 = Param("b")(TyBool)
+      val b1 = Param("b")(TyBool)
       StmBuild(
         6,
         Tuple(a, b1, b2)(),

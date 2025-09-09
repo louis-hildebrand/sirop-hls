@@ -1,10 +1,13 @@
 package mhir.main.aetherling
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
+import mhir.logging.time
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
+import org.slf4j.event.Level
 
 /** Tests to ensure the simplified minimalist IR expressions for the Aetherling
   * benchmarks don't change unexpectedly.
@@ -17,6 +20,8 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original"
   private val SimplifiedAetherlingBenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "simplified"
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Whether to save the parsed programs to
     * [[SimplifiedAetherlingBenchmarksDir]].
@@ -64,7 +69,9 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         )
       )
       val f = Compiler.compile(args)
-      val actual = ExprPrinter.display(NS.simplify(f))
+      val actual = time("simplifying names and printing", Level.INFO) {
+        ExprPrinter.display(NS.simplify(f))
+      }
       val expectedPath = SimplifiedAetherlingBenchmarksDir / s"$benchName.txt"
       if (SaveChanges) {
         os.write.over(expectedPath, actual)

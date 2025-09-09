@@ -3,6 +3,7 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
 
 private sealed trait VecBuildDepth {
   def next: VecBuildDepth = {
@@ -20,7 +21,7 @@ private object DepthTwo extends VecBuildDepth
   */
 object NameSimplifier {
 
-  private val logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Simplify the variable names in the given expression by removing the
     * numerical suffixes where possible.
@@ -62,6 +63,9 @@ object NameSimplifier {
           }
         case s: StmBuild =>
           val prefixGroups = s.accVars.groupBy(x => x.prefix)
+          val accOrder = time(s"finding order of accumulators in $s") {
+            getAccumulatorOrder(s)
+          }
           val renamed =
             prefixGroups.foldLeft(s)({ case (acc, (prefix, xs)) =>
               if (xs.size == 1) {
@@ -81,8 +85,14 @@ object NameSimplifier {
                   acc.renameVars(Map(x -> newX))
                 }
               } else {
-                // Many accumulators have this prefix, so don't rename
-                acc
+                // Many accumulators have this prefix.
+                // Still, we can simplify the numeric IDs a little.
+                val subs = accOrder
+                  .filter(xs.contains)
+                  .zipWithIndex
+                  .map({ case (x, i) => x -> Param(x.prefix, i + 1)(x.typ) })
+                  .toMap
+                acc.renameVars(subs)
               }
             })
           StmBuild(
@@ -137,5 +147,25 @@ object NameSimplifier {
 //      "simplifying names should yield an expression that is equal to the original"
 //    )
     result
+  }
+
+  private def getAccumulatorOrder(stm: StmBuild): Seq[Param] = {
+    def traverse(visited: Set[Param])(e: Expr): Seq[Param] = {
+      e match {
+        case x: Param if stm.accVars.contains(x) && !visited.contains(x) =>
+          logger.trace(s"visiting accumulator $x")
+          x +: traverse(visited + x)(stm.nextByVar(x))
+        case e =>
+          e.children
+            .foldLeft((visited, Seq[Param]()))({ case ((visited, xs), e) =>
+              val newXs = xs ++ traverse(visited)(e)
+              val newVisited = visited ++ newXs.toSet
+              (newVisited, newXs)
+            })
+            ._2
+      }
+    }
+    // TODO: Is distinct guaranteed to preserve order?
+    traverse(Set())(Tuple(stm.data, stm.valid)()).distinct
   }
 }

@@ -51,4 +51,5 @@
     <logger name="mhir.ir.Let$" level="INFO"/>
     <logger name="mhir.optimize.StmBuildSimplifier$" level="INFO" />
     <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
+    <logger name="mhir.optimize.NameSimplifier$" level="INFO" />
 </configuration>
