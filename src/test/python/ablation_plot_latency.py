@@ -18,8 +18,10 @@ from lib.program_variant import ProgramVariant
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", "", ".."]
-COLORS = ["tab:brown", "tab:green", "tab:orange", "tab:blue", "tab:red"]
+BAR_PADDING = 0.02
+BAR_HATCH = ["", "//", "\\\\", "", "||"]
+FACE_COLORS = ["white", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
+EDGE_COLORS = ["black", "black", "black", "black", "black"]
 HATCH_WIDTH = 1
 BOTTOM = 0
 
@@ -60,10 +62,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             bottom=BOTTOM,
             x=xs,
             height=[y - BOTTOM for y in ys],
-            width=BAR_WIDTH,
+            width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
-            color=COLORS[i],
+            facecolor=FACE_COLORS[i],
+            edgecolor=EDGE_COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         if lvl != OptimizationLevel.NONE:
@@ -96,6 +99,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
+    ax.set_yticks([y for y in ax.get_yticks() if y != 0])
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = (len(OptimizationLevel) + 1) // 2
     legend_labels = (

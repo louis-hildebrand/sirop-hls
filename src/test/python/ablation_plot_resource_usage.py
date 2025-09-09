@@ -17,9 +17,11 @@ from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
-BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", "", ".."]
-COLORS = ["tab:brown", "tab:green", "tab:orange", "tab:blue", "tab:red"]
+BAR_WIDTH = (1 - BAR_SPACE) / (len(OptimizationLevel) - 1)
+BAR_PADDING = 0.02
+BAR_HATCH = ["//", "\\\\", "", "||"]
+FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
+EDGE_COLORS = ["black", "black", "black", "black"]
 HATCH_WIDTH = 1
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -41,9 +43,16 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         layout="compressed",
         sharex="col",
     )
+    # Baseline
+    baseline_artist, *_ = alm_ax.plot(
+        [-BAR_WIDTH, len(program_names)],
+        [1, 1],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
+    )
     # Resource usages
     artists = []
-    for i, lvl in enumerate(OptimizationLevel):
+    for i, lvl in enumerate([lvl for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         # ALM usage
         ys = []
@@ -55,10 +64,11 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             bottom=1,
             x=xs,
             height=[y - 1 for y in ys],
-            width=BAR_WIDTH,
+            width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
-            color=COLORS[i],
+            facecolor=FACE_COLORS[i],
+            edgecolor=EDGE_COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         if lvl != OptimizationLevel.NONE:
@@ -70,13 +80,6 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         #     labels=labels,
         #     padding=3,
         # )
-    # Ba# seline
-    baseline_artist, *_ = alm_ax.plot(
-        [-BAR_WIDTH, len(program_names)],
-        [1, 1],
-        linestyle=":",
-        color=(0.5, 0.5, 0.5),
-    )
     # Display settings
     alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
     alm_ax.set_ylim(0, 1.1)

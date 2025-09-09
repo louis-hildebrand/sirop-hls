@@ -178,7 +178,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
 
     # Settings for entire rows
     axes[0].set_ylabel("Latency (cycles)")
-    fig.supxlabel("Target throughput")
+    fig.supxlabel("Target throughput (px/cycle)")
     if min_artist is None or verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
