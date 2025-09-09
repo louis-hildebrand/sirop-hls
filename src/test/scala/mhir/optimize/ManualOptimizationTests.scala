@@ -344,9 +344,13 @@ class ManualOptimizationTests extends AnyFunSuite {
         Mux(i === 1, StmData(s)(), C(42)(U8))(),
         (i !== 1) || (j !== n),
         Map[Param, (Expr, Expr)](
-          s -> (input, i === 1),
-          i -> (C(0)(U32), Mux(i === 1, i, i + 1)()),
-          j -> (C(0)(U8), Mux(i === 1, Mux(j === n, j, 1 + j)(), j)())
+          s -> (input, (i === 1) || (j === n)),
+          i -> (C(0)(U32), Mux(i === 1, C(1)(U32), i + 1)()),
+          j -> (C(0)(U8), Mux(
+            (i === 1) || (j === n),
+            Mux(j === n, j, 1 + j)(),
+            j
+          )())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )
@@ -381,11 +385,18 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmBuild(
         n,
         Mux(i === 4, C(42)(U8), StmData(s)())(),
-        (i === 4) || j >= 1,
+        (i === 4) || (j >= 1),
         Map[Param, (Expr, Expr)](
-          s -> (input, i !== 4),
-          i -> (C(0)(U8), Mux(i === 4, C(4)(U8), Mux(j < 1, i, i + 1)())()),
-          j -> (C(0)(U8), Mux(i === 4, j, j + 1)())
+          s -> (input, (i !== 4) || (j < 1)),
+          i -> (
+            C(0)(U8),
+            Mux(
+              (i === 4) || (j >= 1),
+              Mux(i === 4, C(4)(U8), 1 + i)(),
+              i
+            )()
+          ),
+          j -> (C(0)(U8), Mux((i !== 4) || (j < 1), j + 1, j)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )
