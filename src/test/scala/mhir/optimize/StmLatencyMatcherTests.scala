@@ -358,4 +358,60 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val newLatency = CycleCounter.count(optimized)
     assert(newLatency < originalLatency)
   }
+
+  test("NestedLetStm") {
+    val n = 5
+    val original = {
+      val s0 = Param("s0")(TyStm(U8, n))
+      val s1 = Param("s1")(TyStm((U8, U8), n))
+      val count = {
+        val i = Param("i")(U8)
+        StmBuild(
+          n,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          )
+        )()
+      }
+      val plusFive = {
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          C(5)(U8) + StmData(s)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s -> (s0, True)
+          )
+        )().tchk()
+      }
+      val zip = {
+        val s0Acc = Param("s0")(TyStm(U8, -1))
+        val s1Acc = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0Acc)(), StmData(s1Acc)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0Acc -> (s0, True),
+            s1Acc -> (plusFive, True)
+          )
+        )().tchk()
+      }
+      LetStm(s1, LetStm(s0, count, zip)(), s1)().tchk().lower()
+    }
+    val optimized = pass.matchLatencies(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val actualVal = mhir.ir.eval(optimized)
+    assert(actualVal == originalVal)
+
+    // Effective optimization
+    // (Cycle count should be decreased due to improved initiation interval)
+    val originalLatency = CycleCounter.count(original)
+    val newLatency = CycleCounter.count(optimized)
+    assert(newLatency < originalLatency)
+  }
 }

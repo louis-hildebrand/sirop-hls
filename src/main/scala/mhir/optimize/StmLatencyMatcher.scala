@@ -60,11 +60,12 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             equations = newEquations
           )()
         case LetStm(x, in, out) =>
+          val in1 = matchLatencies(in)
           val out1 = matchLatencies(out)
           latencyOfLongestPath(x, out1) match {
             case Some(lat) =>
               val out2 = increaseLatencyTo(out1, x, lat)
-              LetStm(x, in, out2)()
+              LetStm(x, in1, out2)()
             case None => e
           }
         case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
@@ -216,7 +217,6 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             )
           )()
         case x: Param =>
-          // TODO: When does this happen?
           x
         case s: StmBuild =>
           val newEquations = s.equations
