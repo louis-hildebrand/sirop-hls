@@ -17,9 +17,11 @@ object StmSimplifier {
       stmBuildSimplifier: StmBuildSimplifier = StmBuildSimplifier(),
       letStmSimplifier: LetStmSimplifier = LetStmSimplifier()
   ): StmSimplifier = {
-    if (stmBuildSimplifier.enabled && letStmSimplifier.enabled)
+    if (stmBuildSimplifier.enabled || letStmSimplifier.enabled) {
       EnabledStmSimplifier(stmBuildSimplifier, letStmSimplifier)
-    else DisabledStmSimplifier
+    } else {
+      DisabledStmSimplifier
+    }
   }
 }
 

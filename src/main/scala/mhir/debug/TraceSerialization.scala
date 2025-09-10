@@ -12,8 +12,9 @@ object TraceSerialization {
     upickle.default
       .writer[String]
       .comap({
-        case EmptyStreamRead => "attempt to read from empty stream"
-        case TooManySteps    => "too many steps"
+        case EmptyStreamRead  => "attempt to read from empty stream"
+        case TooManySteps     => "too many steps"
+        case PipelineFixpoint => "pipeline reached fixpoint"
       })
 
   implicit val nodeIdWriter: Writer[StmNodeId] =

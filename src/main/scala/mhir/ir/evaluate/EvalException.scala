@@ -37,3 +37,7 @@ object EmptyStreamRead extends DeadlockReason
   * without producing any valid outputs.
   */
 object TooManySteps extends DeadlockReason
+
+/** The stream is definitely stuck because it has reached a fixpoint.
+  */
+object PipelineFixpoint extends DeadlockReason

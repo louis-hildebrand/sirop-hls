@@ -52,4 +52,5 @@
     <logger name="mhir.optimize.StmBuildSimplifier$" level="INFO" />
     <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
     <logger name="mhir.optimize.NameSimplifier$" level="INFO" />
+    <logger name="mhir.optimize.EnabledLetStmSimplifier$" level="INFO" />
 </configuration>

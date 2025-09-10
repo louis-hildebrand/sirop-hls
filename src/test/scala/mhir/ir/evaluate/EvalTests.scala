@@ -191,7 +191,7 @@ class EvalTests extends AnyFunSuite {
   test("ObviousInfiniteLoop") {
     val s = StmBuild(1, 0, False, Map[Param, (Expr, Expr)]())()
     val exc = intercept[DeadlockError](mhir.ir.eval(s))
-    assert(exc.reasons == Seq(TooManySteps))
+    assert(exc.reasons == Seq(PipelineFixpoint))
   }
 
   test("LessObviousInfiniteLoop") {
@@ -219,7 +219,7 @@ class EvalTests extends AnyFunSuite {
       )
     )()
     val exc = intercept[DeadlockError](mhir.ir.eval(stm))
-    assert(exc.reasons == Seq(TooManySteps))
+    assert(exc.reasons == Seq(PipelineFixpoint))
   }
 
   test("ReadFromEmptyStream") {
@@ -617,6 +617,6 @@ class EvalTests extends AnyFunSuite {
     }
     val e = LetStm(s, count, concat)().tchk()
     val exc = intercept[DeadlockError](mhir.ir.eval(e))
-    assert(exc.reasons == Seq(TooManySteps))
+    assert(exc.reasons == Seq(PipelineFixpoint))
   }
 }

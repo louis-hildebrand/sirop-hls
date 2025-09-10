@@ -14,8 +14,8 @@ trait StmFusionPass {
 
 object StmFusionPass {
   def apply(
-             simplifier: StmSimplifier,
-             enabled: Boolean = true
+      simplifier: StmSimplifier,
+      enabled: Boolean = true
   ): StmFusionPass = {
     if (enabled) new GreedyStmFusionPass(simplifier)
     else DisabledStmFusionPass

@@ -38,6 +38,11 @@ sealed trait StmNode {
     */
   def step(newPipe: StmPipeline): StmNode
 
+  /** Check whether this node has the same state as `that`, ignoring the
+    * [[StmPipeline]] reference.
+    */
+  def sameState(that: StmNode): Boolean
+
   /** The type of the stream produced by this node.
     */
   def typ: TyStm
@@ -351,6 +356,18 @@ case class StmBuildNode(
   protected def transferOk: Boolean = {
     this.allConsumersReady && this.data.nonEmpty
   }
+
+  override def sameState(that: StmNode): Boolean = {
+    that match {
+      case that: StmBuildNode =>
+        (this.id == that.id
+        && this.hw == that.hw
+        && this.data == that.data
+        && this.n == that.n
+        && this.acc == that.acc)
+      case _ => false
+    }
+  }
 }
 
 /** A node in a streaming pipeline representing a [[mhir.ir.LetStm]].
@@ -430,6 +447,16 @@ case class LetStmNode(
       this.consumersWhoRead.contains(node.id) || node.ready(this.id)
     )
   }
+
+  override def sameState(that: StmNode): Boolean = {
+    that match {
+      case that: LetStmNode =>
+        (this.id == that.id
+        && this.data == that.data
+        && this.consumersWhoRead == that.consumersWhoRead)
+      case _ => false
+    }
+  }
 }
 
 /** A node that simply passes its input to its output with no modification.
@@ -462,6 +489,13 @@ case class StmNopNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
   override def deadlockReasons: Set[DeadlockReason] = {
     this.producer.deadlockReasons
   }
+
+  override def sameState(that: StmNode): Boolean = {
+    that match {
+      case that: StmNopNode => this.id == that.id
+      case _                => false
+    }
+  }
 }
 
 /** A node that serves as the sink of the entire pipeline.
@@ -489,5 +523,12 @@ case class TerminalNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
 
   override def deadlockReasons: Set[DeadlockReason] = {
     this.producer.deadlockReasons
+  }
+
+  override def sameState(that: StmNode): Boolean = {
+    that match {
+      case that: TerminalNode => this.id == that.id
+      case _                  => false
+    }
   }
 }

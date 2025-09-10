@@ -36,6 +36,10 @@ object Tracer {
             case ex: EvalException =>
               return (ErrorTraceStep(ex) +: newSteps).reverse
           }
+        if (newPipe.sameState(pipe)) {
+          val ex = new DeadlockError(Seq(PipelineFixpoint))
+          return (ErrorTraceStep(ex) +: newSteps).reverse
+        }
         trace(newPipe, newSteps, maxCycles.map(_ - 1))
       }
     }

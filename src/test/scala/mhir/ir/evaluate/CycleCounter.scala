@@ -37,7 +37,11 @@ object CycleCounter {
             logger.error(s"an error occurred during evaluation: $ex")
             return None
         }
-      countCycles(newPipe, t + 1, maxCycles.map(_ - 1))
+      if (newPipe.sameState(pipe)) {
+        logger.error(s"pipeline reached fixpoint")
+        return None
+      }
+      countCycles(newPipe, t + 1, maxCycles)
     }
 
     val pipe = StmPipeline(s)

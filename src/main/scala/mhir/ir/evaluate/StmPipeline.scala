@@ -23,6 +23,13 @@ class StmPipeline(
     var nodes: Map[StmNodeId, StmNode] = Map()
 ) {
 
+  def sameState(that: StmPipeline): Boolean = {
+    (this.connections == that.connections
+    && this.sinkId == that.sinkId
+    && this.nodes.keySet == that.nodes.keySet
+    && this.nodes.keySet.forall(id => this.nodes(id).sameState(that.nodes(id))))
+  }
+
   /** The unique node in the pipeline with no consumers, which gives the output
     * of the entire pipeline.
     */

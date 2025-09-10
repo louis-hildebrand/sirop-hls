@@ -294,7 +294,7 @@ package object ir
       *   the variable to search for.
       */
     def countFreeOccurrences(x: Param): Int = {
-      def count(e: Expr): Int = {
+      def count(e: Expr, x: Param): Int = {
         if (e == x) {
           1
         } else {
@@ -302,24 +302,25 @@ package object ir
             case Function(y, _) if y == x =>
               0
             case LetStm(y, in, _) if y == x =>
-              count(in)
+              count(in, x)
             case stm @ StmBuild(n, data, valid, _) =>
               val n0 =
-                count(n) + stm.seedByVar.map({ case (_, z) => count(z) }).sum
+                (count(n, x)
+                  + stm.seedByVar.map({ case (_, z) => count(z, x) }).sum)
               if (stm.accVars.contains(x)) {
                 n0
               } else {
                 (n0
-                  + count(data)
-                  + count(valid)
-                  + stm.nextByVar.map({ case (_, next) => count(next) }).sum)
+                  + count(data, x)
+                  + count(valid, x)
+                  + stm.nextByVar.map({ case (_, next) => count(next, x) }).sum)
               }
             case e =>
-              e.children.map(count).sum
+              e.children.map(e => count(e, x)).sum
           }
         }
       }
-      count(this.expr)
+      count(this.expr, x)
     }
 
     /** Convert this expression to a boolean.

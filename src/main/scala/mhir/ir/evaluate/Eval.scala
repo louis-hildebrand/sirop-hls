@@ -49,17 +49,21 @@ trait Eval {
     } else if (invalidSteps >= maxInvalid) {
       throw new DeadlockError(Seq(TooManySteps))
     } else {
+      val nextPipe = pipe.step()
+      if (nextPipe.sameState(pipe)) {
+        throw new DeadlockError(Seq(PipelineFixpoint))
+      }
       pipe.sink.out(StmNodeId("")) match {
         case Some(v) =>
           evalPipeline(
-            pipe.step(),
+            nextPipe,
             v +: elems,
             invalidSteps = 0,
             maxInvalid = maxInvalid
           )
         case None =>
           evalPipeline(
-            pipe.step(),
+            nextPipe,
             elems,
             invalidSteps = invalidSteps + 1,
             maxInvalid = maxInvalid
