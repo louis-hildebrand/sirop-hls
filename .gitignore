@@ -66,3 +66,4 @@ metals.sbt
 /results*/*.pdf
 /results*/*.csv.bak
 /traces/
+/src/test/resources/aetherling_benchmarks/simplified/
