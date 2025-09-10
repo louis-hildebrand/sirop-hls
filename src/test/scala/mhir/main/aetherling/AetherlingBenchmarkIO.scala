@@ -414,6 +414,67 @@ object AetherlingBenchmarkIO {
     sharpenIO("bigsharpen", width = 1920, height = 4, typ = U32)
   }
 
+  private def smallCameraIO: Map[String, TestIO] = {
+    val width = 8
+    val height = 8
+    val basicInputExprs = (1 to (width * height))
+      .map(i => (i * i) % U32.maxInt)
+      .map(_.toLong)
+      .map(C(_)(U32))
+    val basicOutputs: Seq[Expr] = {
+      val f =
+        os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "smallcamera_outputs.csv"
+      os.read
+        .lines(f)
+        .map({ line =>
+          val Array(r, g, b) = line
+            .split(",")
+            .map(_.toLong)
+            .map({
+              // Aetherling uses 253 as a sentinel value for undefined elements
+              case 253 => Undefined(U32)
+              case x   => C(x)(U32)
+            })
+          Tuple(r, Tuple(g, b)())().tchk()
+        })
+    }
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
+            )
+          case n =>
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .toSeq
+            )
+        }
+        s"smallcamera_$par" -> io
+      })
+      .toMap
+    val underutilizedCase = {
+      val denom = 4
+      val io = AbstractTestIO(
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"smallcamera_1_$denom" -> io
+    }
+    normalCases + underutilizedCase
+  }
+
   private def bigCameraIO: Map[String, TestIO] = {
     val width = 1920
     val height = 8
@@ -492,6 +553,7 @@ object AetherlingBenchmarkIO {
       ++ bigConvB2bIO.mapValues(_.toVhdl)
       ++ smallSharpenIO.mapValues(_.toVhdl)
       ++ bigSharpenIO.mapValues(_.toVhdl)
+      ++ smallCameraIO.mapValues(_.toVhdl)
       ++ bigCameraIO.mapValues(_.toVhdl)
   )
 
@@ -512,6 +574,7 @@ object AetherlingBenchmarkIO {
       ++ bigConvB2bIO.mapValues(_.toVerilog)
       ++ smallSharpenIO.mapValues(_.toVerilog)
       ++ bigSharpenIO.mapValues(_.toVerilog)
+      ++ smallCameraIO.mapValues(_.toVerilog)
       ++ bigCameraIO.mapValues(_.toVerilog)
   )
 }

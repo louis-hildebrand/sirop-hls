@@ -29,50 +29,23 @@
             true;
             (i : u32) = (
               0:u32,
-              if (
-                !is_first_step && in_ctr == 1:u32 && out_ctr == 2:u32
-                  || in_ctr == 0:u32 && out_ctr == 2:u32 && is_first_step
-              ) then {
+              if (out_ctr == 2:u2) then {
                 0:u32
               } else {
                 1:u32 + (if (is_first_step) then { 0:u32 } else { i })
               }
             );
-            (in_ctr : u32) = (
-              0:u32,
-              if (
-                !is_first_step && in_ctr == 1:u32 && out_ctr == 2:u32
-                  || in_ctr == 0:u32 && out_ctr == 2:u32 && is_first_step
-              ) then {
-                0:u32
-              } else if (is_first_step) then {
-                1:u32 + in_ctr
-              } else {
-                in_ctr
-              }
-            );
             (is_first_step : bool) = (
               true,
-              !is_first_step && in_ctr == 1:u32 && out_ctr == 2:u32
-                || in_ctr == 0:u32 && out_ctr == 2:u32 && is_first_step
+              out_ctr == 2:u2
             );
-            (out_ctr : u32) = (
-              0:u32,
-              if (
-                !is_first_step && in_ctr == 1:u32 && out_ctr == 2:u32
-                  || in_ctr == 0:u32 && out_ctr == 2:u32 && is_first_step
-              ) then {
-                0:u32
-              } else {
-                1:u32 + out_ctr
-              }
+            (out_ctr : u2) = (
+              0:u2,
+              if (out_ctr == 2:u2) then { 0:u2 } else { 1:u2 + out_ctr }
             );
             (x_data : Vec[i8, 3:u3]) = (
               vbuild(3:u3, (i : u32) => 0:i8),
-              if (
-                !is_first_step && in_ctr == 1:u32 && out_ctr == 2:u32
-                  || in_ctr == 0:u32 && out_ctr == 2:u32 && is_first_step
-              ) then {
+              if (out_ctr == 2:u2) then {
                 vbuild(3:u3, (i : u32) => 0:i8)
               } else if (is_first_step) then {
                 data(x_stm)
@@ -90,7 +63,7 @@
                       if (i == 0:u32) then {
                         buf_1[0:u0]
                       } else {
-                        buf_446[0:u0]
+                        buf_2[0:u0]
                       }
                     } else {
                       data(I1)
@@ -103,9 +76,9 @@
                 );
                 (buf_1 : Vec[i8, 1:u1]) = (
                   vbuild(1:u1, (i : u32) => 0:i8),
-                  vbuild(1:u2, (i : u32) => buf_446[0:u0])
+                  vbuild(1:u2, (i : u32) => buf_2[0:u0])
                 );
-                (buf_446 : Vec[i8, 1:u1]) = (
+                (buf_2 : Vec[i8, 1:u1]) = (
                   vbuild(1:u1, (i : u32) => 0:i8),
                   vbuild(1:u2, (i : u32) => data(I1))
                 );

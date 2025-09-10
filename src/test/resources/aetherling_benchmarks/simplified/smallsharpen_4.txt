@@ -53,17 +53,17 @@
                                 if (i < 1:u32) then {
                                   buf_1[0:u32]
                                 } else if (i < 2:u32) then {
-                                  buf_3065[0:u32]
+                                  buf_4[0:u32]
                                 } else {
-                                  buf_4458[usgn(-2:i33 + sgn(i))]
+                                  buf_2[usgn(-2:i33 + sgn(i))]
                                 }
                               } else if (i < 1:u32) then {
-                                buf_3065[0:u32]
+                                buf_4[0:u32]
                               } else {
-                                buf_4458[usgn(-1:i33 + sgn(i))]
+                                buf_2[usgn(-1:i33 + sgn(i))]
                               }
                             } else {
-                              buf_4458[i]
+                              buf_2[i]
                             }
                         )
                       } else {
@@ -75,17 +75,17 @@
                                 if (i < 1:u32) then {
                                   buf_5[0:u32]
                                 } else if (i < 2:u32) then {
-                                  buf_2816[0:u32]
+                                  buf_6[0:u32]
                                 } else {
-                                  buf_6053[usgn(-2:i33 + sgn(i))]
+                                  buf_3[usgn(-2:i33 + sgn(i))]
                                 }
                               } else if (i < 1:u32) then {
-                                buf_2816[0:u32]
+                                buf_6[0:u32]
                               } else {
-                                buf_6053[usgn(-1:i33 + sgn(i))]
+                                buf_3[usgn(-1:i33 + sgn(i))]
                               }
                             } else {
-                              buf_6053[i]
+                              buf_3[i]
                             }
                         )
                       }
@@ -143,33 +143,9 @@
               vbuild(1:u1, (i : u32) => 0:u8),
               vbuild(1:u1, (i : u32) => data(s)[2:u32])
             );
-            (buf_1084 : Vec[u8, 1:u1]) = (
-              vbuild(1:u1, (i : u32) => 0:u8),
-              vbuild(1:u1, (i : u32) => buf_4458[2:u32])
-            );
-            (buf_1086 : Vec[u8, 1:u1]) = (
-              vbuild(1:u1, (i : u32) => 0:u8),
-              vbuild(1:u1, (i : u32) => buf_6053[2:u32])
-            );
-            (buf_2573 : Vec[u8, 1:u1]) = (
+            (buf_8 : Vec[u8, 1:u1]) = (
               vbuild(1:u1, (i : u32) => 0:u8),
               vbuild(1:u1, (i : u32) => data(s)[3:u32])
-            );
-            (buf_2816 : Vec[u8, 1:u1]) = (
-              vbuild(1:u1, (i : u32) => 0:u8),
-              vbuild(1:u1, (i : u32) => buf_6053[3:u32])
-            );
-            (buf_3065 : Vec[u8, 1:u1]) = (
-              vbuild(1:u1, (i : u32) => 0:u8),
-              vbuild(1:u1, (i : u32) => buf_4458[3:u32])
-            );
-            (buf_4458 : Vec[u8, 4:u3]) = (
-              vbuild(4:u3, (i : u32) => 0:u8),
-              vbuild(4:u3, (i : u32) => buf_6053[i])
-            );
-            (buf_6053 : Vec[u8, 4:u3]) = (
-              vbuild(4:u3, (i : u32) => 0:u8),
-              vbuild(4:u3, (i : u32) => data(s)[i])
             );
             (s : Stm[Vec[u8, 4:u3], -1:i1]) = (
               n1,

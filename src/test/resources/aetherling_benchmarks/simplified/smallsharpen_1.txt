@@ -40,17 +40,17 @@
                   (j : u8) =>
                     (((if (i < 2:u32) then {
                       if (i == 0:u32) then {
-                        buf_2475[0:u0][0:u32]
+                        buf_1[0:u0][0:u32]
                       } else {
-                        buf_2300[0:u0][0:u32]
+                        buf_4[0:u0][0:u32]
                       }
                     } else {
-                      buf_2675[0:u0][0:u32]
+                      buf_5[0:u0][0:u32]
                     })
                       << [1:u8, 2:u8, 1:u8][i])
                       +% ((if (i < 2:u32) then {
                         if (i == 0:u32) then {
-                          buf_3382[3:u2][0:u32]
+                          buf_2[3:u2][0:u32]
                         } else {
                           buf_3[3:u2][0:u32]
                         }
@@ -60,42 +60,22 @@
                         << [0:u8, 1:u8, 0:u8][i]))
                       +% ((if (i < 2:u32) then {
                         if (i == 0:u32) then {
-                          buf_1617[0:u0][0:u32]
+                          buf_6[0:u0][0:u32]
                         } else {
-                          buf_1615[0:u0][0:u32]
+                          buf_7[0:u0][0:u32]
                         }
                       } else {
-                        buf_1619[0:u0][0:u32]
+                        buf_8[0:u0][0:u32]
                       })
                         << [0:u8, 1:u8, 0:u8][i])
                 )
             );
             true;
-            (buf_1615 : Vec[Vec[u8, 1:u1], 1:u1]) = (
+            (buf_1 : Vec[Vec[u8, 1:u1], 1:u1]) = (
               vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => buf_2300[0:u0])
+              vbuild(1:u2, (i : u32) => buf_2[3:u2])
             );
-            (buf_1617 : Vec[Vec[u8, 1:u1], 1:u1]) = (
-              vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => buf_2475[0:u0])
-            );
-            (buf_1619 : Vec[Vec[u8, 1:u1], 1:u1]) = (
-              vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => buf_2675[0:u0])
-            );
-            (buf_2300 : Vec[Vec[u8, 1:u1], 1:u1]) = (
-              vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => buf_4345[3:u2])
-            );
-            (buf_2475 : Vec[Vec[u8, 1:u1], 1:u1]) = (
-              vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => buf_3382[3:u2])
-            );
-            (buf_2675 : Vec[Vec[u8, 1:u1], 1:u1]) = (
-              vbuild(1:u1, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
-              vbuild(1:u2, (i : u32) => data(s))
-            );
-            (buf_3382 : Vec[Vec[u8, 1:u1], 4:u3]) = (
+            (buf_2 : Vec[Vec[u8, 1:u1], 4:u3]) = (
               vbuild(4:u3, (i : u32) => vbuild(1:u1, (j : u32) => 0:u8)),
               vbuild(
                 4:u4,
@@ -103,7 +83,7 @@
                   if (i < 1:u32) then {
                     buf_3[3:u2]
                   } else {
-                    buf_3382[usgn(-1:i33 + sgn(i))]
+                    buf_2[usgn(-1:i33 + sgn(i))]
                   }
               )
             );

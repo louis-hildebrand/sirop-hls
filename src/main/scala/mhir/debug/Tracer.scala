@@ -3,6 +3,8 @@ package mhir.debug
 import mhir.ir._
 import mhir.ir.evaluate._
 
+import scala.annotation.tailrec
+
 /** Provides methods for generating traces showing the state of a pipeline at
   * each cycle.
   */
@@ -17,6 +19,7 @@ object Tracer {
     *   a summary of the stream state and output at each step.
     */
   def traceAll(s: Expr, maxCycles: Option[Int] = None): Trace = {
+    @tailrec
     def trace(
         pipe: StmPipeline,
         steps: Seq[TraceStep],
@@ -26,13 +29,14 @@ object Tracer {
       if (maxCycles.contains(0) || pipe.isEmpty || pipe.isStuck) {
         newSteps.reverse
       } else {
-        try {
-          val newPipe = pipe.step()
-          trace(newPipe, newSteps, maxCycles.map(_ - 1))
-        } catch {
-          case ex: EvalException =>
-            (ErrorTraceStep(ex) +: newSteps).reverse
-        }
+        val newPipe =
+          try {
+            pipe.step()
+          } catch {
+            case ex: EvalException =>
+              return (ErrorTraceStep(ex) +: newSteps).reverse
+          }
+        trace(newPipe, newSteps, maxCycles.map(_ - 1))
       }
     }
 
