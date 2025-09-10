@@ -16,8 +16,13 @@ from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
 
+LEVELS_TO_PLOT = [
+    lvl
+    for lvl in OptimizationLevel
+    if lvl != OptimizationLevel.ALL_EXCEPT_SIMPL
+]
 BAR_SPACE = 0.2
-BAR_WIDTH = (1 - BAR_SPACE) / (len(OptimizationLevel) - 1)
+BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
 BAR_HATCH = ["//", "\\\\", "", "||"]
 FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
@@ -43,27 +48,16 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         layout="compressed",
         sharex="col",
     )
-    # Baseline
-    baseline_artist, *_ = alm_ax.plot(
-        [-BAR_WIDTH, len(program_names)],
-        [1, 1],
-        linestyle=":",
-        color=(0.5, 0.5, 0.5),
-    )
     # Resource usages
     artists = []
-    for i, lvl in enumerate([lvl for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]):
+    for i, lvl in enumerate(LEVELS_TO_PLOT):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         # ALM usage
-        ys = []
-        for p in program_names:
-            y = results[ProgramVariant(p, lvl)].alm
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
-            ys.append(y / baseline)
+        ys = [results[ProgramVariant(p, lvl)].alm for p in program_names]
         artist = alm_ax.bar(
-            bottom=1,
+            bottom=0,
             x=xs,
-            height=[y - 1 for y in ys],
+            height=ys,
             width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
@@ -71,30 +65,39 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             edgecolor=EDGE_COLORS[i],
             hatch_linewidth=HATCH_WIDTH,
         )
-        if lvl != OptimizationLevel.NONE:
-            artists.append(artist)
-        # labels = [results[ProgramVariant(p, lvl)].alm for p in program_names]
-        # labels = [f"{lab:,}" for lab in labels]
-        # alm_ax.bar_label(
-        #     artist,
-        #     labels=labels,
-        #     padding=3,
-        # )
+        artists.append(artist)
+        labels = []
+        for p in program_names:
+            alm = results[ProgramVariant(p, lvl)].alm
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
+            percent_change = (alm - baseline) / baseline
+            if percent_change >= 0:
+                label = f"+{percent_change:.0%}"
+            else:
+                label = f"{percent_change:.0%}"
+            label = label.replace("%", r"\%")
+            if label == r"+0\%":
+                label = ""
+            labels.append(label)
+        alm_ax.bar_label(
+            artist,
+            labels=labels,
+            padding=3,
+        )
     # Display settings
     alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
-    alm_ax.set_ylim(0, 1.1)
-    alm_ax.set_ylabel("ALM usage ratio")
     alm_ax.set_xticks(
         [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    legend_cols = (len(OptimizationLevel) + 1) // 2
-    legend_labels=(
-        [OptimizationLevel.NONE.explanation]
-        + [lvl.explanation for lvl in OptimizationLevel if lvl != OptimizationLevel.NONE]
-    )
-    legend_handles=[baseline_artist] + artists
+    alm_ax.set_ylabel("ALM usage")
+    alm_ax.set_yscale("log")
+    (y_lo, y_hi) = alm_ax.get_ylim()
+    alm_ax.set_ylim(y_lo, y_hi * 2)
+    legend_cols = (len(LEVELS_TO_PLOT) + 1) // 2
+    legend_labels=[lvl.explanation for lvl in LEVELS_TO_PLOT]
+    legend_handles=artists
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
         handles=pu.flip(legend_handles, legend_cols),

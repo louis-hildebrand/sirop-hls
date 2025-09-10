@@ -43,13 +43,13 @@ class OptimizationLevel(Enum):
         Return a short explanation of the optimizations included in this level.
         """
         if self == OptimizationLevel.NONE:
-            return "only partial evaluation"
+            return "only partial evaluation (PE)"
         if self == OptimizationLevel.SIMPLIFY:
-            return "PE + stream simplification"
+            return "PE + stream simplification (SS)"
         if self == OptimizationLevel.MATCH_LATENCY:
-            return "PE + SS + latency matching"
+            return "PE + SS + latency matching (LM)"
         if self == OptimizationLevel.FUSE:
-            return "PE + SS + LM + fusion (all)"
+            return "PE + SS + LM + fusion"
         if self == OptimizationLevel.ALL_EXCEPT_SIMPL:
             return "all except SS"
         raise NotImplementedError(f"no explanation for {self}")
