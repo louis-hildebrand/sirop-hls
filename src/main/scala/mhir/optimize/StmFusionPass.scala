@@ -14,15 +14,15 @@ trait StmFusionPass {
 
 object StmFusionPass {
   def apply(
-      simplifier: SafeSimplifier,
-      enabled: Boolean = true
+             simplifier: StmSimplifier,
+             enabled: Boolean = true
   ): StmFusionPass = {
     if (enabled) new GreedyStmFusionPass(simplifier)
     else DisabledStmFusionPass
   }
 }
 
-class GreedyStmFusionPass(simplifier: SafeSimplifier) extends StmFusionPass {
+class GreedyStmFusionPass(simplifier: StmSimplifier) extends StmFusionPass {
 
   override def enabled: Boolean = true
 

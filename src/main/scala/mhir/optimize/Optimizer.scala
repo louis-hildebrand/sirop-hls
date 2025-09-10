@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 /** Top-level optimizer.
   */
 class Optimizer(
-    simplifier: SafeSimplifier,
+    simplifier: StmSimplifier,
     letStmSimplifier: LetStmSimplifier,
     fusionPass: StmFusionPass,
     latencyMatcher: StmLatencyMatcher,
@@ -89,8 +89,10 @@ class Optimizer(
 
 object Optimizer {
   def apply(options: OptimizerOptions): Optimizer = {
-    val simplifier = SafeSimplifier(enabled = options.simplify)
-    val letStmSimplifier = LetStmSimplifier(enabled = options.simplify)
+    val stmBuildSimplifier =
+      StmBuildSimplifier(enabled = options.simplifyStmBuild)
+    val letStmSimplifier = LetStmSimplifier(enabled = options.simplifyLetStm)
+    val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
     val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)

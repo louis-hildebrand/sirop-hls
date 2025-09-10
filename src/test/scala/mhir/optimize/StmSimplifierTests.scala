@@ -6,9 +6,9 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
-class SafeSimplifierTests extends AnyFunSuite {
+class StmSimplifierTests extends AnyFunSuite {
 
-  private val simplifier = SafeSimplifier()
+  private val simplifier = StmSimplifier()
 
   test("LetStm:ZeroUses") {
     val count = simplifier.simplify(StmCount(C(42)(U8))().tchk().lower())

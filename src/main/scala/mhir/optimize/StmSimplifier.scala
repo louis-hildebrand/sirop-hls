@@ -5,16 +5,21 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 
-trait SafeSimplifier {
+trait StmSimplifier {
   def enabled: Boolean
   def disabled: Boolean = !enabled
 
   def simplify(e: Expr)(implicit facts: FactSet = FactSet()): Expr
 }
 
-object SafeSimplifier {
-  def apply(enabled: Boolean = true): SafeSimplifier = {
-    if (enabled) EnabledSafeSimplifier else DisabledSafeSimplifier
+object StmSimplifier {
+  def apply(
+      stmBuildSimplifier: StmBuildSimplifier = StmBuildSimplifier(),
+      letStmSimplifier: LetStmSimplifier = LetStmSimplifier()
+  ): StmSimplifier = {
+    if (stmBuildSimplifier.enabled && letStmSimplifier.enabled)
+      EnabledStmSimplifier(stmBuildSimplifier, letStmSimplifier)
+    else DisabledStmSimplifier
   }
 }
 
@@ -27,17 +32,17 @@ object SafeSimplifier {
   * (e.g., by increasing the bit width of arithmetic expressions), but it should
   * make expressions easier to analyze.
   */
-object EnabledSafeSimplifier extends SafeSimplifier {
+case class EnabledStmSimplifier(
+    stmBuildSimplifier: StmBuildSimplifier,
+    letStmSimplifier: LetStmSimplifier
+) extends StmSimplifier {
 
   private val logger = Logger(getClass.getName)
-
-  private val stmBuildSimplifier: StmBuildSimplifier.type = StmBuildSimplifier
-  private val letStmSimplifier: LetStmSimplifier = EnabledLetStmSimplifier
 
   override def enabled: Boolean = true
 
   def simplify(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
-    logger.trace(s"performing conservative simplification: $e")
+    logger.trace(s"performing basic stream simplification: $e")
     logger.trace("partially evaluating...")
     val pe = PE.partialEval(e)
     logger.trace(s"after partial evaluation: $pe")
@@ -65,7 +70,7 @@ object EnabledSafeSimplifier extends SafeSimplifier {
   }
 }
 
-object DisabledSafeSimplifier extends SafeSimplifier {
+object DisabledStmSimplifier extends StmSimplifier {
   override def enabled: Boolean = false
 
   override def simplify(e: Expr)(implicit facts: FactSet): Expr = {

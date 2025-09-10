@@ -4,6 +4,8 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 trait LetStmSimplifier {
+  def enabled: Boolean
+
   def simplify(let: LetStm): Expr
   def simplifyAll(expr: Expr): Expr
 }
@@ -15,6 +17,8 @@ object LetStmSimplifier {
 }
 
 object EnabledLetStmSimplifier extends LetStmSimplifier {
+  override def enabled: Boolean = true
+
   def simplify(let: LetStm): Expr = {
     let.tchk().asInstanceOf[LetStm] match {
       case let @ LetStm(x, in, out) =>
@@ -40,6 +44,8 @@ object EnabledLetStmSimplifier extends LetStmSimplifier {
 }
 
 object DisabledLetStmSimplifier extends LetStmSimplifier {
+  override def enabled: Boolean = false
+
   override def simplify(let: LetStm): Expr = let
 
   override def simplifyAll(expr: Expr): Expr = expr

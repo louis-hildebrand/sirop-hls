@@ -7,7 +7,7 @@ import mhir.ir.typecheck.TypeCheck
 
 class GreedyStmFuserTests extends AnyFunSuite {
 
-  private val fusionPass = new GreedyStmFusionPass(SafeSimplifier())
+  private val fusionPass = new GreedyStmFusionPass(StmSimplifier())
 
   /* Map(+3) is clearly better than Map(+1) |> Map(+2).
    */

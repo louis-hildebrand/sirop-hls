@@ -2,8 +2,10 @@ package mhir.optimize
 
 /** Options to enable and disable optimizations.
   *
-  * @param simplify
-  *   whether to perform basic partial evaluation and simplification.
+  * @param simplifyStmBuild
+  *   whether to run the [[mhir.optimize.StmBuildSimplifier]].
+  * @param simplifyLetStm
+  *   whether to run the [[mhir.optimize.LetStmSimplifier]].
   * @param fuse
   *   whether to perform greedy fusion.
   * @param matchLatency
@@ -12,7 +14,8 @@ package mhir.optimize
   *   whether to balance trees of binary operators.
   */
 case class OptimizerOptions(
-    simplify: Boolean,
+    simplifyStmBuild: Boolean,
+    simplifyLetStm: Boolean,
     fuse: Boolean,
     matchLatency: Boolean,
     balanceBinOpTrees: Boolean
@@ -26,7 +29,8 @@ object OptimizerOptions {
     */
   def All: OptimizerOptions = {
     new OptimizerOptions(
-      simplify = true,
+      simplifyStmBuild = true,
+      simplifyLetStm = true,
       fuse = true,
       matchLatency = true,
       balanceBinOpTrees = true
@@ -39,7 +43,8 @@ object OptimizerOptions {
     */
   def Empty: OptimizerOptions = {
     OptimizerOptions(
-      simplify = false,
+      simplifyStmBuild = false,
+      simplifyLetStm = false,
       fuse = false,
       matchLatency = false,
       balanceBinOpTrees = false

@@ -9,21 +9,35 @@ import mhir.optimize.{PartialEvalPass => PE}
 
 import scala.annotation.tailrec
 
+sealed trait StmBuildSimplifier {
+  def enabled: Boolean
+
+  def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild
+}
+
+object StmBuildSimplifier {
+  def apply(enabled: Boolean = true): StmBuildSimplifier = {
+    if (enabled) EnabledStmBuildSimplifier else DisabledStmBuildSimplifier
+  }
+}
+
 /** Transformation that combines many different simplifications.
   *
   * Simplification should make the expression easier to analyze. In some cases
   * it may make the hardware a bit worse (e.g., by distributing a product over a
   * sum).
   */
-object StmBuildSimplifier {
+object EnabledStmBuildSimplifier extends StmBuildSimplifier {
 
   private implicit val logger: Logger = Logger(getClass.getName)
+
+  override def enabled: Boolean = true
 
   /** Perform common-sense simplifications that should pretty much always be
     * beneficial, like partially evaluating and removing unused accumulator
     * elements.
     */
-  def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
+  override def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
     time("simplifying stream") {
       simplifyUntilFixpoint(tl(stm), i = 0)(facts)
@@ -91,4 +105,10 @@ object StmBuildSimplifier {
 
   private def tl(s: Expr): StmBuild =
     s.tchk().lower().asInstanceOf[StmBuild]
+}
+
+object DisabledStmBuildSimplifier extends StmBuildSimplifier {
+  override def enabled: Boolean = false
+
+  override def simplify(stm: StmBuild)(facts: FactSet): StmBuild = stm
 }

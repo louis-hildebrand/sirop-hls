@@ -5,12 +5,12 @@ import os.Path
 
 /** Options for the compiler.
   *
-  * @param optimize
-  *   whether optimization is enabled.
   * @param showFinal
   *   whether to print the final expression passed to the code generator.
   * @param target
   *   the target language.
+  * @param optFlags
+  *   optimization settings.
   */
 case class CompilerOptions(
     showFinal: Boolean,
@@ -92,7 +92,8 @@ object CompilerOptions {
       showFinal = showFinal,
       target = target,
       optFlags = OptimizerOptions(
-        simplify = simplify,
+        simplifyStmBuild = simplify,
+        simplifyLetStm = simplify,
         fuse = fuse,
         matchLatency = matchLatency,
         balanceBinOpTrees = balanceBinOpTrees
