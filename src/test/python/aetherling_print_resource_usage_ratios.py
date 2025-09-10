@@ -21,7 +21,10 @@ def resource_usage_pairs(
     benchmarks = {bi.bench for bi in results.keys()}
     pairs: dict[Benchmark, tuple[ResourceUsage, ResourceUsage]] = {}
     for b in benchmarks:
+        # Skip benchmarks that are not in the paper
         if "small" in b.name:
+            continue
+        if b.name.startswith("sum"):
             continue
         vhdl_res = results.get(BenchmarkImpl(b, "vhdl"))
         verilog_res = results.get(BenchmarkImpl(b, "verilog"))
