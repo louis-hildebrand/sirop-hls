@@ -24,9 +24,10 @@ LEVELS_TO_PLOT = [
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
-BAR_HATCH = ["//", "\\\\", "", "||"]
-FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
+BAR_HATCH = ["", "//", r"\\", "||"]
+FACE_COLORS = ["white", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
 EDGE_COLORS = ["black", "black", "black", "black"]
+LINE_STYLES = [":", "-", "-", "-"]
 HATCH_WIDTH = 1
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -63,6 +64,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             hatch=BAR_HATCH[i],
             facecolor=FACE_COLORS[i],
             edgecolor=EDGE_COLORS[i],
+            linestyle=LINE_STYLES[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         artists.append(artist)
@@ -85,14 +87,17 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             padding=3,
         )
     # Display settings
-    alm_ax.set_xlim(-0.5 * BAR_WIDTH, len(program_names) - 0.5 * BAR_WIDTH)
+    alm_ax.set_xlim(
+        -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+        len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+    )
     alm_ax.set_xticks(
-        [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
+        [x + ((len(program_names) - 1) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    alm_ax.set_ylabel("ALM usage")
     alm_ax.set_yscale("log")
+    alm_ax.set_ylabel("ALM usage (log)")
     (y_lo, y_hi) = alm_ax.get_ylim()
     alm_ax.set_ylim(y_lo, y_hi * 2)
     legend_cols = (len(LEVELS_TO_PLOT) + 1) // 2

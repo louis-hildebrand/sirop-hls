@@ -30,13 +30,13 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
     """
     if bench_name == "bigcamera":
         ax.set_xticks(
-            [1/4, 1, 2, 4],
-            [r"$\frac{1}{4}$", "1", "2", "4"],
+            [1/4, 1, 2, 4, 8, 16],
+            [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
         )
     elif bench_name.startswith("big"):
         ax.set_xticks(
-            [1/3, 1, 2, 4, 8],
-            [r"$\frac{1}{3}$", "1", "2", "4", "8"]
+            [1/3, 1, 2, 4, 8, 16],
+            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"]
         )
     elif bench_name == "conv1d":
         ax.set_xticks(
@@ -50,8 +50,8 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
         )
     elif bench_name == "map":
         ax.set_xticks(
-            [1, 2, 4, 8, 20],
-            ["1", "2", "4", "8", "20"]
+            [1, 4, 20, 200],
+            ["1", "4", "20", "200"]
         )
 
 
@@ -96,6 +96,8 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             b
             for b in results.keys()
             if b.bench.name == bench_name and b.language == "vhdl"
+            # Omit broken benchmark
+            and (not c.CAM14_BROKEN or b.bench.full_name != "bigcamera_1_4")
         ]
         vhdl_benchmarks = sorted(
             vhdl_benchmarks,
@@ -163,6 +165,11 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         alm_ax.set_title(title)
         alm_ax.set_xscale("log", base=2)
         set_ticks(alm_ax, bench_name)
+        # HACK: get the axes to line up with the latency plot
+        if bench_name == "map":
+            alm_ax.plot([200], [100], color="#00000000")
+        elif "big" in bench_name:
+            alm_ax.plot([16], [100], color="#00000000")
     # Settings for entire rows
     axes[0][0].set_ylabel("ALMs")
     axes[0][0].set_yscale("log")

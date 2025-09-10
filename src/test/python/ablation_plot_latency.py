@@ -19,7 +19,7 @@ from lib.program_variant import ProgramVariant
 LEVELS_TO_PLOT = [
     lvl
     for lvl in OptimizationLevel
-    if lvl != OptimizationLevel.ALL_EXCEPT_SIMPL
+    if lvl not in [OptimizationLevel.ALL_EXCEPT_SIMPL, OptimizationLevel.NONE]
 ]
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
@@ -41,22 +41,39 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 8,
+        "font.size": 9,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
         figsize=(8, 1.5),
         layout="compressed",
     )
+    # Baseline
+    xlim = (
+        -0.5*BAR_WIDTH - 0.5*BAR_SPACE,
+        len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
+    )
+    baseline_artist, *_ = ax.plot(
+        list(xlim),
+        [1, 1],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
+    )
     # Latency results
     artists = []
     for i, lvl in enumerate(LEVELS_TO_PLOT):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
-        ys = [results[ProgramVariant(p, lvl)].latency or 0 for p in program_names]
+        ys = []
+        for p in program_names:
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
+            if baseline is None:
+                raise ValueError(f"Missing baseline for {p}")
+            y = results[ProgramVariant(p, lvl)].latency or baseline
+            ys.append(y / baseline)
         artist = ax.bar(
-            bottom=0,
+            bottom=1,
             x=xs,
-            height=ys,
+            height=[y - 1 for y in ys],
             width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
@@ -70,26 +87,49 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             y = results[ProgramVariant(p, lvl)].latency
             if y is None:
                 labels.append("-")
+                continue
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
+            if baseline is None:
+                raise ValueError(f"Missing baseline for {p}")
+            percent_change = (y - baseline) / baseline
+            if percent_change >= 0:
+                label = f"+{percent_change:.0%}"
             else:
-                labels.append(f"{y:,}")
+                label = f"{percent_change:.0%}"
+            if label in {"+0%", "-0%"}:
+                label = ""
+            label = label.replace("%", r"\%")
+            # diff = y - baseline
+            # if diff == 0:
+            #     label = ""
+            # elif diff > 0:
+            #     label = f"+{diff}"
+            # else:
+            #     label = f"{diff}"
+            labels.append(label)
         ax.bar_label(
             artist,
             labels=labels,
             padding=3,
         )
     # Display settings
-    ax.set_xlim(-0.5*BAR_WIDTH, len(program_names) - 0.5*BAR_WIDTH)
-    ax.set_yscale("log")
-    ax.set_ylabel("Latency difference\n(cycles, log)")
+    # ax.set_yscale("symlog")
+    y_lo, y_hi = ax.get_ylim()
+    ax.set_ylim(y_lo - 0.2, y_hi + 0.2)
+    ax.set_ylabel("Latency ratio")
     ax.set_xticks(
-        [x + (len(program_names) / 2) * BAR_WIDTH for x in range(len(program_names))],
+        [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
-    ax.set_yticks([y for y in ax.get_yticks() if y != 0])
+    ax.set_xlim(xlim)
+    # ax.set_yticks([y for y in ax.get_yticks() if y != 0])
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = (len(LEVELS_TO_PLOT) + 1) // 2
-    legend_labels = [lvl.explanation for lvl in LEVELS_TO_PLOT]
-    legend_handles = artists
+    legend_labels = (
+        [OptimizationLevel.NONE.explanation]
+            + [lvl.explanation for lvl in LEVELS_TO_PLOT]
+    )
+    legend_handles = [baseline_artist] + artists
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
         handles=pu.flip(legend_handles, legend_cols),

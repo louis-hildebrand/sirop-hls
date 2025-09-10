@@ -26,6 +26,9 @@ def resource_usage_pairs(
             continue
         if b.name.startswith("sum"):
             continue
+        # Skip broken benchmark
+        if not c.CAM14_BROKEN or b.full_name == "bigcamera_1_4":
+            continue
         vhdl_res = results.get(BenchmarkImpl(b, "vhdl"))
         verilog_res = results.get(BenchmarkImpl(b, "verilog"))
         if vhdl_res is None and verilog_res is None:
@@ -59,7 +62,7 @@ def main() -> None:
     min_alm = min(alm_ratios)
     max_alm = max(alm_ratios)
     geomean_alm = statistics.geometric_mean(alm_ratios)
-    print(f"ALM usage: {min_alm:.3f} - {max_alm:.3f} (geomean: {geomean_alm:.3f})")
+    print(f"ALM utilization: {min_alm:.3f} - {max_alm:.3f} (geomean: {geomean_alm:.3f})")
     bram_ratios = [
         vhdl.bram / verilog.bram
         for (vhdl, verilog) in result_pairs.values()
@@ -68,7 +71,7 @@ def main() -> None:
     min_bram = min(bram_ratios)
     max_bram = max(bram_ratios)
     geomean_bram = statistics.geometric_mean(bram_ratios)
-    print(f"ALM usage: {min_bram:.3f} - {max_bram:.3f} (geomean: {geomean_bram:.3f})")
+    print(f"BRAM utilization: {min_bram:.3f} - {max_bram:.3f} (geomean: {geomean_bram:.3f})")
     dsp_ratios = [
         vhdl.dsp / verilog.dsp
         for (vhdl, verilog) in result_pairs.values()
@@ -77,7 +80,7 @@ def main() -> None:
     min_dsp = min(dsp_ratios)
     max_dsp = max(dsp_ratios)
     geomean_dsp = statistics.geometric_mean(dsp_ratios)
-    print(f"ALM usage: {min_dsp:.3f} - {max_dsp:.3f} (geomean: {geomean_dsp:.3f})")
+    print(f"DSP utilization: {min_dsp:.3f} - {max_dsp:.3f} (geomean: {geomean_dsp:.3f})")
 
 
 
