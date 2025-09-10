@@ -102,7 +102,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    assert(CycleCounter.count(optimized) < CycleCounter.count(original))
+    val originalCount = CycleCounter.count(original).get
+    val optimizedCount = CycleCounter.count(optimized).get
+    assert(optimizedCount < originalCount)
   }
 
   test("ForkTwice") {
@@ -169,8 +171,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    assert(CycleCounter.count(original) == 6 + (n - 1) * 4)
-    assert(CycleCounter.count(optimized) == 6 + (n - 1) * 1)
+    assert(CycleCounter.count(original).contains(6 + (n - 1) * 4))
+    assert(CycleCounter.count(optimized).contains(6 + (n - 1) * 1))
   }
 
   /** Suppose that one branch has a sequence of three [[mhir.ir.StmBuild]]s,
@@ -354,9 +356,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalLatency = CycleCounter.count(original)
-    val newLatency = CycleCounter.count(optimized)
-    assert(newLatency < originalLatency)
+    val originalCount = CycleCounter.count(original).get
+    val optimizedCount = CycleCounter.count(optimized).get
+    assert(optimizedCount < originalCount)
   }
 
   test("NestedLetStm") {
@@ -410,8 +412,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalLatency = CycleCounter.count(original)
-    val newLatency = CycleCounter.count(optimized)
-    assert(newLatency < originalLatency)
+    val originalCount = CycleCounter.count(original).get
+    val optimizedCount = CycleCounter.count(optimized).get
+    assert(optimizedCount < originalCount)
   }
 }

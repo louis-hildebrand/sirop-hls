@@ -26,6 +26,14 @@ object AetherlingBenchmarkTracer {
       maxCycles: Option[Int] = None,
       optFlags: OptimizerOptions = OptimizerOptions.All
   ): Trace = {
+    val stm = makeTraceable(benchName, optFlags)
+    Tracer.traceAll(NS.simplify(stm), maxCycles = maxCycles)
+  }
+
+  def makeTraceable(
+      benchName: String,
+      optFlags: OptimizerOptions = OptimizerOptions.All
+  ): Expr = {
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
     val args = Args(
@@ -50,6 +58,6 @@ object AetherlingBenchmarkTracer {
           s"Cannot trace when input is stored in a file."
         )
     })
-    Tracer.traceAll(NS.simplify(stm), maxCycles = maxCycles)
+    stm
   }
 }
