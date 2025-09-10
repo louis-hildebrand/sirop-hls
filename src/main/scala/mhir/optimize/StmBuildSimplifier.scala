@@ -67,7 +67,10 @@ object StmBuildSimplifier {
       val s5 = time("removing prefix counters") {
         tl(StmAccRemovalPass.removePrefixCounter(s4))
       }
-      s5
+      val s6 = time("removing accumulator trio special case") {
+        tl(StmAccRemovalPass.removeCounterTrio(s5))
+      }
+      s6
     }
     val done =
       time("checking whether stream simplification has reached fixpoint") {
