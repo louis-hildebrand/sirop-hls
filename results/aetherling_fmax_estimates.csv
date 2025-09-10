@@ -52,7 +52,7 @@ dot,1/105,vhdl,206.02
 conv1d,2,verilog,588.93
 conv1d,2,vhdl,645.16
 conv1d,1/3,verilog,379.51
-conv1d,1/3,vhdl,311.72
+conv1d,1/3,vhdl,313.68
 conv1d,1,verilog,645.16
 conv1d,1,vhdl,645.16
 conv1d,4,verilog,320.51
@@ -62,9 +62,9 @@ conv1d,8,vhdl,645.16
 conv1d,16,verilog,219.44
 conv1d,16,vhdl,308.36
 smallconv2d,1/9,verilog,327.87
-smallconv2d,1/9,vhdl,275.41
+smallconv2d,1/9,vhdl,294.2
 smallconv2d,1/3,verilog,553.71
-smallconv2d,1/3,vhdl,285.06
+smallconv2d,1/3,vhdl,289.27
 smallconv2d,1,verilog,524.93
 smallconv2d,1,vhdl,645.16
 smallconv2d,2,verilog,316.56
@@ -76,9 +76,9 @@ smallconv2d,8,vhdl,342.82
 smallconv2d,16,verilog,320.0
 smallconv2d,16,vhdl,594.53
 smallconvb2b,1/9,verilog,352.11
-smallconvb2b,1/9,vhdl,238.44
+smallconvb2b,1/9,vhdl,263.16
 smallconvb2b,1/3,verilog,337.84
-smallconvb2b,1/3,vhdl,257.47
+smallconvb2b,1/3,vhdl,300.93
 smallconvb2b,1,verilog,557.1
 smallconvb2b,1,vhdl,390.47
 smallconvb2b,2,verilog,446.23
@@ -90,9 +90,9 @@ smallconvb2b,8,vhdl,324.57
 smallconvb2b,16,vhdl,645.16
 smallconvb2b,16,verilog,348.43
 smallsharpen,1/9,verilog,201.21
-smallsharpen,1/9,vhdl,239.52
+smallsharpen,1/9,vhdl,274.73
 smallsharpen,1/3,verilog,208.81
-smallsharpen,1/3,vhdl,270.49
+smallsharpen,1/3,vhdl,294.29
 smallsharpen,1,verilog,203.09
 smallsharpen,1,vhdl,356.63
 smallsharpen,2,verilog,196.19
@@ -104,7 +104,7 @@ smallsharpen,8,vhdl,277.32
 smallsharpen,16,verilog,192.86
 smallsharpen,16,vhdl,326.8
 bigconv2d,1/3,verilog,252.84
-bigconv2d,1/3,vhdl,225.89
+bigconv2d,1/3,vhdl,241.43
 bigconv2d,1,verilog,231.59
 bigconv2d,1,vhdl,277.16
 bigconv2d,2,verilog,244.32
@@ -118,7 +118,7 @@ bigconv2d,16,vhdl,
 bigconvb2b,1,verilog,243.07
 bigconvb2b,1,vhdl,253.1
 bigconvb2b,1/3,verilog,268.82
-bigconvb2b,1/3,vhdl,225.73
+bigconvb2b,1/3,vhdl,232.67
 bigconvb2b,2,verilog,273.0
 bigconvb2b,2,vhdl,261.57
 bigconvb2b,4,verilog,272.78
@@ -128,7 +128,7 @@ bigconvb2b,8,vhdl,234.74
 bigconvb2b,16,verilog,
 bigconvb2b,16,vhdl,
 bigsharpen,1/3,verilog,191.57
-bigsharpen,1/3,vhdl,195.54
+bigsharpen,1/3,vhdl,204.12
 bigsharpen,1,verilog,199.68
 bigsharpen,1,vhdl,194.4
 bigsharpen,2,verilog,189.86
@@ -140,9 +140,9 @@ bigsharpen,8,vhdl,198.77
 bigsharpen,16,verilog,
 bigsharpen,16,vhdl,
 bigcamera,1/4,verilog,188.96
-bigcamera,1/4,vhdl,184.98
+bigcamera,1/4,vhdl,196.31
 bigcamera,1,verilog,185.49
-bigcamera,1,vhdl,191.5
+bigcamera,1,vhdl,185.08
 bigcamera,2,verilog,182.18
 bigcamera,2,vhdl,192.01
 bigcamera,4,verilog,178.83
@@ -151,3 +151,6 @@ bigcamera,8,verilog,
 bigcamera,8,vhdl,
 bigcamera,16,verilog,
 bigcamera,16,vhdl,
+smallcamera,1/4,vhdl,182.02
+smallcamera,1,vhdl,194.1
+smallcamera,2,vhdl,192.16
