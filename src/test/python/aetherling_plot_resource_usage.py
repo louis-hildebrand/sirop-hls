@@ -67,12 +67,12 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 10,
+        "font.size": 7,
     })
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 2.5),
+        figsize=(8, 2.2),
         layout="compressed",
         sharey="row",
         sharex="col",

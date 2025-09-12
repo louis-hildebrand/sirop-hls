@@ -41,11 +41,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 9,
+        "font.size": 8,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 1.15),
+        figsize=(8, 1.1),
         layout="compressed",
     )
     # Baseline
@@ -115,10 +115,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     # Display settings
     # ax.set_yscale("symlog")
     ax.set_ylabel("\\% change\nlatency")
-    ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"+100\%"])
+    ax.set_yticks([-1, 0, 0.5], [r"-100\%", r"0\%", r"+50\%"])
+    ax.set_ylim(-1.35, 0.55)
     ax.set_xticks(
         [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
-        program_names
+        [f"\\texttt{{{p}}}" for p in program_names],
     )
     ax.set_xlim(xlim)
     # ax.set_yticks([y for y in ax.get_yticks() if y != 0])

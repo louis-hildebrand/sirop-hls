@@ -41,11 +41,11 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 9,
+        "font.size": 8,
     })
     fig, alm_ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 1),
+        figsize=(8, 0.8),
         layout="compressed",
         sharex="col",
     )
@@ -104,13 +104,13 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     # Display settings
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
-        [x + ((len(program_names) - 1) / 2) * BAR_WIDTH for x in range(len(program_names))],
-        program_names
+        [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
+        [f"\\texttt{{{p}}}" for p in program_names],
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("\\% change\nALM usage")
     alm_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
-    alm_ax.set_ylim(-1.2, 0.1)
+    alm_ax.set_ylim(-1.25, 0.1)
     legend_cols = 4
     legend_labels=[lvl.explanation for lvl in [OptimizationLevel.NONE] + LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists

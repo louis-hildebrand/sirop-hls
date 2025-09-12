@@ -113,4 +113,4 @@ def benchmark_title(bench_name: str) -> str | None:
         return None
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
-    return bench_name
+    return f"\\texttt{{{bench_name}}}"
