@@ -722,6 +722,19 @@ object ExprPrinter {
     parentPrecedence < Precedence.Max && parentPrecedence <= childPrecedence
   }
 
+  def showScalaWithFreeVars(e: Expr): String = {
+    val varDecls = e
+      .freeVars()
+      .toSeq
+      .sortBy(_.name)
+      .map({ x =>
+        val typStr = showScala(x.typ)
+        s"""val ${x.name} = Param(\"${x.prefix}\", ${x.id})($typStr)"""
+      })
+      .mkString(" ; ")
+    s"""{ $varDecls ; ${showScala(e)} }"""
+  }
+
   /** Produce Scala code that I can copy and paste (e.g., to take some large
     * expression and use it in a test case).
     */
@@ -731,15 +744,13 @@ object ExprPrinter {
         val children = elems.map(e => showScala(e))
         s"Tuple(${children.mkString(",")})(${showScala(tup.typ)})"
       case ta @ TupleAccess(t, i) =>
-        i match {
-          case IntCst(i) if 0 <= i && i <= 5 =>
-            s"${showScalaWithParens(t)}.__$i"
-          case _ =>
-            s"TupleAccess(${showScala(t)},${showScala(i)})(${ta.typ})"
-        }
+        s"TupleAccess(${showScala(t)},${showScala(i)})(${showScala(ta.typ)})"
       case x: Param => s"${x.name}"
-      case Function(param, body) =>
-        s"{ val ${param.name} = Param(${param.prefix})(${param.typ}) ; Function(${param.name}, ${showScala(body)})() }"
+      case f @ Function(param, body) =>
+        val bodyStr = showScala(body)
+        val paramTypStr = showScala(param.typ)
+        val typStr = showScala(f.typ)
+        s"""{ val ${param.name} = Param(\"${param.prefix}\", ${param.id})($paramTypStr) ; Function(${param.name}, $bodyStr)($typStr) }"""
       case fc @ FunCall(f, arg) =>
         s"(${showScala(f)})(${showScala(arg)})(${showScala(fc.typ)})"
       case c: IntCst =>
@@ -779,7 +790,7 @@ object ExprPrinter {
         s"Equal(${showScala(x)},${showScala(y)})(${showScala(eq.typ)})"
       case lt @ LessThan(x, y) =>
         s"LessThan(${showScala(x)},${showScala(y)})(${showScala(lt.typ)})"
-      case n @ Not(e) => s"Not(${showScala(e)})(${n.typ})"
+      case n @ Not(e) => s"Not(${showScala(e)})(${showScala(n.typ)})"
       case a @ And(terms @ _*) =>
         s"And(${terms.map(e => showScala(e)).mkString(",")})(${showScala(a.typ)})"
       case or @ Or(terms @ _*) =>
@@ -787,18 +798,34 @@ object ExprPrinter {
       case m @ Mux(c, t, f) =>
         s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})(${showScala(m.typ)})"
       case s @ StmBuild(n, data, valid, eqns) =>
-        val equationsStr =
-          s"Map(${eqns.map({ case (x, (z, next)) =>
+        val paramDecls =
+          s.accVars
+            .map({ x =>
+              val typStr = showScala(x.typ)
+              s"""val ${x.name} = Param(\"${x.prefix}\", ${x.id})($typStr)"""
+            })
+            .mkString(" ; ")
+        val nStr = showScala(n)
+        val dataStr = showScala(data)
+        val validStr = showScala(valid)
+        val typStr = showScala(s.typ)
+        val equationsStr = {
+          val equationStrings = {
+            eqns.map({ case (x, (z, next)) =>
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
-            })})"
-        s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)(${showScala(s.typ)})"
+            })
+          }
+          s"Map[Param, (Expr, Expr)](${equationStrings.mkString(",")})"
+        }
+        s"{ $paramDecls ; StmBuild($nStr,$dataStr,$validStr,$equationsStr)($typStr) }"
       case let @ LetStm(bufSize, x, in, out) =>
         val bufSizeStr = showScala(bufSize)
         val xStr = showScala(x)
         val inStr = showScala(in)
         val outStr = showScala(out)
+        val xTypStr = showScala(x.typ)
         val typStr = showScala(let.typ)
-        s"LetStm($bufSizeStr,$xStr,$inStr,$outStr)($typStr)"
+        s"""{ val ${x.name} = Param(\"${x.prefix}\", ${x.id})($xTypStr); LetStm($bufSizeStr,$xStr,$inStr,$outStr)($typStr) }"""
       case s @ StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"
@@ -835,20 +862,6 @@ object ExprPrinter {
         s"TyTuple(${ts.map(t => showScala(t)).mkString(",")})"
       case TyVec(t, n) => s"TyVec(${showScala(t)},${showScala(n)})"
       case TyStm(t, n) => s"TyStm(${showScala(t)},${showScala(n)})"
-    }
-  }
-
-  private def showScalaWithParens(e: Expr): String = {
-    val str = showScala(e)
-    if (shouldParenthesize(e)) s"($str)" else str
-  }
-
-  private def shouldParenthesize(e: Expr): Boolean = {
-    e match {
-      case _: IntCst | _: Param | _: TupleAccess | _: ToSigned | _: ToUnsigned |
-          _: PadTo | _: TruncateTo =>
-        false
-      case _ => true
     }
   }
 }
