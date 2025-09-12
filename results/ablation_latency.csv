@@ -31,3 +31,6 @@ convb2b,fuse,7685,True
 convb2b,nosimpl,7748,False
 camera,latmatch,15427,False
 camera,fuse,15377,True
+camera,none,,False
+camera,simpl,337966,False
+camera,nosimpl,,False
