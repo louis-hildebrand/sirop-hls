@@ -14,6 +14,8 @@ object ProgramIO {
       conv1dIO
     } else if (name.startsWith("conv2d_")) {
       conv2dIO
+    } else if (name.startsWith("convb2b_")) {
+      convb2bIO
     } else if (name.startsWith("sharpen_")) {
       sharpenIO
     } else {
@@ -41,6 +43,10 @@ object ProgramIO {
 
   private def conv2dIO: TestIO = {
     AetherlingBenchmarkIO.vhdlIO("bigconv2d_1")
+  }
+
+  private def convb2bIO: TestIO = {
+    AetherlingBenchmarkIO.vhdlIO("bigconvb2b_1")
   }
 
   private def sharpenIO: TestIO = {

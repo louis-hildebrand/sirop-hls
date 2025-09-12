@@ -1,6 +1,7 @@
 package mhir.main.stored
 
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException
 import mhir.sugar.{StmMap, StmReduce, StmZip}
 import mhir.sugar._
@@ -15,6 +16,7 @@ object Program {
       case "dot"     => Dot
       case "conv1d"  => Conv1d
       case "conv2d"  => Conv2d
+      case "convb2b" => ConvB2b
       case "sharpen" => Sharpen
       case name =>
         throw new BadArgsException(s"unknown program: $name")
@@ -187,7 +189,108 @@ object Program {
     )(
       result
     )
-    conv
+    conv.tchk()
+  }
+
+  private def makeConv2x2(width: Int, height: Int, input: Expr): Expr = {
+    val TyStm(uint, _) = input.typ
+    val kernelStm = StmCst(
+      width * height,
+      VecLiteral(
+        VecLiteral(C(1)(uint), C(4)(uint))(),
+        VecLiteral(C(2)(uint), C(1)(uint))()
+      )()
+    )()
+    val kernelCoeff = FixCst(16)(TyFix(U8, 7))
+    val row0Elem0 = Param("row_0_0")(TyStm(uint, width * height))
+    val row0Elem1 = Param("row_0_1")(TyStm(uint, width * height))
+    val row0 = Param("row_0")(TyStm(TyVec(uint, 2), width * height))
+    val row1Elem0 = Param("row_1_0")(TyStm(uint, width * height))
+    val row1Elem1 = Param("row_1_1")(TyStm(uint, width * height))
+    val row1 = Param("row_1")(TyStm(TyVec(uint, 2), width * height))
+    val window =
+      Param("window")(TyStm(TyVec(TyVec(uint, 2), 2), width * height))
+    val windowAndKernelZipped =
+      Param("w_k_zip")(TyStm(TyVec(TyVec((uint, uint), 2), 2), width * height))
+    val windowAndKernelMultiplied =
+      Param("w_k_mul")(TyStm(TyVec(TyVec(uint, 2), 2), width * height))
+    val rowSums =
+      Param("row_sums")(TyStm(TyVec(uint, 2), width * height))
+    val colSums =
+      Param("col_sums")(TyStm(uint, width * height))
+    val result =
+      Param("result")(TyStm(uint, width * height))
+    val conv = Lets(
+      // Shift
+      row1Elem1 -> input,
+      row1Elem0 -> StmShiftRightGarbage(row1Elem1, 1)(),
+      row0Elem1 -> StmShiftRightGarbage(row1Elem1, width)(),
+      row0Elem0 -> StmShiftRightGarbage(row0Elem1, 1)(),
+      // Join shifted streams into window
+      row0 -> StmMap(
+        StmZip(row0Elem0, row0Elem1)(),
+        TyTuple(uint, uint) ::+ (x => VecLiteral(x.__0, x.__1)())
+      )(),
+      row1 -> StmMap(
+        StmZip(row1Elem0, row1Elem1)(),
+        TyTuple(uint, uint) ::+ (x => VecLiteral(x.__0, x.__1)())
+      )(),
+      window -> StmMap(
+        StmZip(row0, row1)(),
+        TyTuple(TyVec(uint, 2), TyVec(uint, 2)) ::+ (x =>
+          VecLiteral(x.__0, x.__1)()
+        )
+      )(),
+      // Multiply with kernel
+      windowAndKernelZipped -> StmMap(
+        StmZip(window, kernelStm)(),
+        (TyVec(TyVec(uint, 2), 2), TyVec(TyVec(uint, 2), 2)) ::+ (x =>
+          VecMap2(
+            x.__0,
+            x.__1,
+            TyVec(uint, 2) ::+ (v1 => TyVec(uint, 2) ::+ (v2 => VecZip(v1, v2)))
+          )()
+        )
+      )(),
+      windowAndKernelMultiplied -> StmMap(
+        windowAndKernelZipped,
+        TyVec(TyVec((uint, uint), 2), 2) ::+ (v =>
+          VecMap(
+            v,
+            TyVec((uint, uint), 2) ::+ (v =>
+              VecMap(v, (uint, uint) ::+ (x => x.__0 *% x.__1))()
+            )
+          )()
+        )
+      )(),
+      rowSums -> StmMap(
+        windowAndKernelMultiplied,
+        TyVec(TyVec(uint, 2), 2) ::+ (v =>
+          VecMap(
+            v,
+            TyVec(uint, 2) ::+ (v =>
+              VecAccess(
+                VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+                0
+              )()
+            )
+          )()
+        )
+      )(),
+      colSums -> StmMap(
+        rowSums,
+        TyVec(uint, 2) ::+ (v =>
+          VecAccess(
+            VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+            0
+          )()
+        )
+      )(),
+      result -> StmMap(colSums, uint ::+ (x => IntFixProd(x, kernelCoeff)()))()
+    )(
+      result
+    )
+    conv.tchk()
   }
 
   /** 2-dimensional convolution.
@@ -199,6 +302,18 @@ object Program {
     val input = Param("I")(TyStm(uint, width * height))
     val conv = makeConv3x3(width = width, height = height, input = input)
     Function(input, conv)()
+  }
+
+  /** 3D convolution followed by 2D convolution.
+    */
+  private val ConvB2b: Expr = {
+    val width = 1920
+    val height = 1080
+    val uint = U32
+    val input = Param("I")(TyStm(uint, width * height))
+    val part1 = makeConv3x3(width = width, height = height, input = input)
+    val part2 = makeConv2x2(width = width, height = height, input = part1)
+    Function(input, part2)()
   }
 
   /** An image sharpening operation.
