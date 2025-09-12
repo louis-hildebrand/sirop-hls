@@ -11,10 +11,11 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"    => Map
-      case "dot"    => Dot
-      case "conv1d" => Conv1d
-      case "conv2d" => Conv2d
+      case "map"     => Map
+      case "dot"     => Dot
+      case "conv1d"  => Conv1d
+      case "conv2d"  => Conv2d
+      case "sharpen" => Sharpen
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -66,12 +67,8 @@ object Program {
     Function(input, s4)()
   }
 
-  /** 2-dimensional convolution.
-    */
-  private val Conv2d: Expr = {
-    val width = 1920
-    val height = 1080
-    val uint = U32
+  private def makeConv3x3(width: Int, height: Int, input: Expr): Expr = {
+    val TyStm(uint, _) = input.typ
     val kernelStm = StmCst(
       width * height,
       VecLiteral(
@@ -81,7 +78,6 @@ object Program {
       )()
     )()
     val kernelCoeff = FixCst(8)(TyFix(U8, 7))
-    val input = Param("I")(TyStm(uint, width * height))
     val row0Elem0 = Param("row_0_0")(TyStm(uint, width * height))
     val row0Elem1 = Param("row_0_1")(TyStm(uint, width * height))
     val row0Elem2 = Param("row_0_2")(TyStm(uint, width * height))
@@ -191,6 +187,43 @@ object Program {
     )(
       result
     )
+    conv
+  }
+
+  /** 2-dimensional convolution.
+    */
+  private val Conv2d: Expr = {
+    val width = 1920
+    val height = 1080
+    val uint = U32
+    val input = Param("I")(TyStm(uint, width * height))
+    val conv = makeConv3x3(width = width, height = height, input = input)
     Function(input, conv)()
+  }
+
+  /** An image sharpening operation.
+    */
+  private val Sharpen: Expr = {
+    val width = 1920
+    val height = 1080
+    val uint = U32
+    val input = Param("I")(TyStm(uint, width * height))
+    val sharpenOne = {
+      val threshold = 15
+      val a = Param("a")(uint)
+      val b = Param("b")(uint)
+      val passedThreshold = ((a -% b) > threshold) || ((b -% a) > threshold)
+      val oneQuarter = FixCst(32)(TyFix(U8, 7))
+      val alphaH =
+        Mux(passedThreshold, IntFixProd(b -% a, oneQuarter)(), C(0)(uint))()
+      val sharp = b +% alphaH
+      Function(a, Function(b, sharp)())()
+    }
+    val sharedInput = Param("I")(TyStm(uint, width * height))
+    val blurred =
+      makeConv3x3(width = width, height = height, input = sharedInput)
+    val sharpened =
+      LetStm(sharedInput, input, StmMap2(blurred, sharedInput, sharpenOne)())()
+    Function(input, sharpened)()
   }
 }

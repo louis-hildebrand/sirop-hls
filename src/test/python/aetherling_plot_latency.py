@@ -7,13 +7,14 @@ This script plots the latency for the Aetherling benchmarks.
 import sys
 from typing import TypeVar
 
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
 import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
-import matplotlib.pyplot as plt
 from lib.benchmark import BenchmarkImpl
 from lib.latency import LatencyResult
-from matplotlib.axes import Axes
 
 DEFAULT_COLORS = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
