@@ -3,6 +3,7 @@ package mhir.main.stored
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException
+import mhir.parse.AetherlingParser
 import mhir.sugar.{StmMap, StmReduce, StmZip}
 import mhir.sugar._
 
@@ -18,6 +19,7 @@ object Program {
       case "conv2d"  => Conv2d
       case "convb2b" => ConvB2b
       case "sharpen" => Sharpen
+      case "camera"  => Camera
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -340,5 +342,15 @@ object Program {
     val sharpened =
       LetStm(sharedInput, input, StmMap2(blurred, sharedInput, sharpenOne)())()
     Function(input, sharpened)()
+  }
+
+  /** Camera pipeline (demosaic + sharpen).
+    */
+  private val Camera: Expr = {
+    // I'm too lazy to write the whole benchmark by hand
+    val aetherlingCode = os.read(
+      os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original" / "bigcamera_1.txt"
+    )
+    AetherlingParser.parse(aetherlingCode)
   }
 }
