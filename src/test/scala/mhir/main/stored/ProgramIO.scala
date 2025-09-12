@@ -14,7 +14,7 @@ object ProgramIO {
       conv1dIO
     } else if (name.startsWith("conv2d_")) {
       conv2dIO
-    } else if (name.startsWith("sharpen)")) {
+    } else if (name.startsWith("sharpen_")) {
       sharpenIO
     } else {
       ???
