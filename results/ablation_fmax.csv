@@ -29,3 +29,8 @@ convb2b,simpl,200.92
 convb2b,latmatch,199.4
 convb2b,fuse,279.96
 convb2b,nosimpl,158.2
+camera,none,65.47
+camera,simpl,113.31
+camera,latmatch,113.25
+camera,fuse,195.31
+camera,nosimpl,68.34
