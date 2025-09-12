@@ -29,3 +29,5 @@ convb2b,simpl,23070,True
 convb2b,latmatch,7712,True
 convb2b,fuse,7685,True
 convb2b,nosimpl,7748,False
+camera,latmatch,15427,False
+camera,fuse,15377,True
