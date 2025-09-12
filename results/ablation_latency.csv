@@ -19,3 +19,8 @@ map,nosimpl,202,True
 dot,nosimpl,845,True
 conv1d,nosimpl,27,True
 conv2d,nosimpl,7716,True
+sharpen,none,,False
+sharpen,simpl,,False
+sharpen,latmatch,,False
+sharpen,fuse,,False
+sharpen,nosimpl,,False

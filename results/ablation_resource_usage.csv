@@ -13,9 +13,14 @@ conv1d,latmatch,48,0,0
 conv1d,fuse,29,0,0
 conv2d,none,2037,8,0
 conv2d,simpl,941,8,0
-conv2d,latmatch,1060,8,0
+conv2d,latmatch,1066,8,0
 conv2d,fuse,228,8,0
 map,nosimpl,9,0,0
 dot,nosimpl,56,0,1
 conv1d,nosimpl,95,0,0
-conv2d,nosimpl,2133,8,0
+conv2d,nosimpl,2127,8,0
+sharpen,none,2097,8,0
+sharpen,simpl,972,8,0
+sharpen,latmatch,1250,8,0
+sharpen,fuse,308,8,0
+sharpen,nosimpl,2505,8,0
