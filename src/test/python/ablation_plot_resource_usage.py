@@ -9,7 +9,6 @@ import sys
 import matplotlib.pyplot as plt
 
 import lib.ablation_results_crud as crud
-import lib.benchmark as lb
 import lib.constants as c
 import lib.plt_utils as pu
 from lib.optimization_level import OptimizationLevel
@@ -24,18 +23,33 @@ LEVELS_TO_PLOT = [
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
-BAR_HATCH = ["//", r"\\", "||"]
+BAR_HATCH = ["//", r"\\", ""]
 FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
 EDGE_COLORS = ["black", "black", "black", "black"]
 LINE_STYLES = ["-", "-", "-", "-"]
 HATCH_WIDTH = 1
+
+
+def program_order(program_name: str) -> int:
+    """
+    Choose the order of the programs in the plot.
+    """
+    return {
+        "map": 0,
+        "dot": 1,
+        "conv1d": 2,
+        "conv2d": 3,
+        "convb2b": 4,
+        "camera": 5,
+    }.get(program_name, 6)
+
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     """
     Plot resource usage for each program.
     """
     program_names = pu.dedup([p.name for p in results.keys()])
-    program_names = sorted(program_names, key=lb.benchmark_order)
+    program_names = sorted(program_names, key=program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
     plt.rcParams.update({

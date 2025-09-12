@@ -9,7 +9,6 @@ import sys
 import matplotlib.pyplot as plt
 
 import lib.ablation_results_crud as crud
-import lib.benchmark as lb
 import lib.constants as c
 import lib.plt_utils as pu
 from lib.latency import LatencyResult
@@ -30,12 +29,26 @@ EDGE_COLORS = ["black", "black", "black", "black"]
 HATCH_WIDTH = 1
 
 
+def program_order(program_name: str) -> int:
+    """
+    Choose the order of the programs in the plot.
+    """
+    return {
+        "map": 0,
+        "dot": 1,
+        "conv1d": 2,
+        "conv2d": 3,
+        "convb2b": 4,
+        "camera": 5,
+    }.get(program_name, 6)
+
+
 def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     """
     Plot latency for each program.
     """
     program_names = pu.dedup([p.name for p in results.keys()])
-    program_names = sorted(program_names, key=lb.benchmark_order)
+    program_names = sorted(program_names, key=program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
     plt.rcParams.update({

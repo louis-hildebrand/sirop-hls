@@ -99,7 +99,11 @@ def benchmark_order(bench_name: str) -> int:
         "smallconv2d": 4,
         "smallconvb2b": 5,
         "smallsharpen": 6,
-    }.get(bench_name, 7)
+        "bigconv2d": 7,
+        "bigconvb2b": 8,
+        "bigsharpen": 9,
+        "bigcamera": 10
+    }.get(bench_name, 11)
 
 
 def benchmark_title(bench_name: str) -> str | None:
