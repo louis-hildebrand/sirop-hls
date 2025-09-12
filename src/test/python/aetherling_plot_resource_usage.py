@@ -72,7 +72,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 3.5),
+        figsize=(8, 2.5),
         layout="compressed",
         sharey="row",
         sharex="col",
@@ -171,15 +171,15 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
         elif "big" in bench_name:
             alm_ax.plot([16], [100], color="#00000000")
     # Settings for entire rows
-    axes[0][0].set_ylabel("ALMs")
+    axes[0][0].set_ylabel("ALM (log)")
     axes[0][0].set_yscale("log")
     axes[0][0].yaxis.set_major_locator(LogLocator(base=10))
-    axes[1][0].set_ylabel("BRAMs")
-    axes[1][0].set_yscale("log")
-    axes[1][0].yaxis.set_major_locator(LogLocator(base=10))
-    axes[2][0].set_ylabel("DSPs")
-    axes[2][0].set_yscale("log")
-    axes[2][0].yaxis.set_major_locator(LogLocator(base=10))
+    axes[1][0].set_ylabel("BRAM")
+    # axes[1][0].set_yscale("log")
+    # axes[1][0].yaxis.set_major_locator(LogLocator(base=10))
+    axes[2][0].set_ylabel("DSP")
+    # axes[2][0].set_yscale("log")
+    # axes[2][0].yaxis.set_major_locator(LogLocator(base=10))
     fig.supxlabel("Target throughput (px/cycle)")
     if verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")

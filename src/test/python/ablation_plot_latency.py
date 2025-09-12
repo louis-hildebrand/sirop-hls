@@ -45,7 +45,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 1.5),
+        figsize=(8, 1.15),
         layout="compressed",
     )
     # Baseline
@@ -55,7 +55,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     )
     baseline_artist, *_ = ax.plot(
         list(xlim),
-        [1, 1],
+        [0, 0],
         linestyle=":",
         color=(0.5, 0.5, 0.5),
     )
@@ -69,11 +69,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             if baseline is None:
                 raise ValueError(f"Missing baseline for {p}")
             y = results[ProgramVariant(p, lvl)].latency or baseline
-            ys.append(y / baseline)
+            ys.append((y - baseline) / baseline)
         artist = ax.bar(
-            bottom=1,
+            bottom=0,
             x=xs,
-            height=[y - 1 for y in ys],
+            height=ys,
             width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
@@ -114,9 +114,8 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         )
     # Display settings
     # ax.set_yscale("symlog")
-    y_lo, y_hi = ax.get_ylim()
-    ax.set_ylim(y_lo - 0.2, y_hi + 0.2)
-    ax.set_ylabel("Latency ratio")
+    ax.set_ylabel("\\% change\nlatency")
+    ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"+100\%"])
     ax.set_xticks(
         [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
         program_names
@@ -124,7 +123,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     ax.set_xlim(xlim)
     # ax.set_yticks([y for y in ax.get_yticks() if y != 0])
     ax.tick_params(axis="x", which="both", length=0)
-    legend_cols = (len(LEVELS_TO_PLOT) + 1) // 2
+    legend_cols = 4
     legend_labels = (
         [OptimizationLevel.NONE.explanation]
             + [lvl.explanation for lvl in LEVELS_TO_PLOT]

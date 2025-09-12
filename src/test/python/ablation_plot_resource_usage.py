@@ -19,15 +19,15 @@ from lib.resource_usage import ResourceUsage
 LEVELS_TO_PLOT = [
     lvl
     for lvl in OptimizationLevel
-    if lvl != OptimizationLevel.ALL_EXCEPT_SIMPL
+    if lvl not in [OptimizationLevel.NONE, OptimizationLevel.ALL_EXCEPT_SIMPL]
 ]
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
-BAR_HATCH = ["", "//", r"\\", "||"]
-FACE_COLORS = ["white", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
+BAR_HATCH = ["//", r"\\", "||"]
+FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
 EDGE_COLORS = ["black", "black", "black", "black"]
-LINE_STYLES = [":", "-", "-", "-"]
+LINE_STYLES = ["-", "-", "-", "-"]
 HATCH_WIDTH = 1
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -45,16 +45,31 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     })
     fig, alm_ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 1.5),
+        figsize=(8, 1),
         layout="compressed",
         sharex="col",
+    )
+    # Baseline
+    xlim = (
+        -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+        len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+    )
+    baseline_artist, *_ = alm_ax.plot(
+        list(xlim),
+        [0, 0],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
     )
     # Resource usages
     artists = []
     for i, lvl in enumerate(LEVELS_TO_PLOT):
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         # ALM usage
-        ys = [results[ProgramVariant(p, lvl)].alm for p in program_names]
+        ys = []
+        for p in program_names:
+            y = results[ProgramVariant(p, lvl)].alm
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
+            ys.append( (y - baseline) / baseline )
         artist = alm_ax.bar(
             bottom=0,
             x=xs,
@@ -87,22 +102,18 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             padding=3,
         )
     # Display settings
-    alm_ax.set_xlim(
-        -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-        len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-    )
+    alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
         [x + ((len(program_names) - 1) / 2) * BAR_WIDTH for x in range(len(program_names))],
         program_names
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    alm_ax.set_yscale("log")
-    alm_ax.set_ylabel("ALM usage (log)")
-    (y_lo, y_hi) = alm_ax.get_ylim()
-    alm_ax.set_ylim(y_lo, y_hi * 2)
-    legend_cols = (len(LEVELS_TO_PLOT) + 1) // 2
-    legend_labels=[lvl.explanation for lvl in LEVELS_TO_PLOT]
-    legend_handles=artists
+    alm_ax.set_ylabel("\\% change\nALM usage")
+    alm_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
+    alm_ax.set_ylim(-1.2, 0.1)
+    legend_cols = 4
+    legend_labels=[lvl.explanation for lvl in [OptimizationLevel.NONE] + LEVELS_TO_PLOT]
+    legend_handles=[baseline_artist] + artists
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
         handles=pu.flip(legend_handles, legend_cols),
