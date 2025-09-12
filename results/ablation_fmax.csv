@@ -24,3 +24,8 @@ sharpen,simpl,219.49
 sharpen,latmatch,206.57
 sharpen,fuse,197.12
 sharpen,nosimpl,191.57
+convb2b,none,154.63
+convb2b,simpl,200.92
+convb2b,latmatch,199.4
+convb2b,fuse,279.96
+convb2b,nosimpl,158.2

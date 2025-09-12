@@ -24,3 +24,8 @@ sharpen,simpl,972,8,0
 sharpen,latmatch,1250,8,0
 sharpen,fuse,308,8,0
 sharpen,nosimpl,2505,8,0
+convb2b,none,2803,11,0
+convb2b,simpl,1268,11,0
+convb2b,latmatch,1444,11,0
+convb2b,fuse,311,11,0
+convb2b,nosimpl,2950,11,0

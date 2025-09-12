@@ -24,3 +24,8 @@ sharpen,simpl,145922,True
 sharpen,latmatch,7700,True
 sharpen,fuse,7685,True
 sharpen,nosimpl,7719,True
+convb2b,none,15426,False
+convb2b,simpl,23070,True
+convb2b,latmatch,7712,True
+convb2b,fuse,7685,True
+convb2b,nosimpl,7748,False
