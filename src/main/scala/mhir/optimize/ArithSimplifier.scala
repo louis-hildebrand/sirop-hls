@@ -624,7 +624,18 @@ private[optimize] object ArithSimplifier {
               .isEqual(c1, (c0 + 1).tchk().lower())()
               .getOrElse(false) =>
         Equal(x0, c0)()
-      case e => e
+      case And(terms @ _*) =>
+        And(terms.filter({
+          case Not(Equal(x0, IntCst(k0))) =>
+            !terms.exists({
+              case Equal(x1, IntCst(k1)) =>
+                x0 == x1 && k0 != k1
+              case _ => false
+            })
+          case _ => true
+        }): _*)()
+      case e =>
+        e
     }
     out.tchk()
   }
@@ -690,7 +701,14 @@ private[optimize] object ArithSimplifier {
   private def hasContradictoryTerms(terms: Seq[Expr]): Boolean = {
     terms.exists({
       case Not(e) => terms.contains(e)
-      case _      => false
+      case Equal(x0, IntCst(k0)) =>
+        terms.exists({
+          case Equal(x1, IntCst(k1)) =>
+            x1 == x0 && k0 != k1
+          case _ => false
+        })
+      case e =>
+        false
     })
   }
 }

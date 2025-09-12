@@ -548,4 +548,32 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val id1 = BlackBox(m.rebuild(U8)).id
     assert(id0 == id1)
   }
+
+  test("i == 1 && i == 1") {
+    val i = Param("i")(U8)
+    val original = ((i equ C(1)(U8)) && (i equ C(1)(U8))).tchk().lower()
+    val expected = i equ C(1)(U8)
+    assert(PE.partialEval(original) == expected)
+  }
+
+  test("i == 0 && i == 2") {
+    val i = Param("i")(U8)
+    val original = (i equ C(0)(U8)) && (i equ C(2)(U8))
+    val expected = False
+    assert(PE.partialEval(original) == expected)
+  }
+
+  test("i == 5 && i != 5") {
+    val i = Param("i")(U32)
+    val original = (i equ C(5)(U32)) && (i nequ C(5)(U32))
+    val expected = False
+    assert(PE.partialEval(original) == expected)
+  }
+
+  test("i == 42 && i != 1") {
+    val i = Param("i")(U8)
+    val original = (i equ C(42)(U8)) && (i nequ C(1)(U8))
+    val expected = i equ C(42)(U8)
+    assert(PE.partialEval(original) == expected)
+  }
 }
