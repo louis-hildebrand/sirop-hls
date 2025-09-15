@@ -168,7 +168,7 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
       acc: Param,
       s: StmBuild
   ): Option[Int] = {
-    s.valid match {
+    val lat = s.valid match {
       case True => Some(1)
       case Equal(t: Param, IntCst(k))
           if s.accVars.contains(t) && (k + 1).isValidInt =>
@@ -188,12 +188,11 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             None
         }
       case _ =>
-        logger.warn(
-          s"failed to find latency from $src through StmBuild due to the `valid` expression"
-        )
-        logger.trace(s"valid expression: ${s.valid}")
         None
     }
+    logger.warn(s"failed to find latency from $src through StmBuild")
+    logger.trace(s"sbuild: $s")
+    lat
   }
 
   private def increaseLatencyTo(
