@@ -619,4 +619,28 @@ class EvalTests extends AnyFunSuite {
     val exc = intercept[DeadlockError](mhir.ir.eval(e))
     assert(exc.reasons == Seq(PipelineFixpoint))
   }
+
+  test("StmBuild:StmDataWithoutReady") {
+    val n = 10
+    val s = Param("s")(TyStm(U8, n))
+    val e = {
+      val count = {
+        val a = Param("a")(U8)
+        StmBuild(
+          n,
+          a,
+          True,
+          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)()))
+        )().tchk()
+      }
+      StmBuild(
+        n,
+        StmData(s)(),
+        True,
+        Map[Param, (Expr, Expr)](s -> (count, False))
+      )().tchk()
+    }
+    val exc = intercept[UndefinedValException](mhir.ir.eval(e))
+    assert(exc.warnings.contains(StmDataWithoutReady(s)))
+  }
 }

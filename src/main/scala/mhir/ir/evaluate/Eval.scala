@@ -26,8 +26,12 @@ trait Eval {
     *   if the evaluator encounters an undefined value <i>and it seems to affect
     *   the final value</i>, or if a stream seems to be deadlocked.
     */
-  def eval(e: Expr, suppressWarnings: Boolean = false): Expr = {
-    val Value(v, warnings) = evalBigStep(e.tchk().lower())
+  def eval(
+      e: Expr,
+      stmData: Map[Param, Option[Expr]] = Map(),
+      suppressWarnings: Boolean = false
+  ): Expr = {
+    val Value(v, warnings) = evalBigStep(stmData)(e.tchk().lower())
     if (warnings.isEmpty || suppressWarnings) {
       v
     } else {
@@ -39,7 +43,7 @@ trait Eval {
   private def evalPipeline(
       pipe: StmPipeline,
       elems: Seq[Expr],
-      invalidSteps: Int = 0,
+      invalidSteps: Int,
       maxInvalid: Int = MaxInvalidSteps
   ): Expr = {
     if (pipe.isEmpty) {
@@ -72,7 +76,9 @@ trait Eval {
     }
   }
 
-  private[ir] def evalBigStep(e: Expr): Value = {
+  private[ir] def evalBigStep(
+      stmData: Map[Param, Option[Expr]]
+  )(e: Expr): Value = {
     val result: Value = e match {
       case x: Param =>
         throw new IllegalArgumentException(
@@ -80,15 +86,15 @@ trait Eval {
         )
       case f: Function => Value(f, Set())
       case FunCall(f, arg) =>
-        val Value(fVal, fWarn) = evalBigStep(f)
+        val Value(fVal, fWarn) = evalBigStep(stmData)(f)
         fVal match {
           case Function(x, body) =>
             // Leave stream inputs unevaluated
             val Value(a, aWarn) = arg.typ match {
               case _: TyStm => Value(arg, Set())
-              case _        => evalBigStep(arg)
+              case _        => evalBigStep(stmData)(arg)
             }
-            evalBigStep(body.subPreserveType(x -> a))
+            evalBigStep(stmData)(body.subPreserveType(x -> a))
               .addWarnings(aWarn ++ fWarn)
           case v =>
             throw new IllegalArgumentException(
@@ -98,7 +104,7 @@ trait Eval {
 
       case n: IntCst => Value(n, Set())
       case Sum(terms @ _*) =>
-        val termValues = terms.map(e => evalBigStep(e))
+        val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = termValues.flatMap(v => v.warnings).toSet
@@ -116,7 +122,7 @@ trait Eval {
           )
         }
       case Prod(factors @ _*) =>
-        val factorValues = factors.map(e => evalBigStep(e))
+        val factorValues = factors.map(evalBigStep(stmData))
         if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = factorValues.flatMap(v => v.warnings).toSet
@@ -134,8 +140,8 @@ trait Eval {
           )
         }
       case Div(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(e1)
-        val Value(denom, denomWarn) = evalBigStep(e2)
+        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
+        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             val v = Default.getDefault(e.typ)
@@ -148,8 +154,8 @@ trait Eval {
             )
         }
       case Mod(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(e1)
-        val Value(denom, denomWarn) = evalBigStep(e2)
+        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
+        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             val v = Default.getDefault(e.typ)
@@ -162,7 +168,7 @@ trait Eval {
             )
         }
       case s @ WrappingSum(terms @ _*) =>
-        val termValues = terms.map(e => evalBigStep(e))
+        val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = termValues.flatMap(v => v.warnings).toSet
@@ -176,8 +182,8 @@ trait Eval {
           )
         }
       case d @ WrappingDiff(e1, e2) =>
-        val Value(v1, e1Warn) = evalBigStep(e1)
-        val Value(v2, e2Warn) = evalBigStep(e2)
+        val Value(v1, e1Warn) = evalBigStep(stmData)(e1)
+        val Value(v2, e2Warn) = evalBigStep(stmData)(e2)
         (v1, v2) match {
           case (IntCst(n1), IntCst(n2)) =>
             val result = n1 - n2
@@ -190,7 +196,7 @@ trait Eval {
             )
         }
       case p @ WrappingProd(factors @ _*) =>
-        val factorValues = factors.map(e => evalBigStep(e))
+        val factorValues = factors.map(evalBigStep(stmData))
         if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = factorValues.flatMap(v => v.warnings).toSet
@@ -204,7 +210,7 @@ trait Eval {
           )
         }
       case PadTo(e, targetWidth) =>
-        val v = evalBigStep(e)
+        val v = evalBigStep(stmData)(e)
         assert(
           v.e.isInstanceOf[IntCst],
           s"argument of ${PadTo.getClass.getSimpleName} must be an integer (found ${v.e})"
@@ -219,7 +225,7 @@ trait Eval {
           case _: TyUInt => Value(v.e.rebuild(TyUInt(targetWidth)), v.warnings)
         }
       case TruncateTo(e, targetWidth) =>
-        val Value(IntCst(i), warnings) = evalBigStep(e)
+        val Value(IntCst(i), warnings) = evalBigStep(stmData)(e)
         val typ = e.typ.asInstanceOf[TyAnyInt]
         assert(
           targetWidth <= typ.w,
@@ -236,13 +242,13 @@ trait Eval {
           )
         }
       case ToSigned(e) =>
-        val v = evalBigStep(e)
+        val v = evalBigStep(stmData)(e)
         v.e.typ.asInstanceOf[TyUInt] match {
           case TyUInt(w) =>
             Value(v.e.rebuild(TySInt(w + 1)), v.warnings)
         }
       case ToUnsigned(e) =>
-        val v = evalBigStep(e)
+        val v = evalBigStep(stmData)(e)
         val i = v.e.asInstanceOf[IntCst].i
         v.e.typ.asInstanceOf[TySInt] match {
           case TySInt(w) =>
@@ -257,8 +263,8 @@ trait Eval {
             }
         }
       case LLShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(e1)
-        val Value(n2, warn2) = evalBigStep(e2)
+        val Value(n1, warn1) = evalBigStep(stmData)(e1)
+        val Value(n2, warn2) = evalBigStep(stmData)(e2)
         (n1, n2) match {
           case (IntCst(k1), IntCst(k2)) =>
             val result = truncate(k1 << k2, n1.typ.asInstanceOf[TyAnyInt])
@@ -269,8 +275,8 @@ trait Eval {
             )
         }
       case LRShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(e1)
-        val Value(n2, warn2) = evalBigStep(e2)
+        val Value(n1, warn1) = evalBigStep(stmData)(e1)
+        val Value(n2, warn2) = evalBigStep(stmData)(e2)
         (n1, n2) match {
           case (IntCst(k1), IntCst(k2)) =>
             val w = n1.typ.asInstanceOf[TyAnyInt].w
@@ -288,8 +294,8 @@ trait Eval {
 
       case c: FixCst => Value(c, Set())
       case p @ IntFixProd(e1, e2) =>
-        val Value(v1, warn1) = evalBigStep(e1)
-        val Value(v2, warn2) = evalBigStep(e2)
+        val Value(v1, warn1) = evalBigStep(stmData)(e1)
+        val Value(v2, warn2) = evalBigStep(stmData)(e2)
         (v1, v2) match {
           case (v1 @ IntCst(k), v2 @ FixCst(numer)) =>
             val result = (k * numer) >>> v2.typ.shift
@@ -305,7 +311,7 @@ trait Eval {
       case True  => Value(True, Set())
       case False => Value(False, Set())
       case Not(e) =>
-        evalBigStep(e) match {
+        evalBigStep(stmData)(e) match {
           case Value(False, w) => Value(True, w)
           case Value(True, w)  => Value(False, w)
           case v =>
@@ -318,7 +324,7 @@ trait Eval {
         //        * If any values are `False`, only keep those?
         //        * If any of the `False` values have no warnings, then discard
         //          all warnings?
-        val termValues = terms.map(e => evalBigStep(e))
+        val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == False)) {
             False
@@ -337,7 +343,7 @@ trait Eval {
         //        * If any values are `True`, only keep their warnings?
         //        * If any of the `True` values have no warnings, then discard
         //          all warnings?
-        val termValues = terms.map(e => evalBigStep(e))
+        val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == True)) {
             True
@@ -352,13 +358,13 @@ trait Eval {
           )
         }
       case Equal(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(e2)
+        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
+        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
         val result = if (areEqual(e1Val, e2Val)) True else False
         Value(result, e1Warn ++ e2Warn)
       case LessThan(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(e2)
+        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
+        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
         (e1Val, e2Val) match {
           case (IntCst(n1), IntCst(n2)) =>
             val v = if (n1 < n2) True else False
@@ -370,9 +376,9 @@ trait Eval {
         }
       case Mux(c, t, f) =>
         // Note that both branches are always evaluated!
-        val Value(cVal, cWarn) = evalBigStep(c)
-        val Value(tVal, tWarn) = evalBigStep(t)
-        val Value(fVal, fWarn) = evalBigStep(f)
+        val Value(cVal, cWarn) = evalBigStep(stmData)(c)
+        val Value(tVal, tWarn) = evalBigStep(stmData)(t)
+        val Value(fVal, fWarn) = evalBigStep(stmData)(f)
         cVal match {
           case True  => Value(tVal, cWarn ++ tWarn)
           case False => Value(fVal, cWarn ++ fWarn)
@@ -383,14 +389,14 @@ trait Eval {
         }
 
       case Tuple(elems @ _*) =>
-        val elemValues = elems.map(e => evalBigStep(e))
+        val elemValues = elems.map(evalBigStep(stmData))
         val v = Tuple(elemValues.map(v => v.e): _*)()
         val warnings = elemValues.flatMap(v => v.warnings).toSet
         Value(v, warnings)
       case TupleAccess(t, IntCst(i)) =>
         // TODO: make the warnings more accurate by somehow only taking the
         //       ones that apply to the chosen element?
-        val Value(tVal, tWarn) = evalBigStep(t)
+        val Value(tVal, tWarn) = evalBigStep(stmData)(t)
         tVal match {
           case Tuple(elems @ _*) =>
             val v = if (elems.indices.contains(i)) {
@@ -409,13 +415,13 @@ trait Eval {
 
       case vb @ VecBuild(n, f) =>
         assert(vb.typ.isInstanceOf[TyVec])
-        val Value(nVal, nWarn) = evalBigStep(n)
+        val Value(nVal, nWarn) = evalBigStep(stmData)(n)
         nVal match {
           case IntCst(n) if n >= 0 =>
             val elemValues = (0 until n.toInt).map(i => {
               val inTyp = f.param.typ
               assert(inTyp.isInstanceOf[TyUInt])
-              evalBigStep(FunCall(f, IntCst(i)(inTyp))().tchk())
+              evalBigStep(stmData)(FunCall(f, IntCst(i)(inTyp))().tchk())
             })
             val v = VecLiteral(elemValues.map(v => v.e): _*)(vb.typ)
             val warnings = nWarn ++ elemValues.flatMap(v => v.warnings).toSet
@@ -426,17 +432,17 @@ trait Eval {
             )
         }
       case VecAccess(v, i) =>
-        val Value(vVal, vWarn) = evalBigStep(v)
+        val Value(vVal, vWarn) = evalBigStep(stmData)(v)
         vVal match {
           case VecLiteral(elems @ _*) =>
-            val Value(iVal, iWarn) = evalBigStep(i)
+            val Value(iVal, iWarn) = evalBigStep(stmData)(i)
             iVal match {
               case IntCst(i) if elems.indices.contains(i) =>
                 Value(elems(i.toInt), vWarn ++ iWarn)
               case IntCst(i) =>
                 val t = v.tchk().typ.asInstanceOf[TyVec].t
                 val oobWarn = VecIndexOutOfBoundsWarning(elems.length, i)
-                evalBigStep(Default(t).lower())
+                evalBigStep(stmData)(Default(t).lower())
                   .addWarnings((vWarn ++ iWarn) + oobWarn)
               case v =>
                 throw new IllegalArgumentException(
@@ -449,22 +455,34 @@ trait Eval {
             )
         }
       case vl: VecLiteral =>
-        val elemValues = vl.elems.map(e => evalBigStep(e))
+        val elemValues = vl.elems.map(e => evalBigStep(stmData)(e))
         val v = VecLiteral(elemValues.map(v => v.e): _*)(e.typ)
         val warnings = elemValues.flatMap(v => v.warnings).toSet
         Value(v, warnings)
 
       case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
-        Value(evalPipeline(StmPipeline(s), Seq()), Set())
-      case _: StmData =>
+        Value(evalPipeline(StmPipeline(s), Seq(), invalidSteps = 0), Set())
+      case sd @ StmData(s: Param) =>
+        stmData.get(s) match {
+          case None =>
+            throw new IllegalArgumentException(
+              s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
+            )
+          case Some(None) =>
+            evalBigStep(Map())(Default(sd.typ).lower())
+              .addWarnings(Set(StmDataWithoutReady(s)))
+          case Some(Some(v)) =>
+            Value(v, Set())
+        }
+      case StmData(_) =>
         throw new IllegalArgumentException(
-          s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
+          s"Invalid use of ${StmData.getClass.getSimpleName} (non-param input)."
         )
       case StmNextK(s, k) =>
-        val Value(sVal, sWarn) = evalBigStep(s)
+        val Value(sVal, sWarn) = evalBigStep(stmData)(s)
         sVal match {
           case s: StmLiteral =>
-            val Value(kVal, kWarn) = evalBigStep(k)
+            val Value(kVal, kWarn) = evalBigStep(stmData)(k)
             kVal match {
               case IntCst(k) if k <= 0 =>
                 Value(s, sWarn ++ kWarn)

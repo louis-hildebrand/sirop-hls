@@ -185,7 +185,10 @@ case class StmBuildNode(
             && this.validInternal
         )
         if (valid) {
-          val data = eval(this.hw.data.subPreserveType(this.accAndInputs))
+          val data = eval(
+            this.hw.data.subPreserveType(this.accSubs),
+            stmData = this.stmData
+          )
           Some(data)
         } else {
           None
@@ -210,7 +213,8 @@ case class StmBuildNode(
       val newAcc = if (updateAcc) {
         this.hw.nextByDataAcc.map({ case (x, next) =>
           val evalNext = eval(
-            next.subPreserveType(this.accAndInputs),
+            next.subPreserveType(this.accSubs),
+            stmData = this.stmData,
             // Who cares if the final accumulator values invoke undefined
             // behaviour?
             // They won't be used anyway.
@@ -277,7 +281,7 @@ case class StmBuildNode(
         )
       }
       val ready =
-        eval(readyExpr.subPreserveType(this.acc.toMap[Expr, Expr])).toBool
+        eval(readyExpr.subPreserveType(this.accSubs)).toBool
       x -> ready
     })
   }
@@ -293,31 +297,34 @@ case class StmBuildNode(
     *   valid output.
     */
   private lazy val validInternal: Boolean = {
-    eval(this.hw.valid.subPreserveType(this.accAndInputs)).toBool
+    eval(
+      this.hw.valid.subPreserveType(this.accSubs),
+      stmData = this.stmData
+    ).toBool
   }
 
-  /** All substitutions for the variables that are bounds within this stream:
-    * both accumulator variables and [[StmData]].
+  private def accSubs: Map[Expr, Expr] = this.acc.toMap
+
+  /** Maps variables for input producer streams to their current output if the
+    * `ready` expression evaluates to `true` or to `None` otherwise.
     *
     * @note
     *   it is an error to access this value unless all required producers have
     *   valid output.
     */
-  private def accAndInputs: Map[Expr, Expr] = {
-    val producerData = this.hw.inputs.map({ case (x, id) =>
+  private def stmData: Map[Param, Option[Expr]] = {
+    this.hw.inputs.map({ case (x, id) =>
       if (this.requiredProducerIds.contains(id)) {
         val out = this.pipe.nodes(id).out(this.id)
         assert(
           out.nonEmpty,
           s"producer data should only be accessed when all producers are valid (attempt to read invalid producer $id)"
         )
-        StmData(x)() -> out.get
+        x -> Some(out.get)
       } else {
-        val typ = x.typ.asInstanceOf[TyStm].t
-        StmData(x)() -> Default(typ)
+        x -> None
       }
     })
-    this.acc ++ producerData
   }
 
   /** The IDs of all the nodes that must produce valid output before this node
