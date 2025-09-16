@@ -21,7 +21,8 @@ private[vhdl] object LetStmVhdl {
       inputs: Set[Param],
       name: String
   ): CustomVhdlComponent = {
-    val LetStm(_, x, in, out) = let
+    val LetStm(bufSize, x, in, out) = let
+    val IntCst(bufSizeVal) = mhir.ir.eval(bufSize)
 
     for (y <- inputs) {
       val n = Tuple(in, out)().countFreeOccurrences(y)
@@ -82,6 +83,11 @@ private[vhdl] object LetStmVhdl {
       case _ =>
         instantiateCustomConsumer(newOut, xs.map(_.name))
     }
+    val bufferComponent = instantiateBuffer(
+      bitWidth = VhdlType(producerElemTyp).bitWidth,
+      bufSize = bufSizeVal.toInt,
+      numConsumers = xs.size
+    )
 
     CustomVhdlComponent(
       expr = let,
@@ -96,7 +102,7 @@ private[vhdl] object LetStmVhdl {
       }),
       signals = signals(producerElemTyp, xs.map(_.name)),
       functions = Seq(),
-      children = Seq(producerComponent, consumerComponent)
+      children = Seq(producerComponent, bufferComponent, consumerComponent)
     )
   }
 
@@ -171,80 +177,68 @@ private[vhdl] object LetStmVhdl {
       producerElemTyp: Type,
       xs: Set[String]
   ): Seq[Signal] = {
+    val xsInOrder = if (xs.isEmpty) {
+      Seq("fake")
+    } else {
+      xs.toSeq.sorted
+    }
+    val bitWidth = VhdlType(producerElemTyp).bitWidth
     (Seq(
       Signal(
-        category = "Buffer",
-        name = "buf",
-        typ = VhdlType(producerElemTyp).toStdLogicVec,
-        assignStmt = Some("buf <= producer_data;"),
-        cond = Some("sl2bool(can_update and producer_valid)")
-      ),
-      Signal(
-        category = "Buffer",
-        name = "can_update",
-        typ = VhdlStdLogic,
-        assignStmt = {
-          val canUpdate = if (xs.isEmpty) {
-            "'1'"
-          } else {
-            xs.map(x => s"${x}_will_have_read").mkString(" and ")
-          }
-          Some(s"can_update <= $canUpdate;")
-        }
-      ),
-      Signal(
         category = "Producer to buffer",
-        name = "producer_data",
+        name = "producer_to_buf_data",
         typ = VhdlType(producerElemTyp).toStdLogicVec
       ),
       Signal(
         category = "Producer to buffer",
-        name = "producer_valid",
+        name = "producer_to_buf_valid",
         typ = VhdlStdLogic
       ),
       Signal(
         category = "Producer to buffer",
-        name = "producer_ready",
-        typ = VhdlStdLogic,
-        assignStmt = Some(s"producer_ready <= can_update;")
+        name = "producer_to_buf_ready",
+        typ = VhdlStdLogic
+      ),
+      Signal(
+        category = "Buffer to consumers",
+        name = "buf_to_consumers_data",
+        typ = VhdlStdLogicVec(bitWidth * xsInOrder.size, IndexUp)
+      ),
+      Signal(
+        category = "Buffer to consumers",
+        name = "buf_to_consumers_valid",
+        typ = VhdlStdLogicVec(xsInOrder.size, IndexUp)
+      ),
+      Signal(
+        category = "Buffer to consumers",
+        name = "buf_to_consumers_ready",
+        typ = VhdlStdLogicVec(xsInOrder.size, IndexUp),
+        assignStmt = Some({
+          val rhs = xsInOrder.zipWithIndex
+            .map({ case (x, i) => s"$i => buf_to_${x}_ready" })
+            .mkString("(", ", ", ")")
+          s"buf_to_consumers_ready <= $rhs;"
+        })
       )
     )
-      ++ xs.flatMap(x =>
+      ++ xsInOrder.zipWithIndex.flatMap({ case (x, i) =>
         Seq(
-          Signal(
-            category = "Buffer",
-            name = s"${x}_has_read",
-            typ = VhdlStdLogic,
-            init = Some("'1'"),
-            assignStmt = {
-              Some(s"""if sl2bool(can_update and producer_valid) then
-                      |    ${x}_has_read <= '0';
-                      |else
-                      |    ${x}_has_read <= ${x}_will_have_read;
-                      |end if;
-                      |""".stripMargin.stripTrailing)
-            },
-            cond = Some("true")
-          ),
-          Signal(
-            category = "Buffer",
-            name = s"${x}_will_have_read",
-            typ = VhdlStdLogic,
-            assignStmt = Some(
-              s"${x}_will_have_read <= ${x}_has_read or buf_to_${x}_ready;"
-            )
-          ),
           Signal(
             category = "Buffer to consumers",
             name = s"buf_to_${x}_data",
             typ = VhdlType(producerElemTyp).toStdLogicVec,
-            assignStmt = Some(s"buf_to_${x}_data <= buf;")
+            assignStmt = {
+              val lsb = i * bitWidth
+              val msb = lsb + bitWidth - 1
+              Some(s"buf_to_${x}_data <= buf_to_consumers_data($lsb to $msb);")
+            }
           ),
           Signal(
             category = "Buffer to consumers",
             name = s"buf_to_${x}_valid",
             typ = VhdlStdLogic,
-            assignStmt = Some(s"buf_to_${x}_valid <= not ${x}_has_read;")
+            assignStmt =
+              Some(s"buf_to_${x}_valid <= buf_to_consumers_valid($i);")
           ),
           Signal(
             category = "Buffer to consumers",
@@ -252,7 +246,7 @@ private[vhdl] object LetStmVhdl {
             typ = VhdlStdLogic
           )
         )
-      ))
+      }))
   }
 
   /** Instantiates a component for the producer that simply forwards the given
@@ -270,12 +264,12 @@ private[vhdl] object LetStmVhdl {
     val bitWidth = VhdlType(producerElemTyp).bitWidth
     val portMap = PortMap(
       Map(
-        "data_out" -> "producer_data",
-        "valid_out" -> "producer_valid",
-        "consumer_ready" -> "producer_ready",
-        "data_in" -> s"${x.name}_data",
-        "valid_in" -> s"${x.name}_valid",
-        "producer_ready" -> s"${x.name}_ready"
+        "c_data" -> "producer_to_buf_data",
+        "c_valid" -> "producer_to_buf_valid",
+        "c_ready" -> "producer_to_buf_ready",
+        "p_data" -> s"${x.name}_data",
+        "p_valid" -> s"${x.name}_valid",
+        "p_ready" -> s"${x.name}_ready"
       )
     )
     VhdlEntityInstantiation("PRODUCER", StmNoOpComponent(bitWidth), portMap)
@@ -292,9 +286,9 @@ private[vhdl] object LetStmVhdl {
     val portMap = PortMap(
       Map(
         "clk" -> "clk",
-        "data" -> "producer_data",
-        "valid" -> "producer_valid",
-        "ready" -> "producer_ready"
+        "data" -> "producer_to_buf_data",
+        "valid" -> "producer_to_buf_valid",
+        "ready" -> "producer_to_buf_ready"
       ) ++ inputs.flatMap(x =>
         Seq("data", "valid", "ready")
           .map(sig => s"${x.name}_$sig")
@@ -320,12 +314,12 @@ private[vhdl] object LetStmVhdl {
     val component = StmNoOpComponent(bitWidth)
     val portMap = PortMap(
       Map(
-        "data_out" -> "data",
-        "valid_out" -> "valid",
-        "consumer_ready" -> "ready",
-        "data_in" -> s"buf_to_${x}_data",
-        "valid_in" -> s"buf_to_${x}_valid",
-        "producer_ready" -> s"buf_to_${x}_ready"
+        "c_data" -> "data",
+        "c_valid" -> "valid",
+        "c_ready" -> "ready",
+        "p_data" -> s"buf_to_${x}_data",
+        "p_valid" -> s"buf_to_${x}_valid",
+        "p_ready" -> s"buf_to_${x}_ready"
       )
     )
     VhdlEntityInstantiation("CONSUMER", component, portMap)
@@ -370,5 +364,29 @@ private[vhdl] object LetStmVhdl {
       })
     )
     VhdlEntityInstantiation("CONSUMER", component, portMap)
+  }
+
+  private def instantiateBuffer(
+      bitWidth: Int,
+      bufSize: Int,
+      numConsumers: Int
+  ): VhdlEntityInstantiation = {
+    val component = LetStmBufComponent(
+      bitWidth = bitWidth,
+      bufSize = bufSize,
+      numConsumers = math.max(1, numConsumers)
+    )
+    val portMap = PortMap(
+      Map(
+        "clk" -> "clk",
+        "p_data" -> "producer_to_buf_data",
+        "p_valid" -> "producer_to_buf_valid",
+        "p_ready" -> "producer_to_buf_ready",
+        "c_data" -> "buf_to_consumers_data",
+        "c_valid" -> "buf_to_consumers_valid",
+        "c_ready" -> "buf_to_consumers_ready"
+      )
+    )
+    VhdlEntityInstantiation("BUF", component, portMap)
   }
 }

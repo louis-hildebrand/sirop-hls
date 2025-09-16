@@ -1,6 +1,5 @@
 package mhir.ir
 
-import com.typesafe.scalalogging.Logger
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.StmMap
 

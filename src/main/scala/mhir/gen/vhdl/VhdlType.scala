@@ -3,6 +3,10 @@ package mhir.gen.vhdl
 import mhir.debug.indent
 import mhir.ir._
 
+private[vhdl] sealed trait IndexDirection
+private[vhdl] object IndexUp extends IndexDirection
+private[vhdl] object IndexDown extends IndexDirection
+
 private[vhdl] sealed trait VhdlType {
 
   /** The VHDL code used to <i>refer to</i> this type, e.g., in signal
@@ -106,8 +110,18 @@ private[vhdl] case object VhdlStdLogic extends VhdlType {
   override def bitWidth: Int = 1
 }
 
-private[vhdl] case class VhdlStdLogicVec(n: Int) extends VhdlType {
-  override def vhdlName: String = s"std_logic_vector(${n - 1} downto 0)"
+private[vhdl] case class VhdlStdLogicVec(
+    n: Int,
+    direction: IndexDirection = IndexDown
+) extends VhdlType {
+  override def vhdlName: String = {
+    this.direction match {
+      case IndexUp =>
+        s"std_logic_vector(0 to ${n - 1})"
+      case IndexDown =>
+        s"std_logic_vector(${n - 1} downto 0)"
+    }
+  }
   override def vhdlTypeMark: String = "std_logic_vector"
 
   override def vhdlDefinition: Option[String] = None

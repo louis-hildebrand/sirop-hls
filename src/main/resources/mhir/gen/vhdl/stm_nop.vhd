@@ -9,18 +9,18 @@ generic (
     BIT_WIDTH : integer);
 port (
     -- Handshake with consumer
-    data_out       : out std_logic_vector(BIT_WIDTH - 1 downto 0);
-    valid_out      : out std_logic;
-    consumer_ready : in  std_logic;
+    c_data  : out std_logic_vector(BIT_WIDTH - 1 downto 0);
+    c_valid : out std_logic;
+    c_ready : in  std_logic;
     -- Handshake with producer
-    data_in        : in  std_logic_vector(BIT_WIDTH - 1 downto 0);
-    valid_in       : in  std_logic;
-    producer_ready : out std_logic);
+    p_data  : in  std_logic_vector(BIT_WIDTH - 1 downto 0);
+    p_valid : in  std_logic;
+    p_ready : out std_logic);
 end stm_nop;
 
 architecture arch of stm_nop is
 begin
-    data_out <= data_in;
-    valid_out <= valid_in;
-    producer_ready <= consumer_ready;
+    c_data <= p_data;
+    c_valid <= p_valid;
+    p_ready <= c_ready;
 end arch;
