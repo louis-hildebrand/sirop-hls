@@ -101,9 +101,14 @@ object SimpleAreaCostModel {
           s.equations
             .map({ case (_, (z, next)) => cost(sv)(z) + cost(sv)(next) })
             .foldLeft(AreaCost.Zero)(_ + _)
-      case LetStm(x, in, out) =>
+      case LetStm(IntCst(bufSize), x, in, out) =>
+        val bitWidth = BitWidth(x.typ.asInstanceOf[TyStm].t)
         (cost(sv)(in) + cost(sv)(out)
-          + AreaCost(BitWidth(x.typ.asInstanceOf[TyStm].t), 0, 0))
+          + AreaCost(bufSize * bitWidth, bufSize * bitWidth, 0))
+      case LetStm(bufSize, _, _, _) =>
+        throw new IllegalArgumentException(
+          s"Cannot compute cost for LetStm with non-constant buffer size $bufSize"
+        )
       case _: StmData                             => AreaCost(0, 0, 0)
       case VecBuild(IntCst(n), Function(i, body)) => cost(sv + i)(body) * n
       case VecBuild(n, _) =>

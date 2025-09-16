@@ -135,11 +135,11 @@ class SubstitutionTests extends AnyFunSuite {
     val n = 10
     val x = Param("x")(TyStm(U8, n))
     val y = Param("y")(TyStm(U8, n))
-    val e = LetStm(x, x, StmConcat(x, y)())()
+    val e = LetStm(1, x, x, StmConcat(x, y)())()
     val subs = Map[Expr, Expr](y -> x)
     val expected = {
       val z = Param("z")(TyStm(U8, n))
-      LetStm(z, x, StmConcat(z, x)())()
+      LetStm(1, z, x, StmConcat(z, x)())()
     }
 
     val actual0 = e.subPreserveType(subs)
@@ -154,9 +154,9 @@ class SubstitutionTests extends AnyFunSuite {
     val x = Param("x")(TyStm(U8, n))
     val y = Param("y")(TyStm(U8, n))
     val z = Param("z")(TyStm(U8, n))
-    val e = LetStm(x, x, StmConcat(x, y)())()
+    val e = LetStm(1, x, x, StmConcat(x, y)())()
     val subs = Map[Expr, Expr](x -> z)
-    val expected = LetStm(x, z, StmConcat(x, y)())()
+    val expected = LetStm(1, x, z, StmConcat(x, y)())()
 
     val actual0 = e.subPreserveType(subs)
     assert(actual0 == expected)
@@ -191,7 +191,7 @@ class SubstitutionTests extends AnyFunSuite {
             s1Var -> (a, True)
           )
         )()
-        LetStm(nextX, map2, after(nextX, numAfter))()
+        LetStm(1, nextX, map2, after(nextX, numAfter))()
       } else {
         val nextX = Param("x")(TyStm(U16, n))
         val sVar = Param("s")(TyStm(U16, -1))
@@ -201,7 +201,7 @@ class SubstitutionTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](sVar -> (x, True))
         )()
-        LetStm(nextX, map, before(nextX, a, numBefore - 1, numAfter))()
+        LetStm(1, nextX, map, before(nextX, a, numBefore - 1, numAfter))()
       }
     }
     def after(x: Param, numAfter: Int): Expr = {
@@ -216,7 +216,7 @@ class SubstitutionTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](sVar -> (x, True))
         )()
-        LetStm(nextX, map, after(nextX, numAfter - 1))()
+        LetStm(1, nextX, map, after(nextX, numAfter - 1))()
       }
     }
     val a = Param("a")(TyStm(U16, n))
@@ -230,6 +230,21 @@ class SubstitutionTests extends AnyFunSuite {
     assert(actual0.typ == original.typ)
 
     original.subAndEraseType(a -> b)
+  }
+
+  test("Substitute:LetStm:InBufSize") {
+    val n = Param("n")(U8)
+    val x = Param("x")(TyStm(U8, n))
+    val s0 = Param("s0")(TyStm(U8, n))
+    val s1 = Param("s1")(TyStm(U8, n))
+    val original = LetStm(n, x, s0, s1)().tchk()
+    val expected = LetStm(C(10)(U8), x, s0, s1)().tchk()
+
+    val actual0 = original.subPreserveType(n -> C(10)(U8))
+    assert(actual0 == expected)
+
+    val actual1 = original.subAndEraseType(n -> C(10)(U8))
+    assert(actual1 == expected)
   }
 
   test("SubstituteInType1") {

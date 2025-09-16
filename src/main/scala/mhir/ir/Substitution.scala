@@ -64,7 +64,7 @@ private[ir] trait Substitution {
                     body.subPreserveType(newSubs)
                   )(f.typ)
                 }
-              case let @ LetStm(x, in, out) =>
+              case let @ LetStm(bufSize, x, in, out) =>
                 time(s"performing subs $subs in let $x = ...") {
                   val wouldCapture = subs.exists({ case (_, rhs) =>
                     rhs.freeVars().contains(x)
@@ -79,6 +79,8 @@ private[ir] trait Substitution {
                       .++(if (x == newX) Seq() else Seq(x -> newX))
                   }
                   LetStm(
+                    // `x` is not bound here, so use the old subs
+                    bufSize.subPreserveType(subs),
                     // There may be substitutions to do within the type annotation
                     Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
                     // `x` is not bound here, so use the old subs
@@ -201,7 +203,7 @@ private[ir] trait Substitution {
                   Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
                   body.subAndEraseType(newSubs)
                 )()
-              case LetStm(x, in, out) =>
+              case LetStm(bufSize, x, in, out) =>
                 val wouldCapture = subs.exists({ case (_, rhs) =>
                   rhs.freeVars().contains(x)
                 })
@@ -215,6 +217,8 @@ private[ir] trait Substitution {
                     .++(if (x == newX) Seq() else Seq(x -> newX))
                 }
                 LetStm(
+                  // `x` is not bound here, so use the old subs
+                  bufSize.subAndEraseType(subs),
                   // There may be substitutions to do within the type annotation
                   Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
                   // `x` is not bound here, so use the old subs

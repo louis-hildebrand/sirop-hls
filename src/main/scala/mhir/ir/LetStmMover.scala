@@ -59,10 +59,12 @@ object LetStmMover {
             .map(_._1)
           x match {
             case Some(x) =>
-              val LetStm(y, in, out) = s.seedByVar(x).asInstanceOf[LetStm]
+              val LetStm(bufSize, y, in, out) =
+                s.seedByVar(x).asInstanceOf[LetStm]
               val newY = y.freshCopy
               val newOut = out.tchk().subPreserveType(y -> newY)
               LetStm(
+                bufSize,
                 newY,
                 in,
                 pullOutLet(
@@ -98,18 +100,29 @@ object LetStmMover {
             })
           )()
         pullOutLet(withTransformedProducers)
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
         def pullOutLet(let: LetStm): Expr = {
           let match {
-            case LetStm(x, LetStm(y, innerIn, innerOut), out) =>
+            case LetStm(
+                  xBufSize,
+                  x,
+                  LetStm(yBufSize, y, innerIn, innerOut),
+                  out
+                ) =>
               val newY = y.freshCopy
               val newInnerOut = innerOut.tchk().subPreserveType(y -> newY)
-              LetStm(newY, innerIn, pullOutLet(LetStm(x, newInnerOut, out)()))()
+              LetStm(
+                yBufSize,
+                newY,
+                innerIn,
+                pullOutLet(LetStm(xBufSize, x, newInnerOut, out)())
+              )()
             case let =>
               let
           }
         }
-        val withTransformedChildren = LetStm(x, moveUp(in), moveUp(out))()
+        val withTransformedChildren =
+          LetStm(bufSize, x, moveUp(in), moveUp(out))()
         pullOutLet(withTransformedChildren)
       case e =>
         e.map(moveUp)
@@ -152,7 +165,7 @@ object LetStmMover {
     )
     def move(e: Expr): Expr = {
       e match {
-        case LetStm(x, in, out) =>
+        case LetStm(bufSize, x, in, out) =>
           def pullOutStmBuild(let: LetStm): Expr = {
             let.out match {
               case s: StmBuild =>
@@ -169,7 +182,9 @@ object LetStmMover {
                           if y.typ.isInstanceOf[TyStm]
                             && z.freeVars().contains(x) =>
                         y -> (
-                          pullOutStmBuild(LetStm(let.x, let.in, z)()),
+                          pullOutStmBuild(
+                            LetStm(let.bufSize, let.x, let.in, z)()
+                          ),
                           ready
                         )
                       case eqn => eqn
@@ -181,7 +196,8 @@ object LetStmMover {
               case _ => let
             }
           }
-          val withTransformedChildren = LetStm(x, move(in), move(out))()
+          val withTransformedChildren =
+            LetStm(bufSize, x, move(in), move(out))()
           pullOutStmBuild(withTransformedChildren)
         case e => e.map(move)
       }

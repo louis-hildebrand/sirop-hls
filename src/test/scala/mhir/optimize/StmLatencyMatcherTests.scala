@@ -91,7 +91,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(s, count, delay)().tchk().lower()
+      LetStm(1, s, count, delay)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
 
@@ -160,7 +160,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(sA, count, LetStm(sB, plusFive, zip)())().tchk().lower()
+      LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
 
@@ -258,7 +258,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(s, count, zip)().tchk().lower()
+      LetStm(1, s, count, zip)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
 
@@ -401,7 +401,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      LetStm(s1, LetStm(s0, count, zip)(), s1)().tchk().lower()
+      LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
 

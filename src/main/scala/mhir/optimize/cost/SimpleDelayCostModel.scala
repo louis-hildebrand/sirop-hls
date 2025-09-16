@@ -80,7 +80,7 @@ object SimpleDelayCostModel {
               cost(staticVars)(next)
           })
           .toSeq).max
-      case LetStm(_, in, out) =>
+      case LetStm(_, _, in, out) =>
         math.max(cost(staticVars)(in), cost(staticVars)(out))
       case _: StmData                     => 0
       case VecBuild(_, Function(i, body)) => cost(staticVars + i)(body)

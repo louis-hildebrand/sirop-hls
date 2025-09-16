@@ -391,7 +391,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("my_input", -1)(TyStm(U8, n))
     val s0 = Param("s0")(TyStm(U8, n))
     val zip = StmZip(s0, s)().tchk().lower()
-    val f = Function(s, LetStm(s0, s, zip)())().tchk().asInstanceOf[Function]
+    val f = Function(s, LetStm(1, s0, s, zip)())().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
@@ -405,7 +405,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("s")(TyStm(I16, 6))
     val x = Param("x")(TyStm(I16, 6))
     val f =
-      Function(s, LetStm(x, s, StmZip(x, StmZip(x, x)())())())().tchk().lower()
+      Function(s, LetStm(1, x, s, StmZip(x, StmZip(x, x)())())())()
+        .tchk()
+        .lower()
     val inputs = Seq(
       DirectTestInput(
         Seq(
@@ -428,7 +430,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
+        LetStm(1, x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
       )().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
@@ -451,7 +453,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("s")(TyStm(I16, 6))
     val x = Param("x")(TyStm(U32, 10))
     val f =
-      Function(s, LetStm(x, StmCount(C(10)(U32))(), s)())().tchk().lower()
+      Function(s, LetStm(1, x, StmCount(C(10)(U32))(), s)())().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
         Seq(
@@ -474,7 +476,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
+        LetStm(1, idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
       )().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
@@ -493,6 +495,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       Function(
         s,
         LetStm(
+          1,
           x,
           StmCount(C(10)(U8))(),
           StmMap(x, U8 ::+ (y => y % 2 === 0))()
@@ -511,7 +514,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val plusFive = StmMap(s, U8 ::+ (x => x + C(5)(U8)))().tchk()
     val e = stmSimplifier.simplify(
       StmMap(
-        LetStm(s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
+        LetStm(1, s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
         (U8, U8) ::+ (x => Tuple(x.__0, x.__1, C(3)(U8) * x.__0 + x.__1)())
       )().tchk().lower()
     )

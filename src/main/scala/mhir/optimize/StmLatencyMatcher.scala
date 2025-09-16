@@ -59,13 +59,16 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             valid = s.valid,
             equations = newEquations
           )()
-        case LetStm(x, in, out) =>
-          val in1 = matchLatencies(in)
-          val out1 = matchLatencies(out)
+        case LetStm(_, x, in, out) =>
+          val in1 = matchLatencies(in).tchk()
+          val out1 = matchLatencies(out).tchk()
           latencyOfLongestPath(x, out1) match {
             case Some(lat) =>
               val out2 = increaseLatencyTo(out1, x, lat)
-              LetStm(x, in1, out2)()
+              // Changing the latencies may actually increase the required
+              // buffer size, so reset it to the max value.
+              val TyStm(_, n) = in1.typ
+              LetStm(n, x, in1, out2)()
             case None => e
           }
         case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
@@ -102,7 +105,7 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
               Some(latencyOfLongestPath(src, x, s).map(math.max(lat1, _)))
           })
           .get // There must be at least one path containing `src`
-      case LetStm(x, in, out) =>
+      case LetStm(_, x, in, out) =>
         if (in.freeVars().contains(src)) {
           // (1) Latency from `src` to `in` plus latency from `x` to `out`
           latencyOfLongestPath(src, in)
@@ -231,7 +234,7 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             valid = s.valid,
             equations = newEquations
           )()
-        case LetStm(x, in, out) =>
+        case LetStm(_, x, in, out) =>
           val newIn = latencyOfLongestPath(x, out) match {
             case Some(lat) =>
               increaseLatencyTo(in, src, targetLatency - lat - 1)
@@ -239,7 +242,8 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
               in
           }
           val newOut = increaseLatencyTo(out, src, targetLatency)
-          LetStm(x, newIn, newOut)()
+          val TyStm(_, n) = in.typ
+          LetStm(n, x, newIn, newOut)()
         case _ =>
           ???
       }

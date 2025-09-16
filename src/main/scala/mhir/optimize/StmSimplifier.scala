@@ -61,10 +61,10 @@ case class EnabledStmSimplifier(
         })
         val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
         stmBuildSimplifier.simplify(newS)(facts)
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
         val newIn = simplifyStreams(in)
         val newOut = simplifyStreams(out)
-        letStmSimplifier.simplify(LetStm(x, newIn, newOut)())
+        letStmSimplifier.simplify(LetStm(bufSize, x, newIn, newOut)())
       case e =>
         e.map(simplifyStreams)
     }

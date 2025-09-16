@@ -158,7 +158,8 @@ object StmPipeline {
           newSink.hw.inputs.map({ case (_, id) => id -> newSink.id }).toSeq: _*
         )
         pipe.sinkId = newSink.id
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
+        // TODO: Use bufSize
         init(pipe, in, idByVar)
         val newNode =
           LetStmNode(

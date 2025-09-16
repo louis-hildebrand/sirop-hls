@@ -10,7 +10,7 @@ class LetStmMoverTests extends AnyFunSuite {
     val n = 10
     val input = Param("input")(TyStm(U8, n))
     val s = Param("s")(TyStm(U8, n))
-    val lets = LetStm(s, input, LetStm(s, s, s)())()
+    val lets = LetStm(1, s, input, LetStm(1, s, s, s)())()
     val top = StmBuild(
       n,
       C(5)(U8) + StmData(s)(),
@@ -21,9 +21,11 @@ class LetStmMoverTests extends AnyFunSuite {
     )().tchk().lower()
     val actual = LetStmMover.moveUp(top)
     val expected = LetStm(
+      1,
       s,
       input,
       LetStm(
+        1,
         s,
         s,
         StmBuild(
@@ -60,16 +62,23 @@ class LetStmMoverTests extends AnyFunSuite {
     }
     val e =
       LetStm(
+        1,
         s,
-        LetStm(s, input, LetStm(s, s, zipped(TyBool))())(),
+        LetStm(1, s, input, LetStm(1, s, s, zipped(TyBool))())(),
         zipped((TyBool, TyBool))
       )().tchk().lower()
     val actual = LetStmMover.moveUp(e)
     val expected =
       LetStm(
+        1,
         s,
         input,
-        LetStm(s, s, LetStm(s, zipped(TyBool), zipped((TyBool, TyBool)))())()
+        LetStm(
+          1,
+          s,
+          s,
+          LetStm(1, s, zipped(TyBool), zipped((TyBool, TyBool)))()
+        )()
       )().tchk()
     assert(actual == expected)
   }
@@ -103,12 +112,13 @@ class LetStmMoverTests extends AnyFunSuite {
         )
       )()
     }
-    val original = LetStm(a, LetStm(b, count, b)(), zipped)().tchk().lower()
+    val original =
+      LetStm(1, a, LetStm(1, b, count, b)(), zipped)().tchk().lower()
     val actual = LetStmMover.moveUp(original)
     val expected = {
       // Rename the bound variable, but not the one inside `zipped`
       val b2 = Param("b")(TyStm(U8, n))
-      LetStm(b2, count, LetStm(a, b2, zipped)())().tchk()
+      LetStm(1, b2, count, LetStm(1, a, b2, zipped)())().tchk()
     }
     assert(actual == expected)
   }
@@ -135,7 +145,7 @@ class LetStmMoverTests extends AnyFunSuite {
       Tuple(StmData(s0)(), StmData(s1)())(),
       True,
       Map[Param, (Expr, Expr)](
-        s0 -> (LetStm(b, count, b)(), True),
+        s0 -> (LetStm(1, b, count, b)(), True),
         s1 -> (b.rebuild(TyStm(TyBool, n)), True)
       )
     )().tchk().lower()
@@ -143,6 +153,7 @@ class LetStmMoverTests extends AnyFunSuite {
     val expected = {
       val b2 = Param("b")()
       LetStm(
+        1,
         b2,
         count,
         StmBuild(
@@ -222,7 +233,7 @@ class LetStmMoverTests extends AnyFunSuite {
     }
     val original = {
       val s = Param("s")(TyStm(U16, n))
-      LetStm(s, count, dot(zipSelf(s)))().tchk().lower()
+      LetStm(1, s, count, dot(zipSelf(s)))().tchk().lower()
     }
     val actual = LetStmMover.moveDown(original)
 
@@ -234,7 +245,7 @@ class LetStmMoverTests extends AnyFunSuite {
     // Expected value
     val expected = {
       val s = Param("s")(TyStm(U16, n))
-      dot(LetStm(s, count, zipSelf(s))()).tchk().lower()
+      dot(LetStm(1, s, count, zipSelf(s))()).tchk().lower()
     }
     assert(actual == expected)
   }

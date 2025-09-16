@@ -14,7 +14,7 @@ class StmSimplifierTests extends AnyFunSuite {
     val count = simplifier.simplify(StmCount(C(42)(U8))().tchk().lower())
     val e = {
       val s = Param("s")()
-      LetStm(s, StmCount(C(10)(U8))(), count)().tchk().lower()
+      LetStm(1, s, StmCount(C(10)(U8))(), count)().tchk().lower()
     }
     val actual = simplifier.simplify(e)
     assert(actual == count)
@@ -24,8 +24,19 @@ class StmSimplifierTests extends AnyFunSuite {
     val count = StmCount(C(10)(U8))().tchk().lower()
     val s = Param("s")(TyStm(U8, 10))
     val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower()
-    val e = LetStm(s, count, map)().tchk().lower()
-    val expected = simplifier.simplify(map.subPreserveType(s -> count))
+    val e = LetStm(1, s, count, map)().tchk().lower()
+    val expected = {
+      val delayedCount = {
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          10,
+          StmData(s)(),
+          True,
+          Map[Param, (Expr, Expr)](s -> (count, True))
+        )().tchk()
+      }
+      simplifier.simplify(map.subPreserveType(s -> delayedCount))
+    }
     val actual = simplifier.simplify(e)
     assert(actual == expected)
   }
@@ -35,7 +46,7 @@ class StmSimplifierTests extends AnyFunSuite {
     val s1 = Param("s1")(TyStm(U8, 10))
     val zipped =
       simplifier.simplify(StmZip(s1, StmMap(s1, U8 ::+ (x => x + 5))())())
-    val e = LetStm(s1, s0, zipped)()
+    val e = LetStm(1, s1, s0, zipped)()
     val expected = e
     val actual = simplifier.simplify(e)
     assert(actual == expected)

@@ -317,8 +317,9 @@ case class StmReset(
           })
         )().tchk()
         result
-      case LetStm(x, in, out) =>
-        LetStm(x, addCountersAndReset(in), addCountersAndReset(out))().tchk()
+      case LetStm(bufSize, x, in, out) =>
+        LetStm(bufSize, x, addCountersAndReset(in), addCountersAndReset(out))()
+          .tchk()
       case _ =>
         ???
     }
@@ -345,9 +346,10 @@ case class StmReset(
             case eqn => eqn
           })
         )()
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
         val TyStm(t, n) = x.typ
         LetStm(
+          SafeProd(this.n, bufSize)(),
           x.rebuild(TyStm(t, SafeProd(this.n, n)())).asInstanceOf[Param],
           multiplyLengths(in, inputStreams),
           multiplyLengths(out, inputStreams + x)
@@ -371,8 +373,9 @@ case class StmReset(
         // iteration* of this StmReset.
         // Therefore, they must be repeated.
         StmJoin(StmRepeat(x, n)())().tchk().lower()
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
         LetStm(
+          bufSize,
           x,
           repeatExternalInputs(in, inputStreams),
           repeatExternalInputs(out, inputStreams + x)

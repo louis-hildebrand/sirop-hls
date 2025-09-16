@@ -404,7 +404,7 @@ class TypecheckerTests extends AnyFunSuite {
           s2 -> (x, True)
         )
       )()
-      LetStm(x, s, zipped)()
+      LetStm(1, x, s, zipped)()
     }
     assert(let.tchk().typ == TyStm((U8, U8), 10))
   }

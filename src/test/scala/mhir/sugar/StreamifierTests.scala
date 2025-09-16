@@ -32,7 +32,7 @@ class StreamifierTests extends AnyFunSuite {
       (StmLiteral(C(99)(U8))(), StmLiteral(C(141)(U8))())
     )
     for ((in, out) <- examples) {
-      val actualVal = mhir.ir.eval(LetStm(actual.param, in, actual.body)())
+      val actualVal = mhir.ir.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
     VhdlGenerator.validateExpr(actual)
@@ -54,7 +54,7 @@ class StreamifierTests extends AnyFunSuite {
       val in1Stm = StmLiteral(C(in1)(I16))()
       val in2Stm = StmLiteral(C(in2)(I16))()
       val actualVal =
-        mhir.ir.eval(LetStm(x1, in1Stm, LetStm(x2, in2Stm, body)())())
+        mhir.ir.eval(LetStm(1, x1, in1Stm, LetStm(1, x2, in2Stm, body)())())
       val expectedVal = StmLiteral(C(out)(I16))()
       assert(actualVal == expectedVal)
     }
@@ -90,7 +90,7 @@ class StreamifierTests extends AnyFunSuite {
       )
     )
     for ((in, out) <- examples) {
-      val actualVal = mhir.ir.eval(LetStm(actual.param, in, actual.body)())
+      val actualVal = mhir.ir.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
     VhdlGenerator.validateExpr(actual)
@@ -148,7 +148,7 @@ class StreamifierTests extends AnyFunSuite {
     val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
     for (c <- examples) {
       val cStm = StmLiteral(c)()
-      val actualVal = mhir.ir.eval(LetStm(actual.param, cStm, actual.body)())
+      val actualVal = mhir.ir.eval(LetStm(1, actual.param, cStm, actual.body)())
       val expectedVal = mhir.ir.eval(f(c))
       assert(actualVal == expectedVal)
     }
@@ -200,7 +200,7 @@ class StreamifierTests extends AnyFunSuite {
     val examples = Seq(0, 42, 200).map(C(_)(U8))
     for (c <- examples) {
       val cStm = StmLiteral(c)()
-      val actualVal = mhir.ir.eval(LetStm(actual.param, cStm, actual.body)())
+      val actualVal = mhir.ir.eval(LetStm(1, actual.param, cStm, actual.body)())
       val expectedVal = mhir.ir.eval(f(c))
       assert(actualVal == expectedVal)
     }
@@ -247,7 +247,7 @@ class StreamifierTests extends AnyFunSuite {
           )
         )()
       }
-      Function(c, LetStm(c, c, concat)())().tchk().lower()
+      Function(c, LetStm(1, c, c, concat)())().tchk().lower()
     }
     assert(actual == expected)
 
@@ -356,9 +356,11 @@ class StreamifierTests extends AnyFunSuite {
       (U16 ::+ (c =>
         TyStm(I8, n) ::+ (s =>
           LetStm(
+            1,
             zippedOnce,
             StmZip(s, StmCst(n, c)())(),
             LetStm(
+              1,
               zippedTwice,
               StmZip(zippedOnce, StmRange(n, c, C(1)(U16))())(),
               zippedTwice

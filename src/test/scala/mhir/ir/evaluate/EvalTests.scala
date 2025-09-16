@@ -506,7 +506,7 @@ class EvalTests extends AnyFunSuite {
         )
       )()
     }
-    val e = LetStm(s, count, zipped)().tchk()
+    val e = LetStm(1, s, count, zipped)().tchk()
     val expected = StmLiteral(
       Tuple(C(0)(U8), C(0)(U8))(),
       Tuple(C(1)(U8), C(1)(U8))(),
@@ -570,7 +570,7 @@ class EvalTests extends AnyFunSuite {
         )(),
         True,
         Map[Param, (Expr, Expr)](
-          a -> (LetStm(s, count, zipped)(), True)
+          a -> (LetStm(1, s, count, zipped)(), True)
         )
       )().tchk()
     }
@@ -615,7 +615,7 @@ class EvalTests extends AnyFunSuite {
         )
       )()
     }
-    val e = LetStm(s, count, concat)().tchk()
+    val e = LetStm(1, s, count, concat)().tchk()
     val exc = intercept[DeadlockError](mhir.ir.eval(e))
     assert(exc.reasons == Seq(PipelineFixpoint))
   }

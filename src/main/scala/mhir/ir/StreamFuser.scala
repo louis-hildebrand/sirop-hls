@@ -74,7 +74,7 @@ object StreamFuser {
     @tailrec
     private def inlineAndFuse(stm: Expr): StmBuild = {
       stm match {
-        case LetStm(x, in, out) =>
+        case LetStm(_, x, in, out) =>
           inlineAndFuse(out.subPreserveType(x -> in))
         case s: StmBuild =>
           s.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {

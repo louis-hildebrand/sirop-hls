@@ -211,7 +211,7 @@ class TracerTests extends AnyFunSuite {
           acc,
           True,
           Map[Param, (Expr, Expr)](
-            sAcc -> (LetStm(s, count, zipped)(), True),
+            sAcc -> (LetStm(1, s, count, zipped)(), True),
             acc -> (
               Tuple(C(0)(U16), C(1)(U16))(),
               Tuple(

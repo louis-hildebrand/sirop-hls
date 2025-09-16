@@ -109,7 +109,7 @@ class SugarTests extends AnyFunSuite {
     }
     val let = Let(x, s, zipped)()
     val actual = let.tchk().lower()
-    val expected = LetStm(x, s, zipped)()
+    val expected = LetStm(1, x, s, zipped)()
     assert(actual == expected)
   }
 

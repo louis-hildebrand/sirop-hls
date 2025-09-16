@@ -1,6 +1,5 @@
 package mhir.optimize
 
-import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -22,12 +21,24 @@ object EnabledLetStmSimplifier extends LetStmSimplifier {
 
   def simplify(let: LetStm): Expr = {
     let.tchk().asInstanceOf[LetStm] match {
-      case let @ LetStm(x, in, out) =>
+      case let @ LetStm(_, x, in, out) =>
         val numUses = out.countFreeOccurrences(x)
         if (numUses <= 0) {
           out
         } else if (numUses <= 1) {
-          out.subPreserveType(x -> in)
+          // Add one cycle of latency so as not to introduce or worsen a latency
+          // mismatch between this part of the pipeline and another part
+          val nop = {
+            val TyStm(typ, n) = in.typ
+            val s = Param("s")(TyStm(typ, -1))
+            StmBuild(
+              n,
+              StmData(s)(),
+              True,
+              Map[Param, (Expr, Expr)](s -> (in, True))
+            )().tchk()
+          }
+          out.subPreserveType(x -> nop)
         } else {
           let
         }
@@ -36,8 +47,8 @@ object EnabledLetStmSimplifier extends LetStmSimplifier {
 
   def simplifyAll(expr: Expr): Expr = {
     val result = expr match {
-      case LetStm(x, in, out) =>
-        simplify(LetStm(x, simplifyAll(in), simplifyAll(out))())
+      case LetStm(bufSize, x, in, out) =>
+        simplify(LetStm(bufSize, x, simplifyAll(in), simplifyAll(out))())
       case e => e.map(simplifyAll)
     }
     result.tchk()

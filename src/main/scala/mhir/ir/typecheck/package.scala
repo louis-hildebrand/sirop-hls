@@ -476,7 +476,8 @@ package object typecheck {
                 s"Argument of ${StmData.getClass.getSimpleName} has type $t."
               )
           }
-        case let @ LetStm(x, in, out) =>
+        case let @ LetStm(bufSize, x, in, out) =>
+          val newBufSize = bufSize.tchk.expectUInt()
           val newIn = in.tchk
           val newX = x.typ match {
             case Missing =>
@@ -491,7 +492,7 @@ package object typecheck {
               }
           }
           val newOut = out.tchk(context + (newX -> newIn.typ))
-          let.rebuild(newOut.typ, Seq(newX, newIn, newOut))
+          let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
         case sn @ StmNextK(s, k) =>
           val newK = k.tchk
           newK.typ match {

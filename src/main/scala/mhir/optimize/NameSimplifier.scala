@@ -49,13 +49,14 @@ object NameSimplifier {
           } else {
             Function(newX, simplify(body.subPreserveType(x -> newX)))()
           }
-        case LetStm(x, in, out) =>
+        case LetStm(bufSize, x, in, out) =>
           val newX = Param(x.prefix, -1)(x.typ)
           if (out.freeVars().contains(newX)) {
             // Play it safe and don't rename
-            LetStm(x, simplify(in), simplify(out))()
+            LetStm(simplify(bufSize), x, simplify(in), simplify(out))()
           } else {
             LetStm(
+              simplify(bufSize),
               newX,
               simplify(in),
               simplify(out.subPreserveType(x -> newX))

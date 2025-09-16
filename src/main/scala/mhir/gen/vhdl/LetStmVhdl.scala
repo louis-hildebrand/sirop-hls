@@ -21,7 +21,7 @@ private[vhdl] object LetStmVhdl {
       inputs: Set[Param],
       name: String
   ): CustomVhdlComponent = {
-    val LetStm(x, in, out) = let
+    val LetStm(_, x, in, out) = let
 
     for (y <- inputs) {
       val n = Tuple(in, out)().countFreeOccurrences(y)
@@ -125,7 +125,7 @@ private[vhdl] object LetStmVhdl {
         (Set(newX), newX)
       case Function(y, _) if y == x =>
         (Set[Param](), expr)
-      case LetStm(y, _, _) if y == x =>
+      case LetStm(_, y, _, _) if y == x =>
         (Set[Param](), expr)
       case s: StmBuild if s.accVars.contains(x) =>
         (Set[Param](), expr)
