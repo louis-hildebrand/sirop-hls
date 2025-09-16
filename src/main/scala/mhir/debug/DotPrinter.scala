@@ -115,7 +115,7 @@ object DotPrinter {
       id: StmNodeId,
       node: LetStmTraceNode
   ): String = {
-    val data = node.data.map(_.toString()).getOrElse("-")
+    val data = node.data.map(_.toString()).mkString("|")
     s"""$id [shape="Mrecord", label="$data"];"""
   }
 

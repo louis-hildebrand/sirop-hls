@@ -87,7 +87,7 @@ object StmBuildTraceNode {
   *   the current value in the buffer.
   */
 case class LetStmTraceNode(
-    data: Option[Expr],
+    data: Array[Expr],
     out: Map[StmNodeId, Expr],
     ready: Set[StmNodeId]
 ) extends TraceNode
@@ -100,7 +100,11 @@ object LetStmTraceNode {
     */
   def apply(s: LetStmNode): LetStmTraceNode = {
     new LetStmTraceNode(
-      data = s.data,
+      data = if (s.head >= s.tail) {
+        s.data.slice(s.tail, s.head)
+      } else {
+        s.data.slice(s.tail, s.data.length) ++ s.data.slice(0, s.head)
+      },
       out = s.consumerIds
         .flatMap(id =>
           s.out(id) match {

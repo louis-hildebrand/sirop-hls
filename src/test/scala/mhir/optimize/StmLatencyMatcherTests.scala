@@ -345,7 +345,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      Let(x, count, zipped)().tchk().lower()
+      LetStm(1, x, count, zipped)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
 

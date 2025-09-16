@@ -112,11 +112,13 @@ object StmPipeline {
     // LetStmNodes are.
     pipe.nodes = pipe.nodes.map({
       case (id, s: LetStmNode) =>
-        val newNode = LetStmNode(
+        val newNode = new LetStmNode(
           pipe = pipe,
           id = s.id,
           data = s.data,
-          consumersWhoRead = s.consumerIds,
+          tail = s.tail,
+          head = s.head,
+          readIdx = s.consumerIds.map(_ -> 0).toMap,
           typ = s.typ
         )
         id -> newNode
@@ -159,15 +161,23 @@ object StmPipeline {
         )
         pipe.sinkId = newSink.id
       case LetStm(bufSize, x, in, out) =>
-        // TODO: Use bufSize
+        val bufSizeVal = eval(bufSize) match {
+          case IntCst(n) => n
+          case e =>
+            throw new TypeError(
+              s"Buffer size in LetStm evaluated to $e."
+                + "It must evaluate to an integer."
+            )
+        }
         init(pipe, in, idByVar)
         val newNode =
           LetStmNode(
             pipe = pipe,
             id = StmNodeId(Param("let")().name),
-            data = None,
-            consumersWhoRead = Set(),
-            typ = in.typ.asInstanceOf[TyStm]
+            // Find the consumer IDs later
+            consumerIds = Set(),
+            inTyp = in.typ.asInstanceOf[TyStm],
+            bufSize = bufSizeVal.toInt
           )
         pipe.addNode(newNode)
         pipe.addEdges(pipe.sinkId -> newNode.id)
