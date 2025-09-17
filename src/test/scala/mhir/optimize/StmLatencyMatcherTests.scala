@@ -9,7 +9,92 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {
 
-  private val pass = StmLatencyMatcher()
+  private val pass = StmLatencyMatcher(assumeThroughputsMatch = true)
+
+  private def assertAllBufSizesAreOne(e: Expr): Unit = {
+    e match {
+      case LetStm(bufSize, _, _, _) =>
+        assert(bufSize == C(1)())
+      case e => e.children.foreach(assertAllBufSizesAreOne)
+    }
+  }
+
+  /** The condition that all branches have the same throughput is necessary for
+    * shrinking the buffers in letstm. For example, if one branch is just taking
+    * the prefix while the other is computing row sums, then a buffer size of 1
+    * is insufficient.
+    */
+  test("MismatchedThroughputs") {
+    val n = 8
+    val m = 4
+    val original = {
+      // let x = StmSplit(StmCount(n*m), m) in
+      // StmZip(StmPrefix(x, n), StmMap(x, row => StmReduce(row, +)))
+      val x = Param("s")(TyStm(U8, n * m))
+      val count = {
+        val i = Param("i")(U8)
+        StmBuild(
+          n * m,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          )
+        )().tchk()
+      }
+      val prefix = {
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          StmData(s)(),
+          True,
+          Map[Param, (Expr, Expr)](s -> (x, True))
+        )().tchk()
+      }
+      val rowSums = {
+        val s = Param("s")(TyStm(U8, -1))
+        val i = Param("i")(U8)
+        val acc = Param("acc")(U8)
+        StmBuild(
+          n,
+          Sum(StmData(s)(), acc)(),
+          i equ C(m - 1)(U8),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True),
+            i -> (
+              C(0)(U8),
+              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(C(1)(U8), i)())()
+            ),
+            acc -> (
+              C(0)(U8),
+              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(StmData(s)(), acc)())()
+            )
+          )
+        )().tchk()
+      }
+      val zip = {
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (prefix, True),
+            s1 -> (rowSums, True)
+          )
+        )().tchk()
+      }
+      LetStm(n * m, x, count, zip)().tchk().lower()
+    }
+    val optimized =
+      StmLatencyMatcher(assumeThroughputsMatch = false).matchLatencies(original)
+
+    // Correct behaviour
+    val expectedVal = mhir.ir.eval(original)
+    val actualVal = mhir.ir.eval(optimized)
+    assert(actualVal == expectedVal)
+  }
 
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
     val n = 16
@@ -105,6 +190,10 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original).get
     val optimizedCount = CycleCounter.count(optimized).get
     assert(optimizedCount < originalCount)
+
+    // Effective optimization
+    // (letstm buffers should all be shrunk to 1)
+    assertAllBufSizesAreOne(optimized)
   }
 
   test("ForkTwice") {
@@ -173,6 +262,10 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     // (Cycle count should be decreased due to improved initiation interval)
     assert(CycleCounter.count(original).contains(6 + (n - 1) * 4))
     assert(CycleCounter.count(optimized).contains(6 + (n - 1) * 1))
+
+    // Effective optimization
+    // (letstm buffers should all be shrunk to 1)
+    assertAllBufSizesAreOne(optimized)
   }
 
   /** Suppose that one branch has a sequence of three [[mhir.ir.StmBuild]]s,
@@ -359,6 +452,10 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original).get
     val optimizedCount = CycleCounter.count(optimized).get
     assert(optimizedCount < originalCount)
+
+    // Effective optimization
+    // (letstm buffers should all be shrunk to 1)
+    assertAllBufSizesAreOne(optimized)
   }
 
   test("NestedLetStm") {
@@ -415,5 +512,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original).get
     val optimizedCount = CycleCounter.count(optimized).get
     assert(optimizedCount < originalCount)
+
+    // Effective optimization
+    // (letstm buffers should all be shrunk to 1)
+    assertAllBufSizesAreOne(optimized)
   }
 }

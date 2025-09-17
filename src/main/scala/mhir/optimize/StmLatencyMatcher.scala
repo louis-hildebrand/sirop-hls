@@ -12,9 +12,18 @@ trait StmLatencyMatcher {
 }
 
 object StmLatencyMatcher {
-  def apply(enabled: Boolean = true): StmLatencyMatcher = {
-    if (enabled) new EnabledStmLatencyMatcher(LetStmMover)
-    else DisabledStmLatencyMatcher
+  def apply(
+      enabled: Boolean = true,
+      assumeThroughputsMatch: Boolean
+  ): StmLatencyMatcher = {
+    if (enabled) {
+      new EnabledStmLatencyMatcher(
+        LetStmMover,
+        assumeThroughputsMatch = assumeThroughputsMatch
+      )
+    } else {
+      DisabledStmLatencyMatcher
+    }
   }
 }
 
@@ -26,8 +35,10 @@ object StmLatencyMatcher {
   * and therefore increase the real throughput (i.e., total elements / total
   * cycles).
   */
-class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
-    extends StmLatencyMatcher {
+class EnabledStmLatencyMatcher(
+    letStmMover: LetStmMover.type,
+    assumeThroughputsMatch: Boolean
+) extends StmLatencyMatcher {
 
   private val logger = Logger(getClass.getName)
 
@@ -44,49 +55,111 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
       e.hasType,
       s"Cannot match latencies in expression of type ${e.typ}."
     )
-    def rec(e: Expr): Expr = {
-      e match {
-        case s: StmBuild =>
-          val newEquations = s.equations
-            .map({
-              case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
-                x -> (matchLatencies(z), next)
-              case eqn => eqn
-            })
-          StmBuild(
-            n = s.n,
-            data = s.data,
-            valid = s.valid,
-            equations = newEquations
-          )()
-        case LetStm(_, x, in, out) =>
-          val in1 = matchLatencies(in).tchk()
-          val out1 = matchLatencies(out).tchk()
-          latencyOfLongestPath(x, out1) match {
-            case Some(lat) =>
-              val out2 = increaseLatencyTo(out1, x, lat)
-              // Changing the latencies may actually increase the required
-              // buffer size, so reset it to the max value.
-              val TyStm(_, n) = in1.typ
-              LetStm(n, x, in1, out2)()
-            case None => e
-          }
-        case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
-          Function(x, matchLatencies(body))()
-        case _ =>
-          e
-      }
-    }
     // There may be some strange things happening after the joins, but that
     // shouldn't prevent latency matching because the strange things
     // contribute the same latency to all paths.
-    val result = rec(letStmMover.moveDown(e))
+    val e1 = letStmMover.moveDown(e)
+    val e2 = doMatchLatencies(e1)
+    val e3 = shrinkLetStmBuffers(e2)
+    val result = e3
     val checkedResult = result.tchk()
     assert(checkedResult.typ ~= e.typ)
     checkedResult
   }
 
-  private def latencyOfLongestPath(src: Param, e: Expr): Option[Int] = {
+  private def doMatchLatencies(e: Expr): Expr = {
+    val result = e match {
+      case s: StmBuild =>
+        val newEquations = s.equations
+          .map({
+            case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (doMatchLatencies(z), next)
+            case eqn => eqn
+          })
+        StmBuild(
+          n = s.n,
+          data = s.data,
+          valid = s.valid,
+          equations = newEquations
+        )()
+      case LetStm(_, x, in, out) =>
+        val in1 = doMatchLatencies(in).tchk()
+        val out1 = doMatchLatencies(out).tchk()
+        val out2 = latencyOfLongestPath(x, out1) match {
+          case Some(lat) => increaseLatencyTo(out1, x, lat)
+          case None      => out1
+        }
+        // Changing the latencies may actually increase the required
+        // buffer size, so reset it to the max value.
+        val TyStm(_, n) = in1.typ
+        LetStm(n, x, in1, out2)()
+      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+        Function(x, doMatchLatencies(body))()
+      case _ =>
+        e
+    }
+    val checkedResult = result.tchk()
+    assert(checkedResult.typ ~= e.typ)
+    checkedResult
+  }
+
+  private def shrinkLetStmBuffers(e: Expr): Expr = {
+    val result = e match {
+      case s: StmBuild =>
+        val newEquations = s.equations
+          .map({
+            case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (shrinkLetStmBuffers(stm), ready)
+            case (x, (z, next)) =>
+              assert(x.typ.isData)
+              x -> (z, next)
+          })
+        StmBuild(
+          n = s.n,
+          data = s.data,
+          valid = s.valid,
+          equations = newEquations
+        )()
+      case let @ LetStm(bufSize, x, in, out) =>
+        val in1 = shrinkLetStmBuffers(in)
+        val out1 = shrinkLetStmBuffers(out)
+        val newBufSize = if (allLatenciesMatched(let)) {
+          if (this.assumeThroughputsMatch) {
+            assert(bufSize.typ.isInstanceOf[TyUInt])
+            assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
+            C(1)(bufSize.typ)
+          } else {
+            logger.warn(
+              s"could not shrink buffer for letstm $x = ... because assumeThroughputsMatch=false"
+            )
+            bufSize
+          }
+        } else {
+          logger.warn(
+            s"could not show that latencies are matched for letstm $x = ...; buffer size will be left at $bufSize"
+          )
+          bufSize
+        }
+        LetStm(newBufSize, x, in1, out1)()
+      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+        Function(x, shrinkLetStmBuffers(body))()
+      case e => e
+    }
+    val checkedResult = result.tchk()
+    assert(checkedResult.typ ~= e.typ)
+    checkedResult
+  }
+
+  private def allLatenciesMatched(let: LetStm): Boolean = {
+    val combine = (x: Int) => (y: Int) => if (x == y) Some(x) else None
+    latencyOfPaths(let.x, let.out, combine = combine).nonEmpty
+  }
+
+  private def latencyOfPaths(
+      src: Param,
+      e: Expr,
+      combine: Int => Int => Option[Int]
+  ): Option[Int] = {
     assert(e.freeVars().contains(src))
     e match {
       case x: Param if x == src =>
@@ -99,18 +172,18 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             // Outer option will be None if we haven't checked any paths yet
             // Inner option will be None if we were unable to find the latency
             // for at least one path
-            case (None, x)       => Some(latencyOfLongestPath(src, x, s))
+            case (None, x)       => Some(latencyOfPaths(src, x, s, combine))
             case (Some(None), _) => Some(None)
             case (Some(Some(lat1)), x) =>
-              Some(latencyOfLongestPath(src, x, s).map(math.max(lat1, _)))
+              Some(latencyOfPaths(src, x, s, combine).flatMap(combine(lat1)(_)))
           })
           .get // There must be at least one path containing `src`
       case LetStm(_, x, in, out) =>
         if (in.freeVars().contains(src)) {
           // (1) Latency from `src` to `in` plus latency from `x` to `out`
-          latencyOfLongestPath(src, in)
+          latencyOfPaths(src, in, combine)
             .flatMap({ part1 =>
-              latencyOfLongestPath(x, out).map(part2 =>
+              latencyOfPaths(x, out, combine).map(part2 =>
                 // Add 1 to account for the buffer
                 part1 + part2 + 1
               )
@@ -118,14 +191,15 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
             // (2) Latency from `src` directly to `out`
             .flatMap(latencyViaIn => {
               if (out.freeVars().contains(src)) {
-                latencyOfLongestPath(src, out).map(math.max(latencyViaIn, _))
+                latencyOfPaths(src, out, combine)
+                  .flatMap(combine(latencyViaIn)(_))
               } else {
                 Some(latencyViaIn)
               }
             })
         } else {
           // Only latency from `src` directly to `out`
-          latencyOfLongestPath(src, out)
+          latencyOfPaths(src, out, combine)
         }
       case e =>
         logger.warn(
@@ -133,6 +207,10 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
         )
         None
     }
+  }
+
+  private def latencyOfLongestPath(src: Param, e: Expr): Option[Int] = {
+    latencyOfPaths(src, e, combine = x => y => Some(math.max(x, y)))
   }
 
   /** Find the latency of the longest path from `src` through `s` via input
@@ -146,17 +224,20 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
     *   the input stream via which to measure the latency.
     * @param src
     *   the beginning of the path.
+    * @param combine
+    *   the function to use to combine results from different paths.
     * @return
     *   `Some(latency)` if the latency can be calculated statically; otherwise
     *   `None`.
     */
-  private def latencyOfLongestPath(
+  private def latencyOfPaths(
       src: Param,
       acc: Param,
-      s: StmBuild
+      s: StmBuild,
+      combine: Int => Int => Option[Int]
   ): Option[Int] = {
     val inputStm = s.seedByVar(acc)
-    latencyOfLongestPath(src, inputStm)
+    latencyOfPaths(src, inputStm, combine)
       .flatMap(before => latency(src, acc, s).map(thru => before + thru))
   }
 
@@ -193,8 +274,12 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
       case _ =>
         None
     }
-    logger.warn(s"failed to find latency from $src through StmBuild")
-    logger.trace(s"sbuild: $s")
+    lat match {
+      case None =>
+        logger.warn(s"failed to find latency from $src through StmBuild")
+        logger.trace(s"sbuild: $s")
+      case _ => ()
+    }
     lat
   }
 

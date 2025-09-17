@@ -95,7 +95,10 @@ object Optimizer {
     val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
-    val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
+    val latencyMatcher = StmLatencyMatcher(
+      enabled = options.matchLatency,
+      assumeThroughputsMatch = options.assumeThroughputsMatch
+    )
     val binOpBalancer =
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     new Optimizer(

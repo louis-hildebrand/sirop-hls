@@ -40,6 +40,14 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     assert(BenchmarksToRun == AllBenchmarks)
   }
 
+  test("Foo") {
+    val trace = AetherlingBenchmarkTracer.trace(
+      "smallcamera_1",
+      optFlags = OptimizerOptions.all(assumeThroughputsMatch = true)
+    )
+    mhir.debug.DotPrinter.dumpDot(trace, overwrite = true)
+  }
+
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
       assume(!benchName.startsWith("bigcamera")) // Too slow
@@ -51,7 +59,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         options = CompilerOptions(
           showFinal = false,
           target = VhdlTarget(outDir = outDir, overwrite = true),
-          optFlags = OptimizerOptions.All
+          optFlags = OptimizerOptions.all(assumeThroughputsMatch = true)
         )
       )
       Compiler.compile(args)

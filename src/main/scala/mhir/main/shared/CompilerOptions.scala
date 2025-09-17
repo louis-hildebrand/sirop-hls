@@ -39,6 +39,7 @@ object CompilerOptions {
     var fuse = true
     var matchLatency = true
     var balanceBinOpTrees = true
+    var assumeThroughputsMatch = false
 
     while (mutArgs.nonEmpty) {
       mutArgs.head match {
@@ -64,6 +65,8 @@ object CompilerOptions {
           matchLatency = false
         case "--opt:no-balance-binop-trees" =>
           balanceBinOpTrees = false
+        case "--opt:assume-throughputs-match" =>
+          assumeThroughputsMatch = true
         case a =>
           throw new BadArgsException(s"unknown argument: $a")
       }
@@ -96,7 +99,8 @@ object CompilerOptions {
         simplifyLetStm = simplify,
         fuse = fuse,
         matchLatency = matchLatency,
-        balanceBinOpTrees = balanceBinOpTrees
+        balanceBinOpTrees = balanceBinOpTrees,
+        assumeThroughputsMatch = true
       )
     )
   }
@@ -116,6 +120,10 @@ object CompilerOptions {
        |  --opt:no-fuse                   skip the greedy fusion pass
        |  --opt:no-match-latency          skip the latency matching pass
        |  --opt:no-balance-binop-trees    skip the binop tree balancing pass
+       |  --opt:assume-throughputs-match  whether the optimizer can assume the
+       |                                  throughputs along different branches of a
+       |                                  letstm match. This is always the case for
+       |                                  Aetherling programs, for example.
        |""".stripMargin.stripTrailing()
   }
 }
