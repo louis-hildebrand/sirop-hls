@@ -4,6 +4,8 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
+import scala.annotation.tailrec
+
 /*
 
 This file contains simple implementations of common streaming primitives.
@@ -46,6 +48,17 @@ object SimpleMap {
         sAcc -> (input, True)
       )
     )().tchk().lower()
+  }
+}
+
+object SimpleNop {
+  @tailrec
+  def apply(s: Expr, delay: Int = 1): Expr = {
+    if (delay == 0) {
+      s
+    } else {
+      SimpleNop(SimpleMap(s, x => x), delay - 1)
+    }
   }
 }
 

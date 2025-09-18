@@ -14,6 +14,7 @@ class Optimizer(
     letStmSimplifier: LetStmSimplifier,
     fusionPass: StmFusionPass,
     latencyMatcher: StmLatencyMatcher,
+    letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass
 ) {
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -69,21 +70,29 @@ class Optimizer(
       latencyMatcher.matchLatencies(s2)
     }
 
+    if (letStmBufShrinker.disabled) {
+      logger.info("letstm buffer shrinking is disabled")
+    }
+    val s4 =
+      time("letstm buffer shrinking", mute = letStmBufShrinker.disabled) {
+        letStmBufShrinker.shrinkBuffers(s3)
+      }
+
     // I think the program is more readable like this.
     // I don't think a compiler flag is needed, since it shouldn't change the
     // generated hardware in any meaningful way.
-    val s4 = time("moving LetStm up") {
-      LetStmMover.moveUp(s3)
+    val s5 = time("moving LetStm up") {
+      LetStmMover.moveUp(s4)
     }
 
     if (binOpBalancer.disabled) {
       logger.info("balancing binop trees is disabled")
     }
-    val s5 = time("balancing binop trees", mute = binOpBalancer.disabled) {
-      binOpBalancer.balance(s4)
+    val s6 = time("balancing binop trees", mute = binOpBalancer.disabled) {
+      binOpBalancer.balance(s5)
     }
 
-    s5
+    s6
   }
 }
 
@@ -95,10 +104,11 @@ object Optimizer {
     val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
-    val latencyMatcher = StmLatencyMatcher(
-      enabled = options.matchLatency,
-      assumeThroughputsMatch = options.assumeThroughputsMatch
-    )
+    val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
+    val letStmBufShrinker =
+      new StaticLetStmBufferShrinker(assumeThroughputsMatch =
+        options.assumeThroughputsMatch
+      )
     val binOpBalancer =
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     new Optimizer(
@@ -106,6 +116,7 @@ object Optimizer {
       letStmSimplifier,
       fusionPass,
       latencyMatcher,
+      letStmBufShrinker = letStmBufShrinker,
       binOpBalancer
     )
   }
