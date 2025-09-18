@@ -44,6 +44,8 @@ class EnabledStmLatencyMatcher(
 
   override def enabled: Boolean = true
 
+  private val letStmLatency: Int = 2
+
   /** Inserts extra [[mhir.ir.StmBuild]]s in the stream pipeline to try to match
     * the latency across different branches in [[mhir.ir.LetStm]]s.
     *
@@ -184,8 +186,7 @@ class EnabledStmLatencyMatcher(
           latencyOfPaths(src, in, combine)
             .flatMap({ part1 =>
               latencyOfPaths(x, out, combine).map(part2 =>
-                // Add 1 to account for the buffer
-                part1 + part2 + 1
+                part1 + part2 + letStmLatency
               )
             })
             // (2) Latency from `src` directly to `out`
@@ -322,7 +323,7 @@ class EnabledStmLatencyMatcher(
         case LetStm(_, x, in, out) =>
           val newIn = latencyOfLongestPath(x, out) match {
             case Some(lat) =>
-              increaseLatencyTo(in, src, targetLatency - lat - 1)
+              increaseLatencyTo(in, src, targetLatency - lat - letStmLatency)
             case None =>
               in
           }

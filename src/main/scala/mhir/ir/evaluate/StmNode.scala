@@ -383,7 +383,7 @@ case class StmBuildNode(
   *   the pipeline that this node is part of.
   * @param id
   *   the ID of this node.
-  * @param data
+  * @param buffer
   *   the buffer of elements from the input stream.
   * @param tail
   *   the index of the beginning of the circular buffer (inclusive).
@@ -392,30 +392,24 @@ case class StmBuildNode(
   * @param readIdx
   *   for each consumer, this gives the <i>next</i> index that consumer will
   *   read.
+  * @param output
+  *   the current output for each consumer.
   * @param typ
   *   the type of this node.
   */
 case class LetStmNode(
     pipe: StmPipeline,
     id: StmNodeId,
-    data: Array[Expr],
+    buffer: Array[Expr],
     tail: Int,
     head: Int,
     readIdx: Map[StmNodeId, Int],
+    output: Map[StmNodeId, Option[Expr]],
     typ: TyStm
 ) extends StmNode {
+
   override def out(consumerId: StmNodeId): Option[Expr] = {
-    readIdx.get(consumerId) match {
-      case None =>
-        throw new IllegalArgumentException(
-          s"$consumerId is not a consumer of ${this.id}"
-        )
-      case Some(i) if i == head =>
-        // Buffer does not yet have data for this consumer
-        None
-      case Some(i) =>
-        Some(data(i))
-    }
+    output(consumerId)
   }
 
   override def ready(producerId: StmNodeId): Boolean = {
@@ -424,11 +418,11 @@ case class LetStmNode(
   }
 
   override def step(newPipe: StmPipeline): StmNode = {
-    val newData = if (this.willIncrementHead) {
+    val newBuffer = if (this.willIncrementHead) {
       val Some(elem) = this.producer.out(this.id)
-      this.data.updated(this.head, elem)
+      this.buffer.updated(this.head, elem)
     } else {
-      this.data
+      this.buffer
     }
     val newTail =
       if (this.willIncrementTail) this.nextIdx(this.tail) else this.tail
@@ -438,19 +432,33 @@ case class LetStmNode(
       val newIdx = if (this.willIncrementReadIdx(cid)) this.nextIdx(i) else i
       cid -> newIdx
     })
+    val newOutput = this.output.map({ case (cid, v) =>
+      val consumerReady = this.pipe.nodes(cid).ready(this.id)
+      val newOut = if (this.willIncrementReadIdx(cid)) {
+        Some(this.buffer(this.readIdx(cid)))
+      } else if (consumerReady) {
+        None
+      } else {
+        v
+      }
+      cid -> newOut
+    })
     LetStmNode(
       pipe = newPipe,
       id = this.id,
-      data = newData,
+      buffer = newBuffer,
       tail = newTail,
       head = newHead,
       readIdx = newReadIdx,
+      output = newOutput,
       typ = this.typ
     )
   }
 
   override def isEmpty: Boolean = {
-    this.circularBufferEmpty && this.producer.isEmpty
+    (this.queueEmpty
+    && this.output.forall({ case (_, v) => v.isEmpty })
+    && this.producer.isEmpty)
   }
 
   override def deadlockReasons: Set[DeadlockReason] = {
@@ -459,14 +467,14 @@ case class LetStmNode(
   }
 
   private def nextIdx(i: Int): Int = {
-    (i + 1) % data.length
+    (i + 1) % buffer.length
   }
 
-  private def circularBufferEmpty: Boolean = {
+  private def queueEmpty: Boolean = {
     this.head == this.tail
   }
 
-  private def circularBufferFull: Boolean = {
+  private def queueFull: Boolean = {
     nextIdx(this.head) == this.tail
   }
 
@@ -480,11 +488,20 @@ case class LetStmNode(
       .toSet
   }
 
+  /** Whether the head pointer will be incremented at the next step.
+    */
+  private def willIncrementHead: Boolean = {
+    this.readyForProducer && this.producer.valid(this.id)
+  }
+
   /** Whether the read pointer for the given consumer will be updated at the
     * next step.
     */
   private def willIncrementReadIdx(consumerId: StmNodeId): Boolean = {
-    this.pipe.nodes(consumerId).ready(this.id) && this.valid(consumerId)
+    val consumerReady = this.pipe.nodes(consumerId).ready(this.id)
+    val bufHasData = this.readIdx(consumerId) != this.head
+    val outRegIsFree = !this.valid(consumerId) || consumerReady
+    bufHasData && outRegIsFree
   }
 
   /** Whether the tail of the circular buffer will be incremented at the next
@@ -495,26 +512,35 @@ case class LetStmNode(
   }
 
   private def readyForProducer: Boolean = {
-    // TODO: Also check whether the tail will be incremented at the next step?
-    !this.circularBufferFull || this.willIncrementTail
-  }
-
-  /** Whether the head pointer will be incremented at the next step.
-    */
-  private def willIncrementHead: Boolean = {
-    this.readyForProducer && this.producer.valid(this.id)
+    !this.queueFull
   }
 
   override def sameState(that: StmNode): Boolean = {
     that match {
       case that: LetStmNode =>
         (this.id == that.id
-        && (this.data sameElements that.data)
+        && (this.buffer sameElements that.buffer)
         && this.tail == that.tail
         && this.head == that.head
-        && this.readIdx == that.readIdx)
+        && this.readIdx == that.readIdx
+        && this.output == that.output)
       case _ => false
     }
+  }
+
+  /** Creates a copy of this node, but with the given consumer IDs.
+    */
+  def withConsumerIds(consumerIds: Set[StmNodeId]): LetStmNode = {
+    new LetStmNode(
+      pipe = this.pipe,
+      id = this.id,
+      buffer = this.buffer,
+      tail = this.tail,
+      head = this.head,
+      readIdx = consumerIds.map(_ -> 0).toMap,
+      output = consumerIds.map(_ -> None).toMap,
+      typ = this.typ
+    )
   }
 }
 
@@ -526,13 +552,14 @@ object LetStmNode {
     *   the pipeline that this node is part of.
     * @param id
     *   the ID of this node.
-    * @param consumerIds
-    *   the IDs of the consumers of this node.
+    * @param inTyp
+    *   the type of the input producer stream.
+    * @param bufSize
+    *   the desired number of elements to buffer.
     */
   def apply(
       pipe: StmPipeline,
       id: StmNodeId,
-      consumerIds: Set[StmNodeId],
       inTyp: TyStm,
       bufSize: Int
   ): LetStmNode = {
@@ -542,10 +569,18 @@ object LetStmNode {
       id = id,
       // Need the buffer to be one element bigger than `bufSize` to be able to
       // represent the state in which the circular buffer is full.
-      data = (0 to bufSize).map(_ => mhir.ir.eval(Default(elemTyp))).toArray,
+      // And add a second extra slot to improve throughput.
+      // For example, if `bufSize = 1`, this node would only request new data
+      // from the producer every other cycle (because it only requests data
+      // when the buffer is not full).
+      // With the extra slot, the consumer can read from the one slot while the
+      // next slot is being filled.
+      buffer =
+        (0 to (bufSize + 1)).map(_ => mhir.ir.eval(Default(elemTyp))).toArray,
       tail = 0,
       head = 0,
-      readIdx = consumerIds.map(_ -> 0).toMap,
+      readIdx = Map(),
+      output = Map(),
       typ = inTyp
     )
   }

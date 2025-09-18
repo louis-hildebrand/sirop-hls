@@ -7,9 +7,9 @@ use work.conversions.all;
 -- Hardware template for letstm.
 entity letstm_buf is
 generic (
-    BIT_WIDTH   : integer;
-    BUF_SIZE    : integer;
-    N_CONSUMERS : integer);
+    BIT_WIDTH   : integer := 32;
+    BUF_SIZE    : integer := 100;
+    N_CONSUMERS : integer := 3);
 port (
     clk     : in  std_logic;
     -- Handshake with producer
@@ -194,7 +194,7 @@ begin
                 lsb := msb - BIT_WIDTH + 1;
                 c_data_internal(i) <= rd_data(msb downto lsb);
                 c_valid_internal(i) <= true;
-            elsif c_ready_internal(i) and c_valid_internal(i) then
+            elsif c_ready_internal(i) then
                 c_valid_internal(i) <= false;
             end if;
         end loop;

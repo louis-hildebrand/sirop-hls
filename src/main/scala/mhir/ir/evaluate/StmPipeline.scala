@@ -111,18 +111,8 @@ object StmPipeline {
     // This can only happen once we actually know who the consumers for the
     // LetStmNodes are.
     pipe.nodes = pipe.nodes.map({
-      case (id, s: LetStmNode) =>
-        val newNode = new LetStmNode(
-          pipe = pipe,
-          id = s.id,
-          data = s.data,
-          tail = s.tail,
-          head = s.head,
-          readIdx = s.consumerIds.map(_ -> 0).toMap,
-          typ = s.typ
-        )
-        id -> newNode
-      case x => x
+      case (id, s: LetStmNode) => id -> s.withConsumerIds(s.consumerIds)
+      case x                   => x
     })
     // Add terminal node
     val term = TerminalNode(pipe, id = StmNodeId("sink"), typ = pipe.sink.typ)
@@ -174,8 +164,6 @@ object StmPipeline {
           LetStmNode(
             pipe = pipe,
             id = StmNodeId(Param("let")().name),
-            // Find the consumer IDs later
-            consumerIds = Set(),
             inTyp = in.typ.asInstanceOf[TyStm],
             bufSize = bufSizeVal.toInt
           )

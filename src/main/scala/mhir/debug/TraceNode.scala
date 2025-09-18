@@ -83,11 +83,11 @@ object StmBuildTraceNode {
 
 /** One node in a trace representing a [[mhir.ir.LetStm]].
   *
-  * @param data
-  *   the current value in the buffer.
+  * @param buffer
+  *   the current state of the buffer.
   */
 case class LetStmTraceNode(
-    data: Array[Expr],
+    buffer: Array[Expr],
     out: Map[StmNodeId, Expr],
     ready: Set[StmNodeId]
 ) extends TraceNode
@@ -100,10 +100,10 @@ object LetStmTraceNode {
     */
   def apply(s: LetStmNode): LetStmTraceNode = {
     new LetStmTraceNode(
-      data = if (s.head >= s.tail) {
-        s.data.slice(s.tail, s.head)
+      buffer = if (s.head >= s.tail) {
+        s.buffer.slice(s.tail, s.head)
       } else {
-        s.data.slice(s.tail, s.data.length) ++ s.data.slice(0, s.head)
+        s.buffer.slice(s.tail, s.buffer.length) ++ s.buffer.slice(0, s.head)
       },
       out = s.consumerIds
         .flatMap(id =>
