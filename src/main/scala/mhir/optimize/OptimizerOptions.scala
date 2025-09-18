@@ -21,6 +21,8 @@ case class OptimizerOptions(
     simplifyLetStm: Boolean,
     fuse: Boolean,
     matchLatency: Boolean,
+    staticallyShrinkLetStmBuffers: Boolean,
+    maxLetStmBufSize: Option[Int],
     balanceBinOpTrees: Boolean,
     assumeThroughputsMatch: Boolean
 )
@@ -31,12 +33,17 @@ object OptimizerOptions {
 
   /** An instance of [[OptimizerOptions]] where all optimizations are enabled.
     */
-  def all(assumeThroughputsMatch: Boolean): OptimizerOptions = {
+  def all(
+      assumeThroughputsMatch: Boolean,
+      maxLetStmBufSize: Option[Int]
+  ): OptimizerOptions = {
     new OptimizerOptions(
       simplifyStmBuild = true,
       simplifyLetStm = true,
       fuse = true,
       matchLatency = true,
+      staticallyShrinkLetStmBuffers = true,
+      maxLetStmBufSize = maxLetStmBufSize,
       balanceBinOpTrees = true,
       assumeThroughputsMatch = assumeThroughputsMatch
     )
@@ -52,6 +59,8 @@ object OptimizerOptions {
       simplifyLetStm = false,
       fuse = false,
       matchLatency = false,
+      staticallyShrinkLetStmBuffers = false,
+      maxLetStmBufSize = None,
       balanceBinOpTrees = false,
       assumeThroughputsMatch = false
     )

@@ -13,9 +13,3 @@ trait LetStmBufferShrinker {
     */
   final def disabled: Boolean = !this.enabled
 }
-
-object DisabledLetStmBufferShrinker extends LetStmBufferShrinker {
-  override def shrinkBuffers(e: Expr): Expr = e
-
-  override def enabled: Boolean = false
-}

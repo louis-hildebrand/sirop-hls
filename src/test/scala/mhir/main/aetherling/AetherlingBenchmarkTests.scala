@@ -42,7 +42,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
-      if (!benchName.startsWith("smallsharpen")) ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
@@ -52,7 +51,13 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         options = CompilerOptions(
           showFinal = false,
           target = VhdlTarget(outDir = outDir, overwrite = true),
-          optFlags = OptimizerOptions.all(assumeThroughputsMatch = true)
+          optFlags = OptimizerOptions.all(
+            assumeThroughputsMatch = true,
+            maxLetStmBufSize = {
+              // Play it safe
+              Some(100)
+            }
+          )
         )
       )
       Compiler.compile(args)
@@ -66,7 +71,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
-      ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"

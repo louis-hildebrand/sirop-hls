@@ -38,6 +38,8 @@ object CompilerOptions {
     var simplify = true
     var fuse = true
     var matchLatency = true
+    var staticallyShrinkLetStmBuffers = true
+    var maxLetStmBufSize: Option[Int] = None
     var balanceBinOpTrees = true
     var assumeThroughputsMatch = false
 
@@ -63,6 +65,30 @@ object CompilerOptions {
           fuse = false
         case "--opt:no-match-latency" =>
           matchLatency = false
+        case "--opt:no-static-buf-shrink" =>
+          staticallyShrinkLetStmBuffers = false
+        case "--opt:max-let-buf-size" =>
+          mutArgs.drop(1).headOption match {
+            case Some(sizeStr) =>
+              val sizeInt =
+                try {
+                  sizeStr.toInt
+                } catch {
+                  case _: NumberFormatException =>
+                    throw new BadArgsException(
+                      s"value for ${mutArgs.head} must be an integer (found $sizeStr)"
+                    )
+                }
+              if (sizeInt < 0) {
+                throw new BadArgsException(
+                  s"value for ${mutArgs.head} must be non-negative (got $sizeInt)"
+                )
+              }
+              maxLetStmBufSize = Some(sizeInt)
+              mutArgs = mutArgs.drop(1)
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
         case "--opt:no-balance-binop-trees" =>
           balanceBinOpTrees = false
         case "--opt:assume-throughputs-match" =>
@@ -99,8 +125,10 @@ object CompilerOptions {
         simplifyLetStm = simplify,
         fuse = fuse,
         matchLatency = matchLatency,
+        staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
+        maxLetStmBufSize = maxLetStmBufSize,
         balanceBinOpTrees = balanceBinOpTrees,
-        assumeThroughputsMatch = true
+        assumeThroughputsMatch = assumeThroughputsMatch
       )
     )
   }
@@ -119,6 +147,8 @@ object CompilerOptions {
        |  --opt:no-simplify               skip partial evaluation and simplification
        |  --opt:no-fuse                   skip the greedy fusion pass
        |  --opt:no-match-latency          skip the latency matching pass
+       |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
+       |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm
        |  --opt:no-balance-binop-trees    skip the binop tree balancing pass
        |  --opt:assume-throughputs-match  whether the optimizer can assume the
        |                                  throughputs along different branches of a

@@ -71,7 +71,7 @@ class Optimizer(
     }
 
     if (letStmBufShrinker.disabled) {
-      logger.info("letstm buffer shrinking is disabled")
+      logger.info("all letstm buffer shrinking passes are disabled")
     }
     val s4 =
       time("letstm buffer shrinking", mute = letStmBufShrinker.disabled) {
@@ -105,10 +105,20 @@ object Optimizer {
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
     val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
-    val letStmBufShrinker =
-      new StaticLetStmBufferShrinker(assumeThroughputsMatch =
-        options.assumeThroughputsMatch
-      )
+    val letStmBufShrinker = {
+      val staticPass = if (options.staticallyShrinkLetStmBuffers) {
+        Some(
+          new StaticLetStmBufferShrinker(
+            assumeThroughputsMatch = options.assumeThroughputsMatch
+          )
+        )
+      } else {
+        None
+      }
+      val manualPass =
+        options.maxLetStmBufSize.map(mbs => new ManualLetStmBufferShrinker(mbs))
+      new CombinedLetStmBufferShrinker(Seq(staticPass, manualPass).flatten)
+    }
     val binOpBalancer =
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     new Optimizer(

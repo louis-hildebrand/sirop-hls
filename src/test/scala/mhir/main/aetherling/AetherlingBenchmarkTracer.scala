@@ -24,8 +24,10 @@ object AetherlingBenchmarkTracer {
   def trace(
       benchName: String,
       maxCycles: Option[Int] = None,
-      optFlags: OptimizerOptions =
-        OptimizerOptions.all(assumeThroughputsMatch = true)
+      optFlags: OptimizerOptions = OptimizerOptions.all(
+        assumeThroughputsMatch = true,
+        maxLetStmBufSize = None
+      )
   ): Trace = {
     val stm = makeTraceable(benchName, optFlags)
     Tracer.traceAll(NS.simplify(stm), maxCycles = maxCycles)
@@ -33,8 +35,10 @@ object AetherlingBenchmarkTracer {
 
   def makeTraceable(
       benchName: String,
-      optFlags: OptimizerOptions =
-        OptimizerOptions.all(assumeThroughputsMatch = true)
+      optFlags: OptimizerOptions = OptimizerOptions.all(
+        assumeThroughputsMatch = true,
+        maxLetStmBufSize = None
+      )
   ): Expr = {
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
