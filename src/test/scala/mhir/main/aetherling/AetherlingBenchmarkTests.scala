@@ -40,16 +40,9 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     assert(BenchmarksToRun == AllBenchmarks)
   }
 
-  test("Foo") {
-    val trace = AetherlingBenchmarkTracer.trace(
-      "smallcamera_1",
-      optFlags = OptimizerOptions.all(assumeThroughputsMatch = true)
-    )
-    mhir.debug.DotPrinter.dumpDot(trace, overwrite = true)
-  }
-
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
+      if (!benchName.startsWith("smallsharpen")) ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
@@ -73,6 +66,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
+      ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"

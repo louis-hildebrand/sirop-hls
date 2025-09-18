@@ -151,7 +151,9 @@ private[vhdl] sealed trait VhdlComponent
   * @param bitWidth
   *   the bit width to use when instantiating this component.
   */
-private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent
+private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent {
+  val VhdName: String = "stm_nop.vhd"
+}
 
 /** The predefined `letstm_buf` component.
   *
@@ -166,7 +168,10 @@ private[vhdl] case class LetStmBufComponent(
     bitWidth: Int,
     bufSize: Int,
     numConsumers: Int
-) extends VhdlComponent
+) extends VhdlComponent {
+  val VhdNames: Set[String] =
+    Set("letstm_buf.vhd", "dual_port_ram.vhd", "multi_consumer_ram.vhd")
+}
 
 /** A custom component, like for a [[mhir.ir.StmBuild]].
   *

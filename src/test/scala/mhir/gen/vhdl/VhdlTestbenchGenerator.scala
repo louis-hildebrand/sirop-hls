@@ -485,7 +485,7 @@ object VhdlTestbenchGenerator {
            |expected        := $expected;
            |masked_data     := data and mask;
            |masked_expected := expected and mask;
-           |assert(masked_data = masked_expected) report "Wrong data at step $i.";
+           |assert(masked_data = masked_expected) report "Wrong data at t = " & integer'image(t) & ".";
            |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
