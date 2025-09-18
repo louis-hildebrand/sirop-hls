@@ -4,6 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.SimpleMap
 
 class GreedyStmFuserTests extends AnyFunSuite {
 
@@ -14,17 +15,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
   test("ShouldFuse:Map(+1) |> Map(+2)") {
     val n = 16
     val input = Param("input")(TyStm(U8, n))
-    val mapPlus = (input: Expr, k: Expr) => {
-      val s = Param("s")(TyStm(U8, -1))
-      StmBuild(
-        n,
-        Sum(k, StmData(s)())(),
-        True,
-        Map[Param, (Expr, Expr)](
-          s -> (input, True)
-        )
-      )().tchk().lower()
-    }
+    val mapPlus = (input: Expr, k: Expr) => SimpleMap(input, x => Sum(k, x)())
     val original = mapPlus(mapPlus(input, C(1)(U8)), C(2)(U8))
     val actual = fusionPass.fuse(original)
 

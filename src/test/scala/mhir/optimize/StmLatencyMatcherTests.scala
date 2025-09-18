@@ -4,7 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.CycleCounter
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.VecShiftLeft
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {
@@ -19,47 +19,6 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     }
   }
 
-  // TODO: Make a separate file with these implementations?
-
-  private def simpleCount(n: IntCst): Expr = {
-    val i = Param("i")(n.typ)
-    StmBuild(
-      n,
-      i,
-      True,
-      Map[Param, (Expr, Expr)](i -> (C(0)(n.typ), Sum(C(1)(n.typ), i)()))
-    )().tchk()
-  }
-
-  private def simpleMap(input: Expr, f: Expr => Expr): Expr = {
-    val TyStm(t, n) = input.typ
-    val sAcc = Param("s")(TyStm(t, -1))
-    StmBuild(
-      n,
-      f(StmData(sAcc)()),
-      True,
-      Map[Param, (Expr, Expr)](
-        sAcc -> (input, True)
-      )
-    )().tchk()
-  }
-
-  private def simpleZip(in0: Expr, in1: Expr): Expr = {
-    val TyStm(t0, n) = in0.typ
-    val TyStm(t1, _) = in1.typ
-    val s0 = Param("s0")(TyStm(t0, -1))
-    val s1 = Param("s1")(TyStm(t1, -1))
-    StmBuild(
-      n,
-      Tuple(StmData(s0)(), StmData(s1)())(),
-      True,
-      Map[Param, (Expr, Expr)](
-        s0 -> (in0, True),
-        s1 -> (in1, True)
-      )
-    )().tchk()
-  }
-
   /** The condition that all branches have the same throughput is necessary for
     * shrinking the buffers in letstm. For example, if one branch is just taking
     * the prefix while the other is computing row sums, then a buffer size of 1
@@ -72,7 +31,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       // let x = StmSplit(StmCount(n*m), m) in
       // StmZip(StmPrefix(x, n), StmMap(x, row => StmReduce(row, +)))
       val x = Param("s")(TyStm(U8, n * m))
-      val count = simpleCount(C(n * m)(U8))
+      val count = SimpleCount(C(n * m)(U8))
       val prefix = {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
@@ -103,7 +62,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      val zip = simpleZip(prefix, rowSums)
+      val zip = SimpleZip(prefix, rowSums)
       LetStm(n * m, x, count, zip)().tchk().lower()
     }
     val optimized =
@@ -130,12 +89,12 @@ class StmLatencyMatcherTests extends AnyFunSuite {
         )()
       }
       val s = Param("s")(TyStm(U8, n))
-      val mapOnce = simpleMap(s, x => Sum(C(1)(U8), x)())
-      val mapTwice = simpleMap(mapOnce, x => Prod(C(2)(U8), x)())
-      val mapThrice = simpleMap(mapTwice, x => Sum(C(1)(U8), x)())
-      val mapFourTimes = simpleMap(mapThrice, x => Sum(C(2)(U8), x)())
-      val mapFiveTimes = simpleMap(mapFourTimes, x => Sum(C(3)(U8), x)())
-      val zip = simpleZip(s, mapFiveTimes)
+      val mapOnce = SimpleMap(s, x => Sum(C(1)(U8), x)())
+      val mapTwice = SimpleMap(mapOnce, x => Prod(C(2)(U8), x)())
+      val mapThrice = SimpleMap(mapTwice, x => Sum(C(1)(U8), x)())
+      val mapFourTimes = SimpleMap(mapThrice, x => Sum(C(2)(U8), x)())
+      val mapFiveTimes = SimpleMap(mapFourTimes, x => Sum(C(3)(U8), x)())
+      val zip = SimpleZip(s, mapFiveTimes)
       val delay = {
         // The latency through this node cannot be predicted statically, since
         // it depends on the inputs.
@@ -189,26 +148,12 @@ class StmLatencyMatcherTests extends AnyFunSuite {
   test("ForkTwice") {
     val n = 10
     val original = {
-      val count = simpleCount(C(n)(U8))
       val sA = Param("s_a")(TyStm(U8, n))
-      val plusFive = simpleMap(sA, x => Sum(C(5)(U8), x)())
       val sB = Param("s_b")(TyStm(U8, n))
-      val timesTwo = simpleMap(sB, x => Prod(C(2)(U8), x)())
-      val zip = {
-        val s0 = Param("s0")(TyStm(U8, -1))
-        val s1 = Param("s1")(TyStm(U8, -1))
-        val s2 = Param("s2")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Tuple(StmData(s0)(), StmData(s1)(), StmData(s2)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s0 -> (sA, True),
-            s1 -> (sB, True),
-            s2 -> (timesTwo, True)
-          )
-        )()
-      }
+      val count = SimpleCount(C(n)(U8))
+      val plusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
+      val timesTwo = SimpleMap(sB, x => Prod(C(2)(U8), x)())
+      val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
@@ -240,51 +185,11 @@ class StmLatencyMatcherTests extends AnyFunSuite {
   test("AlreadyMatchingLatency") {
     val n = 7
     val original = {
-      val count = {
-        val i = Param("i")(U8)
-        StmBuild(
-          n,
-          i,
-          True,
-          Map[Param, (Expr, Expr)](
-            i -> (C(0)(U8), Sum(C(1)(U8), i)())
-          )
-        )()
-      }
+      val count = SimpleCount(C(n)(U8))
       val s = Param("s")(TyStm(U8, n))
-      val plusFive = {
-        val sAcc = Param("s")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Sum(C(5)(U8), StmData(sAcc)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            sAcc -> (s, True)
-          )
-        )()
-      }
-      val timesTwo = {
-        val sAcc = Param("s")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Prod(C(2)(U8), StmData(sAcc)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            sAcc -> (plusFive, True)
-          )
-        )()
-      }
-      val plusOne = {
-        val sAcc = Param("s")(TyStm(U8, n))
-        StmBuild(
-          n,
-          Sum(C(1)(U8), StmData(sAcc)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            sAcc -> (timesTwo, True)
-          )
-        )()
-      }
+      val plusFive = SimpleMap(s, x => Sum(C(5)(U8), x)())
+      val timesTwo = SimpleMap(plusFive, x => Prod(C(2)(U8), x)())
+      val plusOne = SimpleMap(timesTwo, x => Sum(C(1)(U8), x)())
       val delay = {
         val i = Param("i")(U8)
         val sAcc = Param("s")(TyStm(U8, -1))
@@ -298,21 +203,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
             i -> (C(0)(U8), Mux(i === 2, C(0)(U8), Sum(C(1)(U8), i)())()),
             buf -> (C(0)(U8), Mux(i === 0, StmData(sAcc)(), buf)())
           )
-        )()
+        )().tchk()
       }
-      val zip = {
-        val s0 = Param("s0")(TyStm(U8, -1))
-        val s1 = Param("s1")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Tuple(StmData(s0)(), StmData(s1)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s0 -> (delay, True),
-            s1 -> (plusOne, True)
-          )
-        )()
-      }
+      val zip = SimpleZip(delay, plusOne)
       LetStm(1, s, count, zip)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
@@ -358,17 +251,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      val sumPlusFive = {
-        val s = Param("s")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          C(5)(U8) + StmData(s)(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s -> (sum, True)
-          )
-        )().tchk()
-      }
+      val sumPlusFive = SimpleMap(sum, x => Sum(C(5)(U8), x)())
       val stm2Vec = {
         val s = Param("s")(TyStm(U8, -1))
         val acc = Param("acc")(TyVec(U8, m))
@@ -387,19 +270,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      val zipped = {
-        val s0 = Param("s0")(TyStm(TyVec(U8, m), -1))
-        val s1 = Param("s1")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Tuple(StmData(s0)(), StmData(s1)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s0 -> (stm2Vec, True),
-            s1 -> (sumPlusFive, True)
-          )
-        )().tchk()
-      }
+      val zipped = SimpleZip(sumPlusFive, stm2Vec)
       LetStm(1, x, count, zipped)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
@@ -425,41 +296,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
       val s1 = Param("s1")(TyStm((U8, U8), n))
-      val count = {
-        val i = Param("i")(U8)
-        StmBuild(
-          n,
-          i,
-          True,
-          Map[Param, (Expr, Expr)](
-            i -> (C(0)(U8), Sum(C(1)(U8), i)())
-          )
-        )()
-      }
-      val plusFive = {
-        val s = Param("s")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          C(5)(U8) + StmData(s)(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s -> (s0, True)
-          )
-        )().tchk()
-      }
-      val zip = {
-        val s0Acc = Param("s0")(TyStm(U8, -1))
-        val s1Acc = Param("s1")(TyStm(U8, -1))
-        StmBuild(
-          n,
-          Tuple(StmData(s0Acc)(), StmData(s1Acc)())(),
-          True,
-          Map[Param, (Expr, Expr)](
-            s0Acc -> (s0, True),
-            s1Acc -> (plusFive, True)
-          )
-        )().tchk()
-      }
+      val count = SimpleCount(C(n)(U8))
+      val plusFive = SimpleMap(s0, x => Sum(C(5)(U8), x)())
+      val zip = SimpleZip(s0, plusFive)
       LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower()
     }
     val optimized = pass.matchLatencies(original)
