@@ -80,3 +80,23 @@ object SimpleZip {
     )().tchk().lower()
   }
 }
+
+object SimpleConcat {
+  def apply(in0: Expr, in1: Expr): Expr = {
+    val TyStm(t, n0) = in0.typ
+    val s0 = Param("s0")(TyStm(t, n0))
+    val TyStm(_, n1) = in1.typ
+    val s1 = Param("s1")(TyStm(t, n1))
+    val i = Param("t")(U32)
+    StmBuild(
+      SafeSum(n0, n1)(),
+      Mux(i < n0, StmData(s0)(), StmData(s1)())(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (C(0)(U32), Sum(C(1)(U32), i)()),
+        s0 -> (in0, i < n0),
+        s1 -> (in1, i >= n0)
+      )
+    )()
+  }
+}

@@ -229,4 +229,26 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimizedCount = CycleCounter.count(optimized).get
     assert(optimizedCount < originalCount)
   }
+
+  test("StmConcat") {
+    val n = 5
+    val original = {
+      val s0 = Param("s0")(TyStm(U8, n))
+      val count = SimpleCount(C(n)(U8))
+      val concat = SimpleConcat(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
+      LetStm(n, s0, count, concat)().tchk().lower()
+    }
+    val optimized = pass.matchLatencies(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val actualVal = mhir.ir.eval(optimized)
+    assert(actualVal == originalVal)
+
+    // Non-pessimization
+    // (Cycle count should not get worse)
+    val originalCount = CycleCounter.count(original).get
+    val optimizedCount = CycleCounter.count(optimized).get
+    assert(optimizedCount <= originalCount)
+  }
 }

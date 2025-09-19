@@ -274,4 +274,20 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val actualVal = mhir.ir.eval(optimized)
     assert(actualVal == expectedVal)
   }
+
+  test("StmConcat") {
+    val n = 5
+    val original = {
+      val s0 = Param("s0")(TyStm(U8, n))
+      val count = SimpleCount(C(n)(U8))
+      val concat = SimpleConcat(s0, s0)
+      LetStm(n, s0, count, concat)().tchk().lower()
+    }
+    val optimized = pass.shrinkBuffers(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val actualVal = mhir.ir.eval(optimized)
+    assert(actualVal == originalVal)
+  }
 }

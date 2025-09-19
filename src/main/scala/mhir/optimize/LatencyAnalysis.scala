@@ -70,19 +70,34 @@ object LatencyAnalysis {
       case x: Param if x == src =>
         Some(0)
       case s: StmBuild =>
-        s.equations
+        val equationsWithSrc = s.equations
           .filter({ case (_, (z, _)) => z.freeVars().contains(src) })
-          .map({ case (x, _) => x })
-          .foldLeft[Option[Option[Int]]](None)({
-            // Outer option will be None if we haven't checked any paths yet
-            // Inner option will be None if we were unable to find the latency
-            // for at least one path
-            case (None, x)       => Some(latencyOfPaths(src, x, s, combine))
-            case (Some(None), _) => Some(None)
-            case (Some(Some(lat1)), x) =>
-              Some(latencyOfPaths(src, x, s, combine).flatMap(combine(lat1)(_)))
-          })
-          .get // There must be at least one path containing `src`
+        // If this is a join node, we want it to be "zip-like."
+        // With "zip-like" nodes, data from each path must arrive at the join
+        // at the same time.
+        // Don't deal with "concat-like" nodes, for example, which have
+        // different optimal data arrival timing.
+        val isJoin = equationsWithSrc.size > 1
+        val isZipLike = equationsWithSrc
+          .forall({ case (_, (_, ready)) => ready == True })
+        if (isJoin && !isZipLike) {
+          None
+        } else {
+          equationsWithSrc
+            .map({ case (x, _) => x })
+            .foldLeft[Option[Option[Int]]](None)({
+              // Outer option will be None if we haven't checked any paths yet
+              // Inner option will be None if we were unable to find the latency
+              // for at least one path
+              case (None, x)       => Some(latencyOfPaths(src, x, s, combine))
+              case (Some(None), _) => Some(None)
+              case (Some(Some(lat1)), x) =>
+                Some(
+                  latencyOfPaths(src, x, s, combine).flatMap(combine(lat1)(_))
+                )
+            })
+            .get // There must be at least one path containing `src`
+        }
       case LetStm(_, x, in, out) =>
         if (in.freeVars().contains(src)) {
           // (1) Latency from `src` to `in` plus latency from `x` to `out`
