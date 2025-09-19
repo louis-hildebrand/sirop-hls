@@ -96,8 +96,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             b
             for b in results.keys()
             if b.bench.name == bench_name and b.language == "vhdl"
-            # Omit broken benchmark
-            and (not c.CAM14_BROKEN or b.bench.full_name != "bigcamera_1_4")
         ]
         vhdl_benchmarks = sorted(
             vhdl_benchmarks,
@@ -150,7 +148,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
-            linestyle="-" if bench_name == "dot" else "",
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
@@ -159,7 +156,6 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
-            linestyle="-" if bench_name == "dot" else "",
         )
         # Settings for the whole column
         alm_ax.set_title(title)

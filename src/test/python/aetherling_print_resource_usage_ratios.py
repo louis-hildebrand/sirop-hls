@@ -26,9 +26,6 @@ def resource_usage_pairs(
             continue
         if b.name.startswith("sum"):
             continue
-        # Skip broken benchmark
-        if not c.CAM14_BROKEN or b.full_name == "bigcamera_1_4":
-            continue
         vhdl_res = results.get(BenchmarkImpl(b, "vhdl"))
         verilog_res = results.get(BenchmarkImpl(b, "verilog"))
         if vhdl_res is None and verilog_res is None:

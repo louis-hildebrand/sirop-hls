@@ -39,8 +39,9 @@ def program_order(program_name: str) -> int:
         "conv1d": 2,
         "conv2d": 3,
         "convb2b": 4,
-        "camera": 5,
-    }.get(program_name, 6)
+        "sharpen": 5,
+        "camera": 6,
+    }.get(program_name, 7)
 
 
 def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
@@ -78,9 +79,12 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         ys = []
         for p in program_names:
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
+            baseline = results.get(ProgramVariant(p, OptimizationLevel.NONE))
+            baseline = baseline.latency if baseline is not None else None
             if baseline is None:
-                raise ValueError(f"Missing baseline for {p}")
+                print(f"WARNING: Missing baseline for {p}")
+                ys.append(0)
+                continue
             y = results[ProgramVariant(p, lvl)].latency or baseline
             ys.append((y - baseline) / baseline)
         artist = ax.bar(
@@ -97,13 +101,17 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         artists.append(artist)
         labels = []
         for p in program_names:
-            y = results[ProgramVariant(p, lvl)].latency
-            if y is None:
-                labels.append("-")
-                continue
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].latency
+            baseline = results.get(ProgramVariant(p, OptimizationLevel.NONE))
+            baseline = baseline.latency if baseline is not None else None
             if baseline is None:
-                raise ValueError(f"Missing baseline for {p}")
+                print(f"WARNING: Missing baseline for {p}")
+                labels.append("?")
+                continue
+            y = results.get(ProgramVariant(p, lvl))
+            y = y.latency if y is not None else None
+            if y is None:
+                labels.append("x")
+                continue
             percent_change = (y - baseline) / baseline
             if percent_change >= 0:
                 label = f"+{percent_change:.0%}"
