@@ -26,19 +26,7 @@ object EnabledLetStmSimplifier extends LetStmSimplifier {
         if (numUses <= 0) {
           out
         } else if (numUses <= 1) {
-          // Add one cycle of latency so as not to introduce or worsen a latency
-          // mismatch between this part of the pipeline and another part
-          val nop = {
-            val TyStm(typ, n) = in.typ
-            val s = Param("s")(TyStm(typ, -1))
-            StmBuild(
-              n,
-              StmData(s)(),
-              True,
-              Map[Param, (Expr, Expr)](s -> (in, True))
-            )().tchk()
-          }
-          out.subPreserveType(x -> nop)
+          out.subPreserveType(x -> in)
         } else {
           let
         }
@@ -47,8 +35,11 @@ object EnabledLetStmSimplifier extends LetStmSimplifier {
 
   def simplifyAll(expr: Expr): Expr = {
     val result = expr match {
-      case LetStm(bufSize, x, in, out) =>
-        simplify(LetStm(bufSize, x, simplifyAll(in), simplifyAll(out))())
+      case LetStm(_, x, in, out) =>
+        // Removing buffers may introduce latency mismatches between different
+        // branches, and therefore the new pipeline may need more buffering.
+        val TyStm(_, n) = x.typ
+        simplify(LetStm(n, x, simplifyAll(in), simplifyAll(out))())
       case e => e.map(simplifyAll)
     }
     result.tchk()

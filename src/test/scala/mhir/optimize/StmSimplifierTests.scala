@@ -25,18 +25,7 @@ class StmSimplifierTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U8, 10))
     val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower()
     val e = LetStm(1, s, count, map)().tchk().lower()
-    val expected = {
-      val delayedCount = {
-        val s = Param("s")(TyStm(U8, -1))
-        StmBuild(
-          10,
-          StmData(s)(),
-          True,
-          Map[Param, (Expr, Expr)](s -> (count, True))
-        )().tchk()
-      }
-      simplifier.simplify(map.subPreserveType(s -> delayedCount))
-    }
+    val expected = simplifier.simplify(map.subPreserveType(s -> count))
     val actual = simplifier.simplify(e)
     assert(actual == expected)
   }
