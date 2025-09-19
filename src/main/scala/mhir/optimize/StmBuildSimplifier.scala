@@ -82,7 +82,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
         tl(StmAccRemovalPass.removePrefixCounter(s4))
       }
       val s6 = time("removing accumulator trio special case") {
-        tl(StmAccRemovalPass.removeCounterTrio(s5))
+        tl(SpecialCaseStmBuildSimplifier.simplify(s5))
       }
       s6
     }
