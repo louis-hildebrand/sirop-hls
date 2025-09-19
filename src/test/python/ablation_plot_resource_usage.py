@@ -40,8 +40,9 @@ def program_order(program_name: str) -> int:
         "conv1d": 2,
         "conv2d": 3,
         "convb2b": 4,
-        "camera": 5,
-    }.get(program_name, 6)
+        "sharpen": 5,
+        "camera": 6,
+    }.get(program_name, 7)
 
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -57,9 +58,9 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         "font.family": "Times New Roman",
         "font.size": 8,
     })
-    fig, alm_ax = plt.subplots(
-        nrows=1, ncols=1,
-        figsize=(8, 0.8),
+    fig, (alm_ax, bram_ax) = plt.subplots(
+        nrows=2, ncols=1,
+        figsize=(8, 3),
         layout="compressed",
         sharex="col",
     )
@@ -69,6 +70,12 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
     )
     baseline_artist, *_ = alm_ax.plot(
+        list(xlim),
+        [0, 0],
+        linestyle=":",
+        color=(0.5, 0.5, 0.5),
+    )
+    baseline_artist, *_ = bram_ax.plot(
         list(xlim),
         [0, 0],
         linestyle=":",
@@ -115,6 +122,42 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             labels=labels,
             padding=3,
         )
+        # BRAM usage
+        ys = []
+        for p in program_names:
+            y = results[ProgramVariant(p, lvl)].bram
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
+            ys.append( (y - baseline) / baseline )
+        artist = bram_ax.bar(
+            bottom=0,
+            x=xs,
+            height=ys,
+            width=BAR_WIDTH - BAR_PADDING,
+            label=str(lvl),
+            hatch=BAR_HATCH[i],
+            facecolor=FACE_COLORS[i],
+            edgecolor=EDGE_COLORS[i],
+            linestyle=LINE_STYLES[i],
+            hatch_linewidth=HATCH_WIDTH,
+        )
+        labels = []
+        for p in program_names:
+            bram = results[ProgramVariant(p, lvl)].bram
+            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
+            percent_change = (bram - baseline) / baseline
+            if percent_change >= 0:
+                label = f"+{percent_change:.0%}"
+            else:
+                label = f"{percent_change:.0%}"
+            label = label.replace("%", r"\%")
+            if label == r"+0\%":
+                label = ""
+            labels.append(label)
+        bram_ax.bar_label(
+            artist,
+            labels=labels,
+            padding=3,
+        )
     # Display settings
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
@@ -123,8 +166,11 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("\\% change\nALM usage")
-    alm_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
-    alm_ax.set_ylim(-1.25, 0.1)
+    alm_ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"100\%"])
+    alm_ax.set_ylim(-1.25, 1)
+    bram_ax.set_ylabel("\\% change\nBRAM usage")
+    bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
+    bram_ax.set_ylim(-1.25, 0.1)
     legend_cols = 4
     legend_labels=[lvl.explanation for lvl in [OptimizationLevel.NONE] + LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists

@@ -242,8 +242,8 @@ package object ir
       this.expr match {
         case x: Param       => Set(x)
         case Function(x, e) => e.freeVars() - x
-        case LetStm(x, in, out) =>
-          in.freeVars() ++ (out.freeVars() - x)
+        case LetStm(bufSize, x, in, out) =>
+          bufSize.freeVars() ++ in.freeVars() ++ (out.freeVars() - x)
         case stm @ StmBuild(n, data, valid, eqns) =>
           (
             // Free variables in the stream length and seeds are definitely free,
@@ -301,8 +301,8 @@ package object ir
           e match {
             case Function(y, _) if y == x =>
               0
-            case LetStm(y, in, _) if y == x =>
-              count(in, x)
+            case LetStm(bufSize, y, in, _) if y == x =>
+              count(bufSize, x) + count(in, x)
             case stm @ StmBuild(n, data, valid, _) =>
               val n0 =
                 (count(n, x)

@@ -12,13 +12,19 @@ package mhir.optimize
   *   whether to perform latency matching.
   * @param balanceBinOpTrees
   *   whether to balance trees of binary operators.
+  * @param assumeThroughputsMatch
+  *   whether the optimizer can assume the throughputs along different branches
+  *   of a [[mhir.ir.LetStm]] match.
   */
 case class OptimizerOptions(
     simplifyStmBuild: Boolean,
     simplifyLetStm: Boolean,
     fuse: Boolean,
     matchLatency: Boolean,
-    balanceBinOpTrees: Boolean
+    staticallyShrinkLetStmBuffers: Boolean,
+    maxLetStmBufSize: Option[Int],
+    balanceBinOpTrees: Boolean,
+    assumeThroughputsMatch: Boolean
 )
 
 /** Companion object for [[OptimizerOptions]].
@@ -27,13 +33,19 @@ object OptimizerOptions {
 
   /** An instance of [[OptimizerOptions]] where all optimizations are enabled.
     */
-  def All: OptimizerOptions = {
+  def all(
+      assumeThroughputsMatch: Boolean,
+      maxLetStmBufSize: Option[Int]
+  ): OptimizerOptions = {
     new OptimizerOptions(
       simplifyStmBuild = true,
       simplifyLetStm = true,
       fuse = true,
       matchLatency = true,
-      balanceBinOpTrees = true
+      staticallyShrinkLetStmBuffers = true,
+      maxLetStmBufSize = maxLetStmBufSize,
+      balanceBinOpTrees = true,
+      assumeThroughputsMatch = assumeThroughputsMatch
     )
   }
 
@@ -47,7 +59,10 @@ object OptimizerOptions {
       simplifyLetStm = false,
       fuse = false,
       matchLatency = false,
-      balanceBinOpTrees = false
+      staticallyShrinkLetStmBuffers = false,
+      maxLetStmBufSize = None,
+      balanceBinOpTrees = false,
+      assumeThroughputsMatch = false
     )
   }
 }

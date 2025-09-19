@@ -46,7 +46,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
         options = CompilerOptions(
           showFinal = false,
           target = VhdlTarget(outDir, overwrite = true),
-          optFlags = OptimizerOptions.All
+          optFlags = OptimizerOptions.all(
+            assumeThroughputsMatch = true,
+            maxLetStmBufSize = None
+          )
         )
       )
       Compiler.compile(args)

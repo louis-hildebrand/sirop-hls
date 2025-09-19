@@ -35,7 +35,14 @@ object Args {
     }
     val src = Path(srcFilename, base = os.pwd)
     val options = CompilerOptions(args.drop(1))
-    Args(inFile = src, options = options)
+    Args(
+      inFile = src,
+      // The Aetherling compiler guarantees that each producer/consumer pair
+      // has the same "time."
+      options = options.copy(optFlags =
+        options.optFlags.copy(assumeThroughputsMatch = true)
+      )
+    )
   }
 
   private[aetherling] def printShortUsage(): Unit = {

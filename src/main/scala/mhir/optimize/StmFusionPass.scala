@@ -54,8 +54,11 @@ class GreedyStmFusionPass(simplifier: StmSimplifier) extends StmFusionPass {
           val keep = newArea <= oldArea && newDelay <= oldDelay
           if (keep) fused else acc
         })
-      case LetStm(x, in, out) =>
-        LetStm(x, fuse(in), fuse(out))()
+      case LetStm(_, x, in, out) =>
+        val TyStm(_, inLen) = in.typ
+        // Fusion may change the latency along the different branches, so reset
+        // the buffer size to the worst-case value
+        LetStm(inLen, x, fuse(in), fuse(out))()
       case e => e.map(fuse)
     }
     val checkedResult = result.tchk()

@@ -365,9 +365,14 @@ object PartialEvalPass {
                 )()
             }
           case StmData(s) => StmData(doPartialEval(s))()
-          case LetStm(x, in, out) =>
-            time(s"partially evaluating : let stm $x") {
-              LetStm(x, doPartialEval(in), doPartialEval(out))()
+          case LetStm(bufSize, x, in, out) =>
+            time(s"partially evaluating : letstm[$bufSize] $x") {
+              LetStm(
+                doPartialEval(bufSize),
+                x,
+                doPartialEval(in),
+                doPartialEval(out)
+              )()
             }
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)

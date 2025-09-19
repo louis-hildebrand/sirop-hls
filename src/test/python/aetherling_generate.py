@@ -37,6 +37,7 @@ def generate_vhdl(benchmarks: list[str]) -> None:
         return (
             f"runMain {c.AETHERLING_COMPILER} {in_file} --show-final"
             f" --out-dir {out_dir} --overwrite"
+            f" --opt:max-let-buf-size 100"
         )
     tasks = [make_task(b) for b in benchmarks]
     os.chdir(c.ROOT_DIR)

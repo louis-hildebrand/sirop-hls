@@ -506,7 +506,7 @@ class EvalTests extends AnyFunSuite {
         )
       )()
     }
-    val e = LetStm(s, count, zipped)().tchk()
+    val e = LetStm(1, s, count, zipped)().tchk()
     val expected = StmLiteral(
       Tuple(C(0)(U8), C(0)(U8))(),
       Tuple(C(1)(U8), C(1)(U8))(),
@@ -570,7 +570,7 @@ class EvalTests extends AnyFunSuite {
         )(),
         True,
         Map[Param, (Expr, Expr)](
-          a -> (LetStm(s, count, zipped)(), True)
+          a -> (LetStm(1, s, count, zipped)(), True)
         )
       )().tchk()
     }
@@ -585,7 +585,7 @@ class EvalTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("LetStm:WrongAccessOrder") {
+  test("LetStm:StmConcat:NotEnoughBuffering") {
     // StmCount(5)
     val count = {
       val i = Param("i")(U8)
@@ -615,9 +615,132 @@ class EvalTests extends AnyFunSuite {
         )
       )()
     }
-    val e = LetStm(s, count, concat)().tchk()
+    val e = LetStm(1, s, count, concat)().tchk()
     val exc = intercept[DeadlockError](mhir.ir.eval(e))
     assert(exc.reasons == Seq(PipelineFixpoint))
+  }
+
+  test("LetStm:StmConcat:Valid") {
+    val n = 5
+    // StmCount(5)
+    val count = {
+      val i = Param("i")(U8)
+      StmBuild(
+        n,
+        i,
+        True,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        )
+      )()
+    }
+    val s = Param("s")(TyStm(U8, n))
+    // StmConcat(s, s)
+    val concat = {
+      val t = Param("t")(U8)
+      val s0 = Param("s0")(TyStm(U8, -1))
+      val s1 = Param("s1")(TyStm(U8, -1))
+      StmBuild(
+        2 * n,
+        Mux(t lt C(n)(U8), StmData(s0)(), StmData(s1)())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+          s0 -> (s, t lt C(n)(U8)),
+          s1 -> (s, t geq C(n)(U8))
+        )
+      )()
+    }
+    val e = LetStm(n, s, count, concat)().tchk()
+    val expected = StmLiteral(
+      (0 until n).map(C(_)(U8))
+        ++ (0 until n).map(C(_)(U8)): _*
+    )()
+    val actual = mhir.ir.eval(e)
+    assert(actual == expected)
+  }
+
+  test("LetStm:SumAndHead") {
+    val n = 8
+    val m = 4
+    val original = {
+      // StmCount(n*m)
+      val count = {
+        val i = Param("i")(U8)
+        StmBuild(
+          n * m,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          )
+        )().tchk()
+      }
+      val x = Param("s")(TyStm(U8, n * m))
+      val rowSums = {
+        val t = Param("t")(U8)
+        val acc = Param("acc")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Sum(StmData(s)(), acc)(),
+          t === (m - 1),
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            acc -> (
+              C(0)(U8),
+              Mux(
+                t === (m - 1),
+                C(0)(U8),
+                Sum(StmData(s)(), acc)()
+              )()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val rowHeads = {
+        val t = Param("t")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          StmData(s)(),
+          t === 0,
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val zip = {
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (rowSums, True),
+            s1 -> (rowHeads, True)
+          )
+        )().tchk()
+      }
+      LetStm(m, x, count, zip)().tchk()
+    }
+    val expected = StmLiteral(
+      (0 until (n * m))
+        .grouped(m)
+        .map(xs => Tuple(C(xs.sum)(U8), C(xs.head)(U8))())
+        .toSeq: _*
+    )().tchk()
+    val actual = mhir.ir.eval(original)
+    assert(actual == expected)
   }
 
   test("StmBuild:StmDataWithoutReady") {

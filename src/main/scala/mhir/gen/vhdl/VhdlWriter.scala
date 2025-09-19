@@ -11,8 +11,8 @@ object VhdlWriter {
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qsf"
   private val DefaultSdc =
     os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.sdc"
-  private val StmNoOpSrc =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl" / "stm_nop.vhd"
+  private val VhdlResourcesDir =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl"
 
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
@@ -171,6 +171,8 @@ object VhdlWriter {
     c match {
       case c: StmNoOpComponent =>
         Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
+      case c: LetStmBufComponent =>
+        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
       case c: CustomVhdlComponent =>
         (c.inPorts.map(p => p.typ)
           ++ c.outPorts.map(p => p.typ)
@@ -193,8 +195,12 @@ object VhdlWriter {
 
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
     c match {
-      case _: StmNoOpComponent =>
-        os.copy.over(from = StmNoOpSrc, to = dir / "stm_nop.vhd")
+      case c: StmNoOpComponent =>
+        os.copy.over(from = VhdlResourcesDir / c.VhdName, to = dir / c.VhdName)
+      case c: LetStmBufComponent =>
+        for (name <- c.VhdNames) {
+          os.copy.over(from = VhdlResourcesDir / name, to = dir / name)
+        }
       case c: CustomVhdlComponent =>
         c.writeVhdl(dir / s"${c.name}.vhd")
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {

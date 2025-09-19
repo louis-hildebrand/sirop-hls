@@ -235,7 +235,7 @@ object StreamReplicator {
       i: Param,
       varsToReplicate: Set[Param]
   ): LetStm = {
-    val LetStm(x, in, out) = let
+    val LetStm(bufSize, x, in, out) = let
     val replicateIn = in.freeVars().intersect(varsToReplicate + i).nonEmpty
     if (replicateIn) {
       val newX =
@@ -244,11 +244,11 @@ object StreamReplicator {
         in.replicate(m = m, i = i, varsToReplicate = varsToReplicate)
       val newOut =
         out.replicate(m = m, i = i, varsToReplicate = varsToReplicate + x)
-      LetStm(newX.asInstanceOf[Param], newIn, newOut)()
+      LetStm(bufSize, newX.asInstanceOf[Param], newIn, newOut)()
     } else {
       val newOut =
         out.replicate(m = m, i = i, varsToReplicate = varsToReplicate)
-      LetStm(x, in, newOut)()
+      LetStm(bufSize, x, in, newOut)()
     }
   }
 }

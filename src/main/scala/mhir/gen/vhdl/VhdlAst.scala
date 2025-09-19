@@ -33,11 +33,12 @@ private[vhdl] case class VhdlFunction(
     val argList = args
       .map({ case (x, t) =>
         val tStr = t match {
-          case VhdlStdLogicVec(n) => if (n < 0) t.vhdlTypeMark else t.vhdlName
-          case VhdlArray(n, _)    => if (n < 0) t.vhdlTypeMark else t.vhdlName
-          case VhdlSigned(n)      => if (n < 0) t.vhdlTypeMark else t.vhdlName
-          case VhdlUnsigned(n)    => if (n < 0) t.vhdlTypeMark else t.vhdlName
-          case _                  => t.vhdlName
+          case VhdlStdLogicVec(n, _) =>
+            if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlArray(n, _) => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlSigned(n)   => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case VhdlUnsigned(n) => if (n < 0) t.vhdlTypeMark else t.vhdlName
+          case _               => t.vhdlName
         }
         s"$x : in $tStr"
       })
@@ -150,13 +151,30 @@ private[vhdl] sealed trait VhdlComponent
   * @param bitWidth
   *   the bit width to use when instantiating this component.
   */
-private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent
+private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent {
+  val VhdName: String = "stm_nop.vhd"
+}
+
+/** The predefined `letstm_buf` component.
+  *
+  * @param bitWidth
+  *   the value for the `BIT_WIDTH` generic argument.
+  * @param bufSize
+  *   the value for the `BUF_SIZE` generic argument.
+  * @param numConsumers
+  *   the value for the `N_CONSUMERS` generic argument.
+  */
+private[vhdl] case class LetStmBufComponent(
+    bitWidth: Int,
+    bufSize: Int,
+    numConsumers: Int
+) extends VhdlComponent {
+  val VhdNames: Set[String] =
+    Set("letstm_buf.vhd", "dual_port_ram.vhd", "multi_consumer_ram.vhd")
+}
 
 /** A custom component, like for a [[mhir.ir.StmBuild]].
   *
-  * @param comment
-  *   a comment to put at the top of the file. This can be used to record the
-  *   expression in the IR from which this component was generated
   * @param name
   *   name of the component
   * @param inPorts
@@ -188,12 +206,22 @@ private[vhdl] case class CustomVhdlComponent(
           (child.inPorts.map(_.name) ++ child.outPorts.map(_.name)).toSet
         case _: StmNoOpComponent =>
           Set(
-            "data_out",
-            "valid_out",
-            "consumer_ready",
-            "data_in",
-            "valid_in",
-            "producer_ready"
+            "c_data",
+            "c_valid",
+            "c_ready",
+            "p_data",
+            "p_valid",
+            "p_ready"
+          )
+        case _: LetStmBufComponent =>
+          Set(
+            "clk",
+            "p_data",
+            "p_valid",
+            "p_ready",
+            "c_data",
+            "c_valid",
+            "c_ready"
           )
       }
       val actualPorts = map.map.keySet
@@ -276,16 +304,22 @@ private[vhdl] case class CustomVhdlComponent(
             .mkString(",\n" + " ".repeat(16))
         c match {
           case c: CustomVhdlComponent =>
-            s"""$name : entity work.${c.name}
+            s"""    $name : entity work.${c.name}
                |            port map(
                |                $assignments);
                |""".stripMargin.stripTrailing
           case c: StmNoOpComponent =>
-            s"""$name : entity work.stm_nop
+            s"""    $name : entity work.stm_nop
                |            generic map(BIT_WIDTH => ${c.bitWidth})
                |            port map(
                |                $assignments);
                |""".stripMargin.stripTrailing
+          case c: LetStmBufComponent =>
+            s"""    $name : entity work.letstm_buf
+               |            generic map(BIT_WIDTH => ${c.bitWidth}, BUF_SIZE => ${c.bufSize}, N_CONSUMERS => ${c.numConsumers})
+               |            port map(
+               |                $assignments);
+               |""".stripMargin
         }
       })
       .sortBy(x => x)

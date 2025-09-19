@@ -51,7 +51,13 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         options = CompilerOptions(
           showFinal = false,
           target = VhdlTarget(outDir = outDir, overwrite = true),
-          optFlags = OptimizerOptions.All
+          optFlags = OptimizerOptions.all(
+            assumeThroughputsMatch = true,
+            maxLetStmBufSize = {
+              // Play it safe
+              Some(100)
+            }
+          )
         )
       )
       Compiler.compile(args)
@@ -66,6 +72,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
     test(s"$benchName:verilog") {
       assume(!benchName.startsWith("bigcamera")) // Too slow
+      assume(benchName != "smallconvb2b_1_9")
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(

@@ -262,7 +262,7 @@ class StreamFusionTests extends AnyFunSuite {
     }
     val sA = Param("s_a")()
     val sB = Param("s_b")(TyStm(U8, n))
-    val original = LetStm(sA, input, interleave(sA, sB))().tchk().lower()
+    val original = LetStm(1, sA, input, interleave(sA, sB))().tchk().lower()
 
     val fused = original.fuseCompletely()
 
@@ -282,8 +282,10 @@ class StreamFusionTests extends AnyFunSuite {
       )
     )
     for ((a, b) <- examples) {
-      val expected = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, original)())())
-      val actual = mhir.ir.eval(LetStm(input, a, LetStm(sB, b, fused)())())
+      val expected =
+        mhir.ir.eval(LetStm(1, input, a, LetStm(1, sB, b, original)())())
+      val actual =
+        mhir.ir.eval(LetStm(1, input, a, LetStm(1, sB, b, fused)())())
       assert(actual == expected)
     }
 
@@ -306,6 +308,7 @@ class StreamFusionTests extends AnyFunSuite {
   test("LetStm:FuseCompletely:ReadOnceUseRepeatedly") {
     val s = Param("s")(TyStm(U8, 1))
     val original = LetStm(
+      1,
       s,
       s, {
         val s0 = Param("s0")(TyStm(U8, -1))

@@ -340,7 +340,7 @@ object Program {
     val blurred =
       makeConv3x3(width = width, height = height, input = sharedInput)
     val sharpened =
-      LetStm(sharedInput, input, StmMap2(blurred, sharedInput, sharpenOne)())()
+      Let(sharedInput, input, StmMap2(blurred, sharedInput, sharpenOne)())()
     Function(input, sharpened)()
   }
 

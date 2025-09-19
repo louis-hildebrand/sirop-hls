@@ -76,10 +76,10 @@ class ExprTests extends AnyFunSuite {
     val x = Param("x")(TyStm(U8, 2))
     val s = Param("s")(TyStm(U8, 2))
 
-    val e0 = LetStm(x, s, x)()
+    val e0 = LetStm(1, x, s, x)()
     assert(e0.freeVars() == Set(s))
 
-    val e1 = LetStm(x, x, x)()
+    val e1 = LetStm(1, x, x, x)()
     assert(e1.freeVars() == Set(x))
   }
 
@@ -121,8 +121,8 @@ class ExprTests extends AnyFunSuite {
     val in = StmBuild(5, C(42)(U16), True)()
     val s0 = Param("s")()
     val s1 = Param("s")()
-    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
-    val e1 = LetStm(s1, in, StmZip(s1, s1)())()
+    val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(1, s1, in, StmZip(s1, s1)())()
     assert(e0 == e1)
     assert(e1 == e0)
     assert(e0.hashCode == e1.hashCode)
@@ -133,8 +133,8 @@ class ExprTests extends AnyFunSuite {
     val in1 = StmBuild(5, C(-1)(I8), True)()
     val s0 = Param("s")()
     val s1 = Param("s")()
-    val e0 = LetStm(s0, in0, StmZip(s0, s0)())()
-    val e1 = LetStm(s1, in1, StmZip(s1, s1)())()
+    val e0 = LetStm(1, s0, in0, StmZip(s0, s0)())()
+    val e1 = LetStm(1, s1, in1, StmZip(s1, s1)())()
     assert(e0 != e1)
     assert(e1 != e0)
   }
@@ -143,8 +143,8 @@ class ExprTests extends AnyFunSuite {
     val in = StmBuild(5, C(42)(U16), True)()
     val s0 = Param("s")()
     val s1 = Param("s")()
-    val e0 = LetStm(s0, in, StmZip(s0, s0)())()
-    val e1 = LetStm(s1, in, StmZip(s1, s0)())()
+    val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
+    val e1 = LetStm(1, s1, in, StmZip(s1, s0)())()
     assert(e0 != e1)
     assert(e1 != e0)
   }

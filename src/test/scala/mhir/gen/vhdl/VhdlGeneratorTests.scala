@@ -18,6 +18,20 @@ class VhdlGeneratorTests extends AnyFunSuite {
   private val stmBuildSimplifier = StmBuildSimplifier()
   private val stmSimplifier = StmSimplifier(stmBuildSimplifier)
 
+  private def simpleZip(stm0: Expr, stm1: Expr): Expr = {
+    val s0 = Param("s0")(stm0.typ)
+    val s1 = Param("s1")(stm1.typ)
+    StmBuild(
+      stm0.typ.asInstanceOf[TyStm].n,
+      Tuple(StmData(s0)(), StmData(s1)())(),
+      True,
+      Map[Param, (Expr, Expr)](
+        s0 -> (stm0, True),
+        s1 -> (stm1, True)
+      )
+    )().tchk().lower()
+  }
+
   test("Reshaping") {
     val n = 16
     val i = Param("i")(I8)
@@ -391,7 +405,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("my_input", -1)(TyStm(U8, n))
     val s0 = Param("s0")(TyStm(U8, n))
     val zip = StmZip(s0, s)().tchk().lower()
-    val f = Function(s, LetStm(s0, s, zip)())().tchk().asInstanceOf[Function]
+    val f = Function(s, LetStm(1, s0, s, zip)())().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
     )
@@ -404,8 +418,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("s => let x = s in StmZip(x, StmZip(x, x))") {
     val s = Param("s")(TyStm(I16, 6))
     val x = Param("x")(TyStm(I16, 6))
-    val f =
-      Function(s, LetStm(x, s, StmZip(x, StmZip(x, x)())())())().tchk().lower()
+    val f = Function(s, LetStm(1, x, s, simpleZip(x, simpleZip(x, x)))())()
+      .tchk()
+      .lower()
     val inputs = Seq(
       DirectTestInput(
         Seq(
@@ -428,7 +443,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
+        LetStm(1, x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
       )().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
@@ -451,7 +466,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("s")(TyStm(I16, 6))
     val x = Param("x")(TyStm(U32, 10))
     val f =
-      Function(s, LetStm(x, StmCount(C(10)(U32))(), s)())().tchk().lower()
+      Function(s, LetStm(1, x, StmCount(C(10)(U32))(), s)())().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
         Seq(
@@ -474,7 +489,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
+        LetStm(1, idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
       )().tchk().lower()
     val inputs = Seq(
       DirectTestInput(
@@ -493,6 +508,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       Function(
         s,
         LetStm(
+          1,
           x,
           StmCount(C(10)(U8))(),
           StmMap(x, U8 ::+ (y => y % 2 === 0))()
@@ -511,11 +527,87 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val plusFive = StmMap(s, U8 ::+ (x => x + C(5)(U8)))().tchk()
     val e = stmSimplifier.simplify(
       StmMap(
-        LetStm(s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
+        LetStm(1, s, StmCount(C(5)(U8))(), StmZip(s, plusFive)())(),
         (U8, U8) ::+ (x => Tuple(x.__0, x.__1, C(3)(U8) * x.__0 + x.__1)())
       )().tchk().lower()
     )
     assert(VhdlTestRunner.testExpr(e) == TestPassed)
+  }
+
+  test("LetStm:BufSizeMoreThanOne") {
+    val n = 8
+    val m = 4
+    val stm = {
+      // StmCount(n*m)
+      val count = {
+        val i = Param("i")(U8)
+        StmBuild(
+          n * m,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          )
+        )().tchk()
+      }
+      val x = Param("s")(TyStm(U8, n * m))
+      val rowSums = {
+        val t = Param("t")(U8)
+        val acc = Param("acc")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Sum(StmData(s)(), acc)(),
+          t === (m - 1),
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            acc -> (
+              C(0)(U8),
+              Mux(
+                t === (m - 1),
+                C(0)(U8),
+                Sum(StmData(s)(), acc)()
+              )()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val rowHeads = {
+        val t = Param("t")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          StmData(s)(),
+          t === 0,
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val zip = {
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (rowSums, True),
+            s1 -> (rowHeads, True)
+          )
+        )().tchk()
+      }
+      LetStm(m, x, count, zip)().tchk().lower()
+    }
+    assert(VhdlTestRunner.testExpr(stm) == TestPassed)
   }
 
   test("SimpleLet") {

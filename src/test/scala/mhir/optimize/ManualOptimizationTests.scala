@@ -19,6 +19,7 @@ class ManualOptimizationTests extends AnyFunSuite {
 
   private val stmBuildSimplifier = StmBuildSimplifier()
   private val simplifier = StmSimplifier(stmBuildSimplifier)
+  private val fusionPass = new GreedyStmFusionPass(simplifier)
 
   /** The optimizer can produce a nice design for a simple map on a 1D stream,
     * even though the lowering pass spits out something a bit gross (since it
@@ -33,7 +34,9 @@ class ManualOptimizationTests extends AnyFunSuite {
     val optimize = (s: Expr) => {
       val s1 = tl(PE.partialEval(s))
       val s2 = tl(simplifier.simplify(s1)())
-      s2
+      val s3 = tl(fusionPass.fuse(s2))
+      val s4 = tl(simplifier.simplify(s3))
+      s4
     }
     val optimized = optimize(original.tchk().lower())
 

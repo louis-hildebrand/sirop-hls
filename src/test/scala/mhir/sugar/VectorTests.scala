@@ -122,7 +122,12 @@ class VectorTests extends AnyFunSuite {
     val i = Param("i")(U8)
     val s = Param("s")(TyStm(U8, m))
     val let =
-      LetStm(s, StmRange(m, C(0)(U8), i)(), StmZip(StmCount(C(m)(U8))(), s)())()
+      LetStm(
+        1,
+        s,
+        StmRange(m, C(0)(U8), i)(),
+        StmZip(StmCount(C(m)(U8))(), s)()
+      )()
     val e = VecBuild(n, Function(i, let)())().tchk().lower()
     val expected =
       StmLiteral(

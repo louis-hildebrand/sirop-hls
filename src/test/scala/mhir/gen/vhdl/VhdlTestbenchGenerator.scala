@@ -485,7 +485,7 @@ object VhdlTestbenchGenerator {
            |expected        := $expected;
            |masked_data     := data and mask;
            |masked_expected := expected and mask;
-           |assert(masked_data = masked_expected) report "Wrong data at step $i.";
+           |assert(masked_data = masked_expected) report "Wrong data at t = " & integer'image(t) & ".";
            |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
@@ -601,6 +601,7 @@ object VhdlTestbenchGenerator {
   ): (DirectTestOutput, Map[Param, DirectTestInput]) = {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
+      case let: LetStm => (Seq(), let)
       case f: Function => VhdlGenerator.unwrapTopLevelFunction(f, rename = true)
       case e =>
         throw new IllegalArgumentException(

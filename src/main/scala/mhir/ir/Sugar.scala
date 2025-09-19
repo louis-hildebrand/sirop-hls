@@ -49,8 +49,10 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       val v = this.v.lower()
       val in = this.in.lower()
       (v.typ, in.typ) match {
-        case (_: TyStm, _: TyStm) =>
-          LetStm(x, v, in)().tchk().lower()
+        case (_: TyStm, TyStm(_, inLen)) =>
+          // Play it safe and buffer the whole input stream.
+          // The optimizer may be able to improve this.
+          LetStm(inLen, x, v, in)().tchk().lower()
         case _ =>
           Let(x, v, in)().asFunCall().tchk().lower()
       }

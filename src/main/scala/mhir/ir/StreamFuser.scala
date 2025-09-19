@@ -74,7 +74,13 @@ object StreamFuser {
     @tailrec
     private def inlineAndFuse(stm: Expr): StmBuild = {
       stm match {
-        case LetStm(x, in, out) =>
+        case LetStm(bufSize, x, in, out) =>
+          if (bufSize != C(1)()) {
+            logger.warn(
+              "The fusion pass does not currently support LetStm buffer sizes other than one."
+                + " The fused stream may get stuck."
+            )
+          }
           inlineAndFuse(out.subPreserveType(x -> in))
         case s: StmBuild =>
           s.seedByVar.find({ case (_, e) => e.isInstanceOf[StmBuild] }) match {

@@ -360,7 +360,12 @@ object ExprPrinter {
         //   c1 && c2
         //     || c3 && c4
         s"sbuild(\n${indent(nStr)};\n${indent(dataStr)};\n${indent(validStr)};$indentedEquationsStr\n)"
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
+        val bufSizeStr = display(
+          bufSize,
+          maxWidth = maxWidth,
+          parentPrecedence = Precedence.Max
+        )
         val xStr = x.typ match {
           case Missing => x.name
           case t       => s"${x.name}: $t"
@@ -383,7 +388,7 @@ object ExprPrinter {
           case _ =>
             display(out, maxWidth = maxWidth)
         }
-        s"let stm $xStr = $inStr in\n$outStr"
+        s"letstm[$bufSizeStr] $xStr = $inStr in\n$outStr"
 
       case e: SyntaxSugar =>
         e.displayMultiLine(maxWidth)
@@ -490,7 +495,10 @@ object ExprPrinter {
         // No need for parentheses in f(x)(y)
         displayFunCallOneLine(displayOneLine(f, myPrecedence + 1), Seq(arg))
       case c: IntCst =>
-        s"${c.i}:${c.typ}"
+        c.typ match {
+          case Missing => s"${c.i}:?"
+          case t       => s"${c.i}:$t"
+        }
       case c: FixCst =>
         s"(${c.numer}/2e${c.typ.shift}):${c.typ}"
       case Sum(terms @ _*) =>
@@ -603,14 +611,16 @@ object ExprPrinter {
         s"sbuild($nStr; $dataStr; $validStr; $equationsStr)"
       case StmData(s) =>
         displayFunCallOneLine("data", Seq(s))
-      case LetStm(x, in, out) =>
+      case LetStm(bufSize, x, in, out) =>
+        val bufSizeStr =
+          displayOneLine(bufSize, parentPrecedence = Precedence.Max)
         val xStr = x.typ match {
           case Missing => x.name
           case t       => s"${x.name}: $t"
         }
         val inStr = displayOneLine(in, parentPrecedence = myPrecedence)
         val outStr = displayOneLine(out, parentPrecedence = myPrecedence)
-        s"let stm $xStr = $inStr in $outStr"
+        s"letstm[$bufSizeStr] $xStr = $inStr in $outStr"
       case VecBuild(n, f) =>
         displayFunCallOneLine("vbuild", Seq(n, f))
       case VecAccess(v, i) =>
@@ -782,8 +792,13 @@ object ExprPrinter {
               s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
             })})"
         s"StmBuild(${showScala(n)},${showScala(data)},${showScala(valid)},$equationsStr)(${showScala(s.typ)})"
-      case let @ LetStm(x, in, out) =>
-        s"LetStm(${showScala(x)},${showScala(in)},${showScala(out)})(${showScala(let.typ)})"
+      case let @ LetStm(bufSize, x, in, out) =>
+        val bufSizeStr = showScala(bufSize)
+        val xStr = showScala(x)
+        val inStr = showScala(in)
+        val outStr = showScala(out)
+        val typStr = showScala(let.typ)
+        s"LetStm($bufSizeStr,$xStr,$inStr,$outStr)($typStr)"
       case s @ StmLiteral(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"

@@ -50,5 +50,3 @@ OUR_LABEL = "Aetherling \u2192 \\textsc{Minstril} \u2192 VHDL"
 OUR_MARKER = "o"
 OUR_MARKER_SIZE = 3
 OUR_COLOR = "tab:orange"
-
-CAM14_BROKEN = True

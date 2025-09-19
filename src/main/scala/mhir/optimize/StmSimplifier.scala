@@ -48,7 +48,7 @@ case class EnabledStmSimplifier(
     logger.trace("partially evaluating...")
     val pe = PE.partialEval(e)
     logger.trace(s"after partial evaluation: $pe")
-    simplifyStreams(pe)
+    letStmSimplifier.simplifyAll(simplifyStreams(pe))
   }
 
   private def simplifyStreams(e: Expr)(implicit facts: FactSet): Expr = {
@@ -61,10 +61,6 @@ case class EnabledStmSimplifier(
         })
         val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
         stmBuildSimplifier.simplify(newS)(facts)
-      case LetStm(x, in, out) =>
-        val newIn = simplifyStreams(in)
-        val newOut = simplifyStreams(out)
-        letStmSimplifier.simplify(LetStm(x, newIn, newOut)())
       case e =>
         e.map(simplifyStreams)
     }

@@ -64,12 +64,12 @@ class NameSimplifierTests extends AnyFunSuite {
     val original = {
       val x = Param("x")(TyStm(U8, 5))
       val y = Param("y")(TyStm(I32, 5))
-      LetStm(x, x, LetStm(y, y, StmZip(x, y)())())().tchk()
+      LetStm(1, x, x, LetStm(1, y, y, StmZip(x, y)())())().tchk()
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
     val expectedStr =
-      "let stm x: Stm[u8, 5:u3] = x_1 in let stm y: Stm[i32, 5:u3] = y_2 in StmZip(x, y)"
+      "letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in letstm[1:u1] y: Stm[i32, 5:u3] = y_2 in StmZip(x, y)"
     assert(simplified.toString() == expectedStr)
   }
 
@@ -80,13 +80,14 @@ class NameSimplifierTests extends AnyFunSuite {
     mhir.ir.reset()
     val original = {
       val x = Param("x")(TyStm(U8, 5))
-      LetStm(x, x, LetStm(x, LetStm(x, x, x)(), StmZip(x, x)())())().tchk()
+      LetStm(1, x, x, LetStm(1, x, LetStm(1, x, x, x)(), StmZip(x, x)())())()
+        .tchk()
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
     val expectedStr =
-      """let stm x: Stm[u8, 5:u3] = x_1 in
-        |let stm x: Stm[u8, 5:u3] = let stm x: Stm[u8, 5:u3] = x in x in
+      """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
+        |letstm[1:u1] x: Stm[u8, 5:u3] = letstm[1:u1] x: Stm[u8, 5:u3] = x in x in
         |StmZip(x, x)
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)
@@ -101,14 +102,19 @@ class NameSimplifierTests extends AnyFunSuite {
       val x1 = Param("x")(TyStm(U8, 5))
       val x2 = Param("x")(TyStm(U8, 5))
       val x3 = Param("x")(TyStm(U8, 5))
-      LetStm(x1, x1, LetStm(x2, LetStm(x3, x1, x3)(), StmZip(x1, x2)())())()
+      LetStm(
+        1,
+        x1,
+        x1,
+        LetStm(1, x2, LetStm(1, x3, x1, x3)(), StmZip(x1, x2)())()
+      )().tchk()
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
     // You can still rename the first param
     val expectedStr =
-      """let stm x: Stm[u8, 5:u3] = x_1 in
-        |let stm x_2: Stm[u8, 5:u3] = let stm x: Stm[u8, 5:u3] = x in x in
+      """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
+        |letstm[1:u1] x_2: Stm[u8, 5:u3] = letstm[1:u1] x: Stm[u8, 5:u3] = x in x in
         |StmZip(x, x_2)
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)

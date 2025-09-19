@@ -211,7 +211,7 @@ class TracerTests extends AnyFunSuite {
           acc,
           True,
           Map[Param, (Expr, Expr)](
-            sAcc -> (LetStm(s, count, zipped)(), True),
+            sAcc -> (LetStm(1, s, count, zipped)(), True),
             acc -> (
               Tuple(C(0)(U16), C(1)(U16))(),
               Tuple(
@@ -230,6 +230,91 @@ class TracerTests extends AnyFunSuite {
       save(fullTrace, "trace-all-let-stm.json")
     } else {
       val expectedFullTrace = os.read(TracesDir / "trace-all-let-stm.json")
+      assert(fullTrace.json == expectedFullTrace)
+    }
+    assume(!SaveTraces)
+  }
+
+  test("LetStm:SumAndHead") {
+    mhir.ir.reset()
+    val n = 8
+    val m = 4
+    val stm = {
+      // StmCount(n*m)
+      val count = {
+        val i = Param("i")(U8)
+        StmBuild(
+          n * m,
+          i,
+          True,
+          Map[Param, (Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          )
+        )().tchk()
+      }
+      val x = Param("s")(TyStm(U8, n * m))
+      val rowSums = {
+        val t = Param("t")(U8)
+        val acc = Param("acc")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Sum(StmData(s)(), acc)(),
+          t === (m - 1),
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            acc -> (
+              C(0)(U8),
+              Mux(
+                t === (m - 1),
+                C(0)(U8),
+                Sum(StmData(s)(), acc)()
+              )()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val rowHeads = {
+        val t = Param("t")(U8)
+        val s = Param("s")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          StmData(s)(),
+          t === 0,
+          Map[Param, (Expr, Expr)](
+            t -> (
+              C(0)(U8),
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+            ),
+            s -> (x, True)
+          )
+        )().tchk()
+      }
+      val zip = {
+        val s0 = Param("s0")(TyStm(U8, -1))
+        val s1 = Param("s1")(TyStm(U8, -1))
+        StmBuild(
+          n,
+          Tuple(StmData(s0)(), StmData(s1)())(),
+          True,
+          Map[Param, (Expr, Expr)](
+            s0 -> (rowSums, True),
+            s1 -> (rowHeads, True)
+          )
+        )().tchk()
+      }
+      LetStm(m, x, count, zip)().tchk()
+    }
+
+    val fullTrace = Tracer.traceAll(stm)
+    if (SaveTraces) {
+      save(fullTrace, "trace-all-sum-and-head.json")
+    } else {
+      val expectedFullTrace = os.read(TracesDir / "trace-all-sum-and-head.json")
       assert(fullTrace.json == expectedFullTrace)
     }
     assume(!SaveTraces)
