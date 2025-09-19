@@ -72,7 +72,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 2.2),
+        figsize=(8, 3.5),
         layout="compressed",
         sharey="row",
         sharex="col",

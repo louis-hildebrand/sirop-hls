@@ -80,7 +80,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     })
     fig, axes = plt.subplots(
         nrows=1, ncols=len(benchmark_names),
-        figsize=(8, 1.15),
+        figsize=(8, 2),
         squeeze=False,
         sharey="row",
         layout="compressed",
