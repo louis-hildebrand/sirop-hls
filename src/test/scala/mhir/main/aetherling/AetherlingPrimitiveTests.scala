@@ -53,10 +53,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
         )
       )
       Compiler.compile(args)
-      time("generating VHDL testbench", Level.INFO) {
+      time("generating VHDL testbench", Level.DEBUG) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      val result = time("running VHDL simulation", Level.INFO) {
+      val result = time("running VHDL simulation", Level.DEBUG) {
         VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
@@ -77,10 +77,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
         )
       )
       Compiler.compile(args)
-      time("generating VHDL testbench", Level.INFO) {
+      time("generating VHDL testbench", Level.DEBUG) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      val result = time("running VHDL simulation", Level.INFO) {
+      val result = time("running VHDL simulation", Level.DEBUG) {
         VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
@@ -94,10 +94,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
         VerilogPrimitivesDir / s"$testName.v",
         overwrite = true
       )
-      time("generating Verilog testbench", Level.INFO) {
+      time("generating Verilog testbench", Level.DEBUG) {
         VerilogTestbenchGenerator.makeTestbench(io, projectDir)
       }
-      val result = time("running Verilog simulation", Level.INFO) {
+      val result = time("running Verilog simulation", Level.DEBUG) {
         VerilogTestRunner.testExistingProject(projectDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)

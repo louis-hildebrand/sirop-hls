@@ -58,7 +58,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         )
       )
       val f = Compiler.compile(args)
-      val actual = time("simplifying names and printing", Level.INFO) {
+      val actual = time("simplifying names and printing", Level.DEBUG) {
         ExprPrinter.display(NS.simplify(f))
       }
       val expectedPath = SimplifiedAetherlingBenchmarksDir / s"$benchName.txt"

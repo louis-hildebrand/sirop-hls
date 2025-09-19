@@ -68,7 +68,7 @@ object VhdlTestbenchGenerator {
           elemTyp = in.elemTyp,
           len = in.len
         )
-        time("writing input files", Level.INFO) {
+        time("writing input files", Level.DEBUG) {
           emitTestInputFiles(data = fileInput.data, valid = fileInput.valid, in)
         }
         x -> fileInput
@@ -85,7 +85,7 @@ object VhdlTestbenchGenerator {
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
-        time("writing output files", Level.INFO) {
+        time("writing output files", Level.DEBUG) {
           emitTestOutputFiles(
             data = fileOutput.data,
             mask = fileOutput.mask,

@@ -26,7 +26,7 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(e: Expr, options: CompilerOptions): Expr = {
-    val result = time("compilation", Level.INFO) {
+    val result = time("compilation", Level.DEBUG) {
       doCompile(e, options)
     }
     if (options.showFinal) {
@@ -39,7 +39,7 @@ object Compiler {
     val checked = typecheck(parsed)
     val lowered = lower(checked)
     val synthesizable = makeSynthesizable(lowered)
-    val optimized = time("optimization", Level.INFO) {
+    val optimized = time("optimization", Level.DEBUG) {
       Optimizer(options.optFlags).optimize(synthesizable)
     }
 
@@ -55,19 +55,19 @@ object Compiler {
   }
 
   private def typecheck(e: Expr): Expr = {
-    time("type checking", Level.INFO) {
+    time("type checking", Level.DEBUG) {
       e.tchk()
     }
   }
 
   private def lower(e: Expr): Expr = {
-    time("lowering", Level.INFO) {
+    time("lowering", Level.DEBUG) {
       translateStmLiteral(e.lower())
     }
   }
 
   private def makeSynthesizable(e: Expr): Expr = {
-    time("making expression synthesizable", Level.INFO) {
+    time("making expression synthesizable", Level.DEBUG) {
       val e1 = inlineFunCalls(e)
       val e2 = e1.streamify()
       val e3 = uncurryBody(e2)
@@ -80,7 +80,7 @@ object Compiler {
       outDir: Path,
       overwrite: Boolean
   ): Unit = {
-    time("generating VHDL", Level.INFO) {
+    time("generating VHDL", Level.DEBUG) {
       if (os.exists(outDir)) {
         if (overwrite) {
           os.remove.all(outDir)

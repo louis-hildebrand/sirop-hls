@@ -3,20 +3,28 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
+import org.slf4j.event.Level
 
 class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
 
-  private val logger: Logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   override def enabled: Boolean = true
 
   override def shrinkBuffers(e: Expr): Expr = {
+    time(s"shrinking all letstm buffers above $maxBufSize", Level.DEBUG) {
+      doShrinkBuffers(e)
+    }
+  }
+
+  private def doShrinkBuffers(e: Expr): Expr = {
     val result = e match {
       case s: StmBuild =>
         val newEquations = s.equations
           .map({
             case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (shrinkBuffers(stm), ready)
+              x -> (doShrinkBuffers(stm), ready)
             case (x, (z, next)) =>
               assert(x.typ.isData)
               x -> (z, next)
@@ -28,8 +36,8 @@ class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
           equations = newEquations
         )()
       case LetStm(bufSize, x, in, out) =>
-        val in1 = shrinkBuffers(in)
-        val out1 = shrinkBuffers(out)
+        val in1 = doShrinkBuffers(in)
+        val out1 = doShrinkBuffers(out)
         val newBufSize = bufSize match {
           case IntCst(oldBufSize) =>
             C(math.min(maxBufSize, oldBufSize))(bufSize.typ)
@@ -41,7 +49,7 @@ class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
         }
         LetStm(newBufSize, x, in1, out1)()
       case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
-        Function(x, shrinkBuffers(body))()
+        Function(x, doShrinkBuffers(body))()
       case e => e
     }
     val checkedResult = result.tchk()

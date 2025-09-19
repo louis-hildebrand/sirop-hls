@@ -34,7 +34,7 @@ object VerilogTestbenchGenerator {
     val in = io.inputs match {
       case in: DirectTestInput =>
         val f = dir / "inputs.bin"
-        time("writing input file", Level.INFO) {
+        time("writing input file", Level.DEBUG) {
           InGen.emitInputDataFile(f, in)
         }
         TestInputFromFile(
@@ -49,7 +49,7 @@ object VerilogTestbenchGenerator {
       case out: DirectTestOutput =>
         val dataFile = dir / "out_data.bin"
         val maskFile = dir / "out_mask.bin"
-        time("writing output files", Level.INFO) {
+        time("writing output files", Level.DEBUG) {
           OutGen.emitOutputFiles(data = dataFile, mask = maskFile, out)
         }
         TestOutputFromFile(
@@ -65,7 +65,7 @@ object VerilogTestbenchGenerator {
   }
 
   private def emitTestbench(code: String, dir: Path): Unit = {
-    logger.info(s"saving testbench in $dir")
+    logger.debug(s"saving testbench in $dir")
     val f = dir / "Test.v"
     if (os.isFile(f)) os.remove(f)
     os.write(f, code)

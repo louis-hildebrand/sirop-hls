@@ -66,13 +66,13 @@ object VhdlTestRunner {
   ): TestResult = {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
-    time("generating VHDL design", Level.INFO) {
+    time("generating VHDL design", Level.DEBUG) {
       VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR)
     }
-    time("generating VHDL testbench", Level.INFO) {
+    time("generating VHDL testbench", Level.DEBUG) {
       VhdlTestbenchGenerator.makeTestbench(inputs, e, VHDL_TEST_DIR)
     }
-    time("running simulation", Level.INFO) {
+    time("running simulation", Level.DEBUG) {
       testExistingProject(VHDL_TEST_DIR)
     }
   }

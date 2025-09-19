@@ -45,8 +45,8 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
-    logger.info(s"parsing Aetherling code from ${args.inFile}")
-    val parsed = time("parsing", Level.INFO) {
+    logger.debug(s"parsing Aetherling code from ${args.inFile}")
+    val parsed = time("parsing", Level.DEBUG) {
       val aetherlingCode = os.read(args.inFile)
       AetherlingParser.parse(aetherlingCode)
     }

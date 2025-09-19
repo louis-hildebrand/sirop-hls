@@ -1,28 +1,17 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-
-trait BinOpTreeBalancingPass {
-  def enabled: Boolean
-  def disabled: Boolean = !enabled
-
-  def balance(e: Expr): Expr
-}
-
-object BinOpTreeBalancingPass {
-  def apply(enabled: Boolean = true): BinOpTreeBalancingPass = {
-    if (enabled) EnabledBinOpTreeBalancingPass
-    else DisabledBinOpTreeBalancingPass
-  }
-}
+import mhir.logging.time
+import org.slf4j.event.Level
 
 /** Pass for making expressions like [[mhir.ir.Sum]] and [[mhir.ir.Or]] into
-  * binary trees.
+  * balanced binary trees.
   */
-object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
-
-  override def enabled: Boolean = true
+trait BinOpTreeBalancingPass {
+  def enabled: Boolean
+  final def disabled: Boolean = !enabled
 
   /** Convert flat operators with many operands (e.g., [[mhir.ir.Sum]],
     * [[mhir.ir.Prod]], [[mhir.ir.And]], [[mhir.ir.Or]]) into roughly balanced
@@ -38,7 +27,29 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
     * @param e
     *   the expression to process.
     */
-  def balance(e: Expr): Expr = {
+  def balance(e: Expr): Expr
+}
+
+object BinOpTreeBalancingPass {
+  def apply(enabled: Boolean = true): BinOpTreeBalancingPass = {
+    if (enabled) EnabledBinOpTreeBalancingPass
+    else DisabledBinOpTreeBalancingPass
+  }
+}
+
+object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
+
+  override def enabled: Boolean = true
+
+  override def balance(e: Expr): Expr = {
+    time("balancing binop trees", Level.DEBUG) {
+      doBalance(e)
+    }
+  }
+
+  private def doBalance(e: Expr): Expr = {
     val typedE = e.tchk()
     val result = typedE match {
       case s @ Sum(_, _) => s
@@ -51,8 +62,8 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
         })
         val (lhs, rhs) = if (nLeft < posTerms.length) {
           (
-            balance(Sum(posTerms.take(nLeft): _*)()),
-            balance(Sum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
+            doBalance(Sum(posTerms.take(nLeft): _*)()),
+            doBalance(Sum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
           )
         } else {
           val negTermsWithoutMinus = negTermsWithMinus.map({
@@ -65,9 +76,9 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
           })
           val m = nLeft - posTerms.length
           val lhs =
-            balance(Sum(posTerms ++ negTermsWithMinus.take(m): _*)())
+            doBalance(Sum(posTerms ++ negTermsWithMinus.take(m): _*)())
           val rhsPos =
-            balance(Sum(negTermsWithoutMinus.drop(m): _*)()).tchk()
+            doBalance(Sum(negTermsWithoutMinus.drop(m): _*)()).tchk()
           assert(rhsPos.typ.isInstanceOf[TySInt])
           (
             lhs,
@@ -79,39 +90,39 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
       case Prod(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = balance(Prod(lhsFactors: _*)())
-        val rhs = balance(Prod(rhsFactors: _*)())
+        val lhs = doBalance(Prod(lhsFactors: _*)())
+        val rhs = doBalance(Prod(rhsFactors: _*)())
         Prod(lhs, rhs)()
       case s @ WrappingSum(_, _) => s
       case WrappingSum(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = balance(WrappingSum(lhsTerms: _*)())
-        val rhs = balance(WrappingSum(rhsTerms: _*)())
+        val lhs = doBalance(WrappingSum(lhsTerms: _*)())
+        val rhs = doBalance(WrappingSum(rhsTerms: _*)())
         WrappingSum(lhs, rhs)()
       case p @ WrappingProd(_, _) => p
       case WrappingProd(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = balance(WrappingProd(lhsFactors: _*)())
-        val rhs = balance(WrappingProd(rhsFactors: _*)())
+        val lhs = doBalance(WrappingProd(lhsFactors: _*)())
+        val rhs = doBalance(WrappingProd(rhsFactors: _*)())
         WrappingProd(lhs, rhs)()
       case a @ And(_, _) => a
       case And(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = balance(And(lhsTerms: _*)())
-        val rhs = balance(And(rhsTerms: _*)())
+        val lhs = doBalance(And(lhsTerms: _*)())
+        val rhs = doBalance(And(rhsTerms: _*)())
         And(lhs, rhs)()
       case o @ Or(_, _) => o
       case Or(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = balance(Or(lhsTerms: _*)())
-        val rhs = balance(Or(rhsTerms: _*)())
+        val lhs = doBalance(Or(lhsTerms: _*)())
+        val rhs = doBalance(Or(rhsTerms: _*)())
         Or(lhs, rhs)()
       case _ =>
-        e.map(balance)
+        e.map(doBalance)
     }
     val typedResult = result.tchk()
     assert(typedResult.typ ~= typedE.typ)
@@ -120,7 +131,17 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
 }
 
 object DisabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
+
   override def enabled: Boolean = false
 
-  override def balance(e: Expr): Expr = e
+  override def balance(e: Expr): Expr = {
+    if (!hasLogged) {
+      hasLogged = true
+      logger.debug("binop tree balancing is disabled")
+    }
+    e
+  }
 }

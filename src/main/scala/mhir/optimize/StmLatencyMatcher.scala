@@ -1,8 +1,11 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
 import mhir.optimize.{LatencyAnalysis => LA}
+import org.slf4j.event.Level
 
 trait StmLatencyMatcher {
   def enabled: Boolean
@@ -32,6 +35,8 @@ object StmLatencyMatcher {
 class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
     extends StmLatencyMatcher {
 
+  private implicit val logger: Logger = Logger(getClass.getName)
+
   override def enabled: Boolean = true
 
   /** Inserts extra [[mhir.ir.StmBuild]]s in the stream pipeline to try to match
@@ -45,14 +50,16 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
       e.hasType,
       s"Cannot match latencies in expression of type ${e.typ}."
     )
-    // There may be some strange things happening after the joins, but that
-    // shouldn't prevent latency matching because the strange things
-    // contribute the same latency to all paths.
-    val e1 = letStmMover.moveDown(e)
-    val result = doMatchLatencies(e1)
-    val checkedResult = result.tchk()
-    assert(checkedResult.typ ~= e.typ)
-    checkedResult
+    time("latency matching", Level.DEBUG) {
+      // There may be some strange things happening after the joins, but that
+      // shouldn't prevent latency matching because the strange things
+      // contribute the same latency to all paths.
+      val e1 = letStmMover.moveDown(e)
+      val result = doMatchLatencies(e1)
+      val checkedResult = result.tchk()
+      assert(checkedResult.typ ~= e.typ)
+      checkedResult
+    }
   }
 
   private def doMatchLatencies(e: Expr): Expr = {
@@ -145,7 +152,17 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
 }
 
 object DisabledStmLatencyMatcher extends StmLatencyMatcher {
+
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
+
   override def enabled: Boolean = false
 
-  override def matchLatencies(e: Expr): Expr = e
+  override def matchLatencies(e: Expr): Expr = {
+    if (!hasLogged) {
+      hasLogged = true
+      logger.debug("latency matching is disabled")
+    }
+    e
+  }
 }

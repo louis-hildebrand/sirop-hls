@@ -3,22 +3,30 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
 import mhir.optimize.{LatencyAnalysis => LA}
+import org.slf4j.event.Level
 
 class StaticLetStmBufferShrinker(
     private val assumeThroughputsMatch: Boolean
 ) extends LetStmBufferShrinker {
-  override def enabled: Boolean = false
+  private implicit val logger: Logger = Logger(getClass.getName)
 
-  private val logger = Logger(getClass.getName)
+  override def enabled: Boolean = true
 
   override def shrinkBuffers(e: Expr): Expr = {
+    time("statically shrinking letstm buffers", Level.DEBUG) {
+      doShrinkBuffers(e)
+    }
+  }
+
+  private def doShrinkBuffers(e: Expr): Expr = {
     val result = e match {
       case s: StmBuild =>
         val newEquations = s.equations
           .map({
             case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (shrinkBuffers(stm), ready)
+              x -> (doShrinkBuffers(stm), ready)
             case (x, (z, next)) =>
               assert(x.typ.isData)
               x -> (z, next)
@@ -30,8 +38,8 @@ class StaticLetStmBufferShrinker(
           equations = newEquations
         )()
       case let @ LetStm(bufSize, x, in, out) =>
-        val in1 = shrinkBuffers(in)
-        val out1 = shrinkBuffers(out)
+        val in1 = doShrinkBuffers(in)
+        val out1 = doShrinkBuffers(out)
         val newBufSize = if (LA.allLatenciesMatch(let)) {
           if (this.assumeThroughputsMatch) {
             assert(bufSize.typ.isInstanceOf[TyUInt])
@@ -51,7 +59,7 @@ class StaticLetStmBufferShrinker(
         }
         LetStm(newBufSize, x, in1, out1)()
       case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
-        Function(x, shrinkBuffers(body))()
+        Function(x, doShrinkBuffers(body))()
       case e => e
     }
     val checkedResult = result.tchk()

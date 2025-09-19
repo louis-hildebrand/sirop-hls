@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.{PartialEvalPass => PE}
+import org.slf4j.event.Level
 
 import scala.annotation.tailrec
 
@@ -30,19 +31,20 @@ class Optimizer(
     //      things.
     //  (2) If you don't at least partially evaluate, the code is so bad for
     //      bigger examples (e.g., 1920x1080 conv2d) that simulation fails.
-    val s0 = PE.partialEval(s)
+    val s0 = time("initial partial evaluation", Level.DEBUG) {
+      PE.partialEval(s)
+    }
 
-    if (simplifier.disabled) {
-      logger.info("basic stream simplification is disabled")
-    }
-    val s1 = time("basic stream simplification", mute = simplifier.disabled) {
-      simplifier.simplify(s0)
-    }
+    val s1 = simplifier.simplify(s0)
 
     if (fusionPass.disabled) {
-      logger.info("stream fusion is disabled")
+      logger.debug("stream fusion is disabled")
     }
-    val s2 = time("greedy stream fusion", mute = fusionPass.disabled) {
+    val s2 = time(
+      "greedy stream fusion",
+      mute = fusionPass.disabled,
+      level = Level.DEBUG
+    ) {
       @tailrec
       def fix(s: Expr, i: Int): Expr = {
         val fused = fusionPass.fuse(s)
@@ -50,7 +52,7 @@ class Optimizer(
         // at most one consumer
         val simpl = letStmSimplifier.simplifyAll(fused)
         if (simpl == s) {
-          logger.trace(
+          logger.debug(
             s"reached fixpoint for greedy fusion after ${i + 1} iterations"
           )
           simpl
@@ -60,37 +62,23 @@ class Optimizer(
           fix(simpl, i = i + 1)
         }
       }
-      fix(s1, i = 0)
-    }
-
-    if (latencyMatcher.disabled) {
-      logger.info("latency matching is disabled")
-    }
-    val s3 = time("latency matching", mute = latencyMatcher.disabled) {
-      latencyMatcher.matchLatencies(s2)
-    }
-
-    if (letStmBufShrinker.disabled) {
-      logger.info("all letstm buffer shrinking passes are disabled")
-    }
-    val s4 =
-      time("letstm buffer shrinking", mute = letStmBufShrinker.disabled) {
-        letStmBufShrinker.shrinkBuffers(s3)
+      time("fixed-point iteration for fusion") {
+        fix(s1, i = 0)
       }
+    }
+
+    val s3 = latencyMatcher.matchLatencies(s2)
+
+    val s4 = letStmBufShrinker.shrinkBuffers(s3)
 
     // I think the program is more readable like this.
     // I don't think a compiler flag is needed, since it shouldn't change the
     // generated hardware in any meaningful way.
-    val s5 = time("moving LetStm up") {
+    val s5 = time("moving LetStm up", Level.DEBUG) {
       LetStmMover.moveUp(s4)
     }
 
-    if (binOpBalancer.disabled) {
-      logger.info("balancing binop trees is disabled")
-    }
-    val s6 = time("balancing binop trees", mute = binOpBalancer.disabled) {
-      binOpBalancer.balance(s5)
-    }
+    val s6 = binOpBalancer.balance(s5)
 
     s6
   }
@@ -102,6 +90,7 @@ object Optimizer {
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
     val letStmSimplifier = LetStmSimplifier(enabled = options.simplifyLetStm)
     val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
+    val loggingSimplifier = StmSimplifierWithLogging(simplifier)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
     val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
@@ -122,7 +111,7 @@ object Optimizer {
     val binOpBalancer =
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     new Optimizer(
-      simplifier,
+      loggingSimplifier,
       letStmSimplifier,
       fusionPass,
       latencyMatcher,

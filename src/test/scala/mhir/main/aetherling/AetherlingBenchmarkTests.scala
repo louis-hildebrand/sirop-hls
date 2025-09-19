@@ -61,10 +61,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         )
       )
       Compiler.compile(args)
-      time("generating VHDL testbench", Level.INFO) {
+      time("generating VHDL testbench", Level.DEBUG) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
-      val result = time("running VHDL simulation", Level.INFO) {
+      val result = time("running VHDL simulation", Level.DEBUG) {
         VhdlTestRunner.testExistingProject(outDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
@@ -80,10 +80,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
         VerilogBenchmarksDir / s"$benchName.v",
         overwrite = true
       )
-      time("generating Verilog testbench", Level.INFO) {
+      time("generating Verilog testbench", Level.DEBUG) {
         VerilogTestbenchGenerator.makeFileBasedTestbench(io, projectDir)
       }
-      val result = time("running Verilog simulation", Level.INFO) {
+      val result = time("running Verilog simulation", Level.DEBUG) {
         VerilogTestRunner.testExistingProject(projectDir, timeLimit = TimeLimit)
       }
       assert(result == TestPassed)
