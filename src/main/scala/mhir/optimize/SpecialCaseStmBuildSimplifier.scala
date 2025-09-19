@@ -16,7 +16,8 @@ object SpecialCaseStmBuildSimplifier {
 
   def simplify(stm: StmBuild): StmBuild = {
     val s0 = applyCase0(stm)
-    s0
+    val s1 = applyCase1(s0)
+    s1
   }
 
   private def applyCase0(s: StmBuild): StmBuild = {
@@ -118,6 +119,7 @@ object SpecialCaseStmBuildSimplifier {
           Map[Expr, Expr](
             reset -> Equal(newOut, C(k)(newOutTyp))().tchk(),
             in -> Mux(fst, C(0)(in.typ), C(1)(in.typ))().tchk(),
+            // TODO: What if ReshapeData doesn't work?
             out -> ReshapeData(newOut, out.typ)().tchk().lower()
           )
         val result = StmBuild(
@@ -147,5 +149,75 @@ object SpecialCaseStmBuildSimplifier {
       case _ =>
         s
     }
+  }
+
+  private def applyCase1(s: StmBuild): StmBuild = {
+    // (i : u32) = {
+    //   init: 0:u32,
+    //   next: if (out_ctr == 2:u2) then {
+    //     0:u32
+    //   } else {
+    //     1:u32 + (if (is_first_step) then { 0:u32 } else { i })
+    //   }
+    // }
+    // (is_first_step : bool) = {
+    //   init: true,
+    //   next: out_ctr == 2:u2
+    // }
+    // (out_ctr : u2) = {
+    //   init: 0:u2,
+    //   next: if (out_ctr == 2:u2) then { 0:u2 } else { 1:u2 + out_ctr }
+    // }
+    val subs: Map[Expr, Expr] = s.equations
+      .flatMap({
+        case (
+              i,
+              (
+                IntCst(0),
+                Mux(
+                  // TODO: Generalize 2
+                  Equal(outCtr0: Param, IntCst(k0)),
+                  IntCst(0),
+                  Sum(IntCst(1), Mux(fst0: Param, IntCst(0), i0: Param))
+                )
+              )
+            ) if i0 == i =>
+          val fstMatches = s.equations.get(fst0) match {
+            case Some((True, Equal(outCtr1: Param, IntCst(k1)))) =>
+              outCtr1 == outCtr0 && k1 == k0
+            case _ => false
+          }
+          val outCtrMatches = s.equations.get(outCtr0) match {
+            case Some(
+                  (
+                    IntCst(0),
+                    Mux(
+                      Equal(outCtr1: Param, IntCst(k1)),
+                      IntCst(0),
+                      Sum(IntCst(1), outCtr2: Param)
+                    )
+                  )
+                ) =>
+              outCtr1 == outCtr0 && outCtr2 == outCtr0 && k1 == k0
+            case _ => false
+          }
+          if (fstMatches && outCtrMatches) {
+            Map[Expr, Expr](i -> ReshapeData(outCtr0, i.typ)().tchk().lower())
+          } else {
+            Map[Expr, Expr]()
+          }
+        case _ => Map[Expr, Expr]()
+      })
+    val result = StmBuild(
+      s.n,
+      s.data.subPreserveType(subs),
+      s.valid.subPreserveType(subs),
+      s.equations.map({ case (x, (z, next)) =>
+        x -> (z, next.subPreserveType(subs))
+      })
+    )().tchk().asInstanceOf[StmBuild]
+    assert(result.typ ~= s.typ)
+    assert(!result.hasSyntaxSugar)
+    result
   }
 }
