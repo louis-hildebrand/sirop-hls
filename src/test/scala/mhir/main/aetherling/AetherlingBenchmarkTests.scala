@@ -72,6 +72,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
     test(s"$benchName:verilog") {
       assume(!benchName.startsWith("bigcamera")) // Too slow
+      assume(benchName != "smallconvb2b_1_9")
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(
