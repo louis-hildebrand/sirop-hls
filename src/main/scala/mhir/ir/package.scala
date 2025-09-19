@@ -425,6 +425,8 @@ package object ir
             // ... because every accumulator must have a type, and how would we
             // know what value to choose here?
           )
+        case TyUInt(0) =>
+          throw new TypeError(s"Cannot add zero-width output counter.")
         case _: TyUInt => ()
         case t =>
           throw new TypeError(
@@ -437,8 +439,8 @@ package object ir
           this.renameVar(outCtr)
         else
           this.stm
-      val z = IntCst(0)(outCtr.typ)
-      val next = Mux(s.valid, outCtr + 1, outCtr)().tchk()
+      val z = C(0)(outCtr.typ)
+      val next = Mux(s.valid, Sum(C(1)(outCtr.typ), outCtr)(), outCtr)().tchk()
       s.addAccumulator(outCtr, z, next)
     }
 
@@ -461,6 +463,8 @@ package object ir
             // ... because every accumulator must have a type, and how would we
             // know what value to choose here?
           )
+        case TyUInt(0) =>
+          throw new TypeError(s"Cannot add zero-width output counter.")
         case _: TyUInt => ()
         case t =>
           throw new TypeError(
@@ -474,7 +478,8 @@ package object ir
         else
           this.stm
       val stmNextCalled = s.nextByVar(x)
-      val next = Mux(stmNextCalled, inCtr + 1, inCtr)().tchk()
+      val next =
+        Mux(stmNextCalled, Sum(C(1)(inCtr.typ), inCtr)(), inCtr)().tchk()
       s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
     }
 

@@ -52,9 +52,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
         case (_: TyStm, TyStm(_, inLen)) =>
           // Play it safe and buffer the whole input stream.
           // The optimizer may be able to improve this.
-          LetStm(inLen, x, v, in)().tchk().lower()
+          LetStm(inLen, x, v, in)().tchk()
         case _ =>
-          Let(x, v, in)().asFunCall().tchk().lower()
+          Let(x, v, in)().asFunCall().tchk()
       }
     }(Let.logger)
   }

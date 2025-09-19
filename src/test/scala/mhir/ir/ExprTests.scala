@@ -391,7 +391,7 @@ class ExprTests extends AnyFunSuite {
     // The existing bound variable should be renamed
     val i = Param("i")()
     val expectedOutCtrSeed = IntCst(0)()
-    val expectedOutCtrNext = Mux(valid, outCtr + 1, outCtr)()
+    val expectedOutCtrNext = Mux(valid, Sum(C(1)(), outCtr)(), outCtr)()
     val expected = StmBuild(
       n,
       data,
@@ -447,7 +447,11 @@ class ExprTests extends AnyFunSuite {
     val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1)() }).get._1
     val expectedInCtrSeed = IntCst(0)()
     val expectedInCtrNext =
-      Mux(FunCall(f, freshI)() || FunCall(g, j)(), inCtr + 1, inCtr)()
+      Mux(
+        FunCall(f, freshI)() || FunCall(g, j)(),
+        Sum(C(1)(), inCtr)(),
+        inCtr
+      )()
     val expected =
       StmBuild(
         n,

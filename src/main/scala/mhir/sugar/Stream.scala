@@ -215,7 +215,6 @@ case class StmReset(
       .orElse(r.lowerForNEqualsOne())
       .getOrElse(r.lowerStandard())
       .tchk()
-      .lower()
     val ret = {
       val subs = this.inputs.map({ case (x, s) => x -> s })
       loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
@@ -246,7 +245,8 @@ case class StmReset(
   private def lowerEmptyPipeline(): Option[Expr] = {
     if (Type.sameLen(this.n, C(0)())) {
       logger.trace(s"lowering $className with n = 0: $this")
-      Some(StmBuild(0, Default(s.typ.asInstanceOf[TyStm].t), True)())
+      val TyStm(t, _) = s.typ
+      Some(StmBuild(0, Default(t).lower(), True)())
     } else {
       None
     }
@@ -297,9 +297,10 @@ case class StmReset(
                 }
               })
               .toSeq
-          ((outCtr -> outputsUntilReset) +: inputsUntilReset)
+          val shouldReset = ((outCtr -> outputsUntilReset) +: inputsUntilReset)
             .map({ case (ctr, n) => withCtrs.nextByVar(ctr) === n })
             .reduce[Expr]({ case (x, y) => x && y })
+          shouldReset.tchk().lower()
         }
         val result = StmBuild(
           withCtrs.n,
@@ -337,7 +338,7 @@ case class StmReset(
         x
       case s: StmBuild =>
         StmBuild(
-          SafeProd(this.n, s.n)(),
+          SafeProd(this.n, s.n)().tchk().lower(),
           s.data,
           s.valid,
           s.equations.map({
@@ -345,11 +346,11 @@ case class StmReset(
               x -> (multiplyLengths(s, inputStreams), ready)
             case eqn => eqn
           })
-        )()
+        )().tchk()
       case LetStm(bufSize, x, in, out) =>
         val TyStm(t, n) = x.typ
         LetStm(
-          SafeProd(this.n, bufSize)(),
+          SafeProd(this.n, bufSize)().tchk().lower(),
           x.rebuild(TyStm(t, SafeProd(this.n, n)())).asInstanceOf[Param],
           multiplyLengths(in, inputStreams),
           multiplyLengths(out, inputStreams + x)
@@ -1130,17 +1131,17 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
       StmBuild(
         1,
         wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
-        t + 1 === n,
+        Sum(C(1)(t.typ), t)() equ n,
         Map[Param, (Expr, Expr)](
           firstStep -> (True, False),
-          t -> (C(0)(n.typ), C(1)(n.typ) + t),
+          t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)()),
           sAcc -> (s, True),
           acc -> (
-            Default(elemTyp),
+            Default(elemTyp).lower(),
             Mux(firstStep, sData, f(Tuple(acc, sData)()))()
           )
         )
-      )().tchk().lower()
+      )().tchk()
     }
   }
 
@@ -1543,11 +1544,11 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         s -> (stm, True),
         buf -> (
           // TODO: Actually start with some kind of undefined value?
-          VecBuild(shiftAmount, U32 ::+ (_ => Default(t)))(),
-          VecShiftRight(buf, StmData(s)())()
+          VecBuild(shiftAmount, U32 ::+ (_ => Default(t).lower()))(),
+          VecShiftRight(buf, StmData(s)())().tchk().lower()
         )
       )
-    )().tchk().lower()
+    )().tchk()
   }
 }
 
@@ -1633,17 +1634,17 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         }
         StmBuild(
           n,
-          data,
+          data.tchk().lower(),
           True,
           Map[Param, (Expr, Expr)](
             buf -> (
               // TODO: Actually insert some kind of undefined value?
-              VecBuild(shiftAmount, U32 ::+ (_ => Default(t)))(),
-              bufNext
+              VecBuild(shiftAmount, U32 ::+ (_ => Default(t).lower()))(),
+              bufNext.tchk().lower()
             ),
             s -> (stm, True)
           )
-        )().tchk().lower()
+        )().tchk()
       case t =>
         throw new TypeError(
           s"Stream in $className has type $t."
