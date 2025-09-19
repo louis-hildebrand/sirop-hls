@@ -94,7 +94,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
         s"The stream should be type-checked before trying to remove induction variables."
       )
     }
-    if (s.contains(classOf[SyntaxSugar])) {
+    if (s.hasSyntaxSugar) {
       throw new IllegalArgumentException(
         s"The stream should be lowered before trying to remove induction variables."
       )
@@ -179,7 +179,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     }
     for ((x, f) <- closedFormByVar) {
       assert(
-        !f.contains(classOf[SyntaxSugar]),
+        !f.hasSyntaxSugar,
         s"there should be no syntax sugar in the closed forms (found some in the function for $x)"
       )
     }
@@ -375,11 +375,11 @@ private object RecurrenceSolver {
 
   def tryFindClosedForm(t0: Expr, z: Expr, next: Function): Option[Function] = {
     require(
-      !z.contains(classOf[SyntaxSugar]),
+      !z.hasSyntaxSugar,
       "Syntax sugar must be removed before a closed form can be found."
     )
     require(
-      !next.contains(classOf[SyntaxSugar]),
+      !next.hasSyntaxSugar,
       "Syntax sugar must be removed before a closed form can be found."
     )
     val peZ = PE.partialEval(z.tchk())
@@ -392,7 +392,7 @@ private object RecurrenceSolver {
     closedForm.foreach(f => {
       val typedF = f.tchk().asInstanceOf[Function]
       assert(
-        !typedF.contains(classOf[SyntaxSugar]),
+        !typedF.hasSyntaxSugar,
         s"closed form should not contain any syntax sugar (expression is $typedF)"
       )
       assert(

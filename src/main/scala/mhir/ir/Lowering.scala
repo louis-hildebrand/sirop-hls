@@ -159,7 +159,7 @@ object Lowering {
         s"lowering must yield an expression whose type is the lowered version of the original type (after attempting to lower ${expr.getClass.getSimpleName}, expected ${expr.typ.lower} but found ${desugared.typ})"
       )
       assert(
-        !desugared.contains(classOf[SyntaxSugar]),
+        !desugared.hasSyntaxSugar,
         s"lowering must yield an expression without any syntax sugar (after attempting to lower ${expr.getClass.getSimpleName}, which yielded $desugared)"
       )
       desugared

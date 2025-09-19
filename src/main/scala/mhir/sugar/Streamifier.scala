@@ -35,7 +35,7 @@ object Streamifier {
         "Expression must be type-checked before it can be streamified."
       )
       require(
-        !this.func.contains(classOf[SyntaxSugar]),
+        !this.func.hasSyntaxSugar,
         "Expression must be lowered before it can be streamified."
       )
       time("streamifying", Level.TRACE) {
@@ -55,8 +55,8 @@ object Streamifier {
         }
         val f = rewrapTopLevelFunction(newStm, oldToNewInputs)
         assert(
-          this.func.contains(classOf[SyntaxSugar])
-            || !f.contains(classOf[SyntaxSugar]),
+          this.func.hasSyntaxSugar
+            || !f.hasSyntaxSugar,
           s"streamification should not introduce syntax sugar if the original expression had none (found expression $f)"
         )
         val result = f.tchk()

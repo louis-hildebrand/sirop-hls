@@ -70,7 +70,7 @@ object VhdlGenerator {
       "Expression must be type checked before hardware generation."
     )
     require(
-      !e.contains(classOf[SyntaxSugar]),
+      !e.hasSyntaxSugar,
       "Expression must be lowered before hardware generation."
     )
     require(

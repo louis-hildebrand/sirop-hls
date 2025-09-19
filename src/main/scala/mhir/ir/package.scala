@@ -521,7 +521,7 @@ package object ir
         )
       }
       val isLowered = (
-        !this.stm.contains(classOf[SyntaxSugar])
+        !this.stm.hasSyntaxSugar
           && this.stm.typ == this.stm.typ.lower
       )
       if (!isLowered) {
@@ -550,7 +550,7 @@ package object ir
           )()
       }
       assert(
-        !lowered.contains(classOf[SyntaxSugar]),
+        !lowered.hasSyntaxSugar,
         s"converting ${stm.className} to a StmBuild should not introduce any syntax sugar"
       )
       lowered.tchk().asInstanceOf[StmBuild]

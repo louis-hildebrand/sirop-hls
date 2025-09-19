@@ -39,7 +39,7 @@ object LetStmMover {
         + s" (Found expression $e)"
     )
     require(
-      !e.contains(classOf[SyntaxSugar]),
+      !e.hasSyntaxSugar,
       "Syntax sugar must be removed before moving LetStm up."
         + s" (Found expression $e)"
       // ... otherwise, how would we know when it is legal to move the LetStm
@@ -157,7 +157,7 @@ object LetStmMover {
         + s" (Found expression $e)"
     )
     require(
-      !e.contains(classOf[SyntaxSugar]),
+      !e.hasSyntaxSugar,
       "Syntax sugar must be removed before moving LetStm down."
         + s" (Found expression $e)"
       // ... otherwise, how would we know when it is legal to move the LetStm

@@ -22,7 +22,7 @@ case class ScalarRange(lower: Option[Expr], upper: Option[Expr]) extends Range {
   lower match {
     case Some(e) =>
       require(
-        !e.contains(classOf[SyntaxSugar]),
+        !e.hasSyntaxSugar,
         "Lower bound must not contain syntax sugar."
       )
     case None => ()
@@ -30,7 +30,7 @@ case class ScalarRange(lower: Option[Expr], upper: Option[Expr]) extends Range {
   upper match {
     case Some(e) =>
       require(
-        !e.contains(classOf[SyntaxSugar]),
+        !e.hasSyntaxSugar,
         "Upper bound must not contain syntax sugar."
       )
     case None => ()

@@ -56,6 +56,13 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  lazy val hasSyntaxSugar: Boolean = {
+    this match {
+      case _: SyntaxSugar => true
+      case e              => e.children.exists(_.hasSyntaxSugar)
+    }
+  }
+
   /** Reconstruct this expression with new children or a new type annotation.
     *
     * @param typ

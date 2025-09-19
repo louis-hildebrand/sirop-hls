@@ -241,7 +241,7 @@ object StmAccRemovalPass {
             )
         )().tchk().asInstanceOf[StmBuild]
         assert(result.typ ~= s.typ)
-        assert(!result.contains(classOf[SyntaxSugar]))
+        assert(!result.hasSyntaxSugar)
         result
       case _ =>
         s

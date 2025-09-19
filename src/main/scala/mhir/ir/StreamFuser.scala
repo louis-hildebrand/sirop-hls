@@ -55,7 +55,7 @@ object StreamFuser {
           + s" (Found expression ${this.stm})"
       )
       require(
-        !this.stm.contains(classOf[SyntaxSugar]),
+        !this.stm.hasSyntaxSugar,
         "Expression must be lowered before fusion."
           + s" (Found expression ${this.stm})"
       )
@@ -204,7 +204,7 @@ object StreamFuser {
       val result = StmBuild(newN, newData, newValid, newEquations)()
       val checkedResult = result.tchk().asInstanceOf[StmBuild]
       assert(
-        !checkedResult.contains(classOf[SyntaxSugar]),
+        !checkedResult.hasSyntaxSugar,
         "no syntax sugar should be introduced by deduplicating StmBuild producers"
       )
       checkedResult
@@ -225,7 +225,7 @@ object StreamFuser {
           + s" (Found expression ${this.stm})"
       )
       require(
-        !this.stm.contains(classOf[SyntaxSugar]),
+        !this.stm.hasSyntaxSugar,
         "Expression must be lowered before fusion."
           + s" (Found expression ${this.stm})"
       )
@@ -283,7 +283,7 @@ object StreamFuser {
       )
       assert(fused.typ ~= stm.typ, "fusion should preserve type annotations")
       assert(
-        !fused.contains(classOf[SyntaxSugar]),
+        !fused.hasSyntaxSugar,
         "StmBuild fusion should not introduce any syntax sugar"
       )
       fused

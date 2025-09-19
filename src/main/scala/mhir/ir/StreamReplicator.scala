@@ -51,7 +51,7 @@ object StreamReplicator {
         "Expression to replicate must have the type of a stream."
       )
       require(
-        !this.stm.contains(classOf[SyntaxSugar]),
+        !this.stm.hasSyntaxSugar,
         "Expression to replicate must not have any syntax sugar."
       )
       val result = this.stm match {
