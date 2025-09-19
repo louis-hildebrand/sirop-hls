@@ -27,4 +27,18 @@ libraryDependencies ++= Seq(
 Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src/main/"
 
 lazy val root = (project in file("."))
-  .settings(name := "min_hw_ir")
+  .settings(
+    name := "min_hw_ir",
+    assembly / mainClass := Some("mhir.main.Compiler"),
+    assembly / assemblyJarName := "minstril.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", xs @ _*) =>
+        xs.map(_.toLowerCase) match {
+          case "services" :: xs =>
+            MergeStrategy.filterDistinctLines
+          case _ => MergeStrategy.discard
+        }
+      case PathList("reference.conf") => MergeStrategy.concat
+      case x                          => MergeStrategy.first
+    }
+  )
