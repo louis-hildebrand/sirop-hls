@@ -44,9 +44,7 @@ class StaticLetStmBufferShrinker(
           if (this.assumeThroughputsMatch) {
             assert(bufSize.typ.isInstanceOf[TyUInt])
             assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
-            // The implementation of LetStm actually adds one extra element, so
-            // set bufSize to 0 so there's really only one element.
-            C(0)(bufSize.typ)
+            C(1)(bufSize.typ)
           } else {
             logger.warn(
               s"could not shrink buffer for letstm $x = ... because assumeThroughputsMatch=false"

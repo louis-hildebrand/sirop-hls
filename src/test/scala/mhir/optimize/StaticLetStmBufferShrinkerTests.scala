@@ -14,7 +14,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
   private def assertAllBufSizesAreOne(e: Expr): Unit = {
     e match {
       case LetStm(bufSize, _, _, _) =>
-        assert(bufSize == C(0)())
+        assert(bufSize == C(1)())
       case e => e.children.foreach(assertAllBufSizesAreOne)
     }
   }
