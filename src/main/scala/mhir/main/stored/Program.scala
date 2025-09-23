@@ -20,6 +20,7 @@ object Program {
       case "convb2b" => ConvB2b
       case "sharpen" => Sharpen
       case "camera"  => Camera
+      case "matvec"  => MatVecMul
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -352,5 +353,23 @@ object Program {
       os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original" / "bigcamera_1.txt"
     )
     AetherlingParser.parse(aetherlingCode)
+  }
+
+  /** Matrix-vector multiplication.
+    */
+  private val MatVecMul: Expr = {
+    val width = 8
+    val height = 8
+    val uint = U16
+    val mat = Param("mat")(TyStm(TyStm(uint, width), height))
+    val vec = Param("vec")(TyStm(uint, width))
+    val row = Param("row")(TyStm(uint, width))
+    val dot = {
+      val zipped = StmZip(row, vec)()
+      val multiplied = StmMap(zipped, (uint, uint) ::+ (x => x.__0 * x.__1))()
+      StmReduce(multiplied, (uint, uint) ::+ (x => x.__0 + x.__1))()
+    }
+    val prod = StmMap(mat, Function(row, dot)())()
+    Function(mat, Function(vec, prod)())()
   }
 }

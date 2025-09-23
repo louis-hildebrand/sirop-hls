@@ -20,6 +20,8 @@ object ProgramIO {
       sharpenIO
     } else if (name.startsWith("camera_")) {
       cameraIO
+    } else if (name.startsWith("matvec_")) {
+      matVecMulIO
     } else {
       ???
     }
@@ -57,5 +59,21 @@ object ProgramIO {
 
   private def cameraIO: PositionalTestIO = {
     AetherlingBenchmarkIO.vhdlIO("bigcamera_1")
+  }
+
+  private def matVecMulIO: TestIO = {
+    val width = 8
+    val height = 8
+    val uint = U16
+    val mat = (0 until height).map(i => (0 until width).map(j => i + j))
+    val vec = 0 until width
+    val outputs = mat.map(row => row.zip(vec).map({ case (x, y) => x * y }).sum)
+    TestIO(
+      Seq(
+        DirectTestInput(mat.flatten.map(C(_)(uint)).map(Some(_))),
+        DirectTestInput(vec.map(C(_)(uint)).map(Some(_)))
+      ),
+      DirectTestOutput(outputs.map(C(_)(uint)))
+    )
   }
 }
