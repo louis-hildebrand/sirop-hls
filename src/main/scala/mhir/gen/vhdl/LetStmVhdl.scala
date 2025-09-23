@@ -5,6 +5,7 @@ import mhir.ir.typecheck.TypeCheck
 
 /** VHDL converter for [[LetStm]].
   */
+@deprecated
 private[vhdl] object LetStmVhdl {
 
   /** Converts a [[mhir.ir.LetStm]] to a VHDL component.
@@ -90,7 +91,7 @@ private[vhdl] object LetStmVhdl {
     )
 
     CustomVhdlComponent(
-      expr = let,
+      expr = Some(let),
       name = name,
       inPorts = allPorts.flatMap({
         case p: InPort => Some(p)

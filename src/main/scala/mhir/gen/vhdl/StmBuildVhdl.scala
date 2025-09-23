@@ -118,6 +118,8 @@ private[vhdl] object StmBuildVhdl {
       )
     }
 
+    // TODO: Get rid of this. The top-level component flattens out the pipeline,
+    //       so there should never be any "internal" producers anymore
     val (internalProducers, internalProducerSignals) =
       internalProducerInterface(
         internalProducerEquations.map({ case (x, (z, _)) => x -> z }).toMap,
@@ -139,7 +141,7 @@ private[vhdl] object StmBuildVhdl {
         ++ externalProducerPorts
     )
     val component = CustomVhdlComponent(
-      expr = s,
+      expr = Some(s),
       name = name,
       inPorts = allPorts.flatMap({
         case p: InPort => Some(p)

@@ -4,6 +4,7 @@ import mhir.ir._
 
 /** VHDL converter for any stream producer.
   */
+@deprecated
 private[vhdl] object AnyStmVhdl {
 
   /** Converts a stream-producing expression to a VHDL component.
