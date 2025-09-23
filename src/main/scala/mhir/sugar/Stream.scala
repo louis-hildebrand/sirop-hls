@@ -1775,11 +1775,11 @@ case class StmRepeat(
     requireType()
     val stm = this.stm.lower()
     val m = this.m.lower()
-    val t = stm.typ.asInstanceOf[TyStm].t
+    val typ = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
-    val s = Param("s")(TyStm(t, -1))
-    val v = Param("v")(TyVec(t, n))
-    val i = Param("i")(U32)
+    val s = Param("s")(TyStm(typ, -1))
+    val v = Param("v")(TyVec(typ, n))
+    val t = Param("t")(U32)
     val filling = Param("filling")(TyBool)
     // TODO: It may be possible to shave off one cycle by outputting valid data
     //       during the last filling cycle, but this would make the expression
@@ -1788,16 +1788,23 @@ case class StmRepeat(
     //       vector repeatedly, but the resulting expression is pretty gross
     StmBuild(
       SafeProd(n, m)(),
-      VecAccess(v, i)(),
-      !filling,
+      Mux(filling, StmData(s)(), VecAccess(v, t)())(),
+      True,
       Map[Param, (Expr, Expr)](
         s -> (stm, filling),
         v -> (
-          Undefined(TyVec(t, n)),
-          Mux(filling, VecShiftLeft(v, StmData(s)())(), v)()
+          Undefined(TyVec(typ, n)),
+          // Update the vector in such a way that the synthesis tool can turn
+          // it into a BRAM (not a massive shift register)
+          VecBuild(
+            n,
+            U32 ::+ (i =>
+              Mux(filling && (i === t), StmData(s)(), VecAccess(v, i)())()
+            )
+          )()
         ),
-        i -> (C(0)(U32), Mux(i + 1 === n, C(0)(U32), i + 1)()),
-        filling -> (True, filling && (i + 1 < n))
+        t -> (C(0)(U32), Mux(t + 1 === n, C(0)(U32), t + 1)()),
+        filling -> (True, filling && (t + 1 < n))
       )
     )().tchk().lower()
   }

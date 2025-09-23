@@ -61,14 +61,14 @@ object ProgramIO {
     AetherlingBenchmarkIO.vhdlIO("bigcamera_1")
   }
 
-  private def matVecMulIO: TestIO = {
+  private def matVecMulIO: PositionalTestIO = {
     val width = 8
     val height = 8
     val uint = U16
     val mat = (0 until height).map(i => (0 until width).map(j => i + j))
     val vec = 0 until width
     val outputs = mat.map(row => row.zip(vec).map({ case (x, y) => x * y }).sum)
-    TestIO(
+    PositionalTestIO(
       Seq(
         DirectTestInput(mat.flatten.map(C(_)(uint)).map(Some(_))),
         DirectTestInput(vec.map(C(_)(uint)).map(Some(_)))
