@@ -39,7 +39,7 @@ object TopVhdl {
           VhdlEntityInstantiation(component.name, component, portMap)
       })
       val lets = pipe.lets.zipWithIndex.map({ case ((x, bufSize, xs), i) =>
-        val component = NewLetStmVhdl(
+        val component = LetStmVhdl(
           x,
           bufSize,
           xs.toSeq.sortBy(_.name),
