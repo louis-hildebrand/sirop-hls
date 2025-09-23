@@ -7,7 +7,7 @@ import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{LetStmSimplifier, StmBuildSimplifier, StmSimplifier}
+import mhir.optimize.{StmBuildSimplifier, StmSimplifier}
 import mhir.sugar._
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
@@ -344,7 +344,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 33
     val t = TyTuple(U8, TyBool, TyVec(I9, 3))
     val s = Param("s")(TyStm(t, n))
-    val zip = StmZip(StmCount(n)(), s)().tchk().lower()
+    val zip = SimpleZip(SimpleCount(C(n)(U8)), s).tchk().lower()
     val f = Function(s, zip)().tchk()
     val inputs = {
       val v =
@@ -482,6 +482,14 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
 
+  test("s => s") {
+    val n = 8
+    val f = TyStm(U8, n) ::+ (s => s)
+    val inputs =
+      Seq(DirectTestInput(Seq((0 until n).map(t => Some(C(t)(U8))): _*)))
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
   // Input stream is used by the consumer
   test("s => let idx = StmCount(10) in StmZip(idx, s)") {
     val s = Param("s")(TyStm(U8, 10))
@@ -489,7 +497,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(1, idx, StmCount(C(10)(U8))(), StmZip(idx, s)())()
+        LetStm(1, idx, SimpleCount(C(10)(U8)), SimpleZip(idx, s))()
       )().tchk().lower()
     val inputs = Seq(
       DirectTestInput(

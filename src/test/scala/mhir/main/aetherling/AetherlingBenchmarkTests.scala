@@ -42,6 +42,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
+      if (benchName.contains("big")) ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
@@ -71,6 +72,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     }
 
     test(s"$benchName:verilog") {
+      if (benchName.contains("big")) ???
       assume(!benchName.startsWith("bigcamera")) // Too slow
       assume(benchName != "smallconvb2b_1_9")
       val io = AetherlingBenchmarkIO.verilogIO(benchName)

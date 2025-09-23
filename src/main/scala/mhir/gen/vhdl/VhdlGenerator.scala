@@ -21,9 +21,7 @@ object VhdlGenerator {
     *   the directory in which to save the design.
     */
   def emitVhdl(f: Expr, dir: Path): Unit = {
-    validateExpr(f)
-    val (inputs, stm) = unwrapTopLevelFunction(f, rename = true)
-    val topComponent = AnyStmVhdl(stm, inputs.toSet, "top")
+    val topComponent = TopVhdl(f)
     VhdlWriter.emit(topComponent, dir)
   }
 
