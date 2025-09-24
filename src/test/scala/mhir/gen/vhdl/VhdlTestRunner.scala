@@ -62,8 +62,9 @@ object VhdlTestRunner {
 
   def testExpr(
       e: Expr,
-      inputs: Seq[DirectTestInput] = Seq()
+      inputs: Seq[Seq[DirectTestInput]] = Seq(Seq())
   ): TestResult = {
+    require(inputs.nonEmpty)
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
     time("generating VHDL design", Level.DEBUG) {

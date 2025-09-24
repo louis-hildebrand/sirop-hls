@@ -542,7 +542,7 @@ object AetherlingBenchmarkIO {
     * @note
     *   this must be manually updated for each new benchmark.
     */
-  val vhdlIO: Map[String, vhdl.TestIO] = (
+  val vhdlIO: Map[String, vhdl.PositionalTestIO] = (
     mapIO.mapValues(_.toVhdl)
       ++ sumIO.mapValues(_.toVhdl)
       ++ dotIO.mapValues(_.toVhdl)

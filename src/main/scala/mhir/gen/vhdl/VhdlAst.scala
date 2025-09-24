@@ -338,7 +338,7 @@ private[vhdl] case class CustomVhdlComponent(
       // This tends to happen with very large expressions (e.g., designs that
       // have not been optimized at all - not even partial evaluation)
       if (stmts.nonEmpty) {
-        os.write.append(f, s"-- $categoryName\n")
+        os.write.append(f, s"    -- $categoryName\n")
         for (s <- stmts) {
           os.write.append(f, indent(s) + "\n")
         }
