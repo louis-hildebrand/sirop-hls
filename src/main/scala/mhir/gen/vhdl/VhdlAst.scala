@@ -216,6 +216,7 @@ private[vhdl] case class CustomVhdlComponent(
         case _: LetStmBufComponent =>
           Set(
             "clk",
+            "reset",
             "p_data",
             "p_valid",
             "p_ready",

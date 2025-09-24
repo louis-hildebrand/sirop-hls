@@ -24,6 +24,7 @@ object TopVhdl {
           val portMap = PortMap(
             Map(
               "clk" -> "clk",
+              "reset" -> "reset",
               // Handshake with consumer
               s"data" -> s"${x.name}_data",
               s"valid" -> s"${x.name}_valid",
@@ -49,6 +50,7 @@ object TopVhdl {
         val portMap = PortMap(
           Map(
             "clk" -> "clk",
+            "reset" -> "reset",
             // Handshake with consumer
             s"${x.name}_data" -> s"${x.name}_data",
             s"${x.name}_valid" -> s"${x.name}_valid",

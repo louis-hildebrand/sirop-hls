@@ -120,6 +120,7 @@ private[vhdl] object StmBuildVhdl {
   private def defaultInPorts: Seq[InPort] = {
     Seq(
       InPort("clk", VhdlStdLogic),
+      InPort("reset", VhdlStdLogic),
       InPort("ready", VhdlStdLogic)
     )
   }
@@ -169,9 +170,14 @@ private[vhdl] object StmBuildVhdl {
         typ = VhdlBool,
         init = Some("false"),
         assignStmt = Some(
-          s"valid_internal <= ($validVhdl) and ${allRequiredProducersValidSig.name};"
+          s"""if sl2bool(reset) then
+             |    valid_internal <= false;
+             |elsif transfer_ok or can_update_acc then
+             |    valid_internal <= ($validVhdl) and ${allRequiredProducersValidSig.name};
+             |end if;
+             |""".stripMargin.stripTrailing
         ),
-        cond = Some("transfer_ok or can_update_acc")
+        cond = Some("true")
       ),
       Signal(
         category = "Handshake (output)",
@@ -227,8 +233,15 @@ private[vhdl] object StmBuildVhdl {
           name = x.name,
           typ = VhdlType(x.typ),
           init = Some(initVhdl),
-          assignStmt = Some(s"${x.name} <= $nextVhdl;"),
-          cond = Some("can_update_acc")
+          assignStmt = Some(
+            s"""if sl2bool(reset) then
+               |    ${x.name} <= $initVhdl;
+               |elsif can_update_acc then
+               |    ${x.name} <= $nextVhdl;
+               |end if;
+               |""".stripMargin.stripTrailing
+          ),
+          cond = Some("true")
         )
         sig +: nextDecls
       })
