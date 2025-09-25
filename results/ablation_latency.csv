@@ -10,7 +10,7 @@ dot,fuse,843,True
 conv1d,none,33,True
 conv1d,simpl,23,True
 conv1d,latmatch,23,True
-conv1d,fuse,18,True
+conv1d,fuse,20,True
 conv2d,none,7739,True
 conv2d,simpl,7703,True
 conv2d,latmatch,7703,True
