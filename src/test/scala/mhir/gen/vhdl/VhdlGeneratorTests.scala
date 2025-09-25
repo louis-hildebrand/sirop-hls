@@ -908,4 +908,27 @@ class VhdlGeneratorTests extends AnyFunSuite {
     )
     assert(VhdlTestRunner.testExpr(stm, inputs) == TestPassed)
   }
+
+  test("Undefined") {
+    val e = {
+      val i = Param("i")(U8)
+      StmBuild(
+        5,
+        Mux(
+          i % 2 === 0,
+          Tuple(i, i, i)(),
+          Tuple(
+            VecAccess(Undefined(TyVec(U8, 2)), 0)(),
+            Undefined(TyTuple(U8, I16)).__0,
+            Undefined(U8) + 1
+          )()
+        )(),
+        i % 2 === 0,
+        Map[Param, (Expr, Expr)](
+          i -> (C(0)(U8), i + 1)
+        )
+      )().tchk().lower()
+    }
+    assert(VhdlTestRunner.testExpr(e) == TestPassed)
+  }
 }

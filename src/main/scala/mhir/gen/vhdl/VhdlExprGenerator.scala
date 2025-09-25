@@ -39,7 +39,25 @@ private object VhdlExprGenerator {
     )
     e match {
       case Undefined(typ) =>
-        VhdlExpr(makeUndefined(typ), Seq())
+        val tempVar = {
+          val name = Param("undef")().name
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(typ),
+                assignStmt = Some(s"$name <= ${makeUndefined(typ)};")
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(typ),
+                assignStmt = s"$name := ${makeUndefined(typ)};"
+              )
+          }
+        }
+        VhdlExpr(tempVar.name, Seq(tempVar))
       case x: Param => VhdlExpr(x.name, Seq())
       case c: IntCst =>
         c.typ.asInstanceOf[TyAnyInt] match {
@@ -308,7 +326,7 @@ private object VhdlExprGenerator {
     }
   }
 
-  def makeUndefined(typ: Type): String = {
+  private def makeUndefined(typ: Type): String = {
     typ match {
       case _: TyAnyInt => "(others => 'X')"
       case _: TyFix    => "(others => 'X')"
