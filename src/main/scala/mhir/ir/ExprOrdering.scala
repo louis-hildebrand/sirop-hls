@@ -36,6 +36,7 @@ case object ExprOrdering extends Ordering[Expr] {
 
   private def classScore(e: Expr): Int = {
     e match {
+      case _: Undefined    => 0
       case False           => 1000
       case True            => 2000
       case _: And          => 3000

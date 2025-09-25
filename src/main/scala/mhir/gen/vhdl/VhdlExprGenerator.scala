@@ -1,7 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 
 /** @param vhdl
   *   VHDL code for this expression
@@ -38,6 +38,8 @@ private object VhdlExprGenerator {
       "Expression must be type-checked before it can be converted to a VHDL expression."
     )
     e match {
+      case Undefined(typ) =>
+        VhdlExpr(makeUndefined(typ), Seq())
       case x: Param => VhdlExpr(x.name, Seq())
       case c: IntCst =>
         c.typ.asInstanceOf[TyAnyInt] match {
@@ -306,6 +308,23 @@ private object VhdlExprGenerator {
     }
   }
 
+  def makeUndefined(typ: Type): String = {
+    typ match {
+      case _: TyAnyInt => "(others => 'X')"
+      case _: TyFix    => "(others => 'X')"
+      case TyBool      => "false"
+      case TyTuple(ts @ _*) =>
+        ts.zipWithIndex
+          .map({ case (t, i) => s"i_$i => ${makeUndefined(t)}" })
+          .mkString("(", ", ", ")")
+      case TyVec(t, _) => s"(others => ${makeUndefined(t)})"
+      case Missing | _: TyStm | _: TyArrow =>
+        throw new TypeError(
+          s"Cannot generate undefined value for type $typ."
+        )
+    }
+  }
+
   private def makeProduct(factors: Seq[VhdlExpr], bitWidth: Int): VhdlExpr = {
     require(factors.nonEmpty)
     if (factors.length == 1) {
@@ -322,30 +341,35 @@ private object VhdlExprGenerator {
   }
 
   def valueToVhdl(v: Expr): String = {
-    mhir.ir.eval(v).tchk() match {
-      case False => "false"
-      case True  => "true"
-      case c: IntCst =>
-        c.typ.asInstanceOf[TyAnyInt] match {
-          case TyUInt(w) => s"to_unsigned(${c.i}, $w)"
-          case TySInt(w) => s"to_signed(${c.i}, $w)"
-        }
-      case Tuple() => "\"\""
-      case Tuple(elems @ _*) =>
-        val assignments = elems.zipWithIndex
-          .map({ case (e, i) => s"i_$i => ${valueToVhdl(e)}" })
-          .mkString(", ")
-        s"($assignments)"
-      case VecLiteral(elems @ _*) =>
-        val assignments =
-          elems.zipWithIndex
-            .map({ case (e, i) => s"$i => ${valueToVhdl(e)}" })
-            .mkString(", ")
-        s"($assignments)"
+    v match {
+      case Undefined(typ) =>
+        makeUndefined(typ)
       case _ =>
-        throw new IllegalArgumentException(
-          s"Cannot convert value $v to a VHDL expression. Is it really a value?"
-        )
+        mhir.ir.eval(v).tchk() match {
+          case False => "false"
+          case True  => "true"
+          case c: IntCst =>
+            c.typ.asInstanceOf[TyAnyInt] match {
+              case TyUInt(w) => s"to_unsigned(${c.i}, $w)"
+              case TySInt(w) => s"to_signed(${c.i}, $w)"
+            }
+          case Tuple() => "\"\""
+          case Tuple(elems @ _*) =>
+            val assignments = elems.zipWithIndex
+              .map({ case (e, i) => s"i_$i => ${valueToVhdl(e)}" })
+              .mkString(", ")
+            s"($assignments)"
+          case VecLiteral(elems @ _*) =>
+            val assignments =
+              elems.zipWithIndex
+                .map({ case (e, i) => s"$i => ${valueToVhdl(e)}" })
+                .mkString(", ")
+            s"($assignments)"
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Cannot convert value $v to a VHDL expression. Is it really a value?"
+            )
+        }
     }
   }
 }

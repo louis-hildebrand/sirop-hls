@@ -44,3 +44,8 @@ case class StmDataWithoutReady(x: Param) extends EvalWarning {
   override def display: String =
     s"attempt to read StmData($x) while ready = false"
 }
+
+case class UndefinedPrimitive(typ: Type) extends EvalWarning {
+  override def display: String =
+    s"attempt to evaluate the ${Undefined(typ)} primitive"
+}

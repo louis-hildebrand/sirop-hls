@@ -53,7 +53,7 @@ object Precedence {
     */
   def apply(e: Expr): Int = {
     e match {
-      case _: IntCst | _: FixCst | _: BoolCst | _: Param =>
+      case _: IntCst | _: FixCst | _: BoolCst | _: Param | _: Undefined =>
         // Atomic expressions: nothing to split up
         0
       case _: Tuple | _: VecLiteral | _: StmLiteral =>

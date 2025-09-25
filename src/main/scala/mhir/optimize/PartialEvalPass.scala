@@ -54,6 +54,17 @@ object PartialEvalPass {
       case Some(false) => False
       case None =>
         e match {
+          case u: Undefined =>
+            // Be very careful with undefined values.
+            // For example, don't say that undefined + x --> undefined and
+            // undefined * x --> undefined.
+            // You may end up incorrectly simplifying as follows:
+            //       (x => x + -1*x)(undefined)
+            //   --> undefined + -1*undefined
+            //   --> undefined + undefined
+            //   --> undefined
+            // Yet clearly the original expression will always evaluate to 0.
+            u
           case x: Param =>
             facts.getRange(x) match {
               case Some(ScalarRange(Some(lo), Some(hi)))

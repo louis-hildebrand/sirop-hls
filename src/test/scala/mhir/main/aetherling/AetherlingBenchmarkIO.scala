@@ -1,6 +1,6 @@
 package mhir.main.aetherling
 
-import mhir.gen.{Undefined, verilog, vhdl}
+import mhir.gen.{verilog, vhdl}
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 

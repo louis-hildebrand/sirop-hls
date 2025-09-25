@@ -1,6 +1,7 @@
 package mhir.ir
 package evaluate
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 
@@ -12,6 +13,8 @@ import scala.language.{existentials, implicitConversions}
 trait Eval {
 
   private val MaxInvalidSteps = 10000
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Evaluates an expression.
     *
@@ -32,7 +35,11 @@ trait Eval {
       suppressWarnings: Boolean = false
   ): Expr = {
     val Value(v, warnings) = evalBigStep(stmData)(e.tchk().lower())
-    if (warnings.isEmpty || suppressWarnings) {
+    if (warnings.isEmpty) {
+      v
+    } else if (suppressWarnings) {
+      val warnStr = warnings.map(_.display).mkString(", ")
+      logger.warn(s"the result of evaluation seems to be undefined: $warnStr")
       v
     } else {
       throw UndefinedValException(warnings)
@@ -80,6 +87,9 @@ trait Eval {
       stmData: Map[Param, Option[Expr]]
   )(e: Expr): Value = {
     val result: Value = e match {
+      case Undefined(typ) =>
+        val Value(v, warnings) = evalBigStep(stmData)(Default(typ).lower())
+        Value(v, warnings + UndefinedPrimitive(typ))
       case x: Param =>
         throw new IllegalArgumentException(
           s"Free variable ${x.name}. Terms must be closed."
