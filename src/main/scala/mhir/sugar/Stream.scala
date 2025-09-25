@@ -307,6 +307,9 @@ case class StmReset(
           withCtrs.data,
           withCtrs.valid,
           withCtrs.equations.map({
+            case (x, (z: Undefined, next)) =>
+              // No need to reset!
+              x -> (z, next)
             case (x, (z, next)) if x.typ.isData =>
               val newNext = Mux(shouldReset, z, next)()
               x -> (z, newNext)

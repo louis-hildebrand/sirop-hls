@@ -228,19 +228,28 @@ private[vhdl] object StmBuildVhdl {
         )
         val initVhdl = VhdlExprGenerator.valueToVhdl(z)
         val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
+        val shouldReset = !z.isInstanceOf[Undefined]
         val sig = Signal(
           category = "Registers",
           name = x.name,
           typ = VhdlType(x.typ),
           init = Some(initVhdl),
-          assignStmt = Some(
-            s"""if sl2bool(reset) then
-               |    ${x.name} <= $initVhdl;
-               |elsif can_update_acc then
-               |    ${x.name} <= $nextVhdl;
-               |end if;
-               |""".stripMargin.stripTrailing
-          ),
+          assignStmt = Some({
+            val update =
+              s"""if can_update_acc then
+                 |    ${x.name} <= $nextVhdl;
+                 |end if;
+                 |""".stripMargin.stripTrailing
+            val reset = if (shouldReset) {
+              s"""if sl2bool(reset) then
+                 |    ${x.name} <= $initVhdl;
+                 |els
+                 |""".stripMargin.stripTrailing
+            } else {
+              ""
+            }
+            s"$reset$update"
+          }),
           cond = Some("true")
         )
         sig +: nextDecls
