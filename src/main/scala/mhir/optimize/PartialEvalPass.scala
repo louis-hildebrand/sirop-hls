@@ -230,6 +230,8 @@ object PartialEvalPass {
                 val falseE = doPartialEval(f)(facts.assumeFalse(cond))
                 (cond, trueE, falseE) match {
                   case _ if trueE == falseE => trueE
+                  case (_, _, _: Undefined) => trueE
+                  case (_, _: Undefined, _) => falseE
                   case _ if trueE.typ == TyBool =>
                     ArithSimplifier.simplifyArithmetic(
                       (cond && trueE) || (!cond && falseE)
@@ -284,6 +286,8 @@ object PartialEvalPass {
             doPartialEval(t) match {
               case tuple: Tuple =>
                 tuple.elems(i.toInt)
+              case Undefined(TyTuple(ts @ _*)) =>
+                Undefined(ts(i.toInt))
               case Mux(c, t, f) =>
                 // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
@@ -325,6 +329,8 @@ object PartialEvalPass {
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
                 doPartialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
+              case (Undefined(TyVec(t, _)), _) =>
+                Undefined(t)
               case (v, i) => VecAccess(v, i)()
             }
 
