@@ -32,7 +32,7 @@ def main(programs: list[str]) -> None:
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
             " --opt:no-fuse --opt:no-match-latency --opt:no-simplify"
-            " --opt:max-let-buf-size 100"
+            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
         )
         # Only basic simplification
         lvl = OptimizationLevel.SIMPLIFY
@@ -42,7 +42,7 @@ def main(programs: list[str]) -> None:
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
             " --opt:no-fuse --opt:no-match-latency"
-            " --opt:max-let-buf-size 100"
+            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
         )
         # Latency matching
         lvl = OptimizationLevel.MATCH_LATENCY
@@ -52,7 +52,7 @@ def main(programs: list[str]) -> None:
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
             " --opt:no-fuse"
-            " --opt:max-let-buf-size 100"
+            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
         )
         # Fusion
         lvl = OptimizationLevel.FUSE
@@ -61,7 +61,7 @@ def main(programs: list[str]) -> None:
             f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
-            " --opt:max-let-buf-size 100"
+            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
         )
         # All except stream simplification
         lvl = OptimizationLevel.ALL_EXCEPT_SIMPL
@@ -71,7 +71,7 @@ def main(programs: list[str]) -> None:
             f" --out-dir {out_dir} --overwrite"
             " --show-final"
             " --opt:no-simplify"
-            " --opt:max-let-buf-size 100"
+            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
         )
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "; ".join(sbt_tasks)], check=True)
