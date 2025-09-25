@@ -1546,8 +1546,7 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         buf -> (
-          // TODO: Actually start with some kind of undefined value?
-          VecBuild(shiftAmount, U32 ::+ (_ => Default(t).lower()))(),
+          Undefined(TyVec(t, shiftAmount)),
           VecShiftRight(buf, StmData(s)())().tchk().lower()
         )
       )
@@ -1641,8 +1640,7 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
           True,
           Map[Param, (Expr, Expr)](
             buf -> (
-              // TODO: Actually insert some kind of undefined value?
-              VecBuild(shiftAmount, U32 ::+ (_ => Default(t).lower()))(),
+              Undefined(TyVec(t, shiftAmount)),
               bufNext.tchk().lower()
             ),
             s -> (stm, True)
@@ -1795,7 +1793,7 @@ case class StmRepeat(
       Map[Param, (Expr, Expr)](
         s -> (stm, filling),
         v -> (
-          VecBuild(n, U32 ::+ (_ => Default(t)))(),
+          Undefined(TyVec(t, n)),
           Mux(filling, VecShiftLeft(v, StmData(s)())(), v)()
         ),
         i -> (C(0)(U32), Mux(i + 1 === n, C(0)(U32), i + 1)()),
@@ -1971,7 +1969,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
           Mux(j + 1 === elemSize, C(0)(U32), j + 1)()
         ),
         v -> (
-          VecBuild(vecLen, U32 ::+ (_ => Default(t)))(),
+          Undefined(TyVec(t, vecLen)),
           VecShiftLeft(v, StmData(s)())()
         )
       )

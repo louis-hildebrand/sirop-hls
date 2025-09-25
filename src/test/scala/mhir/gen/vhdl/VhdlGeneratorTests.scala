@@ -882,4 +882,30 @@ class VhdlGeneratorTests extends AnyFunSuite {
       exc.getMessage == s"Cannot generate VHDL function with input type ${U8 ->: U8} and output type $U8."
     )
   }
+
+  test("StmShiftRightGarbage") {
+    val n = 8
+    val shiftAmount = 2
+    val s = Param("s")(TyStm(U8, n))
+    val stm = {
+      val x = Param("x")(TyStm(U8, n))
+      Function(
+        s,
+        StmSuffix(
+          LetStm(
+            1,
+            x,
+            s,
+            SimpleZip(x, StmShiftRightGarbage(x, shiftAmount)().tchk())
+          )(),
+          n - shiftAmount
+        )()
+      )().tchk().lower()
+    }
+    val inputs = Seq(
+      Seq(DirectTestInput((0 until n).map(C(_)(U8)).map(Some(_)))),
+      Seq(DirectTestInput((0 until n).map(t => C(t * t)(U8)).map(Some(_))))
+    )
+    assert(VhdlTestRunner.testExpr(stm, inputs) == TestPassed)
+  }
 }
