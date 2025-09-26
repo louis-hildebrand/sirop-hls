@@ -35,7 +35,8 @@ object CompilerOptions {
     var showFinal = false
     var mutArgs = args
     // Optimizer args
-    var simplify = true
+    var simplifyStmBuild = true
+    var inlineLetStm = true
     var fuse = true
     var matchLatency = true
     var staticallyShrinkLetStmBuffers = true
@@ -59,11 +60,13 @@ object CompilerOptions {
           emitHdl = false
         case "--show-final" =>
           showFinal = true
-        case "--opt:no-simplify" =>
-          simplify = false
+        case "--opt:no-simplify-sbuild" =>
+          simplifyStmBuild = false
+        case "--opt:no-inline-letstm" =>
+          inlineLetStm = false
         case "--opt:no-fuse" =>
           fuse = false
-        case "--opt:no-match-latency" =>
+        case "--opt:no-latmatch" =>
           matchLatency = false
         case "--opt:no-static-buf-shrink" =>
           staticallyShrinkLetStmBuffers = false
@@ -121,8 +124,8 @@ object CompilerOptions {
       showFinal = showFinal,
       target = target,
       optFlags = OptimizerOptions(
-        simplifyStmBuild = simplify,
-        simplifyLetStm = simplify,
+        simplifyStmBuild = simplifyStmBuild,
+        inlineLetStm = inlineLetStm,
         fuse = fuse,
         matchLatency = matchLatency,
         staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
@@ -144,9 +147,10 @@ object CompilerOptions {
        |  --show-final        show the final program right before code generation
        |
        |Optimization Flags:
-       |  --opt:no-simplify               skip partial evaluation and simplification
-       |  --opt:no-fuse                   skip the greedy fusion pass
-       |  --opt:no-match-latency          skip the latency matching pass
+       |  --opt:no-simplify-sbuild        skip basic sbuild simplifications
+       |  --opt:no-inline-letstm          skip inlining letstm
+       |  --opt:no-fuse                   skip the greedy stream fusion pass
+       |  --opt:no-latmatch               skip the latency matching pass
        |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
        |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm
        |  --opt:no-balance-binop-trees    skip the binop tree balancing pass

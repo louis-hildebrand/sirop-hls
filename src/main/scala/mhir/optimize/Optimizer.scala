@@ -88,7 +88,7 @@ object Optimizer {
   def apply(options: OptimizerOptions): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
-    val letStmSimplifier = LetStmSimplifier(enabled = options.simplifyLetStm)
+    val letStmSimplifier = LetStmSimplifier(enabled = options.inlineLetStm)
     val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
     val loggingSimplifier = StmSimplifierWithLogging(simplifier)
     val fusionPass =
