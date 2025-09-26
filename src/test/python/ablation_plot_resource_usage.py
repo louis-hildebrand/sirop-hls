@@ -24,10 +24,11 @@ LEVELS_TO_PLOT = [
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
-BAR_HATCH = ["//", r"\\", ""]
-FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
-EDGE_COLORS = ["black", "black", "black", "black"]
-LINE_STYLES = ["-", "-", "-", "-"]
+BAR_HATCH = ["//", r"\\", "||", "++", "--", "xx", "/", r"\\", "|", "+", "-", "x"]
+# pylint: disable-next=line-too-long
+FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
+EDGE_COLORS = ["black" for _ in FACE_COLORS]
+LINE_STYLES = ["-" for _ in FACE_COLORS]
 HATCH_WIDTH = 1
 
 
@@ -171,13 +172,14 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
         [f"\\texttt{{{p}}}" for p in program_names],
     )
-    alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("\\% change\nALM usage")
-    alm_ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"100\%"])
-    alm_ax.set_ylim(-1.25, 1)
+    alm_ax.tick_params(axis="x", which="both", length=0)
+    bram_ax.tick_params(axis="x", which="both", length=0)
+    # alm_ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"100\%"])
+    # alm_ax.set_ylim(-1.25, 1)
     bram_ax.set_ylabel("\\% change\nBRAM usage")
-    bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
-    bram_ax.set_ylim(-1.25, 0.1)
+    # bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
+    # bram_ax.set_ylim(-1.25, 0.1)
     legend_cols = 4
     legend_labels=[lvl.explanation for lvl in [BASELINE_LVL] + LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists

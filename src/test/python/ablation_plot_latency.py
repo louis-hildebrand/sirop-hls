@@ -24,9 +24,11 @@ LEVELS_TO_PLOT = [
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
 BAR_PADDING = 0.02
-BAR_HATCH = ["//", "\\\\", "", "||"]
-FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]
-EDGE_COLORS = ["black", "black", "black", "black"]
+BAR_HATCH = ["//", r"\\", "||", "++", "--", "xx", "/", r"\\", "|", "+", "-", "x"]
+# pylint: disable-next=line-too-long
+FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
+EDGE_COLORS = ["black" for _ in FACE_COLORS]
+LINE_STYLES = ["-" for _ in FACE_COLORS]
 HATCH_WIDTH = 1
 
 
@@ -138,13 +140,12 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     # ax.set_yscale("symlog")
     ax.set_ylabel("\\% change\nlatency")
     ax.set_yticks([-1, 0, 0.5], [r"-100\%", r"0\%", r"+50\%"])
-    ax.set_ylim(-1.35, 0.55)
+    # ax.set_ylim(-1.35, 0.55)
     ax.set_xticks(
         [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
         [f"\\texttt{{{p}}}" for p in program_names],
     )
     ax.set_xlim(xlim)
-    # ax.set_yticks([y for y in ax.get_yticks() if y != 0])
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = 4
     legend_labels = (

@@ -14,10 +14,16 @@ import lib.constants as c
 from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 
+BASELINE_LVL = OptimizationLevel.ALL
+LEVELS_TO_PLOT = list(OptimizationLevel)
 BAR_SPACE = 0.2
-BAR_WIDTH = (1 - BAR_SPACE) / len(OptimizationLevel)
-BAR_HATCH = ["", "xx", "++", "", ".."]
-COLORS = ["yellow", "green", "orange", "blue", "red"]
+BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
+BAR_PADDING = 0.02
+BAR_HATCH = ["//", r"\\", "||", "++", "--", "xx", "/", r"\\", "|", "+", "-", "x"]
+# pylint: disable-next=line-too-long
+FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
+EDGE_COLORS = ["black" for _ in FACE_COLORS]
+LINE_STYLES = ["-" for _ in FACE_COLORS]
 HATCH_WIDTH = 1
 
 
@@ -52,10 +58,12 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
         ys = [results.get(ProgramVariant(p, lvl), 0) for p in program_names]
         artist, *_ = ax.bar(
             xs, ys,
-            width=BAR_WIDTH,
+            width=BAR_WIDTH - BAR_PADDING,
             label=str(lvl),
             hatch=BAR_HATCH[i],
-            color=COLORS[i],
+            facecolor=FACE_COLORS[i],
+            edgecolor=EDGE_COLORS[i],
+            linestyle=LINE_STYLES[i],
             hatch_linewidth=HATCH_WIDTH,
         )
         artists.append(artist)
