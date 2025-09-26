@@ -1,10 +1,14 @@
 package mhir.gen.vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 /** VHDL converter for [[mhir.ir.StmBuild]].
   */
 private[vhdl] object StmBuildVhdl {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Converts a [[mhir.ir.StmBuild]] to a VHDL component.
     *
@@ -193,39 +197,72 @@ private[vhdl] object StmBuildVhdl {
       registerEquations: Iterable[(Param, (Expr, Expr))]
   ): Seq[Decl] = {
     registerEquations
-      .flatMap({ case (x, (z, next)) =>
-        assert(x.typ.isData)
-        require(
-          z.freeVars().isEmpty,
-          s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
-        )
-        val initVhdl = VhdlExprGenerator.valueToVhdl(z)
-        val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
-        val shouldReset = !z.isInstanceOf[Undefined]
-        val sig = Signal(
-          category = "Registers",
-          name = x.name,
-          typ = VhdlType(x.typ),
-          init = Some(initVhdl),
-          assignStmt = Some({
-            val update =
-              s"""if can_update_acc then
+      .flatMap({
+        case SingleWriteVector(x, z, cond, idx, write) =>
+          // If the accumulator is a vector such that at most one element is
+          // updated per step, then emit VHDL code which makes that clear.
+          // This makes it possible for Quartus to recognize the accumulator as
+          // a BRAM (assuming the other conditions are met, like only reading
+          // one element per cycle).
+          // Quartus cannot recognize a BRAM if we write to every element at
+          // every cycle, even if all but one element keeps the same value.
+          logger.debug(
+            s"accumulator ${x.name} is a single-write vector"
+              + s" (cond: $cond, idx: $idx, write: $write)"
+          )
+          assert(x.typ.isData)
+          assert(z.isInstanceOf[Undefined])
+          val VhdlExpr(condVhdl, condDecls) = VhdlExprGenerator.exprToVhdl(cond)
+          val VhdlExpr(idxVhdl, idxDecls) = VhdlExprGenerator.exprToVhdl(idx)
+          val VhdlExpr(writeVhdl, writeDecls) =
+            VhdlExprGenerator.exprToVhdl(write)
+          val sig = Signal(
+            category = "Registers",
+            name = x.name,
+            typ = VhdlType(x.typ),
+            init = None,
+            assignStmt = Some(
+              s"""if $condVhdl then
+                 |    ${x.name}(to_integer($idxVhdl)) <= $writeVhdl;
+                 |end if;
+                 |""".stripMargin
+            ),
+            cond = Some("true")
+          )
+          sig +: (condDecls ++ idxDecls ++ writeDecls)
+        case (x, (z, next)) =>
+          assert(x.typ.isData)
+          require(
+            z.freeVars().isEmpty,
+            s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
+          )
+          val initVhdl = VhdlExprGenerator.valueToVhdl(z)
+          val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
+          val shouldReset = !z.isInstanceOf[Undefined]
+          val sig = Signal(
+            category = "Registers",
+            name = x.name,
+            typ = VhdlType(x.typ),
+            init = Some(initVhdl),
+            assignStmt = Some({
+              val update =
+                s"""if can_update_acc then
                  |    ${x.name} <= $nextVhdl;
                  |end if;
                  |""".stripMargin.stripTrailing
-            val reset = if (shouldReset) {
-              s"""if sl2bool(reset) then
+              val reset = if (shouldReset) {
+                s"""if sl2bool(reset) then
                  |    ${x.name} <= $initVhdl;
                  |els
                  |""".stripMargin.stripTrailing
-            } else {
-              ""
-            }
-            s"$reset$update"
-          }),
-          cond = Some("true")
-        )
-        sig +: nextDecls
+              } else {
+                ""
+              }
+              s"$reset$update"
+            }),
+            cond = Some("true")
+          )
+          sig +: nextDecls
       })
       .toSeq
   }
@@ -312,5 +349,59 @@ private[vhdl] object StmBuildVhdl {
       })
       .unzip
     (ports.flatten.toSeq, allRequiredProducersValid +: signals.flatten.toSeq)
+  }
+}
+
+// TODO: Handle more cases?
+private object SingleWriteVector {
+
+  /** A vector accumulator such that at most one element is updated per cycle.
+    *
+    * @param eqn
+    *   the accumulator equation (name, initial value, next expression).
+    * @return
+    *   `(x, z, cond, i, write)`, where `x` is the accumulator name, `z` is the
+    *   initial value, `cond` is the condition for updating the vector, `i` is
+    *   the index to update, and `write` is the value to write.
+    */
+  def unapply(
+      eqn: (Param, (Expr, Expr))
+  ): Option[(Param, Expr, Expr, Expr, Expr)] = {
+    eqn match {
+      case (
+            v0,
+            (
+              z: Undefined,
+              VecBuild(
+                _,
+                Function(
+                  i0,
+                  Mux(And(terms @ _*), write, VecAccess(v1, i1: Param))
+                )
+              )
+            )
+          ) if v1 == v0 && i1 == i0 =>
+        val indexToUpdate = terms.flatMap({
+          case Equal(i2: Param, idx)
+              if i2 == i0 && !idx.freeVars().contains(i0) =>
+            Some(idx)
+          case Equal(idx, i2: Param)
+              if i2 == i0 && !idx.freeVars().contains(i0) =>
+            Some(idx)
+          case _ => None
+        }) match {
+          case Seq(idx) => Some(idx)
+          case _        => None
+        }
+        indexToUpdate match {
+          case Some(idx) =>
+            val newCond =
+              And(terms: _*)().tchk().subPreserveType(i0 -> idx).tchk()
+            val newWrite = write.subPreserveType(i0 -> idx).tchk()
+            Some((v0, z, newCond, idx, newWrite))
+          case None => None
+        }
+      case _ => None
+    }
   }
 }
