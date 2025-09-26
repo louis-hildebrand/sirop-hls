@@ -15,10 +15,11 @@ from lib.latency import LatencyResult
 from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 
+BASELINE_LVL = OptimizationLevel.ALL
 LEVELS_TO_PLOT = [
     lvl
     for lvl in OptimizationLevel
-    if lvl not in [OptimizationLevel.ALL_EXCEPT_SIMPL, OptimizationLevel.NONE]
+    if lvl != BASELINE_LVL
 ]
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
@@ -79,7 +80,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
         ys = []
         for p in program_names:
-            baseline = results.get(ProgramVariant(p, OptimizationLevel.NONE))
+            baseline = results.get(ProgramVariant(p, BASELINE_LVL))
             baseline = baseline.latency if baseline is not None else None
             if baseline is None:
                 print(f"WARNING: Missing baseline for {p}")
@@ -101,7 +102,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
         artists.append(artist)
         labels = []
         for p in program_names:
-            baseline = results.get(ProgramVariant(p, OptimizationLevel.NONE))
+            baseline = results.get(ProgramVariant(p, BASELINE_LVL))
             baseline = baseline.latency if baseline is not None else None
             if baseline is None:
                 print(f"WARNING: Missing baseline for {p}")
@@ -147,7 +148,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = 4
     legend_labels = (
-        [OptimizationLevel.NONE.explanation]
+        [BASELINE_LVL.explanation]
             + [lvl.explanation for lvl in LEVELS_TO_PLOT]
     )
     legend_handles = [baseline_artist] + artists

@@ -15,10 +15,11 @@ from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
 
+BASELINE_LVL = OptimizationLevel.ALL
 LEVELS_TO_PLOT = [
     lvl
     for lvl in OptimizationLevel
-    if lvl not in [OptimizationLevel.NONE, OptimizationLevel.ALL_EXCEPT_SIMPL]
+    if lvl != BASELINE_LVL
 ]
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
@@ -89,7 +90,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         ys = []
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].alm
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
+            baseline = results[ProgramVariant(p, BASELINE_LVL)].alm
             ys.append( (y - baseline) / baseline )
         artist = alm_ax.bar(
             bottom=0,
@@ -107,7 +108,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         labels = []
         for p in program_names:
             alm = results[ProgramVariant(p, lvl)].alm
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].alm
+            baseline = results[ProgramVariant(p, BASELINE_LVL)].alm
             percent_change = (alm - baseline) / baseline
             if percent_change >= 0:
                 label = f"+{percent_change:.0%}"
@@ -126,7 +127,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         ys = []
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
+            baseline = results[ProgramVariant(p, BASELINE_LVL)].bram
             if y == 0 and baseline == 0:
                 ys.append(0)
                 continue
@@ -146,7 +147,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         labels = []
         for p in program_names:
             bram = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
+            baseline = results[ProgramVariant(p, BASELINE_LVL)].bram
             if bram == 0 and baseline == 0:
                 percent_change = 0
             else:
@@ -178,7 +179,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
     bram_ax.set_ylim(-1.25, 0.1)
     legend_cols = 4
-    legend_labels=[lvl.explanation for lvl in [OptimizationLevel.NONE] + LEVELS_TO_PLOT]
+    legend_labels=[lvl.explanation for lvl in [BASELINE_LVL] + LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
