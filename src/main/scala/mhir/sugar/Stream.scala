@@ -1749,6 +1749,17 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
   }
 }
 
+/** Make `m` copies of a stream by reading the stream into a vector and then
+  * repeatedly reading from the vector.
+  *
+  * @note
+  *   the stream must be non-empty.
+  *
+  * @param stm
+  *   the stream to repeat.
+  * @param m
+  *   the number of times to repeat the stream.
+  */
 case class StmRepeat(
     stm: Expr /* Stm<A; n> */,
     m: Expr /* Int */
@@ -1775,17 +1786,15 @@ case class StmRepeat(
     requireType()
     val stm = this.stm.lower()
     val m = this.m.lower()
-    val typ = stm.typ.asInstanceOf[TyStm].t
-    val n = stm.typ.asInstanceOf[TyStm].n
+    val TyStm(typ, n) = stm.typ
     val s = Param("s")(TyStm(typ, -1))
     val v = Param("v")(TyVec(typ, n))
-    val t = Param("t")(U32)
+    val tTyp = n match {
+      case IntCst(n) => TyAnyInt.tightest(0, n - 1)
+      case _         => n.typ
+    }
+    val t = Param("t")(tTyp)
     val filling = Param("filling")(TyBool)
-    // TODO: It may be possible to shave off one cycle by outputting valid data
-    //       during the last filling cycle, but this would make the expression
-    //       more complicated.
-    // NOTE: You could also implement this using Vec2Stm and then reading the
-    //       vector repeatedly, but the resulting expression is pretty gross
     StmBuild(
       SafeProd(n, m)(),
       Mux(filling, StmData(s)(), VecAccess(v, t)())(),
@@ -1803,8 +1812,16 @@ case class StmRepeat(
             )
           )()
         ),
-        t -> (C(0)(U32), Mux(t + 1 === n, C(0)(U32), t + 1)()),
-        filling -> (True, filling && (t + 1 < n))
+        t -> (
+          C(0)(t.typ),
+          Mux(
+            // Assume n >= 1
+            t === ToUnsigned(-1 + n)(),
+            C(0)(t.typ),
+            t + 1
+          )()
+        ),
+        filling -> (True, filling && (t < ToUnsigned(-1 + n)()))
       )
     )().tchk().lower()
   }
