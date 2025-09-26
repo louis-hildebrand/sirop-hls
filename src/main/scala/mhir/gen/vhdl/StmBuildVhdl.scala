@@ -20,9 +20,6 @@ private[vhdl] object StmBuildVhdl {
       inputs: Set[Param],
       name: String
   ): CustomVhdlComponent = {
-    // Rename accumulator variables such that the accumulator name and the
-    // input variable name coincide.
-    // Otherwise, the naming of ports and signals can get quite confusing.
     val s = {
       // Freshen all variables first to avoid clashes
       val s = stm.renameVars
@@ -56,31 +53,12 @@ private[vhdl] object StmBuildVhdl {
           .unzip
       (rcp.toMap, decls.flatten)
     }
-    // If waiting for multiple producers (e.g., in StmZip), don't raise the
-    // ready signal until *all* required producers are ready
-    // IMPORTANT: To avoid combinational loops, the producer's `valid` signal
-    //            must NOT depend on the consumer's `ready` signal
-    val allRequiredProducersValidSignal = {
-      val arpvExpr = if (readyExprByProducer.isEmpty) {
-        "true"
-      } else {
-        readyExprByProducer
-          .map({ case (x, c) => s"(not ($c) or (${x.name}_valid_internal))" })
-          .mkString(" and ")
-      }
-      Signal(
-        category = "Handshake (inputs)",
-        name = "all_required_producers_valid",
-        typ = VhdlBool,
-        assignStmt = Some(s"all_required_producers_valid <= $arpvExpr;")
-      )
-    }
 
     val (producerPorts, producerSignals) =
       producerInterface(readyExprByProducer)
 
     val allDecls = (
-      defaultDecls(s.n, s.data, s.valid, allRequiredProducersValidSignal)
+      defaultDecls(s.n, s.data, s.valid)
         ++ registerDecls(registerEquations)
         ++ producerSignals
         ++ readyExprDecls
@@ -146,12 +124,7 @@ private[vhdl] object StmBuildVhdl {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultDecls(
-      n: Expr,
-      data: Expr,
-      valid: Expr,
-      allRequiredProducersValidSig: Signal
-  ): Seq[Decl] = {
+  private def defaultDecls(n: Expr, data: Expr, valid: Expr): Seq[Decl] = {
     val VhdlExpr(_, nDecls) = VhdlExprGenerator.exprToVhdl(n)
     val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
@@ -173,7 +146,7 @@ private[vhdl] object StmBuildVhdl {
           s"""if sl2bool(reset) then
              |    valid_internal <= false;
              |elsif transfer_ok or can_update_acc then
-             |    valid_internal <= ($validVhdl) and ${allRequiredProducersValidSig.name};
+             |    valid_internal <= ($validVhdl) and all_required_producers_valid;
              |end if;
              |""".stripMargin.stripTrailing
         ),
@@ -200,14 +173,14 @@ private[vhdl] object StmBuildVhdl {
           // are satisfied:
           //  * If it has some valid data to send, it cannot advance until
           //    that data is sent.
-            + " (not valid_internal or transfer_ok)"
+            + " (not valid_internal or sl2bool(ready))"
             //  * All required producers must have valid data.
-            + s" and ${allRequiredProducersValidSig.name};"
+            + s" and all_required_producers_valid;"
         ),
         cond = None
       )
     )
-    allRequiredProducersValidSig +: (defaultSignals ++ nDecls ++ validDecls ++ dataDecls)
+    defaultSignals ++ nDecls ++ validDecls ++ dataDecls
   }
 
   /** Signals to represent the registers in this component.
@@ -260,6 +233,25 @@ private[vhdl] object StmBuildVhdl {
   private def producerInterface(
       readyExprByProducer: Map[Param, String]
   ): (Seq[Port], Seq[Signal]) = {
+    // If waiting for multiple producers (e.g., in StmZip), don't raise the
+    // ready signal until *all* required producers are ready
+    // IMPORTANT: To avoid combinational loops, the producer's `valid` signal
+    //            must NOT depend on the consumer's `ready` signal
+    val allRequiredProducersValid = {
+      val arpvExpr = if (readyExprByProducer.isEmpty) {
+        "true"
+      } else {
+        readyExprByProducer
+          .map({ case (x, c) => s"(not ($c) or (${x.name}_valid_internal))" })
+          .mkString(" and ")
+      }
+      Signal(
+        category = "Handshake (inputs)",
+        name = "all_required_producers_valid",
+        typ = VhdlBool,
+        assignStmt = Some(s"all_required_producers_valid <= $arpvExpr;")
+      )
+    }
     val (ports, signals) = readyExprByProducer
       .map({ case (x, readyExpr) =>
         val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
@@ -267,6 +259,15 @@ private[vhdl] object StmBuildVhdl {
         val rawDataConversion =
           VhdlConversionGenerator
             .fromStdLogicVector(s"${x.name}_data", dataType)
+        val otherProducers = readyExprByProducer
+          .filter({ case (y, _) => y != x })
+        val allOthersValid = if (otherProducers.isEmpty) {
+          "true"
+        } else {
+          otherProducers
+            .map({ case (x, c) => s"(not ($c) or (${x.name}_valid_internal))" })
+            .mkString(" and ")
+        }
         val ports = Seq(
           InPort(name = s"${x.name}_data", typ = VhdlStdLogicVec(bitWidth)),
           InPort(name = s"${x.name}_valid", typ = VhdlStdLogic),
@@ -278,7 +279,13 @@ private[vhdl] object StmBuildVhdl {
         )
         val signals = Seq(
           Signal(
-            category = s"Handshake (input $x - external, used here)",
+            category = s"Handshake (input producer $x)",
+            name = s"arpv_except_${x.name}",
+            typ = VhdlBool,
+            assignStmt = Some(s"arpv_except_${x.name} <= $allOthersValid;")
+          ),
+          Signal(
+            category = s"Handshake (input producer $x)",
             name = s"${x.name}_valid_internal",
             typ = VhdlBool,
             assignStmt = Some(
@@ -286,15 +293,16 @@ private[vhdl] object StmBuildVhdl {
             )
           ),
           Signal(
-            category = s"Handshake (input $x - external, used here)",
+            category = s"Handshake (input producer $x)",
             name = s"${x.name}_ready_internal",
             typ = VhdlBool,
             assignStmt = Some(
-              s"${x.name}_ready_internal <= ($readyExpr) and can_update_acc;"
+              s"${x.name}_ready_internal <="
+                + s" ($readyExpr) and (not valid_internal or sl2bool(ready)) and arpv_except_${x.name};"
             )
           ),
           Signal(
-            category = s"Handshake (input $x - external, used here)",
+            category = s"Handshake (input producer $x)",
             name = s"${x.name}_data_internal",
             typ = dataType,
             assignStmt = Some(s"${x.name}_data_internal <= $rawDataConversion;")
@@ -303,6 +311,6 @@ private[vhdl] object StmBuildVhdl {
         (ports, signals)
       })
       .unzip
-    (ports.flatten.toSeq, signals.flatten.toSeq)
+    (ports.flatten.toSeq, allRequiredProducersValid +: signals.flatten.toSeq)
   }
 }
