@@ -820,6 +820,26 @@ case object Or {
   }
 }
 
+case class Undefined(override val typ: Type) extends Expr()(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq() => Undefined(typ)
+      case _     => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+object Undefined {
+  def apply(typ: Type): Undefined = {
+    if (!typ.isData) {
+      throw new TypeError(
+        s"Cannot construct undefined value for non-data type $typ."
+      )
+    }
+    new Undefined(typ)
+  }
+}
+
 /** Constructs a fixed-length stream of elements.
   *
   * Streams are collections that do <i>not</i> support random access. You can

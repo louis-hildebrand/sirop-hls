@@ -49,7 +49,7 @@ object ExprPrinter {
   ): String = {
     val myPrecedence = Precedence(e)
     val str = e match {
-      case _: Param | _: BoolCst | _: IntCst | _: FixCst =>
+      case _: Param | _: BoolCst | _: IntCst | _: FixCst | _: Undefined =>
         displayOneLine(e, parentPrecedence)
 
       case Tuple(elems @ _*) =>
@@ -481,6 +481,8 @@ object ExprPrinter {
   ): String = {
     val myPrecedence = Precedence(e)
     val str = e match {
+      case Undefined(typ) =>
+        s"undefined[$typ]"
       case Tuple(e) =>
         s"(${displayOneLine(e)},)"
       case Tuple(elems @ _*) =>
@@ -740,6 +742,8 @@ object ExprPrinter {
     */
   private def showScala(e: Expr): String = {
     e match {
+      case Undefined(typ) =>
+        s"Undefined(${showScala(typ)})"
       case tup @ Tuple(elems @ _*) =>
         val children = elems.map(e => showScala(e))
         s"Tuple(${children.mkString(",")})(${showScala(tup.typ)})"

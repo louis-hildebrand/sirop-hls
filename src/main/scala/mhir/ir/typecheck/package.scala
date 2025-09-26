@@ -29,6 +29,9 @@ package object typecheck {
         return this.expr
       }
       this.expr match {
+        case u: Undefined =>
+          assert(u.hasType)
+          u
         case x: Param =>
           context.get(x) match {
             case Some(t) => x.rebuild(t)

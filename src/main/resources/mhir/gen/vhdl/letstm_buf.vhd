@@ -12,6 +12,7 @@ generic (
     N_CONSUMERS : integer := 3);
 port (
     clk     : in  std_logic;
+    reset   : in  std_logic;
     -- Handshake with producer
     p_data  : in  std_logic_vector(BIT_WIDTH - 1 downto 0);
     p_valid : in  std_logic;
@@ -101,17 +102,24 @@ begin
     begin
         wait until rising_edge(clk);
         -- head
-        if will_increment_head then
+        if sl2bool(reset) then
+            head <= 0;
+            after_head <= next_idx(0);
+        elsif will_increment_head then
             head <= after_head;
             after_head <= next_idx(after_head);
         end if;
         -- tail
-        if will_increment_tail then
+        if sl2bool(reset) then
+            tail <= 0;
+        elsif will_increment_tail then
             tail <= next_idx(tail);
         end if;
         -- consumer pointers
         for i in will_increment_c_ptr'range loop
-            if will_increment_c_ptr(i) then
+            if sl2bool(reset) then
+                c_ptr(i) <= 0;
+            elsif will_increment_c_ptr(i) then
                 c_ptr(i) <= next_idx(c_ptr(i));
             end if;
         end loop;
@@ -189,7 +197,9 @@ begin
     begin
         wait until rising_edge(clk);
         for i in c_data_internal'range loop
-            if will_increment_c_ptr(i) then
+            if sl2bool(reset) then
+                c_valid_internal(i) <= false;
+            elsif will_increment_c_ptr(i) then
                 msb := (N_CONSUMERS - i) * BIT_WIDTH - 1;
                 lsb := msb - BIT_WIDTH + 1;
                 c_data_internal(i) <= rd_data(msb downto lsb);

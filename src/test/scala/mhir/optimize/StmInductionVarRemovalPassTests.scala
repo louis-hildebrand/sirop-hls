@@ -744,7 +744,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         t -> (C(0)(I33), t + 1),
         s -> (input, t < n),
         v -> (
-          VecBuild(n, U32 ::+ (_ => Default(I16)))(),
+          Undefined(TyVec(I16, n)),
           Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )

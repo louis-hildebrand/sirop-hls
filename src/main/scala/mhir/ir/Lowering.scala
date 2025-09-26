@@ -140,7 +140,7 @@ object Lowering {
             case _ =>
               s.rebuild(s.typ, loweredElems)
           }
-        case e @ (_: IntCst | _: Param) =>
+        case e @ (_: IntCst | _: Param | _: Undefined) =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.
           e.rebuild(e.typ.lower, e.children.map(e => e.lower()))

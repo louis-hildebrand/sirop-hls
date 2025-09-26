@@ -247,6 +247,14 @@ class SubstitutionTests extends AnyFunSuite {
     assert(actual1 == expected)
   }
 
+  test("SubstituteInType0") {
+    val n = Param("n")(U8)
+    val e = Undefined(TyVec(U8, n))
+    val expected = Undefined(TyVec(U8, C(42)(U8)))
+    assert(e.subPreserveType(n -> C(42)(U8)) == expected)
+    assert(e.subAndEraseType(n -> C(42)(U8)) == expected)
+  }
+
   test("SubstituteInType1") {
     val n = Param("n")(U8)
     val e = Tuple(VecBuild(n * 2, U8 ::+ (i => i))(), n + 1)().tchk()

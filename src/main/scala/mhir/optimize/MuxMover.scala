@@ -22,6 +22,7 @@ object MuxMover {
     val result = e match {
       case Tuple(elems @ _*)         => moveUpMany(elems, xs => Tuple(xs: _*)())
       case TupleAccess(t, i: IntCst) => moveUp1(t, TupleAccess(_, i)())
+      case u: Undefined              => u
       case x: Param                  => x
       case f: Function               => f
       case FunCall(f, arg)           => moveUp2(Seq(f, arg), FunCall(_, _)())

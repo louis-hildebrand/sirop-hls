@@ -48,6 +48,11 @@
 		- Or maybe replace `VecAccess(v, i)` with `VecAccessOrElse(v, i, e)`; require programmer to provide default value on the spot. Less flexible but maybe simpler to compile and saves one wire
 		- For vector accesses, you should be able to implement this using `VecAccess`! `VecAccessOpt(v, i) = VecAccess(VecMap(v, x => Some(x)), i)` (assuming `Default(Option<T>) = None`)
 - Solution by error case:
+	- `undefined[T]` primitive:
+		- In initial value of stream accumulator: convert it to zeros and log an "INFO" message
+			- This means the evaluator won't warn you if the undefined values are used improperly :(
+			- In Aetherling programs, even the final output has some undefined values! So it seems infeasible to automatically determine whether the undefined value was used correctly
+		- Otherwise: translate to zeros and emit warning
 	- Type error: throw an exception
 	- Trying to raise `ready` signal when producer stream is empty: throw an exception (or just hang if the producer supposedly has more elements but its `valid` signal is always `false`)
 	- Reading data from stream without raising `ready` signal: undefined value (==TODO:== with warning?)
@@ -107,6 +112,8 @@
 		- In zero-length vector in `VecJoin` (shouldn't really happen, but just in case)
 	- In partial evaluator, if one branch is `DontCare` then simply return the other branch
 - Why it's useful:
+	- Quartus won't infer memory (shift register or BRAM) if you set everything to zero when the `reset` signal is raised
+		- In the VHDL generator, ignore the `reset` signal if the initial value is undefined
 	- More clearly document that an expression doesn't matter compared to writing `0 /* don't care */`
 	- Can choose an irrelevant initial value without knowing the type (e.g., I can write `VecBuild(n, _ => DontCare)` regardless of the type of the vector)
 	- Can implement `Option<T>` as syntax sugar rather than a primitive: `Some(e) --> (e, True)` and `None --> (DontCare, False)`

@@ -54,6 +54,17 @@ object PartialEvalPass {
       case Some(false) => False
       case None =>
         e match {
+          case u: Undefined =>
+            // Be very careful with undefined values.
+            // For example, don't say that undefined + x --> undefined and
+            // undefined * x --> undefined.
+            // You may end up incorrectly simplifying as follows:
+            //       (x => x + -1*x)(undefined)
+            //   --> undefined + -1*undefined
+            //   --> undefined + undefined
+            //   --> undefined
+            // Yet clearly the original expression will always evaluate to 0.
+            u
           case x: Param =>
             facts.getRange(x) match {
               case Some(ScalarRange(Some(lo), Some(hi)))
@@ -219,6 +230,8 @@ object PartialEvalPass {
                 val falseE = doPartialEval(f)(facts.assumeFalse(cond))
                 (cond, trueE, falseE) match {
                   case _ if trueE == falseE => trueE
+                  case (_, _, _: Undefined) => trueE
+                  case (_, _: Undefined, _) => falseE
                   case _ if trueE.typ == TyBool =>
                     ArithSimplifier.simplifyArithmetic(
                       (cond && trueE) || (!cond && falseE)
@@ -273,6 +286,8 @@ object PartialEvalPass {
             doPartialEval(t) match {
               case tuple: Tuple =>
                 tuple.elems(i.toInt)
+              case Undefined(TyTuple(ts @ _*)) =>
+                Undefined(ts(i.toInt))
               case Mux(c, t, f) =>
                 // Move TupleAccess inside Mux in the hope that it'll
                 // encounter a Tuple(...).
@@ -314,6 +329,8 @@ object PartialEvalPass {
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
                 doPartialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
+              case (Undefined(TyVec(t, _)), _) =>
+                Undefined(t)
               case (v, i) => VecAccess(v, i)()
             }
 

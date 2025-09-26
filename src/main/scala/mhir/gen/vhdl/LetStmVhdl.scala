@@ -22,6 +22,7 @@ object LetStmVhdl {
       val portMap = PortMap(
         Map(
           "clk" -> "clk",
+          "reset" -> "reset",
           "p_data" -> s"${input.name}_data",
           "p_valid" -> s"${input.name}_valid",
           "p_ready" -> s"${input.name}_ready",
@@ -64,6 +65,7 @@ object LetStmVhdl {
     val ports: Seq[Port] = {
       Seq(
         InPort("clk", VhdlStdLogic),
+        InPort("reset", VhdlStdLogic),
         // Handshake with producer
         InPort(s"${input.name}_data", VhdlType(elemTyp).toStdLogicVec),
         InPort(s"${input.name}_valid", VhdlStdLogic),

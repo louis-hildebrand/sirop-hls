@@ -505,7 +505,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     }
     StmFold(
       s,
-      VecBuild(n, U32 ::+ (_ => Default(t)))(),
+      Undefined(TyVec(t, n)),
       TyVec(t, n) ::+ (v => t ::+ (e => VecShiftLeft(v, e)()))
     )().tchk().lower()
   }
@@ -779,8 +779,7 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     requireType()
     val TyVec(t, n) = this.vec.typ
     VecConcat(
-      // TODO: Actually insert some kind of undefined value?
-      VecBuild(this.shiftAmount, U32 ::+ (_ => Default(t)))(),
+      Undefined(TyVec(t, this.shiftAmount)),
       VecPrefix(
         this.vec,
         ToUnsigned(SafeSum(n, C(-this.shiftAmount.i)())())()

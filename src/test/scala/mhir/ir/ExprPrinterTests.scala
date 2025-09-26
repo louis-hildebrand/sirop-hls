@@ -6,6 +6,19 @@ import mhir.sugar.{StmCount, StmCount3D, StmCst, StmFold, StmMap, StmZip}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
+  test("undefined[u8]") {
+    val e = Undefined(U8)
+    assert(ExprPrinter.displayOneLine(e) == "undefined[u8]")
+    assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == "undefined[u8]")
+  }
+
+  test("undefined[Vec[i16, 42:u6]]") {
+    val e = Undefined(TyVec(I16, 42))
+    val expected = "undefined[Vec[i16, 42:u6]]"
+    assert(ExprPrinter.displayOneLine(e) == expected)
+    assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == expected)
+  }
+
   test("Unit") {
     val e = Tuple()()
     assert(ExprPrinter.displayOneLine(e) == "()")

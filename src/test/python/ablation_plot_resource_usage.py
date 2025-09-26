@@ -127,6 +127,9 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].bram
             baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
+            if y == 0 and baseline == 0:
+                ys.append(0)
+                continue
             ys.append( (y - baseline) / baseline )
         artist = bram_ax.bar(
             bottom=0,
@@ -144,7 +147,10 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
         for p in program_names:
             bram = results[ProgramVariant(p, lvl)].bram
             baseline = results[ProgramVariant(p, OptimizationLevel.NONE)].bram
-            percent_change = (bram - baseline) / baseline
+            if bram == 0 and baseline == 0:
+                percent_change = 0
+            else:
+                percent_change = (bram - baseline) / baseline
             if percent_change >= 0:
                 label = f"+{percent_change:.0%}"
             else:

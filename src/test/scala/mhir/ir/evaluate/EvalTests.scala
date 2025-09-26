@@ -478,6 +478,43 @@ class EvalTests extends AnyFunSuite {
     assert(evaluated.typ == TyVec(TyVec((U32, U32, U32), C(2)(U8)), C(3)(U8)))
   }
 
+  test("(x => x - x)(undefined)") {
+    val f = U8 ::+ (x => x - x)
+    val e = f(Undefined(U8))
+    assert(mhir.ir.eval(e, suppressWarnings = true) == C(0)(U8))
+  }
+
+  test("(x => x == x)(undefined)") {
+    val f = U8 ::+ (x => x === x)
+    val e = f(Undefined(U8))
+    assert(mhir.ir.eval(e, suppressWarnings = true) == True)
+  }
+
+  test("(v => v[0] == v[0])(undefined)") {
+    val f = TyVec(I16, 2) ::+ (v => VecAccess(v, 0)() === VecAccess(v, 0)())
+    val e = f(Undefined(TyVec(I16, 2)))
+    assert(mhir.ir.eval(e, suppressWarnings = true) == True)
+  }
+
+  test("warning:undefined") {
+    val typ = TyVec((U8, I16), 42)
+    val e = Undefined(typ)
+    val exc = intercept[UndefinedValException](mhir.ir.eval(e))
+    assert(exc.warnings == Set(UndefinedPrimitive(typ)))
+  }
+
+  test("warning:undefined + 1") {
+    val e = Undefined(U8) + 1
+    val exc = intercept[UndefinedValException](mhir.ir.eval(e))
+    assert(exc.warnings == Set(UndefinedPrimitive(U8)))
+  }
+
+  test("warning:undefined[0]") {
+    val e = Undefined(TyVec(U8, 5))
+    val exc = intercept[UndefinedValException](mhir.ir.eval(e))
+    assert(exc.warnings == Set(UndefinedPrimitive(TyVec(U8, 5))))
+  }
+
   test("LetStm:ZipWithSelf") {
     // StmCount(5)
     val count = {

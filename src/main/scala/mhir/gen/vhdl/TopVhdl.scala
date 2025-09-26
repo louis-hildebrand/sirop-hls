@@ -9,6 +9,7 @@ private case class FlatPipeline(
     sbuilds: Seq[(Param, StmBuild)],
     lets: Seq[(Param, Int, Set[Param])],
     inputs: Set[Param],
+    unusedInputs: Set[Param],
     sink: Param
 )
 
@@ -23,6 +24,7 @@ object TopVhdl {
           val portMap = PortMap(
             Map(
               "clk" -> "clk",
+              "reset" -> "reset",
               // Handshake with consumer
               s"data" -> s"${x.name}_data",
               s"valid" -> s"${x.name}_valid",
@@ -48,6 +50,7 @@ object TopVhdl {
         val portMap = PortMap(
           Map(
             "clk" -> "clk",
+            "reset" -> "reset",
             // Handshake with consumer
             s"${x.name}_data" -> s"${x.name}_data",
             s"${x.name}_valid" -> s"${x.name}_valid",
@@ -122,6 +125,7 @@ object TopVhdl {
       val TyStm(outElemTyp, _) = pipe.sink.typ
       Seq(
         InPort("clk", VhdlStdLogic),
+        InPort("reset", VhdlStdLogic),
         // Handshake with consumer
         OutPort(
           "data",
@@ -140,7 +144,15 @@ object TopVhdl {
           // Handshake with producers
           InPort(s"${x.name}_data", VhdlType(inElemTyp).toStdLogicVec),
           InPort(s"${x.name}_valid", VhdlStdLogic),
-          OutPort(s"${x.name}_ready", VhdlStdLogic, None)
+          OutPort(
+            s"${x.name}_ready",
+            VhdlStdLogic,
+            assign = if (pipe.unusedInputs.contains(x)) {
+              Some(s"${x.name}_valid")
+            } else {
+              None
+            }
+          )
         )
       })
     }
@@ -230,8 +242,9 @@ object TopVhdl {
   private def makeFlatPipeline(f: Expr): FlatPipeline = {
     validateExpr(f)
     val (inputs, stm) = unwrapTopLevelFunction(f, rename = true)
+    val unusedInputs = inputs.toSet.diff(stm.freeVars())
     val anfStm = StmAnfConverter.convert(stm)
-    val pipe = listChildren(anfStm, inputs.toSet)
+    val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)
     ensureAtLeastOneBuffer(pipe)
   }
 
@@ -273,10 +286,14 @@ object TopVhdl {
     (xs, newE)
   }
 
-  private def listChildren(stm: Expr, inputs: Set[Param]): FlatPipeline = {
+  private def listChildren(
+      stm: Expr,
+      inputs: Set[Param],
+      unusedInputs: Set[Param]
+  ): FlatPipeline = {
     stm match {
       case LetInlineStm(x, in: StmBuild, out) =>
-        val rest = listChildren(out, inputs)
+        val rest = listChildren(out, inputs, unusedInputs)
         rest.copy(sbuilds = (x -> in) +: rest.sbuilds)
       case LetInlineStm(_, in, _) =>
         // TODO: Proper error message
@@ -284,13 +301,19 @@ object TopVhdl {
       case LetStm(bufSizeExpr, x, in: Param, out) =>
         val IntCst(bufSize) = mhir.ir.eval(bufSizeExpr)
         val (xs, newOut) = makeVariantsOfFreeVar(x, out)
-        val rest = listChildren(newOut, inputs)
+        val rest = listChildren(newOut, inputs, unusedInputs)
         rest.copy(lets = (in, bufSize.toInt, xs) +: rest.lets)
       case LetStm(_, _, in, _) =>
         // TODO: Proper error message
         ???
       case x: Param =>
-        FlatPipeline(sbuilds = Seq(), lets = Seq(), inputs = inputs, sink = x)
+        FlatPipeline(
+          sbuilds = Seq(),
+          lets = Seq(),
+          inputs = inputs,
+          unusedInputs = unusedInputs,
+          sink = x
+        )
       case e =>
         throw new IllegalArgumentException(
           s"Expected pipeline output to be a variable, but found ${e.getClass.getSimpleName}: $e"

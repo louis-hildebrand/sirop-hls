@@ -1,6 +1,7 @@
 package mhir.ir
 package evaluate
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir.typecheck.TypeError
 
 /** A streaming pipeline.
@@ -93,6 +94,8 @@ class StmPipeline(
 /** Companion object for [[StmPipeline]].
   */
 object StmPipeline {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Makes a pipeline representing the given stream expression.
     *
@@ -213,8 +216,14 @@ object StmPipeline {
         typ = s.typ.asInstanceOf[TyStm]
       ),
       n = n,
-      acc = accumulators.map({ case (x, (z, _)) =>
-        x -> eval(z)
+      acc = accumulators.map({
+        case (x, (Undefined(typ), _)) =>
+          logger.info(
+            s"Undefined initial value for accumulator $x will be replaced by default value."
+              + " I hope you know what you're doing."
+          )
+          x -> eval(Default(typ))
+        case (x, (z, _)) => x -> eval(z)
       }),
       invalidSteps = 0
     )

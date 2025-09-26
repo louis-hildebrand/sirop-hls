@@ -809,6 +809,40 @@ private object LeftShiftRegister {
             Some((n0, f, Function(t, e)()))
           case _ => None
         }
+      case (
+            Undefined(TyVec(typ, n0)),
+            Function(
+              t,
+              Function(
+                acc,
+                VecBuild(
+                  n1,
+                  Function(
+                    i0: Param,
+                    Mux(
+                      lastIdxCond,
+                      e /* may have t as free variable */,
+                      VecAccess(a2, Sum(IntCst(1), i1))
+                    )
+                  )
+                )
+              )
+            )
+          )
+          if a2 == acc && i1 == i0 && !e.contains(acc)
+            && PE.isEqual(n1, n0)().getOrElse(false) =>
+        lastIdxCond match {
+          case Equal(Sum(IntCst(1), i2: Param), n2)
+              if i2 == i0 && PE.isEqual(n2, n0)().getOrElse(false) =>
+            // TODO: Take advantage somehow of the fact that the initial value
+            //       is undefined?
+            Some((n0, U32 ::+ (_ => Default(typ).lower()), Function(t, e)()))
+          case Equal(i2: Param, n2)
+              if i2 == i0
+                && PE.isEqual((n2 + 1).tchk().lower(), n0)().getOrElse(false) =>
+            Some((n0, U32 ::+ (_ => Default(typ).lower()), Function(t, e)()))
+          case _ => None
+        }
       case _ => None
     }
   }

@@ -266,6 +266,8 @@ private[ir] trait Substitution {
                 )()
               case e: SyntaxSugar =>
                 e.sugarSubAndEraseType(subs)
+              case Undefined(typ) =>
+                Undefined(typ.substitute(subs))
               case e =>
                 e.rebuildAndEraseType(
                   e.children.map(e => e.subAndEraseType(subs))

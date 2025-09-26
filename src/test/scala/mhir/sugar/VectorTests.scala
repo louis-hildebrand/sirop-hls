@@ -660,20 +660,21 @@ class VectorTests extends AnyFunSuite {
     def extract(e: Expr): Seq[Expr] = {
       e.asInstanceOf[VecLiteral].elems
     }
+    def eval(e: Expr): Expr = mhir.ir.eval(e, suppressWarnings = true)
 
     val input = VecBuild(6, U8 ::+ (i => i))()
     val expected = (0 until 6).map(C(_)(U8))
 
     val v1 = VecShiftRightGarbage(input, 1)().tchk().lower()
-    val actual1 = extract(mhir.ir.eval(v1)).drop(1)
+    val actual1 = extract(eval(v1)).drop(1)
     assert(actual1 == expected.dropRight(1))
 
     val v2 = VecShiftRightGarbage(input, 2)().tchk().lower()
-    val actual2 = extract(mhir.ir.eval(v2)).drop(2)
+    val actual2 = extract(eval(v2)).drop(2)
     assert(actual2 == expected.dropRight(2))
 
     val v3 = VecShiftRightGarbage(input, 3)().tchk().lower()
-    val actual3 = extract(mhir.ir.eval(v3)).drop(3)
+    val actual3 = extract(eval(v3)).drop(3)
     assert(actual3 == expected.dropRight(3))
   }
 

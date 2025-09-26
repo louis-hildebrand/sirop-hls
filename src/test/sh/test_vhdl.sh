@@ -88,7 +88,7 @@ function run_simulation {
     if [[ "$interactive_mode" == 'true' ]]; then
         tcl_script="run -all"
         if [[ "$SHOW_WAVES" == "true" ]]; then
-            tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check/*; add wave sim:/testbench/DUT/*; $tcl_script"
+            tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check_*/*; add wave sim:/testbench/DUT/*; $tcl_script"
         fi
         vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     else
