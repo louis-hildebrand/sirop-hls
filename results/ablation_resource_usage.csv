@@ -1,0 +1,9 @@
+prog_name,prog_opt,alm,bram,dsp
+sharpen,only_partial_eval,1992,150,9
+sharpen,all,297,10,0
+sharpen,except_sbuild_simpl,546,24,0
+sharpen,except_letstm_simpl,1992,150,9
+sharpen,except_stm_simpl,1992,150,9
+sharpen,except_fuse,1152,24,0
+sharpen,small_buffers,275,10,0
+sharpen,small_buffers_and_latmatch,303,10,0
