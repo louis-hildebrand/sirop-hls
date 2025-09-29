@@ -38,7 +38,7 @@ case class InConsumer(cData: Expr, pData: Map[Param, Expr])
     this.asFunCall().hashCode
   }
 
-  private def asFunCall(): Expr = {
+  def asFunCall(): FunCall = {
     val sortedPData = pData.toSeq.sortBy({ case (x, _) => (x.prefix, x.id) })
     val tmp =
       Param("tmp")(TyTuple(sortedPData.map({ case (x, _) => x.typ }): _*))
