@@ -9,7 +9,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmFissionPassTests extends AnyFunSuite {
 
-  private val pass = EnabledStmFissionPass(StmOutputScheduler)
+  private val pass = EnabledStmFissionPass(
+    StmOutputScheduler(EnabledBinOpTreeBalancingPass)
+  )
 
   test("SharpenOne") {
     val n = 9
@@ -50,7 +52,7 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
   }
 
-  test("ProdReductionTree") {
+  test("ProdReductionTree:Nested") {
     val n = 8
     val m = 5
     val uint = U32
@@ -66,6 +68,49 @@ class StmFissionPassTests extends AnyFunSuite {
         (VecAccess(StmData(s)(), 0)() *% VecAccess(StmData(s)(), 1)()) *%
           (VecAccess(StmData(s)(), 2)() *% (VecAccess(StmData(s)(), 3)() *%
             VecAccess(StmData(s)(), 4)())),
+        True,
+        Map[Param, (Expr, Expr)](
+          s -> (input, True)
+        )
+      )().tchk().lower()
+    }
+    val optimized = pass.fission(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val optimizedVal = mhir.ir.eval(optimized)
+    assert(optimizedVal == originalVal)
+
+    // Effective optimization
+    val originalDelayCost = SimpleDelayCostModel.cost(original)
+    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
+    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
+    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+  }
+
+  /** Avoid infinite loops when an expression doesn't fit anywhere even when all
+    * its inputs have no delay.
+    */
+  test("ProdReductionTree:Flat") {
+    val n = 8
+    val m = 5
+    val uint = U32
+    val input = StmLiteral(
+      (0 until n).map(t =>
+        VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
+      ): _*
+    )().tchk().lower()
+    val original = {
+      val s = Param("s")(TyStm(TyVec(uint, m), n))
+      StmBuild(
+        n,
+        WrappingProd(
+          VecAccess(StmData(s)(), 0)(),
+          VecAccess(StmData(s)(), 1)(),
+          VecAccess(StmData(s)(), 2)(),
+          VecAccess(StmData(s)(), 3)(),
+          VecAccess(StmData(s)(), 4)()
+        )(),
         True,
         Map[Param, (Expr, Expr)](
           s -> (input, True)

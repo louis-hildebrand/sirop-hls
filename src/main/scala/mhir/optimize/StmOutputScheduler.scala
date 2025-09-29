@@ -1,12 +1,15 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.SimpleDelayCostModel
 
 /** Transformation to split up the output of a stream into at most two steps.
   */
-object StmOutputScheduler {
+case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   /** Splits an expression into at most two stages---one for the producer and
     * possibly one for the consumer.
@@ -20,10 +23,11 @@ object StmOutputScheduler {
       !e.hasSyntaxSugar,
       "expression must be lowered before stream output scheduling"
     )
-    val e1 = doSchedule(Set(), Map())(e)
-    val e2 = inlineConstants(e1)
-    val e3 = deduplicate(e2)
-    e3
+    val e1 = this.binOpBalancer.balance(e)
+    val e2 = doSchedule(Set(), Map())(e1)
+    val e3 = inlineConstants(e2)
+    val e4 = deduplicate(e3)
+    e4
   }
 
   private def doSchedule(
@@ -94,7 +98,17 @@ object StmOutputScheduler {
           staticVars = staticVars,
           varCosts = varCosts
         )
-        if (cost <= SimpleDelayCostModel.FullCycleDelay) {
+        val stayInProducer = if (cost <= SimpleDelayCostModel.FullCycleDelay) {
+          true
+        } else if (allChildrenAtomic(e, staticVars, varCosts)) {
+          logger.warn(
+            s"expression has too much delay, even with atomic children: $e"
+          )
+          true
+        } else {
+          false
+        }
+        if (stayInProducer) {
           InProducer(e)
         } else {
           val scheduledChildren =
@@ -122,6 +136,16 @@ object StmOutputScheduler {
       case e: SyntaxSugar =>
         throw new IllegalArgumentException(s"Cannot schedule syntax sugar $e")
     }
+  }
+
+  private def allChildrenAtomic(
+      e: Expr,
+      staticVars: Set[Param],
+      varCosts: Map[Param, Long]
+  ): Boolean = {
+    e.children.forall({ e =>
+      SimpleDelayCostModel.rawCost(e, staticVars, varCosts) == 0
+    })
   }
 
   private def inlineConstants(

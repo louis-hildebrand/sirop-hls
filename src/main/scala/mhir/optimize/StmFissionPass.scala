@@ -18,7 +18,7 @@ object DisabledStmFissionPass extends StmFissionPass {
   override def fission(e: Expr): Expr = e
 }
 
-case class EnabledStmFissionPass(scheduler: StmOutputScheduler.type)
+case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
     extends StmFissionPass {
   override def enabled: Boolean = true
 
