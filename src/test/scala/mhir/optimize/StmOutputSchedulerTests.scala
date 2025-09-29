@@ -5,6 +5,7 @@ import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.VecReduceComb
 
 class StmOutputSchedulerTests extends AnyFunSuite {
 

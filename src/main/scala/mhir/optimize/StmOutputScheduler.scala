@@ -78,7 +78,12 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
                 InProducer(FunCall(Function(x, body)(), arg)().tchk())
               case InConsumer(cData, pData) =>
                 val y = Param("tmp")(x.typ)
-                InConsumer(cData.subPreserveType(x -> y), pData + (y -> arg))
+                val newCData = cData.subPreserveType(x -> y)
+                val newPData = pData
+                  // Need to duplicate arg on the producer side :/
+                  .map({ case (z, e) => z -> e.subPreserveType(x -> arg) })
+                  .+(y -> arg)
+                InConsumer(newCData, newPData)
             }
           case InConsumer(ca, pa) =>
             InConsumer(FunCall(Function(x, body)(), ca)().tchk(), pa)

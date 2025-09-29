@@ -4,7 +4,7 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.SimpleDelayCostModel
-import mhir.sugar.StmRange
+import mhir.sugar.{StmRange, VecReduceComb}
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmFissionPassTests extends AnyFunSuite {
@@ -111,6 +111,40 @@ class StmFissionPassTests extends AnyFunSuite {
           VecAccess(StmData(s)(), 3)(),
           VecAccess(StmData(s)(), 4)()
         )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          s -> (input, True)
+        )
+      )().tchk().lower()
+    }
+    val optimized = pass.fission(original)
+
+    // Correct behaviour
+    val originalVal = mhir.ir.eval(original)
+    val optimizedVal = mhir.ir.eval(optimized)
+    assert(optimizedVal == originalVal)
+
+    // Effective optimization
+    val originalDelayCost = SimpleDelayCostModel.cost(original)
+    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
+    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
+    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+  }
+
+  test("ProdReductionTree:VecReduceComb") {
+    val n = 8
+    val m = 5
+    val uint = U32
+    val input = StmLiteral(
+      (0 until n).map(t =>
+        VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
+      ): _*
+    )().tchk().lower()
+    val original = {
+      val s = Param("s")(TyStm(TyVec(uint, m), n))
+      StmBuild(
+        n,
+        VecReduceComb(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
         True,
         Map[Param, (Expr, Expr)](
           s -> (input, True)
