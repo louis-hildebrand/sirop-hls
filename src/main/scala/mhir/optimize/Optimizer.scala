@@ -3,6 +3,7 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
+import mhir.optimize.cost.{SimpleAreaCostModel, SimpleDelayCostModel}
 import mhir.optimize.{PartialEvalPass => PE}
 import org.slf4j.event.Level
 
@@ -79,6 +80,21 @@ class Optimizer(
     }
 
     val s6 = binOpBalancer.balance(s5)
+
+    val areaCost = SimpleAreaCostModel.cost(s6)
+    logger.debug(s"final area cost: $areaCost")
+    val delayCost = SimpleDelayCostModel.cost(s6)
+    logger.debug(
+      s"final delay cost: $delayCost (max ${SimpleDelayCostModel.FullCycleDelay})"
+    )
+    if (delayCost > SimpleDelayCostModel.FullCycleDelay) {
+      val percent =
+        100 * (delayCost / SimpleDelayCostModel.FullCycleDelay.toDouble)
+      logger.warn(
+        f"delay cost of $delayCost is $percent%.0f%% of maximum."
+          + " Design may not meet timing requirements."
+      )
+    }
 
     s6
   }

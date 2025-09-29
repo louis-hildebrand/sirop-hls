@@ -3,7 +3,7 @@ package mhir.optimize.cost
 import mhir.ir._
 
 object SimpleDelayCostModel {
-  private val FullCycleDelay: Long = 100
+  val FullCycleDelay: Long = 100
   private val MaxAddsPerCycle = 3
 
   def cost(e: Expr): Long = {
