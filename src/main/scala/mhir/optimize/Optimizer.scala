@@ -15,6 +15,7 @@ class Optimizer(
     simplifier: StmSimplifier,
     letStmSimplifier: LetStmSimplifier,
     fusionPass: StmFusionPass,
+    fissionPass: StmFissionPass,
     latencyMatcher: StmLatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass
@@ -38,10 +39,17 @@ class Optimizer(
 
     val s1 = simplifier.simplify(s0)
 
+    if (fissionPass.disabled) {
+      logger.debug(s"stream fission is disabled")
+    }
+    val s2 = time("stream fission", Level.DEBUG) {
+      fissionPass.fission(s1)
+    }
+
     if (fusionPass.disabled) {
       logger.debug("stream fusion is disabled")
     }
-    val s2 = time(
+    val s3 = time(
       "greedy stream fusion",
       mute = fusionPass.disabled,
       level = Level.DEBUG
@@ -64,26 +72,26 @@ class Optimizer(
         }
       }
       time("fixed-point iteration for fusion") {
-        fix(s1, i = 0)
+        fix(s2, i = 0)
       }
     }
 
-    val s3 = latencyMatcher.matchLatencies(s2)
+    val s4 = latencyMatcher.matchLatencies(s3)
 
-    val s4 = letStmBufShrinker.shrinkBuffers(s3)
+    val s5 = letStmBufShrinker.shrinkBuffers(s4)
 
     // I think the program is more readable like this.
     // I don't think a compiler flag is needed, since it shouldn't change the
     // generated hardware in any meaningful way.
-    val s5 = time("moving LetStm up", Level.DEBUG) {
-      LetStmMover.moveUp(s4)
+    val s6 = time("moving LetStm up", Level.DEBUG) {
+      LetStmMover.moveUp(s5)
     }
 
-    val s6 = binOpBalancer.balance(s5)
+    val s7 = binOpBalancer.balance(s6)
 
-    val areaCost = SimpleAreaCostModel.cost(s6)
+    val areaCost = SimpleAreaCostModel.cost(s7)
     logger.debug(s"final area cost: $areaCost")
-    val delayCost = SimpleDelayCostModel.cost(s6)
+    val delayCost = SimpleDelayCostModel.cost(s7)
     logger.debug(
       s"final delay cost: $delayCost (max ${SimpleDelayCostModel.FullCycleDelay})"
     )
@@ -96,7 +104,7 @@ class Optimizer(
       )
     }
 
-    s6
+    s7
   }
 }
 
@@ -107,8 +115,14 @@ object Optimizer {
     val letStmSimplifier = LetStmSimplifier(enabled = options.simplifyLetStm)
     val simplifier = StmSimplifier(stmBuildSimplifier, letStmSimplifier)
     val loggingSimplifier = StmSimplifierWithLogging(simplifier)
+    val binOpBalancer =
+      BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
+    val fissionPass = StmFissionPass(
+      scheduler = StmOutputScheduler(binOpBalancer),
+      enabled = options.fission
+    )
     val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
     val letStmBufShrinker = {
       val staticPass = if (options.staticallyShrinkLetStmBuffers) {
@@ -124,12 +138,11 @@ object Optimizer {
         options.maxLetStmBufSize.map(mbs => new ManualLetStmBufferShrinker(mbs))
       new CombinedLetStmBufferShrinker(Seq(staticPass, manualPass).flatten)
     }
-    val binOpBalancer =
-      BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     new Optimizer(
       loggingSimplifier,
       letStmSimplifier,
       fusionPass,
+      fissionPass,
       latencyMatcher,
       letStmBufShrinker = letStmBufShrinker,
       binOpBalancer

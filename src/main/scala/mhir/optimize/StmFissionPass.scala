@@ -12,6 +12,16 @@ trait StmFissionPass {
   def fission(e: Expr): Expr
 }
 
+object StmFissionPass {
+  def apply(enabled: Boolean, scheduler: StmOutputScheduler): StmFissionPass = {
+    if (enabled) {
+      EnabledStmFissionPass(scheduler)
+    } else {
+      DisabledStmFissionPass
+    }
+  }
+}
+
 object DisabledStmFissionPass extends StmFissionPass {
   override def enabled: Boolean = false
 
@@ -37,6 +47,8 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
         )
       case LetStm(bufSize, x, in, out) =>
         LetStm(bufSize, x, fission(in), fission(out))().tchk()
+      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+        Function(x, fission(body))().tchk()
       case e => e
     }
   }
