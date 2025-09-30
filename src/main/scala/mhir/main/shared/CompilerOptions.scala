@@ -38,6 +38,7 @@ object CompilerOptions {
     var simplifyStmBuild = true
     var inlineLetStm = true
     var fuse = true
+    var fission = true
     var matchLatency = true
     var staticallyShrinkLetStmBuffers = true
     var maxLetStmBufSize: Option[Int] = None
@@ -66,6 +67,8 @@ object CompilerOptions {
           inlineLetStm = false
         case "--opt:no-fuse" =>
           fuse = false
+        case "--opt:no-fission" =>
+          fission = false
         case "--opt:no-latmatch" =>
           matchLatency = false
         case "--opt:no-static-buf-shrink" =>
@@ -127,6 +130,7 @@ object CompilerOptions {
         simplifyStmBuild = simplifyStmBuild,
         inlineLetStm = inlineLetStm,
         fuse = fuse,
+        fission = fission,
         matchLatency = matchLatency,
         staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
         maxLetStmBufSize = maxLetStmBufSize,
@@ -150,6 +154,7 @@ object CompilerOptions {
        |  --opt:no-simplify-sbuild        skip basic sbuild simplifications
        |  --opt:no-inline-letstm          skip inlining letstm
        |  --opt:no-fuse                   skip the greedy stream fusion pass
+       |  --opt:no-fission                skip the stream fission pass
        |  --opt:no-latmatch               skip the latency matching pass
        |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
        |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm

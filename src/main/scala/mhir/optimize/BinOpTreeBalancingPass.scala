@@ -37,16 +37,19 @@ object BinOpTreeBalancingPass {
   }
 }
 
-object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+object DisabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
 
-  private implicit val logger: Logger = Logger(getClass.getName)
+  override def enabled: Boolean = false
+
+  override def balance(e: Expr): Expr = e
+}
+
+object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
 
   override def enabled: Boolean = true
 
   override def balance(e: Expr): Expr = {
-    time("balancing binop trees", Level.DEBUG) {
-      doBalance(e)
-    }
+    doBalance(e)
   }
 
   private def doBalance(e: Expr): Expr = {
@@ -130,18 +133,21 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
   }
 }
 
-object DisabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
+case class BinOpTreeBalancingPassWithLogging(underlying: BinOpTreeBalancingPass)
+    extends BinOpTreeBalancingPass {
 
-  private val logger: Logger = Logger(getClass.getName)
+  private implicit val logger: Logger = Logger(getClass.getName)
   private var hasLogged: Boolean = false
 
-  override def enabled: Boolean = false
+  override def enabled: Boolean = this.underlying.enabled
 
   override def balance(e: Expr): Expr = {
-    if (!hasLogged) {
-      hasLogged = true
-      logger.debug("binop tree balancing is disabled")
+    if (this.disabled && !this.hasLogged) {
+      logger.debug(s"binop balancing is disabled")
+      this.hasLogged = true
     }
-    e
+    time("binop balancing", Level.DEBUG, mute = this.disabled) {
+      this.underlying.balance(e)
+    }
   }
 }

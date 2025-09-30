@@ -7,7 +7,9 @@ package mhir.optimize
   * @param inlineLetStm
   *   whether to run the [[mhir.optimize.LetStmSimplifier]].
   * @param fuse
-  *   whether to perform greedy fusion.
+  *   whether to perform greedy stream fusion.
+  * @param fission
+  *   whether to perform stream fission.
   * @param matchLatency
   *   whether to perform latency matching.
   * @param balanceBinOpTrees
@@ -20,6 +22,7 @@ case class OptimizerOptions(
     simplifyStmBuild: Boolean,
     inlineLetStm: Boolean,
     fuse: Boolean,
+    fission: Boolean,
     matchLatency: Boolean,
     staticallyShrinkLetStmBuffers: Boolean,
     maxLetStmBufSize: Option[Int],
@@ -41,6 +44,7 @@ object OptimizerOptions {
       simplifyStmBuild = true,
       inlineLetStm = true,
       fuse = true,
+      fission = true,
       matchLatency = true,
       staticallyShrinkLetStmBuffers = true,
       maxLetStmBufSize = maxLetStmBufSize,
@@ -58,6 +62,7 @@ object OptimizerOptions {
       simplifyStmBuild = false,
       inlineLetStm = false,
       fuse = false,
+      fission = false,
       matchLatency = false,
       staticallyShrinkLetStmBuffers = false,
       maxLetStmBufSize = None,
