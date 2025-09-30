@@ -22,11 +22,6 @@ class OptimizationLevel(Enum):
     Possible optimization settings for a program.
     """
 
-    ONLY_PARTIAL_EVAL = "only_partial_eval"
-    """
-    Nothing but partial evaluation.
-    """
-
     ALL = "all"
     """
     All useful optimization passes enabled.
@@ -52,6 +47,11 @@ class OptimizationLevel(Enum):
     Stream fusion disabled.
     """
 
+    EXCEPT_FISSION = "except_fission"
+    """
+    Stream fission disabled.
+    """
+
     SMALL_BUFFERS = "small_buffers"
     """
     Very small max buffer size for `LetStm`.
@@ -68,8 +68,6 @@ class OptimizationLevel(Enum):
         Return a short explanation of the optimizations included in this level.
         """
         match self:
-            case OptimizationLevel.ONLY_PARTIAL_EVAL:
-                return "partial eval."
             case OptimizationLevel.ALL:
                 return "all"
             case OptimizationLevel.EXCEPT_SBUILD_SIMPL:
@@ -80,6 +78,8 @@ class OptimizationLevel(Enum):
                 return "no sbuild/letstm simpl."
             case OptimizationLevel.EXCEPT_FUSE:
                 return "no fusion"
+            case OptimizationLevel.EXCEPT_FISSION:
+                return "no fission"
             case OptimizationLevel.SMALL_BUFFERS:
                 return "bufsize 1"
             case OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH:
@@ -91,15 +91,6 @@ class OptimizationLevel(Enum):
         Return the compiler flags for this optimization level.
         """
         match self:
-            case OptimizationLevel.ONLY_PARTIAL_EVAL:
-                return (
-                    " --opt:no-simplify-sbuild"
-                    " --opt:no-inline-letstm"
-                    " --opt:no-fuse"
-                    " --opt:no-latmatch"
-                    " --opt:no-static-buf-shrink"
-                    f" --opt:max-let-buf-size {_LARGE_BUF_SIZE}"
-                )
             case OptimizationLevel.ALL:
                 return (
                     " --opt:no-latmatch"
@@ -117,6 +108,8 @@ class OptimizationLevel(Enum):
                 )
             case OptimizationLevel.EXCEPT_FUSE:
                 return OptimizationLevel.ALL.flags + " --opt:no-fuse"
+            case OptimizationLevel.EXCEPT_FISSION:
+                return OptimizationLevel.ALL.flags + " --opt:no-fission"
             case OptimizationLevel.SMALL_BUFFERS:
                 return (
                     f" --opt:max-let-buf-size {_SMALL_BUF_SIZE}"
