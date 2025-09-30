@@ -21,7 +21,7 @@ trait StmFusionPass {
 
 object StmFusionPass {
   def apply(
-      simplifier: StmSimplifier,
+      simplifier: StmBuildSimplifier,
       enabled: Boolean = true
   ): StmFusionPass = {
     if (enabled) new GreedyStmFusionPass(simplifier)
@@ -29,7 +29,8 @@ object StmFusionPass {
   }
 }
 
-class GreedyStmFusionPass(simplifier: StmSimplifier) extends StmFusionPass {
+class GreedyStmFusionPass(simplifier: StmBuildSimplifier)
+    extends StmFusionPass {
 
   override def enabled: Boolean = true
 
@@ -52,8 +53,7 @@ class GreedyStmFusionPass(simplifier: StmSimplifier) extends StmFusionPass {
           })
         )().tchk().asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
-          val fused =
-            simplifier.simplify(acc.fuseWith(x))().asInstanceOf[StmBuild]
+          val fused = simplifier.simplify(acc.fuseWith(x))()
           val oldArea = SimpleAreaCostModel.cost(acc)
           val newArea = SimpleAreaCostModel.cost(fused)
           val oldDelay = SimpleDelayCostModel.cost(acc)

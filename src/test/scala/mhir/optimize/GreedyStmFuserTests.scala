@@ -8,7 +8,7 @@ import mhir.sugar.SimpleMap
 
 class GreedyStmFuserTests extends AnyFunSuite {
 
-  private val fusionPass = new GreedyStmFusionPass(StmSimplifier())
+  private val fusionPass = new GreedyStmFusionPass(StmBuildSimplifier())
 
   /* Map(+3) is clearly better than Map(+1) |> Map(+2).
    */
