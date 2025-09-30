@@ -5,6 +5,13 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.{SimpleAreaCostModel, SimpleDelayCostModel}
 
+/** Stream fusion combines producer and consumer into a single
+  * [[mhir.ir.StmBuild]].
+  *
+  * This eliminates the overhead from the handshake interface and may reveal
+  * further optimization opportunities. It may increase combinational delay,
+  * which is why a cost model is needed to decide when to apply fusion.
+  */
 trait StmFusionPass {
   def enabled: Boolean
   def disabled: Boolean = !enabled

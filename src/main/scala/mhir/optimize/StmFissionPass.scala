@@ -1,10 +1,18 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.logging.time
+import org.slf4j.event.Level
 
 import scala.annotation.tailrec
 
+/** Stream fission splits a single [[mhir.ir.StmBuild]] into multiple stages.
+  *
+  * Fission tends to improve the maximum clock frequency of the design at the
+  * cost of increasing resource usage.
+  */
 trait StmFissionPass {
   def enabled: Boolean
   final def disabled: Boolean = !this.enabled
@@ -72,6 +80,25 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
           )
         )().tchk().asInstanceOf[StmBuild]
         fissionStmBuild(consumer)
+    }
+  }
+}
+
+case class StmFissionPassWithLogging(underlying: StmFissionPass)
+    extends StmFissionPass {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
+
+  override def enabled: Boolean = this.underlying.enabled
+
+  override def fission(e: Expr): Expr = {
+    if (this.disabled && !this.hasLogged) {
+      this.logger.debug(s"stream fission is disabled")
+      this.hasLogged = true
+    }
+    time("stream fission", Level.DEBUG, mute = this.disabled) {
+      this.underlying.fission(e)
     }
   }
 }

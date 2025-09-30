@@ -39,12 +39,7 @@ class Optimizer(
 
     val s1 = simplifier.simplify(s0)
 
-    if (fissionPass.disabled) {
-      logger.debug(s"stream fission is disabled")
-    }
-    val s2 = time("stream fission", Level.DEBUG) {
-      fissionPass.fission(s1)
-    }
+    val s2 = fissionPass.fission(s1)
 
     if (fusionPass.disabled) {
       logger.debug("stream fusion is disabled")
@@ -117,11 +112,15 @@ object Optimizer {
     val loggingSimplifier = StmSimplifierWithLogging(simplifier)
     val binOpBalancer =
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
+    val binOpBalancerWithLogging =
+      BinOpTreeBalancingPassWithLogging(binOpBalancer)
     val fusionPass =
       StmFusionPass(simplifier = simplifier, enabled = options.fuse)
-    val fissionPass = StmFissionPass(
-      scheduler = StmOutputScheduler(binOpBalancer),
-      enabled = options.fission
+    val fissionPass = StmFissionPassWithLogging(
+      StmFissionPass(
+        scheduler = StmOutputScheduler(binOpBalancer),
+        enabled = options.fission
+      )
     )
     val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
     val letStmBufShrinker = {
@@ -145,7 +144,7 @@ object Optimizer {
       fissionPass,
       latencyMatcher,
       letStmBufShrinker = letStmBufShrinker,
-      binOpBalancer
+      binOpBalancerWithLogging
     )
   }
 }
