@@ -19,7 +19,7 @@ class ManualOptimizationTests extends AnyFunSuite {
 
   private val stmBuildSimplifier = StmBuildSimplifier()
   private val simplifier = StmSimplifier(stmBuildSimplifier)
-  private val fusionPass = new GreedyStmFusionPass(simplifier)
+  private val fusionPass = new GreedyStmFusionPass(stmBuildSimplifier)
 
   /** The optimizer can produce a nice design for a simple map on a 1D stream,
     * even though the lowering pass spits out something a bit gross (since it

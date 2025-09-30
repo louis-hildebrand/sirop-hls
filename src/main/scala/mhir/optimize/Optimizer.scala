@@ -115,7 +115,7 @@ object Optimizer {
     val binOpBalancerWithLogging =
       BinOpTreeBalancingPassWithLogging(binOpBalancer)
     val fusionPass =
-      StmFusionPass(simplifier = simplifier, enabled = options.fuse)
+      StmFusionPass(simplifier = stmBuildSimplifier, enabled = options.fuse)
     val fissionPass = StmFissionPassWithLogging(
       StmFissionPass(
         scheduler = StmOutputScheduler(binOpBalancer),
