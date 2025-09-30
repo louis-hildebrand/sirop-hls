@@ -1,0 +1,9 @@
+prog_name,prog_opt,latency,sim_success
+sharpen,all,7688,True
+sharpen,except_sbuild_simpl,7699,True
+sharpen,except_letstm_simpl,7745,True
+sharpen,except_stm_simpl,7745,True
+sharpen,except_fuse,7707,True
+sharpen,except_fission,7687,True
+sharpen,small_buffers,15365,True
+sharpen,small_buffers_and_latmatch,7688,True

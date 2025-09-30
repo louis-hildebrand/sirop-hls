@@ -1,0 +1,9 @@
+prog_name,prog_opt,fmax
+sharpen,all,197.75
+sharpen,except_sbuild_simpl,195.05
+sharpen,except_letstm_simpl,196.08
+sharpen,except_stm_simpl,196.08
+sharpen,except_fuse,193.24
+sharpen,except_fission,165.84
+sharpen,small_buffers,195.77
+sharpen,small_buffers_and_latmatch,216.4
