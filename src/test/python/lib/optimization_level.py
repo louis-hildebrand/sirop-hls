@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-_LARGE_BUF_SIZE = 32
+_LARGE_BUF_SIZE = 30
 """
 Large value for the max buffer size in letstm.
 """
