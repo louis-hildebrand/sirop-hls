@@ -536,6 +536,16 @@ object AetherlingBenchmarkIO {
     normalCases + underutilizedCase
   }
 
+  private def matVecIO: Map[String, vhdl.PositionalTestIO] = {
+    Seq(1, 2, 4, 8, 16, 32)
+      .map({ par =>
+        val io = mhir.main.stored.ProgramIO
+          .matVecMulIO(width = 32, height = 32, par = par, uint = U16)
+        s"matvec_$par" -> io
+      })
+      .toMap
+  }
+
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
     * for the VHDL testbench.
     *
@@ -555,6 +565,7 @@ object AetherlingBenchmarkIO {
       ++ bigSharpenIO.mapValues(_.toVhdl)
       ++ smallCameraIO.mapValues(_.toVhdl)
       ++ bigCameraIO.mapValues(_.toVhdl)
+      ++ matVecIO
   )
 
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
