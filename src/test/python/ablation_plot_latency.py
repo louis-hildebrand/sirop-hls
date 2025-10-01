@@ -4,32 +4,18 @@
 This script plots the latencies for the ablation study.
 """
 
+import math
 import sys
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tick
 
+import lib.ablation_plot_settings as aps
 import lib.ablation_results_crud as crud
 import lib.constants as c
 import lib.plt_utils as pu
 from lib.latency import LatencyResult
-from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
-
-BASELINE_LVL = OptimizationLevel.ALL
-LEVELS_TO_PLOT = [
-    lvl
-    for lvl in OptimizationLevel
-    if lvl != BASELINE_LVL
-]
-BAR_SPACE = 0.2
-BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
-BAR_PADDING = 0.02
-BAR_HATCH = ["//", r"\\", "||", "++", "--", "xx", "/", r"\\", "|", "+", "-", "x"]
-# pylint: disable-next=line-too-long
-FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
-EDGE_COLORS = ["black" for _ in FACE_COLORS]
-LINE_STYLES = ["-" for _ in FACE_COLORS]
-HATCH_WIDTH = 1
 
 
 def program_order(program_name: str) -> int:
@@ -67,8 +53,8 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     )
     # Baseline
     xlim = (
-        -0.5*BAR_WIDTH - 0.5*BAR_SPACE,
-        len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
+        -0.5*aps.BAR_WIDTH - 0.5*aps.BAR_SPACE,
+        len(program_names) - 0.5*aps.BAR_WIDTH - 0.5*aps.BAR_SPACE
     )
     baseline_artist, *_ = ax.plot(
         list(xlim),
@@ -78,11 +64,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     )
     # Latency results
     artists = []
-    for i, lvl in enumerate(LEVELS_TO_PLOT):
-        xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
+    for i, lvl in enumerate(aps.LEVELS_TO_PLOT):
+        xs = [x + i * aps.BAR_WIDTH for x in range(len(program_names))]
         ys = []
         for p in program_names:
-            baseline = results.get(ProgramVariant(p, BASELINE_LVL))
+            baseline = results.get(ProgramVariant(p, aps.BASELINE_LVL))
             baseline = baseline.latency if baseline is not None else None
             if baseline is None:
                 print(f"WARNING: Missing baseline for {p}")
@@ -94,17 +80,17 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             bottom=0,
             x=xs,
             height=ys,
-            width=BAR_WIDTH - BAR_PADDING,
+            width=aps.BAR_WIDTH - aps.BAR_PADDING,
             label=str(lvl),
-            hatch=BAR_HATCH[i],
-            facecolor=FACE_COLORS[i],
-            edgecolor=EDGE_COLORS[i],
-            hatch_linewidth=HATCH_WIDTH,
+            hatch=aps.BAR_HATCH[i],
+            facecolor=aps.FACE_COLORS[i],
+            edgecolor=aps.EDGE_COLORS[i],
+            hatch_linewidth=aps.HATCH_WIDTH,
         )
         artists.append(artist)
         labels = []
         for p in program_names:
-            baseline = results.get(ProgramVariant(p, BASELINE_LVL))
+            baseline = results.get(ProgramVariant(p, aps.BASELINE_LVL))
             baseline = baseline.latency if baseline is not None else None
             if baseline is None:
                 print(f"WARNING: Missing baseline for {p}")
@@ -131,26 +117,29 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             # else:
             #     label = f"{diff}"
             labels.append(label)
-        ax.bar_label(
-            artist,
-            labels=labels,
-            padding=3,
-        )
+        # ax.bar_label(
+        #     artist,
+        #     labels=labels,
+        #     padding=3,
+        # )
     # Display settings
     # ax.set_yscale("symlog")
     ax.set_ylabel("\\% change\nlatency")
-    ax.set_yticks([-1, 0, 0.5], [r"-100\%", r"0\%", r"+50\%"])
+    ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     # ax.set_ylim(-1.35, 0.55)
     ax.set_xticks(
-        [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
+        [
+            x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
+            for x in range(len(program_names))
+        ],
         [f"\\texttt{{{p}}}" for p in program_names],
     )
     ax.set_xlim(xlim)
     ax.tick_params(axis="x", which="both", length=0)
-    legend_cols = 4
+    legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
     legend_labels = (
-        [BASELINE_LVL.explanation]
-            + [lvl.explanation for lvl in LEVELS_TO_PLOT]
+        [aps.BASELINE_LVL.explanation]
+            + [lvl.explanation for lvl in aps.LEVELS_TO_PLOT]
     )
     legend_handles = [baseline_artist] + artists
     fig.legend(

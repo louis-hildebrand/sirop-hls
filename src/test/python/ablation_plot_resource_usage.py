@@ -4,47 +4,18 @@
 This script plots the resource usages for the ablation study.
 """
 
+import math
 import sys
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tick
 
+import lib.ablation_plot_settings as aps
 import lib.ablation_results_crud as crud
 import lib.constants as c
 import lib.plt_utils as pu
-from lib.optimization_level import OptimizationLevel
 from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
-
-BASELINE_LVL = OptimizationLevel.ALL
-LEVELS_TO_PLOT = [
-    lvl
-    for lvl in OptimizationLevel
-    if lvl != BASELINE_LVL
-]
-BAR_SPACE = 0.2
-BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
-BAR_PADDING = 0.02
-BAR_HATCH = ["//", r"\\", "||", "++", "--", "xx", "/", r"\\", "|", "+", "-", "x"]
-# pylint: disable-next=line-too-long
-FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
-EDGE_COLORS = ["black" for _ in FACE_COLORS]
-LINE_STYLES = ["-" for _ in FACE_COLORS]
-HATCH_WIDTH = 1
-
-
-def program_order(program_name: str) -> int:
-    """
-    Choose the order of the programs in the plot.
-    """
-    return {
-        "map": 0,
-        "dot": 1,
-        "conv1d": 2,
-        "conv2d": 3,
-        "convb2b": 4,
-        "sharpen": 5,
-        "camera": 6,
-    }.get(program_name, 7)
 
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -52,7 +23,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     Plot resource usage for each program.
     """
     program_names = pu.dedup([p.name for p in results.keys()])
-    program_names = sorted(program_names, key=program_order)
+    program_names = sorted(program_names, key=aps.program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
     plt.rcParams.update({
@@ -68,8 +39,8 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     )
     # Baseline
     xlim = (
-        -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-        len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+        -0.5 * aps.BAR_WIDTH - 0.5*aps.BAR_SPACE,
+        len(program_names) - 0.5 * aps.BAR_WIDTH - 0.5*aps.BAR_SPACE,
     )
     baseline_artist, *_ = alm_ax.plot(
         list(xlim),
@@ -85,51 +56,55 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     )
     # Resource usages
     artists = []
-    for i, lvl in enumerate(LEVELS_TO_PLOT):
-        xs = [x + i * BAR_WIDTH for x in range(len(program_names))]
+    for i, lvl in enumerate(aps.LEVELS_TO_PLOT):
+        xs = [x + i * aps.BAR_WIDTH for x in range(len(program_names))]
         # ALM usage
         ys = []
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].alm
-            baseline = results[ProgramVariant(p, BASELINE_LVL)].alm
+            baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].alm
             ys.append( (y - baseline) / baseline )
         artist = alm_ax.bar(
             bottom=0,
             x=xs,
             height=ys,
-            width=BAR_WIDTH - BAR_PADDING,
+            width=aps.BAR_WIDTH - aps.BAR_PADDING,
             label=str(lvl),
-            hatch=BAR_HATCH[i],
-            facecolor=FACE_COLORS[i],
-            edgecolor=EDGE_COLORS[i],
-            linestyle=LINE_STYLES[i],
-            hatch_linewidth=HATCH_WIDTH,
+            hatch=aps.BAR_HATCH[i],
+            facecolor=aps.FACE_COLORS[i],
+            edgecolor=aps.EDGE_COLORS[i],
+            linestyle=aps.LINE_STYLES[i],
+            hatch_linewidth=aps.HATCH_WIDTH,
         )
         artists.append(artist)
-        labels = []
-        for p in program_names:
-            alm = results[ProgramVariant(p, lvl)].alm
-            baseline = results[ProgramVariant(p, BASELINE_LVL)].alm
-            percent_change = (alm - baseline) / baseline
-            if percent_change >= 0:
-                label = f"+{percent_change:.0%}"
-            else:
-                label = f"{percent_change:.0%}"
-            label = label.replace("%", r"\%")
-            if label == r"+0\%":
-                label = ""
-            labels.append(label)
-        alm_ax.bar_label(
-            artist,
-            labels=labels,
-            padding=3,
-        )
+        # labels = []
+        # for p in program_names:
+        #     alm = results[ProgramVariant(p, lvl)].alm
+        #     baseline = results[ProgramVariant(p, BASELINE_LVL)].alm
+        #     percent_change = (alm - baseline) / baseline
+        #     if percent_change >= 0:
+        #         label = f"+{percent_change:.0%}"
+        #     else:
+        #         label = f"{percent_change:.0%}"
+        #     label = label.replace("%", r"\%")
+        #     if label == r"+0\%":
+        #         label = ""
+        #     labels.append(label)
+        # alm_ax.bar_label(
+        #     artist,
+        #     labels=labels,
+        #     padding=3,
+        # )
         # BRAM usage
         ys = []
         for p in program_names:
             y = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, BASELINE_LVL)].bram
+            baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].bram
             if y == 0 and baseline == 0:
+                ys.append(0)
+                continue
+            if baseline == 0:
+                print(f"WARNING: baseline uses zero BRAMs for program {p}")
                 ys.append(0)
                 continue
             ys.append( (y - baseline) / baseline )
@@ -137,29 +112,35 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             bottom=0,
             x=xs,
             height=ys,
-            width=BAR_WIDTH - BAR_PADDING,
+            width=aps.BAR_WIDTH - aps.BAR_PADDING,
             label=str(lvl),
-            hatch=BAR_HATCH[i],
-            facecolor=FACE_COLORS[i],
-            edgecolor=EDGE_COLORS[i],
-            linestyle=LINE_STYLES[i],
-            hatch_linewidth=HATCH_WIDTH,
+            hatch=aps.BAR_HATCH[i],
+            facecolor=aps.FACE_COLORS[i],
+            edgecolor=aps.EDGE_COLORS[i],
+            linestyle=aps.LINE_STYLES[i],
+            hatch_linewidth=aps.HATCH_WIDTH,
         )
         labels = []
         for p in program_names:
             bram = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, BASELINE_LVL)].bram
-            if bram == 0 and baseline == 0:
-                percent_change = 0
+            baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].bram
+            if baseline == 0 and bram != 0:
+                label = r"$\infty$"
             else:
-                percent_change = (bram - baseline) / baseline
-            if percent_change >= 0:
-                label = f"+{percent_change:.0%}"
-            else:
-                label = f"{percent_change:.0%}"
-            label = label.replace("%", r"\%")
-            if label == r"+0\%":
                 label = ""
+            # if bram == 0 and baseline == 0:
+            #     percent_change = 0
+            # elif baseline == 0:
+            #     percent_change = 0
+            # else:
+            #     percent_change = (bram - baseline) / baseline
+            # if percent_change >= 0:
+            #     label = f"+{percent_change:.0%}"
+            # else:
+            #     label = f"{percent_change:.0%}"
+            # label = label.replace("%", r"\%")
+            # if label == r"+0\%":
+            #     label = ""
             labels.append(label)
         bram_ax.bar_label(
             artist,
@@ -169,19 +150,24 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     # Display settings
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
-        [x + (len(LEVELS_TO_PLOT) / 2 - 0.5) * BAR_WIDTH for x in range(len(program_names))],
+        [
+            x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
+            for x in range(len(program_names))
+        ],
         [f"\\texttt{{{p}}}" for p in program_names],
     )
-    alm_ax.set_ylabel("\\% change\nALM usage")
     alm_ax.tick_params(axis="x", which="both", length=0)
+    alm_ax.set_ylabel("\\% change\nALM usage")
+    alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     bram_ax.tick_params(axis="x", which="both", length=0)
     # alm_ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"100\%"])
     # alm_ax.set_ylim(-1.25, 1)
     bram_ax.set_ylabel("\\% change\nBRAM usage")
+    bram_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     # bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
     # bram_ax.set_ylim(-1.25, 0.1)
-    legend_cols = 4
-    legend_labels=[lvl.explanation for lvl in [BASELINE_LVL] + LEVELS_TO_PLOT]
+    legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
+    legend_labels=[lvl.explanation for lvl in [aps.BASELINE_LVL] + aps.LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
