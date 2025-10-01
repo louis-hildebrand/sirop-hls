@@ -14,4 +14,5 @@
 - `StmMap` and `StmFold` are pretty ugly
 	- Need to fuse body completely, which can lead to gross-looking code
 	- Function needs to be a literal function and, in some cases, it must literally return a `StmBuild`
-- Using `LetStm` requires great care - elements must be accessed in the right order
+- ~~Using `LetStm` requires great care - elements must be accessed in the right order~~
+	- No longer a problem now that `LetStm` includes a queue, but now the problem is how to automatically shrink the buffer in `LetStm`
