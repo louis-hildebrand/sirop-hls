@@ -95,15 +95,16 @@ def benchmark_order(bench_name: str) -> int:
         "map": 0,
         "sum": 1,
         "dot": 2,
-        "conv1d": 3,
-        "smallconv2d": 4,
-        "smallconvb2b": 5,
-        "smallsharpen": 6,
-        "bigconv2d": 7,
-        "bigconvb2b": 8,
-        "bigsharpen": 9,
-        "bigcamera": 10
-    }.get(bench_name, 11)
+        "matvec": 3,
+        "conv1d": 4,
+        "smallconv2d": 5,
+        "smallconvb2b": 6,
+        "smallsharpen": 7,
+        "bigconv2d": 8,
+        "bigconvb2b": 9,
+        "bigsharpen": 10,
+        "bigcamera": 11
+    }.get(bench_name, 12)
 
 
 def benchmark_title(bench_name: str) -> str | None:
