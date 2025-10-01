@@ -8,12 +8,11 @@ import sys
 from typing import TypeVar
 
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 
 import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
-from lib.benchmark import BenchmarkImpl
+from lib.benchmark import BenchmarkImpl, set_ticks
 from lib.latency import LatencyResult
 
 DEFAULT_COLORS = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -31,37 +30,6 @@ def dedup(xs: list[T]) -> list[T]:
     Deduplicate elements in a list while preserving order.
     """
     return list(dict.fromkeys(xs))
-
-
-def set_ticks(ax: Axes, bench_name: str) -> None:
-    """
-    Set the x-axis ticks for the given benchmark.
-    """
-    if bench_name == "bigcamera":
-        ax.set_xticks(
-            [1/4, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
-        )
-    elif bench_name.startswith("big"):
-        ax.set_xticks(
-            [1/3, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"],
-        )
-    elif bench_name == "conv1d":
-        ax.set_xticks(
-            [1/3, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"],
-        )
-    elif bench_name in {"sum", "dot"}:
-        ax.set_xticks(
-            [1/840, 2/840, 4/840, 8/840],
-            [r"$\frac{1}{840}$", r"$\frac{2}{840}$", r"$\frac{4}{840}$", r"$\frac{8}{840}$"],
-        )
-    elif bench_name == "map":
-        ax.set_xticks(
-            [1, 4, 20, 200],
-            ["1", "4", "20", "200"],
-        )
 
 
 def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
