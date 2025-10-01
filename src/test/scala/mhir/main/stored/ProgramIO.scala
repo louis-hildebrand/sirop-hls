@@ -24,7 +24,12 @@ object ProgramIO {
     } else if (name.startsWith("matvec_")) {
       val parStr = {
         val suffix = name.substring("matvec_".length)
-        val prefix = suffix.substring(0, suffix.indexOf('_'))
+        val prefix = suffix.takeWhile(_.isDigit)
+        if (prefix.isEmpty) {
+          throw new IllegalArgumentException(
+            s"Unrecognized benchmark name: $name (missing throughput)"
+          )
+        }
         prefix
       }
       val par = parStr.toInt
