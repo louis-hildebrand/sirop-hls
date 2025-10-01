@@ -1790,7 +1790,7 @@ case class StmRepeat(
     val s = Param("s")(TyStm(typ, -1))
     val v = Param("v")(TyVec(typ, n))
     val tTyp = n match {
-      case IntCst(n) => TyAnyInt.tightest(0, n - 1)
+      case IntCst(n) => TyAnyInt.tightest(0, math.max(1, n - 1))
       case _         => n.typ
     }
     val t = Param("t")(tTyp)
