@@ -4,7 +4,7 @@ package mhir.optimize
   *
   * @param simplifyStmBuild
   *   whether to run the [[mhir.optimize.StmBuildSimplifier]].
-  * @param simplifyLetStm
+  * @param inlineLetStm
   *   whether to run the [[mhir.optimize.LetStmSimplifier]].
   * @param fuse
   *   whether to perform greedy stream fusion.
@@ -20,7 +20,7 @@ package mhir.optimize
   */
 case class OptimizerOptions(
     simplifyStmBuild: Boolean,
-    simplifyLetStm: Boolean,
+    inlineLetStm: Boolean,
     fuse: Boolean,
     fission: Boolean,
     matchLatency: Boolean,
@@ -42,7 +42,7 @@ object OptimizerOptions {
   ): OptimizerOptions = {
     new OptimizerOptions(
       simplifyStmBuild = true,
-      simplifyLetStm = true,
+      inlineLetStm = true,
       fuse = true,
       fission = true,
       matchLatency = true,
@@ -60,7 +60,7 @@ object OptimizerOptions {
   def Empty: OptimizerOptions = {
     OptimizerOptions(
       simplifyStmBuild = false,
-      simplifyLetStm = false,
+      inlineLetStm = false,
       fuse = false,
       fission = false,
       matchLatency = false,

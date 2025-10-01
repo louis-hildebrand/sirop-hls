@@ -24,55 +24,14 @@ def main(programs: list[str]) -> None:
     c.ABLATION_VHDL_DIR.mkdir(exist_ok=True, parents=True)
     sbt_tasks = []
     for prog in programs:
-        # No optimizations
-        lvl = OptimizationLevel.NONE
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
-        sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
-            " --opt:no-fuse --opt:no-match-latency --opt:no-simplify"
-            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
-        )
-        # Only basic simplification
-        lvl = OptimizationLevel.SIMPLIFY
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
-        sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
-            " --opt:no-fuse --opt:no-match-latency"
-            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
-        )
-        # Latency matching
-        lvl = OptimizationLevel.MATCH_LATENCY
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
-        sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
-            " --opt:no-fuse"
-            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
-        )
-        # Fusion
-        lvl = OptimizationLevel.FUSE
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
-        sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
-            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
-        )
-        # All except stream simplification
-        lvl = OptimizationLevel.ALL_EXCEPT_SIMPL
-        out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
-        sbt_tasks.append(
-            f"Test/runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
-            " --opt:no-simplify"
-            " --opt:max-let-buf-size 100 --opt:assume-throughputs-match"
-        )
+        for lvl in OptimizationLevel:
+            out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
+            sbt_tasks.append(
+                f"runMain {c.STORED_PROGRAM_COMPILER} {prog}"
+                f" --out-dir {out_dir} --overwrite"
+                " --show-final"
+                f" {lvl.flags}"
+            )
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "; ".join(sbt_tasks)], check=True)
 

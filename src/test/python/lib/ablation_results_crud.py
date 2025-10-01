@@ -79,6 +79,7 @@ def merge_resource_usages(old: Path, new: Path) -> None:
     old_results = read_all_resource_usage_results(old)
     new_results = read_all_resource_usage_results(new)
     combined_results = old_results | new_results
+    combined_results = dict(sorted(combined_results.items()))
     with open(new, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=RESOURCE_USAGE_HEADERS)
         writer.writeheader()
@@ -143,6 +144,7 @@ def merge_fmax(old: Path, new: Path) -> None:
     old_results = read_all_fmax(old)
     new_results = read_all_fmax(new)
     combined_results = old_results | new_results
+    combined_results = dict(sorted(combined_results.items()))
     with open(new, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FMAX_HEADERS)
         writer.writeheader()
@@ -214,6 +216,7 @@ def merge_latency_results(old: Path, new: Path) -> None:
     old_results = read_all_latency_results(old)
     new_results = read_all_latency_results(new)
     combined_results = old_results | new_results
+    combined_results = dict(sorted(combined_results.items()))
     with open(new, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=LATENCY_HEADERS)
         writer.writeheader()

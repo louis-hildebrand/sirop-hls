@@ -11,6 +11,7 @@ from argparse import ArgumentParser, Namespace
 import lib.constants as c
 import lib.list_benchmarks as lb
 from lib import synth
+from lib.optimization_level import OptimizationLevel
 
 
 def generate_verilog(benchmarks: list[str]) -> None:
@@ -37,7 +38,7 @@ def generate_vhdl(benchmarks: list[str]) -> None:
         return (
             f"runMain {c.AETHERLING_COMPILER} {in_file} --show-final"
             f" --out-dir {out_dir} --overwrite"
-            f" --opt:max-let-buf-size 100"
+            f" {OptimizationLevel.ALL.flags}"
         )
     tasks = [make_task(b) for b in benchmarks]
     os.chdir(c.ROOT_DIR)

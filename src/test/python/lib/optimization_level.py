@@ -6,35 +6,60 @@ from __future__ import annotations
 
 from enum import Enum
 
+_LARGE_BUF_SIZE = 30
+"""
+Large value for the max buffer size in letstm.
+"""
+
+_SMALL_BUF_SIZE = 1
+"""
+Small value for the max buffer size in letstm.
+"""
+
 
 class OptimizationLevel(Enum):
     """
     Possible optimization settings for a program.
     """
 
-    NONE = "none"
+    ALL = "all"
     """
-    Nothing but partial evaluation.
-    """
-
-    SIMPLIFY = "simpl"
-    """
-    Only partial evaluation and basic stream simplification.
+    All useful optimization passes enabled.
     """
 
-    MATCH_LATENCY = "latmatch"
+    EXCEPT_SBUILD_SIMPL = "except_sbuild_simpl"
     """
-    `SIMPLIFY` plus latency matching.
-    """
-
-    FUSE = "fuse"
-    """
-    `MATCH_LATENCY` plus greedy fusion.
+    Basic `StmBuild` simplifications disabled.
     """
 
-    ALL_EXCEPT_SIMPL = "nosimpl"
+    EXCEPT_LETSTM_SIMPL = "except_letstm_simpl"
     """
-    All optimizations except stream simplification.
+    Basic `LetStm` simplifications disabled.
+    """
+
+    EXCEPT_STM_SIMPL = "except_stm_simpl"
+    """
+    Both `StmBuild` and `LetStm` simplifications disabled.
+    """
+
+    EXCEPT_FUSE = "except_fuse"
+    """
+    Stream fusion disabled.
+    """
+
+    EXCEPT_FISSION = "except_fission"
+    """
+    Stream fission disabled.
+    """
+
+    SMALL_BUFFERS = "small_buffers"
+    """
+    Very small max buffer size for `LetStm`.
+    """
+
+    SMALL_BUFFERS_AND_LATMATCH = "small_buffers_and_latmatch"
+    """
+    Very small max buffer size for `LetStm`, but latency matching is enabled.
     """
 
     @property
@@ -42,17 +67,60 @@ class OptimizationLevel(Enum):
         """
         Return a short explanation of the optimizations included in this level.
         """
-        if self == OptimizationLevel.NONE:
-            return "partial eval. (PE)"
-        if self == OptimizationLevel.SIMPLIFY:
-            return "PE + stream simpl. (SS)"
-        if self == OptimizationLevel.MATCH_LATENCY:
-            return "PE + SS + latency matching (LM)"
-        if self == OptimizationLevel.FUSE:
-            return "PE + SS + LM + fusion"
-        if self == OptimizationLevel.ALL_EXCEPT_SIMPL:
-            return "all except SS"
-        raise NotImplementedError(f"no explanation for {self}")
+        match self:
+            case OptimizationLevel.ALL:
+                return "all"
+            case OptimizationLevel.EXCEPT_SBUILD_SIMPL:
+                return "no sbuild simpl."
+            case OptimizationLevel.EXCEPT_LETSTM_SIMPL:
+                return "no letstm simpl."
+            case OptimizationLevel.EXCEPT_STM_SIMPL:
+                return "no sbuild/letstm simpl."
+            case OptimizationLevel.EXCEPT_FUSE:
+                return "no fusion"
+            case OptimizationLevel.EXCEPT_FISSION:
+                return "no fission"
+            case OptimizationLevel.SMALL_BUFFERS:
+                return "bufsize 1"
+            case OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH:
+                return "bufsize 1, latmatch"
+
+    @property
+    def flags(self) -> str:
+        """
+        Return the compiler flags for this optimization level.
+        """
+        match self:
+            case OptimizationLevel.ALL:
+                return (
+                    " --opt:no-latmatch"
+                    " --opt:no-static-buf-shrink"
+                    f" --opt:max-let-buf-size {_LARGE_BUF_SIZE}"
+                )
+            case OptimizationLevel.EXCEPT_SBUILD_SIMPL:
+                return OptimizationLevel.ALL.flags + " --opt:no-simplify-sbuild"
+            case OptimizationLevel.EXCEPT_LETSTM_SIMPL:
+                return OptimizationLevel.ALL.flags + " --opt:no-inline-letstm"
+            case OptimizationLevel.EXCEPT_STM_SIMPL:
+                return (
+                    OptimizationLevel.ALL.flags
+                    + " --opt:no-simplify-sbuild --opt:no-inline-letstm"
+                )
+            case OptimizationLevel.EXCEPT_FUSE:
+                return OptimizationLevel.ALL.flags + " --opt:no-fuse"
+            case OptimizationLevel.EXCEPT_FISSION:
+                return OptimizationLevel.ALL.flags + " --opt:no-fission"
+            case OptimizationLevel.SMALL_BUFFERS:
+                return (
+                    f" --opt:max-let-buf-size {_SMALL_BUF_SIZE}"
+                    " --opt:no-latmatch"
+                    " --opt:no-static-buf-shrink"
+                )
+            case OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH:
+                return (
+                    f" --opt:max-let-buf-size {_SMALL_BUF_SIZE}"
+                    " --opt:assume-throughputs-match"
+                )
 
     def __str__(self) -> str:
         return self.value
