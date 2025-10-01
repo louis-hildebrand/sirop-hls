@@ -11,6 +11,8 @@ import mhir.sugar._
   */
 object Program {
 
+  val MatVecSize: Int = 256
+
   def apply(name: String): Expr = {
     name.toLowerCase match {
       case "map"     => Map
@@ -23,7 +25,12 @@ object Program {
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
-        MatVecMul(width = 32, height = 32, par = par, uint = U16)
+        MatVecMul(
+          width = MatVecSize,
+          height = MatVecSize,
+          par = par,
+          uint = U16
+        )
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }

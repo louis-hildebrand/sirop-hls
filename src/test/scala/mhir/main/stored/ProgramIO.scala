@@ -33,7 +33,12 @@ object ProgramIO {
         prefix
       }
       val par = parStr.toInt
-      matVecMulIO(width = 32, height = 32, par = par, uint = U16)
+      matVecMulIO(
+        width = Program.MatVecSize,
+        height = Program.MatVecSize,
+        par = par,
+        uint = U16
+      )
     } else {
       ???
     }
@@ -90,8 +95,8 @@ object ProgramIO {
       par: Int,
       uint: TyUInt
   ): PositionalTestIO = {
-    val mat = (0 until height).map(i => (0 until width).map(j => i + j))
-    val vec = 0 until width
+    val mat = (0 until height).map(i => (0 until width).map(j => (i + j) % 16))
+    val vec = (0 until width).map(_ % 16)
     val outputs = mat.map(row => row.zip(vec).map({ case (x, y) => x * y }).sum)
     PositionalTestIO(
       Seq(

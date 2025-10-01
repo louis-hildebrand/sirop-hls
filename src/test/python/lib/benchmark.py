@@ -85,9 +85,8 @@ def min_latency(bench: Benchmark) -> int:
         # 1920*8 inputs and outputs
         return 1920 * 8 // bench.throughput
     if bench.name == "matvec":
-        # 32*32 inputs, 32 outputs
         # In this case, the benchmark "throughput" is actually its parallelization factor
-        return 32 * 32 // bench.throughput
+        return 256 * 256 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 
