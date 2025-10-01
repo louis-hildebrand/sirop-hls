@@ -18,6 +18,7 @@ AETHERLING_VERILOG_DIR = (
 )
 VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
 ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
+DSE_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "dse")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 
