@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fractions import Fraction
 
+from matplotlib.axes import Axes
+
 
 @dataclass(frozen=True, order=True)
 class Benchmark:
@@ -84,6 +86,9 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "bigcamera":
         # 1920*8 inputs and outputs
         return 1920 * 8 // bench.throughput
+    if bench.name == "matvec":
+        # In this case, the benchmark "throughput" is actually its parallelization factor
+        return 256 * 256 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 
@@ -95,15 +100,16 @@ def benchmark_order(bench_name: str) -> int:
         "map": 0,
         "sum": 1,
         "dot": 2,
-        "conv1d": 3,
-        "smallconv2d": 4,
-        "smallconvb2b": 5,
-        "smallsharpen": 6,
-        "bigconv2d": 7,
-        "bigconvb2b": 8,
-        "bigsharpen": 9,
-        "bigcamera": 10
-    }.get(bench_name, 11)
+        "matvec": 3,
+        "conv1d": 4,
+        "smallconv2d": 5,
+        "smallconvb2b": 6,
+        "smallsharpen": 7,
+        "bigconv2d": 8,
+        "bigconvb2b": 9,
+        "bigsharpen": 10,
+        "bigcamera": 11
+    }.get(bench_name, 12)
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -118,3 +124,41 @@ def benchmark_title(bench_name: str) -> str | None:
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
     return f"\\texttt{{{bench_name}}}"
+
+
+def set_ticks(ax: Axes, bench_name: str) -> None:
+    """
+    Set the x-axis ticks for the given benchmark.
+    """
+    if bench_name == "bigcamera":
+        ax.set_xticks(
+            [1/4, 1, 2, 4, 8, 16],
+            [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
+        )
+    elif bench_name.startswith("big"):
+        ax.set_xticks(
+            [1/3, 1, 2, 4, 8, 16],
+            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"]
+        )
+    elif bench_name == "conv1d":
+        ax.set_xticks(
+            [1/3, 1, 2, 4, 8, 16],
+            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"]
+        )
+    elif bench_name in {"sum", "dot"}:
+        ax.set_xticks(
+            [1/840, 2/840, 4/840, 8/840],
+            [r"$\frac{1}{840}$", r"$\frac{2}{840}$", r"$\frac{4}{840}$", r"$\frac{8}{840}$"],
+        )
+    elif bench_name == "map":
+        ax.set_xticks(
+            [1, 4, 20, 200],
+            ["1", "4", "20", "200"]
+        )
+    elif bench_name == "matvec":
+        n = 256
+        par = [1, 2, 4, 8, 16]
+        ax.set_xticks(
+            par,
+            [f"$\\frac{{1}}{{{n//p}}}$" for p in par]
+        )

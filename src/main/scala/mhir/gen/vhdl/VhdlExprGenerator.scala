@@ -1,5 +1,6 @@
 package mhir.gen.vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 
@@ -24,6 +25,8 @@ private object NormalMode extends ExprGenMode
 private object InFunctionMode extends ExprGenMode
 
 private object VhdlExprGenerator {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Convert an expression to VHDL.
     *
@@ -302,22 +305,7 @@ private object VhdlExprGenerator {
             s"VecBuild with non-constant size ($len) is not supported."
           )
         }
-      case VecAccess(v, i) =>
-        // TODO: Have a special case for when the index is static?
-        val vv = exprToVhdl(v)
-        val iv: VhdlExpr = {
-          val actualWidth = i.typ.asInstanceOf[TyUInt].w
-          val expectedWidth =
-            VhdlType(v.typ).asInstanceOf[VhdlArray].idxBitWidth
-          if (actualWidth > expectedWidth) {
-            exprToVhdl(TruncateTo(i, expectedWidth)().tchk())
-          } else if (actualWidth < expectedWidth) {
-            exprToVhdl(PadTo(i, expectedWidth)().tchk())
-          } else {
-            exprToVhdl(i)
-          }
-        }
-        VhdlExpr(s"vec_access(${vv.vhdl}, ${iv.vhdl})", vv.decls ++ iv.decls)
+      case va: VecAccess => makeVecAccess(va)
 
       case _: SyntaxSugar =>
         throw new IllegalArgumentException(
@@ -358,6 +346,96 @@ private object VhdlExprGenerator {
     }
   }
 
+  private def makeVecAccess(
+      va: VecAccess
+  )(implicit mode: ExprGenMode): VhdlExpr = {
+    val TyVec(_, IntCst(n)) = va.vec.typ
+    n match {
+      case 0 => makeEmptyVecAccess(va)
+      case 1 => makeSingletonVecAccess(va.vec)
+      case _ if isPowerOfTwo(n) =>
+        logger.debug(
+          s"skipping bounds checking for ${va.vec} because its length is a power of two"
+        )
+        makeUncheckedVecAccess(va)
+      case _ =>
+        logger.warn(
+          s"adding bounds checking for ${va.vec} because its length is not a power of two"
+        )
+        makeCheckedVecAccess(va)
+    }
+  }
+
+  private def makeEmptyVecAccess(
+      va: VecAccess
+  )(implicit mode: ExprGenMode): VhdlExpr = {
+    exprToVhdl(Undefined(va.typ))
+  }
+
+  private def makeSingletonVecAccess(
+      vec: Expr
+  )(implicit mode: ExprGenMode): VhdlExpr = {
+    val VhdlExpr(vecVhdl, vecDecls) = exprToVhdl(vec)
+    VhdlExpr(s"$vecVhdl(0)", vecDecls)
+  }
+
+  private def makeUncheckedVecAccess(
+      va: VecAccess
+  )(implicit mode: ExprGenMode): VhdlExpr = {
+    va match {
+      case VecAccess(v, i) =>
+        val VhdlExpr(vecVhdl, vecDecls) = exprToVhdl(v)
+        val VhdlExpr(idxVhdl, idxDecls) = exprToVhdl(resizeVecAccessIndex(v, i))
+        VhdlExpr(s"$vecVhdl(to_integer($idxVhdl))", vecDecls ++ idxDecls)
+    }
+  }
+
+  private def makeCheckedVecAccess(
+      va: VecAccess
+  )(implicit mode: ExprGenMode): VhdlExpr = {
+    // Maybe you could get higher performance in some cases by letting the
+    // final output of the VecAccess be undefined rather than the index.
+    // (to_integer just converts metavalues to zero during simulation.
+    // I'm not sure about synthesis.)
+    // But getting that right seems like a massive pain:
+    //  * If we're in a function, just make an if statement and use := for
+    //    assignment.
+    //  * If we're outside a function, we need to create a process and use <=
+    //    for assignment.
+    //  * The process needs a sensitivity list, which is obtained by finding
+    //    the free variables in the vector and index.
+    //  * But the sensitivity list cannot be empty, so you need to watch out
+    //    for the case where there are no free variables.
+    va match {
+      case VecAccess(v, i) =>
+        val VhdlExpr(vecVhdl, vecDecls) = exprToVhdl(v)
+        val VhdlExpr(idxVhdl, idxDecls) = {
+          val resizedIdx = resizeVecAccessIndex(v, i)
+          val TyVec(_, IntCst(n)) = v.typ
+          val boundedIdx = Mux(
+            resizedIdx geq C(n)(resizedIdx.typ),
+            Undefined(resizedIdx.typ),
+            resizedIdx
+          )().tchk()
+          exprToVhdl(boundedIdx)
+        }
+        VhdlExpr(s"$vecVhdl(to_integer($idxVhdl))", vecDecls ++ idxDecls)
+    }
+  }
+
+  private def resizeVecAccessIndex(v: Expr, i: Expr): Expr = {
+    val actualWidth = i.typ.asInstanceOf[TyUInt].w
+    val expectedWidth =
+      VhdlType(v.typ).asInstanceOf[VhdlArray].idxBitWidth
+    if (actualWidth > expectedWidth) {
+      TruncateTo(i, expectedWidth)().tchk()
+    } else if (actualWidth < expectedWidth) {
+      PadTo(i, expectedWidth)().tchk()
+    } else {
+      i
+    }
+  }
+
   def valueToVhdl(v: Expr): String = {
     v match {
       case Undefined(typ) =>
@@ -389,5 +467,22 @@ private object VhdlExprGenerator {
             )
         }
     }
+  }
+
+  /** Decides whether the given number is a power of two.
+    */
+  private def isPowerOfTwo(n: Long): Boolean = {
+    // https://stackoverflow.com/a/19383296
+    //
+    // Positive example:
+    //   n     : 00010000
+    //   n - 1 : 00001111
+    //   &     : 00000000
+    //
+    // Negative example:
+    //   n     : 00010001
+    //   n - 1 : 00010000
+    //   &     : 00010000
+    (n > 0) && ((n & (n - 1)) == 0)
   }
 }

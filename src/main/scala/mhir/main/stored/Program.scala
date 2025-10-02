@@ -11,6 +11,8 @@ import mhir.sugar._
   */
 object Program {
 
+  val MatVecSize: Int = 256
+
   def apply(name: String): Expr = {
     name.toLowerCase match {
       case "map"     => Map
@@ -20,6 +22,15 @@ object Program {
       case "convb2b" => ConvB2b
       case "sharpen" => Sharpen
       case "camera"  => Camera
+      case str if str.startsWith("matvec_") =>
+        val parStr = str.substring("matvec_".length)
+        val par = parStr.toInt
+        MatVecMul(
+          width = MatVecSize,
+          height = MatVecSize,
+          par = par,
+          uint = U16
+        )
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -352,5 +363,55 @@ object Program {
       os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original" / "bigcamera_1.txt"
     )
     AetherlingParser.parse(aetherlingCode)
+  }
+
+  /** Matrix-vector multiplication.
+    *
+    * @param width
+    *   the number of columns in the matrix.
+    * @param height
+    *   the number of rows in the matrix.
+    * @param par
+    *   the degree of spatial parallelism.
+    * @param uint
+    *   the type of the elements in the matrix.
+    */
+  private def MatVecMul(
+      width: Int,
+      height: Int,
+      par: Int,
+      uint: TyUInt
+  ): Expr = {
+    require(width % par == 0)
+    val mat = Param("mat")(TyStm(TyStm(TyVec(uint, par), width / par), height))
+    val vec = Param("vec")(TyStm(TyVec(uint, par), width / par))
+    val row = Param("row")(TyStm(TyVec(uint, par), width / par))
+    val dot = {
+      val zipStm = StmZip(row, vec)() // Stm[(Vec[uint, p], Vec[uint, p]), w/p]
+      val zipVec = StmMap( // Stm[Vec[(uint, uint), p], w/p]
+        zipStm,
+        (TyVec(uint, par), TyVec(uint, par)) ::+ (x => VecZip(x.__0, x.__1))
+      )()
+      val multiplied = StmMap( // Stm[Vec[uint, p], w/p]
+        zipVec,
+        TyVec((uint, uint), par) ::+ (v =>
+          VecMap(v, (uint, uint) ::+ (x => x.__0 * x.__1))()
+        )
+      )()
+      val sumVec = StmMap( // Stm[uint, w/p]
+        multiplied,
+        TyVec(uint, par) ::+ (v =>
+          VecAccess(
+            VecReduceComb(v, (uint, uint) ::+ (x => x.__0 + x.__1))(),
+            0
+          )()
+        )
+      )()
+      val sumStm = // Stm[uint, 1]
+        StmReduce(sumVec, (uint, uint) ::+ (x => x.__0 + x.__1))()
+      sumStm
+    }
+    val prod = StmMap(mat, Function(row, dot)())()
+    Function(mat, Function(vec, prod)())()
   }
 }

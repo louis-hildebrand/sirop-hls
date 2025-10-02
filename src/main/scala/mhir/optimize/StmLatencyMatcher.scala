@@ -88,7 +88,7 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
         // buffer size, so reset it to the max value.
         val TyStm(_, n) = in1.typ
         LetStm(n, x, in1, out2)()
-      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+      case Function(x, body) =>
         Function(x, doMatchLatencies(body))()
       case _ =>
         e

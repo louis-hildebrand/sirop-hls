@@ -79,7 +79,7 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [f"\\texttt{{{p}}}" for p in program_names],
+        [aps.program_title(p) for p in program_names],
     )
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )

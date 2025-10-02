@@ -48,7 +48,7 @@ class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
             bufSize
         }
         LetStm(newBufSize, x, in1, out1)()
-      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+      case Function(x, body) =>
         Function(x, doShrinkBuffers(body))()
       case e => e
     }

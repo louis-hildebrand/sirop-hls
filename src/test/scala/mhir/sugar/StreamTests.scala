@@ -2231,8 +2231,8 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmRepeat:1D") {
-    val s = StmCount(C(3)(U8))()
-    val expected = Seq(IntCst(0)(), IntCst(1)(), IntCst(2)())
+    val s = StmCount(C(4)(U8))()
+    val expected = Seq(C(0)(), C(1)(), C(2)(), C(3)())
 
     val actual0 = StmRepeat(s, 0)().tchk().lower()
     assert(mhir.ir.eval(actual0) == StmLiteral()())

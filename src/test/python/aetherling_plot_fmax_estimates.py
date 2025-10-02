@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import lib.benchmark as lb
 import lib.constants as c
 import lib.results_crud as crud
-from lib.benchmark import BenchmarkImpl
+from lib.benchmark import BenchmarkImpl, set_ticks
 
 TARGET_FREQ = 175
 
@@ -101,6 +101,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         # Title, etc.
         ax.set_title(title)
         ax.set_xscale("log", base=2)
+        set_ticks(ax, bench_name)
     # Settings for entire rows
     axes[0].set_ylabel("fmax (MHz)")
     fig.supxlabel("Target throughput")

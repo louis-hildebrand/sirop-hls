@@ -154,18 +154,16 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [f"\\texttt{{{p}}}" for p in program_names],
+        [aps.program_title(p) for p in program_names],
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("\\% change\nALM usage")
+    alm_ax.set_yscale("symlog")
     alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     bram_ax.tick_params(axis="x", which="both", length=0)
-    # alm_ax.set_yticks([-1, 0, 1], [r"-100\%", r"0\%", r"100\%"])
-    # alm_ax.set_ylim(-1.25, 1)
     bram_ax.set_ylabel("\\% change\nBRAM usage")
+    bram_ax.set_yscale("symlog")
     bram_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
-    # bram_ax.set_yticks([-1, 0], [r"-100\%", r"0\%"])
-    # bram_ax.set_ylim(-1.25, 0.1)
     legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
     legend_labels=[lvl.explanation for lvl in [aps.BASELINE_LVL] + aps.LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists

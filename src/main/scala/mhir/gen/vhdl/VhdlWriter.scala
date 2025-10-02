@@ -130,23 +130,6 @@ object VhdlWriter {
       // valid order.
       .sortBy(x => x.vhdlName.length)
       .flatMap(t => t.vhdlDefinition)
-    val vecAccessFunctions = typesToDefine
-      .flatMap({
-        case a: VhdlArray => Some(a.vecAccessFunDef)
-        case _            => None
-      })
-    val vecAccessFunSignatures =
-      vecAccessFunctions
-        .map(f => f.vhdlSignature)
-        .toSeq
-        .sortBy(x => x)
-        .mkString("\n\n")
-    val vecAccessFunImpls =
-      vecAccessFunctions
-        .map(f => f.vhdlImpl)
-        .toSeq
-        .sortBy(x => x)
-        .mkString("\n\n")
     val contents =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -154,13 +137,7 @@ object VhdlWriter {
          |
          |package typedefs is
          |${indent(definitions.mkString("\n\n"))}
-         |
-         |${indent(vecAccessFunSignatures)}
          |end package;
-         |
-         |package body typedefs is
-         |${indent(vecAccessFunImpls)}
-         |end package body;
          |""".stripMargin
 
     val file = dir / "typedefs.vhd"

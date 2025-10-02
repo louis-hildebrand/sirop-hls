@@ -3,6 +3,7 @@ package mhir.main.stored
 import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, PositionalTestIO}
 import mhir.main.aetherling.AetherlingBenchmarkIO
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 object ProgramIO {
   def apply(name: String): PositionalTestIO = {
@@ -20,6 +21,24 @@ object ProgramIO {
       sharpenIO
     } else if (name.startsWith("camera_")) {
       cameraIO
+    } else if (name.startsWith("matvec_")) {
+      val parStr = {
+        val suffix = name.substring("matvec_".length)
+        val prefix = suffix.takeWhile(_.isDigit)
+        if (prefix.isEmpty) {
+          throw new IllegalArgumentException(
+            s"Unrecognized benchmark name: $name (missing throughput)"
+          )
+        }
+        prefix
+      }
+      val par = parStr.toInt
+      matVecMulIO(
+        width = Program.MatVecSize,
+        height = Program.MatVecSize,
+        par = par,
+        uint = U16
+      )
     } else {
       ???
     }
@@ -57,5 +76,48 @@ object ProgramIO {
 
   private def cameraIO: PositionalTestIO = {
     AetherlingBenchmarkIO.vhdlIO("bigcamera_1")
+  }
+
+  /** Matrix-vector multiplication.
+    *
+    * @param width
+    *   the number of columns in the matrix.
+    * @param height
+    *   the number of rows in the matrix.
+    * @param par
+    *   the degree of spatial parallelism.
+    * @param uint
+    *   the type of the elements in the matrix.
+    */
+  def matVecMulIO(
+      width: Int,
+      height: Int,
+      par: Int,
+      uint: TyUInt
+  ): PositionalTestIO = {
+    val mat = (0 until height).map(i => (0 until width).map(j => (i + j) % 16))
+    val vec = (0 until width).map(_ % 16)
+    val outputs = mat.map(row => row.zip(vec).map({ case (x, y) => x * y }).sum)
+    PositionalTestIO(
+      Seq(
+        DirectTestInput(
+          mat.flatten
+            .map(C(_)(uint))
+            .grouped(par)
+            .map(xs => VecLiteral(xs: _*)().tchk())
+            .map(Some(_))
+            .toSeq
+        ),
+        DirectTestInput(
+          vec
+            .map(C(_)(uint))
+            .grouped(par)
+            .map(xs => VecLiteral(xs: _*)().tchk())
+            .map(Some(_))
+            .toSeq
+        )
+      ),
+      DirectTestOutput(outputs.map(C(_)(uint)))
+    )
   }
 }

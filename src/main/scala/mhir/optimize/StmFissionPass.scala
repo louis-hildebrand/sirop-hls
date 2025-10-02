@@ -55,7 +55,7 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
         )
       case LetStm(bufSize, x, in, out) =>
         LetStm(bufSize, x, fission(in), fission(out))().tchk()
-      case Function(x, body) if body.typ.isInstanceOf[TyStm] =>
+      case Function(x, body) =>
         Function(x, fission(body))().tchk()
       case e => e
     }

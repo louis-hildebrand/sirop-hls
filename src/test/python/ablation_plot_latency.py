@@ -18,27 +18,12 @@ from lib.latency import LatencyResult
 from lib.program_variant import ProgramVariant
 
 
-def program_order(program_name: str) -> int:
-    """
-    Choose the order of the programs in the plot.
-    """
-    return {
-        "map": 0,
-        "dot": 1,
-        "conv1d": 2,
-        "conv2d": 3,
-        "convb2b": 4,
-        "sharpen": 5,
-        "camera": 6,
-    }.get(program_name, 7)
-
-
 def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     """
     Plot latency for each program.
     """
     program_names = pu.dedup([p.name for p in results.keys()])
-    program_names = sorted(program_names, key=program_order)
+    program_names = sorted(program_names, key=aps.program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
     plt.rcParams.update({
@@ -132,7 +117,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [f"\\texttt{{{p}}}" for p in program_names],
+        [aps.program_title(p) for p in program_names],
     )
     ax.set_xlim(xlim)
     ax.tick_params(axis="x", which="both", length=0)
