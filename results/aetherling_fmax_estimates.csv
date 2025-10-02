@@ -93,6 +93,11 @@ map,40,verilog,
 map,40,vhdl,
 map,200,verilog,
 map,200,vhdl,
+matvec,1,vhdl,269.54
+matvec,2,vhdl,241.14
+matvec,4,vhdl,257.93
+matvec,8,vhdl,201.69
+matvec,16,vhdl,203.83
 smallcamera,1/4,vhdl,194.36
 smallcamera,1,vhdl,191.98
 smallcamera,2,vhdl,189.36

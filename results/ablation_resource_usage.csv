@@ -47,6 +47,14 @@ map,except_fuse,6,0,0
 map,except_fission,6,0,0
 map,small_buffers,6,0,0
 map,small_buffers_and_latmatch,6,0,0
+matvec_1,all,69,1,1
+matvec_1,except_sbuild_simpl,2137,0,1
+matvec_1,except_letstm_simpl,592,454,1
+matvec_1,except_stm_simpl,650,454,1
+matvec_1,except_fuse,89,1,1
+matvec_1,except_fission,69,1,1
+matvec_1,small_buffers,69,1,1
+matvec_1,small_buffers_and_latmatch,69,1,1
 sharpen,all,305,10,0
 sharpen,except_sbuild_simpl,604,24,0
 sharpen,except_letstm_simpl,1610,150,9

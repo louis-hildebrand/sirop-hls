@@ -47,6 +47,14 @@ map,except_fuse,202,True
 map,except_fission,202,True
 map,small_buffers,202,True
 map,small_buffers_and_latmatch,202,True
+matvec_1,all,65540,True
+matvec_1,except_sbuild_simpl,65540,True
+matvec_1,except_letstm_simpl,65551,True
+matvec_1,except_stm_simpl,65551,True
+matvec_1,except_fuse,65543,True
+matvec_1,except_fission,65540,True
+matvec_1,small_buffers,65540,True
+matvec_1,small_buffers_and_latmatch,65540,True
 sharpen,all,7688,True
 sharpen,except_sbuild_simpl,7700,True
 sharpen,except_letstm_simpl,7745,True
