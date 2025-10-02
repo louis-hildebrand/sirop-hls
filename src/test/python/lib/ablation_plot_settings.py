@@ -24,14 +24,25 @@ LEGEND_ROWS = 1
 
 def program_order(program_name: str) -> int:
     """
-    Choose the order of the programs in the plot.
+    Choose the order of the programs in the plots.
     """
     return {
         "map": 0,
         "dot": 1,
-        "conv1d": 2,
-        "conv2d": 3,
-        "convb2b": 4,
-        "sharpen": 5,
-        "camera": 6,
-    }.get(program_name, 7)
+        "matvec_1": 2,
+        "conv1d": 3,
+        "conv2d": 4,
+        "convb2b": 5,
+        "sharpen": 6,
+        "camera": 7,
+    }.get(program_name, 8)
+
+
+def program_title(program_name: str) -> str:
+    """
+    Return the title for the given program in the plots.
+    """
+    title = {
+        "matvec_1": "matvec"
+    }.get(program_name, program_name)
+    return f"\\texttt{{{title}}}"
