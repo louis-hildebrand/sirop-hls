@@ -33,8 +33,8 @@ convb2b,small_buffers,303,11,0
 convb2b,small_buffers_and_latmatch,303,11,0
 dot,all,29,0,1
 dot,except_sbuild_simpl,29,0,1
-dot,except_letstm_simpl,149,4,1
-dot,except_stm_simpl,149,4,1
+dot,except_letstm_simpl,104,3,1
+dot,except_stm_simpl,104,3,1
 dot,except_fuse,39,0,1
 dot,except_fission,29,0,1
 dot,small_buffers,29,0,1
@@ -49,8 +49,8 @@ map,small_buffers,6,0,0
 map,small_buffers_and_latmatch,6,0,0
 matvec_1,all,69,1,1
 matvec_1,except_sbuild_simpl,2137,0,1
-matvec_1,except_letstm_simpl,592,454,1
-matvec_1,except_stm_simpl,650,454,1
+matvec_1,except_letstm_simpl,195,6,1
+matvec_1,except_stm_simpl,241,6,1
 matvec_1,except_fuse,89,1,1
 matvec_1,except_fission,69,1,1
 matvec_1,small_buffers,69,1,1
