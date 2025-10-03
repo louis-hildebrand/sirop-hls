@@ -143,6 +143,10 @@ smallsharpen,8,verilog,9,True
 smallsharpen,8,vhdl,10,True
 smallsharpen,16,verilog,8,True
 smallsharpen,16,vhdl,4,True
+sqrt,1,verilog,1071,True
+sqrt,1,vhdl,1070,True
+sqrt,4,verilog,306,True
+sqrt,4,vhdl,305,True
 sum,1/840,verilog,845,True
 sum,1/840,vhdl,842,True
 sum,1/420,verilog,427,True
