@@ -886,11 +886,17 @@ object AetherlingParser {
       val c = FixCst((float * 128).round)(TyFix(U8, 7))
       (c, suffix1)
     } else if (code.startsWith("Int16V ")) {
-      ???
+      val suffix0 = expect(code, "Int16V ")
+      val (n, suffix1) = parseInt(suffix0)
+      (C(n)(I16), suffix1)
     } else if (code.startsWith("UInt16V ")) {
-      ???
+      val suffix0 = expect(code, "UInt16V ")
+      val (n, suffix1) = parseNat(suffix0)
+      (C(n)(U16), suffix1)
     } else if (code.startsWith("Int32V ")) {
-      ???
+      val suffix0 = expect(code, "Int32V ")
+      val (n, suffix1) = parseInt(suffix0)
+      (C(n)(I32), suffix1)
     } else if (code.startsWith("UInt32V ")) {
       val suffix0 = expect(code, "UInt32V ")
       val (n, suffix1) = parseNat(suffix0)

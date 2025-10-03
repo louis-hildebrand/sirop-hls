@@ -1,0 +1,613 @@
+// Output type: Stm[Vec[u16, 4:u3], 256:u9] -> Stm[Vec[u16, 4:u3], 256:u9]
+let module0: u16 -> (u16, (u16, u16)) = (
+  (I : u16) =>
+    let n699: u16 = 0:u16 in
+    let n700: u8 = 1:u8 in
+    let n7: (u16, u8) = (I, n700) in
+    let n8: u16 = n7.0 >> n7.1 in
+    let n701: u16 = 1:u16 in
+    let n11: (u16, u16) = (n8, n701) in
+    let n12: u16 = n11.0 +% n11.1 in
+    let n14: (u16, u16) = (n699, n12) in
+    (I, n14)
+) in
+let module1: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n20: u16 = I.0 in
+    let n53: u16 = n20 in
+    let n41: u16 = n20 in
+    let n21: (u16, u16) = I.1 in
+    let n22: u16 = n21.0 in
+    let n23: u16 = n21.1 in
+    let n24: (u16, u16) = (n22, n23) in
+    let n25: u16 = n24.0 +% n24.1 in
+    let n696: u8 = 1:u8 in
+    let n28: (u16, u8) = (n25, n696) in
+    let n29: u16 = n28.0 >> n28.1 in
+    let n30: (u16, u16) = (n29, n22) in
+    let n31: bool = n30.0 === n30.1 in
+    let n697: u16 = 1:u16 in
+    let n34: (u16, u16) = (n29, n697) in
+    let n35: u16 = n34.0 +% n34.1 in
+    let n36: (u16, u16) = (n35, n29) in
+    let n37: (bool, (u16, u16)) = (n31, n36) in
+    let n38: u16 = if (n37.0) then { (n37.1).0 } else { (n37.1).1 } in
+    let n39: (u16, u16) = (n38, n38) in
+    let n40: u16 = n39.0 *% n39.1 in
+    let n42: (u16, u16) = (n41, n40) in
+    let n43: bool = n42.0 << n42.1 in
+    let n698: u16 = 1:u16 in
+    let n45: (u16, u16) = (n38, n698) in
+    let n46: u16 = n45.0 -% n45.1 in
+    let n47: (u16, u16) = (n22, n46) in
+    let n48: (u16, u16) = (n38, n23) in
+    let n49: ((u16, u16), (u16, u16)) = (n47, n48) in
+    let n50: ((u16, u16), (u16, u16)) = n49 in
+    let n51: (bool, ((u16, u16), (u16, u16))) = (n43, n50) in
+    let n52: (u16, u16) = if (n51.0) then { (n51.1).0 } else { (n51.1).1 } in
+    (n53, n52)
+) in
+let module2: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n59: u16 = I.0 in
+    let n92: u16 = n59 in
+    let n80: u16 = n59 in
+    let n60: (u16, u16) = I.1 in
+    let n61: u16 = n60.0 in
+    let n62: u16 = n60.1 in
+    let n63: (u16, u16) = (n61, n62) in
+    let n64: u16 = n63.0 +% n63.1 in
+    let n693: u8 = 1:u8 in
+    let n67: (u16, u8) = (n64, n693) in
+    let n68: u16 = n67.0 >> n67.1 in
+    let n69: (u16, u16) = (n68, n61) in
+    let n70: bool = n69.0 === n69.1 in
+    let n694: u16 = 1:u16 in
+    let n73: (u16, u16) = (n68, n694) in
+    let n74: u16 = n73.0 +% n73.1 in
+    let n75: (u16, u16) = (n74, n68) in
+    let n76: (bool, (u16, u16)) = (n70, n75) in
+    let n77: u16 = if (n76.0) then { (n76.1).0 } else { (n76.1).1 } in
+    let n78: (u16, u16) = (n77, n77) in
+    let n79: u16 = n78.0 *% n78.1 in
+    let n81: (u16, u16) = (n80, n79) in
+    let n82: bool = n81.0 << n81.1 in
+    let n695: u16 = 1:u16 in
+    let n84: (u16, u16) = (n77, n695) in
+    let n85: u16 = n84.0 -% n84.1 in
+    let n86: (u16, u16) = (n61, n85) in
+    let n87: (u16, u16) = (n77, n62) in
+    let n88: ((u16, u16), (u16, u16)) = (n86, n87) in
+    let n89: ((u16, u16), (u16, u16)) = n88 in
+    let n90: (bool, ((u16, u16), (u16, u16))) = (n82, n89) in
+    let n91: (u16, u16) = if (n90.0) then { (n90.1).0 } else { (n90.1).1 } in
+    (n92, n91)
+) in
+let module3: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n98: u16 = I.0 in
+    let n131: u16 = n98 in
+    let n119: u16 = n98 in
+    let n99: (u16, u16) = I.1 in
+    let n100: u16 = n99.0 in
+    let n101: u16 = n99.1 in
+    let n102: (u16, u16) = (n100, n101) in
+    let n103: u16 = n102.0 +% n102.1 in
+    let n690: u8 = 1:u8 in
+    let n106: (u16, u8) = (n103, n690) in
+    let n107: u16 = n106.0 >> n106.1 in
+    let n108: (u16, u16) = (n107, n100) in
+    let n109: bool = n108.0 === n108.1 in
+    let n691: u16 = 1:u16 in
+    let n112: (u16, u16) = (n107, n691) in
+    let n113: u16 = n112.0 +% n112.1 in
+    let n114: (u16, u16) = (n113, n107) in
+    let n115: (bool, (u16, u16)) = (n109, n114) in
+    let n116: u16 = if (n115.0) then { (n115.1).0 } else { (n115.1).1 } in
+    let n117: (u16, u16) = (n116, n116) in
+    let n118: u16 = n117.0 *% n117.1 in
+    let n120: (u16, u16) = (n119, n118) in
+    let n121: bool = n120.0 << n120.1 in
+    let n692: u16 = 1:u16 in
+    let n123: (u16, u16) = (n116, n692) in
+    let n124: u16 = n123.0 -% n123.1 in
+    let n125: (u16, u16) = (n100, n124) in
+    let n126: (u16, u16) = (n116, n101) in
+    let n127: ((u16, u16), (u16, u16)) = (n125, n126) in
+    let n128: ((u16, u16), (u16, u16)) = n127 in
+    let n129: (bool, ((u16, u16), (u16, u16))) = (n121, n128) in
+    let n130: (u16, u16) = if (n129.0) then { (n129.1).0 } else { (n129.1).1 } in
+    (n131, n130)
+) in
+let module4: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n137: u16 = I.0 in
+    let n170: u16 = n137 in
+    let n158: u16 = n137 in
+    let n138: (u16, u16) = I.1 in
+    let n139: u16 = n138.0 in
+    let n140: u16 = n138.1 in
+    let n141: (u16, u16) = (n139, n140) in
+    let n142: u16 = n141.0 +% n141.1 in
+    let n687: u8 = 1:u8 in
+    let n145: (u16, u8) = (n142, n687) in
+    let n146: u16 = n145.0 >> n145.1 in
+    let n147: (u16, u16) = (n146, n139) in
+    let n148: bool = n147.0 === n147.1 in
+    let n688: u16 = 1:u16 in
+    let n151: (u16, u16) = (n146, n688) in
+    let n152: u16 = n151.0 +% n151.1 in
+    let n153: (u16, u16) = (n152, n146) in
+    let n154: (bool, (u16, u16)) = (n148, n153) in
+    let n155: u16 = if (n154.0) then { (n154.1).0 } else { (n154.1).1 } in
+    let n156: (u16, u16) = (n155, n155) in
+    let n157: u16 = n156.0 *% n156.1 in
+    let n159: (u16, u16) = (n158, n157) in
+    let n160: bool = n159.0 << n159.1 in
+    let n689: u16 = 1:u16 in
+    let n162: (u16, u16) = (n155, n689) in
+    let n163: u16 = n162.0 -% n162.1 in
+    let n164: (u16, u16) = (n139, n163) in
+    let n165: (u16, u16) = (n155, n140) in
+    let n166: ((u16, u16), (u16, u16)) = (n164, n165) in
+    let n167: ((u16, u16), (u16, u16)) = n166 in
+    let n168: (bool, ((u16, u16), (u16, u16))) = (n160, n167) in
+    let n169: (u16, u16) = if (n168.0) then { (n168.1).0 } else { (n168.1).1 } in
+    (n170, n169)
+) in
+let module5: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n176: u16 = I.0 in
+    let n209: u16 = n176 in
+    let n197: u16 = n176 in
+    let n177: (u16, u16) = I.1 in
+    let n178: u16 = n177.0 in
+    let n179: u16 = n177.1 in
+    let n180: (u16, u16) = (n178, n179) in
+    let n181: u16 = n180.0 +% n180.1 in
+    let n684: u8 = 1:u8 in
+    let n184: (u16, u8) = (n181, n684) in
+    let n185: u16 = n184.0 >> n184.1 in
+    let n186: (u16, u16) = (n185, n178) in
+    let n187: bool = n186.0 === n186.1 in
+    let n685: u16 = 1:u16 in
+    let n190: (u16, u16) = (n185, n685) in
+    let n191: u16 = n190.0 +% n190.1 in
+    let n192: (u16, u16) = (n191, n185) in
+    let n193: (bool, (u16, u16)) = (n187, n192) in
+    let n194: u16 = if (n193.0) then { (n193.1).0 } else { (n193.1).1 } in
+    let n195: (u16, u16) = (n194, n194) in
+    let n196: u16 = n195.0 *% n195.1 in
+    let n198: (u16, u16) = (n197, n196) in
+    let n199: bool = n198.0 << n198.1 in
+    let n686: u16 = 1:u16 in
+    let n201: (u16, u16) = (n194, n686) in
+    let n202: u16 = n201.0 -% n201.1 in
+    let n203: (u16, u16) = (n178, n202) in
+    let n204: (u16, u16) = (n194, n179) in
+    let n205: ((u16, u16), (u16, u16)) = (n203, n204) in
+    let n206: ((u16, u16), (u16, u16)) = n205 in
+    let n207: (bool, ((u16, u16), (u16, u16))) = (n199, n206) in
+    let n208: (u16, u16) = if (n207.0) then { (n207.1).0 } else { (n207.1).1 } in
+    (n209, n208)
+) in
+let module6: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n215: u16 = I.0 in
+    let n248: u16 = n215 in
+    let n236: u16 = n215 in
+    let n216: (u16, u16) = I.1 in
+    let n217: u16 = n216.0 in
+    let n218: u16 = n216.1 in
+    let n219: (u16, u16) = (n217, n218) in
+    let n220: u16 = n219.0 +% n219.1 in
+    let n681: u8 = 1:u8 in
+    let n223: (u16, u8) = (n220, n681) in
+    let n224: u16 = n223.0 >> n223.1 in
+    let n225: (u16, u16) = (n224, n217) in
+    let n226: bool = n225.0 === n225.1 in
+    let n682: u16 = 1:u16 in
+    let n229: (u16, u16) = (n224, n682) in
+    let n230: u16 = n229.0 +% n229.1 in
+    let n231: (u16, u16) = (n230, n224) in
+    let n232: (bool, (u16, u16)) = (n226, n231) in
+    let n233: u16 = if (n232.0) then { (n232.1).0 } else { (n232.1).1 } in
+    let n234: (u16, u16) = (n233, n233) in
+    let n235: u16 = n234.0 *% n234.1 in
+    let n237: (u16, u16) = (n236, n235) in
+    let n238: bool = n237.0 << n237.1 in
+    let n683: u16 = 1:u16 in
+    let n240: (u16, u16) = (n233, n683) in
+    let n241: u16 = n240.0 -% n240.1 in
+    let n242: (u16, u16) = (n217, n241) in
+    let n243: (u16, u16) = (n233, n218) in
+    let n244: ((u16, u16), (u16, u16)) = (n242, n243) in
+    let n245: ((u16, u16), (u16, u16)) = n244 in
+    let n246: (bool, ((u16, u16), (u16, u16))) = (n238, n245) in
+    let n247: (u16, u16) = if (n246.0) then { (n246.1).0 } else { (n246.1).1 } in
+    (n248, n247)
+) in
+let module7: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n254: u16 = I.0 in
+    let n287: u16 = n254 in
+    let n275: u16 = n254 in
+    let n255: (u16, u16) = I.1 in
+    let n256: u16 = n255.0 in
+    let n257: u16 = n255.1 in
+    let n258: (u16, u16) = (n256, n257) in
+    let n259: u16 = n258.0 +% n258.1 in
+    let n678: u8 = 1:u8 in
+    let n262: (u16, u8) = (n259, n678) in
+    let n263: u16 = n262.0 >> n262.1 in
+    let n264: (u16, u16) = (n263, n256) in
+    let n265: bool = n264.0 === n264.1 in
+    let n679: u16 = 1:u16 in
+    let n268: (u16, u16) = (n263, n679) in
+    let n269: u16 = n268.0 +% n268.1 in
+    let n270: (u16, u16) = (n269, n263) in
+    let n271: (bool, (u16, u16)) = (n265, n270) in
+    let n272: u16 = if (n271.0) then { (n271.1).0 } else { (n271.1).1 } in
+    let n273: (u16, u16) = (n272, n272) in
+    let n274: u16 = n273.0 *% n273.1 in
+    let n276: (u16, u16) = (n275, n274) in
+    let n277: bool = n276.0 << n276.1 in
+    let n680: u16 = 1:u16 in
+    let n279: (u16, u16) = (n272, n680) in
+    let n280: u16 = n279.0 -% n279.1 in
+    let n281: (u16, u16) = (n256, n280) in
+    let n282: (u16, u16) = (n272, n257) in
+    let n283: ((u16, u16), (u16, u16)) = (n281, n282) in
+    let n284: ((u16, u16), (u16, u16)) = n283 in
+    let n285: (bool, ((u16, u16), (u16, u16))) = (n277, n284) in
+    let n286: (u16, u16) = if (n285.0) then { (n285.1).0 } else { (n285.1).1 } in
+    (n287, n286)
+) in
+let module8: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n293: u16 = I.0 in
+    let n326: u16 = n293 in
+    let n314: u16 = n293 in
+    let n294: (u16, u16) = I.1 in
+    let n295: u16 = n294.0 in
+    let n296: u16 = n294.1 in
+    let n297: (u16, u16) = (n295, n296) in
+    let n298: u16 = n297.0 +% n297.1 in
+    let n675: u8 = 1:u8 in
+    let n301: (u16, u8) = (n298, n675) in
+    let n302: u16 = n301.0 >> n301.1 in
+    let n303: (u16, u16) = (n302, n295) in
+    let n304: bool = n303.0 === n303.1 in
+    let n676: u16 = 1:u16 in
+    let n307: (u16, u16) = (n302, n676) in
+    let n308: u16 = n307.0 +% n307.1 in
+    let n309: (u16, u16) = (n308, n302) in
+    let n310: (bool, (u16, u16)) = (n304, n309) in
+    let n311: u16 = if (n310.0) then { (n310.1).0 } else { (n310.1).1 } in
+    let n312: (u16, u16) = (n311, n311) in
+    let n313: u16 = n312.0 *% n312.1 in
+    let n315: (u16, u16) = (n314, n313) in
+    let n316: bool = n315.0 << n315.1 in
+    let n677: u16 = 1:u16 in
+    let n318: (u16, u16) = (n311, n677) in
+    let n319: u16 = n318.0 -% n318.1 in
+    let n320: (u16, u16) = (n295, n319) in
+    let n321: (u16, u16) = (n311, n296) in
+    let n322: ((u16, u16), (u16, u16)) = (n320, n321) in
+    let n323: ((u16, u16), (u16, u16)) = n322 in
+    let n324: (bool, ((u16, u16), (u16, u16))) = (n316, n323) in
+    let n325: (u16, u16) = if (n324.0) then { (n324.1).0 } else { (n324.1).1 } in
+    (n326, n325)
+) in
+let module9: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n332: u16 = I.0 in
+    let n365: u16 = n332 in
+    let n353: u16 = n332 in
+    let n333: (u16, u16) = I.1 in
+    let n334: u16 = n333.0 in
+    let n335: u16 = n333.1 in
+    let n336: (u16, u16) = (n334, n335) in
+    let n337: u16 = n336.0 +% n336.1 in
+    let n672: u8 = 1:u8 in
+    let n340: (u16, u8) = (n337, n672) in
+    let n341: u16 = n340.0 >> n340.1 in
+    let n342: (u16, u16) = (n341, n334) in
+    let n343: bool = n342.0 === n342.1 in
+    let n673: u16 = 1:u16 in
+    let n346: (u16, u16) = (n341, n673) in
+    let n347: u16 = n346.0 +% n346.1 in
+    let n348: (u16, u16) = (n347, n341) in
+    let n349: (bool, (u16, u16)) = (n343, n348) in
+    let n350: u16 = if (n349.0) then { (n349.1).0 } else { (n349.1).1 } in
+    let n351: (u16, u16) = (n350, n350) in
+    let n352: u16 = n351.0 *% n351.1 in
+    let n354: (u16, u16) = (n353, n352) in
+    let n355: bool = n354.0 << n354.1 in
+    let n674: u16 = 1:u16 in
+    let n357: (u16, u16) = (n350, n674) in
+    let n358: u16 = n357.0 -% n357.1 in
+    let n359: (u16, u16) = (n334, n358) in
+    let n360: (u16, u16) = (n350, n335) in
+    let n361: ((u16, u16), (u16, u16)) = (n359, n360) in
+    let n362: ((u16, u16), (u16, u16)) = n361 in
+    let n363: (bool, ((u16, u16), (u16, u16))) = (n355, n362) in
+    let n364: (u16, u16) = if (n363.0) then { (n363.1).0 } else { (n363.1).1 } in
+    (n365, n364)
+) in
+let module10: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n371: u16 = I.0 in
+    let n404: u16 = n371 in
+    let n392: u16 = n371 in
+    let n372: (u16, u16) = I.1 in
+    let n373: u16 = n372.0 in
+    let n374: u16 = n372.1 in
+    let n375: (u16, u16) = (n373, n374) in
+    let n376: u16 = n375.0 +% n375.1 in
+    let n669: u8 = 1:u8 in
+    let n379: (u16, u8) = (n376, n669) in
+    let n380: u16 = n379.0 >> n379.1 in
+    let n381: (u16, u16) = (n380, n373) in
+    let n382: bool = n381.0 === n381.1 in
+    let n670: u16 = 1:u16 in
+    let n385: (u16, u16) = (n380, n670) in
+    let n386: u16 = n385.0 +% n385.1 in
+    let n387: (u16, u16) = (n386, n380) in
+    let n388: (bool, (u16, u16)) = (n382, n387) in
+    let n389: u16 = if (n388.0) then { (n388.1).0 } else { (n388.1).1 } in
+    let n390: (u16, u16) = (n389, n389) in
+    let n391: u16 = n390.0 *% n390.1 in
+    let n393: (u16, u16) = (n392, n391) in
+    let n394: bool = n393.0 << n393.1 in
+    let n671: u16 = 1:u16 in
+    let n396: (u16, u16) = (n389, n671) in
+    let n397: u16 = n396.0 -% n396.1 in
+    let n398: (u16, u16) = (n373, n397) in
+    let n399: (u16, u16) = (n389, n374) in
+    let n400: ((u16, u16), (u16, u16)) = (n398, n399) in
+    let n401: ((u16, u16), (u16, u16)) = n400 in
+    let n402: (bool, ((u16, u16), (u16, u16))) = (n394, n401) in
+    let n403: (u16, u16) = if (n402.0) then { (n402.1).0 } else { (n402.1).1 } in
+    (n404, n403)
+) in
+let module11: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n410: u16 = I.0 in
+    let n443: u16 = n410 in
+    let n431: u16 = n410 in
+    let n411: (u16, u16) = I.1 in
+    let n412: u16 = n411.0 in
+    let n413: u16 = n411.1 in
+    let n414: (u16, u16) = (n412, n413) in
+    let n415: u16 = n414.0 +% n414.1 in
+    let n666: u8 = 1:u8 in
+    let n418: (u16, u8) = (n415, n666) in
+    let n419: u16 = n418.0 >> n418.1 in
+    let n420: (u16, u16) = (n419, n412) in
+    let n421: bool = n420.0 === n420.1 in
+    let n667: u16 = 1:u16 in
+    let n424: (u16, u16) = (n419, n667) in
+    let n425: u16 = n424.0 +% n424.1 in
+    let n426: (u16, u16) = (n425, n419) in
+    let n427: (bool, (u16, u16)) = (n421, n426) in
+    let n428: u16 = if (n427.0) then { (n427.1).0 } else { (n427.1).1 } in
+    let n429: (u16, u16) = (n428, n428) in
+    let n430: u16 = n429.0 *% n429.1 in
+    let n432: (u16, u16) = (n431, n430) in
+    let n433: bool = n432.0 << n432.1 in
+    let n668: u16 = 1:u16 in
+    let n435: (u16, u16) = (n428, n668) in
+    let n436: u16 = n435.0 -% n435.1 in
+    let n437: (u16, u16) = (n412, n436) in
+    let n438: (u16, u16) = (n428, n413) in
+    let n439: ((u16, u16), (u16, u16)) = (n437, n438) in
+    let n440: ((u16, u16), (u16, u16)) = n439 in
+    let n441: (bool, ((u16, u16), (u16, u16))) = (n433, n440) in
+    let n442: (u16, u16) = if (n441.0) then { (n441.1).0 } else { (n441.1).1 } in
+    (n443, n442)
+) in
+let module12: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n449: u16 = I.0 in
+    let n482: u16 = n449 in
+    let n470: u16 = n449 in
+    let n450: (u16, u16) = I.1 in
+    let n451: u16 = n450.0 in
+    let n452: u16 = n450.1 in
+    let n453: (u16, u16) = (n451, n452) in
+    let n454: u16 = n453.0 +% n453.1 in
+    let n663: u8 = 1:u8 in
+    let n457: (u16, u8) = (n454, n663) in
+    let n458: u16 = n457.0 >> n457.1 in
+    let n459: (u16, u16) = (n458, n451) in
+    let n460: bool = n459.0 === n459.1 in
+    let n664: u16 = 1:u16 in
+    let n463: (u16, u16) = (n458, n664) in
+    let n464: u16 = n463.0 +% n463.1 in
+    let n465: (u16, u16) = (n464, n458) in
+    let n466: (bool, (u16, u16)) = (n460, n465) in
+    let n467: u16 = if (n466.0) then { (n466.1).0 } else { (n466.1).1 } in
+    let n468: (u16, u16) = (n467, n467) in
+    let n469: u16 = n468.0 *% n468.1 in
+    let n471: (u16, u16) = (n470, n469) in
+    let n472: bool = n471.0 << n471.1 in
+    let n665: u16 = 1:u16 in
+    let n474: (u16, u16) = (n467, n665) in
+    let n475: u16 = n474.0 -% n474.1 in
+    let n476: (u16, u16) = (n451, n475) in
+    let n477: (u16, u16) = (n467, n452) in
+    let n478: ((u16, u16), (u16, u16)) = (n476, n477) in
+    let n479: ((u16, u16), (u16, u16)) = n478 in
+    let n480: (bool, ((u16, u16), (u16, u16))) = (n472, n479) in
+    let n481: (u16, u16) = if (n480.0) then { (n480.1).0 } else { (n480.1).1 } in
+    (n482, n481)
+) in
+let module13: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n488: u16 = I.0 in
+    let n521: u16 = n488 in
+    let n509: u16 = n488 in
+    let n489: (u16, u16) = I.1 in
+    let n490: u16 = n489.0 in
+    let n491: u16 = n489.1 in
+    let n492: (u16, u16) = (n490, n491) in
+    let n493: u16 = n492.0 +% n492.1 in
+    let n660: u8 = 1:u8 in
+    let n496: (u16, u8) = (n493, n660) in
+    let n497: u16 = n496.0 >> n496.1 in
+    let n498: (u16, u16) = (n497, n490) in
+    let n499: bool = n498.0 === n498.1 in
+    let n661: u16 = 1:u16 in
+    let n502: (u16, u16) = (n497, n661) in
+    let n503: u16 = n502.0 +% n502.1 in
+    let n504: (u16, u16) = (n503, n497) in
+    let n505: (bool, (u16, u16)) = (n499, n504) in
+    let n506: u16 = if (n505.0) then { (n505.1).0 } else { (n505.1).1 } in
+    let n507: (u16, u16) = (n506, n506) in
+    let n508: u16 = n507.0 *% n507.1 in
+    let n510: (u16, u16) = (n509, n508) in
+    let n511: bool = n510.0 << n510.1 in
+    let n662: u16 = 1:u16 in
+    let n513: (u16, u16) = (n506, n662) in
+    let n514: u16 = n513.0 -% n513.1 in
+    let n515: (u16, u16) = (n490, n514) in
+    let n516: (u16, u16) = (n506, n491) in
+    let n517: ((u16, u16), (u16, u16)) = (n515, n516) in
+    let n518: ((u16, u16), (u16, u16)) = n517 in
+    let n519: (bool, ((u16, u16), (u16, u16))) = (n511, n518) in
+    let n520: (u16, u16) = if (n519.0) then { (n519.1).0 } else { (n519.1).1 } in
+    (n521, n520)
+) in
+let module14: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n527: u16 = I.0 in
+    let n560: u16 = n527 in
+    let n548: u16 = n527 in
+    let n528: (u16, u16) = I.1 in
+    let n529: u16 = n528.0 in
+    let n530: u16 = n528.1 in
+    let n531: (u16, u16) = (n529, n530) in
+    let n532: u16 = n531.0 +% n531.1 in
+    let n657: u8 = 1:u8 in
+    let n535: (u16, u8) = (n532, n657) in
+    let n536: u16 = n535.0 >> n535.1 in
+    let n537: (u16, u16) = (n536, n529) in
+    let n538: bool = n537.0 === n537.1 in
+    let n658: u16 = 1:u16 in
+    let n541: (u16, u16) = (n536, n658) in
+    let n542: u16 = n541.0 +% n541.1 in
+    let n543: (u16, u16) = (n542, n536) in
+    let n544: (bool, (u16, u16)) = (n538, n543) in
+    let n545: u16 = if (n544.0) then { (n544.1).0 } else { (n544.1).1 } in
+    let n546: (u16, u16) = (n545, n545) in
+    let n547: u16 = n546.0 *% n546.1 in
+    let n549: (u16, u16) = (n548, n547) in
+    let n550: bool = n549.0 << n549.1 in
+    let n659: u16 = 1:u16 in
+    let n552: (u16, u16) = (n545, n659) in
+    let n553: u16 = n552.0 -% n552.1 in
+    let n554: (u16, u16) = (n529, n553) in
+    let n555: (u16, u16) = (n545, n530) in
+    let n556: ((u16, u16), (u16, u16)) = (n554, n555) in
+    let n557: ((u16, u16), (u16, u16)) = n556 in
+    let n558: (bool, ((u16, u16), (u16, u16))) = (n550, n557) in
+    let n559: (u16, u16) = if (n558.0) then { (n558.1).0 } else { (n558.1).1 } in
+    (n560, n559)
+) in
+let module15: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n566: u16 = I.0 in
+    let n599: u16 = n566 in
+    let n587: u16 = n566 in
+    let n567: (u16, u16) = I.1 in
+    let n568: u16 = n567.0 in
+    let n569: u16 = n567.1 in
+    let n570: (u16, u16) = (n568, n569) in
+    let n571: u16 = n570.0 +% n570.1 in
+    let n654: u8 = 1:u8 in
+    let n574: (u16, u8) = (n571, n654) in
+    let n575: u16 = n574.0 >> n574.1 in
+    let n576: (u16, u16) = (n575, n568) in
+    let n577: bool = n576.0 === n576.1 in
+    let n655: u16 = 1:u16 in
+    let n580: (u16, u16) = (n575, n655) in
+    let n581: u16 = n580.0 +% n580.1 in
+    let n582: (u16, u16) = (n581, n575) in
+    let n583: (bool, (u16, u16)) = (n577, n582) in
+    let n584: u16 = if (n583.0) then { (n583.1).0 } else { (n583.1).1 } in
+    let n585: (u16, u16) = (n584, n584) in
+    let n586: u16 = n585.0 *% n585.1 in
+    let n588: (u16, u16) = (n587, n586) in
+    let n589: bool = n588.0 << n588.1 in
+    let n656: u16 = 1:u16 in
+    let n591: (u16, u16) = (n584, n656) in
+    let n592: u16 = n591.0 -% n591.1 in
+    let n593: (u16, u16) = (n568, n592) in
+    let n594: (u16, u16) = (n584, n569) in
+    let n595: ((u16, u16), (u16, u16)) = (n593, n594) in
+    let n596: ((u16, u16), (u16, u16)) = n595 in
+    let n597: (bool, ((u16, u16), (u16, u16))) = (n589, n596) in
+    let n598: (u16, u16) = if (n597.0) then { (n597.1).0 } else { (n597.1).1 } in
+    (n599, n598)
+) in
+let module16: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
+  (I : (u16, (u16, u16))) =>
+    let n605: u16 = I.0 in
+    let n638: u16 = n605 in
+    let n626: u16 = n605 in
+    let n606: (u16, u16) = I.1 in
+    let n607: u16 = n606.0 in
+    let n608: u16 = n606.1 in
+    let n609: (u16, u16) = (n607, n608) in
+    let n610: u16 = n609.0 +% n609.1 in
+    let n651: u8 = 1:u8 in
+    let n613: (u16, u8) = (n610, n651) in
+    let n614: u16 = n613.0 >> n613.1 in
+    let n615: (u16, u16) = (n614, n607) in
+    let n616: bool = n615.0 === n615.1 in
+    let n652: u16 = 1:u16 in
+    let n619: (u16, u16) = (n614, n652) in
+    let n620: u16 = n619.0 +% n619.1 in
+    let n621: (u16, u16) = (n620, n614) in
+    let n622: (bool, (u16, u16)) = (n616, n621) in
+    let n623: u16 = if (n622.0) then { (n622.1).0 } else { (n622.1).1 } in
+    let n624: (u16, u16) = (n623, n623) in
+    let n625: u16 = n624.0 *% n624.1 in
+    let n627: (u16, u16) = (n626, n625) in
+    let n628: bool = n627.0 << n627.1 in
+    let n653: u16 = 1:u16 in
+    let n630: (u16, u16) = (n623, n653) in
+    let n631: u16 = n630.0 -% n630.1 in
+    let n632: (u16, u16) = (n607, n631) in
+    let n633: (u16, u16) = (n623, n608) in
+    let n634: ((u16, u16), (u16, u16)) = (n632, n633) in
+    let n635: ((u16, u16), (u16, u16)) = n634 in
+    let n636: (bool, ((u16, u16), (u16, u16))) = (n628, n635) in
+    let n637: (u16, u16) = if (n636.0) then { (n636.1).0 } else { (n636.1).1 } in
+    (n638, n637)
+) in
+let module17: (u16, (u16, u16)) -> u16 = (I : (u16, (u16, u16))) => let n644: (u16, u16) = I.1 in n644.0 in
+(I : Stm[Vec[u16, 4:u3], 256:u9]) =>
+  let n1: Stm[Vec[u16, 4:u3], 256:u9] = I in
+  let n17: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n1, (I : Vec[u16, 4:u3]) => VecMap(I, module0)) in
+  let n56: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n17, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module1)) in
+  let n95: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n56, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module2)) in
+  let n134: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n95, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module3)) in
+  let n173: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n134, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module4)) in
+  let n212: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n173, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module5)) in
+  let n251: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n212, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module6)) in
+  let n290: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n251, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module7)) in
+  let n329: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n290, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module8)) in
+  let n368: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n329, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module9)) in
+  let n407: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n368, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module10)) in
+  let n446: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n407, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module11)) in
+  let n485: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n446, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module12)) in
+  let n524: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n485, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module13)) in
+  let n563: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n524, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module14)) in
+  let n602: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n563, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module15)) in
+  let n641: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n602, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module16)) in
+  let n647: Stm[Vec[u16, 4:u3], 256:u9] = StmMap(n641, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module17)) in
+  let n648: Stm[Vec[u16, 4:u3], 256:u9] = n647 in
+  let n649: Stm[Vec[u16, 4:u3], 256:u9] = n648 in
+  n649
