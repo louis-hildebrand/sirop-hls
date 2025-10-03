@@ -1,11 +1,15 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 /** Transformations for moving [[mhir.ir.Mux]]es around in the AST.
   */
 object MuxMover {
+
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
 
   /** Move [[mhir.ir.Mux]]es up towards the root of the AST.
     *
@@ -19,6 +23,16 @@ object MuxMover {
     */
   def moveUp(expr: Expr): Expr = {
     val e = expr.tchk()
+    val numMuxes = countMuxes(e)
+    if (numMuxes > 10) {
+      if (!this.hasLogged) {
+        this.hasLogged = true
+        logger.warn(
+          s"skipping moving up MUXes because there are too many ($numMuxes)"
+        )
+      }
+      return e
+    }
     val result = e match {
       case Tuple(elems @ _*)         => moveUpMany(elems, xs => Tuple(xs: _*)())
       case TupleAccess(t, i: IntCst) => moveUp1(t, TupleAccess(_, i)())
@@ -80,6 +94,14 @@ object MuxMover {
         + s" (expected ${e.typ}, found ${typedResult.typ})"
     )
     typedResult
+  }
+
+  private def countMuxes(e: Expr): Int = {
+    val childCount = e.children.map(countMuxes).sum
+    e match {
+      case _: Mux => childCount + 1
+      case _      => childCount
+    }
   }
 
   /** [[moveUp]], but implemented for unary operations.

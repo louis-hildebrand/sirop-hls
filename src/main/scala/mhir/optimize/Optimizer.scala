@@ -51,6 +51,7 @@ class Optimizer(
     ) {
       @tailrec
       def fix(s: Expr, i: Int): Expr = {
+        logger.debug(s"greedy stream fusion: iteration $i")
         val fused = fusionPass.fuse(s)
         // Simplify in case there are some instances of LetStm which now have
         // at most one consumer
@@ -66,9 +67,7 @@ class Optimizer(
           fix(simpl, i = i + 1)
         }
       }
-      time("fixed-point iteration for fusion") {
-        fix(s2, i = 0)
-      }
+      fix(s2, i = 0)
     }
 
     val s4 = latencyMatcher.matchLatencies(s3)
