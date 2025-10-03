@@ -31,6 +31,7 @@ object Program {
           par = par,
           uint = U16
         )
+      case "sqrt" => Sqrt
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -413,5 +414,32 @@ object Program {
     }
     val prod = StmMap(mat, Function(row, dot)())()
     Function(mat, Function(vec, prod)())()
+  }
+
+  private val Sqrt: Expr = {
+    val input = Param("I")(TyStm(U16, 1020))
+    val init = U16 ::+ (x => {
+      val lo = C(0)(U16)
+      val hi = (x >> 1) + 1
+      Tuple(x, lo, hi)()
+    })
+    val step = (U16, U16, U16) ::+ (x => {
+      val n = x.__0
+      val lo = x.__1
+      val hi = x.__2
+      val mid0 = (lo + hi) >> 1
+      val mid = Mux(mid0 === lo, mid0 + 1, mid0)()
+      Mux(
+        mid *% mid <= n,
+        Tuple(n, mid, hi)(),
+        Tuple(n, lo, mid -% C(1)(U16))()
+      )()
+    })
+    val step0 = StmMap(input, init)()
+    val step16 = (0 until 16).foldLeft(step0)({ case (acc, _) =>
+      StmMap(acc, step)()
+    })
+    val sqrt = StmMap(step16, (U16, U16, U16) ::+ (x => x.__1))()
+    Function(input, sqrt)()
   }
 }

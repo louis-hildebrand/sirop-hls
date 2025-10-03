@@ -89,6 +89,8 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "matvec":
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
+    if bench.name == "sqrt":
+        return 1020 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 
@@ -108,7 +110,8 @@ def benchmark_order(bench_name: str) -> int:
         "bigconv2d": 8,
         "bigconvb2b": 9,
         "bigsharpen": 10,
-        "bigcamera": 11
+        "bigcamera": 11,
+        "sqrt": 12,
     }.get(bench_name, 12)
 
 

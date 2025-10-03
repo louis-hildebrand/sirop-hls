@@ -546,6 +546,34 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
+  private def sqrtIO: Map[String, TestIO] = {
+    // This implementation of sqrt(x) produces incorrect results due to
+    // overflow when x >= 1022
+    val n = 1020
+    val sequentialIn = AbstractTestInput(
+      (t: Int) => (_: Int) => C(t)(U16),
+      elemTypes = Seq(U16),
+      len = n,
+      hold = 1
+    )
+    val sequentialOut = AbstractTestOutput(
+      (t: Int) => C(math.sqrt(t).floor.toLong)(U16),
+      elemTyp = U16,
+      len = n,
+      skip = 0
+    )
+    Seq(1, 4)
+      .map({ par =>
+        val io = par match {
+          case 1 => AbstractTestIO(sequentialIn, sequentialOut)
+          case _ =>
+            AbstractTestIO(sequentialIn.vec(par), sequentialOut.vec(par))
+        }
+        s"sqrt_$par" -> io
+      })
+      .toMap
+  }
+
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
     * for the VHDL testbench.
     *
@@ -566,6 +594,7 @@ object AetherlingBenchmarkIO {
       ++ smallCameraIO.mapValues(_.toVhdl)
       ++ bigCameraIO.mapValues(_.toVhdl)
       ++ matVecIO
+      ++ sqrtIO.mapValues(_.toVhdl)
   )
 
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
@@ -587,5 +616,6 @@ object AetherlingBenchmarkIO {
       ++ bigSharpenIO.mapValues(_.toVerilog)
       ++ smallCameraIO.mapValues(_.toVerilog)
       ++ bigCameraIO.mapValues(_.toVerilog)
+      ++ sqrtIO.mapValues(_.toVerilog)
   )
 }

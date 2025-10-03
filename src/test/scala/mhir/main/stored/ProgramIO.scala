@@ -39,6 +39,8 @@ object ProgramIO {
         par = par,
         uint = U16
       )
+    } else if (name.startsWith("sqrt_")) {
+      sqrtIO
     } else {
       ???
     }
@@ -119,5 +121,9 @@ object ProgramIO {
       ),
       DirectTestOutput(outputs.map(C(_)(uint)))
     )
+  }
+
+  private def sqrtIO: PositionalTestIO = {
+    AetherlingBenchmarkIO.vhdlIO("sqrt_1")
   }
 }

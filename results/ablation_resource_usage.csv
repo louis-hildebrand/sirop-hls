@@ -63,3 +63,11 @@ sharpen,except_fuse,1107,24,0
 sharpen,except_fission,291,10,0
 sharpen,small_buffers,292,10,0
 sharpen,small_buffers_and_latmatch,321,10,0
+sqrt,all,1484,0,16
+sqrt,except_sbuild_simpl,1481,0,16
+sqrt,except_letstm_simpl,1697,33,16
+sqrt,except_stm_simpl,1697,33,16
+sqrt,except_fuse,1488,0,16
+sqrt,except_fission,1082,0,16
+sqrt,small_buffers,1484,0,16
+sqrt,small_buffers_and_latmatch,1484,0,16

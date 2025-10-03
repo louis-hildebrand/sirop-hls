@@ -143,6 +143,10 @@ smallsharpen,8,verilog,646,2,0
 smallsharpen,8,vhdl,299,4,0
 smallsharpen,16,verilog,1041,4,0
 smallsharpen,16,vhdl,504,0,0
+sqrt,1,verilog,2282,61,8
+sqrt,1,vhdl,1481,0,16
+sqrt,4,verilog,9096,244,32
+sqrt,4,vhdl,5838,0,64
 sum,1/840,verilog,73,0,0
 sum,1/840,vhdl,41,0,0
 sum,1/420,verilog,105,0,0
