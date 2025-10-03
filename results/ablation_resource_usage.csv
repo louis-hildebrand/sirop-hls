@@ -1,6 +1,6 @@
 prog_name,prog_opt,alm,bram,dsp
 camera,all,1778,66,0
-camera,except_sbuild_simpl,3366,138,0
+camera,except_sbuild_simpl,3368,138,0
 camera,except_letstm_simpl,13345,1137,30
 camera,except_stm_simpl,13469,1137,30
 camera,except_fuse,5767,138,0

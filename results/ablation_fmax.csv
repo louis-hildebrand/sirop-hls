@@ -1,6 +1,6 @@
 prog_name,prog_opt,fmax
 camera,all,191.61
-camera,except_sbuild_simpl,192.42
+camera,except_sbuild_simpl,191.98
 camera,except_letstm_simpl,193.57
 camera,except_stm_simpl,190.59
 camera,except_fuse,192.31

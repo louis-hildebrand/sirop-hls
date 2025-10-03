@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,alm,bram,dsp
 bigcamera,1/4,verilog,2770,49,12
-bigcamera,1/4,vhdl,4349,74,14
+bigcamera,1/4,vhdl,4341,74,14
 bigcamera,1,verilog,2701,46,0
 bigcamera,1,vhdl,1781,66,0
 bigcamera,2,verilog,4843,52,0
@@ -98,11 +98,11 @@ matvec,2,vhdl,90,1,1
 matvec,4,vhdl,131,2,2
 matvec,8,vhdl,226,4,4
 matvec,16,vhdl,330,7,8
-smallcamera,1/4,vhdl,4324,50,14
+smallcamera,1/4,vhdl,4314,50,14
 smallcamera,1,vhdl,1754,43,0
 smallcamera,2,vhdl,1954,30,0
 smallconv2d,1/9,verilog,164,1,0
-smallconv2d,1/9,vhdl,333,4,0
+smallconv2d,1/9,vhdl,335,4,0
 smallconv2d,1/3,verilog,144,0,0
 smallconv2d,1/3,vhdl,220,4,0
 smallconv2d,1,verilog,82,0,0
@@ -116,7 +116,7 @@ smallconv2d,8,vhdl,197,0,0
 smallconv2d,16,verilog,732,0,0
 smallconv2d,16,vhdl,320,0,0
 smallconvb2b,1/9,verilog,271,1,0
-smallconvb2b,1/9,vhdl,580,6,0
+smallconvb2b,1/9,vhdl,583,6,0
 smallconvb2b,1/3,verilog,232,0,0
 smallconvb2b,1/3,vhdl,294,6,0
 smallconvb2b,1,verilog,123,0,0
@@ -130,7 +130,7 @@ smallconvb2b,8,vhdl,233,0,0
 smallconvb2b,16,verilog,1049,0,0
 smallconvb2b,16,vhdl,374,0,0
 smallsharpen,1/9,verilog,193,2,0
-smallsharpen,1/9,vhdl,357,5,0
+smallsharpen,1/9,vhdl,354,5,0
 smallsharpen,1/3,verilog,174,1,0
 smallsharpen,1/3,vhdl,240,5,0
 smallsharpen,1,verilog,109,1,0
