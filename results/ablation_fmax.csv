@@ -63,6 +63,14 @@ sharpen,except_fuse,191.53
 sharpen,except_fission,169.72
 sharpen,small_buffers,195.77
 sharpen,small_buffers_and_latmatch,216.4
+sobel,all,205.85
+sobel,except_sbuild_simpl,192.57
+sobel,except_letstm_simpl,178.25
+sobel,except_stm_simpl,178.25
+sobel,except_fuse,178.0
+sobel,except_fission,115.0
+sobel,small_buffers,197.04
+sobel,small_buffers_and_latmatch,197.04
 sqrt,all,228.83
 sqrt,except_sbuild_simpl,235.74
 sqrt,except_letstm_simpl,191.35
