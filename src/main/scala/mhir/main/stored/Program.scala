@@ -420,15 +420,14 @@ object Program {
     val input = Param("I")(TyStm(U16, 1020))
     val init = U16 ::+ (x => {
       val lo = C(0)(U16)
-      val hi = (x >> 1) + 1
+      val hi = C(255)(U16)
       Tuple(x, lo, hi)()
     })
     val step = (U16, U16, U16) ::+ (x => {
       val n = x.__0
       val lo = x.__1
       val hi = x.__2
-      val mid0 = (lo + hi) >> 1
-      val mid = Mux(mid0 === lo, mid0 + 1, mid0)()
+      val mid = (lo + hi + 1) >> 1
       Mux(
         mid *% mid <= n,
         Tuple(n, mid, hi)(),

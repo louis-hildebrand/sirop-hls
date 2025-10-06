@@ -547,9 +547,7 @@ object AetherlingBenchmarkIO {
   }
 
   private def sqrtIO: Map[String, TestIO] = {
-    // This implementation of sqrt(x) produces incorrect results due to
-    // overflow when x >= 1022
-    val n = 1020
+    val n = 1 << 16
     val sequentialIn = AbstractTestInput(
       (t: Int) => (_: Int) => C(t)(U16),
       elemTypes = Seq(U16),
