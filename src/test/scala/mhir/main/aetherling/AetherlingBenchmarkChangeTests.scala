@@ -33,7 +33,8 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
       "bigsharpen",
       "smallcamera",
       "bigcamera",
-      "sqrt"
+      "sqrt",
+      "bigsobel"
     )
 
   os.makeDir.all(SimplifiedAetherlingBenchmarksDir)

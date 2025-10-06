@@ -572,6 +572,85 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
+  private def bigSobelIO: Map[String, TestIO] = {
+    val width = 1920
+    val height = 4
+    val k = C(255)(I32)
+    // Checkerboard pattern (10x2 rectangle)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 4) < 2) == ((j % 20) < 10)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] = {
+      val gx = conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(
+          Seq(-1, 0, 1),
+          Seq(-2, 0, 2),
+          Seq(-1, 0, 1)
+        ),
+        kernelDenom = 1
+      )
+      val gy = conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(
+          Seq(-1, -2, -1),
+          Seq(-0, 0, 0),
+          Seq(1, 2, 1)
+        ),
+        kernelDenom = 1
+      )
+      val g = gx.flatten
+        .zip(gy.flatten)
+        .map({
+          case (Some(x), Some(y)) =>
+            C(math.sqrt(x * x + y * y).floor.toLong)(I32)
+          case _ => Undefined(I32)
+        })
+      g
+    }
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .toSeq
+            )
+        }
+        s"bigsobel_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3, 9).map({ denom =>
+      val io = AbstractTestIO(
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"bigsobel_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
     * for the VHDL testbench.
     *
@@ -593,6 +672,7 @@ object AetherlingBenchmarkIO {
       ++ bigCameraIO.mapValues(_.toVhdl)
       ++ matVecIO
       ++ sqrtIO.mapValues(_.toVhdl)
+      ++ bigSobelIO.mapValues(_.toVhdl)
   )
 
   /** Maps benchmark names (e.g., "dot_1_105") to inputs and expected outputs
@@ -615,5 +695,6 @@ object AetherlingBenchmarkIO {
       ++ smallCameraIO.mapValues(_.toVerilog)
       ++ bigCameraIO.mapValues(_.toVerilog)
       ++ sqrtIO.mapValues(_.toVerilog)
+      ++ bigSobelIO.mapValues(_.toVerilog)
   )
 }
