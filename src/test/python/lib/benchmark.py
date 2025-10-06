@@ -90,7 +90,7 @@ def min_latency(bench: Benchmark) -> int:
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
     if bench.name == "sqrt":
-        return 1020 // bench.throughput
+        return 2**16 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
 
 
