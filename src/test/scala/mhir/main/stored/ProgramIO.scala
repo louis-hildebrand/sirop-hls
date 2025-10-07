@@ -130,6 +130,6 @@ object ProgramIO {
   }
 
   private def sobelIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("sobel_1")
+    AetherlingBenchmarkIO.vhdlIO("bigsobel_1")
   }
 }
