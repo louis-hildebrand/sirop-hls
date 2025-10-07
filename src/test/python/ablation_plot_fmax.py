@@ -18,18 +18,15 @@ from lib.program_variant import ProgramVariant
 TARGET_FREQ = 175
 
 
-def dedup(xs: list[str]) -> list[str]:
-    """
-    Deduplicate elements in a list while preserving order.
-    """
-    return list(dict.fromkeys(xs))
-
-
 def plot_fmax(results: dict[ProgramVariant, float]) -> None:
     """
     Plot fmax for each program.
     """
-    program_names = dedup([p.name for p in results.keys()])
+    program_names = pu.dedup([
+        p.name
+        for p in results.keys()
+        if aps.program_title(p.name) is not None
+    ])
     program_names = sorted(program_names, key=aps.program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
@@ -79,7 +76,7 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [aps.program_title(p) for p in program_names],
+        [aps.program_title(p) or "" for p in program_names],
     )
     ax.tick_params(axis="x", which="both", length=0)
     legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )

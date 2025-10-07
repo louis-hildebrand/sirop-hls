@@ -41,6 +41,8 @@ object ProgramIO {
       )
     } else if (name.startsWith("sqrt_")) {
       sqrtIO
+    } else if (name.startsWith("sobel_")) {
+      sobelIO
     } else {
       ???
     }
@@ -125,5 +127,9 @@ object ProgramIO {
 
   private def sqrtIO: PositionalTestIO = {
     AetherlingBenchmarkIO.vhdlIO("sqrt_1")
+  }
+
+  private def sobelIO: PositionalTestIO = {
+    AetherlingBenchmarkIO.vhdlIO("bigsobel_1")
   }
 }

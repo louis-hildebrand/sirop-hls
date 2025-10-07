@@ -31,7 +31,8 @@ object Program {
           par = par,
           uint = U16
         )
-      case "sqrt" => Sqrt
+      case "sqrt"  => Sqrt
+      case "sobel" => Sobel
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -83,17 +84,23 @@ object Program {
     Function(input, s4)()
   }
 
-  private def makeConv3x3(width: Int, height: Int, input: Expr): Expr = {
-    val TyStm(uint, _) = input.typ
-    val kernelStm = StmCst(
-      width * height,
-      VecLiteral(
-        VecLiteral(C(1)(uint), C(2)(uint), C(1)(uint))(),
-        VecLiteral(C(2)(uint), C(4)(uint), C(2)(uint))(),
-        VecLiteral(C(1)(uint), C(2)(uint), C(1)(uint))()
-      )()
+  private def blurKernel(int: Type) = {
+    VecLiteral(
+      VecLiteral(C(1)(int), C(2)(int), C(1)(int))(),
+      VecLiteral(C(2)(int), C(4)(int), C(2)(int))(),
+      VecLiteral(C(1)(int), C(2)(int), C(1)(int))()
     )()
-    val kernelCoeff = FixCst(8)(TyFix(U8, 7))
+  }
+
+  private def makeConv3x3(
+      width: Int,
+      height: Int,
+      input: Expr,
+      kernelVec: Expr,
+      kernelCoeff: Expr
+  ): Expr = {
+    val TyStm(uint, _) = input.typ
+    val kernelStm = StmCst(width * height, kernelVec)()
     val row0Elem0 = Param("row_0_0")(TyStm(uint, width * height))
     val row0Elem1 = Param("row_0_1")(TyStm(uint, width * height))
     val row0Elem2 = Param("row_0_2")(TyStm(uint, width * height))
@@ -199,7 +206,16 @@ object Program {
           )()
         )
       )(),
-      result -> StmMap(colSums, uint ::+ (x => IntFixProd(x, kernelCoeff)()))()
+      result -> StmMap(
+        colSums,
+        uint ::+ (x =>
+          kernelCoeff.typ match {
+            case _: TyFix    => IntFixProd(x, kernelCoeff)()
+            case _: TyAnyInt => x *% kernelCoeff
+            case _           => ???
+          }
+        )
+      )()
     )(
       result
     )
@@ -314,7 +330,13 @@ object Program {
     val height = 1080
     val uint = U32
     val input = Param("I")(TyStm(uint, width * height))
-    val conv = makeConv3x3(width = width, height = height, input = input)
+    val conv = makeConv3x3(
+      width = width,
+      height = height,
+      input = input,
+      kernelVec = blurKernel(uint),
+      kernelCoeff = FixCst(8)(TyFix(U8, 7))
+    )
     Function(input, conv)()
   }
 
@@ -325,7 +347,13 @@ object Program {
     val height = 1080
     val uint = U32
     val input = Param("I")(TyStm(uint, width * height))
-    val part1 = makeConv3x3(width = width, height = height, input = input)
+    val part1 = makeConv3x3(
+      width = width,
+      height = height,
+      input = input,
+      kernelVec = blurKernel(uint),
+      kernelCoeff = FixCst(8)(TyFix(U8, 7))
+    )
     val part2 = makeConv2x2(width = width, height = height, input = part1)
     Function(input, part2)()
   }
@@ -350,7 +378,13 @@ object Program {
     }
     val sharedInput = Param("I")(TyStm(uint, width * height))
     val blurred =
-      makeConv3x3(width = width, height = height, input = sharedInput)
+      makeConv3x3(
+        width = width,
+        height = height,
+        input = sharedInput,
+        kernelVec = blurKernel(uint),
+        kernelCoeff = FixCst(8)(TyFix(U8, 7))
+      )
     val sharpened =
       Let(sharedInput, input, StmMap2(blurred, sharedInput, sharpenOne)())()
     Function(input, sharpened)()
@@ -416,14 +450,13 @@ object Program {
     Function(mat, Function(vec, prod)())()
   }
 
-  private val Sqrt: Expr = {
-    val input = Param("I")(TyStm(U16, 1020))
-    val init = U16 ::+ (x => {
-      val lo = C(0)(U16)
-      val hi = C(255)(U16)
+  private def makeSqrt(int: TyAnyInt, stages: Int, input: Expr): Expr = {
+    val init = int ::+ (x => {
+      val lo = C(0)(int)
+      val hi = C(math.sqrt(int.maxInt.toDouble).floor.toLong)(int)
       Tuple(x, lo, hi)()
     })
-    val step = (U16, U16, U16) ::+ (x => {
+    val step = (int, int, int) ::+ (x => {
       val n = x.__0
       val lo = x.__1
       val hi = x.__2
@@ -431,14 +464,54 @@ object Program {
       Mux(
         mid *% mid <= n,
         Tuple(n, mid, hi)(),
-        Tuple(n, lo, mid -% C(1)(U16))()
+        Tuple(n, lo, mid -% C(1)(int))()
       )()
     })
-    val step0 = StmMap(input, init)()
-    val step16 = (0 until 16).foldLeft(step0)({ case (acc, _) =>
-      StmMap(acc, step)()
+    val binarySearchStart = StmMap(input, init)()
+    val binarySearchEnd = (0 until stages).foldLeft(binarySearchStart)({
+      case (acc, _) => StmMap(acc, step)()
     })
-    val sqrt = StmMap(step16, (U16, U16, U16) ::+ (x => x.__1))()
+    StmMap(binarySearchEnd, (int, int, int) ::+ (x => x.__1))()
+  }
+
+  private val Sqrt: Expr = {
+    val input = Param("I")(TyStm(U16, 1020))
+    val sqrt = makeSqrt(U16, stages = 16, input)
     Function(input, sqrt)()
+  }
+
+  private val Sobel: Expr = {
+    val width = 1920
+    val height = 1080
+    val int = I32
+    val input = Param("I")(TyStm(int, width * height))
+    val gx = makeConv3x3(
+      width = width,
+      height = height,
+      input = input,
+      kernelVec = VecLiteral(
+        VecLiteral(C(-1)(int), C(0)(int), C(1)(int))(),
+        VecLiteral(C(-2)(int), C(0)(int), C(2)(int))(),
+        VecLiteral(C(-1)(int), C(0)(int), C(1)(int))()
+      )(),
+      kernelCoeff = C(1)(int)
+    )
+    val gy = makeConv3x3(
+      width = width,
+      height = height,
+      input = input,
+      kernelVec = VecLiteral(
+        VecLiteral(C(-1)(int), C(-2)(int), C(-1)(int))(),
+        VecLiteral(C(0)(int), C(0)(int), C(0)(int))(),
+        VecLiteral(C(1)(int), C(2)(int), C(1)(int))()
+      )(),
+      kernelCoeff = C(1)(int)
+    )
+    val normSquared = StmMap(
+      StmZip(gx, gy)(),
+      (int, int) ::+ (x => x.__0 *% x.__0 +% x.__1 *% x.__1)
+    )()
+    val norm = makeSqrt(int, stages = 16, normSquared)
+    Function(input, Let(input, input, norm)())()
   }
 }

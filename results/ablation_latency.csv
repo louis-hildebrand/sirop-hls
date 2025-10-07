@@ -63,6 +63,14 @@ sharpen,except_fuse,7707,True
 sharpen,except_fission,7687,True
 sharpen,small_buffers,15365,True
 sharpen,small_buffers_and_latmatch,7688,True
+sobel,all,7733,True
+sobel,except_sbuild_simpl,7748,True
+sobel,except_letstm_simpl,7834,True
+sobel,except_stm_simpl,7834,True
+sobel,except_fuse,7758,True
+sobel,except_fission,7703,True
+sobel,small_buffers,7733,True
+sobel,small_buffers_and_latmatch,7733,True
 sqrt,all,65583,True
 sqrt,except_sbuild_simpl,65586,True
 sqrt,except_letstm_simpl,65623,True

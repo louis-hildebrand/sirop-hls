@@ -47,6 +47,17 @@ bigsharpen,8,verilog,5339,29,0
 bigsharpen,8,vhdl,1528,29,0
 bigsharpen,16,verilog,,,
 bigsharpen,16,vhdl,,,
+bigsobel,1/3,vhdl,2627,18,35
+bigsobel,1,verilog,4660,99,27
+bigsobel,1,vhdl,2299,18,26
+bigsobel,2,verilog,9432,190,54
+bigsobel,2,vhdl,4258,28,51
+bigsobel,4,verilog,18639,372,108
+bigsobel,4,vhdl,8516,46,102
+bigsobel,8,verilog,36995,742,216
+bigsobel,8,vhdl,17137,90,204
+bigsobel,16,verilog,,,
+bigsobel,16,vhdl,,,
 conv1d,1/3,verilog,42,0,1
 conv1d,1/3,vhdl,49,0,1
 conv1d,1,verilog,35,0,0
