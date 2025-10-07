@@ -22,7 +22,11 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     """
     Plot resource usage for each program.
     """
-    program_names = pu.dedup([p.name for p in results.keys()])
+    program_names = pu.dedup([
+        p.name
+        for p in results.keys()
+        if aps.program_title(p.name) is not None
+    ])
     program_names = sorted(program_names, key=aps.program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")

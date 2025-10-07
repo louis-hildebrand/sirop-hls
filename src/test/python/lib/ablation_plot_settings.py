@@ -38,10 +38,12 @@ def program_order(program_name: str) -> int:
     }.get(program_name, 8)
 
 
-def program_title(program_name: str) -> str:
+def program_title(program_name: str) -> str | None:
     """
-    Return the title for the given program in the plots.
+    Return the title for the given program in the plots, or `None` if the program should be omitted.
     """
+    if program_name == "sqrt":
+        return None
     title = {
         "matvec_1": "matvec"
     }.get(program_name, program_name)

@@ -24,7 +24,7 @@ def resource_usage_pairs(
         # Skip benchmarks that are not in the paper
         if "small" in b.name:
             continue
-        if b.name.startswith("sum"):
+        if b.name.startswith("sum") or b.name.startswith("sqrt"):
             continue
         vhdl_res = results.get(BenchmarkImpl(b, "vhdl"))
         verilog_res = results.get(BenchmarkImpl(b, "verilog"))

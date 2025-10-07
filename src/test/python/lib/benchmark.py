@@ -80,7 +80,7 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name in {"conv1d", "smallconv2d", "smallconvb2b", "smallsharpen"}:
         # 16 inputs, 16 outputs
         return 16 // bench.throughput
-    if bench.name in {"bigconv2d", "bigconvb2b", "bigsharpen"}:
+    if bench.name in {"bigconv2d", "bigconvb2b", "bigsharpen", "bigsobel"}:
         # 1920*4 inputs and outputs
         return 1920 * 4 // bench.throughput
     if bench.name == "bigcamera":
@@ -122,7 +122,7 @@ def benchmark_title(bench_name: str) -> str | None:
     """
     if bench_name.startswith("small"):
         return None
-    if bench_name == "sum":
+    if bench_name in {"sum", "sqrt"}:
         return None
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]

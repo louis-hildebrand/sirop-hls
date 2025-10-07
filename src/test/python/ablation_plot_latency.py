@@ -22,7 +22,11 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
     """
     Plot latency for each program.
     """
-    program_names = pu.dedup([p.name for p in results.keys()])
+    program_names = pu.dedup([
+        p.name
+        for p in results.keys()
+        if aps.program_title(p.name) is not None
+    ])
     program_names = sorted(program_names, key=aps.program_order)
     if not program_names:
         raise ValueError("Nothing to plot.")
@@ -117,7 +121,7 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [aps.program_title(p) for p in program_names],
+        [aps.program_title(p) or "" for p in program_names],
     )
     ax.set_xlim(xlim)
     ax.tick_params(axis="x", which="both", length=0)
