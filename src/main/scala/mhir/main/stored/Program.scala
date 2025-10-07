@@ -491,7 +491,7 @@ object Program {
       input = input,
       kernelVec = VecLiteral(
         VecLiteral(C(-1)(int), C(0)(int), C(1)(int))(),
-        VecLiteral(C(-1)(int), C(0)(int), C(2)(int))(),
+        VecLiteral(C(-2)(int), C(0)(int), C(2)(int))(),
         VecLiteral(C(-1)(int), C(0)(int), C(1)(int))()
       )(),
       kernelCoeff = C(1)(int)
@@ -509,7 +509,7 @@ object Program {
     )
     val normSquared = StmMap(
       StmZip(gx, gy)(),
-      (int, int) ::+ (x => x.__0 *% x.__0 + x.__1 *% x.__1)
+      (int, int) ::+ (x => x.__0 *% x.__0 +% x.__1 *% x.__1)
     )()
     val norm = makeSqrt(int, stages = 16, normSquared)
     Function(input, Let(input, input, norm)())()
