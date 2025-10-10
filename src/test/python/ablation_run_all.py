@@ -13,6 +13,7 @@ import ablation_extract_fmax
 import ablation_extract_resource_usage
 import ablation_generate
 import ablation_measure_latency
+import ablation_plot_compile_time
 import ablation_plot_fmax
 import ablation_plot_latency
 import ablation_plot_resource_usage
@@ -49,7 +50,10 @@ def main(
         c.ABLATION_FMAX_CSV.unlink(missing_ok=True)
 
     ablation_extract_compile_time.main(programs)
-    # TODO: Also plot compile time results
+    if not skip_plots:
+        ablation_plot_compile_time.main()
+        if view_plots:
+            open_plot(c.ABLATION_COMPILE_TIME_PDF)
 
     ablation_extract_resource_usage.main(programs)
     if not skip_plots:

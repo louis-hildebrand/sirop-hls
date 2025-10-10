@@ -28,6 +28,20 @@ class CompileTimeReport:
     codegen: int
     """Time taken for codegen."""
 
+    @property
+    def total(self) -> int:
+        """
+        Return the total compile time.
+        """
+        return (
+            self.parse
+            + self.typecheck
+            + self.lower
+            + self.make_synth
+            + self.optimize
+            + self.codegen
+        )
+
     @staticmethod
     def extract(p: Path) -> CompileTimeReport:
         """

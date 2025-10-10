@@ -43,6 +43,7 @@ ABLATION_FMAX_PDF = RESULTS_DIR.joinpath("ablation_fmax.pdf")
 ABLATION_LATENCY_CSV = RESULTS_DIR.joinpath("ablation_latency.csv")
 ABLATION_LATENCY_PDF = RESULTS_DIR.joinpath("ablation_latency.pdf")
 ABLATION_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("ablation_compile_time.csv")
+ABLATION_COMPILE_TIME_PDF = RESULTS_DIR.joinpath("ablation_compile_time.pdf")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")

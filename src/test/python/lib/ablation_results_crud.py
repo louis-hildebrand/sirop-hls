@@ -248,7 +248,7 @@ def save_compile_time(writer: csv.DictWriter, p: ProgramVariant, result: Compile
     })
 
 
-def read_all_compile_times(results_file: Path) -> dict[ProgramVariant, CompileTimeReport]:
+def read_compile_times(results_file: Path) -> dict[ProgramVariant, CompileTimeReport]:
     """
     Read all compile times from the given CSV.
     """
@@ -281,8 +281,8 @@ def merge_compile_times(old: Path, new: Path) -> None:
     """
     if not old.exists():
         return
-    old_results = read_all_compile_times(old)
-    new_results = read_all_compile_times(new)
+    old_results = read_compile_times(old)
+    new_results = read_compile_times(new)
     combined_results = old_results | new_results
     combined_results = dict(sorted(combined_results.items()))
     with open(new, "w", encoding="utf-8", newline="") as f:
