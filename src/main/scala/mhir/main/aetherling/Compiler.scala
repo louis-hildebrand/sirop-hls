@@ -2,8 +2,8 @@ package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.logging.time
-import mhir.main.shared.{BadArgsException, HelpException, Compiler => SC}
+import mhir.logging.time2
+import mhir.main.shared.{Compiler => SC}
 import mhir.parse.AetherlingParser
 import org.slf4j.event.Level
 
@@ -15,28 +15,6 @@ object Compiler {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  /** The program entry point.
-    *
-    * @param args
-    *   the command-line arguments.
-    */
-  def main(args: Array[String]): Unit = {
-    val a =
-      try {
-        Args(args)
-      } catch {
-        case HelpException =>
-          Args.printFullUsage()
-          return
-        case exc: BadArgsException =>
-          println(s"Invalid command-line arguments: ${exc.getMessage}")
-          println()
-          Args.printShortUsage()
-          return
-      }
-    compile(a)
-  }
-
   /** Runs the compiler.
     *
     * @param args
@@ -46,10 +24,10 @@ object Compiler {
     */
   def compile(args: Args): Expr = {
     logger.debug(s"parsing Aetherling code from ${args.inFile}")
-    val parsed = time("parsing", Level.DEBUG) {
+    val (parsed, parseTime) = time2("parsing", Level.DEBUG) {
       val aetherlingCode = os.read(args.inFile)
       AetherlingParser.parse(aetherlingCode)
     }
-    SC.compile(parsed, args.options)
+    SC.compile(parsed, args.options, parseTime = parseTime)
   }
 }

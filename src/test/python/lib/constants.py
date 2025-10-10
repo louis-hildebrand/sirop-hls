@@ -4,10 +4,9 @@ Constants.
 
 from pathlib import Path
 
-AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
-STORED_PROGRAM_COMPILER = "mhir.main.stored.Compiler"
+MAIN_COMPILER = "mhir.main.Compiler"
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
 AETHERLING_SPACETIME_DIR = (
@@ -21,6 +20,9 @@ ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
 DSE_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "dse")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
+AETHERLING_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "aetherling")
+ABLATION_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "ablation")
+DSE_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "dse")
 
 RESULTS_DIR = ROOT_DIR.joinpath("results")
 RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("aetherling_resource_usage.csv")

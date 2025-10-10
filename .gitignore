@@ -67,3 +67,4 @@ metals.sbt
 /results*/*.csv.bak
 /traces/
 /src/test/resources/aetherling_benchmarks/simplified/
+/src/test/compile_time/

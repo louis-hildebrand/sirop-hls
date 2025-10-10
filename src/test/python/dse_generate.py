@@ -22,14 +22,17 @@ def main(programs: list[str]) -> None:
     print("-" * 80)
 
     c.DSE_VHDL_DIR.mkdir(exist_ok=True, parents=True)
+    c.DSE_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
     sbt_tasks = []
     for prog in programs:
         out_dir = c.DSE_VHDL_DIR.joinpath(prog)
+        ctime_file = c.DSE_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
         lvl = OptimizationLevel.ALL
         sbt_tasks.append(
-            f"runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
+            f"runMain {c.MAIN_COMPILER} -s stored -i {prog}"
+            f" --out:vhdl {out_dir} --overwrite"
+            f" --out:pp -"
+            f" --out:ctime {ctime_file}"
             f" {lvl.flags}"
         )
     os.chdir(c.ROOT_DIR)

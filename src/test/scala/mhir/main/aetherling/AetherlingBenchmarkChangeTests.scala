@@ -51,8 +51,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          showFinal = false,
-          target = NullTarget,
+          targets = Set(NullTarget),
           optFlags = OptimizerOptions.all(
             assumeThroughputsMatch = true,
             maxLetStmBufSize = None

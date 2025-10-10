@@ -45,8 +45,7 @@ object AetherlingBenchmarkTracer {
     val args = Args(
       inFile = inFile,
       options = CompilerOptions(
-        showFinal = false,
-        target = NullTarget,
+        targets = Set(NullTarget),
         optFlags = optFlags
       )
     )

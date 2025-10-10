@@ -48,8 +48,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          showFinal = false,
-          target = VhdlTarget(outDir = outDir, overwrite = true),
+          targets = Set(VhdlTarget(outDir = outDir, overwrite = true)),
           optFlags = OptimizerOptions.all(
             assumeThroughputsMatch = true,
             maxLetStmBufSize = {

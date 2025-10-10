@@ -44,8 +44,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          showFinal = false,
-          target = VhdlTarget(outDir, overwrite = true),
+          targets = Set(VhdlTarget(outDir, overwrite = true)),
           optFlags = OptimizerOptions.all(
             assumeThroughputsMatch = true,
             maxLetStmBufSize = None
@@ -71,8 +70,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          showFinal = false,
-          target = VhdlTarget(outDir, overwrite = true),
+          targets = Set(VhdlTarget(outDir, overwrite = true)),
           optFlags = OptimizerOptions.Empty
         )
       )

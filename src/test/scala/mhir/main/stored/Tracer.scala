@@ -25,8 +25,7 @@ object Tracer {
     val args = Args(
       program = Program(progName),
       options = CompilerOptions(
-        showFinal = false,
-        target = NullTarget,
+        targets = Set(NullTarget),
         optFlags = optFlags
       )
     )

@@ -6,9 +6,20 @@ import os.Path
   */
 sealed trait CompilerTarget
 
-/** Don't write the output anywhere; skip code generation.
+/** Don't send the program anywhere, just return it.
+  *
+  * This is useful for test code that invokes [[mhir.main.shared.Compiler]]
+  * directly, but should not be used at the commend line.
   */
 object NullTarget extends CompilerTarget
+
+/** Pretty-print the program.
+  *
+  * @param dest
+  *   where to send the pretty-printed program.
+  */
+case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
+    extends CompilerTarget
 
 /** Generate VHDL.
   *
@@ -19,3 +30,14 @@ object NullTarget extends CompilerTarget
   *   existing directory. If `false`, throw an exception.
   */
 case class VhdlTarget(outDir: Path, overwrite: Boolean) extends CompilerTarget
+
+/** Report the compile time.
+  *
+  * @param outFile
+  *   the path to the file in which to write the report.
+  * @param overwrite
+  *   what to do if the file already exists. If `true`, then delete the existing
+  *   file. If `false`, throw an exception.
+  */
+case class CompileTimeTarget(outFile: Path, overwrite: Boolean)
+    extends CompilerTarget
