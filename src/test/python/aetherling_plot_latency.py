@@ -48,7 +48,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     })
     fig, axes = plt.subplots(
         nrows=1, ncols=len(benchmark_names),
-        figsize=(8, 2),
+        figsize=(8, 1.5),
         squeeze=False,
         sharey="row",
         layout="compressed",
@@ -140,15 +140,14 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         )
         # Labels and whatnot
         ax.set_xscale("log", base=2)
-        ax.set_yscale("log", base=10)
         ax.set_title(title)
         set_ticks(ax, bench_name)
 
     # Settings for entire rows
-    axes[0].set_ylabel("Latency")
+    axes[0].set_yscale("log", base=10)
+    axes[0].set_ylabel("Latency (log)")
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
-    axes[0].set_yticks([1, 10**5])
     fig.supxlabel("Target throughput (px/cycle)")
     if min_artist is None or verilog_artist is None or vhdl_artist is None:
         raise RuntimeError("Cannot create legend due to missing artists.")
