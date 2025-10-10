@@ -15,28 +15,6 @@ object Compiler {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  /** The program entry point.
-    *
-    * @param args
-    *   the command-line arguments.
-    */
-  def main(args: Array[String]): Unit = {
-    val a =
-      try {
-        Args(args)
-      } catch {
-        case HelpException =>
-          Args.printFullUsage()
-          return
-        case exc: BadArgsException =>
-          println(s"Invalid command-line arguments: ${exc.getMessage}")
-          println()
-          Args.printShortUsage()
-          return
-      }
-    compile(a)
-  }
-
   /** Runs the compiler.
     *
     * @param args
