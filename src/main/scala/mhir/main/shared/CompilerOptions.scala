@@ -5,16 +5,13 @@ import os.Path
 
 /** Options for the compiler.
   *
-  * @param showFinal
-  *   whether to print the final expression passed to the code generator.
-  * @param target
-  *   the target language.
+  * @param targets
+  *   the compilation targets.
   * @param optFlags
   *   optimization settings.
   */
 case class CompilerOptions(
-    showFinal: Boolean,
-    target: CompilerTarget,
+    targets: Set[CompilerTarget],
     optFlags: OptimizerOptions
 )
 
@@ -29,10 +26,9 @@ object CompilerOptions {
     */
   def apply(args: Array[String]): CompilerOptions = {
     // General args
-    var targetDir: Option[Path] = None
+    var vhdlDir: Option[Path] = None
+    var prettyPrintDest: Option[PrettyPrintDestination] = None
     var overwrite = false
-    var emitHdl = true
-    var showFinal = false
     var mutArgs = args
     // Optimizer args
     var simplifyStmBuild = true
@@ -46,21 +42,28 @@ object CompilerOptions {
     var assumeThroughputsMatch = false
 
     while (mutArgs.nonEmpty) {
+      var numToDrop = 1
       mutArgs.head match {
-        case "-o" | "--out-dir" =>
+        case "--out:vhdl" =>
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
-              targetDir = Some(Path(dirName, base = os.pwd))
-              mutArgs = mutArgs.drop(1)
+              vhdlDir = Some(Path(dirName, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:pp" =>
+          mutArgs.drop(1).headOption match {
+            case Some("-") =>
+              prettyPrintDest = Some(PPStdout)
+              numToDrop = 2
+            case Some(fName) =>
+              prettyPrintDest = Some(PPFile(Path(fName, base = os.pwd)))
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
         case "--overwrite" =>
           overwrite = true
-        case "--no-hdl" =>
-          emitHdl = false
-        case "--show-final" =>
-          showFinal = true
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
         case "--opt:no-inline-letstm" =>
@@ -102,30 +105,20 @@ object CompilerOptions {
         case a =>
           throw new BadArgsException(s"unknown argument: $a")
       }
-      mutArgs = mutArgs.drop(1)
+      mutArgs = mutArgs.drop(numToDrop)
     }
 
-    val target = (targetDir, overwrite, emitHdl) match {
-      case (None, false, false) =>
-        NullTarget
-      case (None, _, true) =>
-        throw new BadArgsException(
-          "either an output directory must be provided or --no-hdl must be set"
-        )
-      case (None, true, _) =>
-        throw new BadArgsException(
-          "flag --overwrite is not applicable unless an output directory is provided"
-        )
-      case (Some(_), _, false) =>
-        throw new BadArgsException(
-          "--no-hdl cannot be used when an output directory is provided"
-        )
-      case (Some(outDir), overwrite, true) =>
-        VhdlTarget(outDir = outDir, overwrite = overwrite)
+    val targets: Set[CompilerTarget] = {
+      val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
+      val ppTarget =
+        prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
+      vhdlTarget.toSet ++ ppTarget.toSet
+    }
+    if (targets.isEmpty) {
+      throw new BadArgsException("no compilation targets specified")
     }
     CompilerOptions(
-      showFinal = showFinal,
-      target = target,
+      targets = targets,
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
         inlineLetStm = inlineLetStm,
@@ -142,13 +135,12 @@ object CompilerOptions {
 
   def longUsage: String = {
     s"""General Arguments:
-       |  -o,--out-dir DIR    path to the directory in which to emit the generated HDL
-       |                      code
-       |  --overwrite         what to do if the output directory already exists: if true
-       |                      then delete the existing directory, if false then raise an
+       |  --out:vhdl DIR      emit VHDL code in the given directory
+       |  --out:pp (FILE|-)   pretty-print the final program to the given file, or to
+       |                      stdout if argument "-" is given
+       |  --overwrite         what to do if the output file or directory already
+       |                      exists: if true then delete it, if false then raise an
        |                      error
-       |  --no-hdl            skip code generation
-       |  --show-final        show the final program right before code generation
        |
        |Optimization Flags:
        |  --opt:no-simplify-sbuild        skip basic sbuild simplifications

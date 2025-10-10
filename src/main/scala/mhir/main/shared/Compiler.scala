@@ -29,9 +29,6 @@ object Compiler {
     val result = time("compilation", Level.DEBUG) {
       doCompile(e, options)
     }
-    if (options.showFinal) {
-      println(ExprPrinter.display(result))
-    }
     result
   }
 
@@ -39,18 +36,17 @@ object Compiler {
     val checked = typecheck(parsed)
     val lowered = lower(checked)
     val synthesizable = makeSynthesizable(lowered)
-    val optimized = time("optimization", Level.DEBUG) {
+    val finalProgram = time("optimization", Level.DEBUG) {
       Optimizer(options.optFlags).optimize(synthesizable)
     }
-
-    val finalProgram = optimized
-
-    options.target match {
-      case NullTarget => ()
+    options.targets.foreach({
+      case NullTarget =>
+        ()
+      case PrettyPrintTarget(dest, overwrite) =>
+        emitPrettyPrinted(finalProgram, dest = dest, overwrite = overwrite)
       case VhdlTarget(outDir, overwrite) =>
-        emit(finalProgram, outDir = outDir, overwrite = overwrite)
-    }
-
+        emitVhdl(finalProgram, outDir = outDir, overwrite = overwrite)
+    })
     finalProgram
   }
 
@@ -75,7 +71,27 @@ object Compiler {
     }
   }
 
-  private def emit(
+  private def emitPrettyPrinted(
+      finalProgram: Expr,
+      dest: PrettyPrintDestination,
+      overwrite: Boolean
+  ): Unit = {
+    time("pretty printing", Level.DEBUG) {
+      val pp = ExprPrinter.display(finalProgram)
+      dest match {
+        case PPStdout =>
+          print(pp)
+        case PPFile(f) =>
+          if (overwrite) {
+            os.write.over(f, pp)
+          } else {
+            os.write(f, pp)
+          }
+      }
+    }
+  }
+
+  private def emitVhdl(
       finalProgram: Expr,
       outDir: Path,
       overwrite: Boolean

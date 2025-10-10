@@ -27,9 +27,9 @@ def main(programs: list[str]) -> None:
         out_dir = c.DSE_VHDL_DIR.joinpath(prog)
         lvl = OptimizationLevel.ALL
         sbt_tasks.append(
-            f"runMain {c.STORED_PROGRAM_COMPILER} {prog}"
-            f" --out-dir {out_dir} --overwrite"
-            " --show-final"
+            f"runMain {c.MAIN_COMPILER} -s stored -i {prog}"
+            f" --out:vhdl {out_dir} --overwrite"
+            f" --out:pp -"
             f" {lvl.flags}"
         )
     os.chdir(c.ROOT_DIR)

@@ -36,8 +36,9 @@ def generate_vhdl(benchmarks: list[str]) -> None:
         in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
         out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
         return (
-            f"runMain {c.AETHERLING_COMPILER} {in_file} --show-final"
-            f" --out-dir {out_dir} --overwrite"
+            f"runMain {c.MAIN_COMPILER} -s aetherling -i {in_file}"
+            f" --out:vhdl {out_dir} --overwrite"
+            f" --out:pp -"
             f" {OptimizationLevel.ALL.flags}"
         )
     tasks = [make_task(b) for b in benchmarks]

@@ -6,9 +6,20 @@ import os.Path
   */
 sealed trait CompilerTarget
 
-/** Don't write the output anywhere; skip code generation.
+/** Don't send the program anywhere, just return it.
+  *
+  * This is useful for test code that invokes [[mhir.main.shared.Compiler]]
+  * directly, but should not be used at the commend line.
   */
 object NullTarget extends CompilerTarget
+
+/** Pretty-print the program.
+  *
+  * @param dest
+  *   where to send the pretty-printed program.
+  */
+case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
+    extends CompilerTarget
 
 /** Generate VHDL.
   *

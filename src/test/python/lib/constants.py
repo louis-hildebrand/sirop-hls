@@ -4,10 +4,9 @@ Constants.
 
 from pathlib import Path
 
-AETHERLING_COMPILER = "mhir.main.aetherling.Compiler"
 VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
-STORED_PROGRAM_COMPILER = "mhir.main.stored.Compiler"
+MAIN_COMPILER = "mhir.main.Compiler"
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
 AETHERLING_SPACETIME_DIR = (
