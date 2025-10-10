@@ -20,6 +20,7 @@ T = TypeVar("T")
 
 
 COLORS = ["#ffffcc", "#c7e9b4", "#7fcdbb", "#41b6c4", "#2c7fb8", "#253494"]
+HATCH = ["//", "\\\\", ""]
 
 
 def plot_compile_times(results: dict[Benchmark, CompileTimeReport]) -> None:
@@ -66,6 +67,8 @@ def plot_compile_times(results: dict[Benchmark, CompileTimeReport]) -> None:
             list(ys.values()),
             labels=list(ys.keys()),
             colors=COLORS,
+            hatch=HATCH,
+            hatch_linewidth=0.25,
         )
         # Labels and whatnot
         ax.set_xscale("log", base=2)
@@ -74,8 +77,6 @@ def plot_compile_times(results: dict[Benchmark, CompileTimeReport]) -> None:
 
     # Settings for entire rows
     axes[0].set_ylabel("Compile time (s)")
-    _, y_hi = axes[0].get_ylim()
-    axes[0].set_ylim(1, y_hi * 2)
     fig.supxlabel("Target throughput (px/cycle)")
     ncol = 6
     fig.legend(
