@@ -9,6 +9,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Literal
 
+import aetherling_extract_compile_time
 import aetherling_extract_fmax_estimate
 import aetherling_extract_resource_usage
 import aetherling_generate
@@ -59,6 +60,9 @@ def main(
             c.LATENCY_CSV.unlink(missing_ok=True)
         c.FMAX_ESTIMATE_CSV.unlink(missing_ok=True)
         c.FMAX_MEASUREMENT_CSV.unlink(missing_ok=True)
+
+    aetherling_extract_compile_time.main(bench_names)
+    # TODO: Also generate plot?
 
     aetherling_extract_resource_usage.main(
         bench_names,

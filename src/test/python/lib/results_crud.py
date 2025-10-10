@@ -7,6 +7,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from .benchmark import Benchmark, BenchmarkImpl
+from .compile_time import CompileTimeReport
 from .fmax import Fmax, Step
 from .latency import LatencyResult
 from .resource_usage import ResourceUsage
@@ -339,4 +340,71 @@ def merge_latency_results(old: Path, new: Path) -> None:
         writer.writeheader()
         for b, ru in combined_results.items():
             save_latency(writer, b, ru)
+    old.unlink()
+
+
+COMPILE_TIME_HEADERS = [
+    "bench_name", "bench_throughput",
+    "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
+]
+
+
+def save_compile_time(writer: csv.DictWriter, b: Benchmark, result: CompileTimeReport) -> None:
+    """
+    Save compile time result to a CSV file.
+    """
+    writer.writerow({
+        "bench_name": b.name,
+        "bench_throughput": b.throughput_str,
+        "parse": result.parse,
+        "typecheck": result.typecheck,
+        "lower": result.lower,
+        "make_synth": result.make_synth,
+        "optimize": result.optimize,
+        "codegen": result.codegen
+    })
+
+
+def read_compile_times(results_file: Path) -> dict[Benchmark, CompileTimeReport]:
+    """
+    Read all compile times from the CSV.
+    """
+    def get_bench(row) -> Benchmark:
+        return Benchmark(
+            name=row["bench_name"],
+            throughput=Fraction(row["bench_throughput"]),
+        )
+    def get_result(row) -> CompileTimeReport:
+        return CompileTimeReport(
+            parse=int(row["parse"]),
+            typecheck=int(row["typecheck"]),
+            lower=int(row["lower"]),
+            make_synth=int(row["make_synth"]),
+            optimize=int(row["optimize"]),
+            codegen=int(row["codegen"]),
+        )
+    with open(results_file, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        return {get_bench(row) : get_result(row) for row in rows}
+
+
+def merge_compile_times(old: Path, new: Path) -> None:
+    """
+    Combine the old and new compile times.
+
+    If a given benchmark has both an old result and a new result, only the new
+    result will be kept.
+    """
+    if not old.exists():
+        return
+    old_results = read_compile_times(old)
+    new_results = read_compile_times(new)
+    combined_results = old_results | new_results
+    combined_results = dict(sorted(combined_results.items()))
+    with open(new, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=COMPILE_TIME_HEADERS)
+        writer.writeheader()
+        for b, ru in combined_results.items():
+            save_compile_time(writer, b, ru)
     old.unlink()
