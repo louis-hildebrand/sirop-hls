@@ -5,6 +5,7 @@ Functions for reading and writing the CSV results for the ablation study.
 import csv
 from pathlib import Path
 
+from .compile_time import CompileTimeReport
 from .latency import LatencyResult
 from .optimization_level import OptimizationLevel
 from .program_variant import ProgramVariant
@@ -222,4 +223,71 @@ def merge_latency_results(old: Path, new: Path) -> None:
         writer.writeheader()
         for p, ru in combined_results.items():
             save_latency(writer, p, ru)
+    old.unlink()
+
+
+COMPILE_TIME_HEADERS = [
+    "prog_name", "prog_opt",
+    "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
+]
+
+
+def save_compile_time(writer: csv.DictWriter, p: ProgramVariant, result: CompileTimeReport) -> None:
+    """
+    Save one compile time result to a CSV file.
+    """
+    writer.writerow({
+        "prog_name": p.name,
+        "prog_opt": p.lvl,
+        "parse": result.parse,
+        "typecheck": result.typecheck,
+        "lower": result.lower,
+        "make_synth": result.make_synth,
+        "optimize": result.optimize,
+        "codegen": result.codegen
+    })
+
+
+def read_all_compile_times(results_file: Path) -> dict[ProgramVariant, CompileTimeReport]:
+    """
+    Read all compile times from the given CSV.
+    """
+    def get_prog_variant(row) -> ProgramVariant:
+        return ProgramVariant(
+            name=row["prog_name"],
+            lvl=OptimizationLevel(row["prog_opt"])
+        )
+    def get_result(row) -> CompileTimeReport:
+        return CompileTimeReport(
+            parse=int(row["parse"]),
+            typecheck=int(row["typecheck"]),
+            lower=int(row["lower"]),
+            make_synth=int(row["make_synth"]),
+            optimize=int(row["optimize"]),
+            codegen=int(row["codegen"]),
+        )
+    with open(results_file, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        return {get_prog_variant(row) : get_result(row) for row in rows}
+
+
+def merge_compile_times(old: Path, new: Path) -> None:
+    """
+    Combine the old and new compile time results.
+
+    If a given program has both an old result and a new result, only the new
+    result will be kept.
+    """
+    if not old.exists():
+        return
+    old_results = read_all_compile_times(old)
+    new_results = read_all_compile_times(new)
+    combined_results = old_results | new_results
+    combined_results = dict(sorted(combined_results.items()))
+    with open(new, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=COMPILE_TIME_HEADERS)
+        writer.writeheader()
+        for p, ru in combined_results.items():
+            save_compile_time(writer, p, ru)
     old.unlink()

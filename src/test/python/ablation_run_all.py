@@ -8,6 +8,7 @@ import subprocess
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+import ablation_extract_compile_time
 import ablation_extract_fmax
 import ablation_extract_resource_usage
 import ablation_generate
@@ -46,6 +47,9 @@ def main(
         if not skip_latency:
             c.ABLATION_LATENCY_CSV.unlink(missing_ok=True)
         c.ABLATION_FMAX_CSV.unlink(missing_ok=True)
+
+    ablation_extract_compile_time.main(programs)
+    # TODO: Also plot compile time results
 
     ablation_extract_resource_usage.main(programs)
     if not skip_plots:
