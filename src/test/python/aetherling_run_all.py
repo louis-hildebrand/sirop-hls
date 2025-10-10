@@ -15,6 +15,7 @@ import aetherling_extract_resource_usage
 import aetherling_generate
 import aetherling_measure_fmax
 import aetherling_measure_latency
+import aetherling_plot_compile_time
 import aetherling_plot_fmax_estimates
 import aetherling_plot_fmax_measurements
 import aetherling_plot_latency
@@ -62,7 +63,10 @@ def main(
         c.FMAX_MEASUREMENT_CSV.unlink(missing_ok=True)
 
     aetherling_extract_compile_time.main(bench_names)
-    # TODO: Also generate plot?
+    if not skip_plots:
+        aetherling_plot_compile_time.main()
+        if view_plots:
+            open_plot(c.AETHERLING_COMPILE_TIME_PDF)
 
     aetherling_extract_resource_usage.main(
         bench_names,

@@ -34,6 +34,7 @@ FMAX_MEASUREMENT_PDF = RESULTS_DIR.joinpath("aetherling_fmax_measurements.pdf")
 LATENCY_CSV = RESULTS_DIR.joinpath("aetherling_latency.csv")
 LATENCY_PDF = RESULTS_DIR.joinpath("aetherling_latency.pdf")
 AETHERLING_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("aetherling_compile_time.csv")
+AETHERLING_COMPILE_TIME_PDF = RESULTS_DIR.joinpath("aetherling_compile_time.pdf")
 
 ABLATION_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("ablation_resource_usage.csv")
 ABLATION_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("ablation_resource_usage.pdf")
