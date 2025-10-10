@@ -6,11 +6,13 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.logging.time
-import mhir.optimize.Optimizer
+import mhir.logging.{time, time2}
+import mhir.optimize.{Optimizer, OptimizerOptions}
 import mhir.sugar.Streamifier.Streamify
 import org.slf4j.event.Level
 import os.Path
+
+import java.time.Duration
 
 object Compiler {
 
@@ -25,50 +27,92 @@ object Compiler {
     * @return
     *   the final program from which VHDL was generated.
     */
-  def compile(e: Expr, options: CompilerOptions): Expr = {
+  def compile(
+      e: Expr,
+      options: CompilerOptions,
+      parseTime: Duration
+  ): Expr = {
     val result = time("compilation", Level.DEBUG) {
-      doCompile(e, options)
+      doCompile(e, options, parseTime = parseTime)
     }
     result
   }
 
-  private def doCompile(parsed: Expr, options: CompilerOptions): Expr = {
-    val checked = typecheck(parsed)
-    val lowered = lower(checked)
-    val synthesizable = makeSynthesizable(lowered)
-    val finalProgram = time("optimization", Level.DEBUG) {
-      Optimizer(options.optFlags).optimize(synthesizable)
-    }
-    options.targets.foreach({
-      case NullTarget =>
-        ()
-      case PrettyPrintTarget(dest, overwrite) =>
-        emitPrettyPrinted(finalProgram, dest = dest, overwrite = overwrite)
-      case VhdlTarget(outDir, overwrite) =>
-        emitVhdl(finalProgram, outDir = outDir, overwrite = overwrite)
-    })
+  private def doCompile(
+      parsed: Expr,
+      options: CompilerOptions,
+      parseTime: Duration
+  ): Expr = {
+    val (checked, tchkTime) = typecheck(parsed)
+    val (lowered, lowerTime) = lower(checked)
+    val (synthesizable, synthTime) = makeSynthesizable(lowered)
+    val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
+    val genTime = generateCode(finalProgram, options.targets)
+    options.targets.toSeq
+      .foreach({
+        case NullTarget    => ()
+        case _: VhdlTarget => () // already done
+        case PrettyPrintTarget(dest, overwrite) =>
+          emitPrettyPrinted(finalProgram, dest = dest, overwrite = overwrite)
+        case CompileTimeTarget(f, overwrite) =>
+          emitCompileTimeReport(
+            f,
+            overwrite,
+            parse = parseTime,
+            typecheck = tchkTime,
+            lower = lowerTime,
+            makeSynth = synthTime,
+            optimize = optimTime,
+            codegen = genTime
+          )
+      })
     finalProgram
   }
 
-  private def typecheck(e: Expr): Expr = {
-    time("type checking", Level.DEBUG) {
+  private def typecheck(e: Expr): (Expr, Duration) = {
+    time2("type checking", Level.DEBUG) {
       e.tchk()
     }
   }
 
-  private def lower(e: Expr): Expr = {
-    time("lowering", Level.DEBUG) {
+  private def lower(e: Expr): (Expr, Duration) = {
+    time2("lowering", Level.DEBUG) {
       translateStmLiteral(e.lower())
     }
   }
 
-  private def makeSynthesizable(e: Expr): Expr = {
-    time("making expression synthesizable", Level.DEBUG) {
+  private def makeSynthesizable(e: Expr): (Expr, Duration) = {
+    time2("making expression synthesizable", Level.DEBUG) {
       val e1 = inlineFunCalls(e)
       val e2 = e1.streamify()
       val e3 = uncurryBody(e2)
       e3
     }
+  }
+
+  private def optimize(
+      e: Expr,
+      optFlags: OptimizerOptions
+  ): (Expr, Duration) = {
+    time2("optimization", Level.DEBUG) {
+      Optimizer(optFlags).optimize(e)
+    }
+  }
+
+  private def generateCode(
+      prog: Expr,
+      targets: Set[CompilerTarget]
+  ): Duration = {
+    val (_, time) = time2("codegen", Level.DEBUG) {
+      targets.foreach({
+        case VhdlTarget(outDir, overwrite) =>
+          emitVhdl(prog, outDir, overwrite)
+        case NullTarget           => ()
+        case _: PrettyPrintTarget => ()
+        case _: CompileTimeTarget => ()
+      })
+    }
+    time
   }
 
   private def emitPrettyPrinted(
@@ -107,6 +151,34 @@ object Compiler {
         }
       }
       VhdlGenerator.emitVhdl(finalProgram, outDir)
+    }
+  }
+
+  private def emitCompileTimeReport(
+      f: Path,
+      overwrite: Boolean,
+      parse: Duration,
+      typecheck: Duration,
+      lower: Duration,
+      makeSynth: Duration,
+      optimize: Duration,
+      codegen: Duration
+  ): Unit = {
+    time("reporting compile time", Level.DEBUG) {
+      val csvStr =
+        s"""step,millis
+           |parse,${parse.toMillis}
+           |typecheck,${typecheck.toMillis}
+           |lower,${lower.toMillis}
+           |make_synth,${makeSynth.toMillis}
+           |optimize,${optimize.toMillis}
+           |codegen,${codegen.toMillis}
+           |""".stripMargin
+      if (overwrite) {
+        os.write.over(f, csvStr)
+      } else {
+        os.write(f, csvStr)
+      }
     }
   }
 

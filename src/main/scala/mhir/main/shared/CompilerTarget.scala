@@ -30,3 +30,14 @@ case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
   *   existing directory. If `false`, throw an exception.
   */
 case class VhdlTarget(outDir: Path, overwrite: Boolean) extends CompilerTarget
+
+/** Report the compile time.
+  *
+  * @param outFile
+  *   the path to the file in which to write the report.
+  * @param overwrite
+  *   what to do if the file already exists. If `true`, then delete the existing
+  *   file. If `false`, throw an exception.
+  */
+case class CompileTimeTarget(outFile: Path, overwrite: Boolean)
+    extends CompilerTarget

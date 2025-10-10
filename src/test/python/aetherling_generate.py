@@ -35,10 +35,12 @@ def generate_vhdl(benchmarks: list[str]) -> None:
     def make_task(bench: str) -> str:
         in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
         out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
+        ctime_file = c.AETHERLING_COMPILE_TIME_DIR.joinpath(f"{bench}.csv").resolve().as_posix()
         return (
             f"runMain {c.MAIN_COMPILER} -s aetherling -i {in_file}"
             f" --out:vhdl {out_dir} --overwrite"
             f" --out:pp -"
+            f" --out:ctime {ctime_file}"
             f" {OptimizationLevel.ALL.flags}"
         )
     tasks = [make_task(b) for b in benchmarks]
@@ -69,6 +71,7 @@ def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth:
 
     if not skip_vhdl:
         c.VHDL_DIR.mkdir(exist_ok=True, parents=True)
+        c.AETHERLING_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
         print("Generating VHDL...")
         generate_vhdl(benchmarks)
         if not skip_synth:

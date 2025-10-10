@@ -28,6 +28,7 @@ object CompilerOptions {
     // General args
     var vhdlDir: Option[Path] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
+    var timeReportFile: Option[Path] = None
     var overwrite = false
     var mutArgs = args
     // Optimizer args
@@ -59,6 +60,14 @@ object CompilerOptions {
               numToDrop = 2
             case Some(fName) =>
               prettyPrintDest = Some(PPFile(Path(fName, base = os.pwd)))
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:ctime" =>
+          mutArgs.drop(1).headOption match {
+            case Some(fName) =>
+              timeReportFile = Some(Path(fName, base = os.pwd))
+              numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
@@ -94,7 +103,7 @@ object CompilerOptions {
                 )
               }
               maxLetStmBufSize = Some(sizeInt)
-              mutArgs = mutArgs.drop(1)
+              numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
@@ -112,7 +121,9 @@ object CompilerOptions {
       val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
-      vhdlTarget.toSet ++ ppTarget.toSet
+      val timeReportTarget =
+        timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
+      vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
     }
     if (targets.isEmpty) {
       throw new BadArgsException("no compilation targets specified")
@@ -138,6 +149,8 @@ object CompilerOptions {
        |  --out:vhdl DIR      emit VHDL code in the given directory
        |  --out:pp (FILE|-)   pretty-print the final program to the given file, or to
        |                      stdout if argument "-" is given
+       |  --out:ctime FILE    write a report of the compile time to the given
+       |                      directory
        |  --overwrite         what to do if the output file or directory already
        |                      exists: if true then delete it, if false then raise an
        |                      error
