@@ -1,9 +1,7 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{PartialEvalPass => PE}
 
 case class FactSet(
     rangeByExpr: Map[Expr, Range] = Map(),
@@ -152,7 +150,7 @@ case class FactSet(
           case x => newFacts.lt(x, 0)
         }
       case LessThan(e1, e2) =>
-        val diff = PE.partialEval((e1 - e2).tchk().lower())
+        val diff = makeDiff(e1, e2)
         assert(diff.typ.isInstanceOf[TyAnyInt], "difference must be an integer")
         val lt = LessThan(diff, C(0)(diff.typ))().tchk()
         newFacts.assumeTrue(lt)
@@ -164,7 +162,7 @@ case class FactSet(
           case x                                   => newFacts.eq(x, 0)
         }
       case Equal(e1, e2) if e1.typ.isInstanceOf[TyAnyInt] =>
-        val diff = PE.partialEval((e1 - e2).tchk().lower())
+        val diff = makeDiff(e1, e2)
         assert(diff.typ.isInstanceOf[TyAnyInt], "difference must be an integer")
         val eq = Equal(diff, C(0)(diff.typ))().tchk()
         newFacts.assumeTrue(eq)
@@ -199,11 +197,32 @@ case class FactSet(
           case x => newFacts.geq(x, 0)
         }
       case LessThan(e1, e2) =>
-        val diff = PE.partialEval((e1 - e2).tchk().lower())
+        val diff = makeDiff(e1, e2)
         assert(diff.typ.isInstanceOf[TyAnyInt], "difference must be an integer")
         val lt = LessThan(diff, C(0)(diff.typ))().tchk()
         newFacts.assumeFalse(lt)
       case _ => newFacts
+    }
+  }
+
+  private def makeDiff(e1: Expr, e2: Expr): Expr = {
+    require(e1.hasType)
+    require(e2.hasType)
+    e1.typ.asInstanceOf[TyAnyInt] match {
+      case TyUInt(0) =>
+        C(0)(U0)
+      case typ: TySInt =>
+        val diff0 = Sum(e1, Prod(C(-1)(typ), e2)())().tchk()
+        val diff1 = IntConversionMover.widen(diff0)
+        val diff2 = ArithSimplifier.simplifyArithmetic(diff1)(this)
+        diff2
+      case _: TyUInt =>
+        val lhs = ToSigned(e1)().tchk()
+        val rhs = Prod(C(-1)(lhs.typ), ToSigned(e2)())()
+        val diff0 = Sum(lhs, rhs)().tchk()
+        val diff1 = IntConversionMover.widen(diff0)
+        val diff2 = ArithSimplifier.simplifyArithmetic(diff1)(this)
+        diff2
     }
   }
 }
