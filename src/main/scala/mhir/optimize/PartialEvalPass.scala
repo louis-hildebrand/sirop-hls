@@ -178,18 +178,6 @@ object PartialEvalPass {
                     )(facts)
                   case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
                     doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
-                  case (
-                        Equal(Sum(IntCst(1), i0), n0),
-                        c0,
-                        Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
-                      )
-                      if isEqual(i0, i1)(facts).getOrElse(false)
-                        && isEqual(n0, n1)(facts).getOrElse(false)
-                        && isSmaller(i0, n0)(facts).getOrElse(false) =>
-                    doPartialEval(
-                      Mux(Sum(i0, C(1)(i0.typ))() equ n0, c0, c1)()
-                        .tchk()
-                    )
                   case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
                     trueE
                   case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
