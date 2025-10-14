@@ -23,41 +23,49 @@ object PartialEvalPass {
 
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
     @tailrec
-    def fix(e: Expr): Expr = {
+    def fix(e: Expr, i: Int): Expr = {
       e match {
         case _: IntCst | _: FixCst | True | False =>
           e
-        case _ =>
+        case e =>
           val e1 = doPartialEval(e)
-          val e2 = IntConversionMover.widen(e1)
-          if (e2 == e) {
-            e2
+          val e2 = moveMuxUpInBoolExpr(e1)
+          val e3 = IntConversionMover.widen(e2)
+          if (e3 == e) {
+            logger.trace(
+              s"finished partial evaluation after ${i + 1} iterations"
+            )
+            e3
           } else {
-            fix(e2)
+            logger.trace(s"finished iteration ${i + 1} for partial evaluation")
+            fix(e3, i = i + 1)
           }
       }
     }
-    fix(e)
+    logger.trace(s"starting fixpoint iteration for partial evaluation")
+    fix(e.tchk(), i = 0)
+  }
+
+  private def moveMuxUpInBoolExpr(e: Expr): Expr = {
+    require(e.hasType)
+    if (e.typ == TyBool) {
+      // For boolean expressions, be more aggressive and move MUXes up.
+      // For expressions like Min(t - 5, 5) < Min(t - 4, 5), considering each
+      // case separately helps.
+      // This may cause the expression to explode in size, but since these
+      // are booleans there should usually be opportunities for
+      // simplification (e.g., both branches being True, both being False,
+      // Mux(c, True, False) --> c).
+      // If this ends up being problematic, we could always scan the
+      // expression first and skip this if there are too many MUXes.
+      MuxMover.moveUp(e).tchk()
+    } else {
+      e.map(moveMuxUpInBoolExpr).tchk()
+    }
   }
 
   private def doPartialEval(expr: Expr)(implicit facts: FactSet): Expr = {
-    val e = {
-      val typed = expr.tchk()
-      if (typed.typ == TyBool) {
-        // For boolean expressions, be more aggressive and move MUXes up.
-        // For expressions like Min(t - 5, 5) < Min(t - 4, 5), considering each
-        // case separately helps.
-        // This may cause the expression to explode in size, but since these
-        // are booleans there should usually be opportunities for
-        // simplification (e.g., both branches being True, both being False,
-        // Mux(c, True, False) --> c).
-        // If this ends up being problematic, we could always scan the
-        // expression first and skip this if there are too many MUXes.
-        MuxMover.moveUp(typed).tchk()
-      } else {
-        typed
-      }
-    }
+    val e = expr.tchk()
     val pe = facts.isTrue(e) match {
       case Some(true)  => True
       case Some(false) => False

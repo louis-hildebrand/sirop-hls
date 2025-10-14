@@ -49,10 +49,11 @@
         (The current list is obviously not exhaustive: add a new line if your
         class isn't here yet.)
     -->
-    <logger name="mhir.ir.StreamFuser$" level="INFO"/>
-    <logger name="mhir.ir.Let$" level="INFO"/>
-    <logger name="mhir.optimize.StmBuildSimplifier$" level="INFO" />
-    <logger name="mhir.optimize.StmLatencyMatcher$" level="INFO" />
-    <logger name="mhir.optimize.NameSimplifier$" level="INFO" />
-    <logger name="mhir.optimize.EnabledLetStmSimplifier$" level="INFO" />
+    <logger name="mhir.ir.StreamFuser$" />
+    <logger name="mhir.ir.Let$" />
+    <logger name="mhir.optimize.StmBuildSimplifier$" />
+    <logger name="mhir.optimize.StmLatencyMatcher$" />
+    <logger name="mhir.optimize.NameSimplifier$" />
+    <logger name="mhir.optimize.EnabledLetStmSimplifier$" />
+    <logger name="mhir.optimize.PartialEvalPass$" />
 </configuration>

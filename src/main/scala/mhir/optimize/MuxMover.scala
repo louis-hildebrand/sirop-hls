@@ -32,6 +32,9 @@ object MuxMover {
         )
       }
       return e
+    } else if (numMuxes <= 0) {
+      // Nothing to do
+      return e
     }
     val result = e match {
       case Tuple(elems @ _*)         => moveUpMany(elems, xs => Tuple(xs: _*)())
@@ -150,21 +153,29 @@ object MuxMover {
     *   arguments.
     */
   private def moveUpMany(args: Seq[Expr], op: Seq[Expr] => Expr): Expr = {
-    def reconstruct(wrappedArgs: Seq[Expr], unwrappedArgs: Seq[Expr]): Expr = {
+    def reconstruct(
+        wrappedArgs: Seq[Expr],
+        unwrappedArgs: Seq[Expr],
+        assumptions: Set[Expr]
+    ): Expr = {
       wrappedArgs match {
         case Seq() =>
           op(unwrappedArgs)
+        case Mux(c, t, _) +: xs if assumptions.contains(c) =>
+          reconstruct(t +: xs, unwrappedArgs, assumptions)
+        case Mux(c, _, f) +: xs if assumptions.contains(Not(c)(TyBool)) =>
+          reconstruct(f +: xs, unwrappedArgs, assumptions)
         case Mux(c, t, f) +: xs =>
           Mux(
             c,
-            reconstruct(t +: xs, unwrappedArgs),
-            reconstruct(f +: xs, unwrappedArgs)
+            reconstruct(t +: xs, unwrappedArgs, assumptions + c),
+            reconstruct(f +: xs, unwrappedArgs, assumptions + Not(c)(TyBool))
           )()
         case x +: xs =>
-          reconstruct(xs, x +: unwrappedArgs)
+          reconstruct(xs, x +: unwrappedArgs, assumptions)
       }
     }
 
-    reconstruct(args.map(moveUp).reverse, Seq())
+    reconstruct(args.map(moveUp).reverse, Seq(), Set())
   }
 }
