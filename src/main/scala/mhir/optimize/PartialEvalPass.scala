@@ -21,6 +21,10 @@ object PartialEvalPass {
   }
 
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
+    e match {
+      case _: IntCst | _: FixCst | True | False => return e
+      case _                                    => ()
+    }
     val e1 = doPartialEval(e)
     // Partial evaluation may reveal more opportunities to move int
     // conversions (e.g., by function inlining)...
