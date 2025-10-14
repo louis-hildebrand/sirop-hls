@@ -67,6 +67,11 @@ object PartialEvalPass {
             u
           case x: Param =>
             facts.getRange(x) match {
+              case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi))))
+                  if lo + 1 == hi =>
+                IntCst(lo)(x.typ)
+              case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi)))) =>
+                x
               case Some(ScalarRange(Some(lo), Some(hi)))
                   if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
                     .getOrElse(false) =>
