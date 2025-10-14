@@ -3,10 +3,11 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
-import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.logging.time
 import mhir.sugar.{Cast, SafeSum}
+
+import scala.annotation.tailrec
 
 /** Partial evaluation, arithmetic simplification, and related functionality.
   */
@@ -21,18 +22,22 @@ object PartialEvalPass {
   }
 
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
-    e match {
-      case _: IntCst | _: FixCst | True | False => return e
-      case _                                    => ()
+    @tailrec
+    def fix(e: Expr): Expr = {
+      e match {
+        case _: IntCst | _: FixCst | True | False =>
+          e
+        case _ =>
+          val e1 = doPartialEval(e)
+          val e2 = IntConversionMover.widen(e1)
+          if (e2 == e) {
+            e2
+          } else {
+            fix(e2)
+          }
+      }
     }
-    val e1 = doPartialEval(e)
-    // Partial evaluation may reveal more opportunities to move int
-    // conversions (e.g., by function inlining)...
-    val e2 = IntConversionMover.widen(e1)
-    // ... but also, moving int conversions will make it easier to simplify
-    // arithmetic operations.
-    val e3 = doPartialEval(e2)
-    e3
+    fix(e)
   }
 
   private def doPartialEval(expr: Expr)(implicit facts: FactSet): Expr = {
@@ -74,7 +79,7 @@ object PartialEvalPass {
               case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi))))
                   if lo + 1 == hi =>
                 IntCst(lo)(x.typ)
-              case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi)))) =>
+              case Some(ScalarRange(Some(_: IntCst), Some(_: IntCst))) =>
                 x
               case Some(ScalarRange(Some(lo), Some(hi)))
                   if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
@@ -132,87 +137,13 @@ object PartialEvalPass {
               e.rebuild(e.typ, newChildren)
             )(facts)
           case PadTo(e, w) =>
-            doPartialEval(e) match {
-              case v: IntCst => mhir.ir.eval(PadTo(v, w)())
-              case PadTo(e, w2) =>
-                assert(
-                  w >= w2,
-                  "intermediate width in nested pads must not be greater than the final width"
-                    + s" (intermediate width is $w2, final width is $w)"
-                )
-                PadTo(e, w)()
-              case TruncateTo(e, _) =>
-                // It is undefined behaviour if `e` does not fit in the target
-                // type, so the partial evaluator is allowed to cancel out
-                // like this
-                val w0 = e.typ.asInstanceOf[TyAnyInt].w
-                if (w < w0) TruncateTo(e, w)()
-                else if (w == w0) e
-                else PadTo(e, w)()
-              case e =>
-                e.typ match {
-                  case TyAnyInt(w0) if w0 == w => e
-                  case _                       => PadTo(e, w)()
-                }
-            }
+            PadTo(doPartialEval(e), w)()
           case TruncateTo(arg, w) =>
-            doPartialEval(arg) match {
-              case v: IntCst =>
-                try {
-                  // Wrap in try/catch because the argument may not fit in the
-                  // target range (and this can occur while speculatively
-                  // partially evaluating one branch of a MUX to see whether it
-                  // is equivalent to the other)
-                  mhir.ir.eval(TruncateTo(v, w)())
-                } catch {
-                  case _: EvalException => e
-                }
-              case Mux(c, t, f) =>
-                doPartialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
-              case PadTo(e, _) =>
-                val w0 = e.typ.asInstanceOf[TyAnyInt].w
-                if (w < w0) TruncateTo(e, w)()
-                else if (w == w0) e
-                else PadTo(e, w)()
-              case TruncateTo(e, w2) =>
-                assert(
-                  w <= w2,
-                  "intermediate width in nested truncates must not be less than the final width"
-                    + s" (intermediate width is $w2, final width is $w)"
-                )
-                TruncateTo(e, w)()
-              case e =>
-                e.typ match {
-                  case TyAnyInt(w0) if w == w0 => e
-                  case _                       => TruncateTo(e, w)()
-                }
-            }
+            TruncateTo(doPartialEval(arg), w)()
           case ToSigned(e) =>
-            doPartialEval(e) match {
-              case v: IntCst     => mhir.ir.eval(ToSigned(v)())
-              case ToUnsigned(e) =>
-                // It is undefined behaviour if `e` is negative, so the partial
-                // evaluator is allowed to treat this as a no-op
-                e
-              case e => ToSigned(e)()
-            }
+            ToSigned(doPartialEval(e))()
           case ToUnsigned(arg) =>
-            doPartialEval(arg) match {
-              case ToSigned(e) => e
-              case Mux(c, t, f) =>
-                doPartialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
-              case v: IntCst =>
-                try {
-                  // Wrap in try/catch because the argument may not fit in the
-                  // target range (and this can occur while speculatively
-                  // partially evaluating one branch of a MUX to see whether it
-                  // is equivalent to the other)
-                  mhir.ir.eval(ToUnsigned(v)())
-                } catch {
-                  case _: EvalException => e
-                }
-              case e => ToUnsigned(e)()
-            }
+            ToUnsigned(doPartialEval(arg))()
           case ll @ LLShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
@@ -255,7 +186,10 @@ object PartialEvalPass {
                       if isEqual(i0, i1)(facts).getOrElse(false)
                         && isEqual(n0, n1)(facts).getOrElse(false)
                         && isSmaller(i0, n0)(facts).getOrElse(false) =>
-                    doPartialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
+                    doPartialEval(
+                      Mux(Sum(i0, C(1)(i0.typ))() equ n0, c0, c1)()
+                        .tchk()
+                    )
                   case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
                     trueE
                   case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>

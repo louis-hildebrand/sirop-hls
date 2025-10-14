@@ -6,6 +6,8 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{Cast, CeilDiv, Max}
 
+import scala.annotation.tailrec
+
 // You may need to don a hazmat suit before working on this code.
 
 /** Transformations that attempt to remove induction variables.
@@ -787,27 +789,58 @@ private object LeftShiftRegister {
                   n1,
                   Function(
                     i0: Param,
-                    Mux(
-                      lastIdxCond,
-                      e /* may have t as free variable */,
-                      VecAccess(a2, Sum(IntCst(1), i1))
-                    )
+                    body
                   )
                 )
               )
             )
-          )
-          if a2 == acc && i1 == i0 && !e.contains(acc)
-            && PE.isEqual(n1, n0)().getOrElse(false) =>
-        lastIdxCond match {
-          case Equal(Sum(IntCst(1), i2: Param), n2)
-              if i2 == i0 && PE.isEqual(n2, n0)().getOrElse(false) =>
-            Some((n0, f, Function(t, e)()))
-          case Equal(i2: Param, n2)
-              if i2 == i0
-                && PE.isEqual((n2 + 1).tchk().lower(), n0)().getOrElse(false) =>
-            Some((n0, f, Function(t, e)()))
-          case _ => None
+          ) if PE.isEqual(n1, n0)().getOrElse(false) =>
+        def checkBody(body: Expr): Option[Expr] = {
+          body match {
+            case PadTo(body, w) => checkBody(body).map(PadTo(_, w)().tchk())
+            case TruncateTo(body, w) =>
+              checkBody(body).map(TruncateTo(_, w)().tchk())
+            case ToUnsigned(body) => checkBody(body).map(ToUnsigned(_)().tchk())
+            case ToSigned(body)   => checkBody(body).map(ToSigned(_)().tchk())
+            case Mux(lastIdxCond, e /* may have t as free variable */, va)
+                if !e.contains(acc) =>
+              val condOk = lastIdxCond match {
+                case Equal(Sum(IntCst(1), i2: Param), n2)
+                    if i2 == i0 && PE.isEqual(n2, n0)().getOrElse(false) =>
+                  true
+                case Equal(i2: Param, n2)
+                    if i2 == i0
+                      && PE
+                        .isEqual((n2 + 1).tchk().lower(), n0)()
+                        .getOrElse(false) =>
+                  true
+                case _ =>
+                  false
+              }
+              val vecAccessOk = checkVecAccess(va)
+              if (condOk && vecAccessOk) {
+                Some(e)
+              } else {
+                None
+              }
+            case _ =>
+              None
+          }
+        }
+        @tailrec
+        def checkVecAccess(va: Expr): Boolean = {
+          va match {
+            case PadTo(va, _)      => checkVecAccess(va)
+            case TruncateTo(va, _) => checkVecAccess(va)
+            case ToUnsigned(va)    => checkVecAccess(va)
+            case ToSigned(va)      => checkVecAccess(va)
+            case VecAccess(a2, Sum(IntCst(1), i1)) if a2 == acc && i1 == i0 =>
+              true
+          }
+        }
+        checkBody(body) match {
+          case Some(e) => Some((n0, f, Function(t, e)()))
+          case None    => None
         }
       case (
             Undefined(TyVec(typ, n0)),

@@ -423,14 +423,20 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val x = Param("x")(I8)
     val e =
       Mux(x + C(1)(I8) === C(0)(I8), C(0)(u7), ToUnsigned(x)())().tchk().lower()
-    assert(PE.partialEval(e) == e)
+    val expected = ToUnsigned(
+      Mux(Sum(x, C(1)(I8))() equ C(0)(I8), C(0)(I8), x)()
+    )().tchk()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
   }
 
   test("PossibleInvalidTruncationInFalseBranch") {
     val u3 = TyUInt(3)
     val x = Param("x")(U8)
     val e = Mux(x === C(8)(U8), C(0)(u3), TruncateTo(x, 3)())().tchk().lower()
-    assert(PE.partialEval(e) == e)
+    val expected = TruncateTo(Mux(x equ C(8)(U8), C(0)(U8), x)(), 3)().tchk()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
   }
 
   /** The partial evaluator may check whether one branch is a special case of

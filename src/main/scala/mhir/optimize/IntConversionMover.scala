@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import mhir.ir._
+import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.TypeCheck
 
 /** Transformations for moving integer conversion primitives ([[mhir.ir.PadTo]],
@@ -27,6 +28,8 @@ object IntConversionMover {
     val result = e match {
       case PadTo(arg, w) =>
         widen(arg) match {
+          case v: IntCst =>
+            mhir.ir.eval(PadTo(v, w)())
           case PadTo(arg, _) =>
             PadTo(arg, w)()
           case TruncateTo(arg, _) =>
@@ -34,7 +37,6 @@ object IntConversionMover {
             if (w > w0) widen(PadTo(arg, w)())
             else if (w < w0) widen(TruncateTo(arg, w)())
             else arg
-          case _: ToSigned => e
           case ToUnsigned(arg) =>
             val finalWidth = e.typ.asInstanceOf[TyAnyInt].w
             ToUnsigned(widen(PadTo(arg, finalWidth + 1)()))()
@@ -42,24 +44,43 @@ object IntConversionMover {
             e.map(e => widen(PadTo(e, w)()))
           case Mux(c, t, f) =>
             Mux(c, widen(PadTo(t, w)()), widen(PadTo(f, w)()))()
-          case e => PadTo(e, w)()
+          case e =>
+            e.typ match {
+              case TyAnyInt(w0) if w0 == w => e
+              case _                       => PadTo(e, w)()
+            }
         }
       case TruncateTo(arg, w) =>
         widen(arg) match {
+          case v: IntCst =>
+            try {
+              // Wrap in try/catch because the argument may not fit in the
+              // target range (and this can occur while speculatively
+              // partially evaluating one branch of a MUX to see whether it
+              // is equivalent to the other)
+              mhir.ir.eval(TruncateTo(v, w)())
+            } catch {
+              case _: EvalException => e
+            }
           case PadTo(arg, _) =>
             val w0 = arg.typ.asInstanceOf[TyAnyInt].w
             if (w > w0) PadTo(arg, w)()
             else if (w < w0) TruncateTo(arg, w)()
             else arg
           case TruncateTo(arg, _) => TruncateTo(arg, w)()
-          case _: ToSigned        => e
           case ToUnsigned(arg) =>
             val finalWidth = e.typ.asInstanceOf[TyAnyInt].w
             ToUnsigned(widen(TruncateTo(arg, finalWidth + 1)()))()
-          case e => TruncateTo(e, w)()
+          case e =>
+            e.typ match {
+              case TyAnyInt(w0) if w == w0 => e
+              case _                       => TruncateTo(e, w)()
+            }
         }
       case ToSigned(arg) =>
         widen(arg) match {
+          case v: IntCst =>
+            mhir.ir.eval(ToSigned(v)())
           case PadTo(arg, _) =>
             val finalWidth = e.typ.asInstanceOf[TyAnyInt].w
             PadTo(widen(ToSigned(arg)()), finalWidth)()
@@ -80,7 +101,16 @@ object IntConversionMover {
         }
       case ToUnsigned(arg) =>
         widen(arg) match {
-          case _: PadTo          => e
+          case v: IntCst =>
+            try {
+              // Wrap in try/catch because the argument may not fit in the
+              // target range (and this can occur while speculatively
+              // partially evaluating one branch of a MUX to see whether it
+              // is equivalent to the other)
+              mhir.ir.eval(ToUnsigned(v)())
+            } catch {
+              case _: EvalException => e
+            }
           case trunc: TruncateTo => ToUnsigned(trunc)()
           case ToSigned(arg)     => arg
           case e =>

@@ -522,22 +522,22 @@ private[optimize] object ArithSimplifier {
         val lhsW = x.typ.asInstanceOf[TyAnyInt].w
         val rhsW = y.typ.asInstanceOf[TyAnyInt].w
         val w = math.max(lhsW, rhsW)
-        val newLhs = PE.partialEval(PadTo(x, w)())
-        val newRhs = PE.partialEval(PadTo(y, w)())
+        val newLhs = IntConversionMover.widen(PadTo(x, w)())
+        val newRhs = IntConversionMover.widen(PadTo(y, w)())
         simplifyEqual(Equal(newLhs, newRhs)())
       case Equal(TruncateTo(x, _), y) =>
         val w = x.typ.asInstanceOf[TyAnyInt].w
-        val newRhs = PE.partialEval(PadTo(y, w)())
+        val newRhs = IntConversionMover.widen(PadTo(y, w)())
         simplifyEqual(Equal(x, newRhs)())
       case Equal(x, TruncateTo(y, _)) =>
         val w = y.typ.asInstanceOf[TyAnyInt].w
-        val newLhs = PE.partialEval(PadTo(x, w)())
+        val newLhs = IntConversionMover.widen(PadTo(x, w)())
         simplifyEqual(Equal(newLhs, y)())
       case Equal(ToUnsigned(x), y) =>
-        val newRhs = PE.partialEval(ToSigned(y)())
+        val newRhs = IntConversionMover.widen(ToSigned(y)())
         simplifyEqual(Equal(x, newRhs)())
       case Equal(x, ToUnsigned(y)) =>
-        val newLhs = PE.partialEval(ToSigned(x)())
+        val newLhs = IntConversionMover.widen(ToSigned(x)())
         simplifyEqual(Equal(newLhs, y)())
       case _ => eq
     }
@@ -556,30 +556,30 @@ private[optimize] object ArithSimplifier {
         val lhsW = x.typ.asInstanceOf[TyAnyInt].w
         val rhsW = y.typ.asInstanceOf[TyAnyInt].w
         val w = math.max(lhsW, rhsW)
-        val newLhs = PE.partialEval(PadTo(x, w)())
-        val newRhs = PE.partialEval(PadTo(y, w)())
+        val newLhs = IntConversionMover.widen(PadTo(x, w)())
+        val newRhs = IntConversionMover.widen(PadTo(y, w)())
         simplifyLessThan(LessThan(newLhs, newRhs)())
       case LessThan(TruncateTo(x, _), y) =>
         // It's always safe to widen both sides, and here it is beneficial
         // because it will remove the truncation
         val w = x.typ.asInstanceOf[TyAnyInt].w
-        val newRhs = PE.partialEval(PadTo(y, w)())
+        val newRhs = IntConversionMover.widen(PadTo(y, w)())
         simplifyLessThan(LessThan(x, newRhs)())
       case LessThan(x, TruncateTo(y, _)) =>
         // It's always safe to widen both sides, and here it is beneficial
         // because it will remove the truncation
         val w = y.typ.asInstanceOf[TyAnyInt].w
-        val newLhs = PE.partialEval(PadTo(x, w)())
+        val newLhs = IntConversionMover.widen(PadTo(x, w)())
         simplifyLessThan(LessThan(newLhs, y)())
       case LessThan(ToUnsigned(x), y) =>
         // It's always safe to make both sides signed, and here it is
         // beneficial because it will remove the ToUnsigned(_)
-        val newRhs = PE.partialEval(ToSigned(y)())
+        val newRhs = IntConversionMover.widen(ToSigned(y)())
         simplifyLessThan(LessThan(x, newRhs)())
       case LessThan(x, ToUnsigned(y)) =>
         // It's always safe to make both sides signed, and here it is
         // beneficial because it will remove the ToUnsigned(_)
-        val newLhs = PE.partialEval(ToSigned(x)())
+        val newLhs = IntConversionMover.widen(ToSigned(x)())
         simplifyLessThan(LessThan(newLhs, y)())
       case e => e.tchk()
     }
