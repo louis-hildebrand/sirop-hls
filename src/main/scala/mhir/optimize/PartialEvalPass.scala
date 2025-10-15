@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.logging.time
 import mhir.sugar.{Cast, SafeSum}
 
 import scala.annotation.tailrec
@@ -322,14 +321,12 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(bufSize, x, in, out) =>
-            time(s"partially evaluating : letstm[$bufSize] $x") {
-              LetStm(
-                doPartialEval(bufSize),
-                x,
-                doPartialEval(in),
-                doPartialEval(out)
-              )()
-            }
+            LetStm(
+              doPartialEval(bufSize),
+              x,
+              doPartialEval(in),
+              doPartialEval(out)
+            )()
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)
             doPartialEval(k) match {
