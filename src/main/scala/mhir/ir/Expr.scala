@@ -172,6 +172,9 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
 
   override def equals(x: Any): Boolean = {
     x match {
+      case that: Function if that.param == this.param =>
+        // Skip the substitution, which may be slow
+        this.body == that.body
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
@@ -1111,8 +1114,19 @@ case class LetStm(
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: LetStm => this.asFunCall() == that.asFunCall()
-      case _            => false
+      case that: LetStm =>
+        if (this.in != that.in) {
+          false
+        } else if (this.x == that.x) {
+          // Skip the substitution, which may be slow
+          this.out == that.out
+        } else {
+          val fresh = Param("equalsX")()
+          val thisOutRenamed = this.out.subAndEraseType(this.x -> fresh)
+          val thatOutRenamed = that.out.subAndEraseType(that.x -> fresh)
+          thisOutRenamed == thatOutRenamed
+        }
+      case _ => false
     }
   }
 
@@ -1290,6 +1304,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   }
 
   def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
-    this.rebuildAndEraseType(this.children.map(e => e.subPreserveType(subs)))
+    this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
 }
