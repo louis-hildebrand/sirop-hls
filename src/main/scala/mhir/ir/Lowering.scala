@@ -52,7 +52,7 @@ object Lowering {
                   sT -> (t, True),
                   sF -> (f, True)
                 )
-              )().tchk().lower()
+              )().tchk()
             case _ =>
               Mux(c, t, f)().tchk()
           }

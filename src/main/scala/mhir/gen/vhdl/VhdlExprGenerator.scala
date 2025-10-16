@@ -291,7 +291,7 @@ private object VhdlExprGenerator {
         }
         VhdlExpr(tempVar.name, tempVar +: vhdlElems.flatMap(e => e.decls))
       case vb @ VecBuild(len, f) =>
-        if (len.freeVars().isEmpty) {
+        if (len.freeVars.isEmpty) {
           // TODO: Use for-generate here instead?
           val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]

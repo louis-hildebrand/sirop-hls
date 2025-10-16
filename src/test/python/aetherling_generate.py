@@ -32,20 +32,23 @@ def generate_vhdl(benchmarks: list[str]) -> None:
     """
     Call our compiler so as to produce VHDL for each benchmark.
     """
-    def make_task(bench: str) -> str:
+    os.chdir(c.ROOT_DIR)
+    subprocess.run(["sbt", "assembly"], check=True)
+    for bench in benchmarks:
         in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
         out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
         ctime_file = c.AETHERLING_COMPILE_TIME_DIR.joinpath(f"{bench}.csv").resolve().as_posix()
-        return (
-            f"runMain {c.MAIN_COMPILER} -s aetherling -i {in_file}"
+        command = (
+            f"java -jar {c.JAR_PATH} -s aetherling -i {in_file}"
             f" --out:vhdl {out_dir} --overwrite"
             f" --out:pp -"
             f" --out:ctime {ctime_file}"
             f" {OptimizationLevel.ALL.flags}"
-        )
-    tasks = [make_task(b) for b in benchmarks]
-    os.chdir(c.ROOT_DIR)
-    subprocess.run(["sbt", "; ".join(tasks)], check=True)
+        ).split(" ")
+        command = [x for x in command if x]
+        print()
+        print(f"Running : {' '.join(command)}")
+        subprocess.run(command, check=True)
 
 
 def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth: bool) -> None:

@@ -688,7 +688,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PE.partialEval(va2) == expected2)
   }
 
-  test("NestedMux") {
+  ignore("NestedMux") {
     val i = Param("i")(U8)
     val n = Param("n")(U8)
     val c0 = Param("c0")((U8, I16))

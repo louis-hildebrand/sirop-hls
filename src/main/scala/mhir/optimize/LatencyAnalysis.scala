@@ -65,13 +65,13 @@ object LatencyAnalysis {
       e: Expr,
       combine: Int => Int => Option[Int]
   ): Option[Int] = {
-    assert(e.freeVars().contains(src))
+    assert(e.freeVars.contains(src))
     e match {
       case x: Param if x == src =>
         Some(0)
       case s: StmBuild =>
         val equationsWithSrc = s.equations
-          .filter({ case (_, (z, _)) => z.freeVars().contains(src) })
+          .filter({ case (_, (z, _)) => z.freeVars.contains(src) })
         // If this is a join node, we want it to be "zip-like."
         // With "zip-like" nodes, data from each path must arrive at the join
         // at the same time.
@@ -99,7 +99,7 @@ object LatencyAnalysis {
             .get // There must be at least one path containing `src`
         }
       case LetStm(_, x, in, out) =>
-        if (in.freeVars().contains(src)) {
+        if (in.freeVars.contains(src)) {
           // (1) Latency from `src` to `in` plus latency from `x` to `out`
           latencyOfPaths(src, in, combine)
             .flatMap({ part1 =>
@@ -109,7 +109,7 @@ object LatencyAnalysis {
             })
             // (2) Latency from `src` directly to `out`
             .flatMap(latencyViaIn => {
-              if (out.freeVars().contains(src)) {
+              if (out.freeVars.contains(src)) {
                 latencyOfPaths(src, out, combine)
                   .flatMap(combine(latencyViaIn)(_))
               } else {

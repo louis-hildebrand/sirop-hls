@@ -35,10 +35,19 @@ private[ir] trait Substitution {
       //       In some cases (particularly LetStm), it is common to have long
       //       chains of binders, so it would be disastrous to have exponential
       //       runtime here.
-      val out = if (subs.isEmpty) {
+      val skip = subs.isEmpty ||
+        this.expr.freeVars
+          .union(this.expr.freeVarsInTypes)
+          .intersect(
+            subs
+              .map({ case (lhs, _) => lhs.freeVars })
+              .reduce(_ ++ _)
+          )
+          .isEmpty
+      if (skip) {
         this.expr
       } else {
-        subs.get(this.expr) match {
+        val out = subs.get(this.expr) match {
           case Some(v) => v
           case None =>
             this.expr match {
@@ -48,14 +57,14 @@ private[ir] trait Substitution {
                   Level.TRACE
                 ) {
                   val wouldCapture = subs.exists({ case (_, rhs) =>
-                    rhs.freeVars().contains(x)
+                    rhs.freeVars.contains(x)
                   })
                   val newX = if (wouldCapture) x.freshCopy else x
                   val newSubs =
                     subs
                       // Substitutions with `x` free on the LHS will never match
                       // again, since `x` is now bound.
-                      .filter({ case (lhs, _) => !lhs.freeVars().contains(x) })
+                      .filter({ case (lhs, _) => !lhs.freeVars.contains(x) })
                       // Rename the bound variable if necessary
                       .++(if (x == newX) Seq() else Seq(x -> newX))
                   Function(
@@ -67,14 +76,14 @@ private[ir] trait Substitution {
               case let @ LetStm(bufSize, x, in, out) =>
                 time(s"performing subs $subs in let $x = ...") {
                   val wouldCapture = subs.exists({ case (_, rhs) =>
-                    rhs.freeVars().contains(x)
+                    rhs.freeVars.contains(x)
                   })
                   val newX = if (wouldCapture) x.freshCopy else x
                   val newSubs = {
                     subs
                       // Substitutions with `x` free on the LHS will never match
                       // again, since `x` is now bound.
-                      .filter({ case (lhs, _) => !lhs.freeVars().contains(x) })
+                      .filter({ case (lhs, _) => !lhs.freeVars.contains(x) })
                       // Rename the bound variable if necessary
                       .++(if (x == newX) Seq() else Seq(x -> newX))
                   }
@@ -92,7 +101,7 @@ private[ir] trait Substitution {
               case s: StmBuild =>
                 time(s"performing subs $subs in StmBuild...") {
                   val rhsFreeVars = subs.toSeq
-                    .flatMap({ case (_, rhs) => rhs.freeVars() })
+                    .flatMap({ case (_, rhs) => rhs.freeVars })
                     .toSet
                   val renamings = s.accVars
                     .flatMap({ x =>
@@ -106,7 +115,7 @@ private[ir] trait Substitution {
                       // free on the left-hand side are no longer needed: that
                       // variable is bound now.
                       .filter({ case (lhs, _) =>
-                        lhs.freeVars().intersect(s.accVars).isEmpty
+                        lhs.freeVars.intersect(s.accVars).isEmpty
                       })
                       .++(renamings)
                   StmBuild(
@@ -134,17 +143,17 @@ private[ir] trait Substitution {
                 e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
             }
         }
+        if (this.expr.hasType) {
+          assert(
+            out.typ ~= this.expr.typ,
+            s"the type should be preserved after substitution (expected ${this.expr.typ}, found ${out.typ} after substitutions $subs in ${this.expr})"
+          )
+        }
+        // The expressions to replace may occur within the type (e.g., in the
+        // length of a vector)
+        val newType = out.typ.substitute(subs)
+        out.rebuild(newType)
       }
-      if (this.expr.hasType) {
-        assert(
-          out.typ ~= this.expr.typ,
-          s"the type should be preserved after substitution (expected ${this.expr.typ}, found ${out.typ} after substitutions $subs in ${this.expr})"
-        )
-      }
-      // The expressions to replace may occur within the type (e.g., in the
-      // length of a vector)
-      val newType = out.typ.substitute(subs)
-      out.rebuild(newType)
     }
 
     /** See [[subPreserveType(subs*)]].
@@ -188,14 +197,14 @@ private[ir] trait Substitution {
             this.expr match {
               case Function(x, body) =>
                 val wouldCapture = subs.exists({ case (_, rhs) =>
-                  rhs.freeVars().contains(x)
+                  rhs.freeVars.contains(x)
                 })
                 val newX = if (wouldCapture) x.freshCopy else x
                 val newSubs =
                   subs
                     // Substitutions with `x` free on the LHS will never match
                     // again, since `x` is now bound.
-                    .filter({ case (lhs, _) => !lhs.freeVars().contains(x) })
+                    .filter({ case (lhs, _) => !lhs.freeVars.contains(x) })
                     // Rename the bound variable if necessary
                     .++(if (x == newX) Seq() else Seq(x -> newX))
                 Function(
@@ -205,14 +214,14 @@ private[ir] trait Substitution {
                 )()
               case LetStm(bufSize, x, in, out) =>
                 val wouldCapture = subs.exists({ case (_, rhs) =>
-                  rhs.freeVars().contains(x)
+                  rhs.freeVars.contains(x)
                 })
                 val newX = if (wouldCapture) x.freshCopy else x
                 val newSubs = {
                   subs
                     // Substitutions with `x` free on the LHS will never match
                     // again, since `x` is now bound.
-                    .filter({ case (lhs, _) => !lhs.freeVars().contains(x) })
+                    .filter({ case (lhs, _) => !lhs.freeVars.contains(x) })
                     // Rename the bound variable if necessary
                     .++(if (x == newX) Seq() else Seq(x -> newX))
                 }
@@ -228,7 +237,7 @@ private[ir] trait Substitution {
                 )()
               case s: StmBuild =>
                 val rhsFreeVars = subs.toSeq
-                  .flatMap({ case (_, rhs) => rhs.freeVars() })
+                  .flatMap({ case (_, rhs) => rhs.freeVars })
                   .toSet
                 val renamings = s.accVars
                   .flatMap({ x =>
@@ -242,7 +251,7 @@ private[ir] trait Substitution {
                     // free on the left-hand side are no longer needed: that
                     // variable is bound now.
                     .filter({ case (lhs, _) =>
-                      lhs.freeVars().intersect(s.accVars).isEmpty
+                      lhs.freeVars.intersect(s.accVars).isEmpty
                     })
                     .++(renamings)
                 StmBuild(

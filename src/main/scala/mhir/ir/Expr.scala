@@ -63,6 +63,60 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  /** Finds all the free variables in this expression.
+    */
+  lazy val freeVars: Set[Param] = {
+    this match {
+      case x: Param       => Set(x)
+      case Function(x, e) => e.freeVars - x
+      case LetStm(bufSize, x, in, out) =>
+        bufSize.freeVars ++ in.freeVars ++ (out.freeVars - x)
+      case stm @ StmBuild(n, data, valid, eqns) =>
+        (
+          // Free variables in the stream length and seeds are definitely free,
+          // even if they are bound by the stream
+          n.freeVars
+            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
+              fvs ++ z.freeVars
+            })
+            // There may be bound variables in the output and "next" functions
+            ++ (data.freeVars ++ valid.freeVars
+              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                fvs ++ next.freeVars
+              })).diff(stm.accVars)
+        )
+      case e if e.children.isEmpty => Set.empty
+      case e                       => e.children.map(_.freeVars).reduce(_ ++ _)
+    }
+  }
+
+  /** Finds all the free variables in the type annotations of this expression.
+    */
+  lazy val freeVarsInTypes: Set[Param] = {
+    val childFVs = this match {
+      case Function(x, e) => e.freeVarsInTypes - x
+      case LetStm(bufSize, x, in, out) =>
+        bufSize.freeVarsInTypes ++ in.freeVarsInTypes ++ (out.freeVarsInTypes - x)
+      case stm @ StmBuild(n, data, valid, eqns) =>
+        (
+          // Free variables in the stream length and seeds are definitely free,
+          // even if they are bound by the stream
+          n.freeVarsInTypes
+            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
+              fvs ++ z.freeVarsInTypes
+            })
+            // There may be bound variables in the output and "next" functions
+            ++ (data.freeVarsInTypes ++ valid.freeVarsInTypes
+              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                fvs ++ next.freeVarsInTypes
+              })).diff(stm.accVars)
+        )
+      case e if e.children.isEmpty => Set.empty
+      case e => e.children.map(_.freeVarsInTypes).reduce(_ ++ _)
+    }
+    childFVs ++ this.typ.freeVars
+  }
+
   /** Reconstruct this expression with new children or a new type annotation.
     *
     * @param typ
@@ -172,6 +226,9 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
 
   override def equals(x: Any): Boolean = {
     x match {
+      case that: Function if that.param == this.param =>
+        // Skip the substitution, which may be slow
+        this.body == that.body
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
@@ -1111,8 +1168,19 @@ case class LetStm(
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: LetStm => this.asFunCall() == that.asFunCall()
-      case _            => false
+      case that: LetStm =>
+        if (this.in != that.in) {
+          false
+        } else if (this.x == that.x) {
+          // Skip the substitution, which may be slow
+          this.out == that.out
+        } else {
+          val fresh = Param("equalsX")()
+          val thisOutRenamed = this.out.subAndEraseType(this.x -> fresh)
+          val thatOutRenamed = that.out.subAndEraseType(that.x -> fresh)
+          thisOutRenamed == thatOutRenamed
+        }
+      case _ => false
     }
   }
 
@@ -1290,6 +1358,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   }
 
   def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
-    this.rebuildAndEraseType(this.children.map(e => e.subPreserveType(subs)))
+    this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
 }

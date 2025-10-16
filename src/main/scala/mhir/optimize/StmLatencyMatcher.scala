@@ -123,7 +123,7 @@ class EnabledStmLatencyMatcher(letStmMover: LetStmMover.type)
         case s: StmBuild =>
           val newEquations = s.equations
             .map({
-              case (x, (z, ready)) if z.freeVars().contains(src) =>
+              case (x, (z, ready)) if z.freeVars.contains(src) =>
                 val newTarget = LA.latency(src, x, s).map(targetLatency - _).get
                 x -> (increaseLatencyTo(z, src, newTarget), ready)
               case eqn => eqn

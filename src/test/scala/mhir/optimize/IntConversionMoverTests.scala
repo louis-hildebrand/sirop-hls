@@ -30,7 +30,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   test("Widen:Pad(2:i8 * x:i8)") {
     val e = PadTo(Prod(C(2)(I8), x(I8))(), 16)().tchk().lower()
     val actual = IntConversionMover.widen(e)
-    val expected = Prod(PadTo(C(2)(I8), 16)(), PadTo(x(I8), 16)())()
+    val expected = Prod(C(2)(I16), PadTo(x(I8), 16)())()
     assert(actual == expected)
     assert(actual.typ == e.typ)
   }
@@ -267,8 +267,8 @@ class IntConversionMoverTests extends AnyFunSuite {
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(
       Sum(
-        Sum(ToSigned(x(U16))(), PadTo(ToSigned(C(1)(U8))(), 17)())(),
-        Prod(PadTo(C(-1)(I9), 17)(), ToSigned(x(U16))())()
+        Sum(ToSigned(x(U16))(), C(1)(I17))(),
+        Prod(C(-1)(I17), ToSigned(x(U16))())()
       )(),
       9
     )()

@@ -3,10 +3,10 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
-import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.logging.time
 import mhir.sugar.{Cast, SafeSum}
+
+import scala.annotation.tailrec
 
 /** Partial evaluation, arithmetic simplification, and related functionality.
   */
@@ -21,34 +21,50 @@ object PartialEvalPass {
   }
 
   def partialEval(e: Expr)(implicit facts: FactSet = FactSet()): Expr = {
-    val e1 = doPartialEval(e)
-    // Partial evaluation may reveal more opportunities to move int
-    // conversions (e.g., by function inlining)...
-    val e2 = IntConversionMover.widen(e1)
-    // ... but also, moving int conversions will make it easier to simplify
-    // arithmetic operations.
-    val e3 = doPartialEval(e2)
-    e3
+    @tailrec
+    def fix(e: Expr, i: Int): Expr = {
+      e match {
+        case _: IntCst | _: FixCst | True | False =>
+          e
+        case e =>
+          val e1 = doPartialEval(e)
+          val e2 = moveMuxUpInBoolExpr(e1)
+          val e3 = IntConversionMover.widen(e2)
+          if (e3 == e) {
+            logger.trace(
+              s"finished partial evaluation after ${i + 1} iterations"
+            )
+            e3
+          } else {
+            logger.trace(s"finished iteration ${i + 1} for partial evaluation")
+            fix(e3, i = i + 1)
+          }
+      }
+    }
+    logger.trace(s"starting fixpoint iteration for partial evaluation")
+    fix(e.tchk(), i = 0)
+  }
+
+  private def moveMuxUpInBoolExpr(e: Expr): Expr = {
+    require(e.hasType)
+    if (e.typ == TyBool) {
+      // For boolean expressions, be more aggressive and move MUXes up.
+      // For expressions like Min(t - 5, 5) < Min(t - 4, 5), considering each
+      // case separately helps.
+      // This may cause the expression to explode in size, but since these
+      // are booleans there should usually be opportunities for
+      // simplification (e.g., both branches being True, both being False,
+      // Mux(c, True, False) --> c).
+      // If this ends up being problematic, we could always scan the
+      // expression first and skip this if there are too many MUXes.
+      MuxMover.moveUp(e).tchk()
+    } else {
+      e.map(moveMuxUpInBoolExpr).tchk()
+    }
   }
 
   private def doPartialEval(expr: Expr)(implicit facts: FactSet): Expr = {
-    val e = {
-      val typed = expr.tchk()
-      if (typed.typ == TyBool) {
-        // For boolean expressions, be more aggressive and move MUXes up.
-        // For expressions like Min(t - 5, 5) < Min(t - 4, 5), considering each
-        // case separately helps.
-        // This may cause the expression to explode in size, but since these
-        // are booleans there should usually be opportunities for
-        // simplification (e.g., both branches being True, both being False,
-        // Mux(c, True, False) --> c).
-        // If this ends up being problematic, we could always scan the
-        // expression first and skip this if there are too many MUXes.
-        MuxMover.moveUp(typed).tchk()
-      } else {
-        typed
-      }
-    }
+    val e = expr.tchk()
     val pe = facts.isTrue(e) match {
       case Some(true)  => True
       case Some(false) => False
@@ -67,6 +83,11 @@ object PartialEvalPass {
             u
           case x: Param =>
             facts.getRange(x) match {
+              case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi))))
+                  if lo + 1 == hi =>
+                IntCst(lo)(x.typ)
+              case Some(ScalarRange(Some(_: IntCst), Some(_: IntCst))) =>
+                x
               case Some(ScalarRange(Some(lo), Some(hi)))
                   if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
                     .getOrElse(false) =>
@@ -123,87 +144,13 @@ object PartialEvalPass {
               e.rebuild(e.typ, newChildren)
             )(facts)
           case PadTo(e, w) =>
-            doPartialEval(e) match {
-              case v: IntCst => mhir.ir.eval(PadTo(v, w)())
-              case PadTo(e, w2) =>
-                assert(
-                  w >= w2,
-                  "intermediate width in nested pads must not be greater than the final width"
-                    + s" (intermediate width is $w2, final width is $w)"
-                )
-                PadTo(e, w)()
-              case TruncateTo(e, _) =>
-                // It is undefined behaviour if `e` does not fit in the target
-                // type, so the partial evaluator is allowed to cancel out
-                // like this
-                val w0 = e.typ.asInstanceOf[TyAnyInt].w
-                if (w < w0) TruncateTo(e, w)()
-                else if (w == w0) e
-                else PadTo(e, w)()
-              case e =>
-                e.typ match {
-                  case TyAnyInt(w0) if w0 == w => e
-                  case _                       => PadTo(e, w)()
-                }
-            }
+            PadTo(doPartialEval(e), w)()
           case TruncateTo(arg, w) =>
-            doPartialEval(arg) match {
-              case v: IntCst =>
-                try {
-                  // Wrap in try/catch because the argument may not fit in the
-                  // target range (and this can occur while speculatively
-                  // partially evaluating one branch of a MUX to see whether it
-                  // is equivalent to the other)
-                  mhir.ir.eval(TruncateTo(v, w)())
-                } catch {
-                  case _: EvalException => e
-                }
-              case Mux(c, t, f) =>
-                doPartialEval(Mux(c, TruncateTo(t, w)(), TruncateTo(f, w)())())
-              case PadTo(e, _) =>
-                val w0 = e.typ.asInstanceOf[TyAnyInt].w
-                if (w < w0) TruncateTo(e, w)()
-                else if (w == w0) e
-                else PadTo(e, w)()
-              case TruncateTo(e, w2) =>
-                assert(
-                  w <= w2,
-                  "intermediate width in nested truncates must not be less than the final width"
-                    + s" (intermediate width is $w2, final width is $w)"
-                )
-                TruncateTo(e, w)()
-              case e =>
-                e.typ match {
-                  case TyAnyInt(w0) if w == w0 => e
-                  case _                       => TruncateTo(e, w)()
-                }
-            }
+            TruncateTo(doPartialEval(arg), w)()
           case ToSigned(e) =>
-            doPartialEval(e) match {
-              case v: IntCst     => mhir.ir.eval(ToSigned(v)())
-              case ToUnsigned(e) =>
-                // It is undefined behaviour if `e` is negative, so the partial
-                // evaluator is allowed to treat this as a no-op
-                e
-              case e => ToSigned(e)()
-            }
+            ToSigned(doPartialEval(e))()
           case ToUnsigned(arg) =>
-            doPartialEval(arg) match {
-              case ToSigned(e) => e
-              case Mux(c, t, f) =>
-                doPartialEval(Mux(c, ToUnsigned(t)(), ToUnsigned(f)())())
-              case v: IntCst =>
-                try {
-                  // Wrap in try/catch because the argument may not fit in the
-                  // target range (and this can occur while speculatively
-                  // partially evaluating one branch of a MUX to see whether it
-                  // is equivalent to the other)
-                  mhir.ir.eval(ToUnsigned(v)())
-                } catch {
-                  case _: EvalException => e
-                }
-              case e => ToUnsigned(e)()
-            }
+            ToUnsigned(doPartialEval(arg))()
           case ll @ LLShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
@@ -238,15 +185,6 @@ object PartialEvalPass {
                     )(facts)
                   case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
                     doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
-                  case (
-                        Equal(Sum(IntCst(1), i0), n0),
-                        c0,
-                        Mux(LessThan(Sum(IntCst(1), i1), n1), c1, _)
-                      )
-                      if isEqual(i0, i1)(facts).getOrElse(false)
-                        && isEqual(n0, n1)(facts).getOrElse(false)
-                        && isSmaller(i0, n0)(facts).getOrElse(false) =>
-                    doPartialEval(Mux(i0 + 1 === n0, c0, c1)().tchk().lower())
                   case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
                     trueE
                   case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
@@ -383,14 +321,12 @@ object PartialEvalPass {
             }
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(bufSize, x, in, out) =>
-            time(s"partially evaluating : letstm[$bufSize] $x") {
-              LetStm(
-                doPartialEval(bufSize),
-                x,
-                doPartialEval(in),
-                doPartialEval(out)
-              )()
-            }
+            LetStm(
+              doPartialEval(bufSize),
+              x,
+              doPartialEval(in),
+              doPartialEval(out)
+            )()
           case StmNextK(s, k) =>
             val peStm = doPartialEval(s)
             doPartialEval(k) match {

@@ -83,7 +83,7 @@ object StmAccRemovalPass {
     // No, because the substitutions should have eliminated all of them
     // without introducing any new occurrences.
     assert(
-      newStm.freeVars() == stm.freeVars(),
+      newStm.freeVars == stm.freeVars,
       "deduplicating accumulator variables should not have changed the set of free variables"
     )
     newStm

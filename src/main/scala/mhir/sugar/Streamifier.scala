@@ -103,7 +103,7 @@ object Streamifier {
       oldToNewInputs: ListMap[Param, Param]
   ): Expr = {
     require(stm.typ.isInstanceOf[TyStm])
-    if (stm.typ.freeVars().intersect(oldToNewInputs.keySet).nonEmpty) {
+    if (stm.typ.freeVars.intersect(oldToNewInputs.keySet).nonEmpty) {
       throw new IllegalArgumentException(
         "Types cannot depend on any inputs."
           ++ s" (Found type ${stm.typ})"
@@ -240,7 +240,7 @@ object Streamifier {
             .map({ case (x, _) => x })
         val halt = withStreamifiedProducers.nextByVar.exists({
           case (x, ready) if x.typ.isInstanceOf[TyStm] =>
-            ready.freeVars().intersect(forbiddenVars).nonEmpty
+            ready.freeVars.intersect(forbiddenVars).nonEmpty
           case _ => false
         })
         if (halt) {
@@ -352,7 +352,7 @@ object Streamifier {
     )()
     inputs
       .filter(_.typ.isData)
-      .intersect(withoutProducers.freeVars())
+      .intersect(withoutProducers.freeVars)
   }
 
   private def wrapIdentity(x: Param): Expr = {

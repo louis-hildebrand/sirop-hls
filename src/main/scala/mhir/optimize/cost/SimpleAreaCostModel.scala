@@ -135,6 +135,6 @@ object SimpleAreaCostModel {
   }
 
   private def isStatic(e: Expr, sv: Set[Param]): Boolean = {
-    (e.freeVars() -- sv).isEmpty
+    (e.freeVars -- sv).isEmpty
   }
 }

@@ -37,7 +37,7 @@ object AsFusedStm2Stm {
   * @param inputs
   *   the inputs to the pipeline, which will not be reset.
   */
-case class StmReset(
+private[sugar] case class StmReset(
     n: Expr,
     s: Expr,
     inputs: Map[Param, Expr]
@@ -90,7 +90,7 @@ case class StmReset(
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     val rhsFreeVars = subs.toSeq
-      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
     val renamings = this.inputVars
       .flatMap({ x =>
@@ -104,7 +104,7 @@ case class StmReset(
         // free on the left-hand side are no longer needed: that
         // variable is bound now.
         .filter({ case (lhs, _) =>
-          lhs.freeVars().intersect(this.inputVars).isEmpty
+          lhs.freeVars.intersect(this.inputVars).isEmpty
         })
         .++(renamings)
     StmReset(
@@ -123,7 +123,7 @@ case class StmReset(
 
   override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     val rhsFreeVars = subs.toSeq
-      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
     val renamings = this.inputVars
       .flatMap({ x =>
@@ -137,7 +137,7 @@ case class StmReset(
         // free on the left-hand side are no longer needed: that
         // variable is bound now.
         .filter({ case (lhs, _) =>
-          lhs.freeVars().intersect(this.inputVars).isEmpty
+          lhs.freeVars.intersect(this.inputVars).isEmpty
         })
         .++(renamings)
     StmReset(
@@ -204,22 +204,19 @@ case class StmReset(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    val n = this.n.lower()
-    val s = this.s.lower()
-    val inputs = this.inputs.map({ case (x, s) =>
-      x.lower().asInstanceOf[Param] -> s.lower()
-    })
-    val r = StmReset(n, s, inputs)().tchk().asInstanceOf[StmReset]
-    val loweredPipeline = r
+    // Assume each field (n, s, inputs) is already lowered
+    // This is to avoid repeatedly traversing large expressions, which slows
+    // down compilation
+    val loweredPipeline = this
       .lowerEmptyPipeline()
-      .orElse(r.lowerForNEqualsOne())
-      .getOrElse(r.lowerStandard())
+      .orElse(this.lowerForNEqualsOne())
+      .getOrElse(this.lowerStandard())
       .tchk()
     val ret = {
       val subs = this.inputs.map({ case (x, s) => x -> s })
       loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
     }
-    assertNoNewFreeVars(ret.freeVars()) // Sanity check
+    assertNoNewFreeVars(ret.freeVars) // Sanity check
     ret
   }
 
@@ -227,11 +224,11 @@ case class StmReset(
   private def assertNoNewFreeVars(freeVars: Set[Param]): Unit = {
     val originalFreeVars = {
       val boundInputVars = this.inputs.map({ case (x, _) => x }).toSet
-      val freeVarsInPipeline = s.freeVars() -- boundInputVars
+      val freeVarsInPipeline = s.freeVars -- boundInputVars
       val freeVarsInInputs = this.inputs
-        .flatMap({ case (_, stm) => stm.freeVars() })
+        .flatMap({ case (_, stm) => stm.freeVars })
         .toSet
-      (this.n.freeVars()
+      (this.n.freeVars
         ++ freeVarsInPipeline
         ++ freeVarsInInputs)
     }
@@ -1020,10 +1017,10 @@ case class StmScanInclusive(
       )
     )
     val originalFreeVars =
-      input.freeVars() ++ z.freeVars() ++ f.freeVars() ++ n.freeVars()
+      input.freeVars ++ z.freeVars ++ f.freeVars ++ n.freeVars
     assert(
-      scan.freeVars() == originalFreeVars,
-      s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars()})"
+      scan.freeVars == originalFreeVars,
+      s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars})"
     )
     scan.tchk().lower()
   }
@@ -1796,7 +1793,7 @@ case class StmRepeat(
     val t = Param("t")(tTyp)
     val filling = Param("filling")(TyBool)
     StmBuild(
-      SafeProd(n, m)(),
+      SafeProd(n, m)().tchk().lower(),
       Mux(filling, StmData(s)(), VecAccess(v, t)())(),
       True,
       Map[Param, (Expr, Expr)](
@@ -1809,6 +1806,8 @@ case class StmRepeat(
             n,
             U32 ::+ (i =>
               Mux(filling && (i === t), StmData(s)(), VecAccess(v, i)())()
+                .tchk()
+                .lower()
             )
           )()
         ),
@@ -1819,11 +1818,14 @@ case class StmRepeat(
             t === ToUnsigned(-1 + n)(),
             C(0)(t.typ),
             t + 1
-          )()
+          )().tchk().lower()
         ),
-        filling -> (True, filling && (t < ToUnsigned(-1 + n)()))
+        filling -> (
+          True,
+          (filling && (t < ToUnsigned(-1 + n)())).tchk().lower()
+        )
       )
-    )().tchk().lower()
+    )().tchk()
   }
 }
 
@@ -1951,8 +1953,9 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newS = input.tchk
     newS.typ match {
       case TyStm(t, n) if t.isData =>
+        val newLen = ToUnsigned(SafeSum(n, -1 * newM, 1)())().tchk()
         this.rebuild(
-          TyStm(TyVec(t, newM), ToUnsigned(n - newM + 1)().tchk()),
+          TyStm(TyVec(t, newM), newLen),
           Seq(newS, newM)
         )
       case t =>
@@ -1973,7 +1976,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val s = Param("s")(TyStm(t, -1))
     val i = Param("i")(U32)
     val j = Param("j")(U32)
-    val stmLen = ToUnsigned(n - m + 1)()
+    val stmLen = ToUnsigned(SafeSum(n, -1 * m, 1)())()
     val vecLen = SafeProd(m, elemSize)().tchk().lower()
     val v = Param("v")(TyVec(t, vecLen))
     val lowered = StmBuild(
@@ -2021,7 +2024,10 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) if t.isData =>
-        this.rebuild(TyStm(TyStm(t, newM), n - newM + 1), Seq(newS, newM))
+        this.rebuild(
+          TyStm(TyStm(t, newM), SafeSum(n, -1 * newM, 1)()),
+          Seq(newS, newM)
+        )
       case t =>
         throw new TypeError(
           s"Stream in StmSlideS has typ $t. Expected a stream."

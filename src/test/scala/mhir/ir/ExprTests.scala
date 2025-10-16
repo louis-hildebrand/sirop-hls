@@ -25,10 +25,10 @@ class ExprTests extends AnyFunSuite {
     val y = Param("y")(U8)
 
     val f = Function(x, Sum(x, y)())()
-    assert(f.freeVars() == Set(y))
+    assert(f.freeVars == Set(y))
 
     val e = f(x)
-    assert(e.freeVars() == Set(x, y))
+    assert(e.freeVars == Set(x, y))
   }
 
   test("FreeVars:StmBuild") {
@@ -47,7 +47,7 @@ class ExprTests extends AnyFunSuite {
         x -> (C(0)(U8), Sum(x, z)())
       )
     )().tchk()
-    assert(s0.freeVars() == Set(y, z, c))
+    assert(s0.freeVars == Set(y, z, c))
 
     // Accumulator variables are not found within the stream length.
     val s1 = StmBuild(
@@ -58,7 +58,7 @@ class ExprTests extends AnyFunSuite {
         x -> (C(0)(U8), Sum(x, z)())
       )
     )().tchk()
-    assert(s1.freeVars() == Set(x, y, z, c))
+    assert(s1.freeVars == Set(x, y, z, c))
 
     // Accumulator variables are not found within the accumulator seeds.
     val s2 = StmBuild(
@@ -69,7 +69,7 @@ class ExprTests extends AnyFunSuite {
         x -> (x, Sum(x, z)())
       )
     )().tchk()
-    assert(s2.freeVars() == Set(x, y, z, c))
+    assert(s2.freeVars == Set(x, y, z, c))
   }
 
   test("FreeVars:LetStm") {
@@ -77,10 +77,10 @@ class ExprTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U8, 2))
 
     val e0 = LetStm(1, x, s, x)()
-    assert(e0.freeVars() == Set(s))
+    assert(e0.freeVars == Set(s))
 
     val e1 = LetStm(1, x, x, x)()
-    assert(e1.freeVars() == Set(x))
+    assert(e1.freeVars == Set(x))
   }
 
   test("VecAccess:Equals") {

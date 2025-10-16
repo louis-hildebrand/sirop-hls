@@ -233,8 +233,8 @@ private[vhdl] object StmBuildVhdl {
         case (x, (z, next)) =>
           assert(x.typ.isData)
           require(
-            z.freeVars().isEmpty,
-            s"Initial value for accumulator ${x.name} has free variables (${z.freeVars().toSeq.mkString(", ")})."
+            z.freeVars.isEmpty,
+            s"Initial value for accumulator ${x.name} has free variables (${z.freeVars.toSeq.mkString(", ")})."
           )
           val initVhdl = VhdlExprGenerator.valueToVhdl(z)
           val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
@@ -383,10 +383,10 @@ private object SingleWriteVector {
           ) if v1 == v0 && i1 == i0 =>
         val indexToUpdate = terms.flatMap({
           case Equal(i2: Param, idx)
-              if i2 == i0 && !idx.freeVars().contains(i0) =>
+              if i2 == i0 && !idx.freeVars.contains(i0) =>
             Some(idx)
           case Equal(idx, i2: Param)
-              if i2 == i0 && !idx.freeVars().contains(i0) =>
+              if i2 == i0 && !idx.freeVars.contains(i0) =>
             Some(idx)
           case _ => None
         }) match {

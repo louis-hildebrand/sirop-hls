@@ -5,7 +5,6 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP}
 import mhir.logging.time
-import org.slf4j.event.Level
 
 /** A let expression.
   *
@@ -61,14 +60,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars().contains(this.x)
+      rhs.freeVars.contains(this.x)
     })
     val newX = if (wouldCapture) this.x.freshCopy else this.x
     val newSubs =
       subs
         // Substitutions with `x` free on the LHS will never match
         // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
         // Rename the bound variable if necessary
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     Let(
@@ -83,14 +82,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
 
   override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars().contains(this.x)
+      rhs.freeVars.contains(this.x)
     })
     val newX = if (wouldCapture) this.x.freshCopy else this.x
     val newSubs =
       subs
         // Substitutions with `x` free on the LHS will never match
         // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
         // Rename the bound variable if necessary
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     Let(
@@ -195,8 +194,9 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def lowerSyntaxSugar(): Expr =
-    Default.getDefault(this.typ).tchk().lower()
+  override def lowerSyntaxSugar(): Expr = {
+    Default.getDefault(this.typ).tchk()
+  }
 
   override def precedence: Int = Precedence.Min
 
@@ -269,29 +269,34 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val e = this.e.lower()
-    (e.typ, targetType) match {
-      case (t1, t2) if t1 ~= t2 => e
-      case (TyUInt(w1), TyUInt(w2)) =>
+    (e, e.typ, targetType) match {
+      case (IntCst(k), _, target) =>
+        // This special case is not really necessary, it's just annoying to
+        // constantly see expressions like PadTo(0, w) while debugging
+        C(k)(target)
+      case (_, t1, t2) if t1 ~= t2 => e
+      case (_, TyUInt(w1), TyUInt(w2)) =>
         assert(w2 > w1)
-        PadTo(e, w2)().tchk().lower()
-      case (TyUInt(w1), TySInt(w2)) =>
+        PadTo(e, w2)().tchk()
+      case (_, TyUInt(w1), TySInt(w2)) =>
         assert(w2 >= w1 + 1)
-        PadTo(ToSigned(e)(), w2)().tchk().lower()
-      case (TySInt(0), u: TyUInt) =>
-        IntCst(0)(u).tchk().lower()
-      case (TySInt(w1), TySInt(w2)) =>
+        PadTo(ToSigned(e)(), w2)().tchk()
+      case (_, TySInt(0), u: TyUInt) =>
+        IntCst(0)(u).tchk()
+      case (_, TySInt(w1), TySInt(w2)) =>
         assert(w2 > w1)
-        PadTo(e, w2)().tchk().lower()
-      case (_: TyTuple, TyTuple(ts2 @ _*)) =>
+        PadTo(e, w2)().tchk()
+      case (_, _: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(
           ts2.zipWithIndex.map({ case (t, i) =>
-            ReshapeData(TupleAccess(e, i)(), t)()
+            ReshapeData(TupleAccess(e, i)(), t)().tchk().lower()
           }): _*
-        )().tchk().lower()
-      case (_: TyVec, TyVec(t2, n)) =>
-        VecBuild(n, U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)()))()
-          .tchk()
-          .lower()
+        )().tchk()
+      case (_, _: TyVec, TyVec(t2, n)) =>
+        VecBuild(
+          n,
+          U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)().tchk().lower())
+        )().tchk()
       case _ =>
         throw new TypeError(
           s"Cannot reshape from type ${e.typ} to $targetType."

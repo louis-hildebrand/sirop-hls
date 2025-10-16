@@ -170,7 +170,7 @@ object LetStmMover {
             let.out match {
               case s: StmBuild =>
                 val count = s.seedByVar.count({ case (y, z) =>
-                  y.typ.isInstanceOf[TyStm] && z.freeVars().contains(x)
+                  y.typ.isInstanceOf[TyStm] && z.freeVars.contains(x)
                 })
                 if (count == 1) {
                   StmBuild(
@@ -180,7 +180,7 @@ object LetStmMover {
                     s.equations.map({
                       case (y, (z, ready))
                           if y.typ.isInstanceOf[TyStm]
-                            && z.freeVars().contains(x) =>
+                            && z.freeVars.contains(x) =>
                         y -> (
                           pullOutStmBuild(
                             LetStm(let.bufSize, let.x, let.in, z)()

@@ -237,33 +237,6 @@ package object ir
     def contains[T <: Expr](cls: Class[T]): Boolean =
       this.contains(e => cls.isInstance(e))
 
-    /** Finds all the free variables in this expression.
-      */
-    def freeVars(): Set[Param] = {
-      this.expr match {
-        case x: Param       => Set(x)
-        case Function(x, e) => e.freeVars() - x
-        case LetStm(bufSize, x, in, out) =>
-          bufSize.freeVars() ++ in.freeVars() ++ (out.freeVars() - x)
-        case stm @ StmBuild(n, data, valid, eqns) =>
-          (
-            // Free variables in the stream length and seeds are definitely free,
-            // even if they are bound by the stream
-            n.freeVars()
-              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
-                fvs ++ z.freeVars()
-              })
-              // There may be bound variables in the output and "next" functions
-              ++ (data.freeVars() ++ valid.freeVars()
-                ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
-                  fvs ++ next.freeVars()
-                })).diff(stm.accVars)
-          )
-        case e =>
-          e.children.foldLeft(Set[Param]())((fvs, e) => fvs ++ e.freeVars())
-      }
-    }
-
     /** If this expression is a function literal without input type annotations,
       * then recursively annotate it with the given types.
       *
@@ -501,7 +474,7 @@ package object ir
     def accVarDependencies: DiGraph[Param] = {
       val edges = this.stm.nextByVar.toSeq
         .flatMap({ case (x, next) =>
-          next.freeVars().intersect(this.stm.accVars).map(y => (x, y))
+          next.freeVars.intersect(this.stm.accVars).map(y => (x, y))
         })
         .toSet
       DiGraph(nodes = this.stm.accVars, edges = edges)
@@ -511,9 +484,8 @@ package object ir
       * on.
       */
     def outputDependencies: Set[Param] = {
-      this.stm.data
-        .freeVars()
-        .union(this.stm.valid.freeVars())
+      this.stm.data.freeVars
+        .union(this.stm.valid.freeVars)
         .intersect(this.stm.accVars)
     }
 

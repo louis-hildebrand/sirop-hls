@@ -95,7 +95,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           case _ =>
             replicatedStm.subPreserveType(x -> StmCst(1, v)().tchk().lower())
         }
-        result.tchk().lower()
+        result.tchk()
       case t =>
         throw new IllegalArgumentException(
           s"Cannot lower VecMap with function of type $t."
@@ -196,7 +196,7 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
           case _ =>
             withV1.subPreserveType(x2 -> StmCst(1, v2)()).tchk().lower()
         }
-        withV2.tchk().lower()
+        withV2.tchk()
       case t =>
         throw new IllegalArgumentException(
           s"Cannot lower $className with function of type $t."

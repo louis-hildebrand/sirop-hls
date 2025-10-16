@@ -45,7 +45,7 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
             // those expressions must be turned into vectors and uses of those
             // expressions must be turned into vector accesses
             val renamings = pData
-              .filter({ case (_, e) => e.freeVars().contains(i) })
+              .filter({ case (_, e) => e.freeVars.contains(i) })
               .keySet
               .map({ x =>
                 val y = Param("tmp")(TyVec(x.typ, n))
