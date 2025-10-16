@@ -43,7 +43,7 @@ object NameSimplifier {
       val result = e match {
         case Function(x, body) =>
           val newX = Param(x.prefix, -1)(x.typ)
-          if (body.freeVars().contains(newX)) {
+          if (body.freeVars.contains(newX)) {
             // Play it safe and don't rename
             Function(x, simplify(body))()
           } else {
@@ -51,7 +51,7 @@ object NameSimplifier {
           }
         case LetStm(bufSize, x, in, out) =>
           val newX = Param(x.prefix, -1)(x.typ)
-          if (out.freeVars().contains(newX)) {
+          if (out.freeVars.contains(newX)) {
             // Play it safe and don't rename
             LetStm(simplify(bufSize), x, simplify(in), simplify(out))()
           } else {
@@ -74,10 +74,10 @@ object NameSimplifier {
                 val newX = Param(prefix, -1)(x.typ)
                 // Avoid variable capture
                 val willCapture = (
-                  s.data.freeVars().contains(newX)
-                    || s.valid.freeVars().contains(newX)
+                  s.data.freeVars.contains(newX)
+                    || s.valid.freeVars.contains(newX)
                     || s.nextByVar.exists({ case (_, next) =>
-                      next.freeVars().contains(newX)
+                      next.freeVars.contains(newX)
                     })
                 )
                 if (willCapture) {
@@ -117,7 +117,7 @@ object NameSimplifier {
                 case DepthTwo  => "k"
               }
               val newX = Param(prefix)(x.typ)
-              assert(!body.freeVars().contains(newX))
+              assert(!body.freeVars.contains(newX))
               Function(newX, body.subPreserveType(x -> newX))()
           }
           VecBuild(

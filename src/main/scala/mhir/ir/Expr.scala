@@ -63,6 +63,33 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     }
   }
 
+  /** Finds all the free variables in this expression.
+    */
+  lazy val freeVars: Set[Param] = {
+    this match {
+      case x: Param       => Set(x)
+      case Function(x, e) => e.freeVars - x
+      case LetStm(bufSize, x, in, out) =>
+        bufSize.freeVars ++ in.freeVars ++ (out.freeVars - x)
+      case stm @ StmBuild(n, data, valid, eqns) =>
+        (
+          // Free variables in the stream length and seeds are definitely free,
+          // even if they are bound by the stream
+          n.freeVars
+            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
+              fvs ++ z.freeVars
+            })
+            // There may be bound variables in the output and "next" functions
+            ++ (data.freeVars ++ valid.freeVars
+              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
+                fvs ++ next.freeVars
+              })).diff(stm.accVars)
+        )
+      case e if e.children.isEmpty => Set.empty
+      case e                       => e.children.map(_.freeVars).reduce(_ ++ _)
+    }
+  }
+
   /** Reconstruct this expression with new children or a new type annotation.
     *
     * @param typ

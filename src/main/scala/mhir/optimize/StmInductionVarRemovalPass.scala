@@ -86,7 +86,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     val subs: Map[Expr, Expr] =
       closedFormByVar.map({ case (x, f) => x -> FunCall(f, t)().tchk() })
     val valid = s.valid.subPreserveType(subs)
-    val allVarsRemoved = valid.freeVars().intersect(s.accVars).isEmpty
+    val allVarsRemoved = valid.freeVars.intersect(s.accVars).isEmpty
     if (allVarsRemoved) Some(Function(t, valid)()) else None
   }
 
@@ -137,7 +137,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val (x, (z, nextExpr)) = equations.head
           assert(x == v.head)
           assert(
-            (nextExpr.freeVars().intersect(s.accVars) - x).isEmpty,
+            (nextExpr.freeVars.intersect(s.accVars) - x).isEmpty,
             "all dependencies should have been removed"
           )
           val next = Function(
@@ -263,7 +263,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           val movedUp = moveStmNextKUp(pe)
           movedUp.asInstanceOf[StmBuild]
         }
-        assert(!newStm.freeVars().contains(f.param))
+        assert(!newStm.freeVars.contains(f.param))
         if (!newStm.contains(classOf[StmNextK])) {
           s = newStm
         } else if (f.body.isInstanceOf[StmNextK]) {

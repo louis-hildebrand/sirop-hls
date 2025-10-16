@@ -90,7 +90,7 @@ case class StmReset(
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     val rhsFreeVars = subs.toSeq
-      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
     val renamings = this.inputVars
       .flatMap({ x =>
@@ -104,7 +104,7 @@ case class StmReset(
         // free on the left-hand side are no longer needed: that
         // variable is bound now.
         .filter({ case (lhs, _) =>
-          lhs.freeVars().intersect(this.inputVars).isEmpty
+          lhs.freeVars.intersect(this.inputVars).isEmpty
         })
         .++(renamings)
     StmReset(
@@ -123,7 +123,7 @@ case class StmReset(
 
   override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     val rhsFreeVars = subs.toSeq
-      .flatMap({ case (_, rhs) => rhs.freeVars() })
+      .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
     val renamings = this.inputVars
       .flatMap({ x =>
@@ -137,7 +137,7 @@ case class StmReset(
         // free on the left-hand side are no longer needed: that
         // variable is bound now.
         .filter({ case (lhs, _) =>
-          lhs.freeVars().intersect(this.inputVars).isEmpty
+          lhs.freeVars.intersect(this.inputVars).isEmpty
         })
         .++(renamings)
     StmReset(
@@ -219,7 +219,7 @@ case class StmReset(
       val subs = this.inputs.map({ case (x, s) => x -> s })
       loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
     }
-    assertNoNewFreeVars(ret.freeVars()) // Sanity check
+    assertNoNewFreeVars(ret.freeVars) // Sanity check
     ret
   }
 
@@ -227,11 +227,11 @@ case class StmReset(
   private def assertNoNewFreeVars(freeVars: Set[Param]): Unit = {
     val originalFreeVars = {
       val boundInputVars = this.inputs.map({ case (x, _) => x }).toSet
-      val freeVarsInPipeline = s.freeVars() -- boundInputVars
+      val freeVarsInPipeline = s.freeVars -- boundInputVars
       val freeVarsInInputs = this.inputs
-        .flatMap({ case (_, stm) => stm.freeVars() })
+        .flatMap({ case (_, stm) => stm.freeVars })
         .toSet
-      (this.n.freeVars()
+      (this.n.freeVars
         ++ freeVarsInPipeline
         ++ freeVarsInInputs)
     }
@@ -1020,10 +1020,10 @@ case class StmScanInclusive(
       )
     )
     val originalFreeVars =
-      input.freeVars() ++ z.freeVars() ++ f.freeVars() ++ n.freeVars()
+      input.freeVars ++ z.freeVars ++ f.freeVars ++ n.freeVars
     assert(
-      scan.freeVars() == originalFreeVars,
-      s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars()})"
+      scan.freeVars == originalFreeVars,
+      s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars})"
     )
     scan.tchk().lower()
   }

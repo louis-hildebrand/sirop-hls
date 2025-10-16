@@ -725,9 +725,7 @@ object ExprPrinter {
   }
 
   def showScalaWithFreeVars(e: Expr): String = {
-    val varDecls = e
-      .freeVars()
-      .toSeq
+    val varDecls = e.freeVars.toSeq
       .sortBy(_.name)
       .map({ x =>
         val typStr = showScala(x.typ)

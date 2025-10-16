@@ -47,14 +47,14 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars().contains(this.x)
+      rhs.freeVars.contains(this.x)
     })
     val newX = if (wouldCapture) this.x.freshCopy else this.x
     val newSubs =
       subs
         // Substitutions with `x` free on the LHS will never match
         // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
         // Rename the bound variable if necessary
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     LetInlineStm(
@@ -69,14 +69,14 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
 
   override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars().contains(this.x)
+      rhs.freeVars.contains(this.x)
     })
     val newX = if (wouldCapture) this.x.freshCopy else this.x
     val newSubs =
       subs
         // Substitutions with `x` free on the LHS will never match
         // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars().contains(this.x) })
+        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
         // Rename the bound variable if necessary
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     LetInlineStm(

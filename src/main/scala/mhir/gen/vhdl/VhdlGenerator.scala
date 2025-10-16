@@ -42,7 +42,7 @@ object VhdlGenerator {
             //  (1) a previous parameter is called the same thing, but that
             //      should not happen.
             //  (2) the expression has a free variable, but that's not allowed.
-            assert(x == y || !e.freeVars().contains(y))
+            assert(x == y || !e.freeVars.contains(y))
             unwrap(e.subPreserveType(x -> y), y +: inputs)
           } else {
             unwrap(e, x +: inputs)
@@ -72,8 +72,8 @@ object VhdlGenerator {
       "Expression must be lowered before hardware generation."
     )
     require(
-      e.freeVars().isEmpty,
-      s"Cannot generate hardware for expression with free variables (${e.freeVars()})."
+      e.freeVars.isEmpty,
+      s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
       case f: Function => unwrapTopLevelFunction(f, rename = false)

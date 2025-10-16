@@ -19,7 +19,7 @@ object TopVhdl {
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case ((x, s: StmBuild), i) =>
-          val inputsOfS = s.freeVars()
+          val inputsOfS = s.freeVars
           val component = StmBuildVhdl(s, inputsOfS, name = s"sbuild_${i + 1}")
           val portMap = PortMap(
             Map(
@@ -186,7 +186,7 @@ object TopVhdl {
             //  (1) a previous parameter is called the same thing, but that
             //      should not happen.
             //  (2) the expression has a free variable, but that's not allowed.
-            assert(x == y || !e.freeVars().contains(y))
+            assert(x == y || !e.freeVars.contains(y))
             unwrap(e.subPreserveType(x -> y), y +: inputs)
           } else {
             unwrap(e, x +: inputs)
@@ -216,8 +216,8 @@ object TopVhdl {
       "Expression must be lowered before hardware generation."
     )
     require(
-      e.freeVars().isEmpty,
-      s"Cannot generate hardware for expression with free variables (${e.freeVars()})."
+      e.freeVars.isEmpty,
+      s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
       case f: Function => unwrapTopLevelFunction(f, rename = false)
@@ -242,7 +242,7 @@ object TopVhdl {
   private def makeFlatPipeline(f: Expr): FlatPipeline = {
     validateExpr(f)
     val (inputs, stm) = unwrapTopLevelFunction(f, rename = true)
-    val unusedInputs = inputs.toSet.diff(stm.freeVars())
+    val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val anfStm = StmAnfConverter.convert(stm)
     val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)
     ensureAtLeastOneBuffer(pipe)

@@ -62,17 +62,17 @@ sealed trait Type {
 
   /** Finds all the free variables in this type.
     */
-  def freeVars(): Set[Param] = {
+  def freeVars: Set[Param] = {
     this match {
       case Missing | TyBool | _: TyAnyInt | _: TyFix => Set()
       case TyArrow(t1, t2) =>
-        t1.freeVars() ++ t2.freeVars()
+        t1.freeVars ++ t2.freeVars
       case TyTuple(ts @ _*) =>
-        ts.foldLeft(Set[Param]())({ case (acc, t) => acc ++ t.freeVars() })
+        ts.foldLeft(Set[Param]())({ case (acc, t) => acc ++ t.freeVars })
       case TyVec(t, n) =>
-        t.freeVars() ++ n.freeVars()
+        t.freeVars ++ n.freeVars
       case TyStm(t, n) =>
-        t.freeVars() ++ n.freeVars()
+        t.freeVars ++ n.freeVars
     }
   }
 

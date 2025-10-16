@@ -93,7 +93,7 @@ object StreamReplicator {
       i: Param,
       varsToReplicate: Set[Param]
   ): StmBuild = {
-    if (stm.n.freeVars().contains(i)) {
+    if (stm.n.freeVars.contains(i)) {
       throw new IllegalArgumentException(
         "Stream length must not vary with vector index."
           + s" (Found vector index $i and stream length ${stm.n}.)"
@@ -134,7 +134,7 @@ object StreamReplicator {
       val newX = oldToNewVar(x)
       x.typ match {
         case _: TyStm =>
-          if (next.freeVars().contains(i)) {
+          if (next.freeVars.contains(i)) {
             throw new IllegalArgumentException(
               "Input stream `ready` cannot depend on the vector index."
                 + s" (Found vector index $i and `ready` expression $next.)"
@@ -159,8 +159,7 @@ object StreamReplicator {
       }
     })
     val newData = {
-      val validDependsOnI = stm.valid
-        .freeVars()
+      val validDependsOnI = stm.valid.freeVars
         .exists(x => x == i || scopes.get(x).contains(PrivateScope))
       if (validDependsOnI) {
         throw new IllegalArgumentException(
@@ -172,14 +171,14 @@ object StreamReplicator {
     }
     val s = StmBuild(stm.n, newData, stm.valid, newEquations)()
     assert(
-      !s.freeVars().contains(i),
+      !s.freeVars.contains(i),
       "there should be no more free occurrences of the vector index i"
     )
-    val expectedFreeVars = (stm.freeVars() ++ m.freeVars()) - i
+    val expectedFreeVars = (stm.freeVars ++ m.freeVars) - i
     assert(
-      s.freeVars().subsetOf(expectedFreeVars),
+      s.freeVars.subsetOf(expectedFreeVars),
       "replication should not introduce any new free variables"
-        + s" (expected $expectedFreeVars, found ${s.freeVars()})"
+        + s" (expected $expectedFreeVars, found ${s.freeVars})"
     )
     s.tchk().asInstanceOf[StmBuild]
   }
@@ -215,13 +214,13 @@ object StreamReplicator {
     }
 
     val dependencies = stm.equations.map({ case (x, (_, next)) =>
-      x -> next.freeVars().intersect(stm.accVars)
+      x -> next.freeVars.intersect(stm.accVars)
     })
     propagateScopes(
       scopeByVar = stm.equations
         .map({ case (x, (z, next)) =>
-          val dependsOnI = (next.freeVars().contains(i)
-            || z.freeVars().intersect(varsToReplicate + i).nonEmpty)
+          val dependsOnI = (next.freeVars.contains(i)
+            || z.freeVars.intersect(varsToReplicate + i).nonEmpty)
           x -> (if (dependsOnI) PrivateScope else SharedScope)
         }),
       dependencies = dependencies,
@@ -236,7 +235,7 @@ object StreamReplicator {
       varsToReplicate: Set[Param]
   ): LetStm = {
     val LetStm(bufSize, x, in, out) = let
-    val replicateIn = in.freeVars().intersect(varsToReplicate + i).nonEmpty
+    val replicateIn = in.freeVars.intersect(varsToReplicate + i).nonEmpty
     if (replicateIn) {
       val newX =
         x.replicate(m = m, i = i, varsToReplicate = varsToReplicate + x)

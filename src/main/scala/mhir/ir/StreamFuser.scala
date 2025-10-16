@@ -278,7 +278,7 @@ object StreamFuser {
         s"the stream variable ${x.name} should have been removed completely by fusion"
       )
       assert(
-        fused.freeVars() == stm.freeVars(),
+        fused.freeVars == stm.freeVars,
         "fusion should not have changed the set of free variables"
       )
       assert(fused.typ ~= stm.typ, "fusion should preserve type annotations")

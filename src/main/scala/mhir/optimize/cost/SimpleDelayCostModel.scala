@@ -153,6 +153,6 @@ object SimpleDelayCostModel {
   }
 
   private def isStatic(e: Expr, staticVars: Set[Param]): Boolean = {
-    (e.freeVars() -- staticVars).isEmpty
+    (e.freeVars -- staticVars).isEmpty
   }
 }
