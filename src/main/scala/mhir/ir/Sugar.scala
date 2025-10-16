@@ -5,7 +5,6 @@ import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP}
 import mhir.logging.time
-import org.slf4j.event.Level
 
 /** A let expression.
   *
@@ -269,26 +268,30 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val e = this.e.lower()
-    (e.typ, targetType) match {
-      case (t1, t2) if t1 ~= t2 => e
-      case (TyUInt(w1), TyUInt(w2)) =>
+    (e, e.typ, targetType) match {
+      case (IntCst(k), _, target) =>
+        // This special case is not really necessary, it's just annoying to
+        // constantly see expressions like PadTo(0, w) while debugging
+        C(k)(target)
+      case (_, t1, t2) if t1 ~= t2 => e
+      case (_, TyUInt(w1), TyUInt(w2)) =>
         assert(w2 > w1)
         PadTo(e, w2)().tchk().lower()
-      case (TyUInt(w1), TySInt(w2)) =>
+      case (_, TyUInt(w1), TySInt(w2)) =>
         assert(w2 >= w1 + 1)
         PadTo(ToSigned(e)(), w2)().tchk().lower()
-      case (TySInt(0), u: TyUInt) =>
+      case (_, TySInt(0), u: TyUInt) =>
         IntCst(0)(u).tchk().lower()
-      case (TySInt(w1), TySInt(w2)) =>
+      case (_, TySInt(w1), TySInt(w2)) =>
         assert(w2 > w1)
         PadTo(e, w2)().tchk().lower()
-      case (_: TyTuple, TyTuple(ts2 @ _*)) =>
+      case (_, _: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(
           ts2.zipWithIndex.map({ case (t, i) =>
             ReshapeData(TupleAccess(e, i)(), t)()
           }): _*
         )().tchk().lower()
-      case (_: TyVec, TyVec(t2, n)) =>
+      case (_, _: TyVec, TyVec(t2, n)) =>
         VecBuild(n, U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)()))()
           .tchk()
           .lower()

@@ -1951,8 +1951,9 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newS = input.tchk
     newS.typ match {
       case TyStm(t, n) if t.isData =>
+        val newLen = ToUnsigned(SafeSum(n, -1 * newM, 1)())().tchk()
         this.rebuild(
-          TyStm(TyVec(t, newM), ToUnsigned(n - newM + 1)().tchk()),
+          TyStm(TyVec(t, newM), newLen),
           Seq(newS, newM)
         )
       case t =>
@@ -1973,7 +1974,7 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val s = Param("s")(TyStm(t, -1))
     val i = Param("i")(U32)
     val j = Param("j")(U32)
-    val stmLen = ToUnsigned(n - m + 1)()
+    val stmLen = ToUnsigned(SafeSum(n, -1 * m, 1)())()
     val vecLen = SafeProd(m, elemSize)().tchk().lower()
     val v = Param("v")(TyVec(t, vecLen))
     val lowered = StmBuild(
@@ -2021,7 +2022,10 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) if t.isData =>
-        this.rebuild(TyStm(TyStm(t, newM), n - newM + 1), Seq(newS, newM))
+        this.rebuild(
+          TyStm(TyStm(t, newM), SafeSum(n, -1 * newM, 1)()),
+          Seq(newS, newM)
+        )
       case t =>
         throw new TypeError(
           s"Stream in StmSlideS has typ $t. Expected a stream."
