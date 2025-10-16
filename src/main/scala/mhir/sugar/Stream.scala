@@ -37,7 +37,7 @@ object AsFusedStm2Stm {
   * @param inputs
   *   the inputs to the pipeline, which will not be reset.
   */
-case class StmReset(
+private[sugar] case class StmReset(
     n: Expr,
     s: Expr,
     inputs: Map[Param, Expr]
@@ -204,16 +204,13 @@ case class StmReset(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    val n = this.n.lower()
-    val s = this.s.lower()
-    val inputs = this.inputs.map({ case (x, s) =>
-      x.lower().asInstanceOf[Param] -> s.lower()
-    })
-    val r = StmReset(n, s, inputs)().tchk().asInstanceOf[StmReset]
-    val loweredPipeline = r
+    // Assume each field (n, s, inputs) is already lowered
+    // This is to avoid repeatedly traversing large expressions, which slows
+    // down compilation
+    val loweredPipeline = this
       .lowerEmptyPipeline()
-      .orElse(r.lowerForNEqualsOne())
-      .getOrElse(r.lowerStandard())
+      .orElse(this.lowerForNEqualsOne())
+      .getOrElse(this.lowerStandard())
       .tchk()
     val ret = {
       val subs = this.inputs.map({ case (x, s) => x -> s })

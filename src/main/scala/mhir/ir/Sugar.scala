@@ -194,8 +194,9 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def lowerSyntaxSugar(): Expr =
-    Default.getDefault(this.typ).tchk().lower()
+  override def lowerSyntaxSugar(): Expr = {
+    Default.getDefault(this.typ).tchk()
+  }
 
   override def precedence: Int = Precedence.Min
 
@@ -276,25 +277,26 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
       case (_, t1, t2) if t1 ~= t2 => e
       case (_, TyUInt(w1), TyUInt(w2)) =>
         assert(w2 > w1)
-        PadTo(e, w2)().tchk().lower()
+        PadTo(e, w2)().tchk()
       case (_, TyUInt(w1), TySInt(w2)) =>
         assert(w2 >= w1 + 1)
-        PadTo(ToSigned(e)(), w2)().tchk().lower()
+        PadTo(ToSigned(e)(), w2)().tchk()
       case (_, TySInt(0), u: TyUInt) =>
-        IntCst(0)(u).tchk().lower()
+        IntCst(0)(u).tchk()
       case (_, TySInt(w1), TySInt(w2)) =>
         assert(w2 > w1)
-        PadTo(e, w2)().tchk().lower()
+        PadTo(e, w2)().tchk()
       case (_, _: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(
           ts2.zipWithIndex.map({ case (t, i) =>
-            ReshapeData(TupleAccess(e, i)(), t)()
+            ReshapeData(TupleAccess(e, i)(), t)().tchk().lower()
           }): _*
-        )().tchk().lower()
+        )().tchk()
       case (_, _: TyVec, TyVec(t2, n)) =>
-        VecBuild(n, U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)()))()
-          .tchk()
-          .lower()
+        VecBuild(
+          n,
+          U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)().tchk().lower())
+        )().tchk()
       case _ =>
         throw new TypeError(
           s"Cannot reshape from type ${e.typ} to $targetType."
