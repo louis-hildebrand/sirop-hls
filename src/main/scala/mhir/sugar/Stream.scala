@@ -1796,7 +1796,7 @@ case class StmRepeat(
     val t = Param("t")(tTyp)
     val filling = Param("filling")(TyBool)
     StmBuild(
-      SafeProd(n, m)(),
+      SafeProd(n, m)().tchk().lower(),
       Mux(filling, StmData(s)(), VecAccess(v, t)())(),
       True,
       Map[Param, (Expr, Expr)](
@@ -1809,6 +1809,8 @@ case class StmRepeat(
             n,
             U32 ::+ (i =>
               Mux(filling && (i === t), StmData(s)(), VecAccess(v, i)())()
+                .tchk()
+                .lower()
             )
           )()
         ),
@@ -1819,11 +1821,14 @@ case class StmRepeat(
             t === ToUnsigned(-1 + n)(),
             C(0)(t.typ),
             t + 1
-          )()
+          )().tchk().lower()
         ),
-        filling -> (True, filling && (t < ToUnsigned(-1 + n)()))
+        filling -> (
+          True,
+          (filling && (t < ToUnsigned(-1 + n)())).tchk().lower()
+        )
       )
-    )().tchk().lower()
+    )().tchk()
   }
 }
 
