@@ -23,20 +23,24 @@ def main(programs: list[str]) -> None:
 
     c.DSE_VHDL_DIR.mkdir(exist_ok=True, parents=True)
     c.DSE_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
-    sbt_tasks = []
+
+    os.chdir(c.ROOT_DIR)
+    subprocess.run(["sbt", "assembly"], check=True)
     for prog in programs:
         out_dir = c.DSE_VHDL_DIR.joinpath(prog)
         ctime_file = c.DSE_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
         lvl = OptimizationLevel.ALL
-        sbt_tasks.append(
-            f"runMain {c.MAIN_COMPILER} -s stored -i {prog}"
+        command = (
+            f"java -jar {c.JAR_PATH} -s stored -i {prog}"
             f" --out:vhdl {out_dir} --overwrite"
             f" --out:pp -"
             f" --out:ctime {ctime_file}"
             f" {lvl.flags}"
-        )
-    os.chdir(c.ROOT_DIR)
-    subprocess.run(["sbt", "; ".join(sbt_tasks)], check=True)
+        ).split(" ")
+        command = [x for x in command if x]
+        print()
+        print(f"Running : {' '.join(command)}")
+        subprocess.run(command, check=True)
 
 
 def parse_args() -> Namespace:
