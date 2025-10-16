@@ -35,10 +35,19 @@ private[ir] trait Substitution {
       //       In some cases (particularly LetStm), it is common to have long
       //       chains of binders, so it would be disastrous to have exponential
       //       runtime here.
-      val out = if (subs.isEmpty) {
+      val skip = subs.isEmpty ||
+        this.expr.freeVars
+          .union(this.expr.freeVarsInTypes)
+          .intersect(
+            subs
+              .map({ case (lhs, _) => lhs.freeVars })
+              .reduce(_ ++ _)
+          )
+          .isEmpty
+      if (skip) {
         this.expr
       } else {
-        subs.get(this.expr) match {
+        val out = subs.get(this.expr) match {
           case Some(v) => v
           case None =>
             this.expr match {
@@ -134,17 +143,17 @@ private[ir] trait Substitution {
                 e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
             }
         }
+        if (this.expr.hasType) {
+          assert(
+            out.typ ~= this.expr.typ,
+            s"the type should be preserved after substitution (expected ${this.expr.typ}, found ${out.typ} after substitutions $subs in ${this.expr})"
+          )
+        }
+        // The expressions to replace may occur within the type (e.g., in the
+        // length of a vector)
+        val newType = out.typ.substitute(subs)
+        out.rebuild(newType)
       }
-      if (this.expr.hasType) {
-        assert(
-          out.typ ~= this.expr.typ,
-          s"the type should be preserved after substitution (expected ${this.expr.typ}, found ${out.typ} after substitutions $subs in ${this.expr})"
-        )
-      }
-      // The expressions to replace may occur within the type (e.g., in the
-      // length of a vector)
-      val newType = out.typ.substitute(subs)
-      out.rebuild(newType)
     }
 
     /** See [[subPreserveType(subs*)]].
