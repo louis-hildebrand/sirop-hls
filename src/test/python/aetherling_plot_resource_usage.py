@@ -4,8 +4,6 @@
 This script plots the resource usages for the Aetherling benchmarks.
 """
 
-import sys
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogLocator
 
@@ -15,6 +13,10 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl, set_ticks
 from lib.resource_usage import ResourceUsage
 
+TARGET_FREQ = 175  # MHz
+OUR_MARKER_SIZE = 16
+AETHERLING_MARKER_SIZE = 32
+
 
 def dedup(xs: list[str]) -> list[str]:
     """
@@ -23,7 +25,10 @@ def dedup(xs: list[str]) -> list[str]:
     return list(dict.fromkeys(xs))
 
 
-def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
+def plot_resource_usages(
+        results: dict[BenchmarkImpl, ResourceUsage],
+        fmax_results: dict[BenchmarkImpl, float]
+) -> None:
     """
     Plot resource usage vs throughput for each benchmark.
     """
@@ -60,6 +65,7 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             verilog_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
+        verilog_fmax_ok = [fmax_results[b] >= TARGET_FREQ for b in verilog_benchmarks]
         vhdl_benchmarks = [
             b
             for b in results.keys()
@@ -69,61 +75,126 @@ def plot_resource_usages(results: dict[BenchmarkImpl, ResourceUsage]) -> None:
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
+        vhdl_fmax_ok = [fmax_results[b] >= TARGET_FREQ for b in vhdl_benchmarks]
         # xscale = axis_scale(bench_name)
         # yscale = xscale
         # Plot ALM usage
         alm_ax = axes[0][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         ys = [results[b].alm for b in verilog_benchmarks]
-        verilog_artist, = alm_ax.plot(
+        alm_ax.plot(  # line
             xs, ys,
-            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
+            zorder=0,
         )
+        _ = alm_ax.scatter(  # markers (separate so that some can be filled and some not)
+            xs, ys,
+            marker=c.AETHERLING_MARKER,
+            s=AETHERLING_MARKER_SIZE,
+            edgecolor=c.AETHERLING_COLOR,
+            linewidth=1,
+            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            label=c.AETHERLING_LABEL,
+            zorder=1,
+        )
+        if not verilog_artist:
+            verilog_artist = _
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
-        vhdl_artist, = alm_ax.plot(
+        alm_ax.plot(  # line
             xs, ys,
-            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
+            zorder=2,
         )
+        _ = alm_ax.scatter(  # markers
+            xs, ys,
+            marker=c.OUR_MARKER,
+            s=OUR_MARKER_SIZE,
+            edgecolor=c.OUR_COLOR,
+            linewidth=1,
+            facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
+            label=c.OUR_LABEL,
+            zorder=3,
+        )
+        if not vhdl_artist:
+            vhdl_artist = _
         # Plot BRAM usage
         bram_ax = axes[1][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
-        bram_ax.plot(
+        bram_ax.plot(  # line
             xs, verilog_ys,
-            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
+            zorder=0,
+        )
+        bram_ax.scatter(  # markers
+            xs, verilog_ys,
+            marker=c.AETHERLING_MARKER,
+            s=AETHERLING_MARKER_SIZE,
+            edgecolor=c.AETHERLING_COLOR,
+            linewidth=1,
+            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            label=c.AETHERLING_LABEL,
+            zorder=1,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
-        bram_ax.plot(
+        bram_ax.plot(  # line
             xs, vhdl_ys,
-            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
+            zorder=2,
+        )
+        bram_ax.scatter(  # markers
+            xs, vhdl_ys,
+            marker=c.OUR_MARKER,
+            s=OUR_MARKER_SIZE,
+            edgecolor=c.OUR_COLOR,
+            linewidth=1,
+            facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
+            label=c.OUR_LABEL,
+            zorder=3,
         )
         # Plot DSP usage
         dsp_ax = axes[2][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
-        dsp_ax.plot(
+        dsp_ax.plot(  # line
             xs, verilog_ys,
-            marker=c.AETHERLING_MARKER, markersize=c.AETHERLING_MARKER_SIZE,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
+            zorder=0,
+        )
+        dsp_ax.scatter(  # markers
+            xs, verilog_ys,
+            marker=c.AETHERLING_MARKER,
+            s=AETHERLING_MARKER_SIZE,
+            edgecolor=c.AETHERLING_COLOR,
+            linewidth=1,
+            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            label=c.AETHERLING_LABEL,
+            zorder=1,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
-        dsp_ax.plot(
+        dsp_ax.plot(  # line
             xs, vhdl_ys,
-            marker=c.OUR_MARKER, markersize=c.OUR_MARKER_SIZE,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
+            zorder=2,
+        )
+        dsp_ax.scatter(  # markers
+            xs, vhdl_ys,
+            marker=c.OUR_MARKER,
+            s=OUR_MARKER_SIZE,
+            edgecolor=c.OUR_COLOR,
+            linewidth=1,
+            facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
+            label=c.OUR_LABEL,
+            zorder=3,
         )
         # Settings for the whole column
         alm_ax.set_title(title)
@@ -163,10 +234,9 @@ def main() -> None:
     """
     The program entry point.
     """
-    results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
-    if not results:
-        sys.exit("No results to plot.")
-    plot_resource_usages(results)
+    area_results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
+    fmax_results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
+    plot_resource_usages(area_results, fmax_results)
 
 
 if __name__ == "__main__":
