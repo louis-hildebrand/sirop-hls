@@ -90,6 +90,10 @@ def min_latency(bench: Benchmark) -> int:
         # 4*4 input
         par = 4 * bench.throughput
         return 4 * 4 // par
+    if bench.name == "bigmvm":
+        # 256*256 input
+        par = 256 * bench.throughput
+        return 256 * 256 // par
     if bench.name == "matvec":
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
@@ -106,8 +110,8 @@ def benchmark_order(bench_name: str) -> int:
         "map": 0,
         "sum": 1,
         "dot": 2,
-        "matvec": 3,
-        "smallmvm": 4,
+        "smallmvm": 3,
+        "bigmvm": 4,
         "conv1d": 5,
         "smallconv2d": 6,
         "smallconvb2b": 7,
@@ -125,12 +129,14 @@ def benchmark_title(bench_name: str) -> str | None:
     Return the title to put at the top of the column for the given benchmark, or `None` if the
     results for this benchmark should be omitted from the plots.
     """
-    if bench_name.startswith("small") and bench_name != "smallmvm":
+    if bench_name.startswith("small"):
         return None
-    if bench_name in {"sum", "sqrt"}:
+    if bench_name in {"sum", "sqrt", "matvec"}:
         return None
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
+    if bench_name == "mvm":
+        bench_name = "matvec"
     return f"\\texttt{{{bench_name}}}"
 
 
@@ -142,6 +148,11 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
         ax.set_xticks(
             [1/4, 1, 2, 4, 8, 16],
             [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
+        )
+    elif bench_name == "bigmvm":
+        ax.set_xticks(
+            [1/256, 1/64, 1/16],
+            [r"$\frac{1}{256}$", r"$\frac{1}{64}$", r"$\frac{1}{16}$"],
         )
     elif bench_name.startswith("big"):
         ax.set_xticks(
