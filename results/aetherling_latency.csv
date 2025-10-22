@@ -140,6 +140,12 @@ smallconvb2b,8,verilog,13,True
 smallconvb2b,8,vhdl,7,True
 smallconvb2b,16,verilog,12,True
 smallconvb2b,16,vhdl,4,True
+smallmvm,1/4,verilog,24,True
+smallmvm,1/4,vhdl,18,True
+smallmvm,1/2,verilog,18,True
+smallmvm,1/2,vhdl,10,True
+smallmvm,1,verilog,12,True
+smallmvm,1,vhdl,6,True
 smallsharpen,1/9,verilog,153,True
 smallsharpen,1/9,vhdl,158,True
 smallsharpen,1/3,verilog,58,True

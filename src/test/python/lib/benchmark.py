@@ -86,6 +86,10 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "bigcamera":
         # 1920*8 inputs and outputs
         return 1920 * 8 // bench.throughput
+    if bench.name == "smallmvm":
+        # 4*4 input
+        par = 4 * bench.throughput
+        return 4 * 4 // par
     if bench.name == "matvec":
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
@@ -103,16 +107,17 @@ def benchmark_order(bench_name: str) -> int:
         "sum": 1,
         "dot": 2,
         "matvec": 3,
-        "conv1d": 4,
-        "smallconv2d": 5,
-        "smallconvb2b": 6,
-        "smallsharpen": 7,
-        "bigconv2d": 8,
-        "bigconvb2b": 9,
-        "bigsharpen": 10,
-        "bigcamera": 11,
-        "sqrt": 12,
-    }.get(bench_name, 12)
+        "smallmvm": 4,
+        "conv1d": 5,
+        "smallconv2d": 6,
+        "smallconvb2b": 7,
+        "smallsharpen": 8,
+        "bigconv2d": 9,
+        "bigconvb2b": 10,
+        "bigsharpen": 11,
+        "bigcamera": 12,
+        "sqrt": 13,
+    }.get(bench_name, 14)
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -120,7 +125,7 @@ def benchmark_title(bench_name: str) -> str | None:
     Return the title to put at the top of the column for the given benchmark, or `None` if the
     results for this benchmark should be omitted from the plots.
     """
-    if bench_name.startswith("small"):
+    if bench_name.startswith("small") and bench_name != "smallmvm":
         return None
     if bench_name in {"sum", "sqrt"}:
         return None
