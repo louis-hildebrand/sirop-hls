@@ -85,6 +85,10 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
     }
 
     test(s"$testName:verilog") {
+      assume(
+        !Set("up_1d_s_1").contains(testName),
+        "Aetherling's Chisel backend fails to produce any Verilog for this test"
+      )
       val io = AetherlingPrimitivesIO(testName).toVerilog
       val projectDir = VerilogDir / s"aetherling_unit" / s"${testName}_test"
       VerilogProjectInitializer.initProj(

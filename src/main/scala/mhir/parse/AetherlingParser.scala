@@ -360,7 +360,9 @@ object AetherlingParser {
       val suffix2 = expect(suffix1, ")")
       (e, suffix2)
     } else if (code.startsWith("IdN ")) {
-      ???
+      val suffix0 = expect(code, "IdN ")
+      val (e, suffix1) = parseExpr(suffix0, modules)
+      (e, suffix1)
     } else if (code.startsWith("AbsN ")) {
       ???
     } else if (code.startsWith("NotN ")) {
@@ -368,7 +370,9 @@ object AetherlingParser {
       val (e, suffix1) = parseExpr(suffix0, modules)
       (Not(e)(), suffix1)
     } else if (code.startsWith("AndN ")) {
-      ???
+      val suffix0 = expect(code, "AndN ")
+      val (e, suffix1) = parseExpr(suffix0, modules)
+      (e.__0 && e.__1, suffix1)
     } else if (code.startsWith("OrN ")) {
       val suffix0 = expect(code, "OrN ")
       val (e, suffix1) = parseExpr(suffix0, modules)
@@ -530,7 +534,21 @@ object AetherlingParser {
       val (s, suffix11) = parseExpr(suffix10, modules)
       (StmVecShiftRightGarbage(s, shiftAmount)(), suffix11)
     } else if (code.startsWith("Shift_ttN ")) {
-      ???
+      val suffix0 = expect(code, "Shift_ttN")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (ni, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (ii, suffix7) = parseNat(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (shiftAmount, suffix9) = parseNat(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (_, suffix11) = parseTyp(suffix10)
+      val suffix12 = expect(suffix11, " ")
+      val (s, suffix13) = parseExpr(suffix12, modules)
+      (makeNestedStmShift(s, Seq(ni), Seq(ii), shiftAmount), suffix13)
     } else if (code.startsWith("Shift_tnN ")) {
       // This seems to me like just a generalization of shift_tt to handle an
       // arbitrary amount of nesting
@@ -550,9 +568,23 @@ object AetherlingParser {
       val (s, suffix13) = parseExpr(suffix12, modules)
       (makeNestedStmShift(s, nis, iis, shiftAmount), suffix13)
     } else if (code.startsWith("Up_1d_sN")) {
-      ???
+      val suffix0 = expect(code, "Up_1d_sN ")
+      val (n, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (v, suffix5) = parseExpr(suffix4, modules)
+      (VecBuild(n, U32 ::+ (_ => VecAccess(v, 0)()))(), suffix5)
     } else if (code.startsWith("Up_1d_tN ")) {
-      ???
+      val suffix0 = expect(code, "Up_1d_tN ")
+      val (n, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (s, suffix7) = parseExpr(suffix6, modules)
+      (StmJoin(StmRepeat(s, n)())(), suffix7)
     } else if (code.startsWith("Down_1d_sN ")) {
       val suffix0 = expect(code, "Down_1d_sN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -727,7 +759,6 @@ object AetherlingParser {
       val (e, suffix5) = parseExpr(suffix4, modules)
       (e.__1, suffix5)
     } else if (code.startsWith("ATupleN ")) {
-      // TODO: Assert type?
       val suffix0 = expect(code, "ATupleN ")
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
@@ -765,13 +796,10 @@ object AetherlingParser {
       (e, suffix5)
     } else if (code.startsWith("SSeqToSTupleN ")) {
       ???
-    } else if (code.startsWith("InputN ")) {
-      ???
     } else if (code.startsWith("ErrorN ")) {
       ???
     } else if (code.startsWith("FIFON ")) {
       val suffix0 = expect(code, "FIFON ")
-      // TODO: Assert type?
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (_, suffix3) = parseNat(suffix2)

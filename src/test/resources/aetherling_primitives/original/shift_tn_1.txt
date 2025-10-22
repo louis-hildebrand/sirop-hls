@@ -1,0 +1,4 @@
+module0  =
+    n1 = Counter_tnN [6,1] [0,2] 3 UInt8T 0
+    n2 = Shift_tnN 6 [1] 0 [2] 1 UInt8T n1
+

@@ -1,0 +1,4 @@
+module0  =
+    n1 = Const_GenN SSeqV [Int16V (-42)] 0 (SSeqT 1 Int16T)
+    n2 = Up_1d_sN 8 Int16T n1
+

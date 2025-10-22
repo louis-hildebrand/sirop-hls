@@ -1,0 +1,4 @@
+module0  =
+    n1 = Const_GenN TSeqV {vals = [Int16V 42], i_v = 7} 0 (TSeqT 1 7 Int16T)
+    n2 = Up_1d_tN 4 4 Int16T n1
+
