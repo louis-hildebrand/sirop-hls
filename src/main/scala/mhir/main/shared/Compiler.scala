@@ -121,7 +121,7 @@ object Compiler {
       overwrite: Boolean
   ): Unit = {
     time("pretty printing", Level.DEBUG) {
-      val pp = ExprPrinter.display(finalProgram)
+      val pp = ExprPrinter.display(finalProgram) + "\n"
       dest match {
         case PPStdout =>
           print(pp)
