@@ -15,8 +15,6 @@ import lib.constants as c
 import lib.plt_utils as pu
 from lib.program_variant import ProgramVariant
 
-TARGET_FREQ = 175
-
 
 def plot_fmax(results: dict[ProgramVariant, float]) -> None:
     """
@@ -63,7 +61,7 @@ def plot_fmax(results: dict[ProgramVariant, float]) -> None:
     )
     target_artist, *_ = ax.plot(
         list(xlim),
-        [TARGET_FREQ, TARGET_FREQ],
+        [c.TARGET_FREQ, c.TARGET_FREQ],
         label="target",
         linestyle=":",
         color=(0.5, 0.5, 0.5),

@@ -13,7 +13,6 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl, set_ticks
 from lib.resource_usage import ResourceUsage
 
-TARGET_FREQ = 175  # MHz
 OUR_MARKER_SIZE = 16
 AETHERLING_MARKER_SIZE = 32
 
@@ -65,7 +64,7 @@ def plot_resource_usages(
             verilog_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        verilog_fmax_ok = [fmax_results[b] >= TARGET_FREQ for b in verilog_benchmarks]
+        verilog_fmax_ok = [fmax_results[b] >= c.TARGET_FREQ for b in verilog_benchmarks]
         vhdl_benchmarks = [
             b
             for b in results.keys()
@@ -75,7 +74,7 @@ def plot_resource_usages(
             vhdl_benchmarks,
             key=lambda b: (b.language, b.bench.throughput)
         )
-        vhdl_fmax_ok = [fmax_results[b] >= TARGET_FREQ for b in vhdl_benchmarks]
+        vhdl_fmax_ok = [fmax_results[b] >= c.TARGET_FREQ for b in vhdl_benchmarks]
         # xscale = axis_scale(bench_name)
         # yscale = xscale
         # Plot ALM usage

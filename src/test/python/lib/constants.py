@@ -50,10 +50,12 @@ DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")
 
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
-AETHERLING_MARKER = "^"
+AETHERLING_MARKER = "s"
 AETHERLING_MARKER_SIZE = 6
 AETHERLING_COLOR = "tab:blue"
 OUR_LABEL = "Aetherling \u2192 \\textsc{Minstril} \u2192 VHDL"
 OUR_MARKER = "o"
 OUR_MARKER_SIZE = 4
 OUR_COLOR = "tab:orange"
+
+TARGET_FREQ = 175  # MHz

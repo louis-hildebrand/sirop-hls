@@ -13,9 +13,6 @@ import lib.constants as c
 import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl, set_ticks
 
-TARGET_FREQ = 175
-
-
 AETHERLING_LABEL = "Aetherling \u2192 Chisel \u2192 Verilog"
 AETHERLING_MARKER = "s"
 AETHERLING_MARKER_SIZE = 4
@@ -96,7 +93,7 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         )
         # Target
         xs = sorted({b.bench.throughput for b in verilog_benchmarks + vhdl_benchmarks})
-        ys = [TARGET_FREQ for b in xs]
+        ys = [c.TARGET_FREQ for b in xs]
         target_artist, = ax.plot(xs, ys, marker="none", linestyle=":", color=(0.5, 0.5, 0.5))
         # Title, etc.
         ax.set_title(title)
