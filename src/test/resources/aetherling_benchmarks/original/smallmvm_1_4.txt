@@ -1,0 +1,14 @@
+module0 (I0 :: UInt8T) (I1 :: UInt8T) =
+    n11 = ATupleN UInt8T UInt8T I0 I1
+    n12 = MulN UInt8T n11
+
+module1 (I0 :: (TSeqT 4 0 (TSeqT 4 0 UInt8T))) (I1 :: (TSeqT 1 3 (TSeqT 4 0 UInt8T))) =
+    n1 = FIFON (TSeqT 4 0 (TSeqT 4 0 UInt8T)) 1 "I0"
+    n3 = FIFON (TSeqT 1 3 (TSeqT 4 0 UInt8T)) 1 "I1"
+    n4 = Up_1d_tN 4 0 (TSeqT 4 0 UInt8T) n3
+    n5 = Map2_tN 4 0 (Map2_tN 4 0 module0 I0 I1) n1 n4
+    n17 = Map_tN 4 0 (Reduce_tN 4 0 (AddN UInt8T I) I) n5
+    n18 = FIFON (TSeqT 4 0 (TSeqT 1 3 UInt8T)) 1 "n17"
+    n19 = FIFON (TSeqT 4 0 (TSeqT 1 3 UInt8T)) 1 "n18"
+    n20 = FIFON (TSeqT 4 0 (TSeqT 1 3 UInt8T)) 1 "n19"
+

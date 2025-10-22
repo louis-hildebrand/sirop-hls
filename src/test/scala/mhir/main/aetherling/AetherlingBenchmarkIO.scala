@@ -536,6 +536,35 @@ object AetherlingBenchmarkIO {
     normalCases + underutilizedCase
   }
 
+  private def smallMVMIO: Map[String, TestIO] = {
+    val height = 4
+    val width = 4
+    val mat =
+      (0 until height).flatMap(i => (0 until width).map(j => 1 + i + j))
+    val vec = 1 to width
+    val result = mat
+      .grouped(width)
+      .map(row => row.zip(vec).map({ case (x, y) => x * y }).sum)
+      .toSeq
+    val in = AbstractTestInput(
+      (0 until width * height).map(t =>
+        Seq(C(mat(t))(U8), if (t < 4) C(vec(t))(U8) else Undefined(U8))
+      )
+    )
+    val out = AbstractTestOutput(result.map(C(_)(U8)), skip = width - 1)
+    Map(
+      "smallmvm_1_4" -> AbstractTestIO(in, out),
+      "smallmvm_1_2" -> AbstractTestIO(
+        in.vec(2),
+        out.copy(skip = width / 2 - 1)
+      ),
+      "smallmvm_1" -> AbstractTestIO(
+        in.vec(4),
+        out.copy(skip = width / 4 - 1).vec(1)
+      )
+    )
+  }
+
   private def matVecIO: Map[String, vhdl.PositionalTestIO] = {
     Seq(1, 2, 4, 8, 16, 32)
       .map({ par =>
@@ -670,6 +699,7 @@ object AetherlingBenchmarkIO {
       ++ bigSharpenIO.mapValues(_.toVhdl)
       ++ smallCameraIO.mapValues(_.toVhdl)
       ++ bigCameraIO.mapValues(_.toVhdl)
+      ++ smallMVMIO.mapValues(_.toVhdl)
       ++ matVecIO
       ++ sqrtIO.mapValues(_.toVhdl)
       ++ bigSobelIO.mapValues(_.toVhdl)
@@ -694,6 +724,7 @@ object AetherlingBenchmarkIO {
       ++ bigSharpenIO.mapValues(_.toVerilog)
       ++ smallCameraIO.mapValues(_.toVerilog)
       ++ bigCameraIO.mapValues(_.toVerilog)
+      ++ smallMVMIO.mapValues(_.toVerilog)
       ++ sqrtIO.mapValues(_.toVerilog)
       ++ bigSobelIO.mapValues(_.toVerilog)
   )
