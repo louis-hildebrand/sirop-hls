@@ -140,6 +140,12 @@ smallconvb2b,8,verilog,363.9
 smallconvb2b,8,vhdl,379.36
 smallconvb2b,16,verilog,348.43
 smallconvb2b,16,vhdl,390.78
+smallmvm,1/4,verilog,241.43
+smallmvm,1/4,vhdl,319.8
+smallmvm,1/2,verilog,242.66
+smallmvm,1/2,vhdl,282.09
+smallmvm,1,verilog,231.64
+smallmvm,1,vhdl,272.85
 smallsharpen,1/9,verilog,201.21
 smallsharpen,1/9,vhdl,259.07
 smallsharpen,1/3,verilog,208.81
