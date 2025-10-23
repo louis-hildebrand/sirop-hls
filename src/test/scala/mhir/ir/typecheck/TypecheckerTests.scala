@@ -346,6 +346,20 @@ class TypecheckerTests extends AnyFunSuite {
     assertAllNodesHaveType(checked)
   }
 
+  test("VecBuild:IndexSizeTooSmall:U8") {
+    assert(VecBuild(255, U8 ::+ (i => i))().tchk().typ == TyVec(U8, 255))
+    assert(VecBuild(256, U8 ::+ (i => i))().tchk().typ == TyVec(U8, 256))
+    assertThrows[TypeError](VecBuild(257, U8 ::+ (i => i))().tchk())
+    assertThrows[TypeError](VecBuild(258, U8 ::+ (i => i))().tchk())
+  }
+
+  test("VecBuild:IndexSizeTooSmall:U16") {
+    assert(VecBuild(65535, U16 ::+ (i => i))().tchk().typ == TyVec(U16, 65535))
+    assert(VecBuild(65536, U16 ::+ (i => i))().tchk().typ == TyVec(U16, 65536))
+    assertThrows[TypeError](VecBuild(65537, U16 ::+ (i => i))().tchk())
+    assertThrows[TypeError](VecBuild(65538, U16 ::+ (i => i))().tchk())
+  }
+
   test("SimpleStream") {
     val n = Param("n")()
     val b = Param("b")(TyBool)

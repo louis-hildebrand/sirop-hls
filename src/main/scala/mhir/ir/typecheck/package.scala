@@ -394,7 +394,20 @@ package object typecheck {
           val newN = n.tchk.expectUInt()
           val newF = f.tchk
           val vecT = newF.typ match {
-            case TyArrow(_: TyUInt, t) => t
+            case TyArrow(uint @ TyUInt(wI), t) =>
+              newN match {
+                case IntCst(n) =>
+                  if (uint.maxInt < n - 1) {
+                    throw new TypeError(
+                      s"Index of $wI bits is not wide enough for ${vb.className} of length $n"
+                    )
+                  }
+                case _ =>
+                // TODO: Also check in this case?
+                //       What's tricky is that, for example, the length can be
+                //       256 (which is 9 bits) while the index is 8 bits wide.
+              }
+              t
             case t => throw new TypeError(s"Function of VecBuild has type $t.")
           }
           vb.rebuild(TyVec(vecT, newN), Seq(newN, newF))
