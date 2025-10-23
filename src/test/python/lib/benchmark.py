@@ -86,6 +86,14 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "bigcamera":
         # 1920*8 inputs and outputs
         return 1920 * 8 // bench.throughput
+    if bench.name == "smallmvm":
+        # 4*4 input
+        par = 4 * bench.throughput
+        return 4 * 4 // par
+    if bench.name == "bigmvm":
+        # 256*256 input
+        par = 256 * bench.throughput
+        return 256 * 256 // par
     if bench.name == "matvec":
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
@@ -102,17 +110,18 @@ def benchmark_order(bench_name: str) -> int:
         "map": 0,
         "sum": 1,
         "dot": 2,
-        "matvec": 3,
-        "conv1d": 4,
-        "smallconv2d": 5,
-        "smallconvb2b": 6,
-        "smallsharpen": 7,
-        "bigconv2d": 8,
-        "bigconvb2b": 9,
-        "bigsharpen": 10,
-        "bigcamera": 11,
-        "sqrt": 12,
-    }.get(bench_name, 12)
+        "smallmvm": 3,
+        "bigmvm": 4,
+        "conv1d": 5,
+        "smallconv2d": 6,
+        "smallconvb2b": 7,
+        "smallsharpen": 8,
+        "bigconv2d": 9,
+        "bigconvb2b": 10,
+        "bigsharpen": 11,
+        "bigcamera": 12,
+        "sqrt": 13,
+    }.get(bench_name, 14)
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -122,10 +131,12 @@ def benchmark_title(bench_name: str) -> str | None:
     """
     if bench_name.startswith("small"):
         return None
-    if bench_name in {"sum", "sqrt"}:
+    if bench_name in {"sum", "sqrt", "matvec"}:
         return None
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
+    if bench_name == "mvm":
+        bench_name = "matvec"
     return f"\\texttt{{{bench_name}}}"
 
 
@@ -137,6 +148,11 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
         ax.set_xticks(
             [1/4, 1, 2, 4, 8, 16],
             [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
+        )
+    elif bench_name == "bigmvm":
+        ax.set_xticks(
+            [1/256, 1/64, 1/16],
+            [r"$\frac{1}{256}$", r"$\frac{1}{64}$", r"$\frac{1}{16}$"],
         )
     elif bench_name.startswith("big"):
         ax.set_xticks(

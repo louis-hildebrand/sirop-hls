@@ -1,0 +1,14 @@
+module0 (I0 :: UInt16T) (I1 :: UInt16T) =
+    n11 = ATupleN UInt16T UInt16T I0 I1
+    n12 = MulN UInt16T n11
+
+module1 (I0 :: (TSeqT 256 0 (TSeqT 256 0 UInt16T))) (I1 :: (TSeqT 1 255 (TSeqT 256 0 UInt16T))) =
+    n1 = FIFON (TSeqT 256 0 (TSeqT 256 0 UInt16T)) 1 "I0"
+    n3 = FIFON (TSeqT 1 255 (TSeqT 256 0 UInt16T)) 1 "I1"
+    n4 = Up_1d_tN 256 0 (TSeqT 256 0 UInt16T) n3
+    n5 = Map2_tN 256 0 (Map2_tN 256 0 module0 I0 I1) n1 n4
+    n17 = Map_tN 256 0 (Reduce_tN 256 0 (AddN UInt16T I) I) n5
+    n18 = FIFON (TSeqT 256 0 (TSeqT 1 255 UInt16T)) 1 "n17"
+    n19 = FIFON (TSeqT 256 0 (TSeqT 1 255 UInt16T)) 1 "n18"
+    n20 = FIFON (TSeqT 256 0 (TSeqT 1 255 UInt16T)) 1 "n19"
+

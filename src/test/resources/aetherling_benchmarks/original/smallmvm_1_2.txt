@@ -1,0 +1,22 @@
+module0 (I0 :: UInt8T) (I1 :: UInt8T) =
+    n13 = ATupleN UInt8T UInt8T I0 I1
+    n14 = MulN UInt8T n13
+
+module1 (I :: (TSeqT 2 0 (SSeqT 2 UInt8T))) =
+    n21 = Map_tN 2 0 (Reduce_sN 2 (AddN UInt8T I) I) I
+    n24 = Reduce_tN 2 0 (Map_sN 1 (AddN UInt8T I) I) n21
+    n25 = ReshapeN ((TSeqT 1 1 (SSeqT 1 UInt8T))) ((TSeqT 1 1 UInt8T)) n24
+
+module2 (I0 :: (TSeqT 8 0 (SSeqT 2 UInt8T))) (I1 :: (TSeqT 2 6 (SSeqT 2 UInt8T))) =
+    n1 = FIFON (TSeqT 8 0 (SSeqT 2 UInt8T)) 1 "I0"
+    n3 = FIFON (TSeqT 2 6 (SSeqT 2 UInt8T)) 1 "I1"
+    n4 = Partition_t_ttN 1 2 3 0 (SSeqT 2 UInt8T) n3
+    n5 = Up_1d_tN 4 0 (TSeqT 2 0 (SSeqT 2 UInt8T)) n4
+    n6 = ReshapeN ((TSeqT 4 0 (TSeqT 2 0 (SSeqT 2 UInt8T)))) ((TSeqT 8 0 (SSeqT 2 UInt8T))) n5
+    n7 = Map2_tN 8 0 (Map2_sN 2 module0 I0 I1) n1 n6
+    n15 = Partition_t_ttN 4 2 0 0 (SSeqT 2 UInt8T) n7
+    n26 = Map_tN 4 0 module1 n15
+    n27 = FIFON (TSeqT 4 0 (TSeqT 1 1 UInt8T)) 1 "n26"
+    n28 = FIFON (TSeqT 4 0 (TSeqT 1 1 UInt8T)) 1 "n27"
+    n29 = FIFON (TSeqT 4 0 (TSeqT 1 1 UInt8T)) 1 "n28"
+

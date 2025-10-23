@@ -202,7 +202,7 @@ def plot_resource_usages(
         # HACK: get the axes to line up with the latency plot
         if bench_name == "map":
             alm_ax.plot([200], [100], color="#00000000")
-        elif "big" in bench_name:
+        elif "big" in bench_name and bench_name != "bigmvm":
             alm_ax.plot([16], [100], color="#00000000")
     # Settings for entire rows
     axes[0][0].set_ylabel("ALM (log)")

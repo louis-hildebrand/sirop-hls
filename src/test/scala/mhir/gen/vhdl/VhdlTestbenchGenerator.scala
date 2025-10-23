@@ -150,7 +150,6 @@ object VhdlTestbenchGenerator {
          |$testProcedureCalls
          |
          |    wait until falling_edge(clk);
-         |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
          |    test_done <= true;
          |    assert false report "Test done." severity note;
          |    wait;
@@ -450,7 +449,7 @@ object VhdlTestbenchGenerator {
           s"""wait until falling_edge(clk); -- prepare input well before the next rising edge
              |${x.name}_valid <= '1';
              |${x.name}_data <= $slv;
-             |wait until rising_edge(clk) and sl2bool(${x.name}_ready); -- must wait for the design to accept the input
+             |wait until rising_edge(clk) and (test_${testIdx}_outputs_done or sl2bool(${x.name}_ready)); -- must wait for the design to accept the input
              |""".stripMargin.stripTrailing
       })
       .mkString("\n\n")
@@ -483,11 +482,14 @@ object VhdlTestbenchGenerator {
        |    for i in 0 to ${x.name}_LEN - 1 loop
        |        -- Prepare input well before the next rising edge
        |        wait until falling_edge(clk);
+       |        if test_${testIdx}_outputs_done then
+       |            exit;
+       |        end if;
        |        ${x.name}_valid <= ${x.name}_valid_ram(i);
        |        ${x.name}_data <= ${x.name}_data_ram(i);
        |        if ${x.name}_valid_ram(i) = '1' then
        |            -- Must wait until the design has accepted the input
-       |            wait until rising_edge(clk) and sl2bool(${x.name}_ready);
+       |            wait until rising_edge(clk) and (test_${testIdx}_outputs_done or sl2bool(${x.name}_ready));
        |        end if;
        |    end loop;
        |
@@ -611,6 +613,7 @@ object VhdlTestbenchGenerator {
        |
        |${indent(testSteps)}
        |
+       |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
        |
        |    -- Accept the last output before moving on to the next test case
        |    wait until rising_edge(clk); wait until falling_edge(clk);
@@ -661,6 +664,8 @@ object VhdlTestbenchGenerator {
        |        masked_expected := expected and mask;
        |        assert(masked_data = masked_expected) report "Wrong data at step " & integer'image(i) & ".";
        |    end loop;
+       |
+       |    report "LATENCY: " & integer'image(t) & " cycles" severity note;
        |
        |    -- Accept the last output before moving on to the next test case
        |    wait until rising_edge(clk); wait until falling_edge(clk);

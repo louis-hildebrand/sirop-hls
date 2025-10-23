@@ -1,0 +1,30 @@
+// Output type: Stm[Stm[u16, 256:u9], 256:u9] -> Stm[Stm[u16, 256:u9], 1:u1] -> Stm[Stm[u16, 1:u1], 256:u9]
+let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n11: (u16, u16) = (I0, I1) in n11.0 *% n11.1 in
+(I0 : Stm[Stm[u16, 256:u9], 256:u9]) =>
+  (I1 : Stm[Stm[u16, 256:u9], 1:u1]) =>
+    let n1: Stm[Stm[u16, 256:u9], 256:u9] = I0 in
+    let n3: Stm[Stm[u16, 256:u9], 1:u1] = I1 in
+    let n4: Stm[Stm[u16, 256:u9], 256:u9] = StmJoin(StmRepeat(n3, 256:u9)) in
+    let n5: Stm[Stm[u16, 256:u9], 256:u9] = (
+      StmMap2(
+        n1,
+        n4,
+        (I0 : Stm[u16, 256:u9]) =>
+          (I1 : Stm[u16, 256:u9]) =>
+            StmMap2(
+              I0,
+              I1,
+              (I0 : u16) =>
+                (I1 : u16) => let n11: (u16, u16) = (I0, I1) in n11.0 *% n11.1
+            )
+      )
+    ) in
+    let n17: Stm[Stm[u16, 1:u1], 256:u9] = (
+      StmMap(
+        n5,
+        (I : Stm[u16, 256:u9]) => StmReduce(I, (I : (u16, u16)) => I.0 +% I.1)
+      )
+    ) in
+    let n18: Stm[Stm[u16, 1:u1], 256:u9] = n17 in
+    let n19: Stm[Stm[u16, 1:u1], 256:u9] = n18 in
+    n19
