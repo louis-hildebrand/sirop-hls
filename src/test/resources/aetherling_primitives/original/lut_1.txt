@@ -1,0 +1,4 @@
+module0  =
+    n1 = Counter_tN 4 0 3 UInt8T 0
+    n4 = Map_tN 4 0 (Lut_GenN [Int32V 0,Int32V 5,Int32V 10,Int32V 15,Int32V 20,Int32V 25,Int32V 30,Int32V 35,Int32V 40,Int32V 45,Int32V 50,Int32V 55,Int32V 60,Int32V 65,Int32V 70,Int32V 75] Int32T I) n1
+

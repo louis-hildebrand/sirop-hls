@@ -1,0 +1,4 @@
+module0  =
+    n1 = Const_GenN TSeqV {vals = [TSeqV {vals = [Int8V (-42),Int8V 0,Int8V 9], i_v = 0}], i_v = 0} 0 (TSeqT 1 0 (TSeqT 3 0 Int8T))
+    n6 = Remove_1_0_tN (Map_tN 3 0 (AbsN Int8T I) I) n1
+

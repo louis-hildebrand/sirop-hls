@@ -1,0 +1,3 @@
+module0  =
+    n1 = Const_GenN ATupleV (ATupleV (BitV False) (BitV True)) (STupleV [UInt8V 42,UInt8V 26]) 0 (ATupleT (ATupleT BitT BitT) (STupleT 2 UInt8T))
+

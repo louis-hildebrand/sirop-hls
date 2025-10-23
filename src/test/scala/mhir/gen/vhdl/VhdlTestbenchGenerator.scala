@@ -513,6 +513,8 @@ object VhdlTestbenchGenerator {
   private def getOutputCheckDecls(out: TestOutputFromFile): String = {
     val elemBitWidth = VhdlType(out.elemTyp).bitWidth
     val bytesPerRow = Binary.paddedBitWidth(out.elemTyp) / 8
+    val initMsb = elemBitWidth - 1
+    val initLsb = 8 * bytesPerRow - 8
     s"""-- Expected outputs
        |constant OUT_LEN   : natural := ${out.len};
        |constant OUT_WIDTH : natural := $elemBitWidth;
@@ -523,16 +525,19 @@ object VhdlTestbenchGenerator {
        |    file f : binary_file;
        |    variable c : character;
        |    variable row : std_logic_vector(OUT_WIDTH-1 downto 0);
-       |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
+       |    variable msb : integer range -1 to $initMsb;
+       |    variable lsb : integer range -9 to $initLsb;
        |    variable ram : out_ram_type;
        |begin
        |    file_open(f, "${out.data}");
        |    for i in 0 to OUT_LEN - 1 loop
-       |        msb := ${8 * bytesPerRow - 1};
+       |        msb := $initMsb;
+       |        lsb := $initLsb;
        |        while msb >= 7 loop
        |            read(f, c);
-       |            row(msb downto msb-7) := std_logic_vector(to_unsigned(character'pos(c), 8));
-       |            msb := msb - 8;
+       |            row(msb downto lsb) := std_logic_vector(to_unsigned(character'pos(c), msb - lsb + 1));
+       |            msb := lsb - 1;
+       |            lsb := msb - 7;
        |        end loop;
        |        ram(i) := row;
        |    end loop;
@@ -544,16 +549,19 @@ object VhdlTestbenchGenerator {
        |    file f : binary_file;
        |    variable c : character;
        |    variable row : std_logic_vector(OUT_WIDTH-1 downto 0);
-       |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
+       |    variable msb : integer range -1 to $initMsb;
+       |    variable lsb : integer range -9 to $initLsb;
        |    variable ram : out_ram_type;
        |begin
        |    file_open(f, "${out.mask}");
        |    for i in 0 to OUT_LEN - 1 loop
-       |        msb := ${8 * bytesPerRow - 1};
+       |        msb := $initMsb;
+       |        lsb := $initLsb;
        |        while msb >= 7 loop
        |            read(f, c);
-       |            row(msb downto msb-7) := std_logic_vector(to_unsigned(character'pos(c), 8));
-       |            msb := msb - 8;
+       |            row(msb downto lsb) := std_logic_vector(to_unsigned(character'pos(c), msb - lsb + 1));
+       |            msb := lsb - 1;
+       |            lsb := msb - 7;
        |        end loop;
        |        ram(i) := row;
        |    end loop;

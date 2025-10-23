@@ -86,7 +86,8 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
 
     test(s"$testName:verilog") {
       assume(
-        !Set("up_1d_s_1").contains(testName),
+        !Set("lut_1", "tuple_values_1", "up_1d_s_1", "unpartition_t_1")
+          .contains(testName),
         "Aetherling's Chisel backend fails to produce any Verilog for this test"
       )
       val io = AetherlingPrimitivesIO(testName).toVerilog

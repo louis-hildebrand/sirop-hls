@@ -53,7 +53,7 @@ object AetherlingParser {
     *                | "EqN " typ " " expr
     *                | "IfN " typ " " expr
     *                // ----- generators
-    *                | "Lut_GenN " ???
+    *                | "Lut_GenN " const_list " " typ " " expr
     *                | "Const_GenN " const " " nat " " typ
     *                | "Counter_sN " nat " " nat " " typ " " nat
     *                | "Counter_tN " nat " " nat " " nat " " typ " " nat
@@ -95,7 +95,6 @@ object AetherlingParser {
     *                | "STupleToSSeqN " nat " " typ " " expr
     *                | "SSeqToSTupleN " nat " " typ " " expr
     *                // ----- miscellaneous
-    *                | "ErrorN " ???
     *                | "FIFON " typ " " nat " " expr
     *                | "ReshapeN (" typ ") (" typ ") " expr
     *   const      ::= "UnitV"
@@ -107,7 +106,7 @@ object AetherlingParser {
     *                | "UInt16V " nat
     *                | "Int32V " int
     *                | "UInt32V " nat
-    *                | "ATupleV " const " " const
+    *                | "ATupleV (" const ") (" const ")"
     *                | "STupleV " const_list
     *                | "SSeqV " const_list
     *                | "TSeqV {vals = " const_list ", i_v = " nat "}"
@@ -364,7 +363,15 @@ object AetherlingParser {
       val (e, suffix1) = parseExpr(suffix0, modules)
       (e, suffix1)
     } else if (code.startsWith("AbsN ")) {
-      ???
+      val suffix0 = expect(code, "AbsN ")
+      val (typ, suffix1) = parseTyp(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      val abs = typ.asInstanceOf[TyAnyInt] match {
+        case _: TySInt => Mux(e < 0, -1 * e, e)()
+        case _: TyUInt => e
+      }
+      (abs, suffix3)
     } else if (code.startsWith("NotN ")) {
       val suffix0 = expect(code, "NotN ")
       val (e, suffix1) = parseExpr(suffix0, modules)
@@ -434,14 +441,19 @@ object AetherlingParser {
       val (e, suffix3) = parseExpr(suffix2, modules)
       (Mux(e.__0, e.__1.__0, e.__1.__1)(), suffix3)
     } else if (code.startsWith("Lut_GenN ")) {
-      ???
+      val suffix0 = expect(code, "Lut_GenN ")
+      val (elems, suffix1) = parseConstList(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (idx, suffix5) = parseExpr(suffix4, modules)
+      (VecAccess(VecLiteral(elems: _*)(), idx)(), suffix5)
     } else if (code.startsWith("Const_GenN ")) {
       val suffix0 = expect(code, "Const_GenN ")
       val (c, suffix1) = parseConst(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (_, suffix3) = parseNat(suffix2)
       val suffix4 = expect(suffix3, " ")
-      // TODO: Assert type?
       val (_, suffix5) = parseTyp(suffix4)
       (c, suffix5)
     } else if (code.startsWith("Counter_sN ")) {
@@ -642,7 +654,19 @@ object AetherlingParser {
       val (v, suffix7) = parseExpr(suffix6, modules)
       (VecJoin(v)(), suffix7)
     } else if (code.startsWith("Unpartition_t_ttN ")) {
-      ???
+      val suffix0 = expect(code, "Unpartition_t_ttN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseNat(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (_, suffix7) = parseNat(suffix6)
+      val suffix8 = expect(suffix7, " ")
+      val (_, suffix9) = parseTyp(suffix8)
+      val suffix10 = expect(suffix9, " ")
+      val (s, suffix11) = parseExpr(suffix10, modules)
+      (StmJoin(s)(), suffix11)
     } else if (code.startsWith("SerializeN ")) {
       // SerializeN seems to have type
       //     TSeq 1 (n + i - 1) (STuple n t) -> TSeq n i t
@@ -658,11 +682,36 @@ object AetherlingParser {
       val (s, suffix7) = parseExpr(suffix6, modules)
       (StmJoin(StmMap(s, Missing ::+ (v => Vec2Stm(v)()))())(), suffix7)
     } else if (code.startsWith("DeserializeN ")) {
-      ???
+      // DeserializeN seems to have type
+      //     Stm[t, n] -> Stm[Vec[t, n], 1]
+      val suffix0 = expect(code, "DeserializeN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseNat(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (_, suffix5) = parseTyp(suffix4)
+      val suffix6 = expect(suffix5, " ")
+      val (s, suffix7) = parseExpr(suffix6, modules)
+      (Stm2Vec(s)(), suffix7)
     } else if (code.startsWith("Add_1_sN ")) {
-      ???
-    } else if (code.startsWith("Add_1_0_tN")) {
-      ???
+      val suffix0 = expect(code, "Add_1_sN ")
+      val (f, suffix1) = parseExpr(suffix0, modules)
+      val suffix2 = expect(suffix1, " ")
+      val (e, suffix3) = parseExpr(suffix2, modules)
+      (VecBuild(1, U8 ::+ (_ => f(e)))(), suffix3)
+    } else if (code.startsWith("Add_1_0_tN ")) {
+      val suffix0 = expect(code, "Add_1_0_tN ")
+      val (f, suffix1) = parseExpr(suffix0, modules)
+      val suffix2 = expect(suffix1, " ")
+      val (s, suffix3) = parseExpr(suffix2, modules)
+      val g: Function = f match {
+        case x: Param if modules.contains(x) =>
+          // The function in StmMap must be a literal function, so inline
+          modules(x)
+        case _ =>
+          Function(Param("I", -1)(Missing), f)()
+      }
+      (StmMap(StmCst(1, s)(), g)(), suffix3)
     } else if (code.startsWith("Remove_1_sN ")) {
       // Remove_1_sN seems to have type
       //     (A -> B) -> SSeq 1 A -> B
@@ -675,7 +724,41 @@ object AetherlingParser {
       val g = makeUnaryFunction(f, modules)
       (g(VecAccess(v, 0)()), suffix3)
     } else if (code.startsWith("Remove_1_0_tN ")) {
-      ???
+      // NOTE: In theory, Remove_1_0_tN can be used to extract an integer from
+      //       a stream, which is not allowed in the minimal IR.
+      //       Here's why I don't handle that case.
+      //
+      // (1) Although one can technically directly write an Lst program that
+      //     uses Remove_1_0_tN, there is no equivalent in Lseq and the
+      //     Aetherling compiler never instantiates this primitive. Therefore,
+      //     we should never actually encounter Remove_1_0_tN.
+      // (2) It is still *possible* to handle programs like this by a sort of
+      //     augmented streamification pass. This pass would need to move all
+      //     Remove_1_t_tN expressions towards the root of the AST.
+      //       (a) If you encounter an expression like
+      //               5 + Remove_1_0_tN f s,
+      //           rewrite it to Map_tN (x -> 5 + f x) s.
+      //       (b) If you encounter an expression like
+      //               Add_1_0_tN f (Remove_1_0_tN g s),
+      //           rewrite it to Map_tN (f . g) s.
+      //       (c) If Remove_1_0_tN reaches the root of the AST, just discard
+      //           it.
+      //
+      // The claim that the minimalist IR is more expressive than Aetherling is
+      // true, even if not every single Lst primitive is actually handled by
+      // this parser.
+      val suffix0 = expect(code, "Remove_1_0_tN ")
+      val (f, suffix1) = parseExpr(suffix0, modules)
+      val suffix2 = expect(suffix1, " ")
+      val (s, suffix3) = parseExpr(suffix2, modules)
+      val g: Function = f match {
+        case x: Param if modules.contains(x) =>
+          // The function in StmMap must be a literal function, so inline
+          modules(x)
+        case _ =>
+          Function(Param("I", -1)(Missing), f)()
+      }
+      (StmJoin(StmMap(s, g)())(), suffix3)
     } else if (code.startsWith("Map_sN ")) {
       val suffix0 = expect(code, "Map_sN ")
       // TODO: Assert type?
@@ -795,9 +878,13 @@ object AetherlingParser {
       val (e, suffix5) = parseExpr(suffix4, modules)
       (e, suffix5)
     } else if (code.startsWith("SSeqToSTupleN ")) {
-      ???
-    } else if (code.startsWith("ErrorN ")) {
-      ???
+      val suffix0 = expect(code, "SSeqToSTupleN ")
+      val (_, suffix1) = parseNat(suffix0)
+      val suffix2 = expect(suffix1, " ")
+      val (_, suffix3) = parseTyp(suffix2)
+      val suffix4 = expect(suffix3, " ")
+      val (e, suffix5) = parseExpr(suffix4, modules)
+      (e, suffix5)
     } else if (code.startsWith("FIFON ")) {
       val suffix0 = expect(code, "FIFON ")
       val (_, suffix1) = parseTyp(suffix0)
@@ -897,9 +984,12 @@ object AetherlingParser {
 
   private def parseConst(code: String): (Expr, String) = {
     if (code.startsWith("UnitV")) {
-      ???
-    } else if (code.startsWith("BitV ")) {
-      ???
+      val suffix0 = expect(code, "UnitV")
+      (Tuple()(), suffix0)
+    } else if (code.startsWith("BitV False")) {
+      (False, expect(code, "BitV False"))
+    } else if (code.startsWith("BitV True")) {
+      (True, expect(code, "BitV True"))
     } else if (code.startsWith("Int8V ")) {
       val suffix0 = expect(code, "Int8V ")
       val (n, suffix1) = parseInt(suffix0)
@@ -930,9 +1020,16 @@ object AetherlingParser {
       val (n, suffix1) = parseNat(suffix0)
       (C(n)(U32), suffix1)
     } else if (code.startsWith("ATupleV ")) {
-      ???
+      val suffix0 = expect(code, "ATupleV (")
+      val (v0, suffix1) = parseConst(suffix0)
+      val suffix2 = expect(suffix1, ") (")
+      val (v1, suffix3) = parseConst(suffix2)
+      val suffix4 = expect(suffix3, ")")
+      (Tuple(v0, v1)(), suffix4)
     } else if (code.startsWith("STupleV ")) {
-      ???
+      val suffix0 = expect(code, "STupleV ")
+      val (elems, suffix1) = parseConstList(suffix0)
+      (VecLiteral(elems: _*)(), suffix1)
     } else if (code.startsWith("SSeqV ")) {
       val suffix0 = expect(code, "SSeqV ")
       val (elems, suffix1) = parseConstList(suffix0)
