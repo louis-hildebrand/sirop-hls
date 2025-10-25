@@ -8,6 +8,7 @@ from typing import TypeVar
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Polygon
 
 import lib.benchmark as lb
 import lib.constants as c
@@ -138,6 +139,13 @@ def plot_latency(
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
     fig.supxlabel("Target throughput (px/cycle)")
+    fig.text(0.0275, 0.07, "Lower is better")
+    down_arrow = Polygon(
+        [(0.0075, 0.13), (0.0175, 0.13), (0.0125, 0.07)],
+        fill=True, color='black', zorder=1000,
+        transform=fig.transFigure, figure=fig
+    )
+    fig.patches.extend([down_arrow])
     fig.legend(
         handles=[
             Line2D(
