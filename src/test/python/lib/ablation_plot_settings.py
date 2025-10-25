@@ -8,7 +8,12 @@ BASELINE_LVL = OptimizationLevel.ALL
 LEVELS_TO_PLOT = [
     lvl
     for lvl in OptimizationLevel
-    if lvl not in [BASELINE_LVL, OptimizationLevel.EXCEPT_STM_SIMPL]
+    if lvl not in [
+        BASELINE_LVL,
+        OptimizationLevel.EXCEPT_STM_SIMPL,
+        OptimizationLevel.SMALL_BUFFERS,
+        OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH
+    ]
 ]
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)

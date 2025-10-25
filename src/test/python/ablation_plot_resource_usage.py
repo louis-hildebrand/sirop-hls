@@ -9,6 +9,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
+from matplotlib.patches import Polygon
 
 import lib.ablation_plot_settings as aps
 import lib.ablation_results_crud as crud
@@ -16,6 +17,8 @@ import lib.constants as c
 import lib.plt_utils as pu
 from lib.program_variant import ProgramVariant
 from lib.resource_usage import ResourceUsage
+
+BRAM_YMAX = 20
 
 
 def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
@@ -37,7 +40,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     })
     fig, (alm_ax, bram_ax) = plt.subplots(
         nrows=2, ncols=1,
-        figsize=(8, 3),
+        figsize=(8, 2.5),
         layout="compressed",
         sharex="col",
     )
@@ -109,7 +112,7 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
                 continue
             if baseline == 0:
                 print(f"WARNING: baseline uses zero BRAMs for program {p}")
-                ys.append(0)
+                ys.append(BRAM_YMAX)
                 continue
             ys.append( (y - baseline) / baseline )
         artist = bram_ax.bar(
@@ -132,24 +135,12 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
                 label = r"$\infty$"
             else:
                 label = ""
-            # if bram == 0 and baseline == 0:
-            #     percent_change = 0
-            # elif baseline == 0:
-            #     percent_change = 0
-            # else:
-            #     percent_change = (bram - baseline) / baseline
-            # if percent_change >= 0:
-            #     label = f"+{percent_change:.0%}"
-            # else:
-            #     label = f"{percent_change:.0%}"
-            # label = label.replace("%", r"\%")
-            # if label == r"+0\%":
-            #     label = ""
             labels.append(label)
         bram_ax.bar_label(
             artist,
             labels=labels,
-            padding=3,
+            label_type="center",
+            color="white",
         )
     # Display settings
     alm_ax.set_xlim(xlim)
@@ -164,10 +155,20 @@ def plot_resource_usages(results: dict[ProgramVariant, ResourceUsage]) -> None:
     alm_ax.set_ylabel("\\% change\nALM usage")
     alm_ax.set_yscale("symlog")
     alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
+    alm_ax.set_ylim(-0.5, 40)
     bram_ax.tick_params(axis="x", which="both", length=0)
     bram_ax.set_ylabel("\\% change\nBRAM usage")
     bram_ax.set_yscale("symlog")
     bram_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
+    bram_ax.set_ylim(-1.2, BRAM_YMAX)
+    bram_ax.set_yticks([-1, 0, 1, 10])
+    fig.text(0.0275, -0.03, "Lower is better")
+    down_arrow = Polygon(
+        [(0.0075, 0.005), (0.0175, 0.005), (0.0125, -0.03)],
+        fill=True, color='black', zorder=1000,
+        transform=fig.transFigure, figure=fig
+    )
+    fig.patches.extend([down_arrow])
     legend_cols = math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
     legend_labels=[lvl.explanation for lvl in [aps.BASELINE_LVL] + aps.LEVELS_TO_PLOT]
     legend_handles=[baseline_artist] + artists
