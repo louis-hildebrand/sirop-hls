@@ -5,6 +5,7 @@ This script plots the resource usages for the Aetherling benchmarks.
 """
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.ticker import LogLocator
 
 import lib.benchmark as lb
@@ -13,8 +14,7 @@ import lib.results_crud as crud
 from lib.benchmark import BenchmarkImpl, set_ticks
 from lib.resource_usage import ResourceUsage
 
-OUR_MARKER_SIZE = 16
-AETHERLING_MARKER_SIZE = 32
+LINEWIDTH = 1
 
 
 def dedup(xs: list[str]) -> list[str]:
@@ -25,8 +25,8 @@ def dedup(xs: list[str]) -> list[str]:
 
 
 def plot_resource_usages(
-        results: dict[BenchmarkImpl, ResourceUsage],
-        fmax_results: dict[BenchmarkImpl, float]
+    results: dict[BenchmarkImpl, ResourceUsage],
+    fmax_results: dict[BenchmarkImpl, float]
 ) -> None:
     """
     Plot resource usage vs throughput for each benchmark.
@@ -44,13 +44,11 @@ def plot_resource_usages(
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 3.5),
+        figsize=(8, 2.9),
         layout="compressed",
         sharey="row",
         sharex="col",
     )
-    verilog_artist = None
-    vhdl_artist = None
     for col, bench_name in enumerate(benchmark_names):
         title = lb.benchmark_title(bench_name)
         if title is None:
@@ -75,8 +73,6 @@ def plot_resource_usages(
             key=lambda b: (b.language, b.bench.throughput)
         )
         vhdl_fmax_ok = [fmax_results[b] >= c.TARGET_FREQ for b in vhdl_benchmarks]
-        # xscale = axis_scale(bench_name)
-        # yscale = xscale
         # Plot ALM usage
         alm_ax = axes[0][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
@@ -87,18 +83,16 @@ def plot_resource_usages(
             label=c.AETHERLING_LABEL,
             zorder=0,
         )
-        _ = alm_ax.scatter(  # markers (separate so that some can be filled and some not)
+        alm_ax.scatter(  # markers (separate so that some can be filled and some not)
             xs, ys,
             marker=c.AETHERLING_MARKER,
-            s=AETHERLING_MARKER_SIZE,
+            s=c.AETHERLING_MARKER_SIZE,
             edgecolor=c.AETHERLING_COLOR,
-            linewidth=1,
+            linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=1,
         )
-        if not verilog_artist:
-            verilog_artist = _
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
         alm_ax.plot(  # line
@@ -107,18 +101,16 @@ def plot_resource_usages(
             label=c.OUR_LABEL,
             zorder=2,
         )
-        _ = alm_ax.scatter(  # markers
+        alm_ax.scatter(  # markers
             xs, ys,
             marker=c.OUR_MARKER,
-            s=OUR_MARKER_SIZE,
+            s=c.OUR_MARKER_SIZE,
             edgecolor=c.OUR_COLOR,
-            linewidth=1,
+            linewidth=LINEWIDTH,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
             zorder=3,
         )
-        if not vhdl_artist:
-            vhdl_artist = _
         # Plot BRAM usage
         bram_ax = axes[1][col]
         xs = [float(b.bench.throughput) for b in verilog_benchmarks]
@@ -132,9 +124,9 @@ def plot_resource_usages(
         bram_ax.scatter(  # markers
             xs, verilog_ys,
             marker=c.AETHERLING_MARKER,
-            s=AETHERLING_MARKER_SIZE,
+            s=c.AETHERLING_MARKER_SIZE,
             edgecolor=c.AETHERLING_COLOR,
-            linewidth=1,
+            linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=1,
@@ -150,9 +142,9 @@ def plot_resource_usages(
         bram_ax.scatter(  # markers
             xs, vhdl_ys,
             marker=c.OUR_MARKER,
-            s=OUR_MARKER_SIZE,
+            s=c.OUR_MARKER_SIZE,
             edgecolor=c.OUR_COLOR,
-            linewidth=1,
+            linewidth=LINEWIDTH,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
             zorder=3,
@@ -170,9 +162,9 @@ def plot_resource_usages(
         dsp_ax.scatter(  # markers
             xs, verilog_ys,
             marker=c.AETHERLING_MARKER,
-            s=AETHERLING_MARKER_SIZE,
+            s=c.AETHERLING_MARKER_SIZE,
             edgecolor=c.AETHERLING_COLOR,
-            linewidth=1,
+            linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=1,
@@ -188,7 +180,7 @@ def plot_resource_usages(
         dsp_ax.scatter(  # markers
             xs, vhdl_ys,
             marker=c.OUR_MARKER,
-            s=OUR_MARKER_SIZE,
+            s=c.OUR_MARKER_SIZE,
             edgecolor=c.OUR_COLOR,
             linewidth=1,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
@@ -217,14 +209,48 @@ def plot_resource_usages(
     axes[2][-1].yaxis.set_major_locator(LogLocator(base=10))
     axes[2][-1].set_ylim(0.11, 500)
     fig.supxlabel("Target throughput (px/cycle)")
-    if verilog_artist is None or vhdl_artist is None:
-        raise RuntimeError("Cannot create legend due to missing artists.")
     fig.legend(
-        [verilog_artist, vhdl_artist],
-        [c.AETHERLING_LABEL, c.OUR_LABEL],
+        handles=[
+            Line2D(
+                [0], [0],
+                label=c.OUR_LABEL,
+                color=c.OUR_COLOR,
+                linewidth=LINEWIDTH,
+                marker=c.OUR_MARKER,
+                markeredgecolor=c.OUR_COLOR,
+                markerfacecolor=c.OUR_COLOR,
+            ),
+            Line2D(
+                [0], [0],
+                label=c.OUR_LABEL_BLANK,
+                color=c.OUR_COLOR,
+                linewidth=LINEWIDTH,
+                marker=c.OUR_MARKER,
+                markeredgecolor=c.OUR_COLOR,
+                markerfacecolor="white",
+            ),
+            Line2D(
+                [0], [0],
+                label=c.AETHERLING_LABEL,
+                color=c.AETHERLING_COLOR,
+                linewidth=LINEWIDTH,
+                marker=c.AETHERLING_MARKER,
+                markeredgecolor=c.AETHERLING_COLOR,
+                markerfacecolor=c.AETHERLING_COLOR,
+            ),
+            Line2D(
+                [0], [0],
+                label=c.AETHERLING_LABEL_BLANK,
+                color=c.AETHERLING_COLOR,
+                linewidth=LINEWIDTH,
+                marker=c.AETHERLING_MARKER,
+                markeredgecolor=c.AETHERLING_COLOR,
+                markerfacecolor="white",
+            ),
+        ],
         loc="upper center",
         bbox_to_anchor=(0.5, 0),
-        ncols=2,
+        ncols=4,
     )
     fig.savefig(c.RESOURCE_USAGE_PDF, bbox_inches="tight")
 
