@@ -44,7 +44,7 @@ def plot_resource_usages(
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 2.9),
+        figsize=(8, 2.5),
         layout="compressed",
         sharey="row",
         sharex="col",

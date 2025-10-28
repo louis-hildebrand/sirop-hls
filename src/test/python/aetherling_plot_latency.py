@@ -49,11 +49,11 @@ def plot_latency(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 8,
+        "font.size": 7,
     })
     fig, axes = plt.subplots(
         nrows=1, ncols=len(benchmark_names),
-        figsize=(8, 1.4),
+        figsize=(8, 1.175),
         squeeze=False,
         sharey="row",
         layout="compressed",
@@ -135,7 +135,7 @@ def plot_latency(
 
     # Settings for entire rows
     axes[0].set_yscale("log", base=10)
-    axes[0].set_ylabel("Latency (log)")
+    axes[0].set_ylabel("Latency (log)\t.")
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
     fig.supxlabel("Target throughput (px/cycle)")

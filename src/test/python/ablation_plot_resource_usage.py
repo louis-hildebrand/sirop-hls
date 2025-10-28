@@ -45,7 +45,7 @@ def plot_resource_usages(
     })
     fig, (alm_ax, bram_ax) = plt.subplots(
         nrows=2, ncols=1,
-        figsize=(8, 2.5),
+        figsize=(8, 1.5),
         layout="compressed",
         sharex="col",
     )
@@ -156,9 +156,9 @@ def plot_resource_usages(
     bram_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     bram_ax.set_ylim(-1.2, BRAM_YMAX)
     bram_ax.set_yticks([-1, 0, 1, 10])
-    fig.text(0.0275, -0.03, "Lower is better")
+    fig.text(0.02, -0.03, "Lower is better")
     down_arrow = Polygon(
-        [(0.0075, 0.005), (0.0175, 0.005), (0.0125, -0.03)],
+        [(0.005, 0.015), (0.015, 0.015), (0.01, -0.03)],
         fill=True, color='black', zorder=1000,
         transform=fig.transFigure, figure=fig
     )
@@ -173,12 +173,12 @@ def plot_resource_usages(
     fig.legend(
         labels=pu.flip(legend_labels, legend_cols),
         handles=pu.flip(legend_handles, legend_cols),
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.05),
+        loc="upper right",
+        bbox_to_anchor=(1.0, 0.04),
         ncols=legend_cols,
         handlelength=1.5,
     )
-    fig.text(0.71, -0.1375, WARNING, color="red", zorder=1000)
+    fig.text(0.77, -0.105, WARNING, color="red", zorder=1000)
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
 
