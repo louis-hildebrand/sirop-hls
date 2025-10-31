@@ -1,3 +1,9 @@
 [submodule "lib/arithexpr"]
 	path = lib/arithexpr
 	url = https://louis-hildebrand@bitbucket.org/cdubach/arithexpr.git
+[submodule "src/test/shir"]
+	path = src/test/shir
+	url = https://bitbucket.org/cdubach/shir.git
+[submodule "src/test/aetherling"]
+	path = src/test/aetherling
+	url = https://github.com/louis-hildebrand/aetherling.git
