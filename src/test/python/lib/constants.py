@@ -15,9 +15,11 @@ AETHERLING_SPACETIME_DIR = (
 AETHERLING_VERILOG_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
 )
+SHIR_ORIGINALS_DIR = ROOT_DIR.joinpath("src", "test", "resources", "shir_benchmarks")
 VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
 ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
 DSE_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "dse")
+SHIR_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir_shir")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 AETHERLING_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "aetherling")
@@ -44,6 +46,9 @@ ABLATION_LATENCY_CSV = RESULTS_DIR.joinpath("ablation_latency.csv")
 ABLATION_LATENCY_PDF = RESULTS_DIR.joinpath("ablation_latency.pdf")
 ABLATION_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("ablation_compile_time.csv")
 ABLATION_COMPILE_TIME_PDF = RESULTS_DIR.joinpath("ablation_compile_time.pdf")
+
+SHIR_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("shir_resource_usage.csv")
+SHIR_FMAX_CSV = RESULTS_DIR.joinpath("shir_fmax.csv")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")

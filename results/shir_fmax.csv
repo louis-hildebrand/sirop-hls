@@ -1,0 +1,3 @@
+bench_name,bench_throughput,language,fmax
+map,-1,shir,645.16
+dot,-1,shir,267.17
