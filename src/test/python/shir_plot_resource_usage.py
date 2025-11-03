@@ -12,13 +12,27 @@ from matplotlib.patches import Polygon, Rectangle
 import lib.constants as c
 import lib.plt_utils as pu
 import lib.results_crud as crud
-from lib.benchmark import (Benchmark, BenchmarkImpl, benchmark_order,
-                           benchmark_title)
+from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
 BAR_WIDTH = 1 - BAR_SPACE
 BAR_PADDING = 0.02
+
+def benchmark_title(bench_name: str) -> str | None:
+    """
+    Return the title to put at the top of the column for the given benchmark, or `None` if the
+    results for this benchmark should be omitted from the plots.
+    """
+    if bench_name.startswith("small"):
+        return None
+    if bench_name in {"sum", "sqrt"}:
+        return None
+    if bench_name.startswith("big"):
+        bench_name = bench_name[len("big"):]
+    if bench_name == "mvm":
+        bench_name = "matvec"
+    return f"\\texttt{{{bench_name}}}"
 
 
 def plot_resource_usages(
@@ -101,6 +115,9 @@ def plot_resource_usages(
         baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
         if baseline == 0 and y == 0:
             ys.append(1)
+        elif baseline == 0:
+            print(f"WARNING: {p}: BRAM usage is zero for SHIR but {y} for Sirop")
+            ys.append(2)
         else:
             ys.append( y / baseline )
     bram_ax.bar(
@@ -119,6 +136,9 @@ def plot_resource_usages(
         baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].dsp
         if baseline == 0 and y == 0:
             ys.append(1)
+        elif baseline == 0:
+            print(f"WARNING: {p}: DSP usage is zero for SHIR but {y} for Sirop")
+            ys.append(2)
         else:
             ys.append( y / baseline )
     dsp_ax.bar(

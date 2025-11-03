@@ -26,7 +26,7 @@ def generate_shir(prog: str) -> None:
     shutil.copytree(src=in_dir, dst=out_dir)
     # Manually patch files (e.g., to replace hard-coded inputs with ports)
     patch_file_src = c.SHIR_ORIGINALS_DIR.joinpath(f"{prog}.patch")
-    blank = patch_file_src.read_text().strip() == ""
+    blank = patch_file_src.read_text(encoding="utf-8").strip() == ""
     if not blank:
         patch_file_dst = out_dir.joinpath(patch_file_src.name)
         shutil.copy(src=patch_file_src, dst=patch_file_dst)
