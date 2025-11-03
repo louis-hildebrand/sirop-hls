@@ -1,3 +1,3 @@
 bench_name,bench_throughput,language,alm,bram,dsp
-dot,-1,shir,53,0,1
-map,-1,shir,8,0,0
+dot,-1,shir,64,0,1
+map,-1,shir,11,0,0
