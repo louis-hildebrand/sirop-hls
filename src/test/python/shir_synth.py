@@ -12,24 +12,12 @@ from lib import synth
 
 def synthesize_shir(prog: str) -> None:
     """
-    Call the synthesis tool for the given program variant.
+    Invoke the synthesis tool for the given program.
     """
     proj_dir = c.SHIR_VHDL_DIR.joinpath(prog)
     ok = synth.synthesize_design(proj_dir, top="top")
     if not ok:
         print(f"Failed to synthesize {proj_dir}")
-        return
-    patch_dir = c.SHIR_ORIGINALS_DIR.joinpath(f"{prog}_patch")
-    input_components = [
-        line.strip()
-        for line in patch_dir.joinpath("inputs.txt").read_text().split("\n")
-        if line.strip()
-    ]
-    for component in input_components:
-        ok = synth.synthesize_design(proj_dir, top=component)
-        if not ok:
-            print(f"Failed to synthesize input component {component} in {proj_dir}")
-            return
 
 
 def main(programs: list[str]) -> None:

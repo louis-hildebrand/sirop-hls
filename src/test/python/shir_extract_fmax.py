@@ -5,6 +5,7 @@ This script extracts the estimated maximum clock frequency for all the given pro
 import csv
 import shutil
 from argparse import ArgumentParser, Namespace
+from fractions import Fraction
 from typing import TextIO
 
 import lib.constants as c
@@ -29,7 +30,7 @@ def extract_and_save_fmax(
     project_dir = c.SHIR_VHDL_DIR.joinpath(f"{prog}")
     fmax = fm.extract_fmax(project_dir)
     print("failed" if fmax is None else "OK")
-    crud.save_fmax_estimate(writer, BenchmarkImpl(Benchmark(prog, -1), "shir"), fmax)
+    crud.save_fmax_estimate(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), fmax)
     f.flush()
 
 

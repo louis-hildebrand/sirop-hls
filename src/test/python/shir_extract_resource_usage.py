@@ -5,6 +5,7 @@ This script extracts the resource usage for all the given programs.
 import csv
 import shutil
 from argparse import ArgumentParser, Namespace
+from fractions import Fraction
 from typing import TextIO
 
 import lib.constants as c
@@ -27,23 +28,9 @@ def extract_and_save_resource_usage(
         end="",
     )
     project_dir = c.SHIR_VHDL_DIR.joinpath(prog)
-    # Resource usage of top-level component, including the hard-coded inputs
     ru = extract_resource_usage(project_dir)
-    # Resource usage of the hard-coded inputs
-    patch_dir = c.SHIR_ORIGINALS_DIR.joinpath(f"{prog}_patch")
-    input_components = [
-        line.strip()
-        for line in patch_dir.joinpath("inputs.txt").read_text().split("\n")
-        if line.strip()
-    ]
-    for component in input_components:
-        c_ru = extract_resource_usage(project_dir, component=component)
-        if c_ru is None:
-            ru = None
-        else:
-            ru -= c_ru
     print("failed" if ru is None else "OK")
-    crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, -1), "shir"), ru)
+    crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), ru)
     f.flush()
 
 
