@@ -10,6 +10,7 @@ import subprocess
 from argparse import ArgumentParser, Namespace
 
 import lib.constants as c
+from lib.optimization_level import OptimizationLevel
 
 
 def generate_shir(prog: str) -> None:
@@ -34,7 +35,28 @@ def generate_shir(prog: str) -> None:
     shutil.copy(src=c.DEFAULT_SDC, dst=out_dir.joinpath("top.sdc"))
 
 
-def main(programs: list[str]) -> None:
+def generate_sirop(prog: str) -> None:
+    """
+    Generate VHDL project using our compiler.
+    """
+    print(f"Generating VHDL for {prog} (Sirop)...")
+    out_dir = c.SHIR_SIROP_VHDL_DIR.joinpath(prog)
+    ctime_file = c.SHIR_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
+    lvl = OptimizationLevel.ALL
+    command = (
+        f"java -jar {c.JAR_PATH} -s stored -i shir:{prog}"
+        f" --out:vhdl {out_dir} --overwrite"
+        f" --out:pp -"
+        f" --out:ctime {ctime_file}"
+        f" {lvl.flags}"
+    ).split(" ")
+    command = [x for x in command if x]
+    print()
+    print(f"Running : {' '.join(command)}")
+    subprocess.run(command, check=True)
+
+
+def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -43,10 +65,21 @@ def main(programs: list[str]) -> None:
     print(f"- Programs : {', '.join(programs)}")
     print("-" * 80)
 
-    c.SHIR_VHDL_DIR.mkdir(exist_ok=True, parents=True)
 
-    for prog in programs:
-        generate_shir(prog)
+    if not skip_shir:
+        c.SHIR_VHDL_DIR.mkdir(exist_ok=True, parents=True)
+
+        for prog in programs:
+            generate_shir(prog)
+
+    if not skip_sirop:
+        c.SHIR_SIROP_VHDL_DIR.mkdir(exist_ok=True, parents=True)
+        c.SHIR_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
+
+        os.chdir(c.ROOT_DIR)
+        subprocess.run(["sbt", "assembly"], check=True)
+        for prog in programs:
+            generate_sirop(prog)
 
 
 def parse_args() -> Namespace:
@@ -61,9 +94,23 @@ def parse_args() -> Namespace:
         nargs="*",
         help="the names of the programs to process"
     )
+    parser.add_argument(
+        "--skip-shir",
+        action="store_true",
+        help="don't generate any code using SHIR",
+    )
+    parser.add_argument(
+        "--skip-sirop",
+        action="store_true",
+        help="don't generate any code using Sirop",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        _args.programs,
+        skip_shir=_args.skip_shir,
+        skip_sirop=_args.skip_sirop,
+    )

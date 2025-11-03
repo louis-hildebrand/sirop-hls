@@ -6,7 +6,6 @@ import csv
 import shutil
 from argparse import ArgumentParser, Namespace
 from fractions import Fraction
-from typing import TextIO
 
 import lib.constants as c
 import lib.results_crud as crud
@@ -14,16 +13,12 @@ from lib.benchmark import Benchmark, BenchmarkImpl
 from lib.resource_usage import extract_resource_usage
 
 
-def extract_and_save_resource_usage(
-    prog: str,
-    writer: csv.DictWriter,
-    f: TextIO,
-) -> None:
+def extract_and_save_resource_usage_shir(prog: str, writer: csv.DictWriter) -> None:
     """
     Extract the resource usage for the given benchmark and save the results.
     """
     print(
-        f"Extracting resource usage for {prog}... ",
+        f"Extracting resource usage for {prog} (SHIR)... ",
         flush=True,
         end="",
     )
@@ -31,10 +26,24 @@ def extract_and_save_resource_usage(
     ru = extract_resource_usage(project_dir)
     print("failed" if ru is None else "OK")
     crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), ru)
-    f.flush()
 
 
-def main(programs: list[str]) -> None:
+def extract_and_save_resource_usage_sirop(prog: str, writer: csv.DictWriter) -> None:
+    """
+    Extract the resource usage for the given benchmark and save the results.
+    """
+    print(
+        f"Extracting resource usage for {prog} (Sirop)... ",
+        flush=True,
+        end="",
+    )
+    project_dir = c.SHIR_SIROP_VHDL_DIR.joinpath(prog)
+    ru = extract_resource_usage(project_dir)
+    print("failed" if ru is None else "OK")
+    crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop"), ru)
+
+
+def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -57,8 +66,14 @@ def main(programs: list[str]) -> None:
                 fieldnames=crud.RESOURCE_USAGE_HEADERS,
             )
             writer.writeheader()
-            for prog_name in programs:
-                extract_and_save_resource_usage(prog_name, writer=writer, f=out_file)
+            if not skip_shir:
+                for prog_name in programs:
+                    extract_and_save_resource_usage_shir(prog_name, writer=writer)
+                    out_file.flush()
+            if not skip_sirop:
+                for prog_name in programs:
+                    extract_and_save_resource_usage_sirop(prog_name, writer=writer)
+                    out_file.flush()
     finally:
         crud.merge_resource_usages(old=backup_out_path, new=out_path)
 
@@ -78,9 +93,23 @@ def parse_args() -> Namespace:
         nargs="*",
         help="the names of the programs to process"
     )
+    parser.add_argument(
+        "--skip-shir",
+        action="store_true",
+        help="skip the SHIR designs",
+    )
+    parser.add_argument(
+        "--skip-sirop",
+        action="store_true",
+        help="skip the Sirop designs",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        _args.programs,
+        skip_shir=_args.skip_shir,
+        skip_sirop=_args.skip_sirop,
+    )

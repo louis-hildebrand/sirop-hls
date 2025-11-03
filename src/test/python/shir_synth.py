@@ -20,7 +20,17 @@ def synthesize_shir(prog: str) -> None:
         print(f"Failed to synthesize {proj_dir}")
 
 
-def main(programs: list[str]) -> None:
+def synthesize_sirop(prog: str) -> None:
+    """
+    Invoke the synthesis tool for the given program.
+    """
+    proj_dir = c.SHIR_SIROP_VHDL_DIR.joinpath(prog)
+    ok = synth.synthesize_design(proj_dir, top="top")
+    if not ok:
+        print(f"Failed to synthesize {proj_dir}")
+
+
+def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -29,9 +39,15 @@ def main(programs: list[str]) -> None:
     print(f"- Programs : {', '.join(programs)}")
     print("-" * 80)
 
-    print("Synthesizing SHIR designs...")
-    for prog in programs:
-        synthesize_shir(prog)
+    if not skip_shir:
+        print("Synthesizing SHIR designs...")
+        for prog in programs:
+            synthesize_shir(prog)
+
+    if not skip_sirop:
+        print("Synthesizing Sirop designs...")
+        for prog in programs:
+            synthesize_sirop(prog)
 
 
 def parse_args() -> Namespace:
@@ -44,9 +60,23 @@ def parse_args() -> Namespace:
         nargs="*",
         help="the names of the programs to process"
     )
+    parser.add_argument(
+        "--skip-shir",
+        action="store_true",
+        help="don't synthesize any SHIR projects",
+    )
+    parser.add_argument(
+        "--skip-sirop",
+        action="store_true",
+        help="don't synthesize any Sirop projects",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        _args.programs,
+        skip_shir=_args.skip_shir,
+        skip_sirop=_args.skip_sirop,
+    )

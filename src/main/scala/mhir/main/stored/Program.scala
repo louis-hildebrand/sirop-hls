@@ -15,13 +15,15 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"     => Map
-      case "dot"     => Dot
-      case "conv1d"  => Conv1d
-      case "conv2d"  => Conv2d
-      case "convb2b" => ConvB2b
-      case "sharpen" => Sharpen
-      case "camera"  => Camera
+      case "map"      => Map
+      case "shir:map" => Map
+      case "dot"      => Dot
+      case "shir:dot" => Dot
+      case "conv1d"   => Conv1d
+      case "conv2d"   => Conv2d
+      case "convb2b"  => ConvB2b
+      case "sharpen"  => Sharpen
+      case "camera"   => Camera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
