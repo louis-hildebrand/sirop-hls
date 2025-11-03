@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity foldorderedstream_19 is
+entity foldorderedstream_73 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
@@ -17,11 +17,11 @@ entity foldorderedstream_19 is
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
     );
-end foldorderedstream_19;
+end foldorderedstream_73;
 
-architecture behavioral of foldorderedstream_19 is
+architecture behavioral of foldorderedstream_73 is
     
-    component tuple_15
+    component tuple_69
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -39,7 +39,7 @@ architecture behavioral of foldorderedstream_19 is
             p2_in_ready: in type_ReadyVectorTypeArithType0
         );
     end component;
-    component addint_16
+    component addint_70
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -82,7 +82,7 @@ architecture behavioral of foldorderedstream_19 is
         signal s15_ready: type_ReadyVectorTypeArithType0;
     begin
         
-        U0_tuple: tuple_15 port map(
+        U0_tuple: tuple_69 port map(
             clk => clk,
             p2_out_valid => s02_valid,
             p1_in_last => s13_last,
@@ -98,7 +98,7 @@ architecture behavioral of foldorderedstream_19 is
             p0_in_data => s08_data,
             p1_out_ready => s15_ready
         );
-        U1_addint: addint_16 port map(
+        U1_addint: addint_70 port map(
             clk => clk,
             p1_out_valid => s06_valid,
             p0_in_valid => s02_valid,

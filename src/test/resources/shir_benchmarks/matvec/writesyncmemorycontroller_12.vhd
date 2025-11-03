@@ -1,0 +1,109 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+use work.common.all;
+
+entity writesyncmemorycontroller_12 is
+    port(
+        clk: in type_LogicType;
+        reset: in type_LogicType;
+        p0_in_data: in type_NamedTupleTypeTextTypeaddrIntTypeArithType9TextTypedataIntTypeArithType16_addr;
+        p0_in_last: in type_LastVectorTypeArithType0;
+        p0_in_valid: in type_LogicType;
+        p0_out_ready: out type_ReadyVectorTypeArithType0;
+        p1_out_data: out type_UnitType;
+        p1_out_last: out type_LastVectorTypeArithType0;
+        p1_out_valid: out type_LogicType;
+        p1_in_ready: in type_ReadyVectorTypeArithType0;
+        p2_out_data: out type_NamedTupleTypeTextTypeaddrIntTypeArithType9TextTypedataIntTypeArithType16TextTypeweLogicType_addr;
+        p2_out_last: out type_LastVectorTypeArithType0;
+        p2_out_valid: out type_LogicType;
+        p2_in_ready: in type_ReadyVectorTypeArithType0;
+        p3_in_data: in type_IntTypeArithType16;
+        p3_in_last: in type_LastVectorTypeArithType0;
+        p3_in_valid: in type_LogicType;
+        p3_out_ready: out type_ReadyVectorTypeArithType0
+    );
+end writesyncmemorycontroller_12;
+
+architecture behavioral of writesyncmemorycontroller_12 is
+    
+    component id_10
+        port(
+            clk: in type_LogicType;
+            reset: in type_LogicType;
+            p0_in_data: in type_NamedTupleTypeTextTypeaddrIntTypeArithType9TextTypedataIntTypeArithType16TextTypeweLogicType_addr;
+            p0_in_last: in type_LastVectorTypeArithType0;
+            p0_in_valid: in type_LogicType;
+            p0_out_ready: out type_ReadyVectorTypeArithType0;
+            p1_out_data: out type_NamedTupleTypeTextTypeaddrIntTypeArithType9TextTypedataIntTypeArithType16TextTypeweLogicType_addr;
+            p1_out_last: out type_LastVectorTypeArithType0;
+            p1_out_valid: out type_LogicType;
+            p1_in_ready: in type_ReadyVectorTypeArithType0
+        );
+    end component;
+    component id_11
+        port(
+            clk: in type_LogicType;
+            reset: in type_LogicType;
+            p0_in_data: in type_IntTypeArithType16;
+            p0_in_last: in type_LastVectorTypeArithType0;
+            p0_in_valid: in type_LogicType;
+            p0_out_ready: out type_ReadyVectorTypeArithType0;
+            p1_out_data: out type_IntTypeArithType16;
+            p1_out_last: out type_LastVectorTypeArithType0;
+            p1_out_valid: out type_LogicType;
+            p1_in_ready: in type_ReadyVectorTypeArithType0
+        );
+    end component;
+    
+    
+    
+    signal s00_data: type_IntTypeArithType16;
+    signal s01_last: type_LastVectorTypeArithType0;
+    signal s02_valid: type_LogicType;
+    signal s03_ready: type_ReadyVectorTypeArithType0;
+    signal s04_data: type_NamedTupleTypeTextTypeaddrIntTypeArithType9TextTypedataIntTypeArithType16TextTypeweLogicType_addr;
+    signal s05_last: type_LastVectorTypeArithType0;
+    signal s06_valid: type_LogicType;
+    signal s07_ready: type_ReadyVectorTypeArithType0;
+begin
+    
+    U0_id: id_10 port map(
+        clk => clk,
+        p0_in_data => s04_data,
+        p1_out_valid => p2_out_valid,
+        p0_in_valid => s06_valid,
+        p1_out_data => p2_out_data,
+        p1_out_last => p2_out_last,
+        p0_out_ready => s07_ready,
+        p0_in_last => s05_last,
+        reset => reset,
+        p1_in_ready => p2_in_ready
+    );
+    U1_id: id_11 port map(
+        clk => clk,
+        p1_out_valid => s02_valid,
+        p0_in_valid => p3_in_valid,
+        p0_in_data => p3_in_data,
+        p1_out_last => s01_last,
+        p0_out_ready => p3_out_ready,
+        p0_in_last => p3_in_last,
+        reset => reset,
+        p1_in_ready => s03_ready,
+        p1_out_data => s00_data
+    );
+    s04_data.data <= p0_in_data.data;
+    s04_data.addr <= p0_in_data.addr;
+    s04_data.we <= '1';
+    s05_last <= p0_in_last;
+    s06_valid <= p0_in_valid;
+    p0_out_ready <= s07_ready;
+    
+    p1_out_data <= (others => '0');
+    p1_out_last <= s01_last;
+    p1_out_valid <= s02_valid;
+    s03_ready <= p1_in_ready;
+    
+end behavioral;

@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity mapsimpleorderedstream_12 is
+entity mapsimpleorderedstream_66 is
     generic(
         stream_length: type_NaturalNumberType := 256
     );
@@ -20,11 +20,11 @@ entity mapsimpleorderedstream_12 is
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType1
     );
-end mapsimpleorderedstream_12;
+end mapsimpleorderedstream_66;
 
-architecture behavioral of mapsimpleorderedstream_12 is
+architecture behavioral of mapsimpleorderedstream_66 is
     
-    component mulint_7
+    component mulint_61
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -38,7 +38,7 @@ architecture behavioral of mapsimpleorderedstream_12 is
             p1_in_ready: in type_ReadyVectorTypeArithType0
         );
     end component;
-    component conversion_8
+    component conversion_62
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -52,7 +52,7 @@ architecture behavioral of mapsimpleorderedstream_12 is
             p1_in_ready: in type_ReadyVectorTypeArithType0
         );
     end component;
-    component dropvector_9
+    component dropvector_63
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -66,7 +66,7 @@ architecture behavioral of mapsimpleorderedstream_12 is
             p1_in_ready: in type_ReadyVectorTypeArithType0
         );
     end component;
-    component conversion_10
+    component conversion_64
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -108,7 +108,7 @@ architecture behavioral of mapsimpleorderedstream_12 is
     signal s21_data: type_ReadyVectorTypeArithType1;
 begin
     
-    U0_mulint: mulint_7 port map(
+    U0_mulint: mulint_61 port map(
         clk => clk,
         p1_out_valid => s02_valid,
         p0_in_valid => s18_valid,
@@ -120,7 +120,7 @@ begin
         p1_out_data => s00_data,
         p0_in_data => s16_data
     );
-    U1_conversion: conversion_8 port map(
+    U1_conversion: conversion_62 port map(
         clk => clk,
         p1_out_valid => s06_valid,
         p0_in_valid => s02_valid,
@@ -132,7 +132,7 @@ begin
         p1_in_ready => s07_ready,
         p1_out_data => s04_data
     );
-    U2_dropvector: dropvector_9 port map(
+    U2_dropvector: dropvector_63 port map(
         clk => clk,
         p1_out_valid => s10_valid,
         p0_in_valid => s06_valid,
@@ -144,7 +144,7 @@ begin
         p1_in_ready => s11_ready,
         p0_in_data => s04_data
     );
-    U3_conversion: conversion_10 port map(
+    U3_conversion: conversion_64 port map(
         clk => clk,
         p1_out_valid => s14_valid,
         p0_in_valid => s10_valid,

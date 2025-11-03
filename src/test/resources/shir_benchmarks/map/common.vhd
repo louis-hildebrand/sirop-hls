@@ -17,6 +17,4 @@ package common is
     subtype type_LastVectorTypeArithType1 is std_logic_vector(0 downto 0);
     subtype type_NaturalNumberType is natural;
     alias type_OrderedStreamTypeIntTypeArithType8ArithType200 is type_IntTypeArithType8;
-    subtype type_VectorTypeLogicTypeArithType1 is std_logic_vector(0 downto 0);
-    type type_VectorTypeNaturalNumberTypeArithType1 is array (0 downto 0) of type_NaturalNumberType;
 end package;

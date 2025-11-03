@@ -4,31 +4,31 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity counterinteger_2 is
+entity counterinteger_29 is
     generic(
-        start: type_NaturalNumberType := 1;
+        start: type_NaturalNumberType := 0;
         increment: type_NaturalNumberType := 1;
-        dimensions: type_VectorTypeNaturalNumberTypeArithType1 := (0 => 256);
-        repetitions: type_VectorTypeLogicTypeArithType1 := "0";
-        loop_all: type_LogicType := '0'
+        dimensions: type_VectorTypeNaturalNumberTypeArithType2 := (256, 256);
+        repetitions: type_VectorTypeLogicTypeArithType2 := "10";
+        loop_all: type_LogicType := '1'
         );
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
-            p0_out_data: out type_OrderedStreamTypeIntTypeArithType16ArithType256;
-            p0_out_last: out type_LastVectorTypeArithType1;
+            p0_out_data: out type_OrderedStreamTypeOrderedStreamTypeIntTypeArithType8ArithType256ArithType256;
+            p0_out_last: out type_LastVectorTypeArithType2;
             p0_out_valid: out type_LogicType;
-            p0_in_ready: in type_ReadyVectorTypeArithType1
+            p0_in_ready: in type_ReadyVectorTypeArithType2
         );
-    end counterinteger_2;
+    end counterinteger_29;
     
-    architecture behavioral of counterinteger_2 is
+    architecture behavioral of counterinteger_29 is
         
         
         
         -- function to precompute constants (during compilation)
-        function precomp_increments return type_VectorTypeNaturalNumberTypeArithType1 is
-            variable increment_per_dimension: type_VectorTypeNaturalNumberTypeArithType1 := (others => increment);
+        function precomp_increments return type_VectorTypeNaturalNumberTypeArithType2 is
+            variable increment_per_dimension: type_VectorTypeNaturalNumberTypeArithType2 := (others => increment);
             
             
         begin
@@ -51,8 +51,8 @@ entity counterinteger_2 is
         end function;
         
         signal counter_value: natural := 0;
-        signal counter_dimensions: type_VectorTypeNaturalNumberTypeArithType1 := (others => 0);
-        constant increment_per_dimension: type_VectorTypeNaturalNumberTypeArithType1 := precomp_increments;
+        signal counter_dimensions: type_VectorTypeNaturalNumberTypeArithType2 := (others => 0);
+        constant increment_per_dimension: type_VectorTypeNaturalNumberTypeArithType2 := precomp_increments;
         
         signal out_last: std_logic_vector(p0_out_last'range) := (others => '0');
         signal out_valid: std_logic := '1';

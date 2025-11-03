@@ -4,26 +4,26 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity tuple_15 is
+entity tuple_31 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_IntTypeArithType24;
-        p0_in_last: in type_LastVectorTypeArithType0;
+        p0_in_data: in type_OrderedStreamTypeOrderedStreamTypeIntTypeArithType8ArithType256ArithType256;
+        p0_in_last: in type_LastVectorTypeArithType2;
         p0_in_valid: in type_LogicType;
-        p0_out_ready: out type_ReadyVectorTypeArithType0;
-        p1_in_data: in type_IntTypeArithType16;
-        p1_in_last: in type_LastVectorTypeArithType0;
+        p0_out_ready: out type_ReadyVectorTypeArithType2;
+        p1_in_data: in type_OrderedStreamTypeOrderedStreamTypeBaseAddrTypeArithType1BlockRamTypeIdType2ArithType256ArithType256;
+        p1_in_last: in type_LastVectorTypeArithType2;
         p1_in_valid: in type_LogicType;
-        p1_out_ready: out type_ReadyVectorTypeArithType0;
-        p2_out_data: out type_NamedTupleTypeTextTypet0IntTypeArithType24TextTypet1IntTypeArithType16_t0;
-        p2_out_last: out type_LastVectorTypeArithType0;
+        p1_out_ready: out type_ReadyVectorTypeArithType2;
+        p2_out_data: out type_NamedTupleTypeTextTypet0OrderedStreamTypeOrderedStreamTypeIntTypeArithType8ArithType256ArithType256TextTypet1OrderedStreamTypeOrderedStreamTypeBaseAddrTypeArithType1BlockRamTypeIdType2ArithType256ArithType256_t0;
+        p2_out_last: out type_LastVectorTypeArithType2;
         p2_out_valid: out type_LogicType;
-        p2_in_ready: in type_ReadyVectorTypeArithType0
+        p2_in_ready: in type_ReadyVectorTypeArithType2
     );
-end tuple_15;
+end tuple_31;
 
-architecture behavioral of tuple_15 is
+architecture behavioral of tuple_31 is
     
     
     

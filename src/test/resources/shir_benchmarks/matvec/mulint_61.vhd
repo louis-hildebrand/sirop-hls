@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity mulint_7 is
+entity mulint_61 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
@@ -17,9 +17,9 @@ entity mulint_7 is
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
     );
-end mulint_7;
+end mulint_61;
 
-architecture behavioral of mulint_7 is
+architecture behavioral of mulint_61 is
     
     
     

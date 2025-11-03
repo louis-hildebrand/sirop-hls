@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity addint_16 is
+entity addint_70 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
@@ -17,9 +17,9 @@ entity addint_16 is
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
     );
-end addint_16;
+end addint_70;
 
-architecture behavioral of addint_16 is
+architecture behavioral of addint_70 is
     
     
     
