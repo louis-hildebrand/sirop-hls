@@ -8,7 +8,7 @@ VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
-JAR_PATH = ROOT_DIR.joinpath("target", "scala-2.12", "minstril.jar")
+JAR_PATH = ROOT_DIR.joinpath("target", "scala-2.12", "sirop.jar")
 AETHERLING_SPACETIME_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
 )
