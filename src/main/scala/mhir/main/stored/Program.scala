@@ -15,15 +15,16 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"      => Map
-      case "shir:map" => Map
-      case "dot"      => Dot
-      case "shir:dot" => Dot
-      case "conv1d"   => Conv1d
-      case "conv2d"   => Conv2d
-      case "convb2b"  => ConvB2b
-      case "sharpen"  => Sharpen
-      case "camera"   => Camera
+      case "map"         => Map
+      case "shir:map"    => Map
+      case "dot"         => Dot
+      case "shir:dot"    => Dot
+      case "conv1d"      => Conv1d
+      case "shir:conv1d" => ShirConv1d
+      case "conv2d"      => Conv2d
+      case "convb2b"     => ConvB2b
+      case "sharpen"     => Sharpen
+      case "camera"      => Camera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
@@ -91,6 +92,24 @@ object Program {
     )()
     val s4 = StmMap(s3, TyVec(I8, 1) ::+ (v => VecAccess(v, 0)()))()
     Function(input, s4)()
+  }
+
+  /** 1-dimensional convolution.
+    */
+  private val ShirConv1d: Expr = {
+    val input = Param("I")(TyStm(I8, 16))
+    val windows = StmSlideV(input, 3)()
+    val result = StmMap(
+        windows,
+        TyVec(I8, 3) ::+ ({ window =>
+            val kernel = VecLiteral(C(-1)(I8), C(0)(I8), C(1)(I8))()
+            val zipped = VecZip(window, kernel)
+            val products = VecMap(zipped, (I8, I8) ::+ (x => x.__0 * x.__1))()
+            val sum = VecAccess(VecReduceComb(products, (I8, I8) ::+ (x => x.__0 + x.__1))(), 0)()
+            sum
+        }),
+    )()
+    Function(input, result)()
   }
 
   private def blurKernel(int: Type) = {
