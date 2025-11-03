@@ -51,6 +51,7 @@ ABLATION_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("ablation_compile_time.csv")
 ABLATION_COMPILE_TIME_PDF = RESULTS_DIR.joinpath("ablation_compile_time.pdf")
 
 SHIR_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("shir_resource_usage.csv")
+SHIR_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("shir_resource_usage.pdf")
 SHIR_FMAX_CSV = RESULTS_DIR.joinpath("shir_fmax.csv")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
