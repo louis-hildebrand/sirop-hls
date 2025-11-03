@@ -1,4 +1,6 @@
 bench_name,bench_throughput,language,alm,bram,dsp
+conv1d,-1,shir,37,0,1
+conv1d,-1,sirop,30,0,0
 dot,-1,shir,64,0,1
 dot,-1,sirop,29,0,1
 map,-1,shir,12,0,0
