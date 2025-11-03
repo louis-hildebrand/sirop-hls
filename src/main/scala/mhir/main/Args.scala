@@ -51,7 +51,7 @@ object Args {
 
   private[main] def printShortUsage(): Unit = {
     println(
-      s"Usage: minstril -s (aetherling|stored) -i INPUT [OPTION]... [-h|--help]"
+      s"Usage: sirop -s (aetherling|stored) -i INPUT [OPTION]... [-h|--help]"
     )
   }
 

@@ -28,9 +28,9 @@ Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src
 
 lazy val root = (project in file("."))
   .settings(
-    name := "min_hw_ir",
+    name := "sirop",
     assembly / mainClass := Some("mhir.main.Compiler"),
-    assembly / assemblyJarName := "minstril.jar",
+    assembly / assemblyJarName := "sirop.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", xs @ _*) =>
         xs.map(_.toLowerCase) match {
