@@ -33,6 +33,13 @@ object Program {
           par = par,
           uint = U16
         )
+      case "shir:matvec" =>
+        MatVecMul(
+          width = MatVecSize,
+          height = MatVecSize,
+          par = 1,
+          uint = U16
+        )
       case "sqrt"  => Sqrt
       case "sobel" => Sobel
       case name =>
