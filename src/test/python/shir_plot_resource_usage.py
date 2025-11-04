@@ -182,10 +182,16 @@ def plot_resource_usages(
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("ALM\nratio")
+    ymin, ymax = alm_ax.get_ylim()
+    alm_ax.set_ylim(ymin, max(1.05, ymax))
     bram_ax.tick_params(axis="x", which="both", length=0)
     bram_ax.set_ylabel("BRAM\nratio")
+    ymin, ymax = bram_ax.get_ylim()
+    bram_ax.set_ylim(ymin, max(1.05, ymax))
     dsp_ax.tick_params(axis="x", which="both", length=0)
     dsp_ax.set_ylabel("DSP\nratio")
+    ymin, ymax = dsp_ax.get_ylim()
+    dsp_ax.set_ylim(ymin, max(1.1, ymax))
 
     # "Lower is better" message
     fig.text(0.0375, -0.03, "Lower is better")
