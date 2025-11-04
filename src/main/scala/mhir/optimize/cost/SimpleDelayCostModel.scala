@@ -1,6 +1,7 @@
 package mhir.optimize.cost
 
 import mhir.ir._
+import mhir.ir.typecheck.TypeCheck
 
 object SimpleDelayCostModel {
 
@@ -17,7 +18,7 @@ object SimpleDelayCostModel {
   ): Long = {
     // Doesn't really matter what the delay is, as long as it's low enough to
     // meet the timing requirements
-    math.max(FullCycleDelay, cost(staticVars, varCosts)(e))
+    math.max(FullCycleDelay, cost(staticVars, varCosts)(e.tchk()))
   }
 
   /** The raw delay cost of the given expression, which may be less than the
@@ -28,15 +29,17 @@ object SimpleDelayCostModel {
       staticVars: Set[Param] = Set(),
       varCosts: Map[Param, Long] = Map()
   ): Long = {
-    cost(staticVars, varCosts)(e)
+    cost(staticVars, varCosts)(e.tchk())
   }
 
   private def cost(staticVars: Set[Param], varCosts: Map[Param, Long])(
       e: Expr
   ): Long = {
+    require(e.hasType)
     e match {
       case _: StmData | _: BoolCst | _: IntCst | _: FixCst | _: Undefined =>
         0
+      case _ if isStatic(e, staticVars) && e.typ.isData => 0
       case x: Param          => varCosts.getOrElse(x, 0)
       case Tuple(elems @ _*) => elems.map(cost(staticVars, varCosts)).max
       case TupleAccess(t, _) => cost(staticVars, varCosts)(t)
@@ -111,7 +114,12 @@ object SimpleDelayCostModel {
       case And(terms @ _*) => terms.map(cost(staticVars, varCosts)).sum + 1
       case Or(terms @ _*)  => terms.map(cost(staticVars, varCosts)).sum + 1
       case Mux(c, t, f) =>
-        Seq(c, t, f).map(cost(staticVars, varCosts)).max + 3
+        val childDelay = Seq(c, t, f).map(cost(staticVars, varCosts)).max
+        if (isStatic(c, staticVars)) {
+          childDelay
+        } else {
+          childDelay + 3
+        }
       case s: StmBuild =>
         (cost(staticVars, varCosts)(s.data) +: cost(staticVars, varCosts)(
           s.valid

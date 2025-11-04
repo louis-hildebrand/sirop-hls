@@ -23,7 +23,8 @@ object SimpleAreaCostModel {
   private def cost(sv: Set[Param])(e: Expr): AreaCost = {
     require(e.hasType)
     e match {
-      case _: Param => AreaCost.Zero
+      case _ if isStatic(e, sv) && e.typ.isData => AreaCost.Zero
+      case _: Param                             => AreaCost.Zero
       case e if e.typ.isData && isStatic(e, sv) =>
         AreaCost(BitWidth(e.typ), 0, 0)
       case Tuple(elems @ _*) =>

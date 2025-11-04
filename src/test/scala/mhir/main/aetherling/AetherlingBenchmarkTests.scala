@@ -36,27 +36,6 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  test("Foo") {
-    val args = mhir.main.stored.Args(
-      program = mhir.main.stored.Program("shir:conv2d"),
-      options = CompilerOptions(
-        targets = Set(
-          mhir.main.shared
-            .PrettyPrintTarget(mhir.main.shared.PPStdout, overwrite = false)
-        ),
-        optFlags = OptimizerOptions.all(
-          assumeThroughputsMatch = true,
-          maxLetStmBufSize = {
-            // Play it safe
-            Some(100)
-          }
-        )
-      )
-    )
-    val f = mhir.main.stored.Compiler.compile(args)
-    ???
-  }
-
   test("AllBenchmarks") {
     assert(BenchmarksToRun == AllBenchmarks)
   }
