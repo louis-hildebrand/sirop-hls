@@ -289,7 +289,7 @@ object Streamifier {
             Seq(
               newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
               newRegAcc(x) -> (
-                Default(x.typ).tchk().lower(),
+                Undefined(x.typ),
                 Mux(isFirstStep, stmData, newRegAcc(x))()
               )
             )

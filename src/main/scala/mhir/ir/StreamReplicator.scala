@@ -149,8 +149,12 @@ object StreamReplicator {
           scopes(x) match {
             case SharedScope => newX -> (z, next.subPreserveType(subs))
             case PrivateScope =>
+              val newZ = z match {
+                case _: Undefined => Undefined(TyVec(x.typ, m))
+                case _            => VecBuild(m, Function(i, z)())()
+              }
               newX -> (
-                VecBuild(m, Function(i, z)())(),
+                newZ,
                 VecBuild(m, Function(i, next.subPreserveType(subs))())()
               )
           }

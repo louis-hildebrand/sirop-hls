@@ -225,7 +225,7 @@ class StreamifierTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             isFirstStep -> (True, False),
-            cBuf -> (Default(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)()),
+            cBuf -> (Undefined(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)()),
             cStm -> (c, isFirstStep)
           )
         )()
