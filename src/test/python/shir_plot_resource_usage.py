@@ -192,6 +192,7 @@ def plot_resource_usages(
     dsp_ax.set_ylabel("DSP\nratio")
     ymin, ymax = dsp_ax.get_ylim()
     dsp_ax.set_ylim(ymin, max(1.1, ymax))
+    fig.align_ylabels()
 
     # "Lower is better" message
     fig.text(0.0375, -0.03, "Lower is better")
