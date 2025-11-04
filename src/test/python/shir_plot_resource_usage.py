@@ -4,6 +4,7 @@
 This script plots the resource usages for the ablation study.
 """
 
+import statistics
 from fractions import Fraction
 
 import matplotlib.pyplot as plt
@@ -65,7 +66,7 @@ def plot_resource_usages(
     # Baseline
     xlim = (
         -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-        len(program_names) - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
+        len(program_names) + 2 - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
     )
     for ax in (alm_ax, bram_ax, dsp_ax):
         ax.plot(
@@ -76,7 +77,7 @@ def plot_resource_usages(
         )
 
     # Resource usages
-    xs = list(range(len(program_names)))
+    xs = list(range(len(program_names))) + [len(program_names) + 1]
     shir_fmax_ok = [
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")] >= 175
         for prog in program_names
@@ -91,14 +92,15 @@ def plot_resource_usages(
         else "\\" if not shir_ok and sirop_ok
         else "x"
         for (shir_ok, sirop_ok) in zip(shir_fmax_ok, sirop_fmax_ok)
-    ]
+    ] + [""]
     # ALM usage
     ys = []
     for p in program_names:
         y = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
         baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
         ys.append( y / baseline )
-    alm_ax.bar(
+    ys.append(statistics.geometric_mean(ys))
+    container = alm_ax.bar(
         bottom=1,
         x=xs,
         height=[y - 1 for y in ys],
@@ -107,6 +109,11 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
         hatch=hatch,
+    )
+    alm_ax.bar_label(
+        container,
+        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
+        label_type="center",
     )
     # BRAM usage
     ys = []
@@ -120,7 +127,8 @@ def plot_resource_usages(
             ys.append(2)
         else:
             ys.append( y / baseline )
-    bram_ax.bar(
+    ys.append(statistics.geometric_mean(ys))
+    container = bram_ax.bar(
         bottom=1,
         x=xs,
         height=[y - 1 for y in ys],
@@ -128,6 +136,12 @@ def plot_resource_usages(
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
+    )
+    bram_ax.bar_label(
+        container,
+        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
+        label_type="edge",
+        padding=3,
     )
     # DSP usage
     ys = []
@@ -139,9 +153,13 @@ def plot_resource_usages(
         elif baseline == 0:
             print(f"WARNING: {p}: DSP usage is zero for SHIR but {y} for Sirop")
             ys.append(2)
+        elif y == 0:
+            print(f"WARNING: {p}: DSP usage is zero for Sirop but {y} for SHIR")
+            ys.append(1e-10)
         else:
             ys.append( y / baseline )
-    dsp_ax.bar(
+    ys.append(statistics.geometric_mean(ys))
+    container = dsp_ax.bar(
         bottom=1,
         x=xs,
         height=[y - 1 for y in ys],
@@ -150,12 +168,17 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
     )
+    dsp_ax.bar_label(
+        container,
+        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
+        label_type="center",
+    )
 
     # Display settings
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
-        list(range(len(program_names))),
-        [benchmark_title(p) for p in program_names],
+        xs,
+        [benchmark_title(p) for p in program_names] + [r"\texttt{geomean}"],
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("ALM\nratio")

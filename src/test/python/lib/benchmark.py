@@ -112,6 +112,7 @@ def benchmark_order(bench_name: str) -> int:
         "dot": 2,
         "smallmvm": 3,
         "bigmvm": 4,
+        "matvec": 4,
         "conv1d": 5,
         "smallconv2d": 6,
         "smallconvb2b": 7,
