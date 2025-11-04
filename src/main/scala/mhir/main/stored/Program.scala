@@ -22,6 +22,7 @@ object Program {
       case "conv1d"      => Conv1d
       case "shir:conv1d" => ShirConv1d
       case "conv2d"      => Conv2d
+      case "shir:conv2d" => ShirConv2d
       case "convb2b"     => ConvB2b
       case "sharpen"     => Sharpen
       case "camera"      => Camera
@@ -368,6 +369,63 @@ object Program {
       kernelVec = blurKernel(uint),
       kernelCoeff = FixCst(8)(TyFix(U8, 7))
     )
+    Function(input, conv)()
+  }
+
+  private val ShirConv2d: Expr = {
+    val int = U32
+    val height = 1080
+    val width = 1920
+    val input = Param("I")(TyStm(TyStm(int, width), height))
+    val flatInput = StmJoin(input)()
+    val rowWindows = StmMap(
+      StmSlideV(flatInput, 3 * width, width)(),
+      TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+    )()
+    val transposedRowWindows = StmMap(
+      rowWindows,
+      TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+        Vec2Stm(VecTranspose(rowWindow))()
+      )
+    )()
+    val windows = StmMap(
+      transposedRowWindows,
+      TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+        StmSlideV(rowWindow, 3, 1)()
+      )
+    )()
+    val conv = StmMap(
+      windows,
+      TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+        StmMap(
+          x,
+          TyVec(TyVec(int, 3), 3) ::+ { window =>
+            val kernel = VecLiteral(
+              C(1)(int),
+              C(2)(int),
+              C(1)(int),
+              C(2)(int),
+              C(4)(int),
+              C(2)(int),
+              C(1)(int),
+              C(2)(int),
+              C(1)(int)
+            )()
+            val flatWindow = VecJoin(window)()
+            val zipped = VecZip(flatWindow, kernel)
+            val products = VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+            val sum = VecAccess(
+              VecReduceComb(
+                products,
+                (int, int) ::+ (x => x.__0 + x.__1)
+              )(),
+              0
+            )()
+            sum
+          }
+        )()
+      )
+    )()
     Function(input, conv)()
   }
 
