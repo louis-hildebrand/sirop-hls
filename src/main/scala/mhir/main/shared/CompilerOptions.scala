@@ -57,12 +57,12 @@ object CompilerOptions {
           mutArgs.drop(1).headOption match {
             case Some("-") =>
               prettyPrintDest = Some(PPStdout)
-              numToDrop = 2
             case Some(fName) =>
               prettyPrintDest = Some(PPFile(Path(fName, base = os.pwd)))
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+          numToDrop = 2
         case "--out:ctime" =>
           mutArgs.drop(1).headOption match {
             case Some(fName) =>
