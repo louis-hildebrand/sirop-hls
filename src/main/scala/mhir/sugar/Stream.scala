@@ -1933,30 +1933,45 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   * NOTE: `m` must be such that 1 &le; m &le; n.
   *
   * @param input
-  *   A stream of length n.
+  *   (`Stm[A, n]`) a stream of length n.
   * @param winSize
-  *   Window size.
+  *   (`Int`) window size.
+  * @param stride
+  *   (`Int`) how much to move the window per step.
   */
-case class StmSlideV(input: Expr /* Stm<A; n> */, winSize: Expr /* Int */ )(
+case class StmSlideV(
+    input: Expr /* Stm<A; n> */,
+    winSize: Expr /* Int */,
+    stride: Expr = C(1)() /* Int */
+)(
     typ: Type = Missing
 ) /* Stm<Vec<A; m>; n-m+1> */
     extends SyntaxSugar(input, winSize)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, m) => StmSlideV(s, m)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
+      case Seq(s, winSize, stride) => StmSlideV(s, winSize, stride)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newWinSize = winSize.tchk.expectUInt()
-    val newInput = input.tchk
+    val newWinSize = this.winSize.tchk.expectUInt()
+    val newStride = this.stride.tchk.expectUInt()
+    val newInput = this.input.tchk
     newInput.typ match {
       case TyStm(t, n) if t.isData =>
-        val newLen = ToUnsigned(SafeSum(n, -1 * newWinSize, 1)())().tchk()
+        // First window start index (inclusive): 0
+        // Last window start index (inclusive): n - winSize
+        // We want to know how many multiples of `stride` there are in the
+        // range [0, n-winSize].
+        // In general, that is ceil( (n - winSize + 1) / stride )
+        val newLen =
+          CeilDiv(ToUnsigned(SafeSum(n, -1 * newWinSize, 1)())(), newStride)()
+            .tchk()
+            .lower()
         this.rebuild(
           TyStm(TyVec(t, newWinSize), newLen),
-          Seq(newInput, newWinSize)
+          Seq(newInput, newWinSize, newStride)
         )
       case t =>
         throw new TypeError(
@@ -1969,21 +1984,32 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, winSize: Expr /* Int */ )(
     requireType()
     val input = this.input.lower()
     val winSize = this.winSize.lower()
-    val TyStm(t, n) = input.typ
+    val stride = this.stride.lower()
+    val TyStm(_, myLen) = this.typ
+    val TyStm(t, _) = input.typ
     val s = Param("s")(TyStm(t, -1))
-    val i = Param("i")(U32)
-    val stmLen = ToUnsigned(SafeSum(n, -1 * winSize, 1)())()
+    val i = {
+      val typ = TyAnyInt.tightest(
+        1 - stride.typ.asInstanceOf[TyAnyInt].maxInt,
+        myLen.typ.asInstanceOf[TyAnyInt].maxInt
+      )
+      Param("i")(typ)
+    }
     val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
-      stmLen,
+      myLen,
       VecShiftLeft(v, StmData(s)())(),
       i + 1 === winSize,
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         // Number of elements loaded so far
         i -> (
-          C(0)(U32),
-          Mux(i + 1 === winSize, i, i + 1)()
+          C(0)(i.typ),
+          Mux(
+            i + 1 === winSize,
+            Cast(i + 1 - stride, i.typ)().tchk().lower(),
+            i + 1
+          )()
         ),
         // Vector for the window
         v -> (

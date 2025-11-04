@@ -2397,20 +2397,67 @@ class StreamTests extends AnyFunSuite {
   }
 
   test("StmSlideV:1D:UnitWindow") {
-    val actual = StmSlideV(StmCount(3)(), 1)().tchk()
-    val expected =
-      StmLiteral(VecLiteral(0)(), VecLiteral(1)(), VecLiteral(2)())()
-    assert(mhir.ir.eval(actual) == expected)
+    val actual1 = StmSlideV(StmCount(C(3)(U8))(), winSize = 1)().tchk()
+    val expected1 = StmLiteral(
+      VecLiteral(C(0)(U8))(),
+      VecLiteral(C(1)(U8))(),
+      VecLiteral(C(2)(U8))()
+    )().tchk()
+    assert(actual1.typ == expected1.typ)
+    assert(mhir.ir.eval(actual1) == expected1)
+
+    val actual2 =
+      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 2)().tchk()
+    val expected2 = StmLiteral(
+      VecLiteral(C(0)(U8))(),
+      VecLiteral(C(2)(U8))()
+    )().tchk()
+    assert(actual2.typ == expected2.typ)
+    assert(mhir.ir.eval(actual2) == expected2)
+
+    val actual3 =
+      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 3)().tchk()
+    val expected3 = StmLiteral(
+      VecLiteral(C(0)(U8))()
+    )().tchk()
+    assert(actual3.typ == expected3.typ)
+    assert(mhir.ir.eval(actual3) == expected3)
+
+    val actual4 =
+      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 4)().tchk()
+    val expected4 = StmLiteral(
+      VecLiteral(C(0)(U8))()
+    )().tchk()
+    assert(actual4.typ == expected4.typ)
+    assert(mhir.ir.eval(actual4) == expected4)
   }
 
   test("StmSlideV:1D:SmallWindow") {
-    val actual = StmSlideV(StmCount(4)(), 2)().tchk().lower()
-    val expected = StmLiteral(
-      VecLiteral(IntCst(0)(), IntCst(1)())(),
-      VecLiteral(IntCst(1)(), IntCst(2)())(),
-      VecLiteral(IntCst(2)(), IntCst(3)())()
-    )()
-    assert(mhir.ir.eval(actual) == expected)
+    val actual1 = StmSlideV(StmCount(C(4)(U8))(), winSize = 2)().tchk().lower()
+    val expected1 = StmLiteral(
+      VecLiteral(C(0)(U8), C(1)(U8))(),
+      VecLiteral(C(1)(U8), C(2)(U8))(),
+      VecLiteral(C(2)(U8), C(3)(U8))()
+    )().tchk()
+    assert(actual1.typ == expected1.typ)
+    assert(mhir.ir.eval(actual1) == expected1)
+
+    val actual2 =
+      StmSlideV(StmCount(C(4)(U8))(), winSize = 2, stride = 2)().tchk().lower()
+    val expected2 = StmLiteral(
+      VecLiteral(C(0)(U8), C(1)(U8))(),
+      VecLiteral(C(2)(U8), C(3)(U8))()
+    )().tchk()
+    assert(actual2.typ == expected2.typ)
+    assert(mhir.ir.eval(actual2) == expected2)
+
+    val actual3 =
+      StmSlideV(StmCount(C(4)(U8))(), winSize = 2, stride = 3)().tchk().lower()
+    val expected3 = StmLiteral(
+      VecLiteral(C(0)(U8), C(1)(U8))()
+    )().tchk()
+    assert(actual3.typ == expected3.typ)
+    assert(mhir.ir.eval(actual3) == expected3)
   }
 
   test("StmSlideV:1D:LargestWindow") {
