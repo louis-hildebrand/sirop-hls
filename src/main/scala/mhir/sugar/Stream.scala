@@ -1934,13 +1934,13 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   *
   * @param input
   *   A stream of length n.
-  * @param m
+  * @param winSize
   *   Window size.
   */
-case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
+case class StmSlideV(input: Expr /* Stm<A; n> */, winSize: Expr /* Int */ )(
     typ: Type = Missing
 ) /* Stm<Vec<A; m>; n-m+1> */
-    extends SyntaxSugar(input, m)(typ) {
+    extends SyntaxSugar(input, winSize)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s, m) => StmSlideV(s, m)(typ)
@@ -1949,14 +1949,14 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk.expectUInt()
-    val newS = input.tchk
-    newS.typ match {
+    val newWinSize = winSize.tchk.expectUInt()
+    val newInput = input.tchk
+    newInput.typ match {
       case TyStm(t, n) if t.isData =>
-        val newLen = ToUnsigned(SafeSum(n, -1 * newM, 1)())().tchk()
+        val newLen = ToUnsigned(SafeSum(n, -1 * newWinSize, 1)())().tchk()
         this.rebuild(
-          TyStm(TyVec(t, newM), newLen),
-          Seq(newS, newM)
+          TyStm(TyVec(t, newWinSize), newLen),
+          Seq(newInput, newWinSize)
         )
       case t =>
         throw new TypeError(
@@ -1968,35 +1968,26 @@ case class StmSlideV(input: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     val input = this.input.lower()
-    val n = this.input.typ.asInstanceOf[TyStm].n
-    val (t, elemSize) = this.input.typ.asInstanceOf[TyStm].t.lower match {
-      case TyStm(t, n) => (t, n)
-      case t           => (t, IntCst(1)())
-    }
+    val winSize = this.winSize.lower()
+    val TyStm(t, n) = input.typ
     val s = Param("s")(TyStm(t, -1))
     val i = Param("i")(U32)
-    val j = Param("j")(U32)
-    val stmLen = ToUnsigned(SafeSum(n, -1 * m, 1)())()
-    val vecLen = SafeProd(m, elemSize)().tchk().lower()
-    val v = Param("v")(TyVec(t, vecLen))
+    val stmLen = ToUnsigned(SafeSum(n, -1 * winSize, 1)())()
+    val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
       stmLen,
       VecShiftLeft(v, StmData(s)())(),
-      i + 1 === m && j + 1 === elemSize,
+      i + 1 === winSize,
       Map[Param, (Expr, Expr)](
         s -> (input, True),
-        // Number of window elements loaded so far
+        // Number of elements loaded so far
         i -> (
           C(0)(U32),
-          Mux((i + 1 === m) || (j + 1 !== elemSize), i, i + 1)()
+          Mux(i + 1 === winSize, i, i + 1)()
         ),
-        // Number of pieces of data loaded so far in the current window element
-        j -> (
-          C(0)(U32),
-          Mux(j + 1 === elemSize, C(0)(U32), j + 1)()
-        ),
+        // Vector for the window
         v -> (
-          Undefined(TyVec(t, vecLen)),
+          Undefined(TyVec(t, winSize)),
           VecShiftLeft(v, StmData(s)())()
         )
       )
