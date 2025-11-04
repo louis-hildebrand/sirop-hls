@@ -50,7 +50,7 @@ fi
 set -e
 cd "$(git rev-parse --show-toplevel)"
 
-scalafmt --check --exclude ./lib || {
+scalafmt --check --exclude ./lib,./src/test/aetherling,./src/test/shir || {
     echo "Some files are mis-formatted. Please format them using scalafmt."
     exit 1
 }
