@@ -88,6 +88,11 @@ begin
         for i in 0 to 839 loop
             wait until falling_edge(clk); -- prepare input well before the next rising edge
             I0_valid <= '1';
+            if i = 839 then
+                I0_last <= "1";
+            else
+                I0_last <= "0";
+            end if;
             I0_data <= std_logic_vector(to_unsigned(i mod 16, 16));
             wait until rising_edge(clk) and (test_0_outputs_done or I0_ready /= "00"); -- must wait for the design to accept the input
         end loop;
@@ -108,6 +113,11 @@ begin
         for i in 0 to 840 loop
             wait until falling_edge(clk); -- prepare input well before the next rising edge
             I1_valid <= '1';
+            if i = 839 then
+                I1_last <= "1";
+            else
+                I1_last <= "0";
+            end if;
             I1_data <= std_logic_vector(to_unsigned((15 - i - 8) mod 16, 16));
             wait until rising_edge(clk) and (test_0_outputs_done or I1_ready /= "00"); -- must wait for the design to accept the input
         end loop;

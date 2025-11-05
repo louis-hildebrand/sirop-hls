@@ -106,8 +106,8 @@ object Program {
     // It is certainly possible to implement a variant of StmSlideV that matches
     // SHIR, but just flipping each window is a bit simpler.
     val windows = StmMap(
-        StmSlideV(input, 3)(),
-        TyVec(I8, 3) ::+ (v => VecReverse(v))
+      StmSlideV(input, 3)(),
+      TyVec(I8, 3) ::+ (v => VecReverse(v))
     )()
     val result = StmMap(
       windows,
