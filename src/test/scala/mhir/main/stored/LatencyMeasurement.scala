@@ -53,7 +53,11 @@ object LatencyMeasurement {
 
   // TODO: Test this?
   def measure(dir: Path): LatencyResult = {
-    val benchName = dir.baseName
+    val benchName = if (dir.segments.exists(_.contains("shir"))) {
+      s"shir:${dir.baseName}"
+    } else {
+      dir.baseName
+    }
     val io = ProgramIO(benchName)
     VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     val proc = os

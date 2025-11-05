@@ -22,7 +22,7 @@ def extract_and_save_resource_usage_shir(prog: str, writer: csv.DictWriter) -> N
         flush=True,
         end="",
     )
-    project_dir = c.SHIR_VHDL_DIR.joinpath(prog)
+    project_dir = c.SHIR_SHIR_VHDL_DIR.joinpath(prog)
     ru = extract_resource_usage(project_dir)
     print("failed" if ru is None else "OK")
     crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), ru)

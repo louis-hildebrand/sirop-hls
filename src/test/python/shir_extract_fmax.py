@@ -22,7 +22,7 @@ def extract_and_save_fmax_shir(prog: str, writer: csv.DictWriter) -> None:
         flush=True,
         end="",
     )
-    project_dir = c.SHIR_VHDL_DIR.joinpath(f"{prog}")
+    project_dir = c.SHIR_SHIR_VHDL_DIR.joinpath(f"{prog}")
     fmax = fm.extract_fmax(project_dir)
     print("failed" if fmax is None else "OK")
     crud.save_fmax_estimate(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), fmax)

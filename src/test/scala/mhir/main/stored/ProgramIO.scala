@@ -9,9 +9,15 @@ object ProgramIO {
   def apply(name: String): PositionalTestIO = {
     if (name.startsWith("map_")) {
       mapIO
+    } else if (name == "shir:map") {
+      mapIO
     } else if (name.startsWith("dot_")) {
       dotIO
+    } else if (name == "shir:dot") {
+      dotIO
     } else if (name.startsWith("conv1d_")) {
+      conv1dIO
+    } else if (name == "shir:conv1d") {
       conv1dIO
     } else if (name.startsWith("conv2d_")) {
       conv2dIO
@@ -39,12 +45,14 @@ object ProgramIO {
         par = par,
         uint = U16
       )
+    } else if (name == "shir:matvec") {
+      matVecMulIO(width = 256, height = 256, par = 1, uint = U16)
     } else if (name.startsWith("sqrt_")) {
       sqrtIO
     } else if (name.startsWith("sobel_")) {
       sobelIO
     } else {
-      ???
+      throw new IllegalArgumentException(s"unknown program: $name")
     }
   }
 

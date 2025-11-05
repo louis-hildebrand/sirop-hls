@@ -14,7 +14,7 @@ def synthesize_shir(prog: str) -> None:
     """
     Invoke the synthesis tool for the given program.
     """
-    proj_dir = c.SHIR_VHDL_DIR.joinpath(prog)
+    proj_dir = c.SHIR_SHIR_VHDL_DIR.joinpath(prog)
     ok = synth.synthesize_design(proj_dir, top="top")
     if not ok:
         print(f"Failed to synthesize {proj_dir}")

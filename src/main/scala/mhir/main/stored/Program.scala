@@ -102,7 +102,7 @@ object Program {
     val windows = StmSlideV(input, 3)()
     val result = StmMap(
       windows,
-      TyVec(I8, 3) ::+ ({ window =>
+      TyVec(I8, 3) ::+ { window =>
         val kernel = VecLiteral(C(-1)(I8), C(0)(I8), C(1)(I8))()
         val zipped = VecZip(window, kernel)
         val products = VecMap(zipped, (I8, I8) ::+ (x => x.__0 * x.__1))()
@@ -111,7 +111,7 @@ object Program {
           0
         )()
         sum
-      })
+      }
     )()
     Function(input, result)()
   }

@@ -1,0 +1,5 @@
+bench_name,bench_throughput,language,latency,sim_success
+conv1d,-1,sirop,16,True
+dot,-1,sirop,841,True
+map,-1,sirop,200,True
+matvec,-1,sirop,65538,True
