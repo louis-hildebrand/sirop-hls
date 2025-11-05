@@ -6,7 +6,7 @@ use work.common.all;
 
 entity constantbitvector_3 is
     generic(
-        value: type_VectorTypeLogicTypeArithType24 := "111111110000000000000001";
+        value: type_VectorTypeLogicTypeArithType24 := "000000010000000011111111";
         loop_all: type_LogicType := '1'
         );
         port(

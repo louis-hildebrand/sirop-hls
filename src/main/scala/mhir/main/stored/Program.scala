@@ -99,11 +99,20 @@ object Program {
     */
   private val ShirConv1d: Expr = {
     val input = Param("I")(TyStm(I8, 16))
-    val windows = StmSlideV(input, 3)()
+    // SHIR's SlideOrderedStream produces windows that are reversed compared to the
+    // windows in StmSlideV, so flip each window.
+    // Adding this extra step will surely not decrease the resource usage for our
+    // design compared to SHIR, right?
+    // It is certainly possible to implement a variant of StmSlideV that matches
+    // SHIR, but just flipping each window is a bit simpler.
+    val windows = StmMap(
+        StmSlideV(input, 3)(),
+        TyVec(I8, 3) ::+ (v => VecReverse(v))
+    )()
     val result = StmMap(
       windows,
       TyVec(I8, 3) ::+ { window =>
-        val kernel = VecLiteral(C(-1)(I8), C(0)(I8), C(1)(I8))()
+        val kernel = VecLiteral(C(1)(I8), C(0)(I8), C(-1)(I8))()
         val zipped = VecZip(window, kernel)
         val products = VecMap(zipped, (I8, I8) ::+ (x => x.__0 * x.__1))()
         val sum = VecAccess(
