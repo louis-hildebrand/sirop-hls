@@ -1,13 +1,13 @@
 #!/bin/python3
 
 """
-This script plots the resource usages for the ablation study.
+This script plots the resource usages for the SHIR benchmarks.
 """
 
-import statistics
 from fractions import Fraction
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tick
 from matplotlib.patches import Polygon, Rectangle
 
 import lib.constants as c
@@ -17,8 +17,9 @@ from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
-BAR_WIDTH = 1 - BAR_SPACE
+BAR_WIDTH = (1 - BAR_SPACE) / 2
 BAR_PADDING = 0.02
+
 
 def benchmark_title(bench_name: str) -> str | None:
     """
@@ -63,137 +64,137 @@ def plot_resource_usages(
         sharey="row",
     )
 
-    # Baseline
-    xlim = (
-        -0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-        len(program_names) + 2 - 0.5 * BAR_WIDTH - 0.5*BAR_SPACE,
-    )
-    for ax in (alm_ax, bram_ax, dsp_ax):
-        ax.plot(
-            list(xlim),
-            [1, 1],
-            linestyle=":",
-            color=(0.5, 0.5, 0.5),
-        )
-
-    # Resource usages
-    xs = list(range(len(program_names))) + [len(program_names) + 1]
     shir_fmax_ok = [
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")] >= 175
         for prog in program_names
     ]
+    assert shir_fmax_ok, "need to show SHIR fmax somehow"
     sirop_fmax_ok = [
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop")] >= 175
         for prog in program_names
     ]
-    hatch = [
-        "" if shir_ok and sirop_ok
-        else "/" if shir_ok and not sirop_ok
-        else "\\" if not shir_ok and sirop_ok
-        else "x"
-        for (shir_ok, sirop_ok) in zip(shir_fmax_ok, sirop_fmax_ok)
-    ] + [""]
+    assert sirop_fmax_ok, "need to show Sirop fmax somehow"
+
+    # Resource usages
+    xs = list(range(len(program_names)))
     # ALM usage
-    ys = []
-    for p in program_names:
-        y = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
-        baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
-        ys.append( y / baseline )
-    ys.append(statistics.geometric_mean(ys))
-    container = alm_ax.bar(
-        bottom=1,
+    shir_alms = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
+        for p in program_names
+    ]
+    alm_ax.bar(
+        bottom=0,
         x=xs,
-        height=[y - 1 for y in ys],
+        height=shir_alms,
+        width=BAR_WIDTH - BAR_PADDING,
+        facecolor=c.SHIR_COLOR,
+        edgecolor="black",
+        linestyle="-",
+    )
+    sirop_alms = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
+        for p in program_names
+    ]
+    sirop_alm_container = alm_ax.bar(
+        bottom=0,
+        x=[x + BAR_WIDTH for x in xs],
+        height=sirop_alms,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
-        hatch=hatch,
     )
+    # ALM usage ratios
+    labels = []
+    for (shir_alm, sirop_alm) in zip(shir_alms, sirop_alms):
+        label = f"${sirop_alm/shir_alm:.2f}\\times$"
+        labels.append(label)
     alm_ax.bar_label(
-        container,
-        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
-        label_type="center",
+        sirop_alm_container,
+        labels=labels,
+        label_type="edge",
     )
+
     # BRAM usage
-    ys = []
-    for p in program_names:
-        y = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].bram
-        baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
-        if baseline == 0 and y == 0:
-            ys.append(1)
-        elif baseline == 0:
-            print(f"WARNING: {p}: BRAM usage is zero for SHIR but {y} for Sirop")
-            ys.append(2)
-        else:
-            ys.append( y / baseline )
-    ys.append(statistics.geometric_mean(ys))
-    container = bram_ax.bar(
-        bottom=1,
+    shir_brams = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
+        for p in program_names
+    ]
+    bram_ax.bar(
+        bottom=0,
         x=xs,
-        height=[y - 1 for y in ys],
+        height=shir_brams,
+        width=BAR_WIDTH - BAR_PADDING,
+        facecolor=c.SHIR_COLOR,
+        edgecolor="black",
+        linestyle="-",
+    )
+    sirop_brams = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].bram
+        for p in program_names
+    ]
+    bram_ax.bar(
+        bottom=0,
+        x=[x + BAR_WIDTH for x in xs],
+        height=sirop_brams,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
-    )
-    bram_ax.bar_label(
-        container,
-        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
-        label_type="edge",
-        padding=3,
     )
     # DSP usage
-    ys = []
-    for p in program_names:
-        y = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].dsp
-        baseline = results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].dsp
-        if baseline == 0 and y == 0:
-            ys.append(1)
-        elif baseline == 0:
-            print(f"WARNING: {p}: DSP usage is zero for SHIR but {y} for Sirop")
-            ys.append(2)
-        elif y == 0:
-            print(f"WARNING: {p}: DSP usage is zero for Sirop but {y} for SHIR")
-            ys.append(1e-10)
-        else:
-            ys.append( y / baseline )
-    ys.append(statistics.geometric_mean(ys))
-    container = dsp_ax.bar(
-        bottom=1,
+    shir_dsps = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].dsp
+        for p in program_names
+    ]
+    dsp_ax.bar(
+        bottom=0,
         x=xs,
-        height=[y - 1 for y in ys],
+        height=shir_dsps,
+        width=BAR_WIDTH - BAR_PADDING,
+        facecolor=c.SHIR_COLOR,
+        edgecolor="black",
+        linestyle="-",
+    )
+    sirop_dsps = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].dsp
+        for p in program_names
+    ]
+    dsp_ax.bar(
+        bottom=0,
+        x=[x + BAR_WIDTH for x in xs],
+        height=sirop_dsps,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
-    )
-    dsp_ax.bar_label(
-        container,
-        labels=["" for _ in ys[:-1]] + [f"{ys[-1]:.2f}"],
-        label_type="center",
     )
 
     # Display settings
+    xlim = (
+        -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
+        len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
+    )
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
-        xs,
-        [benchmark_title(p) for p in program_names] + [r"\texttt{geomean}"],
+        [x + BAR_WIDTH/2 for x in xs],
+        [benchmark_title(p) for p in program_names]
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    alm_ax.set_ylabel("ALM\nratio")
+    alm_ax.set_yscale("log")
+    alm_ax.set_ylabel("ALMs\n(log)")
     ymin, ymax = alm_ax.get_ylim()
-    alm_ax.set_ylim(ymin, max(1.05, ymax))
-    alm_ax.set_yticks([0, 0.5, 1])
+    alm_ax.set_ylim(ymin, 1.5*ymax)
     bram_ax.tick_params(axis="x", which="both", length=0)
-    bram_ax.set_ylabel("BRAM\nratio")
-    ymin, ymax = bram_ax.get_ylim()
-    bram_ax.set_ylim(ymin, max(1.05, ymax))
+    bram_ax.set_yscale("symlog")
+    bram_ax.set_ylabel("BRAMs\n(log)")
+    bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
+    bram_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     dsp_ax.tick_params(axis="x", which="both", length=0)
-    dsp_ax.set_ylabel("DSP\nratio")
-    ymin, ymax = dsp_ax.get_ylim()
-    dsp_ax.set_ylim(ymin, max(1.1, ymax))
-    dsp_ax.set_yticks([0, 0.5, 1])
+    dsp_ax.set_yscale("symlog")
+    dsp_ax.set_ylabel("DSPs\n(log)")
+    dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
+    dsp_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     fig.align_ylabels()
 
     # "Lower is better" message
@@ -210,35 +211,15 @@ def plot_resource_usages(
         handles=[
             Rectangle(
                 (0, 0), 1, 1,
-                label="SHIR low fmax",
-                facecolor=c.OUR_COLOR,
+                label=c.SHIR_LABEL,
+                facecolor=c.SHIR_COLOR,
                 edgecolor="black",
-                hatch="\\\\\\",
-                hatch_linewidth=1,
             ),
             Rectangle(
                 (0, 0), 1, 1,
-                label="both ok",
+                label=c.OUR_LABEL,
                 facecolor=c.OUR_COLOR,
                 edgecolor="black",
-                hatch="",
-                hatch_linewidth=1,
-            ),
-            Rectangle(
-                (0, 0), 1, 1,
-                label=f"{c.OUR_LABEL} low fmax",
-                facecolor=c.OUR_COLOR,
-                edgecolor="black",
-                hatch="///",
-                hatch_linewidth=1,
-            ),
-            Rectangle(
-                (0, 0), 1, 1,
-                label="both low fmax",
-                facecolor=c.OUR_COLOR,
-                edgecolor="black",
-                hatch="xxx",
-                hatch_linewidth=1,
             ),
         ],
         loc="upper right",
