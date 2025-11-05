@@ -1,7 +1,7 @@
 package mhir.main.stored
 
 import com.typesafe.scalalogging.Logger
-import mhir.gen.vhdl.VhdlTestbenchGenerator
+import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, VhdlTestbenchGenerator}
 import os.Path
 
 import scala.sys.exit
@@ -53,13 +53,20 @@ object LatencyMeasurement {
 
   // TODO: Test this?
   def measure(dir: Path): LatencyResult = {
-    val benchName = if (dir.segments.exists(_.contains("shir"))) {
-      s"shir:${dir.baseName}"
+    if (dir.segments.exists(_.contains("shir"))) {
+      val io = ProgramIO(s"shir:${dir.baseName}")
+      // I manually convert these testbenches to work for SHIR, so I'd like the
+      // testbench file to be self-contained
+      VhdlTestbenchGenerator.makeDirectTestbench(
+        inputs = io.inputs.map(_.asInstanceOf[DirectTestInput]),
+        expectedOutput = io.expectedOutput.asInstanceOf[DirectTestOutput],
+        dir = dir,
+        testNotReady = false
+      )
     } else {
-      dir.baseName
+      val io = ProgramIO(dir.baseName)
+      VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     }
-    val io = ProgramIO(benchName)
-    VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     val proc = os
       .proc("./src/test/sh/test_vhdl.sh", dir, "-v", s"--time-limit=$TimeLimit")
       .call(

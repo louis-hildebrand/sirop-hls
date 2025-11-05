@@ -17,13 +17,13 @@ from lib.benchmark import Benchmark, BenchmarkImpl
 from lib.latency import LatencyResult
 
 
-def measure_latency(proj_dir: Path) -> LatencyResult:
+def measure_latency_shir(proj_dir: Path) -> LatencyResult:
     """
-    Measure the latency of one design.
+    Measure the latency of one SHIR design.
     """
     result = subprocess.run(
         [
-            c.TEST_SH_DIR.joinpath("ablation_measure_latency_with_logging.sh"),
+            c.TEST_SH_DIR.joinpath("shir_measure_latency_with_logging.sh"),
             proj_dir.resolve().as_posix()
         ],
         check=False,
@@ -48,10 +48,32 @@ def measure_and_save_latency_shir(prog_name: str, writer: csv.DictWriter) -> Non
         end="",
         flush=True,
     )
-    latency = measure_latency(c.SHIR_SHIR_VHDL_DIR.joinpath(prog_name))
+    latency = measure_latency_shir(c.SHIR_SHIR_VHDL_DIR.joinpath(prog_name))
     print(latency)
     bi = BenchmarkImpl(Benchmark(prog_name, Fraction(-1)), "shir")
     crud.save_latency(writer, bi, latency)
+
+
+def measure_latency_sirop(proj_dir: Path) -> LatencyResult:
+    """
+    Measure the latency of one Sirop design.
+    """
+    result = subprocess.run(
+        [
+            c.TEST_SH_DIR.joinpath("ablation_measure_latency_with_logging.sh"),
+            proj_dir.resolve().as_posix()
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    sim_success = result.returncode == 0
+    try:
+        latency = int(result.stdout)
+    except ValueError:
+        latency = None
+    return LatencyResult(latency=latency, sim_success=sim_success)
 
 
 def measure_and_save_latency_sirop(prog_name: str, writer: csv.DictWriter) -> None:
@@ -63,7 +85,7 @@ def measure_and_save_latency_sirop(prog_name: str, writer: csv.DictWriter) -> No
         end="",
         flush=True,
     )
-    latency = measure_latency(c.SHIR_SIROP_VHDL_DIR.joinpath(prog_name))
+    latency = measure_latency_sirop(c.SHIR_SIROP_VHDL_DIR.joinpath(prog_name))
     print(latency)
     bi = BenchmarkImpl(Benchmark(prog_name, Fraction(-1)), "sirop")
     crud.save_latency(writer, bi, latency)

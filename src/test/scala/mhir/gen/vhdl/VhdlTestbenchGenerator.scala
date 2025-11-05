@@ -53,7 +53,6 @@ object VhdlTestbenchGenerator {
     *   signal and keep it raised the whole time.
     */
   def makeFileBasedTestbench(
-      // TODO: Allow multiple test cases
       io: PositionalTestIO,
       dir: Path,
       testNotReady: Boolean = false
@@ -102,6 +101,24 @@ object VhdlTestbenchGenerator {
 
     makeTestbench(
       io = TestSuiteIO(Seq(KeywordTestIO(fileInputsByVar, fileOutput))),
+      dir = dir,
+      testNotReady = testNotReady
+    )
+  }
+
+  def makeDirectTestbench(
+      inputs: Seq[DirectTestInput],
+      expectedOutput: DirectTestOutput,
+      dir: Path,
+      testNotReady: Boolean
+  ): Unit = {
+    val testDir = dir / "test"
+    os.makeDir.all(testDir)
+
+    val inputsByVar = toNamedArgs(inputs)
+
+    makeTestbench(
+      io = TestSuiteIO(Seq(KeywordTestIO(inputsByVar, expectedOutput))),
       dir = dir,
       testNotReady = testNotReady
     )
