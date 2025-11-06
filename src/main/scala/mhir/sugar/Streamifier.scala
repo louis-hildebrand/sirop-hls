@@ -301,7 +301,7 @@ object Streamifier {
             case (x, (z, next)) if x.typ.isData =>
               // TODO: Only make the seed default[T] if it actually depends on at
               //       least one input?
-              val newSeed = Default(x.typ).lower()
+              val newSeed = Undefined(x.typ).lower()
               val newNext = if (haltOnFirstStep) {
                 Mux(
                   isFirstStep,
