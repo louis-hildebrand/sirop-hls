@@ -445,7 +445,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val f = Param("f")(TyArrow(U16, U16))
     val n = Param("n")(U16)
     val v = VecBuild(n, U16 ::+ (i => FunCall(f, i)()))()
-    val s = Vec2Stm(v)().tchk().lower()
+    val s = Vec2StmOld(v)().tchk().lower()
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
@@ -646,7 +646,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       s8
     }
     val original =
-      tl(StmMap(Stm2Vec(s)(), TyVec(U16, n) ::+ (v => Vec2Stm(v)()))())
+      tl(StmMap(Stm2Vec(s)(), TyVec(U16, n) ::+ (v => Vec2StmOld(v)()))())
     val optimized = optimize(original)
 
     // Correctness
@@ -696,7 +696,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower())())
       tl(simplifier.simplify(s6)())
     }
-    val original = tl(Stm2Vec(Vec2Stm(v)())())
+    val original = tl(Stm2Vec(Vec2StmOld(v)())())
     val optimized = optimize(original)
 
     // Correctness

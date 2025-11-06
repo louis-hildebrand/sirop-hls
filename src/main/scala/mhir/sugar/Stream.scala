@@ -1232,7 +1232,51 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     val v = this.v.lower()
     v.typ match {
       case TyVec(_, n) =>
-        // Alternatively, you could implement Vec2Stm using a shift register
+        val acc = Param("v")(v.typ)
+        val TyVec(elemTyp, _) = v.typ
+        StmBuild(
+          n,
+          VecAccess(acc, 0)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            // TODO: It might be useful to use undefined[T] rather than
+            //       default[T] here. But it may be necessary to update the
+            //       evaluator to allow this use of undefined[T]
+            acc -> (v, VecShiftLeft(acc, Default(elemTyp))())
+          )
+        )().tchk().lower()
+      case TyStm(tv: TyVec, _) =>
+        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
+      case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
+    }
+  }
+}
+
+case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
+    typ: Type = Missing
+) /* Stm<A; n> */
+    extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => Vec2StmOld(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newV = v.tchk(context)
+    newV.typ match {
+      case TyVec(t, n) =>
+        this.rebuild(TyStm(t, n), Seq(newV))
+      case t => throw new TypeError(s"Vector in Vec2Stm has type $t.")
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val v = this.v.lower()
+    v.typ match {
+      case TyVec(_, n) =>
         val i = Param("i")(U32)
         StmBuild(
           n,
@@ -1241,7 +1285,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
           Map[Param, (Expr, Expr)](i -> (C(0)(U32), i + 1))
         )().tchk().lower()
       case TyStm(tv: TyVec, _) =>
-        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
+        StmMap(v, tv ::+ (v => Vec2StmOld(v)()))().tchk().lower()
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
     }
   }
