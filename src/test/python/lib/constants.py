@@ -54,6 +54,7 @@ SHIR_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("shir_resource_usage.csv")
 SHIR_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("shir_resource_usage.pdf")
 SHIR_FMAX_CSV = RESULTS_DIR.joinpath("shir_fmax.csv")
 SHIR_LATENCY_CSV = RESULTS_DIR.joinpath("shir_latency.csv")
+SHIR_LATENCY_PDF = RESULTS_DIR.joinpath("shir_latency.pdf")
 
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")

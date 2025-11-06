@@ -4,6 +4,7 @@
 This script plots the resource usages for the SHIR benchmarks.
 """
 
+import statistics
 from fractions import Fraction
 
 import matplotlib.pyplot as plt
@@ -19,6 +20,8 @@ from lib.resource_usage import ResourceUsage
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / 2
 BAR_PADDING = 0.02
+SHIR_HATCH = "/"
+OUR_HATCH = "\\"
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -54,11 +57,11 @@ def plot_resource_usages(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 8,
+        "font.size": 7,
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,
-        figsize=(4, 1.9),
+        figsize=(4, 2.1),
         layout="compressed",
         sharex="col",
         sharey="row",
@@ -68,20 +71,29 @@ def plot_resource_usages(
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")] >= 175
         for prog in program_names
     ]
-    assert shir_fmax_ok, "need to show SHIR fmax somehow"
+    assert all(shir_fmax_ok), "need to show SHIR fmax somehow"
     sirop_fmax_ok = [
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop")] >= 175
         for prog in program_names
     ]
-    assert sirop_fmax_ok, "need to show Sirop fmax somehow"
+    assert all(sirop_fmax_ok), "need to show Sirop fmax somehow"
 
-    # Resource usages
-    xs = list(range(len(program_names)))
-    # ALM usage
     shir_alms = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
         for p in program_names
     ]
+    sirop_alms = [
+        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
+        for p in program_names
+    ]
+    alm_ratio_geomean = statistics.geometric_mean(
+        [sirop / shir for (sirop, shir) in zip(sirop_alms, shir_alms)]
+    )
+    print(f"ALM ratio geomean: {alm_ratio_geomean:.2f}")
+
+    # Resource usages
+    xs = list(range(len(program_names)))
+    # ALM usage
     alm_ax.bar(
         bottom=0,
         x=xs,
@@ -90,11 +102,8 @@ def plot_resource_usages(
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=SHIR_HATCH,
     )
-    sirop_alms = [
-        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
-        for p in program_names
-    ]
     sirop_alm_container = alm_ax.bar(
         bottom=0,
         x=[x + BAR_WIDTH for x in xs],
@@ -103,6 +112,7 @@ def plot_resource_usages(
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=OUR_HATCH,
     )
     # ALM usage ratios
     labels = []
@@ -114,7 +124,6 @@ def plot_resource_usages(
         labels=labels,
         label_type="edge",
     )
-
     # BRAM usage
     shir_brams = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
@@ -128,6 +137,7 @@ def plot_resource_usages(
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=SHIR_HATCH,
     )
     sirop_brams = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].bram
@@ -141,6 +151,7 @@ def plot_resource_usages(
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=OUR_HATCH,
     )
     # DSP usage
     shir_dsps = [
@@ -155,6 +166,7 @@ def plot_resource_usages(
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=SHIR_HATCH,
     )
     sirop_dsps = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].dsp
@@ -168,6 +180,7 @@ def plot_resource_usages(
         facecolor=c.OUR_COLOR,
         edgecolor="black",
         linestyle="-",
+        hatch=OUR_HATCH,
     )
 
     # Display settings
@@ -178,21 +191,21 @@ def plot_resource_usages(
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
         [x + BAR_WIDTH/2 for x in xs],
-        [benchmark_title(p) for p in program_names]
+        [benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_yscale("log")
-    alm_ax.set_ylabel("ALMs\n(log)")
+    alm_ax.set_ylabel("ALM (log)")
     ymin, ymax = alm_ax.get_ylim()
     alm_ax.set_ylim(ymin, 1.5*ymax)
     bram_ax.tick_params(axis="x", which="both", length=0)
     bram_ax.set_yscale("symlog")
-    bram_ax.set_ylabel("BRAMs\n(log)")
+    bram_ax.set_ylabel("BRAM (log)")
     bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
     bram_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     dsp_ax.tick_params(axis="x", which="both", length=0)
     dsp_ax.set_yscale("symlog")
-    dsp_ax.set_ylabel("DSPs\n(log)")
+    dsp_ax.set_ylabel("DSP (log)")
     dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True))
     dsp_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     fig.align_ylabels()
@@ -214,12 +227,14 @@ def plot_resource_usages(
                 label=c.SHIR_LABEL,
                 facecolor=c.SHIR_COLOR,
                 edgecolor="black",
+                hatch=SHIR_HATCH * 3,
             ),
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.OUR_LABEL,
                 facecolor=c.OUR_COLOR,
                 edgecolor="black",
+                hatch=OUR_HATCH * 3,
             ),
         ],
         loc="upper right",
