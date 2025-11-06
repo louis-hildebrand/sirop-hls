@@ -57,7 +57,7 @@ def plot_resource_usages(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 7,
+        "font.size": 8,
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,

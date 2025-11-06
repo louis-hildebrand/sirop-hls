@@ -55,7 +55,7 @@ def plot_latencies(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 7,
+        "font.size": 8,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
