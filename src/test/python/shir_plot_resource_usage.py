@@ -7,9 +7,10 @@ This script plots the resource usages for the SHIR benchmarks.
 import statistics
 from fractions import Fraction
 
+import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
-from matplotlib.patches import Polygon, Rectangle
+from matplotlib.patches import ArrowStyle, FancyArrowPatch, Polygon, Rectangle
 
 import lib.constants as c
 import lib.plt_utils as pu
@@ -104,7 +105,7 @@ def plot_resource_usages(
         linestyle="-",
         hatch=SHIR_HATCH,
     )
-    sirop_alm_container = alm_ax.bar(
+    alm_ax.bar(
         bottom=0,
         x=[x + BAR_WIDTH for x in xs],
         height=sirop_alms,
@@ -115,15 +116,26 @@ def plot_resource_usages(
         hatch=OUR_HATCH,
     )
     # ALM usage ratios
-    labels = []
-    for (shir_alm, sirop_alm) in zip(shir_alms, sirop_alms):
-        label = f"${sirop_alm/shir_alm:.2f}\\times$"
-        labels.append(label)
-    alm_ax.bar_label(
-        sirop_alm_container,
-        labels=labels,
-        label_type="edge",
-    )
+    endpoint_lift = 1.2
+    peak_lift = 4
+    arrow_style = ArrowStyle("->", head_length=3, head_width=2)
+    for x, (shir_alm, sirop_alm) in enumerate(zip(shir_alms, sirop_alms)):
+        tail = (x + BAR_WIDTH*0.16, endpoint_lift * shir_alm)
+        peak = (x + BAR_WIDTH*0.55, peak_lift * max(shir_alm, sirop_alm))
+        head = (x + BAR_WIDTH*0.84, endpoint_lift * sirop_alm)
+        arrow_path = mpath.Path(
+            [tail, peak, head],
+            [mpath.Path.MOVETO, mpath.Path.CURVE3, mpath.Path.CURVE3]
+        )
+        arrow = FancyArrowPatch(path=arrow_path, arrowstyle=arrow_style)
+        alm_ax.add_patch(arrow)
+        label = f"{sirop_alm/shir_alm:.2f}"
+        label = f"${label}\\times$"
+        alm_ax.annotate(
+            label, peak,
+            horizontalalignment="center",
+            verticalalignment="center",
+        )
     # BRAM usage
     shir_brams = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
@@ -197,7 +209,7 @@ def plot_resource_usages(
     alm_ax.set_yscale("log")
     alm_ax.set_ylabel("ALMs (log)")
     ymin, ymax = alm_ax.get_ylim()
-    alm_ax.set_ylim(ymin, 1.5*ymax)
+    alm_ax.set_ylim(ymin, 3*ymax)
     bram_ax.tick_params(axis="x", which="both", length=0)
     # bram_ax.set_yscale("symlog")
     bram_ax.set_ylabel("BRAMs")
