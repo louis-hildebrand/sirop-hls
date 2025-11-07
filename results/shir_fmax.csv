@@ -1,6 +1,8 @@
 bench_name,bench_throughput,language,fmax
 conv1d,-1,shir,294.46
 conv1d,-1,sirop,645.16
+conv2d,-1,shir,165.84
+conv2d,-1,sirop,193.72
 dot,-1,shir,280.43
 dot,-1,sirop,542.3
 map,-1,shir,645.16
