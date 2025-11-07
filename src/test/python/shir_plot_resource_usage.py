@@ -30,6 +30,8 @@ def benchmark_title(bench_name: str) -> str | None:
     Return the title to put at the top of the column for the given benchmark, or `None` if the
     results for this benchmark should be omitted from the plots.
     """
+    if bench_name == "conv2d":
+        return None
     if bench_name.startswith("small"):
         return None
     if bench_name in {"sum", "sqrt"}:
@@ -51,6 +53,7 @@ def plot_resource_usages(
     program_names = pu.dedup([
         b.bench.name
         for b in results.keys()
+        if benchmark_title(b.bench.name) is not None
     ])
     program_names = sorted(program_names, key=benchmark_order)
     if not program_names:
@@ -105,6 +108,7 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
         hatch=SHIR_HATCH,
+        zorder=10,
     )
     alm_ax.bar(
         bottom=0,
@@ -115,6 +119,7 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
+        zorder=10,
     )
     # ALM usage ratios
     endpoint_lift = 1.2
@@ -128,7 +133,7 @@ def plot_resource_usages(
             [tail, peak, head],
             [mpath.Path.MOVETO, mpath.Path.CURVE3, mpath.Path.CURVE3]
         )
-        arrow = FancyArrowPatch(path=arrow_path, arrowstyle=arrow_style)
+        arrow = FancyArrowPatch(path=arrow_path, arrowstyle=arrow_style, zorder=10)
         alm_ax.add_patch(arrow)
         label = f"{sirop_alm/shir_alm:.2f}"
         label = f"${label}\\times$"
@@ -207,6 +212,13 @@ def plot_resource_usages(
         [benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
+    alm_ax.grid(
+        visible=True,
+        which="major",
+        axis="y",
+        linewidth=0.2,
+        color=(0.8, 0.8, 0.8)
+    )
     alm_ax.set_yscale("log")
     alm_ax.set_ylabel("ALMs (log)")
     ymin, ymax = alm_ax.get_ylim()
