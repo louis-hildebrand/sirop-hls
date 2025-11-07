@@ -1,6 +1,8 @@
 bench_name,bench_throughput,language,latency,sim_success
 conv1d,-1,shir,19,True
 conv1d,-1,sirop,16,True
+conv2d,-1,shir,11521,True
+conv2d,-1,sirop,9602,True
 dot,-1,shir,844,True
 dot,-1,sirop,841,True
 map,-1,shir,200,True

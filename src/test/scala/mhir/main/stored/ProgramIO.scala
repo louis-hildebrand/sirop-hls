@@ -1,7 +1,7 @@
 package mhir.main.stored
 
 import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, PositionalTestIO}
-import mhir.main.aetherling.AetherlingBenchmarkIO
+import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
@@ -21,6 +21,8 @@ object ProgramIO {
       conv1dIO
     } else if (name.startsWith("conv2d_")) {
       conv2dIO
+    } else if (name == "shir:conv2d") {
+      shirConv2dIO
     } else if (name.startsWith("convb2b_")) {
       convb2bIO
     } else if (name.startsWith("sharpen_")) {
@@ -76,6 +78,84 @@ object ProgramIO {
 
   private def conv2dIO: PositionalTestIO = {
     AetherlingBenchmarkIO.vhdlIO("bigconv2d_1")
+  }
+
+  /** Finds the width and height of a rectangular array.
+    *
+    * @param arr
+    *   the array.
+    * @return
+    *   (width, height)
+    */
+  private def dim[T](arr: Seq[Seq[T]]): (Int, Int) = {
+    val height = arr.length
+    val width = {
+      val widths = arr.map(_.length).toSet
+      require(widths.size == 1)
+      widths.head
+    }
+    (width, height)
+  }
+
+  /** Performs a 2D convolution
+    *
+    * @param inputs
+    *   the input array. `None` values are considered undefined.
+    * @param kernel
+    *   the kernel.
+    * @return
+    *   the result of the convolution and division. `None` represents undefined
+    *   values.
+    */
+  private def conv2d(
+      inputs: Seq[Seq[Int]],
+      kernel: Seq[Seq[Int]]
+  ): Seq[Seq[Int]] = {
+    val (inputWidth, inputHeight) = dim(inputs)
+    val (kernelWidth, kernelHeight) = dim(kernel)
+    val outputs =
+      (0 to (inputHeight - kernelHeight)).map({ i =>
+        (0 to (inputWidth - kernelWidth)).map({ j =>
+          // (i, j) is the current position of the top-left element of the
+          // kernel within the input
+          assert(i >= 0)
+          assert(i + kernelHeight - 1 < inputHeight)
+          assert(j >= 0)
+          assert(j + kernelWidth - 1 < inputWidth)
+          val relevantInputs =
+            (0 until kernelHeight).flatMap(deltaI =>
+              (0 until kernelWidth).map(deltaJ =>
+                inputs(i + deltaI)(j + deltaJ)
+              )
+            )
+          relevantInputs
+            .zip(kernel.flatten)
+            .map({ case (x, y) => x * y })
+            .sum
+        })
+      })
+    outputs
+  }
+
+  private def shirConv2dIO: PositionalTestIO = {
+    val width = 1920
+    val height = 4
+    val k = C(255)(U32)
+    // Checkerboard pattern (10x10 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 20) < 10) == ((j % 20) < 10)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        basicInputs,
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
+      ).flatten.map(C(_)(k.typ))
+    AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }
 
   private def convb2bIO: PositionalTestIO = {
