@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,fmax
 bigcamera,1/4,verilog,188.96
-bigcamera,1/4,vhdl,193.72
+bigcamera,1/4,vhdl,191.53
 bigcamera,1,verilog,185.49
 bigcamera,1,vhdl,192.75
 bigcamera,2,verilog,182.18
@@ -12,7 +12,7 @@ bigcamera,8,vhdl,
 bigcamera,16,verilog,
 bigcamera,16,vhdl,
 bigconv2d,1/3,verilog,252.84
-bigconv2d,1/3,vhdl,230.73
+bigconv2d,1/3,vhdl,231.37
 bigconv2d,1,verilog,231.59
 bigconv2d,1,vhdl,302.21
 bigconv2d,2,verilog,244.32
@@ -24,7 +24,7 @@ bigconv2d,8,vhdl,271.96
 bigconv2d,16,verilog,
 bigconv2d,16,vhdl,
 bigconvb2b,1/3,verilog,268.82
-bigconvb2b,1/3,vhdl,214.87
+bigconvb2b,1/3,vhdl,220.51
 bigconvb2b,1,verilog,243.07
 bigconvb2b,1,vhdl,287.52
 bigconvb2b,2,verilog,273.0
@@ -46,7 +46,7 @@ bigmvm,1/32,vhdl,203.46
 bigmvm,1/16,verilog,153.19
 bigmvm,1/16,vhdl,197.94
 bigsharpen,1/3,verilog,191.57
-bigsharpen,1/3,vhdl,195.62
+bigsharpen,1/3,vhdl,198.41
 bigsharpen,1,verilog,199.68
 bigsharpen,1,vhdl,194.29
 bigsharpen,2,verilog,189.86
@@ -57,7 +57,7 @@ bigsharpen,8,verilog,185.12
 bigsharpen,8,vhdl,189.36
 bigsharpen,16,verilog,
 bigsharpen,16,vhdl,
-bigsobel,1/3,vhdl,170.59
+bigsobel,1/3,vhdl,175.01
 bigsobel,1,verilog,106.11
 bigsobel,1,vhdl,210.79
 bigsobel,2,verilog,106.01
@@ -69,7 +69,7 @@ bigsobel,8,vhdl,185.46
 bigsobel,16,verilog,
 bigsobel,16,vhdl,
 conv1d,1/3,verilog,379.51
-conv1d,1/3,vhdl,292.31
+conv1d,1/3,vhdl,306.0
 conv1d,1,verilog,645.16
 conv1d,1,vhdl,645.16
 conv1d,2,verilog,588.93
