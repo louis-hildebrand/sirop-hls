@@ -4,6 +4,8 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 
+import scala.collection.immutable.ListMap
+
 /** @param vhdl
   *   VHDL code for this expression
   * @param decls
@@ -24,6 +26,12 @@ private sealed trait ExprGenMode
 private object NormalMode extends ExprGenMode
 private object InFunctionMode extends ExprGenMode
 
+private[vhdl] case class VhdlContext(ctx: ListMap[String, VhdlType]) {
+  def +(newEntry: (String, VhdlType)): VhdlContext = {
+    VhdlContext(this.ctx + newEntry)
+  }
+}
+
 private object VhdlExprGenerator {
 
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -35,7 +43,9 @@ private object VhdlExprGenerator {
     * @return
     *   A VHDL expression along with the signals required by that expression
     */
-  def exprToVhdl(e: Expr)(implicit mode: ExprGenMode = NormalMode): VhdlExpr = {
+  def exprToVhdl(
+      e: Expr
+  )(implicit mode: ExprGenMode = NormalMode, context: VhdlContext): VhdlExpr = {
     require(
       e.hasType,
       "Expression must be type-checked before it can be converted to a VHDL expression."
@@ -229,20 +239,25 @@ private object VhdlExprGenerator {
         VhdlExpr(s"${tempVar.name}.i_$i", tempVar +: tv.decls)
 
       case Function(x, body) =>
-        val bodyVhdl = exprToVhdl(body)(InFunctionMode)
+        val (inType, outType) = e.typ.asInstanceOf[TyArrow] match {
+          case TyArrow(t1, t2) if t1.isData && t2.isData =>
+            (VhdlType(t1), VhdlType(t2))
+          case TyArrow(t1, t2) =>
+            throw new NotImplementedError(
+              s"Cannot generate VHDL function with input type $t1 and output type $t2."
+            )
+        }
+        val bodyVhdl =
+          exprToVhdl(body)(InFunctionMode, context + (x.name -> inType))
         val func = {
+          // For some reason, impure functions don't behave the way I'd expect
+          // in ModelSim.
+          // Therefore, use a pure function but explicitly pass the whole
+          // context as input.
           val name = Param("f")().name
-          val (inType, outType) = e.typ.asInstanceOf[TyArrow] match {
-            case TyArrow(t1, t2) if t1.isData && t2.isData =>
-              (VhdlType(t1), VhdlType(t2))
-            case TyArrow(t1, t2) =>
-              throw new NotImplementedError(
-                s"Cannot generate VHDL function with input type $t1 and output type $t2."
-              )
-          }
           VhdlFunction(
             name = name,
-            args = Seq((x.name, inType)),
+            args = (x.name, inType) +: context.ctx.toSeq,
             returnType = outType,
             // The expression generator *prepends* temporary variables or
             // signals to the list (i.e., a variable will come before its
@@ -250,56 +265,25 @@ private object VhdlExprGenerator {
             // That's why the list needs to be reversed.
             decls = bodyVhdl.decls.reverse,
             ret = bodyVhdl.vhdl,
-            mode = ImpureFunction
+            mode = PureFunction
           )
         }
         VhdlExpr(func.name, Seq(func))
-      case FunCall(f, arg) =>
-        val fv = exprToVhdl(f)
-        val av = exprToVhdl(arg)
-        VhdlExpr(s"${fv.vhdl}(${av.vhdl})", fv.decls ++ av.decls)
+      case FunCall(f, arg) => makeFunCall(exprToVhdl(f), exprToVhdl(arg))
 
       case v @ VecLiteral(elems @ _*) =>
         val vhdlElems = elems.map(exprToVhdl)
-        val tempVar = {
-          val name = Param("vec")().name
-          val vec = if (elems.isEmpty) {
-            VhdlConversionGenerator.fromStdLogicVector(
-              "(others => 'X')",
-              VhdlType(v.typ)
-            )
-          } else {
-            vhdlElems.zipWithIndex
-              .map({ case (e, i) => s"$i => ${e.vhdl}" })
-              .mkString("(", ", ", ")")
-          }
-          mode match {
-            case NormalMode =>
-              Signal(
-                category = "Intermediate signals",
-                name = name,
-                typ = VhdlType(v.typ),
-                assignStmt = Some(s"$name <= $vec;")
-              )
-            case InFunctionMode =>
-              VhdlVariable(
-                name = name,
-                typ = VhdlType(v.typ),
-                assignStmt = s"$name := $vec;"
-              )
-          }
-        }
-        VhdlExpr(tempVar.name, tempVar +: vhdlElems.flatMap(e => e.decls))
+        makeVecLiteral(vhdlElems, v.typ, mode, Seq())
       case vb @ VecBuild(len, f) =>
         if (len.freeVars.isEmpty) {
-          // TODO: Use for-generate here instead?
+          // TODO: Use for-generate or for-loop here instead?
           val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
-          val elems =
-            (0 until n.toInt).map(i =>
-              f.body.subPreserveType(f.param -> C(i)(idxTyp))
-            )
-          exprToVhdl(VecLiteral(elems: _*)(vb.typ))
+          val VhdlExpr(fVhdl, fDecls) = exprToVhdl(f)
+          val vhdlElems = (0 until n.toInt).map({ i =>
+            makeFunCall(VhdlExpr(fVhdl, Seq()), exprToVhdl(C(i)(idxTyp)))
+          })
+          makeVecLiteral(vhdlElems, vb.typ, mode, fDecls)
         } else {
           throw new IllegalArgumentException(
             s"VecBuild with non-constant size ($len) is not supported."
@@ -312,6 +296,56 @@ private object VhdlExprGenerator {
           s"Syntax sugar must be removed before hardware generation."
         )
     }
+  }
+
+  private def makeFunCall(f: VhdlExpr, arg: VhdlExpr)(implicit
+      ctx: VhdlContext
+  ): VhdlExpr = {
+    val allArgs = (arg.vhdl +: ctx.ctx
+      .map({ case (name, _) => name })
+      .toSeq)
+      .mkString(", ")
+    VhdlExpr(s"${f.vhdl}($allArgs)", f.decls ++ arg.decls)
+  }
+
+  private def makeVecLiteral(
+      vhdlElems: Seq[VhdlExpr],
+      vecType: Type,
+      mode: ExprGenMode,
+      decls: Seq[Decl]
+  ): VhdlExpr = {
+    val tempVar = {
+      val name = Param("vec")().name
+      val vec = if (vhdlElems.isEmpty) {
+        VhdlConversionGenerator.fromStdLogicVector(
+          "(others => 'X')",
+          VhdlType(vecType)
+        )
+      } else {
+        vhdlElems.zipWithIndex
+          .map({ case (e, i) => s"$i => ${e.vhdl}" })
+          .mkString("(", ", ", ")")
+      }
+      mode match {
+        case NormalMode =>
+          Signal(
+            category = "Intermediate signals",
+            name = name,
+            typ = VhdlType(vecType),
+            assignStmt = Some(s"$name <= $vec;")
+          )
+        case InFunctionMode =>
+          VhdlVariable(
+            name = name,
+            typ = VhdlType(vecType),
+            assignStmt = s"$name := $vec;"
+          )
+      }
+    }
+    VhdlExpr(
+      tempVar.name,
+      tempVar +: (vhdlElems.flatMap(e => e.decls) ++ decls)
+    )
   }
 
   private def makeUndefined(typ: Type): String = {
@@ -348,7 +382,7 @@ private object VhdlExprGenerator {
 
   private def makeVecAccess(
       va: VecAccess
-  )(implicit mode: ExprGenMode): VhdlExpr = {
+  )(implicit mode: ExprGenMode, context: VhdlContext): VhdlExpr = {
     val TyVec(_, IntCst(n)) = va.vec.typ
     n match {
       case 0 => makeEmptyVecAccess(va)
@@ -368,20 +402,20 @@ private object VhdlExprGenerator {
 
   private def makeEmptyVecAccess(
       va: VecAccess
-  )(implicit mode: ExprGenMode): VhdlExpr = {
+  )(implicit mode: ExprGenMode, context: VhdlContext): VhdlExpr = {
     exprToVhdl(Undefined(va.typ))
   }
 
   private def makeSingletonVecAccess(
       vec: Expr
-  )(implicit mode: ExprGenMode): VhdlExpr = {
+  )(implicit mode: ExprGenMode, context: VhdlContext): VhdlExpr = {
     val VhdlExpr(vecVhdl, vecDecls) = exprToVhdl(vec)
     VhdlExpr(s"$vecVhdl(0)", vecDecls)
   }
 
   private def makeUncheckedVecAccess(
       va: VecAccess
-  )(implicit mode: ExprGenMode): VhdlExpr = {
+  )(implicit mode: ExprGenMode, context: VhdlContext): VhdlExpr = {
     va match {
       case VecAccess(v, i) =>
         val VhdlExpr(vecVhdl, vecDecls) = exprToVhdl(v)
@@ -392,7 +426,7 @@ private object VhdlExprGenerator {
 
   private def makeCheckedVecAccess(
       va: VecAccess
-  )(implicit mode: ExprGenMode): VhdlExpr = {
+  )(implicit mode: ExprGenMode, context: VhdlContext): VhdlExpr = {
     // Maybe you could get higher performance in some cases by letting the
     // final output of the VecAccess be undefined rather than the index.
     // (to_integer just converts metavalues to zero during simulation.

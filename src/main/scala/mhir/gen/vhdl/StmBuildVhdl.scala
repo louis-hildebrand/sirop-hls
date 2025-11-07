@@ -4,6 +4,8 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
+import scala.collection.immutable.ListMap
+
 /** VHDL converter for [[mhir.ir.StmBuild]].
   */
 private[vhdl] object StmBuildVhdl {
@@ -35,6 +37,23 @@ private[vhdl] object StmBuildVhdl {
       })
       s.renameVars(replacements)
     }
+
+    implicit val context: VhdlContext = VhdlContext(
+      ListMap(
+        s.equations
+          .map({
+            case (x, _) if x.typ.isData =>
+              x.name -> VhdlType(x.typ)
+            case (x, _) if x.typ.isInstanceOf[TyStm] =>
+              s"${x.name}_data_internal" -> VhdlType(
+                x.typ.asInstanceOf[TyStm].t
+              )
+            case _ => ???
+          })
+          .toSeq
+          .sortBy({ case (name, _) => name }): _*
+      )
+    )
 
     val producerEquations = s.equations.flatMap({
       case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
@@ -128,7 +147,9 @@ private[vhdl] object StmBuildVhdl {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultDecls(n: Expr, data: Expr, valid: Expr): Seq[Decl] = {
+  private def defaultDecls(n: Expr, data: Expr, valid: Expr)(implicit
+      ctx: VhdlContext
+  ): Seq[Decl] = {
     val VhdlExpr(_, nDecls) = VhdlExprGenerator.exprToVhdl(n)
     val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
@@ -195,7 +216,7 @@ private[vhdl] object StmBuildVhdl {
     */
   private def registerDecls(
       registerEquations: Iterable[(Param, (Expr, Expr))]
-  ): Seq[Decl] = {
+  )(implicit ctx: VhdlContext): Seq[Decl] = {
     registerEquations
       .flatMap({
         case SingleWriteVector(x, z, cond, idx, write) =>
