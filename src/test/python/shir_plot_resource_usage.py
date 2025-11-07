@@ -62,7 +62,8 @@ def plot_resource_usages(
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,
-        figsize=(4, 2.1),
+        figsize=(4, 1.8),
+        height_ratios=[1.5, 1, 1],
         layout="compressed",
         sharex="col",
         sharey="row",

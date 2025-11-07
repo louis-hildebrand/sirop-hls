@@ -43,9 +43,9 @@ def plot_resource_usages(
         "font.family": "Times New Roman",
         "font.size": 8,
     })
-    fig, (alm_ax, bram_ax) = plt.subplots(
-        nrows=2, ncols=1,
-        figsize=(8, 1.5),
+    fig, alm_ax = plt.subplots(
+        nrows=1, ncols=1,
+        figsize=(8, 1.0),
         layout="compressed",
         sharex="col",
     )
@@ -55,12 +55,6 @@ def plot_resource_usages(
         len(program_names) - 0.5 * aps.BAR_WIDTH - 0.5*aps.BAR_SPACE,
     )
     baseline_artist, *_ = alm_ax.plot(
-        list(xlim),
-        [0, 0],
-        linestyle=":",
-        color=(0.5, 0.5, 0.5),
-    )
-    baseline_artist, *_ = bram_ax.plot(
         list(xlim),
         [0, 0],
         linestyle=":",
@@ -89,52 +83,11 @@ def plot_resource_usages(
             hatch_linewidth=aps.HATCH_WIDTH,
         )
         artists.append(artist)
-        # BRAM usage
-        ys = []
-        for p in program_names:
-            y = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].bram
-            if y == 0 and baseline == 0:
-                ys.append(0)
-                continue
-            if baseline == 0:
-                print(f"WARNING: baseline uses zero BRAMs for program {p}")
-                ys.append(BRAM_YMAX)
-                continue
-            ys.append( (y - baseline) / baseline )
-        artist = bram_ax.bar(
-            bottom=0,
-            x=xs,
-            height=ys,
-            width=aps.BAR_WIDTH - aps.BAR_PADDING,
-            label=str(lvl),
-            hatch=aps.BAR_HATCH[i],
-            facecolor=aps.FACE_COLORS[i],
-            edgecolor=aps.EDGE_COLORS[i],
-            linestyle=aps.LINE_STYLES[i],
-            hatch_linewidth=aps.HATCH_WIDTH,
-        )
-        labels = []
-        for p in program_names:
-            bram = results[ProgramVariant(p, lvl)].bram
-            baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].bram
-            if baseline == 0 and bram != 0:
-                label = r"$\infty$"
-            else:
-                label = ""
-            labels.append(label)
-        bram_ax.bar_label(
-            artist,
-            labels=labels,
-            label_type="center",
-            color="white",
-        )
         # Fmax warning labels
         for i, p in enumerate(program_names):
             pv = ProgramVariant(p, lvl)
             if pv not in fmax_results or fmax_results[pv] < c.TARGET_FREQ:
                 alm_ax.annotate(WARNING, (xs[i], 0.25), ha="center", color="red")
-                bram_ax.annotate(WARNING, (xs[i], 0.25), ha="center", color="red")
     # Display settings
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
@@ -142,7 +95,7 @@ def plot_resource_usages(
             x + (len(aps.LEVELS_TO_PLOT) / 2 - 0.5) * aps.BAR_WIDTH
             for x in range(len(program_names))
         ],
-        [aps.program_title(p) for p in program_names],
+        [aps.program_title(p) or "NONE" for p in program_names],
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_ylabel("\\% change\nALMs (log)")
@@ -150,15 +103,10 @@ def plot_resource_usages(
     alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
     alm_ax.set_yticks([-1, 0, 1, 10])
     alm_ax.set_ylim(-1, 40)
-    bram_ax.tick_params(axis="x", which="both", length=0)
-    bram_ax.set_ylabel("\\% change\nBRAMs (log)")
-    bram_ax.set_yscale("symlog")
-    bram_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
-    bram_ax.set_ylim(-1.2, BRAM_YMAX)
-    bram_ax.set_yticks([-1, 0, 1, 10])
-    fig.text(0.02, -0.03, "Lower is better")
+
+    fig.text(0.02, -0.13, "Lower is better")
     down_arrow = Polygon(
-        [(0.005, 0.015), (0.015, 0.015), (0.01, -0.03)],
+        [(0.005, -0.06), (0.015, -0.06), (0.01, -0.12)],
         fill=True, color='black', zorder=1000,
         transform=fig.transFigure, figure=fig
     )
@@ -178,7 +126,8 @@ def plot_resource_usages(
         ncols=legend_cols,
         handlelength=1.5,
     )
-    fig.text(0.77, -0.105, WARNING, color="red", zorder=1000)
+    fig.text(0.77, -0.18, WARNING, color="red", zorder=1000)
+
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
 
