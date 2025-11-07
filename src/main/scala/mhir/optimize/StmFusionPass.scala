@@ -54,11 +54,9 @@ class GreedyStmFusionPass(simplifier: StmBuildSimplifier)
         )().tchk().asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
           val fused = simplifier.simplify(acc.fuseWith(x))()
-          val oldArea = SimpleAreaCostModel.cost(acc)
-          val newArea = SimpleAreaCostModel.cost(fused)
           val oldDelay = SimpleDelayCostModel.cost(acc)
           val newDelay = SimpleDelayCostModel.cost(fused)
-          val keep = newArea <= oldArea && newDelay <= oldDelay
+          val keep = newDelay <= oldDelay
           if (keep) fused else acc
         })
       case LetStm(_, x, in, out) =>
