@@ -37,6 +37,10 @@ def generate_shir(prog: str) -> None:
     shutil.copy(src=c.DEFAULT_QPF, dst=out_dir.joinpath("top.qpf"))
     shutil.copy(src=c.DEFAULT_QSF, dst=out_dir.joinpath("top.qsf"))
     shutil.copy(src=c.DEFAULT_SDC, dst=out_dir.joinpath("top.sdc"))
+    names = [p.name for p in out_dir.joinpath("design").iterdir()]
+    assignments = [f"set_global_assignment -name VHDL_FILE design/{name}\n" for name in names]
+    with open(out_dir.joinpath("top.qsf"), mode="a", encoding="utf-8") as f:
+        f.write("".join(assignments))
 
 
 def generate_sirop(prog: str) -> None:
