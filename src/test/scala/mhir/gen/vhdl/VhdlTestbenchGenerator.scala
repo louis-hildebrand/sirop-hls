@@ -146,8 +146,16 @@ object VhdlTestbenchGenerator {
     val testCaseProcedures = io.tests.zipWithIndex
       .map({ case (io, idx) => getTestProcedure(io, idx) })
       .mkString("\n\n")
+    val numTests = io.tests.length
     val testCaseProcesses = io.tests.zipWithIndex
-      .map({ case (io, idx) => getTestProcesses(io, idx, testNotReady) })
+      .map({ case (io, idx) =>
+        getTestProcesses(
+          io,
+          idx,
+          last = idx == numTests - 1,
+          testNotReady = testNotReady
+        )
+      })
       .mkString("\n\n")
     val testProcedureCalls = io.tests.indices
       .map({ i =>
@@ -359,12 +367,15 @@ object VhdlTestbenchGenerator {
   private def getTestProcesses(
       io: KeywordTestIO,
       testIdx: Int,
+      last: Boolean,
       testNotReady: Boolean
   ): String = {
     val inputProcesses = io.inputs
       .map({
-        case (x, in: DirectTestInput)   => getInputStreamProcess(x, in, testIdx)
-        case (x, _: TestInputFromFiles) => getInputStreamProcess(x, testIdx)
+        case (x, in: DirectTestInput) =>
+          getInputStreamProcess(x, in, testIdx, last)
+        case (x, _: TestInputFromFiles) =>
+          getInputStreamProcess(x, testIdx, last)
       })
       .mkString("\n\n")
     val outCheckProcess = io.expectedOutput match {
@@ -452,7 +463,8 @@ object VhdlTestbenchGenerator {
   private def getInputStreamProcess(
       x: Param,
       in: DirectTestInput,
-      testIdx: Int
+      testIdx: Int,
+      last: Boolean
   ): String = {
     val steps = in.elements
       .map({
@@ -479,7 +491,7 @@ object VhdlTestbenchGenerator {
        |
        |${indent(steps)}
        |
-       |    ${x.name}_valid <= 'Z';
+       |    ${x.name}_valid <= '${if (last) "1" else "Z"}';
        |    ${x.name}_data <= (others => 'Z');
        |    test_${testIdx}_${x.name}_inputs_done <= true;
        |    report "Finished giving inputs for test case $testIdx, parameter ${x.name}." severity note;
@@ -488,7 +500,11 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def getInputStreamProcess(x: Param, testIdx: Int): String = {
+  private def getInputStreamProcess(
+      x: Param,
+      testIdx: Int,
+      last: Boolean
+  ): String = {
     s"""-- Generate inputs (${x.name})
        |process
        |begin
@@ -510,7 +526,7 @@ object VhdlTestbenchGenerator {
        |        end if;
        |    end loop;
        |
-       |    ${x.name}_valid <= 'Z';
+       |    ${x.name}_valid <= '${if (last) "1" else "Z"}';
        |    ${x.name}_data <= (others => 'Z');
        |    test_${testIdx}_${x.name}_inputs_done <= true;
        |    report "Finished giving inputs for test case $testIdx, parameter ${x.name}." severity note;
