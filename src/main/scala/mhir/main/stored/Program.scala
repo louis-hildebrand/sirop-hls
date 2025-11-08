@@ -15,17 +15,18 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"         => Map
-      case "shir:map"    => Map
-      case "dot"         => Dot
-      case "shir:dot"    => Dot
-      case "conv1d"      => Conv1d
-      case "shir:conv1d" => ShirConv1d
-      case "conv2d"      => Conv2d
-      case "shir:conv2d" => ShirConv2d
-      case "convb2b"     => ConvB2b
-      case "sharpen"     => Sharpen
-      case "camera"      => Camera
+      case "map"          => Map
+      case "shir:map"     => Map
+      case "dot"          => Dot
+      case "shir:dot"     => Dot
+      case "conv1d"       => Conv1d
+      case "shir:conv1d"  => ShirConv1d
+      case "conv2d"       => Conv2d
+      case "shir:conv2d"  => ShirConv2d
+      case "convb2b"      => ConvB2b
+      case "shir:convb2b" => ShirConvB2b
+      case "sharpen"      => Sharpen
+      case "camera"       => Camera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
@@ -436,6 +437,116 @@ object Program {
       )
     )()
     Function(input, conv)()
+  }
+
+  private val ShirConvB2b: Expr = {
+    val int = U32
+    val height = 1080
+    val width = 1920
+    val input = Param("I")(TyStm(TyStm(int, width), height))
+    val step1 = {
+      val flatInput = StmJoin(input)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 3 * width, width)(),
+        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 3, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 3), 3) ::+ { window =>
+              val kernel = VecLiteral(
+                C(1)(int),
+                C(2)(int),
+                C(1)(int),
+                C(2)(int),
+                C(4)(int),
+                C(2)(int),
+                C(1)(int),
+                C(2)(int),
+                C(1)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum
+            }
+          )()
+        )
+      )()
+    }
+    val step2 = {
+      val newWidth = width - 2
+      val flatInput = StmJoin(step1)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 2 * newWidth, newWidth)(),
+        TyVec(int, 2 * newWidth) ::+ (rowGroup =>
+          VecSplit(rowGroup, newWidth)()
+        )
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, newWidth), 2) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 2), newWidth) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 2, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 2), 2), newWidth - 1) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 2), 2) ::+ { window =>
+              val kernel = VecLiteral(
+                C(1)(int),
+                C(4)(int),
+                C(2)(int),
+                C(1)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum
+            }
+          )()
+        )
+      )()
+    }
+    Function(input, step2)()
   }
 
   /** 3D convolution followed by 2D convolution.
