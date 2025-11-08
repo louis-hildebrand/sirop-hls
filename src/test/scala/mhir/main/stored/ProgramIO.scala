@@ -139,7 +139,7 @@ object ProgramIO {
 
   private def shirConv2dIO: PositionalTestIO = {
     val width = 1920
-    val height = 4
+    val height = 8
     val k = C(255)(U32)
     // Checkerboard pattern (10x10 squares)
     val basicInputs: Seq[Seq[Int]] =

@@ -87,7 +87,7 @@ begin
         I0_data <= (others => 'Z');
         wait until test_0_start;
 
-        for i in 0 to 3 loop
+        for i in 0 to 7 loop
             for j in 0 to 1919 loop
                 wait until falling_edge(clk); -- prepare input well before the next rising edge
                 I0_valid <= '1';
@@ -119,7 +119,7 @@ begin
         ready <= "ZZZ";
         wait until test_0_start;
 
-        for i_top in 0 to 1 loop
+        for i_top in 0 to 5 loop
             for j_left in 0 to 1917 loop
                 -- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
                 wait until falling_edge(clk) and valid = '1';
