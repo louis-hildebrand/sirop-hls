@@ -6,8 +6,9 @@ This script plots the latencies for the SHIR benchmarks.
 
 from fractions import Fraction
 
+import matplotlib.path as mpath
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Rectangle
+from matplotlib.patches import ArrowStyle, FancyArrowPatch, Polygon, Rectangle
 
 import lib.constants as c
 import lib.plt_utils as pu
@@ -20,6 +21,8 @@ BAR_WIDTH = (1 - BAR_SPACE) / 2
 BAR_PADDING = 0.02
 SHIR_HATCH = "/"
 OUR_HATCH = "\\"
+# pylint: disable-next=line-too-long
+WARNING = r"\textbf{{\Large $\triangle$}\hspace{-0.785em}\raisebox{0.2em}{\scriptsize!}}\hspace{0.5em}"
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -69,12 +72,10 @@ def plot_latencies(
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")] >= 175
         for prog in program_names
     ]
-    assert all(shir_fmax_ok), "need to show SHIR fmax somehow"
     sirop_fmax_ok = [
         fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop")] >= 175
         for prog in program_names
     ]
-    assert all(sirop_fmax_ok), "need to show Sirop fmax somehow"
 
     shir_sim_ok = [
         results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")].sim_success
@@ -118,6 +119,53 @@ def plot_latencies(
         hatch=OUR_HATCH,
     )
 
+    # Latency ratios
+    endpoint_lift = 1.2
+    peak_lift = 10
+    arrow_style = ArrowStyle("-|>", head_length=3, head_width=2)
+    for x, (shir_lat, sirop_lat) in enumerate(zip(shir_latency, sirop_latency)):
+        if sirop_lat < 100:
+            continue
+        if sirop_lat / shir_lat <= 1 and sirop_lat / shir_lat > 0.9:
+            continue
+        tail = (x + BAR_WIDTH*0.16, endpoint_lift * shir_lat)
+        peak = (x + BAR_WIDTH*0.55, peak_lift * max(shir_lat, sirop_lat))
+        head = (x + BAR_WIDTH*0.84, endpoint_lift * sirop_lat)
+        arrow_path = mpath.Path(
+            [tail, peak, head],
+            [mpath.Path.MOVETO, mpath.Path.CURVE3, mpath.Path.CURVE3]
+        )
+        arrow = FancyArrowPatch(path=arrow_path, arrowstyle=arrow_style, color="black", zorder=10)
+        ax.add_patch(arrow)
+        label = f"{sirop_lat/shir_lat:.2f}"
+        label = f"${label}\\times$"
+        ax.annotate(
+            label, (x + 1.5*BAR_WIDTH, 1.25 * peak[1]),
+            horizontalalignment="right",
+            verticalalignment="center",
+            zorder=999,
+        )
+
+    # Fmax warning labels
+    for i, shir_ok in enumerate(shir_fmax_ok):
+        if not shir_ok:
+            ax.annotate(
+                WARNING,
+                (xs[i], 2 * shir_latency[i]),
+                ha="center",
+                color="red",
+                zorder=999,
+            )
+    for i, sirop_ok in enumerate(sirop_fmax_ok):
+        if not sirop_ok:
+            ax.annotate(
+                WARNING,
+                (xs[i] + BAR_WIDTH/2, 2 * sirop_latency[i]),
+                ha="center",
+                color="red",
+                zorder=999
+            )
+
     # Display settings
     xlim = (
         -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
@@ -130,14 +178,14 @@ def plot_latencies(
     )
     ax.tick_params(axis="x", which="both", length=0)
     ax.set_yscale("log")
-    ax.set_ylabel("Latency (log)")
+    ax.set_ylabel("Latency (log)     .")
     ymin, ymax = ax.get_ylim()
-    ax.set_ylim(ymin, 1.5*ymax)
+    ax.set_ylim(ymin, 5*ymax)
 
     # "Lower is better" message
-    fig.text(0.05, -0.15, "Lower is better")
+    fig.text(0.05, -0.05, "Lower is better")
     down_arrow = Polygon(
-        [(0.014, -0.075), (0.030, -0.075), (0.022, -0.14)],
+        [(0.014, 0.025), (0.030, 0.025), (0.022, -0.04)],
         fill=True, color='black', zorder=1000,
         transform=fig.transFigure, figure=fig
     )
@@ -160,11 +208,17 @@ def plot_latencies(
                 edgecolor="black",
                 hatch=OUR_HATCH * 3,
             ),
+            Rectangle(
+                (0, 0), 0, 0,
+                label="timing req. not met",
+                visible=False,
+            ),
         ],
         loc="upper right",
         bbox_to_anchor=(1, 0),
-        ncols=2,
+        ncols=3,
     )
+    fig.text(0.655, -0.275, WARNING, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_LATENCY_PDF, bbox_inches="tight")
 

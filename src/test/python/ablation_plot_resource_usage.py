@@ -67,6 +67,11 @@ def plot_resource_usages(
         # ALM usage
         ys = []
         for p in program_names:
+            pv = ProgramVariant(p, lvl)
+            if pv not in results:
+                print(f"WARNING: no results for {pv}")
+                ys.append(0)
+                continue
             y = results[ProgramVariant(p, lvl)].alm
             baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].alm
             ys.append( (y - baseline) / baseline )
