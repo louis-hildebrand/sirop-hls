@@ -25,6 +25,8 @@ object ProgramIO {
       shirConv2dIO
     } else if (name.startsWith("convb2b_")) {
       convb2bIO
+    } else if (name == "shir:convb2b") {
+      shirConvB2bIO
     } else if (name.startsWith("sharpen_")) {
       sharpenIO
     } else if (name.startsWith("camera_")) {
@@ -154,6 +156,30 @@ object ProgramIO {
       conv2d(
         basicInputs,
         kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
+      ).flatten.map(C(_)(k.typ))
+    AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
+  }
+
+  private def shirConvB2bIO: PositionalTestIO = {
+    val width = 1920
+    val height = 8
+    val k = C(255)(U32)
+    // Checkerboard pattern (10x10 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 20) < 10) == ((j % 20) < 10)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        conv2d(
+          basicInputs,
+          kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
+        ),
+        kernel = Seq(Seq(1, 2), Seq(4, 1))
       ).flatten.map(C(_)(k.typ))
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }

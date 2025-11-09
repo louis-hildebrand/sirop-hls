@@ -20,7 +20,7 @@ from lib.resource_usage import ResourceUsage
 
 BAR_SPACE = 0.2
 BAR_WIDTH = (1 - BAR_SPACE) / 2
-BAR_PADDING = 0.02
+BAR_PADDING = 0.03
 SHIR_HATCH = "/"
 OUR_HATCH = "\\"
 # pylint: disable-next=line-too-long
@@ -121,7 +121,7 @@ def plot_resource_usages(
     )
     # ALM usage ratios
     endpoint_lift = 1.2
-    peak_lift = 10
+    peak_lift = 500
     arrow_style = ArrowStyle("-|>", head_length=3, head_width=2)
     for x, (shir_alm, sirop_alm) in enumerate(zip(shir_alms, sirop_alms)):
         tail = (x + BAR_WIDTH*0.16, endpoint_lift * shir_alm)
@@ -136,8 +136,8 @@ def plot_resource_usages(
         label = f"{sirop_alm/shir_alm:.2f}"
         label = f"${label}\\times$"
         alm_ax.annotate(
-            label, (x + 1.5*BAR_WIDTH, 1.5 * peak[1]),
-            horizontalalignment="right",
+            label, (x + 0.5*BAR_WIDTH, peak[1]),
+            horizontalalignment="center",
             verticalalignment="center",
         )
     # BRAM usage
@@ -217,7 +217,7 @@ def plot_resource_usages(
             )
             dsp_ax.annotate(
                 WARNING,
-                (xs[i], shir_dsps[i]),
+                (xs[i], shir_dsps[i] + 1),
                 ha="center",
                 color="red",
                 zorder=999,
@@ -226,7 +226,21 @@ def plot_resource_usages(
         if not sirop_ok:
             alm_ax.annotate(
                 WARNING,
-                (xs[i] + BAR_WIDTH/2, 0.25, 2 * sirop_alms[i]),
+                (xs[i] + BAR_WIDTH, 2 * sirop_alms[i]),
+                ha="center",
+                color="red",
+                zorder=999
+            )
+            bram_ax.annotate(
+                WARNING,
+                (xs[i] + BAR_WIDTH, 1.1),
+                ha="center",
+                color="red",
+                zorder=999
+            )
+            dsp_ax.annotate(
+                WARNING,
+                (xs[i] + BAR_WIDTH, 1),
                 ha="center",
                 color="red",
                 zorder=999
@@ -260,12 +274,14 @@ def plot_resource_usages(
     bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=2))
     bram_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     dsp_ax.tick_params(axis="x", which="both", length=0)
+    ymin, ymax = bram_ax.get_ylim()
+    bram_ax.set_ylim(ymin, 2 * ymax)
     # dsp_ax.set_yscale("symlog")
     dsp_ax.set_ylabel("DSPs")
     dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=2))
     dsp_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     ymin, ymax = dsp_ax.get_ylim()
-    dsp_ax.set_ylim(ymin, 1.5 * ymax)
+    dsp_ax.set_ylim(ymin, 1.75 * ymax)
     fig.align_ylabels()
 
     # "Lower is better" message
