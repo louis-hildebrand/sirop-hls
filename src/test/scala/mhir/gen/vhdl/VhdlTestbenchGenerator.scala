@@ -736,7 +736,7 @@ object VhdlTestbenchGenerator {
   private def expectedToVhdl(expected: Expr): String = {
     require(expected.hasType)
     if (!expected.contains(classOf[Undefined])) {
-      VhdlGenerator.valueToStdLogicVector(expected)
+      valueToStdLogicVector(expected)
     } else {
       expected match {
         case Undefined(typ) =>
@@ -750,6 +750,49 @@ object VhdlTestbenchGenerator {
         case _ =>
           ???
       }
+    }
+  }
+
+  def valueToStdLogicVector(v: Expr): String = {
+    mhir.ir.eval(v).tchk() match {
+      case False => "\"0\""
+      case True  => "\"1\""
+      case c: IntCst =>
+        c.typ.asInstanceOf[TyAnyInt] match {
+          case TyAnyInt(w) if w > 31 =>
+            if (c.i < 0) {
+              val bin = c.i.toBinaryString
+              assert(bin.head == '1')
+              assert(bin.length == 64)
+              val truncated = bin.takeRight(w)
+              assert(truncated.head == '1')
+              truncated
+            } else {
+              val bin = c.i.toBinaryString
+              assert(bin.length <= w)
+              val padded = ("0" * (w - bin.length)) + bin
+              if (c.typ.isInstanceOf[TySInt]) {
+                assert(padded.head == '0')
+              }
+              s"""\"$padded\""""
+            }
+          case TyUInt(w) => s"std_logic_vector(to_unsigned(${c.i}, $w))"
+          case TySInt(w) => s"std_logic_vector(to_signed(${c.i}, $w))"
+        }
+      case c: FixCst =>
+        valueToStdLogicVector(C(c.numer)(c.typ.t))
+      case Tuple(elems @ _*) =>
+        if (elems.isEmpty) {
+          "\"\""
+        } else {
+          elems.map(valueToStdLogicVector).map(x => s"($x)").mkString(" & ")
+        }
+      case vec: VecLiteral =>
+        valueToStdLogicVector(Tuple(vec.elems: _*)())
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Cannot convert value $v to a std_logic_vector. Is it really a value?"
+        )
     }
   }
 

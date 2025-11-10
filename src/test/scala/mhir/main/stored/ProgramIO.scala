@@ -29,6 +29,8 @@ object ProgramIO {
       shirConvB2bIO
     } else if (name.startsWith("sharpen_")) {
       sharpenIO
+    } else if (name == "shir:sharpen") {
+      shirSharpenIO
     } else if (name.startsWith("camera_")) {
       cameraIO
     } else if (name.startsWith("matvec_")) {
@@ -181,6 +183,39 @@ object ProgramIO {
         ),
         kernel = Seq(Seq(1, 2), Seq(4, 1))
       ).flatten.map(C(_)(k.typ))
+    AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
+  }
+
+  private def shirSharpenIO: PositionalTestIO = {
+    val width = 1920
+    val height = 16
+    val k = C(255)(U32)
+    // Checkerboard pattern (10x10 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 20) < 10) == ((j % 20) < 10)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] = {
+      val blurred = conv2d(
+        basicInputs,
+        kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
+      ).map(_.map(_ / 16))
+      val original = conv2d(
+        basicInputs,
+        kernel = Seq(Seq(0, 0, 0), Seq(0, 1, 0), Seq(0, 0, 0))
+      )
+      val sharpened = blurred.flatten
+        .zip(original.flatten)
+        .map({ case (a, b) =>
+          val alphaH = (b - a).toInt >>> 2
+          b + alphaH
+        })
+      sharpened.map(C(_)(k.typ))
+    }
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }
 
