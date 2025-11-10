@@ -18,13 +18,14 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.resource_usage import ResourceUsage
 
-BAR_SPACE = 0.2
+BAR_SPACE = 0.3
 BAR_WIDTH = (1 - BAR_SPACE) / 2
-BAR_PADDING = 0.03
-SHIR_HATCH = "/"
-OUR_HATCH = "\\"
+BAR_PADDING = 0.07
+SHIR_HATCH = "//"
+OUR_HATCH = "\\\\"
 # pylint: disable-next=line-too-long
 WARNING = r"\textbf{{\Large $\triangle$}\hspace{-0.785em}\raisebox{0.2em}{\scriptsize!}}\hspace{0.5em}"
+SYNTH_FAIL = r"\textbf{\Large $\times$}"
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -45,7 +46,6 @@ def benchmark_title(bench_name: str) -> str | None:
 
 def plot_resource_usages(
     results: dict[BenchmarkImpl, ResourceUsage],
-    fmax_results: dict[BenchmarkImpl, float],
 ) -> None:
     """
     Plot resource usage for each program.
@@ -72,17 +72,12 @@ def plot_resource_usages(
         sharey="row",
     )
 
-    shir_fmax_ok = [
-        fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir")] >= 175
-        for prog in program_names
-    ]
-    sirop_fmax_ok = [
-        fmax_results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop")] >= 175
-        for prog in program_names
-    ]
-
     shir_alms = [
-        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
+        (
+            results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].alm
+            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir") in results
+            else None
+        )
         for p in program_names
     ]
     sirop_alms = [
@@ -90,7 +85,11 @@ def plot_resource_usages(
         for p in program_names
     ]
     alm_ratio_geomean = statistics.geometric_mean(
-        [sirop / shir for (sirop, shir) in zip(sirop_alms, shir_alms)]
+        [
+            sirop / shir
+            for (sirop, shir) in zip(sirop_alms, shir_alms)
+            if shir is not None
+        ]
     )
     print(f"ALM ratio geomean: {alm_ratio_geomean:.2f}")
 
@@ -99,8 +98,8 @@ def plot_resource_usages(
     # ALM usage
     alm_ax.bar(
         bottom=0,
-        x=xs,
-        height=shir_alms,
+        x=[x for i, x in enumerate(xs) if shir_alms[i] is not None],
+        height=[x for x in shir_alms if x is not None],
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
@@ -121,9 +120,11 @@ def plot_resource_usages(
     )
     # ALM usage ratios
     endpoint_lift = 1.2
-    peak_lift = 500
+    peak_lift = 40
     arrow_style = ArrowStyle("-|>", head_length=3, head_width=2)
     for x, (shir_alm, sirop_alm) in enumerate(zip(shir_alms, sirop_alms)):
+        if shir_alm is None:
+            continue
         tail = (x + BAR_WIDTH*0.16, endpoint_lift * shir_alm)
         peak = (x + BAR_WIDTH*0.55, peak_lift * max(shir_alm, sirop_alm))
         head = (x + BAR_WIDTH*0.84, endpoint_lift * sirop_alm)
@@ -142,18 +143,22 @@ def plot_resource_usages(
         )
     # BRAM usage
     shir_brams = [
-        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
+        (
+            BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir") in results
+            and results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].bram
+        )
         for p in program_names
     ]
     bram_ax.bar(
         bottom=0,
-        x=xs,
-        height=shir_brams,
+        x=[x for i, x in enumerate(xs) if shir_brams[i] is not None],
+        height=[x for x in shir_brams if x is not None],
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
         linestyle="-",
         hatch=SHIR_HATCH,
+        zorder=10,
     )
     sirop_brams = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].bram
@@ -168,21 +173,26 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
+        zorder=10,
     )
     # DSP usage
     shir_dsps = [
-        results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].dsp
+        (
+            BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir") in results
+            and results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")].dsp
+        )
         for p in program_names
     ]
     dsp_ax.bar(
         bottom=0,
-        x=xs,
-        height=shir_dsps,
+        x=[x for i, x in enumerate(xs) if shir_dsps[i] is not None],
+        height=[x for x in shir_dsps if x is not None],
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.SHIR_COLOR,
         edgecolor="black",
         linestyle="-",
         hatch=SHIR_HATCH,
+        zorder=10,
     )
     sirop_dsps = [
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].dsp
@@ -197,54 +207,34 @@ def plot_resource_usages(
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
+        zorder=10,
     )
-    # Fmax warning labels
-    for i, shir_ok in enumerate(shir_fmax_ok):
-        if not shir_ok:
-            alm_ax.annotate(
-                WARNING,
-                (xs[i], 2 * shir_alms[i]),
-                ha="center",
-                color="red",
-                zorder=999,
-            )
-            bram_ax.annotate(
-                WARNING,
-                (xs[i], max(0.2, 2 * shir_brams[i])),
-                ha="center",
-                color="red",
-                zorder=999,
-            )
-            dsp_ax.annotate(
-                WARNING,
-                (xs[i], shir_dsps[i] + 1),
-                ha="center",
-                color="red",
-                zorder=999,
-            )
-    for i, sirop_ok in enumerate(sirop_fmax_ok):
-        if not sirop_ok:
-            alm_ax.annotate(
-                WARNING,
-                (xs[i] + BAR_WIDTH, 2 * sirop_alms[i]),
-                ha="center",
-                color="red",
-                zorder=999
-            )
-            bram_ax.annotate(
-                WARNING,
-                (xs[i] + BAR_WIDTH, 1.1),
-                ha="center",
-                color="red",
-                zorder=999
-            )
-            dsp_ax.annotate(
-                WARNING,
-                (xs[i] + BAR_WIDTH, 1),
-                ha="center",
-                color="red",
-                zorder=999
-            )
+
+    # Synthesis fail labels
+    for i, shir_alm in enumerate(shir_alms):
+        if shir_alm is not None:
+            continue
+        alm_ax.annotate(
+            SYNTH_FAIL,
+            (xs[i], 10),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
+        bram_ax.annotate(
+            SYNTH_FAIL,
+            (xs[i], 0.5),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
+        dsp_ax.annotate(
+            SYNTH_FAIL,
+            (xs[i], 1),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
 
     # Display settings
     xlim = (
@@ -252,11 +242,11 @@ def plot_resource_usages(
         len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
     )
     alm_ax.set_xlim(xlim)
+    alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_xticks(
         [x + BAR_WIDTH/2 for x in xs],
         [benchmark_title(p) or "NONE" for p in program_names]
     )
-    alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.grid(
         visible=True,
         which="major",
@@ -267,21 +257,35 @@ def plot_resource_usages(
     alm_ax.set_yscale("log")
     alm_ax.set_ylabel("ALMs (log)")
     ymin, ymax = alm_ax.get_ylim()
-    alm_ax.set_ylim(ymin, 10*ymax)
+    alm_ax.set_ylim(ymin, 7*ymax)
+    alm_ax.set_yticks(
+        [10, 10**3, 10**5],
+        [r"$1 \times 10^1$", r"$1 \times 10^3$", r"$1 \times 10^5$"],
+    )
     bram_ax.tick_params(axis="x", which="both", length=0)
+    bram_ax.grid(
+        visible=True,
+        which="major",
+        axis="y",
+        linewidth=0.2,
+        color=(0.8, 0.8, 0.8)
+    )
     # bram_ax.set_yscale("symlog")
     bram_ax.set_ylabel("BRAMs")
-    bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=2))
+    bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=3))
     bram_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
     dsp_ax.tick_params(axis="x", which="both", length=0)
-    ymin, ymax = bram_ax.get_ylim()
-    bram_ax.set_ylim(ymin, 2 * ymax)
+    dsp_ax.grid(
+        visible=True,
+        which="major",
+        axis="y",
+        linewidth=0.2,
+        color=(0.8, 0.8, 0.8)
+    )
     # dsp_ax.set_yscale("symlog")
     dsp_ax.set_ylabel("DSPs")
-    dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=2))
+    dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=3))
     dsp_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
-    ymin, ymax = dsp_ax.get_ylim()
-    dsp_ax.set_ylim(ymin, 1.75 * ymax)
     fig.align_ylabels()
 
     # "Lower is better" message
@@ -301,14 +305,14 @@ def plot_resource_usages(
                 label=c.SHIR_LABEL,
                 facecolor=c.SHIR_COLOR,
                 edgecolor="black",
-                hatch=SHIR_HATCH * 3,
+                hatch=SHIR_HATCH * 2,
             ),
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.OUR_LABEL,
                 facecolor=c.OUR_COLOR,
                 edgecolor="black",
-                hatch=OUR_HATCH * 3,
+                hatch=OUR_HATCH * 2,
             ),
             Rectangle(
                 (0, 0), 0, 0,
@@ -330,8 +334,7 @@ def main() -> None:
     The program entry point.
     """
     area_results = crud.read_valid_resource_usage_results(c.SHIR_RESOURCE_USAGE_CSV)
-    fmax_results = crud.read_valid_fmax_estimates(c.SHIR_FMAX_CSV)
-    plot_resource_usages(area_results, fmax_results)
+    plot_resource_usages(area_results)
 
 
 if __name__ == "__main__":

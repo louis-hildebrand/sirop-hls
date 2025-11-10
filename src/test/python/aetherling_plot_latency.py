@@ -115,6 +115,7 @@ def plot_latency(
             linewidth=1,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
+            zorder=10,
         )
         # VHDL results (only successful simulation)
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks if results[b].sim_success]
@@ -127,6 +128,7 @@ def plot_latency(
             linewidth=1,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
+            zorder=11,
         )
         # Labels and whatnot
         ax.set_xscale("log", base=2)
@@ -138,6 +140,15 @@ def plot_latency(
     axes[0].set_ylabel("Latency (log)\t.")
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
+    axes[0].set_yticks([10, 10**3, 10**5])
+    for ax in axes:
+        ax.grid(
+            visible=True,
+            which="major",
+            axis="y",
+            linewidth=0.2,
+            color=(0.8, 0.8, 0.8)
+        )
     fig.supxlabel("Target throughput (px/cycle)")
     fig.text(0.0275, 0.07, "Lower is better")
     down_arrow = Polygon(

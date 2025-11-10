@@ -57,8 +57,8 @@ def plot_resource_usages(
     baseline_artist, *_ = alm_ax.plot(
         list(xlim),
         [0, 0],
-        linestyle=":",
-        color=(0.5, 0.5, 0.5),
+        color=(0, 0, 0),
+        zorder=5,
     )
     # Resource usages
     artists = []
@@ -86,6 +86,7 @@ def plot_resource_usages(
             edgecolor=aps.EDGE_COLORS[i],
             linestyle=aps.LINE_STYLES[i],
             hatch_linewidth=aps.HATCH_WIDTH,
+            zorder=10,
         )
         artists.append(artist)
         # Fmax warning labels
@@ -94,6 +95,13 @@ def plot_resource_usages(
             if pv not in fmax_results or fmax_results[pv] < c.TARGET_FREQ:
                 alm_ax.annotate(WARNING, (xs[i], 0.25), ha="center", color="red")
     # Display settings
+    alm_ax.grid(
+        visible=True,
+        which="major",
+        axis="y",
+        linewidth=0.2,
+        color=(0.8, 0.8, 0.8)
+    )
     alm_ax.set_xlim(xlim)
     alm_ax.set_xticks(
         [
@@ -106,7 +114,7 @@ def plot_resource_usages(
     alm_ax.set_ylabel("\\% change\nALMs (log)")
     alm_ax.set_yscale("symlog")
     alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
-    alm_ax.set_yticks([-1, 0, 1, 10])
+    alm_ax.set_yticks([-1, 0, 1, 2, 10])
     alm_ax.set_ylim(-1, 40)
 
     fig.text(0.02, -0.13, "Lower is better")

@@ -81,7 +81,7 @@ def plot_resource_usages(
             xs, ys,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
-            zorder=0,
+            zorder=10,
         )
         alm_ax.scatter(  # markers (separate so that some can be filled and some not)
             xs, ys,
@@ -91,7 +91,7 @@ def plot_resource_usages(
             linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
-            zorder=1,
+            zorder=11,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         ys = [results[b].alm for b in vhdl_benchmarks]
@@ -99,7 +99,7 @@ def plot_resource_usages(
             xs, ys,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
-            zorder=2,
+            zorder=12,
         )
         alm_ax.scatter(  # markers
             xs, ys,
@@ -109,7 +109,7 @@ def plot_resource_usages(
             linewidth=LINEWIDTH,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
-            zorder=3,
+            zorder=13,
         )
         # Plot BRAM usage
         bram_ax = axes[1][col]
@@ -119,7 +119,7 @@ def plot_resource_usages(
             xs, verilog_ys,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
-            zorder=0,
+            zorder=10,
         )
         bram_ax.scatter(  # markers
             xs, verilog_ys,
@@ -129,7 +129,7 @@ def plot_resource_usages(
             linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
-            zorder=1,
+            zorder=11,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].bram for b in vhdl_benchmarks]
@@ -137,7 +137,7 @@ def plot_resource_usages(
             xs, vhdl_ys,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
-            zorder=2,
+            zorder=12,
         )
         bram_ax.scatter(  # markers
             xs, vhdl_ys,
@@ -147,7 +147,7 @@ def plot_resource_usages(
             linewidth=LINEWIDTH,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
-            zorder=3,
+            zorder=13,
         )
         # Plot DSP usage
         dsp_ax = axes[2][col]
@@ -157,7 +157,7 @@ def plot_resource_usages(
             xs, verilog_ys,
             color=c.AETHERLING_COLOR,
             label=c.AETHERLING_LABEL,
-            zorder=0,
+            zorder=10,
         )
         dsp_ax.scatter(  # markers
             xs, verilog_ys,
@@ -167,7 +167,7 @@ def plot_resource_usages(
             linewidth=LINEWIDTH,
             facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
-            zorder=1,
+            zorder=11,
         )
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks]
         vhdl_ys = [results[b].dsp for b in vhdl_benchmarks]
@@ -175,7 +175,7 @@ def plot_resource_usages(
             xs, vhdl_ys,
             color=c.OUR_COLOR,
             label=c.OUR_LABEL,
-            zorder=2,
+            zorder=12,
         )
         dsp_ax.scatter(  # markers
             xs, vhdl_ys,
@@ -185,7 +185,7 @@ def plot_resource_usages(
             linewidth=1,
             facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
             label=c.OUR_LABEL,
-            zorder=3,
+            zorder=13,
         )
         # Settings for the whole column
         alm_ax.set_title(title)
@@ -199,15 +199,40 @@ def plot_resource_usages(
     # Settings for entire rows
     axes[0][0].set_ylabel("ALM (log)")
     axes[0][0].set_yscale("log")
-    axes[0][0].yaxis.set_major_locator(LogLocator(base=10))
+    # axes[0][0].yaxis.set_major_locator(LogLocator(base=10))
+    axes[0][0].set_yticks([10, 10**2, 10**3, 10**4])
+    for ax in axes[0]:
+        ax.grid(
+            visible=True,
+            which="major",
+            axis="y",
+            linewidth=0.2,
+            color=(0.8, 0.8, 0.8)
+        )
     axes[1][0].set_ylabel("BRAM (log)")
     axes[1][-1].set_yscale("symlog")
     axes[1][-1].yaxis.set_major_locator(LogLocator(base=10))
     axes[1][-1].set_ylim(0.11, 10**3)
+    for ax in axes[1]:
+        ax.grid(
+            visible=True,
+            which="major",
+            axis="y",
+            linewidth=0.2,
+            color=(0.8, 0.8, 0.8)
+        )
     axes[2][0].set_ylabel("DSP (log)")
     axes[2][-1].set_yscale("symlog")
     axes[2][-1].yaxis.set_major_locator(LogLocator(base=10))
     axes[2][-1].set_ylim(0.11, 500)
+    for ax in axes[2]:
+        ax.grid(
+            visible=True,
+            which="major",
+            axis="y",
+            linewidth=0.2,
+            color=(0.8, 0.8, 0.8)
+        )
     fig.supxlabel("Target throughput (px/cycle)")
     fig.legend(
         handles=[

@@ -15,9 +15,9 @@ LEVELS_TO_PLOT = [
         OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH
     ]
 ]
-BAR_SPACE = 0.2
+BAR_SPACE = 0.3
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
-BAR_PADDING = 0.02
+BAR_PADDING = 0.04
 BAR_HATCH = ["//", "\\\\", "--", "++", "||", "xx", "/", "\\", "-", "+", "|", "x"]
 # pylint: disable-next=line-too-long
 FACE_COLORS = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a"]
