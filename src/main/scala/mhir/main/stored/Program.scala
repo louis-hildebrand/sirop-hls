@@ -601,7 +601,7 @@ object Program {
                 )(),
                 0
               )()
-              sum
+              sum >> 4
             }
           )()
         )
