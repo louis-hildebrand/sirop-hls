@@ -1,10 +1,10 @@
 bench_name,bench_throughput,language,latency,sim_success
 conv1d,-1,shir,19,True
 conv1d,-1,sirop,16,True
-conv2d,-1,shir,26877,True
-conv2d,-1,sirop,17281,True
-convb2b,-1,shir,28798,True
-convb2b,-1,sirop,19201,True
+conv2d,-1,shir,57589,True
+conv2d,-1,sirop,32641,True
+convb2b,-1,shir,59510,True
+convb2b,-1,sirop,34561,True
 dot,-1,shir,844,True
 dot,-1,sirop,841,True
 map,-1,shir,200,True

@@ -81,8 +81,8 @@ def min_latency(bench: Benchmark) -> int:
         # 16 inputs, 16 outputs
         return 16 // bench.throughput
     if bench.name in {"bigconv2d", "bigconvb2b", "bigsharpen", "bigsobel"}:
-        # 1920*4 inputs and outputs
-        return 1920 * 4 // bench.throughput
+        # 1920*16 inputs and outputs
+        return 1920 * 16 // bench.throughput
     if bench.name == "bigcamera":
         # 1920*8 inputs and outputs
         return 1920 * 8 // bench.throughput

@@ -245,7 +245,7 @@ object AetherlingBenchmarkIO {
   }
 
   private def bigConv2dIO: Map[String, TestIO] = {
-    conv2dIO("bigconv2d", width = 1920, height = 4, k = C(255)(U32))
+    conv2dIO("bigconv2d", width = 1920, height = 16, k = C(255)(U32))
   }
 
   private def convB2bIO(
@@ -326,7 +326,7 @@ object AetherlingBenchmarkIO {
   }
 
   private def bigConvB2bIO: Map[String, TestIO] = {
-    convB2bIO("bigconvb2b", width = 1920, height = 4, typ = U32)
+    convB2bIO("bigconvb2b", width = 1920, height = 16, typ = U32)
   }
 
   private def sharpenIO(
@@ -411,7 +411,7 @@ object AetherlingBenchmarkIO {
   }
 
   private def bigSharpenIO: Map[String, TestIO] = {
-    sharpenIO("bigsharpen", width = 1920, height = 4, typ = U32)
+    sharpenIO("bigsharpen", width = 1920, height = 16, typ = U32)
   }
 
   private def smallCameraIO: Map[String, TestIO] = {
@@ -476,6 +476,8 @@ object AetherlingBenchmarkIO {
   }
 
   private def bigCameraIO: Map[String, TestIO] = {
+    // If you want to change these dimensions, you must also change the
+    // resource file with the expected outputs
     val width = 1920
     val height = 8
     val basicInputExprs = (1 to (width * height))
@@ -633,7 +635,7 @@ object AetherlingBenchmarkIO {
 
   private def bigSobelIO: Map[String, TestIO] = {
     val width = 1920
-    val height = 4
+    val height = 16
     val k = C(255)(I32)
     // Checkerboard pattern (10x2 rectangle)
     val basicInputs: Seq[Seq[Int]] =
