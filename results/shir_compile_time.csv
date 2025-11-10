@@ -1,0 +1,8 @@
+bench_name,bench_throughput,parse,typecheck,lower,make_synth,optimize,codegen
+map,-1,0,1,80,3,155,128
+dot,-1,0,2,115,11,475,156
+matvec,-1,0,2,257,31,1215,164
+conv1d,-1,0,81,148,14,748,303
+conv2d,-1,0,157,193,22,1934,428
+convb2b,-1,0,217,290,34,3740,972
+sharpen,-1,0,199,304,29,4917,926
