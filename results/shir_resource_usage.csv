@@ -11,3 +11,5 @@ map,-1,shir,12,0,0
 map,-1,sirop,6,0,0
 matvec,-1,shir,273,1,1
 matvec,-1,sirop,63,1,1
+sharpen,-1,shir,,,
+sharpen,-1,sirop,183509,7,0
