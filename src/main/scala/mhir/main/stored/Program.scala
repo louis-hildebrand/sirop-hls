@@ -26,6 +26,7 @@ object Program {
       case "convb2b"      => ConvB2b
       case "shir:convb2b" => ShirConvB2b
       case "sharpen"      => Sharpen
+      case "shir:sharpen" => ShirSharpen
       case "camera"       => Camera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
@@ -547,6 +548,136 @@ object Program {
       )()
     }
     Function(input, step2)()
+  }
+
+  private val ShirSharpen: Expr = {
+    val int = U32
+    val height = 1080
+    val width = 1920
+    val input = Param("I")(TyStm(TyStm(int, width), height))
+    val blurred = {
+      val flatInput = StmJoin(input)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 3 * width, width)(),
+        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 3, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 3), 3) ::+ { window =>
+              val kernel = VecLiteral(
+                C(1)(int),
+                C(2)(int),
+                C(1)(int),
+                C(2)(int),
+                C(4)(int),
+                C(2)(int),
+                C(1)(int),
+                C(2)(int),
+                C(1)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum
+            }
+          )()
+        )
+      )()
+    }
+    // Apply identity convolution so that the two branches produce images with
+    // the same dimensions
+    val original = {
+      val flatInput = StmJoin(input)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 3 * width, width)(),
+        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 3, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 3), 3) ::+ { window =>
+              val kernel = VecLiteral(
+                C(0)(int),
+                C(0)(int),
+                C(0)(int),
+                C(0)(int),
+                C(1)(int),
+                C(0)(int),
+                C(0)(int),
+                C(0)(int),
+                C(0)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum
+            }
+          )()
+        )
+      )()
+    }
+    val zipped =
+      StmSplit(StmZip(StmJoin(blurred)(), StmJoin(original)())(), width - 2)()
+    val sharp = StmMap(
+      zipped,
+      TyStm((int, int), width - 2) ::+ (x =>
+        StmMap(
+          x,
+          (int, int) ::+ (ab => {
+            // SHIR doesn't have a built-in shift right operator, so it uses
+            // ResizeLowInteger and ResizeInteger instead
+            val alphaH = (ab.__1 -% ab.__0) >> 2
+            ab.__1 + alphaH
+          })
+        )()
+      )
+    )()
+    Function(input, Let(input, input, sharp)())()
   }
 
   /** 3D convolution followed by 2D convolution.
