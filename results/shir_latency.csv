@@ -12,3 +12,4 @@ map,-1,sirop,200,True
 matvec,-1,shir,65801,True
 matvec,-1,sirop,65538,True
 sharpen,-1,sirop,32644,True
+sobel,-1,sirop,32690,True
