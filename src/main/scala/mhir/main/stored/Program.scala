@@ -44,8 +44,9 @@ object Program {
           par = 1,
           uint = U16
         )
-      case "sqrt"  => Sqrt
-      case "sobel" => Sobel
+      case "sqrt"       => Sqrt
+      case "sobel"      => Sobel
+      case "shir:sobel" => ShirSobel
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
@@ -678,6 +679,142 @@ object Program {
       )
     )()
     Function(input, Let(input, input, sharp)())()
+  }
+
+  private val ShirSobel: Expr = {
+    val int = I32
+    val height = 1080
+    val width = 1920
+    val input = Param("I")(TyStm(TyStm(int, width), height))
+    val gx = {
+      val flatInput = StmJoin(input)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 3 * width, width)(),
+        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 3, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 3), 3) ::+ { window =>
+              val kernel = VecLiteral(
+                C(-1)(int),
+                C(0)(int),
+                C(1)(int),
+                C(-2)(int),
+                C(0)(int),
+                C(2)(int),
+                C(-1)(int),
+                C(0)(int),
+                C(1)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum >> 4
+            }
+          )()
+        )
+      )()
+    }
+    val gy = {
+      val flatInput = StmJoin(input)()
+      val rowWindows = StmMap(
+        StmSlideV(flatInput, 3 * width, width)(),
+        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
+      )()
+      val transposedRowWindows = StmMap(
+        rowWindows,
+        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
+          Vec2Stm(VecTranspose(rowWindow))()
+        )
+      )()
+      val windows = StmMap(
+        transposedRowWindows,
+        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
+          StmSlideV(rowWindow, 3, 1)()
+        )
+      )()
+      StmMap(
+        windows,
+        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
+          StmMap(
+            x,
+            TyVec(TyVec(int, 3), 3) ::+ { window =>
+              val kernel = VecLiteral(
+                C(-1)(int),
+                C(-2)(int),
+                C(-1)(int),
+                C(0)(int),
+                C(0)(int),
+                C(0)(int),
+                C(1)(int),
+                C(2)(int),
+                C(1)(int)
+              )()
+              val flatWindow = VecJoin(window)()
+              val zipped = VecZip(flatWindow, kernel)
+              val products =
+                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
+              val sum = VecAccess(
+                VecReduceComb(
+                  products,
+                  (int, int) ::+ (x => x.__0 + x.__1)
+                )(),
+                0
+              )()
+              sum
+            }
+          )()
+        )
+      )()
+    }
+    val zipped = StmZip(StmJoin(gx)(), StmJoin(gy)())()
+    val normSquared =
+      StmMap(zipped, (int, int) ::+ (x => x.__0 *% x.__0 +% x.__1 *% x.__1))()
+    val sqrt = {
+      val step0 = StmMap(
+        normSquared,
+        int ::+ (x => Tuple(x, C(0)(int), C(46340)(int))())
+      )()
+      val step16 = (0 until 16).foldLeft(step0)({ case (acc, _) =>
+        StmMap(
+          acc,
+          (int, int, int) ::+ { x =>
+            val n = x.__0
+            val lo = x.__1
+            val hi = x.__2
+            val mid = (n +% lo +% hi) >> 1
+            val midSquared = mid *% mid
+            Mux(midSquared <= n, Tuple(n, mid, hi)(), Tuple(n, lo, mid - 1)())()
+          }
+        )()
+      })
+      StmMap(step16, (int, int, int) ::+ (x => x.__1))()
+    }
+    val result = StmSplit(sqrt, width - 2)()
+    Function(input, Let(input, input, result)())()
   }
 
   /** 3D convolution followed by 2D convolution.
