@@ -60,8 +60,12 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
         assert(terms.length >= 3)
         val nLeft = terms.length / 2
         val (negTermsWithMinus, posTerms) = terms.partition({
-          case Prod(IntCst(k), _ @_*) => k < 0
-          case _                      => false
+          case Prod(cst @ IntCst(k), _ @_*) =>
+            // Consider cst = -128:i8. 128 does not fit within type i8.
+            // Therefore, pretend this term is positive so that the rest of the
+            // code leaves it as-is.
+            k < 0 && cst.typ.asInstanceOf[TyAnyInt].contains(-k)
+          case _ => false
         })
         val (lhs, rhs) = if (nLeft < posTerms.length) {
           (
@@ -72,8 +76,8 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
           val negTermsWithoutMinus = negTermsWithMinus.map({
             case Prod(IntCst(-1), rest @ _*) =>
               Prod(rest: _*)()
-            case Prod(IntCst(k), rest @ _*) if k < 0 =>
-              Prod(IntCst(-k)() +: rest: _*)()
+            case Prod(cst @ IntCst(k), rest @ _*) if k < 0 =>
+              Prod(IntCst(-k)(cst.typ) +: rest: _*)()
             case _ =>
               ???
           })
