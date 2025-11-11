@@ -99,9 +99,9 @@ def plot_latency(
             xs, ys,
             marker=MIN_MARKER,
             label=MIN_LABEL,
-            linestyle=":",
+            linestyle="-",
             linewidth=LINEWIDTH,
-            color=(0.5, 0.5, 0.5),
+            color="black",
             zorder=0,
         )
         # Verilog results (only successful simulation)
@@ -162,9 +162,9 @@ def plot_latency(
             Line2D(
                 [0], [0],
                 label="Best possible latency",
-                linestyle=":",
+                linestyle="-",
                 linewidth=LINEWIDTH,
-                color=(0.5, 0.5, 0.5),
+                color="black",
             ),
             Line2D(
                 [0], [0],
