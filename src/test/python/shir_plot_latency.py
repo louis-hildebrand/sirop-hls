@@ -62,7 +62,7 @@ def plot_latencies(
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(4, 0.9),
+        figsize=(4, 0.8),
         layout="compressed",
         sharex="col",
         sharey="row",
@@ -168,6 +168,26 @@ def plot_latencies(
                 zorder=999
             )
 
+    # Labels for small bars
+    for x, shir_lat, sirop_lat in zip(xs, shir_latency, sirop_latency):
+        if shir_lat is None or sirop_lat > 1000:
+            continue
+        shift = -BAR_WIDTH/3 if len(str(shir_lat)) > 2 else 0
+        ax.annotate(
+            str(shir_lat),
+            (x + shift, shir_lat + 4000),
+            ha="left" if len(str(shir_lat)) > 2 else "center",
+            rotation=45 if len(str(shir_lat)) > 2 else 0,
+            zorder=999,
+        )
+        ax.annotate(
+            str(sirop_lat),
+            (x + BAR_WIDTH + shift, sirop_lat + 4000),
+            ha="left" if len(str(shir_lat)) > 2 else "center",
+            rotation=45 if len(str(shir_lat)) > 2 else 0,
+            zorder=999,
+        )
+
     # Display settings
     xlim = (
         -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
@@ -182,7 +202,7 @@ def plot_latencies(
     ax.set_ylabel("Latency")
     # ax.set_yscale("log")
     ymin, ymax = ax.get_ylim()
-    ax.set_ylim(ymin, 10_000 + ymax)
+    ax.set_ylim(ymin, 15_000 + ymax)
     ax.set_yticks(
         [0, 30_000, 60_000],
         ["0", r"$3 \times 10^4$", r"$6 \times 10^4$"],
@@ -236,8 +256,8 @@ def plot_latencies(
         bbox_to_anchor=(1, 0),
         ncols=2,
     )
-    fig.text(0.545, -0.235, WARNING, color="red", zorder=1000)
-    fig.text(0.548, -0.395, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.545, -0.270, WARNING, color="red", zorder=1000)
+    fig.text(0.548, -0.440, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_LATENCY_PDF, bbox_inches="tight")
 
