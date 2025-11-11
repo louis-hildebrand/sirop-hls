@@ -247,8 +247,14 @@ private object VhdlExprGenerator {
               s"Cannot generate VHDL function with input type $t1 and output type $t2."
             )
         }
+        val (newX, newBody) = if (context.ctx.contains(x.name)) {
+          val newX = x.freshCopy
+          (newX, body.subPreserveType(x -> newX))
+        } else {
+          (x, body)
+        }
         val bodyVhdl =
-          exprToVhdl(body)(InFunctionMode, context + (x.name -> inType))
+          exprToVhdl(newBody)(InFunctionMode, context + (newX.name -> inType))
         val func = {
           // For some reason, impure functions don't behave the way I'd expect
           // in ModelSim.
@@ -257,7 +263,7 @@ private object VhdlExprGenerator {
           val name = Param("f")().name
           VhdlFunction(
             name = name,
-            args = (x.name, inType) +: context.ctx.toSeq,
+            args = (newX.name, inType) +: context.ctx.toSeq,
             returnType = outType,
             // The expression generator *prepends* temporary variables or
             // signals to the list (i.e., a variable will come before its

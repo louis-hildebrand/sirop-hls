@@ -656,6 +656,26 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(stm) == TestPassed)
   }
 
+  test("FunctionShadowing") {
+    val s = {
+      val a = Param("a")(U8)
+      val x = Param("x")(U8)
+      StmBuild(
+        10,
+        FunCall(
+          Function(x, FunCall(Function(x, Sum(C(1)(U8), x)())(), a)())(),
+          C(42)(U8)
+        )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          a -> (C(0)(U8), Sum(C(1)(U8), a)())
+        )
+      )().tchk()
+    }
+    val inputs = Seq(Seq(), Seq())
+    assert(VhdlTestRunner.testExpr(s, inputs) == TestPassed)
+  }
+
   test("SimpleLet") {
     val n = 3
     val x = Param("x")()
