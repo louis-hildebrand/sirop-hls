@@ -732,7 +732,7 @@ object Program {
                 )(),
                 0
               )()
-              sum >> 4
+              sum
             }
           )()
         )
@@ -805,7 +805,7 @@ object Program {
             val n = x.__0
             val lo = x.__1
             val hi = x.__2
-            val mid = (n +% lo +% hi) >> 1
+            val mid = (lo +% hi +% C(1)(int)) >> 1
             val midSquared = mid *% mid
             Mux(midSquared <= n, Tuple(n, mid, hi)(), Tuple(n, lo, mid - 1)())()
           }
