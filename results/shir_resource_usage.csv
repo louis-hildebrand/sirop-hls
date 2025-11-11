@@ -13,3 +13,4 @@ matvec,-1,shir,273,1,1
 matvec,-1,sirop,63,1,1
 sharpen,-1,shir,,,
 sharpen,-1,sirop,183491,7,0
+sobel,-1,shir,,,
