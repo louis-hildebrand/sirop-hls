@@ -23,8 +23,6 @@ BAR_WIDTH = (1 - BAR_SPACE) / 2
 BAR_PADDING = 0.07
 SHIR_HATCH = "//"
 OUR_HATCH = "\\\\"
-# pylint: disable-next=line-too-long
-WARNING = r"\textbf{{\Large $\triangle$}\hspace{-0.785em}\raisebox{0.2em}{\scriptsize!}}\hspace{0.5em}"
 SYNTH_FAIL = r"\textbf{\Large $\times$}"
 
 
@@ -41,6 +39,8 @@ def benchmark_title(bench_name: str) -> str | None:
         bench_name = bench_name[len("big"):]
     if bench_name == "mvm":
         bench_name = "matvec"
+    if bench_name == "sharpen":
+        bench_name = "sharp"
     return f"\\texttt{{{bench_name}}}"
 
 
@@ -314,17 +314,11 @@ def plot_resource_usages(
                 edgecolor="black",
                 hatch=OUR_HATCH * 2,
             ),
-            Rectangle(
-                (0, 0), 0, 0,
-                label="timing req. not met",
-                visible=False,
-            )
         ],
         loc="upper right",
         bbox_to_anchor=(1, 0),
         ncols=3,
     )
-    fig.text(0.655, -0.12, WARNING, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_RESOURCE_USAGE_PDF, bbox_inches="tight")
 

@@ -39,8 +39,9 @@ def program_order(program_name: str) -> int:
         "conv2d": 4,
         "convb2b": 5,
         "sharpen": 6,
-        "camera": 7,
-    }.get(program_name, 8)
+        "sobel": 7,
+        "camera": 8,
+    }.get(program_name, 9)
 
 
 def program_title(program_name: str) -> str | None:

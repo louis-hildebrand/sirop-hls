@@ -22,9 +22,13 @@ def resource_usage_pairs(
     pairs: dict[Benchmark, tuple[ResourceUsage, ResourceUsage]] = {}
     for b in benchmarks:
         # Skip benchmarks that are not in the paper
-        if "small" in b.name:
-            continue
-        if b.name.startswith("sum") or b.name.startswith("sqrt"):
+        skip = (
+            b.name.startswith("small")
+            or b.name.startswith("sum")
+            or b.name.startswith("sqrt")
+            or "matvec" in b.name
+        )
+        if skip:
             continue
         vhdl_res = results.get(BenchmarkImpl(b, "vhdl"))
         verilog_res = results.get(BenchmarkImpl(b, "verilog"))

@@ -21,7 +21,7 @@ BAR_PADDING = 0.07
 SHIR_HATCH = "//"
 OUR_HATCH = "\\\\"
 # pylint: disable-next=line-too-long
-WARNING = r"\textbf{{\Large $\triangle$}\hspace{-0.785em}\raisebox{0.2em}{\scriptsize!}}\hspace{0.5em}"
+WARNING = r"\textbf{{\large $\triangle$}\hspace{-0.685em}\raisebox{0.125em}{\scriptsize!}}\hspace{0.5em}"
 SYNTH_FAIL = r"\textbf{\Large $\times$}"
 
 
@@ -38,6 +38,8 @@ def benchmark_title(bench_name: str) -> str | None:
         bench_name = bench_name[len("big"):]
     if bench_name == "mvm":
         bench_name = "matvec"
+    if bench_name == "sharpen":
+        bench_name = "sharp"
     return f"\\texttt{{{bench_name}}}"
 
 
@@ -256,7 +258,7 @@ def plot_latencies(
         bbox_to_anchor=(1, 0),
         ncols=2,
     )
-    fig.text(0.545, -0.270, WARNING, color="red", zorder=1000)
+    fig.text(0.549, -0.270, WARNING, color="red", zorder=1000)
     fig.text(0.548, -0.440, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_LATENCY_PDF, bbox_inches="tight")

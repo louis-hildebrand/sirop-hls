@@ -15,6 +15,7 @@ def main() -> None:
     results = crud.read_compile_times(c.SHIR_COMPILE_TIME_CSV)
     tot_ctime = sum(t.total for t in results.values())
     max_ctime = max(t.total for t in results.values())
+    print(f"Number of programs: {len(results)}")
     print(f"Total compile time: {tot_ctime} ms")
     print(f"Max compile time: {max_ctime} ms")
 

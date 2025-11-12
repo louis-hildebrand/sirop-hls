@@ -120,9 +120,10 @@ def benchmark_order(bench_name: str) -> int:
         "bigconv2d": 9,
         "bigconvb2b": 10,
         "bigsharpen": 11,
-        "bigcamera": 12,
-        "sqrt": 13,
-    }.get(bench_name, 14)
+        "bigsobel": 12,
+        "bigcamera": 13,
+        "sqrt": 14,
+    }.get(bench_name, 15)
 
 
 def benchmark_title(bench_name: str) -> str | None:
