@@ -5,6 +5,5 @@ echo "Cleaning main repo..."
 git clean -xdi -e .idea/
 
 echo ""
-echo "Cleaning ArithExpr..."
-cd lib/arithexpr
-git clean -xdi
+echo "Removing submodules..."
+git submodule deinit lib/arithexpr src/test/aetherling src/test/shir
