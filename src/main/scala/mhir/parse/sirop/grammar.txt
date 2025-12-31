@@ -1,0 +1,67 @@
+# TODO: Add fixed-point number operations and type
+# TODO: Add syntax sugar
+
+expr            ::= expr10
+expr10          ::= "if" expr "then" expr "else" expr
+                  | function
+                  | "letstm" "[" expr "]" ident [ ":" typ ]
+                    "=" expr "in" expr
+                  | expr9
+function        ::= "(" ident [ ":" typ ] ")" "=>" expr
+expr9           ::= expr8 ( "||"                        expr8 )*
+expr8           ::= expr7 ( "&&"                        expr7 )*
+expr7           ::= expr6 [ ( "==" | "!=" )             expr6 ]
+expr6           ::= expr5 [ ( "<" | ">" | "<=" | ">=" ) expr5 ]
+expr5           ::= expr4 ( ( "<<<" | ">>>" )           expr4 )*
+expr4           ::= expr3 ( ( "+" | "+%" | "-" | "-%" ) expr3 )*
+expr3           ::= expr2 ( ( "*" | "*%" | "/" | "%" )  expr2 )*
+expr2           ::= "!" expr2
+                  | expr1
+expr1           ::= "pad" nat "(" expr ")" expr1'
+                  | "truncate" nat "(" expr ")" expr1'
+                  | "sign" "(" expr ")" expr1'
+                  | "unsign" "(" expr ")" expr1'
+                  | "vbuild" "(" expr ")" "{" function "}" expr1'
+                  | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr1'
+                  | "sdata" "(" expr ")" expr1'
+                  | expr0 expr1'
+expr1'          ::= ""
+                  | "(" expr_list ")" expr1'
+                  | "." nat expr1'
+                  | "[" expr "]" expr1'
+expr0           ::= "(" expr ")"
+                  | "()" | "(" expr "," ")" | "(" (expr ",")+ expr ")"
+                  | ident
+                  | "undefined" "[" typ "]"
+                  | "true" | "false"
+                  | int [ ":" typ ]
+                  | "[" expr_list "]v" [ ":" typ ]
+                  | "[" expr_list "]s" [ ":" typ ]
+expr_list       ::= ""
+                  | expr ( "," expr )*
+
+
+accumulators    ::= ""
+                  | accumulator ( "," accumulator )*
+accumulator     ::= "(" ident ":" typ ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
+
+producers       ::= ""
+                  | producer ( "," producer )*
+producer        ::= "(" ident ":" typ ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
+
+typ             ::= "bool" typ'
+                  | "u" nat typ'
+                  | "i" nonzero_nat typ'
+                  | "(" typ_list ")" typ'
+                  | "Vec" "[" typ "," expr "]" typ'
+                  | "Stm" "[" typ "," expr "]" typ'
+typ'            ::= ""
+                  | "->" typ
+typ_list        ::= ""
+                  | typ ( "," typ )*
+
+ident           ::= (letter | "_") (digit | letter | "_" )*
+
+nat             ::= "0" | nonzero_nat
+nonzero_nat     ::= nonzero_digit ( digit | "_" )*
+int             ::= ( "+" | "-" | "" ) nat
