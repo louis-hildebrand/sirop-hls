@@ -14,9 +14,11 @@ object Lexer {
     if (code.isEmpty) {
       tokens
     }
-    // Comments ----------------------------------------------------------------
+    // Comments, whitespace ----------------------------------------------------
     else if (code.startsWith("/*")) {
       lex(consumeComment(code), tokens)
+    } else if (code.head.isWhitespace) {
+      lex(code.tail, tokens)
     }
     // Identifiers, keywords, numbers ------------------------------------------
     else if (code.head.isLetter || code.head == '_') {
@@ -46,7 +48,11 @@ object Lexer {
       lex(consume(code, "]"), tokens :+ RightSquareToken)
     }
     // Other symbols -----------------------------------------------------------
-    else if (code.startsWith("==")) {
+    else if (code.startsWith("->")) {
+      lex(consume(code, "->"), tokens :+ SingleArrowToken)
+    } else if (code.startsWith("=>")) {
+      lex(consume(code, "=>"), tokens :+ DoubleArrowToken)
+    } else if (code.startsWith("==")) {
       lex(consume(code, "=="), tokens :+ EqToken)
     } else if (code.startsWith("!=")) {
       lex(consume(code, "!="), tokens :+ NeqToken)
@@ -54,10 +60,6 @@ object Lexer {
       lex(consume(code, "="), tokens :+ AssignToken)
     } else if (code.startsWith(":")) {
       lex(consume(code, ":"), tokens :+ ColonToken)
-    } else if (code.startsWith("->")) {
-      lex(consume(code, "->"), tokens :+ SingleArrowToken)
-    } else if (code.startsWith("=>")) {
-      lex(consume(code, "=>"), tokens :+ DoubleArrowToken)
     } else if (code.startsWith("||")) {
       lex(consume(code, "||"), tokens :+ LogOrToken)
     } else if (code.startsWith("&&")) {
@@ -106,56 +108,55 @@ object Lexer {
       code: String,
       ident: String
   ): (String, Token) = {
-    if (code.head.isLetterOrDigit || code.head == '_') {
-      lexIdentifierOrKeyword(code.tail, ident + code.head)
-    } else {
-      val token = ident match {
-        case "if"        => IfToken
-        case "then"      => ThenToken
-        case "else"      => ElseToken
-        case "letstm"    => LetStmToken
-        case "in"        => InToken
-        case "sign"      => SignToken
-        case "unsign"    => UnsignToken
-        case "vbuild"    => VbuildToken
-        case "sbuild"    => SbuildToken
-        case "sdata"     => SdataToken
-        case "undefined" => UndefinedToken
-        case "true"      => TrueToken
-        case "false"     => FalseToken
-        case "init"      => InitToken
-        case "next"      => NextToken
-        case "stm"       => LittleStmToken
-        case "Stm"       => BigStmToken
-        case "Vec"       => VecToken
-        case "ready"     => ReadyToken
-        case "bool"      => BoolToken
-        case x if x.matches("pad[0-9]+") =>
-          val suffix = consume(x, "pad")
-          PadToken(suffix.toInt)
-        case x if x.matches("truncate[0-9]+") =>
-          val suffix = consume(x, "truncate")
-          TruncateToken(suffix.toInt)
-        case x if x.matches("u[0-9]+") =>
-          val suffix = consume(x, "u")
-          UIntToken(suffix.toInt)
-        case x if x.matches("i[0-9]+") =>
-          val suffix = consume(x, "i")
-          SIntToken(suffix.toInt)
-        case x => IdentToken(x)
-      }
-      (code, token)
+    code.headOption match {
+      case Some(c) if c == '_' || c.isLetterOrDigit =>
+        lexIdentifierOrKeyword(code.tail, ident + code.head)
+      case _ =>
+        val token = ident match {
+          case "if"        => IfToken
+          case "then"      => ThenToken
+          case "else"      => ElseToken
+          case "letstm"    => LetStmToken
+          case "in"        => InToken
+          case "sign"      => SignToken
+          case "unsign"    => UnsignToken
+          case "vbuild"    => VbuildToken
+          case "sbuild"    => SbuildToken
+          case "sdata"     => SdataToken
+          case "undefined" => UndefinedToken
+          case "true"      => TrueToken
+          case "false"     => FalseToken
+          case "init"      => InitToken
+          case "next"      => NextToken
+          case "stm"       => LittleStmToken
+          case "Stm"       => BigStmToken
+          case "Vec"       => VecToken
+          case "ready"     => ReadyToken
+          case "bool"      => BoolToken
+          case x if x.matches("pad[0-9]+") =>
+            val suffix = consume(x, "pad")
+            PadToken(suffix.toInt)
+          case x if x.matches("truncate[0-9]+") =>
+            val suffix = consume(x, "truncate")
+            TruncateToken(suffix.toInt)
+          case x if x.matches("u[0-9]+") =>
+            val suffix = consume(x, "u")
+            UIntToken(suffix.toInt)
+          case x if x.matches("i[0-9]+") =>
+            val suffix = consume(x, "i")
+            SIntToken(suffix.toInt)
+          case x => IdentToken(x)
+        }
+        (code, token)
     }
   }
 
   @tailrec
   private def lexNumber(code: String, num: String): (String, Token) = {
-    if (code.head == '_') {
-      lexNumber(code.tail, num)
-    } else if (code.head.isDigit) {
-      lexNumber(code.tail, num + code.head)
-    } else {
-      (code, NatToken(num.toLong))
+    code.headOption match {
+      case Some('_')            => lexNumber(code.tail, num)
+      case Some(c) if c.isDigit => lexNumber(code.tail, num + code.head)
+      case _                    => (code, NatToken(num.toLong))
     }
   }
 

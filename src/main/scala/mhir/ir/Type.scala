@@ -24,7 +24,7 @@ sealed trait Type {
     val x = Param("x")(this)
     val body = f(x)
     val t =
-      if (body.typ != Missing) TyArrow(this, body.typ)
+      if (this != Missing && body.typ != Missing) TyArrow(this, body.typ)
       else Missing
     Function(x, f(x))(t)
   }
@@ -431,7 +431,7 @@ object TyVec {
 
   /** Factory for [[TyVec]].
     */
-  def apply(t: Type, n: Expr): Type = {
+  def apply(t: Type, n: Expr): TyVec = {
     new TyVec(t, PE.partialEval(n.tchk().lower()))
   }
 }
