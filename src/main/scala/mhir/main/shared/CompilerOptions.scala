@@ -29,6 +29,7 @@ object CompilerOptions {
     var vhdlDir: Option[Path] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
+    var eval: Boolean = false
     var overwrite = false
     var mutArgs = args
     // Optimizer args
@@ -71,6 +72,8 @@ object CompilerOptions {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:eval" =>
+          eval = true
         case "--overwrite" =>
           overwrite = true
         case "--opt:no-simplify-sbuild" =>
@@ -118,12 +121,13 @@ object CompilerOptions {
     }
 
     val targets: Set[CompilerTarget] = {
+      val evalTarget = if (eval) Some(EvalTarget) else None
       val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
       val timeReportTarget =
         timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
-      vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
+      evalTarget.toSet ++ vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
     }
     if (targets.isEmpty) {
       throw new BadArgsException("no compilation targets specified")
@@ -146,6 +150,7 @@ object CompilerOptions {
 
   def longUsage: String = {
     s"""General Arguments:
+       |  --out:eval          evaluate the program and print its value
        |  --out:vhdl DIR      emit VHDL code in the given directory
        |  --out:pp (FILE|-)   pretty-print the final program to the given file, or to
        |                      stdout if argument "-" is given

@@ -13,6 +13,10 @@ sealed trait CompilerTarget
   */
 object NullTarget extends CompilerTarget
 
+/** Evaluate the program and print its value.
+  */
+object EvalTarget extends CompilerTarget
+
 /** Pretty-print the program.
   *
   * @param dest

@@ -50,7 +50,10 @@ object Compiler {
     val genTime = generateCode(finalProgram, options.targets)
     options.targets.toSeq
       .foreach({
-        case NullTarget    => ()
+        case NullTarget => ()
+        case EvalTarget =>
+          val result = mhir.ir.eval(finalProgram)
+          println(ExprPrinter.display(result))
         case _: VhdlTarget => () // already done
         case PrettyPrintTarget(dest, overwrite) =>
           emitPrettyPrinted(finalProgram, dest = dest, overwrite = overwrite)
@@ -107,6 +110,7 @@ object Compiler {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
           emitVhdl(prog, outDir, overwrite)
+        case EvalTarget           => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
         case _: CompileTimeTarget => ()
