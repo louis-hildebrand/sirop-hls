@@ -28,6 +28,9 @@ object Args {
     }
 
     val (src, remainingArgs) = args match {
+      case Array("-s", "sirop", "-i", f, remainingArgs @ _*) =>
+        val src = SiropSource(Path(f, base = os.pwd))
+        (src, remainingArgs.toArray)
       case Array("-s", "aetherling", "-i", f, remainingArgs @ _*) =>
         val src = AetherlingSource(Path(f, base = os.pwd))
         (src, remainingArgs.toArray)
@@ -51,7 +54,7 @@ object Args {
 
   private[main] def printShortUsage(): Unit = {
     println(
-      s"Usage: sirop -s (aetherling|stored) -i INPUT [OPTION]... [-h|--help]"
+      s"Usage: sirop -s (sirop|aetherling|stored) -i INPUT [OPTION]... [-h|--help]"
     )
   }
 
@@ -60,11 +63,11 @@ object Args {
     println()
     println(
       s"""Arguments:
-         |  -s (aetherling|stored)  source language
-         |  -i INPUT                where to get the source code.
-         |                          With -s aetherling, this is the path to the source file.
-         |                          With -s stored, this is the program name.
-         |  -h, --help              print the help message and exit
+         |  -s (sirop|aetherling|stored)  source language
+         |  -i INPUT                      where to get the source code.
+         |                                With -s stored, this is the program name.
+         |                                Otherwise, this is the path to the source file.
+         |  -h, --help                    print the help message and exit
          |
          |""".stripMargin
         ++ CompilerOptions.longUsage

@@ -5,6 +5,7 @@ import mhir.main.aetherling.{
   Args => AetherlingArgs,
   Compiler => AetherlingFrontend
 }
+import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.shared.{BadArgsException, HelpException}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 
@@ -43,6 +44,10 @@ object Compiler {
     */
   def compile(args: Args): Expr = {
     args.src match {
+      case SiropSource(inFile) =>
+        SiropFrontend.compile(
+          SiropArgs(inFile = inFile, options = args.options)
+        )
       case AetherlingSource(inFile) =>
         AetherlingFrontend.compile(
           AetherlingArgs(inFile = inFile, options = args.options)
