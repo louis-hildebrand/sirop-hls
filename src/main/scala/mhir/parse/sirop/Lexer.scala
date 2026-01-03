@@ -117,6 +117,7 @@ object Lexer {
           case "then"      => ThenToken
           case "else"      => ElseToken
           case "letstm"    => LetStmToken
+          case "let"       => LetToken
           case "in"        => InToken
           case "sign"      => SignToken
           case "unsign"    => UnsignToken

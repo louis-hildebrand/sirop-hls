@@ -56,6 +56,12 @@ object LetStmToken extends Token with TokenCategory {
   override def category: TokenCategory = this
 }
 
+/** The keyword "let".
+  */
+object LetToken extends Token with TokenCategory {
+  override def category: TokenCategory = this
+}
+
 /** The keyword "in".
   */
 object InToken extends Token with TokenCategory {

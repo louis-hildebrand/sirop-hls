@@ -6,8 +6,8 @@ expr            ::= expr10
 # First(expr10) = { "if", "(", "letstm" } U First(expr2)
 expr10          ::= "if" expr "then" expr "else" expr
                   | function
-                  | "letstm" "[" expr "]" ident [ ":" typ ]
-                    "=" expr "in" expr
+                  | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr
+                  | "let" ident [ ":" typ ] "=" expr "in" expr
                   | expr9
 function        ::= "(" ident [ ":" typ ] ")" "=>" expr
 expr9           ::= expr8 ( "||"                        expr8 )*

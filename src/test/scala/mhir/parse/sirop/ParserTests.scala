@@ -536,6 +536,26 @@ class ParserTests extends AnyFunSuite {
     assert(actual.asInstanceOf[LetStm].x.typ == expected.x.typ)
   }
 
+  test("let x = 42 in x + 5") {
+    val src = "let x = 42 in x + 5"
+    val expected = Let(Param("x", -1)(Missing), 42, Sum(x, 5)())()
+    val actual = Parser.parse(src)
+    assert(actual == expected)
+    assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
+  }
+
+  test("let x: u8 = 250:u8 in x *% x +% 42:u8") {
+    val src = "let x: u8 = 250:u8 in x *% x +% 42:u8"
+    val expected = Let(
+      Param("x", -1)(U8),
+      C(250)(U8),
+      WrappingSum(WrappingProd(x, x)(), C(42)(U8))()
+    )()
+    val actual = Parser.parse(src)
+    assert(actual == expected)
+    assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment

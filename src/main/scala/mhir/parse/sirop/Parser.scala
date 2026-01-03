@@ -97,6 +97,16 @@ object Parser {
         val rest8 = expect(InToken, rest7)
         val (out, rest9) = parseExpr(rest8)
         (LetStm(bufSize, Param(ident, -1)(typ), in, out)(), rest9)
+      case Seq(LetToken, IdentToken(x), rest1 @ _*) =>
+        val (typ, rest2) = rest1 match {
+          case Seq(ColonToken, rest @ _*) => parseTyp(rest)
+          case _                          => (Missing, rest1)
+        }
+        val rest3 = expect(AssignToken, rest2)
+        val (in, rest4) = parseExpr(rest3)
+        val rest5 = expect(InToken, rest4)
+        val (out, rest6) = parseExpr(rest5)
+        (Let(Param(x, -1)(typ), in, out)(), rest6)
       case _ => parseExpr9(tokens)
     }
   }
