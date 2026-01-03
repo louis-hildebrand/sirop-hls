@@ -5,6 +5,8 @@ import mhir.ir._
 
 sealed trait Source
 
+case class SiropSource(inFile: Path) extends Source
+
 case class AetherlingSource(inFile: Path) extends Source
 
 case class StoredSource(program: Expr) extends Source
