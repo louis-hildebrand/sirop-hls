@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity conversion_110 is
+entity conversion_95 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
@@ -17,9 +17,9 @@ entity conversion_110 is
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
     );
-end conversion_110;
+end conversion_95;
 
-architecture behavioral of conversion_110 is
+architecture behavioral of conversion_95 is
     
     
     
