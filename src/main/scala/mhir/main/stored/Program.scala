@@ -511,7 +511,7 @@ object Program {
       )()
     }
     val step2 = {
-      val windows = StmSlide2D(input, 2, 2)()
+      val windows = StmSlide2D(step1, 2, 2)()
       val newWidth = width - 2
       StmMap(
         windows,
@@ -521,8 +521,8 @@ object Program {
             TyVec(TyVec(int, 2), 2) ::+ { window =>
               val kernel = VecLiteral(
                 C(1)(int),
-                C(4)(int),
                 C(2)(int),
+                C(4)(int),
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
