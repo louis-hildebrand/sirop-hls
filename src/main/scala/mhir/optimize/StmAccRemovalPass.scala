@@ -177,7 +177,12 @@ object StmAccRemovalPass {
         .map({ x =>
           val next = stm.nextByVar(x)
           val nextWithSub = next.subPreserveType(subs)
-          val simplifiedNext = PE.partialEval(nextWithSub)
+          val simplifiedNext =
+            try {
+              PE.partialEval(nextWithSub)
+            } catch {
+              case _: OverflowException => Param("error")()
+            }
           x -> simplifiedNext
         })
       val splitClasses = nextByVar
