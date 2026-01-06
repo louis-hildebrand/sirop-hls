@@ -475,23 +475,7 @@ object Program {
     val width = 1920
     val input = Param("I")(TyStm(TyStm(int, width), height))
     val step1 = {
-      val flatInput = StmJoin(input)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 3 * width, width)(),
-        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 3, 1)()
-        )
-      )()
+      val windows = StmSlide2D(input, 3, 3)()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
@@ -527,26 +511,8 @@ object Program {
       )()
     }
     val step2 = {
+      val windows = StmSlide2D(input, 2, 2)()
       val newWidth = width - 2
-      val flatInput = StmJoin(step1)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 2 * newWidth, newWidth)(),
-        TyVec(int, 2 * newWidth) ::+ (rowGroup =>
-          VecSplit(rowGroup, newWidth)()
-        )
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, newWidth), 2) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 2), newWidth) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 2, 1)()
-        )
-      )()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 2), 2), newWidth - 1) ::+ (x =>
@@ -585,23 +551,7 @@ object Program {
     val width = 1920
     val input = Param("I")(TyStm(TyStm(int, width), height))
     val blurred = {
-      val flatInput = StmJoin(input)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 3 * width, width)(),
-        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 3, 1)()
-        )
-      )()
+      val windows = StmSlide2D(input, 3, 3)()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
@@ -639,23 +589,7 @@ object Program {
     // Apply identity convolution so that the two branches produce images with
     // the same dimensions
     val original = {
-      val flatInput = StmJoin(input)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 3 * width, width)(),
-        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 3, 1)()
-        )
-      )()
+      val windows = StmSlide2D(input, 3, 3)()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
@@ -715,23 +649,7 @@ object Program {
     val width = 1920
     val input = Param("I")(TyStm(TyStm(int, width), height))
     val gx = {
-      val flatInput = StmJoin(input)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 3 * width, width)(),
-        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 3, 1)()
-        )
-      )()
+      val windows = StmSlide2D(input, 3, 3)()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
@@ -767,23 +685,7 @@ object Program {
       )()
     }
     val gy = {
-      val flatInput = StmJoin(input)()
-      val rowWindows = StmMap(
-        StmSlideV(flatInput, 3 * width, width)(),
-        TyVec(int, 3 * width) ::+ (rowGroup => VecSplit(rowGroup, width)())
-      )()
-      val transposedRowWindows = StmMap(
-        rowWindows,
-        TyVec(TyVec(int, width), 3) ::+ (rowWindow =>
-          Vec2Stm(VecTranspose(rowWindow))()
-        )
-      )()
-      val windows = StmMap(
-        transposedRowWindows,
-        TyStm(TyVec(int, 3), width) ::+ (rowWindow =>
-          StmSlideV(rowWindow, 3, 1)()
-        )
-      )()
+      val windows = StmSlide2D(input, 3, 3)()
       StmMap(
         windows,
         TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
