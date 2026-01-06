@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script runs all the Aetherling-related experiments for the given benchmarks.

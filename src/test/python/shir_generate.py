@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script generates VHDL projects for the given SHIR benchmarks.

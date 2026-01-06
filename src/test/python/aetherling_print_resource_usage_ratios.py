@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This program calculates the ratios of our resource usage to that of Aetherling.

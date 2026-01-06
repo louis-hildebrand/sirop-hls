@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script extracts Quartus' estimate of the maximum clock frequency for benchmarks which have

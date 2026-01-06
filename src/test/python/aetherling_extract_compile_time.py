@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 """
 This script extracts the compile times for all the given benchmarks.
 """

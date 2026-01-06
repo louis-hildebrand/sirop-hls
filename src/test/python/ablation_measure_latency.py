@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script measures the latency (in clock cycles) for the given programs by simulation.
