@@ -1,7 +1,7 @@
 bench_name,bench_throughput,language,alm,bram,dsp
 conv1d,-1,shir,36,0,1
 conv1d,-1,sirop,14,0,0
-conv2d,-1,shir,67541,0,9
+conv2d,-1,shir,734,7,9
 conv2d,-1,sirop,210,9,0
 convb2b,-1,shir,112976,0,13
 convb2b,-1,sirop,289,13,0

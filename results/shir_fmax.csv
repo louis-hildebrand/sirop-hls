@@ -1,7 +1,7 @@
 bench_name,bench_throughput,language,fmax
 conv1d,-1,shir,294.46
 conv1d,-1,sirop,645.16
-conv2d,-1,shir,165.84
+conv2d,-1,shir,242.01
 conv2d,-1,sirop,249.0
 convb2b,-1,shir,140.92
 convb2b,-1,sirop,225.73
