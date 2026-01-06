@@ -128,7 +128,12 @@ def parse_args() -> Namespace:
     Parse the command-line arguments.
     """
     parser = ArgumentParser(
-        description="extracts the estimated max clock frequency for the given programs"
+        description=(
+            """
+            This script measures the latency (in clock cycles) for the given benchmarks
+            by simulation.
+            """
+        )
     )
     parser.add_argument(
         "programs",
