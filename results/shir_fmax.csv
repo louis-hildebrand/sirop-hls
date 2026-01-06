@@ -4,7 +4,7 @@ conv1d,-1,sirop,645.16
 conv2d,-1,shir,165.84
 conv2d,-1,sirop,249.0
 convb2b,-1,shir,140.92
-convb2b,-1,sirop,173.82
+convb2b,-1,sirop,225.73
 dot,-1,shir,280.43
 dot,-1,sirop,542.3
 map,-1,shir,645.16
@@ -12,6 +12,6 @@ map,-1,sirop,645.16
 matvec,-1,shir,281.37
 matvec,-1,sirop,258.87
 sharpen,-1,shir,
-sharpen,-1,sirop,154.7
+sharpen,-1,sirop,220.9
 sobel,-1,shir,
-sobel,-1,sirop,121.55
+sobel,-1,sirop,205.21
