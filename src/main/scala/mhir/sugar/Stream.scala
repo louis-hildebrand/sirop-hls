@@ -2139,16 +2139,11 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     }
     val winHeight = this.winHeight.tchk.expectUInt()
     val winWidth = this.winWidth.tchk.expectUInt()
-    this.rebuild(
-      TyStm(
-        TyStm(
-          TyVec(TyVec(t, winWidth), winHeight),
-          ToUnsigned(SafeSum(m, 1, -1 * winWidth)())()
-        ),
-        ToUnsigned(SafeSum(n, 1, -1 * winHeight)())()
-      ),
-      Seq(stm, winHeight, winWidth)
-    )
+    val outHeight = ToUnsigned(SafeSum(n, 1, -1 * winHeight)())()
+    val outWidth = ToUnsigned(SafeSum(m, 1, -1 * winWidth)())()
+    val outTyp =
+      TyStm(TyStm(TyVec(TyVec(t, winWidth), winHeight), outWidth), outHeight)
+    this.rebuild(outTyp, Seq(stm, winHeight, winWidth))
   }
 
   override def lowerSyntaxSugar(): Expr = {
@@ -2156,19 +2151,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     val stm = this.stm.lower()
     val winHeight = this.winHeight.lower()
     val winWidth = this.winWidth.lower()
-    val (elemTyp, n, m) = this.stm.typ match {
-      case TyStm(TyStm(TyData(t), m), n) => (t, n, m)
-      case t =>
-        throw new TypeError(
-          s"Stream in $className has type $t. Expected a 2D stream."
-        )
-    }
-    val len = ToUnsigned(
-      SafeProd(
-        SafeSum(n, -1 * winHeight, 1)(),
-        SafeSum(m, -1 * winWidth, 1)()
-      )()
-    )().tchk().lower()
+    val TyStm(TyStm(TyData(elemTyp), m), n) = this.stm.typ
     // Input stream
     val input = Param("s")(TyStm(elemTyp, -1))
     // Line buffer
@@ -2176,35 +2159,32 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
       ToUnsigned(SafeSum(SafeProd(winHeight - 1, m)(), winWidth - 1)())()
     val buf = Param("buf")(TyVec(elemTyp, bufLen))
     // Shifted and reshaped line buffer, for finding outputs
-    val buf2d = Param("buf_2d")(TyVec(TyVec(elemTyp, m), winHeight))
+    val zeros = VecBuild(
+      ToUnsigned(SafeSum(m, -1 * winWidth)())(),
+      U32 ::+ (_ => Default(elemTyp))
+    )()
+    val buf2d =
+      VecSplit(VecConcat(VecAppend(buf, StmData(input)())(), zeros)(), m)()
     // Input counters, to know when buffer is full
     val maxCol = ToUnsigned(SafeSum(m, winWidth, -2)())().tchk().lower()
     val maxRow = ToUnsigned(SafeSum(winHeight, -1)())().tchk().lower()
     val row = Param("row")(winHeight.typ)
     val col = Param("col")(maxCol.typ)
     StmBuild(
-      len,
-      Let(
-        buf2d,
-        VecSplit(
-          VecConcat(
-            VecAppend(buf, StmData(input)())(),
-            VecBuild(
-              ToUnsigned(SafeSum(m, -1 * winWidth)())(),
-              U32 ::+ (_ => Default(elemTyp))
-            )()
-          )(),
-          m
-        )(),
-        VecBuild(
-          winHeight,
-          winHeight.typ ::+ (i =>
-            VecBuild(
-              winWidth,
-              winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
-            )()
-          )
+      ToUnsigned(
+        SafeProd(
+          SafeSum(n, -1 * winHeight, 1)(),
+          SafeSum(m, -1 * winWidth, 1)()
         )()
+      )().tchk().lower(),
+      VecBuild(
+        winHeight,
+        winHeight.typ ::+ (i =>
+          VecBuild(
+            winWidth,
+            winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
+          )()
+        )
       )().tchk().lower(),
       ((row === maxRow) && (col < m)).tchk().lower(),
       Map[Param, (Expr, Expr)](
@@ -2221,11 +2201,9 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
         ),
         col -> (
           C(0)(col.typ),
-          Mux(
-            col === maxCol,
-            ReshapeData(ToUnsigned(winWidth - 1)(), col.typ)(),
-            col + 1
-          )().tchk().lower()
+          Mux(col === maxCol, Cast(winWidth - 1, col.typ)(), col + 1)()
+            .tchk()
+            .lower()
         )
       )
     )().tchk()
