@@ -1,10 +1,10 @@
 bench_name,bench_throughput,language,alm,bram,dsp
 conv1d,-1,shir,36,0,1
 conv1d,-1,sirop,14,0,0
-conv2d,-1,shir,67541,0,9
-conv2d,-1,sirop,137295,1,0
-convb2b,-1,shir,112976,0,13
-convb2b,-1,sirop,260040,1,0
+conv2d,-1,shir,717,7,9
+conv2d,-1,sirop,210,9,0
+convb2b,-1,shir,1050,11,13
+convb2b,-1,sirop,289,13,0
 dot,-1,shir,64,0,1
 dot,-1,sirop,29,0,1
 map,-1,shir,12,0,0
@@ -12,6 +12,6 @@ map,-1,sirop,6,0,0
 matvec,-1,shir,273,1,1
 matvec,-1,sirop,63,1,1
 sharpen,-1,shir,,,
-sharpen,-1,sirop,183491,7,0
+sharpen,-1,sirop,299,15,0
 sobel,-1,shir,,,
-sobel,-1,sirop,232517,7,26
+sobel,-1,sirop,2835,18,26

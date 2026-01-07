@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 Script to print Markdown tables with results for selected benchmarks.

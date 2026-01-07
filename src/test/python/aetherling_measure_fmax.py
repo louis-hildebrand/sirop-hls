@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script measures the maximum clock frequency for a given design by repeatedly trying to

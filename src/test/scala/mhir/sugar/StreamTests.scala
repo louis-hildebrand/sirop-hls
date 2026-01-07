@@ -2492,6 +2492,60 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
+  test("StmSlide2D:3x3") {
+    // [[ 0,  1,  2,  3,  4],
+    //  [ 5,  6,  7,  8,  9],
+    //  [10, 11, 12, 13, 14],
+    //  [15, 16, 17, 18, 19]]
+    val s = StmSplit(StmCount(C(20)(U8))(), 5)()
+    // Partial evaluation speeds up evaluation in this case
+    val actual = mhir.optimize.PartialEvalPass.partialEval(
+      StmSlide2D(s, 3, 3)().tchk().lower()
+    )
+    val expected = StmLiteral(
+      Seq(
+        Seq(Seq(0, 1, 2), Seq(5, 6, 7), Seq(10, 11, 12)),
+        Seq(Seq(1, 2, 3), Seq(6, 7, 8), Seq(11, 12, 13)),
+        Seq(Seq(2, 3, 4), Seq(7, 8, 9), Seq(12, 13, 14)),
+        Seq(Seq(5, 6, 7), Seq(10, 11, 12), Seq(15, 16, 17)),
+        Seq(Seq(6, 7, 8), Seq(11, 12, 13), Seq(16, 17, 18)),
+        Seq(Seq(7, 8, 9), Seq(12, 13, 14), Seq(17, 18, 19))
+      ).map(xxs =>
+        VecLiteral(xxs.map(xs => VecLiteral(xs.map(C(_)(U8)): _*)()): _*)()
+      ): _*
+    )()
+    assert(mhir.ir.eval(actual) == expected)
+  }
+
+  test("StmSlide2D:4x2") {
+    // [[ 0,  1,  2,  3],
+    //  [ 4,  5,  6,  7],
+    //  [ 8,  9, 10, 11],
+    //  [12, 13, 14, 15]]
+    val s = StmSplit(StmCount(C(16)(U8))(), 4)()
+    val actual = mhir.optimize.PartialEvalPass.partialEval(
+      StmSlide2D(s, 4, 2)().tchk().lower()
+    )
+    val expected = StmLiteral(
+      Seq(
+        Seq(Seq(0, 1), Seq(4, 5), Seq(8, 9), Seq(12, 13)),
+        Seq(Seq(1, 2), Seq(5, 6), Seq(9, 10), Seq(13, 14)),
+        Seq(Seq(2, 3), Seq(6, 7), Seq(10, 11), Seq(14, 15))
+      ).map(xxs =>
+        VecLiteral(xxs.map(xs => VecLiteral(xs.map(C(_)(U8)): _*)()): _*)()
+      ): _*
+    )()
+    assert(mhir.ir.eval(actual) == expected)
+  }
+
+  test("StmSlide2D:1x1") {
+    val s = StmSplit(StmCount(C(4)(U8))(), 2)()
+    val actual = StmSlide2D(s, 1, 1)().tchk().lower()
+    val expected =
+      StmLiteral(Seq(0, 1, 2, 3).map(x => VecLiteral(VecLiteral(x)())()): _*)()
+    assert(mhir.ir.eval(actual) == expected)
+  }
+
   test("StmTranspose") {
     val s = Param("s")()
     val n = Param("n")()

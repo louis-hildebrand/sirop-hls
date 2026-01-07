@@ -2107,6 +2107,109 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 }
 
+/** Returns a stream of 2-dimensional "windows" from a 2-dimensional stream.
+  *
+  * This is useful for describing stencil operations.
+  *
+  * @param stm
+  *   the stream to slide over.
+  * @param winHeight
+  *   the height of each window.
+  * @param winWidth
+  *   the width of each window.
+  */
+case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
+    typ: Type = Missing
+) extends SyntaxSugar(stm, winHeight, winWidth)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, h, w) => StmSlide2D(s, h, w)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val stm = this.stm.tchk
+    val (t, n, m) = stm.typ match {
+      case TyStm(TyStm(TyData(t), m), n) => (t, n, m)
+      case t =>
+        throw new TypeError(
+          s"Stream in $className has type $t. Expected a 2D stream."
+        )
+    }
+    val winHeight = this.winHeight.tchk.expectUInt()
+    val winWidth = this.winWidth.tchk.expectUInt()
+    val outHeight = ToUnsigned(SafeSum(n, 1, -1 * winHeight)())()
+    val outWidth = ToUnsigned(SafeSum(m, 1, -1 * winWidth)())()
+    val outTyp =
+      TyStm(TyStm(TyVec(TyVec(t, winWidth), winHeight), outWidth), outHeight)
+    this.rebuild(outTyp, Seq(stm, winHeight, winWidth))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    requireType()
+    val stm = this.stm.lower()
+    val winHeight = this.winHeight.lower()
+    val winWidth = this.winWidth.lower()
+    val TyStm(TyStm(TyData(elemTyp), m), n) = this.stm.typ
+    // Input stream
+    val input = Param("s")(TyStm(elemTyp, -1))
+    // Line buffer
+    val bufLen =
+      ToUnsigned(SafeSum(SafeProd(winHeight - 1, m)(), winWidth - 1)())()
+    val buf = Param("buf")(TyVec(elemTyp, bufLen))
+    // Shifted and reshaped line buffer, for finding outputs
+    val zeros = VecBuild(
+      ToUnsigned(SafeSum(m, -1 * winWidth)())(),
+      U32 ::+ (_ => Default(elemTyp))
+    )()
+    val buf2d =
+      VecSplit(VecConcat(VecAppend(buf, StmData(input)())(), zeros)(), m)()
+    // Input counters, to know when buffer is full
+    val maxCol = ToUnsigned(SafeSum(m, winWidth, -2)())().tchk().lower()
+    val maxRow = ToUnsigned(SafeSum(winHeight, -1)())().tchk().lower()
+    val row = Param("row")(winHeight.typ)
+    val col = Param("col")(maxCol.typ)
+    StmBuild(
+      ToUnsigned(
+        SafeProd(
+          SafeSum(n, -1 * winHeight, 1)(),
+          SafeSum(m, -1 * winWidth, 1)()
+        )()
+      )().tchk().lower(),
+      VecBuild(
+        winHeight,
+        winHeight.typ ::+ (i =>
+          VecBuild(
+            winWidth,
+            winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
+          )()
+        )
+      )().tchk().lower(),
+      ((row === maxRow) && (col < m)).tchk().lower(),
+      Map[Param, (Expr, Expr)](
+        input -> (stm, True),
+        buf -> (
+          Undefined(buf.typ),
+          VecShiftLeft(buf, StmData(input)())().tchk().lower()
+        ),
+        row -> (
+          C(0)(row.typ),
+          Mux((col === maxCol) && (row !== maxRow), row + 1, row)()
+            .tchk()
+            .lower()
+        ),
+        col -> (
+          C(0)(col.typ),
+          Mux(col === maxCol, Cast(winWidth - 1, col.typ)(), col + 1)()
+            .tchk()
+            .lower()
+        )
+      )
+    )().tchk()
+  }
+}
+
 case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     typ: Type = Missing
 ) /* Stm<Stm<A; n>; m> */

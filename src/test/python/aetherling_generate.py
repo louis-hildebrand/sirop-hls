@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script generates and synthesizes VHDL and Verilog projects for the given benchmarks.

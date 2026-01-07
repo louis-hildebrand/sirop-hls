@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 """
 This script reports the total compile time for all the SHIR benchmarks.

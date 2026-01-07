@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 """
 This script extracts the resource usage for all the given programs.
 """
