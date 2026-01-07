@@ -32,5 +32,5 @@ begin
     p1_out_last <= p0_in_last;
     p1_out_valid <= p0_in_valid;
     p0_out_ready <= p1_in_ready;
-    selected_data <= p0_in_data.t2;
+    selected_data <= p0_in_data.t0;
 end behavioral;
