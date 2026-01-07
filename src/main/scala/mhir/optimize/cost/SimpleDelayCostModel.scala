@@ -72,11 +72,27 @@ object SimpleDelayCostModel {
           cost(staticVars, varCosts)(e2)
         ) + FullCycleDelay / MaxAddsPerCycle
       case Prod(factors @ _*) =>
-        (factors.map(cost(staticVars, varCosts)).max
-          + log2(factors.length) * FullCycleDelay)
+        val nonPowersOfTwo = factors.filterNot({
+          case IntCst(k) => isPowerOfTwo(k)
+          case _         => false
+        })
+        val childCosts = factors.map(cost(staticVars, varCosts)).max
+        val selfCost = nonPowersOfTwo.length match {
+          case 0 | 1 => 0
+          case n     => log2(n) * FullCycleDelay
+        }
+        childCosts + selfCost
       case WrappingProd(factors @ _*) =>
-        (factors.map(cost(staticVars, varCosts)).max
-          + log2(factors.length) * FullCycleDelay)
+        val nonPowersOfTwo = factors.filterNot({
+          case IntCst(k) => isPowerOfTwo(k)
+          case _         => false
+        })
+        val childCosts = factors.map(cost(staticVars, varCosts)).max
+        val selfCost = nonPowersOfTwo.length match {
+          case 0 | 1 => 0
+          case n     => log2(n) * FullCycleDelay
+        }
+        childCosts + selfCost
       case IntFixProd(e1, e2) =>
         math.max(
           cost(staticVars, varCosts)(e1),
@@ -162,5 +178,23 @@ object SimpleDelayCostModel {
 
   private def isStatic(e: Expr, staticVars: Set[Param]): Boolean = {
     (e.freeVars -- staticVars).isEmpty
+  }
+
+  // TODO: This method is duplicated in several places :/
+  /** Decides whether the given number is a power of two.
+    */
+  private def isPowerOfTwo(n: Long): Boolean = {
+    // https://stackoverflow.com/a/19383296
+    //
+    // Positive example:
+    //   n     : 00010000
+    //   n - 1 : 00001111
+    //   &     : 00000000
+    //
+    // Negative example:
+    //   n     : 00010001
+    //   n - 1 : 00010000
+    //   &     : 00010000
+    (n > 0) && ((n & (n - 1)) == 0)
   }
 }
