@@ -3,7 +3,7 @@ conv1d,-1,shir,19,True
 conv1d,-1,sirop,16,True
 conv2d,-1,shir,30723,True
 conv2d,-1,sirop,30721,True
-convb2b,-1,shir,59510,True
+convb2b,-1,shir,30727,True
 convb2b,-1,sirop,30722,True
 dot,-1,shir,844,True
 dot,-1,sirop,841,True
