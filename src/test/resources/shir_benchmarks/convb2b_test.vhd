@@ -86,9 +86,9 @@ architecture tb of testbench is
             for j_delta in 0 to 1 loop
                 j := j_left + j_delta;
                 if (i_delta = 0 and j_delta = 1) then
-                    output := output + (get_output_data_1(i, j) sll 1);
-                elsif (i_delta = 1 and j_delta = 0) then
                     output := output + (get_output_data_1(i, j) sll 2);
+                elsif (i_delta = 1 and j_delta = 0) then
+                    output := output + (get_output_data_1(i, j) sll 1);
                 else
                     output := output + get_output_data_1(i, j);
                 end if;

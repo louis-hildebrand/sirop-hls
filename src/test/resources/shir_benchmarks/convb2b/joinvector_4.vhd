@@ -4,22 +4,22 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use work.common.all;
 
-entity conversion_140 is
+entity joinvector_4 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_VectorTypeVectorTypeLogicTypeArithType32ArithType4;
+        p0_in_data: in type_VectorTypeVectorTypeIntTypeArithType32ArithType3ArithType3;
         p0_in_last: in type_LastVectorTypeArithType0;
         p0_in_valid: in type_LogicType;
         p0_out_ready: out type_ReadyVectorTypeArithType0;
-        p1_out_data: out type_VectorTypeIntTypeArithType32ArithType4;
+        p1_out_data: out type_VectorTypeIntTypeArithType32ArithType9;
         p1_out_last: out type_LastVectorTypeArithType0;
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
     );
-end conversion_140;
+end joinvector_4;
 
-architecture behavioral of conversion_140 is
+architecture behavioral of joinvector_4 is
     
     
     
@@ -28,15 +28,20 @@ architecture behavioral of conversion_140 is
     
 begin
     
-    p1_out_last <= p0_in_last;
     p1_out_valid <= p0_in_valid;
     p0_out_ready <= p1_in_ready;
     
-    -- p1_out_data <= p0_in_data is generated to account for nested casts
-        process(p0_in_data)
-        begin
-            for i0 in 0 to 3 loop
-                p1_out_data(i0) <= p0_in_data(i0);
+    process(p0_in_data)
+        constant chunksize: natural := p0_in_data(0)'length;
+    begin
+        for i in 0 to p0_in_data'length-1 loop
+            for j in 0 to chunksize-1 loop
+                p1_out_data(i*chunksize + j) <= p0_in_data(i)(j);
             end loop;
+        end loop;
+        --for i in 0 to p0_in_data'length-1 loop
+            --    p1_out_data((i+1)*chunksize-1 downto i*chunksize) <= p0_in_data(i);
+            --end loop;
         end process;
+        
     end behavioral;
