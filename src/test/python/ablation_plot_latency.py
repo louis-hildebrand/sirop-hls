@@ -63,7 +63,9 @@ def plot_latency(results: dict[ProgramVariant, LatencyResult]) -> None:
                 print(f"WARNING: Missing baseline for {p}")
                 ys.append(0)
                 continue
-            y = results[ProgramVariant(p, lvl)].latency or baseline
+            y = results.get(ProgramVariant(p, lvl))
+            y = y.latency if y is not None else None
+            y = y or baseline
             ys.append((y - baseline) / baseline)
         artist = ax.bar(
             bottom=0,
