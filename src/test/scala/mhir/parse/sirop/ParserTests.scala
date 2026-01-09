@@ -2,6 +2,7 @@ package mhir.parse
 package sirop
 
 import mhir.ir._
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ParserTests extends AnyFunSuite {
@@ -554,6 +555,47 @@ class ParserTests extends AnyFunSuite {
     val actual = Parser.parse(src)
     assert(actual == expected)
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
+  }
+
+  test("StmRange") {
+    val src = "StmRange(100, 1:i32, -3:i32)"
+    val expected = StmRange(100, C(1)(I32), C(-3)(I32))()
+    assert(Parser.parse(src) == expected)
+  }
+
+  test("StmMap") {
+    val src = "StmMap(s, (x) => x + 5:u8)"
+    val s = Param("s", -1)(Missing)
+    val x = Param("x", -1)(Missing)
+    val expected = StmMap(s, Function(x, Sum(x, 5)())())()
+    assert(Parser.parse(src) == expected)
+  }
+
+  test("StmReduce") {
+    val src = "StmReduce(s, (x) => x.0 -% x.1)"
+    val s = Param("s", -1)(Missing)
+    val x = Param("x", -1)(Missing)
+    val expected = StmReduce(s, Function(x, WrappingDiff(x.__0, x.__1)())())()
+    assert(Parser.parse(src) == expected)
+  }
+
+  test("StmMap2") {
+    val src = "StmMap2(s1, s2, (x1) => (x2) => x1 -% x2)"
+    val s1 = Param("s1", -1)(Missing)
+    val s2 = Param("s2", -1)(Missing)
+    val x1 = Param("x1", -1)(Missing)
+    val x2 = Param("x2", -1)(Missing)
+    val expected =
+      StmMap2(s1, s2, Function(x1, Function(x2, WrappingDiff(x1, x2)())())())()
+    assert(Parser.parse(src) == expected)
+  }
+
+  test("StmZip") {
+    val src = "StmZip(s1, s2)"
+    val s1 = Param("s1", -1)(Missing)
+    val s2 = Param("s2", -1)(Missing)
+    val expected = StmZip(s1, s2)()
+    assert(Parser.parse(src) == expected)
   }
 
   // TODO: Forbid leading zeros in int literals?

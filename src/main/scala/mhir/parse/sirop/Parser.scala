@@ -2,6 +2,7 @@ package mhir.parse.sirop
 
 import mhir.ir._
 import mhir.parse.SyntaxError
+import mhir.sugar._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -451,10 +452,77 @@ object Parser {
       case Seq(LeftParToken, rest1 @ _*) =>
         val (args, rest2) = parseExprList(rest1)
         val rest3 = expect(RightParToken, rest2)
-        args match {
-          case Seq(x) => parseExpr1Prime(FunCall(e, x)(), rest3)
-          case _      => parseExpr1Prime(FunCall(e, Tuple(args: _*)())(), rest3)
+        val parsed = e match {
+          // Arithmetic operators ----------------------------------------------
+          case f @ Param("min", -1) =>
+            args match {
+              case Seq(x, y) => Min(x, y)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("max", -1) =>
+            args match {
+              case Seq(x, y) => Max(x, y)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          // Vector operators --------------------------------------------------
+          case f @ Param("VecLength", -1) =>
+            args match {
+              case Seq(v) => VecLength(v)()
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("Vec2Stm", -1) =>
+            args match {
+              case Seq(v) => Vec2Stm(v)()
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("VecMap", -1) =>
+            args match {
+              case Seq(v, f) => VecMap(v, f)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("VecReverse", -1) =>
+            args match {
+              case Seq(v) => VecReverse(v)
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          // Stream operators --------------------------------------------------
+          case f @ Param("Stm2Vec", -1) =>
+            args match {
+              case Seq(s) => Stm2Vec(s)()
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmRange", -1) =>
+            args match {
+              case Seq(n, z, delta) => StmRange(n, z, delta)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmMap", -1) =>
+            args match {
+              case Seq(s, f: Function) => StmMap(s, f)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmReduce", -1) =>
+            args match {
+              case Seq(s, f) => StmReduce(s, f)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmMap2", -1) =>
+            args match {
+              case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmZip", -1) =>
+            args match {
+              case Seq(s1, s2) => StmZip(s1, s2)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case _ =>
+            args match {
+              case Seq(x) => FunCall(e, x)()
+              case _      => FunCall(e, Tuple(args: _*)())()
+            }
         }
+        parseExpr1Prime(parsed, rest3)
       case Seq(DotToken, NatToken(i), rest @ _*) =>
         parseExpr1Prime(TupleAccess(e, i.toInt)(), rest)
       case Seq(LeftSquareToken, rest1 @ _*) =>
