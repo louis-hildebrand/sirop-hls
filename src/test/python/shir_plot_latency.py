@@ -245,21 +245,15 @@ def plot_latencies(
             ),
             Rectangle(
                 (0, 0), 0, 0,
-                label="timing requirements not met",
-                visible=False,
-            ),
-            Rectangle(
-                (0, 0), 0, 0,
                 label="synthesis fail",
                 visible=False,
             ),
         ],
         loc="upper right",
         bbox_to_anchor=(1, 0),
-        ncols=2,
+        ncols=3,
     )
-    fig.text(0.549, -0.270, WARNING, color="red", zorder=1000)
-    fig.text(0.548, -0.440, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.74, -0.24, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_LATENCY_PDF, bbox_inches="tight")
 

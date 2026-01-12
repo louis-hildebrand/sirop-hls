@@ -216,21 +216,21 @@ def plot_resource_usages(
             continue
         alm_ax.annotate(
             SYNTH_FAIL,
-            (xs[i], 10),
+            (xs[i], 6),
             ha="center",
             color="red",
             zorder=999,
         )
         bram_ax.annotate(
             SYNTH_FAIL,
-            (xs[i], 0.5),
+            (xs[i], 1),
             ha="center",
             color="red",
             zorder=999,
         )
         dsp_ax.annotate(
             SYNTH_FAIL,
-            (xs[i], 1),
+            (xs[i], 2),
             ha="center",
             color="red",
             zorder=999,
@@ -314,11 +314,17 @@ def plot_resource_usages(
                 edgecolor="black",
                 hatch=OUR_HATCH * 2,
             ),
+            Rectangle(
+                (0, 0), 0, 0,
+                label="synthesis fail",
+                visible=False,
+            ),
         ],
         loc="upper right",
         bbox_to_anchor=(1, 0),
         ncols=3,
     )
+    fig.text(0.74, -0.105, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.SHIR_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
