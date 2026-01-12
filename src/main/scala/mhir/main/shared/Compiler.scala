@@ -203,15 +203,17 @@ object Compiler {
     } else {
       val result = e match {
         case FunCall(f, arg) =>
-          inlineFunCalls(f) match {
-            case Function(x, body) =>
+          (inlineFunCalls(f), inlineFunCalls(arg)) match {
+            case (f @ Function(x, body), arg)
+                if x.typ.isData && body.typ.isData =>
+              FunCall(f, arg)()
+            case (Function(x, body), arg) =>
               body.subPreserveType(x -> arg)
-            case f =>
+            case (f, arg) =>
               FunCall(f, arg)()
           }
-        case Function(x, body) =>
-          Function(x, inlineFunCalls(body))()
-        case e => e
+        case e =>
+          e.map(inlineFunCalls)
       }
       result.tchk()
     }
