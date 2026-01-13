@@ -480,6 +480,11 @@ object Parser {
               case Seq(v, f) => VecMap(v, f)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
             }
+          case f @ Param("VecReduce", -1) =>
+            args match {
+              case Seq(v, f) => VecReduceComb(v, f)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
           case f @ Param("VecReverse", -1) =>
             args match {
               case Seq(v) => VecReverse(v)
@@ -514,6 +519,16 @@ object Parser {
           case f @ Param("StmZip", -1) =>
             args match {
               case Seq(s1, s2) => StmZip(s1, s2)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmSlide", -1) =>
+            args match {
+              case Seq(s, w) => StmSlideV(s, w)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmAccess", -1) =>
+            args match {
+              case Seq(s, i) => StmAccess(s, i)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
             }
           case _ =>
