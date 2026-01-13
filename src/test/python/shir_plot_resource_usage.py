@@ -120,7 +120,7 @@ def plot_resource_usages(
     )
     # ALM usage ratios
     endpoint_lift = 1.2
-    peak_lift = 40
+    peak_lift = 5
     arrow_style = ArrowStyle("-|>", head_length=3, head_width=2)
     for x, (shir_alm, sirop_alm) in enumerate(zip(shir_alms, sirop_alms)):
         if shir_alm is None:
@@ -259,9 +259,9 @@ def plot_resource_usages(
     ymin, ymax = alm_ax.get_ylim()
     alm_ax.set_ylim(ymin, 7*ymax)
     alm_ax.set_yticks(
-        [10, 10**3, 10**5],
-        [r"$1 \times 10^1$", r"$1 \times 10^3$", r"$1 \times 10^5$"],
+        [1, 10, 10**2, 10**3, 10**4],
     )
+    alm_ax.set_zorder(10**6)
     bram_ax.tick_params(axis="x", which="both", length=0)
     bram_ax.grid(
         visible=True,
