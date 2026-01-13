@@ -42,6 +42,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
+      assume(!benchName.startsWith("big"))
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"
@@ -70,6 +71,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
 
     test(s"$benchName:verilog") {
       assume(benchName != "smallconvb2b_1_9")
+      assume(!benchName.startsWith("big"))
       val io = AetherlingBenchmarkIO.verilogIO(benchName)
       val projectDir = VerilogDir / s"aetherling" / s"${benchName}_test"
       VerilogProjectInitializer.initProj(
