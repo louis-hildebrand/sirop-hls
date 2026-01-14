@@ -40,8 +40,9 @@ expr1'          ::= ""
                   | "(" expr_list ")" expr1'
                   | "." nat expr1'
                   | "[" expr "]" expr1'
-# First(expr0) = { "(", ident, "undefined", "true", "false", "+", "-", nat, "[" }
+# First(expr0) = { "(", "{", ident, "undefined", "true", "false", "+", "-", nat, "[" }
 expr0           ::= "(" expr ")"
+                  | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
                   | ident
                   | "undefined" "[" typ "]"

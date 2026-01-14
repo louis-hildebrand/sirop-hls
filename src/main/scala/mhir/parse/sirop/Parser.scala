@@ -23,6 +23,7 @@ object Parser {
     Set(
       // expr0
       LeftParToken,
+      LeftCurlyToken,
       IdentToken,
       UndefinedToken,
       TrueToken,
@@ -574,6 +575,10 @@ object Parser {
               case Seq() => throw new SyntaxError("unexpected end of file")
             }
         }
+      case Seq(LeftCurlyToken, rest1 @ _*) =>
+        val (e, rest2) = parseExpr(rest1)
+        val rest3 = expect(RightCurlyToken, rest2)
+        (e, rest3)
       case Seq(IdentToken(ident), rest @ _*) =>
         (Param(ident, -1)(Missing), rest)
       case Seq(UndefinedToken, LeftSquareToken, rest1 @ _*) =>

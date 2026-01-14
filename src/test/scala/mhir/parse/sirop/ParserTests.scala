@@ -475,6 +475,16 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src) == expected)
   }
 
+  test("if (c) then { t } else { f }") {
+    val src = "if (c) then { t } else { f }"
+    val expected = Mux(
+      Param("c", -1)(Missing),
+      Param("t", -1)(Missing),
+      Param("f", -1)(Missing)
+    )()
+    assert(Parser.parse(src) == expected)
+  }
+
   test("(_) => true") {
     val src = "(_) => true"
     val expected = Missing ::+ (_ => True)
