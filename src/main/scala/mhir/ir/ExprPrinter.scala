@@ -54,13 +54,15 @@ object ExprPrinter {
 
       case Tuple(elems @ _*) =>
         displayMultiLineSeq(elems, start = "(", end = ")", maxWidth = maxWidth)
+      case v @ VecLiteral() => displayOneLine(v)
       case VecLiteral(elems @ _*) =>
-        displayMultiLineSeq(elems, start = "[", end = "]", maxWidth = maxWidth)
+        displayMultiLineSeq(elems, start = "[", end = "]v", maxWidth = maxWidth)
+      case s @ StmLiteral() => displayOneLine(s)
       case StmLiteral(elems @ _*) =>
         displayMultiLineSeq(
           elems,
-          start = "{{",
-          end = "}}",
+          start = "[",
+          end = "]s",
           maxWidth = maxWidth
         )
 
@@ -215,14 +217,14 @@ object ExprPrinter {
       case LLShift(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "<<",
+          op = "<<<",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
       case LRShift(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = ">>",
+          op = ">>>",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -326,40 +328,93 @@ object ExprPrinter {
         s"if $cStr then $tStr else $fStr"
 
       case StmBuild(n, data, valid, equations) =>
-        val w1 = maxWidth - Indent.length - ";".length
-        val nStr = display(n, maxWidth = w1, parentPrecedence = Precedence.Max)
-        val dataStr =
-          display(data, maxWidth = w1, parentPrecedence = Precedence.Max)
-        val validStr =
-          display(valid, maxWidth = w1, parentPrecedence = Precedence.Max)
-        val indentedEquationsStr = if (equations.isEmpty) {
-          ""
-        } else {
-          val str = equations.toSeq
-            .sortBy({ case (x, _) => x.name })
-            .map({ case (x, (z, next)) =>
-              val zStr = display(
-                z,
-                maxWidth = maxWidth - 2 * Indent.length - ",".length,
-                parentPrecedence = Precedence.Max
-              )
-              val nextStr = display(
-                next,
-                maxWidth = maxWidth - 2 * Indent.length,
-                parentPrecedence = Precedence.Max
-              )
-              s"(${x.name} : ${x.typ}) = (\n${indent(zStr)},\n${indent(nextStr)}\n)"
-            })
-            .map(str => s"$str;")
-            .mkString("\n")
-          "\n" + indent(str)
-        }
         // Don't use a multi-line string with .stripMargin here because one of
         // the sub-expressions may have a line starting with '|'.
         // Example:
         //   c1 && c2
         //     || c3 && c4
-        s"sbuild(\n${indent(nStr)};\n${indent(dataStr)};\n${indent(validStr)};$indentedEquationsStr\n)"
+        val w1 = maxWidth - "sbuild()".length
+        val (nStr, w2) = {
+          val s = display(n, maxWidth = w1, parentPrecedence = Precedence.Max)
+          if (s.contains("\n")) {
+            (s"(\n${indent(s)}\n)", maxWidth - 1)
+          } else {
+            (s"($s)", w1 - s.length)
+          }
+        }
+        val outStr = {
+          val dataStr = displayOneLine(data, parentPrecedence = Precedence.Max)
+          val validStr =
+            displayOneLine(valid, parentPrecedence = Precedence.Max)
+          if ("(, )".length + dataStr.length + validStr.length <= w2) {
+            s"($dataStr, $validStr)"
+          } else {
+            val dataStr = display(
+              data,
+              maxWidth = maxWidth - Indent.length - ",".length,
+              parentPrecedence = Precedence.Max
+            )
+            val validStr = display(
+              valid,
+              maxWidth = maxWidth - Indent.length,
+              parentPrecedence = Precedence.Max
+            )
+            s"(\n${indent(dataStr)},\n${indent(validStr)}\n)"
+          }
+        }
+        val accumulatorsStr = {
+          val accumulators = equations
+            .filter({ case (x, _) => !x.typ.isInstanceOf[TyStm] })
+          if (accumulators.isEmpty) {
+            "{}"
+          } else {
+            accumulators.toSeq
+              .sortBy({ case (x, _) => x.name })
+              .map({ case (x, (z, next)) =>
+                val xStr = s"(${x.name} : ${x.typ})"
+                val zStr = display(
+                  z,
+                  maxWidth = maxWidth - 2 * Indent.length - ",".length,
+                  parentPrecedence = Precedence.Max
+                )
+                val nextStr = display(
+                  next,
+                  maxWidth = maxWidth - 2 * Indent.length,
+                  parentPrecedence = Precedence.Max
+                )
+                s"$xStr = {\n${indent("init: " + zStr)},\n${indent("next: " + nextStr)}\n}"
+              })
+              .map(indent)
+              .mkString("{\n", ",\n", "\n}")
+          }
+        }
+        val producersStr = {
+          val producers = equations
+            .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+          if (producers.isEmpty) {
+            "{}"
+          } else {
+            producers.toSeq
+              .sortBy({ case (x, _) => x.name })
+              .map({ case (x, (stm, ready)) =>
+                val xStr = s"(${x.name} : ${x.typ})"
+                val stmStr = display(
+                  stm,
+                  maxWidth = maxWidth - 2 * Indent.length - ",".length,
+                  parentPrecedence = Precedence.Max
+                )
+                val readyStr = display(
+                  ready,
+                  maxWidth = maxWidth - 2 * Indent.length,
+                  parentPrecedence = Precedence.Max
+                )
+                s"$xStr = {\n${indent("stm: " + stmStr)},\n${indent("ready: " + readyStr)}\n}"
+              })
+              .map(indent)
+              .mkString("{\n", ",\n", "\n}")
+          }
+        }
+        s"sbuild$nStr$outStr $accumulatorsStr $producersStr"
       case LetStm(bufSize, x, in, out) =>
         val bufSizeStr = display(
           bufSize,
@@ -498,7 +553,7 @@ object ExprPrinter {
         displayFunCallOneLine(displayOneLine(f, myPrecedence + 1), Seq(arg))
       case c: IntCst =>
         c.typ match {
-          case Missing => s"${c.i}:?"
+          case Missing => s"${c.i}"
           case t       => s"${c.i}:$t"
         }
       case c: FixCst =>
@@ -550,9 +605,9 @@ object ExprPrinter {
           canElideFirstParens = false
         )
       case LLShift(e1, e2) =>
-        displayOneLineInfixOp(Seq(e1, e2), "<<", myPrecedence)
+        displayOneLineInfixOp(Seq(e1, e2), "<<<", myPrecedence)
       case LRShift(e1, e2) =>
-        displayOneLineInfixOp(Seq(e1, e2), ">>", myPrecedence)
+        displayOneLineInfixOp(Seq(e1, e2), ">>>", myPrecedence)
       case PadTo(e, w) =>
         s"pad$w(${displayOneLine(e, Precedence.Max)})"
       case TruncateTo(e, w) =>
@@ -604,13 +659,27 @@ object ExprPrinter {
         val nStr = displayOneLine(n, Precedence.Max)
         val dataStr = displayOneLine(data, Precedence.Max)
         val validStr = displayOneLine(valid, Precedence.Max)
-        val equationsStr = equations.toSeq
-          .sortBy({ case (x, _) => x.name })
-          .map({ case (x, (z, next)) =>
-            s"(${x.name} : ${x.typ}) = (${displayOneLine(z, Precedence.Max)}, ${displayOneLine(next, Precedence.Max)})"
-          })
-          .mkString("; ")
-        s"sbuild($nStr; $dataStr; $validStr; $equationsStr)"
+        val accumulatorsStr = {
+          val s = equations.toSeq
+            .filter({ case (x, _) => !x.typ.isInstanceOf[TyStm] })
+            .sortBy({ case (x, _) => x.name })
+            .map({ case (x, (z, next)) =>
+              s"(${x.name} : ${x.typ}) = { init: ${displayOneLine(z, Precedence.Max)}, next: ${displayOneLine(next, Precedence.Max)} }"
+            })
+            .mkString("{ ", ", ", " }")
+          if (s == "{  }") "{}" else s
+        }
+        val producersStr = {
+          val s = equations.toSeq
+            .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+            .sortBy({ case (x, _) => x.name })
+            .map({ case (x, (z, next)) =>
+              s"(${x.name} : ${x.typ}) = { stm: ${displayOneLine(z, Precedence.Max)}, ready: ${displayOneLine(next, Precedence.Max)} }"
+            })
+            .mkString("{ ", ", ", " }")
+          if (s == "{  }") "{}" else s
+        }
+        s"sbuild($nStr)($dataStr, $validStr) $accumulatorsStr $producersStr"
       case StmData(s) =>
         displayFunCallOneLine("data", Seq(s))
       case LetStm(bufSize, x, in, out) =>
@@ -631,14 +700,16 @@ object ExprPrinter {
         // rather than
         //   (v[i])[j]
         s"${displayOneLine(v, myPrecedence + 1)}[${displayOneLine(i, Precedence.Max)}]"
+      case v @ VecLiteral() if v.hasType => s"[]v:${v.typ}"
       case VecLiteral(elems @ _*) =>
         elems
           .map(e => displayOneLine(e, Precedence.Max))
-          .mkString("[", ", ", "]")
+          .mkString("[", ", ", "]v")
+      case s @ StmLiteral() if s.hasType => s"[]s:${s.typ}"
       case StmLiteral(elems @ _*) =>
         elems
           .map(e => displayOneLine(e, Precedence.Max))
-          .mkString("{{", ", ", "}}")
+          .mkString("[", ", ", "]s")
       case StmNextK(s, k) =>
         displayFunCallOneLine("snextk", Seq(s, k))
       case e: SyntaxSugar =>

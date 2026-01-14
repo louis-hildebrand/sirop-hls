@@ -258,7 +258,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val y = FixCst(32)(TyFix(U8, 7))
     val original = IntFixProd(x, y)().tchk()
     val simplified = PE.partialEval(original)
-    val expected = x >> C(2)(U8)
+    val expected = x >>> C(2)(U8)
     assert(simplified == expected)
   }
 
@@ -269,7 +269,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val y = FixCst(8)(TyFix(U8, 7))
     val original = IntFixProd(x, y)().tchk()
     val simplified = PE.partialEval(original)
-    val expected = x >> C(4)(U8)
+    val expected = x >>> C(4)(U8)
     assert(simplified == expected)
   }
 
@@ -289,7 +289,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
       assert(actualVal == expectedVal)
 
       // Effective simplification
-      val expected = x << C(n)(U8)
+      val expected = x <<< C(n)(U8)
       assert(simplified == expected)
     }
   }
@@ -333,28 +333,28 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("LLShift") {
     val e = Param("x")(U8)
 
-    assert(lpe(C(0)(U8) << C(0)(U8)) == C(0)())
-    assert(lpe(C(0)(U0) << C(1)(U8)) == C(0)())
-    assert(lpe(C(42)(U8) << C(1)(U8)) == C(84)())
-    assert(lpe(C(42)(U8) << C(3)(U8)) == C(80)())
-    assert(lpe(C(42)(U16) << C(3)(U8)) == C(336)())
-    assert(lpe(C(99)(I8) << C(1)(U8)) == C(-58)())
-    assert(lpe(C(99)(I16) << C(1)(U8)) == C(198)())
+    assert(lpe(C(0)(U8) <<< C(0)(U8)) == C(0)())
+    assert(lpe(C(0)(U0) <<< C(1)(U8)) == C(0)())
+    assert(lpe(C(42)(U8) <<< C(1)(U8)) == C(84)())
+    assert(lpe(C(42)(U8) <<< C(3)(U8)) == C(80)())
+    assert(lpe(C(42)(U16) <<< C(3)(U8)) == C(336)())
+    assert(lpe(C(99)(I8) <<< C(1)(U8)) == C(-58)())
+    assert(lpe(C(99)(I16) <<< C(1)(U8)) == C(198)())
 
-    assert(lpe(e << C(0)(U8)) == e)
+    assert(lpe(e <<< C(0)(U8)) == e)
   }
 
   test("LRShift") {
     val e = Param("x")(U8)
 
-    assert(lpe(C(0)(U8) >> C(0)(U8)) == C(0)())
-    assert(lpe(C(0)(U0) >> C(1)(U8)) == C(0)())
-    assert(lpe(C(168)(U8) >> C(1)(U8)) == C(84)())
-    assert(lpe(C(168)(U16) >> C(3)(U8)) == C(21)())
-    assert(lpe(C(-29)(I8) >> C(1)(U8)) == C(113)())
-    assert(lpe(C(-29)(I16) >> C(1)(U8)) == C(32753)())
+    assert(lpe(C(0)(U8) >>> C(0)(U8)) == C(0)())
+    assert(lpe(C(0)(U0) >>> C(1)(U8)) == C(0)())
+    assert(lpe(C(168)(U8) >>> C(1)(U8)) == C(84)())
+    assert(lpe(C(168)(U16) >>> C(3)(U8)) == C(21)())
+    assert(lpe(C(-29)(I8) >>> C(1)(U8)) == C(113)())
+    assert(lpe(C(-29)(I16) >>> C(1)(U8)) == C(32753)())
 
-    assert(lpe(e >> C(0)(U8)) == e)
+    assert(lpe(e >>> C(0)(U8)) == e)
   }
 
   test("SingletonRange") {

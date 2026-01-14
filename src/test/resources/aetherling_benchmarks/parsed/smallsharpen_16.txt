@@ -1,7 +1,7 @@
 // Output type: Vec[u8, 16:u5] -> Vec[u8, 16:u5]
 let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
   (I : Vec[Vec[u8, 3:u2], 3:u2]) =>
-    let n143: Vec[Vec[u8, 3:u2], 3:u2] = [[0:u8, 1:u8, 0:u8], [1:u8, 2:u8, 1:u8], [0:u8, 1:u8, 0:u8]] in
+    let n143: Vec[Vec[u8, 3:u2], 3:u2] = [[0:u8, 1:u8, 0:u8]v, [1:u8, 2:u8, 1:u8]v, [0:u8, 1:u8, 0:u8]v]v in
     let n69: Vec[Vec[(u8, u8), 3:u2], 3:u2] = (
       VecMap2(
         I,
@@ -14,7 +14,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
     let n80: Vec[Vec[u8, 3:u2], 3:u2] = (
       VecMap(
         n69,
-        (I : Vec[(u8, u8), 3:u2]) => VecMap(I, (I : (u8, u8)) => I.0 << I.1)
+        (I : Vec[(u8, u8), 3:u2]) => VecMap(I, (I : (u8, u8)) => I.0 <<< I.1)
       )
     ) in
     let n85: Vec[Vec[u8, 1:u1], 3:u2] = (
@@ -29,7 +29,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
         (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 +% I.1)
       )
     ) in
-    let n144: Vec[Vec[u8, 1:u1], 1:u1] = [[4:u8]] in
+    let n144: Vec[Vec[u8, 1:u1], 1:u1] = [[4:u8]v]v in
     let n93: Vec[Vec[(u8, u8), 1:u1], 1:u1] = (
       VecMap2(
         n90,
@@ -41,7 +41,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
     ) in
     VecMap(
       n93,
-      (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 >> I.1)
+      (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 >>> I.1)
     )
 ) in
 let module1: u8 -> u8 -> u8 = (
@@ -65,7 +65,7 @@ let module1: u8 -> u8 -> u8 = (
       let n129: u8 = if (n128.0) then { (n128.1).0 } else { (n128.1).1 } in
       let n142: u8 = 2:u8 in
       let n132: (u8, u8) = (n129, n142) in
-      let n133: u8 = n132.0 >> n132.1 in
+      let n133: u8 = n132.0 >>> n132.1 in
       let n134: (u8, u8) = (I1, n133) in
       n134.0 +% n134.1
 ) in
@@ -183,7 +183,7 @@ let module1: u8 -> u8 -> u8 = (
           let n129: u8 = if (n128.0) then { (n128.1).0 } else { (n128.1).1 } in
           let n142: u8 = 2:u8 in
           let n132: (u8, u8) = (n129, n142) in
-          let n133: u8 = n132.0 >> n132.1 in
+          let n133: u8 = n132.0 >>> n132.1 in
           let n134: (u8, u8) = (I1, n133) in
           n134.0 +% n134.1
     )

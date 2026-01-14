@@ -111,11 +111,11 @@ package object ir
 
     /** See [[LLShift]].
       */
-    def <<(that: Expr): Expr = LLShift(this.expr, that)()
+    def <<<(that: Expr): Expr = LLShift(this.expr, that)()
 
     /** See [[LRShift]].
       */
-    def >>(that: Expr): Expr = LRShift(this.expr, that)()
+    def >>>(that: Expr): Expr = LRShift(this.expr, that)()
 
     /** See [[SmartEqual]].
       */

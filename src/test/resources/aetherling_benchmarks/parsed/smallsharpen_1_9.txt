@@ -1,7 +1,7 @@
 // Output type: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] -> Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5]
 let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
   (I : Stm[Stm[u8, 3:u2], 3:u2]) =>
-    let n184: Stm[Stm[u8, 3:u2], 3:u2] = {{{{0:u8, 1:u8, 0:u8}}, {{1:u8, 2:u8, 1:u8}}, {{0:u8, 1:u8, 0:u8}}}} in
+    let n184: Stm[Stm[u8, 3:u2], 3:u2] = [[0:u8, 1:u8, 0:u8]s, [1:u8, 2:u8, 1:u8]s, [0:u8, 1:u8, 0:u8]s]s in
     let n105: Stm[Stm[(u8, u8), 3:u2], 3:u2] = (
       StmMap2(
         I,
@@ -14,7 +14,7 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
     let n116: Stm[Stm[u8, 3:u2], 3:u2] = (
       StmMap(
         n105,
-        (I : Stm[(u8, u8), 3:u2]) => StmMap(I, (I : (u8, u8)) => I.0 << I.1)
+        (I : Stm[(u8, u8), 3:u2]) => StmMap(I, (I : (u8, u8)) => I.0 <<< I.1)
       )
     ) in
     let n121: Stm[Stm[u8, 1:u1], 3:u2] = (
@@ -29,7 +29,7 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
       )
     ) in
-    let n185: Stm[Stm[u8, 1:u1], 1:u1] = {{{{4:u8}}}} in
+    let n185: Stm[Stm[u8, 1:u1], 1:u1] = [[4:u8]s]s in
     let n129: Stm[Stm[(u8, u8), 1:u1], 1:u1] = (
       StmMap2(
         n126,
@@ -41,7 +41,7 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
     ) in
     StmMap(
       n129,
-      (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 >> I.1)
+      (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 >>> I.1)
     )
 ) in
 let module1: u8 -> u8 -> u8 = (
@@ -65,7 +65,7 @@ let module1: u8 -> u8 -> u8 = (
       let n170: u8 = if (n169.0) then { (n169.1).0 } else { (n169.1).1 } in
       let n183: u8 = 2:u8 in
       let n173: (u8, u8) = (n170, n183) in
-      let n174: u8 = n173.0 >> n173.1 in
+      let n174: u8 = n173.0 >>> n173.1 in
       let n175: (u8, u8) = (I1, n174) in
       n175.0 +% n175.1
 ) in
@@ -327,7 +327,7 @@ let module1: u8 -> u8 -> u8 = (
     StmMap(
       n101,
       (I : Stm[Stm[u8, 3:u2], 3:u2]) =>
-        let n184: Stm[Stm[u8, 3:u2], 3:u2] = {{{{0:u8, 1:u8, 0:u8}}, {{1:u8, 2:u8, 1:u8}}, {{0:u8, 1:u8, 0:u8}}}} in
+        let n184: Stm[Stm[u8, 3:u2], 3:u2] = [[0:u8, 1:u8, 0:u8]s, [1:u8, 2:u8, 1:u8]s, [0:u8, 1:u8, 0:u8]s]s in
         let n105: Stm[Stm[(u8, u8), 3:u2], 3:u2] = (
           StmMap2(
             I,
@@ -341,7 +341,7 @@ let module1: u8 -> u8 -> u8 = (
           StmMap(
             n105,
             (I : Stm[(u8, u8), 3:u2]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 << I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 <<< I.1)
           )
         ) in
         let n121: Stm[Stm[u8, 1:u1], 3:u2] = (
@@ -357,7 +357,7 @@ let module1: u8 -> u8 -> u8 = (
               StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
           )
         ) in
-        let n185: Stm[Stm[u8, 1:u1], 1:u1] = {{{{4:u8}}}} in
+        let n185: Stm[Stm[u8, 1:u1], 1:u1] = [[4:u8]s]s in
         let n129: Stm[Stm[(u8, u8), 1:u1], 1:u1] = (
           StmMap2(
             n126,
@@ -369,7 +369,8 @@ let module1: u8 -> u8 -> u8 = (
         ) in
         StmMap(
           n129,
-          (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 >> I.1)
+          (I : Stm[(u8, u8), 1:u1]) =>
+            StmMap(I, (I : (u8, u8)) => I.0 >>> I.1)
         )
     )
   ) in
@@ -409,7 +410,7 @@ let module1: u8 -> u8 -> u8 = (
                       let n170: u8 = if (n169.0) then { (n169.1).0 } else { (n169.1).1 } in
                       let n183: u8 = 2:u8 in
                       let n173: (u8, u8) = (n170, n183) in
-                      let n174: u8 = n173.0 >> n173.1 in
+                      let n174: u8 = n173.0 >>> n173.1 in
                       let n175: (u8, u8) = (I1, n174) in
                       n175.0 +% n175.1
                 )

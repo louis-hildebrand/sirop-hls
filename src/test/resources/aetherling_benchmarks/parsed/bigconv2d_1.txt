@@ -1,7 +1,15 @@
 // Output type: Stm[Vec[u32, 1:u1], 2073600:u21] -> Stm[Vec[u32, 1:u1], 2073600:u21]
 let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] = (
   (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
-    let n158: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = {{[[1:u32, 2:u32, 1:u32], [2:u32, 4:u32, 2:u32], [1:u32, 2:u32, 1:u32]]}} in
+    let n158: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
+      [
+        [
+          [1:u32, 2:u32, 1:u32]v,
+          [2:u32, 4:u32, 2:u32]v,
+          [1:u32, 2:u32, 1:u32]v
+        ]v
+      ]s
+    ) in
     let n103: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
       StmMap2(
         I,
@@ -62,7 +70,7 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
       )
     ) in
     let n137: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n136) in
-    let n159: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+    let n159: Stm[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]s in
     let n140: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
       StmMap2(
         n137,
@@ -262,13 +270,13 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
       n99,
       (I : Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1]) =>
         let n158: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] = (
-          {{
+          [
             [
-              [1:u32, 2:u32, 1:u32],
-              [2:u32, 4:u32, 2:u32],
-              [1:u32, 2:u32, 1:u32]
-            ]
-          }}
+              [1:u32, 2:u32, 1:u32]v,
+              [2:u32, 4:u32, 2:u32]v,
+              [1:u32, 2:u32, 1:u32]v
+            ]v
+          ]s
         ) in
         let n103: Stm[Vec[Vec[(u32, u32), 3:u2], 3:u2], 1:u1] = (
           StmMap2(
@@ -330,7 +338,7 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
           )
         ) in
         let n137: Stm[Vec[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u32, 1:u1], 1:u1]](n136) in
-        let n159: Stm[Vec[fix8_7, 1:u1], 1:u1] = {{[(8/2e7):fix8_7]}} in
+        let n159: Stm[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]s in
         let n140: Stm[Vec[(u32, fix8_7), 1:u1], 1:u1] = (
           StmMap2(
             n137,

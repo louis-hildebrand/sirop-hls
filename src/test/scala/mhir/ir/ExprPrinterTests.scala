@@ -295,7 +295,7 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e, maxWidth = 35) == expectedMultiLine)
   }
 
-  test("x * (y + z)") {
+  test("2 * (y + z)") {
     val y = Param("y", -1)(U8)
     val z = Param("z", -1)(U8)
     val e = Prod(C(2)(U8), Sum(y, z)())()
@@ -434,32 +434,32 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expected)
   }
 
-  test("a << b") {
+  test("a <<< b") {
     val a = Param("a", -1)(U8)
     val b = Param("b", -1)(U8)
     val e = LLShift(a, b)()
 
-    val expectedOneLine = "a << b"
+    val expectedOneLine = "a <<< b"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""a
-         |  << b
+         |  <<< b
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
   }
 
-  test("a >> b") {
+  test("a >>> b") {
     val a = Param("a", -1)(U8)
     val b = Param("b", -1)(U8)
     val e = LRShift(a, b)()
 
-    val expectedOneLine = "a >> b"
+    val expectedOneLine = "a >>> b"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""a
-         |  >> b
+         |  >>> b
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
   }
@@ -584,45 +584,42 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"sbuild(42:u8; sgn(data(s)) + j; true; (j : i9) = (-10:i9, 2:i9 + j); (s : Stm[u8, -1:i1]) = (sbuild(42:u8; i; true; (i : u8) = (0:u8, 1:u8 + i)), true))"
+      s"sbuild(42:u8)(sgn(data(s)) + j, true) { (j : i9) = { init: -10:i9, next: 2:i9 + j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {}, ready: true } }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""sbuild(
-         |  42:u8;
-         |  sgn(data(s)) + j;
-         |  true;
-         |  (j : i9) = (
-         |    -10:i9,
-         |    2:i9 + j
-         |  );
-         |  (s : Stm[u8, -1:i1]) = (
-         |    sbuild(42:u8; i; true; (i : u8) = (0:u8, 1:u8 + i)),
-         |    true
-         |  );
-         |)
+      s"""sbuild(42:u8)(sgn(data(s)) + j, true) {
+         |  (j : i9) = {
+         |    init: -10:i9,
+         |    next: 2:i9 + j
+         |  }
+         |} {
+         |  (s : Stm[u8, -1:i1]) = {
+         |    stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {},
+         |    ready: true
+         |  }
+         |}
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.display(e) == expectedMultiLine)
   }
 
-  test("StmBuild with multi-line mux") {
+  test("StmBuild with multi-line or") {
     val c1 = Param("c1", -1)(TyBool)
     val c2 = Param("c2", -1)(TyBool)
     val c3 = Param("c3", -1)(TyBool)
     val c4 = Param("c4", -1)(TyBool)
     val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True)()
 
-    val expectedOneLine = "sbuild(10:u8; c1 && c2 || c3 && c4; true; )"
+    val expectedOneLine = "sbuild(10:u8)(c1 && c2 || c3 && c4, true) {} {}"
     val actualOneLine = ExprPrinter.displayOneLine(s)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      s"""sbuild(
-         |  10:u8;
+      s"""sbuild(10:u8)(
          |  c1 && c2
-         |    || c3 && c4;
-         |  true;
-         |)
+         |    || c3 && c4,
+         |  true
+         |) {} {}
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(s, maxWidth = 20)
     assert(actualMultiLine == expectedMultiLine)
@@ -643,36 +640,69 @@ class ExprPrinterTests extends AnyFunSuite {
       )()
 
     val expectedOneLine =
-      s"letstm[1:?] s1 = StmCount($n:u8) in letstm[1:?] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2), StmZip(s2, s1))"
+      s"letstm[1] s1 = StmCount($n:u8) in letstm[1] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2), StmZip(s2, s1))"
     val actualOneLine = ExprPrinter.displayOneLine(let)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      s"""letstm[1:?] s1 = StmCount($n:u8) in
-         |letstm[1:?] s2 = StmCst($n:u8, true) in
+      s"""letstm[1] s1 = StmCount($n:u8) in
+         |letstm[1] s2 = StmCst($n:u8, true) in
          |StmZip(StmZip(s1, s2), StmZip(s2, s1))
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(let)
     assert(actualMultiLine == expectedMultiLine)
   }
 
-  test("[[0, 1], [2, 3]]") {
+  test("[[0, 1]v, [2, 3]v]v") {
     val e = VecLiteral(
       VecLiteral(C(0)(U8), C(1)(U8))(),
       VecLiteral(C(2)(U8), C(3)(U8))()
     )()
 
-    val expectedOneLine = s"[[0:u8, 1:u8], [2:u8, 3:u8]]"
+    val expectedOneLine = s"[[0:u8, 1:u8]v, [2:u8, 3:u8]v]v"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""[
-         |  [0:u8, 1:u8],
-         |  [2:u8, 3:u8]
-         |]
+         |  [0:u8, 1:u8]v,
+         |  [2:u8, 3:u8]v
+         |]v
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("[]v") {
+    val e = VecLiteral()(TyVec((U8, TyBool), 0))
+    val expected = "[]v:Vec[(u8, bool), 0:u0]"
+    assert(ExprPrinter.displayOneLine(e) == expected)
+    assert(ExprPrinter.displayMultiLine(e) == expected)
+  }
+
+  test("[[0, 1]s, [2, 3]s]s") {
+    val e = StmLiteral(
+      StmLiteral(C(0)(U8), C(1)(U8))(),
+      StmLiteral(C(2)(U8), C(3)(U8))()
+    )()
+
+    val expectedOneLine = s"[[0:u8, 1:u8]s, [2:u8, 3:u8]s]s"
+    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""[
+         |  [0:u8, 1:u8]s,
+         |  [2:u8, 3:u8]s
+         |]s
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("[]s") {
+    val e = StmLiteral()(TyStm((U8, TyBool), 0))
+    val expected = "[]s:Stm[(u8, bool), 0:u0]"
+    assert(ExprPrinter.displayOneLine(e) == expected)
+    assert(ExprPrinter.displayMultiLine(e) == expected)
   }
 
   test("HugeExpression") {

@@ -141,19 +141,16 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified == original)
     val expectedStr =
-      """sbuild(
-        |  ((x : u3) => x)(4:u3);
-        |  ((x : u8) => x)(a);
-        |  ((x : bool) => x)(b);
-        |  (a : u8) = (
-        |    ((x : u8) => x)(0:u8),
-        |    1:u8 + a
-        |  );
-        |  (b : bool) = (
-        |    true,
-        |    ((x : bool) => x)(!b)
-        |  );
-        |)
+      """sbuild(((x : u3) => x)(4:u3))(((x : u8) => x)(a), ((x : bool) => x)(b)) {
+        |  (a : u8) = {
+        |    init: ((x : u8) => x)(0:u8),
+        |    next: 1:u8 + a
+        |  },
+        |  (b : bool) = {
+        |    init: true,
+        |    next: ((x : bool) => x)(!b)
+        |  }
+        |} {}
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)
     assert(actualStr == expectedStr)
@@ -183,23 +180,20 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified == original)
     val expectedStr =
-      """sbuild(
-        |  6:u3;
-        |  (a, b_1, b_2);
-        |  b_1;
-        |  (a : u8) = (
-        |    0:u8,
-        |    1:u8 + a
-        |  );
-        |  (b_1 : bool) = (
-        |    true,
-        |    !b_1
-        |  );
-        |  (b_2 : bool) = (
-        |    false,
-        |    !b_2
-        |  );
-        |)
+      """sbuild(6:u3)((a, b_1, b_2), b_1) {
+        |  (a : u8) = {
+        |    init: 0:u8,
+        |    next: 1:u8 + a
+        |  },
+        |  (b_1 : bool) = {
+        |    init: true,
+        |    next: !b_1
+        |  },
+        |  (b_2 : bool) = {
+        |    init: false,
+        |    next: !b_2
+        |  }
+        |} {}
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.display(simplified)
     assert(actualStr == expectedStr)

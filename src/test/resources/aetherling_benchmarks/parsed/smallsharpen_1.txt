@@ -1,7 +1,7 @@
 // Output type: Stm[Vec[u8, 1:u1], 16:u5] -> Stm[Vec[u8, 1:u1], 16:u5]
 let module0: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u8, 1:u1], 1:u1] = (
   (I : Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1]) =>
-    let n193: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] = {{[[0:u8, 1:u8, 0:u8], [1:u8, 2:u8, 1:u8], [0:u8, 1:u8, 0:u8]]}} in
+    let n193: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] = [[[0:u8, 1:u8, 0:u8]v, [1:u8, 2:u8, 1:u8]v, [0:u8, 1:u8, 0:u8]v]v]s in
     let n103: Stm[Vec[Vec[(u8, u8), 3:u2], 3:u2], 1:u1] = (
       StmMap2(
         I,
@@ -24,7 +24,7 @@ let module0: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u8, 1:u1], 1:u1] = (
           VecMap(
             I,
             (I : Vec[(u8, u8), 3:u2]) =>
-              VecMap(I, (I : (u8, u8)) => I.0 << I.1)
+              VecMap(I, (I : (u8, u8)) => I.0 <<< I.1)
           )
       )
     ) in
@@ -62,7 +62,7 @@ let module0: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u8, 1:u1], 1:u1] = (
       )
     ) in
     let n137: Stm[Vec[u8, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u8, 1:u1], 1:u1]](n136) in
-    let n194: Stm[Vec[u8, 1:u1], 1:u1] = {{[4:u8]}} in
+    let n194: Stm[Vec[u8, 1:u1], 1:u1] = [[4:u8]v]s in
     let n140: Stm[Vec[(u8, u8), 1:u1], 1:u1] = (
       StmMap2(
         n137,
@@ -74,7 +74,7 @@ let module0: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u8, 1:u1], 1:u1] = (
     ) in
     StmMap(
       n140,
-      (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 >> I.1)
+      (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 >>> I.1)
     )
 ) in
 let module1: u8 -> u8 -> u8 = (
@@ -98,7 +98,7 @@ let module1: u8 -> u8 -> u8 = (
       let n179: u8 = if (n178.0) then { (n178.1).0 } else { (n178.1).1 } in
       let n192: u8 = 2:u8 in
       let n182: (u8, u8) = (n179, n192) in
-      let n183: u8 = n182.0 >> n182.1 in
+      let n183: u8 = n182.0 >>> n182.1 in
       let n184: (u8, u8) = (I1, n183) in
       n184.0 +% n184.1
 ) in
@@ -285,7 +285,7 @@ let module1: u8 -> u8 -> u8 = (
     StmMap(
       n99,
       (I : Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1]) =>
-        let n193: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] = {{[[0:u8, 1:u8, 0:u8], [1:u8, 2:u8, 1:u8], [0:u8, 1:u8, 0:u8]]}} in
+        let n193: Stm[Vec[Vec[u8, 3:u2], 3:u2], 1:u1] = [[[0:u8, 1:u8, 0:u8]v, [1:u8, 2:u8, 1:u8]v, [0:u8, 1:u8, 0:u8]v]v]s in
         let n103: Stm[Vec[Vec[(u8, u8), 3:u2], 3:u2], 1:u1] = (
           StmMap2(
             I,
@@ -308,7 +308,7 @@ let module1: u8 -> u8 -> u8 = (
               VecMap(
                 I,
                 (I : Vec[(u8, u8), 3:u2]) =>
-                  VecMap(I, (I : (u8, u8)) => I.0 << I.1)
+                  VecMap(I, (I : (u8, u8)) => I.0 <<< I.1)
               )
           )
         ) in
@@ -346,7 +346,7 @@ let module1: u8 -> u8 -> u8 = (
           )
         ) in
         let n137: Stm[Vec[u8, 1:u1], 1:u1] = ReshapeSeq[Stm[Vec[u8, 1:u1], 1:u1]](n136) in
-        let n194: Stm[Vec[u8, 1:u1], 1:u1] = {{[4:u8]}} in
+        let n194: Stm[Vec[u8, 1:u1], 1:u1] = [[4:u8]v]s in
         let n140: Stm[Vec[(u8, u8), 1:u1], 1:u1] = (
           StmMap2(
             n137,
@@ -358,7 +358,8 @@ let module1: u8 -> u8 -> u8 = (
         ) in
         StmMap(
           n140,
-          (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 >> I.1)
+          (I : Vec[(u8, u8), 1:u1]) =>
+            VecMap(I, (I : (u8, u8)) => I.0 >>> I.1)
         )
     )
   ) in
@@ -394,7 +395,7 @@ let module1: u8 -> u8 -> u8 = (
                 let n179: u8 = if (n178.0) then { (n178.1).0 } else { (n178.1).1 } in
                 let n192: u8 = 2:u8 in
                 let n182: (u8, u8) = (n179, n192) in
-                let n183: u8 = n182.0 >> n182.1 in
+                let n183: u8 = n182.0 >>> n182.1 in
                 let n184: (u8, u8) = (I1, n183) in
                 n184.0 +% n184.1
           )

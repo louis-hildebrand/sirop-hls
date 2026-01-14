@@ -415,13 +415,13 @@ object AetherlingParser {
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
-      (e.__0 >> e.__1, suffix3)
+      (e.__0 >>> e.__1, suffix3)
     } else if (code.startsWith("LSLN ")) {
       val suffix0 = expect(code, "LSLN ")
       val (_, suffix1) = parseTyp(suffix0)
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
-      (e.__0 << e.__1, suffix3)
+      (e.__0 <<< e.__1, suffix3)
     } else if (code.startsWith("LtN ")) {
       val suffix0 = expect(code, "LtN ")
       val (_, suffix1) = parseTyp(suffix0)

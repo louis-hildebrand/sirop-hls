@@ -2,13 +2,13 @@
 let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] = (
   (I : Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1]) =>
     let n181: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] = (
-      {{
+      [
         [
-          {{1:u32, 2:u32, 1:u32}},
-          {{2:u32, 4:u32, 2:u32}},
-          {{1:u32, 2:u32, 1:u32}}
-        ]
-      }}
+          [1:u32, 2:u32, 1:u32]s,
+          [2:u32, 4:u32, 2:u32]s,
+          [1:u32, 2:u32, 1:u32]s
+        ]v
+      ]s
     ) in
     let n91: Stm[Vec[Stm[(u32, u32), 3:u2], 3:u2], 1:u1] = (
       StmMap2(
@@ -70,7 +70,7 @@ let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
       )
     ) in
     let n125: Stm[Stm[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Stm[u32, 1:u1], 1:u1]](n124) in
-    let n182: Stm[Stm[fix8_7, 1:u1], 1:u1] = {{{{(8/2e7):fix8_7}}}} in
+    let n182: Stm[Stm[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]s]s in
     let n128: Stm[Stm[(u32, fix8_7), 1:u1], 1:u1] = (
       StmMap2(
         n125,
@@ -296,13 +296,13 @@ let module1: u32 -> u32 -> u32 = (
       n87,
       (I : Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1]) =>
         let n181: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] = (
-          {{
+          [
             [
-              {{1:u32, 2:u32, 1:u32}},
-              {{2:u32, 4:u32, 2:u32}},
-              {{1:u32, 2:u32, 1:u32}}
-            ]
-          }}
+              [1:u32, 2:u32, 1:u32]s,
+              [2:u32, 4:u32, 2:u32]s,
+              [1:u32, 2:u32, 1:u32]s
+            ]v
+          ]s
         ) in
         let n91: Stm[Vec[Stm[(u32, u32), 3:u2], 3:u2], 1:u1] = (
           StmMap2(
@@ -364,7 +364,7 @@ let module1: u32 -> u32 -> u32 = (
           )
         ) in
         let n125: Stm[Stm[u32, 1:u1], 1:u1] = ReshapeSeq[Stm[Stm[u32, 1:u1], 1:u1]](n124) in
-        let n182: Stm[Stm[fix8_7, 1:u1], 1:u1] = {{{{(8/2e7):fix8_7}}}} in
+        let n182: Stm[Stm[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]s]s in
         let n128: Stm[Stm[(u32, fix8_7), 1:u1], 1:u1] = (
           StmMap2(
             n125,

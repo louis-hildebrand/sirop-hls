@@ -26,7 +26,7 @@ class StmFissionPassTests extends AnyFunSuite {
       val b = StmData(sB)()
       val passedThreshold = ((a -% b) > threshold) || ((b -% a) > threshold)
       val alphaH =
-        Mux(passedThreshold, (b -% a) >> 2, C(0)(uint))()
+        Mux(passedThreshold, (b -% a) >>> 2, C(0)(uint))()
       val sharp = b +% alphaH
       StmBuild(
         n,

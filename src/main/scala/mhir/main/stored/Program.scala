@@ -580,7 +580,7 @@ object Program {
                 )(),
                 0
               )()
-              sum >> 4
+              sum >>> 4
             }
           )()
         )
@@ -634,7 +634,7 @@ object Program {
           (int, int) ::+ (ab => {
             // SHIR doesn't have a built-in shift right operator, so it uses
             // ResizeLowInteger and ResizeInteger instead
-            val alphaH = (ab.__1 -% ab.__0) >> 2
+            val alphaH = (ab.__1 -% ab.__0) >>> 2
             ab.__1 + alphaH
           })
         )()
@@ -735,7 +735,7 @@ object Program {
             val n = x.__0
             val lo = x.__1
             val hi = x.__2
-            val mid = (lo +% hi +% C(1)(int)) >> 1
+            val mid = (lo +% hi +% C(1)(int)) >>> 1
             val midSquared = mid *% mid
             Mux(midSquared <= n, Tuple(n, mid, hi)(), Tuple(n, lo, mid - 1)())()
           }
@@ -867,7 +867,7 @@ object Program {
       val n = x.__0
       val lo = x.__1
       val hi = x.__2
-      val mid = (lo + hi + 1) >> 1
+      val mid = (lo + hi + 1) >>> 1
       Mux(
         mid *% mid <= n,
         Tuple(n, mid, hi)(),
