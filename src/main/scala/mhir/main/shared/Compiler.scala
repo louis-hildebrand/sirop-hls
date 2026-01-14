@@ -5,6 +5,7 @@ import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir.Uncurrier.Uncurry
 import mhir.ir._
+import mhir.ir.evaluate.Evaluator
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.{time, time2}
 import mhir.optimize.{Optimizer, OptimizerOptions}
@@ -51,8 +52,11 @@ object Compiler {
     options.targets.toSeq
       .foreach({
         case NullTarget => ()
-        case EvalTarget =>
-          val result = mhir.ir.eval(finalProgram)
+        case EvalTarget(maxInvalidSteps) =>
+          val evaluator = Evaluator(maxInvalidSteps = maxInvalidSteps)
+          val result = time("evaluation", Level.DEBUG) {
+            evaluator.eval(finalProgram)
+          }
           println(ExprPrinter.display(result))
         case _: VhdlTarget => () // already done
         case PrettyPrintTarget(dest, overwrite) =>
@@ -110,7 +114,7 @@ object Compiler {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
           emitVhdl(prog, outDir, overwrite)
-        case EvalTarget           => ()
+        case _: EvalTarget        => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
         case _: CompileTimeTarget => ()

@@ -30,6 +30,7 @@ object CompilerOptions {
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
     var eval: Boolean = false
+    var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
     // Optimizer args
@@ -74,6 +75,23 @@ object CompilerOptions {
           }
         case "--out:eval" =>
           eval = true
+        case "--out:eval:max-invalid-steps" =>
+          mutArgs.drop(1).headOption match {
+            case Some(num) =>
+              val stepsInt =
+                try {
+                  num.toInt
+                } catch {
+                  case _: NumberFormatException =>
+                    throw new BadArgsException(
+                      s"value for ${mutArgs.head} must be an integer (found $num)"
+                    )
+                }
+              maxInvalidSteps = Some(stepsInt)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
         case "--overwrite" =>
           overwrite = true
         case "--opt:no-simplify-sbuild" =>
@@ -121,7 +139,16 @@ object CompilerOptions {
     }
 
     val targets: Set[CompilerTarget] = {
-      val evalTarget = if (eval) Some(EvalTarget) else None
+      val evalTarget = if (eval) {
+        Some(EvalTarget(maxInvalidSteps))
+      } else {
+        if (maxInvalidSteps.isDefined) {
+          throw new BadArgsException(
+            s"--out:eval:max-invalid-steps is only valid when --out:eval is also given"
+          )
+        }
+        None
+      }
       val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
@@ -150,15 +177,18 @@ object CompilerOptions {
 
   def longUsage: String = {
     s"""General Arguments:
-       |  --out:eval          evaluate the program and print its value
-       |  --out:vhdl DIR      emit VHDL code in the given directory
-       |  --out:pp (FILE|-)   pretty-print the final program to the given file, or to
-       |                      stdout if argument "-" is given
-       |  --out:ctime FILE    write a report of the compile time to the given
-       |                      directory
-       |  --overwrite         what to do if the output file or directory already
-       |                      exists: if true then delete it, if false then raise an
-       |                      error
+       |  --out:eval                     evaluate the program and print its value
+       |  --out:eval:max-invalid-steps   maximum number of invalid sbuild outputs when
+       |                                 evaluating. A negative value disables the
+       |                                 limit.
+       |  --out:vhdl DIR                 emit VHDL code in the given directory
+       |  --out:pp (FILE|-)              pretty-print the final program to the given
+       |                                 file, or to stdout if argument "-" is given
+       |  --out:ctime FILE               write a report of the compile time to the given
+       |                                 directory
+       |  --overwrite                    what to do if the output file or directory
+       |                                 already exists: if true then delete it, if
+       |                                 false then raise an error
        |
        |Optimization Flags:
        |  --opt:no-simplify-sbuild        skip basic sbuild simplifications

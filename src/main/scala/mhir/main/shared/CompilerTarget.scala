@@ -15,7 +15,7 @@ object NullTarget extends CompilerTarget
 
 /** Evaluate the program and print its value.
   */
-object EvalTarget extends CompilerTarget
+case class EvalTarget(maxInvalidSteps: Option[Int]) extends CompilerTarget
 
 /** Pretty-print the program.
   *
