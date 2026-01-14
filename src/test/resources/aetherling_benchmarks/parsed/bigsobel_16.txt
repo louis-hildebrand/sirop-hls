@@ -601,10 +601,8 @@ let module22: (i32, (i32, i32)) -> i32 = (I : (i32, (i32, i32))) => let n741: (i
             I1,
             (I0 : i32) =>
               (I1 : i32) =>
-                vbuild(
-                  2:u2,
-                  (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -646,10 +644,8 @@ let module22: (i32, (i32, i32)) -> i32 = (I : (i32, (i32, i32))) => let n741: (i
             I1,
             (I0 : i32) =>
               (I1 : i32) =>
-                vbuild(
-                  2:u2,
-                  (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -689,10 +685,8 @@ let module22: (i32, (i32, i32)) -> i32 = (I : (i32, (i32, i32))) => let n741: (i
             I1,
             (I0 : Vec[i32, 3:u3]) =>
               (I1 : Vec[i32, 3:u3]) =>
-                vbuild(
-                  2:u2,
-                  (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -709,10 +703,8 @@ let module22: (i32, (i32, i32)) -> i32 = (I : (i32, (i32, i32))) => let n741: (i
             I1,
             (I0 : i32) =>
               (I1 : i32) =>
-                vbuild(
-                  2:u2,
-                  (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in

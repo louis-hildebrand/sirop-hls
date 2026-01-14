@@ -129,10 +129,8 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(
-                  2:u2,
-                  (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -174,10 +172,8 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(
-                  2:u2,
-                  (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -217,10 +213,8 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(
-                  2:u2,
-                  (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -237,10 +231,8 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(
-                  2:u2,
-                  (x_6 : u8) => if (x_6 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_6 : u8) => if (x_6 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in

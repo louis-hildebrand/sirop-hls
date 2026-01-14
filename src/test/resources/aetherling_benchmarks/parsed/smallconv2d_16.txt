@@ -56,7 +56,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n4,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2, (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 })
+          vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+          }
     )
   ) in
   let n10: Vec[Vec[u8, 3:u3], 16:u5] = VecMap2(n6, n3, (I0 : Vec[u8, 2:u2]) => (I1 : u8) => VecAppend(I0, I1)) in
@@ -75,7 +76,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n20,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2, (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 })
+          vbuild(2:u2) { (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 }
+          }
     )
   ) in
   let n26: Vec[Vec[u8, 3:u3], 16:u5] = VecMap2(n22, n2, (I0 : Vec[u8, 2:u2]) => (I1 : u8) => VecAppend(I0, I1)) in
@@ -92,7 +94,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n35,
       (I0 : Vec[u8, 3:u3]) =>
         (I1 : Vec[u8, 3:u3]) =>
-          vbuild(2:u2, (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 })
+          vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+          }
     )
   ) in
   let n40: Vec[u8, 16:u5] = VecShiftRightGarbage(n1, 1:u1) in
@@ -103,7 +106,8 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n40,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2, (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 })
+          vbuild(2:u2) { (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
+          }
     )
   ) in
   let n46: Vec[Vec[u8, 3:u3], 16:u5] = VecMap2(n42, n1, (I0 : Vec[u8, 2:u2]) => (I1 : u8) => VecAppend(I0, I1)) in

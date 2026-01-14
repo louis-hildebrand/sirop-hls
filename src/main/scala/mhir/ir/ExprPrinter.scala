@@ -276,15 +276,13 @@ object ExprPrinter {
       case PadTo(e, w) =>
         displayFunCallMultiLine(s"pad$w", Seq(e), maxWidth)
       case TruncateTo(e, w) =>
-        displayFunCallMultiLine(s"trunc$w", Seq(e), maxWidth)
+        displayFunCallMultiLine(s"truncate$w", Seq(e), maxWidth)
       case ToSigned(e) =>
-        displayFunCallMultiLine("sgn", Seq(e), maxWidth)
+        displayFunCallMultiLine("sign", Seq(e), maxWidth)
       case ToUnsigned(e) =>
-        displayFunCallMultiLine("usgn", Seq(e), maxWidth)
+        displayFunCallMultiLine("unsign", Seq(e), maxWidth)
       case StmData(s) =>
-        displayFunCallMultiLine("data", Seq(s), maxWidth)
-      case VecBuild(n, f) =>
-        displayFunCallMultiLine("vbuild", Seq(n, f), maxWidth)
+        displayFunCallMultiLine("sdata", Seq(s), maxWidth)
       case StmNextK(s, k) =>
         displayFunCallMultiLine("snextk", Seq(s, k), maxWidth)
 
@@ -327,6 +325,14 @@ object ExprPrinter {
         }
         s"if $cStr then $tStr else $fStr"
 
+      case VecBuild(n, f) =>
+        val nStr = displayOneLine(n, parentPrecedence = Precedence.Max)
+        val fStr = display(
+          f,
+          maxWidth = maxWidth - Indent.length,
+          parentPrecedence = Precedence.Max
+        )
+        s"vbuild($nStr) { $fStr\n}"
       case StmBuild(n, data, valid, equations) =>
         // Don't use a multi-line string with .stripMargin here because one of
         // the sub-expressions may have a line starting with '|'.
@@ -611,11 +617,11 @@ object ExprPrinter {
       case PadTo(e, w) =>
         s"pad$w(${displayOneLine(e, Precedence.Max)})"
       case TruncateTo(e, w) =>
-        s"trunc$w(${displayOneLine(e, Precedence.Max)})"
+        s"truncate$w(${displayOneLine(e, Precedence.Max)})"
       case ToSigned(e) =>
-        displayFunCallOneLine("sgn", Seq(e))
+        displayFunCallOneLine("sign", Seq(e))
       case ToUnsigned(e) =>
-        displayFunCallOneLine("usgn", Seq(e))
+        displayFunCallOneLine("unsign", Seq(e))
       case True  => "true"
       case False => "false"
       case Equal(e1, e2) =>
@@ -681,7 +687,7 @@ object ExprPrinter {
         }
         s"sbuild($nStr)($dataStr, $validStr) $accumulatorsStr $producersStr"
       case StmData(s) =>
-        displayFunCallOneLine("data", Seq(s))
+        displayFunCallOneLine("sdata", Seq(s))
       case LetStm(bufSize, x, in, out) =>
         val bufSizeStr =
           displayOneLine(bufSize, parentPrecedence = Precedence.Max)
@@ -693,7 +699,9 @@ object ExprPrinter {
         val outStr = displayOneLine(out, parentPrecedence = myPrecedence)
         s"letstm[$bufSizeStr] $xStr = $inStr in $outStr"
       case VecBuild(n, f) =>
-        displayFunCallOneLine("vbuild", Seq(n, f))
+        val nStr = displayOneLine(n, parentPrecedence = Precedence.Max)
+        val fStr = displayOneLine(f, parentPrecedence = Precedence.Max)
+        s"vbuild($nStr) { $fStr }"
       case VecAccess(v, i) =>
         // Add one because we want
         //   v[i][j]

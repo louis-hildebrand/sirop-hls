@@ -62,14 +62,14 @@ class SugarTests extends AnyFunSuite {
     val y = Param("y", -1)(Missing)
     val e = Let(x, C(42)(U8), Let(y, C(-1)(I9), Sum(ToSigned(x)(), y)())())()
 
-    val expectedOneLine = "let x: u8 = 42:u8 in let y = -1:i9 in sgn(x) + y"
+    val expectedOneLine = "let x: u8 = 42:u8 in let y = -1:i9 in sign(x) + y"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""let x: u8 = 42:u8 in
          |let y = -1:i9 in
-         |sgn(x) + y
+         |sign(x) + y
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 30)
     assert(actualMultiLine == expectedMultiLine)

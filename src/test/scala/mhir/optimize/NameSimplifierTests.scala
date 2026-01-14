@@ -260,7 +260,7 @@ class NameSimplifierTests extends AnyFunSuite {
     val original = VecBuild(5, U8 ::+ (i => i))().tchk()
     val simplified = NS.simplify(original)
     assert(simplified == original)
-    val expectedStr = "vbuild(5:u3, (i : u8) => i)"
+    val expectedStr = "vbuild(5:u3) { (i : u8) => i }"
     assert(simplified.toString() == expectedStr)
   }
 
@@ -271,7 +271,7 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified == original)
     val expectedStr =
-      "vbuild(5:u3, (i : u8) => vbuild(4:u3, (j : u16) => (i, j)))"
+      "vbuild(5:u3) { (i : u8) => vbuild(4:u3) { (j : u16) => (i, j) } }"
     assert(simplified.toString() == expectedStr)
   }
 }

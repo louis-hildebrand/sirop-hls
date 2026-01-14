@@ -86,11 +86,9 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
                   I1,
                   (I0 : u8) =>
                     (I1 : u8) =>
-                      vbuild(
-                        2:u2,
-                        (x_1 : u8) =>
-                          if (x_1 === 0:u0) then { I0 } else { I1 }
-                      )
+                      vbuild(2:u2) { (x_1 : u8) =>
+                        if (x_1 === 0:u0) then { I0 } else { I1 }
+                      }
                 )
           )
     )
@@ -153,11 +151,9 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
                   I1,
                   (I0 : u8) =>
                     (I1 : u8) =>
-                      vbuild(
-                        2:u2,
-                        (x_3 : u8) =>
-                          if (x_3 === 0:u0) then { I0 } else { I1 }
-                      )
+                      vbuild(2:u2) { (x_3 : u8) =>
+                        if (x_3 === 0:u0) then { I0 } else { I1 }
+                      }
                 )
           )
     )
@@ -203,10 +199,8 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : Stm[u8, 3:u3]) =>
               (I1 : Stm[u8, 3:u3]) =>
-                vbuild(
-                  2:u2,
-                  (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
-                )
+                vbuild(2:u2) { (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
+                }
           )
     )
   ) in
@@ -238,11 +232,9 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
                   I1,
                   (I0 : u8) =>
                     (I1 : u8) =>
-                      vbuild(
-                        2:u2,
-                        (x_6 : u8) =>
-                          if (x_6 === 0:u0) then { I0 } else { I1 }
-                      )
+                      vbuild(2:u2) { (x_6 : u8) =>
+                        if (x_6 === 0:u0) then { I0 } else { I1 }
+                      }
                 )
           )
     )

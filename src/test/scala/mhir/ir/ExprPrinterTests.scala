@@ -232,20 +232,16 @@ class ExprPrinterTests extends AnyFunSuite {
     val e = VecAccess(VecAccess(v, C(42)(U8))(), C(43)(U8))()
 
     val expectedOneLine =
-      s"vbuild(100:u8, (i : u8) => vbuild(100:u8, (j : u8) => 42:u8 + i + j))[42:u8][43:u8]"
+      s"vbuild(100:u8) { (i : u8) => vbuild(100:u8) { (j : u8) => 42:u8 + i + j } }[42:u8][43:u8]"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      s"""vbuild(
-         |  100:u8,
-         |  (i : u8) =>
-         |    vbuild(
-         |      100:u8,
-         |      (j : u8) =>
-         |        42:u8 + i + j
-         |    )
-         |)[42:u8][43:u8]
+      s"""vbuild(100:u8) { (i : u8) =>
+         |  vbuild(100:u8) { (j : u8) =>
+         |    42:u8 + i + j
+         |  }
+         |}[42:u8][43:u8]
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 25)
     assert(actualMultiLine == expectedMultiLine)
@@ -584,11 +580,11 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"sbuild(42:u8)(sgn(data(s)) + j, true) { (j : i9) = { init: -10:i9, next: 2:i9 + j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {}, ready: true } }"
+      s"sbuild(42:u8)(sign(sdata(s)) + j, true) { (j : i9) = { init: -10:i9, next: 2:i9 + j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {}, ready: true } }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""sbuild(42:u8)(sgn(data(s)) + j, true) {
+      s"""sbuild(42:u8)(sign(sdata(s)) + j, true) {
          |  (j : i9) = {
          |    init: -10:i9,
          |    next: 2:i9 + j
