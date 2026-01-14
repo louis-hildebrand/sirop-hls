@@ -1,0 +1,156 @@
+(I : Stm[Vec[u32, 8:u4], 259200:u18]) =>
+  sbuild(259200:u18)(
+    vbuild(8:u4) { (i : u32) =>
+      ((
+        2:u32
+          *% (if (i < 1:u32) then {
+            buf_1[0:u32]
+          } else {
+            (
+              (sdata(s)).0[unsign(-1:i33 + sign(i))]
+                +% (sdata(s)).1[unsign(-1:i33 + sign(i))])
+              >>> 4:u3
+          }))
+        +% 4:u32 *% buf_2[i])
+        +% (((sdata(s)).0[i] +% (sdata(s)).1[i] >>> 4:u3)
+          +% (if (i < 1:u32) then {
+            buf_3[0:u32]
+          } else {
+            buf_2[unsign(-1:i33 + sign(i))]
+          }))
+        >>> 3:u2
+    },
+    true
+  ) {
+    (buf_1 : Vec[u32, 1:u1]) = {
+      init: undefined[Vec[u32, 1:u1]],
+      next: vbuild(1:u1) { (i : u32) => (sdata(s)).0[7:u32] +% (sdata(s)).1[7:u32] >>> 4:u3
+      }
+    },
+    (buf_2 : Vec[u32, 1920:u11]) = {
+      init: undefined[Vec[u32, 1920:u11]],
+      next: vbuild(1920:u12) { (i : u32) =>
+        if (i < 1912:u32) then {
+          buf_2[8:u32 + i]
+        } else {
+          (
+            (sdata(s)).0[unsign(-1912:i33 + sign(i))]
+              +% (sdata(s)).1[unsign(-1912:i33 + sign(i))])
+            >>> 4:u3
+        }
+      }
+    },
+    (buf_3 : Vec[u32, 1:u1]) = {
+      init: undefined[Vec[u32, 1:u1]],
+      next: vbuild(1:u1) { (i : u32) => buf_2[7:u32] }
+    }
+  } {
+    (s : Stm[(Vec[u32, 8:u4], Vec[u32, 8:u4]), -1:i1]) = {
+      stm: sbuild(259200:u18)(
+        (
+          vbuild(8:u4) { (i : u32) =>
+            ((buf_1[i] +% sdata(s)[i])
+              +% (if (i < 1:u32) then {
+                buf_3[0:u32]
+              } else if (i < 2:u32) then {
+                buf_4[0:u32]
+              } else {
+                buf_1[unsign(-2:i33 + sign(i))]
+              }))
+              +% ((
+                4:u32
+                  *% (if (i < 1:u32) then {
+                    buf_5[0:u32]
+                  } else {
+                    buf_2[unsign(-1:i33 + sign(i))]
+                  }))
+                +% (if (i < 1:u32) then {
+                  buf_6[0:u32]
+                } else if (i < 2:u32) then {
+                  buf_7[0:u32]
+                } else {
+                  sdata(s)[unsign(-2:i33 + sign(i))]
+                }))
+          },
+          vbuild(8:u4) { (i : u32) =>
+            ((
+              2:u32
+                *% (if (i < 1:u32) then {
+                  buf_4[0:u32]
+                } else {
+                  buf_1[unsign(-1:i33 + sign(i))]
+                }))
+              +% (
+                2:u32
+                  *% (if (i < 1:u32) then {
+                    buf_8[0:u32]
+                  } else if (i < 2:u32) then {
+                    buf_5[0:u32]
+                  } else {
+                    buf_2[unsign(-2:i33 + sign(i))]
+                  })))
+              +% ((
+                2:u32
+                  *% (if (i < 1:u32) then {
+                    buf_7[0:u32]
+                  } else {
+                    sdata(s)[unsign(-1:i33 + sign(i))]
+                  }))
+                +% 2:u32 *% buf_2[i])
+          }
+        ),
+        true
+      ) {
+        (buf_1 : Vec[u32, 1920:u11]) = {
+          init: undefined[Vec[u32, 1920:u11]],
+          next: vbuild(1920:u12) { (i : u32) =>
+            if (i < 1912:u32) then {
+              buf_1[8:u32 + i]
+            } else {
+              buf_2[unsign(-1912:i33 + sign(i))]
+            }
+          }
+        },
+        (buf_2 : Vec[u32, 1920:u11]) = {
+          init: undefined[Vec[u32, 1920:u11]],
+          next: vbuild(1920:u12) { (i : u32) =>
+            if (i < 1912:u32) then {
+              buf_2[8:u32 + i]
+            } else {
+              sdata(s)[unsign(-1912:i33 + sign(i))]
+            }
+          }
+        },
+        (buf_3 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => buf_1[6:u32] }
+        },
+        (buf_4 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => buf_1[7:u32] }
+        },
+        (buf_5 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => buf_2[7:u32] }
+        },
+        (buf_6 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => sdata(s)[6:u32] }
+        },
+        (buf_7 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => sdata(s)[7:u32] }
+        },
+        (buf_8 : Vec[u32, 1:u1]) = {
+          init: undefined[Vec[u32, 1:u1]],
+          next: vbuild(1:u1) { (i : u32) => buf_2[6:u32] }
+        }
+      } {
+        (s : Stm[Vec[u32, 8:u4], -1:i1]) = {
+          stm: I,
+          ready: true
+        }
+      },
+      ready: true
+    }
+  }

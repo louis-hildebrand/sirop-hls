@@ -1,0 +1,83 @@
+(I0 : Stm[Vec[u16, 16:u5], 4096:u13]) =>
+  (I1 : Stm[Vec[u16, 16:u5], 16:u5]) =>
+    sbuild(256:u13)(((sdata(s)).0 +% (sdata(s)).1) +% acc, t == 15:u5) {
+      (acc : u16) = {
+        init: 0:u16,
+        next: if (t == 15:u5) then {
+          0:u16
+        } else if (first_step) then {
+          (sdata(s)).0 +% (sdata(s)).1
+        } else {
+          ((sdata(s)).0 +% (sdata(s)).1) +% acc
+        }
+      },
+      (first_step : bool) = {
+        init: true,
+        next: t == 15:u5
+      },
+      (t : u5) = {
+        init: 0:u5,
+        next: if (t == 15:u5) then { 0:u5 } else { 1:u5 + t }
+      }
+    } {
+      (s : Stm[(u16, u16), -1:i1]) = {
+        stm: sbuild(4096:u18)(
+          (
+            ((sdata(I)[0:u0] +% sdata(I)[1:u1])
+              +% (sdata(I)[2:u2] +% sdata(I)[3:u2]))
+              +% ((sdata(I)[4:u3] +% sdata(I)[5:u3])
+                +% (sdata(I)[6:u3] +% sdata(I)[7:u3])),
+            ((sdata(I)[8:u4] +% sdata(I)[9:u4])
+              +% (sdata(I)[10:u4] +% sdata(I)[11:u4]))
+              +% ((sdata(I)[12:u4] +% sdata(I)[13:u4])
+                +% (sdata(I)[14:u4] +% sdata(I)[15:u4]))
+          ),
+          true
+        ) {} {
+          (I : Stm[Vec[u16, 16:u5], -1:i1]) = {
+            stm: sbuild(4096:u13)(
+              vbuild(16:u5) { (i : u32) => sdata(I0)[i] *% sdata(I1)[i] },
+              true
+            ) {} {
+              (I0 : Stm[Vec[u16, 16:u5], -1:i1]) = {
+                stm: I0,
+                ready: true
+              },
+              (I1 : Stm[Vec[u16, 16:u5], -1:i1]) = {
+                stm: sbuild(4096:u19)(
+                  if (filling) then { sdata(s) } else { v[t] },
+                  true
+                ) {
+                  (filling : bool) = {
+                    init: true,
+                    next: t < 15:u4 && filling
+                  },
+                  (t : u4) = {
+                    init: 0:u4,
+                    next: if (t == 15:u4) then { 0:u4 } else { 1:u4 + t }
+                  },
+                  (v : Vec[Vec[u16, 16:u5], 16:u10]) = {
+                    init: undefined[Vec[Vec[u16, 16:u5], 16:u10]],
+                    next: vbuild(16:u10) { (i : u32) =>
+                      if (i == pad32(t) && filling) then {
+                        sdata(s)
+                      } else {
+                        v[i]
+                      }
+                    }
+                  }
+                } {
+                  (s : Stm[Vec[u16, 16:u5], -1:i1]) = {
+                    stm: I1,
+                    ready: filling
+                  }
+                },
+                ready: true
+              }
+            },
+            ready: true
+          }
+        },
+        ready: true
+      }
+    }

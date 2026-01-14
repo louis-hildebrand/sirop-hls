@@ -1,0 +1,20 @@
+(I : Stm[Vec[i8, 1:u1], 16:u5]) =>
+  sbuild(16:u5)(
+    vbuild(1:u1) { (i : u8) => -1:i8 *% buf_1[0:u0][0:u32] +% sdata(I1)[0:u32]
+    },
+    true
+  ) {
+    (buf_1 : Vec[Vec[i8, 1:u1], 1:u1]) = {
+      init: undefined[Vec[Vec[i8, 1:u1], 1:u1]],
+      next: vbuild(1:u2) { (i : u32) => buf_2[0:u0] }
+    },
+    (buf_2 : Vec[Vec[i8, 1:u1], 1:u1]) = {
+      init: undefined[Vec[Vec[i8, 1:u1], 1:u1]],
+      next: vbuild(1:u2) { (i : u32) => sdata(I1) }
+    }
+  } {
+    (I1 : Stm[Vec[i8, 1:u1], -1:i1]) = {
+      stm: I,
+      ready: true
+    }
+  }

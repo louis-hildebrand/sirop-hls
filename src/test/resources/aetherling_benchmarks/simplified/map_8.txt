@@ -1,0 +1,7 @@
+(I : Stm[Vec[u8, 8:u4], 25:u5]) =>
+  sbuild(25:u5)(vbuild(8:u4) { (i : u32) => 5:u8 +% sdata(I)[i] }, true) {} {
+    (I : Stm[Vec[u8, 8:u4], -1:i1]) = {
+      stm: I,
+      ready: true
+    }
+  }

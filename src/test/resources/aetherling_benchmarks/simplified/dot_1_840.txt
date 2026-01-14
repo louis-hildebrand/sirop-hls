@@ -1,0 +1,30 @@
+(I0 : Stm[u16, 840:u10]) =>
+  (I1 : Stm[u16, 840:u10]) =>
+    sbuild(1:u1)(acc +% sdata(s), t == 839:u10) {
+      (acc : u16) = {
+        init: 0:u16,
+        next: if (first_step) then { sdata(s) } else { acc +% sdata(s) }
+      },
+      (first_step : bool) = {
+        init: true,
+        next: false
+      },
+      (t : u10) = {
+        init: 0:u10,
+        next: 1:u10 + t
+      }
+    } {
+      (s : Stm[u16, 840:u10]) = {
+        stm: sbuild(840:u10)(sdata(I0) *% sdata(I1), true) {} {
+          (I0 : Stm[u16, -1:i1]) = {
+            stm: I0,
+            ready: true
+          },
+          (I1 : Stm[u16, -1:i1]) = {
+            stm: I1,
+            ready: true
+          }
+        },
+        ready: true
+      }
+    }

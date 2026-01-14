@@ -1,0 +1,37 @@
+(I0 : Stm[Vec[u16, 2:u2], 420:u9]) =>
+  (I1 : Stm[Vec[u16, 2:u2], 420:u9]) =>
+    sbuild(1:u1)((sdata(I)[0:u0] +% sdata(I)[1:u1]) +% acc, t == 419:u9) {
+      (acc : u16) = {
+        init: 0:u16,
+        next: if (first_step) then {
+          sdata(I)[0:u0] +% sdata(I)[1:u1]
+        } else {
+          (sdata(I)[0:u0] +% sdata(I)[1:u1]) +% acc
+        }
+      },
+      (first_step : bool) = {
+        init: true,
+        next: false
+      },
+      (t : u9) = {
+        init: 0:u9,
+        next: 1:u9 + t
+      }
+    } {
+      (I : Stm[Vec[u16, 2:u2], -1:i1]) = {
+        stm: sbuild(420:u9)(
+          vbuild(2:u2) { (i : u32) => sdata(I0)[i] *% sdata(I1)[i] },
+          true
+        ) {} {
+          (I0 : Stm[Vec[u16, 2:u2], -1:i1]) = {
+            stm: I0,
+            ready: true
+          },
+          (I1 : Stm[Vec[u16, 2:u2], -1:i1]) = {
+            stm: I1,
+            ready: true
+          }
+        },
+        ready: true
+      }
+    }
