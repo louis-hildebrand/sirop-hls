@@ -1,5 +1,6 @@
 package mhir.main
 
+import ch.qos.logback.classic.LoggerContext
 import mhir.ir._
 import mhir.main.aetherling.{
   Args => AetherlingArgs,
@@ -8,6 +9,7 @@ import mhir.main.aetherling.{
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.shared.{BadArgsException, HelpException}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
+import org.slf4j.LoggerFactory
 
 /** Main compiler.
   */
@@ -43,6 +45,14 @@ object Compiler {
     *   the final program from which VHDL was generated.
     */
   def compile(args: Args): Expr = {
+    args.options.logLevel match {
+      case None => ()
+      case Some(logLevel) =>
+        LoggerFactory.getILoggerFactory
+          .asInstanceOf[LoggerContext]
+          .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+          .setLevel(logLevel)
+    }
     args.src match {
       case SiropSource(inFile) =>
         SiropFrontend.compile(

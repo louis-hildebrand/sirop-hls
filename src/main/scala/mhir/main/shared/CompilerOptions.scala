@@ -1,5 +1,6 @@
 package mhir.main.shared
 
+import ch.qos.logback.classic.Level
 import mhir.optimize.OptimizerOptions
 import os.Path
 
@@ -12,7 +13,8 @@ import os.Path
   */
 case class CompilerOptions(
     targets: Set[CompilerTarget],
-    optFlags: OptimizerOptions
+    optFlags: OptimizerOptions,
+    logLevel: Option[Level] = None
 )
 
 /** Companion object for [[CompilerOptions]].
@@ -33,6 +35,7 @@ object CompilerOptions {
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
+    var logLevel = Level.DEBUG
     // Optimizer args
     var simplifyStmBuild = true
     var inlineLetStm = true
@@ -94,6 +97,10 @@ object CompilerOptions {
           }
         case "--overwrite" =>
           overwrite = true
+        case "-q" | "--quiet" =>
+          logLevel = Level.INFO
+        case "-v" | "--verbose" =>
+          logLevel = Level.DEBUG
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
         case "--opt:no-inline-letstm" =>
@@ -171,7 +178,8 @@ object CompilerOptions {
         maxLetStmBufSize = maxLetStmBufSize,
         balanceBinOpTrees = balanceBinOpTrees,
         assumeThroughputsMatch = assumeThroughputsMatch
-      )
+      ),
+      logLevel = Some(logLevel)
     )
   }
 
@@ -189,6 +197,8 @@ object CompilerOptions {
        |  --overwrite                    what to do if the output file or directory
        |                                 already exists: if true then delete it, if
        |                                 false then raise an error
+       |  -q,--quiet                     reduce the number of log messages
+       |  -v,--verbose                   increase the number of log messages
        |
        |Optimization Flags:
        |  --opt:no-simplify-sbuild        skip basic sbuild simplifications
