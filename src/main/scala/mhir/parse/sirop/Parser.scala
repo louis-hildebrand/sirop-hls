@@ -10,7 +10,7 @@ import scala.collection.immutable.Queue
 object Parser {
 
   def parse(code: String): Expr = {
-    val (e, remainingTokens) = parseExpr(Lexer.lex(code))
+    val (e, remainingTokens) = parseExpr(Lexer.lex(code).toList)
     if (remainingTokens.nonEmpty) {
       throw new SyntaxError(
         s"unexpected tokens remaining at end of file: $remainingTokens"

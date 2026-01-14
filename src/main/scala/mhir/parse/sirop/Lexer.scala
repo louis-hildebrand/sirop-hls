@@ -18,7 +18,7 @@ object Lexer {
     else if (code.startsWith("/*")) {
       lex(consumeComment(code), tokens)
     } else if (code.head.isWhitespace) {
-      lex(code.tail, tokens)
+      lex(code.stripLeading, tokens)
     }
     // Identifiers, keywords, numbers ------------------------------------------
     else if (code.head.isLetter || code.head == '_') {
