@@ -124,7 +124,8 @@ class ManualOptimizationTests extends AnyFunSuite {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
       val s2 = tl(stmBuildSimplifier.simplify(s1)())
-      s2
+      val s3 = tl(PE.partialEvalStmBuild(s2))
+      s3
     }
     val optimized = optimize(original)
 
@@ -694,7 +695,8 @@ class ManualOptimizationTests extends AnyFunSuite {
       val s5 = tl(simplifier.simplify(s4)(facts))
       val s6 =
         tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower())())
-      tl(simplifier.simplify(s6)())
+      val s7 = tl(PE.partialEvalStmBuild(s6))
+      tl(simplifier.simplify(s7)())
     }
     val original = tl(Stm2Vec(Vec2StmOld(v)())())
     val optimized = optimize(original)

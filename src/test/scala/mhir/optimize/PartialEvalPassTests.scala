@@ -526,7 +526,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       )
     )().tchk().lower()
     val expected = StmBuild(1, z, True)()
-    assert(PartialEvalPass.partialEval(s) == expected)
+    assert(PartialEvalPass.partialEvalStmBuild(s) == expected)
   }
 
   test("StmOneElementWithInputs") {
@@ -546,7 +546,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       )
     )().tchk().lower()
     val expected = StmBuild(1, Sum(z, (0 until n).sum)(), True)()
-    val actual = PartialEvalPass.partialEval(sum).tchk().lower()
+    val actual = PartialEvalPass.partialEvalStmBuild(sum).tchk().lower()
     assert(actual == expected)
   }
 
@@ -564,7 +564,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         a -> (s, True)
       )
     )()
-    assert(PartialEvalPass.partialEval(stm) == stm)
+    assert(PartialEvalPass.partialEvalStmBuild(stm) == stm)
   }
 
   test("VecBuildIndexRange") {

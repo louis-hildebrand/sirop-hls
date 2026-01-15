@@ -273,52 +273,35 @@ object PartialEvalPass {
             }
 
           case s @ StmBuild(n, data, valid, equations) =>
-            val len = doPartialEval(n)(facts)
-            val onlyElem = len match {
-              case IntCst(1) =>
-                // Maybe we can find the first element statically and just return it directly!
-                tryEvalStmNext(s)(facts) match {
-                  case Some((out, _)) if !out.contains(classOf[StmData]) =>
-                    Some(out)
-                  case _ => None
-                }
-              case _ =>
-                None
+            // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
+            // evaluator is waaaay too slow. In many cases, it's not needed.
+            val accRanges = facts.rangeByExpr.get(s) match {
+              case Some(StmAccRange(accRanges)) => accRanges
+              case _                            => Map()
             }
-            onlyElem match {
-              case Some(e) =>
-                StmBuild(1, e, True, Map[Param, (Expr, Expr)]())()
-              case None =>
-                // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
-                // evaluator is waaaay too slow. In many cases, it's not needed.
-                val accRanges = facts.rangeByExpr.get(s) match {
-                  case Some(StmAccRange(accRanges)) => accRanges
-                  case _                            => Map()
-                }
-                val clearedFacts =
-                  s.accVars
-                    .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
-                val newFacts = accRanges
-                  .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
-                    facts.range(x, r)
-                  })
-                val newValid = doPartialEval(valid)(newFacts)
-                StmBuild(
-                  len,
-                  // The value of the data doesn't matter if it is invalid, so
-                  // we can assume it is valid when simplifying.
-                  doPartialEval(data)(newFacts.assumeTrue(newValid)),
-                  newValid,
-                  equations.map({ case (x, (z, next)) =>
-                    // The recurrence variables shouldn't occur free in z, so use
-                    // the old facts for z
-                    x -> (
-                      doPartialEval(z)(facts),
-                      doPartialEval(next)(newFacts)
-                    )
-                  })
-                )()
-            }
+            val clearedFacts =
+              s.accVars
+                .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
+            val newFacts = accRanges
+              .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
+                facts.range(x, r)
+              })
+            val newValid = doPartialEval(valid)(newFacts)
+            StmBuild(
+              doPartialEval(n)(facts),
+              // The value of the data doesn't matter if it is invalid, so
+              // we can assume it is valid when simplifying.
+              doPartialEval(data)(newFacts.assumeTrue(newValid)),
+              newValid,
+              equations.map({ case (x, (z, next)) =>
+                // The recurrence variables shouldn't occur free in z, so use
+                // the old facts for z
+                x -> (
+                  doPartialEval(z)(facts),
+                  doPartialEval(next)(newFacts)
+                )
+              })
+            )()
           case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(bufSize, x, in, out) =>
             LetStm(
@@ -492,6 +475,33 @@ object PartialEvalPass {
           case _: OverflowException =>
             (lhs, rhs)
         }
+    }
+  }
+
+  def partialEvalStmBuild(e: Expr): Expr = {
+    // Make this a separate method because it can be extremely slow in some
+    // cases and it's rarely useful
+    e match {
+      case StmBuild(IntCst(1), data, valid, eqns) =>
+        val newEquations = eqns.map({
+          case (x, (z, next)) if !x.typ.isInstanceOf[TyStm] => x -> (z, next)
+          case (x, (stm, ready)) => x -> (partialEvalStmBuild(stm), ready)
+        })
+        val s = StmBuild(1, data, valid, newEquations)()
+          .tchk()
+          .asInstanceOf[StmBuild]
+        // Maybe we can find the first element statically and just return it directly!
+        val onlyElem = tryEvalStmNext(s)(FactSet()) match {
+          case Some((out, _)) if !out.contains(classOf[StmData]) =>
+            Some(out)
+          case _ => None
+        }
+        onlyElem match {
+          case Some(e) => StmBuild(1, e, True, Map[Param, (Expr, Expr)]())()
+          case None    => s
+        }
+      case e =>
+        e.map(partialEvalStmBuild)
     }
   }
 
