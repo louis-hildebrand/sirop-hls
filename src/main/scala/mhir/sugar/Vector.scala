@@ -854,11 +854,36 @@ case class VecConcat(
   }
 }
 
-object VecZip {
-  def apply(
-      a: Expr /* Vec<A; n> */,
-      b: Expr /* Vec<B; n> */
-  ): Expr /* Vec<(A, B); n> */ = {
+case class VecZip(a: Expr, b: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(a, b)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(a, b) => VecZip(a, b)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val a = this.a.tchk
+    val (aElem, aLen) = a.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"First argument to $className has type $t. Expected a vector."
+        )
+    }
+    val b = this.b.tchk
+    val bElem = b.typ match {
+      case TyVec(t, _) => t
+      case t =>
+        throw new TypeError(
+          s"First argument to $className has type $t. Expected a vector."
+        )
+    }
+    this.rebuild(TyVec((aElem, bElem), aLen), Seq(a, b))
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
     VecMap2(a, b, Missing ::+ (x => Missing ::+ (y => Tuple(x, y)())))()
       .tchk()
       .lower()

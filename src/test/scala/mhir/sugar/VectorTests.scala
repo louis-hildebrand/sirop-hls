@@ -844,7 +844,7 @@ class VectorTests extends AnyFunSuite {
   test("VecZip") {
     val v0 = VecBuild(3, U32 ::+ (i => i))()
     val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
-    val zipped = VecZip(v0, v1).tchk()
+    val zipped = VecZip(v0, v1)().tchk()
     val expected = VecLiteral(
       Tuple(0, 2)(),
       Tuple(1, 4)(),

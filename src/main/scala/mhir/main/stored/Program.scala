@@ -81,7 +81,7 @@ object Program {
     val s0 = StmZip(slide, kernelStm)()
     val s1 = StmMap(
       s0,
-      (TyVec(I8, 3), TyVec(I8, 3)) ::+ (x => VecZip(x.__0, x.__1))
+      (TyVec(I8, 3), TyVec(I8, 3)) ::+ (x => VecZip(x.__0, x.__1)())
     )()
     val s2 = StmMap(
       s1,
@@ -117,7 +117,7 @@ object Program {
       windows,
       TyVec(I8, 3) ::+ { window =>
         val kernel = VecLiteral(C(1)(I8), C(0)(I8), C(-1)(I8))()
-        val zipped = VecZip(window, kernel)
+        val zipped = VecZip(window, kernel)()
         val products = VecMap(zipped, (I8, I8) ::+ (x => x.__0 * x.__1))()
         val sum = VecAccess(
           VecReduceComb(products, (I8, I8) ::+ (x => x.__0 + x.__1))(),
@@ -213,7 +213,9 @@ object Program {
           VecMap2(
             x.__0,
             x.__1,
-            TyVec(uint, 3) ::+ (v1 => TyVec(uint, 3) ::+ (v2 => VecZip(v1, v2)))
+            TyVec(uint, 3) ::+ (v1 =>
+              TyVec(uint, 3) ::+ (v2 => VecZip(v1, v2)())
+            )
           )()
         )
       )(),
@@ -323,7 +325,9 @@ object Program {
           VecMap2(
             x.__0,
             x.__1,
-            TyVec(uint, 2) ::+ (v1 => TyVec(uint, 2) ::+ (v2 => VecZip(v1, v2)))
+            TyVec(uint, 2) ::+ (v1 =>
+              TyVec(uint, 2) ::+ (v2 => VecZip(v1, v2)())
+            )
           )()
         )
       )(),
@@ -411,7 +415,7 @@ object Program {
               C(1)(int)
             )()
             val flatWindow = VecJoin(window)()
-            val zipped = VecZip(flatWindow, kernel)
+            val zipped = VecZip(flatWindow, kernel)()
             val products = VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
             val sum = VecAccess(
               VecReduceComb(
@@ -452,7 +456,7 @@ object Program {
               C(1)(int)
             )()
             val flatWindow = VecJoin(window)()
-            val zipped = VecZip(flatWindow, kernel)
+            val zipped = VecZip(flatWindow, kernel)()
             val products = VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
             val sum = VecAccess(
               VecReduceComb(
@@ -494,7 +498,7 @@ object Program {
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -526,7 +530,7 @@ object Program {
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -570,7 +574,7 @@ object Program {
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -608,7 +612,7 @@ object Program {
                 C(0)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -668,7 +672,7 @@ object Program {
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -704,7 +708,7 @@ object Program {
                 C(1)(int)
               )()
               val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)
+              val zipped = VecZip(flatWindow, kernel)()
               val products =
                 VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
               val sum = VecAccess(
@@ -832,7 +836,7 @@ object Program {
       val zipStm = StmZip(row, vec)() // Stm[(Vec[uint, p], Vec[uint, p]), w/p]
       val zipVec = StmMap( // Stm[Vec[(uint, uint), p], w/p]
         zipStm,
-        (TyVec(uint, par), TyVec(uint, par)) ::+ (x => VecZip(x.__0, x.__1))
+        (TyVec(uint, par), TyVec(uint, par)) ::+ (x => VecZip(x.__0, x.__1)())
       )()
       val multiplied = StmMap( // Stm[Vec[uint, p], w/p]
         zipVec,

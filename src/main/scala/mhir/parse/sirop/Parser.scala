@@ -481,6 +481,11 @@ object Parser {
               case Seq(v, f) => VecMap(v, f)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
             }
+          case f @ Param("VecZip", -1) =>
+            args match {
+              case Seq(v1, v2) => VecZip(v1, v2)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
           case f @ Param("VecReduce", -1) =>
             args match {
               case Seq(v, f) => VecReduceComb(v, f)()
