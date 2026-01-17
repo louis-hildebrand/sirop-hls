@@ -53,9 +53,9 @@ object ProgramIO {
       )
     } else if (name == "shir:matvec") {
       matVecMulIO(width = 256, height = 256, par = 1, uint = U16)
-    } else if (name == "smallmatmat" || name == "shir:smallmatmat") {
+    } else if (name.startsWith("smallmatmat_") || name == "shir:smallmatmat") {
       matMatMulIO(n = 4, m = 4, k = 4, par = 2, uint = U16)
-    } else if (name == "matmat" || name == "shir:matmat") {
+    } else if (name.startsWith("matmat_") || name == "shir:matmat") {
       matMatMulIO(n = 256, m = 256, k = 256, par = 16, uint = U16)
     } else if (name.startsWith("sqrt_")) {
       sqrtIO
