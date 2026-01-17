@@ -47,6 +47,14 @@ map,except_fuse,6,0,0
 map,except_fission,6,0,0
 map,small_buffers,6,0,0
 map,small_buffers_and_latmatch,6,0,0
+matmat,all,604,59,8
+matmat,except_sbuild_simpl,,,
+matmat,except_letstm_simpl,647,86,8
+matmat,except_stm_simpl,690,86,8
+matmat,except_fuse,707,59,8
+matmat,except_fission,578,59,8
+matmat,small_buffers,604,59,8
+matmat,small_buffers_and_latmatch,604,59,8
 matvec_1,all,63,1,1
 matvec_1,except_sbuild_simpl,2145,0,1
 matvec_1,except_letstm_simpl,195,6,1
