@@ -126,7 +126,10 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "benchmarks",
         nargs="*",
-        help="the benchmarks to process",
+        help=(
+            "the benchmarks to process"
+            f"(the ones in the paper can be selected by {lb.ACTIVE_BENCH_GLOB})"
+        ),
     )
     parser.add_argument(
         "--skip-gen",

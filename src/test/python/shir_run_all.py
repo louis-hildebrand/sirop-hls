@@ -11,6 +11,12 @@ import shir_extract_resource_usage
 import shir_generate
 import shir_synth
 
+ACTIVE_BENCHES = [
+    "map", "dot", "matvec",
+    "conv1d", "conv2d", "convb2b",
+    "sharpen", "sobel"
+]
+
 
 def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
     """
@@ -32,7 +38,10 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "programs",
         nargs="*",
-        help="the names of the programs to process"
+        help=(
+            "the names of the programs to process"
+            f"(the ones in the paper are: {' '.join(ACTIVE_BENCHES)})"
+        )
     )
     parser.add_argument(
         "--skip-shir",
@@ -44,7 +53,10 @@ def parse_args() -> Namespace:
         action="store_true",
         help="skip the Sirop designs",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.programs:
+        args.programs = ACTIVE_BENCHES
+    return args
 
 
 if __name__ == "__main__":

@@ -97,10 +97,9 @@ def parse_args() -> Namespace:
         "benchmarks",
         nargs="*",
         help=(
-            "the benchmarks to process."
-            " These can be any file paths;"
-            " the benchmark names will be extracted from the file names."
-        )
+            "the benchmarks to process"
+            f"(the ones in the paper can be selected by {lb.ACTIVE_BENCH_GLOB})"
+        ),
     )
     parser.add_argument(
         "--skip-verilog",

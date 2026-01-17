@@ -7,6 +7,16 @@ from pathlib import Path
 from . import constants as c
 from .benchmark import Benchmark
 
+ACTIVE_BENCHES = [
+    "map", "dot", "bigmvm",
+    "conv1d", "bigconv2d", "bigconvb2b",
+    "bigsharpen", "bigsobel", "bigcamera"
+]
+ACTIVE_BENCH_GLOB = (
+    c.AETHERLING_SPACETIME_DIR
+        / ("{" + ",".join(ACTIVE_BENCHES) + "}*.txt")
+).as_posix()
+
 
 def get_benchmark_names(bench_paths: list[Path]) -> list[str]:
     """
@@ -20,9 +30,10 @@ def get_benchmark_names(bench_paths: list[Path]) -> list[str]:
 
 def all_benchmarks() -> list[str]:
     """
-    Return the list of all available benchmarks.
+    Return the list of all active benchmarks (i.e., all those which appear in the paper).
     """
-    return get_benchmark_names(list(c.AETHERLING_SPACETIME_DIR.iterdir()))
+    paths = [p for name in ACTIVE_BENCHES for p in c.AETHERLING_SPACETIME_DIR.glob(f"{name}*.txt")]
+    return get_benchmark_names(paths)
 
 
 def names_from_args(args: list[str]) -> list[str]:
