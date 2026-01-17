@@ -35,13 +35,14 @@ def program_order(program_name: str) -> int:
         "map": 0,
         "dot": 1,
         "matvec_1": 2,
-        "conv1d": 3,
-        "conv2d": 4,
-        "convb2b": 5,
-        "sharpen": 6,
-        "sobel": 7,
-        "camera": 8,
-    }.get(program_name, 9)
+        "matmat": 3,
+        "conv1d": 4,
+        "conv2d": 5,
+        "convb2b": 6,
+        "sharpen": 7,
+        "sobel": 8,
+        "camera": 9,
+    }.get(program_name, 10)
 
 
 def program_title(program_name: str) -> str | None:
