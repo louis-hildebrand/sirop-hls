@@ -35,6 +35,16 @@ bigconvb2b,8,verilog,3875,True
 bigconvb2b,8,vhdl,3841,True
 bigconvb2b,16,verilog,1955,True
 bigconvb2b,16,vhdl,1921,True
+bigmmm,1/256,verilog,16777225,False
+bigmmm,1/256,vhdl,16777218,True
+bigmmm,1/128,verilog,8388619,False
+bigmmm,1/128,vhdl,8388610,True
+bigmmm,1/64,verilog,4194315,False
+bigmmm,1/64,vhdl,4194307,True
+bigmmm,1/32,verilog,2097163,False
+bigmmm,1/32,vhdl,2097155,True
+bigmmm,1/16,verilog,1048587,False
+bigmmm,1/16,vhdl,1048579,True
 bigmvm,1/256,verilog,65544,True
 bigmvm,1/256,vhdl,65538,True
 bigmvm,1/128,verilog,32778,True
