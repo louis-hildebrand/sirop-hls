@@ -35,6 +35,16 @@ bigconvb2b,8,verilog,259.2
 bigconvb2b,8,vhdl,208.55
 bigconvb2b,16,verilog,
 bigconvb2b,16,vhdl,
+bigmmm,1/256,verilog,199.64
+bigmmm,1/256,vhdl,239.92
+bigmmm,1/128,verilog,187.76
+bigmmm,1/128,vhdl,236.29
+bigmmm,1/64,verilog,197.12
+bigmmm,1/64,vhdl,260.82
+bigmmm,1/32,verilog,201.65
+bigmmm,1/32,vhdl,206.74
+bigmmm,1/16,verilog,196.89
+bigmmm,1/16,vhdl,205.51
 bigmvm,1/256,verilog,166.06
 bigmvm,1/256,vhdl,278.4
 bigmvm,1/128,verilog,159.8
