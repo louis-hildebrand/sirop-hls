@@ -9,6 +9,7 @@ from fractions import Fraction
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Rectangle
 
+import lib.benchmark as lb
 import lib.constants as c
 import lib.plt_utils as pu
 import lib.results_crud as crud
@@ -30,17 +31,9 @@ def benchmark_title(bench_name: str) -> str | None:
     Return the title to put at the top of the column for the given benchmark, or `None` if the
     results for this benchmark should be omitted from the plots.
     """
-    if bench_name.startswith("small"):
-        return None
-    if bench_name in {"sum", "sqrt"}:
-        return None
-    if bench_name.startswith("big"):
-        bench_name = bench_name[len("big"):]
-    if bench_name == "mvm":
-        bench_name = "matvec"
-    if bench_name == "sharpen":
-        bench_name = "sharp"
-    return f"\\texttt{{{bench_name}}}"
+    if bench_name.endswith("sharpen"):
+        bench_name = bench_name[:-2]
+    return lb.benchmark_title(bench_name)
 
 
 def plot_latencies(

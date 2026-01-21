@@ -53,6 +53,10 @@ object ProgramIO {
       )
     } else if (name == "shir:matvec") {
       matVecMulIO(width = 256, height = 256, par = 1, uint = U16)
+    } else if (name.startsWith("smallmatmat_") || name == "shir:smallmatmat") {
+      matMatMulIO(n = 4, m = 4, k = 4, par = 2, uint = U16)
+    } else if (name.startsWith("matmat_") || name == "shir:matmat") {
+      matMatMulIO(n = 256, m = 256, k = 256, par = 16, uint = U16)
     } else if (name.startsWith("sqrt_")) {
       sqrtIO
     } else if (name.startsWith("sobel_")) {
@@ -298,6 +302,60 @@ object ProgramIO {
             .map(C(_)(uint))
             .grouped(par)
             .map(xs => VecLiteral(xs: _*)().tchk())
+            .map(Some(_))
+            .toSeq
+        )
+      ),
+      DirectTestOutput(outputs.map(C(_)(uint)))
+    )
+  }
+
+  /** Matrix-matrix multiplication.
+    *
+    * @param n
+    *   number of rows in the first matrix, `A`.
+    * @param m
+    *   number of columns in the first matrix, `A`. This is also the number of
+    *   rows in the second matrix, `B`.
+    * @param k
+    *   number of columns in the second matrix, `B`.
+    * @param par
+    *   the degree of spatial parallelism.
+    * @param uint
+    *   the integer type to use.
+    */
+  private def matMatMulIO(
+      n: Int,
+      m: Int,
+      k: Int,
+      par: Int,
+      uint: TyUInt
+  ): PositionalTestIO = {
+    val matA = (0 until n).map(i =>
+      (0 until m).map(j => ((4 * i + j) * (4 * i + j)) % 6)
+    )
+    val matBTranspose =
+      (0 until m).map(i => (0 until k).map(j => (4 * i + j) % 6)).transpose
+    val outputs = matA.flatMap(rowA =>
+      matBTranspose.map(rowB =>
+        rowA.zip(rowB).map({ case (x, y) => x * y }).sum
+      )
+    )
+    PositionalTestIO(
+      Seq(
+        DirectTestInput(
+          matA.flatten
+            .map(C(_)(uint))
+            .grouped(par)
+            .map(xs => VecLiteral(xs: _*)())
+            .map(Some(_))
+            .toSeq
+        ),
+        DirectTestInput(
+          matBTranspose.flatten
+            .map(C(_)(uint))
+            .grouped(par)
+            .map(xs => VecLiteral(xs: _*)())
             .map(Some(_))
             .toSeq
         )

@@ -1,0 +1,17 @@
+/* Matrix-matrix multiplication. The matrix B must already be transposed. */
+(A : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) => (B_T : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) =>
+    StmMap(A, (row_a) =>
+        StmMap(B_T, (row_b) =>
+            StmReduce(
+                StmMap(
+                    StmZip(row_a, row_b),
+                    (x) =>
+                        VecReduce(
+                            VecMap(VecZip(x.0, x.1), (x) => x.0 *% x.1),
+                            (x) => x.0 +% x.1
+                        )[0]
+                ),
+                (x) => x.0 +% x.1
+            )
+        )
+    )

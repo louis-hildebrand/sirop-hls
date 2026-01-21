@@ -1,17 +1,25 @@
 package mhir.main.stored
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException
 import mhir.parse.AetherlingParser
+import mhir.parse.sirop.Parser
 import mhir.sugar.{StmMap, StmReduce, StmZip}
 import mhir.sugar._
+import os.Path
 
 /** A collection of pre-written programs.
   */
 object Program {
 
+  private val ResourcesDir: Path =
+    os.pwd / "src" / "main" / "resources" / "mhir" / "main" / "stored"
+
   val MatVecSize: Int = 256
+
+  private val logger: Logger = Logger(getClass.getName)
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
@@ -45,6 +53,15 @@ object Program {
           par = 1,
           uint = U16
         )
+      case "smallmatmat" | "shir:smallmatmat" =>
+        val src = os.read(ResourcesDir / "small_matmat.sirop")
+        Parser.parse(src)
+      case "matmat" | "shir:matmat" =>
+        val src = os.read(ResourcesDir / "big_matmat.sirop")
+        logger.debug(
+          s"parsing program from ${ResourcesDir / "big_matmat.sirop"}"
+        )
+        Parser.parse(src)
       case "sqrt"       => Sqrt
       case "sobel"      => Sobel
       case "shir:sobel" => ShirSobel

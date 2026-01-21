@@ -1,0 +1,46 @@
+// Output type: Stm[Stm[Stm[u16, 256:u9], 1:u1], 256:u9] -> Stm[Stm[Stm[u16, 256:u9], 256:u9], 1:u1] -> Stm[Stm[u16, 1:u1], 65536:u17]
+let module0: Stm[Stm[u16, 256:u9], 1:u1] -> Stm[u16, 65536:u17] = (
+  (I : Stm[Stm[u16, 256:u9], 1:u1]) =>
+    let n3: Stm[Stm[u16, 256:u9], 256:u9] = StmJoin(StmRepeat(I, 256:u9)) in
+    ReshapeSeq[Stm[u16, 65536:u17]](n3)
+) in
+let module1: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n18: (u16, u16) = (I0, I1) in n18.0 *% n18.1 in
+(I0 : Stm[Stm[Stm[u16, 256:u9], 1:u1], 256:u9]) =>
+  (I1 : Stm[Stm[Stm[u16, 256:u9], 256:u9], 1:u1]) =>
+    let n1: Stm[Stm[Stm[u16, 256:u9], 1:u1], 256:u9] = I0 in
+    let n5: Stm[Stm[u16, 65536:u17], 256:u9] = (
+      StmMap(
+        n1,
+        (I : Stm[Stm[u16, 256:u9], 1:u1]) =>
+          let n3: Stm[Stm[u16, 256:u9], 256:u9] = StmJoin(StmRepeat(I, 256:u9)) in
+          ReshapeSeq[Stm[u16, 65536:u17]](n3)
+      )
+    ) in
+    let n6: Stm[Stm[u16, 256:u9], 65536:u17] = ReshapeSeq[Stm[Stm[u16, 256:u9], 65536:u17]](n5) in
+    let n11: Stm[Stm[u16, 256:u9], 65536:u17] = n6 in
+    let n8: Stm[Stm[Stm[u16, 256:u9], 256:u9], 1:u1] = I1 in
+    let n9: Stm[Stm[Stm[u16, 256:u9], 256:u9], 256:u9] = StmJoin(StmRepeat(n8, 256:u9)) in
+    let n10: Stm[Stm[u16, 256:u9], 65536:u17] = ReshapeSeq[Stm[Stm[u16, 256:u9], 65536:u17]](n9) in
+    let n12: Stm[Stm[u16, 256:u9], 65536:u17] = (
+      StmMap2(
+        n11,
+        n10,
+        (I0 : Stm[u16, 256:u9]) =>
+          (I1 : Stm[u16, 256:u9]) =>
+            StmMap2(
+              I0,
+              I1,
+              (I0 : u16) =>
+                (I1 : u16) => let n18: (u16, u16) = (I0, I1) in n18.0 *% n18.1
+            )
+      )
+    ) in
+    let n24: Stm[Stm[u16, 1:u1], 65536:u17] = (
+      StmMap(
+        n12,
+        (I : Stm[u16, 256:u9]) => StmReduce(I, (I : (u16, u16)) => I.0 +% I.1)
+      )
+    ) in
+    let n25: Stm[Stm[u16, 1:u1], 65536:u17] = n24 in
+    let n26: Stm[Stm[u16, 1:u1], 65536:u17] = n25 in
+    n26

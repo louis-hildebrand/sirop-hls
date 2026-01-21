@@ -22,7 +22,7 @@ import lib.constants as c
 
 # The benchmarks that are shown in the paper
 ACTIVE_BENCHES = [
-    "map", "dot", "matvec_1",
+    "map", "dot", "matvec_1", "matmat",
     "conv1d", "conv2d", "convb2b",
     "sharpen", "sobel", "camera"
 ]

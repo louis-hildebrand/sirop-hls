@@ -97,6 +97,8 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "matvec":
         # In this case, the benchmark "throughput" is actually its parallelization factor
         return 256 * 256 // bench.throughput
+    if bench.name == "bigmmm":
+        return 256 * 256 // bench.throughput
     if bench.name == "sqrt":
         return 2**16 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
@@ -108,22 +110,18 @@ def benchmark_order(bench_name: str) -> int:
     """
     return {
         "map": 0,
-        "sum": 1,
-        "dot": 2,
-        "smallmvm": 3,
-        "bigmvm": 4,
-        "matvec": 4,
-        "conv1d": 5,
-        "smallconv2d": 6,
-        "smallconvb2b": 7,
-        "smallsharpen": 8,
-        "bigconv2d": 9,
-        "bigconvb2b": 10,
-        "bigsharpen": 11,
-        "bigsobel": 12,
-        "bigcamera": 13,
-        "sqrt": 14,
-    }.get(bench_name, 15)
+        "dot": 10,
+        "bigmvm": 20,
+        "matvec": 20,
+        "bigmmm": 30,
+        "matmat": 30,
+        "conv1d": 40,
+        "bigconv2d": 50,
+        "bigconvb2b": 60,
+        "bigsharpen": 70,
+        "bigsobel": 80,
+        "bigcamera": 90,
+    }.get(bench_name, 100)
 
 
 def benchmark_title(bench_name: str) -> str | None:
@@ -133,12 +131,14 @@ def benchmark_title(bench_name: str) -> str | None:
     """
     if bench_name.startswith("small"):
         return None
-    if bench_name in {"sum", "sqrt", "matvec"}:
+    if bench_name in {"sum", "sqrt"}:
         return None
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
-    if bench_name == "mvm":
-        bench_name = "matvec"
+    if bench_name in {"mvm", "matvec"}:
+        bench_name = "mv"
+    if bench_name in {"mmm", "matmat"}:
+        bench_name = "mm"
     return f"\\texttt{{{bench_name}}}"
 
 
@@ -151,7 +151,7 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
             [1/4, 1, 2, 4, 8, 16],
             [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
         )
-    elif bench_name == "bigmvm":
+    elif bench_name in {"bigmvm", "bigmmm"}:
         ax.set_xticks(
             [1/256, 1/64, 1/16],
             [r"$\frac{1}{256}$", r"$\frac{1}{64}$", r"$\frac{1}{16}$"],

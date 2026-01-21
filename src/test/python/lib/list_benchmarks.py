@@ -8,7 +8,7 @@ from . import constants as c
 from .benchmark import Benchmark
 
 ACTIVE_BENCHES = [
-    "map", "dot", "bigmvm",
+    "map", "dot", "bigmvm", "bigmmm",
     "conv1d", "bigconv2d", "bigconvb2b",
     "bigsharpen", "bigsobel", "bigcamera"
 ]

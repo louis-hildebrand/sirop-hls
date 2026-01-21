@@ -37,7 +37,8 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
       "smallcamera",
       "bigcamera",
       "sqrt",
-      "bigsobel"
+      "bigsobel",
+      "bigmmm"
     )
 
   os.makeDir.all(SimplifiedAetherlingBenchmarksDir)
@@ -49,6 +50,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         "map",
         "dot",
         "bigmvm",
+        "bigmmm",
         "conv1d",
         "bigconv2d",
         "bigconvb2b",

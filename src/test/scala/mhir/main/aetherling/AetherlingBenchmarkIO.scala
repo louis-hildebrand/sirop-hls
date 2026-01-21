@@ -597,6 +597,182 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
+  private def smallMMMVhdlIO: Map[String, vhdl.PositionalTestIO] = {
+    val n = 4
+    val matA = (0 until n).map(i =>
+      (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
+    )
+    val matBTranspose =
+      (0 until n).map(i => (0 until n).map(j => (4 * i + j) % 6)).transpose
+    val outputs = matA.flatMap(rowA =>
+      matBTranspose.map(colB =>
+        rowA.zip(colB).map({ case (x, y) => x * y }).sum
+      )
+    )
+    val in = new AbstractTestInput(
+      { (t: Int) =>
+        val i = t / n
+        val j = t % n
+        (k: Int) =>
+          if (k == 0) C(matA(i)(j))(U16) else C(matBTranspose(i)(j))(U16)
+      },
+      elemTypes = Seq(U16, U16),
+      len = n * n,
+      hold = 1
+    )
+    val out = AbstractTestOutput(outputs.map(C(_)(U16)), skip = n - 1)
+    Map(
+      "smallmmm_1_4" -> AbstractTestIO(in, out).toVhdl,
+      "smallmmm_1_2" -> AbstractTestIO(
+        in.vec(2),
+        out.copy(skip = n / 2 - 1)
+      ).toVhdl,
+      "smallmmm_1" -> AbstractTestIO(
+        in.vec(4),
+        out.copy(skip = n / 4 - 1).vec(1)
+      ).toVhdl
+    )
+  }
+
+  private def bigMMMVhdlIO: Map[String, vhdl.PositionalTestIO] = {
+    val n = 256
+    val matA = (0 until n).map(i =>
+      (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
+    )
+    val matBTranspose =
+      (0 until n).map(i => (0 until n).map(j => (4 * i + j) % 6)).transpose
+    val outputs = matA.flatMap(rowA =>
+      matBTranspose.map(colB =>
+        rowA.zip(colB).map({ case (x, y) => x * y }).sum
+      )
+    )
+    val in = new AbstractTestInput(
+      { (t: Int) =>
+        val i = t / n
+        val j = t % n
+        (k: Int) =>
+          if (k == 0) C(matA(i)(j))(U16) else C(matBTranspose(i)(j))(U16)
+      },
+      elemTypes = Seq(U16, U16),
+      len = n * n,
+      hold = 1
+    )
+    val out = AbstractTestOutput(outputs.map(C(_)(U16)), skip = n - 1)
+    Seq(256, 128, 64, 32, 16)
+      .map({ denom =>
+        val par = n / denom
+        s"bigmmm_1_$denom" -> AbstractTestIO(
+          if (par == 1) in else in.vec(par),
+          out.copy(skip = n / par - 1)
+        ).toVhdl
+      })
+      .toMap
+  }
+
+  private def smallMMMVerilogIO: Map[String, verilog.TestIO] = {
+    val n = 4
+    val matA = (0 until n).map(i =>
+      (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
+    )
+    val matBTranspose =
+      (0 until n).map(i => (0 until n).map(j => (4 * i + j) % 6)).transpose
+    val outputs = matA.flatMap(rowA =>
+      matBTranspose.map(colB =>
+        rowA.zip(colB).map({ case (x, y) => x * y }).sum
+      )
+    )
+    val in = new AbstractTestInput(
+      { (t: Int) => (k: Int) =>
+        // In the Aetherling program, the input types are as follows:
+        //  I0: TSeqT 4 0 (TSeqT 1 3 (TSeqT 4 0 UInt16T))
+        //  I1: TSeqT 1 3 (TSeqT 4 0 (TSeqT 4 0 UInt16T))
+        if (k == 0) { // I0
+          if (t % (n * n) < n) {
+            val i = t / (n * n)
+            val j = t % (n * n)
+            C(matA(i)(j))(U16)
+          } else {
+            Undefined(U16)
+          }
+        } else { // I1
+          if (t < n * n) {
+            val i = t / n
+            val j = t % n
+            C(matBTranspose(i)(j))(U16)
+          } else {
+            Undefined(U16)
+          }
+        }
+      },
+      elemTypes = Seq(U16, U16),
+      len = n * n * n,
+      hold = 1
+    )
+    val out = AbstractTestOutput(outputs.map(C(_)(U16)), skip = n - 1)
+    Map(
+      "smallmmm_1_4" -> AbstractTestIO(in, out).toVerilog,
+      "smallmmm_1_2" -> AbstractTestIO(
+        in.vec(2),
+        out.copy(skip = n / 2 - 1)
+      ).toVerilog,
+      "smallmmm_1" -> AbstractTestIO(
+        in.vec(4),
+        out.copy(skip = n / 4 - 1).vec(1)
+      ).toVerilog
+    )
+  }
+
+  private def bigMMMVerilogIO: Map[String, verilog.TestIO] = {
+    val n = 256
+    val matA = (0 until n).map(i =>
+      (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
+    )
+    val matBTranspose =
+      (0 until n).map(i => (0 until n).map(j => (4 * i + j) % 6)).transpose
+    val outputs = matA.flatMap(rowA =>
+      matBTranspose.map(colB =>
+        rowA.zip(colB).map({ case (x, y) => x * y }).sum
+      )
+    )
+    val in = new AbstractTestInput(
+      { (t: Int) => (k: Int) =>
+        // In the Aetherling program, the input types are as follows:
+        //  I0: TSeqT 4 0 (TSeqT 1 3 (TSeqT 4 0 UInt16T))
+        //  I1: TSeqT 1 3 (TSeqT 4 0 (TSeqT 4 0 UInt16T))
+        if (k == 0) { // I0
+          if (t % (n * n) < n) {
+            val i = t / (n * n)
+            val j = t % (n * n)
+            C(matA(i)(j))(U16)
+          } else {
+            Undefined(U16)
+          }
+        } else { // I1
+          if (t < n * n) {
+            val i = t / n
+            val j = t % n
+            C(matBTranspose(i)(j))(U16)
+          } else {
+            Undefined(U16)
+          }
+        }
+      },
+      elemTypes = Seq(U16, U16),
+      len = n * n * n,
+      hold = 1
+    )
+    val out = AbstractTestOutput(outputs.map(C(_)(U16)), skip = n - 1)
+    Seq(256, 128, 64, 32, 16)
+      .map({ denom =>
+        val par = n / denom
+        s"bigmmm_1_$denom" -> AbstractTestIO(
+          if (par == 1) in else in.vec(par),
+          out.copy(skip = n / par - 1)
+        ).toVerilog
+      })
+      .toMap
+  }
+
   private def matVecIO: Map[String, vhdl.PositionalTestIO] = {
     Seq(1, 2, 4, 8, 16, 32)
       .map({ par =>
@@ -733,6 +909,8 @@ object AetherlingBenchmarkIO {
       ++ bigCameraIO.mapValues(_.toVhdl)
       ++ smallMVMIO.mapValues(_.toVhdl)
       ++ bigMVMIO.mapValues(_.toVhdl)
+      ++ smallMMMVhdlIO
+      ++ bigMMMVhdlIO
       ++ matVecIO
       ++ sqrtIO.mapValues(_.toVhdl)
       ++ bigSobelIO.mapValues(_.toVhdl)
@@ -759,6 +937,8 @@ object AetherlingBenchmarkIO {
       ++ bigCameraIO.mapValues(_.toVerilog)
       ++ smallMVMIO.mapValues(_.toVerilog)
       ++ bigMVMIO.mapValues(_.toVerilog)
+      ++ smallMMMVerilogIO
+      ++ bigMMMVerilogIO
       ++ sqrtIO.mapValues(_.toVerilog)
       ++ bigSobelIO.mapValues(_.toVerilog)
   )

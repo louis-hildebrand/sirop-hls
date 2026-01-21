@@ -1,0 +1,30 @@
+module0 (I :: (TSeqT 16 4080 (SSeqT 16 UInt16T))) =
+    n3 = Partition_t_ttN 1 16 255 0 (SSeqT 16 UInt16T) I
+    n4 = Up_1d_tN 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T)) n3
+    n5 = ReshapeN ((TSeqT 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T)))) ((TSeqT 4096 0 (SSeqT 16 UInt16T))) n4
+
+module1 (I0 :: UInt16T) (I1 :: UInt16T) =
+    n20 = ATupleN UInt16T UInt16T I0 I1
+    n21 = MulN UInt16T n20
+
+module2 (I :: (TSeqT 16 0 (SSeqT 16 UInt16T))) =
+    n28 = Map_tN 16 0 (Reduce_sN 16 (AddN UInt16T I) I) I
+    n31 = Reduce_tN 16 0 (Map_sN 1 (AddN UInt16T I) I) n28
+    n32 = ReshapeN ((TSeqT 1 15 (SSeqT 1 UInt16T))) ((TSeqT 1 15 UInt16T)) n31
+
+module3 (I0 :: (TSeqT 256 0 (TSeqT 16 4080 (SSeqT 16 UInt16T)))) (I1 :: (TSeqT 1 255 (TSeqT 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T))))) =
+    n1 = FIFON (TSeqT 256 0 (TSeqT 16 4080 (SSeqT 16 UInt16T))) 1 "I0"
+    n6 = Map_tN 256 0 module0 n1
+    n7 = ReshapeN ((TSeqT 256 0 (TSeqT 4096 0 (SSeqT 16 UInt16T)))) ((TSeqT 1048576 0 (SSeqT 16 UInt16T))) n6
+    n13 = FIFON (TSeqT 1048576 0 (SSeqT 16 UInt16T)) 1 "n7"
+    n9 = FIFON (TSeqT 1 255 (TSeqT 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T)))) 1 "I1"
+    n10 = Up_1d_tN 256 0 (TSeqT 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T))) n9
+    n11 = ReshapeN ((TSeqT 256 0 (TSeqT 256 0 (TSeqT 16 0 (SSeqT 16 UInt16T))))) ((TSeqT 65536 0 (TSeqT 16 0 (SSeqT 16 UInt16T)))) n10
+    n12 = ReshapeN ((TSeqT 65536 0 (TSeqT 16 0 (SSeqT 16 UInt16T)))) ((TSeqT 1048576 0 (SSeqT 16 UInt16T))) n11
+    n14 = Map2_tN 1048576 0 (Map2_sN 16 module1 I0 I1) n13 n12
+    n22 = Partition_t_ttN 65536 16 0 0 (SSeqT 16 UInt16T) n14
+    n33 = Map_tN 65536 0 module2 n22
+    n34 = FIFON (TSeqT 65536 0 (TSeqT 1 15 UInt16T)) 1 "n33"
+    n35 = FIFON (TSeqT 65536 0 (TSeqT 1 15 UInt16T)) 1 "n34"
+    n36 = FIFON (TSeqT 65536 0 (TSeqT 1 15 UInt16T)) 1 "n35"
+
