@@ -174,7 +174,7 @@ def plot_latencies(
         [benchmark_title(p) or "NONE" for p in program_names]
     )
     ax.tick_params(axis="x", which="both", length=0)
-    ax.set_ylabel("Latency")
+    ax.set_ylabel("Latency\n(log)")
     ax.set_yscale("log")
     ax.set_yticks([1, 10, 10**2, 10**3, 10**4, 10**5])
     ax.grid(
