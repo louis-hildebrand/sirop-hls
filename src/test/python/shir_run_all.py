@@ -12,7 +12,7 @@ import shir_generate
 import shir_synth
 
 ACTIVE_BENCHES = [
-    "map", "dot", "matvec",
+    "map", "dot", "matvec", "matmat",
     "conv1d", "conv2d", "convb2b",
     "sharpen", "sobel"
 ]
