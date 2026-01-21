@@ -92,13 +92,13 @@
         init: undefined[Vec[Vec[u32, 1:u1], 1:u1]],
         next: vbuild(1:u2) { (i : u32) => buf_1[0:u0] }
       },
-      (out_ctr : u32) = {
-        init: 0:u32,
-        next: if (out_ctr == 3839:u32) then { 0:u32 } else { 1:u32 + out_ctr }
+      (out_ctr : u12) = {
+        init: 0:u12,
+        next: if (out_ctr == 3839:u12) then { 0:u12 } else { 1:u12 + out_ctr }
       },
       (v : Vec[u32, 1:u1]) = {
         init: vbuild(1:u1) { (i : u1) => 0:u32 },
-        next: if (out_ctr == 3839:u32) then {
+        next: if (out_ctr == 3839:u12) then {
           vbuild(1:u1) { (i : u1) => 0:u32 }
         } else {
           vbuild(1:u1) { (i : u1) => 1:u32 + v[0:u1] }

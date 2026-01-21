@@ -33,48 +33,48 @@
               (filling : bool) = {
                 init: true,
                 next: (
-                  ((in_ctr != 127:u32 || out_ctr != 32767:u32) && t < 127:u7
-                    || in_ctr == 127:u32 && out_ctr == 32767:u32)
+                  ((in_ctr != 127:u8 || out_ctr != 32767:u16) && t < 127:u7
+                    || in_ctr == 127:u8 && out_ctr == 32767:u16)
                     && filling)
-                  || !filling && in_ctr == 128:u32 && out_ctr == 32767:u32
+                  || !filling && in_ctr == 128:u8 && out_ctr == 32767:u16
               },
-              (in_ctr : u32) = {
-                init: 0:u32,
+              (in_ctr : u8) = {
+                init: 0:u8,
                 next: if (
-                  !filling && in_ctr == 128:u32 && out_ctr == 32767:u32
+                  !filling && in_ctr == 128:u8 && out_ctr == 32767:u16
                     || (
-                      in_ctr == 127:u32
-                        && out_ctr == 32767:u32
+                      in_ctr == 127:u8
+                        && out_ctr == 32767:u16
                         && filling)
                 ) then {
-                  0:u32
+                  0:u8
                 } else if (filling) then {
-                  1:u32 + in_ctr
+                  1:u8 + in_ctr
                 } else {
                   in_ctr
                 }
               },
-              (out_ctr : u32) = {
-                init: 0:u32,
+              (out_ctr : u16) = {
+                init: 0:u16,
                 next: if (
-                  !filling && in_ctr == 128:u32 && out_ctr == 32767:u32
+                  !filling && in_ctr == 128:u8 && out_ctr == 32767:u16
                     || (
-                      in_ctr == 127:u32
-                        && out_ctr == 32767:u32
+                      in_ctr == 127:u8
+                        && out_ctr == 32767:u16
                         && filling)
                 ) then {
-                  0:u32
+                  0:u16
                 } else {
-                  1:u32 + out_ctr
+                  1:u16 + out_ctr
                 }
               },
               (t : u7) = {
                 init: 0:u7,
                 next: if (
-                  !filling && in_ctr == 128:u32 && out_ctr == 32767:u32
+                  !filling && in_ctr == 128:u8 && out_ctr == 32767:u16
                     || (
-                      in_ctr == 127:u32
-                        && out_ctr == 32767:u32
+                      in_ctr == 127:u8
+                        && out_ctr == 32767:u16
                         && filling)
                 ) then {
                   0:u7

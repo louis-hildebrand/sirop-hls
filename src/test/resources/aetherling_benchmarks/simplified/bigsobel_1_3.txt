@@ -1627,11 +1627,11 @@
                                                                                                                                                                                                   ) {} {
                                                                                                                                                                                                     (I : Stm[Vec[(i32, i32), 3:u2], -1:i1]) = {
                                                                                                                                                                                                       stm: sbuild(6220800:u23)(
-                                                                                                                                                                                                        vbuild(3:u2) { (i_13340 : u32) =>
+                                                                                                                                                                                                        vbuild(3:u2) { (i_13386 : u32) =>
                                                                                                                                                                                                           (
                                                                                                                                                                                                             sdata(
                                                                                                                                                                                                               I0
-                                                                                                                                                                                                            )[i_13340],
+                                                                                                                                                                                                            )[i_13386],
                                                                                                                                                                                                             [
                                                                                                                                                                                                               [
                                                                                                                                                                                                                 -1:i32,
@@ -1648,7 +1648,7 @@
                                                                                                                                                                                                                 2:i32,
                                                                                                                                                                                                                 1:i32
                                                                                                                                                                                                               ]v
-                                                                                                                                                                                                            ]v[i][i_13340]
+                                                                                                                                                                                                            ]v[i][i_13386]
                                                                                                                                                                                                           )
                                                                                                                                                                                                         },
                                                                                                                                                                                                         true
@@ -1720,7 +1720,7 @@
                                                                                                                                                                                                       sdata(
                                                                                                                                                                                                         s
                                                                                                                                                                                                       )[0:u32])),
-                                                                                                                                                                                                t
+                                                                                                                                                                                                in_ctr
                                                                                                                                                                                                   == 2:u2
                                                                                                                                                                                               ) {
                                                                                                                                                                                                 (acc : Vec[i32, 3:u2]) = {
@@ -1728,7 +1728,7 @@
                                                                                                                                                                                                     0:i32
                                                                                                                                                                                                   },
                                                                                                                                                                                                   next: if (
-                                                                                                                                                                                                    t
+                                                                                                                                                                                                    in_ctr
                                                                                                                                                                                                       == 2:u2
                                                                                                                                                                                                   ) then {
                                                                                                                                                                                                     vbuild(3:u2) { (i : u32) =>
@@ -1755,19 +1755,19 @@
                                                                                                                                                                                                 },
                                                                                                                                                                                                 (first_step : bool) = {
                                                                                                                                                                                                   init: true,
-                                                                                                                                                                                                  next: t
+                                                                                                                                                                                                  next: in_ctr
                                                                                                                                                                                                     == 2:u2
                                                                                                                                                                                                 },
-                                                                                                                                                                                                (t : u2) = {
+                                                                                                                                                                                                (in_ctr : u2) = {
                                                                                                                                                                                                   init: 0:u2,
                                                                                                                                                                                                   next: if (
-                                                                                                                                                                                                    t
+                                                                                                                                                                                                    in_ctr
                                                                                                                                                                                                       == 2:u2
                                                                                                                                                                                                   ) then {
                                                                                                                                                                                                     0:u2
                                                                                                                                                                                                   } else {
                                                                                                                                                                                                     1:u2
-                                                                                                                                                                                                      + t
+                                                                                                                                                                                                      + in_ctr
                                                                                                                                                                                                   }
                                                                                                                                                                                                 }
                                                                                                                                                                                               } {
@@ -1787,11 +1787,11 @@
                                                                                                                                                                                                   ) {} {
                                                                                                                                                                                                     (I : Stm[Vec[(i32, i32), 3:u2], -1:i1]) = {
                                                                                                                                                                                                       stm: sbuild(6220800:u23)(
-                                                                                                                                                                                                        vbuild(3:u2) { (i_13332 : u32) =>
+                                                                                                                                                                                                        vbuild(3:u2) { (i_13378 : u32) =>
                                                                                                                                                                                                           (
                                                                                                                                                                                                             sdata(
                                                                                                                                                                                                               I0
-                                                                                                                                                                                                            )[i_13332],
+                                                                                                                                                                                                            )[i_13378],
                                                                                                                                                                                                             [
                                                                                                                                                                                                               [
                                                                                                                                                                                                                 -1:i32,
@@ -1808,7 +1808,7 @@
                                                                                                                                                                                                                 0:i32,
                                                                                                                                                                                                                 1:i32
                                                                                                                                                                                                               ]v
-                                                                                                                                                                                                            ]v[i][i_13332]
+                                                                                                                                                                                                            ]v[i][i_13378]
                                                                                                                                                                                                           )
                                                                                                                                                                                                         },
                                                                                                                                                                                                         true
