@@ -107,19 +107,25 @@ def plot_latency(
         # Verilog results (only successful simulation)
         xs = [float(b.bench.throughput) for b in verilog_benchmarks if results[b].sim_success]
         ys = [results[b].latency for b in verilog_benchmarks if results[b].sim_success]
+        fmax_ok = [
+            ok
+            for (ok, b) in zip(verilog_fmax_ok, verilog_benchmarks)
+            if results[b].sim_success
+        ]
         ax.scatter(
             xs, ys,
             marker=c.AETHERLING_MARKER,
             s=c.AETHERLING_MARKER_SIZE,
             edgecolor=c.AETHERLING_COLOR,
             linewidth=1,
-            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=10,
         )
         # VHDL results (only successful simulation)
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks if results[b].sim_success]
         ys = [results[b].latency for b in vhdl_benchmarks if results[b].sim_success]
+        fmax_ok = [ok for (ok, b) in zip(vhdl_fmax_ok, vhdl_benchmarks) if results[b].sim_success]
         ax.scatter(
             xs, ys,
             marker=c.OUR_MARKER,
@@ -140,7 +146,7 @@ def plot_latency(
     axes[0].set_ylabel("Latency (log)\t.")
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
-    axes[0].set_yticks([10, 10**3, 10**5])
+    axes[0].set_yticks([10, 10**3, 10**5, 10**7])
     for ax in axes:
         ax.grid(
             visible=True,

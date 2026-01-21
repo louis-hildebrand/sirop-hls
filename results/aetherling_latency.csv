@@ -125,11 +125,6 @@ map,40,verilog,8,True
 map,40,vhdl,5,True
 map,200,verilog,4,True
 map,200,vhdl,1,True
-matvec,1,vhdl,65540,True
-matvec,2,vhdl,32772,True
-matvec,4,vhdl,16389,True
-matvec,8,vhdl,8197,True
-matvec,16,vhdl,4101,True
 smallcamera,1/4,vhdl,298,True
 smallcamera,1,vhdl,88,True
 smallcamera,2,vhdl,44,True
