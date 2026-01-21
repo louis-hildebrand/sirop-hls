@@ -98,10 +98,22 @@ object VhdlConversionGenerator {
         name = toSlvConverterName(arr),
         args = Seq(("x", arr)),
         returnType = VhdlStdLogicVec(arr.bitWidth),
-        decls = Seq(),
-        ret = (0 until arr.n)
-          .map(i => toStdLogicVector(s"x($i)", arr.t))
-          .mkString(" & ")
+        decls = Seq(
+          VhdlVariable(
+            "result",
+            VhdlStdLogicVec(arr.bitWidth),
+            assignStmt = {
+              val msb = s"${arr.bitWidth - 1}-${arr.t.bitWidth}*i"
+              val lsb = s"${arr.bitWidth - arr.t.bitWidth}-${arr.t.bitWidth}*i"
+              val slvElem = toStdLogicVector(s"x(i)", arr.t)
+              s"""for i in 0 to ${arr.n - 1} loop
+                 |    result($msb downto $lsb) := $slvElem;
+                 |end loop;
+                 |""".stripMargin.stripTrailing
+            }
+          )
+        ),
+        ret = "result"
       )
     }
   }
@@ -216,18 +228,22 @@ object VhdlConversionGenerator {
         name = fromSlvConverterName(arr),
         args = Seq(("v", arr.toStdLogicVec)),
         returnType = arr,
-        decls = Seq(),
-        ret = {
-          val elems = (0 until arr.n).map(i => {
-            val msb = arr.bitWidth - 1 - i * arr.t.bitWidth
-            val lsb = msb - arr.t.bitWidth + 1
-            fromStdLogicVector(s"v($msb downto $lsb)", arr.t)
-          })
-          val assignments = elems.zipWithIndex
-            .map({ case (v, i) => s"$i => $v" })
-            .mkString(", ")
-          s"($assignments)"
-        }
+        decls = Seq(
+          VhdlVariable(
+            "result",
+            arr,
+            assignStmt = {
+              val msb = s"${arr.bitWidth - 1}-${arr.t.bitWidth}*i"
+              val lsb = s"${arr.bitWidth - arr.t.bitWidth}-${arr.t.bitWidth}*i"
+              val elem = fromStdLogicVector(s"v($msb downto $lsb)", arr.t)
+              s"""for i in 0 to ${arr.n - 1} loop
+                 |    result(i) := $elem;
+                 |end loop;
+                 |""".stripMargin.stripTrailing
+            }
+          )
+        ),
+        ret = "result"
       )
     }
   }
