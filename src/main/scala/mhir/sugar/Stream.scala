@@ -40,7 +40,8 @@ object AsFusedStm2Stm {
 private[sugar] case class StmReset(
     n: Expr,
     s: Expr,
-    inputs: Map[Param, Expr]
+    inputs: Map[Param, Expr],
+    override val fullyConsumesInputs: Option[Boolean]
 )(typ: Type = Missing)
     extends SyntaxSugar(
       Seq(n, s) ++ inputs.flatMap({ case (x, in) => Seq(x, in) }): _*
@@ -60,7 +61,7 @@ private[sugar] case class StmReset(
             case _ => throw new BadRebuildError(this, newChildren)
           })
           .toMap
-        StmReset(n, s, inputs)(typ)
+        StmReset(n, s, inputs, this.fullyConsumesInputs)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -85,7 +86,7 @@ private[sugar] case class StmReset(
       x -> s.tchk.expectType(x.typ)
     })
     val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
-    StmReset(n, s, inputs)(typ)
+    StmReset(n, s, inputs, this.fullyConsumesInputs)(typ)
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
@@ -117,7 +118,8 @@ private[sugar] case class StmReset(
           Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
         val newStm = stm.subPreserveType(subs)
         newX -> newStm
-      })
+      }),
+      fullyConsumesInputs = this.fullyConsumesInputs
     )(this.typ)
   }
 
@@ -150,7 +152,8 @@ private[sugar] case class StmReset(
           Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
         val newStm = stm.subAndEraseType(subs)
         newX -> newStm
-      })
+      }),
+      fullyConsumesInputs = this.fullyConsumesInputs
     )()
   }
 
@@ -271,19 +274,23 @@ private[sugar] case class StmReset(
       case x: Param =>
         x
       case s: StmBuild =>
-        val ctrByInput = s.seedByVar
-          .flatMap({
-            case (x, p) if x.typ.isInstanceOf[TyStm] =>
-              val TyStm(_, inLen) = p.typ
-              val ctrTyp = inLen match {
-                case e if e.freeVars.isEmpty =>
-                  val IntCst(n) = mhir.ir.eval(e)
-                  TyAnyInt.tightest(0, n)
-                case _ => inLen.typ
-              }
-              Some(x -> Param("in_ctr")(ctrTyp))
-            case _ => None
-          })
+        val ctrByInput = if (this.fullyConsumesInputs.contains(true)) {
+          Map[Param, Param]()
+        } else {
+          s.seedByVar
+            .flatMap({
+              case (x, p) if x.typ.isInstanceOf[TyStm] =>
+                val TyStm(_, inLen) = p.typ
+                val ctrTyp = inLen match {
+                  case e if e.freeVars.isEmpty =>
+                    val IntCst(n) = mhir.ir.eval(e)
+                    TyAnyInt.tightest(0, n)
+                  case _ => inLen.typ
+                }
+                Some(x -> Param("in_ctr")(ctrTyp))
+              case _ => None
+            })
+        }
         val withInCtrs = ctrByInput.foldLeft(s)({ case (acc, (x, ctr)) =>
           acc.addInputCounter(x, ctr)
         })
@@ -303,8 +310,9 @@ private[sugar] case class StmReset(
             s.seedByVar
               .flatMap({ case (x, z) =>
                 z.typ match {
-                  case TyStm(_, n) => Some(ctrByInput(x) -> n)
-                  case _           => None
+                  case TyStm(_, n) if ctrByInput.contains(x) =>
+                    Some(ctrByInput(x) -> n)
+                  case _ => None
                 }
               })
               .toSeq
@@ -752,8 +760,15 @@ case class StmMap(
     val f = this.f.lower().asInstanceOf[Function]
     val TyStm(_, n) = this.typ
     val Function(s, innerStm) = f.streamify()
-    StmReset(n, innerStm, Map(s -> input))().tchk().lower()
+    StmReset(
+      n,
+      innerStm,
+      Map(s -> input),
+      fullyConsumesInputs = this.fullyConsumesInputs
+    )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = this.f.fullyConsumesInputs
 }
 
 case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
@@ -810,8 +825,15 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     val f = this.f.lower().asInstanceOf[Function]
     val n = this.typ.asInstanceOf[TyStm].n
     val Function(s1Param, Function(s2Param, innerStm)) = f.streamify()
-    StmReset(n, innerStm, Map(s1Param -> s1, s2Param -> s2))().tchk().lower()
+    StmReset(
+      n,
+      innerStm,
+      Map(s1Param -> s1, s2Param -> s2),
+      fullyConsumesInputs = this.fullyConsumesInputs
+    )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = this.f.fullyConsumesInputs
 }
 
 case class StmAccess(
@@ -1236,6 +1258,8 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
         x
     }
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
@@ -1347,6 +1371,8 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     requireType()
     StmConcat(StmCst(1, e)(), stm)().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
@@ -1374,6 +1400,8 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     requireType()
     StmConcat(stm, StmCst(1, e)())().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Take elements from the beginning of a stream.
@@ -1493,6 +1521,8 @@ case class StmSuffix(
       )
     )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Discard the first element of the given stream and insert the given value at
@@ -1529,6 +1559,8 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     val n = this.typ.asInstanceOf[TyStm].n
     StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Discard the last element of the given stream and insert the given value at
@@ -1564,6 +1596,11 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
     StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
+  }
+
+  override def fullyConsumesInputs: Option[Boolean] = {
+    // The last element of the input stream will be ignored!
+    Some(false)
   }
 }
 
@@ -1623,6 +1660,11 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         )
       )
     )().tchk()
+  }
+
+  override def fullyConsumesInputs: Option[Boolean] = {
+    // The last element of the input stream will be ignored!
+    Some(false)
   }
 }
 
@@ -1725,6 +1767,11 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         )
     }
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = {
+    // The last element of the input stream will be ignored!
+    Some(false)
+  }
 }
 
 case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
@@ -1778,6 +1825,8 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
       )
     )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
@@ -1819,6 +1868,8 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
       .tchk()
       .lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Make `m` copies of a stream by reading the stream into a vector and then
@@ -1902,6 +1953,8 @@ case class StmRepeat(
       )
     )().tchk()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmReverse(stm: Expr /* Stm<A; n> */ )(
@@ -1942,6 +1995,8 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
       )
     )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
@@ -1969,6 +2024,8 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     // Lowering must produce a flat stream, so leave it as-is
     this.stm.lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
@@ -1999,6 +2056,8 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     // more to do here
     this.stm.lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Return a stream of "windows" from a stream. Note that if the input stream is
@@ -2095,6 +2154,8 @@ case class StmSlideV(
     )()
     lowered.tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Similar to <code>StmSlideS</code>, but produces a nested stream rather than
@@ -2136,6 +2197,8 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
       .tchk()
       .lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Returns a stream of 2-dimensional "windows" from a 2-dimensional stream.
@@ -2239,6 +2302,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
       )
     )().tchk()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
@@ -2277,6 +2342,8 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
       )
     )().tchk().lower()
   }
+
+  override def fullyConsumesInputs: Option[Boolean] = Some(true)
 }
 
 /** Like `FIFON` in
