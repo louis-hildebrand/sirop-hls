@@ -8,7 +8,7 @@
               (if (i < 1:u32) then {
                 buf_1[0:u32]
               } else {
-                sdata(s)[unsign(-1:i33 + sign(i))]
+                sdata(I1)[unsign(-1:i33 + sign(i))]
               })
                 +% (if (i < 1:u32) then {
                   buf_2[0:u32]
@@ -48,15 +48,15 @@
                 } else if (i < 2:u32) then {
                   buf_1[0:u32]
                 } else {
-                  sdata(s)[unsign(-2:i33 + sign(i))]
+                  sdata(I1)[unsign(-2:i33 + sign(i))]
                 }))
-                +% (buf_3[i] +% sdata(s)[i])
+                +% (buf_3[i] +% sdata(I1)[i])
                 >>> 2:u8,
               (
                 ((if (i < 1:u32) then {
                   buf_1[0:u32]
                 } else {
-                  sdata(s)[unsign(-1:i33 + sign(i))]
+                  sdata(I1)[unsign(-1:i33 + sign(i))]
                 })
                   +% (if (i < 1:u32) then {
                     buf_2[0:u32]
@@ -91,7 +91,7 @@
               ((if (i < 1:u32) then {
                 buf_1[0:u32]
               } else {
-                sdata(s)[unsign(-1:i33 + sign(i))]
+                sdata(I1)[unsign(-1:i33 + sign(i))]
               })
                 +% (if (i < 1:u32) then {
                   buf_2[0:u32]
@@ -119,9 +119,9 @@
                 } else if (i < 2:u32) then {
                   buf_1[0:u32]
                 } else {
-                  sdata(s)[unsign(-2:i33 + sign(i))]
+                  sdata(I1)[unsign(-2:i33 + sign(i))]
                 }))
-                +% (buf_3[i] +% sdata(s)[i])
+                +% (buf_3[i] +% sdata(I1)[i])
                 >>> 2:u8
             )
           )
@@ -146,7 +146,7 @@
               (if (i < 1:u32) then {
                 buf_1[0:u32]
               } else {
-                sdata(s)[unsign(-1:i33 + sign(i))]
+                sdata(I1)[unsign(-1:i33 + sign(i))]
               })
                 +% (if (i < 1:u32) then {
                   buf_2[0:u32]
@@ -162,7 +162,7 @@
     ) {
       (buf_1 : Vec[u32, 1:u1]) = {
         init: undefined[Vec[u32, 1:u1]],
-        next: vbuild(1:u1) { (i : u32) => sdata(s)[3:u32] }
+        next: vbuild(1:u1) { (i : u32) => sdata(I1)[3:u32] }
       },
       (buf_2 : Vec[u32, 1:u1]) = {
         init: undefined[Vec[u32, 1:u1]],
@@ -184,7 +184,7 @@
           if (i < 1916:u32) then {
             buf_4[4:u32 + i]
           } else {
-            sdata(s)[unsign(-1916:i33 + sign(i))]
+            sdata(I1)[unsign(-1916:i33 + sign(i))]
           }
         }
       },
@@ -202,22 +202,22 @@
       },
       (buf_8 : Vec[u32, 1:u1]) = {
         init: undefined[Vec[u32, 1:u1]],
-        next: vbuild(1:u1) { (i : u32) => sdata(s)[2:u32] }
+        next: vbuild(1:u1) { (i : u32) => sdata(I1)[2:u32] }
       },
-      (out_ctr : u32) = {
-        init: 0:u32,
-        next: if (out_ctr == 959:u32) then { 0:u32 } else { 1:u32 + out_ctr }
+      (out_ctr : u10) = {
+        init: 0:u10,
+        next: if (out_ctr == 959:u10) then { 0:u10 } else { 1:u10 + out_ctr }
       },
       (v : Vec[u32, 4:u3]) = {
         init: vbuild(4:u3) { (i : u3) => pad32(i) },
-        next: if (out_ctr == 959:u32) then {
+        next: if (out_ctr == 959:u10) then {
           vbuild(4:u3) { (i : u3) => pad32(i) }
         } else {
           vbuild(4:u3) { (i : u3) => 4:u32 + v[i] }
         }
       }
     } {
-      (s : Stm[Vec[u32, 4:u3], -1:i1]) = {
+      (I1 : Stm[Vec[u32, 4:u3], -1:i1]) = {
         stm: I,
         ready: true
       }

@@ -52,6 +52,7 @@ def program_title(program_name: str) -> str | None:
     if program_name == "sqrt":
         return None
     title = {
-        "matvec_1": "matvec"
+        "matvec_1": "mv",
+        "matmat": "mm"
     }.get(program_name, program_name)
     return f"\\texttt{{{title}}}"

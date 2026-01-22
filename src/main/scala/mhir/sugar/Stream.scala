@@ -271,17 +271,31 @@ private[sugar] case class StmReset(
       case x: Param =>
         x
       case s: StmBuild =>
-        val ctrByInput = s.accVars
+        val ctrByInput = s.seedByVar
           .flatMap({
-            case x if x.typ.isInstanceOf[TyStm] =>
-              Some(x -> Param("in_ctr")(U32))
+            case (x, p) if x.typ.isInstanceOf[TyStm] =>
+              val TyStm(_, inLen) = p.typ
+              val ctrTyp = inLen match {
+                case e if e.freeVars.isEmpty =>
+                  val IntCst(n) = mhir.ir.eval(e)
+                  TyAnyInt.tightest(0, n)
+                case _ => inLen.typ
+              }
+              Some(x -> Param("in_ctr")(ctrTyp))
             case _ => None
           })
-          .toMap
         val withInCtrs = ctrByInput.foldLeft(s)({ case (acc, (x, ctr)) =>
           acc.addInputCounter(x, ctr)
         })
-        val outCtr = Param("out_ctr")(U32)
+        val outCtr = {
+          val ctrTyp = s.n match {
+            case e if e.freeVars.isEmpty =>
+              val IntCst(n) = mhir.ir.eval(e)
+              TyAnyInt.tightest(0, n)
+            case _ => s.n.typ
+          }
+          Param("out_ctr")(ctrTyp)
+        }
         val withCtrs = withInCtrs.addOutputCounter(outCtr)
         val shouldReset = {
           val outputsUntilReset: Expr = s.n
@@ -823,21 +837,38 @@ case class StmAccess(
     requireType()
     val stm = this.stm.lower()
     val k = this.k.lower()
+    val TyStm(_, numRows) = this.stm.typ
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
       case _           => IntCst(1)(U32)
     }
     val s = Param("s")(stm.typ) // input stream
-    val i = Param("i")(U32) // index of current row
-    val j = Param("j")(U32) // index within row
+    val i = { // index of current row
+      val typ = numRows match {
+        case e if e.freeVars.isEmpty =>
+          val IntCst(n) = mhir.ir.eval(e)
+          TyAnyInt.tightest(0, n)
+        case e => e.typ
+      }
+      Param("i")(typ)
+    } // index of current row
+    val j = { // index within row
+      val typ = perRow match {
+        case e if e.freeVars.isEmpty =>
+          val IntCst(n) = mhir.ir.eval(e)
+          TyAnyInt.tightest(0, n)
+        case e => e.typ
+      }
+      Param("j")(typ)
+    }
     StmBuild(
       perRow,
       StmData(s)(),
       i === k,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(U32), Mux(j + 1 === perRow, i + 1, i)()),
-        j -> (C(0)(U32), Mux(j + 1 === perRow, C(0)(U32), j + 1)())
+        i -> (C(0)(i.typ), Mux(j + 1 === perRow, i + 1, i)()),
+        j -> (C(0)(j.typ), Mux(j + 1 === perRow, C(0)(j.typ), j + 1)())
       )
     )().tchk().lower()
   }

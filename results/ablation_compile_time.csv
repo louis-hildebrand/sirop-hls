@@ -47,6 +47,14 @@ map,except_fuse,0,1,114,4,268,164
 map,except_fission,0,1,108,6,255,150
 map,small_buffers,0,1,102,3,252,152
 map,small_buffers_and_latmatch,0,1,114,5,273,163
+matmat,all,0,1,245,36,2519,241
+matmat,except_sbuild_simpl,0,1,261,32,1146,435
+matmat,except_letstm_simpl,0,1,249,33,1979,336
+matmat,except_stm_simpl,0,1,289,35,1292,351
+matmat,except_fuse,0,1,261,39,2004,284
+matmat,except_fission,0,6,665,78,6424,520
+matmat,small_buffers,0,2,633,135,6390,645
+matmat,small_buffers_and_latmatch,0,2,719,101,6154,521
 matvec_1,all,0,3,270,23,1538,242
 matvec_1,except_sbuild_simpl,0,2,232,30,1006,371
 matvec_1,except_letstm_simpl,0,2,256,31,1189,365

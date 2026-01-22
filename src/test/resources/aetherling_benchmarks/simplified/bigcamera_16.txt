@@ -204,13 +204,13 @@
         init: undefined[Vec[u32, 1:u1]],
         next: vbuild(1:u1) { (i : u32) => sdata(s)[14:u32] }
       },
-      (out_ctr : u32) = {
-        init: 0:u32,
-        next: if (out_ctr == 239:u32) then { 0:u32 } else { 1:u32 + out_ctr }
+      (out_ctr : u8) = {
+        init: 0:u8,
+        next: if (out_ctr == 239:u8) then { 0:u8 } else { 1:u8 + out_ctr }
       },
       (v : Vec[u32, 16:u5]) = {
         init: vbuild(16:u5) { (i : u5) => pad32(i) },
-        next: if (out_ctr == 239:u32) then {
+        next: if (out_ctr == 239:u8) then {
           vbuild(16:u5) { (i : u5) => pad32(i) }
         } else {
           vbuild(16:u5) { (i : u5) => 16:u32 + v[i] }

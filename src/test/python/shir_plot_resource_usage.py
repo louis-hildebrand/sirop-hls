@@ -9,7 +9,6 @@ from fractions import Fraction
 
 import matplotlib.path as mpath
 import matplotlib.pyplot as plt
-import matplotlib.ticker as tick
 from matplotlib.patches import ArrowStyle, FancyArrowPatch, Polygon, Rectangle
 
 import lib.benchmark as lb
@@ -209,7 +208,7 @@ def plot_resource_usages(
             continue
         alm_ax.annotate(
             SYNTH_FAIL,
-            (xs[i], 6),
+            (xs[i], 3),
             ha="center",
             color="red",
             zorder=999,
@@ -223,7 +222,7 @@ def plot_resource_usages(
         )
         dsp_ax.annotate(
             SYNTH_FAIL,
-            (xs[i], 2),
+            (xs[i], 1),
             ha="center",
             color="red",
             zorder=999,
@@ -248,13 +247,14 @@ def plot_resource_usages(
         color=(0.8, 0.8, 0.8)
     )
     alm_ax.set_yscale("log")
-    alm_ax.set_ylabel("ALMs (log)")
+    alm_ax.set_ylabel("ALMs\n(log)")
     ymin, ymax = alm_ax.get_ylim()
     alm_ax.set_ylim(ymin, 7*ymax)
     alm_ax.set_yticks(
         [1, 10, 10**2, 10**3, 10**4],
     )
     alm_ax.set_zorder(10**6)
+
     bram_ax.tick_params(axis="x", which="both", length=0)
     bram_ax.grid(
         visible=True,
@@ -263,10 +263,11 @@ def plot_resource_usages(
         linewidth=0.2,
         color=(0.8, 0.8, 0.8)
     )
-    # bram_ax.set_yscale("symlog")
-    bram_ax.set_ylabel("BRAMs")
-    bram_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=3))
-    bram_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
+    bram_ax.set_yscale("symlog")
+    bram_ax.set_ylabel("BRAMs\n(log)")
+    bram_ax.set_yticks([1, 10, 100])
+    bram_ax.set_ylim(0.5, 100)
+
     dsp_ax.tick_params(axis="x", which="both", length=0)
     dsp_ax.grid(
         visible=True,
@@ -275,10 +276,10 @@ def plot_resource_usages(
         linewidth=0.2,
         color=(0.8, 0.8, 0.8)
     )
-    # dsp_ax.set_yscale("symlog")
-    dsp_ax.set_ylabel("DSPs")
-    dsp_ax.yaxis.set_major_locator(tick.MaxNLocator(integer=True, nbins=3))
-    dsp_ax.yaxis.set_major_formatter(tick.ScalarFormatter())
+    dsp_ax.set_yscale("symlog")
+    dsp_ax.set_ylabel("DSPs\n(log)")
+    dsp_ax.set_ylim(0.5, 100)
+
     fig.align_ylabels()
 
     # "Lower is better" message
