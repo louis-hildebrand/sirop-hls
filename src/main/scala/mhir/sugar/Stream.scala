@@ -1190,7 +1190,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
           t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)()),
           sAcc -> (s, True),
           acc -> (
-            Undefined(elemTyp).lower(),
+            Default(elemTyp).lower(),
             Mux(firstStep, sData, f(Tuple(acc, sData)()))()
           )
         )
