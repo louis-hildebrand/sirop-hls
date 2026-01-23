@@ -84,7 +84,10 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       val s6 = time("removing accumulator trio special case") {
         tl(SpecialCaseStmBuildSimplifier.simplify(s5))
       }
-      s6
+      val s7 = time("shrinking counters") {
+        tl(shrinkCounters(s6))
+      }
+      s7
     }
     val done =
       time("checking whether stream simplification has reached fixpoint") {
@@ -103,8 +106,59 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
     }
   }
 
-  private def tl(s: Expr): StmBuild =
+  private def tl(s: Expr): StmBuild = {
     s.tchk().lower().asInstanceOf[StmBuild]
+  }
+
+  private def shrinkCounters(s: StmBuild): StmBuild = {
+    s.equations
+      .filter({ case (x, _) => x.typ.isInstanceOf[TyAnyInt] })
+      .foldLeft(s)({
+        case (
+              acc,
+              (
+                x,
+                (
+                  IntCst(0),
+                  Mux(Equal(x0, IntCst(lim)), IntCst(0), Sum(IntCst(1), x1))
+                )
+              )
+            ) if x0 == x1 =>
+          val oldTyp = x.typ.asInstanceOf[TyAnyInt]
+          val newTyp = TyAnyInt.tightest(0, lim).asInstanceOf[TyUInt]
+          val canShrink = newTyp.w > 0 && (
+            newTyp.maxInt < oldTyp.maxInt && newTyp.minInt >= oldTyp.minInt
+              || newTyp.maxInt <= oldTyp.maxInt && newTyp.minInt > oldTyp.minInt
+          )
+          if (!canShrink) {
+            acc
+          } else {
+            val newX = Param(x.prefix)(newTyp)
+            val s1 = acc.addAccumulator(
+              newX,
+              C(0)(newTyp),
+              Mux(
+                newX equ C(lim)(newTyp),
+                C(0)(newTyp),
+                Sum(newX, C(1)(newTyp))()
+              )()
+            )
+            val subs =
+              Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower())
+            StmBuild(
+              s1.n,
+              s1.data.subPreserveType(subs),
+              s1.valid.subPreserveType(subs),
+              s1.equations
+                .filter({ case (y, _) => y != x })
+                .map({ case (y, (z, next)) =>
+                  y -> (z, next.subPreserveType(subs))
+                })
+            )().tchk().asInstanceOf[StmBuild]
+          }
+        case (acc, _) => acc
+      })
+  }
 }
 
 object DisabledStmBuildSimplifier extends StmBuildSimplifier {

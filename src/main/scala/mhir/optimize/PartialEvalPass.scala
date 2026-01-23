@@ -183,6 +183,11 @@ object PartialEvalPass {
                     ArithSimplifier.simplifyArithmetic(
                       (cond && trueE) || (!cond && falseE)
                     )(facts)
+                  case (Equal(e0, IntCst(hi)), IntCst(lo), Sum(IntCst(1), e1))
+                      if e0 == e1
+                        && e1.typ.asInstanceOf[TyAnyInt].maxInt == hi
+                        && e1.typ.asInstanceOf[TyAnyInt].minInt == lo =>
+                    WrappingSum(e1, C(1)(e1.typ))()
                   case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
                     doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
                   case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
