@@ -41,7 +41,7 @@ private[sugar] case class StmReset(
     n: Expr,
     s: Expr,
     inputs: Map[Param, Expr],
-    override val fullyConsumesInputs: Option[Boolean]
+    omitInputCounters: Boolean
 )(typ: Type = Missing)
     extends SyntaxSugar(
       Seq(n, s) ++ inputs.flatMap({ case (x, in) => Seq(x, in) }): _*
@@ -61,7 +61,7 @@ private[sugar] case class StmReset(
             case _ => throw new BadRebuildError(this, newChildren)
           })
           .toMap
-        StmReset(n, s, inputs, this.fullyConsumesInputs)(typ)
+        StmReset(n, s, inputs, omitInputCounters)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -86,7 +86,7 @@ private[sugar] case class StmReset(
       x -> s.tchk.expectType(x.typ)
     })
     val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
-    StmReset(n, s, inputs, this.fullyConsumesInputs)(typ)
+    StmReset(n, s, inputs, omitInputCounters)(typ)
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
@@ -119,7 +119,7 @@ private[sugar] case class StmReset(
         val newStm = stm.subPreserveType(subs)
         newX -> newStm
       }),
-      fullyConsumesInputs = this.fullyConsumesInputs
+      omitInputCounters = this.omitInputCounters
     )(this.typ)
   }
 
@@ -153,7 +153,7 @@ private[sugar] case class StmReset(
         val newStm = stm.subAndEraseType(subs)
         newX -> newStm
       }),
-      fullyConsumesInputs = this.fullyConsumesInputs
+      omitInputCounters = this.omitInputCounters
     )()
   }
 
@@ -274,7 +274,7 @@ private[sugar] case class StmReset(
       case x: Param =>
         x
       case s: StmBuild =>
-        val ctrByInput = if (this.fullyConsumesInputs.contains(true)) {
+        val ctrByInput = if (this.omitInputCounters) {
           Map[Param, Param]()
         } else {
           s.seedByVar
@@ -764,11 +764,14 @@ case class StmMap(
       n,
       innerStm,
       Map(s -> input),
-      fullyConsumesInputs = this.fullyConsumesInputs
+      omitInputCounters = this.f.body.fullyConsumesInputs(Set(this.f.param))
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = this.f.fullyConsumesInputs
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    (this.input.fullyConsumesInputs(inputs)
+    && this.f.body.fullyConsumesInputs(inputs + this.f.param))
+  }
 }
 
 case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
@@ -829,11 +832,22 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
       n,
       innerStm,
       Map(s1Param -> s1, s2Param -> s2),
-      fullyConsumesInputs = this.fullyConsumesInputs
+      omitInputCounters = this.canOmitInputCounters
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = this.f.fullyConsumesInputs
+  private def canOmitInputCounters: Boolean = {
+    this.f match {
+      case Function(x, Function(y, body)) => body.fullyConsumesInputs(Set(x, y))
+      case _                              => false
+    }
+  }
+
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    (this.s1.fullyConsumesInputs(inputs)
+    && this.s2.fullyConsumesInputs(inputs)
+    && this.canOmitInputCounters)
+  }
 }
 
 case class StmAccess(
@@ -1259,7 +1273,9 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     }
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.s.fullyConsumesInputs(inputs)
+  }
 }
 
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
@@ -1372,7 +1388,9 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     StmConcat(StmCst(1, e)(), stm)().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs) && this.e.fullyConsumesInputs(inputs)
+  }
 }
 
 case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
@@ -1401,7 +1419,9 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     StmConcat(stm, StmCst(1, e)())().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs) && this.e.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Take elements from the beginning of a stream.
@@ -1465,6 +1485,13 @@ case class StmPrefix(
       )
     )().tchk().lower()
   }
+
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    (this.stm.typ, this.k) match {
+      case (TyStm(_, IntCst(n)), IntCst(k)) => k >= n
+      case _                                => false
+    }
+  }
 }
 
 /** Take elements from the end of a stream.
@@ -1522,7 +1549,9 @@ case class StmSuffix(
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Discard the first element of the given stream and insert the given value at
@@ -1560,7 +1589,9 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Discard the last element of the given stream and insert the given value at
@@ -1598,9 +1629,9 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = {
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
     // The last element of the input stream will be ignored!
-    Some(false)
+    false
   }
 }
 
@@ -1662,9 +1693,9 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     )().tchk()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = {
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
     // The last element of the input stream will be ignored!
-    Some(false)
+    false
   }
 }
 
@@ -1768,9 +1799,9 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     }
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = {
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
     // The last element of the input stream will be ignored!
-    Some(false)
+    false
   }
 }
 
@@ -1826,7 +1857,10 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    (this.stm1.fullyConsumesInputs(inputs)
+    && this.stm2.fullyConsumesInputs(inputs))
+  }
 }
 
 case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
@@ -1869,7 +1903,9 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
       .lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.a.fullyConsumesInputs(inputs) && this.b.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Make `m` copies of a stream by reading the stream into a vector and then
@@ -1954,7 +1990,9 @@ case class StmRepeat(
     )().tchk()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 case class StmReverse(stm: Expr /* Stm<A; n> */ )(
@@ -1996,7 +2034,9 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
@@ -2025,7 +2065,9 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     this.stm.lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
@@ -2057,7 +2099,9 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     this.stm.lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Return a stream of "windows" from a stream. Note that if the input stream is
@@ -2155,7 +2199,9 @@ case class StmSlideV(
     lowered.tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.input.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Similar to <code>StmSlideS</code>, but produces a nested stream rather than
@@ -2198,7 +2244,9 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
       .lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Returns a stream of 2-dimensional "windows" from a 2-dimensional stream.
@@ -2303,7 +2351,9 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     )().tchk()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
@@ -2343,7 +2393,9 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     )().tchk().lower()
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    this.stm.fullyConsumesInputs(inputs)
+  }
 }
 
 /** Like `FIFON` in

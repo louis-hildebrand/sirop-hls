@@ -1363,5 +1363,5 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
 
   /** See [[mhir.ir.ExprOps.fullyConsumesInputs]].
     */
-  def fullyConsumesInputs: Option[Boolean] = None
+  def fullyConsumesInputs(inputs: Set[Param]): Boolean = false
 }

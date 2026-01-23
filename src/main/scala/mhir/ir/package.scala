@@ -329,26 +329,26 @@ package object ir
       *   a stream operator which returns only the first element of its input
       *   stream does <i>not</i> satisfy this condition.
       *
+      * @param inputs
+      *   the inputs that must be fully consumed.
       * @return
-      *   `Some(true)` if this expression definitely satisfies the condition,
-      *   `Some(false)` if it definitely does not, or `None` if it is unknown.
+      *   `true` if this expression <i>definitely</i> satisfies the condition,
+      *   otherwise `false`.
       */
-    def fullyConsumesInputs: Option[Boolean] = {
+    def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
       this.expr match {
-        case e if e.typ.isData =>
+        case x: Param if inputs.contains(x) => true
+        case e if e.typ.isData              =>
           // Combinational expressions definitely satisfy the condition.
           // When converted to a streaming expression (e.g., via the
           // streamifier), the one input element will be consumed in the same
           // cycle as the one output element is produced.
-          Some(true)
-        case s: SyntaxSugar => s.fullyConsumesInputs
-        case LetStm(_, _, in, out) =>
-          (in.fullyConsumesInputs, out.fullyConsumesInputs) match {
-            case (Some(true), Some(true)) => Some(true)
-            case _                        => None
-          }
-        case Function(_, body) => body.fullyConsumesInputs
-        case _                 => None
+          true
+        case e if e.freeVars.intersect(inputs).isEmpty => true
+        case s: SyntaxSugar => s.fullyConsumesInputs(inputs)
+        case LetStm(_, x, in, out) =>
+          in.fullyConsumesInputs(inputs) && out.fullyConsumesInputs(inputs + x)
+        case _ => false
       }
     }
   }

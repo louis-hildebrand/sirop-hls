@@ -55,5 +55,7 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
     )
   }
 
-  override def fullyConsumesInputs: Option[Boolean] = Some(true)
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    e.fullyConsumesInputs(inputs)
+  }
 }
