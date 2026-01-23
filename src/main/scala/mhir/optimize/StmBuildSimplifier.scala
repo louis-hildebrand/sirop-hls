@@ -40,7 +40,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
   override def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
     time("simplifying stream") {
-      simplifyUntilFixpoint(tl(stm), i = 0)(facts)
+      simplifyUntilFixpoint(stm.tchk().asInstanceOf[StmBuild], i = 0)(facts)
     }
   }
 
@@ -51,7 +51,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
     val simplified = time(s"iteration $i stream simplification") {
       val s1 = time("partially evaluating stream") {
         implicit val fct: FactSet = facts
-        val peStm = StmBuild(
+        StmBuild(
           PE.partialEval(s.n),
           PE.partialEval(s.data),
           PE.partialEval(s.valid),
@@ -66,26 +66,25 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
               val newNext = PE.partialEval(next)
               x -> (newZ, newNext)
           })
-        )()
-        tl(peStm)
+        )().tchk().asInstanceOf[StmBuild]
       }
       val s2 = time("removing unused accumulators") {
-        tl(StmAccRemovalPass.removeUnusedVars(s1))
+        StmAccRemovalPass.removeUnusedVars(s1).tchk().asInstanceOf[StmBuild]
       }
       val s3 = time("removing constant accumulators") {
-        tl(StmAccRemovalPass.removeConstantVars(s2))
+        StmAccRemovalPass.removeConstantVars(s2).tchk().asInstanceOf[StmBuild]
       }
       val s4 = time("deduplicating accumulators") {
-        tl(StmAccRemovalPass.deduplicateVars(s3))
+        StmAccRemovalPass.deduplicateVars(s3).tchk().asInstanceOf[StmBuild]
       }
       val s5 = time("removing prefix counters") {
-        tl(StmAccRemovalPass.removePrefixCounter(s4))
+        StmAccRemovalPass.removePrefixCounter(s4).tchk().asInstanceOf[StmBuild]
       }
       val s6 = time("removing accumulator trio special case") {
-        tl(SpecialCaseStmBuildSimplifier.simplify(s5))
+        SpecialCaseStmBuildSimplifier.simplify(s5).tchk().asInstanceOf[StmBuild]
       }
       val s7 = time("shrinking counters") {
-        tl(shrinkCounters(s6))
+        shrinkCounters(s6).tchk().asInstanceOf[StmBuild]
       }
       s7
     }
@@ -104,10 +103,6 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       // inlining constant-valued accumulator elements
       simplifyUntilFixpoint(simplified, i = i + 1)(facts)
     }
-  }
-
-  private def tl(s: Expr): StmBuild = {
-    s.tchk().lower().asInstanceOf[StmBuild]
   }
 
   private def shrinkCounters(s: StmBuild): StmBuild = {
