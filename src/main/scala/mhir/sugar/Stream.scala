@@ -900,13 +900,19 @@ case class StmAccess(
     StmBuild(
       perRow,
       StmData(s)(),
-      i === k,
+      (i === k).tchk().lower(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(i.typ), Mux(j + 1 === perRow, i + 1, i)()),
-        j -> (C(0)(j.typ), Mux(j + 1 === perRow, C(0)(j.typ), j + 1)())
+        i -> (
+          C(0)(i.typ),
+          Mux(j + 1 === perRow, i + 1, i)().tchk().lower()
+        ),
+        j -> (
+          C(0)(j.typ),
+          Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower()
+        )
       )
-    )().tchk().lower()
+    )().tchk()
   }
 }
 
@@ -1313,9 +1319,9 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
             // TODO: It might be useful to use undefined[T] rather than
             //       default[T] here. But it may be necessary to update the
             //       evaluator to allow this use of undefined[T]
-            acc -> (v, VecShiftLeft(acc, Default(elemTyp))())
+            acc -> (v, VecShiftLeft(acc, Default(elemTyp))().tchk().lower())
           )
-        )().tchk().lower()
+        )().tchk()
       case TyStm(tv: TyVec, _) =>
         StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
