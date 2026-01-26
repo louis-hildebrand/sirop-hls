@@ -1,9 +1,9 @@
 (I0 : Stm[Vec[u16, 16:u5], 4096:u14]) =>
   (I1 : Stm[Vec[u16, 16:u5], 4096:u14]) =>
-    sbuild(65536:u21)(((sdata(s)).0 +% (sdata(s)).1) +% acc, t == 15:u5) {
+    sbuild(65536:u21)(((sdata(s)).0 +% (sdata(s)).1) +% acc, t == 15:u4) {
       (acc : u16) = {
         init: 0:u16,
-        next: if (t == 15:u5) then {
+        next: if (t == 15:u4) then {
           0:u16
         } else if (first_step) then {
           (sdata(s)).0 +% (sdata(s)).1
@@ -13,11 +13,11 @@
       },
       (first_step : bool) = {
         init: true,
-        next: t == 15:u5
+        next: t == 15:u4
       },
-      (t : u5) = {
-        init: 0:u5,
-        next: if (t == 15:u5) then { 0:u5 } else { 1:u5 + t }
+      (t : u4) = {
+        init: 0:u4,
+        next: 1:u4 +% t
       }
     } {
       (s : Stm[(u16, u16), -1:i1]) = {
@@ -46,57 +46,16 @@
                 ) {
                   (filling : bool) = {
                     init: true,
-                    next: (
-                      ((in_ctr != 15:u5 || out_ctr != 4095:u13) && t < 15:u4
-                        || in_ctr == 15:u5 && out_ctr == 4095:u13)
-                        && filling)
-                      || !filling && in_ctr == 16:u5 && out_ctr == 4095:u13
+                    next: out_ctr != 4095:u12 && t < 15:u4 && filling
+                      || out_ctr == 4095:u12
                   },
-                  (in_ctr : u5) = {
-                    init: 0:u5,
-                    next: if (
-                      !filling && in_ctr == 16:u5 && out_ctr == 4095:u13
-                        || (
-                          in_ctr == 15:u5
-                            && out_ctr == 4095:u13
-                            && filling)
-                    ) then {
-                      0:u5
-                    } else if (filling) then {
-                      1:u5 + in_ctr
-                    } else {
-                      in_ctr
-                    }
-                  },
-                  (out_ctr : u13) = {
-                    init: 0:u13,
-                    next: if (
-                      !filling && in_ctr == 16:u5 && out_ctr == 4095:u13
-                        || (
-                          in_ctr == 15:u5
-                            && out_ctr == 4095:u13
-                            && filling)
-                    ) then {
-                      0:u13
-                    } else {
-                      1:u13 + out_ctr
-                    }
+                  (out_ctr : u12) = {
+                    init: 0:u12,
+                    next: 1:u12 +% out_ctr
                   },
                   (t : u4) = {
                     init: 0:u4,
-                    next: if (
-                      !filling && in_ctr == 16:u5 && out_ctr == 4095:u13
-                        || (
-                          in_ctr == 15:u5
-                            && out_ctr == 4095:u13
-                            && filling)
-                    ) then {
-                      0:u4
-                    } else if (t == 15:u4) then {
-                      0:u4
-                    } else {
-                      1:u4 + t
-                    }
+                    next: if (out_ctr == 4095:u12) then { 0:u4 } else { 1:u4 +% t }
                   },
                   (v : Vec[Vec[u16, 16:u5], 16:u10]) = {
                     init: undefined[Vec[Vec[u16, 16:u5], 16:u10]],
@@ -127,7 +86,7 @@
                   },
                   (t : u12) = {
                     init: 0:u12,
-                    next: if (t == 4095:u12) then { 0:u12 } else { 1:u12 + t }
+                    next: 1:u12 +% t
                   },
                   (v : Vec[Vec[u16, 16:u5], 4096:u14]) = {
                     init: undefined[Vec[Vec[u16, 16:u5], 4096:u14]],
