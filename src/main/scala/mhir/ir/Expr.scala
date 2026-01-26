@@ -1360,4 +1360,8 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
+
+  /** See [[mhir.ir.ExprOps.fullyConsumesInputs]].
+    */
+  def fullyConsumesInputs(inputs: Set[Param]): Boolean = false
 }

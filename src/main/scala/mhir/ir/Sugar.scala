@@ -142,6 +142,15 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     s"let $xStr = $vStr in\n$inStr"
   }
 
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    (v.typ, in.typ) match {
+      case (_: TyStm, _: TyStm) =>
+        LetStm(0, x, v, in)().fullyConsumesInputs(inputs)
+      case _ =>
+        Let(x, v, in)().fullyConsumesInputs(inputs)
+    }
+  }
+
   private def asFunCall(): FunCall = {
     FunCall(Function(this.x, this.in)(), this.v)()
   }

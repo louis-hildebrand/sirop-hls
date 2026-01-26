@@ -1,9 +1,9 @@
 (I0 : Stm[u16, 65536:u18]) =>
   (I1 : Stm[u16, 65536:u18]) =>
-    sbuild(65536:u17)(acc +% sdata(s), t == 255:u9) {
+    sbuild(65536:u17)(acc +% sdata(s), t == 255:u8) {
       (acc : u16) = {
         init: 0:u16,
-        next: if (t == 255:u9) then {
+        next: if (t == 255:u8) then {
           0:u16
         } else if (first_step) then {
           sdata(s)
@@ -13,11 +13,11 @@
       },
       (first_step : bool) = {
         init: true,
-        next: t == 255:u9
+        next: t == 255:u8
       },
-      (t : u9) = {
-        init: 0:u9,
-        next: if (t == 255:u9) then { 0:u9 } else { 1:u9 + t }
+      (t : u8) = {
+        init: 0:u8,
+        next: 1:u8 +% t
       }
     } {
       (s : Stm[u16, 256:u9]) = {
@@ -29,57 +29,16 @@
             ) {
               (filling : bool) = {
                 init: true,
-                next: (
-                  ((in_ctr != 255:u9 || out_ctr != 65535:u17) && t < 255:u8
-                    || in_ctr == 255:u9 && out_ctr == 65535:u17)
-                    && filling)
-                  || !filling && in_ctr == 256:u9 && out_ctr == 65535:u17
+                next: out_ctr != 65535:u16 && t < 255:u8 && filling
+                  || out_ctr == 65535:u16
               },
-              (in_ctr : u9) = {
-                init: 0:u9,
-                next: if (
-                  !filling && in_ctr == 256:u9 && out_ctr == 65535:u17
-                    || (
-                      in_ctr == 255:u9
-                        && out_ctr == 65535:u17
-                        && filling)
-                ) then {
-                  0:u9
-                } else if (filling) then {
-                  1:u9 + in_ctr
-                } else {
-                  in_ctr
-                }
-              },
-              (out_ctr : u17) = {
-                init: 0:u17,
-                next: if (
-                  !filling && in_ctr == 256:u9 && out_ctr == 65535:u17
-                    || (
-                      in_ctr == 255:u9
-                        && out_ctr == 65535:u17
-                        && filling)
-                ) then {
-                  0:u17
-                } else {
-                  1:u17 + out_ctr
-                }
+              (out_ctr : u16) = {
+                init: 0:u16,
+                next: 1:u16 +% out_ctr
               },
               (t : u8) = {
                 init: 0:u8,
-                next: if (
-                  !filling && in_ctr == 256:u9 && out_ctr == 65535:u17
-                    || (
-                      in_ctr == 255:u9
-                        && out_ctr == 65535:u17
-                        && filling)
-                ) then {
-                  0:u8
-                } else if (t == 255:u8) then {
-                  0:u8
-                } else {
-                  1:u8 + t
-                }
+                next: if (out_ctr == 65535:u16) then { 0:u8 } else { 1:u8 +% t }
               },
               (v : Vec[u16, 256:u9]) = {
                 init: undefined[Vec[u16, 256:u9]],
@@ -110,7 +69,7 @@
               },
               (t : u16) = {
                 init: 0:u16,
-                next: if (t == 65535:u16) then { 0:u16 } else { 1:u16 + t }
+                next: 1:u16 +% t
               },
               (v : Vec[u16, 65536:u18]) = {
                 init: undefined[Vec[u16, 65536:u18]],

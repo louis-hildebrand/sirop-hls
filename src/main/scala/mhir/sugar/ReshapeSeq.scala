@@ -54,4 +54,8 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
       maxWidth = maxWidth
     )
   }
+
+  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+    e.fullyConsumesInputs(inputs)
+  }
 }

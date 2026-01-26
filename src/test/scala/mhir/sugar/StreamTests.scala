@@ -313,6 +313,21 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
+  test("StmMap:2D-1D:StmReduce(StmPrefix)") {
+    // [[3, 4, 5, 6, 7],
+    //  [4, 5, 6, 7, 8],
+    //  [5, 6, 7, 8, 9]]
+    val s = build2D(n = 3, m = 5, i => j => C(3 + i + j)(U8))
+    val actual = StmMap(
+      s,
+      Missing ::+ (row =>
+        StmReduce(StmPrefix(row, 2)(), (U8, U8) ::+ (x => x.__0 + x.__1))()
+      )
+    )().tchk().lower()
+    val expected = StmLiteral(C(3 + 4)(U8), C(4 + 5)(U8), C(5 + 6)(U8))()
+    assert(mhir.ir.eval(actual) == expected)
+  }
+
   test("StmMap:2D-1D:Access") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),

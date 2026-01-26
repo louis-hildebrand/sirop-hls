@@ -315,6 +315,42 @@ package object ir
           )
       }
     }
+
+    /** Whether this stream operator will have consumed all its inputs by the
+      * time it produces its last output.
+      *
+      * This is useful because it allows [[mhir.sugar.StmReset]] to omit input
+      * counters.
+      *
+      * @example
+      *   a stream operator which finds the sum of its input stream satisfies
+      *   this condition.
+      * @example
+      *   a stream operator which returns only the first element of its input
+      *   stream does <i>not</i> satisfy this condition.
+      *
+      * @param inputs
+      *   the inputs that must be fully consumed.
+      * @return
+      *   `true` if this expression <i>definitely</i> satisfies the condition,
+      *   otherwise `false`.
+      */
+    def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
+      this.expr match {
+        case x: Param if inputs.contains(x) => true
+        case e if e.typ.isData              =>
+          // Combinational expressions definitely satisfy the condition.
+          // When converted to a streaming expression (e.g., via the
+          // streamifier), the one input element will be consumed in the same
+          // cycle as the one output element is produced.
+          true
+        case e if e.freeVars.intersect(inputs).isEmpty => true
+        case s: SyntaxSugar => s.fullyConsumesInputs(inputs)
+        case LetStm(_, x, in, out) =>
+          in.fullyConsumesInputs(inputs) && out.fullyConsumesInputs(inputs + x)
+        case _ => false
+      }
+    }
   }
 
   /** Helper methods for [[StmBuild]].

@@ -1,9 +1,9 @@
 (I0 : Stm[u16, 65536:u18]) =>
   (I1 : Stm[u16, 256:u9]) =>
-    sbuild(256:u9)(acc +% sdata(s), t == 255:u9) {
+    sbuild(256:u9)(acc +% sdata(s), t == 255:u8) {
       (acc : u16) = {
         init: 0:u16,
-        next: if (t == 255:u9) then {
+        next: if (t == 255:u8) then {
           0:u16
         } else if (first_step) then {
           sdata(s)
@@ -13,11 +13,11 @@
       },
       (first_step : bool) = {
         init: true,
-        next: t == 255:u9
+        next: t == 255:u8
       },
-      (t : u9) = {
-        init: 0:u9,
-        next: if (t == 255:u9) then { 0:u9 } else { 1:u9 + t }
+      (t : u8) = {
+        init: 0:u8,
+        next: 1:u8 +% t
       }
     } {
       (s : Stm[u16, 256:u9]) = {
@@ -37,7 +37,7 @@
               },
               (t : u8) = {
                 init: 0:u8,
-                next: if (t == 255:u8) then { 0:u8 } else { 1:u8 + t }
+                next: 1:u8 +% t
               },
               (v : Vec[u16, 256:u9]) = {
                 init: undefined[Vec[u16, 256:u9]],

@@ -118,6 +118,32 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(IntCst(0)() % e) == IntCst(0)())
   }
 
+  test("MuxToWrappingSum:Valid1") {
+    val x = Param("x")(U8)
+    val e = Mux(x equ C(255)(U8), C(0)(U8), Sum(x, C(1)(U8))())().tchk()
+    assert(PE.partialEval(e) == WrappingSum(x, C(1)(U8))())
+  }
+
+  test("MuxToWrappingSum:Valid2") {
+    val x = Param("x")(I8)
+    val e = Mux(x equ C(127)(I8), C(-128)(I8), Sum(x, C(1)(I8))())().tchk()
+    assert(PE.partialEval(e) == WrappingSum(x, C(1)(I8))())
+  }
+
+  test("MuxToWrappingSum:NotValid1") {
+    val x = Param("x")(U8)
+    val u5 = TyUInt(5)
+    val e =
+      Mux(x.rebuild(u5) equ C(31)(u5), C(0)(U8), Sum(x, C(1)(U8))())().tchk()
+    assert(PE.partialEval(e) == e)
+  }
+
+  test("MuxToWrappingSum:NotValid2") {
+    val x = Param("x")(I8)
+    val e = Mux(x equ C(127)(I8), C(0)(I8), Sum(x, C(1)(I8))())().tchk()
+    assert(PE.partialEval(e) == e)
+  }
+
   test("WrappingSum:AllInts") {
     assert(PE.partialEval(WrappingSum(C(10)(U8), C(32)(U8))()) == C(42)(U8))
     assert(PE.partialEval(WrappingSum(C(255)(U8), C(3)(U8))()) == C(2)(U8))

@@ -117,45 +117,45 @@
   ) in
   sbuild(1036800:u20)(
     vbuild(2:u2) { (i : u32) =>
-      if ((sdata(s)).3[i] < (sdata(s)).2[i]) then {
-        ((sdata(s)).0[i]).0
+      if ((sdata(s)).0[i] < (sdata(s)).1[i]) then {
+        ((sdata(s)).2[i]).0
       } else {
-        ((sdata(s)).1[i]).0
+        ((sdata(s)).3[i]).0
       }
     },
     true
   ) {} {
-    (s : Stm[(Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
       stm: sbuild(1036800:u20)(
         (
-          vbuild(2:u2) { (i : u32) => (sdata(s)).3[i] },
-          vbuild(2:u2) { (i : u32) => (sdata(s)).0[i] },
-          vbuild(2:u2) { (i : u32) => (sdata(s)).2[i] *% (sdata(s)).2[i] },
-          vbuild(2:u2) { (i : u32) => (sdata(s)).1[i] }
+          vbuild(2:u2) { (i : u32) => (sdata(s)).1[i] },
+          vbuild(2:u2) { (i : u32) => (sdata(s)).0[i] *% (sdata(s)).0[i] },
+          vbuild(2:u2) { (i : u32) => (sdata(s)).2[i] },
+          vbuild(2:u2) { (i : u32) => (sdata(s)).3[i] }
         ),
         true
       ) {} {
-        (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+        (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
           stm: sbuild(1036800:u20)(
             (
-              vbuild(2:u2) { (i : u32) =>
-                (
-                  1:i32 +% (((sdata(I)[i]).1).0 +% ((sdata(I)[i]).1).1)
-                    >>> 1:u8,
-                  ((sdata(I)[i]).1).1
-                )
-              },
-              vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0 },
               vbuild(2:u2) { (i : u32) =>
                 1:i32 +% (((sdata(I)[i]).1).0 +% ((sdata(I)[i]).1).1)
                   >>> 1:u8
               },
+              vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0 },
               vbuild(2:u2) { (i : u32) =>
                 (
                   ((sdata(I)[i]).1).0,
                   (1:i32 +% (((sdata(I)[i]).1).0 +% ((sdata(I)[i]).1).1)
                     >>> 1:u8)
                     -% 1:i32
+                )
+              },
+              vbuild(2:u2) { (i : u32) =>
+                (
+                  1:i32 +% (((sdata(I)[i]).1).0 +% ((sdata(I)[i]).1).1)
+                    >>> 1:u8,
+                  ((sdata(I)[i]).1).1
                 )
               }
             ),
@@ -165,9 +165,9 @@
               stm: sbuild(1036800:u20)(
                 vbuild(2:u2) { (i : u32) =>
                   (
-                    (sdata(s)).0[i],
-                    if ((sdata(s)).0[i] < (sdata(s)).1[i]) then {
-                      (sdata(s)).2[i]
+                    (sdata(s)).2[i],
+                    if ((sdata(s)).2[i] < (sdata(s)).0[i]) then {
+                      (sdata(s)).1[i]
                     } else {
                       (sdata(s)).3[i]
                     }
@@ -175,38 +175,26 @@
                 },
                 true
               ) {} {
-                (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                   stm: sbuild(1036800:u20)(
                     (
-                      vbuild(2:u2) { (i : u32) => (sdata(s)).0[i] },
-                      vbuild(2:u2) { (i : u32) => (sdata(s)).1[i] *% (sdata(s)).1[i]
+                      vbuild(2:u2) { (i : u32) => (sdata(s)).0[i] *% (sdata(s)).0[i]
                       },
+                      vbuild(2:u2) { (i : u32) => (sdata(s)).3[i] },
                       vbuild(2:u2) { (i : u32) => (sdata(s)).2[i] },
-                      vbuild(2:u2) { (i : u32) => (sdata(s)).3[i] }
+                      vbuild(2:u2) { (i : u32) => (sdata(s)).1[i] }
                     ),
                     true
                   ) {} {
-                    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                    (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                       stm: sbuild(1036800:u20)(
                         (
-                          vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0 },
                           vbuild(2:u2) { (i : u32) =>
                             (
                               1:i32
                                 +% (((sdata(I)[i]).1).0
                                   +% ((sdata(I)[i]).1).1))
                               >>> 1:u8
-                          },
-                          vbuild(2:u2) { (i : u32) =>
-                            (
-                              ((sdata(I)[i]).1).0,
-                              ((
-                                1:i32
-                                  +% (((sdata(I)[i]).1).0
-                                    +% ((sdata(I)[i]).1).1))
-                                >>> 1:u8)
-                                -% 1:i32
-                            )
                           },
                           vbuild(2:u2) { (i : u32) =>
                             (
@@ -217,6 +205,18 @@
                                 >>> 1:u8,
                               ((sdata(I)[i]).1).1
                             )
+                          },
+                          vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0 },
+                          vbuild(2:u2) { (i : u32) =>
+                            (
+                              ((sdata(I)[i]).1).0,
+                              ((
+                                1:i32
+                                  +% (((sdata(I)[i]).1).0
+                                    +% ((sdata(I)[i]).1).1))
+                                >>> 1:u8)
+                                -% 1:i32
+                            )
                           }
                         ),
                         true
@@ -225,12 +225,12 @@
                           stm: sbuild(1036800:u20)(
                             vbuild(2:u2) { (i : u32) =>
                               (
-                                (sdata(s)).1[i],
+                                (sdata(s)).0[i],
                                 if (
-                                  (sdata(s)).1[i]
-                                    < (sdata(s)).2[i]
-                                ) then {
                                   (sdata(s)).0[i]
+                                    < (sdata(s)).1[i]
+                                ) then {
+                                  (sdata(s)).2[i]
                                 } else {
                                   (sdata(s)).3[i]
                                 }
@@ -238,26 +238,38 @@
                             },
                             true
                           ) {} {
-                            (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                            (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                               stm: sbuild(1036800:u20)(
                                 (
                                   vbuild(2:u2) { (i : u32) => (sdata(s)).3[i]
                                   },
-                                  vbuild(2:u2) { (i : u32) => (sdata(s)).0[i]
-                                  },
                                   vbuild(2:u2) { (i : u32) =>
                                     (sdata(s)).1[i]
                                       *% (sdata(s)).1[i]
+                                  },
+                                  vbuild(2:u2) { (i : u32) => (sdata(s)).0[i]
                                   },
                                   vbuild(2:u2) { (i : u32) => (sdata(s)).2[i]
                                   }
                                 ),
                                 true
                               ) {} {
-                                (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                   stm: sbuild(1036800:u20)(
                                     (
-                                      vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0
+                                      vbuild(2:u2) { (i : u32) =>
+                                        (
+                                          ((sdata(I)[i]).1).0,
+                                          ((
+                                            1:i32
+                                              +% (((sdata(I)[i]).1).0
+                                                +% (
+                                                  ((sdata(
+                                                    I
+                                                  )[i]).1).1)))
+                                            >>> 1:u8)
+                                            -% 1:i32
+                                        )
                                       },
                                       vbuild(2:u2) { (i : u32) =>
                                         (
@@ -279,19 +291,7 @@
                                           ((sdata(I)[i]).1).1
                                         )
                                       },
-                                      vbuild(2:u2) { (i : u32) =>
-                                        (
-                                          ((sdata(I)[i]).1).0,
-                                          ((
-                                            1:i32
-                                              +% (((sdata(I)[i]).1).0
-                                                +% (
-                                                  ((sdata(
-                                                    I
-                                                  )[i]).1).1)))
-                                            >>> 1:u8)
-                                            -% 1:i32
-                                        )
+                                      vbuild(2:u2) { (i : u32) => (sdata(I)[i]).0
                                       }
                                     ),
                                     true
@@ -323,43 +323,24 @@
                                                 (sdata(s)).2[i]
                                               },
                                               vbuild(2:u2) { (i : u32) =>
-                                                (sdata(s)).3[i]
+                                                (sdata(s)).1[i]
                                               },
                                               vbuild(2:u2) { (i : u32) =>
-                                                (sdata(s)).1[i]
+                                                (sdata(s)).0[i]
                                                   *% (
-                                                    (sdata(s)).1[
+                                                    (sdata(s)).0[
                                                       i
                                                     ])
                                               },
                                               vbuild(2:u2) { (i : u32) =>
-                                                (sdata(s)).0[i]
+                                                (sdata(s)).3[i]
                                               }
                                             ),
                                             true
                                           ) {} {
-                                            (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                            (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                               stm: sbuild(1036800:u20)(
                                                 (
-                                                  vbuild(2:u2) { (i : u32) =>
-                                                    (
-                                                      ((sdata(
-                                                        I
-                                                      )[i]).1).0,
-                                                      ((
-                                                        1:i32
-                                                          +% ((
-                                                            ((sdata(
-                                                              I
-                                                            )[i]).1).0)
-                                                            +% (
-                                                              ((sdata(
-                                                                I
-                                                              )[i]).1).1)))
-                                                        >>> 1:u8)
-                                                        -% 1:i32
-                                                    )
-                                                  },
                                                   vbuild(2:u2) { (i : u32) =>
                                                     (
                                                       1:i32
@@ -372,11 +353,6 @@
                                                               I
                                                             )[i]).1).1)))
                                                       >>> 1:u8
-                                                  },
-                                                  vbuild(2:u2) { (i : u32) =>
-                                                    (sdata(
-                                                      I
-                                                    )[i]).0
                                                   },
                                                   vbuild(2:u2) { (i : u32) =>
                                                     (
@@ -395,6 +371,30 @@
                                                         I
                                                       )[i]).1).1
                                                     )
+                                                  },
+                                                  vbuild(2:u2) { (i : u32) =>
+                                                    (sdata(
+                                                      I
+                                                    )[i]).0
+                                                  },
+                                                  vbuild(2:u2) { (i : u32) =>
+                                                    (
+                                                      ((sdata(
+                                                        I
+                                                      )[i]).1).0,
+                                                      ((
+                                                        1:i32
+                                                          +% ((
+                                                            ((sdata(
+                                                              I
+                                                            )[i]).1).0)
+                                                            +% (
+                                                              ((sdata(
+                                                                I
+                                                              )[i]).1).1)))
+                                                        >>> 1:u8)
+                                                        -% 1:i32
+                                                    )
                                                   }
                                                 ),
                                                 true
@@ -405,16 +405,16 @@
                                                       (
                                                         (sdata(
                                                           s
-                                                        )).1[i],
+                                                        )).3[i],
                                                         if (
                                                           (
                                                             (sdata(
                                                               s
-                                                            )).1[i])
+                                                            )).3[i])
                                                             < (
                                                               (sdata(
                                                                 s
-                                                              )).0[i])
+                                                              )).1[i])
                                                         ) then {
                                                           (sdata(
                                                             s
@@ -422,15 +422,20 @@
                                                         } else {
                                                           (sdata(
                                                             s
-                                                          )).3[i]
+                                                          )).0[i]
                                                         }
                                                       )
                                                     },
                                                     true
                                                   ) {} {
-                                                    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                    (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                       stm: sbuild(1036800:u20)(
                                                         (
+                                                          vbuild(2:u2) { (i : u32) =>
+                                                            (sdata(
+                                                              s
+                                                            )).2[i]
+                                                          },
                                                           vbuild(2:u2) { (i : u32) =>
                                                             (
                                                               (sdata(
@@ -449,17 +454,12 @@
                                                           vbuild(2:u2) { (i : u32) =>
                                                             (sdata(
                                                               s
-                                                            )).2[i]
-                                                          },
-                                                          vbuild(2:u2) { (i : u32) =>
-                                                            (sdata(
-                                                              s
                                                             )).3[i]
                                                           }
                                                         ),
                                                         true
                                                       ) {} {
-                                                        (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                        (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                           stm: sbuild(1036800:u20)(
                                                             (
                                                               vbuild(2:u2) { (i : u32) =>
@@ -474,11 +474,6 @@
                                                                           I
                                                                         )[i]).1).1)))
                                                                   >>> 1:u8
-                                                              },
-                                                              vbuild(2:u2) { (i : u32) =>
-                                                                (sdata(
-                                                                  I
-                                                                )[i]).0
                                                               },
                                                               vbuild(2:u2) { (i : u32) =>
                                                                 (
@@ -516,6 +511,11 @@
                                                                     I
                                                                   )[i]).1).1
                                                                 )
+                                                              },
+                                                              vbuild(2:u2) { (i : u32) =>
+                                                                (sdata(
+                                                                  I
+                                                                )[i]).0
                                                               }
                                                             ),
                                                             true
@@ -535,21 +535,21 @@
                                                                         < (
                                                                           (sdata(
                                                                             s
-                                                                          )).1[i])
+                                                                          )).3[i])
                                                                     ) then {
                                                                       (sdata(
                                                                         s
-                                                                      )).3[i]
+                                                                      )).2[i]
                                                                     } else {
                                                                       (sdata(
                                                                         s
-                                                                      )).2[i]
+                                                                      )).1[i]
                                                                     }
                                                                   )
                                                                 },
                                                                 true
                                                               ) {} {
-                                                                (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                   stm: sbuild(1036800:u20)(
                                                                     (
                                                                       vbuild(2:u2) { (i : u32) =>
@@ -558,31 +558,49 @@
                                                                         )).1[i]
                                                                       },
                                                                       vbuild(2:u2) { (i : u32) =>
-                                                                        (
-                                                                          (sdata(
-                                                                            s
-                                                                          )).2[i])
-                                                                          *% (
-                                                                            (sdata(
-                                                                              s
-                                                                            )).2[i])
-                                                                      },
-                                                                      vbuild(2:u2) { (i : u32) =>
                                                                         (sdata(
                                                                           s
-                                                                        )).0[i]
+                                                                        )).2[i]
                                                                       },
                                                                       vbuild(2:u2) { (i : u32) =>
                                                                         (sdata(
                                                                           s
                                                                         )).3[i]
+                                                                      },
+                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                        (
+                                                                          (sdata(
+                                                                            s
+                                                                          )).0[i])
+                                                                          *% (
+                                                                            (sdata(
+                                                                              s
+                                                                            )).0[i])
                                                                       }
                                                                     ),
                                                                     true
                                                                   ) {} {
-                                                                    (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                       stm: sbuild(1036800:u20)(
                                                                         (
+                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                            (
+                                                                              1:i32
+                                                                                +% ((
+                                                                                  ((sdata(
+                                                                                    I
+                                                                                  )[i]).1).0)
+                                                                                  +% (
+                                                                                    ((sdata(
+                                                                                      I
+                                                                                    )[i]).1).1)))
+                                                                              >>> 1:u8
+                                                                          },
+                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                            (sdata(
+                                                                              I
+                                                                            )[i]).0
+                                                                          },
                                                                           vbuild(2:u2) { (i : u32) =>
                                                                             (
                                                                               (
@@ -600,24 +618,6 @@
                                                                                 I
                                                                               )[i]).1).1
                                                                             )
-                                                                          },
-                                                                          vbuild(2:u2) { (i : u32) =>
-                                                                            (sdata(
-                                                                              I
-                                                                            )[i]).0
-                                                                          },
-                                                                          vbuild(2:u2) { (i : u32) =>
-                                                                            (
-                                                                              1:i32
-                                                                                +% ((
-                                                                                  ((sdata(
-                                                                                    I
-                                                                                  )[i]).1).0)
-                                                                                  +% (
-                                                                                    ((sdata(
-                                                                                      I
-                                                                                    )[i]).1).1)))
-                                                                              >>> 1:u8
                                                                           },
                                                                           vbuild(2:u2) { (i : u32) =>
                                                                             (
@@ -656,27 +656,37 @@
                                                                                     < (
                                                                                       (sdata(
                                                                                         s
-                                                                                      )).1[i])
+                                                                                      )).3[i])
                                                                                 ) then {
                                                                                   (sdata(
                                                                                     s
-                                                                                  )).2[i]
+                                                                                  )).1[i]
                                                                                 } else {
                                                                                   (sdata(
                                                                                     s
-                                                                                  )).3[i]
+                                                                                  )).2[i]
                                                                                 }
                                                                               )
                                                                             },
                                                                             true
                                                                           ) {} {
-                                                                            (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                            (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                               stm: sbuild(1036800:u20)(
                                                                                 (
                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                     (sdata(
                                                                                       s
                                                                                     )).1[i]
+                                                                                  },
+                                                                                  vbuild(2:u2) { (i : u32) =>
+                                                                                    (sdata(
+                                                                                      s
+                                                                                    )).3[i]
+                                                                                  },
+                                                                                  vbuild(2:u2) { (i : u32) =>
+                                                                                    (sdata(
+                                                                                      s
+                                                                                    )).2[i]
                                                                                   },
                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                     (
@@ -687,16 +697,6 @@
                                                                                         (sdata(
                                                                                           s
                                                                                         )).0[i])
-                                                                                  },
-                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                    (sdata(
-                                                                                      s
-                                                                                    )).2[i]
-                                                                                  },
-                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                    (sdata(
-                                                                                      s
-                                                                                    )).3[i]
                                                                                   }
                                                                                 ),
                                                                                 true
@@ -724,6 +724,24 @@
                                                                                       },
                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                         (
+                                                                                          (
+                                                                                            1:i32
+                                                                                              +% ((
+                                                                                                ((sdata(
+                                                                                                  I
+                                                                                                )[i]).1).0)
+                                                                                                +% (
+                                                                                                  ((sdata(
+                                                                                                    I
+                                                                                                  )[i]).1).1)))
+                                                                                            >>> 1:u8,
+                                                                                          ((sdata(
+                                                                                            I
+                                                                                          )[i]).1).1
+                                                                                        )
+                                                                                      },
+                                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                                        (
                                                                                           ((sdata(
                                                                                             I
                                                                                           )[i]).1).0,
@@ -740,24 +758,6 @@
                                                                                             >>> 1:u8)
                                                                                             -% 1:i32
                                                                                         )
-                                                                                      },
-                                                                                      vbuild(2:u2) { (i : u32) =>
-                                                                                        (
-                                                                                          (
-                                                                                            1:i32
-                                                                                              +% ((
-                                                                                                ((sdata(
-                                                                                                  I
-                                                                                                )[i]).1).0)
-                                                                                                +% (
-                                                                                                  ((sdata(
-                                                                                                    I
-                                                                                                  )[i]).1).1)))
-                                                                                            >>> 1:u8,
-                                                                                          ((sdata(
-                                                                                            I
-                                                                                          )[i]).1).1
-                                                                                        )
                                                                                       }
                                                                                     ),
                                                                                     true
@@ -768,76 +768,63 @@
                                                                                           (
                                                                                             (sdata(
                                                                                               s
-                                                                                            )).2[i],
+                                                                                            )).3[i],
                                                                                             if (
                                                                                               (
                                                                                                 (sdata(
                                                                                                   s
-                                                                                                )).2[i])
+                                                                                                )).3[i])
                                                                                                 < (
                                                                                                   (sdata(
                                                                                                     s
-                                                                                                  )).0[i])
+                                                                                                  )).1[i])
                                                                                             ) then {
                                                                                               (sdata(
                                                                                                 s
-                                                                                              )).1[i]
+                                                                                              )).0[i]
                                                                                             } else {
                                                                                               (sdata(
                                                                                                 s
-                                                                                              )).3[i]
+                                                                                              )).2[i]
                                                                                             }
                                                                                           )
                                                                                         },
                                                                                         true
                                                                                       ) {} {
-                                                                                        (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                        (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                                           stm: sbuild(1036800:u20)(
                                                                                             (
-                                                                                              vbuild(2:u2) { (i : u32) =>
-                                                                                                (
-                                                                                                  (sdata(
-                                                                                                    s
-                                                                                                  )).0[i])
-                                                                                                  *% (
-                                                                                                    (sdata(
-                                                                                                      s
-                                                                                                    )).0[i])
-                                                                                              },
                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                 (sdata(
                                                                                                   s
                                                                                                 )).3[i]
                                                                                               },
                                                                                               vbuild(2:u2) { (i : u32) =>
-                                                                                                (sdata(
-                                                                                                  s
-                                                                                                )).2[i]
+                                                                                                (
+                                                                                                  (sdata(
+                                                                                                    s
+                                                                                                  )).1[i])
+                                                                                                  *% (
+                                                                                                    (sdata(
+                                                                                                      s
+                                                                                                    )).1[i])
                                                                                               },
                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                 (sdata(
                                                                                                   s
-                                                                                                )).1[i]
+                                                                                                )).0[i]
+                                                                                              },
+                                                                                              vbuild(2:u2) { (i : u32) =>
+                                                                                                (sdata(
+                                                                                                  s
+                                                                                                )).2[i]
                                                                                               }
                                                                                             ),
                                                                                             true
                                                                                           ) {} {
-                                                                                            (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                            (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                               stm: sbuild(1036800:u20)(
                                                                                                 (
-                                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                                    (
-                                                                                                      1:i32
-                                                                                                        +% ((
-                                                                                                          ((sdata(
-                                                                                                            I
-                                                                                                          )[i]).1).0)
-                                                                                                          +% (
-                                                                                                            ((sdata(
-                                                                                                              I
-                                                                                                            )[i]).1).1)))
-                                                                                                      >>> 1:u8
-                                                                                                  },
                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                     (
                                                                                                       (
@@ -855,6 +842,19 @@
                                                                                                         I
                                                                                                       )[i]).1).1
                                                                                                     )
+                                                                                                  },
+                                                                                                  vbuild(2:u2) { (i : u32) =>
+                                                                                                    (
+                                                                                                      1:i32
+                                                                                                        +% ((
+                                                                                                          ((sdata(
+                                                                                                            I
+                                                                                                          )[i]).1).0)
+                                                                                                          +% (
+                                                                                                            ((sdata(
+                                                                                                              I
+                                                                                                            )[i]).1).1)))
+                                                                                                      >>> 1:u8
                                                                                                   },
                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                     (sdata(
@@ -889,82 +889,63 @@
                                                                                                       (
                                                                                                         (sdata(
                                                                                                           s
-                                                                                                        )).0[i],
+                                                                                                        )).1[i],
                                                                                                         if (
                                                                                                           (
                                                                                                             (sdata(
                                                                                                               s
-                                                                                                            )).0[i])
+                                                                                                            )).1[i])
                                                                                                             < (
                                                                                                               (sdata(
                                                                                                                 s
-                                                                                                              )).1[i])
+                                                                                                              )).2[i])
                                                                                                         ) then {
                                                                                                           (sdata(
                                                                                                             s
-                                                                                                          )).2[i]
+                                                                                                          )).3[i]
                                                                                                         } else {
                                                                                                           (sdata(
                                                                                                             s
-                                                                                                          )).3[i]
+                                                                                                          )).0[i]
                                                                                                         }
                                                                                                       )
                                                                                                     },
                                                                                                     true
                                                                                                   ) {} {
-                                                                                                    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                                    (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                       stm: sbuild(1036800:u20)(
                                                                                                         (
                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                             (sdata(
                                                                                                               s
-                                                                                                            )).3[i]
+                                                                                                            )).2[i]
+                                                                                                          },
+                                                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                                                            (sdata(
+                                                                                                              s
+                                                                                                            )).1[i]
                                                                                                           },
                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                             (
                                                                                                               (sdata(
                                                                                                                 s
-                                                                                                              )).1[i])
+                                                                                                              )).0[i])
                                                                                                               *% (
                                                                                                                 (sdata(
                                                                                                                   s
-                                                                                                                )).1[i])
+                                                                                                                )).0[i])
                                                                                                           },
                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                             (sdata(
                                                                                                               s
-                                                                                                            )).0[i]
-                                                                                                          },
-                                                                                                          vbuild(2:u2) { (i : u32) =>
-                                                                                                            (sdata(
-                                                                                                              s
-                                                                                                            )).2[i]
+                                                                                                            )).3[i]
                                                                                                           }
                                                                                                         ),
                                                                                                         true
                                                                                                       ) {} {
-                                                                                                        (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+                                                                                                        (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                           stm: sbuild(1036800:u20)(
                                                                                                             (
-                                                                                                              vbuild(2:u2) { (i : u32) =>
-                                                                                                                (
-                                                                                                                  ((sdata(
-                                                                                                                    I
-                                                                                                                  )[i]).1).0,
-                                                                                                                  ((
-                                                                                                                    1:i32
-                                                                                                                      +% ((
-                                                                                                                        ((sdata(
-                                                                                                                          I
-                                                                                                                        )[i]).1).0)
-                                                                                                                        +% (
-                                                                                                                          ((sdata(
-                                                                                                                            I
-                                                                                                                          )[i]).1).1)))
-                                                                                                                    >>> 1:u8)
-                                                                                                                    -% 1:i32
-                                                                                                                )
-                                                                                                              },
                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                 (
                                                                                                                   1:i32
@@ -977,6 +958,11 @@
                                                                                                                           I
                                                                                                                         )[i]).1).1)))
                                                                                                                   >>> 1:u8
+                                                                                                              },
+                                                                                                              vbuild(2:u2) { (i : u32) =>
+                                                                                                                (sdata(
+                                                                                                                  I
+                                                                                                                )[i]).0
                                                                                                               },
                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                 (
@@ -997,9 +983,23 @@
                                                                                                                 )
                                                                                                               },
                                                                                                               vbuild(2:u2) { (i : u32) =>
-                                                                                                                (sdata(
-                                                                                                                  I
-                                                                                                                )[i]).0
+                                                                                                                (
+                                                                                                                  ((sdata(
+                                                                                                                    I
+                                                                                                                  )[i]).1).0,
+                                                                                                                  ((
+                                                                                                                    1:i32
+                                                                                                                      +% ((
+                                                                                                                        ((sdata(
+                                                                                                                          I
+                                                                                                                        )[i]).1).0)
+                                                                                                                        +% (
+                                                                                                                          ((sdata(
+                                                                                                                            I
+                                                                                                                          )[i]).1).1)))
+                                                                                                                    >>> 1:u8)
+                                                                                                                    -% 1:i32
+                                                                                                                )
                                                                                                               }
                                                                                                             ),
                                                                                                             true
@@ -1039,22 +1039,22 @@
                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                         (sdata(
                                                                                                                           s
-                                                                                                                        )).2[i]
+                                                                                                                        )).0[i]
                                                                                                                       },
                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                         (sdata(
                                                                                                                           s
-                                                                                                                        )).1[i]
+                                                                                                                        )).2[i]
                                                                                                                       },
                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                         (
                                                                                                                           (sdata(
                                                                                                                             s
-                                                                                                                          )).0[i])
+                                                                                                                          )).1[i])
                                                                                                                           *% (
                                                                                                                             (sdata(
                                                                                                                               s
-                                                                                                                            )).0[i])
+                                                                                                                            )).1[i])
                                                                                                                       },
                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                         (sdata(
@@ -1064,9 +1064,14 @@
                                                                                                                     ),
                                                                                                                     true
                                                                                                                   ) {} {
-                                                                                                                    (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                                                    (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                       stm: sbuild(1036800:u20)(
                                                                                                                         (
+                                                                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                                                                            (sdata(
+                                                                                                                              I
+                                                                                                                            )[i]).0
+                                                                                                                          },
                                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                                             (
                                                                                                                               1:i32
@@ -1099,11 +1104,6 @@
                                                                                                                             )
                                                                                                                           },
                                                                                                                           vbuild(2:u2) { (i : u32) =>
-                                                                                                                            (sdata(
-                                                                                                                              I
-                                                                                                                            )[i]).0
-                                                                                                                          },
-                                                                                                                          vbuild(2:u2) { (i : u32) =>
                                                                                                                             (
                                                                                                                               ((sdata(
                                                                                                                                 I
@@ -1131,47 +1131,32 @@
                                                                                                                               (
                                                                                                                                 (sdata(
                                                                                                                                   s
-                                                                                                                                )).3[i],
+                                                                                                                                )).0[i],
                                                                                                                                 if (
                                                                                                                                   (
                                                                                                                                     (sdata(
                                                                                                                                       s
-                                                                                                                                    )).3[i])
+                                                                                                                                    )).0[i])
                                                                                                                                     < (
                                                                                                                                       (sdata(
                                                                                                                                         s
-                                                                                                                                      )).1[i])
+                                                                                                                                      )).2[i])
                                                                                                                                 ) then {
                                                                                                                                   (sdata(
                                                                                                                                     s
-                                                                                                                                  )).2[i]
+                                                                                                                                  )).3[i]
                                                                                                                                 } else {
                                                                                                                                   (sdata(
                                                                                                                                     s
-                                                                                                                                  )).0[i]
+                                                                                                                                  )).1[i]
                                                                                                                                 }
                                                                                                                               )
                                                                                                                             },
                                                                                                                             true
                                                                                                                           ) {} {
-                                                                                                                            (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+                                                                                                                            (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                               stm: sbuild(1036800:u20)(
                                                                                                                                 (
-                                                                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                                                                    (sdata(
-                                                                                                                                      s
-                                                                                                                                    )).2[i]
-                                                                                                                                  },
-                                                                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                                                                    (
-                                                                                                                                      (sdata(
-                                                                                                                                        s
-                                                                                                                                      )).0[i])
-                                                                                                                                      *% (
-                                                                                                                                        (sdata(
-                                                                                                                                          s
-                                                                                                                                        )).0[i])
-                                                                                                                                  },
                                                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                                                     (sdata(
                                                                                                                                       s
@@ -1180,46 +1165,29 @@
                                                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                                                     (sdata(
                                                                                                                                       s
-                                                                                                                                    )).3[i]
+                                                                                                                                    )).0[i]
+                                                                                                                                  },
+                                                                                                                                  vbuild(2:u2) { (i : u32) =>
+                                                                                                                                    (
+                                                                                                                                      (sdata(
+                                                                                                                                        s
+                                                                                                                                      )).3[i])
+                                                                                                                                      *% (
+                                                                                                                                        (sdata(
+                                                                                                                                          s
+                                                                                                                                        )).3[i])
+                                                                                                                                  },
+                                                                                                                                  vbuild(2:u2) { (i : u32) =>
+                                                                                                                                    (sdata(
+                                                                                                                                      s
+                                                                                                                                    )).2[i]
                                                                                                                                   }
                                                                                                                                 ),
                                                                                                                                 true
                                                                                                                               ) {} {
-                                                                                                                                (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+                                                                                                                                (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                                                                                   stm: sbuild(1036800:u20)(
                                                                                                                                     (
-                                                                                                                                      vbuild(2:u2) { (i : u32) =>
-                                                                                                                                        (
-                                                                                                                                          1:i32
-                                                                                                                                            +% ((
-                                                                                                                                              ((sdata(
-                                                                                                                                                I
-                                                                                                                                              )[i]).1).0)
-                                                                                                                                              +% (
-                                                                                                                                                ((sdata(
-                                                                                                                                                  I
-                                                                                                                                                )[i]).1).1)))
-                                                                                                                                          >>> 1:u8
-                                                                                                                                      },
-                                                                                                                                      vbuild(2:u2) { (i : u32) =>
-                                                                                                                                        (
-                                                                                                                                          ((sdata(
-                                                                                                                                            I
-                                                                                                                                          )[i]).1).0,
-                                                                                                                                          ((
-                                                                                                                                            1:i32
-                                                                                                                                              +% ((
-                                                                                                                                                ((sdata(
-                                                                                                                                                  I
-                                                                                                                                                )[i]).1).0)
-                                                                                                                                                +% (
-                                                                                                                                                  ((sdata(
-                                                                                                                                                    I
-                                                                                                                                                  )[i]).1).1)))
-                                                                                                                                            >>> 1:u8)
-                                                                                                                                            -% 1:i32
-                                                                                                                                        )
-                                                                                                                                      },
                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                         (
                                                                                                                                           (
@@ -1242,6 +1210,38 @@
                                                                                                                                         (sdata(
                                                                                                                                           I
                                                                                                                                         )[i]).0
+                                                                                                                                      },
+                                                                                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                                                                                        (
+                                                                                                                                          ((sdata(
+                                                                                                                                            I
+                                                                                                                                          )[i]).1).0,
+                                                                                                                                          ((
+                                                                                                                                            1:i32
+                                                                                                                                              +% ((
+                                                                                                                                                ((sdata(
+                                                                                                                                                  I
+                                                                                                                                                )[i]).1).0)
+                                                                                                                                                +% (
+                                                                                                                                                  ((sdata(
+                                                                                                                                                    I
+                                                                                                                                                  )[i]).1).1)))
+                                                                                                                                            >>> 1:u8)
+                                                                                                                                            -% 1:i32
+                                                                                                                                        )
+                                                                                                                                      },
+                                                                                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                                                                                        (
+                                                                                                                                          1:i32
+                                                                                                                                            +% ((
+                                                                                                                                              ((sdata(
+                                                                                                                                                I
+                                                                                                                                              )[i]).1).0)
+                                                                                                                                              +% (
+                                                                                                                                                ((sdata(
+                                                                                                                                                  I
+                                                                                                                                                )[i]).1).1)))
+                                                                                                                                          >>> 1:u8
                                                                                                                                       }
                                                                                                                                     ),
                                                                                                                                     true
@@ -1252,12 +1252,12 @@
                                                                                                                                           (
                                                                                                                                             (sdata(
                                                                                                                                               s
-                                                                                                                                            )).0[i],
+                                                                                                                                            )).1[i],
                                                                                                                                             if (
                                                                                                                                               (
                                                                                                                                                 (sdata(
                                                                                                                                                   s
-                                                                                                                                                )).0[i])
+                                                                                                                                                )).1[i])
                                                                                                                                                 < (
                                                                                                                                                   (sdata(
                                                                                                                                                     s
@@ -1265,19 +1265,24 @@
                                                                                                                                             ) then {
                                                                                                                                               (sdata(
                                                                                                                                                 s
-                                                                                                                                              )).2[i]
+                                                                                                                                              )).0[i]
                                                                                                                                             } else {
                                                                                                                                               (sdata(
                                                                                                                                                 s
-                                                                                                                                              )).1[i]
+                                                                                                                                              )).2[i]
                                                                                                                                             }
                                                                                                                                           )
                                                                                                                                         },
                                                                                                                                         true
                                                                                                                                       ) {} {
-                                                                                                                                        (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+                                                                                                                                        (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                                                                                           stm: sbuild(1036800:u20)(
                                                                                                                                             (
+                                                                                                                                              vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                (sdata(
+                                                                                                                                                  s
+                                                                                                                                                )).3[i]
+                                                                                                                                              },
                                                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                                                 (sdata(
                                                                                                                                                   s
@@ -1287,11 +1292,6 @@
                                                                                                                                                 (sdata(
                                                                                                                                                   s
                                                                                                                                                 )).2[i]
-                                                                                                                                              },
-                                                                                                                                              vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                (sdata(
-                                                                                                                                                  s
-                                                                                                                                                )).3[i]
                                                                                                                                               },
                                                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                                                 (
@@ -1373,24 +1373,24 @@
                                                                                                                                                       (
                                                                                                                                                         (sdata(
                                                                                                                                                           s
-                                                                                                                                                        )).0[i],
+                                                                                                                                                        )).3[i],
                                                                                                                                                         if (
                                                                                                                                                           (
                                                                                                                                                             (sdata(
                                                                                                                                                               s
-                                                                                                                                                            )).0[i])
+                                                                                                                                                            )).3[i])
                                                                                                                                                             < (
                                                                                                                                                               (sdata(
                                                                                                                                                                 s
-                                                                                                                                                              )).3[i])
+                                                                                                                                                              )).0[i])
                                                                                                                                                         ) then {
                                                                                                                                                           (sdata(
                                                                                                                                                             s
-                                                                                                                                                          )).1[i]
+                                                                                                                                                          )).2[i]
                                                                                                                                                         } else {
                                                                                                                                                           (sdata(
                                                                                                                                                             s
-                                                                                                                                                          )).2[i]
+                                                                                                                                                          )).1[i]
                                                                                                                                                         }
                                                                                                                                                       )
                                                                                                                                                     },
@@ -1400,9 +1400,14 @@
                                                                                                                                                       stm: sbuild(1036800:u20)(
                                                                                                                                                         (
                                                                                                                                                           vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                            (sdata(
-                                                                                                                                                              s
-                                                                                                                                                            )).1[i]
+                                                                                                                                                            (
+                                                                                                                                                              (sdata(
+                                                                                                                                                                s
+                                                                                                                                                              )).1[i])
+                                                                                                                                                              *% (
+                                                                                                                                                                (sdata(
+                                                                                                                                                                  s
+                                                                                                                                                                )).1[i])
                                                                                                                                                           },
                                                                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                                                                             (sdata(
@@ -1415,14 +1420,9 @@
                                                                                                                                                             )).2[i]
                                                                                                                                                           },
                                                                                                                                                           vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                            (
-                                                                                                                                                              (sdata(
-                                                                                                                                                                s
-                                                                                                                                                              )).0[i])
-                                                                                                                                                              *% (
-                                                                                                                                                                (sdata(
-                                                                                                                                                                  s
-                                                                                                                                                                )).0[i])
+                                                                                                                                                            (sdata(
+                                                                                                                                                              s
+                                                                                                                                                            )).0[i]
                                                                                                                                                           }
                                                                                                                                                         ),
                                                                                                                                                         true
@@ -1430,6 +1430,11 @@
                                                                                                                                                         (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                                                           stm: sbuild(1036800:u20)(
                                                                                                                                                             (
+                                                                                                                                                              vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                (sdata(
+                                                                                                                                                                  I
+                                                                                                                                                                )[i]).0
+                                                                                                                                                              },
                                                                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                 (
                                                                                                                                                                   1:i32
@@ -1442,29 +1447,6 @@
                                                                                                                                                                           I
                                                                                                                                                                         )[i]).1).1)))
                                                                                                                                                                   >>> 1:u8
-                                                                                                                                                              },
-                                                                                                                                                              vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                (sdata(
-                                                                                                                                                                  I
-                                                                                                                                                                )[i]).0
-                                                                                                                                                              },
-                                                                                                                                                              vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                (
-                                                                                                                                                                  (
-                                                                                                                                                                    1:i32
-                                                                                                                                                                      +% ((
-                                                                                                                                                                        ((sdata(
-                                                                                                                                                                          I
-                                                                                                                                                                        )[i]).1).0)
-                                                                                                                                                                        +% (
-                                                                                                                                                                          ((sdata(
-                                                                                                                                                                            I
-                                                                                                                                                                          )[i]).1).1)))
-                                                                                                                                                                    >>> 1:u8,
-                                                                                                                                                                  ((sdata(
-                                                                                                                                                                    I
-                                                                                                                                                                  )[i]).1).1
-                                                                                                                                                                )
                                                                                                                                                               },
                                                                                                                                                               vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                 (
@@ -1484,6 +1466,24 @@
                                                                                                                                                                     >>> 1:u8)
                                                                                                                                                                     -% 1:i32
                                                                                                                                                                 )
+                                                                                                                                                              },
+                                                                                                                                                              vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                (
+                                                                                                                                                                  (
+                                                                                                                                                                    1:i32
+                                                                                                                                                                      +% ((
+                                                                                                                                                                        ((sdata(
+                                                                                                                                                                          I
+                                                                                                                                                                        )[i]).1).0)
+                                                                                                                                                                        +% (
+                                                                                                                                                                          ((sdata(
+                                                                                                                                                                            I
+                                                                                                                                                                          )[i]).1).1)))
+                                                                                                                                                                    >>> 1:u8,
+                                                                                                                                                                  ((sdata(
+                                                                                                                                                                    I
+                                                                                                                                                                  )[i]).1).1
+                                                                                                                                                                )
                                                                                                                                                               }
                                                                                                                                                             ),
                                                                                                                                                             true
@@ -1494,12 +1494,12 @@
                                                                                                                                                                   (
                                                                                                                                                                     (sdata(
                                                                                                                                                                       s
-                                                                                                                                                                    )).3[i],
+                                                                                                                                                                    )).2[i],
                                                                                                                                                                     if (
                                                                                                                                                                       (
                                                                                                                                                                         (sdata(
                                                                                                                                                                           s
-                                                                                                                                                                        )).3[i])
+                                                                                                                                                                        )).2[i])
                                                                                                                                                                         < (
                                                                                                                                                                           (sdata(
                                                                                                                                                                             s
@@ -1511,34 +1511,34 @@
                                                                                                                                                                     } else {
                                                                                                                                                                       (sdata(
                                                                                                                                                                         s
-                                                                                                                                                                      )).2[i]
+                                                                                                                                                                      )).3[i]
                                                                                                                                                                     }
                                                                                                                                                                   )
                                                                                                                                                                 },
                                                                                                                                                                 true
                                                                                                                                                               ) {} {
-                                                                                                                                                                (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
+                                                                                                                                                                (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                                                                   stm: sbuild(1036800:u20)(
                                                                                                                                                                     (
                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                         (sdata(
                                                                                                                                                                           s
-                                                                                                                                                                        )).3[i]
+                                                                                                                                                                        )).1[i]
                                                                                                                                                                       },
                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                         (
                                                                                                                                                                           (sdata(
                                                                                                                                                                             s
-                                                                                                                                                                          )).1[i])
+                                                                                                                                                                          )).0[i])
                                                                                                                                                                           *% (
                                                                                                                                                                             (sdata(
                                                                                                                                                                               s
-                                                                                                                                                                            )).1[i])
+                                                                                                                                                                            )).0[i])
                                                                                                                                                                       },
                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                         (sdata(
                                                                                                                                                                           s
-                                                                                                                                                                        )).0[i]
+                                                                                                                                                                        )).3[i]
                                                                                                                                                                       },
                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                         (sdata(
@@ -1548,27 +1548,9 @@
                                                                                                                                                                     ),
                                                                                                                                                                     true
                                                                                                                                                                   ) {} {
-                                                                                                                                                                    (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                                                                                                    (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2]), -1:i1]) = {
                                                                                                                                                                       stm: sbuild(1036800:u20)(
                                                                                                                                                                         (
-                                                                                                                                                                          vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                            (
-                                                                                                                                                                              (
-                                                                                                                                                                                1:i32
-                                                                                                                                                                                  +% ((
-                                                                                                                                                                                    ((sdata(
-                                                                                                                                                                                      I
-                                                                                                                                                                                    )[i]).1).0)
-                                                                                                                                                                                    +% (
-                                                                                                                                                                                      ((sdata(
-                                                                                                                                                                                        I
-                                                                                                                                                                                      )[i]).1).1)))
-                                                                                                                                                                                >>> 1:u8,
-                                                                                                                                                                              ((sdata(
-                                                                                                                                                                                I
-                                                                                                                                                                              )[i]).1).1
-                                                                                                                                                                            )
-                                                                                                                                                                          },
                                                                                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                             (
                                                                                                                                                                               1:i32
@@ -1581,11 +1563,6 @@
                                                                                                                                                                                       I
                                                                                                                                                                                     )[i]).1).1)))
                                                                                                                                                                               >>> 1:u8
-                                                                                                                                                                          },
-                                                                                                                                                                          vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                            (sdata(
-                                                                                                                                                                              I
-                                                                                                                                                                            )[i]).0
                                                                                                                                                                           },
                                                                                                                                                                           vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                             (
@@ -1605,6 +1582,29 @@
                                                                                                                                                                                 >>> 1:u8)
                                                                                                                                                                                 -% 1:i32
                                                                                                                                                                             )
+                                                                                                                                                                          },
+                                                                                                                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                            (
+                                                                                                                                                                              (
+                                                                                                                                                                                1:i32
+                                                                                                                                                                                  +% ((
+                                                                                                                                                                                    ((sdata(
+                                                                                                                                                                                      I
+                                                                                                                                                                                    )[i]).1).0)
+                                                                                                                                                                                    +% (
+                                                                                                                                                                                      ((sdata(
+                                                                                                                                                                                        I
+                                                                                                                                                                                      )[i]).1).1)))
+                                                                                                                                                                                >>> 1:u8,
+                                                                                                                                                                              ((sdata(
+                                                                                                                                                                                I
+                                                                                                                                                                              )[i]).1).1
+                                                                                                                                                                            )
+                                                                                                                                                                          },
+                                                                                                                                                                          vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                            (sdata(
+                                                                                                                                                                              I
+                                                                                                                                                                            )[i]).0
                                                                                                                                                                           }
                                                                                                                                                                         ),
                                                                                                                                                                         true
@@ -1615,12 +1615,12 @@
                                                                                                                                                                               (
                                                                                                                                                                                 (sdata(
                                                                                                                                                                                   s
-                                                                                                                                                                                )).1[i],
+                                                                                                                                                                                )).0[i],
                                                                                                                                                                                 if (
                                                                                                                                                                                   (
                                                                                                                                                                                     (sdata(
                                                                                                                                                                                       s
-                                                                                                                                                                                    )).1[i])
+                                                                                                                                                                                    )).0[i])
                                                                                                                                                                                     < (
                                                                                                                                                                                       (sdata(
                                                                                                                                                                                         s
@@ -1628,68 +1628,50 @@
                                                                                                                                                                                 ) then {
                                                                                                                                                                                   (sdata(
                                                                                                                                                                                     s
-                                                                                                                                                                                  )).3[i]
+                                                                                                                                                                                  )).1[i]
                                                                                                                                                                                 } else {
                                                                                                                                                                                   (sdata(
                                                                                                                                                                                     s
-                                                                                                                                                                                  )).0[i]
+                                                                                                                                                                                  )).3[i]
                                                                                                                                                                                 }
                                                                                                                                                                               )
                                                                                                                                                                             },
                                                                                                                                                                             true
                                                                                                                                                                           ) {} {
-                                                                                                                                                                            (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                                                                                                            (s : Stm[(Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                                                                               stm: sbuild(1036800:u20)(
                                                                                                                                                                                 (
-                                                                                                                                                                                  vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                                    (sdata(
-                                                                                                                                                                                      s
-                                                                                                                                                                                    )).2[i]
-                                                                                                                                                                                  },
                                                                                                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                                     (sdata(
                                                                                                                                                                                       s
                                                                                                                                                                                     )).1[i]
                                                                                                                                                                                   },
                                                                                                                                                                                   vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                                    (sdata(
+                                                                                                                                                                                      s
+                                                                                                                                                                                    )).3[i]
+                                                                                                                                                                                  },
+                                                                                                                                                                                  vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                                     (
                                                                                                                                                                                       (sdata(
                                                                                                                                                                                         s
-                                                                                                                                                                                      )).0[i])
+                                                                                                                                                                                      )).2[i])
                                                                                                                                                                                       *% (
                                                                                                                                                                                         (sdata(
                                                                                                                                                                                           s
-                                                                                                                                                                                        )).0[i])
+                                                                                                                                                                                        )).2[i])
                                                                                                                                                                                   },
                                                                                                                                                                                   vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                                     (sdata(
                                                                                                                                                                                       s
-                                                                                                                                                                                    )).3[i]
+                                                                                                                                                                                    )).0[i]
                                                                                                                                                                                   }
                                                                                                                                                                                 ),
                                                                                                                                                                                 true
                                                                                                                                                                               ) {} {
-                                                                                                                                                                                (s : Stm[(Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
+                                                                                                                                                                                (s : Stm[(Vec[(i32, i32), 2:u2], Vec[i32, 2:u2], Vec[i32, 2:u2], Vec[(i32, i32), 2:u2]), -1:i1]) = {
                                                                                                                                                                                   stm: sbuild(1036800:u20)(
                                                                                                                                                                                     (
-                                                                                                                                                                                      vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                                        (
-                                                                                                                                                                                          1:i32
-                                                                                                                                                                                            +% ((
-                                                                                                                                                                                              ((sdata(
-                                                                                                                                                                                                I
-                                                                                                                                                                                              )[i]).1).0)
-                                                                                                                                                                                              +% (
-                                                                                                                                                                                                ((sdata(
-                                                                                                                                                                                                  I
-                                                                                                                                                                                                )[i]).1).1)))
-                                                                                                                                                                                          >>> 1:u8
-                                                                                                                                                                                      },
-                                                                                                                                                                                      vbuild(2:u2) { (i : u32) =>
-                                                                                                                                                                                        (sdata(
-                                                                                                                                                                                          I
-                                                                                                                                                                                        )[i]).0
-                                                                                                                                                                                      },
                                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                                         (
                                                                                                                                                                                           (
@@ -1707,6 +1689,24 @@
                                                                                                                                                                                             I
                                                                                                                                                                                           )[i]).1).1
                                                                                                                                                                                         )
+                                                                                                                                                                                      },
+                                                                                                                                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                                        (sdata(
+                                                                                                                                                                                          I
+                                                                                                                                                                                        )[i]).0
+                                                                                                                                                                                      },
+                                                                                                                                                                                      vbuild(2:u2) { (i : u32) =>
+                                                                                                                                                                                        (
+                                                                                                                                                                                          1:i32
+                                                                                                                                                                                            +% ((
+                                                                                                                                                                                              ((sdata(
+                                                                                                                                                                                                I
+                                                                                                                                                                                              )[i]).1).0)
+                                                                                                                                                                                              +% (
+                                                                                                                                                                                                ((sdata(
+                                                                                                                                                                                                  I
+                                                                                                                                                                                                )[i]).1).1)))
+                                                                                                                                                                                          >>> 1:u8
                                                                                                                                                                                       },
                                                                                                                                                                                       vbuild(2:u2) { (i : u32) =>
                                                                                                                                                                                         (

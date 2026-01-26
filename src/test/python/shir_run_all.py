@@ -9,6 +9,7 @@ from argparse import ArgumentParser, Namespace
 import shir_extract_fmax
 import shir_extract_resource_usage
 import shir_generate
+import shir_measure_latency
 import shir_synth
 
 ACTIVE_BENCHES = [
@@ -18,7 +19,7 @@ ACTIVE_BENCHES = [
 ]
 
 
-def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
+def main(programs: list[str], skip_shir: bool, skip_sirop: bool, skip_latency: bool) -> None:
     """
     Script entry point.
     """
@@ -27,6 +28,8 @@ def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
 
     shir_extract_resource_usage.main(programs, skip_shir=skip_shir, skip_sirop=skip_sirop)
     shir_extract_fmax.main(programs, skip_shir=skip_shir, skip_sirop=skip_sirop)
+    if not skip_latency:
+        shir_measure_latency.main(programs, skip_shir=skip_shir, skip_sirop=skip_sirop)
 
 def parse_args() -> Namespace:
     """
@@ -53,6 +56,11 @@ def parse_args() -> Namespace:
         action="store_true",
         help="skip the Sirop designs",
     )
+    parser.add_argument(
+        "--skip-latency",
+        action="store_true",
+        help="skip the latency measurement step"
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = ACTIVE_BENCHES
@@ -65,4 +73,5 @@ if __name__ == "__main__":
         _args.programs,
         skip_shir=_args.skip_shir,
         skip_sirop=_args.skip_sirop,
+        skip_latency=_args.skip_latency,
     )
