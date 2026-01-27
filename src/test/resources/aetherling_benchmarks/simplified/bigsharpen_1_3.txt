@@ -1,5 +1,5 @@
 (I : Stm[u32, 2073600:u21]) =>
-  letstm[1:u21] n1: Stm[u32, 2073600:u21] = I in
+  letstm[30:u21] n1: Stm[u32, 2073600:u21] = I in
   sbuild(2073600:u21)((sdata(s)).0 +% (sdata(s)).1, true) {} {
     (s : Stm[(u32, u32), -1:i1]) = {
       stm: sbuild(2073600:u21)(
@@ -240,32 +240,7 @@
           ready: true
         },
         (I1 : Stm[u32, -1:i1]) = {
-          stm: sbuild(2073600:u21)(sdata(s), true) {} {
-            (s : Stm[u32, -1:i1]) = {
-              stm: sbuild(2073600:u21)(sdata(s), true) {} {
-                (s : Stm[u32, -1:i1]) = {
-                  stm: sbuild(2073600:u21)(sdata(s), true) {} {
-                    (s : Stm[u32, -1:i1]) = {
-                      stm: sbuild(2073600:u21)(sdata(s), true) {} {
-                        (s : Stm[u32, -1:i1]) = {
-                          stm: sbuild(2073600:u21)(sdata(s), true) {} {
-                            (s : Stm[u32, -1:i1]) = {
-                              stm: n1,
-                              ready: true
-                            }
-                          },
-                          ready: true
-                        }
-                      },
-                      ready: true
-                    }
-                  },
-                  ready: true
-                }
-              },
-              ready: true
-            }
-          },
+          stm: n1,
           ready: true
         }
       },

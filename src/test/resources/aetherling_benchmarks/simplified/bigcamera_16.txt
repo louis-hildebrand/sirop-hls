@@ -1,5 +1,5 @@
 (I : Stm[Vec[u32, 16:u5], 129600:u17]) =>
-  letstm[1:u17] n446: Stm[Vec[(u32, (u32, u32)), 16:u5], 129600:u17] = (
+  letstm[30:u17] n446: Stm[Vec[(u32, (u32, u32)), 16:u5], 129600:u17] = (
     sbuild(129600:u17)(
       vbuild(16:u5) { (i : u32) =>
         if (v[i] < 1920:u32) then {
@@ -223,7 +223,7 @@
       }
     }
   ) in
-  letstm[1:u17] n451: Stm[Vec[u32, 16:u5], 129600:u17] = (
+  letstm[30:u17] n451: Stm[Vec[u32, 16:u5], 129600:u17] = (
     sbuild(129600:u17)(vbuild(16:u5) { (i : u32) => (sdata(I)[i]).0 }, true) {} {
       (I : Stm[Vec[(u32, (u32, u32)), 16:u5], -1:i1]) = {
         stm: n446,
@@ -231,7 +231,7 @@
       }
     }
   ) in
-  letstm[1:u17] n637: Stm[Vec[u32, 16:u5], 129600:u17] = (
+  letstm[30:u17] n637: Stm[Vec[u32, 16:u5], 129600:u17] = (
     sbuild(129600:u17)(vbuild(16:u5) { (i : u32) => ((sdata(I)[i]).1).0 }, true) {} {
       (I : Stm[Vec[(u32, (u32, u32)), 16:u5], -1:i1]) = {
         stm: n446,
@@ -239,7 +239,7 @@
       }
     }
   ) in
-  letstm[1:u17] n823: Stm[Vec[u32, 16:u5], 129600:u17] = (
+  letstm[30:u17] n823: Stm[Vec[u32, 16:u5], 129600:u17] = (
     sbuild(129600:u17)(vbuild(16:u5) { (i : u32) => ((sdata(I)[i]).1).1 }, true) {} {
       (I : Stm[Vec[(u32, (u32, u32)), 16:u5], -1:i1]) = {
         stm: n446,
@@ -395,17 +395,7 @@
           ready: true
         },
         (I1 : Stm[Vec[u32, 16:u5], -1:i1]) = {
-          stm: sbuild(129600:u17)(sdata(s), true) {} {
-            (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-              stm: sbuild(129600:u17)(sdata(s), true) {} {
-                (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-                  stm: n451,
-                  ready: true
-                }
-              },
-              ready: true
-            }
-          },
+          stm: n451,
           ready: true
         }
       },
@@ -547,17 +537,7 @@
           ready: true
         },
         (I1 : Stm[Vec[u32, 16:u5], -1:i1]) = {
-          stm: sbuild(129600:u17)(sdata(s), true) {} {
-            (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-              stm: sbuild(129600:u17)(sdata(s), true) {} {
-                (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-                  stm: n637,
-                  ready: true
-                }
-              },
-              ready: true
-            }
-          },
+          stm: n637,
           ready: true
         }
       },
@@ -699,17 +679,7 @@
           ready: true
         },
         (I1 : Stm[Vec[u32, 16:u5], -1:i1]) = {
-          stm: sbuild(129600:u17)(sdata(s), true) {} {
-            (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-              stm: sbuild(129600:u17)(sdata(s), true) {} {
-                (s : Stm[Vec[u32, 16:u5], -1:i1]) = {
-                  stm: n823,
-                  ready: true
-                }
-              },
-              ready: true
-            }
-          },
+          stm: n823,
           ready: true
         }
       },

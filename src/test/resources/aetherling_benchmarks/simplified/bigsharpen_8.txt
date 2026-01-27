@@ -1,5 +1,5 @@
 (I : Stm[Vec[u32, 8:u4], 259200:u18]) =>
-  letstm[1:u18] n1: Stm[Vec[u32, 8:u4], 259200:u18] = I in
+  letstm[30:u18] n1: Stm[Vec[u32, 8:u4], 259200:u18] = I in
   sbuild(259200:u18)(
     vbuild(8:u4) { (i : u32) => (sdata(s)).0[i] +% (sdata(s)).1[i] },
     true
@@ -140,17 +140,7 @@
           ready: true
         },
         (I1 : Stm[Vec[u32, 8:u4], -1:i1]) = {
-          stm: sbuild(259200:u18)(sdata(s), true) {} {
-            (s : Stm[Vec[u32, 8:u4], -1:i1]) = {
-              stm: sbuild(259200:u18)(sdata(s), true) {} {
-                (s : Stm[Vec[u32, 8:u4], -1:i1]) = {
-                  stm: n1,
-                  ready: true
-                }
-              },
-              ready: true
-            }
-          },
+          stm: n1,
           ready: true
         }
       },

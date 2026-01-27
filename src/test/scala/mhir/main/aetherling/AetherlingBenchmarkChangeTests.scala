@@ -77,10 +77,12 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         inFile = inFile,
         options = CompilerOptions(
           targets = Set(NullTarget),
-          optFlags = OptimizerOptions.all(
-            assumeThroughputsMatch = true,
-            maxLetStmBufSize = None
-          )
+          optFlags = OptimizerOptions
+            .all(
+              assumeThroughputsMatch = true,
+              maxLetStmBufSize = Some(30)
+            )
+            .copy(matchLatency = false)
         )
       )
       val newExpr = Compiler.compile(args)
