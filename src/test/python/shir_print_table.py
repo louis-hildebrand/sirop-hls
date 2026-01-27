@@ -87,7 +87,7 @@ def print_table(
             else:
                 latency_change = f"\\hspace{{-0.5em}}$\\mathit{{({latency_change:,})}}$"
                 latency_change = f"\\textcolor{{PineGreen}}{{{latency_change}}}"
-            latency_change = latency_change.replace(",", r"\,")
+            latency_change = latency_change.replace(",", r"{,}")
         if shir_area is None or sirop_area is None or shir_area.alm == sirop_area.alm:
             alm_change = ""
         else:
