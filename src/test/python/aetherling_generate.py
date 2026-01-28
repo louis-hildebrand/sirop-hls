@@ -19,12 +19,20 @@ def generate_verilog(benchmarks: list[str]) -> None:
     Create a Verilog project for each benchmark using the Verilog files generated
     by Aetherling.
     """
-    def make_task(bench: str) -> str:
+    def make_task(bench: str) -> str | None:
         proj_dir = c.VERILOG_DIR.joinpath(bench)
         top = c.AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v")
-        return f"Test / runMain {c.VERILOG_PROJ_INITIALIZER} {proj_dir} {top} --overwrite"
+        if top.is_file():
+            return f"Test / runMain {c.VERILOG_PROJ_INITIALIZER} {proj_dir} {top} --overwrite"
+        else:
+            print(f"WARNING: missing file {top}")
+            return None
     tasks = [make_task(b) for b in benchmarks]
+    tasks = [t for t in tasks if t is not None]
     os.chdir(c.ROOT_DIR)
+    if not tasks:
+        print("WARNING: no valid projects to generate")
+        return
     subprocess.run(["sbt"] + tasks, check=True)
 
 
@@ -68,7 +76,10 @@ def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth:
             print("Synthesizing Verilog...")
             for b in benchmarks:
                 proj_dir = c.VERILOG_DIR.joinpath(b)
-                ok = synth.synthesize_design(proj_dir)
+                try:
+                    ok = synth.synthesize_design(proj_dir)
+                except Exception:
+                    ok = False
                 if not ok:
                     print(f" failed to synthesize {proj_dir}")
 
@@ -81,7 +92,10 @@ def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth:
             print("Synthesizing VHDL...")
             for b in benchmarks:
                 proj_dir = c.VHDL_DIR.joinpath(b)
-                ok = synth.synthesize_design(proj_dir)
+                try:
+                    ok = synth.synthesize_design(proj_dir)
+                except Exception:
+                    ok = False
                 if not ok:
                     print(f" failed to synthesize {proj_dir}")
 
