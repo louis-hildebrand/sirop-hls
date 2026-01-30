@@ -40,7 +40,10 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
   override def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
     time("simplifying stream") {
-      simplifyUntilFixpoint(stm.tchk().asInstanceOf[StmBuild], i = 0)(facts)
+      simplifyUntilFixpoint(
+        partialEvalStmBuild(stm.tchk().asInstanceOf[StmBuild])(facts),
+        i = 0
+      )(facts)
     }
   }
 
@@ -49,42 +52,26 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       facts: FactSet
   ): StmBuild = {
     val simplified = time(s"iteration $i stream simplification") {
-      val s1 = time("partially evaluating stream") {
-        implicit val fct: FactSet = facts
-        StmBuild(
-          PE.partialEval(s.n),
-          PE.partialEval(s.data),
-          PE.partialEval(s.valid),
-          s.equations.map({
-            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              // Don't re-traverse input streams: they've already been
-              // simplified
-              val newReady = PE.partialEval(ready)
-              x -> (s, newReady)
-            case (x, (z, next)) =>
-              val newZ = PE.partialEval(z)
-              val newNext = PE.partialEval(next)
-              x -> (newZ, newNext)
-          })
-        )().tchk().asInstanceOf[StmBuild]
+      val s1 = time("removing unused accumulators") {
+        StmAccRemovalPass.removeUnusedVars(s).tchk().asInstanceOf[StmBuild]
       }
-      val s2 = time("removing unused accumulators") {
-        StmAccRemovalPass.removeUnusedVars(s1).tchk().asInstanceOf[StmBuild]
+      val s2 = time("removing constant accumulators") {
+        StmAccRemovalPass.removeConstantVars(s1).tchk().asInstanceOf[StmBuild]
       }
-      val s3 = time("removing constant accumulators") {
-        StmAccRemovalPass.removeConstantVars(s2).tchk().asInstanceOf[StmBuild]
+      val s3 = time("deduplicating accumulators") {
+        StmAccRemovalPass.deduplicateVars(s2).tchk().asInstanceOf[StmBuild]
       }
-      val s4 = time("deduplicating accumulators") {
-        StmAccRemovalPass.deduplicateVars(s3).tchk().asInstanceOf[StmBuild]
+      val s4 = time("removing prefix counters") {
+        StmAccRemovalPass.removePrefixCounter(s3).tchk().asInstanceOf[StmBuild]
       }
-      val s5 = time("removing prefix counters") {
-        StmAccRemovalPass.removePrefixCounter(s4).tchk().asInstanceOf[StmBuild]
+      val s5 = time("removing accumulator trio special case") {
+        SpecialCaseStmBuildSimplifier.simplify(s4).tchk().asInstanceOf[StmBuild]
       }
-      val s6 = time("removing accumulator trio special case") {
-        SpecialCaseStmBuildSimplifier.simplify(s5).tchk().asInstanceOf[StmBuild]
+      val s6 = time("shrinking counters") {
+        shrinkCounters(s5).tchk().asInstanceOf[StmBuild]
       }
-      val s7 = time("shrinking counters") {
-        shrinkCounters(s6).tchk().asInstanceOf[StmBuild]
+      val s7 = time("partially evaluating stream") {
+        partialEvalStmBuild(s6)(facts)
       }
       s7
     }
@@ -103,6 +90,27 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       // inlining constant-valued accumulator elements
       simplifyUntilFixpoint(simplified, i = i + 1)(facts)
     }
+  }
+
+  private def partialEvalStmBuild(
+      s: StmBuild
+  )(implicit facts: FactSet): StmBuild = {
+    StmBuild(
+      PE.partialEval(s.n),
+      PE.partialEval(s.data),
+      PE.partialEval(s.valid),
+      s.equations.map({
+        case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+          // Don't re-traverse input streams: they've already been
+          // simplified
+          val newReady = PE.partialEval(ready)
+          x -> (s, newReady)
+        case (x, (z, next)) =>
+          val newZ = PE.partialEval(z)
+          val newNext = PE.partialEval(next)
+          x -> (newZ, newNext)
+      })
+    )().tchk().asInstanceOf[StmBuild]
   }
 
   private def shrinkCounters(s: StmBuild): StmBuild = {
