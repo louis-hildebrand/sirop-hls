@@ -320,10 +320,6 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
             )
         }
       case And(terms @ _*) =>
-        // TODO: Make the warnings more accurate
-        //        * If any values are `False`, only keep those?
-        //        * If any of the `False` values have no warnings, then discard
-        //          all warnings?
         val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == False)) {
@@ -331,7 +327,15 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
           } else {
             True
           }
-          val warnings = termValues.flatMap(v => v.warnings).toSet
+          val existsFalseTermWithoutWarnings = termValues.exists({
+            case Value(False, warnings) => warnings.isEmpty
+            case _                      => false
+          })
+          val warnings = if (existsFalseTermWithoutWarnings) {
+            Set[EvalWarning]()
+          } else {
+            termValues.flatMap(v => v.warnings).toSet
+          }
           Value(v, warnings)
         } else {
           throw new IllegalArgumentException(
@@ -339,10 +343,6 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
           )
         }
       case Or(terms @ _*) =>
-        // TODO: Make the warnings more accurate
-        //        * If any values are `True`, only keep their warnings?
-        //        * If any of the `True` values have no warnings, then discard
-        //          all warnings?
         val termValues = terms.map(evalBigStep(stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == True)) {
@@ -350,7 +350,15 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
           } else {
             False
           }
-          val warnings = termValues.flatMap(v => v.warnings).toSet
+          val existsTrueTermWithoutWarnings = termValues.exists({
+            case Value(True, warnings) => warnings.isEmpty
+            case _                     => false
+          })
+          val warnings = if (existsTrueTermWithoutWarnings) {
+            Set[EvalWarning]()
+          } else {
+            termValues.flatMap(v => v.warnings).toSet
+          }
           Value(v, warnings)
         } else {
           throw new IllegalArgumentException(
@@ -375,13 +383,14 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
             )
         }
       case Mux(c, t, f) =>
-        // Note that both branches are always evaluated!
         val Value(cVal, cWarn) = evalBigStep(stmData)(c)
-        val Value(tVal, tWarn) = evalBigStep(stmData)(t)
-        val Value(fVal, fWarn) = evalBigStep(stmData)(f)
         cVal match {
-          case True  => Value(tVal, cWarn ++ tWarn)
-          case False => Value(fVal, cWarn ++ fWarn)
+          case True =>
+            val Value(tVal, tWarn) = evalBigStep(stmData)(t)
+            Value(tVal, cWarn ++ tWarn)
+          case False =>
+            val Value(fVal, fWarn) = evalBigStep(stmData)(f)
+            Value(fVal, cWarn ++ fWarn)
           case v =>
             throw new IllegalArgumentException(
               s"Condition of Mux evaluated to $v. It must evaluate to a boolean."
