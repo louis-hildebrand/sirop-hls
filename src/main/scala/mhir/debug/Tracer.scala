@@ -25,7 +25,13 @@ object Tracer {
         steps: Seq[TraceStep],
         maxCycles: Option[Int]
     ): Seq[TraceStep] = {
-      val newSteps = ValidTraceStep(pipe) +: steps
+      val newSteps =
+        try {
+          ValidTraceStep(pipe) +: steps
+        } catch {
+          case ex: EvalException =>
+            return (ErrorTraceStep(ex) +: steps).reverse
+        }
       if (maxCycles.contains(0) || pipe.isEmpty || pipe.isStuck) {
         newSteps.reverse
       } else {
