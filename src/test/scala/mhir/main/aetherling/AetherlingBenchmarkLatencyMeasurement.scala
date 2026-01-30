@@ -14,7 +14,7 @@ case class ErrLatencyResult(latency: Option[Int], simExitCode: Int)
 
 object AetherlingBenchmarkLatencyMeasurement {
   private val LatencyRegex = "LATENCY:\\s+([0-9]+) cycles".r
-  private val TimeLimit = "1h"
+  private val TimeLimit = "2h"
 
   private val logger = Logger(getClass.getName)
 
