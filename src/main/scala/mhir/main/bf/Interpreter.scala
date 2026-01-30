@@ -3,6 +3,11 @@ package mhir.main.bf
 import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.{
+  EnabledLetStmSimplifier,
+  EnabledStmBuildSimplifier,
+  StmSimplifier
+}
 import mhir.sugar.{Min, VecShiftLeft}
 
 /** An interpreter for the Brainfuck programming language
@@ -15,7 +20,8 @@ import mhir.sugar.{Min, VecShiftLeft}
   * @param inputLength
   *   the number of characters in the input.
   * @param maxOutputLength
-  *   the maximum length of the output.
+  *   the maximum length of the output. The program <i>must</i> produce at least
+  *   this many characters of output.
   */
 class Interpreter(
     val tapeLength: Int,
@@ -60,20 +66,13 @@ class Interpreter(
     val inLen = input.length
     val inStream =
       StmLiteral(input.toCharArray.map(n => C(n)(U8)): _*)(TyStm(U8, inLen))
+    val outputStreamSimplified =
+      mhir.optimize.PartialEvalPass.partialEval(this.f(cmdStream)(inStream))
     val outputStream =
-      mhir.ir.eval(this.f(cmdStream)(inStream)).asInstanceOf[StmLiteral]
+      mhir.ir.eval(outputStreamSimplified).asInstanceOf[StmLiteral]
     outputStream.elems
-      .flatMap(e => {
-        val tup = e.asInstanceOf[Tuple]
-        assert(tup.elems.length == 2)
-        val (data, valid) = (tup.elems.head, tup.elems(1))
-        assert(data.isInstanceOf[IntCst])
-        assert(valid.isInstanceOf[BoolCst])
-        (data, valid) match {
-          case (IntCst(c), True) => Some(c.toChar)
-          case _                 => None
-        }
-      })
+      .map(_.asInstanceOf[IntCst])
+      .map({ case IntCst(c) => c.toChar })
       .mkString("")
   }
 
@@ -87,231 +86,21 @@ class Interpreter(
   //          produces output).
   // TODO: add syntax sugar for switch statement or else if?
   private def makeCpuExpr(): Expr = {
-    val cmdStreamParam = Param("cmd_stm")(TyStm(U8, this.programLength))
-    val inputStreamParam = Param("in_stm")(TyStm(U8, this.inputLength))
-    val u2 = TyUInt(2)
-    val LANGLE = C('<'.toInt)(U8)
-    val RANGLE = C('>'.toInt)(U8)
-    val PLUS = C('+'.toInt)(U8)
-    val MINUS = C('-'.toInt)(U8)
-    val DOT = C('.'.toInt)(U8)
-    val COMMA = C(','.toInt)(U8)
-    val LSQR = C('['.toInt)(U8)
-    val RSQR = C(']'.toInt)(U8)
-    val outputStream = {
-
-      /** time */
-      val t = Param("t")(U32)
-
-      /** stream of commands */
-      val cmdStream = Param("cmd_stm")(TyStm(U8, -1))
-
-      /** array of commands */
-      val cmdArray = Param("cmd_arr")(TyVec(U8, this.programLength))
-
-      /** program counter (index within command array) */
-      val cmdPtr = Param("cmd_ptr")(U32)
-
-      /** instruction register (value of the command to execute) */
-      val cmd = VecAccess(cmdArray, cmdPtr)()
-
-      /** stream of inputs */
-      val inStream = Param("in_stm")(TyStm(U8, -1))
-
-      /** data array */
-      val tape = Param("tape")(TyVec(U8, this.tapeLength))
-
-      /** data pointer */
-      val tapePtr = Param("tape_ptr")(U32)
-
-      val tapeVal = VecAccess(tape, tapePtr)()
-
-      /** how the program counter should move */
-      val mode = Param("mode")(u2)
-      val LOADING = C(0)(u2)
-      val NORMAL = C(1)(u2)
-      val SEEK_LEFT = C(2)(u2)
-      val SEEK_RIGHT = C(3)(u2)
-
-      /** bracket counter (to be used for seeking left/right) */
-      val bracketCtr = Param("bracket_ctr")(U8)
-
-      /** whether the program is done */
-      val done = Param("done")(TyBool)
-
-      /** number of inputs remaining */
-      val remainingInputs = Param("remaining_inputs")(U32)
-
-      StmBuild(
-        this.maxOutputLength,
-        Tuple(Mux(done, C(0)(U8), tapeVal)(), !done)(),
-        done || (cmd === DOT),
-        Map[Param, (Expr, Expr)](
-          t -> (
-            C(0)(U32),
-            1 + t
-          ),
-          mode -> (
-            LOADING,
-            Mux(
-              // LOADING --> NORMAL
-              t === (-1 + this.programLength),
-              NORMAL,
-              Mux(
-                // NORMAL --> SEEK_RIGHT
-                (mode === NORMAL) && (cmd === LSQR) && (tapeVal === 0),
-                SEEK_RIGHT,
-                Mux(
-                  // NORMAL --> SEEK_LEFT
-                  (mode === NORMAL) && (cmd === RSQR) && (tapeVal !== 0),
-                  SEEK_LEFT,
-                  Mux(
-                    // SEEK_LEFT --> NORMAL
-                    // (bracketCtr will be 0 at the next step)
-                    (mode === SEEK_LEFT) && (cmd === LSQR) && (bracketCtr === 1),
-                    NORMAL,
-                    Mux(
-                      // SEEK_RIGHT --> NORMAL
-                      // (bracketCtr will be 0 at the next step)
-                      (mode === SEEK_RIGHT) && (cmd === RSQR) && (bracketCtr === 1),
-                      NORMAL,
-                      /* default: no transition */
-                      mode
-                    )()
-                  )()
-                )()
-              )()
-            )()
-          ),
-          done -> (
-            False,
-            done || (
-              (cmdPtr === C(this.programLength - 1)(U32))
-                && ((cmd !== RSQR) || (tapeVal === 0))
-            )
-          ),
-          bracketCtr -> (
-            C(0)(U8),
-            Mux(
-              // NORMAL --> SEEK_RIGHT: start at 1
-              ((mode === NORMAL) && (cmd === LSQR) && (tapeVal === 0))
-              // NORMAL --> SEEK_LEFT: start at 1
-                || ((mode === NORMAL) && (cmd === RSQR) && (tapeVal !== 0))
-                // Descending deeper into bracket nest
-                || ((mode === SEEK_RIGHT) && (cmd === LSQR))
-                || ((mode === SEEK_LEFT) && (cmd === RSQR)),
-              1 + bracketCtr,
-              Mux(
-                // Coming out of bracket nest
-                ((mode === SEEK_RIGHT) && (cmd === RSQR))
-                  || ((mode === SEEK_LEFT) && (cmd === LSQR)),
-                ToUnsigned(-1 + bracketCtr)(),
-                bracketCtr
-              )()
-            )()
-          ),
-          remainingInputs -> (
-            C(this.inputLength)(U32),
-            Mux(
-              (mode === NORMAL) && (cmd === COMMA) && (remainingInputs > 0),
-              ToUnsigned(-1 + remainingInputs)(),
-              remainingInputs
-            )()
-          ),
-          inStream -> (
-            inputStreamParam,
-            (mode === NORMAL) && (cmd === COMMA) && (remainingInputs > 0)
-          ),
-          cmdStream -> (
-            cmdStreamParam,
-            mode === LOADING
-          ),
-          cmdArray -> (
-            VecBuild(this.programLength, U32 ::+ (_ => C(0)(U8)))(),
-            Mux(
-              mode === LOADING,
-              VecShiftLeft(cmdArray, StmData(cmdStream)())(),
-              cmdArray
-            )()
-          ),
-          cmdPtr -> (
-            C(0)(U32),
-            Mux(
-              // LOADING --> LOADING
-              // LOADING --> NORMAL
-              mode === LOADING,
-              cmdPtr,
-              Mux(
-                // NORMAL --> SEEK_LEFT
-                // SEEK_LEFT --> SEEK_LEFT
-                ((mode === NORMAL) && (cmd === RSQR) && (tapeVal !== 0))
-                  || ((mode === SEEK_LEFT) && ((cmd !== LSQR) || (bracketCtr !== 1))),
-                ToUnsigned(-1 + cmdPtr)(),
-                // NORMAL --> NORMAL
-                // NORMAL --> SEEK_RIGHT
-                // SEEK_LEFT --> NORMAL
-                // SEEK_RIGHT --> NORMAL
-                Min(1 + cmdPtr, C(this.programLength - 1)(U32))()
-              )()
-            )()
-          ),
-          tapePtr -> (
-            C(0)(U32),
-            Mux(
-              mode === NORMAL,
-              Mux(
-                cmd === RANGLE,
-                1 + tapePtr,
-                Mux(
-                  cmd === LANGLE,
-                  ToUnsigned(-1 + tapePtr)(),
-                  tapePtr
-                )()
-              )(),
-              tapePtr
-            )()
-          ),
-          tape -> (
-            VecBuild(this.tapeLength, U32 ::+ (_ => C(0)(U8)))(),
-            VecBuild(
-              this.tapeLength,
-              U32 ::+ (i =>
-                Mux(
-                  (i !== tapePtr) || (mode !== NORMAL),
-                  VecAccess(tape, i)(),
-                  Mux(
-                    cmd === PLUS,
-                    // Wrapping add
-                    Mux(
-                      tapeVal === C(255)(U8),
-                      C(0)(U8),
-                      1 + tapeVal
-                    )(),
-                    Mux(
-                      cmd === MINUS,
-                      // Wrapping sub
-                      Mux(
-                        tapeVal === C(0)(U8),
-                        C(255)(U8),
-                        ToUnsigned(-1 + VecAccess(tape, i)())()
-                      )(),
-                      Mux(
-                        (cmd === COMMA) && (remainingInputs > 0),
-                        StmData(inStream)(),
-                        VecAccess(tape, i)()
-                      )()
-                    )()
-                  )()
-                )()
-              )
-            )()
-          )
-        )
-      )()
-    }
-    Function(cmdStreamParam, Function(inputStreamParam, outputStream)())()
-      .tchk()
-      .lower()
+    val src = os.read(
+      os.pwd / "src" / "main" / "scala" / "mhir" / "main" / "bf" / "interpreter.sirop"
+    )
+    val parsed =
+      mhir.parse.sirop.Parser.parse(
+        src
+          .replace("TAPE_LEN", s"$tapeLength:u32")
+          .replace("PROG_LEN", s"$programLength:u32")
+          .replace("INPUT_LEN", s"$inputLength:u32")
+          .replace("OUTPUT_LEN", s"$maxOutputLength:u32")
+      )
+    val typeChecked = parsed.tchk()
+    val lowered = typeChecked.lower()
+    val simplified = mhir.optimize.PartialEvalPass.partialEval(lowered)
+    simplified
   }
 }
 

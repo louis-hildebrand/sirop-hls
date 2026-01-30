@@ -1,0 +1,167 @@
+/* Modes */
+let LOADING    = 0:u2 in
+let NORMAL     = 1:u2 in
+let SEEK_LEFT  = 2:u2 in
+let SEEK_RIGHT = 3:u2 in
+/* Commands */
+let RIGHT  /* > */ = 62:u8 in
+let LEFT   /* < */ = 60:u8 in
+let PLUS   /* + */ = 43:u8 in
+let MINUS  /* - */ = 45:u8 in
+let PERIOD /* . */ = 46:u8 in
+let COMMA  /* , */ = 44:u8 in
+let LSQ    /* [ */ = 91:u8 in
+let RSQ    /* ] */ = 93:u8 in
+/* Main */
+(cmd_stream: Stm[u8, PROG_LEN]) => (input_stream: Stm[u8, INPUT_LEN]) =>
+	sbuild(OUTPUT_LEN)(
+		/*  data: */ tape[tape_ptr],
+		/* valid: */ mode == NORMAL && cmd_arr[cmd_ptr] == PERIOD
+	) {
+		(mode: u2) = {
+			init: LOADING,
+			next: if mode == LOADING then {
+				if cmd_ptr == PROG_LEN -% 1:u32 then NORMAL else mode
+			} else if mode == NORMAL then {
+				if cmd_arr[cmd_ptr] == LSQ && tape[tape_ptr] == 0:u8 then {
+					SEEK_RIGHT
+				} else if cmd_arr[cmd_ptr] == RSQ && tape[tape_ptr] != 0:u8 then {
+					SEEK_LEFT
+				} else {
+					mode
+				}
+			} else if mode == SEEK_LEFT then {
+				if cmd_arr[cmd_ptr] == LSQ && bracket_count == 1:u32 then {
+					NORMAL
+				} else {
+					mode
+				}
+			} else /* mode == SEEK_RIGHT */ {
+				if cmd_arr[cmd_ptr] == RSQ && bracket_count == 1:u32 then {
+					NORMAL
+				} else {
+					mode
+				}
+			}
+		},
+		(cmd_arr: Vec[u8, PROG_LEN]) = {
+			init: undefined[Vec[u8, PROG_LEN]],
+			next: vbuild(PROG_LEN) { (i: u32) =>
+				if i == cmd_ptr && mode == LOADING then {
+					sdata(cmd_stream) /* update just the element at index cmd_ptr */
+				} else {
+					cmd_arr[i] /* leave this cell unchanged */
+				}
+			}
+		},
+		(cmd_ptr: u32) = {
+			init: 0:u32,
+			next: if mode == LOADING then {
+				if cmd_ptr == PROG_LEN -% 1:u32 then {
+					0:u32
+				} else {
+					cmd_ptr +% 1:u32
+				}
+			} else if mode == NORMAL then {
+				if cmd_arr[cmd_ptr] == RSQ && tape[tape_ptr] != 0:u8 then {
+					cmd_ptr -% 1:u32
+				} else {
+					cmd_ptr +% 1:u32
+				}
+			} else if mode == SEEK_LEFT then {
+				if cmd_arr[cmd_ptr] == LSQ && bracket_count == 1:u32 then {
+					cmd_ptr
+				} else {
+					cmd_ptr -% 1:u32
+				}
+			} else /* mode == SEEK_RIGHT */ {
+				cmd_ptr +% 1:u32
+			}
+		},
+		(tape: Vec[u8, TAPE_LEN]) = {
+			init: vbuild(TAPE_LEN) { (i: u32) => 0:u8 },
+			next: vbuild(TAPE_LEN) { (i: u32) =>
+				if i == tape_ptr && mode == NORMAL then {
+					/* possibly update the cell at index tape_ptr */
+					if cmd_arr[cmd_ptr] == PLUS then {
+					    tape[i] +% 1:u8
+					} else if cmd_arr[cmd_ptr] == MINUS then {
+					    tape[i] -% 1:u8
+					} else if cmd_arr[cmd_ptr] == COMMA && remaining_inputs > 0:u32 then {
+					    sdata(input_stream)
+					} else {
+					    tape[i] /* leave this cell unchanged */
+					}
+				} else {
+					tape[i] /* leave this cell unchanged */
+				}
+			}
+		},
+		(tape_ptr: u32) = {
+			init: 0:u32,
+			next: if mode == NORMAL && cmd_arr[cmd_ptr] == LEFT then {
+				tape_ptr -% 1:u32
+			} else if mode == NORMAL && cmd_arr[cmd_ptr] == RIGHT then {
+				tape_ptr +% 1:u32
+			} else {
+				tape_ptr
+			}
+		},
+		(bracket_count: u32) = {
+			init: 0:u32,
+			next: if mode == LOADING then {
+				bracket_count
+			} else if mode == NORMAL then {
+				if cmd_arr[cmd_ptr] == LSQ && tape[tape_ptr] == 0:u8 then {
+					bracket_count +% 1:u32
+				} else if cmd_arr[cmd_ptr] == RSQ && tape[tape_ptr] != 0:u8 then {
+					bracket_count +% 1:u32
+				} else {
+					bracket_count
+				}
+			} else if mode == SEEK_LEFT then {
+				if cmd_arr[cmd_ptr] == LSQ then {
+					bracket_count -% 1:u32
+				} else if cmd_arr[cmd_ptr] == RSQ then {
+					bracket_count +% 1:u32
+				} else {
+					bracket_count
+				}
+			} else /* mode == SEEK_RIGHT */ {
+				if cmd_arr[cmd_ptr] == RSQ then {
+					bracket_count -% 1:u32
+				} else if cmd_arr[cmd_ptr] == LSQ then {
+					bracket_count +% 1:u32
+				} else {
+					bracket_count
+				}
+			}
+		},
+		(remaining_inputs: u32) = {
+			init: INPUT_LEN,
+			next: if (
+				mode == NORMAL
+				&& cmd_ptr < PROG_LEN
+				&& cmd_arr[cmd_ptr] == COMMA
+				&& remaining_inputs > 0:u32
+			) then {
+				remaining_inputs -% 1:u32
+			} else {
+				remaining_inputs
+			}
+		}
+	} {
+		(cmd_stream: Stm[u8, PROG_LEN]) = {
+			stm: cmd_stream,
+			ready: mode == LOADING
+		},
+		(input_stream: Stm[u8, INPUT_LEN]) = {
+			stm: input_stream,
+			ready: (
+				mode == NORMAL
+				&& cmd_ptr < PROG_LEN
+				&& cmd_arr[cmd_ptr] == COMMA
+				&& remaining_inputs > 0:u32
+			)
+		}
+	}

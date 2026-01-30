@@ -1,11 +1,10 @@
 package mhir.main.bf
 
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.tags.Slow
+import org.scalatest.tagobjects.Slow
 
 /** Tests for [[mhir.main.bf.Interpreter]].
   */
-@Slow
 class InterpreterTests extends AnyFunSuite {
   test("H") {
     val program = "Should print 'H': +++++++++[>++++++++<-]>."
@@ -13,14 +12,32 @@ class InterpreterTests extends AnyFunSuite {
     val expectedOutput = "H"
     val actualOutput = Interpreter.run(
       tapeLength = 2,
-      maxOutputLength = expectedOutput.length + 2,
+      maxOutputLength = expectedOutput.length,
       program = program,
       input = input
     )
     assert(actualOutput == expectedOutput)
   }
 
-  test("Hello World!") {
+  test("abcd") {
+    val program =
+      """++++++++++
+        |[->++++++++++<]
+        |>---<++++
+        |[->.+<]
+        |""".stripMargin.stripTrailing
+    val input = ""
+    val expectedOutput = "abcd"
+    val actualOutput = Interpreter.run(
+      tapeLength = 2,
+      maxOutputLength = expectedOutput.length,
+      program = program,
+      input = input
+    )
+    assert(actualOutput == expectedOutput)
+  }
+
+  test("Hello World!", Slow) {
     val program =
       "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
     val input = ""
@@ -87,7 +104,7 @@ class InterpreterTests extends AnyFunSuite {
     assert(actualOutput == expectedOutput)
   }
 
-  test("brainfuck.org:test4") {
+  test("brainfuck.org:test4", Slow) {
     val program =
       "[]++++++++++[>>+>+>++++++[<<+<+++>>>-]<<<<-]\n\"A*$\";?@![#>>+<<]>[>>]<<<<[>++<[-]]>.>."
     val input = ""
