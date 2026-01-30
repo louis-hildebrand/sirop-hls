@@ -48,7 +48,7 @@ map,except_fission,200,True
 map,small_buffers,200,True
 map,small_buffers_and_latmatch,200,True
 matmat,all,1048579,True
-matmat,except_sbuild_simpl,,False
+matmat,except_sbuild_simpl,1048579,True
 matmat,except_letstm_simpl,1048585,True
 matmat,except_stm_simpl,1048585,True
 matmat,except_fuse,1048581,True
