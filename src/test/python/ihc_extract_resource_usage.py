@@ -22,7 +22,7 @@ def extract_and_save_resource_usage(prog: str, writer: csv.DictWriter) -> None:
         flush=True,
         end="",
     )
-    project_dir = c.INTEL_HLS_DIR.joinpath(prog, f"{prog}.prj", "quartus")
+    project_dir = c.IHC_DIR.joinpath(prog, f"{prog}.prj", "quartus")
     ru = extract_resource_usage(project_dir, component="quartus_compile")
     print("failed" if ru is None else "OK")
     crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "ihc"), ru)
@@ -32,7 +32,7 @@ def main(programs: list[str]) -> None:
     """
     Script entry point.
     """
-    out_path = c.INTEL_HLS_RESOURCE_USAGE_CSV
+    out_path = c.IHC_RESOURCE_USAGE_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():

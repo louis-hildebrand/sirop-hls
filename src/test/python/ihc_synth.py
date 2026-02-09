@@ -16,7 +16,7 @@ def synthesize(prog: str) -> None:
     """
     Invoke the synthesis tool for the given program.
     """
-    proj_dir = c.INTEL_HLS_DIR.joinpath(prog)
+    proj_dir = c.IHC_DIR.joinpath(prog)
     prev_cwd = os.getcwd()
     try:
         os.chdir(proj_dir)

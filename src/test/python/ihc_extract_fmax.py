@@ -22,7 +22,7 @@ def extract_and_save_fmax(prog: str, writer: csv.DictWriter) -> None:
         flush=True,
         end="",
     )
-    project_dir = c.INTEL_HLS_DIR / prog / f"{prog}.prj" / "quartus"
+    project_dir = c.IHC_DIR / prog / f"{prog}.prj" / "quartus"
     fmax = fm.extract_fmax(project_dir, top="quartus_compile")
     print("failed" if fmax is None else "OK")
     crud.save_fmax_estimate(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "ihc"), fmax)
@@ -32,7 +32,7 @@ def main(programs: list[str]) -> None:
     """
     Script entry point.
     """
-    out_path = c.INTEL_HLS_FMAX_CSV
+    out_path = c.IHC_FMAX_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():
