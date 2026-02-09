@@ -10,7 +10,6 @@ from argparse import ArgumentParser, Namespace
 from subprocess import CalledProcessError
 
 import lib.constants as c
-from lib import synth
 
 
 def synthesize(prog: str) -> None:
