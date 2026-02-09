@@ -1,0 +1,3 @@
+bench_name,bench_throughput,language,alm,bram,dsp
+dot,-1,ihc,215,0,1
+map,-1,ihc,20,0,0

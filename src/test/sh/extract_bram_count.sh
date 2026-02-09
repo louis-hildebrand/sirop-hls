@@ -6,7 +6,7 @@
 set -u
 
 if [[ "$#" -ge 1 ]]; then
-    f="output_files_$1/${1}.fit.summary"
+    f="output_files/${1}.fit.summary"
 elif [[ -f "output_files/top.fit.summary" ]]; then
     f="output_files/top.fit.summary"
 elif [[ -f "output_files/Top.fit.summary" ]]; then
