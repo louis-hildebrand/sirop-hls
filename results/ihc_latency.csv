@@ -1,3 +1,4 @@
 bench_name,bench_throughput,language,latency,sim_success
 dot,-1,ihc,865,True
 map,-1,ihc,215,True
+matvec,-1,ihc,66342,True
