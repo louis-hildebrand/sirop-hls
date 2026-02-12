@@ -2,4 +2,5 @@ bench_name,bench_throughput,language,fmax
 conv1d,-1,ihc,342.94
 dot,-1,ihc,338.41
 map,-1,ihc,546.45
+matmat,-1,ihc,257.0
 matvec,-1,ihc,353.48

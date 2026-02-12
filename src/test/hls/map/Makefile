@@ -30,4 +30,4 @@ map-cpu: map.cpp
 
 .PHONY: clean
 clean:
-	rm -rf map.prj/ map map-cpu
+	rm -rf map.prj/ map map-cpu transcript

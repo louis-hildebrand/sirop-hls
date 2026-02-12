@@ -2,4 +2,5 @@ bench_name,bench_throughput,language,alm,bram,dsp
 conv1d,-1,ihc,219,0,0
 dot,-1,ihc,215,0,1
 map,-1,ihc,20,0,0
+matmat,-1,ihc,1794,59,8
 matvec,-1,ihc,368,1,1

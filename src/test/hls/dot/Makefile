@@ -30,4 +30,4 @@ dot-cpu: dot.cpp
 
 .PHONY: clean
 clean:
-	rm -rf dot.prj/ dot dot-cpu
+	rm -rf dot.prj/ dot dot-cpu transcript

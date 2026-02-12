@@ -30,4 +30,4 @@ conv1d-cpu: conv1d.cpp
 
 .PHONY: clean
 clean:
-	rm -rf conv1d.prj/ conv1d conv1d-cpu
+	rm -rf conv1d.prj/ conv1d conv1d-cpu transcript

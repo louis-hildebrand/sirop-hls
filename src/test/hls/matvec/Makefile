@@ -30,4 +30,4 @@ matvec-cpu: matvec.cpp
 
 .PHONY: clean
 clean:
-	rm -rf matvec.prj/ matvec matvec-cpu
+	rm -rf matvec.prj/ matvec matvec-cpu transcript
