@@ -16,7 +16,7 @@ synth: fpga
 fpga: matvec.prj
 
 matvec.prj: matvec.cpp
-	i++ -march='10AX115N2F40E2LG' -ghdl ./matvec.cpp -o matvec
+	i++ -march='10AX115N2F40E2LG' -ghdl --clock 175MHz ./matvec.cpp -o matvec
 
 .PHONY: run-cpu
 run-cpu: cpu

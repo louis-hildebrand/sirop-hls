@@ -16,7 +16,7 @@ synth: fpga
 fpga: matmat.prj
 
 matmat.prj: matmat.cpp
-	i++ -march='10AX115N2F40E2LG' -ghdl ./matmat.cpp -o matmat
+	i++ -march='10AX115N2F40E2LG' -ghdl --clock MHz ./matmat.cpp -o matmat
 
 .PHONY: run-cpu
 run-cpu: cpu

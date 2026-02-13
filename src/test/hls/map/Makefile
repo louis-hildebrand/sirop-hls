@@ -16,7 +16,7 @@ synth: fpga
 fpga: map.prj
 
 map.prj: map.cpp
-	i++ -march='10AX115N2F40E2LG' -ghdl ./map.cpp -o map
+	i++ -march='10AX115N2F40E2LG' -ghdl --clock 175MHz ./map.cpp -o map
 
 .PHONY: run-cpu
 run-cpu: cpu

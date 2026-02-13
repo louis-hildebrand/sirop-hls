@@ -16,7 +16,7 @@ synth: fpga
 fpga: conv1d.prj
 
 conv1d.prj: conv1d.cpp
-	i++ -march='10AX115N2F40E2LG' -ghdl ./conv1d.cpp -o conv1d
+	i++ -march='10AX115N2F40E2LG' -ghdl --clock 175MHz ./conv1d.cpp -o conv1d
 
 .PHONY: run-cpu
 run-cpu: cpu

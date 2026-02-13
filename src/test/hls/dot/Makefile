@@ -16,7 +16,7 @@ synth: fpga
 fpga: dot.prj
 
 dot.prj: dot.cpp
-	i++ -march='10AX115N2F40E2LG' -ghdl ./dot.cpp -o dot
+	i++ -march='10AX115N2F40E2LG' -ghdl --clock 175MHz ./dot.cpp -o dot
 
 .PHONY: run-cpu
 run-cpu: cpu
