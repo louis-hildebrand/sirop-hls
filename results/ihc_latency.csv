@@ -7,3 +7,4 @@ map,-1,ihc,215,True
 matmat,-1,ihc,1114158,True
 matvec,-1,ihc,66342,True
 sharpen,-1,ihc,30780,True
+sobel,-1,ihc,30848,True
