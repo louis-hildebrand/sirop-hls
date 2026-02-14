@@ -5,7 +5,7 @@
 using namespace ihc;
 
 constexpr int WIDTH = 1920;
-constexpr int HEIGHT = 1080;
+constexpr int HEIGHT = 16;
 constexpr uint32_t KERNEL3x3[3][3] = {
     {1, 2, 1},
     {2, 4, 2},
@@ -38,7 +38,7 @@ public:
             for (int j = 1; j < img_width; j++) {
                 big_buffer[i][j-1] = big_buffer[i][j];
             }
-            if (i + 1 < win_height) {
+            if (i + 1 < win_height - 1) {
                 big_buffer[i][img_width-1] = big_buffer[i+1][0];
             }
         }
