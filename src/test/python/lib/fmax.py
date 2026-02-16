@@ -41,10 +41,14 @@ class Fmax:
     """
 
 
-def get_sta_path(proj_dir: Path) -> Path | None:
+def get_sta_path(proj_dir: Path, top: str | None = None) -> Path | None:
     """
     Find the path to the .sta.rpt file in the given project.
     """
+    if top:
+        sta_path = proj_dir.joinpath("output_files", f"{top}.sta.rpt")
+        return sta_path if sta_path.exists() else None
+    # Check the usual locations
     sta_path = proj_dir.joinpath("output_files", "top.sta.rpt")
     if sta_path.exists():
         return sta_path
@@ -100,11 +104,11 @@ def extract_all_fmaxes(sta_path: Path) -> list[float]:
     return results
 
 
-def extract_fmax(proj_dir: Path) -> float | None:
+def extract_fmax(proj_dir: Path, top: str | None = None) -> float | None:
     """
     Find the maximum clock frequency for the given project.
     """
-    sta_path = get_sta_path(proj_dir)
+    sta_path = get_sta_path(proj_dir, top=top)
     if sta_path is None:
         return None
     fmaxes = extract_all_fmaxes(sta_path)

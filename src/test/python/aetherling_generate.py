@@ -22,11 +22,10 @@ def generate_verilog(benchmarks: list[str]) -> None:
     def make_task(bench: str) -> str | None:
         proj_dir = c.VERILOG_DIR.joinpath(bench)
         top = c.AETHERLING_VERILOG_DIR.joinpath(f"{bench}.v")
-        if top.is_file():
-            return f"Test / runMain {c.VERILOG_PROJ_INITIALIZER} {proj_dir} {top} --overwrite"
-        else:
+        if not top.is_file():
             print(f"WARNING: missing file {top}")
             return None
+        return f"Test / runMain {c.VERILOG_PROJ_INITIALIZER} {proj_dir} {top} --overwrite"
     tasks = [make_task(b) for b in benchmarks]
     tasks = [t for t in tasks if t is not None]
     os.chdir(c.ROOT_DIR)

@@ -23,6 +23,7 @@ SHIR_SHIR_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir_shir")
 SHIR_SIROP_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir_sirop")
 VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
+IHC_DIR = ROOT_DIR.joinpath("src", "test", "hls")
 
 AETHERLING_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "aetherling")
 ABLATION_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "ablation")
@@ -57,6 +58,12 @@ SHIR_LATENCY_CSV = RESULTS_DIR.joinpath("shir_latency.csv")
 SHIR_LATENCY_PDF = RESULTS_DIR.joinpath("shir_latency.pdf")
 SHIR_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("shir_compile_time.csv")
 
+IHC_FMAX_CSV = RESULTS_DIR.joinpath("ihc_fmax.csv")
+IHC_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("ihc_resource_usage.csv")
+IHC_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("ihc_resource_usage.pdf")
+IHC_LATENCY_CSV = RESULTS_DIR.joinpath("ihc_latency.csv")
+IHC_LATENCY_PDF = RESULTS_DIR.joinpath("ihc_latency.pdf")
+
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")
@@ -66,6 +73,8 @@ AETHERLING_LABEL_BLANK = "Chisel (synthesis fail)"
 AETHERLING_MARKER = "s"
 AETHERLING_MARKER_SIZE = 32
 AETHERLING_COLOR = "tab:blue"
+IHC_LABEL = "Intel HLS"
+IHC_COLOR = "tab:blue"
 SHIR_LABEL = "\\textsc{Shir}"
 SHIR_COLOR = "tab:green"
 OUR_LABEL = "\\textsc{Sirop}"
