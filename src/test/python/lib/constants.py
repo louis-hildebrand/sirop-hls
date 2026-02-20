@@ -64,6 +64,9 @@ IHC_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("ihc_resource_usage.pdf")
 IHC_LATENCY_CSV = RESULTS_DIR.joinpath("ihc_latency.csv")
 IHC_LATENCY_PDF = RESULTS_DIR.joinpath("ihc_latency.pdf")
 
+CPW_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("cpw_resource_usage.pdf")
+CPW_LATENCY_PDF = RESULTS_DIR.joinpath("cpw_latency.pdf")
+
 DEFAULT_QPF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qpf")
 DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.qsf")
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")
@@ -74,7 +77,7 @@ AETHERLING_MARKER = "s"
 AETHERLING_MARKER_SIZE = 32
 AETHERLING_COLOR = "tab:blue"
 IHC_LABEL = "Intel HLS"
-IHC_COLOR = "tab:blue"
+IHC_COLOR = "tab:red"
 SHIR_LABEL = "\\textsc{Shir}"
 SHIR_COLOR = "tab:green"
 OUR_LABEL = "\\textsc{Sirop}"

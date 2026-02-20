@@ -6,7 +6,7 @@ import csv
 from fractions import Fraction
 from pathlib import Path
 
-from .benchmark import Benchmark, BenchmarkImpl
+from .benchmark import Benchmark, BenchmarkImpl, standardize_bench_name
 from .compile_time import CompileTimeReport
 from .fmax import Fmax, Step
 from .latency import LatencyResult
@@ -408,3 +408,58 @@ def merge_compile_times(old: Path, new: Path) -> None:
         for b, ru in combined_results.items():
             save_compile_time(writer, b, ru)
     old.unlink()
+
+
+def read_combined_results(
+    aetherling_area_path: Path,
+    aetherling_latency_path: Path,
+    aetherling_fmax_path: Path,
+    shir_area_path: Path,
+    shir_latency_path: Path,
+    shir_fmax_path: Path,
+    ihc_area_path: Path,
+    ihc_latency_path: Path,
+    ihc_fmax_path: Path,
+) -> tuple[
+    dict[BenchmarkImpl, ResourceUsage],
+    dict[BenchmarkImpl, LatencyResult],
+    dict[BenchmarkImpl, float]
+]:
+    """
+    Read all valid results for Intel HLS, SHIR, Aetherling, and Sirop.
+    """
+    aetherling_area = read_valid_resource_usage_results(aetherling_area_path)
+    aetherling_latency = read_valid_latency_results(aetherling_latency_path)
+    aetherling_fmax = read_valid_fmax_estimates(aetherling_fmax_path)
+    shir_area = read_valid_resource_usage_results(shir_area_path)
+    shir_latency = read_valid_latency_results(shir_latency_path)
+    shir_fmax = read_valid_fmax_estimates(shir_fmax_path)
+    ihc_area = read_valid_resource_usage_results(ihc_area_path)
+    ihc_latency = read_valid_latency_results(ihc_latency_path)
+    ihc_fmax = read_valid_fmax_estimates(ihc_fmax_path)
+    combined_area = shir_area | ihc_area
+    combined_latency = shir_latency | ihc_latency
+    combined_fmax = shir_fmax | ihc_fmax
+    all_benches = {b.bench.name for b in combined_area.keys()}
+    for bench_name in all_benches:
+        target_bi = BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "sirop")
+        target_latency = shir_latency[target_bi].latency or 0
+        candidates = [
+            (bi, lat)
+            for (bi, lat) in aetherling_latency.items()
+            if standardize_bench_name(bi.bench.name) == bench_name
+            and bi.language == "verilog"
+        ]
+        if not candidates:
+            print(f"WARNING: no candidates for {bench_name}")
+            continue
+        # pylint: disable=cell-var-from-loop
+        closest_bi = min(
+            candidates,
+            key=lambda itm: abs(target_latency - (itm[1].latency or 0))
+        )[0]
+        bi = BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "aetherling")
+        combined_area[bi] = aetherling_area[closest_bi]
+        combined_latency[bi] = aetherling_latency[closest_bi]
+        combined_fmax[bi] = aetherling_fmax[closest_bi]
+    return (combined_area, combined_latency, combined_fmax)

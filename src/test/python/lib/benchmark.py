@@ -61,6 +61,34 @@ class BenchmarkImpl:
     bench: Benchmark
     language: str
 
+    @staticmethod
+    def sirop(bench_name: str) -> BenchmarkImpl:
+        """
+        Make a dummy `BenchmarkImpl` for the given benchmark with language "sirop".
+        """
+        return BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "sirop")
+
+    @staticmethod
+    def ihc(bench_name: str) -> BenchmarkImpl:
+        """
+        Make a dummy `BenchmarkImpl` for the given benchmark with language :ihc".
+        """
+        return BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "ihc")
+
+    @staticmethod
+    def shir(bench_name: str) -> BenchmarkImpl:
+        """
+        Make a dummy `BenchmarkImpl` for the given benchmark with language "shir".
+        """
+        return BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "shir")
+
+    @staticmethod
+    def aetherling(bench_name: str) -> BenchmarkImpl:
+        """
+        Make a dummy `BenchmarkImpl` for the given benchmark with language "aetherling".
+        """
+        return BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "aetherling")
+
 
 def min_latency(bench: Benchmark) -> int:
     """
@@ -102,6 +130,21 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name == "sqrt":
         return 2**16 // bench.throughput
     raise ValueError(f"The minimum latency for benchmark {bench} is unknown.")
+
+
+def standardize_bench_name(bench_name: str) -> str:
+    """
+    Translate the benchmark name used for the Aetherling experiments (e.g., bigconv2d) to the
+    standard name (e.g., conv2d).
+    """
+    return {
+        "bigmvm": "matvec",
+        "bigmmm": "matmat",
+        "bigconv2d": "conv2d",
+        "bigconvb2b": "convb2b",
+        "bigsharpen": "sharpen",
+        "bigsobel": "sobel",
+    }.get(bench_name, bench_name)
 
 
 def benchmark_order(bench_name: str) -> int:

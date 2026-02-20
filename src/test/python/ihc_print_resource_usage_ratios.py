@@ -27,7 +27,6 @@ def resource_usage_pairs(
             b.name.startswith("small")
             or b.name.startswith("sum")
             or b.name.startswith("sqrt")
-            or "matvec" in b.name
         )
         if skip:
             continue
