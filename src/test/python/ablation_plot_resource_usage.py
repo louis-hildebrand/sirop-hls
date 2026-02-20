@@ -90,10 +90,10 @@ def plot_resource_usages(
         )
         artists.append(artist)
         # Fmax warning labels
-        for i, p in enumerate(program_names):
+        for x, p, alm_y in zip(xs, program_names, ys):
             pv = ProgramVariant(p, lvl)
             if pv not in fmax_results or fmax_results[pv] < c.TARGET_FREQ:
-                alm_ax.annotate(WARNING, (xs[i], 0.25), ha="center", color="red")
+                alm_ax.annotate(WARNING, (x, 1.25 * max(0.2, alm_y)), ha="center", color="red")
     # Display settings
     alm_ax.grid(
         visible=True,
