@@ -7,7 +7,7 @@ This script plots the latencies for the SHIR benchmarks.
 from fractions import Fraction
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Rectangle
+from matplotlib.patches import Rectangle
 
 import lib.benchmark as lb
 import lib.constants as c
@@ -78,15 +78,6 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         for prog in program_names
     ]
     assert all(shir_sim_ok), "need to show SHIR sim failure somehow"
-    aetherling_sim_ok = [
-        (
-            BenchmarkImpl(Benchmark(prog, Fraction(-1)), "aetherling") not in results
-            or results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "aetherling")].sim_success
-        )
-        for prog in program_names
-    ]
-    if not all(aetherling_sim_ok):
-        print("WARNING: need to show Aetherling sim failure somehow")
     sirop_sim_ok = [
         results[BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop")].sim_success
         for prog in program_names
@@ -216,14 +207,7 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         color=(0.8, 0.8, 0.8)
     )
 
-    # "Lower is better" message
-    fig.text(0.02, -0.24, "Lower is better")
-    down_arrow = Polygon(
-        [(0.004, -0.155), (0.014, -0.155), (0.009, -0.23)],
-        fill=True, color='black', zorder=1000,
-        transform=fig.transFigure, figure=fig
-    )
-    fig.patches.extend([down_arrow])
+    pu.draw_lower_is_better_message(fig, 0.024, -0.24)
 
     # Legend
     fig.legend(

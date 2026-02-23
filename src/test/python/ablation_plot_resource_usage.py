@@ -8,7 +8,6 @@ import math
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
-from matplotlib.patches import Polygon
 
 import lib.ablation_plot_settings as aps
 import lib.ablation_results_crud as crud
@@ -117,13 +116,8 @@ def plot_resource_usages(
     alm_ax.set_yticks([-1, 0, 1, 2, 10])
     alm_ax.set_ylim(-1, 40)
 
-    fig.text(0.02, -0.13, "Lower is better")
-    down_arrow = Polygon(
-        [(0.005, -0.06), (0.015, -0.06), (0.01, -0.12)],
-        fill=True, color='black', zorder=1000,
-        transform=fig.transFigure, figure=fig
-    )
-    fig.patches.extend([down_arrow])
+    pu.draw_lower_is_better_message(fig, 0.025, -0.13)
+
     legend_cols = 1 + math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
     legend_labels=(
         [lvl.explanation for lvl in [aps.BASELINE_LVL] + aps.LEVELS_TO_PLOT]
