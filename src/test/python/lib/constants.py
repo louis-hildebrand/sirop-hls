@@ -75,15 +75,17 @@ AETHERLING_LABEL = "Chisel"
 AETHERLING_LABEL_BLANK = "Chisel (synthesis fail)"
 AETHERLING_MARKER = "s"
 AETHERLING_MARKER_SIZE = 32
-AETHERLING_COLOR = "#b2df8a"
 IHC_LABEL = "Intel HLS"
-IHC_COLOR = "#a6cee3"
 SHIR_LABEL = "\\textsc{Shir}"
-SHIR_COLOR = "#1f78b4"
 OUR_LABEL = "\\textsc{Sirop}"
 OUR_LABEL_BLANK = "\\textsc{Sirop} (synthesis fail)"
 OUR_MARKER = "o"
 OUR_MARKER_SIZE = 16
-OUR_COLOR = "#33a02c"
+
+IHC_COLOR        = "#a6cee3"
+SHIR_COLOR       = "#ffff99"
+AETHERLING_COLOR = "#fb9a99"
+CHISEL_COLOR     = "#2ba07b"
+OUR_COLOR        = "#ff7f00"
 
 TARGET_FREQ = 175  # MHz

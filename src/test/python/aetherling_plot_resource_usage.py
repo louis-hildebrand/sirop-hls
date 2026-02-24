@@ -79,7 +79,7 @@ def plot_resource_usages(
         ys = [results[b].alm for b in verilog_benchmarks]
         alm_ax.plot(  # line
             xs, ys,
-            color=c.AETHERLING_COLOR,
+            color=c.CHISEL_COLOR,
             label=c.AETHERLING_LABEL,
             zorder=10,
         )
@@ -87,9 +87,9 @@ def plot_resource_usages(
             xs, ys,
             marker=c.AETHERLING_MARKER,
             s=c.AETHERLING_MARKER_SIZE,
-            edgecolor=c.AETHERLING_COLOR,
+            edgecolor=c.CHISEL_COLOR,
             linewidth=LINEWIDTH,
-            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            facecolor=[c.CHISEL_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=11,
         )
@@ -117,7 +117,7 @@ def plot_resource_usages(
         verilog_ys = [results[b].bram for b in verilog_benchmarks]
         bram_ax.plot(  # line
             xs, verilog_ys,
-            color=c.AETHERLING_COLOR,
+            color=c.CHISEL_COLOR,
             label=c.AETHERLING_LABEL,
             zorder=10,
         )
@@ -125,9 +125,9 @@ def plot_resource_usages(
             xs, verilog_ys,
             marker=c.AETHERLING_MARKER,
             s=c.AETHERLING_MARKER_SIZE,
-            edgecolor=c.AETHERLING_COLOR,
+            edgecolor=c.CHISEL_COLOR,
             linewidth=LINEWIDTH,
-            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            facecolor=[c.CHISEL_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=11,
         )
@@ -155,7 +155,7 @@ def plot_resource_usages(
         verilog_ys = [results[b].dsp for b in verilog_benchmarks]
         dsp_ax.plot(  # line
             xs, verilog_ys,
-            color=c.AETHERLING_COLOR,
+            color=c.CHISEL_COLOR,
             label=c.AETHERLING_LABEL,
             zorder=10,
         )
@@ -163,9 +163,9 @@ def plot_resource_usages(
             xs, verilog_ys,
             marker=c.AETHERLING_MARKER,
             s=c.AETHERLING_MARKER_SIZE,
-            edgecolor=c.AETHERLING_COLOR,
+            edgecolor=c.CHISEL_COLOR,
             linewidth=LINEWIDTH,
-            facecolor=[c.AETHERLING_COLOR if ok else "white" for ok in verilog_fmax_ok],
+            facecolor=[c.CHISEL_COLOR if ok else "white" for ok in verilog_fmax_ok],
             label=c.AETHERLING_LABEL,
             zorder=11,
         )
@@ -257,19 +257,19 @@ def plot_resource_usages(
             Line2D(
                 [0], [0],
                 label=c.AETHERLING_LABEL,
-                color=c.AETHERLING_COLOR,
+                color=c.CHISEL_COLOR,
                 linewidth=LINEWIDTH,
                 marker=c.AETHERLING_MARKER,
-                markeredgecolor=c.AETHERLING_COLOR,
-                markerfacecolor=c.AETHERLING_COLOR,
+                markeredgecolor=c.CHISEL_COLOR,
+                markerfacecolor=c.CHISEL_COLOR,
             ),
             Line2D(
                 [0], [0],
                 label=c.AETHERLING_LABEL_BLANK,
-                color=c.AETHERLING_COLOR,
+                color=c.CHISEL_COLOR,
                 linewidth=LINEWIDTH,
                 marker=c.AETHERLING_MARKER,
-                markeredgecolor=c.AETHERLING_COLOR,
+                markeredgecolor=c.CHISEL_COLOR,
                 markerfacecolor="white",
             ),
         ],

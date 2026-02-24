@@ -315,7 +315,7 @@ def plot_resource_usages(
     alm_ax.set_xlim(xlim)
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_xticks(
-        [x + BAR_WIDTH/2 for x in xs],
+        [x + 1.5*BAR_WIDTH for x in xs],
         [benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.grid(

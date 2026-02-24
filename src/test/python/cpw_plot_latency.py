@@ -191,7 +191,7 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     )
     ax.set_xlim(xlim)
     ax.set_xticks(
-        [x + BAR_WIDTH/2 for x in xs],
+        [x + 1.5*BAR_WIDTH for x in xs],
         [benchmark_title(p) or "NONE" for p in program_names]
     )
     ax.tick_params(axis="x", which="both", length=0)
