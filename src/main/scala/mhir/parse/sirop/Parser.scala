@@ -496,6 +496,16 @@ object Parser {
               case Seq(v) => VecReverse(v)
               case _      => throw new SyntaxError(s"invalid arguments to $f")
             }
+          case f @ Param("VecSplit", -1) =>
+            args match {
+              case Seq(s, m) => VecSplit(s, m)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("VecJoin", -1) =>
+            args match {
+              case Seq(v) => VecJoin(v)()
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
+            }
           // Stream operators --------------------------------------------------
           case f @ Param("Stm2Vec", -1) =>
             args match {
@@ -532,10 +542,25 @@ object Parser {
               case Seq(s, w) => StmSlideV(s, w)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
             }
+          case f @ Param("StmSlide2D", -1) =>
+            args match {
+              case Seq(s, h, w) => StmSlide2D(s, h, w)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
           case f @ Param("StmAccess", -1) =>
             args match {
               case Seq(s, i) => StmAccess(s, i)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmSplit", -1) =>
+            args match {
+              case Seq(s, m) => StmSplit(s, m)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
+          case f @ Param("StmJoin", -1) =>
+            args match {
+              case Seq(s) => StmJoin(s)()
+              case _      => throw new SyntaxError(s"invalid arguments to $f")
             }
           case _ =>
             args match {
