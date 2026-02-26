@@ -37,6 +37,7 @@ object Program {
       case "sharpen"          => Sharpen
       case "shir:sharpen"     => ShirSharpen
       case "camera"           => Camera
+      case "shir:camera"      => ShirCamera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
@@ -563,7 +564,7 @@ object Program {
 
   private val ShirSharpen: Expr = {
     val src = os.read(ResourcesDir / "sharpen.sirop")
-    mhir.parse.sirop.Parser.parse(src)
+    Parser.parse(src)
   }
 
   private val ShirSobel: Expr = {
@@ -668,6 +669,11 @@ object Program {
     }
     val result = StmSplit(sqrt, width - 2)()
     Function(input, Let(input, input, result)())()
+  }
+
+  private val ShirCamera: Expr = {
+    val src = os.read(ResourcesDir / "camera.sirop")
+    Parser.parse(src)
   }
 
   /** 3D convolution followed by 2D convolution.

@@ -1,7 +1,7 @@
 package mhir.ir
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.ExprLowering
+import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP}
 import mhir.logging.time
@@ -44,7 +44,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     time(s"lowering $className (${this.x})") {
       requireType()
-      (v.typ, in.typ) match {
+      (v.typ.lower, in.typ.lower) match {
         case (_: TyStm, TyStm(_, inLen)) =>
           val x = this.x.lower().asInstanceOf[Param]
           val v = this.v.lower()
