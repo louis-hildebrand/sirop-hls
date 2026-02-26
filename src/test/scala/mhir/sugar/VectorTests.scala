@@ -553,7 +553,7 @@ class VectorTests extends AnyFunSuite {
           VecLiteral((0 until kVal).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
-      val actual = mhir.ir.eval(Let(k, C(kVal)(U32), e)())
+      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected, s"(for k = $kVal)")
     }
   }
@@ -578,7 +578,7 @@ class VectorTests extends AnyFunSuite {
           VecLiteral((n - kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
-      val actual = mhir.ir.eval(Let(k, C(kVal)(U32), e)())
+      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected, s"(for k = $kVal)")
     }
   }
@@ -881,7 +881,7 @@ class VectorTests extends AnyFunSuite {
           )()
         ): _*
       )()
-      val actual = mhir.ir.eval(Let(k, C(kVal)(U32), e)())
+      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected)
     }
   }
@@ -937,7 +937,7 @@ class VectorTests extends AnyFunSuite {
           )()
         ): _*
       )()
-      val actual = mhir.ir.eval(Let(m, C(mVal)(U32), e)())
+      val actual = mhir.ir.eval(e.subPreserveType(m -> C(mVal)(U32)))
       assert(actual == expected)
     }
   }

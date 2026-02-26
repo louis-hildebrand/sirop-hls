@@ -44,16 +44,21 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(): Expr = {
     time(s"lowering $className (${this.x})") {
       requireType()
-      val x = this.x.lower().asInstanceOf[Param]
-      val v = this.v.lower()
-      val in = this.in.lower()
       (v.typ, in.typ) match {
         case (_: TyStm, TyStm(_, inLen)) =>
+          val x = this.x.lower().asInstanceOf[Param]
+          val v = this.v.lower()
+          val in = this.in.lower()
           // Play it safe and buffer the whole input stream.
           // The optimizer may be able to improve this.
           LetStm(inLen, x, v, in)().tchk()
-        case _ =>
+        case (TyData(_), TyData(_)) =>
+          val x = this.x.lower().asInstanceOf[Param]
+          val v = this.v.lower()
+          val in = this.in.lower()
           Let(x, v, in)().asFunCall().tchk()
+        case _ =>
+          this.in.subPreserveType(this.x -> this.v).lower()
       }
     }(Let.logger)
   }
