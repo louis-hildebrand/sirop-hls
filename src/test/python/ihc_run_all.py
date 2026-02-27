@@ -11,9 +11,9 @@ import ihc_extract_resource_usage
 import ihc_synth
 
 ACTIVE_BENCHES = [
-    "map", "dot", "matvec"#, "matmat",
-    #"conv1d", "conv2d", "convb2b",
-    #"sharpen", "sobel"
+    "map", "dot", "matvec", "matmat",
+    "conv1d", "conv2d", "convb2b",
+    "sharpen", "sobel", "camera",
 ]
 
 

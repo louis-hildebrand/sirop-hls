@@ -1,4 +1,5 @@
 bench_name,bench_throughput,language,fmax
+camera,-1,ihc,226.96
 conv1d,-1,ihc,342.94
 conv2d,-1,ihc,250.06
 convb2b,-1,ihc,248.39
