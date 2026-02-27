@@ -91,7 +91,7 @@ let demosaic = (I: Stm[Stm[u32, 1920], 1080]) => {
 } in
 let sharpen = (I: Stm[Stm[u32, 1918], 1078]) => {
     let I = I in
-    let blurred = {
+    let blurred_and_cropped = {
         let windows = StmSlide2D(I, 3, 3) in
         StmMap(
             windows,
@@ -107,39 +107,12 @@ let sharpen = (I: Stm[Stm[u32, 1918], 1078]) => {
                     let zipped = VecZip(flat_window, kernel) in
                     let products = VecMap(zipped, (x) => x.0 *% x.1) in
                     let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-                    sum >>> 4
+                    (sum >>> 4, window[2][2])
             )
         )
     } in
-    /* Apply identity convolution so that the two branches produce images with
-     * the same dimensions.
-     */
-    let cropped = {
-        let windows = StmSlide2D(I, 3, 3) in
-        StmMap(
-            windows,
-            (x) => StmMap(
-                x,
-                (window) =>
-                    /* It seems to me like the blurred and cropped images are
-                     * mis-aligned, but it's how Aetherling does it.
-                     */
-                    let kernel = VecJoin([
-                        [0:u32, 0:u32, 0:u32]v,
-                        [0:u32, 0:u32, 0:u32]v,
-                        [0:u32, 0:u32, 1:u32]v
-                    ]v) in
-                    let flat_window = VecJoin(window) in
-                    let zipped = VecZip(flat_window, kernel) in
-                    let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                    let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-                    sum
-            )
-        )
-    } in
-    let zipped = StmSplit(StmZip(StmJoin(blurred), StmJoin(cropped)), 1916) in
     StmMap(
-        zipped,
+        blurred_and_cropped,
         (x) => StmMap(
             x,
             (ab) =>
