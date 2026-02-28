@@ -7,3 +7,4 @@ git clean -xdi -e .idea/
 echo ""
 echo "Removing submodules..."
 git submodule deinit lib/arithexpr src/test/aetherling src/test/shir
+rm -rf .git/modules/src/test/{aetherling,shir}/
