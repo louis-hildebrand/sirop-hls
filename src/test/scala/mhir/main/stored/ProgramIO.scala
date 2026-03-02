@@ -33,6 +33,8 @@ object ProgramIO {
       shirSharpenIO
     } else if (name.startsWith("camera_")) {
       cameraIO
+    } else if (name == "shir:camera") {
+      shirCameraIO
     } else if (name.startsWith("matvec_")) {
       val parStr = {
         val suffix = name.substring("matvec_".length)
@@ -253,6 +255,44 @@ object ProgramIO {
       sqrt.map(C(_)(k.typ))
     }
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
+  }
+
+  private def shirCameraIO: PositionalTestIO = {
+    val width = 1920
+    val height = 8
+    val basicInputExprs = (1 to (width * height))
+      .map(i => (i * i) % U32.maxInt)
+      .map(_.toLong)
+      .map(C(_)(U32))
+    val basicOutputs: Seq[Expr] = {
+      val f =
+        os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "camera_outputs.csv"
+      os.read
+        .lines(f)
+        .flatMap({ line =>
+          val Array(r, g, b) = line
+            .split(",")
+            .map(_.toLong)
+            .map({
+              // Aetherling uses 253 as a sentinel value for undefined elements
+              case 253 => Undefined(U32)
+              case x   => C(x)(U32)
+            })
+          if (r.isInstanceOf[Undefined]) {
+            assert(g.isInstanceOf[Undefined])
+            assert(b.isInstanceOf[Undefined])
+            None
+          } else {
+            assert(!g.isInstanceOf[Undefined])
+            assert(!b.isInstanceOf[Undefined])
+            Some(Tuple(r, g, b)().tchk())
+          }
+        })
+    }
+    PositionalTestIO(
+      Seq(DirectTestInput(basicInputExprs.map(Some(_)))),
+      DirectTestOutput(basicOutputs)
+    )
   }
 
   private def convb2bIO: PositionalTestIO = {

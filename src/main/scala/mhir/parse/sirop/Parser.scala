@@ -517,6 +517,11 @@ object Parser {
               case Seq(n, z, delta) => StmRange(n, z, delta)()
               case _ => throw new SyntaxError(s"invalid arguments to $f")
             }
+          case f @ Param("StmCount2D", -1) =>
+            args match {
+              case Seq(n, m) => StmCount2D(n, m)()
+              case _ => throw new SyntaxError(s"invalid arguments to $f")
+            }
           case f @ Param("StmMap", -1) =>
             args match {
               case Seq(s, f: Function) => StmMap(s, f)()

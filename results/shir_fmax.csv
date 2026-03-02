@@ -1,4 +1,5 @@
 bench_name,bench_throughput,language,fmax
+camera,-1,sirop,210.26
 conv1d,-1,shir,298.6
 conv1d,-1,sirop,645.16
 conv2d,-1,shir,254.39

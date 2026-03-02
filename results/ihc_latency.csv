@@ -1,4 +1,5 @@
 bench_name,bench_throughput,language,latency,sim_success
+camera,-1,ihc,15411,True
 conv1d,-1,ihc,40,True
 conv2d,-1,ihc,30782,True
 convb2b,-1,ihc,30784,True

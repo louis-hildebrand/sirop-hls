@@ -1,0 +1,143 @@
+let demosaic_pixel = (window: Vec[Vec[u32, 3], 3]) => (row_even: bool) => (col_even: bool) => {
+    if (row_even && col_even) then {
+        /*
+         * +---+---+---+
+         * | G | B | G |
+         * +---+---+---+
+         * | R | G | R |
+         * +---+---+---+
+         * | G | B | G |
+         * +---+---+---+
+         */
+        let red   = (window[1][0] +% window[1][2]) >>> 1 in
+        let green = window[1][1] in
+        let blue  = (window[0][1] +% window[2][1]) >>> 1 in
+        (red, green, blue)
+    } else if (row_even && !col_even) then {
+        /*
+         * +---+---+---+
+         * | B | G | B |
+         * +---+---+---+
+         * | G | R | G |
+         * +---+---+---+
+         * | B | G | B |
+         * +---+---+---+
+         */
+        let red   = window[1][1] in
+        let green = (window[0][1] +% window[1][0] +% window[1][2] +% window[2][1]) >>> 2 in
+        let blue  = (window[0][0] +% window[0][2] +% window[2][0] +% window[2][2]) >>> 2 in
+        (red, green, blue)
+    } else if (!row_even && col_even) then {
+        /*
+         * +---+---+---+
+         * | R | G | R |
+         * +---+---+---+
+         * | G | B | G |
+         * +---+---+---+
+         * | R | G | R |
+         * +---+---+---+
+         */
+        let red   = (window[0][0] +% window[0][2] +% window[2][0] +% window[2][2]) >>> 2 in
+        let green = (window[0][1] +% window[1][0] +% window[1][2] +% window[2][1]) >>> 2 in
+        let blue  = window[1][1] in
+        (red, green, blue)
+    } else {
+        /*
+         * +---+---+---+
+         * | G | R | G |
+         * +---+---+---+
+         * | B | G | B |
+         * +---+---+---+
+         * | G | R | G |
+         * +---+---+---+
+         */
+        let red   = (window[0][1] +% window[2][1]) >>> 1 in
+        let green = window[1][1] in
+        let blue  = (window[1][0] +% window[1][2]) >>> 1 in
+        (red, green, blue)
+    }
+} in
+let demosaic = (I: Stm[Stm[u32, 1920], 1080]) => {
+    let windows = StmSlide2D(I, 3, 3) in
+    let row_even = StmMap(
+        StmCount2D(1078, 1918),
+        (x) =>
+            StmMap(
+                x,
+                (ij) => {
+                    let i = ij.0 in
+                    i != ((i >>> 1) <<< 1)
+                }
+            )
+    ) in
+    let col_even = StmMap(
+        StmCount2D(1078, 1918),
+        (x) =>
+            StmMap(
+                x,
+                (ij) => {
+                    let j = ij.1 in
+                    j != ((j >>> 1) <<< 1)
+                }
+            )
+    ) in
+    StmSplit(
+        StmMap(
+            StmZip(StmJoin(windows), StmZip(StmJoin(row_even), StmJoin(col_even))),
+            (x) => demosaic_pixel(x.0)(x.1.0)(x.1.1)
+        ),
+        1918
+    )
+} in
+let sharpen = (I: Stm[Stm[u32, 1918], 1078]) => {
+    let I = I in
+    let blurred_and_cropped = {
+        let windows = StmSlide2D(I, 3, 3) in
+        StmMap(
+            windows,
+            (x) => StmMap(
+                x,
+                (window) =>
+                    let kernel = VecJoin([
+                        [1:u32, 2:u32, 1:u32]v,
+                        [2:u32, 4:u32, 2:u32]v,
+                        [1:u32, 2:u32, 1:u32]v
+                    ]v) in
+                    let flat_window = VecJoin(window) in
+                    let zipped = VecZip(flat_window, kernel) in
+                    let products = VecMap(zipped, (x) => x.0 *% x.1) in
+                    let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                    (sum >>> 4, window[2][2])
+            )
+        )
+    } in
+    StmMap(
+        blurred_and_cropped,
+        (x) => StmMap(
+            x,
+            (ab) =>
+                let a = ab.0 in
+                let b = ab.1 in
+                if (a < b) then {
+                    let alpha = (b -% a) >>> 2 in
+                    b +% alpha
+                } else {
+                    let alpha = (a -% b) >>> 2 in
+                    b -% alpha
+                }
+        )
+    )
+} in
+(I: Stm[Stm[u32, 1920], 1080]) => {
+    let demosaic_result = demosaic(I) in
+    let red   = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.0)) in
+    let green = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.1)) in
+    let blue  = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.2)) in
+    let sharp_red   = sharpen(red) in
+    let sharp_green = sharpen(green) in
+    let sharp_blue  = sharpen(blue) in
+    StmMap(
+        StmZip(StmJoin(sharp_red), StmZip(StmJoin(sharp_green), StmJoin(sharp_blue))),
+        (x) => (x.0, x.1.0, x.1.1)
+    )
+}

@@ -144,6 +144,7 @@ def standardize_bench_name(bench_name: str) -> str:
         "bigconvb2b": "convb2b",
         "bigsharpen": "sharpen",
         "bigsobel": "sobel",
+        "bigcamera": "camera",
     }.get(bench_name, bench_name)
 
 
@@ -160,10 +161,15 @@ def benchmark_order(bench_name: str) -> int:
         "matmat": 30,
         "conv1d": 40,
         "bigconv2d": 50,
+        "conv2d": 50,
         "bigconvb2b": 60,
+        "convb2b": 60,
         "bigsharpen": 70,
+        "sharpen": 70,
         "bigsobel": 80,
+        "sobel": 80,
         "bigcamera": 90,
+        "camera": 90,
     }.get(bench_name, 100)
 
 
