@@ -12,7 +12,7 @@ map,-1,sirop,6,0,0
 matmat,-1,shir,1759,59,8
 matmat,-1,sirop,509,59,8
 matvec,-1,shir,273,1,1
-matvec,-1,sirop,64,1,1
+matvec,-1,sirop,68,1,1
 sharpen,-1,shir,,,
 sharpen,-1,sirop,281,14,0
 sobel,-1,shir,,,

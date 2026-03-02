@@ -1,0 +1,14 @@
+(mat : Stm[Stm[u16, 256], 256]) =>
+(vec :     Stm[u16, 256]      ) =>
+    StmMap(
+        mat,
+        (row : Stm[u16, 256]) =>
+            /* dot(row, vec) */
+            StmReduce(
+                StmMap(
+                    StmZip(row, vec),
+                    (x : (u16, u16)) => x.0 * x.1
+                ),
+                (x : (u16, u16)) => x.0 + x.1
+            )
+    )

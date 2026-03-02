@@ -46,13 +46,8 @@ object Program {
           par = par,
           uint = U16
         )
-      case "shir:matvec" =>
-        MatVecMul(
-          width = MatVecSize,
-          height = MatVecSize,
-          par = 1,
-          uint = U16
-        )
+      case "matvec"      => Parser.parse(os.read(ResourcesDir / "matvec.sirop"))
+      case "shir:matvec" => Parser.parse(os.read(ResourcesDir / "matvec.sirop"))
       case "smallmatmat" | "shir:smallmatmat" =>
         val src = os.read(ResourcesDir / "small_matmat.sirop")
         Parser.parse(src)
