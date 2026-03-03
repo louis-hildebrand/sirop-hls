@@ -89,55 +89,53 @@ let demosaic = (I: Stm[Stm[u32, 1920], 1080]) => {
         1918
     )
 } in
-let sharpen = (I: Stm[Stm[u32, 1918], 1078]) => {
-    let I = I in
-    let blurred_and_cropped = {
-        let windows = StmSlide2D(I, 3, 3) in
-        StmMap(
-            windows,
-            (x) => StmMap(
-                x,
-                (window) =>
-                    let kernel = VecJoin([
-                        [1:u32, 2:u32, 1:u32]v,
-                        [2:u32, 4:u32, 2:u32]v,
-                        [1:u32, 2:u32, 1:u32]v
-                    ]v) in
-                    let flat_window = VecJoin(window) in
-                    let zipped = VecZip(flat_window, kernel) in
+let sharpen_rgb = (I: Stm[Stm[(u32, u32, u32), 1918], 1078]) => {
+    let windows = StmSlide2D(I, 3, 3) in
+    let blurred_and_cropped = StmMap(
+        windows,
+        (x) => StmMap(
+            x,
+            (window: Vec[Vec[(u32, u32, u32), 3], 3]) =>
+                let kernel = VecJoin([
+                    [1:u32, 2:u32, 1:u32]v,
+                    [2:u32, 4:u32, 2:u32]v,
+                    [1:u32, 2:u32, 1:u32]v
+                ]v) in
+                let process_channel = (window: Vec[u32, 9]) => {
+                    let zipped = VecZip(window, kernel) in
                     let products = VecMap(zipped, (x) => x.0 *% x.1) in
                     let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-                    (sum >>> 4, window[2][2])
-            )
+                    (sum >>> 4, window[8])
+                } in
+                let red = process_channel(VecMap(VecJoin(window), (x) => x.0)) in
+                let green = process_channel(VecMap(VecJoin(window), (x) => x.1)) in
+                let blue = process_channel(VecMap(VecJoin(window), (x) => x.2)) in
+                (red, green, blue)
         )
-    } in
+    ) in
     StmMap(
         blurred_and_cropped,
         (x) => StmMap(
             x,
-            (ab) =>
-                let a = ab.0 in
-                let b = ab.1 in
-                if (a < b) then {
-                    let alpha = (b -% a) >>> 2 in
-                    b +% alpha
-                } else {
-                    let alpha = (a -% b) >>> 2 in
-                    b -% alpha
-                }
+            (rgb) => {
+                let process_channel = (ab: (u32, u32)) => {
+                    let a = ab.0 in
+                    let b = ab.1 in
+                    if (a < b) then {
+                        let alpha = (b -% a) >>> 2 in
+                        b +% alpha
+                    } else {
+                        let alpha = (a -% b) >>> 2 in
+                        b -% alpha
+                    }
+                } in
+                (process_channel(rgb.0), process_channel(rgb.1), process_channel(rgb.2))
+            }
         )
     )
 } in
 (I: Stm[Stm[u32, 1920], 1080]) => {
     let demosaic_result = demosaic(I) in
-    let red   = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.0)) in
-    let green = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.1)) in
-    let blue  = StmMap(demosaic_result, (x) => StmMap(x, (x) => x.2)) in
-    let sharp_red   = sharpen(red) in
-    let sharp_green = sharpen(green) in
-    let sharp_blue  = sharpen(blue) in
-    StmMap(
-        StmZip(StmJoin(sharp_red), StmZip(StmJoin(sharp_green), StmJoin(sharp_blue))),
-        (x) => (x.0, x.1.0, x.1.1)
-    )
+    let sharp_result = sharpen_rgb(demosaic_result) in
+    sharp_result
 }

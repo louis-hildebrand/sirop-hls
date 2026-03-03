@@ -1,5 +1,5 @@
 bench_name,bench_throughput,language,fmax
-camera,-1,sirop,210.26
+camera,-1,sirop,250.06
 conv1d,-1,shir,298.6
 conv1d,-1,sirop,645.16
 conv2d,-1,shir,254.39
@@ -15,6 +15,6 @@ matmat,-1,sirop,211.37
 matvec,-1,shir,280.27
 matvec,-1,sirop,278.16
 sharpen,-1,shir,
-sharpen,-1,sirop,207.9
+sharpen,-1,sirop,221.63
 sobel,-1,shir,
-sobel,-1,sirop,221.98
+sobel,-1,sirop,223.41
