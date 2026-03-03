@@ -35,7 +35,7 @@ architecture behavioral of top is
             p1_in_ready: in type_ReadyVectorTypeArithType2
         );
     end component;
-    component mapsimpleorderedstream_133
+    component mapsimpleorderedstream_135
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -49,7 +49,7 @@ architecture behavioral of top is
             p1_in_ready: in type_ReadyVectorTypeArithType2
         );
     end component;
-    component slide2dorderedstream_134
+    component slide2dorderedstream_136
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -63,7 +63,7 @@ architecture behavioral of top is
             p1_in_ready: in type_ReadyVectorTypeArithType2
         );
     end component;
-    component mapsimpleorderedstream_184
+    component mapsimpleorderedstream_188
         port(
             clk: in type_LogicType;
             reset: in type_LogicType;
@@ -106,7 +106,7 @@ begin
         reset => reset,
         p1_in_ready => s03_ready
     );
-    U1_mapsimpleorderedstream: mapsimpleorderedstream_133 port map(
+    U1_mapsimpleorderedstream: mapsimpleorderedstream_135 port map(
         clk => clk,
         p0_out_ready => s03_ready,
         p1_out_valid => s06_valid,
@@ -118,7 +118,7 @@ begin
         reset => reset,
         p1_in_ready => s07_ready
     );
-    U2_slide2dorderedstream: slide2dorderedstream_134 port map(
+    U2_slide2dorderedstream: slide2dorderedstream_136 port map(
         clk => clk,
         p0_out_ready => s07_ready,
         p1_out_valid => s10_valid,
@@ -130,7 +130,7 @@ begin
         reset => reset,
         p1_in_ready => s11_ready
     );
-    U3_mapsimpleorderedstream: mapsimpleorderedstream_184 port map(
+    U3_mapsimpleorderedstream: mapsimpleorderedstream_188 port map(
         clk => clk,
         p0_out_ready => s11_ready,
         p1_out_valid => p1_out_valid,

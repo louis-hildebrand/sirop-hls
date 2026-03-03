@@ -138,9 +138,10 @@ begin
                         end if;
                     end loop;
                 end loop;
+                expected := expected srl 4;
 
                 ready <= "111";
-                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & ".";
+                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i_top) & ",j=" & integer'image(j_left) & "): expected " & integer'image(to_integer(expected)) & ", got " & integer'image(to_integer(unsigned(data))) & "." severity failure;
             end loop;
         end loop;
 

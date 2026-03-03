@@ -70,6 +70,7 @@ architecture tb of testbench is
                 end if;
             end loop;
         end loop;
+        output := output srl 4;
         return output;
     end function;
 
@@ -94,6 +95,7 @@ architecture tb of testbench is
                 end if;
             end loop;
         end loop;
+        output := output srl 3;
         return output;
     end function;
 
@@ -157,7 +159,7 @@ begin
 
     -- Check outputs
     out_check_0 : process
-        variable expected : std_logic_vector(31 downto 0);
+        variable expected : unsigned(31 downto 0);
     begin
         ready <= "ZZZ";
         wait until test_0_start;
@@ -167,10 +169,10 @@ begin
                 -- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
                 wait until falling_edge(clk) and valid = '1';
 
-                expected := std_logic_vector(get_output_data_2(i_top, j_left));
+                expected := get_output_data_2(i_top, j_left);
 
                 ready <= "111";
-                assert(data = expected) report "Wrong data at t = " & integer'image(t) & ".";
+                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i_top) & ",j=" & integer'image(j_left) & "): expected " & integer'image(to_integer(expected)) & ", got " & integer'image(to_integer(unsigned(data))) & "." severity failure;
             end loop;
         end loop;
 
