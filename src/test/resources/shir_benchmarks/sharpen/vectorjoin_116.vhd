@@ -6,16 +6,16 @@ use work.common.all;
 
 entity vectorjoin_116 is
     generic(
-        num_clients: type_NaturalNumberType := 2
+        num_clients: type_NaturalNumberType := 4
     );
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_VectorTypeIntTypeArithType32ArithType2;
-        p1_in_data: in type_VectorTypeLastVectorTypeArithType0ArithType2;
-        p2_in_data: in type_VectorTypeLogicTypeArithType2;
-        p3_out_data: out type_VectorTypeReadyVectorTypeArithType0ArithType2;
-        p4_out_data: out type_VectorTypeIntTypeArithType32ArithType2;
+        p0_in_data: in type_VectorTypeIntTypeArithType32ArithType4;
+        p1_in_data: in type_VectorTypeLastVectorTypeArithType0ArithType4;
+        p2_in_data: in type_VectorTypeLogicTypeArithType4;
+        p3_out_data: out type_VectorTypeReadyVectorTypeArithType0ArithType4;
+        p4_out_data: out type_VectorTypeIntTypeArithType32ArithType4;
         p4_out_last: out type_LastVectorTypeArithType0;
         p4_out_valid: out type_LogicType;
         p4_in_ready: in type_ReadyVectorTypeArithType0

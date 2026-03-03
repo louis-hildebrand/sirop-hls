@@ -6,19 +6,19 @@ use work.common.all;
 
 entity vectorfork_115 is
     generic(
-        num_clients: type_NaturalNumberType := 2
+        num_clients: type_NaturalNumberType := 4
     );
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_VectorTypeVectorTypeIntTypeArithType32ArithType2ArithType2;
+        p0_in_data: in type_VectorTypeVectorTypeIntTypeArithType32ArithType2ArithType4;
         p0_in_last: in type_LastVectorTypeArithType0;
         p0_in_valid: in type_LogicType;
         p0_out_ready: out type_ReadyVectorTypeArithType0;
-        p1_out_data: out type_VectorTypeVectorTypeIntTypeArithType32ArithType2ArithType2;
-        p2_out_data: out type_VectorTypeLastVectorTypeArithType0ArithType2;
-        p3_out_data: out type_VectorTypeLogicTypeArithType2;
-        p4_in_data: in type_VectorTypeReadyVectorTypeArithType0ArithType2
+        p1_out_data: out type_VectorTypeVectorTypeIntTypeArithType32ArithType2ArithType4;
+        p2_out_data: out type_VectorTypeLastVectorTypeArithType0ArithType4;
+        p3_out_data: out type_VectorTypeLogicTypeArithType4;
+        p4_in_data: in type_VectorTypeReadyVectorTypeArithType0ArithType4
     );
 end vectorfork_115;
 
