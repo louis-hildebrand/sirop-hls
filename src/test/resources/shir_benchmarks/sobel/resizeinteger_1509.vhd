@@ -8,7 +8,7 @@ entity resizeinteger_1509 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_SignedIntTypeArithType31;
+        p0_in_data: in type_SignedIntTypeArithType33;
         p0_in_last: in type_LastVectorTypeArithType0;
         p0_in_valid: in type_LogicType;
         p0_out_ready: out type_ReadyVectorTypeArithType0;

@@ -12,11 +12,11 @@ entity tuple_924 is
         p0_in_last: in type_LastVectorTypeArithType0;
         p0_in_valid: in type_LogicType;
         p0_out_ready: out type_ReadyVectorTypeArithType0;
-        p1_in_data: in type_IntTypeArithType1;
+        p1_in_data: in type_SignedIntTypeArithType32;
         p1_in_last: in type_LastVectorTypeArithType0;
         p1_in_valid: in type_LogicType;
         p1_out_ready: out type_ReadyVectorTypeArithType0;
-        p2_out_data: out type_NamedTupleTypeTextTypet0SignedIntTypeArithType32TextTypet1IntTypeArithType1_t0;
+        p2_out_data: out type_NamedTupleTypeTextTypet0SignedIntTypeArithType32TextTypet1SignedIntTypeArithType32_t0;
         p2_out_last: out type_LastVectorTypeArithType0;
         p2_out_valid: out type_LogicType;
         p2_in_ready: in type_ReadyVectorTypeArithType0

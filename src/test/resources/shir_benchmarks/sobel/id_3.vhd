@@ -8,11 +8,11 @@ entity id_3 is
     port(
         clk: in type_LogicType;
         reset: in type_LogicType;
-        p0_in_data: in type_VectorTypeSignedIntTypeArithType32ArithType2073600;
+        p0_in_data: in type_VectorTypeVectorTypeSignedIntTypeArithType32ArithType3ArithType3;
         p0_in_last: in type_LastVectorTypeArithType0;
         p0_in_valid: in type_LogicType;
         p0_out_ready: out type_ReadyVectorTypeArithType0;
-        p1_out_data: out type_VectorTypeSignedIntTypeArithType32ArithType2073600;
+        p1_out_data: out type_VectorTypeVectorTypeSignedIntTypeArithType32ArithType3ArithType3;
         p1_out_last: out type_LastVectorTypeArithType0;
         p1_out_valid: out type_LogicType;
         p1_in_ready: in type_ReadyVectorTypeArithType0
