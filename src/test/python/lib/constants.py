@@ -15,7 +15,8 @@ AETHERLING_SPACETIME_DIR = (
 AETHERLING_VERILOG_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
 )
-SHIR_ORIGINALS_DIR = ROOT_DIR.joinpath("src", "test", "resources", "shir_benchmarks")
+SHIR_SUBMODULE_DIR = ROOT_DIR.joinpath("src", "test", "shir")
+SHIR_TESTBENCHES_DIR = ROOT_DIR.joinpath("src", "test", "resources", "shir_benchmarks")
 VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
 ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
 DSE_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "dse")
