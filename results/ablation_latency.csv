@@ -2,7 +2,6 @@ prog_name,prog_opt,latency,sim_success
 camera,all,15370,True
 camera,except_sbuild_simpl,,False
 camera,except_letstm_simpl,15791,True
-camera,except_stm_simpl,15791,True
 camera,except_fuse,15440,True
 camera,except_fission,15369,True
 camera,small_buffers,30727,True
@@ -10,7 +9,6 @@ camera,small_buffers_and_latmatch,15370,True
 conv1d,all,16,True
 conv1d,except_sbuild_simpl,17,True
 conv1d,except_letstm_simpl,31,True
-conv1d,except_stm_simpl,31,True
 conv1d,except_fuse,21,True
 conv1d,except_fission,16,True
 conv1d,small_buffers,16,True
@@ -18,7 +16,6 @@ conv1d,small_buffers_and_latmatch,16,True
 conv2d,all,30722,True
 conv2d,except_sbuild_simpl,30733,True
 conv2d,except_letstm_simpl,30777,True
-conv2d,except_stm_simpl,30777,True
 conv2d,except_fuse,30741,True
 conv2d,except_fission,30722,True
 conv2d,small_buffers,30722,True
@@ -26,7 +23,6 @@ conv2d,small_buffers_and_latmatch,30722,True
 convb2b,all,30723,True
 convb2b,except_sbuild_simpl,30740,True
 convb2b,except_letstm_simpl,30829,True
-convb2b,except_stm_simpl,30829,True
 convb2b,except_fuse,30757,True
 convb2b,except_fission,30723,True
 convb2b,small_buffers,30723,True
@@ -34,7 +30,6 @@ convb2b,small_buffers_and_latmatch,30723,True
 dot,all,841,True
 dot,except_sbuild_simpl,841,True
 dot,except_letstm_simpl,846,True
-dot,except_stm_simpl,846,True
 dot,except_fuse,842,True
 dot,except_fission,841,True
 dot,small_buffers,841,True
@@ -42,7 +37,6 @@ dot,small_buffers_and_latmatch,841,True
 map,all,200,True
 map,except_sbuild_simpl,200,True
 map,except_letstm_simpl,202,True
-map,except_stm_simpl,202,True
 map,except_fuse,200,True
 map,except_fission,200,True
 map,small_buffers,200,True
@@ -50,7 +44,6 @@ map,small_buffers_and_latmatch,200,True
 matmat,all,1048579,True
 matmat,except_sbuild_simpl,1048579,True
 matmat,except_letstm_simpl,1048585,True
-matmat,except_stm_simpl,1048585,True
 matmat,except_fuse,1048581,True
 matmat,except_fission,1048578,True
 matmat,small_buffers,1048579,True
@@ -58,7 +51,6 @@ matmat,small_buffers_and_latmatch,1048579,True
 matvec_1,all,65538,True
 matvec_1,except_sbuild_simpl,65538,True
 matvec_1,except_letstm_simpl,65549,True
-matvec_1,except_stm_simpl,65549,True
 matvec_1,except_fuse,65541,True
 matvec_1,except_fission,65538,True
 matvec_1,small_buffers,65538,True
@@ -66,7 +58,6 @@ matvec_1,small_buffers_and_latmatch,65538,True
 sharpen,all,30726,True
 sharpen,except_sbuild_simpl,30737,True
 sharpen,except_letstm_simpl,30783,True
-sharpen,except_stm_simpl,30783,True
 sharpen,except_fuse,30745,True
 sharpen,except_fission,30725,True
 sharpen,small_buffers,61443,True
@@ -74,7 +65,6 @@ sharpen,small_buffers_and_latmatch,30726,True
 sobel,all,30771,True
 sobel,except_sbuild_simpl,30785,True
 sobel,except_letstm_simpl,30872,True
-sobel,except_stm_simpl,30872,True
 sobel,except_fuse,30796,True
 sobel,except_fission,30740,True
 sobel,small_buffers,30771,True
@@ -82,7 +72,6 @@ sobel,small_buffers_and_latmatch,30771,True
 sqrt,all,65583,True
 sqrt,except_sbuild_simpl,65586,True
 sqrt,except_letstm_simpl,65623,True
-sqrt,except_stm_simpl,65623,True
 sqrt,except_fuse,65587,True
 sqrt,except_fission,65553,True
 sqrt,small_buffers,65583,True
