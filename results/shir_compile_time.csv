@@ -1,4 +1,5 @@
 bench_name,bench_throughput,parse,typecheck,lower,make_synth,optimize,codegen
+camera,-1,0,90,323,76,5110,749
 conv1d,-1,0,93,88,8,425,122
 conv2d,-1,0,58,172,17,1149,283
 convb2b,-1,0,59,226,28,1568,335

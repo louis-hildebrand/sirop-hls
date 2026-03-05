@@ -2,7 +2,6 @@ prog_name,prog_opt,parse,typecheck,lower,make_synth,optimize,codegen
 camera,all,0,100,1409,247,10313,784
 camera,except_sbuild_simpl,0,88,1460,184,12576,14559
 camera,except_letstm_simpl,0,92,1330,172,4523,4045
-camera,except_stm_simpl,0,83,1509,210,3922,5865
 camera,except_fuse,0,86,1339,207,4590,1688
 camera,except_fission,0,86,1555,209,8854,764
 camera,small_buffers,0,92,1800,198,8932,803
@@ -10,7 +9,6 @@ camera,small_buffers_and_latmatch,0,83,1393,188,8807,707
 conv1d,all,0,90,109,12,638,172
 conv1d,except_sbuild_simpl,0,91,109,12,381,254
 conv1d,except_letstm_simpl,0,91,107,12,402,248
-conv1d,except_stm_simpl,0,93,111,12,256,277
 conv1d,except_fuse,0,91,118,12,392,202
 conv1d,except_fission,0,92,109,11,714,134
 conv1d,small_buffers,0,92,111,12,608,122
@@ -18,7 +16,6 @@ conv1d,small_buffers_and_latmatch,0,95,118,12,642,113
 conv2d,all,0,0,306,31,1356,318
 conv2d,except_sbuild_simpl,0,0,329,41,1513,2000
 conv2d,except_letstm_simpl,0,0,299,30,547,630
-conv2d,except_stm_simpl,0,0,295,28,596,787
 conv2d,except_fuse,0,0,293,32,631,538
 conv2d,except_fission,0,0,335,43,1290,390
 conv2d,small_buffers,0,0,299,28,1249,358
@@ -26,7 +23,6 @@ conv2d,small_buffers_and_latmatch,0,0,295,30,1201,340
 convb2b,all,0,0,369,40,1425,346
 convb2b,except_sbuild_simpl,0,0,374,45,1683,2216
 convb2b,except_letstm_simpl,0,0,392,44,721,923
-convb2b,except_stm_simpl,0,0,377,43,540,858
 convb2b,except_fuse,0,0,381,44,722,660
 convb2b,except_fission,0,0,384,45,1349,431
 convb2b,small_buffers,0,0,406,57,1379,350
@@ -34,7 +30,6 @@ convb2b,small_buffers_and_latmatch,0,0,381,45,1429,353
 dot,all,0,2,132,7,381,115
 dot,except_sbuild_simpl,0,2,132,7,216,144
 dot,except_letstm_simpl,0,2,126,7,241,151
-dot,except_stm_simpl,0,2,128,7,169,160
 dot,except_fuse,0,2,139,7,227,160
 dot,except_fission,0,2,148,7,385,125
 dot,small_buffers,0,2,136,7,431,138
@@ -42,7 +37,6 @@ dot,small_buffers_and_latmatch,0,2,133,8,367,142
 map,all,0,1,96,3,118,99
 map,except_sbuild_simpl,0,1,123,3,121,109
 map,except_letstm_simpl,0,1,106,3,125,112
-map,except_stm_simpl,0,1,111,3,108,116
 map,except_fuse,0,1,109,3,147,109
 map,except_fission,0,1,106,3,139,119
 map,small_buffers,0,1,108,4,145,107
@@ -50,7 +44,6 @@ map,small_buffers_and_latmatch,0,1,107,3,133,113
 matmat,all,0,1,244,25,1804,286
 matmat,except_sbuild_simpl,0,1,243,26,934,448
 matmat,except_letstm_simpl,0,1,243,26,1234,334
-matmat,except_stm_simpl,0,1,233,27,879,284
 matmat,except_fuse,0,1,245,25,1177,253
 matmat,except_fission,0,1,229,26,1825,179
 matmat,small_buffers,0,1,232,26,1963,268
@@ -58,7 +51,6 @@ matmat,small_buffers_and_latmatch,0,1,254,42,1871,187
 matvec_1,all,0,2,213,16,1013,185
 matvec_1,except_sbuild_simpl,0,2,217,20,749,287
 matvec_1,except_letstm_simpl,0,2,209,17,797,195
-matvec_1,except_stm_simpl,0,3,211,16,542,262
 matvec_1,except_fuse,0,3,209,20,784,161
 matvec_1,except_fission,0,3,211,18,937,155
 matvec_1,small_buffers,0,2,207,17,900,144
@@ -66,7 +58,6 @@ matvec_1,small_buffers_and_latmatch,0,2,208,17,948,131
 sharpen,all,0,2,344,43,1454,380
 sharpen,except_sbuild_simpl,0,2,318,31,2000,2067
 sharpen,except_letstm_simpl,0,2,318,30,655,690
-sharpen,except_stm_simpl,0,2,299,30,647,673
 sharpen,except_fuse,0,2,309,30,672,507
 sharpen,except_fission,0,2,305,31,1235,334
 sharpen,small_buffers,0,2,311,29,1373,362
@@ -74,7 +65,6 @@ sharpen,small_buffers_and_latmatch,0,2,384,44,1434,386
 sobel,all,0,10,631,47,5672,761
 sobel,except_sbuild_simpl,0,10,614,48,6957,9340
 sobel,except_letstm_simpl,0,9,679,48,2011,1466
-sobel,except_stm_simpl,0,10,618,60,1502,1599
 sobel,except_fuse,0,11,630,47,2554,1357
 sobel,except_fission,0,11,666,56,8208,451
 sobel,small_buffers,0,10,642,68,5962,855

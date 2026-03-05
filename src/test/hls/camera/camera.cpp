@@ -3,9 +3,6 @@
 #include <stdint.h>
 
 using namespace std;
-using namespace ihc;
-
-#define READ_INPUTS
 
 constexpr int WIDTH = 1920;
 constexpr int HEIGHT = 1080;
@@ -23,22 +20,17 @@ struct Colour {
 
 template<unsigned SystemID> class PipeID {};
 ihc::pipe<PipeID<0>, uint32_t> pipe_in;
-ihc::stream<uint32_t> demosaic_red;
-ihc::stream<uint32_t> demosaic_green;
-ihc::stream<uint32_t> demosaic_blue;
-ihc::stream<uint32_t> sharp_red;
-ihc::stream<uint32_t> sharp_green;
-ihc::stream<uint32_t> sharp_blue;
+ihc::stream<struct Colour> pipe_demosaic;
 ihc::pipe<PipeID<1>, struct Colour> pipe_out;
 
-template<unsigned int img_width, unsigned int win_width, unsigned int win_height>
+template<typename T, unsigned int img_width, unsigned int win_width, unsigned int win_height>
 class LineBuffer2D {
 public:
-    uint32_t big_buffer[win_height-1][img_width];
-    uint32_t small_buffer[win_width];
+    T big_buffer[win_height-1][img_width];
+    T small_buffer[win_width];
 
 public:
-    void shift(uint32_t next) {
+    void shift(T next) {
         #pragma unroll
         for (int i = 0; i < win_height-1; i++) {
             #pragma unroll
@@ -59,7 +51,7 @@ public:
 };
 
 void demosaic() {
-    LineBuffer2D<WIDTH, 3, 3> buffer;
+    LineBuffer2D<uint32_t, WIDTH, 3, 3> buffer;
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             buffer.shift(pipe_in.read());
@@ -127,84 +119,76 @@ void demosaic() {
                     blue  = (window[1][0] + window[1][2]) >> 1;
                 }
 
-                printf("%u,%u,%u\n", red, green, blue);
-                demosaic_red.write(red);
-                demosaic_green.write(green);
-                demosaic_blue.write(blue);
+                struct Colour c = { .red=red, .green=green, .blue=blue };
+                pipe_demosaic.write(c);
             }
         }
     }
 }
 
-void sharpen(ihc::stream<uint32_t> &in, ihc::stream<uint32_t> &out) {
-    LineBuffer2D<WIDTH-2, 3, 3> buffer;
+uint32_t sharpen_pixel(uint32_t window[3][3]) {
+    uint32_t blurred = 0;
+    #pragma unroll
+    for (int i = 0; i < 3; i++) {
+        #pragma unroll
+        for (int j = 0; j < 3; j++) {
+            blurred += KERNEL[i][j] * window[i][j];
+        }
+    }
+    blurred >>= 4;
+    uint32_t original = window[2][2];
+    uint32_t sharp;
+    if (blurred < original) {
+        sharp = original + ( (original - blurred) >> 2 );
+    } else {
+        sharp = original - ( (blurred - original) >> 2 );
+    }
+    return sharp;
+}
+
+void sharpen_rgb() {
+    LineBuffer2D<struct Colour, WIDTH-2, 3, 3> buffer;
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
-            buffer.shift(in.read());
+            buffer.shift(pipe_demosaic.read());
             if (i >= 2 && j >= 2) {
-                uint32_t window[3][3] = {
+                struct Colour window[3][3] = {
                     buffer.big_buffer[0][0], buffer.big_buffer[0][1], buffer.big_buffer[0][2],
                     buffer.big_buffer[1][0], buffer.big_buffer[1][1], buffer.big_buffer[1][2],
                     buffer.small_buffer[0], buffer.small_buffer[1], buffer.small_buffer[2]
                 };
-                uint32_t blurred = 0;
-                #pragma unroll
-                for (int i = 0; i < 3; i++) {
-                    #pragma unroll
-                    for (int j = 0; j < 3; j++) {
-                        blurred += KERNEL[i][j] * window[i][j];
-                    }
-                }
-                blurred >>= 4;
-                uint32_t original = buffer.small_buffer[2];
-                uint32_t sharp;
-                if (blurred < original) {
-                    sharp = original + ( (original - blurred) >> 2 );
-                } else {
-                    sharp = original - ( (blurred - original) >> 2 );
-                }
-                out.write(sharp);
+                uint32_t red_window[3][3] = {
+                    window[0][0].red, window[0][1].red, window[0][2].red,
+                    window[1][0].red, window[1][1].red, window[1][2].red,
+                    window[2][0].red, window[2][1].red, window[2][2].red
+                };
+                uint32_t green_window[3][3] = {
+                    window[0][0].green, window[0][1].green, window[0][2].green,
+                    window[1][0].green, window[1][1].green, window[1][2].green,
+                    window[2][0].green, window[2][1].green, window[2][2].green
+                };
+                uint32_t blue_window[3][3] = {
+                    window[0][0].blue, window[0][1].blue, window[0][2].blue,
+                    window[1][0].blue, window[1][1].blue, window[1][2].blue,
+                    window[2][0].blue, window[2][1].blue, window[2][2].blue
+                };
+                struct Colour sharp = {
+                    .red=sharpen_pixel(red_window),
+                    .green=sharpen_pixel(green_window),
+                    .blue=sharpen_pixel(blue_window)
+                };
+                pipe_out.write(sharp);
             }
-        }
-    }
-}
-
-void sharpen_red() {
-    sharpen(demosaic_red, sharp_red);
-}
-
-void sharpen_green() {
-    sharpen(demosaic_green, sharp_green);
-}
-
-void sharpen_blue() {
-    sharpen(demosaic_blue, sharp_blue);
-}
-
-void join() {
-    for (int i = 0; i < HEIGHT-4; i++) {
-        for (int j = 0; j < WIDTH-4; j++) {
-            uint32_t red = sharp_red.read();
-            uint32_t green = sharp_green.read();
-            uint32_t blue = sharp_blue.read();
-            struct Colour c = { .red=red, .green=green, .blue=blue };
-            pipe_out.write(c);
         }
     }
 }
 
 component void camera() {
     ihc::launch<demosaic>();
-    ihc::launch<sharpen_red>();
-    ihc::launch<sharpen_green>();
-    ihc::launch<sharpen_blue>();
-    ihc::launch<join>();
+    ihc::launch<sharpen_rgb>();
 
     ihc::collect<demosaic>();
-    ihc::collect<sharpen_red>();
-    ihc::collect<sharpen_green>();
-    ihc::collect<sharpen_blue>();
-    ihc::collect<join>();
+    ihc::collect<sharpen_rgb>();
 }
 
 int main() {

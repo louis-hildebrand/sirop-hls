@@ -1,5 +1,5 @@
 bench_name,bench_throughput,language,alm,bram,dsp
-camera,-1,ihc,2748,32,0
+camera,-1,ihc,2214,32,0
 conv1d,-1,ihc,219,0,0
 conv2d,-1,ihc,650,8,0
 convb2b,-1,ihc,907,12,0
@@ -7,5 +7,5 @@ dot,-1,ihc,215,0,1
 map,-1,ihc,20,0,0
 matmat,-1,ihc,1794,59,8
 matvec,-1,ihc,279,1,1
-sharpen,-1,ihc,1111,12,0
-sobel,-1,ihc,3483,17,25
+sharpen,-1,ihc,614,8,0
+sobel,-1,ihc,2897,10,25

@@ -1,5 +1,6 @@
 bench_name,bench_throughput,language,latency,sim_success
-camera,-1,sirop,15365,True
+camera,-1,shir,46015,True
+camera,-1,sirop,15363,True
 conv1d,-1,shir,19,True
 conv1d,-1,sirop,16,True
 conv2d,-1,shir,30723,True
@@ -14,5 +15,7 @@ matmat,-1,shir,1058291,True
 matmat,-1,sirop,1048579,True
 matvec,-1,shir,65801,True
 matvec,-1,sirop,65538,True
-sharpen,-1,sirop,30723,True
-sobel,-1,sirop,30770,True
+sharpen,-1,shir,138127,True
+sharpen,-1,sirop,30721,True
+sobel,-1,shir,138185,True
+sobel,-1,sirop,30768,True

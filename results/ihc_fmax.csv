@@ -1,5 +1,5 @@
 bench_name,bench_throughput,language,fmax
-camera,-1,ihc,226.96
+camera,-1,ihc,242.42
 conv1d,-1,ihc,342.94
 conv2d,-1,ihc,250.06
 convb2b,-1,ihc,248.39
@@ -7,5 +7,5 @@ dot,-1,ihc,338.41
 map,-1,ihc,546.45
 matmat,-1,ihc,257.0
 matvec,-1,ihc,372.44
-sharpen,-1,ihc,224.06
-sobel,-1,ihc,228.26
+sharpen,-1,ihc,227.95
+sobel,-1,ihc,214.22

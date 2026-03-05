@@ -14,11 +14,11 @@ architecture tb of testbench is
     signal   reset     : std_logic := '0';
     signal   t         : integer := -1;
 
+    constant HEIGHT : integer := 16;
+    constant WIDTH  : integer := 1920;
+
     -- Easier debugging
     signal   data_t : unsigned(31 downto 0);
-
-    -- Binary file I/O
-    type binary_file is file of character;
 
     -- Input stream: I0
     signal I0_data  : std_logic_vector(31 downto 0);
@@ -49,54 +49,33 @@ architecture tb of testbench is
         end if;
     end function;
 
-    pure function get_output_data_1 (i_top : in integer; j_left : in integer) return unsigned is
-        variable output  : unsigned(31 downto 0);
-        variable i_delta : integer;
-        variable j_delta : integer;
-        variable i       : integer;
-        variable j       : integer;
+    pure function get_output_data (i_top : in integer; j_left : in integer) return unsigned is
+        variable blurred  : unsigned(31 downto 0);
+        variable original : unsigned(31 downto 0);
+        variable i_delta  : integer;
+        variable j_delta  : integer;
+        variable i        : integer;
+        variable j        : integer;
     begin
-        output := to_unsigned(0, 32);
+        original := get_input_data(i_top + 1, j_left + 1);
+
+        blurred := to_unsigned(0, 32);
         for i_delta in 0 to 2 loop
             i := i_top + i_delta;
             for j_delta in 0 to 2 loop
                 j := j_left + j_delta;
                 if (i_delta = 1 and j_delta = 1) then
-                    output := output + (get_input_data(i, j) sll 2);
+                    blurred := blurred + (get_input_data(i, j) sll 2);
                 elsif (i_delta = 1 or j_delta = 1) then
-                    output := output + (get_input_data(i, j) sll 1);
+                    blurred := blurred + (get_input_data(i, j) sll 1);
                 else
-                    output := output + get_input_data(i, j);
+                    blurred := blurred + get_input_data(i, j);
                 end if;
             end loop;
         end loop;
-        output := output srl 4;
-        return output;
-    end function;
+        blurred := blurred srl 4;
 
-    pure function get_output_data_2 (i_top : in integer; j_left : in integer) return unsigned is
-        variable output  : unsigned(31 downto 0);
-        variable i_delta : integer;
-        variable j_delta : integer;
-        variable i       : integer;
-        variable j       : integer;
-    begin
-        output := to_unsigned(0, 32);
-        for i_delta in 0 to 1 loop
-            i := i_top + i_delta;
-            for j_delta in 0 to 1 loop
-                j := j_left + j_delta;
-                if (i_delta = 0 and j_delta = 1) then
-                    output := output + (get_output_data_1(i, j) sll 2);
-                elsif (i_delta = 1 and j_delta = 0) then
-                    output := output + (get_output_data_1(i, j) sll 1);
-                else
-                    output := output + get_output_data_1(i, j);
-                end if;
-            end loop;
-        end loop;
-        output := output srl 3;
-        return output;
+        return original + ((original - blurred) srl 2);
     end function;
 
 begin
@@ -138,11 +117,11 @@ begin
         I0_data <= (others => 'Z');
         wait until test_0_start;
 
-        for i in 0 to 15 loop
-            for j in 0 to 1919 loop
+        for i in 0 to HEIGHT-1 loop
+            for j in 0 to WIDTH-1 loop
                 wait until falling_edge(clk); -- prepare input well before the next rising edge
                 I0_valid <= '1';
-                if j = 1919 then
+                if j = WIDTH-1 then
                     I0_last <= "01";
                 else
                     I0_last <= "00";
@@ -164,15 +143,15 @@ begin
         ready <= "ZZZ";
         wait until test_0_start;
 
-        for i_top in 0 to 12 loop
-            for j_left in 0 to 1916 loop
+        for i_top in 0 to HEIGHT-3 loop
+            for j_left in 0 to WIDTH-3 loop
                 -- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
                 wait until falling_edge(clk) and valid = '1';
 
-                expected := get_output_data_2(i_top, j_left);
+                expected := get_output_data(i_top, j_left);
 
                 ready <= "111";
-                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i_top) & ",j=" & integer'image(j_left) & "): expected " & integer'image(to_integer(expected)) & ", got " & integer'image(to_integer(unsigned(data))) & "." severity failure;
+                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i_top) & ",j=" & integer'image(j_left) & "): expected " & integer'image(to_integer(expected)) & ", got " & integer'image(to_integer(unsigned(data))) & ".";
             end loop;
         end loop;
 

@@ -23,21 +23,22 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"              => Map
-      case "shir:map"         => Map
-      case "dot"              => Dot
-      case "shir:dot"         => Dot
-      case "conv1d"           => Conv1d
-      case "shir:conv1d"      => ShirConv1d
-      case "conv2d"           => Conv2d
-      case "shir:smallconv2d" => ShirSmallConv2d
-      case "shir:conv2d"      => ShirConv2d
-      case "convb2b"          => ConvB2b
-      case "shir:convb2b"     => ShirConvB2b
-      case "sharpen"          => Sharpen
-      case "shir:sharpen"     => ShirSharpen
-      case "camera"           => Camera
-      case "shir:camera"      => ShirCamera
+      case "map"               => Map
+      case "shir:map"          => Map
+      case "dot"               => Dot
+      case "shir:dot"          => Dot
+      case "conv1d"            => Conv1d
+      case "shir:conv1d"       => ShirConv1d
+      case "conv2d"            => Conv2d
+      case "shir:smallconv2d"  => ShirSmallConv2d
+      case "shir:conv2d"       => ShirConv2d
+      case "convb2b"           => ConvB2b
+      case "shir:convb2b"      => ShirConvB2b
+      case "sharpen"           => Sharpen
+      case "shir:sharpen"      => ShirSharpen
+      case "aetherling:camera" => Camera
+      case "shir:camera"       => ShirCamera
+      case "camera"            => ShirCamera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
@@ -568,107 +569,8 @@ object Program {
   }
 
   private val ShirSobel: Expr = {
-    val int = I32
-    val height = 1080
-    val width = 1920
-    val input = Param("I")(TyStm(TyStm(int, width), height))
-    val gx = {
-      val windows = StmSlide2D(input, 3, 3)()
-      StmMap(
-        windows,
-        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
-          StmMap(
-            x,
-            TyVec(TyVec(int, 3), 3) ::+ { window =>
-              val kernel = VecLiteral(
-                C(-1)(int),
-                C(0)(int),
-                C(1)(int),
-                C(-2)(int),
-                C(0)(int),
-                C(2)(int),
-                C(-1)(int),
-                C(0)(int),
-                C(1)(int)
-              )()
-              val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)()
-              val products =
-                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-              val sum = VecAccess(
-                VecReduceComb(
-                  products,
-                  (int, int) ::+ (x => x.__0 + x.__1)
-                )(),
-                0
-              )()
-              sum
-            }
-          )()
-        )
-      )()
-    }
-    val gy = {
-      val windows = StmSlide2D(input, 3, 3)()
-      StmMap(
-        windows,
-        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
-          StmMap(
-            x,
-            TyVec(TyVec(int, 3), 3) ::+ { window =>
-              val kernel = VecLiteral(
-                C(-1)(int),
-                C(-2)(int),
-                C(-1)(int),
-                C(0)(int),
-                C(0)(int),
-                C(0)(int),
-                C(1)(int),
-                C(2)(int),
-                C(1)(int)
-              )()
-              val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)()
-              val products =
-                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-              val sum = VecAccess(
-                VecReduceComb(
-                  products,
-                  (int, int) ::+ (x => x.__0 + x.__1)
-                )(),
-                0
-              )()
-              sum
-            }
-          )()
-        )
-      )()
-    }
-    val zipped = StmZip(StmJoin(gx)(), StmJoin(gy)())()
-    val normSquared =
-      StmMap(zipped, (int, int) ::+ (x => x.__0 *% x.__0 +% x.__1 *% x.__1))()
-    val sqrt = {
-      val step0 = StmMap(
-        normSquared,
-        int ::+ (x => Tuple(x, C(0)(int), C(46340)(int))())
-      )()
-      val step16 = (0 until 16).foldLeft(step0)({ case (acc, _) =>
-        StmMap(
-          acc,
-          (int, int, int) ::+ { x =>
-            val n = x.__0
-            val lo = x.__1
-            val hi = x.__2
-            val mid = (lo +% hi +% C(1)(int)) >>> 1
-            val midSquared = mid *% mid
-            Mux(midSquared <= n, Tuple(n, mid, hi)(), Tuple(n, lo, mid - 1)())()
-          }
-        )()
-      })
-      StmMap(step16, (int, int, int) ::+ (x => x.__1))()
-    }
-    val result = StmSplit(sqrt, width - 2)()
-    Function(input, Let(input, input, result)())()
+    val src = os.read(ResourcesDir / "sobel.sirop")
+    Parser.parse(src)
   }
 
   private val ShirCamera: Expr = {

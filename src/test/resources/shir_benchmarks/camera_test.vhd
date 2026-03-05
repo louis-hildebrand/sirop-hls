@@ -1,6 +1,8 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
+use std.textio.all;
+use work.common.all;
 
 entity testbench is
     -- empty
@@ -14,11 +16,16 @@ architecture tb of testbench is
     signal   reset     : std_logic := '0';
     signal   t         : integer := -1;
 
-    -- Easier debugging
-    signal   data_t : unsigned(31 downto 0);
+    constant HEIGHT : integer := 8;
+    constant WIDTH  : integer := 1920;
 
-    -- Binary file I/O
-    type binary_file is file of character;
+    -- Easier debugging
+    type rgb is record
+        red   : unsigned(31 downto 0);
+        green : unsigned(31 downto 0);
+        blue  : unsigned(31 downto 0);
+    end record;
+    signal data_t : rgb;
 
     -- Input stream: I0
     signal I0_data  : std_logic_vector(31 downto 0);
@@ -27,7 +34,7 @@ architecture tb of testbench is
     signal I0_ready : std_logic_vector(2 downto 0);
 
     -- Expected outputs
-    signal data  : std_logic_vector(31 downto 0);
+    signal data  : type_NamedTupleTypeTextTypet0IntTypeArithType32TextTypet1IntTypeArithType32TextTypet2IntTypeArithType32_t0;
     signal last  : std_logic_vector(1 downto 0);
     signal valid : std_logic;
     signal ready : std_logic_vector(2 downto 0);
@@ -40,65 +47,6 @@ architecture tb of testbench is
     signal test_0_I0_inputs_done : boolean := false;
     signal test_0_outputs_done : boolean := false;
 
-    pure function get_input_data (i : in integer; j : in integer) return unsigned is
-    begin
-        if ((i mod 20) < 10) = ((j mod 20) < 10) then
-            return to_unsigned(255, 32);
-        else
-            return to_unsigned(0, 32);
-        end if;
-    end function;
-
-    pure function get_output_data_1 (i_top : in integer; j_left : in integer) return unsigned is
-        variable output  : unsigned(31 downto 0);
-        variable i_delta : integer;
-        variable j_delta : integer;
-        variable i       : integer;
-        variable j       : integer;
-    begin
-        output := to_unsigned(0, 32);
-        for i_delta in 0 to 2 loop
-            i := i_top + i_delta;
-            for j_delta in 0 to 2 loop
-                j := j_left + j_delta;
-                if (i_delta = 1 and j_delta = 1) then
-                    output := output + (get_input_data(i, j) sll 2);
-                elsif (i_delta = 1 or j_delta = 1) then
-                    output := output + (get_input_data(i, j) sll 1);
-                else
-                    output := output + get_input_data(i, j);
-                end if;
-            end loop;
-        end loop;
-        output := output srl 4;
-        return output;
-    end function;
-
-    pure function get_output_data_2 (i_top : in integer; j_left : in integer) return unsigned is
-        variable output  : unsigned(31 downto 0);
-        variable i_delta : integer;
-        variable j_delta : integer;
-        variable i       : integer;
-        variable j       : integer;
-    begin
-        output := to_unsigned(0, 32);
-        for i_delta in 0 to 1 loop
-            i := i_top + i_delta;
-            for j_delta in 0 to 1 loop
-                j := j_left + j_delta;
-                if (i_delta = 0 and j_delta = 1) then
-                    output := output + (get_output_data_1(i, j) sll 2);
-                elsif (i_delta = 1 and j_delta = 0) then
-                    output := output + (get_output_data_1(i, j) sll 1);
-                else
-                    output := output + get_output_data_1(i, j);
-                end if;
-            end loop;
-        end loop;
-        output := output srl 3;
-        return output;
-    end function;
-
 begin
 
     DUT : entity work.top port map(
@@ -107,7 +55,11 @@ begin
         p1_out_data => data, p1_out_last => last, p1_out_valid => valid, p1_in_ready => ready
     );
 
-    data_t <= unsigned(data);
+    data_t <= (
+        red   => unsigned(data.t0),
+        green => unsigned(data.t1),
+        blue  => unsigned(data.t2)
+    );
 
     -- Generate clock signal
     process
@@ -133,21 +85,24 @@ begin
 
     -- Generate inputs (I0)
     process
+        variable input: unsigned(31 downto 0);
     begin
         I0_valid <= 'Z';
         I0_data <= (others => 'Z');
         wait until test_0_start;
 
-        for i in 0 to 15 loop
-            for j in 0 to 1919 loop
-                wait until falling_edge(clk); -- prepare input well before the next rising edge
+        for i in 0 to HEIGHT-1 loop
+            for j in 0 to WIDTH-1 loop
+                -- Prepare input well before the next rising edge
+                wait until falling_edge(clk);
                 I0_valid <= '1';
-                if j = 1919 then
+                if j = WIDTH-1 then
                     I0_last <= "01";
                 else
                     I0_last <= "00";
                 end if;
-                I0_data <= std_logic_vector(get_input_data(i, j));
+                input := to_unsigned((WIDTH*i + j + 1) * (WIDTH*i + j + 1), 32);
+                I0_data <= std_logic_vector(input);
                 wait until rising_edge(clk) and (test_0_outputs_done or I0_ready /= "000"); -- must wait for the design to accept the input
             end loop;
         end loop;
@@ -159,21 +114,47 @@ begin
 
     -- Check outputs
     out_check_0 : process
-        variable expected : unsigned(31 downto 0);
+        file f : text open read_mode is "./test/outputs.txt";
+        variable ok : boolean;
+        variable current_line : line;
+        variable bv : bit_vector(3*32-1 downto 0);
+        variable expected : std_logic_vector(3*32-1 downto 0);
+        variable expected_rgb : rgb;
+        variable actual_rgb : rgb;
     begin
         ready <= "ZZZ";
         wait until test_0_start;
 
-        for i_top in 0 to 12 loop
-            for j_left in 0 to 1916 loop
-                -- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
-                wait until falling_edge(clk) and valid = '1';
+        for i in 1 to (WIDTH-4)*(HEIGHT-4) loop
+            -- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
+            wait until falling_edge(clk) and valid = '1';
 
-                expected := get_output_data_2(i_top, j_left);
+            readline(f, current_line);
+            read(current_line, bv, ok);
+            assert(ok) report "Failed to read file (line " & integer'image(i) & ")." severity failure;
+            expected := to_stdlogicvector(bv);
+            expected_rgb := (
+                red   => unsigned(expected(3*32-1 downto 2*32)),
+                green => unsigned(expected(2*32-1 downto 1*32)),
+                blue  => unsigned(expected(1*32-1 downto 0*32))
+            );
 
-                ready <= "111";
-                assert(data = std_logic_vector(expected)) report "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i_top) & ",j=" & integer'image(j_left) & "): expected " & integer'image(to_integer(expected)) & ", got " & integer'image(to_integer(unsigned(data))) & "." severity failure;
-            end loop;
+            actual_rgb := (
+                red => unsigned(data.t0),
+                green => unsigned(data.t1),
+                blue => unsigned(data.t2)
+            );
+
+            ready <= "111";
+            assert(
+                actual_rgb.red = expected_rgb.red
+                and actual_rgb.green = expected_rgb.green
+                and actual_rgb.blue = expected_rgb.blue
+            ) report (
+                "Wrong data at t = " & integer'image(t) & " (i=" & integer'image(i) & "): "
+                & "expected (" & integer'image(to_integer(expected_rgb.red)) & "," & integer'image(to_integer(expected_rgb.green)) & "," & integer'image(to_integer(expected_rgb.blue)) & "), "
+                & "but got (" & integer'image(to_integer(actual_rgb.red)) & "," & integer'image(to_integer(actual_rgb.green)) & "," & integer'image(to_integer(actual_rgb.blue)) & ")."
+            ) severity error;
         end loop;
 
         report "LATENCY: " & integer'image(t) & " cycles" severity note;

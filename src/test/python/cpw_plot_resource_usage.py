@@ -27,16 +27,6 @@ OUR_HATCH = ""
 SYNTH_FAIL = r"\textbf{\Large $\times$}"
 
 
-def benchmark_title(bench_name: str) -> str | None:
-    """
-    Return the title to put at the top of the column for the given benchmark, or `None` if the
-    results for this benchmark should be omitted from the plots.
-    """
-    if bench_name.endswith("sharpen"):
-        bench_name = bench_name[:-2]
-    return lb.benchmark_title(bench_name)
-
-
 def plot_resource_usages(
     results: dict[BenchmarkImpl, ResourceUsage],
 ) -> None:
@@ -46,7 +36,7 @@ def plot_resource_usages(
     program_names = pu.dedup([
         b.bench.name
         for b in results.keys()
-        if benchmark_title(b.bench.name) is not None
+        if lb.benchmark_title(b.bench.name) is not None
     ])
     program_names = sorted(program_names, key=benchmark_order)
     if not program_names:
@@ -316,7 +306,7 @@ def plot_resource_usages(
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_xticks(
         [x + 1.5*BAR_WIDTH for x in xs],
-        [benchmark_title(p) or "NONE" for p in program_names]
+        [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.grid(
         visible=True,
