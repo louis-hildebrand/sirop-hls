@@ -167,5 +167,22 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
 object DisabledStmBuildSimplifier extends StmBuildSimplifier {
   override def enabled: Boolean = false
 
-  override def simplify(stm: StmBuild)(facts: FactSet): StmBuild = stm
+  override def simplify(stm: StmBuild)(facts: FactSet): StmBuild = {
+    StmBuild(
+      PE.partialEval(stm.n),
+      PE.partialEval(stm.data),
+      PE.partialEval(stm.valid),
+      stm.equations.map({
+        case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+          // Don't re-traverse input streams: they've already been
+          // simplified
+          val newReady = PE.partialEval(ready)
+          x -> (s, newReady)
+        case (x, (z, next)) =>
+          val newZ = PE.partialEval(z)
+          val newNext = PE.partialEval(next)
+          x -> (newZ, newNext)
+      })
+    )().tchk().asInstanceOf[StmBuild]
+  }
 }
