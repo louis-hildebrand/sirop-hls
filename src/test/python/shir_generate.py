@@ -39,6 +39,11 @@ def generate_shir(prog: str) -> None:
     else:
         print(f"  WARNING: no testbench found for {prog}")
         print(f"  ({testbench} does not exist or is not a file)")
+    # Testbench expected outputs (if applicable)
+    outputs = c.SHIR_TESTBENCHES_DIR.joinpath(f"{prog}_outputs.txt")
+    if outputs.is_file():
+        out_dir.joinpath("test").mkdir(exist_ok=True)
+        shutil.copy(src=outputs, dst=out_dir.joinpath("test", "outputs.txt"))
     # Compilation settings
     shutil.copy(src=c.DEFAULT_QPF, dst=out_dir.joinpath("top.qpf"))
     shutil.copy(src=c.DEFAULT_QSF, dst=out_dir.joinpath("top.qsf"))
