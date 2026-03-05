@@ -69,13 +69,13 @@ bigsharpen,16,verilog,
 bigsharpen,16,vhdl,
 bigsobel,1/3,verilog,
 bigsobel,1/3,vhdl,220.26
-bigsobel,1,verilog,106.63
+bigsobel,1,verilog,108.12
 bigsobel,1,vhdl,225.02
-bigsobel,2,verilog,107.81
+bigsobel,2,verilog,105.66
 bigsobel,2,vhdl,201.45
-bigsobel,4,verilog,103.72
+bigsobel,4,verilog,96.75
 bigsobel,4,vhdl,201.01
-bigsobel,8,verilog,97.83
+bigsobel,8,verilog,100.72
 bigsobel,8,vhdl,186.92
 bigsobel,16,verilog,
 bigsobel,16,vhdl,

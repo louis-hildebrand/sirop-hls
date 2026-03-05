@@ -23,21 +23,22 @@ object Program {
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"              => Map
-      case "shir:map"         => Map
-      case "dot"              => Dot
-      case "shir:dot"         => Dot
-      case "conv1d"           => Conv1d
-      case "shir:conv1d"      => ShirConv1d
-      case "conv2d"           => Conv2d
-      case "shir:smallconv2d" => ShirSmallConv2d
-      case "shir:conv2d"      => ShirConv2d
-      case "convb2b"          => ConvB2b
-      case "shir:convb2b"     => ShirConvB2b
-      case "sharpen"          => Sharpen
-      case "shir:sharpen"     => ShirSharpen
-      case "camera"           => Camera
-      case "shir:camera"      => ShirCamera
+      case "map"               => Map
+      case "shir:map"          => Map
+      case "dot"               => Dot
+      case "shir:dot"          => Dot
+      case "conv1d"            => Conv1d
+      case "shir:conv1d"       => ShirConv1d
+      case "conv2d"            => Conv2d
+      case "shir:smallconv2d"  => ShirSmallConv2d
+      case "shir:conv2d"       => ShirConv2d
+      case "convb2b"           => ConvB2b
+      case "shir:convb2b"      => ShirConvB2b
+      case "sharpen"           => Sharpen
+      case "shir:sharpen"      => ShirSharpen
+      case "aetherling:camera" => Camera
+      case "shir:camera"       => ShirCamera
+      case "camera"            => ShirCamera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt

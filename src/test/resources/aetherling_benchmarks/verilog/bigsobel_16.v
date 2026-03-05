@@ -13307,8 +13307,8 @@ module ReduceS(
   assign O_0 = _T; // @[ReduceS.scala 27:14]
   assign AddNoValid_I_t0b = _T_3; // @[ReduceS.scala 43:18]
   assign AddNoValid_I_t1b = AddNoValid_1_O; // @[ReduceS.scala 36:18]
-  assign AddNoValid_1_I_t0b = _T_2; // @[ReduceS.scala 43:18]
-  assign AddNoValid_1_I_t1b = _T_1; // @[ReduceS.scala 43:18]
+  assign AddNoValid_1_I_t0b = _T_1; // @[ReduceS.scala 43:18]
+  assign AddNoValid_1_I_t1b = _T_2; // @[ReduceS.scala 43:18]
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
 `define RANDOMIZE
 `endif
@@ -13533,9 +13533,9 @@ module ReduceS_1(
   );
   assign valid_down = _T_5; // @[ReduceS.scala 47:14]
   assign O_0_0 = _T_0; // @[ReduceS.scala 27:14]
-  assign MapSNoValid_I_0_t0b = _T_3_0; // @[ReduceS.scala 43:18]
+  assign MapSNoValid_I_0_t0b = _T_2_0; // @[ReduceS.scala 43:18]
   assign MapSNoValid_I_0_t1b = MapSNoValid_1_O_0; // @[ReduceS.scala 36:18]
-  assign MapSNoValid_1_I_0_t0b = _T_2_0; // @[ReduceS.scala 43:18]
+  assign MapSNoValid_1_I_0_t0b = _T_3_0; // @[ReduceS.scala 43:18]
   assign MapSNoValid_1_I_0_t1b = _T_1_0; // @[ReduceS.scala 43:18]
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
 `define RANDOMIZE
@@ -16115,10 +16115,10 @@ module ReduceS_2(
   );
   assign valid_down = _T_5; // @[ReduceS.scala 47:14]
   assign O_0 = _T; // @[ReduceS.scala 27:14]
-  assign AddNoValid_I_t0b = _T_1; // @[ReduceS.scala 43:18]
+  assign AddNoValid_I_t0b = _T_3; // @[ReduceS.scala 43:18]
   assign AddNoValid_I_t1b = AddNoValid_1_O; // @[ReduceS.scala 36:18]
   assign AddNoValid_1_I_t0b = _T_2; // @[ReduceS.scala 43:18]
-  assign AddNoValid_1_I_t1b = _T_3; // @[ReduceS.scala 43:18]
+  assign AddNoValid_1_I_t1b = _T_1; // @[ReduceS.scala 43:18]
 `ifdef RANDOMIZE_GARBAGE_ASSIGN
 `define RANDOMIZE
 `endif
@@ -16285,6 +16285,121 @@ module MapS_11(
   assign other_ops_1_I_0 = I_2_0; // @[MapS.scala 20:41]
   assign other_ops_1_I_1 = I_2_1; // @[MapS.scala 20:41]
   assign other_ops_1_I_2 = I_2_2; // @[MapS.scala 20:41]
+endmodule
+module ReduceS_3(
+  input         clock,
+  input         reset,
+  input         valid_up,
+  output        valid_down,
+  input  [31:0] I_0_0,
+  input  [31:0] I_1_0,
+  input  [31:0] I_2_0,
+  output [31:0] O_0_0
+);
+  wire [31:0] MapSNoValid_I_0_t0b; // @[ReduceS.scala 20:43]
+  wire [31:0] MapSNoValid_I_0_t1b; // @[ReduceS.scala 20:43]
+  wire [31:0] MapSNoValid_O_0; // @[ReduceS.scala 20:43]
+  wire [31:0] MapSNoValid_1_I_0_t0b; // @[ReduceS.scala 20:43]
+  wire [31:0] MapSNoValid_1_I_0_t1b; // @[ReduceS.scala 20:43]
+  wire [31:0] MapSNoValid_1_O_0; // @[ReduceS.scala 20:43]
+  reg [31:0] _T_0; // @[ReduceS.scala 27:24]
+  reg [31:0] _RAND_0;
+  reg [31:0] _T_1_0; // @[ReduceS.scala 43:46]
+  reg [31:0] _RAND_1;
+  reg [31:0] _T_2_0; // @[ReduceS.scala 43:46]
+  reg [31:0] _RAND_2;
+  reg [31:0] _T_3_0; // @[ReduceS.scala 43:46]
+  reg [31:0] _RAND_3;
+  reg  _T_4; // @[ReduceS.scala 47:32]
+  reg [31:0] _RAND_4;
+  reg  _T_5; // @[ReduceS.scala 47:24]
+  reg [31:0] _RAND_5;
+  MapSNoValid MapSNoValid ( // @[ReduceS.scala 20:43]
+    .I_0_t0b(MapSNoValid_I_0_t0b),
+    .I_0_t1b(MapSNoValid_I_0_t1b),
+    .O_0(MapSNoValid_O_0)
+  );
+  MapSNoValid MapSNoValid_1 ( // @[ReduceS.scala 20:43]
+    .I_0_t0b(MapSNoValid_1_I_0_t0b),
+    .I_0_t1b(MapSNoValid_1_I_0_t1b),
+    .O_0(MapSNoValid_1_O_0)
+  );
+  assign valid_down = _T_5; // @[ReduceS.scala 47:14]
+  assign O_0_0 = _T_0; // @[ReduceS.scala 27:14]
+  assign MapSNoValid_I_0_t0b = _T_3_0; // @[ReduceS.scala 43:18]
+  assign MapSNoValid_I_0_t1b = MapSNoValid_1_O_0; // @[ReduceS.scala 36:18]
+  assign MapSNoValid_1_I_0_t0b = _T_1_0; // @[ReduceS.scala 43:18]
+  assign MapSNoValid_1_I_0_t1b = _T_2_0; // @[ReduceS.scala 43:18]
+`ifdef RANDOMIZE_GARBAGE_ASSIGN
+`define RANDOMIZE
+`endif
+`ifdef RANDOMIZE_INVALID_ASSIGN
+`define RANDOMIZE
+`endif
+`ifdef RANDOMIZE_REG_INIT
+`define RANDOMIZE
+`endif
+`ifdef RANDOMIZE_MEM_INIT
+`define RANDOMIZE
+`endif
+`ifndef RANDOM
+`define RANDOM $random
+`endif
+`ifdef RANDOMIZE_MEM_INIT
+  integer initvar;
+`endif
+`ifndef SYNTHESIS
+initial begin
+  `ifdef RANDOMIZE
+    `ifdef INIT_RANDOM
+      `INIT_RANDOM
+    `endif
+    `ifndef VERILATOR
+      `ifdef RANDOMIZE_DELAY
+        #`RANDOMIZE_DELAY begin end
+      `else
+        #0.002 begin end
+      `endif
+    `endif
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_0 = {1{`RANDOM}};
+  _T_0 = _RAND_0[31:0];
+  `endif // RANDOMIZE_REG_INIT
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_1 = {1{`RANDOM}};
+  _T_1_0 = _RAND_1[31:0];
+  `endif // RANDOMIZE_REG_INIT
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_2 = {1{`RANDOM}};
+  _T_2_0 = _RAND_2[31:0];
+  `endif // RANDOMIZE_REG_INIT
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_3 = {1{`RANDOM}};
+  _T_3_0 = _RAND_3[31:0];
+  `endif // RANDOMIZE_REG_INIT
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_4 = {1{`RANDOM}};
+  _T_4 = _RAND_4[0:0];
+  `endif // RANDOMIZE_REG_INIT
+  `ifdef RANDOMIZE_REG_INIT
+  _RAND_5 = {1{`RANDOM}};
+  _T_5 = _RAND_5[0:0];
+  `endif // RANDOMIZE_REG_INIT
+  `endif // RANDOMIZE
+end // initial
+`endif // SYNTHESIS
+  always @(posedge clock) begin
+    _T_0 <= MapSNoValid_O_0;
+    _T_1_0 <= I_0_0;
+    _T_2_0 <= I_1_0;
+    _T_3_0 <= I_2_0;
+    if (reset) begin
+      _T_4 <= 1'h0;
+    end else begin
+      _T_4 <= valid_up;
+    end
+    _T_5 <= _T_4;
+  end
 endmodule
 module Module_2(
   input         clock,
@@ -16488,7 +16603,7 @@ module Module_2(
     .O_1_0(n162_O_1_0),
     .O_2_0(n162_O_2_0)
   );
-  ReduceS_1 n167 ( // @[Top.scala 63:22]
+  ReduceS_3 n167 ( // @[Top.scala 63:22]
     .clock(n167_clock),
     .reset(n167_reset),
     .valid_up(n167_valid_up),
