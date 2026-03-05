@@ -24,21 +24,14 @@ SHIR_HATCH = "///"
 AETHERLING_HATCH = "\\\\\\"
 OUR_HATCH = ""
 # pylint: disable-next=line-too-long
-SIM_FAIL = r"\textbf{{\large $\triangle$}\hspace{-0.685em}\raisebox{0.125em}{\scriptsize!}}\hspace{0.5em}"
-SYNTH_FAIL = r"\textbf{\Large $\times$}"
+SYNTH_FAIL = r"\textbf{{\large $\triangle$}\hspace{-0.685em}\raisebox{0.125em}{\scriptsize!}}\hspace{0.5em}"
+SIM_FAIL = r"\textbf{\Large $\times$}"
 
 
-def benchmark_title(bench_name: str) -> str | None:
-    """
-    Return the title to put at the top of the column for the given benchmark, or `None` if the
-    results for this benchmark should be omitted from the plots.
-    """
-    if bench_name.endswith("sharpen"):
-        bench_name = bench_name[:-2]
-    return lb.benchmark_title(bench_name)
-
-
-def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
+def plot_latencies(
+    results: dict[BenchmarkImpl, LatencyResult],
+    fmax_results: dict[BenchmarkImpl, float],
+) -> None:
     """
     Plot latency for each program.
     """
@@ -159,13 +152,71 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         zorder=10,
     )
 
-    # Synthesis fail warning labels
-    for i, shir_lat in enumerate(shir_latency):
-        if shir_lat is not None:
+    # Fmax warning labels
+    ihc_fmax = [
+        (
+            None
+            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "ihc") not in fmax_results
+            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "ihc")]
+        )
+        for p in program_names
+    ]
+    shir_fmax = [
+        (
+            None
+            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir") not in fmax_results
+            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")]
+        )
+        for p in program_names
+    ]
+    aetherling_fmax = [
+        (
+            None
+            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "aetherling") not in fmax_results
+            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "aetherling")]
+        )
+        for p in program_names
+    ]
+    sirop_fmax = [
+        fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")]
+        for p in program_names
+    ]
+    for x, fmax, lat in zip(xs, ihc_fmax, ihc_latency):
+        if fmax is not None and fmax >= c.TARGET_FREQ:
             continue
         ax.annotate(
             SYNTH_FAIL,
-            (xs[i] + BAR_WIDTH, 5),
+            (x, 2 * (lat or 1)),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
+    for x, fmax, lat in zip(xs, shir_fmax, shir_latency):
+        if fmax is not None and fmax >= c.TARGET_FREQ:
+            continue
+        ax.annotate(
+            SYNTH_FAIL,
+            (x + BAR_WIDTH, 2 * (lat or 1)),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
+    for x, fmax, lat in zip(xs, aetherling_fmax, aetherling_latency):
+        if fmax is not None and fmax >= c.TARGET_FREQ:
+            continue
+        ax.annotate(
+            SYNTH_FAIL,
+            (x + 2*BAR_WIDTH, 2 * (lat or 1)),
+            ha="center",
+            color="red",
+            zorder=999,
+        )
+    for x, fmax, lat in zip(xs, sirop_fmax, sirop_latency):
+        if fmax is not None and fmax >= c.TARGET_FREQ:
+            continue
+        ax.annotate(
+            SYNTH_FAIL,
+            (x + 3*BAR_WIDTH, 2 * (lat or 1)),
             ha="center",
             color="red",
             zorder=999,
@@ -192,7 +243,7 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     ax.set_xlim(xlim)
     ax.set_xticks(
         [x + 1.5*BAR_WIDTH for x in xs],
-        [benchmark_title(p) or "NONE" for p in program_names]
+        [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     ax.tick_params(axis="x", which="both", length=0)
     ax.set_ylabel("Latency\n(log)")
@@ -242,7 +293,7 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
             ),
             Rectangle(
                 (0, 0), 0, 0,
-                label="synthesis fail",
+                label="timing requirements not met",
                 visible=False,
             ),
             Rectangle(
@@ -255,8 +306,8 @@ def plot_latencies(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         bbox_to_anchor=(1, 0),
         ncols=6,
     )
-    fig.text(0.713, -0.238, SYNTH_FAIL, color="red", zorder=1000)
-    fig.text(0.863, -0.250, SIM_FAIL, color="red", zorder=1000)
+    fig.text(0.611, -0.250, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.863, -0.238, SIM_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_LATENCY_PDF, bbox_inches="tight")
 
@@ -265,7 +316,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    (_, latency_results, _) = crud.read_combined_results(
+    (_, latency_results, fmax_results) = crud.read_combined_results(
         c.RESOURCE_USAGE_CSV,
         c.LATENCY_CSV,
         c.FMAX_ESTIMATE_CSV,
@@ -276,7 +327,7 @@ def main() -> None:
         c.IHC_LATENCY_CSV,
         c.IHC_FMAX_CSV,
     )
-    plot_latencies(latency_results)
+    plot_latencies(latency_results, fmax_results)
 
 
 if __name__ == "__main__":
