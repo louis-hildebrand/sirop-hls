@@ -1,0 +1,20 @@
+let kernel = [
+    [1:u32, 2:u32, 1:u32]v,
+    [2:u32, 4:u32, 2:u32]v,
+    [1:u32, 2:u32, 1:u32]v
+]v in
+(I: Stm[Stm[u32, 1920], 1080]) =>
+    let windows = StmSlide2D(I, 3, 3) in
+    StmMap(
+        windows,
+        (row) =>
+            StmMap(
+                row,
+                (window: Vec[Vec[u32, 3], 3]) => {
+                    let zipped = VecZip(VecJoin(window), VecJoin(kernel)) in
+                    let products = VecMap(zipped, (x) => x.0 *% x.1) in
+                    let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                    sum >>> 4
+                }
+            )
+    )

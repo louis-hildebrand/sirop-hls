@@ -7,64 +7,30 @@ import mhir.ir.typecheck.TypeCheck
 
 object ProgramIO {
   def apply(name: String): PositionalTestIO = {
-    if (name.startsWith("map_")) {
+    if (name.startsWith("map_") || name == "shir:map") {
       mapIO
-    } else if (name == "shir:map") {
-      mapIO
-    } else if (name.startsWith("dot_")) {
+    } else if (name.startsWith("dot_") || name == "shir:dot") {
       dotIO
-    } else if (name == "shir:dot") {
-      dotIO
-    } else if (name.startsWith("conv1d_")) {
-      conv1dIO
-    } else if (name == "shir:conv1d") {
-      conv1dIO
-    } else if (name.startsWith("conv2d_")) {
-      conv2dIO
-    } else if (name == "shir:conv2d") {
-      shirConv2dIO
-    } else if (name.startsWith("convb2b_")) {
-      convb2bIO
-    } else if (name == "shir:convb2b") {
-      shirConvB2bIO
-    } else if (name.startsWith("sharpen_")) {
-      sharpenIO
-    } else if (name == "shir:sharpen") {
-      shirSharpenIO
-    } else if (name.startsWith("camera_")) {
-      cameraIO
-    } else if (name == "shir:camera") {
-      shirCameraIO
-    } else if (name.startsWith("matvec_")) {
-      val parStr = {
-        val suffix = name.substring("matvec_".length)
-        val prefix = suffix.takeWhile(_.isDigit)
-        if (prefix.isEmpty) {
-          throw new IllegalArgumentException(
-            s"Unrecognized benchmark name: $name (missing throughput)"
-          )
-        }
-        prefix
-      }
-      val par = parStr.toInt
-      matVecMulIO(
-        width = Program.MatVecSize,
-        height = Program.MatVecSize,
-        par = par,
-        uint = U16
-      )
-    } else if (name == "shir:matvec") {
+    } else if (name.startsWith("matvec_") || name == "shir:matvec") {
       matVecMulIO(width = 256, height = 256, par = 1, uint = U16)
     } else if (name.startsWith("smallmatmat_") || name == "shir:smallmatmat") {
       matMatMulIO(n = 4, m = 4, k = 4, par = 2, uint = U16)
     } else if (name.startsWith("matmat_") || name == "shir:matmat") {
       matMatMulIO(n = 256, m = 256, k = 256, par = 16, uint = U16)
+    } else if (name.startsWith("conv1d_") || name == "shir:conv1d") {
+      conv1dIO
+    } else if (name.startsWith("conv2d_") || name == "shir:conv2d") {
+      shirConv2dIO
+    } else if (name.startsWith("convb2b_") || name == "shir:convb2b") {
+      shirConvB2bIO
+    } else if (name.startsWith("sharpen_") || name == "shir:sharpen") {
+      shirSharpenIO
+    } else if (name.startsWith("sobel_") || name == "shir:sobel") {
+      shirSobelIO
+    } else if (name.startsWith("camera_") || name == "shir:camera") {
+      shirCameraIO
     } else if (name.startsWith("sqrt_")) {
       sqrtIO
-    } else if (name.startsWith("sobel_")) {
-      sobelIO
-    } else if (name == "shir:sobel") {
-      shirSobelIO
     } else {
       throw new IllegalArgumentException(s"unknown program: $name")
     }
@@ -166,7 +132,7 @@ object ProgramIO {
       conv2d(
         basicInputs,
         kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
-      ).flatten.map(C(_)(k.typ))
+      ).flatten.map(_ / 16).map(C(_)(k.typ))
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }
 
@@ -188,9 +154,9 @@ object ProgramIO {
         conv2d(
           basicInputs,
           kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
-        ),
+        ).map(xs => xs.map(_ / 16)),
         kernel = Seq(Seq(1, 2), Seq(4, 1))
-      ).flatten.map(C(_)(k.typ))
+      ).flatten.map(_ / 8).map(C(_)(k.typ))
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }
 

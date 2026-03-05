@@ -1,12 +1,10 @@
 package mhir.main.stored
 
-import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
-import mhir.sugar.{StmMap, StmReduce, StmZip}
 import mhir.sugar._
 import os.Path
 
@@ -19,26 +17,36 @@ object Program {
 
   val MatVecSize: Int = 256
 
-  private val logger: Logger = Logger(getClass.getName)
-
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"               => Map
-      case "shir:map"          => Map
-      case "dot"               => Dot
-      case "shir:dot"          => Dot
-      case "conv1d"            => Conv1d
-      case "shir:conv1d"       => ShirConv1d
-      case "conv2d"            => Conv2d
-      case "shir:smallconv2d"  => ShirSmallConv2d
-      case "shir:conv2d"       => ShirConv2d
-      case "convb2b"           => ConvB2b
-      case "shir:convb2b"      => ShirConvB2b
-      case "sharpen"           => Sharpen
-      case "shir:sharpen"      => ShirSharpen
-      case "aetherling:camera" => Camera
-      case "shir:camera"       => ShirCamera
-      case "camera"            => ShirCamera
+      case "map"         => Parser.parse(ResourcesDir / "map.sirop")
+      case "shir:map"    => Parser.parse(ResourcesDir / "map.sirop")
+      case "dot"         => Parser.parse(ResourcesDir / "dot.sirop")
+      case "shir:dot"    => Parser.parse(ResourcesDir / "dot.sirop")
+      case "matvec"      => Parser.parse(ResourcesDir / "matvec.sirop")
+      case "shir:matvec" => Parser.parse(ResourcesDir / "matvec.sirop")
+      case "smallmatmat" => Parser.parse(ResourcesDir / "small_matmat.sirop")
+      case "shir:smallmatmat" =>
+        Parser.parse(ResourcesDir / "small_matmat.sirop")
+      case "matmat"             => Parser.parse(ResourcesDir / "matmat.sirop")
+      case "shir:matmat"        => Parser.parse(ResourcesDir / "matmat.sirop")
+      case "conv1d"             => Parser.parse(ResourcesDir / "conv1d.sirop")
+      case "shir:conv1d"        => Parser.parse(ResourcesDir / "conv1d.sirop")
+      case "conv2d"             => Parser.parse(ResourcesDir / "conv2d.sirop")
+      case "shir:conv2d"        => Parser.parse(ResourcesDir / "conv2d.sirop")
+      case "aetherling:conv2d"  => AetherlingConv2d
+      case "convb2b"            => Parser.parse(ResourcesDir / "convb2b.sirop")
+      case "shir:convb2b"       => Parser.parse(ResourcesDir / "convb2b.sirop")
+      case "aetherling:convb2b" => AetherlingConvB2b
+      case "sharpen"            => Parser.parse(ResourcesDir / "sharpen.sirop")
+      case "shir:sharpen"       => Parser.parse(ResourcesDir / "sharpen.sirop")
+      case "aetherling:sharpen" => AetherlingSharpen
+      case "sobel"              => Parser.parse(ResourcesDir / "sobel.sirop")
+      case "shir:sobel"         => Parser.parse(ResourcesDir / "sobel.sirop")
+      case "aetherling:sobel"   => AetherlingSobel
+      case "camera"             => Parser.parse(ResourcesDir / "camera.sirop")
+      case "shir:camera"        => Parser.parse(ResourcesDir / "camera.sirop")
+      case "aetherling:camera"  => AetherlingCamera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
@@ -48,99 +56,10 @@ object Program {
           par = par,
           uint = U16
         )
-      case "matvec"      => Parser.parse(os.read(ResourcesDir / "matvec.sirop"))
-      case "shir:matvec" => Parser.parse(os.read(ResourcesDir / "matvec.sirop"))
-      case "smallmatmat" | "shir:smallmatmat" =>
-        val src = os.read(ResourcesDir / "small_matmat.sirop")
-        Parser.parse(src)
-      case "matmat" | "shir:matmat" =>
-        val src = os.read(ResourcesDir / "big_matmat.sirop")
-        logger.debug(
-          s"parsing program from ${ResourcesDir / "big_matmat.sirop"}"
-        )
-        Parser.parse(src)
-      case "sqrt"       => Sqrt
-      case "sobel"      => Sobel
-      case "shir:sobel" => ShirSobel
+      case "sqrt" => Sqrt
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
-  }
-
-  /** Add 5 to every element of a stream.
-    */
-  private val Map: Expr = {
-    val input = Param("I")(TyStm(U8, 200))
-    Function(input, StmMap(input, U8 ::+ (x => x + 5))())()
-  }
-
-  /** Dot product of two streams.
-    */
-  private val Dot: Expr = {
-    val I0 = Param("I0")(TyStm(U16, 840))
-    val I1 = Param("I1")(TyStm(U16, 840))
-    val zipped = StmZip(I0, I1)()
-    val multiplied = StmMap(zipped, (U16, U16) ::+ (x => x.__0 * x.__1))()
-    val dot = StmReduce(multiplied, (U16, U16) ::+ (x => x.__0 + x.__1))()
-    Function(I0, Function(I1, dot)())()
-  }
-
-  /** 1-dimensional convolution.
-    */
-  private val Conv1d: Expr = {
-    val kernel = VecLiteral(C(-1)(I8), C(0)(I8), C(1)(I8))()
-    val input = Param("I")(TyStm(I8, 16))
-    val slide = StmSlideV(input, 3)()
-    val kernelStm = StmCst(14, kernel)()
-    val s0 = StmZip(slide, kernelStm)()
-    val s1 = StmMap(
-      s0,
-      (TyVec(I8, 3), TyVec(I8, 3)) ::+ (x => VecZip(x.__0, x.__1)())
-    )()
-    val s2 = StmMap(
-      s1,
-      TyVec((I8, I8), 3) ::+ (v =>
-        VecMap(v, (I8, I8) ::+ (x => x.__0 * x.__1))()
-      )
-    )()
-    val s3 = StmMap(
-      s2,
-      TyVec(I8, 3) ::+ (v =>
-        VecReduceComb(v, (I8, I8) ::+ (x => x.__0 + x.__1))()
-      )
-    )()
-    val s4 = StmMap(s3, TyVec(I8, 1) ::+ (v => VecAccess(v, 0)()))()
-    Function(input, s4)()
-  }
-
-  /** 1-dimensional convolution.
-    */
-  private val ShirConv1d: Expr = {
-    val input = Param("I")(TyStm(I8, 16))
-    // SHIR's SlideOrderedStream produces windows that are reversed compared to the
-    // windows in StmSlideV, so flip each window.
-    // Adding this extra step will surely not decrease the resource usage for our
-    // design compared to SHIR, right?
-    // It is certainly possible to implement a variant of StmSlideV that matches
-    // SHIR, but just flipping each window is a bit simpler.
-    val windows = StmMap(
-      StmSlideV(input, 3)(),
-      TyVec(I8, 3) ::+ (v => VecReverse(v))
-    )()
-    val result = StmMap(
-      windows,
-      TyVec(I8, 3) ::+ { window =>
-        val kernel = VecLiteral(C(1)(I8), C(0)(I8), C(-1)(I8))()
-        val zipped = VecZip(window, kernel)()
-        val products = VecMap(zipped, (I8, I8) ::+ (x => x.__0 * x.__1))()
-        val sum = VecAccess(
-          VecReduceComb(products, (I8, I8) ::+ (x => x.__0 + x.__1))(),
-          0
-        )()
-        sum
-      }
-    )()
-    Function(input, result)()
   }
 
   private def blurKernel(int: Type) = {
@@ -388,7 +307,7 @@ object Program {
 
   /** 2-dimensional convolution.
     */
-  private val Conv2d: Expr = {
+  private val AetherlingConv2d: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -403,184 +322,9 @@ object Program {
     Function(input, conv)()
   }
 
-  /** Small 2-dimensional convolution using the same operators as in SHIR.
-    */
-  private val ShirSmallConv2d: Expr = {
-    val int = U32
-    val height = 4
-    val width = 4
-    val input = Param("I")(TyStm(TyStm(int, width), height))
-    val windows = StmSlide2D(input, 3, 3)()
-    val conv = StmMap(
-      windows,
-      TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
-        StmMap(
-          x,
-          TyVec(TyVec(int, 3), 3) ::+ { window =>
-            val kernel = VecLiteral(
-              C(1)(int),
-              C(2)(int),
-              C(1)(int),
-              C(2)(int),
-              C(4)(int),
-              C(2)(int),
-              C(1)(int),
-              C(2)(int),
-              C(1)(int)
-            )()
-            val flatWindow = VecJoin(window)()
-            val zipped = VecZip(flatWindow, kernel)()
-            val products = VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-            val sum = VecAccess(
-              VecReduceComb(
-                products,
-                (int, int) ::+ (x => x.__0 + x.__1)
-              )(),
-              0
-            )()
-            sum
-          }
-        )()
-      )
-    )()
-    Function(input, conv)()
-  }
-
-  private val ShirConv2d: Expr = {
-    val int = U32
-    val height = 1080
-    val width = 1920
-    val input = Param("I")(TyStm(TyStm(int, width), height))
-    val windows = StmSlide2D(input, 3, 3)()
-    val conv = StmMap(
-      windows,
-      TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
-        StmMap(
-          x,
-          TyVec(TyVec(int, 3), 3) ::+ { window =>
-            val kernel = VecLiteral(
-              C(1)(int),
-              C(2)(int),
-              C(1)(int),
-              C(2)(int),
-              C(4)(int),
-              C(2)(int),
-              C(1)(int),
-              C(2)(int),
-              C(1)(int)
-            )()
-            val flatWindow = VecJoin(window)()
-            val zipped = VecZip(flatWindow, kernel)()
-            val products = VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-            val sum = VecAccess(
-              VecReduceComb(
-                products,
-                (int, int) ::+ (x => x.__0 + x.__1)
-              )(),
-              0
-            )()
-            sum
-          }
-        )()
-      )
-    )()
-    Function(input, conv)()
-  }
-
-  private val ShirConvB2b: Expr = {
-    val int = U32
-    val height = 1080
-    val width = 1920
-    val input = Param("I")(TyStm(TyStm(int, width), height))
-    val step1 = {
-      val windows = StmSlide2D(input, 3, 3)()
-      StmMap(
-        windows,
-        TyStm(TyVec(TyVec(int, 3), 3), width - 2) ::+ (x =>
-          StmMap(
-            x,
-            TyVec(TyVec(int, 3), 3) ::+ { window =>
-              val kernel = VecLiteral(
-                C(1)(int),
-                C(2)(int),
-                C(1)(int),
-                C(2)(int),
-                C(4)(int),
-                C(2)(int),
-                C(1)(int),
-                C(2)(int),
-                C(1)(int)
-              )()
-              val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)()
-              val products =
-                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-              val sum = VecAccess(
-                VecReduceComb(
-                  products,
-                  (int, int) ::+ (x => x.__0 + x.__1)
-                )(),
-                0
-              )()
-              sum
-            }
-          )()
-        )
-      )()
-    }
-    val step2 = {
-      val windows = StmSlide2D(step1, 2, 2)()
-      val newWidth = width - 2
-      StmMap(
-        windows,
-        TyStm(TyVec(TyVec(int, 2), 2), newWidth - 1) ::+ (x =>
-          StmMap(
-            x,
-            TyVec(TyVec(int, 2), 2) ::+ { window =>
-              val kernel = VecLiteral(
-                C(1)(int),
-                C(2)(int),
-                C(4)(int),
-                C(1)(int)
-              )()
-              val flatWindow = VecJoin(window)()
-              val zipped = VecZip(flatWindow, kernel)()
-              val products =
-                VecMap(zipped, (int, int) ::+ (x => x.__0 * x.__1))()
-              val sum = VecAccess(
-                VecReduceComb(
-                  products,
-                  (int, int) ::+ (x => x.__0 + x.__1)
-                )(),
-                0
-              )()
-              sum
-            }
-          )()
-        )
-      )()
-    }
-    Function(input, step2)()
-  }
-
-  private val ShirSharpen: Expr = {
-    val src = os.read(ResourcesDir / "sharpen.sirop")
-    Parser.parse(src)
-  }
-
-  private val ShirSobel: Expr = {
-    val src = os.read(ResourcesDir / "sobel.sirop")
-    Parser.parse(src)
-  }
-
-  private val ShirCamera: Expr = {
-    val src = os.read(ResourcesDir / "camera.sirop")
-    Parser.parse(src)
-  }
-
   /** 3D convolution followed by 2D convolution.
     */
-  private val ConvB2b: Expr = {
+  private val AetherlingConvB2b: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -598,7 +342,7 @@ object Program {
 
   /** An image sharpening operation.
     */
-  private val Sharpen: Expr = {
+  private val AetherlingSharpen: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -630,7 +374,7 @@ object Program {
 
   /** Camera pipeline (demosaic + sharpen).
     */
-  private val Camera: Expr = {
+  private val AetherlingCamera: Expr = {
     // I'm too lazy to write the whole benchmark by hand
     val aetherlingCode = os.read(
       os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original" / "bigcamera_1.txt"
@@ -718,7 +462,7 @@ object Program {
     Function(input, sqrt)()
   }
 
-  private val Sobel: Expr = {
+  private val AetherlingSobel: Expr = {
     val width = 1920
     val height = 1080
     val int = I32

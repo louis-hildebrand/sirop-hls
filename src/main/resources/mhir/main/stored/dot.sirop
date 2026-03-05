@@ -1,0 +1,8 @@
+(I0 : Stm[u16, 840]) => (I1 : Stm[u16, 840]) =>
+    StmReduce(
+        StmMap(
+            StmZip(I0, I1),
+            (x) => x.0 *% x.1
+        ),
+        (x) => x.0 +% x.1
+    )
