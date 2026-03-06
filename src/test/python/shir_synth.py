@@ -56,11 +56,6 @@ def parse_args() -> Namespace:
     """
     parser = ArgumentParser(description="runs synthesis for each of the given programs")
     parser.add_argument(
-        "programs",
-        nargs="*",
-        help="the names of the programs to process"
-    )
-    parser.add_argument(
         "--skip-shir",
         action="store_true",
         help="don't synthesize any SHIR projects",
@@ -70,7 +65,18 @@ def parse_args() -> Namespace:
         action="store_true",
         help="don't synthesize any Sirop projects",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "programs",
+        nargs="*",
+        help=(
+            "the names of the programs to process"
+            f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
+        )
+    )
+    args = parser.parse_args()
+    if not args.programs:
+        args.programs = c.ACTIVE_BENCHES
+    return args
 
 
 if __name__ == "__main__":

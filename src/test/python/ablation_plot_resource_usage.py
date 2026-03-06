@@ -7,7 +7,6 @@ This script plots the resource usages for the ablation study.
 import math
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as tick
 
 import lib.ablation_plot_settings as aps
 import lib.ablation_results_crud as crud
@@ -55,7 +54,7 @@ def plot_resource_usages(
     )
     baseline_artist, *_ = alm_ax.plot(
         list(xlim),
-        [0, 0],
+        [1, 1],
         color=(0, 0, 0),
         zorder=5,
     )
@@ -73,11 +72,11 @@ def plot_resource_usages(
                 continue
             y = results[ProgramVariant(p, lvl)].alm
             baseline = results[ProgramVariant(p, aps.BASELINE_LVL)].alm
-            ys.append( (y - baseline) / baseline )
+            ys.append( y / baseline )
         artist = alm_ax.bar(
-            bottom=0,
+            bottom=1,
             x=xs,
-            height=ys,
+            height=[y - 1 for y in ys],
             width=aps.BAR_WIDTH - aps.BAR_PADDING,
             label=str(lvl),
             hatch=aps.BAR_HATCH[i],
@@ -92,7 +91,8 @@ def plot_resource_usages(
         for x, p, alm_y in zip(xs, program_names, ys):
             pv = ProgramVariant(p, lvl)
             if pv not in fmax_results or fmax_results[pv] < c.TARGET_FREQ:
-                alm_ax.annotate(WARNING, (x, 1.25 * max(0.2, alm_y)), ha="center", color="red")
+                y = 1.2 * max(1, alm_y)
+                alm_ax.annotate(WARNING, (x, y), ha="center", color="red")
     # Display settings
     alm_ax.grid(
         visible=True,
@@ -110,11 +110,12 @@ def plot_resource_usages(
         [aps.program_title(p) or "NONE" for p in program_names],
     )
     alm_ax.tick_params(axis="x", which="both", length=0)
-    alm_ax.set_ylabel("\\% change\nALMs (log)")
-    alm_ax.set_yscale("symlog")
-    alm_ax.yaxis.set_major_formatter(tick.PercentFormatter(1))
-    alm_ax.set_yticks([-1, 0, 1, 2, 10])
-    alm_ax.set_ylim(-1, 40)
+    alm_ax.set_ylabel("ALM ratio\n(log)")
+    alm_ax.set_yscale("log")
+    alm_ax.yaxis.set_major_formatter("{x:.2f}")
+    alm_ax.set_yticks([], minor=True)
+    alm_ax.set_yticks([2/3, 1.5, 5])
+    alm_ax.set_ylim(0.5, 6)
 
     pu.draw_lower_is_better_message(fig, 0.025, -0.13)
 

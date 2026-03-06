@@ -43,9 +43,15 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "programs",
         nargs="*",
-        help="the names of the programs to process"
+        help=(
+            "the names of the programs to process"
+            f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
+        )
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.programs:
+        args.programs = c.ACTIVE_BENCHES
+    return args
 
 
 if __name__ == "__main__":

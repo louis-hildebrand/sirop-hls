@@ -81,7 +81,7 @@ def parse_args() -> Namespace:
         nargs="*",
         help=(
             "the benchmarks to process"
-            f"(the ones in the paper can be selected by {lb.ACTIVE_BENCH_GLOB})"
+            f" (the ones in the paper can be selected by {lb.ACTIVE_BENCH_GLOB})"
         ),
     )
     args = parser.parse_args()

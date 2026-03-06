@@ -6,17 +6,12 @@ This script runs all the measurements for the comparison with SHIR.
 
 from argparse import ArgumentParser, Namespace
 
+import lib.constants as c
 import shir_extract_fmax
 import shir_extract_resource_usage
 import shir_generate
 import shir_measure_latency
 import shir_synth
-
-ACTIVE_BENCHES = [
-    "map", "dot", "matvec", "matmat",
-    "conv1d", "conv2d", "convb2b",
-    "sharpen", "sobel", "camera"
-]
 
 
 def main(programs: list[str], skip_shir: bool, skip_sirop: bool, skip_latency: bool) -> None:
@@ -39,14 +34,6 @@ def parse_args() -> Namespace:
         description="extracts the resource usages for the given programs"
     )
     parser.add_argument(
-        "programs",
-        nargs="*",
-        help=(
-            "the names of the programs to process"
-            f"(the ones in the paper are: {' '.join(ACTIVE_BENCHES)})"
-        )
-    )
-    parser.add_argument(
         "--skip-shir",
         action="store_true",
         help="skip the SHIR designs",
@@ -61,9 +48,17 @@ def parse_args() -> Namespace:
         action="store_true",
         help="skip the latency measurement step"
     )
+    parser.add_argument(
+        "programs",
+        nargs="*",
+        help=(
+            "the names of the programs to process"
+            f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
+        )
+    )
     args = parser.parse_args()
     if not args.programs:
-        args.programs = ACTIVE_BENCHES
+        args.programs = c.ACTIVE_BENCHES
     return args
 
 
