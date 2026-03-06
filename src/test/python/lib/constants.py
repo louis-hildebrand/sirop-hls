@@ -90,3 +90,11 @@ CHISEL_COLOR     = "#2ba07b"
 OUR_COLOR        = "#ff7f00"
 
 TARGET_FREQ = 175  # MHz
+
+# The benchmarks that are shown in the paper
+ACTIVE_BENCHES = [
+    "map",
+    "dot", "matvec", "matmat",
+    "conv1d", "conv2d", "convb2b",
+    "sharpen", "sobel", "camera",
+]

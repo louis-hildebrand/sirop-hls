@@ -20,13 +20,6 @@ import ablation_plot_resource_usage
 import ablation_synth
 import lib.constants as c
 
-# The benchmarks that are shown in the paper
-ACTIVE_BENCHES = [
-    "map", "dot", "matvec_1", "matmat",
-    "conv1d", "conv2d", "convb2b",
-    "sharpen", "sobel", "camera"
-]
-
 
 def open_plot(f: Path) -> None:
     """
@@ -90,14 +83,6 @@ def parse_args() -> Namespace:
         description="This script runs the full ablation study."
     )
     parser.add_argument(
-        "programs",
-        nargs="*",
-        help=(
-            "the names of the programs to process"
-            f"(the ones in the paper are: {' '.join(ACTIVE_BENCHES)})"
-        )
-    )
-    parser.add_argument(
         "--clean",
         action="store_true",
         help="delete the previous results before running the experiments",
@@ -117,11 +102,17 @@ def parse_args() -> Namespace:
         action="store_true",
         help="open the generated plots once they are generated",
     )
+    parser.add_argument(
+        "programs",
+        nargs="*",
+        help=(
+            "the names of the programs to process"
+            f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
+        )
+    )
     args = parser.parse_args()
-
     if not args.programs:
-        args.programs = ACTIVE_BENCHES
-
+        args.programs = c.ACTIVE_BENCHES
     return args
 
 

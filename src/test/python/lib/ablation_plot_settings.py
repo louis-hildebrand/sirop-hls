@@ -33,7 +33,7 @@ def program_order(program_name: str) -> int:
     return {
         "map": 0,
         "dot": 1,
-        "matvec_1": 2,
+        "matvec": 2,
         "matmat": 3,
         "conv1d": 4,
         "conv2d": 5,
@@ -51,7 +51,7 @@ def program_title(program_name: str) -> str | None:
     if program_name == "sqrt":
         return None
     title = {
-        "matvec_1": "mv",
+        "matvec": "mv",
         "matmat": "mm"
     }.get(program_name, program_name)
     return f"\\texttt{{{title}}}"

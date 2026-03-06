@@ -3,11 +3,14 @@ package mhir.parse.sirop
 import mhir.ir._
 import mhir.parse.SyntaxError
 import mhir.sugar._
+import os.Path
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
 object Parser {
+
+  def parse(f: Path): Expr = parse(os.read(f))
 
   def parse(code: String): Expr = {
     val (e, remainingTokens) = parseExpr(Lexer.lex(code).toList)

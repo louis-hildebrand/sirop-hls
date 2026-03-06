@@ -235,7 +235,11 @@ private[optimize] object ArithSimplifier {
     assert(typ != Missing)
     val result = a match {
       case ae.Cst(c) =>
-        Some(IntCst(c)(typ))
+        try {
+          Some(IntCst(c)(typ))
+        } catch {
+          case _: OverflowException => None
+        }
       case ae.Sum(terms) =>
         val exprTerms = terms.map(e => fromArithExpr(e, typ))
         if (exprTerms.forall(e => e.isDefined)) {

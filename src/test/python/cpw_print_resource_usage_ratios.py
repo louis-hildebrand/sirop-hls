@@ -6,6 +6,7 @@ HLS compiler, SHIR, and Aetherling.
 """
 
 import statistics
+from argparse import ArgumentParser, Namespace
 
 from lib import constants as c
 from lib import results_crud as crud
@@ -45,7 +46,7 @@ def resource_usage_pairs(
     return pairs
 
 
-def main() -> None:
+def main(latex: bool) -> None:
     """
     Script entry point.
     """
@@ -84,26 +85,69 @@ def main() -> None:
     ihc_avg = statistics.geometric_mean(ihc_ratios)
     ihc_min = min(ihc_ratios)
     ihc_max = max(ihc_ratios)
-    print(f"Intel HLS ALM ratio:  min  {ihc_min:.2%} -- geomean {ihc_avg:.2%} -- max {ihc_max:.2%}")
     shir_avg = statistics.geometric_mean(shir_ratios)
     shir_min = min(shir_ratios)
     shir_max = max(shir_ratios)
-    print(
-        "SHIR ALM ratio:       "
-        f"min {shir_min:.2%} -- "
-        f"geomean {shir_avg:.2%} -- "
-        f"max {shir_max:.2%}"
-    )
     aetherling_avg = statistics.geometric_mean(aetherling_ratios)
     aetherling_min = min(aetherling_ratios)
     aetherling_max = max(aetherling_ratios)
-    print(
-        "Aetherling ALM ratio: "
-        f"min {aetherling_min:.2%} -- "
-        f"geomean {aetherling_avg:.2%} -- "
-        f"max {aetherling_max:.2%}"
+    if latex:
+        print(
+f"""% Results (vs SHIR)
+\\newcommand{{\\shiralmreduction}}{{{1-shir_avg:.0%}\\xspace}}
+\\newcommand{{\\shiralmratiogeomean}}{{{shir_avg:.2f}\\xspace}}
+\\newcommand{{\\shiralmratiomin}}{{{shir_min:.2f}\\xspace}}
+\\newcommand{{\\shiralmratiomax}}{{{shir_max:.2f}\\xspace}}
+% Results (vs Aetherling)
+\\newcommand{{\\aetherlingalmreduction}}{{{1-aetherling_avg:.0%}\\xspace}}
+\\newcommand{{\\aetherlingalmratiogeomean}}{{{aetherling_avg:.2f}\\xspace}}
+\\newcommand{{\\aetherlingalmratiomin}}{{{aetherling_min:.2f}\\xspace}}
+\\newcommand{{\\aetherlingalmratiomax}}{{{aetherling_max:.2f}\\xspace}}
+% Results (vs Intel HLS compiler)
+\\newcommand{{\\ihcalmreduction}}{{{1-ihc_avg:.0%}\\xspace}}
+\\newcommand{{\\ihcalmratiogeomean}}{{{ihc_avg:.2f}\\xspace}}
+\\newcommand{{\\ihcalmratiomin}}{{{ihc_min:.2f}\\xspace}}
+\\newcommand{{\\ihcalmratiomax}}{{{ihc_max:.2f}\\xspace}}
+""".rstrip().replace("%\\", "\\%\\")
+        )
+    else:
+        print(
+            "Intel HLS ALM ratio:  "
+            f"min  {ihc_min:.2%} -- "
+            f"geomean {ihc_avg:.2%} -- "
+            f"max {ihc_max:.2%}"
+        )
+        print(
+            "SHIR ALM ratio:       "
+            f"min {shir_min:.2%} -- "
+            f"geomean {shir_avg:.2%} -- "
+            f"max {shir_max:.2%}"
+        )
+        print(
+            "Aetherling ALM ratio: "
+            f"min {aetherling_min:.2%} -- "
+            f"geomean {aetherling_avg:.2%} -- "
+            f"max {aetherling_max:.2%}"
+        )
+
+
+def parse_args() -> Namespace:
+    """
+    Parse the command-line arguments.
+    """
+    parser = ArgumentParser(
+        description=(
+            "This script prints statistics comparing the ALM usage of Sirop to prior works"
+        )
     )
+    parser.add_argument(
+        "--latex",
+        action="store_true",
+        help="print the results in the same format as the LaTeX paper"
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    main()
+    _args = parse_args()
+    main(latex=_args.latex)
