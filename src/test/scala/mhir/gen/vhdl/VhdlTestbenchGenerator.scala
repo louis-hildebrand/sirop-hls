@@ -264,6 +264,8 @@ object VhdlTestbenchGenerator {
       valid: Path,
       in: DirectTestInput
   ): Unit = {
+    os.remove(data)
+    os.remove(valid)
     for (xs <- in.elements.grouped(ChunkSize)) {
       val binaryData = xs.map({
         case Some(v) => Binary(v)
@@ -285,6 +287,8 @@ object VhdlTestbenchGenerator {
       mask: Path,
       out: DirectTestOutput
   ): Unit = {
+    os.remove(data)
+    os.remove(mask)
     for (xs <- out.elements.grouped(ChunkSize)) {
       val binaryData = xs.map(Binary(_))
       os.write.append(data, binaryData)
