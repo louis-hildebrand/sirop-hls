@@ -37,6 +37,11 @@ class OptimizationLevel(Enum):
     Basic `LetStm` simplifications disabled.
     """
 
+    EXCEPT_STM_SIMPL = "except_stm_simpl"
+    """
+    Both `StmBuild` and `LetStm` simplifications disabled.
+    """
+
     EXCEPT_FUSE = "except_fuse"
     """
     Stream fusion disabled.
@@ -69,6 +74,8 @@ class OptimizationLevel(Enum):
                 return "no sbuild simpl."
             case OptimizationLevel.EXCEPT_LETSTM_SIMPL:
                 return "no letstm simpl."
+            case OptimizationLevel.EXCEPT_STM_SIMPL:
+                return "no sbuild/letstm simpl."
             case OptimizationLevel.EXCEPT_FUSE:
                 return "no fusion"
             case OptimizationLevel.EXCEPT_FISSION:
@@ -94,6 +101,11 @@ class OptimizationLevel(Enum):
                 return OptimizationLevel.ALL.flags + " --opt:no-simplify-sbuild"
             case OptimizationLevel.EXCEPT_LETSTM_SIMPL:
                 return OptimizationLevel.ALL.flags + " --opt:no-inline-letstm"
+            case OptimizationLevel.EXCEPT_STM_SIMPL:
+                return (
+                    OptimizationLevel.ALL.flags
+                    + " --opt:no-simplify-sbuild --opt:no-inline-letstm"
+                )
             case OptimizationLevel.EXCEPT_FUSE:
                 return OptimizationLevel.ALL.flags + " --opt:no-fuse"
             case OptimizationLevel.EXCEPT_FISSION:

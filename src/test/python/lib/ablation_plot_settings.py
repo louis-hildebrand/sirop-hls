@@ -10,6 +10,7 @@ LEVELS_TO_PLOT = [
     for lvl in OptimizationLevel
     if lvl not in [
         BASELINE_LVL,
+        OptimizationLevel.EXCEPT_STM_SIMPL,
         OptimizationLevel.SMALL_BUFFERS,
         OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH
     ]
