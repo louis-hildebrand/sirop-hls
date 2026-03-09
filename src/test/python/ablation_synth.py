@@ -21,7 +21,7 @@ def synthesize(prog: str, opt_lvl: OptimizationLevel) -> None:
         print(f"Failed to synthesize {proj_dir}")
 
 
-def main(programs: list[str]) -> None:
+def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
     """
     Script entry point.
     """
@@ -31,7 +31,7 @@ def main(programs: list[str]) -> None:
     print("-" * 80)
 
     for prog in programs:
-        for lvl in OptimizationLevel:
+        for lvl in levels:
             synthesize(prog, lvl)
 
 
@@ -48,12 +48,23 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--lvl",
+        nargs="*",
+        type=OptimizationLevel,
+        help="the optimization levels to test",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
+    if not args.lvl:
+        args.lvl = list(OptimizationLevel)
     return args
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        programs=_args.programs,
+        levels=_args.lvl,
+    )

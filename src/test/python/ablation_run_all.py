@@ -19,6 +19,7 @@ import ablation_plot_latency
 import ablation_plot_resource_usage
 import ablation_synth
 import lib.constants as c
+from lib.optimization_level import OptimizationLevel
 
 
 def open_plot(f: Path) -> None:
@@ -31,6 +32,7 @@ def open_plot(f: Path) -> None:
 
 def main(
     programs: list[str],
+    levels: list[OptimizationLevel],
     *,
     clean: bool,
     skip_latency: bool,
@@ -40,8 +42,8 @@ def main(
     """
     Script entry point.
     """
-    ablation_generate.main(programs)
-    ablation_synth.main(programs)
+    ablation_generate.main(programs, levels)
+    ablation_synth.main(programs, levels)
 
     if clean:
         c.ABLATION_RESOURCE_USAGE_CSV.unlink(missing_ok=True)
@@ -49,30 +51,30 @@ def main(
             c.ABLATION_LATENCY_CSV.unlink(missing_ok=True)
         c.ABLATION_FMAX_CSV.unlink(missing_ok=True)
 
-    ablation_extract_compile_time.main(programs)
+    ablation_extract_compile_time.main(programs, levels)
     if not skip_plots:
         ablation_plot_compile_time.main()
         if view_plots:
             open_plot(c.ABLATION_COMPILE_TIME_PDF)
 
-    ablation_extract_resource_usage.main(programs)
+    ablation_extract_resource_usage.main(programs, levels)
     if not skip_plots:
         ablation_plot_resource_usage.main()
         if view_plots:
             open_plot(c.ABLATION_RESOURCE_USAGE_PDF)
 
-    if not skip_latency:
-        ablation_measure_latency.main(programs)
-        if not skip_plots:
-            ablation_plot_latency.main()
-            if view_plots:
-                open_plot(c.ABLATION_LATENCY_PDF)
-
-    ablation_extract_fmax.main(programs)
+    ablation_extract_fmax.main(programs, levels)
     if not skip_plots:
         ablation_plot_fmax.main()
         if view_plots:
             open_plot(c.ABLATION_FMAX_PDF)
+
+    if not skip_latency:
+        ablation_measure_latency.main(programs, levels)
+        if not skip_plots:
+            ablation_plot_latency.main()
+            if view_plots:
+                open_plot(c.ABLATION_LATENCY_PDF)
 
 
 def parse_args() -> Namespace:
@@ -110,9 +112,17 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--lvl",
+        nargs="*",
+        type=OptimizationLevel,
+        help="the optimization levels to test",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
+    if not args.lvl:
+        args.lvl = list(OptimizationLevel)
     return args
 
 
@@ -120,6 +130,7 @@ if __name__ == "__main__":
     _args = parse_args()
     main(
         programs=_args.programs,
+        levels=_args.lvl,
         clean=_args.clean,
         skip_latency=_args.skip_latency,
         skip_plots=_args.skip_plots,

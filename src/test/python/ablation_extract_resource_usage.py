@@ -34,7 +34,7 @@ def extract_and_save_resource_usage(
     f.flush()
 
 
-def main(programs: list[str]) -> None:
+def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
     """
     Script entry point.
     """
@@ -46,7 +46,8 @@ def main(programs: list[str]) -> None:
 
     print("-" * 80)
     print("- Extracting resource usage...")
-    print(f"- Programs  : {', '.join(programs)}")
+    print(f"- Programs    : {', '.join(programs)}")
+    print(f"- Levels      : {', '.join([lvl.value for lvl in levels])}")
     print(f"- Output file : {out_path.as_posix()}")
     print("-" * 80)
 
@@ -58,7 +59,7 @@ def main(programs: list[str]) -> None:
             )
             writer.writeheader()
             for prog_name in programs:
-                for opt_lvl in OptimizationLevel:
+                for opt_lvl in levels:
                     extract_and_save_resource_usage(
                         ProgramVariant(prog_name, opt_lvl),
                         writer=writer,
@@ -86,12 +87,23 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--lvl",
+        nargs="*",
+        type=OptimizationLevel,
+        help="the optimization levels to test",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
+    if not args.lvl:
+        args.lvl = list(OptimizationLevel)
     return args
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        programs=_args.programs,
+        levels=_args.lvl,
+    )

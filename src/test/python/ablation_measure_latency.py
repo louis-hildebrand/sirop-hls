@@ -39,7 +39,7 @@ def measure_latency(proj_dir: Path) -> LatencyResult:
     return LatencyResult(latency=latency, sim_success=sim_success)
 
 
-def main(programs: list[str]) -> None:
+def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
     """
     Script entry point.
     """
@@ -51,7 +51,8 @@ def main(programs: list[str]) -> None:
 
     print("-" * 80)
     print("- Measuring latency...")
-    print(f"- Programs  : {', '.join(programs)}")
+    print(f"- Programs    : {', '.join(programs)}")
+    print(f"- Programs    : {', '.join([lvl.value for lvl in levels])}")
     print(f"- Output file : {out_path.as_posix()}")
     print("-" * 80)
 
@@ -60,7 +61,7 @@ def main(programs: list[str]) -> None:
             writer = csv.DictWriter(out_file, fieldnames=crud.LATENCY_HEADERS)
             writer.writeheader()
             for prog_name in programs:
-                for opt_lvl in OptimizationLevel:
+                for opt_lvl in levels:
                     p = ProgramVariant(prog_name, opt_lvl)
                     print(
                         f"Measuring latency for {p.name} ({p.lvl})... ",
@@ -89,12 +90,23 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--lvl",
+        nargs="*",
+        type=OptimizationLevel,
+        help="the optimization levels to test",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
+    if not args.lvl:
+        args.lvl = list(OptimizationLevel)
     return args
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        programs=_args.programs,
+        levels=_args.lvl,
+    )

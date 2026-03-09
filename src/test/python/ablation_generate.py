@@ -12,13 +12,14 @@ import lib.constants as c
 from lib.optimization_level import OptimizationLevel
 
 
-def main(programs: list[str]) -> None:
+def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
     """
     Script entry point.
     """
     print("-" * 80)
     print("- Generating projects...")
     print(f"- Programs : {', '.join(programs)}")
+    print(f"- Levels   : {', '.join([lvl.value for lvl in levels])}")
     print("-" * 80)
 
     c.ABLATION_VHDL_DIR.mkdir(exist_ok=True, parents=True)
@@ -27,7 +28,7 @@ def main(programs: list[str]) -> None:
     os.chdir(c.ROOT_DIR)
     subprocess.run(["sbt", "assembly"], check=True)
     for prog in programs:
-        for lvl in OptimizationLevel:
+        for lvl in levels:
             out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
             ctime_file = c.ABLATION_COMPILE_TIME_DIR.joinpath(f"{prog}_{lvl}.csv")
             command = (
@@ -59,12 +60,23 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--lvl",
+        nargs="*",
+        type=OptimizationLevel,
+        help="the optimization levels to test",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
+    if not args.lvl:
+        args.lvl = list(OptimizationLevel)
     return args
 
 
 if __name__ == "__main__":
     _args = parse_args()
-    main(_args.programs)
+    main(
+        programs=_args.programs,
+        levels=_args.lvl,
+    )
