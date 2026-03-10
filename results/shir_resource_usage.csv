@@ -1,5 +1,5 @@
 bench_name,bench_throughput,language,alm,bram,dsp
-camera,-1,shir,2628,27,27
+camera,-1,shir,2864,27,27
 camera,-1,sirop,1057,27,0
 conv1d,-1,shir,36,0,1
 conv1d,-1,sirop,14,0,0
@@ -15,7 +15,7 @@ matmat,-1,shir,1759,59,8
 matmat,-1,sirop,509,59,8
 matvec,-1,shir,273,1,1
 matvec,-1,sirop,68,1,1
-sharpen,-1,shir,750,7,9
+sharpen,-1,shir,905,7,9
 sharpen,-1,sirop,192,8,0
-sobel,-1,shir,4053,7,54
+sobel,-1,shir,9126,7,54
 sobel,-1,sirop,2113,8,26
