@@ -92,7 +92,7 @@ function run_simulation {
         fi
         vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     else
-        tcl_script="set NumericStdNoWarnings 1; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
+        tcl_script="set NumericStdNoWarnings 1; log -r /*; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
         timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
     fi
 }
