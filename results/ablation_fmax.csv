@@ -2,6 +2,7 @@ prog_name,prog_opt,fmax
 camera,all,250.06
 camera,except_sbuild_simpl,244.68
 camera,except_letstm_simpl,187.9
+camera,except_stm_simpl,187.9
 camera,except_fuse,235.29
 camera,except_fission,234.91
 camera,small_buffers,250.06
@@ -9,6 +10,7 @@ camera,small_buffers_and_latmatch,250.06
 conv1d,all,645.16
 conv1d,except_sbuild_simpl,645.16
 conv1d,except_letstm_simpl,320.92
+conv1d,except_stm_simpl,320.92
 conv1d,except_fuse,645.16
 conv1d,except_fission,645.16
 conv1d,small_buffers,645.16
@@ -16,6 +18,7 @@ conv1d,small_buffers_and_latmatch,645.16
 conv2d,all,322.06
 conv2d,except_sbuild_simpl,322.06
 conv2d,except_letstm_simpl,200.88
+conv2d,except_stm_simpl,200.88
 conv2d,except_fuse,311.43
 conv2d,except_fission,284.17
 conv2d,small_buffers,322.06
@@ -23,6 +26,7 @@ conv2d,small_buffers_and_latmatch,322.06
 convb2b,all,275.86
 convb2b,except_sbuild_simpl,275.86
 convb2b,except_letstm_simpl,199.0
+convb2b,except_stm_simpl,199.0
 convb2b,except_fuse,295.42
 convb2b,except_fission,263.02
 convb2b,small_buffers,275.86
@@ -30,6 +34,7 @@ convb2b,small_buffers_and_latmatch,275.86
 dot,all,444.05
 dot,except_sbuild_simpl,444.05
 dot,except_letstm_simpl,185.56
+dot,except_stm_simpl,185.56
 dot,except_fuse,272.41
 dot,except_fission,444.05
 dot,small_buffers,444.05
@@ -37,6 +42,7 @@ dot,small_buffers_and_latmatch,444.05
 map,all,645.16
 map,except_sbuild_simpl,645.16
 map,except_letstm_simpl,317.26
+map,except_stm_simpl,317.26
 map,except_fuse,645.16
 map,except_fission,645.16
 map,small_buffers,645.16
@@ -44,6 +50,7 @@ map,small_buffers_and_latmatch,645.16
 matmat,all,211.37
 matmat,except_sbuild_simpl,211.06
 matmat,except_letstm_simpl,189.36
+matmat,except_stm_simpl,189.5
 matmat,except_fuse,211.19
 matmat,except_fission,149.72
 matmat,small_buffers,211.37
@@ -51,6 +58,7 @@ matmat,small_buffers_and_latmatch,211.37
 matvec,all,278.16
 matvec,except_sbuild_simpl,273.37
 matvec,except_letstm_simpl,185.43
+matvec,except_stm_simpl,187.27
 matvec,except_fuse,278.01
 matvec,except_fission,278.16
 matvec,small_buffers,278.16
@@ -58,6 +66,7 @@ matvec,small_buffers_and_latmatch,278.16
 sharpen,all,221.63
 sharpen,except_sbuild_simpl,221.63
 sharpen,except_letstm_simpl,202.31
+sharpen,except_stm_simpl,202.31
 sharpen,except_fuse,315.26
 sharpen,except_fission,308.17
 sharpen,small_buffers,221.63
@@ -65,6 +74,7 @@ sharpen,small_buffers_and_latmatch,221.63
 sobel,all,223.41
 sobel,except_sbuild_simpl,223.41
 sobel,except_letstm_simpl,179.79
+sobel,except_stm_simpl,179.79
 sobel,except_fuse,226.19
 sobel,except_fission,127.11
 sobel,small_buffers,223.41
