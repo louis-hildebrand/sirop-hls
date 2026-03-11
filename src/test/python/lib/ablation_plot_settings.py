@@ -10,17 +10,18 @@ LEVELS_TO_PLOT = [
     for lvl in OptimizationLevel
     if lvl not in [
         BASELINE_LVL,
+        OptimizationLevel.EXCEPT_SBUILD_SIMPL,
         OptimizationLevel.EXCEPT_STM_SIMPL,
         OptimizationLevel.SMALL_BUFFERS,
         OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH
     ]
 ]
-BAR_SPACE = 0.3
+BAR_SPACE = 0.35
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
-BAR_PADDING = 0.04
+BAR_PADDING = 0.06
 BAR_HATCH = ["///", "\\\\\\", "---", "+++", "||", "xx", "/", "\\", "-", "+", "|", "x"]
 # pylint: disable-next=line-too-long
-FACE_COLORS = ["#fdbe85", "#fd8d3c", "#e6550d", "#a63603"]
+FACE_COLORS = ["#fd8d3c", "#e6550d", "#a63603"]
 EDGE_COLORS = ["black" for _ in FACE_COLORS]
 LINE_STYLES = ["-" for _ in FACE_COLORS]
 HATCH_WIDTH = 1

@@ -73,13 +73,13 @@ class OptimizationLevel(Enum):
             case OptimizationLevel.EXCEPT_SBUILD_SIMPL:
                 return "no sbuild simpl."
             case OptimizationLevel.EXCEPT_LETSTM_SIMPL:
-                return "no letstm simpl."
+                return r"no letstm inlining (\S6.2)"
             case OptimizationLevel.EXCEPT_STM_SIMPL:
                 return "no sbuild/letstm simpl."
             case OptimizationLevel.EXCEPT_FUSE:
-                return "no fusion"
+                return r"no fusion (\S6.3)"
             case OptimizationLevel.EXCEPT_FISSION:
-                return "no fission"
+                return r"no fission (\S6.3)"
             case OptimizationLevel.SMALL_BUFFERS:
                 return "bufsize 1"
             case OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH:

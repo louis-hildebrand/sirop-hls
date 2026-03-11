@@ -87,6 +87,15 @@ def plot_resource_usages(
             zorder=10,
         )
         artists.append(artist)
+        labels = []
+        for y in ys:
+            y = f"{y:.1f}"
+            labels.append(y)
+        alm_ax.bar_label(
+            artist,
+            labels,
+            padding=2,
+        )
         # Fmax warning labels
         for x, p, alm_y in zip(xs, program_names, ys):
             pv = ProgramVariant(p, lvl)
@@ -115,7 +124,7 @@ def plot_resource_usages(
     alm_ax.yaxis.set_major_formatter("{x:.2f}")
     alm_ax.set_yticks([], minor=True)
     alm_ax.set_yticks([2/3, 1.5, 5])
-    alm_ax.set_ylim(0.5, 6)
+    alm_ax.set_ylim(0.3, 12)
 
     pu.draw_lower_is_better_message(fig, 0.025, -0.13)
 
