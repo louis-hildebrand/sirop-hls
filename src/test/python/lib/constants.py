@@ -95,6 +95,6 @@ TARGET_FREQ = 175  # MHz
 ACTIVE_BENCHES = [
     "map",
     "dot", "matvec", "matmat",
-    "conv1d", "conv2d", "convb2b",
+    "conv1d", "conv2d", "convb2b", "jacobi",
     "sharpen", "sobel", "camera",
 ]
