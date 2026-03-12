@@ -108,6 +108,9 @@ def min_latency(bench: Benchmark) -> int:
     if bench.name in {"conv1d", "smallconv2d", "smallconvb2b", "smallsharpen"}:
         # 16 inputs, 16 outputs
         return 16 // bench.throughput
+    if bench.name == "bigjacobi":
+        # 128*32 inputs and outputs
+        return 128 * 32 // bench.throughput
     if bench.name in {"bigconv2d", "bigconvb2b", "bigsharpen", "bigsobel"}:
         # 1920*16 inputs and outputs
         return 1920 * 16 // bench.throughput
@@ -140,6 +143,7 @@ def standardize_bench_name(bench_name: str) -> str:
     return {
         "bigmvm": "matvec",
         "bigmmm": "matmat",
+        "bigjacobi": "jacobi",
         "bigconv2d": "conv2d",
         "bigconvb2b": "convb2b",
         "bigsharpen": "sharpen",
@@ -160,16 +164,18 @@ def benchmark_order(bench_name: str) -> int:
         "bigmmm": 30,
         "matmat": 30,
         "conv1d": 40,
+        "bigjacobi": 45,
+        "jacobi": 45,
         "bigconv2d": 50,
         "conv2d": 50,
         "bigconvb2b": 60,
         "convb2b": 60,
         "bigsharpen": 70,
         "sharpen": 70,
-        "bigsobel": 80,
-        "sobel": 80,
-        "bigcamera": 90,
-        "camera": 90,
+        "bigcamera": 80,
+        "camera": 80,
+        "bigsobel": 90,
+        "sobel": 90,
     }.get(bench_name, 100)
 
 
@@ -197,8 +203,8 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
     """
     if bench_name == "bigcamera":
         ax.set_xticks(
-            [1/4, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{4}$", "1", "2", "4", "8", "16"],
+            [1/4, 1, 4, 16],
+            [r"$\frac{1}{4}$", "1", "4", "16"],
         )
     elif bench_name in {"bigmvm", "bigmmm"}:
         ax.set_xticks(
@@ -207,13 +213,13 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
         )
     elif bench_name.startswith("big"):
         ax.set_xticks(
-            [1/3, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"]
+            [1/3, 1, 4, 16],
+            [r"$\frac{1}{3}$", "1", "4", "16"]
         )
     elif bench_name == "conv1d":
         ax.set_xticks(
-            [1/3, 1, 2, 4, 8, 16],
-            [r"$\frac{1}{3}$", "1", "2", "4", "8", "16"]
+            [1/3, 1, 4, 16],
+            [r"$\frac{1}{3}$", "1", "4", "16"]
         )
     elif bench_name in {"sum", "dot"}:
         ax.set_xticks(
