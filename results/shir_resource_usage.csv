@@ -9,6 +9,7 @@ convb2b,-1,shir,1035,10,13
 convb2b,-1,sirop,242,11,0
 dot,-1,shir,64,0,1
 dot,-1,sirop,29,0,1
+jacobi,-1,shir,62,1,0
 jacobi,-1,sirop,33,1,0
 map,-1,shir,12,0,0
 map,-1,sirop,6,0,0
