@@ -1,13 +1,13 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
 #include <stdio.h>
-#include <stdint.h>
 
 constexpr int WIDTH = 128;
 constexpr int HEIGHT = 1024;
 
 template<unsigned SystemID> class PipeID {};
-ihc::pipe<class PipeID<0>, uint8_t> pipe_in;
-ihc::pipe<class PipeID<1>, uint8_t> pipe_out;
+ihc::pipe<class PipeID<0>, uint8> pipe_in;
+ihc::pipe<class PipeID<1>, uint8> pipe_out;
 
 template<typename T, unsigned int img_width, unsigned int win_width, unsigned int win_height>
 class LineBuffer2D {
@@ -37,16 +37,16 @@ public:
 };
 
 component void jacobi() {
-    LineBuffer2D<uint8_t, WIDTH, 3, 3> buffer;
+    LineBuffer2D<uint8, WIDTH, 3, 3> buffer;
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             buffer.shift(pipe_in.read());
             if (i >= 2 && j >= 2) {
-                uint16_t up = buffer.big_buffer[0][1];
-                uint16_t left = buffer.big_buffer[1][0];
-                uint16_t right = buffer.big_buffer[1][2];
-                uint16_t down = buffer.small_buffer[1];
-                uint8_t out = (uint8_t) ((up + left + right + down) >> 2);
+                uint8 up = buffer.big_buffer[0][1];
+                uint8 left = buffer.big_buffer[1][0];
+                uint8 right = buffer.big_buffer[1][2];
+                uint8 down = buffer.small_buffer[1];
+                uint8 out = (uint8) ((up + left + right + down) >> 2);
                 pipe_out.write(out);
             }
         }
@@ -69,7 +69,7 @@ int main() {
     printf("Sending data to input stream...\n");
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            pipe_in.write( (uint8_t)in_arr[i][j] );
+            pipe_in.write( (uint8)in_arr[i][j] );
         }
     }
 

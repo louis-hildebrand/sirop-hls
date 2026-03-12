@@ -4,7 +4,7 @@ conv1d,-1,ihc,40,True
 conv2d,-1,ihc,30782,True
 convb2b,-1,ihc,30784,True
 dot,-1,ihc,865,True
-jacobi,-1,ihc,4187,True
+jacobi,-1,ihc,4188,True
 map,-1,ihc,215,True
 matmat,-1,ihc,1114158,True
 matvec,-1,ihc,66085,True
