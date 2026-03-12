@@ -4,6 +4,7 @@ conv1d,-1,ihc,342.94
 conv2d,-1,ihc,250.06
 convb2b,-1,ihc,248.39
 dot,-1,ihc,338.41
+jacobi,-1,ihc,299.22
 map,-1,ihc,546.45
 matmat,-1,ihc,257.0
 matvec,-1,ihc,372.44
