@@ -178,6 +178,71 @@ object AetherlingBenchmarkIO {
     normalCases + underutilizedCase
   }
 
+  private def jacobiIO(
+      name: String,
+      width: Int,
+      height: Int,
+      k: IntCst
+  ): Map[String, TestIO] = {
+    // Checkerboard pattern (2x2 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 4) < 2) == ((j % 4) < 2)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        basicInputs.map(_.map(Some(_))),
+        kernel = Seq(Seq(0, 1, 0), Seq(1, 0, 1), Seq(0, 1, 0)),
+        kernelDenom = 4
+      ).flatten.map({
+        case Some(x) => C(x)(k.typ)
+        case None    => Undefined(k.typ)
+      })
+    val normalCases = Seq(1, 2, 4, 8, 16)
+      .map({ par =>
+        val io = par match {
+          case 1 =>
+            AbstractTestIO(
+              basicInputExprs.map(VecLiteral(_)().tchk()).map(Seq(_)),
+              basicOutputs.map(VecLiteral(_)().tchk())
+            )
+          case n =>
+            assert(n > 1)
+            // n valid per cycle
+            AbstractTestIO(
+              basicInputExprs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .map(Seq(_))
+                .toSeq,
+              basicOutputs
+                .grouped(n)
+                .map(VecLiteral(_: _*)().tchk())
+                .toSeq
+            )
+        }
+        s"${name}_$par" -> io
+      })
+      .toMap
+    val underutilizedCases = Seq(3).map({ denom =>
+      val io = AbstractTestIO(
+        in = basicInputExprs.map(Seq(_)),
+        out = basicOutputs,
+        hold = denom,
+        skip = denom - 1
+      )
+      s"${name}_1_$denom" -> io
+    })
+    normalCases ++ underutilizedCases
+  }
+
+  private def bigJacobiIO: Map[String, TestIO] = {
+    jacobiIO("bigjacobi", width = 128, height = 32, k = C(63)(U8))
+  }
   private def conv2dIO(
       name: String,
       width: Int,
@@ -899,6 +964,7 @@ object AetherlingBenchmarkIO {
       ++ sumIO.mapValues(_.toVhdl)
       ++ dotIO.mapValues(_.toVhdl)
       ++ conv1dIO.mapValues(_.toVhdl)
+      ++ bigJacobiIO.mapValues(_.toVhdl)
       ++ smallConv2dIO.mapValues(_.toVhdl)
       ++ bigConv2dIO.mapValues(_.toVhdl)
       ++ smallConvB2bIO.mapValues(_.toVhdl)
@@ -927,6 +993,7 @@ object AetherlingBenchmarkIO {
       ++ sumIO.mapValues(_.toVerilog)
       ++ dotIO.mapValues(_.toVerilog)
       ++ conv1dIO.mapValues(_.toVerilog)
+      ++ bigJacobiIO.mapValues(_.toVerilog)
       ++ smallConv2dIO.mapValues(_.toVerilog)
       ++ bigConv2dIO.mapValues(_.toVerilog)
       ++ smallConvB2bIO.mapValues(_.toVerilog)
