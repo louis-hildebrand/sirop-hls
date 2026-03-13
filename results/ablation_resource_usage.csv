@@ -39,6 +39,12 @@ dot,except_fuse,39,0,1
 dot,except_fission,29,0,1
 dot,small_buffers,29,0,1
 dot,small_buffers_and_latmatch,29,0,1
+jacobi,all,33,1,0
+jacobi,except_sbuild_simpl,33,1,0
+jacobi,except_letstm_simpl,85,3,0
+jacobi,except_stm_simpl,85,3,0
+jacobi,except_fuse,38,1,0
+jacobi,except_fission,33,1,0
 map,all,6,0,0
 map,except_sbuild_simpl,6,0,0
 map,except_letstm_simpl,31,1,0

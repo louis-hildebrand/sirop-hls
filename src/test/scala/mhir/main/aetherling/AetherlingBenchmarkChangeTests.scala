@@ -28,6 +28,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
 
   private val SlowBenchmarks: Set[String] =
     Set(
+      "bigjacobi",
       "smallconv2d",
       "bigconv2d",
       "smallconvb2b",
@@ -52,6 +53,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         "bigmvm",
         "bigmmm",
         "conv1d",
+        "bigjacobi",
         "bigconv2d",
         "bigconvb2b",
         "bigsharpen",

@@ -9,7 +9,7 @@ from .benchmark import Benchmark
 
 ACTIVE_BENCHES = [
     "map", "dot", "bigmvm", "bigmmm",
-    "conv1d", "bigconv2d", "bigconvb2b",
+    "conv1d", "bigjacobi", "bigconv2d", "bigconvb2b",
     "bigsharpen", "bigsobel", "bigcamera"
 ]
 ACTIVE_BENCH_GLOB = (

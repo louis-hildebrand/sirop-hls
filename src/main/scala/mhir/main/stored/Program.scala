@@ -38,6 +38,8 @@ object Program {
       case "convb2b"            => Parser.parse(ResourcesDir / "convb2b.sirop")
       case "shir:convb2b"       => Parser.parse(ResourcesDir / "convb2b.sirop")
       case "aetherling:convb2b" => AetherlingConvB2b
+      case "jacobi"             => Parser.parse(ResourcesDir / "jacobi.sirop")
+      case "shir:jacobi"        => Parser.parse(ResourcesDir / "jacobi.sirop")
       case "sharpen"            => Parser.parse(ResourcesDir / "sharpen.sirop")
       case "shir:sharpen"       => Parser.parse(ResourcesDir / "sharpen.sirop")
       case "aetherling:sharpen" => AetherlingSharpen

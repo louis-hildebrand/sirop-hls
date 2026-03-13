@@ -9,12 +9,7 @@ from argparse import ArgumentParser, Namespace
 import ihc_extract_fmax
 import ihc_extract_resource_usage
 import ihc_synth
-
-ACTIVE_BENCHES = [
-    "map", "dot", "matvec", "matmat",
-    "conv1d", "conv2d", "convb2b",
-    "sharpen", "sobel", "camera",
-]
+import lib.constants as c
 
 
 def main(programs: list[str]) -> None:
@@ -40,12 +35,12 @@ def parse_args() -> Namespace:
         nargs="*",
         help=(
             "the names of the programs to process"
-            f"(the ones in the paper are: {' '.join(ACTIVE_BENCHES)})"
+            f"(the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
     args = parser.parse_args()
     if not args.programs:
-        args.programs = ACTIVE_BENCHES
+        args.programs = c.ACTIVE_BENCHES
     return args
 
 

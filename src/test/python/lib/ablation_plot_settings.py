@@ -16,9 +16,9 @@ LEVELS_TO_PLOT = [
         OptimizationLevel.SMALL_BUFFERS_AND_LATMATCH
     ]
 ]
-BAR_SPACE = 0.35
+BAR_SPACE = 0.25
 BAR_WIDTH = (1 - BAR_SPACE) / len(LEVELS_TO_PLOT)
-BAR_PADDING = 0.06
+BAR_PADDING = 0.08
 BAR_HATCH = ["///", "\\\\\\", "---", "+++", "||", "xx", "/", "\\", "-", "+", "|", "x"]
 # pylint: disable-next=line-too-long
 FACE_COLORS = ["#fd8d3c", "#e6550d", "#a63603"]
@@ -38,12 +38,13 @@ def program_order(program_name: str) -> int:
         "matvec": 2,
         "matmat": 3,
         "conv1d": 4,
-        "conv2d": 5,
-        "convb2b": 6,
-        "sharpen": 7,
-        "sobel": 8,
+        "jacobi": 5,
+        "conv2d": 6,
+        "convb2b": 7,
+        "sharpen": 8,
         "camera": 9,
-    }.get(program_name, 10)
+        "sobel": 10,
+    }.get(program_name, 11)
 
 
 def program_title(program_name: str) -> str | None:

@@ -23,6 +23,8 @@ object ProgramIO {
       shirConv2dIO
     } else if (name.startsWith("convb2b_") || name == "shir:convb2b") {
       shirConvB2bIO
+    } else if (name.startsWith("jacobi_") || name == "shir:jacobi") {
+      shirJacobiIO
     } else if (name.startsWith("sharpen_") || name == "shir:sharpen") {
       shirSharpenIO
     } else if (name.startsWith("sobel_") || name == "shir:sobel") {
@@ -133,6 +135,27 @@ object ProgramIO {
         basicInputs,
         kernel = Seq(Seq(1, 2, 1), Seq(2, 4, 2), Seq(1, 2, 1))
       ).flatten.map(_ / 16).map(C(_)(k.typ))
+    AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
+  }
+
+  private def shirJacobiIO: PositionalTestIO = {
+    val width = 128
+    val height = 32
+    val k = C(255)(U8)
+    // Checkerboard pattern (10x10 squares)
+    val basicInputs: Seq[Seq[Int]] =
+      (0 until height).map(i =>
+        (0 until width).map(j => {
+          val even = ((i % 20) < 10) == ((j % 20) < 10)
+          if (even) k.i.toInt else 0
+        })
+      )
+    val basicInputExprs = basicInputs.flatten.map(C(_)(k.typ))
+    val basicOutputs: Seq[Expr] =
+      conv2d(
+        basicInputs,
+        kernel = Seq(Seq(0, 1, 0), Seq(1, 0, 1), Seq(0, 1, 0))
+      ).flatten.map(_ / 4).map(C(_)(k.typ))
     AbstractTestIO(basicInputExprs.map(Seq(_)), basicOutputs).toVhdl
   }
 
