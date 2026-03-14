@@ -34,10 +34,7 @@ def dedup(xs: list[T]) -> list[T]:
     return list(dict.fromkeys(xs))
 
 
-def plot_latency(
-    results: dict[BenchmarkImpl, LatencyResult],
-    fmax_results: dict[BenchmarkImpl, float],
-) -> None:
+def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     """
     Plot latency vs throughput for each benchmark.
     """
@@ -73,10 +70,6 @@ def plot_latency(
             verilog_benchmarks,
             key=lambda b: b.bench.throughput,
         )
-        verilog_fmax_ok = [
-            b in fmax_results and fmax_results[b] >= c.TARGET_FREQ
-            for b in verilog_benchmarks
-        ]
         vhdl_benchmarks = [
             b
             for b in results.keys()
@@ -86,10 +79,6 @@ def plot_latency(
             vhdl_benchmarks,
             key=lambda b: b.bench.throughput,
         )
-        vhdl_fmax_ok = [
-            b in fmax_results and fmax_results[b] >= c.TARGET_FREQ
-            for b in vhdl_benchmarks
-        ]
         # Minimum results
         all_benchmarks = dedup(vhdl_benchmarks + verilog_benchmarks)
         all_benchmarks = sorted(all_benchmarks, key=lambda b: b.bench.throughput)
@@ -102,37 +91,45 @@ def plot_latency(
             linestyle="-",
             linewidth=LINEWIDTH,
             color="black",
-            zorder=0,
+            zorder=9,
         )
         # Verilog results (only successful simulation)
         xs = [float(b.bench.throughput) for b in verilog_benchmarks if results[b].sim_success]
         ys = [results[b].latency for b in verilog_benchmarks if results[b].sim_success]
-        fmax_ok = [
-            ok
-            for (ok, b) in zip(verilog_fmax_ok, verilog_benchmarks)
-            if results[b].sim_success
-        ]
         ax.scatter(
             xs, ys,
             marker=c.AETHERLING_MARKER,
             s=c.AETHERLING_MARKER_SIZE,
             edgecolor=c.CHISEL_COLOR,
             linewidth=1,
-            facecolor=[c.CHISEL_COLOR if ok else "white" for ok in fmax_ok],
+            facecolor=c.CHISEL_COLOR,
+            label=c.AETHERLING_LABEL,
+            zorder=10,
+        )
+        # Verilog results (only unsuccessful simulation)
+        xs = [float(b.bench.throughput) for b in verilog_benchmarks if not results[b].sim_success]
+        ys = [results[b].latency for b in verilog_benchmarks if not results[b].sim_success]
+        ax.scatter(
+            xs, ys,
+            marker=c.AETHERLING_MARKER_SIM_FAIL,
+            s=c.AETHERLING_MARKER_SIZE*1.5,
+            edgecolor=c.CHISEL_COLOR,
+            linewidth=1,
+            facecolor="white",
             label=c.AETHERLING_LABEL,
             zorder=10,
         )
         # VHDL results (only successful simulation)
+        assert all(results[b].sim_success for b in vhdl_benchmarks)
         xs = [float(b.bench.throughput) for b in vhdl_benchmarks if results[b].sim_success]
         ys = [results[b].latency for b in vhdl_benchmarks if results[b].sim_success]
-        fmax_ok = [ok for (ok, b) in zip(vhdl_fmax_ok, vhdl_benchmarks) if results[b].sim_success]
         ax.scatter(
             xs, ys,
             marker=c.OUR_MARKER,
             s=c.OUR_MARKER_SIZE,
             edgecolor=c.OUR_COLOR,
             linewidth=1,
-            facecolor=[c.OUR_COLOR if ok else "white" for ok in vhdl_fmax_ok],
+            facecolor=c.OUR_COLOR,
             label=c.OUR_LABEL,
             zorder=11,
         )
@@ -179,15 +176,6 @@ def plot_latency(
             ),
             Line2D(
                 [0], [0],
-                label=c.OUR_LABEL_BLANK,
-                color=c.OUR_COLOR,
-                linewidth=LINEWIDTH,
-                marker=c.OUR_MARKER,
-                markeredgecolor=c.OUR_COLOR,
-                markerfacecolor="white",
-            ),
-            Line2D(
-                [0], [0],
                 label=c.AETHERLING_LABEL,
                 color=c.CHISEL_COLOR,
                 linewidth=LINEWIDTH,
@@ -204,6 +192,15 @@ def plot_latency(
                 markeredgecolor=c.CHISEL_COLOR,
                 markerfacecolor="white",
             ),
+            Line2D(
+                [0], [0],
+                label=c.AETHERLING_LABEL_SIM_FAIL,
+                color=c.CHISEL_COLOR,
+                linewidth=LINEWIDTH,
+                marker=c.AETHERLING_MARKER_SIM_FAIL,
+                markeredgecolor=c.CHISEL_COLOR,
+                markerfacecolor="white",
+            ),
         ],
         loc="upper center",
         bbox_to_anchor=(0.5, 0),
@@ -217,8 +214,7 @@ def main() -> None:
     The program entry point.
     """
     latency_results = crud.read_valid_latency_results(c.LATENCY_CSV)
-    fmax_results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
-    plot_latency(latency_results, fmax_results)
+    plot_latency(latency_results)
 
 
 if __name__ == "__main__":

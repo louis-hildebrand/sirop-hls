@@ -73,15 +73,17 @@ DEFAULT_QSF = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.
 DEFAULT_SDC = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "top.sdc")
 
 AETHERLING_LABEL = "Chisel"
-AETHERLING_LABEL_BLANK = "Chisel (synthesis fail)"
+AETHERLING_LABEL_BLANK = "Chisel (timing requirements not met)"
+AETHERLING_LABEL_SIM_FAIL = "Chisel (wrong outputs)"
 AETHERLING_MARKER = "s"
+AETHERLING_MARKER_SIM_FAIL = "X"
 AETHERLING_MARKER_SIZE = 32
 IHC_LABEL = "Intel HLS"
 SHIR_LABEL = "\\textsc{Shir}"
 OUR_LABEL = "\\textsc{Sirop}"
-OUR_LABEL_BLANK = "\\textsc{Sirop} (synthesis fail)"
+OUR_LABEL_BLANK = "\\textsc{Sirop} (timing requirements not met)"
 OUR_MARKER = "o"
-OUR_MARKER_SIZE = 16
+OUR_MARKER_SIZE = 8
 
 IHC_COLOR        = "#a6cee3"
 SHIR_COLOR       = "#ffff99"
