@@ -145,7 +145,7 @@ def plot_latencies(
         x=[x + 3*BAR_WIDTH for x in xs],
         height=sirop_latency,
         width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.OUR_COLOR,
+        facecolor=c.OUR_COLOR_PALE,
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
@@ -287,7 +287,7 @@ def plot_latencies(
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.OUR_LABEL,
-                facecolor=c.OUR_COLOR,
+                facecolor=c.OUR_COLOR_PALE,
                 edgecolor="black",
                 hatch=OUR_HATCH,
             ),

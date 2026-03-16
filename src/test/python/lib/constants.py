@@ -86,9 +86,10 @@ OUR_MARKER = "o"
 OUR_MARKER_SIZE = 8
 
 IHC_COLOR        = "#a6cee3"
-SHIR_COLOR       = "#ffff99"
+SHIR_COLOR       = "#ffe97f"
 AETHERLING_COLOR = "#fb9a99"
 CHISEL_COLOR     = "#2ba07b"
+OUR_COLOR_PALE   = "#ffa54c"
 OUR_COLOR        = "#ff7f00"
 
 TARGET_FREQ = 175  # MHz
