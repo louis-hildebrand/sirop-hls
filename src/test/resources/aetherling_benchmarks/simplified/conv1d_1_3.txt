@@ -24,7 +24,7 @@
         (I0 : Stm[i8, -1:i1]) = {
           stm: sbuild(48:u8)(
             if (is_first_step) then { buf_1[0:u0] } else { v[0:u0] },
-            true
+            out_ctr < 3:u2
           ) {
             (buf_1 : Vec[i8, 1:u1]) = {
               init: undefined[Vec[i8, 1:u1]],
@@ -37,18 +37,59 @@
             (buf_2 : Vec[i8, 1:u1]) = {
               init: undefined[Vec[i8, 1:u1]],
               next: if (is_first_step) then {
-                vbuild(1:u2) { (i : u32) => sdata(s) }
+                vbuild(1:u2) { (i : u32) => sdata(I1) }
               } else {
                 buf_2
               }
             },
+            (in_ctr : u1) = {
+              init: 0:u1,
+              next: if (
+                (
+                  (out_ctr >= 3:u2 && in_ctr == 0:u1
+                    || in_ctr == 0:u1 && out_ctr == 2:u2)
+                    && is_first_step)
+                  || (
+                    (out_ctr >= 3:u2 && in_ctr == 1:u1
+                      || in_ctr == 1:u1 && out_ctr == 2:u2)
+                      && !is_first_step)
+              ) then {
+                0:u1
+              } else if (is_first_step) then {
+                1:u1 + in_ctr
+              } else {
+                in_ctr
+              }
+            },
             (is_first_step : bool) = {
               init: true,
-              next: out_ctr == 2:u2
+              next: (
+                (out_ctr >= 3:u2 && in_ctr == 0:u1
+                  || in_ctr == 0:u1 && out_ctr == 2:u2)
+                  && is_first_step)
+                || (
+                  (out_ctr >= 3:u2 && in_ctr == 1:u1
+                    || in_ctr == 1:u1 && out_ctr == 2:u2)
+                    && !is_first_step)
             },
             (out_ctr : u2) = {
               init: 0:u2,
-              next: if (out_ctr == 2:u2) then { 0:u2 } else { 1:u2 + out_ctr }
+              next: if (
+                (
+                  (out_ctr >= 3:u2 && in_ctr == 0:u1
+                    || in_ctr == 0:u1 && out_ctr == 2:u2)
+                    && is_first_step)
+                  || (
+                    (out_ctr >= 3:u2 && in_ctr == 1:u1
+                      || in_ctr == 1:u1 && out_ctr == 2:u2)
+                      && !is_first_step)
+              ) then {
+                0:u2
+              } else if (out_ctr < 3:u2) then {
+                1:u2 + out_ctr
+              } else {
+                3:u2
+              }
             },
             (v : Vec[i8, 3:u3]) = {
               init: undefined[Vec[i8, 3:u3]],
@@ -56,14 +97,14 @@
                 if (i == 2:u32) then {
                   0:i8
                 } else if (is_first_step) then {
-                  if (i < 1:u32) then { buf_2[0:u0] } else { sdata(s) }
+                  if (i < 1:u32) then { buf_2[0:u0] } else { sdata(I1) }
                 } else {
                   v[1:u32 + i]
                 }
               }
             }
           } {
-            (s : Stm[i8, -1:i1]) = {
+            (I1 : Stm[i8, -1:i1]) = {
               stm: I,
               ready: is_first_step
             }
