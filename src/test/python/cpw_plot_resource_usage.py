@@ -48,7 +48,7 @@ def plot_resource_usages(
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,
-        figsize=(8, 1.8),
+        figsize=(8, 1.7),
         height_ratios=[1.5, 1, 1],
         layout="compressed",
         sharex="col",
@@ -332,8 +332,8 @@ def plot_resource_usages(
     )
     bram_ax.set_yscale("symlog")
     bram_ax.set_ylabel("BRAMs\n(log)")
-    bram_ax.set_yticks([1, 10, 100, 1000])
-    bram_ax.set_ylim(0.5, 1000)
+    bram_ax.set_yticks([1, 10, 100])
+    bram_ax.set_ylim(0.5, 200)
 
     dsp_ax.tick_params(axis="x", which="both", length=0)
     dsp_ax.grid(
@@ -399,7 +399,7 @@ def plot_resource_usages(
         bbox_to_anchor=(1, 0),
         ncols=5,
     )
-    fig.text(0.871, -0.105, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.871, -0.120, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_RESOURCE_USAGE_PDF, bbox_inches="tight")
 

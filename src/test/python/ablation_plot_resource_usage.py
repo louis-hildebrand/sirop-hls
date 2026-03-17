@@ -43,7 +43,7 @@ def plot_resource_usages(
     })
     fig, alm_ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 1.0),
+        figsize=(8, 0.8),
         layout="compressed",
         sharex="col",
     )
@@ -123,8 +123,8 @@ def plot_resource_usages(
     alm_ax.set_yscale("log")
     alm_ax.yaxis.set_major_formatter("{x:.2f}")
     alm_ax.set_yticks([], minor=True)
-    alm_ax.set_yticks([2/3, 1.5, 5])
-    alm_ax.set_ylim(0.3, 12)
+    alm_ax.set_yticks([])
+    alm_ax.set_ylim(0.15, 20)
 
     pu.draw_lower_is_better_message(fig, 0.025, -0.13)
 
@@ -143,7 +143,7 @@ def plot_resource_usages(
         ncols=legend_cols,
         handlelength=1.5,
     )
-    fig.text(0.77, -0.18, WARNING, color="red", zorder=1000)
+    fig.text(0.77, -0.24, WARNING, color="red", zorder=1000)
 
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
