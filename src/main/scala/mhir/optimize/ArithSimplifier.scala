@@ -614,14 +614,20 @@ private[optimize] object ArithSimplifier {
         False
       case And(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst))
           if e1 == e2 =>
-        assert(c1.hasType)
-        assert(c1.typ == c2.typ)
-        LessThan(e1, IntCst(math.min(c1.i, c2.i))(c1.typ))()
+        if (c1.i <= c2.i) {
+          LessThan(e1, c1)()
+        } else {
+          LessThan(e2, c2)()
+        }
       case And(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2))
           if e1 == e2 =>
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
-        LessThan(IntCst(math.max(c1.i, c2.i))(c1.typ), e1)()
+        if (c1.i >= c2.i) {
+          LessThan(c1, e1)()
+        } else {
+          LessThan(c2, e2)()
+        }
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
             && PartialEvalPass
