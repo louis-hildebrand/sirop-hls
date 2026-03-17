@@ -61,19 +61,16 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       val s3 = time("deduplicating accumulators") {
         StmAccRemovalPass.deduplicateVars(s2).tchk().asInstanceOf[StmBuild]
       }
-      val s4 = time("removing prefix counters") {
-        StmAccRemovalPass.removePrefixCounter(s3).tchk().asInstanceOf[StmBuild]
+      val s4 = time("removing accumulator trio special case") {
+        SpecialCaseStmBuildSimplifier.simplify(s3).tchk().asInstanceOf[StmBuild]
       }
-      val s5 = time("removing accumulator trio special case") {
-        SpecialCaseStmBuildSimplifier.simplify(s4).tchk().asInstanceOf[StmBuild]
+      val s5 = time("shrinking counters") {
+        shrinkCounters(s4).tchk().asInstanceOf[StmBuild]
       }
-      val s6 = time("shrinking counters") {
-        shrinkCounters(s5).tchk().asInstanceOf[StmBuild]
+      val s6 = time("partially evaluating stream") {
+        partialEvalStmBuild(s5)(facts)
       }
-      val s7 = time("partially evaluating stream") {
-        partialEvalStmBuild(s6)(facts)
-      }
-      s7
+      s6
     }
     val done =
       time("checking whether stream simplification has reached fixpoint") {

@@ -303,9 +303,21 @@ private[sugar] case class StmReset(
           }
           Param("out_ctr")(ctrTyp)
         }
-        val withCtrs = withInCtrs.addOutputCounter(outCtr)
+        val outputsUntilReset: Expr = s.n
+        val withCtrs = {
+          val s = if (this.omitInputCounters) {
+            withInCtrs
+          } else {
+            StmBuild(
+              withInCtrs.n,
+              withInCtrs.data,
+              withInCtrs.valid && (outCtr < outputsUntilReset).tchk().lower(),
+              withInCtrs.equations
+            )().tchk().asInstanceOf[StmBuild]
+          }
+          s.addOutputCounter(outCtr)
+        }
         val shouldReset = {
-          val outputsUntilReset: Expr = s.n
           val inputsUntilReset: Seq[(Param, Expr)] =
             s.seedByVar
               .flatMap({ case (x, z) =>
@@ -1470,24 +1482,12 @@ case class StmPrefix(
       case _           => C(1)().tchk()
     }
     val s = Param("s")(stm.typ) // input stream
-    val iTyp = k.typ.asInstanceOf[TyUInt] match {
-      case TyUInt(0) => TyUInt(1)
-      case t         => t
-    }
-    val i = Param("i")(iTyp) // index of current row
-    val jTyp = perRow.typ.asInstanceOf[TyUInt]
-    val j = Param("j")(jTyp) // index within row
     StmBuild(
       SafeProd(k, perRow)(),
       StmData(s)(),
-      i !== k,
+      True,
       Map[Param, (Expr, Expr)](
-        s -> (stm, True),
-        i -> (
-          C(0)(iTyp),
-          Mux(i === k, i, Mux(j === -1 + perRow, i + 1, i)())()
-        ),
-        j -> (C(0)(jTyp), Mux(j === -1 + perRow, C(0)(jTyp), j + 1)())
+        s -> (stm, True)
       )
     )().tchk().lower()
   }

@@ -342,20 +342,14 @@ class ManualOptimizationTests extends AnyFunSuite {
     // Successful fusion
     val s = Param("s")(TyStm(U8, -1))
     val i = Param("i")(U32)
-    val j = Param("j")(U8)
     val ideal = optimize(
       StmBuild(
         Sum(PadTo(n, 9)(), C(1)(TyUInt(9)))(),
         Mux(i === 1, StmData(s)(), C(42)(U8))(),
-        (i !== 1) || (j !== n),
+        True,
         Map[Param, (Expr, Expr)](
-          s -> (input, (i === 1) || (j === n)),
-          i -> (C(0)(U32), Mux(i === 1, C(1)(U32), i + 1)()),
-          j -> (C(0)(U8), Mux(
-            (i === 1) || (j === n),
-            Mux(j === n, j, 1 + j)(),
-            j
-          )())
+          s -> (input, i === 1),
+          i -> (C(0)(U32), Mux(i === 1, C(1)(U32), i + 1)())
         )
       )().tchk().lower().asInstanceOf[StmBuild]
     )
@@ -703,13 +697,15 @@ class ManualOptimizationTests extends AnyFunSuite {
 
     // Correctness
     val examples = Seq(
-      VecBuild(n, U16 ::+ (i => i))(),
-      VecBuild(n, U16 ::+ (i => i * i + 1))()
+      VecBuild(n, U16 ::+ (i => i))().tchk(),
+      VecBuild(n, U16 ::+ (i => i * i + 1))().tchk()
     )
     for (vec <- examples) {
       for (nVal <- Seq(1, 2, 10)) {
-        val expected = Let(n, C(nVal)(U16), Let(v, vec, original)())()
-        val actual = Let(n, C(nVal)(U16), Let(v, vec, optimized)())()
+        val expected =
+          original.subPreserveType(v -> vec).subPreserveType(n -> C(nVal)(U16))
+        val actual =
+          optimized.subPreserveType(v -> vec).subPreserveType(n -> C(nVal)(U16))
         assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
       }
     }

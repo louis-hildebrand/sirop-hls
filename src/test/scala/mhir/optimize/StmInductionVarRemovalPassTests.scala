@@ -177,8 +177,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
-    val actual = (nVal: Int, mVal: Int) =>
-      mhir.ir.eval(Let(n, C(nVal)(U8), Let(m, C(mVal)(U8), opt)())())
+    val actual = (nVal: Int, mVal: Int) => {
+      mhir.ir.eval(
+        opt.subPreserveType(Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8)))
+      )
+    }
     assert(actual(1, 2) == StmLiteral(VecLiteral(1, 100)())())
     assert(
       actual(4, 3) == StmLiteral(
@@ -216,24 +219,28 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val nExamples = Seq(1, 2, 5)
-    val fExamples: Seq[Function] =
+    val fExamples =
       Seq(
-        U8 ::+ (_ => U8 ::+ (i => ToSigned(i + 1)())),
-        U8 ::+ (t => U8 ::+ (_ => ToSigned(2 * t)())),
-        U8 ::+ (t => U8 ::+ (i => 1 - n + t + i))
+        (U8 ::+ (_ => U8 ::+ (i => ToSigned(i + 1)()))).tchk(),
+        (U8 ::+ (t => U8 ::+ (_ => ToSigned(2 * t)()))).tchk(),
+        (U8 ::+ (t => U8 ::+ (i => 1 - n + t + i))).tchk()
       )
     val zExamples = Seq(
-      VecBuild(n, U8 ::+ (_ => Default(I9)))(),
-      VecBuild(n, U8 ::+ (i => ToSigned(i * i + 1)()))()
+      VecBuild(n, U8 ::+ (_ => Default(I9)))().tchk(),
+      VecBuild(n, U8 ::+ (i => ToSigned(i * i + 1)()))().tchk()
     )
     for (nVal <- nExamples) {
       for (fVal <- fExamples) {
         for (zVal <- zExamples) {
-          val expected =
-            Let(n, C(nVal)(U8), Let(f, fVal, Let(z, zVal, s)())())()
+          val expected = s
+            .subPreserveType(z -> zVal)
+            .subPreserveType(f -> fVal)
+            .subPreserveType(n -> C(nVal)(U8))
           val expectedVal = mhir.ir.eval(expected)
-          val actual =
-            Let(n, C(nVal)(U8), Let(f, fVal, Let(z, zVal, opt)())())()
+          val actual = opt
+            .subPreserveType(z -> zVal)
+            .subPreserveType(f -> fVal)
+            .subPreserveType(n -> C(nVal)(U8))
           val actualVal = mhir.ir.eval(actual)
           assert(actualVal == expectedVal)
         }
@@ -522,8 +529,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (mVal <- Seq(0, 1, 2, 5)) {
-        val expected = Let(n, C(nVal)(U8), Let(m, C(mVal)(U8), s)())().tchk()
-        val actual = Let(n, C(nVal)(U8), Let(m, C(mVal)(U8), opt)())().tchk()
+        val subs = Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8))
+        val expected = s.subPreserveType(subs)
+        val actual = opt.subPreserveType(subs)
         assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
       }
     }
@@ -555,8 +563,9 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     // Correctness
     for (nVal <- Seq(0, 1, 2, 5)) {
       for (mVal <- Seq(0, 1, 2, 5)) {
-        val expected = Let(n, C(nVal)(U8), Let(m, C(mVal)(U8), s)())().tchk()
-        val actual = Let(n, C(nVal)(U8), Let(m, C(mVal)(U8), opt)())().tchk()
+        val subs = Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8))
+        val expected = s.subPreserveType(subs)
+        val actual = opt.subPreserveType(subs)
         assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
       }
     }

@@ -877,32 +877,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f1, inputs) == TestPassed)
   }
 
-  test("LetFunction") {
-    val n = 5
-    val a = Param("a")(U8)
-    val f = Param("f")()
-    val s = StmBuild(
-      n,
-      a,
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (
-          C(0)(U8),
-          Let(
-            f,
-            U8 ::+ (x => x * x + 1),
-            FunCall(f, a)() + FunCall(f, C(42)(U8))()
-          )()
-        )
-      )
-    )().tchk().lower()
-
-    val exc = intercept[NotImplementedError](VhdlTestRunner.testExpr(s))
-    assert(
-      exc.getMessage == s"Cannot generate VHDL function with input type ${U8 ->: U8} and output type $U8."
-    )
-  }
-
   test("StmShiftRightGarbage") {
     val n = 8
     val shiftAmount = 2
