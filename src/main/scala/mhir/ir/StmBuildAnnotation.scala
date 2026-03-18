@@ -31,3 +31,18 @@ object NoInputsAfterLastOut extends StmBuildAnnotation
   * output has been produced (possibly in the same step).
   */
 object NoOutputsAfterLastIn extends StmBuildAnnotation
+
+/** This [[mhir.ir.StmBuild]] will never produce more than its current number of
+  * outputs, even if you increase its length and give it a longer stream.
+  *
+  * @example
+  *   If you implement `StmPrefix` as
+  *   {{{
+  *   sbuild(5)(sdata(p), true) {} { (p: Stm[u8, 10]) = { stm: s, ready: true } }
+  *   }}}
+  *   then it does not satisfy the condition.
+  *
+  * However, if you add a counter and change the valid expression to something
+  * like `counter < 5`, then it will satisfy the condition.
+  */
+object SelfControlledOutputs extends StmBuildAnnotation

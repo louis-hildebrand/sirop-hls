@@ -302,7 +302,20 @@ private[sugar] case class StmReset(
         }
         val outputsUntilReset: Expr = s.n
         val withCtrs = {
-          val s1 = if (s.annotations.contains(NoInputsAfterLastOut)) {
+          val canOmitLessThan = s.annotations
+            .intersect(
+              Set(
+                // Once we reach the expected number of outputs, we reset.
+                // Therefore, the condition outCtr < outputsUntilReset is a
+                // tautology.
+                NoInputsAfterLastOut,
+                // The sbuild already takes care of not producing more than the
+                // expected number of outputs.
+                SelfControlledOutputs
+              )
+            )
+            .nonEmpty
+          val s1 = if (canOmitLessThan) {
             withInCtrs
           } else {
             StmBuild(
@@ -942,12 +955,14 @@ case class StmAccess(
       }
       Param("j")(typ)
     }
-    val annotations: Set[StmBuildAnnotation] =
+    val annotations: Set[StmBuildAnnotation] = {
+      val basicAnnotations = Set(NoOutputsAfterLastIn, SelfControlledOutputs)
       if (Type.sameLen(SafeSum(k, 1)(), numRows)) {
-        Set(NoInputsAfterLastOut, NoOutputsAfterLastIn)
+        basicAnnotations + NoInputsAfterLastOut
       } else {
-        Set(NoOutputsAfterLastIn)
+        basicAnnotations
       }
+    }
     StmBuild(
       perRow,
       StmData(s)(),
