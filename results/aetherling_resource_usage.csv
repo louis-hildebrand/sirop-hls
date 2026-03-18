@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,alm,bram,dsp
 bigcamera,1/4,verilog,2770,49,12
-bigcamera,1/4,vhdl,2332,57,9
+bigcamera,1/4,vhdl,2264,57,9
 bigcamera,1,verilog,2701,46,0
 bigcamera,1,vhdl,1196,40,0
 bigcamera,2,verilog,4843,52,0

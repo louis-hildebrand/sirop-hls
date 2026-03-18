@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,fmax
 bigcamera,1/4,verilog,195.96
-bigcamera,1/4,vhdl,197.2
+bigcamera,1/4,vhdl,201.01
 bigcamera,1,verilog,188.89
 bigcamera,1,vhdl,196.54
 bigcamera,2,verilog,186.67
