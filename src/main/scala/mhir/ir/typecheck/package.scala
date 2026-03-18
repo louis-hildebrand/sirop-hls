@@ -481,7 +481,8 @@ package object typecheck {
           val newData = s.data.tchk(newContext)
           val newValid = s.valid.tchk(newContext).expectType(TyBool)
           StmBuild(newN, newData, newValid, newEquations)(
-            TyStm(newData.typ, newN)
+            TyStm(newData.typ, newN),
+            s.annotations
           )
         case sn @ StmData(s) =>
           val newS = s.tchk

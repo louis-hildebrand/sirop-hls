@@ -687,6 +687,9 @@ private[optimize] object ArithSimplifier {
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
         LessThan(IntCst(math.min(c1.i, c2.i))(c1.typ), e1)()
+      case Or(Not(LessThan(x0, k0: IntCst)), Equal(x1, k1: IntCst))
+          if x0 == x1 && k1.i == k0.i - 1 =>
+        Not(LessThan(x1, k1)())()
       case Or(Equal(x0, y0), LessThan(x1, y1)) if x0 == x1 && y0 == y1 =>
         x0 leq y0
       case e => e

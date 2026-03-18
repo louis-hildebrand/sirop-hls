@@ -925,7 +925,7 @@ case class StmBuild(
     data: Expr /* B */,
     valid: Expr /* Bool */,
     equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
-)(typ: Type = Missing)
+)(typ: Type = Missing, val annotations: Set[StmBuildAnnotation] = Set())
     extends Expr(
       Seq(n, data, valid) ++ equations.flatMap({ case (x, (z, next)) =>
         Seq(x, z, next)
@@ -942,7 +942,7 @@ case class StmBuild(
             x -> (z, next)
           })
           .toMap
-        StmBuild(n, data, valid, equations)(typ)
+        StmBuild(n, data, valid, equations)(typ, this.annotations)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1360,8 +1360,4 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
     this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
-
-  /** See [[mhir.ir.ExprOps.fullyConsumesInputs]].
-    */
-  def fullyConsumesInputs(inputs: Set[Param]): Boolean = false
 }

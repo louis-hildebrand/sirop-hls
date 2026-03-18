@@ -47,7 +47,7 @@ object StmAnfConverter {
           s.data,
           s.valid,
           newEquations
-        )().tchk()
+        )(annotations = s.annotations).tchk()
         val x = Param("s")(newStm.typ)
         (x, newBindings :+ LetInlineBinding(x, newStm))
       case LetStm(bufSize, x, in, out) =>

@@ -69,7 +69,10 @@ object StreamReplicator {
               Map[Param, (Expr, Expr)](
                 s -> (x, True)
               )
-            )().tchk()
+            )()
+              .annotate(NoInputsAfterLastOut)
+              .annotateWithName("ReplicatedParam")
+              .tchk()
           }
         case stm: StmBuild =>
           replicateStmBuild(
@@ -173,7 +176,9 @@ object StreamReplicator {
       }
       VecBuild(m, Function(i, stm.data.subPreserveType(subs))())()
     }
-    val s = StmBuild(stm.n, newData, stm.valid, newEquations)()
+    val s = StmBuild(stm.n, newData, stm.valid, newEquations)(
+      annotations = stm.annotations
+    )
     assert(
       !s.freeVars.contains(i),
       "there should be no more free occurrences of the vector index i"
