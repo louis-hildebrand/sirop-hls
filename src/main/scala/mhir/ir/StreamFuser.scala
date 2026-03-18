@@ -231,9 +231,13 @@ object StreamFuser {
       )
       val fused = consumerStm.seedByVar.get(x) match {
         case Some(e: StmBuild) =>
-          // Rename accumulator variables in case some of them are also being
-          // used by the consumer stream
-          val producerStm = e.renameVars
+          // Avoid accumulator name clashes
+          val producerStm =
+            if (e.accVars.intersect(consumerStm.accVars).nonEmpty) {
+              e.renameVars
+            } else {
+              e
+            }
           val readyCond = consumerStm.nextByVar(x)
           assert(
             readyCond.typ == TyBool,
