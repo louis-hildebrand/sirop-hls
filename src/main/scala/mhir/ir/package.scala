@@ -413,7 +413,7 @@ package object ir
             .map({ case (x, (z, next)) =>
               x -> (z, next.subPreserveType(subs))
             })
-        )()
+        )(annotations = this.stm.annotations)
       }
     }
 
@@ -501,7 +501,10 @@ package object ir
       val isTyped = (x.hasType && z.hasType && next.hasType
         && (z.typ ~= x.typ) && (next.typ ~= x.typ))
       val t = if (isTyped) this.stm.typ else Missing
-      StmBuild(this.stm.n, this.stm.data, this.stm.valid, newEquations)(t)
+      StmBuild(this.stm.n, this.stm.data, this.stm.valid, newEquations)(
+        t,
+        annotations = this.stm.annotations
+      )
     }
 
     /** Find the direct dependencies between accumulator variables in this
@@ -525,6 +528,26 @@ package object ir
         .intersect(this.stm.accVars)
     }
 
+    def annotate(annotation: StmBuildAnnotation): StmBuild = {
+      StmBuild(
+        this.stm.n,
+        this.stm.data,
+        this.stm.valid,
+        this.stm.equations
+      )(this.stm.typ, this.stm.annotations + annotation)
+    }
+
+    def annotateWithName(name: String): StmBuild = {
+      val newAnnotations = this.stm.annotations
+        .filter(!_.isInstanceOf[NameAnnotation])
+        .+(NameAnnotation(name))
+      StmBuild(
+        this.stm.n,
+        this.stm.data,
+        this.stm.valid,
+        this.stm.equations
+      )(this.stm.typ, newAnnotations)
+    }
   }
 
   implicit class StmLiteralOps(stm: StmLiteral) {
@@ -567,7 +590,11 @@ package object ir
         !lowered.hasSyntaxSugar,
         s"converting ${stm.className} to a StmBuild should not introduce any syntax sugar"
       )
-      lowered.tchk().asInstanceOf[StmBuild]
+      lowered
+        .annotate(NoInputsAfterLastOut)
+        .annotateWithName("StmLiteral")
+        .tchk()
+        .asInstanceOf[StmBuild]
     }
   }
 

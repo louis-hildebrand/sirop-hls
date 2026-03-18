@@ -40,8 +40,7 @@ object AsFusedStm2Stm {
 private[sugar] case class StmReset(
     n: Expr,
     s: Expr,
-    inputs: Map[Param, Expr],
-    omitInputCounters: Boolean
+    inputs: Map[Param, Expr]
 )(typ: Type = Missing)
     extends SyntaxSugar(
       Seq(n, s) ++ inputs.flatMap({ case (x, in) => Seq(x, in) }): _*
@@ -61,7 +60,7 @@ private[sugar] case class StmReset(
             case _ => throw new BadRebuildError(this, newChildren)
           })
           .toMap
-        StmReset(n, s, inputs, omitInputCounters)(typ)
+        StmReset(n, s, inputs)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -86,7 +85,7 @@ private[sugar] case class StmReset(
       x -> s.tchk.expectType(x.typ)
     })
     val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
-    StmReset(n, s, inputs, omitInputCounters)(typ)
+    StmReset(n, s, inputs)(typ)
   }
 
   override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
@@ -118,8 +117,7 @@ private[sugar] case class StmReset(
           Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
         val newStm = stm.subPreserveType(subs)
         newX -> newStm
-      }),
-      omitInputCounters = this.omitInputCounters
+      })
     )(this.typ)
   }
 
@@ -152,8 +150,7 @@ private[sugar] case class StmReset(
           Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
         val newStm = stm.subAndEraseType(subs)
         newX -> newStm
-      }),
-      omitInputCounters = this.omitInputCounters
+      })
     )()
   }
 
@@ -215,10 +212,7 @@ private[sugar] case class StmReset(
       .orElse(this.lowerForNEqualsOne())
       .getOrElse(this.lowerStandard())
       .tchk()
-    val ret = {
-      val subs = this.inputs.map({ case (x, s) => x -> s })
-      loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
-    }
+    val ret = loweredPipeline.subPreserveType(this.inputs.toMap[Expr, Expr])
     assertNoNewFreeVars(ret.freeVars) // Sanity check
     ret
   }
@@ -246,7 +240,11 @@ private[sugar] case class StmReset(
     if (Type.sameLen(this.n, C(0)())) {
       logger.trace(s"lowering $className with n = 0: $this")
       val TyStm(t, _) = s.typ
-      Some(StmBuild(0, Default(t).lower(), True)())
+      Some(
+        StmBuild(0, Default(t).lower(), True)()
+          .annotate(NoInputsAfterLastOut)
+          .annotateWithName("Empty")
+      )
     } else {
       None
     }
@@ -274,23 +272,19 @@ private[sugar] case class StmReset(
       case x: Param =>
         x
       case s: StmBuild =>
-        val ctrByInput = if (this.omitInputCounters) {
-          Map[Param, Param]()
-        } else {
-          s.seedByVar
-            .flatMap({
-              case (x, p) if x.typ.isInstanceOf[TyStm] =>
-                val TyStm(_, inLen) = p.typ
-                val ctrTyp = inLen match {
-                  case e if e.freeVars.isEmpty =>
-                    val IntCst(n) = mhir.ir.eval(e)
-                    TyAnyInt.tightest(0, n)
-                  case _ => inLen.typ
-                }
-                Some(x -> Param("in_ctr")(ctrTyp))
-              case _ => None
-            })
-        }
+        val ctrByInput = s.seedByVar
+          .flatMap({
+            case (x, p) if x.typ.isInstanceOf[TyStm] =>
+              val TyStm(_, inLen) = p.typ
+              val ctrTyp = inLen match {
+                case e if e.freeVars.isEmpty =>
+                  val IntCst(n) = mhir.ir.eval(e)
+                  TyAnyInt.tightest(0, n)
+                case _ => inLen.typ
+              }
+              Some(x -> Param("in_ctr")(ctrTyp))
+            case _ => None
+          })
         val withInCtrs = ctrByInput.foldLeft(s)({ case (acc, (x, ctr)) =>
           acc.addInputCounter(x, ctr)
         })
@@ -303,9 +297,69 @@ private[sugar] case class StmReset(
           }
           Param("out_ctr")(ctrTyp)
         }
-        val withCtrs = withInCtrs.addOutputCounter(outCtr)
-        val shouldReset = {
-          val outputsUntilReset: Expr = s.n
+        val outputsUntilReset: Expr = s.n
+        val withCtrs = {
+          val canOmitLessThan = s.annotations
+            .intersect(
+              Set(
+                // Once we reach the expected number of outputs, we reset.
+                // Therefore, the condition outCtr < outputsUntilReset is a
+                // tautology.
+                NoInputsAfterLastOut,
+                // The sbuild already takes care of not producing more than the
+                // expected number of outputs.
+                SelfControlledOutputs
+              )
+            )
+            .nonEmpty
+          val s1 = if (canOmitLessThan) {
+            withInCtrs
+          } else {
+            StmBuild(
+              withInCtrs.n,
+              withInCtrs.data,
+              withInCtrs.valid && (outCtr < outputsUntilReset).tchk().lower(),
+              withInCtrs.equations
+            )(annotations = withInCtrs.annotations)
+              .tchk()
+              .asInstanceOf[StmBuild]
+          }
+          s1.addOutputCounter(outCtr)
+        }
+        val shouldReset = if (s.annotations.contains(NoInputsAfterLastOut)) {
+          // No need to count inputs: based on the annotation, once we read the
+          // last output, we know we can reset immediately
+          (withCtrs.nextByVar(outCtr) === outputsUntilReset).tchk().lower()
+        } else if (s.annotations.contains(NoOutputsAfterLastIn)) {
+          // No need to count outputs: based on the annotation, once we read the
+          // last inputs, we know we can reset immediately
+          val inputsUntilReset: Seq[(Param, Expr)] =
+            s.seedByVar
+              .flatMap({ case (x, z) =>
+                z.typ match {
+                  case TyStm(_, n) if ctrByInput.contains(x) =>
+                    Some(ctrByInput(x) -> n)
+                  case _ => None
+                }
+              })
+              .toSeq
+          val shouldReset = inputsUntilReset
+            .map({ case (ctr, n) => withCtrs.nextByVar(ctr) === n })
+            .reduce[Expr]({ case (x, y) => x && y })
+          shouldReset.tchk().lower()
+        } else {
+          // Need both input and output counters, just in case
+          val name = s.annotations
+            .flatMap({
+              case NameAnnotation(name) => Some(name)
+              case _                    => None
+            })
+            .headOption
+            .getOrElse("unknown name")
+          logger.warn(
+            s"StmBuild node ($name) is neither annotated with $NoInputsAfterLastOut nor $NoOutputsAfterLastIn."
+              + " Both input and output counters will be added, which may increase resource usage."
+          )
           val inputsUntilReset: Seq[(Param, Expr)] =
             s.seedByVar
               .flatMap({ case (x, z) =>
@@ -338,7 +392,7 @@ private[sugar] case class StmReset(
             case _ =>
               ???
           })
-        )().tchk()
+        )(annotations = withCtrs.annotations).tchk()
         result
       case LetStm(bufSize, x, in, out) =>
         LetStm(bufSize, x, addCountersAndReset(in), addCountersAndReset(out))()
@@ -368,7 +422,7 @@ private[sugar] case class StmReset(
               x -> (multiplyLengths(s, inputStreams), ready)
             case eqn => eqn
           })
-        )().tchk()
+        )(annotations = s.annotations).tchk()
       case LetStm(bufSize, x, in, out) =>
         val TyStm(t, n) = x.typ
         LetStm(
@@ -413,7 +467,7 @@ private[sugar] case class StmReset(
               x -> (repeatExternalInputs(s, inputStreams), ready)
             case eqn => eqn
           })
-        )()
+        )(annotations = s.annotations)
       case _ =>
         ???
     }
@@ -456,7 +510,11 @@ case class Iterate(
         i -> (IntCst(0)(n.typ), i + 1),
         acc -> (z, FunCall(f, acc)(t))
       )
-    )().tchk().lower()
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotateWithName(this.className)
+      .tchk()
+      .lower()
   }
 }
 
@@ -481,7 +539,10 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     val c = this.c.lower()
     val out = c.typ match {
       case _: TyStm => StmRepeat(c, n)()
-      case _        => StmBuild(n, c, True)()
+      case _ =>
+        StmBuild(n, c, True)()
+          .annotate(NoInputsAfterLastOut)
+          .annotateWithName(getClass.getSimpleName)
     }
     out.tchk().lower()
   }
@@ -544,8 +605,10 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
       n,
       a,
       True,
-      Map[Param, (Expr, Expr)](a -> (z, a + delta))
-    )().tchk().lower()
+      Map[Param, (Expr, Expr)](
+        a -> (z, (a + delta).tchk().lower())
+      )
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -600,11 +663,13 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
       True,
       Map[Param, (Expr, Expr)](
         v -> (
-          VecBuild(m, m.typ ::+ (i => z + i * delta))(),
+          VecBuild(m, m.typ ::+ (i => z + i * delta))().tchk().lower(),
           VecBuild(m, m.typ ::+ (i => VecAccess(v, i)() + m * delta))()
+            .tchk()
+            .lower()
         )
       )
-    )().tchk().lower()
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -634,7 +699,10 @@ case class StmCst2D(
     val n = this.n.lower()
     val m = this.m.lower()
     val c = this.c.lower()
-    StmBuild(SafeProd(n, m)(), c, True)().tchk().lower()
+    StmBuild(SafeProd(n, m)().tchk().lower(), c, True)()
+      .annotate(NoInputsAfterLastOut)
+      .annotateWithName(this.className)
+      .tchk()
   }
 }
 
@@ -667,7 +735,11 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
         i -> (IntCst(0)(n.typ), Mux(j === m - 1, i + 1, i)()),
         j -> (IntCst(0)(m.typ), Mux(j === m - 1, IntCst(0)(m.typ), j + 1)())
       )
-    )().tchk().lower()
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotateWithName(this.className)
+      .tchk()
+      .lower()
   }
 }
 
@@ -720,7 +792,11 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
           Mux(k === -1 + n3, C(0)(k.typ), k + 1)()
         )
       )
-    )().tchk().lower()
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotateWithName(this.className)
+      .tchk()
+      .lower()
   }
 }
 
@@ -760,17 +836,7 @@ case class StmMap(
     val f = this.f.lower().asInstanceOf[Function]
     val TyStm(_, n) = this.typ
     val Function(s, innerStm) = f.streamify()
-    StmReset(
-      n,
-      innerStm,
-      Map(s -> input),
-      omitInputCounters = this.f.body.fullyConsumesInputs(Set(this.f.param))
-    )().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    (this.input.fullyConsumesInputs(inputs)
-    && this.f.body.fullyConsumesInputs(inputs + this.f.param))
+    StmReset(n, innerStm, Map(s -> input))().tchk().lower()
   }
 }
 
@@ -828,25 +894,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     val f = this.f.lower().asInstanceOf[Function]
     val n = this.typ.asInstanceOf[TyStm].n
     val Function(s1Param, Function(s2Param, innerStm)) = f.streamify()
-    StmReset(
-      n,
-      innerStm,
-      Map(s1Param -> s1, s2Param -> s2),
-      omitInputCounters = this.canOmitInputCounters
-    )().tchk().lower()
-  }
-
-  private def canOmitInputCounters: Boolean = {
-    this.f match {
-      case Function(x, Function(y, body)) => body.fullyConsumesInputs(Set(x, y))
-      case _                              => false
-    }
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    (this.s1.fullyConsumesInputs(inputs)
-    && this.s2.fullyConsumesInputs(inputs)
-    && this.canOmitInputCounters)
+    StmReset(n, innerStm, Map(s1Param -> s1, s2Param -> s2))().tchk().lower()
   }
 }
 
@@ -897,6 +945,14 @@ case class StmAccess(
       }
       Param("j")(typ)
     }
+    val annotations: Set[StmBuildAnnotation] = {
+      val basicAnnotations = Set(NoOutputsAfterLastIn, SelfControlledOutputs)
+      if (Type.sameLen(SafeSum(k, 1)(), numRows)) {
+        basicAnnotations + NoInputsAfterLastOut
+      } else {
+        basicAnnotations
+      }
+    }
     StmBuild(
       perRow,
       StmData(s)(),
@@ -912,7 +968,7 @@ case class StmAccess(
           Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower()
         )
       )
-    )().tchk()
+    )(annotations = annotations).annotateWithName(this.className).tchk()
   }
 }
 
@@ -1214,7 +1270,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
             Mux(firstStep, sData, f(Tuple(acc, sData)()))()
           )
         )
-      )().tchk()
+      )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
     }
   }
 
@@ -1278,10 +1334,6 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
         x
     }
   }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.s.fullyConsumesInputs(inputs)
-  }
 }
 
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
@@ -1321,7 +1373,10 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
             //       evaluator to allow this use of undefined[T]
             acc -> (v, VecShiftLeft(acc, Default(elemTyp))().tchk().lower())
           )
-        )().tchk()
+        )()
+          .annotate(NoInputsAfterLastOut)
+          .annotateWithName(this.className)
+          .tchk()
       case TyStm(tv: TyVec, _) =>
         StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
@@ -1360,7 +1415,11 @@ case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
           VecAccess(v, i)(),
           True,
           Map[Param, (Expr, Expr)](i -> (C(0)(U32), i + 1))
-        )().tchk().lower()
+        )()
+          .annotate(NoInputsAfterLastOut)
+          .annotateWithName(this.className)
+          .tchk()
+          .lower()
       case TyStm(tv: TyVec, _) =>
         StmMap(v, tv ::+ (v => Vec2StmOld(v)()))().tchk().lower()
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
@@ -1391,11 +1450,7 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
 
   override def lowerSyntaxSugar(): Expr = {
     requireType()
-    StmConcat(StmCst(1, e)(), stm)().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs) && this.e.fullyConsumesInputs(inputs)
+    StmConcat(StmCst(1, e)(), stm)().tchk().lower().asInstanceOf[StmBuild]
   }
 }
 
@@ -1423,10 +1478,6 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def lowerSyntaxSugar(): Expr = {
     requireType()
     StmConcat(stm, StmCst(1, e)())().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs) && this.e.fullyConsumesInputs(inputs)
   }
 }
 
@@ -1470,33 +1521,14 @@ case class StmPrefix(
       case _           => C(1)().tchk()
     }
     val s = Param("s")(stm.typ) // input stream
-    val iTyp = k.typ.asInstanceOf[TyUInt] match {
-      case TyUInt(0) => TyUInt(1)
-      case t         => t
-    }
-    val i = Param("i")(iTyp) // index of current row
-    val jTyp = perRow.typ.asInstanceOf[TyUInt]
-    val j = Param("j")(jTyp) // index within row
     StmBuild(
-      SafeProd(k, perRow)(),
+      SafeProd(k, perRow)().tchk().lower(),
       StmData(s)(),
-      i !== k,
+      True,
       Map[Param, (Expr, Expr)](
-        s -> (stm, True),
-        i -> (
-          C(0)(iTyp),
-          Mux(i === k, i, Mux(j === -1 + perRow, i + 1, i)())()
-        ),
-        j -> (C(0)(jTyp), Mux(j === -1 + perRow, C(0)(jTyp), j + 1)())
+        s -> (stm, True)
       )
-    )().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    (this.stm.typ, this.k) match {
-      case (TyStm(_, IntCst(n)), IntCst(k)) => k >= n
-      case _                                => false
-    }
+    )().annotateWithName(this.className).tchk()
   }
 }
 
@@ -1544,19 +1576,18 @@ case class StmSuffix(
     val i = Param("i")(U32) // index of current row
     val j = Param("j")(U32) // index within row
     StmBuild(
-      k * perRow,
+      (k * perRow).tchk().lower(),
       StmData(s)(),
-      i >= n - k,
+      (i >= n - k).tchk().lower(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
-        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)().tchk().lower()),
+        j -> (
+          C(0)(U32),
+          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower()
+        )
       )
-    )().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -1594,10 +1625,6 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     val n = this.typ.asInstanceOf[TyStm].n
     StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
   }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
-  }
 }
 
 /** Discard the last element of the given stream and insert the given value at
@@ -1633,11 +1660,6 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
     StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    // The last element of the input stream will be ignored!
-    false
   }
 }
 
@@ -1696,12 +1718,7 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
           VecShiftRight(buf, StmData(s)())().tchk().lower()
         )
       )
-    )().tchk()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    // The last element of the input stream will be ignored!
-    false
+    )().annotateWithName(this.className).tchk()
   }
 }
 
@@ -1796,18 +1813,13 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
             ),
             s -> (stm, True)
           )
-        )().tchk()
+        )().annotateWithName(this.className).tchk()
       case t =>
         throw new TypeError(
           s"Stream in $className has type $t."
             + " Expected a stream of non-empty, fixed-size vectors."
         )
     }
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    // The last element of the input stream will be ignored!
-    false
   }
 }
 
@@ -1860,12 +1872,11 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
         s1 -> (stm1, i !== n1),
         s2 -> (stm2, i === n1)
       )
-    )().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    (this.stm1.fullyConsumesInputs(inputs)
-    && this.stm2.fullyConsumesInputs(inputs))
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotateWithName(this.className)
+      .tchk()
+      .lower()
   }
 }
 
@@ -1907,10 +1918,6 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     StmMap2(this.a, this.b, t1 ::+ (x => t2 ::+ (y => Tuple(x, y)())))()
       .tchk()
       .lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.a.fullyConsumesInputs(inputs) && this.b.fullyConsumesInputs(inputs)
   }
 }
 
@@ -1993,11 +2000,7 @@ case class StmRepeat(
           (filling && (t < ToUnsigned(-1 + n)())).tchk().lower()
         )
       )
-    )().tchk()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -2039,10 +2042,6 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
       )
     )().tchk().lower()
   }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
-  }
 }
 
 case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
@@ -2069,10 +2068,6 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   override def lowerSyntaxSugar(): Expr = {
     // Lowering must produce a flat stream, so leave it as-is
     this.stm.lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
   }
 }
 
@@ -2103,10 +2098,6 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     // The stream is already flattened during lowering, so there is nothing
     // more to do here
     this.stm.lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
   }
 }
 
@@ -2182,8 +2173,8 @@ case class StmSlideV(
     val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
       myLen,
-      VecShiftLeft(v, StmData(s)())(),
-      i + 1 === winSize,
+      VecShiftLeft(v, StmData(s)())().tchk().lower(),
+      (i + 1 === winSize).tchk().lower(),
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         // Number of elements loaded so far
@@ -2193,20 +2184,16 @@ case class StmSlideV(
             i + 1 === winSize,
             Cast(i + 1 - stride, i.typ)().tchk().lower(),
             i + 1
-          )()
+          )().tchk().lower()
         ),
         // Vector for the window
         v -> (
           Undefined(TyVec(t, winSize)),
-          VecShiftLeft(v, StmData(s)())()
+          VecShiftLeft(v, StmData(s)())().tchk().lower()
         )
       )
-    )()
-    lowered.tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.input.fullyConsumesInputs(inputs)
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
+    lowered.tchk()
   }
 }
 
@@ -2248,10 +2235,6 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
       .tchk()
       .lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
   }
 }
 
@@ -2354,11 +2337,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
             .lower()
         )
       )
-    )().tchk()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -2397,10 +2376,6 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
         Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)()))())()
       )
     )().tchk().lower()
-  }
-
-  override def fullyConsumesInputs(inputs: Set[Param]): Boolean = {
-    this.stm.fullyConsumesInputs(inputs)
   }
 }
 

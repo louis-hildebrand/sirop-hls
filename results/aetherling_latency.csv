@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,latency,sim_success
 bigcamera,1/4,verilog,61476,True
-bigcamera,1/4,vhdl,61465,True
+bigcamera,1/4,vhdl,61466,True
 bigcamera,1,verilog,15389,True
 bigcamera,1,vhdl,15370,True
 bigcamera,2,verilog,7707,True

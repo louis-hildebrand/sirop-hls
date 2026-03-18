@@ -614,27 +614,32 @@ private[optimize] object ArithSimplifier {
         False
       case And(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst))
           if e1 == e2 =>
-        assert(c1.hasType)
-        assert(c1.typ == c2.typ)
-        LessThan(e1, IntCst(math.min(c1.i, c2.i))(c1.typ))()
+        if (c1.i <= c2.i) {
+          LessThan(e1, c1)()
+        } else {
+          LessThan(e2, c2)()
+        }
       case And(LessThan(c1: IntCst, e1), LessThan(c2: IntCst, e2))
           if e1 == e2 =>
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
-        LessThan(IntCst(math.max(c1.i, c2.i))(c1.typ), e1)()
+        if (c1.i >= c2.i) {
+          LessThan(c1, e1)()
+        } else {
+          LessThan(c2, e2)()
+        }
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
             && PartialEvalPass
               .isEqual(c1, (c0 + 1).tchk().lower())()
               .getOrElse(false) =>
         Equal(x0, c0)()
-      case And(terms @ _*) =>
+      case And(terms @ _*) if terms.length <= 3 =>
         And(terms.filter({
           case Not(Equal(x0, IntCst(k0))) =>
             !terms.exists({
-              case Equal(x1, IntCst(k1)) =>
-                x0 == x1 && k0 != k1
-              case _ => false
+              case Equal(x1, IntCst(k1)) => x0 == x1 && k0 != k1
+              case _                     => false
             })
           case _ => true
         }): _*)()
@@ -675,8 +680,14 @@ private[optimize] object ArithSimplifier {
         assert(c1.hasType)
         assert(c1.typ == c2.typ)
         LessThan(IntCst(math.min(c1.i, c2.i))(c1.typ), e1)()
+      case Or(Not(LessThan(x0, k0: IntCst)), Equal(x1, k1: IntCst))
+          if x0 == x1 && k1.i == k0.i - 1 =>
+        Not(LessThan(x1, k1)())()
       case Or(Equal(x0, y0), LessThan(x1, y1)) if x0 == x1 && y0 == y1 =>
         x0 leq y0
+      case Or(e @ Not(Equal(x0, k0: IntCst)), Equal(x1, k1: IntCst))
+          if x0 == x1 && k0 != k1 =>
+        e
       case e => e
     }
     out.tchk()

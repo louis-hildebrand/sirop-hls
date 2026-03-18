@@ -155,7 +155,7 @@ object Streamifier {
       oldInputs
         .map(x => newAccumulators(x) -> (oldToNewInputs(x), True))
         .toMap
-    )()
+    )().annotate(NoInputsAfterLastOut).annotateWithName("scalar2scalar")
   }
 
   private def streamifyStmBuild(
@@ -175,7 +175,7 @@ object Streamifier {
               x -> (streamifyBody(z, oldToNewInputs), next)
           }
         })
-      )().tchk().asInstanceOf[StmBuild]
+      )(annotations = originalStm.annotations).tchk().asInstanceOf[StmBuild]
     val oldInputs = findDataInputsUsedHere(
       withStreamifiedProducers,
       oldToNewInputs.keySet
@@ -329,7 +329,9 @@ object Streamifier {
           })
         updatedOldEquations ++ equationsToAdd
       }
-      StmBuild(withStreamifiedProducers.n, newData, newValid, newEquations)()
+      StmBuild(withStreamifiedProducers.n, newData, newValid, newEquations)(
+        annotations = withStreamifiedProducers.annotations
+      )
     }
   }
 
@@ -378,6 +380,6 @@ object Streamifier {
       Map[Param, (Expr, Expr)](
         y -> (x, True)
       )
-    )()
+    )().annotate(NoInputsAfterLastOut).annotateWithName("Identity")
   }
 }

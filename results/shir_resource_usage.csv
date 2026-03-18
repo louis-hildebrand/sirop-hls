@@ -1,6 +1,6 @@
 bench_name,bench_throughput,language,alm,bram,dsp
 camera,-1,shir,2864,27,27
-camera,-1,sirop,1057,27,0
+camera,-1,sirop,1038,27,0
 conv1d,-1,shir,36,0,1
 conv1d,-1,sirop,14,0,0
 conv2d,-1,shir,707,7,9

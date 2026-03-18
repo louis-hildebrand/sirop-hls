@@ -328,13 +328,23 @@ class StreamTests extends AnyFunSuite {
     assert(mhir.ir.eval(actual) == expected)
   }
 
-  test("StmMap:2D-1D:Access") {
+  test("StmMap:2D-1D:StmAccess(Middle)") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
       Missing ::+ (s => StmAccess(s, 1)())
     )().tchk()
     val expected =
       StmLiteral(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)(), Tuple(3, 1)())()
+    assert(mhir.ir.eval(s) == expected)
+  }
+
+  test("StmMap:2D-1D:StmAccess(Last)") {
+    val s = StmMap(
+      StmCount2D(C(4)(U8), C(3)(U8))(),
+      Missing ::+ (s => StmAccess(s, 2)())
+    )().tchk()
+    val expected =
+      StmLiteral(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)(), Tuple(3, 2)())()
     assert(mhir.ir.eval(s) == expected)
   }
 

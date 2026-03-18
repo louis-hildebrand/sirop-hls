@@ -136,7 +136,7 @@ private[ir] trait Substitution {
                       val newNext = next.subPreserveType(newSubs)
                       newX -> (newZ, newNext)
                     })
-                  )(s.typ)
+                  )(s.typ, annotations = s.annotations)
                 }
               case e: SyntaxSugar => e.sugarSubAndKeepType(subs)
               case e =>
@@ -272,7 +272,7 @@ private[ir] trait Substitution {
                     val newNext = next.subAndEraseType(newSubs)
                     newX -> (newZ, newNext)
                   })
-                )()
+                )(annotations = s.annotations)
               case e: SyntaxSugar =>
                 e.sugarSubAndEraseType(subs)
               case Undefined(typ) =>
