@@ -642,12 +642,6 @@ private[optimize] object ArithSimplifier {
                 x0 == x1 && k0 != k1
               case _ => false
             })
-          case LessThan(x0, IntCst(k0)) =>
-            !terms.exists({
-              case Equal(x1, IntCst(k1)) =>
-                x0 == x1 && k1 < k0
-              case _ => false
-            })
           case _ => true
         }): _*)()
       case e =>
