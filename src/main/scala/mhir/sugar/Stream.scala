@@ -212,10 +212,7 @@ private[sugar] case class StmReset(
       .orElse(this.lowerForNEqualsOne())
       .getOrElse(this.lowerStandard())
       .tchk()
-    val ret = {
-      val subs = this.inputs.map({ case (x, s) => x -> s })
-      loweredPipeline.subPreserveType(subs.toMap[Expr, Expr])
-    }
+    val ret = loweredPipeline.subPreserveType(this.inputs.toMap[Expr, Expr])
     assertNoNewFreeVars(ret.freeVars) // Sanity check
     ret
   }
@@ -899,13 +896,6 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     val Function(s1Param, Function(s2Param, innerStm)) = f.streamify()
     StmReset(n, innerStm, Map(s1Param -> s1, s2Param -> s2))().tchk().lower()
   }
-
-  private def canOmitInputCounters: Boolean = {
-    this.f match {
-      case Function(x, Function(y, body)) => body.fullyConsumesInputs(Set(x, y))
-      case _                              => false
-    }
-  }
 }
 
 case class StmAccess(
@@ -1532,13 +1522,13 @@ case class StmPrefix(
     }
     val s = Param("s")(stm.typ) // input stream
     StmBuild(
-      SafeProd(k, perRow)(),
+      SafeProd(k, perRow)().tchk().lower(),
       StmData(s)(),
       True,
       Map[Param, (Expr, Expr)](
         s -> (stm, True)
       )
-    )().annotateWithName(this.className).tchk().lower()
+    )().annotateWithName(this.className).tchk()
   }
 }
 
@@ -1586,19 +1576,18 @@ case class StmSuffix(
     val i = Param("i")(U32) // index of current row
     val j = Param("j")(U32) // index within row
     StmBuild(
-      k * perRow,
+      (k * perRow).tchk().lower(),
       StmData(s)(),
-      i >= n - k,
+      (i >= n - k).tchk().lower(),
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)()),
-        j -> (C(0)(U32), Mux(j === perRow - 1, C(0)(U32), j + 1)())
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)().tchk().lower()),
+        j -> (
+          C(0)(U32),
+          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower()
+        )
       )
-    )()
-      .annotate(NoInputsAfterLastOut)
-      .annotateWithName(this.className)
-      .tchk()
-      .lower()
+    )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
 }
 
@@ -2184,8 +2173,8 @@ case class StmSlideV(
     val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
       myLen,
-      VecShiftLeft(v, StmData(s)())(),
-      i + 1 === winSize,
+      VecShiftLeft(v, StmData(s)())().tchk().lower(),
+      (i + 1 === winSize).tchk().lower(),
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         // Number of elements loaded so far
@@ -2195,16 +2184,16 @@ case class StmSlideV(
             i + 1 === winSize,
             Cast(i + 1 - stride, i.typ)().tchk().lower(),
             i + 1
-          )()
+          )().tchk().lower()
         ),
         // Vector for the window
         v -> (
           Undefined(TyVec(t, winSize)),
-          VecShiftLeft(v, StmData(s)())()
+          VecShiftLeft(v, StmData(s)())().tchk().lower()
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
-    lowered.tchk().lower()
+    lowered.tchk()
   }
 }
 
