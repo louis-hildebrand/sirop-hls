@@ -275,18 +275,6 @@ private[sugar] case class StmReset(
       case x: Param =>
         x
       case s: StmBuild =>
-        if (!s.annotations.contains(NoInputsAfterLastOut)) {
-          val name = s.annotations
-            .flatMap({
-              case NameAnnotation(name) => Some(name)
-              case _                    => None
-            })
-            .headOption
-            .getOrElse("unknown name")
-          logger.debug(
-            s"StmBuild node ($name) does not have annotation $NoInputsAfterLastOut"
-          )
-        }
         val ctrByInput = s.seedByVar
           .flatMap({
             case (x, p) if x.typ.isInstanceOf[TyStm] =>
@@ -329,8 +317,39 @@ private[sugar] case class StmReset(
           s1.addOutputCounter(outCtr)
         }
         val shouldReset = if (s.annotations.contains(NoInputsAfterLastOut)) {
+          // No need to count inputs: based on the annotation, once we read the
+          // last output, we know we can reset immediately
           (withCtrs.nextByVar(outCtr) === outputsUntilReset).tchk().lower()
+        } else if (s.annotations.contains(NoOutputsAfterLastIn)) {
+          // No need to count outputs: based on the annotation, once we read the
+          // last inputs, we know we can reset immediately
+          val inputsUntilReset: Seq[(Param, Expr)] =
+            s.seedByVar
+              .flatMap({ case (x, z) =>
+                z.typ match {
+                  case TyStm(_, n) if ctrByInput.contains(x) =>
+                    Some(ctrByInput(x) -> n)
+                  case _ => None
+                }
+              })
+              .toSeq
+          val shouldReset = inputsUntilReset
+            .map({ case (ctr, n) => withCtrs.nextByVar(ctr) === n })
+            .reduce[Expr]({ case (x, y) => x && y })
+          shouldReset.tchk().lower()
         } else {
+          // Need both input and output counters, just in case
+          val name = s.annotations
+            .flatMap({
+              case NameAnnotation(name) => Some(name)
+              case _                    => None
+            })
+            .headOption
+            .getOrElse("unknown name")
+          logger.warn(
+            s"StmBuild node ($name) is neither annotated with $NoInputsAfterLastOut nor $NoOutputsAfterLastIn."
+              + " Both input and output counters will be added, which may increase resource usage."
+          )
           val inputsUntilReset: Seq[(Param, Expr)] =
             s.seedByVar
               .flatMap({ case (x, z) =>
@@ -925,9 +944,9 @@ case class StmAccess(
     }
     val annotations: Set[StmBuildAnnotation] =
       if (Type.sameLen(SafeSum(k, 1)(), numRows)) {
-        Set(NoInputsAfterLastOut)
+        Set(NoInputsAfterLastOut, NoOutputsAfterLastIn)
       } else {
-        Set()
+        Set(NoOutputsAfterLastIn)
       }
     StmBuild(
       perRow,
