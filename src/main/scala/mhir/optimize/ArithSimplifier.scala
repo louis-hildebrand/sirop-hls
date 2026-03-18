@@ -634,13 +634,12 @@ private[optimize] object ArithSimplifier {
               .isEqual(c1, (c0 + 1).tchk().lower())()
               .getOrElse(false) =>
         Equal(x0, c0)()
-      case And(terms @ _*) =>
+      case And(terms @ _*) if terms.length <= 3 =>
         And(terms.filter({
           case Not(Equal(x0, IntCst(k0))) =>
             !terms.exists({
-              case Equal(x1, IntCst(k1)) =>
-                x0 == x1 && k0 != k1
-              case _ => false
+              case Equal(x1, IntCst(k1)) => x0 == x1 && k0 != k1
+              case _                     => false
             })
           case _ => true
         }): _*)()
@@ -686,6 +685,9 @@ private[optimize] object ArithSimplifier {
         Not(LessThan(x1, k1)())()
       case Or(Equal(x0, y0), LessThan(x1, y1)) if x0 == x1 && y0 == y1 =>
         x0 leq y0
+      case Or(e @ Not(Equal(x0, k0: IntCst)), Equal(x1, k1: IntCst))
+          if x0 == x1 && k0 != k1 =>
+        e
       case e => e
     }
     out.tchk()
