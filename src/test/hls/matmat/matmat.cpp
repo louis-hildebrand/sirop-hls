@@ -1,8 +1,6 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
-#include <stdint.h>
-
-using namespace ihc;
+#include "HLS/stdio.h"
 
 constexpr int N = 256;
 /* Degree of spatial parallelism.
@@ -10,16 +8,15 @@ constexpr int N = 256;
  */
 constexpr int PAR = 16;
 
-template<unsigned SystemID> class InputPipeID {};
-template<unsigned SystemID> class OutputPipeID {};
+template<unsigned SystemID> class PipeID {};
 
 class Chunk {
 public:
-    uint16_t values[PAR];
+    uint16 values[PAR];
 };
 
-uint16_t dot(Chunk a, Chunk b) {
-    uint16_t sum = 0;
+uint16 dot(Chunk a, Chunk b) {
+    uint16 sum = 0;
     #pragma unroll
     for (int i = 0; i < PAR; i++) {
         sum += a.values[i] * b.values[i];
@@ -31,15 +28,15 @@ constexpr int A = 0;
 constexpr int B = 1;
 constexpr int C = 2;
 component void matmat(
-    ihc::pipe<class InputPipeID<A>, Chunk> &a,
-    ihc::pipe<class InputPipeID<B>, Chunk> &b_t,
-    ihc::pipe<class OutputPipeID<C>, uint16_t> &c
+    ihc::pipe<class PipeID<A>, Chunk> &a,
+    ihc::pipe<class PipeID<B>, Chunk> &b_t,
+    ihc::pipe<class PipeID<C>, uint16> &c
 ) {
     Chunk b_t_arr[N][N/PAR];
     for (int i = 0; i < N; i++) {
         Chunk a_row[N/PAR];
         for (int j = 0; j < N; j++) {
-            uint16_t sum = 0;
+            uint16 sum = 0;
             for (int k = 0; k < N/PAR; k++) {
                 Chunk a_chunk;
                 if (j == 0) {
@@ -63,22 +60,22 @@ component void matmat(
 }
 
 int main() {
-    uint16_t a_arr[N][N];
+    uint16 a_arr[N][N];
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             a_arr[i][j] = ( (4*i+j) * (4*i+j) ) % 6;
         }
     }
-    uint16_t b_arr[N][N];
+    uint16 b_arr[N][N];
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             b_arr[i][j] = (4*i + j) % 6;
         }
     }
 
-    ihc::pipe<class InputPipeID<A>, Chunk> a_stm;
-    ihc::pipe<class InputPipeID<B>, Chunk> b_t_stm;
-    ihc::pipe<class OutputPipeID<C>, uint16_t> c_stm;
+    ihc::pipe<class PipeID<A>, Chunk> a_stm;
+    ihc::pipe<class PipeID<B>, Chunk> b_t_stm;
+    ihc::pipe<class PipeID<C>, uint16> c_stm;
 
     printf("Passing inputs for matrix A...\n");
     for (int i = 0; i < N; i++) {
@@ -104,7 +101,7 @@ int main() {
     matmat(a_stm, b_t_stm, c_stm);
 
     printf("Computing expected output...\n");
-    uint16_t expected[N][N] = {};
+    uint16 expected[N][N] = {};
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             for (int k = 0; k < N; k++) {
@@ -117,9 +114,9 @@ int main() {
     bool pass = true;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            uint16_t result = c_stm.read();
+            uint16 result = c_stm.read();
             if (result != expected[i][j]) {
-                printf("ERROR: Expected %u, found %u\n", expected[i][j], result);
+                printf("ERROR: Expected %lu, found %lu\n", (unsigned long)expected[i][j], (unsigned long)result);
                 pass = false;
             }
         }

@@ -1,27 +1,27 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
-#include <stdint.h>
+#include "HLS/stdio.h"
 
 constexpr int WIDTH = 1920;
 constexpr int HEIGHT = 1080;
-constexpr uint32_t KERNEL[3][3] = {
+constexpr uint32 KERNEL[3][3] = {
     {1, 2, 1},
     {2, 4, 2},
     {1, 2, 1},
 };
 
 template<unsigned SystemID> class PipeID {};
-ihc::pipe<PipeID<0>, uint32_t> pipe_in;
-ihc::pipe<PipeID<1>, uint32_t> pipe_out;
+ihc::pipe<PipeID<0>, uint32> pipe_in;
+ihc::pipe<PipeID<1>, uint32> pipe_out;
 
 template<unsigned int img_width, unsigned int win_width, unsigned int win_height>
 class LineBuffer2D {
 public:
-    uint32_t big_buffer[win_height-1][img_width];
-    uint32_t small_buffer[win_width];
+    uint32 big_buffer[win_height-1][img_width];
+    uint32 small_buffer[win_width];
 
 public:
-    void shift(uint32_t next) {
+    void shift(uint32 next) {
         #pragma unroll
         for (int i = 0; i < win_height-1; i++) {
             #pragma unroll
@@ -47,12 +47,12 @@ component void sharpen() {
         for (int j = 0; j < WIDTH; j++) {
             buffer.shift(pipe_in.read());
             if (i >= 2 && j >= 2) {
-                uint32_t window[3][3] = {
+                uint32 window[3][3] = {
                     buffer.big_buffer[0][0], buffer.big_buffer[0][1], buffer.big_buffer[0][2],
                     buffer.big_buffer[1][0], buffer.big_buffer[1][1], buffer.big_buffer[1][2],
                     buffer.small_buffer[0], buffer.small_buffer[1], buffer.small_buffer[2]
                 };
-                uint32_t blurred = 0;
+                uint32 blurred = 0;
                 #pragma unroll
                 for (int i = 0; i < 3; i++) {
                     #pragma unroll
@@ -61,7 +61,7 @@ component void sharpen() {
                     }
                 }
                 blurred >>= 4;
-                uint32_t original = buffer.big_buffer[1][1];
+                uint32 original = buffer.big_buffer[1][1];
                 pipe_out.write( original + ((original - blurred) >> 2) );
             }
         }
@@ -70,7 +70,7 @@ component void sharpen() {
 
 int main() {
     printf("Filling input array...\n");
-    uint32_t in_arr[HEIGHT][WIDTH];
+    uint32 in_arr[HEIGHT][WIDTH];
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             if ( (i % 20 < 10) == (j % 20 < 10) ) {
@@ -91,7 +91,7 @@ int main() {
     sharpen();
 
     printf("Computing expected outputs...\n");
-    uint32_t blurred[HEIGHT-2][WIDTH-2] = {};
+    uint32 blurred[HEIGHT-2][WIDTH-2] = {};
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
             for (int di = 0; di < 3; di++) {
@@ -102,13 +102,13 @@ int main() {
             blurred[i][j] = blurred[i][j] >> 4;
         }
     }
-    uint32_t cropped[HEIGHT-2][WIDTH-2] = {};
+    uint32 cropped[HEIGHT-2][WIDTH-2] = {};
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
             cropped[i][j] = in_arr[i+1][j+1];
         }
     }
-    uint32_t expected[HEIGHT-2][WIDTH-2] = {};
+    uint32 expected[HEIGHT-2][WIDTH-2] = {};
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
             expected[i][j] = cropped[i][j] + ((cropped[i][j] - blurred[i][j]) >> 2);
@@ -119,9 +119,9 @@ int main() {
     bool pass = true;
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
-            uint32_t result = pipe_out.read();
+            uint32 result = pipe_out.read();
             if (result != expected[i][j]) {
-                printf("ERROR(%u,%u): Expected %u, found %u\n", i, j, expected[i][j], result);
+                printf("ERROR(%d,%d): Expected %lu, found %lu\n", i, j, (unsigned long)expected[i][j], (unsigned long)result);
                 pass = false;
             }
         }

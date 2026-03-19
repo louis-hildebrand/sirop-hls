@@ -1,23 +1,20 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
-#include <stdint.h>
-
-using namespace ihc;
+#include "HLS/stdio.h"
 
 constexpr int N = 840;
 
-template<unsigned SystemID> class InputPipeID {};
-template<unsigned SystemID> class OutputPipeID {};
+template<unsigned SystemID> class PipeID {};
 
 constexpr int A = 0;
 constexpr int B = 1;
 constexpr int C = 2;
 component void dot(
-    ihc::pipe<class InputPipeID<A>, uint16_t> &a,
-    ihc::pipe<class InputPipeID<B>, uint16_t> &b,
-    ihc::pipe<class OutputPipeID<C>, uint16_t> &c
+    ihc::pipe<class PipeID<A>, uint16> &a,
+    ihc::pipe<class PipeID<B>, uint16> &b,
+    ihc::pipe<class PipeID<C>, uint16> &c
 ) {
-    uint16_t sum = 0;
+    uint16 sum = 0;
     for (int i = 0; i < N; i++) {
         sum += a.read() * b.read();
     }
@@ -25,36 +22,36 @@ component void dot(
 }
 
 int main() {
-    uint16_t a_arr[N];
+    uint16 a_arr[N];
     for (int i = 0; i < N; i++) {
         a_arr[i] = i % 16;
     }
-    uint16_t b_arr[N];
+    uint16 b_arr[N];
     for (int i = 0; i < N; i++) {
         b_arr[i] = (N - 1 - i) % 16;
     }
 
-    ihc::pipe<class InputPipeID<A>, uint16_t> a_stm;
-    ihc::pipe<class InputPipeID<B>, uint16_t> b_stm;
-    ihc::pipe<class OutputPipeID<C>, uint16_t> c_stm;
+    ihc::pipe<class PipeID<A>, uint16> a_stm;
+    ihc::pipe<class PipeID<B>, uint16> b_stm;
+    ihc::pipe<class PipeID<C>, uint16> c_stm;
 
-    for (unsigned int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         a_stm.write(a_arr[i]);
         b_stm.write(b_arr[i]);
     }
 
     dot(a_stm, b_stm, c_stm);
 
-    uint16_t result = c_stm.read();
+    uint16 result = c_stm.read();
 
-    uint16_t expected = 0;
+    uint16 expected = 0;
     for (int i = 0; i < N; i++) {
         expected += a_arr[i] * b_arr[i];
     }
 
     bool pass = true;
     if (result != expected) {
-        printf("ERROR: Expected %u, found %u\n", expected, result);
+        printf("ERROR: Expected %lu, found %lu\n", (unsigned long)expected, (unsigned long)result);
         pass = false;
     }
 

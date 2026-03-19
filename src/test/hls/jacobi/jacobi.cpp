@@ -1,6 +1,6 @@
 #include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
+#include "HLS/stdio.h"
 
 constexpr int WIDTH = 128;
 constexpr int HEIGHT = 1024;
@@ -55,7 +55,7 @@ component void jacobi() {
 
 int main() {
     printf("Filling input array...\n");
-    uint32_t in_arr[HEIGHT][WIDTH];
+    uint32 in_arr[HEIGHT][WIDTH];
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             if ( (i % 20 < 10) == (j % 20 < 10) ) {
@@ -76,7 +76,7 @@ int main() {
     jacobi();
 
     printf("Computing expected outputs...\n");
-    uint32_t expected[HEIGHT-2][WIDTH-2];
+    uint32 expected[HEIGHT-2][WIDTH-2];
     for (int i = 1; i < HEIGHT-1; i++) {
         for (int j = 1; j < WIDTH-1; j++) {
             expected[i-1][j-1] = (
@@ -92,9 +92,9 @@ int main() {
     bool pass = true;
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
-            uint32_t result = (uint32_t)pipe_out.read();
+            uint8 result = pipe_out.read();
             if (result != expected[i][j]) {
-                printf("ERROR: Expected %u, found %u\n", expected[i][j], result);
+                printf("ERROR: Expected %lu, found %lu\n", (unsigned long)expected[i][j], (unsigned long)result);
                 pass = false;
             }
         }

@@ -1,25 +1,23 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
-#include <stdint.h>
-
-using namespace std;
+#include "HLS/stdio.h"
 
 constexpr int WIDTH = 1920;
 constexpr int HEIGHT = 1080;
-constexpr uint32_t KERNEL[3][3] = {
+constexpr uint32 KERNEL[3][3] = {
     {1, 2, 1},
     {2, 4, 2},
     {1, 2, 1},
 };
 
 struct Colour {
-    uint32_t red;
-    uint32_t green;
-    uint32_t blue;
+    uint32 red;
+    uint32 green;
+    uint32 blue;
 };
 
 template<unsigned SystemID> class PipeID {};
-ihc::pipe<PipeID<0>, uint32_t> pipe_in;
+ihc::pipe<PipeID<0>, uint32> pipe_in;
 ihc::stream<struct Colour> pipe_demosaic;
 ihc::pipe<PipeID<1>, struct Colour> pipe_out;
 
@@ -51,20 +49,20 @@ public:
 };
 
 void demosaic() {
-    LineBuffer2D<uint32_t, WIDTH, 3, 3> buffer;
+    LineBuffer2D<uint32, WIDTH, 3, 3> buffer;
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             buffer.shift(pipe_in.read());
             if (i >= 2 && j >= 2) {
-                uint32_t window[3][3] = {
+                uint32 window[3][3] = {
                     buffer.big_buffer[0][0], buffer.big_buffer[0][1], buffer.big_buffer[0][2],
                     buffer.big_buffer[1][0], buffer.big_buffer[1][1], buffer.big_buffer[1][2],
                     buffer.small_buffer[0], buffer.small_buffer[1], buffer.small_buffer[2]
                 };
 
-                uint32_t red;
-                uint32_t green;
-                uint32_t blue;
+                uint32 red;
+                uint32 green;
+                uint32 blue;
                 if ( (i % 2 != 0) && (j % 2 != 0) ) {
                     /*
                      * +---+---+---+
@@ -126,8 +124,8 @@ void demosaic() {
     }
 }
 
-uint32_t sharpen_pixel(uint32_t window[3][3]) {
-    uint32_t blurred = 0;
+uint32 sharpen_pixel(uint32 window[3][3]) {
+    uint32 blurred = 0;
     #pragma unroll
     for (int i = 0; i < 3; i++) {
         #pragma unroll
@@ -136,8 +134,8 @@ uint32_t sharpen_pixel(uint32_t window[3][3]) {
         }
     }
     blurred >>= 4;
-    uint32_t original = window[2][2];
-    uint32_t sharp;
+    uint32 original = window[2][2];
+    uint32 sharp;
     if (blurred < original) {
         sharp = original + ( (original - blurred) >> 2 );
     } else {
@@ -157,17 +155,17 @@ void sharpen_rgb() {
                     buffer.big_buffer[1][0], buffer.big_buffer[1][1], buffer.big_buffer[1][2],
                     buffer.small_buffer[0], buffer.small_buffer[1], buffer.small_buffer[2]
                 };
-                uint32_t red_window[3][3] = {
+                uint32 red_window[3][3] = {
                     window[0][0].red, window[0][1].red, window[0][2].red,
                     window[1][0].red, window[1][1].red, window[1][2].red,
                     window[2][0].red, window[2][1].red, window[2][2].red
                 };
-                uint32_t green_window[3][3] = {
+                uint32 green_window[3][3] = {
                     window[0][0].green, window[0][1].green, window[0][2].green,
                     window[1][0].green, window[1][1].green, window[1][2].green,
                     window[2][0].green, window[2][1].green, window[2][2].green
                 };
-                uint32_t blue_window[3][3] = {
+                uint32 blue_window[3][3] = {
                     window[0][0].blue, window[0][1].blue, window[0][2].blue,
                     window[1][0].blue, window[1][1].blue, window[1][2].blue,
                     window[2][0].blue, window[2][1].blue, window[2][2].blue
@@ -193,7 +191,7 @@ component void camera() {
 
 int main() {
     printf("Filling input array...\n");
-    uint32_t in_arr[HEIGHT][WIDTH];
+    uint32 in_arr[HEIGHT][WIDTH];
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             in_arr[i][j] = (WIDTH*i + j + 1) * (WIDTH*i + j + 1);
@@ -220,9 +218,9 @@ int main() {
     for (int i = 0; i < HEIGHT-4; i++) {
         for (int j = 0; j < WIDTH-4; j++) {
             fgets(line, 1024, f);
-            uint32_t red;
-            uint32_t green;
-            uint32_t blue;
+            unsigned int red;
+            unsigned int green;
+            unsigned int blue;
             sscanf(line, "%u,%u,%u", &red, &green, &blue);
             expected[i][j] = { .red=red, .green=green, .blue=blue };
         }
@@ -240,10 +238,10 @@ int main() {
             );
             if (!ok) {
                 printf(
-                    "ERROR(%u,%u): Expected (%u,%u,%u), found (%u,%u,%u)\n",
+                    "ERROR(%d,%d): Expected (%lu,%lu,%lu), found (%lu,%lu,%lu)\n",
                     i, j,
-                    expected[i][j].red, expected[i][j].green, expected[i][j].blue,
-                    result.red, result.green, result.blue
+                    (unsigned long)expected[i][j].red, (unsigned long)expected[i][j].green, (unsigned long)expected[i][j].blue,
+                    (unsigned long)result.red, (unsigned long)result.green, (unsigned long)result.blue
                 );
                 pass = false;
             }

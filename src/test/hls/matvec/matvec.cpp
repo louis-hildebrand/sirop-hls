@@ -1,21 +1,21 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdint.h>
-#include <stdio.h>
+#include "HLS/stdio.h"
 
 constexpr int N = 256;
 
 template<unsigned SystemID> class PipeID {};
 
-ihc::pipe<class PipeID<0>, uint16_t> mat;
-ihc::pipe<class PipeID<1>, uint16_t> vec;
-ihc::pipe<class PipeID<2>, uint16_t> out;
+ihc::pipe<class PipeID<0>, uint16> mat;
+ihc::pipe<class PipeID<1>, uint16> vec;
+ihc::pipe<class PipeID<2>, uint16> out;
 
 component void matvec() {
-    uint16_t vec_arr[N];
+    uint16 vec_arr[N];
     for (int i = 0; i < N; i++) {
-        uint16_t sum = 0;
+        uint16 sum = 0;
         for (int j = 0; j < N; j++) {
-            uint16_t v;
+            uint16 v;
             if (i == 0) {
                 v = vec.read();
                 vec_arr[j] = v;
@@ -29,13 +29,13 @@ component void matvec() {
 }
 
 int main() {
-    uint16_t mat_arr[N][N];
+    uint16 mat_arr[N][N];
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             mat_arr[i][j] = (i + j) % 16;
         }
     }
-    uint16_t vec_arr[N];
+    uint16 vec_arr[N];
     for (int i = 0; i < N; i++) {
         vec_arr[i] = i % 16;
     }
@@ -51,7 +51,7 @@ int main() {
 
     matvec();
 
-    uint16_t expected[N];
+    uint16 expected[N];
     for (int i = 0; i < N; i++) {
         expected[i] = 0;
         for (int j = 0; j < N; j++) {
@@ -61,9 +61,9 @@ int main() {
 
     bool pass = true;
     for (int i = 0; i < N; i++) {
-        uint16_t result = out.read();
+        uint16 result = out.read();
         if (result != expected[i]) {
-            printf("ERROR: Expected %u, found %u\n", expected[i], result);
+            printf("ERROR: Expected %lu, found %lu\n", (unsigned long)expected[i], (unsigned long)result);
             pass = false;
         }
     }

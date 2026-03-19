@@ -1,17 +1,15 @@
+#include "HLS/ac_int.h"
 #include "HLS/hls.h"
-#include <stdio.h>
-#include <stdint.h>
-
-using namespace ihc;
+#include "HLS/stdio.h"
 
 constexpr int WIDTH = 1920;
-constexpr int HEIGHT = 16;
-constexpr uint32_t KERNEL3x3[3][3] = {
+constexpr int HEIGHT = 1080;
+constexpr uint32 KERNEL3x3[3][3] = {
     {1, 2, 1},
     {2, 4, 2},
     {1, 2, 1},
 };
-constexpr uint32_t KERNEL2x2[2][2] = {
+constexpr uint32 KERNEL2x2[2][2] = {
     {1, 2},
     {4, 1},
 };
@@ -20,18 +18,18 @@ constexpr int A = 0;
 constexpr int B = 1;
 constexpr int C = 2;
 template<unsigned SystemID> class PipeID {};
-ihc::pipe<PipeID<A>, uint32_t> pipe_a;
-ihc::stream<uint32_t> pipe_b;
-ihc::pipe<PipeID<C>, uint32_t> pipe_c;
+ihc::pipe<PipeID<A>, uint32> pipe_a;
+ihc::stream<uint32> pipe_b;
+ihc::pipe<PipeID<C>, uint32> pipe_c;
 
 template<unsigned int img_width, unsigned int win_width, unsigned int win_height>
 class LineBuffer2D {
 public:
-    uint32_t big_buffer[win_height-1][img_width];
-    uint32_t small_buffer[win_width];
+    uint32 big_buffer[win_height-1][img_width];
+    uint32 small_buffer[win_width];
 
 public:
-    void shift(uint32_t next) {
+    void shift(uint32 next) {
         #pragma unroll
         for (int i = 0; i < win_height-1; i++) {
             #pragma unroll
@@ -57,12 +55,12 @@ void conv3x3() {
         for (int j = 0; j < WIDTH; j++) {
             buffer.shift(pipe_a.read());
             if (i >= 2 && j >= 2) {
-                uint32_t window[3][3] = {
+                uint32 window[3][3] = {
                     buffer.big_buffer[0][0], buffer.big_buffer[0][1], buffer.big_buffer[0][2],
                     buffer.big_buffer[1][0], buffer.big_buffer[1][1], buffer.big_buffer[1][2],
                     buffer.small_buffer[0], buffer.small_buffer[1], buffer.small_buffer[2]
                 };
-                uint32_t sum = 0;
+                uint32 sum = 0;
                 #pragma unroll
                 for (int i = 0; i < 3; i++) {
                     #pragma unroll
@@ -82,11 +80,11 @@ void conv2x2() {
         for (int j = 0; j < WIDTH-2; j++) {
             buffer.shift(pipe_b.read());
             if (i >= 1 && j >= 1) {
-                uint32_t window[2][2] = {
+                uint32 window[2][2] = {
                     buffer.big_buffer[0][0], buffer.big_buffer[0][1],
                     buffer.small_buffer[0], buffer.small_buffer[1],
                 };
-                uint32_t sum = 0;
+                uint32 sum = 0;
                 #pragma unroll
                 for (int i = 0; i < 2; i++) {
                     #pragma unroll
@@ -109,7 +107,7 @@ component void convb2b() {
 
 int main() {
     printf("Filling input array...\n");
-    uint32_t in_arr[HEIGHT][WIDTH];
+    uint32 in_arr[HEIGHT][WIDTH];
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             if ( (i % 20 < 10) == (j % 20 < 10) ) {
@@ -130,7 +128,7 @@ int main() {
     convb2b();
 
     printf("Computing expected outputs...\n");
-    uint32_t expected_intermediate[HEIGHT-2][WIDTH-2] = {};
+    uint32 expected_intermediate[HEIGHT-2][WIDTH-2] = {};
     for (int i = 0; i < HEIGHT-2; i++) {
         for (int j = 0; j < WIDTH-2; j++) {
             for (int di = 0; di < 3; di++) {
@@ -140,7 +138,7 @@ int main() {
             }
         }
     }
-    uint32_t expected[HEIGHT-3][WIDTH-3] = {};
+    uint32 expected[HEIGHT-3][WIDTH-3] = {};
     for (int i = 0; i < HEIGHT-3; i++) {
         for (int j = 0; j < WIDTH-3; j++) {
             for (int di = 0; di < 2; di++) {
@@ -155,12 +153,10 @@ int main() {
     bool pass = true;
     for (int i = 0; i < HEIGHT-3; i++) {
         for (int j = 0; j < WIDTH-3; j++) {
-            uint32_t result = pipe_c.read();
+            uint32 result = pipe_c.read();
             if (result != expected[i][j]) {
-                printf("ERROR(%u,%u): Expected %u, found %u\n", i, j, expected[i][j], result);
+                printf("ERROR(%d,%d): Expected %lu, found %lu\n", i, j, (unsigned long)expected[i][j], (unsigned long)result);
                 pass = false;
-            } else {
-                printf("OK(%u,%u)\n", i, j);
             }
         }
     }
