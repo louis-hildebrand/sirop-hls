@@ -48,8 +48,8 @@ def plot_resource_usages(
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,
-        figsize=(8, 1.7),
-        height_ratios=[1.5, 1, 1],
+        figsize=(8, 1.6),
+        height_ratios=[1.2, 1.2, 1],
         layout="compressed",
         sharex="col",
         sharey="row",
@@ -399,7 +399,7 @@ def plot_resource_usages(
         bbox_to_anchor=(1, 0),
         ncols=5,
     )
-    fig.text(0.871, -0.120, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.871, -0.125, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_RESOURCE_USAGE_PDF, bbox_inches="tight")
 

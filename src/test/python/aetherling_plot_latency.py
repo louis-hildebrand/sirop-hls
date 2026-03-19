@@ -50,7 +50,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     })
     fig, axes = plt.subplots(
         nrows=1, ncols=len(benchmark_names),
-        figsize=(8, 1.175),
+        figsize=(8, 1.1),
         squeeze=False,
         sharey="row",
         layout="compressed",
@@ -140,7 +140,7 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
 
     # Settings for entire rows
     axes[0].set_yscale("log", base=10)
-    axes[0].set_ylabel("Latency (log)\t.")
+    axes[0].set_ylabel("Latency\n(log)")
     _, y_hi = axes[0].get_ylim()
     axes[0].set_ylim(1, y_hi * 2)
     axes[0].set_yticks([10, 10**3, 10**5, 10**7])

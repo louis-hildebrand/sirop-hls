@@ -44,7 +44,7 @@ def plot_resource_usages(
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 2.5),
+        figsize=(8, 2.2),
         layout="compressed",
         sharey="row",
         sharex="col",
@@ -197,7 +197,7 @@ def plot_resource_usages(
         elif "big" in bench_name and bench_name not in {"bigmvm", "bigmmm"}:
             alm_ax.plot([16], [100], color="#00000000")
     # Settings for entire rows
-    axes[0][0].set_ylabel("ALM (log)")
+    axes[0][0].set_ylabel("ALMs\n(log)")
     axes[0][0].set_yscale("log")
     # axes[0][0].yaxis.set_major_locator(LogLocator(base=10))
     axes[0][0].set_yticks([10, 10**2, 10**3, 10**4])
@@ -209,7 +209,7 @@ def plot_resource_usages(
             linewidth=0.2,
             color=(0.8, 0.8, 0.8)
         )
-    axes[1][0].set_ylabel("BRAM (log)")
+    axes[1][0].set_ylabel("BRAMs\n(log)")
     axes[1][-1].set_yscale("symlog")
     axes[1][-1].yaxis.set_major_locator(LogLocator(base=10))
     axes[1][-1].set_ylim(0.11, 10**3)
@@ -221,7 +221,7 @@ def plot_resource_usages(
             linewidth=0.2,
             color=(0.8, 0.8, 0.8)
         )
-    axes[2][0].set_ylabel("DSP (log)")
+    axes[2][0].set_ylabel("DSPs\n(log)")
     axes[2][-1].set_yscale("symlog")
     axes[2][-1].yaxis.set_major_locator(LogLocator(base=10))
     axes[2][-1].set_ylim(0.11, 500)
