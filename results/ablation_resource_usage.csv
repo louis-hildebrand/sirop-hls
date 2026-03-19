@@ -1,9 +1,9 @@
 prog_name,prog_opt,alm,bram,dsp
 camera,all,1057,27,0
-camera,except_sbuild_simpl,1038,27,0
+camera,except_sbuild_simpl,1057,27,0
 camera,except_letstm_simpl,1506,118,0
 camera,except_stm_simpl,1506,118,0
-camera,except_fuse,1275,27,0
+camera,except_fuse,1305,27,0
 camera,except_fission,962,27,0
 camera,small_buffers,1057,27,0
 camera,small_buffers_and_latmatch,1057,27,0

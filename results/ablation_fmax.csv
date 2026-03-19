@@ -1,9 +1,9 @@
 prog_name,prog_opt,fmax
 camera,all,250.06
-camera,except_sbuild_simpl,244.68
+camera,except_sbuild_simpl,250.06
 camera,except_letstm_simpl,187.9
 camera,except_stm_simpl,187.9
-camera,except_fuse,235.29
+camera,except_fuse,250.31
 camera,except_fission,234.91
 camera,small_buffers,250.06
 camera,small_buffers_and_latmatch,250.06
