@@ -12,7 +12,7 @@ import lib.constants as c
 from lib.optimization_level import OptimizationLevel
 
 
-def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
+def main(programs: list[str], levels: list[OptimizationLevel], skip_sbt: bool = False) -> None:
     """
     Script entry point.
     """
@@ -26,7 +26,8 @@ def main(programs: list[str], levels: list[OptimizationLevel]) -> None:
     c.ABLATION_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
 
     os.chdir(c.ROOT_DIR)
-    subprocess.run(["sbt", "assembly"], check=True)
+    if not skip_sbt:
+        subprocess.run(["sbt", "assembly"], check=True)
     for prog in programs:
         for lvl in levels:
             out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
@@ -66,6 +67,11 @@ def parse_args() -> Namespace:
         type=OptimizationLevel,
         help="the optimization levels to test",
     )
+    parser.add_argument(
+        "--skip-sbt",
+        action="store_true",
+        help="don't run 'sbt assembly' before invoking the Sirop compiler",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
@@ -79,4 +85,5 @@ if __name__ == "__main__":
     main(
         programs=_args.programs,
         levels=_args.lvl,
+        skip_sbt=_args.skip_sbt,
     )

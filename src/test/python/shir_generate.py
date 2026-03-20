@@ -75,7 +75,12 @@ def generate_sirop(prog: str) -> None:
     subprocess.run(command, check=True)
 
 
-def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
+def main(
+    programs: list[str],
+    skip_shir: bool,
+    skip_sirop: bool,
+    skip_sbt: bool = False,
+) -> None:
     """
     Script entry point.
     """
@@ -96,7 +101,8 @@ def main(programs: list[str], skip_shir: bool, skip_sirop: bool) -> None:
         c.SHIR_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
 
         os.chdir(c.ROOT_DIR)
-        subprocess.run(["sbt", "assembly"], check=True)
+        if not skip_sbt:
+            subprocess.run(["sbt", "assembly"], check=True)
         for prog in programs:
             generate_sirop(prog)
 
@@ -119,6 +125,11 @@ def parse_args() -> Namespace:
         help="don't generate any code using Sirop",
     )
     parser.add_argument(
+        "--skip-sbt",
+        action="store_true",
+        help="don't run 'sbt assembly' before invoking the Sirop compiler",
+    )
+    parser.add_argument(
         "programs",
         nargs="*",
         help=(
@@ -138,4 +149,5 @@ if __name__ == "__main__":
         _args.programs,
         skip_shir=_args.skip_shir,
         skip_sirop=_args.skip_sirop,
+        skip_sbt=_args.skip_sbt,
     )

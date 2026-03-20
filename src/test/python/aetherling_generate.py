@@ -35,12 +35,13 @@ def generate_verilog(benchmarks: list[str]) -> None:
     subprocess.run(["sbt"] + tasks, check=True)
 
 
-def generate_vhdl(benchmarks: list[str]) -> None:
+def generate_vhdl(benchmarks: list[str], skip_sbt: bool) -> None:
     """
     Call our compiler so as to produce VHDL for each benchmark.
     """
     os.chdir(c.ROOT_DIR)
-    subprocess.run(["sbt", "assembly"], check=True)
+    if skip_sbt:
+        subprocess.run(["sbt", "assembly"], check=True)
     for bench in benchmarks:
         in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
         out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
@@ -58,7 +59,13 @@ def generate_vhdl(benchmarks: list[str]) -> None:
         subprocess.run(command, check=True)
 
 
-def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth: bool) -> None:
+def main(
+    benchmarks: list[str],
+    skip_verilog: bool,
+    skip_vhdl: bool,
+    skip_synth: bool,
+    skip_sbt: bool = False,
+) -> None:
     """
     Script entry point
     """
@@ -86,7 +93,7 @@ def main(benchmarks: list[str], skip_verilog: bool, skip_vhdl: bool, skip_synth:
         c.VHDL_DIR.mkdir(exist_ok=True, parents=True)
         c.AETHERLING_COMPILE_TIME_DIR.mkdir(exist_ok=True, parents=True)
         print("Generating VHDL...")
-        generate_vhdl(benchmarks)
+        generate_vhdl(benchmarks, skip_sbt=skip_sbt)
         if not skip_synth:
             print("Synthesizing VHDL...")
             for b in benchmarks:
@@ -129,6 +136,11 @@ def parse_args() -> Namespace:
         action="store_true",
         help="don't synthesize any projects; only generate the HDL code"
     )
+    parser.add_argument(
+        "--skip-sbt",
+        action="store_true",
+        help="don't run 'sbt assembly' before invoking the Sirop compiler",
+    )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
     return args
@@ -140,5 +152,6 @@ if __name__ == "__main__":
         benchmarks=_args.benchmarks,
         skip_verilog=_args.skip_verilog,
         skip_vhdl=_args.skip_vhdl,
-        skip_synth=_args.skip_synth
+        skip_synth=_args.skip_synth,
+        skip_sbt=_args.skip_sbt,
     )
