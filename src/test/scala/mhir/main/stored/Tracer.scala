@@ -7,6 +7,8 @@ import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
 
+import java.time.Duration
+
 /** Class for tracing the execution of a program for debugging.
   */
 object Tracer {
@@ -29,7 +31,7 @@ object Tracer {
         optFlags = optFlags
       )
     )
-    val f = Compiler.compile(args)
+    val f = Compiler.compile(args, argparseTime = Duration.ZERO)
     val stm = io.inputs.foldLeft(f)({
       case (f, in: DirectTestInput) =>
         val inStm = StmLiteral(in.elements.flatten.toSeq: _*)()

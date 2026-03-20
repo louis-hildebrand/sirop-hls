@@ -31,17 +31,18 @@ object Compiler {
   def compile(
       e: Expr,
       options: CompilerOptions,
+      argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
-    val result = time("compilation", Level.DEBUG) {
-      doCompile(e, options, parseTime = parseTime)
+    time("compilation", Level.DEBUG) {
+      doCompile(e, options, argparseTime = argparseTime, parseTime = parseTime)
     }
-    result
   }
 
   private def doCompile(
       parsed: Expr,
       options: CompilerOptions,
+      argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
     val (checked, tchkTime) = typecheck(parsed)
@@ -65,6 +66,7 @@ object Compiler {
           emitCompileTimeReport(
             f,
             overwrite,
+            argparse = argparseTime,
             parse = parseTime,
             typecheck = tchkTime,
             lower = lowerTime,
@@ -165,6 +167,7 @@ object Compiler {
   private def emitCompileTimeReport(
       f: Path,
       overwrite: Boolean,
+      argparse: Duration,
       parse: Duration,
       typecheck: Duration,
       lower: Duration,
@@ -175,6 +178,7 @@ object Compiler {
     time("reporting compile time", Level.DEBUG) {
       val csvStr =
         s"""step,millis
+           |argparse,${argparse.toMillis}
            |parse,${parse.toMillis}
            |typecheck,${typecheck.toMillis}
            |lower,${lower.toMillis}

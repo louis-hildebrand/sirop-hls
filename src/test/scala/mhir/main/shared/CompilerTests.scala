@@ -23,7 +23,7 @@ class CompilerTests extends AnyFunSuite {
         maxLetStmBufSize = None
       )
     )
-    val out = Compiler.compile(in, options, Duration.ZERO)
+    val out = Compiler.compile(in, options, Duration.ZERO, Duration.ZERO)
     val expected =
       StmLiteral(C(5)(U8), C(6)(U8), C(7)(U8), C(8)(U8), C(9)(U8))()
     assert(mhir.ir.eval(out) == expected)

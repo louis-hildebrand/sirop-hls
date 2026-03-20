@@ -345,7 +345,7 @@ def merge_latency_results(old: Path, new: Path) -> None:
 
 COMPILE_TIME_HEADERS = [
     "bench_name", "bench_throughput",
-    "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
+    "argparse", "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
 ]
 
 
@@ -356,6 +356,7 @@ def save_compile_time(writer: csv.DictWriter, b: Benchmark, result: CompileTimeR
     writer.writerow({
         "bench_name": b.name,
         "bench_throughput": b.throughput_str,
+        "argparse": result.argparse,
         "parse": result.parse,
         "typecheck": result.typecheck,
         "lower": result.lower,
@@ -376,6 +377,7 @@ def read_compile_times(results_file: Path) -> dict[Benchmark, CompileTimeReport]
         )
     def get_result(row) -> CompileTimeReport:
         return CompileTimeReport(
+            argparse=int(row["argparse"]),
             parse=int(row["parse"]),
             typecheck=int(row["typecheck"]),
             lower=int(row["lower"]),

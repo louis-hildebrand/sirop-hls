@@ -7,6 +7,8 @@ import mhir.main.shared.{Compiler => SC}
 import mhir.parse.sirop.Parser
 import org.slf4j.event.Level
 
+import java.time.Duration
+
 /** A compiler for programs written in Sirop.
   */
 object Compiler {
@@ -20,12 +22,17 @@ object Compiler {
     * @return
     *   the final program from which VHDL was generated.
     */
-  def compile(args: Args): Expr = {
+  def compile(args: Args, argparseTime: Duration): Expr = {
     logger.debug(s"parsing Sirop code from ${args.inFile}")
     val (parsed, parseTime) = time2("parsing", Level.DEBUG) {
       val code = os.read(args.inFile)
       Parser.parse(code)
     }
-    SC.compile(parsed, args.options, parseTime = parseTime)
+    SC.compile(
+      parsed,
+      args.options,
+      argparseTime = argparseTime,
+      parseTime = parseTime
+    )
   }
 }

@@ -10,6 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
 import org.slf4j.event.Level
 
+import java.time.Duration
+
 /** Tests to ensure the simplified minimalist IR expressions for the Aetherling
   * benchmarks don't change unexpectedly.
   *
@@ -87,7 +89,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
             .copy(matchLatency = false)
         )
       )
-      val newExpr = Compiler.compile(args)
+      val newExpr = Compiler.compile(args, argparseTime = Duration.ZERO)
       val expectedPath = SimplifiedAetherlingBenchmarksDir / s"$benchName.txt"
       if (SaveChanges) {
         val simplified = time("simplifying names", Level.DEBUG) {

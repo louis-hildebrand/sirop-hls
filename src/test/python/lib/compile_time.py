@@ -15,8 +15,10 @@ class CompileTimeReport:
     A breakdown of the duration of each step in compilation.
     """
 
+    argparse: int
+    """Time taken for parsing the compiler CLI arguments."""
     parse: int
-    """Time taken for parsing."""
+    """Time taken for parsing the source code."""
     typecheck: int
     """Time taken for type checking."""
     lower: int
@@ -34,7 +36,8 @@ class CompileTimeReport:
         Return the total compile time.
         """
         return (
-            self.parse
+            self.argparse
+            + self.parse
             + self.typecheck
             + self.lower
             + self.make_synth
@@ -49,6 +52,7 @@ class CompileTimeReport:
         """
         with open(p, "r", encoding="utf-8", newline="") as f:
             reader = DictReader(f)
+            argparse_time: int | None = None
             parse_time: int | None = None
             typecheck_time: int | None = None
             lower_time: int | None = None
@@ -57,7 +61,9 @@ class CompileTimeReport:
             gen_time: int | None = None
             for row in reader:
                 step = row["step"]
-                if step == "parse":
+                if step == "argparse":
+                    argparse_time = int(row["millis"])
+                elif step == "parse":
                     parse_time = int(row["millis"])
                 elif step == "typecheck":
                     typecheck_time = int(row["millis"])
@@ -71,6 +77,8 @@ class CompileTimeReport:
                     gen_time = int(row["millis"])
                 else:
                     raise ValueError(f"Unknown step: {step}")
+            if argparse_time is None:
+                raise ValueError("Missing time for CLI argument parsing")
             if parse_time is None:
                 raise ValueError("Missing time for parsing")
             if typecheck_time is None:
@@ -84,6 +92,7 @@ class CompileTimeReport:
             if gen_time is None:
                 raise ValueError("Missing time for codegen")
             return CompileTimeReport(
+                argparse=argparse_time,
                 parse=parse_time,
                 typecheck=typecheck_time,
                 lower=lower_time,

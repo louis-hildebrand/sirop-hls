@@ -15,6 +15,8 @@ import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.event.Level
 
+import java.time.Duration
+
 @HardwareTest
 class AetherlingPrimitiveTests extends AnyFunSuite {
   private val AetherlingPrimitivesDir =
@@ -51,7 +53,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
           )
         )
       )
-      Compiler.compile(args)
+      Compiler.compile(args, argparseTime = Duration.ZERO)
       time("generating VHDL testbench", Level.DEBUG) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }
@@ -74,7 +76,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
           optFlags = OptimizerOptions.Empty
         )
       )
-      Compiler.compile(args)
+      Compiler.compile(args, argparseTime = Duration.ZERO)
       time("generating VHDL testbench", Level.DEBUG) {
         VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = outDir)
       }

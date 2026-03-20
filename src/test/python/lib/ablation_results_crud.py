@@ -228,7 +228,7 @@ def merge_latency_results(old: Path, new: Path) -> None:
 
 COMPILE_TIME_HEADERS = [
     "prog_name", "prog_opt",
-    "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
+    "argparse", "parse", "typecheck", "lower", "make_synth", "optimize", "codegen"
 ]
 
 
@@ -239,6 +239,7 @@ def save_compile_time(writer: csv.DictWriter, p: ProgramVariant, result: Compile
     writer.writerow({
         "prog_name": p.name,
         "prog_opt": p.lvl,
+        "argparse": result.argparse,
         "parse": result.parse,
         "typecheck": result.typecheck,
         "lower": result.lower,
@@ -259,6 +260,7 @@ def read_compile_times(results_file: Path) -> dict[ProgramVariant, CompileTimeRe
         )
     def get_result(row) -> CompileTimeReport:
         return CompileTimeReport(
+            argparse=int(row["argparse"]),
             parse=int(row["parse"]),
             typecheck=int(row["typecheck"]),
             lower=int(row["lower"]),

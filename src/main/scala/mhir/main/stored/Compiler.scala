@@ -16,7 +16,12 @@ object Compiler {
     * @return
     *   the final program from which VHDL was generated.
     */
-  def compile(args: Args): Expr = {
-    SC.compile(args.program, args.options, parseTime = Duration.ZERO)
+  def compile(args: Args, argparseTime: Duration): Expr = {
+    SC.compile(
+      args.program,
+      args.options,
+      argparseTime = argparseTime,
+      parseTime = Duration.ZERO
+    )
   }
 }
