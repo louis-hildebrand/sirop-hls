@@ -12,7 +12,9 @@ import scala.annotation.tailrec
 sealed trait StmBuildSimplifier {
   def enabled: Boolean
 
-  def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild
+  def simplify(stm: StmBuild, skipConst: Boolean = false)(
+      facts: FactSet = FactSet()
+  ): StmBuild
 }
 
 object StmBuildSimplifier {
@@ -37,26 +39,36 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
     * beneficial, like partially evaluating and removing unused accumulator
     * elements.
     */
-  override def simplify(stm: StmBuild)(facts: FactSet = FactSet()): StmBuild = {
+  override def simplify(
+      stm: StmBuild,
+      skipConst: Boolean = false
+  )(facts: FactSet = FactSet()): StmBuild = {
     logger.trace(s"simplifying stream: $stm")
     time("simplifying stream") {
       simplifyUntilFixpoint(
         partialEvalStmBuild(stm.tchk().asInstanceOf[StmBuild])(facts),
-        i = 0
+        i = 0,
+        skipConst = skipConst
       )(facts)
     }
   }
 
   @tailrec
-  private def simplifyUntilFixpoint(s: StmBuild, i: Int)(
-      facts: FactSet
-  ): StmBuild = {
+  private def simplifyUntilFixpoint(
+      s: StmBuild,
+      i: Int,
+      skipConst: Boolean
+  )(facts: FactSet): StmBuild = {
     val simplified = time(s"iteration $i stream simplification") {
       val s1 = time("removing unused accumulators") {
         StmAccRemovalPass.removeUnusedVars(s).tchk().asInstanceOf[StmBuild]
       }
-      val s2 = time("removing constant accumulators") {
-        StmAccRemovalPass.removeConstantVars(s1).tchk().asInstanceOf[StmBuild]
+      val s2 = if (skipConst) {
+        s1
+      } else {
+        time("removing constant accumulators") {
+          StmAccRemovalPass.removeConstantVars(s1).tchk().asInstanceOf[StmBuild]
+        }
       }
       val s3 = time("deduplicating accumulators") {
         StmAccRemovalPass.deduplicateVars(s2).tchk().asInstanceOf[StmBuild]
@@ -82,7 +94,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
       )
       // New partial evaluation opportunities may have been revealed by
       // inlining constant-valued accumulator elements
-      simplifyUntilFixpoint(simplified, i = i + 1)(facts)
+      simplifyUntilFixpoint(simplified, i = i + 1, skipConst = skipConst)(facts)
     }
   }
 
@@ -161,7 +173,10 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
 object DisabledStmBuildSimplifier extends StmBuildSimplifier {
   override def enabled: Boolean = false
 
-  override def simplify(stm: StmBuild)(facts: FactSet): StmBuild = {
+  override def simplify(
+      stm: StmBuild,
+      skipConst: Boolean = false
+  )(facts: FactSet): StmBuild = {
     StmBuild(
       PE.partialEval(stm.n),
       PE.partialEval(stm.data),
