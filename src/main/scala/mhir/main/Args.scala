@@ -22,21 +22,21 @@ object Args {
     * @param args
     *   the raw command-line arguments.
     */
-  def apply(args: Array[String]): Args = {
+  def apply(args: Seq[String]): Args = {
     if (args.contains("-h") || args.contains("--help")) {
       throw HelpException
     }
 
     val (src, remainingArgs) = args match {
-      case Array("-s", "sirop", "-i", f, remainingArgs @ _*) =>
+      case Seq("-s", "sirop", "-i", f, remainingArgs @ _*) =>
         val src = SiropSource(Path(f, base = os.pwd))
-        (src, remainingArgs.toArray)
-      case Array("-s", "aetherling", "-i", f, remainingArgs @ _*) =>
+        (src, remainingArgs)
+      case Seq("-s", "aetherling", "-i", f, remainingArgs @ _*) =>
         val src = AetherlingSource(Path(f, base = os.pwd))
-        (src, remainingArgs.toArray)
-      case Array("-s", "stored", "-i", progName, remainingArgs @ _*) =>
+        (src, remainingArgs)
+      case Seq("-s", "stored", "-i", progName, remainingArgs @ _*) =>
         val src = StoredSource(Program(progName))
-        (src, remainingArgs.toArray)
+        (src, remainingArgs)
       case _ =>
         throw new BadArgsException(s"-s and -i must come first, in that order")
     }

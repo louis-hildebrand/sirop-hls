@@ -15,7 +15,7 @@ object Program {
   private val ResourcesDir: Path =
     os.pwd / "src" / "main" / "resources" / "mhir" / "main" / "stored"
 
-  val MatVecSize: Int = 256
+  private val MatVecSize: Int = 256
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
@@ -309,7 +309,7 @@ object Program {
 
   /** 2-dimensional convolution.
     */
-  private val AetherlingConv2d: Expr = {
+  private def AetherlingConv2d: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -326,7 +326,7 @@ object Program {
 
   /** 3D convolution followed by 2D convolution.
     */
-  private val AetherlingConvB2b: Expr = {
+  private def AetherlingConvB2b: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -344,7 +344,7 @@ object Program {
 
   /** An image sharpening operation.
     */
-  private val AetherlingSharpen: Expr = {
+  private def AetherlingSharpen: Expr = {
     val width = 1920
     val height = 1080
     val uint = U32
@@ -376,7 +376,7 @@ object Program {
 
   /** Camera pipeline (demosaic + sharpen).
     */
-  private val AetherlingCamera: Expr = {
+  private def AetherlingCamera: Expr = {
     // I'm too lazy to write the whole benchmark by hand
     val aetherlingCode = os.read(
       os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "original" / "bigcamera_1.txt"
@@ -458,13 +458,13 @@ object Program {
     StmMap(binarySearchEnd, (int, int, int) ::+ (x => x.__1))()
   }
 
-  private val Sqrt: Expr = {
+  private def Sqrt: Expr = {
     val input = Param("I")(TyStm(U16, 1020))
     val sqrt = makeSqrt(U16, stages = 16, input)
     Function(input, sqrt)()
   }
 
-  private val AetherlingSobel: Expr = {
+  private def AetherlingSobel: Expr = {
     val width = 1920
     val height = 1080
     val int = I32

@@ -26,7 +26,7 @@ object CompilerOptions {
     * @param args
     *   the command-line arguments.
     */
-  def apply(args: Array[String]): CompilerOptions = {
+  def apply(args: Seq[String]): CompilerOptions = {
     // General args
     var vhdlDir: Option[Path] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None

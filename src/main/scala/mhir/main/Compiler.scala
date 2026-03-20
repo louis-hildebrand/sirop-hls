@@ -31,7 +31,7 @@ object Compiler {
     val (a, argparseTime) = time2("parsing CLI args", Level.DEBUG) {
       val a =
         try {
-          Args(args)
+          Args(args.toList)
         } catch {
           case HelpException =>
             Args.printFullUsage()
