@@ -1,4 +1,11 @@
-ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / version := {
+  val source = scala.io.Source.fromFile("src/main/resources/version.txt")
+  try {
+    source.mkString.strip
+  } finally {
+    source.close()
+  }
+}
 ThisBuild / scalaVersion := "2.12.19"
 ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions ++= Seq(

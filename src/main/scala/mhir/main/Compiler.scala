@@ -8,11 +8,10 @@ import mhir.main.aetherling.{
   Args => AetherlingArgs,
   Compiler => AetherlingFrontend
 }
+import mhir.main.shared.{BadArgsException, HelpException, VersionException}
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
-import mhir.main.shared.{BadArgsException, HelpException}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import org.slf4j.LoggerFactory
-import org.slf4j.event.Level
 
 import java.time.Duration
 
@@ -28,13 +27,18 @@ object Compiler {
     *   the command-line arguments.
     */
   def main(args: Array[String]): Unit = {
-    val (a, argparseTime) = time2("parsing CLI args", Level.DEBUG) {
+    val (a, argparseTime) = time2("parsing CLI args") {
       val a =
         try {
           Args(args.toList)
         } catch {
           case HelpException =>
             Args.printFullUsage()
+            return
+          case VersionException =>
+            val version =
+              scala.io.Source.fromResource("version.txt").mkString.trim
+            println(version)
             return
           case exc: BadArgsException =>
             println(s"Invalid command-line arguments: ${exc.getMessage}")

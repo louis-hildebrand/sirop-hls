@@ -1,6 +1,11 @@
 package mhir.main
 
-import mhir.main.shared.{BadArgsException, CompilerOptions, HelpException}
+import mhir.main.shared.{
+  BadArgsException,
+  CompilerOptions,
+  HelpException,
+  VersionException
+}
 import mhir.main.stored.Program
 import os.Path
 
@@ -25,6 +30,9 @@ object Args {
   def apply(args: Seq[String]): Args = {
     if (args.contains("-h") || args.contains("--help")) {
       throw HelpException
+    }
+    if (args.contains("--version")) {
+      throw VersionException
     }
 
     val (src, remainingArgs) = args match {
@@ -68,6 +76,7 @@ object Args {
          |                                With -s stored, this is the program name.
          |                                Otherwise, this is the path to the source file.
          |  -h, --help                    print the help message and exit
+         |  --version                     print the compiler version and exit
          |
          |""".stripMargin
         ++ CompilerOptions.longUsage
