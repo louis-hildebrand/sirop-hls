@@ -1,18 +1,11 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-
 import os.Path
 
+import scala.io.Source
+
 object VhdlWriter {
-  private val DefaultQpf =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qpf"
-  private val DefaultQsf =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.qsf"
-  private val DefaultSdc =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "top.sdc"
-  private val VhdlResourcesDir =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "gen" / "vhdl"
 
   def emit(top: VhdlComponent, dir: Path): Unit = {
     val typesToDefine =
@@ -27,9 +20,9 @@ object VhdlWriter {
   }
 
   private def emitProjectFiles(dir: Path, designDir: Path): Unit = {
-    os.copy(DefaultQpf, dir / "top.qpf")
-    os.copy(DefaultQsf, dir / "top.qsf")
-    os.copy(DefaultSdc, dir / "top.sdc")
+    os.write(dir / "top.qpf", Source.fromResource("mhir/gen/top.qpf").mkString)
+    os.write(dir / "top.qsf", Source.fromResource("mhir/gen/top.qsf").mkString)
+    os.write(dir / "top.sdc", Source.fromResource("mhir/gen/top.sdc").mkString)
     for (p <- os.list(designDir)) {
       os.write.append(
         dir / "top.qsf",
@@ -173,10 +166,16 @@ object VhdlWriter {
   private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
     c match {
       case c: StmNoOpComponent =>
-        os.copy.over(from = VhdlResourcesDir / c.VhdName, to = dir / c.VhdName)
+        os.write.over(
+          dir / c.VhdName,
+          Source.fromResource(s"mhir/gen/vhdl/${c.VhdName}").mkString
+        )
       case c: LetStmBufComponent =>
         for (name <- c.VhdNames) {
-          os.copy.over(from = VhdlResourcesDir / name, to = dir / name)
+          os.write.over(
+            dir / name,
+            Source.fromResource(s"mhir/gen/vhdl/${c.VhdNames}").mkString
+          )
         }
       case c: CustomVhdlComponent =>
         c.writeVhdl(dir / s"${c.name}.vhd")

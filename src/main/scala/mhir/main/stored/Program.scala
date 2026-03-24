@@ -6,48 +6,45 @@ import mhir.main.shared.BadArgsException
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
 import mhir.sugar._
-import os.Path
+
+import scala.io.Source
 
 /** A collection of pre-written programs.
   */
 object Program {
 
-  private val ResourcesDir: Path =
-    os.pwd / "src" / "main" / "resources" / "mhir" / "main" / "stored"
-
   private val MatVecSize: Int = 256
 
   def apply(name: String): Expr = {
     name.toLowerCase match {
-      case "map"         => Parser.parse(ResourcesDir / "map.sirop")
-      case "shir:map"    => Parser.parse(ResourcesDir / "map.sirop")
-      case "dot"         => Parser.parse(ResourcesDir / "dot.sirop")
-      case "shir:dot"    => Parser.parse(ResourcesDir / "dot.sirop")
-      case "matvec"      => Parser.parse(ResourcesDir / "matvec.sirop")
-      case "shir:matvec" => Parser.parse(ResourcesDir / "matvec.sirop")
-      case "smallmatmat" => Parser.parse(ResourcesDir / "small_matmat.sirop")
-      case "shir:smallmatmat" =>
-        Parser.parse(ResourcesDir / "small_matmat.sirop")
-      case "matmat"             => Parser.parse(ResourcesDir / "matmat.sirop")
-      case "shir:matmat"        => Parser.parse(ResourcesDir / "matmat.sirop")
-      case "conv1d"             => Parser.parse(ResourcesDir / "conv1d.sirop")
-      case "shir:conv1d"        => Parser.parse(ResourcesDir / "conv1d.sirop")
-      case "conv2d"             => Parser.parse(ResourcesDir / "conv2d.sirop")
-      case "shir:conv2d"        => Parser.parse(ResourcesDir / "conv2d.sirop")
+      case "map"                => Parser.parse(getSource("map.sirop"))
+      case "shir:map"           => Parser.parse(getSource("map.sirop"))
+      case "dot"                => Parser.parse(getSource("dot.sirop"))
+      case "shir:dot"           => Parser.parse(getSource("dot.sirop"))
+      case "matvec"             => Parser.parse(getSource("matvec.sirop"))
+      case "shir:matvec"        => Parser.parse(getSource("matvec.sirop"))
+      case "smallmatmat"        => Parser.parse(getSource("small_matmat.sirop"))
+      case "shir:smallmatmat"   => Parser.parse(getSource("small_matmat.sirop"))
+      case "matmat"             => Parser.parse(getSource("matmat.sirop"))
+      case "shir:matmat"        => Parser.parse(getSource("matmat.sirop"))
+      case "conv1d"             => Parser.parse(getSource("conv1d.sirop"))
+      case "shir:conv1d"        => Parser.parse(getSource("conv1d.sirop"))
+      case "conv2d"             => Parser.parse(getSource("conv2d.sirop"))
+      case "shir:conv2d"        => Parser.parse(getSource("conv2d.sirop"))
       case "aetherling:conv2d"  => AetherlingConv2d
-      case "convb2b"            => Parser.parse(ResourcesDir / "convb2b.sirop")
-      case "shir:convb2b"       => Parser.parse(ResourcesDir / "convb2b.sirop")
+      case "convb2b"            => Parser.parse(getSource("convb2b.sirop"))
+      case "shir:convb2b"       => Parser.parse(getSource("convb2b.sirop"))
       case "aetherling:convb2b" => AetherlingConvB2b
-      case "jacobi"             => Parser.parse(ResourcesDir / "jacobi.sirop")
-      case "shir:jacobi"        => Parser.parse(ResourcesDir / "jacobi.sirop")
-      case "sharpen"            => Parser.parse(ResourcesDir / "sharpen.sirop")
-      case "shir:sharpen"       => Parser.parse(ResourcesDir / "sharpen.sirop")
+      case "jacobi"             => Parser.parse(getSource("jacobi.sirop"))
+      case "shir:jacobi"        => Parser.parse(getSource("jacobi.sirop"))
+      case "sharpen"            => Parser.parse(getSource("sharpen.sirop"))
+      case "shir:sharpen"       => Parser.parse(getSource("sharpen.sirop"))
       case "aetherling:sharpen" => AetherlingSharpen
-      case "sobel"              => Parser.parse(ResourcesDir / "sobel.sirop")
-      case "shir:sobel"         => Parser.parse(ResourcesDir / "sobel.sirop")
+      case "sobel"              => Parser.parse(getSource("sobel.sirop"))
+      case "shir:sobel"         => Parser.parse(getSource("sobel.sirop"))
       case "aetherling:sobel"   => AetherlingSobel
-      case "camera"             => Parser.parse(ResourcesDir / "camera.sirop")
-      case "shir:camera"        => Parser.parse(ResourcesDir / "camera.sirop")
+      case "camera"             => Parser.parse(getSource("camera.sirop"))
+      case "shir:camera"        => Parser.parse(getSource("camera.sirop"))
       case "aetherling:camera"  => AetherlingCamera
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
@@ -62,6 +59,10 @@ object Program {
       case name =>
         throw new BadArgsException(s"unknown program: $name")
     }
+  }
+
+  private def getSource(filename: String): String = {
+    Source.fromResource(s"mhir/main/stored/$filename").mkString
   }
 
   private def blurKernel(int: Type) = {
