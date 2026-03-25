@@ -92,3 +92,7 @@ The following command installs it.
 ```shell
 git config core.hooksPath githooks
 ```
+
+### Creating a Release
+
+A new release can be created by first updating the version in [src/main/resources/version.txt](./src/main/resources/version.txt) and then running [release.sh](./release.sh).
