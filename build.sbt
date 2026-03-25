@@ -1,9 +1,21 @@
 ThisBuild / version := {
-  val source = scala.io.Source.fromFile("src/main/resources/version.txt")
+  val versionSource = scala.io.Source.fromFile("src/main/resources/version.txt")
   try {
-    source.mkString.strip
+    val version = versionSource.mkString.strip
+    if (version.contains("SNAPSHOT")) {
+      val commitSource =
+        scala.io.Source.fromFile("src/main/resources/commit.txt")
+      try {
+        val commit = commitSource.mkString.strip
+        version.replace("SNAPSHOT", commit)
+      } finally {
+        commitSource.close()
+      }
+    } else {
+      version
+    }
   } finally {
-    source.close()
+    versionSource.close()
   }
 }
 ThisBuild / scalaVersion := "2.12.19"

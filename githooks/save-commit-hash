@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd "$(git rev-parse --show-toplevel)"
+git rev-parse --short HEAD > ./src/main/resources/commit.txt

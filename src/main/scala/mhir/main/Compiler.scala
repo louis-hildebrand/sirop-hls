@@ -36,9 +36,7 @@ object Compiler {
             Args.printFullUsage()
             return
           case VersionException =>
-            val version =
-              scala.io.Source.fromResource("version.txt").mkString.trim
-            println(version)
+            println(getVersion())
             return
           case exc: BadArgsException =>
             println(s"Invalid command-line arguments: ${exc.getMessage}")
@@ -57,6 +55,29 @@ object Compiler {
       a
     }
     compile(a, argparseTime)
+  }
+
+  private def getVersion(): String = {
+    val versionSource = scala.io.Source.fromResource("version.txt")
+    try {
+      val version = versionSource.mkString.strip
+      if (version.contains("SNAPSHOT")) {
+        version.replace("SNAPSHOT", getCommit())
+      } else {
+        version
+      }
+    } finally {
+      versionSource.close()
+    }
+  }
+
+  private def getCommit(): String = {
+    val commitSource = scala.io.Source.fromResource("commit.txt")
+    try {
+      commitSource.mkString.strip
+    } finally {
+      commitSource.close()
+    }
   }
 
   /** Runs the compiler.

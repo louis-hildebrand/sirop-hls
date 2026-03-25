@@ -67,3 +67,4 @@ metals.sbt
 /results*/*.csv.bak
 /traces/
 /src/test/compile_time/
+/src/main/resources/commit.txt
