@@ -68,3 +68,4 @@ metals.sbt
 /traces/
 /src/test/compile_time/
 /src/main/resources/commit.txt
+/src/e2e/resources/actual/

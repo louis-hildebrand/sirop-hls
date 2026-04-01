@@ -54,12 +54,24 @@ scalafmt --check --exclude ./lib,./src/test/aetherling,./src/test/shir || {
 }
 
 sbt 'testQuick * -- -l mhir.testing.HardwareTest -l org.scalatest.tags.Slow' || {
-    echo "Tests failed."
+    echo "Unit tests failed."
+    exit 1
+}
+
+./src/e2e/python/run.py || {
+    echo "End-to-end tests failed."
     exit 1
 }
 
 if ! git diff --staged --quiet ./src/test/python; then
     cd ./src/test/python
+    pyright .
+    pylint .
+    cd -
+fi
+
+if ! git diff --staged --quiet ./src/e2e/python; then
+    cd ./src/e2e/python
     pyright .
     pylint .
     cd -
