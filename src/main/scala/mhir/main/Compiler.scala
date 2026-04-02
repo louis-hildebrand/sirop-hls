@@ -11,7 +11,9 @@ import mhir.main.aetherling.{
 import mhir.main.shared.{BadArgsException, HelpException, VersionException}
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
+import mhir.parse.SyntaxError
 import org.slf4j.LoggerFactory
+import scala.sys
 
 import java.time.Duration
 
@@ -54,7 +56,13 @@ object Compiler {
       }
       a
     }
-    compile(a, argparseTime)
+    try {
+      compile(a, argparseTime)
+    } catch {
+      case ex: SyntaxError =>
+        println(ex.getMessage)
+        sys.exit(1)
+    }
   }
 
   private def getVersion(): String = {

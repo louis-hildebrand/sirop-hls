@@ -71,6 +71,7 @@ def main() -> None:
         else:
             print(f"ERROR: Nothing to do for file {test.relative_to(ROOT)}")
             success = False
+    # TODO: Also check for unused files?
     if not success:
         sys.exit(1)
 

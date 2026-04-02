@@ -82,17 +82,7 @@ object Parser {
       case Seq(LetStmToken, LeftSquareToken, rest1 @ _*) =>
         val (bufSize, rest2) = parseExpr(rest1)
         val rest3 = expect(RightSquareToken, rest2)
-        val (ident, rest4) = rest3 match {
-          case Seq(IdentToken(ident), rest @ _*) => (ident, rest)
-          case Seq(tok, _*) =>
-            throw new SyntaxError(
-              s"unexpected token: $tok (expected an identifier)"
-            )
-          case Seq() =>
-            throw new SyntaxError(
-              "unexpected end of file (expected an identifier)"
-            )
-        }
+        val (ident, rest4) = expectIdent(rest3)
         val (typ, rest5) = rest4 match {
           case Seq(ColonToken, rest @ _*) => parseTyp(rest)
           case _                          => (Missing, rest4)
@@ -314,7 +304,7 @@ object Parser {
             (VecBuild(len, f)(), rest6)
           case e =>
             throw new SyntaxError(
-              s"illegal body of vbuild: '$e' (expected a function literal)"
+              s"expected a function literal in body of vbuild but found $e"
             )
         }
       case Seq(SbuildToken, _*) => parseSbuild(tokens)
@@ -371,15 +361,7 @@ object Parser {
       tokens: Seq[Token]
   ): ((Param, (Expr, Expr)), Seq[Token]) = {
     val rest1 = expect(LeftParToken, tokens)
-    val (x, rest2) = rest1 match {
-      case Seq(IdentToken(ident), rest @ _*) => (ident, rest)
-      case Seq(tok, _*) =>
-        throw new SyntaxError(
-          s"unexpected token: $tok (expected an identifier)"
-        )
-      case Seq() =>
-        throw new SyntaxError("unexpected end of file (expected an identifier)")
-    }
+    val (x, rest2) = expectIdent(rest1)
     val rest3 = expect(ColonToken, rest2)
     val (typ, rest4) = parseTyp(rest3)
     val rest5 = expectMany(
@@ -420,15 +402,7 @@ object Parser {
       tokens: Seq[Token]
   ): ((Param, (Expr, Expr)), Seq[Token]) = {
     val rest1 = expect(LeftParToken, tokens)
-    val (x, rest2) = rest1 match {
-      case Seq(IdentToken(ident), rest @ _*) => (ident, rest)
-      case Seq(tok, _*) =>
-        throw new SyntaxError(
-          s"unexpected token: $tok (expected an identifier)"
-        )
-      case Seq() =>
-        throw new SyntaxError("unexpected end of file (expected an identifier)")
-    }
+    val (x, rest2) = expectIdent(rest1)
     val rest3 = expect(ColonToken, rest2)
     val (typ, rest4) = parseStmTyp(rest3)
     val rest5 = expectMany(
@@ -605,13 +579,8 @@ object Parser {
               rest3 = rest4
               elems = elems :+ nextElem
             }
-            rest3 match {
-              case Seq(RightParToken, rest4 @ _*) =>
-                (Tuple(elems: _*)(), rest4)
-              case Seq(tok, _*) =>
-                throw new SyntaxError(s"unexpected token: $tok")
-              case Seq() => throw new SyntaxError("unexpected end of file")
-            }
+            val rest4 = expect(RightParToken, rest3)
+            (Tuple(elems: _*)(), rest4)
         }
       case Seq(LeftCurlyToken, rest1 @ _*) =>
         val (e, rest2) = parseExpr(rest1)
@@ -621,11 +590,8 @@ object Parser {
         (Param(ident, -1)(Missing), rest)
       case Seq(UndefinedToken, LeftSquareToken, rest1 @ _*) =>
         val (typ, rest2) = parseTyp(rest1)
-        rest2 match {
-          case Seq(RightSquareToken, rest3 @ _*) => (Undefined(typ), rest3)
-          case Seq(tok, _*) => throw new SyntaxError(s"unexpected token: $tok")
-          case Seq()        => throw new SyntaxError("unexpected end of file")
-        }
+        val rest3 = expect(RightSquareToken, rest2)
+        (Undefined(typ), rest3)
       case Seq(TrueToken, rest @ _*)  => (True, rest)
       case Seq(FalseToken, rest @ _*) => (False, rest)
       case Seq(_: NatToken, _*) | Seq(PlusToken, _*) | Seq(MinusToken, _*) =>
@@ -665,11 +631,13 @@ object Parser {
             (VecLiteral(elems: _*)(), rest3)
           case Seq(RightSquareSToken, rest3 @ _*) =>
             (StmLiteral(elems: _*)(), rest3)
-          case Seq(tok, _*) => throw new SyntaxError(s"unexpected token: $tok")
-          case Seq()        => throw new SyntaxError("unexpected end of file")
+          case Seq(tok, _*) =>
+            throw new SyntaxError(s"unexpected token: ${tok.quot}")
+          case Seq() => throw new SyntaxError("unexpected end of file")
         }
-      case Seq(tok, _*) => throw new SyntaxError(s"unexpected token: $tok")
-      case Seq()        => throw new SyntaxError("unexpected end of file")
+      case Seq(tok, _*) =>
+        throw new SyntaxError(s"unexpected token: ${tok.quot}")
+      case Seq() => throw new SyntaxError("unexpected end of file")
     }
   }
 
@@ -678,8 +646,9 @@ object Parser {
       case Seq(NatToken(n), rest @ _*)             => (IntCst(n)(), rest)
       case Seq(PlusToken, NatToken(n), rest @ _*)  => (IntCst(n)(), rest)
       case Seq(MinusToken, NatToken(n), rest @ _*) => (IntCst(-n)(), rest)
-      case Seq(tok, _ @_*) => throw new SyntaxError(s"unexpected token: $tok")
-      case Seq()           => throw new SyntaxError("unexpected end of file")
+      case Seq(tok, _ @_*) =>
+        throw new SyntaxError(s"unexpected token: ${tok.quot}")
+      case Seq() => throw new SyntaxError("unexpected end of file")
     }
     rest1 match {
       case Seq(ColonToken, IntToken(typ), rest2 @ _*) =>
@@ -735,9 +704,9 @@ object Parser {
       case Seq(VecToken, _*)    => parseVecTyp(tokens)
       case Seq(BigStmToken, _*) => parseStmTyp(tokens)
       case Seq(tok, _*) =>
-        throw new SyntaxError(s"unexpected token: $tok (expected a type)")
+        throw new SyntaxError(s"expected a type but found ${tok.quot}")
       case Seq() =>
-        throw new SyntaxError("unexpected end of file (expected a type)")
+        throw new SyntaxError("expected a type but reached end of file")
     }
     parseTypPrime(typ, rest)
   }
@@ -763,9 +732,9 @@ object Parser {
         val rest5 = expect(RightSquareToken, rest4)
         (TyVec(typ, len), rest5)
       case Seq(tok, _*) =>
-        throw new SyntaxError(s"unexpected token: $tok (expected a Vec type)")
+        throw new SyntaxError(s"expected a Vec type but found ${tok.quot}")
       case Seq() =>
-        throw new SyntaxError("unexpected end of file (expected a Vec type)")
+        throw new SyntaxError("expected a Vec type but reached end of file")
     }
   }
 
@@ -778,9 +747,9 @@ object Parser {
         val rest5 = expect(RightSquareToken, rest4)
         (TyStm(typ, len), rest5)
       case Seq(tok, _*) =>
-        throw new SyntaxError(s"unexpected token: $tok (expected a Stm type)")
+        throw new SyntaxError(s"expected a Stm type but found ${tok.quot}")
       case Seq() =>
-        throw new SyntaxError("unexpected end of file (expected a Stm type)")
+        throw new SyntaxError("expected a Stm type but reached end of file")
     }
   }
 
@@ -798,11 +767,25 @@ object Parser {
     tokens match {
       case Seq(t, rest @ _*) =>
         if (t != tok) {
-          throw new SyntaxError(s"unexpected token: $t (expected $tok)")
+          throw new SyntaxError(s"expected ${tok.quot} but found ${t.quot}")
         }
         rest
       case Seq() =>
-        throw new SyntaxError(s"unexpected end of file (expected $tok)")
+        throw new SyntaxError(s"expected ${tok.quot} but reached end of file")
+    }
+  }
+
+  private def expectIdent(tokens: Seq[Token]): (String, Seq[Token]) = {
+    tokens match {
+      case Seq(IdentToken(ident), rest @ _*) => (ident, rest)
+      case Seq(tok, _*) =>
+        throw new SyntaxError(
+          s"expected an identifier but found ${tok.quot}"
+        )
+      case Seq() =>
+        throw new SyntaxError(
+          "expected an identifier but reached end of file"
+        )
     }
   }
 }

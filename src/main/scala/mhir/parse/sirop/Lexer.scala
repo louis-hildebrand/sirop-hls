@@ -157,7 +157,7 @@ object Lexer {
     code.headOption match {
       case Some('_')            => lexNumber(code.tail, num)
       case Some(c) if c.isDigit => lexNumber(code.tail, num + code.head)
-      case _                    => (code, NatToken(num.toLong))
+      case _                    => (code, NatToken(num.toLong)(num))
     }
   }
 
