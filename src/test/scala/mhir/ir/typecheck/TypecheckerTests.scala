@@ -423,6 +423,12 @@ class TypecheckerTests extends AnyFunSuite {
     assert(let.tchk().typ == TyStm((U8, U8), 10))
   }
 
+  test("LetWrongType") {
+    val x = Param("x", -1)(U8)
+    val e = Let(x, True, x +% C(5)(U8))()
+    assertThrows[TypeError](e.tchk())
+  }
+
   test("FreeVar") {
     val x = Param("x")()
     assertThrows[TypeError](x.tchk())

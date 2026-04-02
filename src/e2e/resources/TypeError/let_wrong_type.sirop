@@ -1,0 +1,3 @@
+let x: u8 = 42:u8 in
+let y: u8 = true in
+x + y

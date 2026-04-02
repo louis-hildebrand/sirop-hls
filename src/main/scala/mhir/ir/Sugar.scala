@@ -26,7 +26,6 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     val v = this.v.tchk(context)
-    val in = this.in.tchk(context + (this.x -> v.typ))
     val x = this.x.typ match {
       case Missing => this.x.rebuild(v.typ).asInstanceOf[Param]
       case t =>
@@ -38,6 +37,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
           )
         }
     }
+    val in = this.in.tchk(context + (this.x -> v.typ))
     Let(x, v, in)(in.typ)
   }
 
