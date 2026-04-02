@@ -1,1 +1,1 @@
-SyntaxError: expected "in" but found "i"
+SyntaxError(3:5): expected keyword 'in' but found 'i'

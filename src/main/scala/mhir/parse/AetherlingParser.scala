@@ -175,7 +175,7 @@ object AetherlingParser {
 
   private def parseIdentifier(code: String): (Param, String) = {
     if (code.isEmpty || !code.head.isLetter) {
-      throw new SyntaxError(s"Expected an identifier but got $code")
+      throw SyntaxError(s"Expected an identifier but got $code")
     }
     val (name, suffix) = code.span(c => c.isLetterOrDigit)
     (Param(name, -1)(Missing), suffix)
@@ -285,7 +285,7 @@ object AetherlingParser {
       val suffix6 = expect(suffix5, ")")
       (TyStm(t, n), suffix6)
     } else {
-      throw new SyntaxError(s"Expected a type but got $code")
+      throw SyntaxError(s"Expected a type but got $code")
     }
   }
 
@@ -296,7 +296,7 @@ object AetherlingParser {
       val n = Integer.parseUnsignedInt(nStr)
       (n, suffix)
     } else {
-      throw new SyntaxError(s"Expected a natural number but got $code")
+      throw SyntaxError(s"Expected a natural number but got $code")
     }
   }
 
@@ -906,7 +906,7 @@ object AetherlingParser {
     } else if (code.head.isLetter) {
       parseIdentifier(code)
     } else {
-      throw new SyntaxError(s"Expected an expression but got $code")
+      throw SyntaxError(s"Expected an expression but got $code")
     }
   }
 
@@ -958,7 +958,7 @@ object AetherlingParser {
       case (ni +: nis, _ +: iis) =>
         StmSplit(makeNestedStmShift(StmJoin(s)(), nis, iis, shiftAmount), ni)()
       case (_, _) =>
-        throw new SyntaxError(
+        throw SyntaxError(
           s"Length mismatch in shift_tn: $nis vs $iis."
         )
     }
@@ -978,7 +978,7 @@ object AetherlingParser {
         val innerCount = makeNestedStmCounter(nProd * n, ns, is, delta, typ)
         StmSplit(innerCount, n)()
       case _ =>
-        throw new SyntaxError(s"Length mismatch in counter_tn: $ns vs $is.")
+        throw SyntaxError(s"Length mismatch in counter_tn: $ns vs $is.")
     }
   }
 
@@ -1042,7 +1042,7 @@ object AetherlingParser {
       val suffix4 = expect(suffix3, "}")
       (StmLiteral(elems: _*)(), suffix4)
     } else {
-      throw new SyntaxError(s"Expected a constant but got $code")
+      throw SyntaxError(s"Expected a constant but got $code")
     }
   }
 
@@ -1073,7 +1073,7 @@ object AetherlingParser {
 
   private def expect(code: String, prefix: String): String = {
     if (!code.startsWith(prefix)) {
-      throw new SyntaxError(s"Expected '$prefix' but got $code")
+      throw SyntaxError(s"Expected '$prefix' but got $code")
     }
     code.substring(prefix.length)
   }

@@ -1,1 +1,1 @@
-SyntaxError: expected "then" but found "{"
+SyntaxError(5:27): expected keyword 'then' but found '{'

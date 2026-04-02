@@ -1,264 +1,351 @@
 package mhir.parse.sirop
 
 import mhir.ir.{TyAnyInt, TySInt, TyUInt}
+import mhir.parse.SourcePoint
 
-sealed trait TokenCategory
+sealed trait TokenCategory {
+  def name: String
+}
+
+sealed abstract class KeywordCategory(keyword: String) extends TokenCategory {
+  override def name: String = s"keyword '$keyword'"
+}
+
+sealed abstract class SymbolCategory(symbol: String) extends TokenCategory {
+  override def name: String = s"'$symbol'"
+}
 
 /** A token produced by the lexer.
   */
 sealed trait Token {
+
+  /** The location of the first character in the token within the source code.
+    */
+  def loc: SourcePoint
+
   def category: TokenCategory
 
   /** The token as it appears in the source code.
     */
   def original: String
 
-  /** The token as it appears in the source code, plus double quotes.
+  /** The token as it appears in the source code, plus quotes.
     */
-  def quot: String = "\"" + this.original + "\""
+  def quot: String = "'" + this.original + "'"
 }
 
 /** An identifier.
   */
-case class IdentToken(ident: String) extends Token {
+case class IdentToken(ident: String)(val loc: SourcePoint) extends Token {
   override def category: TokenCategory = IdentToken
-
   override def original: String = ident
 }
 
-/** Companion object for [[IdentToken]].
+/** Category of [[IdentToken]].
   */
-object IdentToken extends TokenCategory
+object IdentToken extends TokenCategory {
+  override def name: String = "an identifier"
+}
 
 /** A natural number.
   */
-case class NatToken(n: Long)(val original: String) extends Token {
+case class NatToken(n: Long)(val original: String, val loc: SourcePoint)
+    extends Token {
   override def category: TokenCategory = NatToken
 }
 
-/** Companion object for [[NatToken]].
+/** Category of [[NatToken]].
   */
-object NatToken extends TokenCategory
+object NatToken extends TokenCategory {
+  override def name: String = "a number"
+}
 
 // Keywords --------------------------------------------------------------------
 
 /** The keyword "if".
   */
-object IfToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class IfToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = IfToken
   override def original: String = "if"
 }
 
+/** Category of [[IfToken]].
+  */
+object IfToken extends KeywordCategory("if")
+
 /** The keyword "then".
   */
-object ThenToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class ThenToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ThenToken
   override def original: String = "then"
 }
 
+/** Category of [[ThenToken]].
+  */
+object ThenToken extends KeywordCategory("then")
+
 /** The keyword "else".
   */
-object ElseToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class ElseToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ElseToken
   override def original: String = "else"
 }
 
+/** Category of [[ElseToken]].
+  */
+object ElseToken extends KeywordCategory("else")
+
 /** The keyword "letstm".
   */
-object LetStmToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LetStmToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LetStmToken
   override def original: String = "letstm"
 }
 
+/** Category of [[LetStmToken]].
+  */
+object LetStmToken extends KeywordCategory("letstm")
+
 /** The keyword "let".
   */
-object LetToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LetToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LetToken
   override def original: String = "let"
 }
 
+/** Category of [[LetToken]].
+  */
+object LetToken extends KeywordCategory("let")
+
 /** The keyword "in".
   */
-object InToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class InToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = InToken
   override def original: String = "in"
 }
 
+/** Category of [[InToken]].
+  */
+object InToken extends KeywordCategory("in")
+
 /** The keyword "sign".
   */
-object SignToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class SignToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SignToken
   override def original: String = "sign"
 }
 
+/** Category of [[SignToken]].
+  */
+object SignToken extends KeywordCategory("sign")
+
 /** The keyword "unsign".
   */
-object UnsignToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class UnsignToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = UnsignToken
   override def original: String = "unsign"
 }
 
+/** Category of [[UnsignToken]].
+  */
+object UnsignToken extends KeywordCategory("unsign")
+
 /** The keyword "vbuild".
   */
-object VbuildToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class VbuildToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = VbuildToken
   override def original: String = "vbuild"
 }
 
+/** Category of [[VbuildToken]].
+  */
+object VbuildToken extends KeywordCategory("vbuild")
+
 /** The keyword "sbuild".
   */
-object SbuildToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class SbuildToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SbuildToken
   override def original: String = "sbuild"
 }
 
+/** Category of [[SbuildToken]].
+  */
+object SbuildToken extends KeywordCategory("sbuild")
+
 /** The keyword "sdata".
   */
-object SdataToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class SdataToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SdataToken
   override def original: String = "sdata"
 }
 
+/** Category of [[SdataToken]].
+  */
+object SdataToken extends KeywordCategory("sdata")
+
 /** The keyword "undefined".
   */
-object UndefinedToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class UndefinedToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = UndefinedToken
   override def original: String = "undefined"
 }
 
+/** Category of [[UndefinedToken]].
+  */
+object UndefinedToken extends KeywordCategory("undefined")
+
 /** The keyword "true".
   */
-object TrueToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class TrueToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TrueToken
   override def original: String = "true"
 }
 
+/** Category of [[TrueToken]].
+  */
+object TrueToken extends KeywordCategory("true")
+
 /** The keyword "false".
   */
-object FalseToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class FalseToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = FalseToken
   override def original: String = "false"
 }
 
+/** Category of [[FalseToken]].
+  */
+object FalseToken extends KeywordCategory("false")
+
 /** The keyword "init".
   */
-object InitToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class InitToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = InitToken
   override def original: String = "init"
 }
 
+/** Category of [[InitToken]].
+  */
+object InitToken extends KeywordCategory("init")
+
 /** The keyword "next".
   */
-object NextToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class NextToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = NextToken
   override def original: String = "next"
 }
 
+/** Category of [[NextToken]].
+  */
+object NextToken extends KeywordCategory("next")
+
 /** The keyword "stm".
   */
-object LittleStmToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LittleStmToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LittleStmToken
   override def original: String = "stm"
 }
 
+/** Category of [[LittleStmToken]].
+  */
+object LittleStmToken extends KeywordCategory("stm")
+
 /** The keyword "Stm".
   */
-object BigStmToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class BigStmToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = BigStmToken
   override def original: String = "Stm"
 }
 
+/** Category of [[BigStmToken]].
+  */
+object BigStmToken extends KeywordCategory("Stm")
+
 /** The keyword "Vec".
   */
-object VecToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class VecToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = VecToken
   override def original: String = "Vec"
 }
 
+/** Category of [[VecToken]].
+  */
+object VecToken extends KeywordCategory("Vec")
+
 /** The keyword "ready".
   */
-object ReadyToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class ReadyToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ReadyToken
   override def original: String = "ready"
 }
 
+/** Category of [[ReadyToken]].
+  */
+object ReadyToken extends KeywordCategory("ready")
+
 /** The keyword "bool".
   */
-object BoolToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class BoolToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = BoolToken
   override def original: String = "bool"
 }
+
+/** Category of [[BoolToken]].
+  */
+object BoolToken extends KeywordCategory("bool")
 
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.
   */
-case class PadToken(width: Int) extends Token {
+case class PadToken(width: Int)(val loc: SourcePoint) extends Token {
   override def category: TokenCategory = PadToken
-
   override def original: String = s"pad$width"
 }
 
 /** Companion object for [[PadToken]].
   */
-object PadToken extends TokenCategory
+object PadToken extends TokenCategory {
+  override def name: String = s"built-in function 'pad'"
+}
 
 /** The word "truncate" followed by a natural number.
   */
-case class TruncateToken(width: Int) extends Token {
+case class TruncateToken(width: Int)(val loc: SourcePoint) extends Token {
   override def category: TokenCategory = TruncateToken
-
   override def original: String = s"truncate$width"
 }
 
 /** Companion object for [[TruncateToken]].
   */
-object TruncateToken extends TokenCategory
+object TruncateToken extends TokenCategory {
+  override def name: String = s"built-in function 'truncate'"
+}
 
 /** The letter "u" followed by a natural number.
   */
-case class UIntToken(width: Int) extends Token {
+case class UIntToken(width: Int)(val loc: SourcePoint) extends Token {
   override def category: TokenCategory = UIntToken
-
   override def original: String = s"u$width"
 }
 
 /** Companion object for [[UIntToken]].
   */
-object UIntToken extends TokenCategory
+object UIntToken extends TokenCategory {
+  override def name: String = "an unsigned int type"
+}
 
 /** The letter "i" followed by a natural number.
   */
-case class SIntToken(width: Int) extends Token {
+case class SIntToken(width: Int)(val loc: SourcePoint) extends Token {
   override def category: TokenCategory = SIntToken
-
   override def original: String = s"i$width"
 }
 
 /** Companion object for [[SIntToken]].
   */
-object SIntToken extends TokenCategory
+object SIntToken extends TokenCategory {
+  override def name: String = "a signed int type"
+}
 
 /** Extractor for integer type tokens.
   */
@@ -276,266 +363,361 @@ object IntToken {
 
 /** The symbol "(".
   */
-object LeftParToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LeftParToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LeftParToken
   override def original: String = "("
 }
 
+/** Category of [[LeftParToken]].
+  */
+object LeftParToken extends SymbolCategory("(")
+
 /** The symbol ")".
   */
-object RightParToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class RightParToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = RightParToken
   override def original: String = ")"
 }
 
+/** Category of [[RightParToken]].
+  */
+object RightParToken extends SymbolCategory(")")
+
 /** The symbol "{".
   */
-object LeftCurlyToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LeftCurlyToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LeftCurlyToken
   override def original: String = "{"
 }
 
+/** Category of [[LeftCurlyToken]].
+  */
+object LeftCurlyToken extends SymbolCategory("{")
+
 /** The symbol "}".
   */
-object RightCurlyToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class RightCurlyToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = RightCurlyToken
   override def original: String = "}"
 }
 
+/** Category of [[RightCurlyToken]].
+  */
+object RightCurlyToken extends SymbolCategory("}")
+
 /** The symbol "[".
   */
-object LeftSquareToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LeftSquareToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LeftSquareToken
   override def original: String = "["
 }
 
+/** Category of [[LeftSquareToken]].
+  */
+object LeftSquareToken extends SymbolCategory("[")
+
 /** The symbol "]v".
   */
-object RightSquareVToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class RightSquareVToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = RightSquareVToken
   override def original: String = "]v"
 }
 
+/** Category of [[RightSquareVToken]].
+  */
+object RightSquareVToken extends SymbolCategory("]v")
+
 /** The symbol "]s".
   */
-object RightSquareSToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class RightSquareSToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = RightSquareSToken
   override def original: String = "]s"
 }
 
+/** Category of [[RightSquareSToken]].
+  */
+object RightSquareSToken extends SymbolCategory("]s")
+
 /** The symbol "]".
   */
-object RightSquareToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class RightSquareToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = RightSquareToken
   override def original: String = "]"
 }
+
+/** Category of [[RightSquareToken]].
+  */
+object RightSquareToken extends SymbolCategory("]")
 
 // Other symbols ---------------------------------------------------------------
 
 /** The symbol "->".
   */
-object SingleArrowToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class SingleArrowToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SingleArrowToken
   override def original: String = "->"
 }
 
+/** Category of [[SingleArrowToken]].
+  */
+object SingleArrowToken extends SymbolCategory("->")
+
 /** The symbol "=>".
   */
-object DoubleArrowToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class DoubleArrowToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = DoubleArrowToken
   override def original: String = "=>"
 }
 
+/** Category of [[DoubleArrowToken]].
+  */
+object DoubleArrowToken extends SymbolCategory("=>")
+
 /** The symbol "==".
   */
-object EqToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class EqToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = EqToken
   override def original: String = "=="
 }
 
+/** Category of [[EqToken]].
+  */
+object EqToken extends SymbolCategory("==")
+
 /** The symbol "!=".
   */
-object NeqToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class NeqToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = NeqToken
   override def original: String = "!="
 }
 
+/** Category of [[NeqToken]].
+  */
+object NeqToken extends SymbolCategory("!=")
+
 /** The symbol "=".
   */
-object AssignToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class AssignToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = AssignToken
   override def original: String = "="
 }
 
+/** Category of [[AssignToken]].
+  */
+object AssignToken extends SymbolCategory("=")
+
 /** The symbol ":".
   */
-object ColonToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class ColonToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ColonToken
   override def original: String = ":"
 }
 
+object ColonToken extends SymbolCategory(":")
+
 /** The symbol "||".
   */
-object LogOrToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LogOrToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LogOrToken
   override def original: String = "||"
 }
 
+/** Category of [[LogOrToken]].
+  */
+object LogOrToken extends SymbolCategory("||")
+
 /** The symbol "&&".
   */
-object LogAndToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LogAndToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LogAndToken
   override def original: String = "&&"
 }
 
+/** Category of [[LogAndToken]].
+  */
+object LogAndToken extends SymbolCategory("&&")
+
 /** The symbol "<<<".
   */
-object LLShiftToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LLShiftToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LLShiftToken
   override def original: String = "<<<"
 }
 
+/** Category of [[LLShiftToken]].
+  */
+object LLShiftToken extends SymbolCategory("<<<")
+
 /** The symbol ">>>".
   */
-object LRShiftToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LRShiftToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LRShiftToken
   override def original: String = ">>>"
 }
 
+/** Category of [[LRShiftToken]].
+  */
+object LRShiftToken extends SymbolCategory(">>>")
+
 /** The symbol "<=".
   */
-object LeqToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LeqToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LeqToken
   override def original: String = "<="
 }
 
+/** Category of [[LeqToken]].
+  */
+object LeqToken extends SymbolCategory("<=")
+
 /** The symbol ">=".
   */
-object GeqToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class GeqToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = GeqToken
   override def original: String = ">="
 }
 
+/** Category of [[GeqToken]].
+  */
+object GeqToken extends SymbolCategory(">=")
+
 /** The symbol "<".
   */
-object LtToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class LtToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LtToken
   override def original: String = "<"
 }
 
+/** Category of [[LtToken]].
+  */
+object LtToken extends SymbolCategory("<")
+
 /** The symbol ">".
   */
-object GtToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class GtToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = GtToken
   override def original: String = ">"
 }
 
+/** Category of [[GtToken]].
+  */
+object GtToken extends SymbolCategory(">")
+
 /** The symbol "+%".
   */
-object PlusPercentToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class PlusPercentToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PlusPercentToken
   override def original: String = "+%"
 }
 
+/** Category of [[PlusPercentToken]].
+  */
+object PlusPercentToken extends SymbolCategory("+%")
+
 /** The symbol "+".
   */
-object PlusToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class PlusToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PlusToken
   override def original: String = "+"
 }
 
+/** Category of [[PlusToken]].
+  */
+object PlusToken extends SymbolCategory("+")
+
 /** The symbol "-%".
   */
-object MinusPercentToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class MinusPercentToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = MinusPercentToken
   override def original: String = "-%"
 }
 
+/** Category of [[MinusPercentToken]].
+  */
+object MinusPercentToken extends SymbolCategory("-%")
+
 /** The symbol "-".
   */
-object MinusToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class MinusToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = MinusToken
   override def original: String = "-"
 }
 
+/** Category of [[MinusToken]].
+  */
+object MinusToken extends SymbolCategory("-")
+
 /** The symbol "*%".
   */
-object TimesPercentToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class TimesPercentToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TimesPercentToken
   override def original: String = "*%"
 }
 
+/** Category of [[TimesPercentToken]].
+  */
+object TimesPercentToken extends SymbolCategory("*%")
+
 /** The symbol "*".
   */
-object TimesToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class TimesToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TimesToken
   override def original: String = "*"
 }
 
+/** Category of [[TimesToken]].
+  */
+object TimesToken extends SymbolCategory("*")
+
 /** The symbol "/".
   */
-object SlashToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class SlashToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SlashToken
   override def original: String = "/"
 }
 
+/** Category of [[SlashToken]].
+  */
+object SlashToken extends SymbolCategory("/")
+
 /** The symbol "%".
   */
-object PercentToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class PercentToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PercentToken
   override def original: String = "%"
 }
 
+/** Category of [[PercentToken]].
+  */
+object PercentToken extends SymbolCategory("%")
+
 /** The symbol "!".
   */
-object BangToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class BangToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = BangToken
   override def original: String = "!"
 }
 
+/** Category of [[BangToken]].
+  */
+object BangToken extends SymbolCategory("!")
+
 /** The symbol ".".
   */
-object DotToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class DotToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = DotToken
   override def original: String = "."
 }
 
+/** Category of [[DotToken]].
+  */
+object DotToken extends SymbolCategory(".")
+
 /** The symbol ",".
   */
-object CommaToken extends Token with TokenCategory {
-  override def category: TokenCategory = this
-
+case class CommaToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = CommaToken
   override def original: String = ","
 }
+
+object CommaToken extends SymbolCategory(",")

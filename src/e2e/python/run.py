@@ -36,16 +36,16 @@ def test_eval(eval_output: Path) -> bool:
         stderr=subprocess.STDOUT,
         check=False,
     )
+    actual_out_file = ACTUAL_OUTPUTS / f"{name}.eval.txt"
+    if not actual_out_file.parent.exists():
+        actual_out_file.parent.mkdir(exist_ok=True, parents=True)
+    actual_out_file.write_text(result.stdout, encoding="utf-8")
     expected_code = 1 if eval_output.parent.name.endswith("Error") else 0
     if result.returncode != expected_code:
         print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
         return False
     expected = eval_output.read_text(encoding="utf-8")
-    actual_out_file = ACTUAL_OUTPUTS / f"{name}.eval.txt"
     if result.stdout != expected:
-        if not actual_out_file.parent.exists():
-            actual_out_file.parent.mkdir(exist_ok=True, parents=True)
-        actual_out_file.write_text(result.stdout, encoding="utf-8")
         print(
             f"WRONG OUTPUT (compare {eval_output.relative_to(ROOT)}"
             f" with {actual_out_file.relative_to(ROOT)})"
