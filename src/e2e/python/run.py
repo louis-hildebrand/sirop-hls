@@ -16,6 +16,36 @@ RESOURCES = ROOT / "src" / "e2e" / "resources"
 ACTUAL_OUTPUTS = RESOURCES / "actual"
 
 
+def look_for_unused_files() -> None:
+    """
+    Scan the resources directory and exit with an error if any files are unused.
+    """
+    error_count = 0
+    for (root, _, files) in os.walk(RESOURCES):
+        root = Path(root)
+        if root.is_relative_to(ACTUAL_OUTPUTS):
+            continue
+        files = [root.joinpath(f) for f in files]
+        for f in files:
+            if f.name.endswith(".sirop"):
+                continue
+            if f.name.endswith(".eval.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+                continue
+            print(f"File {f.relative_to(ROOT)} is not used for testing")
+            error_count += 1
+    if error_count > 0:
+        file_or_files = "file" if error_count == 1 else "files"
+        is_or_are = "is" if error_count == 1 else "are"
+        it_or_them = "it" if error_count == 1 else "them"
+        print()
+        print(
+            f"{error_count} {file_or_files} within {RESOURCES.relative_to(ROOT)}"
+            f" {is_or_are} not used for testing."
+            f" Consider deleting or moving {it_or_them}."
+        )
+        sys.exit(1)
+
+
 def test_eval(eval_output: Path) -> bool:
     """
     Test that evaluating the program produces the expected output from the given file.
@@ -60,6 +90,7 @@ def main() -> None:
     """
     Script entry point.
     """
+    look_for_unused_files()
     os.chdir(ROOT)
     subprocess.run(["sbt", "assembly"], check=True)
     test_sources = sorted(RESOURCES.rglob("**/*.sirop"))
@@ -77,7 +108,6 @@ def main() -> None:
         else:
             print(f"ERROR: Nothing to do for file {test.relative_to(ROOT)}")
             error_count += 1
-    # TODO: Also check for unused files?
     if error_count > 0:
         test_or_tests = "test" if error_count == 1 else "tests"
         print()
