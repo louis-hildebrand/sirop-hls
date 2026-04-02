@@ -608,6 +608,20 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src) == expected)
   }
 
+  test("Dot:MethodStyle") {
+    val src =
+      "s1.StmZip(s2).StmMap( (x) => x.0 *% x.1 ).StmReduce( (x) => x.0 +% x.1 )"
+    val s1 = Param("s1", -1)(Missing)
+    val s2 = Param("s2", -1)(Missing)
+    val x = Param("x", -1)(Missing)
+    val expected =
+      StmReduce(
+        StmMap(StmZip(s1, s2)(), Function(x, x.__0 *% x.__1)())(),
+        Function(x, x.__0 +% x.__1)()
+      )()
+    assert(Parser.parse(src) == expected)
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment

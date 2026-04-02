@@ -1,0 +1,6 @@
+let dot = (a: Stm[i16, 10]) => (b: Stm[i16, 10]) =>
+    a.StmZip(b)
+        .StmMap( (x) => x.0 *% x.1 )
+        .StmReduce( (x) => x.0 +% x.1 )
+in
+dot(StmRange(10, 0:i16, 1:i16))(StmRange(10, 9:i16, -1:i16))

@@ -1,5 +1,4 @@
 # TODO: Add fixed-point number operations and type
-# TODO: Add syntax sugar
 # TODO: Allow trailing commas (e.g., in sbuild, in sequence literals)
 
 expr            ::= expr10
@@ -39,6 +38,7 @@ producer        ::= "(" ident ":" stm_typ ")" "=" "{" "stm" ":" expr "," "ready"
 expr1'          ::= ""
                   | "(" expr_list ")" expr1'
                   | "." nat expr1'
+                  | "." ident "(" expr_list ")" expr1'
                   | "[" expr "]" expr1'
 # First(expr0) = { "(", "{", ident, "undefined", "true", "false", "+", "-", nat, "[" }
 expr0           ::= "(" expr ")"
