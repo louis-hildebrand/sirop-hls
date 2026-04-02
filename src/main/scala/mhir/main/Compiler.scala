@@ -3,6 +3,7 @@ package mhir.main
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
+import mhir.ir.typecheck.TypeError
 import mhir.logging.time2
 import mhir.main.aetherling.{
   Args => AetherlingArgs,
@@ -13,8 +14,8 @@ import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
 import org.slf4j.LoggerFactory
-import scala.sys
 
+import scala.sys
 import java.time.Duration
 
 /** Main compiler.
@@ -60,6 +61,9 @@ object Compiler {
       compile(a, argparseTime)
     } catch {
       case ex: SyntaxError =>
+        println(ex.getMessage)
+        sys.exit(1)
+      case ex: TypeError =>
         println(ex.getMessage)
         sys.exit(1)
     }

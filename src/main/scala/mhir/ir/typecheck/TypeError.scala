@@ -6,4 +6,6 @@ package typecheck
   * @param msg
   *   an explanation of the error.
   */
-class TypeError(msg: String) extends RuntimeException(msg)
+class TypeError(msg: String) extends RuntimeException(msg) {
+  override def getMessage: String = s"TypeError: $msg"
+}

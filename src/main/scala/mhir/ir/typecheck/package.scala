@@ -54,7 +54,7 @@ package object typecheck {
                 fc.rebuild(t2, Seq(newF, newArg))
               } else {
                 throw new TypeError(
-                  s"Left-hand side of function call expects input of type $t1, but ${newArg.typ} was provided."
+                  s"Function expects type $t1, but argument has type ${newArg.typ}."
                 )
               }
             case t =>

@@ -62,18 +62,29 @@ def main() -> None:
     """
     os.chdir(ROOT)
     subprocess.run(["sbt", "assembly"], check=True)
-    test_sources = list(RESOURCES.rglob("**/*.sirop"))
-    success = len(test_sources) > 0
+    test_sources = sorted(RESOURCES.rglob("**/*.sirop"))
+    if not test_sources:
+        print("No test cases found")
+        sys.exit(1)
+    print()
     print(f"Found {len(test_sources)} .sirop files to test")
+    error_count = 0
     for test in test_sources:
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
-            success = test_eval(eval_output) and success
+            ok = test_eval(eval_output)
+            if not ok:
+                error_count += 1
         else:
             print(f"ERROR: Nothing to do for file {test.relative_to(ROOT)}")
-            success = False
+            error_count += 1
     # TODO: Also check for unused files?
-    if not success:
+    if error_count > 0:
+        test_or_tests = "test" if error_count == 1 else "tests"
+        print()
+        print(f"{error_count} {test_or_tests} failed")
         sys.exit(1)
+    print()
+    print("All tests passed!")
 
 
 if __name__ == "__main__":
