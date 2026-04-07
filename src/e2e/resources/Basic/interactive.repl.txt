@@ -1,0 +1,8 @@
+Welcome to the Sirop REPL (v${COMPILER_VERSION})!
+Type 'exit' or press Ctrl+D to exit.
+> > [1:u16, 2:u16, 3:u16, 4:u16]v
+> > [5:u16, 6:u16, 7:u16, 8:u16]v
+> > [(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]v
+> > [5:u16, 12:u16, 21:u16, 32:u16]v
+> > [70:u16]v
+> Goodbye

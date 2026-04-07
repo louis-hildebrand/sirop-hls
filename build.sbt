@@ -41,7 +41,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
   "ch.qos.logback" % "logback-classic" % "1.4.14",
   // User input for REPL
-  "org.jline" % "jline" % "3.29.0" classifier "jdk8"
+  "org.jline" % "jline" % "3.30.0" classifier "jdk8"
 )
 Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src/main/"
 

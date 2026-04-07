@@ -1,0 +1,11 @@
+v1 = [1:u16, 2:u16, 3:u16, 4:u16]v
+v1
+v2 = v1.VecMap((x) => x +% 4:u16)
+v2
+v3 = VecZip(v1, v2)
+v3
+v4 = v3.VecMap( (x) => x.0 *% x.1 )
+v4
+v5 = v4.VecReduce( (x) => x.0 +% x.1 )
+v5
+exit

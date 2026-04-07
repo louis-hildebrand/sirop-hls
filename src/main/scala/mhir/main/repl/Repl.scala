@@ -24,6 +24,7 @@ import scala.annotation.tailrec
 object Repl {
 
   private val MaxCtrlCCount: Int = 3
+  private val GoodbyeMessage: String = "Goodbye\n"
 
   /** Launches the REPL.
     */
@@ -55,14 +56,15 @@ object Repl {
         case _: EndOfFileException     => ("", false, true)
       }
     if (ctrlD) {
-      // Exit REPL
+      writer.print(GoodbyeMessage)
+      writer.flush()
+      // Exit REPL by simply omitting the recursive call to run()
     } else if (ctrlC && state.ctrlCCount + 1 >= MaxCtrlCCount) {
       writer.println("Type 'exit' or press Ctrl+D to exit.")
       run(state.resetCtrlCCount(), reader, writer)
     } else if (ctrlC) {
       run(state.incrementCtrlCCount(), reader, writer)
     } else if (line.strip().isEmpty) {
-      // Wait for next input
       run(state.resetCtrlCCount(), reader, writer)
     } else {
       val newState =
@@ -70,6 +72,8 @@ object Repl {
           val s = Parser.parseStmt(line)
           val (newState, exit) = exec(s, state, writer)
           if (exit) {
+            writer.print(GoodbyeMessage)
+            writer.flush()
             return
           }
           newState
