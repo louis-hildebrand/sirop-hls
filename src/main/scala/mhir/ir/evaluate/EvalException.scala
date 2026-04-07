@@ -3,7 +3,9 @@ package evaluate
 
 /** An error that occurred during evaluation.
   */
-sealed abstract class EvalException(msg: String) extends RuntimeException(msg)
+sealed abstract class EvalException(msg: String) extends RuntimeException(msg) {
+  override def getMessage: String = s"EvalError: $msg"
+}
 
 /** The result of evaluation seems to depend on undefined behaviour.
   *
@@ -12,7 +14,7 @@ sealed abstract class EvalException(msg: String) extends RuntimeException(msg)
   */
 case class UndefinedValException(warnings: Set[EvalWarning])
     extends EvalException(
-      "The result of evaluation might rely on one or more undefined behaviours: "
+      "value may rely on undefined behaviours: "
         ++ warnings.map(w => w.display).mkString("", ", ", ". ")
     )
 
@@ -22,22 +24,33 @@ case class UndefinedValException(warnings: Set[EvalWarning])
   *   the cause(s) of the deadlock.
   */
 class DeadlockError(val reasons: Seq[DeadlockReason])
-    extends EvalException(s"Deadlock (${reasons.mkString(", ")}).")
+    extends EvalException(s"stuck (${reasons.map(_.name).mkString(", ")}).")
 
 /** A cause for a deadlock.
   */
-sealed trait DeadlockReason
+sealed trait DeadlockReason {
+
+  /** A short, developer-friendly explanation of this reason.
+    */
+  def name: String
+}
 
 /** The stream is definitely deadlocked because it tried to read from an empty
   * stream.
   */
-object EmptyStreamRead extends DeadlockReason
+object EmptyStreamRead extends DeadlockReason {
+  override def name: String = "attempt to read from an empty stream"
+}
 
 /** The stream <i>appears</i> to be deadlocked because it took too many steps
   * without producing any valid outputs.
   */
-object TooManySteps extends DeadlockReason
+object TooManySteps extends DeadlockReason {
+  override def name: String = "too many steps"
+}
 
 /** The stream is definitely stuck because it has reached a fixpoint.
   */
-object PipelineFixpoint extends DeadlockReason
+object PipelineFixpoint extends DeadlockReason {
+  override def name: String = "pipeline reached fixpoint"
+}

@@ -1,7 +1,9 @@
 package mhir.main.repl
 
 import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeCheck
+import mhir.ir.evaluate.{EvalException, UndefinedValException}
+import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.parse.SyntaxError
 import mhir.parse.sirop.Parser
 import org.jline.reader.{
   EndOfFileException,
@@ -43,11 +45,16 @@ object Repl {
       // Wait for next input
       run(reader, writer)
     } else {
-      val e = Parser.parse(line)
-      val typechecked = e.tchk()
-      val lowered = typechecked.lower()
-      val result = mhir.ir.eval(lowered)
-      writer.println(result)
+      try {
+        val e = Parser.parse(line)
+        val typechecked = e.tchk()
+        val lowered = typechecked.lower()
+        val result = mhir.ir.eval(lowered)
+        writer.println(result)
+      } catch {
+        case ex @ (_: SyntaxError | _: TypeError | _: EvalException) =>
+          writer.println(ex.getMessage)
+      }
       run(reader, writer)
     }
   }
