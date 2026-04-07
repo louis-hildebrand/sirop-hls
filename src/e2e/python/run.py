@@ -56,7 +56,6 @@ def test_eval(eval_output: Path) -> bool:
     result = subprocess.run(
         [
             "java", "-jar", JAR.as_posix(),
-            "-s", "sirop",
             "-i", source_path.as_posix(),
             "--out:eval",
             "--quiet",
