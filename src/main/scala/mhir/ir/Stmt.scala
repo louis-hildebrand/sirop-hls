@@ -11,3 +11,7 @@ case class ExprStmt(e: Expr) extends Stmt
 /** The "exit" statement.
   */
 object ExitStmt extends Stmt
+
+/** Assign an expression to a variable.
+  */
+case class SetStmt(x: Param, e: Expr) extends Stmt

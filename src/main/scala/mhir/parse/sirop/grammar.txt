@@ -86,3 +86,4 @@ nonzero_nat     ::= nonzero_digit ( digit | "_" )*
 
 stmt            ::= expr
                   | "exit"
+                  | ident "=" expr

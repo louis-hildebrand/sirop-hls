@@ -33,7 +33,7 @@ object Repl {
       .terminal(terminal)
       .build()
     val writer = terminal.writer()
-    val state = ReplState()
+    val state = ReplState(ctrlCCount = 0, variables = Map())
     writer.println(s"Welcome to the Sirop REPL (v${Version()})!")
     writer.println(s"Type 'exit' or press Ctrl+D to exit.")
     run(state, reader, writer)
@@ -63,35 +63,65 @@ object Repl {
       // Wait for next input
       run(state.resetCtrlCCount(), reader, writer)
     } else {
-      try {
-        val s = Parser.parseStmt(line)
-        val exit = exec(s, writer)
-        if (exit) {
-          return
+      val newState =
+        try {
+          val s = Parser.parseStmt(line)
+          val (newState, exit) = exec(s, state, writer)
+          if (exit) {
+            return
+          }
+          newState
+        } catch {
+          case ex @ (_: SyntaxError | _: TypeError | _: EvalException) =>
+            writer.println(ex.getMessage)
+            state
         }
-      } catch {
-        case ex @ (_: SyntaxError | _: TypeError | _: EvalException) =>
-          writer.println(ex.getMessage)
-      }
-      run(state.resetCtrlCCount(), reader, writer)
+      run(newState, reader, writer)
     }
   }
 
   /** Executes the given statement.
     *
     * @return
-    *   `true` if the REPL should exit.
+    *   the new state, along with `true` if the REPL should exit and `false`
+    *   otherwise.
     */
-  private def exec(s: Stmt, writer: PrintWriter): Boolean = {
+  private def exec(
+      s: Stmt,
+      state: ReplState,
+      writer: PrintWriter
+  ): (ReplState, Boolean) = {
     s match {
-      case ExitStmt =>
-        return true
       case ExprStmt(e) =>
-        val typechecked = e.tchk()
-        val lowered = typechecked.lower()
-        val result = mhir.ir.eval(lowered)
-        writer.println(result)
+        writer.println(eval(e, state.variables))
+        (state, false)
+      case ExitStmt =>
+        (state, true)
+      case SetStmt(x, e) =>
+        val result = eval(e, state.variables)
+        val newX = {
+          assert(!x.hasType)
+          assert(result.hasType)
+          x.rebuild(result.typ).asInstanceOf[Param]
+        }
+        (state.addVar(newX, result), false)
     }
-    false
+  }
+
+  /** Evaluate the given expression in the given environment.
+    *
+    * @param e
+    *   the expression to evaluate.
+    * @param env
+    *   the current environment, which maps each variable to its current value.
+    */
+  private def eval(e: Expr, env: Map[Param, Expr]): Expr = {
+    val typingContext = env.map({ case (x, v) => x -> v.typ })
+    val subs = env.toMap[Expr, Expr]
+    mhir.ir.eval(
+      e.tchk(typingContext)
+        .subPreserveType(subs)
+        .lower()
+    )
   }
 }

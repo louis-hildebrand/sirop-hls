@@ -34,6 +34,9 @@ object Parser {
     tokens match {
       case Seq(_: ExitToken, rest @ _*) =>
         (ExitStmt, rest)
+      case Seq(IdentToken(x), _: AssignToken, rest1 @ _*) =>
+        val (e, rest2) = parseExpr(rest1)
+        (SetStmt(Param(x, -1)(Missing), e), rest2)
       case _ =>
         val (e, rest) = parseExpr(tokens)
         (ExprStmt(e), rest)

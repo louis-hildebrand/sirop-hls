@@ -1,8 +1,18 @@
 package mhir.main.repl
 
-case class ReplState(ctrlCCount: Int = 0) {
+import mhir.ir._
 
-  def resetCtrlCCount(): ReplState = this.copy(ctrlCCount = 0)
+case class ReplState(ctrlCCount: Int, variables: Map[Param, Expr]) {
 
-  def incrementCtrlCCount(): ReplState = this.copy(ctrlCCount = ctrlCCount + 1)
+  def resetCtrlCCount(): ReplState = {
+    this.copy(ctrlCCount = 0)
+  }
+
+  def incrementCtrlCCount(): ReplState = {
+    this.copy(ctrlCCount = this.ctrlCCount + 1)
+  }
+
+  def addVar(x: Param, v: Expr): ReplState = {
+    this.copy(variables = this.variables + (x -> v))
+  }
 }
