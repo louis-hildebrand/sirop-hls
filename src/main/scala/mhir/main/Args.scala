@@ -13,7 +13,7 @@ import os.Path
   * @param options
   *   options to pass to the compiler.
   */
-case class Args(src: Source, options: CompilerOptions)
+case class Args(src: Option[Source], options: CompilerOptions)
 
 /** Companion object for [[Args]].
   */
@@ -190,20 +190,24 @@ object Args {
         timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
       evalTarget.toSet ++ vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
     }
-    if (targets.isEmpty) {
-      throw new BadArgsException("no compilation targets specified")
-    }
-    val src: Source = (sourceLang, input) match {
-      case (_, None) =>
-        throw new BadArgsException("missing input file")
+    val src: Option[Source] = (sourceLang, input) match {
+      case ("sirop", None) =>
+        None
       case ("sirop", Some(f)) =>
-        SiropSource(Path(f, base = os.pwd))
+        Some(SiropSource(Path(f, base = os.pwd)))
       case ("aetherling", Some(f)) =>
-        AetherlingSource(Path(f, base = os.pwd))
+        Some(AetherlingSource(Path(f, base = os.pwd)))
       case ("stored", Some(progName)) =>
-        StoredSource(Program(progName))
+        Some(StoredSource(Program(progName)))
+      case (lang @ ("aetherling" | "stored"), None) =>
+        throw new BadArgsException(
+          s"REPL is not available for language '$lang'"
+        )
       case (lang, _) =>
         throw new BadArgsException(s"unknown language: '$lang'")
+    }
+    if (targets.isEmpty && src.nonEmpty) {
+      throw new BadArgsException("no compilation targets specified")
     }
     val options = CompilerOptions(
       targets = targets,
@@ -219,7 +223,7 @@ object Args {
         assumeThroughputsMatch = (
           // The Aetherling compiler guarantees that each producer/consumer pair
           // has the same "time."
-          assumeThroughputsMatch || src.isInstanceOf[AetherlingSource]
+          assumeThroughputsMatch || src.exists(_.isInstanceOf[AetherlingSource])
         )
       ),
       logLevel = Some(logLevel)
@@ -229,7 +233,7 @@ object Args {
 
   private[main] def printShortUsage(): Unit = {
     println(
-      s"Usage: sirop -s (sirop|aetherling|stored) -i INPUT [OPTION]... [-h|--help] [--version]"
+      s"Usage: sirop -s (sirop|aetherling|stored) [-i INPUT] [OPTION]... [-h|--help] [--version]"
     )
   }
 
@@ -242,6 +246,8 @@ object Args {
          |  -i INPUT                      where to get the source code.
          |                                With -s stored, this is the program name.
          |                                Otherwise, this is the path to the source file.
+         |                                If this argument is omitted, the REPL will be
+         |                                launched.
          |  -h, --help                    print the help message and exit
          |  --version                     print the compiler version and exit
          |

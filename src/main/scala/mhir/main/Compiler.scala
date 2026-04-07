@@ -3,19 +3,19 @@ package mhir.main
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.ir.typecheck.TypeError
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.logging.time2
 import mhir.main.aetherling.{
   Args => AetherlingArgs,
   Compiler => AetherlingFrontend
 }
+import mhir.main.repl.Repl
 import mhir.main.shared.{BadArgsException, HelpException, VersionException}
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
 import org.slf4j.LoggerFactory
 
-import scala.sys
 import java.time.Duration
 
 /** Main compiler.
@@ -109,12 +109,15 @@ object Compiler {
           .setLevel(logLevel)
     }
     args.src match {
-      case SiropSource(inFile) =>
+      case None =>
+        Repl.run()
+        Tuple()().tchk()
+      case Some(SiropSource(inFile)) =>
         SiropFrontend.compile(
           SiropArgs(inFile = inFile, options = args.options),
           argparseTime = argparseTime
         )
-      case AetherlingSource(inFile) =>
+      case Some(AetherlingSource(inFile)) =>
         AetherlingFrontend.compile(
           AetherlingArgs(
             inFile = inFile,
@@ -122,7 +125,7 @@ object Compiler {
           ),
           argparseTime = argparseTime
         )
-      case StoredSource(program) =>
+      case Some(StoredSource(program)) =>
         StoredFrontend.compile(
           StoredArgs(program = program, options = args.options),
           argparseTime = argparseTime

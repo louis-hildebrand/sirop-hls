@@ -32,7 +32,6 @@ Global / excludeLintKeys += showSuccess
 Test / parallelExecution := false
 Test / logBuffered := false
 
-// Testing
 libraryDependencies ++= Seq(
   // Testing
   "org.scalatest" %% "scalatest" % "3.2.19" % "test",
@@ -40,7 +39,9 @@ libraryDependencies ++= Seq(
   "org.scala-lang" %% "toolkit" % "0.1.7",
   // Logging
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-  "ch.qos.logback" % "logback-classic" % "1.4.14"
+  "ch.qos.logback" % "logback-classic" % "1.4.14",
+  // User input for REPL
+  "org.jline" % "jline" % "3.29.0" classifier "jdk8"
 )
 Compile / unmanagedSourceDirectories += baseDirectory.value / "lib/arithexpr/src/main/"
 
