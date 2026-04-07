@@ -293,6 +293,17 @@ case class BoolToken(loc: SourcePoint) extends Token {
   */
 object BoolToken extends KeywordCategory("bool")
 
+/** The keyword "exit".
+  */
+case class ExitToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ExitToken
+  override def original: String = "exit"
+}
+
+/** Category of [[ExitToken]].
+  */
+object ExitToken extends KeywordCategory("exit")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.

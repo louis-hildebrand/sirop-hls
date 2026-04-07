@@ -83,3 +83,7 @@ ident           ::= (letter | "_") (digit | letter | "_" )*
 
 nat             ::= "0" | nonzero_nat
 nonzero_nat     ::= nonzero_digit ( digit | "_" )*
+
+stmt            ::= expr
+                  | "exit"
+                  | ident "=" expr

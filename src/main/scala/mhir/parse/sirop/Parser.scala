@@ -21,6 +21,28 @@ object Parser {
     e
   }
 
+  def parseStmt(code: String): Stmt = {
+    val (s, remainingTokens) = parseStmt(Lexer.lex(code).toList)
+    if (remainingTokens.nonEmpty) {
+      val loc = remainingTokens.head.loc
+      throw SyntaxError("unexpected tokens remaining at end of file", loc)
+    }
+    s
+  }
+
+  private def parseStmt(tokens: Seq[Token]): (Stmt, Seq[Token]) = {
+    tokens match {
+      case Seq(_: ExitToken, rest @ _*) =>
+        (ExitStmt, rest)
+      case Seq(IdentToken(x), _: AssignToken, rest1 @ _*) =>
+        val (e, rest2) = parseExpr(rest1)
+        (SetStmt(Param(x, -1)(Missing), e), rest2)
+      case _ =>
+        val (e, rest) = parseExpr(tokens)
+        (ExprStmt(e), rest)
+    }
+  }
+
   private val FirstExpr: Set[TokenCategory] =
     Set(
       // expr0
