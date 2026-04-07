@@ -155,6 +155,7 @@ object Lexer {
           case "Vec"       => VecToken(start)
           case "ready"     => ReadyToken(start)
           case "bool"      => BoolToken(start)
+          case "exit"      => ExitToken(start)
           case x if x.matches("pad[0-9]+") =>
             val suffix = consume(x, "pad")
             PadToken(suffix.toInt)(start)

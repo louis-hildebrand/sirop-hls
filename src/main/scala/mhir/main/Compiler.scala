@@ -10,7 +10,12 @@ import mhir.main.aetherling.{
   Compiler => AetherlingFrontend
 }
 import mhir.main.repl.Repl
-import mhir.main.shared.{BadArgsException, HelpException, VersionException}
+import mhir.main.shared.{
+  BadArgsException,
+  HelpException,
+  Version,
+  VersionException
+}
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
@@ -39,7 +44,7 @@ object Compiler {
             Args.printFullUsage()
             return
           case VersionException =>
-            println(getVersion())
+            println(Version())
             return
           case exc: BadArgsException =>
             println(s"Invalid command-line arguments: ${exc.getMessage}")
@@ -66,29 +71,6 @@ object Compiler {
       case ex: TypeError =>
         println(ex.getMessage)
         sys.exit(1)
-    }
-  }
-
-  private def getVersion(): String = {
-    val versionSource = scala.io.Source.fromResource("version.txt")
-    try {
-      val version = versionSource.mkString.strip
-      if (version.contains("SNAPSHOT")) {
-        version.replace("SNAPSHOT", getCommit())
-      } else {
-        version
-      }
-    } finally {
-      versionSource.close()
-    }
-  }
-
-  private def getCommit(): String = {
-    val commitSource = scala.io.Source.fromResource("commit.txt")
-    try {
-      commitSource.mkString.strip
-    } finally {
-      commitSource.close()
     }
   }
 
