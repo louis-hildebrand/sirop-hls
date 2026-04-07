@@ -1,12 +1,13 @@
 package mhir.main.repl
 
 import mhir.ir.Lowering.ExprLowering
+import mhir.ir._
 import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.ir._
 import mhir.main.shared.Version
 import mhir.parse.SyntaxError
 import mhir.parse.sirop.Parser
+import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.reader.{
   EndOfFileException,
   LineReader,
@@ -27,10 +28,11 @@ object Repl {
   /** Launches the REPL.
     */
   def run(): Unit = {
-    val terminal = TerminalBuilder.builder().build()
+    val terminal = TerminalBuilder.builder().dumb(true).build()
     val reader = LineReaderBuilder
       .builder()
       .terminal(terminal)
+      .completer(new StringsCompleter("exit"))
       .build()
     val writer = terminal.writer()
     val state = ReplState(ctrlCCount = 0, variables = Map())
