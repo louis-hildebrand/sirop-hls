@@ -2,13 +2,14 @@ package mhir.main.shared
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.Uncurrier.Uncurry
+import mhir.sugar.ExprLowering
+import mhir.sugar.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.evaluate.Evaluator
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.{time, time2}
 import mhir.optimize.{Optimizer, OptimizerOptions}
+import mhir.sugar.StmLiteralUtilsImplicit
 import mhir.sugar.Streamifier.Streamify
 import org.slf4j.event.Level
 import os.Path

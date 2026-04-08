@@ -1,9 +1,8 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
-import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for lowering [[mhir.ir.StmLiteral]] and [[mhir.ir.VecLiteral]].
   */

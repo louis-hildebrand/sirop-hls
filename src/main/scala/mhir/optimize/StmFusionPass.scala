@@ -1,6 +1,6 @@
 package mhir.optimize
 
-import mhir.ir.StreamFuser.StmBuildFusion
+import StreamFuser.StmBuildFusion
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.{SimpleAreaCostModel, SimpleDelayCostModel}

@@ -1,6 +1,6 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.sugar.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Cast

@@ -1,6 +1,5 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 

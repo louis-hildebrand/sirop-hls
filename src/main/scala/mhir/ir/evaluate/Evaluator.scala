@@ -2,8 +2,9 @@ package mhir.ir
 package evaluate
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.ExprLowering
+import mhir.sugar.ExprLowering
 import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.sugar.Default
 
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}

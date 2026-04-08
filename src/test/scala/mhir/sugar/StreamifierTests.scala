@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Streamifier.Streamify

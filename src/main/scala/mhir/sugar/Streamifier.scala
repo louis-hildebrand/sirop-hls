@@ -2,7 +2,6 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time

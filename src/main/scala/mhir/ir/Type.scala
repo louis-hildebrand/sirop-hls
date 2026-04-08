@@ -1,6 +1,6 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.sugar.ExprLowering
 import mhir.ir.typecheck.{TDiv, TMod, TProd, TSum, TypeCheck}
 import mhir.optimize.{PartialEvalPass => PE}
 

@@ -1,8 +1,8 @@
-package mhir.ir
+package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamReplicator.StreamReplication
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.StreamReplicator.StreamReplication
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamReplicationTests extends AnyFunSuite {

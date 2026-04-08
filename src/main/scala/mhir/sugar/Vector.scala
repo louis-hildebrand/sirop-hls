@@ -1,10 +1,9 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.{ExprLowering, TypeLowering}
-import mhir.ir.StreamReplicator.StreamReplication
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.sugar.StreamReplicator.StreamReplication
 import mhir.sugar.Streamifier.Streamify
 
 import scala.annotation.tailrec

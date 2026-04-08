@@ -1,10 +1,9 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
-import mhir.sugar.Min
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArithmeticSimplificationTests extends AnyFunSuite {

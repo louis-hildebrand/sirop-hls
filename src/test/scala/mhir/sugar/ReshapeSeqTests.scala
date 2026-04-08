@@ -1,9 +1,8 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
-import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import org.scalatest.funsuite.AnyFunSuite
 
 class ReshapeSeqTests extends AnyFunSuite {
   test("Stm[Int,21+10+11] --> Stm[Int,42]") {

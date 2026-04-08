@@ -1,8 +1,8 @@
 package mhir.optimize.cost
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar._
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
 

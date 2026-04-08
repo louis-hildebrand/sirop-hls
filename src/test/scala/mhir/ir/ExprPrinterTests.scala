@@ -1,8 +1,7 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{StmCount, StmCount3D, StmCst, StmFold, StmMap, StmZip}
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {

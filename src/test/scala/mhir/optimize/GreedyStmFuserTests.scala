@@ -1,10 +1,9 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
-import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.SimpleMap
+import mhir.sugar._
+import org.scalatest.funsuite.AnyFunSuite
 
 class GreedyStmFuserTests extends AnyFunSuite {
 

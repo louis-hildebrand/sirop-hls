@@ -2,6 +2,7 @@ package mhir.ir
 package evaluate
 
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for the evaluator.

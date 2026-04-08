@@ -1,8 +1,8 @@
-package mhir.ir
+package mhir.gen.vhdl
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.ir.{ExprPrinter => EP}
+import mhir.ir.{ExprPrinter => EP, _}
+import mhir.sugar._
 
 /** A `let` expression for streams which does <i>not</i> allow sharing.
   *

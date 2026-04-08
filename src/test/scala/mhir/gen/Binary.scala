@@ -1,6 +1,7 @@
 package mhir.gen
 
 import mhir.ir._
+import mhir.sugar.Default
 
 /** Helper methods for converting to binary.
   */

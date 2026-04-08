@@ -1,7 +1,7 @@
 package mhir.ir
 
-import mhir.ir.Lowering.TypeLowering
 import org.scalatest.funsuite.AnyFunSuite
+import mhir.sugar._
 
 class TypeTests extends AnyFunSuite {
   private val n = Param("n")(U8)

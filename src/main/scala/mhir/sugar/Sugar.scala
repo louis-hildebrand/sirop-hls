@@ -1,9 +1,8 @@
-package mhir.ir
+package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.{ExprLowering, TypeLowering}
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
-import mhir.ir.{ExprPrinter => EP}
+import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
 
 /** A let expression.
@@ -213,7 +212,7 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
 /** Companion object for [[Default]].
   */
 case object Default {
-  private[ir] def getDefault(typ: Type): Expr = {
+  def getDefault(typ: Type): Expr = {
     getDefaultOpt(typ) match {
       case Some(v) => v
       case None =>

@@ -1,8 +1,7 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{StmConcat, VecShiftLeft}
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionTests extends AnyFunSuite {

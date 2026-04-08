@@ -1,10 +1,9 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.{ExprLowering, TypeLowering}
-import mhir.ir.StreamFuser.StreamFusion
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
+import mhir.optimize.StreamFuser.StreamFusion
 import mhir.sugar.Streamifier.Streamify
 
 import scala.annotation.{elidable, tailrec}
@@ -777,19 +776,19 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
       Map[Param, (Expr, Expr)](
         i -> (
           C(0)(i.typ),
-          Mux((k === -1 + n3) && (j === -1 + n2), i + 1, i)()
+          Mux((k === C(-1)() + n3) && (j === C(-1)() + n2), i + 1, i)()
         ),
         j -> (
           C(0)(j.typ),
           Mux(
-            (k === -1 + n3) && (j === -1 + n2),
+            (k === C(-1)() + n3) && (j === C(-1)() + n2),
             C(0)(j.typ),
-            Mux(k === -1 + n3, j + 1, j)()
+            Mux(k === C(-1)() + n3, j + 1, j)()
           )()
         ),
         k -> (
           C(0)(k.typ),
-          Mux(k === -1 + n3, C(0)(k.typ), k + 1)()
+          Mux(k === C(-1)() + n3, C(0)(k.typ), k + 1)()
         )
       )
     )()
@@ -1990,14 +1989,14 @@ case class StmRepeat(
           C(0)(t.typ),
           Mux(
             // Assume n >= 1
-            t === ToUnsigned(-1 + n)(),
+            t === ToUnsigned(C(-1)() + n)(),
             C(0)(t.typ),
             t + 1
           )().tchk().lower()
         ),
         filling -> (
           True,
-          (filling && (t < ToUnsigned(-1 + n)())).tchk().lower()
+          (filling && (t < ToUnsigned(C(-1)() + n)())).tchk().lower()
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -2141,7 +2140,10 @@ case class StmSlideV(
         // range [0, n-winSize].
         // In general, that is ceil( (n - winSize + 1) / stride )
         val newLen =
-          CeilDiv(ToUnsigned(SafeSum(n, -1 * newWinSize, 1)())(), newStride)()
+          CeilDiv(
+            ToUnsigned(SafeSum(n, C(-1)() * newWinSize, 1)())(),
+            newStride
+          )()
             .tchk()
             .lower()
         this.rebuild(
@@ -2217,7 +2219,7 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     newS.typ match {
       case TyStm(t, n) if t.isData =>
         this.rebuild(
-          TyStm(TyStm(t, newM), SafeSum(n, -1 * newM, 1)()),
+          TyStm(TyStm(t, newM), SafeSum(n, C(-1)() * newM, 1)()),
           Seq(newS, newM)
         )
       case t =>
@@ -2270,8 +2272,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     }
     val winHeight = this.winHeight.tchk.expectUInt()
     val winWidth = this.winWidth.tchk.expectUInt()
-    val outHeight = ToUnsigned(SafeSum(n, 1, -1 * winHeight)())()
-    val outWidth = ToUnsigned(SafeSum(m, 1, -1 * winWidth)())()
+    val outHeight = ToUnsigned(SafeSum(n, 1, C(-1)() * winHeight)())()
+    val outWidth = ToUnsigned(SafeSum(m, 1, C(-1)() * winWidth)())()
     val outTyp =
       TyStm(TyStm(TyVec(TyVec(t, winWidth), winHeight), outWidth), outHeight)
     this.rebuild(outTyp, Seq(stm, winHeight, winWidth))
@@ -2291,7 +2293,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     val buf = Param("buf")(TyVec(elemTyp, bufLen))
     // Shifted and reshaped line buffer, for finding outputs
     val zeros = VecBuild(
-      ToUnsigned(SafeSum(m, -1 * winWidth)())(),
+      ToUnsigned(SafeSum(m, C(-1)() * winWidth)())(),
       U32 ::+ (_ => Default(elemTyp))
     )()
     val buf2d =
@@ -2304,8 +2306,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     StmBuild(
       ToUnsigned(
         SafeProd(
-          SafeSum(n, -1 * winHeight, 1)(),
-          SafeSum(m, -1 * winWidth, 1)()
+          SafeSum(n, C(-1)() * winHeight, 1)(),
+          SafeSum(m, C(-1)() * winWidth, 1)()
         )()
       )().tchk().lower(),
       VecBuild(

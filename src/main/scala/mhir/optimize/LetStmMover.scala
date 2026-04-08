@@ -1,5 +1,6 @@
-package mhir.ir
+package mhir.optimize
 
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 /** Transformations for moving [[mhir.ir.LetStm]] around within an expression.

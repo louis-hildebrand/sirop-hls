@@ -921,8 +921,6 @@ object ExprPrinter {
         s"VecLiteral(${children.mkString(",")})(${showScala(v.typ)})"
       case va @ VecAccess(v, i) =>
         s"VecAccess(${showScala(v)},${showScala(i)})(${showScala(va.typ)})"
-      case Default(t) =>
-        s"Default(${showScala(t)})"
       case e: SyntaxSugar =>
         val name = e.getClass.getSimpleName
         val children = e.children.map(showScala).mkString(", ")

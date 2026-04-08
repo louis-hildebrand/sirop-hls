@@ -3,6 +3,7 @@ package evaluate
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir.typecheck.TypeError
+import mhir.sugar._
 
 /** A streaming pipeline.
   *

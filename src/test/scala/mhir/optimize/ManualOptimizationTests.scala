@@ -1,7 +1,7 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamFuser.StreamFusion
+import mhir.sugar.ExprLowering
+import StreamFuser.StreamFusion
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._

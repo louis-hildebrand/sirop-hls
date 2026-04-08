@@ -1,7 +1,7 @@
-package mhir.ir
+package mhir.sugar
 
+import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.sugar.StmMap
 
 /** The lowering transformation, which removes syntax sugar from an expression
   * or a type.
@@ -22,7 +22,7 @@ import mhir.sugar.StmMap
   *   typeWithSyntaxSugar.lower()
   * }}}
   */
-object Lowering {
+trait Lowering {
 
   /** The lowering transformation for expressions.
     */
@@ -63,7 +63,7 @@ object Lowering {
           vb.typ.asInstanceOf[TyVec].t.lower match {
             case _: TyStm =>
               val Function(i, s) = f
-              new mhir.ir.StreamReplicator.StreamReplication(s)
+              new StreamReplicator.StreamReplication(s)
                 .replicate(n, i, Set())
             case t if t.isData => VecBuild(n, f)().tchk()
             case t =>

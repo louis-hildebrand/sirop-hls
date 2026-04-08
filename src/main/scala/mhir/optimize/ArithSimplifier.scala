@@ -2,10 +2,9 @@ package mhir.optimize
 
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar._
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
@@ -722,7 +721,7 @@ private[optimize] object ArithSimplifier {
             x1 == x0 && k0 != k1
           case _ => false
         })
-      case e =>
+      case _ =>
         false
     })
   }

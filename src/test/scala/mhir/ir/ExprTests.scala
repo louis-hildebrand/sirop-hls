@@ -2,7 +2,7 @@ package mhir.ir
 
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
-import mhir.sugar.StmZip
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {

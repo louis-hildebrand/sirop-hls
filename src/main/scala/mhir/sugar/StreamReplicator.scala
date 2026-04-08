@@ -1,10 +1,22 @@
-package mhir.ir
+package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.TypeLowering
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
+
+/** Scope of a variable within a stream that is parallelized by replication.
+  */
+private sealed trait AccVarScope
+
+/** Scope of an accumulator variable which depends on the vector index.
+  */
+private object PrivateScope extends AccVarScope
+
+/** Scope of an accumulator variable which does not depend on the vector index.
+  */
+private object SharedScope extends AccVarScope
 
 /** The stream replication transformation.
   *

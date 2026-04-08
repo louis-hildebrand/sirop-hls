@@ -1,6 +1,8 @@
 package mhir.ir
 package evaluate
 
+import mhir.sugar.Default
+
 /** A node in a streaming pipeline.
   */
 sealed trait StmNode {

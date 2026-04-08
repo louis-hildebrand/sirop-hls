@@ -1,10 +1,10 @@
-package mhir.ir
+package mhir.optimize
 
 import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamFuser.{StmBuildFusion, StreamFusion}
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.PartialEvalPass
+import mhir.optimize.StreamFuser.{StmBuildFusion, StreamFusion}
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamFusionTests extends AnyFunSuite {

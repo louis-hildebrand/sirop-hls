@@ -1,10 +1,9 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
-import mhir.sugar.{Cast, CeilDiv, Max}
+import mhir.sugar._
 
 import scala.annotation.tailrec
 
@@ -505,7 +504,7 @@ private object RecurrenceSolver {
             // change value at the next cycle.
             // Use Max to account for the case where the condition is
             // immediately false: the value at t = 0 will nevertheless be True.
-            Some(Function(t, t - t0 < 1 + Max(0, k)())())
+            Some(Function(t, t - t0 < C(1)() + Max(0, k)())())
           case _ => None
         }
       case (
@@ -550,7 +549,7 @@ private object RecurrenceSolver {
                   case TimeLessThan(k) =>
                     // The boolean is equivalent to t < K (need to account for the fact that the accumulator only
                     // changes at the next cycle and the condition may be false immediately)
-                    val K = 1 + Max(t0, k)()
+                    val K = C(1)() + Max(t0, k)()
                     // (3) Now find closed form for the bounded counter
                     val boundedCtrNext = Function(
                       t,
@@ -959,14 +958,14 @@ private object IfLessThan {
                 //     c0 + c1*x < 0
                 // iff c1*x < -c0
                 // iff x < ceil(-c0 / c1)  (since we're dealing with integers)
-                Some((CeilDiv(-1 * c0, C(c1)())(), a, b))
+                Some((CeilDiv(C(-1)() * c0, C(c1)())(), a, b))
               case IntCst(c1) if c1 < 0 =>
                 //     c0 + c1*x < 0
                 // iff c1*x < -c0
                 // iff x > ceil(-c0 / c1)  (sign flips because c1 < 0)
                 // iff x >= 1 + ceil(-c0 / c1)
                 // TODO: what if there's overflow?
-                Some((1 + CeilDiv(-1 * c0, C(c1)())(), b, a))
+                Some((C(1)() + CeilDiv(C(-1)() * c0, C(c1)())(), b, a))
               case _ => None
             }
           case _ => None

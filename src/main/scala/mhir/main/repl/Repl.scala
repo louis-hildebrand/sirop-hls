@@ -1,6 +1,6 @@
 package mhir.main.repl
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.sugar.ExprLowering
 import mhir.ir._
 import mhir.ir.evaluate.EvalException
 import mhir.ir.typecheck.{TypeCheck, TypeError}

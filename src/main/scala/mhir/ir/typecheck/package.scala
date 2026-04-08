@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.sugar.SugaryExprUtilsImplicit
+
 /** The typechecker.
   *
   * To type check an expression, use the [[mhir.ir.typecheck.TypeCheck.tchk]]

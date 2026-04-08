@@ -6,6 +6,7 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
+import mhir.sugar.StmLiteralUtilsImplicit
 
 import java.time.Duration
 

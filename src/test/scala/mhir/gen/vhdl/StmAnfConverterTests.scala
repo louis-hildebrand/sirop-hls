@@ -1,7 +1,8 @@
-package mhir.ir
+package mhir.gen.vhdl
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.sugar.ExprLowering
 import mhir.sugar.{SimpleCount, SimpleMap, SimpleZip}
 import org.scalatest.funsuite.AnyFunSuite
 

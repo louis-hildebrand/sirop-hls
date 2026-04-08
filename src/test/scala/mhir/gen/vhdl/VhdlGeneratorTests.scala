@@ -2,9 +2,9 @@ package mhir.gen
 package vhdl
 
 import mhir.gen.TestPassed
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.StreamFuser.StreamFusion
-import mhir.ir.Uncurrier.Uncurry
+import mhir.sugar.ExprLowering
+import mhir.optimize.StreamFuser.StreamFusion
+import mhir.sugar.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{StmBuildSimplifier, StmSimplifier}

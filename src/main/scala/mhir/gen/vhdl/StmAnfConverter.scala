@@ -1,5 +1,6 @@
-package mhir.ir
+package mhir.gen.vhdl
 
+import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 
 private sealed trait Binding

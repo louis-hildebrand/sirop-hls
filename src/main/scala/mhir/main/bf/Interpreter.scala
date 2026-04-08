@@ -1,14 +1,8 @@
 package mhir.main.bf
 
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{
-  EnabledLetStmSimplifier,
-  EnabledStmBuildSimplifier,
-  StmSimplifier
-}
-import mhir.sugar.{Min, VecShiftLeft}
+import mhir.sugar.ExprLowering
 
 /** An interpreter for the Brainfuck programming language
   * (https://brainfuck.org/).

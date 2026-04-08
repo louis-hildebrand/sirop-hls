@@ -1,11 +1,10 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.testing.ParamStore
-import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.VecReduceComb
+import mhir.sugar._
+import mhir.testing.ParamStore
+import org.scalatest.funsuite.AnyFunSuite
 
 class StmOutputSchedulerTests extends AnyFunSuite {
 
