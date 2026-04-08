@@ -85,7 +85,7 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("Cast:() to ()") {
-    val actual = Cast(Tuple()(), ())().tchk().lower()
+    val actual = Cast(Tuple()(), TyTuple())().tchk().lower()
     val expected = Tuple()()
     assert(actual == expected)
   }
