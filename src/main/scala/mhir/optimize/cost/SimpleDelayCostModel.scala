@@ -163,8 +163,6 @@ object SimpleDelayCostModel {
         ) + 1
       case VecLiteral(elems @ _*) => elems.map(cost(staticVars, varCosts)).max
       case StmLiteral(elems @ _*) => elems.map(cost(staticVars, varCosts)).max
-      case e: StmNextK =>
-        throw new IllegalArgumentException(s"Cannot compute cost for $e")
       case e: SyntaxSugar =>
         throw new IllegalArgumentException(
           s"Cannot compute cost for syntax sugar $e"

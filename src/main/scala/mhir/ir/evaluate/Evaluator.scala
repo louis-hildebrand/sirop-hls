@@ -488,31 +488,6 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
         throw new IllegalArgumentException(
           s"Invalid use of ${StmData.getClass.getSimpleName} (non-param input)."
         )
-      case StmNextK(s, k) =>
-        val Value(sVal, sWarn) = evalBigStep(stmData)(s)
-        sVal match {
-          case s: StmLiteral =>
-            val Value(kVal, kWarn) = evalBigStep(stmData)(k)
-            kVal match {
-              case IntCst(k) if k <= 0 =>
-                Value(s, sWarn ++ kWarn)
-              case IntCst(k) =>
-                val t = s.typ.asInstanceOf[TyStm].t
-                val newElems = s.elems.drop(k.toInt)
-                val v = StmLiteral(newElems: _*)(TyStm(t, newElems.length))
-                Value(v, sWarn ++ kWarn)
-              case e =>
-                throw new TypeError(
-                  s"Number in ${StmNextK.getClass.getSimpleName} evaluated to $e."
-                    + "It must evaluate to an integer."
-                )
-            }
-          case e =>
-            throw new TypeError(
-              s"Stream in ${StmNextK.getClass.getSimpleName} evaluated to $e."
-                + s"It must evaluate to a ${StmLiteral.getClass.getSimpleName}."
-            )
-        }
 
       case s: SyntaxSugar =>
         throw new IllegalArgumentException(

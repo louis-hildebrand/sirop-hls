@@ -1,7 +1,5 @@
 package mhir.ir
 
-import mhir.sugar.SugaryExprUtilsImplicit
-
 /** The typechecker.
   *
   * To type check an expression, use the [[mhir.ir.typecheck.TypeCheck.tchk]]
@@ -512,25 +510,6 @@ package object typecheck {
           }
           val newOut = out.tchk(context + (newX -> newIn.typ))
           let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
-        case sn @ StmNextK(s, k) =>
-          val newK = k.tchk
-          newK.typ match {
-            case _: TyAnyInt => ()
-            case t =>
-              throw new TypeError(
-                s"Index of ${StmNextK.getClass.getSimpleName} has type $t."
-                  + " Expected an integer."
-              )
-          }
-          val newS = s.tchk
-          newS.typ match {
-            case TyStm(t, n) =>
-              sn.rebuild(TyStm(t, n - k), Seq(newS, newK))
-            case t =>
-              throw new TypeError(
-                s"Stream of ${StmNextK.getClass.getSimpleName} has type $t."
-              )
-          }
         case sl @ StmLiteral(elems @ _*) =>
           val checkedElems = elems.map(e => e.tchk())
           val types = checkedElems.map(e => e.typ).toSet

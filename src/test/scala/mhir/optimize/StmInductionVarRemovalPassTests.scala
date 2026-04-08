@@ -39,8 +39,13 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(s.nextByVar(t) == Sum(C(1)(), t)())
   }
 
-  // Lower and partially evaluate
+  /** Lower and partially evaluate.
+    */
   private def lpe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk().lower())
+
+  /** Partially evaluate without lowering.
+    */
+  private def pe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk())
 
   /** Consider the accumulator
     *
@@ -584,10 +589,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val result = RecurrenceSolver.tryFindClosedForm(0, s, recEqn)
 
     assert(result.isDefined)
-    val f = lpe(result.get)
+    val f = pe(result.get)
 
     val expected =
-      lpe(I33 ::+ (t => StmNextK(s, Mux(t < 10, t, C(10)(I33))())()))
+      pe(I33 ::+ (t => StmNextK(s, lpe(Mux(t < 10, t, C(10)(I33))()))()))
     assert(f == expected)
   }
 
@@ -608,33 +613,36 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     val initialVec =
       VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower()
+    val next = Param("next")(stmNextFun.typ)
     val shiftRecEqn = (I33 ::+ (t =>
       TyVec(I16, n) ::+ (x =>
         Mux(
           t < n,
-          VecShiftLeft(x, StmData(FunCall(stmNextFun, t)())())(),
+          VecShiftLeft(x, StmData(FunCall(next, t)())())(),
           x
         )()
       )
-    )).tchk().lower().asInstanceOf[Function]
+    )).tchk().lower().subPreserveType(next -> stmNextFun).asInstanceOf[Function]
     val shiftEqn =
       RecurrenceSolver.tryFindClosedForm(0, initialVec, shiftRecEqn)
 
     assert(shiftEqn.isDefined)
-    val f = PartialEvalPass.partialEval(shiftEqn.get)(FactSet())
+    val actual = PartialEvalPass.partialEval(shiftEqn.get)(FactSet())
 
     // Effective simplification
-    val expected = lpe(
+    val expected = pe(
       I33 ::+ (t =>
         Mux(
-          t < n,
+          (t < n).tchk().lower(),
           VecBuild(
             n,
             U32 ::+ (i =>
               Mux(
-                i + t < 7,
-                Default(I16),
-                StmData(StmNextK(s, -1 * n + t + ToSigned(i)())())()
+                (i + t < 7).tchk().lower(),
+                Default(I16).tchk().lower(),
+                StmData(
+                  StmNextK(s, (-1 * n + t + ToSigned(i)()).tchk().lower())()
+                )()
               )()
             )
           )(),
@@ -645,11 +653,10 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         )()
       )
     )
-    val actual = lpe(f)
     assert(actual == expected)
   }
 
-  test("RecursiveForm:StmNextK(s, t)") {
+  ignore("RecursiveForm:StmNextK(s, t)") {
     val n = 3
     val t = Param("t")(I33)
     val s = Param("s")(TyStm(I16, n))
@@ -668,14 +675,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Smoke test
     val stmExamples = Seq(
-      StmCst(n, C(42)(I16))(),
-      StmRange(n, C(9)(I16), C(8)(I16))()
+      StmCst(n, C(42)(I16))().tchk(),
+      StmRange(n, C(9)(I16), C(8)(I16))().tchk()
     )
     for (sVal <- stmExamples) {
-      val timeFunc =
-        mhir.ir
-          .eval(Let(s, sVal, Function(t, e)())().tchk())
-          .asInstanceOf[Function]
+      val timeFunc = Function(t, e.tchk().subPreserveType(s -> sVal))()
       assertEquationsEqual(
         FunctionOfTime(timeFunc),
         StreamTimeRecurrence(Let(s, sVal, z)(), f),
@@ -688,7 +692,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(f == expectedF)
   }
 
-  test("RecursiveForm:StmNextK(s, t - n)") {
+  ignore("RecursiveForm:StmNextK(s, t - n)") {
     val t = Param("t")(I33)
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(I16, n))

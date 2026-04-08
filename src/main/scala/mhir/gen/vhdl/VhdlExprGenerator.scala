@@ -200,7 +200,7 @@ private object VhdlExprGenerator {
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
         )
-      case _: StmNextK | _: StmLiteral =>
+      case _: StmLiteral =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName}."
         )

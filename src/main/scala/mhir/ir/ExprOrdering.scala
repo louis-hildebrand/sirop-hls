@@ -73,7 +73,6 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: VecAccess    => 32000
       case _: VecLiteral   => 33000
       case _: StmLiteral   => 34000
-      case _: StmNextK     => 35000
       case _: SyntaxSugar  => 36000
     }
   }

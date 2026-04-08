@@ -1285,33 +1285,9 @@ object StmLiteral {
   }
 }
 
-/** Construct a new stream by skipping a certain number of elements within
-  * another stream.
-  *
-  * This construct is <i>not</i> synthesizable in general—stream must be read in
-  * order starting from the beginning, but this allows jumping to a random index
-  * within a stream. However, it is useful for certain optimization passes
-  * (e.g., [[mhir.optimize.StmInductionVarRemovalPass]]).
-  *
-  * @param s
-  *   the original stream.
-  * @param k
-  *   the number of elements to skip.
-  */
-case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
-    typ: Type = Missing
-) extends Expr(s, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s, i) => StmNextK(s, i)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
 /** A node outside the core IR.
   *
-  * This can be used to define syntax sugar (e.g., [[Let]], [[SmartSum]]).
+  * This can be used to define syntax sugar (e.g., `StmMap`, `VecReduce`).
   */
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {

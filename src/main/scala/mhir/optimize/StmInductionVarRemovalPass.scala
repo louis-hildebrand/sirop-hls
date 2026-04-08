@@ -1,13 +1,62 @@
 package mhir.optimize
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 
 import scala.annotation.tailrec
 
 // You may need to don a hazmat suit before working on this code.
+
+/** Construct a new stream by skipping a certain number of elements within
+  * another stream.
+  *
+  * This construct is <i>not</i> synthesizable in general—stream must be read in
+  * order starting from the beginning, but this allows jumping to a random index
+  * within a stream. However, it is useful for certain optimization passes
+  * (e.g., [[mhir.optimize.StmInductionVarRemovalPass]]).
+  *
+  * @param s
+  *   the original stream.
+  * @param k
+  *   the number of elements to skip.
+  */
+case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
+    typ: Type = Missing
+) extends SyntaxSugar(s, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, i) => StmNextK(s, i)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+    val newK = this.k.tchk
+    newK.typ match {
+      case _: TyAnyInt => ()
+      case t =>
+        throw new TypeError(
+          s"Index of ${StmNextK.getClass.getSimpleName} has type $t."
+            + " Expected an integer."
+        )
+    }
+    val newS = s.tchk
+    newS.typ match {
+      case TyStm(t, n) =>
+        this.rebuild(TyStm(t, n - k), Seq(newS, newK))
+      case t =>
+        throw new TypeError(
+          s"Stream of ${StmNextK.getClass.getSimpleName} has type $t."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(): Expr = {
+    throw new RuntimeException(s"$className should not be lowered")
+  }
+}
 
 /** Transformations that attempt to remove induction variables.
   *
@@ -120,7 +169,10 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       } else {
         val subs: Map[Expr, Expr] =
           closedFormByVar.map({ case (x, f) =>
-            val replacement = Cast(FunCall(f, t)(), x.typ)().tchk().lower()
+            val funCall = FunCall(f, t)().tchk()
+            val y = Param("y")(funCall.typ)
+            val replacement =
+              Cast(y, x.typ)().tchk().lower().subPreserveType(y -> funCall)
             x -> replacement
           })
         val equations =
@@ -149,7 +201,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
           RecurrenceSolver.tryFindClosedForm(0, z, next) match {
             case Some(f) =>
               val peF =
-                PE.partialEval(f.tchk().lower())(this.facts.geq(t, 0))
+                PE.partialEval(f.tchk())(this.facts.geq(t, 0))
                   .asInstanceOf[Function]
               closedFormByVar += (x -> peF)
             case None => ()
@@ -180,7 +232,9 @@ class StmInductionVarRemovalPass(facts: FactSet) {
     }
     for ((x, f) <- closedFormByVar) {
       assert(
-        !f.hasSyntaxSugar,
+        !f.contains(e =>
+          e.isInstanceOf[SyntaxSugar] && !e.isInstanceOf[StmNextK]
+        ),
         s"there should be no syntax sugar in the closed forms (found some in the function for $x)"
       )
     }
@@ -256,7 +310,11 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       var newAccVars = Map[Param, (Expr, Function)]()
       for ((x, f) <- closedFormsInOrder) {
         val newStm = {
-          val replacement = Cast(FunCall(f, t)(), x.typ)().tchk().lower()
+          val replacement = {
+            val funCall = FunCall(f, t)().tchk()
+            val y = Param("y")(funCall.typ)
+            Cast(y, x.typ)().tchk().lower().subPreserveType(y -> funCall)
+          }
           val replaced = s.replaceVar(x, replacement)
           val pe = PE.partialEval(replaced)(this.facts.geq(t, 0))
           val movedUp = moveStmNextKUp(pe)
@@ -376,11 +434,15 @@ private object RecurrenceSolver {
 
   def tryFindClosedForm(t0: Expr, z: Expr, next: Function): Option[Function] = {
     require(
-      !z.hasSyntaxSugar,
+      !z.contains(e =>
+        e.isInstanceOf[SyntaxSugar] && !e.isInstanceOf[StmNextK]
+      ),
       "Syntax sugar must be removed before a closed form can be found."
     )
     require(
-      !next.hasSyntaxSugar,
+      !next.contains(e =>
+        e.isInstanceOf[SyntaxSugar] && !e.isInstanceOf[StmNextK]
+      ),
       "Syntax sugar must be removed before a closed form can be found."
     )
     val peZ = PE.partialEval(z.tchk())
@@ -393,7 +455,9 @@ private object RecurrenceSolver {
     closedForm.foreach(f => {
       val typedF = f.tchk().asInstanceOf[Function]
       assert(
-        !typedF.hasSyntaxSugar,
+        !typedF.contains(e =>
+          e.isInstanceOf[SyntaxSugar] && !e.isInstanceOf[StmNextK]
+        ),
         s"closed form should not contain any syntax sugar (expression is $typedF)"
       )
       assert(
@@ -450,7 +514,7 @@ private object RecurrenceSolver {
               z,
               e.subPreserveType(t -> (t - 1).tchk().lower())
             )()
-          )()
+          )().tchk().lower()
         )
       case Counter(delta) =>
         Some(Function(t, Cast(z + (t - t0) * delta, typ)())().tchk().lower())
@@ -467,27 +531,31 @@ private object RecurrenceSolver {
                   // Imagine the vector is a fixed, infinite tape and we're
                   // moving to the right as time goes along.
                   //   [f(0), f(1), ..., f(n - 1), g(0), g(1), ...]
-                  (t - t0 + i) < n,
-                  FunCall(f, Cast(t - t0 + i, fInT)())(),
-                  FunCall(g, Cast(t - t0 + i - n, gInT)())()
+                  ((t - t0 + i) < n).tchk().lower(),
+                  FunCall(f, Cast(t - t0 + i, fInT)().tchk().lower())(),
+                  FunCall(g, Cast(t - t0 + i - n, gInT)().tchk().lower())()
                 )()
               )
             )()
-          )().tchk().lower().asInstanceOf[Function]
+          )().tchk().asInstanceOf[Function]
         )
       case Piecewise(k, f, g) =>
         tryFindClosedForm(t0, z, f) match {
           case Some(f) =>
             // The time at which we switch from one side of the piecewise function to the other
             val t1 = Max(k, t0)().tchk().lower()
-            val valAtT1 = FunCall(f, t1)().tchk().lower()
+            val valAtT1 = FunCall(f, t1)().tchk()
             tryFindClosedForm(t1, valAtT1, g) match {
               case Some(g) =>
                 Some(
                   Function(
                     t,
-                    Mux(t < t1, FunCall(f, t)(), FunCall(g, t)())()
-                  )()
+                    Mux(
+                      (t < t1).tchk().lower(),
+                      FunCall(f, t)(),
+                      FunCall(g, t)()
+                    )()
+                  )().tchk()
                 )
               case None => None
             }
@@ -504,7 +572,7 @@ private object RecurrenceSolver {
             // change value at the next cycle.
             // Use Max to account for the case where the condition is
             // immediately false: the value at t = 0 will nevertheless be True.
-            Some(Function(t, t - t0 < C(1)() + Max(0, k)())())
+            Some(Function(t, t - t0 < C(1)() + Max(0, k)())().tchk().lower())
           case _ => None
         }
       case (
@@ -568,7 +636,11 @@ private object RecurrenceSolver {
                     //       apparently breaks the pattern matching)
                     tryFindDataClosedForm(t0, i0, boundedCtrNext) match {
                       case Some(h) =>
-                        Some(Function(t, Tuple(t < K, FunCall(h, t)())())())
+                        Some(
+                          Function(t, Tuple(t < K, FunCall(h, t)())())()
+                            .tchk()
+                            .lower()
+                        )
                       case None => None
                     }
                   case _ => None
@@ -584,10 +656,16 @@ private object RecurrenceSolver {
       case _ => None
     }
     result.map(f => {
-      val peF = PE.partialEval(f.tchk().lower()).asInstanceOf[Function]
+      val peF = PE.partialEval(f.tchk()).asInstanceOf[Function]
       assert(
         peF.typ == I33 ->: typ,
         s"Closed form must have the same type as the original (expected ${I33 ->: typ} but found ${peF.typ})."
+      )
+      assert(
+        !peF.contains(e =>
+          e.isInstanceOf[SyntaxSugar] && !e.isInstanceOf[StmNextK]
+        ),
+        s"closed form should not contain any syntax sugar (expression is $peF)"
       )
       peF
     })

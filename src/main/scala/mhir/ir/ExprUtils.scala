@@ -1,14 +1,6 @@
 package mhir.ir
 
 import mhir.ir.typecheck.TypeError
-import mhir.sugar.{
-  SmartDiv,
-  SmartEqual,
-  SmartLessThan,
-  SmartMod,
-  SmartProd,
-  SmartSum
-}
 
 trait ExprUtils {
 

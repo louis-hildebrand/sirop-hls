@@ -270,7 +270,9 @@ object PartialEvalPass {
                 // Out-of-bounds vector access is undefined behaviour, so just
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
-                doPartialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
+                doPartialEval(
+                  FunCall(f, Cast(i, fInT)().tchk().lower())().tchk()
+                )
               case (Undefined(TyVec(t, _)), _) =>
                 Undefined(t)
               case (v, i) => VecAccess(v, i)()

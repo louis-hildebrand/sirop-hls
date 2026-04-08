@@ -483,23 +483,6 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e, maxWidth = 15) == expectedMultiLine)
   }
 
-  test("StmNextK") {
-    val s = Param("s", -1)(TyStm(U8, 42))
-    val k = Param("k", -1)(U8)
-    val e = StmNextK(s, k)()
-
-    val expectedOneLine = "snextk(s, k)"
-    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
-
-    val expectedMultiLine =
-      s"""snextk(
-         |  s,
-         |  k
-         |)
-         |""".stripMargin.stripTrailing
-    assert(ExprPrinter.display(e, maxWidth = 10) == expectedMultiLine)
-  }
-
   test("if-else-if") {
     val e = Mux(
       True,
