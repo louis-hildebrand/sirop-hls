@@ -1,4 +1,4 @@
-package mhir.optimize
+package mhir.debug
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._

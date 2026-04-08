@@ -1,11 +1,11 @@
 package mhir.main.aetherling
 
-import mhir.debug.{Trace, Tracer}
+import mhir.debug.{Trace, Tracer, NameSimplifier => NS}
 import mhir.gen.vhdl.DirectTestInput
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.{CompilerOptions, NullTarget}
-import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
+import mhir.optimize.OptimizerOptions
 import mhir.sugar.StmLiteralUtilsImplicit
 
 import java.time.Duration

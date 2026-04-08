@@ -1,10 +1,10 @@
-package mhir.optimize
+package mhir.debug
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{NameSimplifier => NS}
 import mhir.sugar.StmZip
 import org.scalatest.funsuite.AnyFunSuite
+import mhir.debug.{NameSimplifier => NS}
 
 class NameSimplifierTests extends AnyFunSuite {
 

@@ -1,10 +1,11 @@
 package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
+import mhir.debug.{NameSimplifier => NS}
 import mhir.ir._
 import mhir.logging.time
 import mhir.main.shared.{CompilerOptions, NullTarget}
-import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
+import mhir.optimize.OptimizerOptions
 import mhir.parse.sirop.Parser
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
