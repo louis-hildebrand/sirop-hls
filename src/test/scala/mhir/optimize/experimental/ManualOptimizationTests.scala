@@ -1,13 +1,12 @@
-package mhir.optimize
+package mhir.optimize.experimental
 
-import mhir.sugar.ExprLowering
-import StreamFuser.StreamFusion
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar._
+import mhir.optimize.StreamFuser.StreamFusion
+import mhir.optimize.{PartialEvalPass => PE, _}
+import mhir.sugar.{ExprLowering, _}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
-import mhir.optimize.{PartialEvalPass => PE}
 
 /** Examples of how some high-level transformations in, for example, SHIR can be
   * expressed as sequences of smaller transformations in the minimalist IR. For
@@ -163,7 +162,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val g = U32 ::+ (x => x + 10)
     val original = VecMap(VecMap(input, f)(), g)().tchk().lower()
     val optimize = (v: Expr) => {
-      val v1 = PartialEvalPass.partialEval(v)
+      val v1 = PE.partialEval(v)
       v1
     }
     val optimized = optimize(original)
@@ -501,7 +500,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
       val v5 = tl({
         val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v4))
-        PartialEvalPass.partialEval(v4)(facts).asInstanceOf[StmBuild]
+        PE.partialEval(v4)(facts).asInstanceOf[StmBuild]
       })
       tl(StmAccRemovalPass.removeUnusedVars(v5))
     }
@@ -549,7 +548,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
       val v5 = tl({
         val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v3))
-        PartialEvalPass.partialEval(v4)(facts).asInstanceOf[StmBuild]
+        PE.partialEval(v4)(facts).asInstanceOf[StmBuild]
       })
       tl(StmAccRemovalPass.removeUnusedVars(v5))
     }
@@ -719,7 +718,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val v = Param("v")(TyVec(U8, n))
     val original = VecReverse(VecReverse(v)).tchk().lower()
-    val optimized = PartialEvalPass.partialEval(original)
+    val optimized = PE.partialEval(original)
     val expected = VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))()
     assert(optimized == expected)
   }
@@ -730,7 +729,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val facts = FactSet().geq(n, 1)
-      val s0 = tl(PartialEvalPass.partialEval(s)(facts))
+      val s0 = tl(PE.partialEval(s)(facts))
       val s1 = tl(s0.fuseCompletely())
       val s2 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s1))
       // TODO: It should be able to do both in one step
@@ -738,7 +737,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val s4 = tl(StmAccRemovalPass.removeUnusedVars(s3))
       val s5 = tl(StmDelayRemovalPass.skipFirstCycles(s4, n)(facts))
       val s6 = tl(
-        PartialEvalPass
+        PE
           .partialEval(s5)(
             facts.range(s5, StmAccRangeAnalysis.findAccRanges(s5))
           )
@@ -782,7 +781,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val m = Param("n")(U8)
     val v = Param("v")(TyVec(TyVec(U8, m), n))
     val tt = VecTranspose(VecTranspose(v))
-    val optimized = PartialEvalPass.partialEval(tt)
+    val optimized = PE.partialEval(tt)
     // TODO: I need some way to essentially eta-reduce a 2D VecBuild
     assert(optimized == v)
   }
@@ -800,10 +799,10 @@ class ManualOptimizationTests extends AnyFunSuite {
       tt
     }
     val optimized = {
-      val s0 = PartialEvalPass.partialEval(original).asInstanceOf[StmBuild]
+      val s0 = PE.partialEval(original).asInstanceOf[StmBuild]
       val s1 = s0.fuseCompletely()
       val s2 = StmInductionVarRemovalPass().removeInductionVars(s1)
-      PartialEvalPass.partialEval(s2)
+      PE.partialEval(s2)
     }
 
     // Correctness

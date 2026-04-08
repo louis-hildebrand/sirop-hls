@@ -1,7 +1,7 @@
-package mhir.optimize
+package mhir.optimize.experimental
 
 import mhir.ir._
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.optimize.{PartialEvalPass => PE, _}
 
 /** Transformations for skipping steps within a [[mhir.ir.StmBuild]], thereby
   * reducing latency.

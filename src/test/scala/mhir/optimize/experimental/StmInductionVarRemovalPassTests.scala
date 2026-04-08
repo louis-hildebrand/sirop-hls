@@ -1,8 +1,8 @@
-package mhir.optimize
+package mhir.optimize.experimental
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tags.Slow
@@ -41,11 +41,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   /** Lower and partially evaluate.
     */
-  private def lpe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk().lower())
+  private def lpe(e: Expr): Expr = PE.partialEval(e.tchk().lower())
 
   /** Partially evaluate without lowering.
     */
-  private def pe(e: Expr): Expr = PartialEvalPass.partialEval(e.tchk())
+  private def pe(e: Expr): Expr = PE.partialEval(e.tchk())
 
   /** Consider the accumulator
     *
@@ -105,7 +105,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         a5 -> (C(1)(I16), a5 + delta + 1)
       )
     )().tchk().lower().asInstanceOf[StmBuild]
-    val opt = PartialEvalPass
+    val opt = PE
       .partialEval(StmInductionVarRemovalPass().removeInductionVars(s))
       .asInstanceOf[StmBuild]
 
@@ -608,7 +608,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val stmNextFun =
       RecurrenceSolver
         .tryFindClosedForm(t0, s, stmNextRecEqn)
-        .map(f => PartialEvalPass.partialEval(f))
+        .map(f => PE.partialEval(f))
         .get
 
     val initialVec =
@@ -627,7 +627,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       RecurrenceSolver.tryFindClosedForm(0, initialVec, shiftRecEqn)
 
     assert(shiftEqn.isDefined)
-    val actual = PartialEvalPass.partialEval(shiftEqn.get)(FactSet())
+    val actual = PE.partialEval(shiftEqn.get)(FactSet())
 
     // Effective simplification
     val expected = pe(
@@ -668,8 +668,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val (z, f) = actual.get match {
       case (z, Function(t, e)) =>
         (
-          PartialEvalPass.partialEval(z),
-          Function(t, PartialEvalPass.partialEval(e)(FactSet().geq(t, 0)))()
+          PE.partialEval(z),
+          Function(t, PE.partialEval(e)(FactSet().geq(t, 0)))()
         )
     }
 
@@ -704,8 +704,8 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val (z, f) = actual.get match {
       case (z, Function(t, e)) =>
         (
-          PartialEvalPass.partialEval(z),
-          Function(t, PartialEvalPass.partialEval(e)(facts.geq(t, 0)))()
+          PE.partialEval(z),
+          Function(t, PE.partialEval(e)(facts.geq(t, 0)))()
         )
     }
 
@@ -822,7 +822,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         )
       )
     )().tchk().lower().asInstanceOf[StmBuild]
-    val opt = PartialEvalPass.partialEval(
+    val opt = PE.partialEval(
       StmInductionVarRemovalPass().removeInductionVars(original)
     )
 

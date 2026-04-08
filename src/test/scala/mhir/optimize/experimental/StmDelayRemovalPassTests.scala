@@ -1,7 +1,8 @@
-package mhir.optimize
+package mhir.optimize.experimental
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.FactSet
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -1,8 +1,9 @@
-package mhir.optimize
+package mhir.optimize.experimental
 
-import mhir.sugar._
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.{FactSet, PartialEvalPass, ScalarRange, StmAccRange}
+import mhir.sugar._
 
 /** Analysis for finding the ranges of accumulators within a
   * [[mhir.ir.StmBuild]].

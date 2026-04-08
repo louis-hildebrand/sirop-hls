@@ -2,6 +2,7 @@ package mhir.optimize
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.experimental.StmAccRangeAnalysis
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 import mhir.testing.ParamStore
