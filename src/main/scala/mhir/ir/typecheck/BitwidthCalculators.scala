@@ -1,6 +1,28 @@
 package mhir.ir
 package typecheck
 
+trait BitwidthCalculators {
+
+  implicit class BitwidthCalculatorsImplicit(typ: TyAnyInt) {
+
+    /** See [[mhir.ir.typecheck.TSum]].
+      */
+    def +(that: TyAnyInt): TyAnyInt = TSum(this.typ, that)
+
+    /** See [[mhir.ir.typecheck.TProd]].
+      */
+    def *(that: TyAnyInt): TyAnyInt = TProd(this.typ, that)
+
+    /** See [[mhir.ir.typecheck.TDiv]].
+      */
+    def /(that: TyAnyInt): TyAnyInt = TDiv(this.typ, that)
+
+    /** See [[mhir.ir.typecheck.TMod]].
+      */
+    def %(that: TyAnyInt): TyAnyInt = TMod(this.typ, that)
+  }
+}
+
 /** Computes the narrowest type that can represent the result of a sum without
   * overflow.
   */

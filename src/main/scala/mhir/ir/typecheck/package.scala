@@ -15,7 +15,7 @@ import mhir.canonicalize._
   *   IntCst(42)().tchk()
   * }}}
   */
-package object typecheck {
+package object typecheck extends BitwidthCalculators {
   implicit class TypeCheck(expr: Expr) {
 
     /** Type checks this expression and annotates it with its type.
@@ -437,8 +437,10 @@ package object typecheck {
                   )
                 }
               }
+              val len = newElems.length
+              val n = C(len)(TyAnyInt.tightest(0, len))
               vl.rebuild(
-                TyVec(newElems.head.typ, newElems.length)(NoOpCanonicalizer),
+                TyVec(newElems.head.typ, n)(NoOpCanonicalizer),
                 newElems
               )
           }
@@ -524,10 +526,9 @@ package object typecheck {
             )
           } else if (types.size == 1) {
             val t = types.head
-            sl.rebuild(
-              TyStm(t, checkedElems.length)(NoOpCanonicalizer),
-              checkedElems
-            )
+            val len = checkedElems.length
+            val n = C(len)(TyAnyInt.tightest(0, len))
+            sl.rebuild(TyStm(t, n)(NoOpCanonicalizer), checkedElems)
           } else {
             throw new IllegalArgumentException(
               "Inconsistent element types in stream literal."

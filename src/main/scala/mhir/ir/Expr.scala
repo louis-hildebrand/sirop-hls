@@ -1,7 +1,5 @@
 package mhir.ir
 
-import mhir.ir.typecheck.TypeError
-
 import java.util.concurrent.atomic.AtomicLong
 
 /** A node in the IR.
@@ -307,7 +305,9 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
         throw OverflowException(i, int)
       }
     case t =>
-      throw new TypeError(s"Invalid type $t for integer constant.")
+      throw new IllegalArgumentException(
+        s"Invalid type $t for integer constant."
+      )
   }
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -893,7 +893,7 @@ case class Undefined(override val typ: Type) extends Expr()(typ) {
 object Undefined {
   def apply(typ: Type): Undefined = {
     if (!typ.isData) {
-      throw new TypeError(
+      throw new IllegalArgumentException(
         s"Cannot construct undefined value for non-data type $typ."
       )
     }

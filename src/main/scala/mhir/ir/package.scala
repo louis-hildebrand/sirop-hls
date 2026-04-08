@@ -2,8 +2,7 @@ package mhir
 
 import scala.language.implicitConversions
 
-/** The core IR, type checker ([[mhir.ir.typecheck]]), evaluator
-  * ([[mhir.ir.evaluate]]), and a few other tidbits.
+/** The core IR and a few helper methods.
   *
   * The root class for the IR is [[mhir.ir.Expr]]. There are the typical lambda
   * calculus primitives ([[Param]], [[Function]], [[FunCall]]), some primitives
@@ -19,7 +18,7 @@ package object ir
     extends mhir.ir.ExprUtils
     with mhir.ir.StmBuildUtils
     with mhir.ir.Conversions
-    with mhir.ir.typecheck.CommonIntTypes
+    with mhir.ir.CommonIntTypes
     with mhir.ir.Substitution {
 
   /** Reset all global mutable state in this package.

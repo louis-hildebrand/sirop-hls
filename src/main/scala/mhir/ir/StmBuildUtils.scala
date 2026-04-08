@@ -1,7 +1,5 @@
 package mhir.ir
 
-import mhir.ir.typecheck.{TypeCheck, TypeError}
-
 trait StmBuildUtils {
 
   /** Helper methods for [[StmBuild]].
@@ -86,16 +84,18 @@ trait StmBuildUtils {
       this.stm.requireType("adding an output counter")
       outCtr.typ match {
         case Missing =>
-          throw new TypeError(
+          throw new IllegalArgumentException(
             s"Variable provided for output counter must have a type."
             // ... because every accumulator must have a type, and how would we
             // know what value to choose here?
           )
         case TyUInt(0) =>
-          throw new TypeError(s"Cannot add zero-width output counter.")
+          throw new IllegalArgumentException(
+            s"Cannot add zero-width output counter."
+          )
         case _: TyUInt => ()
         case t =>
-          throw new TypeError(
+          throw new IllegalArgumentException(
             s"Variable provided for output counter has type $t."
               + " Expected an unsigned integer."
           )
@@ -106,7 +106,11 @@ trait StmBuildUtils {
         else
           this.stm
       val z = C(0)(outCtr.typ)
-      val next = Mux(s.valid, Sum(C(1)(outCtr.typ), outCtr)(), outCtr)().tchk()
+      val next = Mux(
+        s.valid,
+        Sum(C(1)(outCtr.typ), outCtr)(outCtr.typ),
+        outCtr
+      )(outCtr.typ)
       s.addAccumulator(outCtr, z, next)
     }
 
@@ -124,16 +128,18 @@ trait StmBuildUtils {
       this.stm.requireType("adding an input counter")
       inCtr.typ match {
         case Missing =>
-          throw new TypeError(
+          throw new IllegalArgumentException(
             s"Variable provided for output counter must have a type."
             // ... because every accumulator must have a type, and how would we
             // know what value to choose here?
           )
         case TyUInt(0) =>
-          throw new TypeError(s"Cannot add zero-width output counter.")
+          throw new IllegalArgumentException(
+            s"Cannot add zero-width output counter."
+          )
         case _: TyUInt => ()
         case t =>
-          throw new TypeError(
+          throw new IllegalArgumentException(
             s"Variable provided for output counter has type $t."
               + " Expected an unsigned integer."
           )
@@ -144,8 +150,11 @@ trait StmBuildUtils {
         else
           this.stm
       val stmNextCalled = s.nextByVar(x)
-      val next =
-        Mux(stmNextCalled, Sum(C(1)(inCtr.typ), inCtr)(), inCtr)().tchk()
+      val next = Mux(
+        stmNextCalled,
+        Sum(C(1)(inCtr.typ), inCtr)(inCtr.typ),
+        inCtr
+      )(inCtr.typ)
       s.addAccumulator(inCtr, C(0)(inCtr.typ), next)
     }
 

@@ -1,7 +1,5 @@
 package mhir.ir
 
-import mhir.ir.typecheck.TypeError
-
 trait ExprUtils {
 
   /** Helper methods and shorthands for common operations related to all
@@ -197,7 +195,7 @@ trait ExprUtils {
       * @return
       *   true if this expression is [[True]] and false if this expression is
       *   [[False]].
-      * @throws mhir.ir.typecheck.TypeError
+      * @throws IllegalArgumentException
       *   if this expression is not a boolean constant.
       */
     def toBool: Boolean = {
@@ -205,7 +203,7 @@ trait ExprUtils {
         case True  => true
         case False => false
         case e =>
-          throw new TypeError(
+          throw new IllegalArgumentException(
             s"Expected a boolean constant but found $e."
           )
       }

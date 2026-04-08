@@ -1,7 +1,7 @@
 package mhir.canonicalize
 
 import mhir.ir.typecheck.TypeCheck
-import mhir.ir.{Canonicalizer, Expr}
+import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.ExprLowering
 
@@ -10,7 +10,13 @@ import mhir.sugar.ExprLowering
   */
 object SimplifyingCanonicalizer extends Canonicalizer {
   override def canonicalize(n: Expr): Expr = {
-    PE.partialEval(n.tchk().lower())
+    val n1 = n.tchk()
+    val n2 = (n1, n1.typ) match {
+      case (_: IntCst, _) => n1
+      case (_, _: TyUInt) => n1
+      case _              => ToUnsigned(n1)().tchk()
+    }
+    PE.partialEval(n2.tchk().lower())
   }
 
   override def sameLen(n1: Expr, n2: Expr): Boolean = {
