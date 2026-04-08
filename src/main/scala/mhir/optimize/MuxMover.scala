@@ -85,7 +85,6 @@ object MuxMover {
         moveUpMany(elems, xs => VecLiteral(xs: _*)())
       case StmLiteral(elems @ _*) =>
         moveUpMany(elems, xs => StmLiteral(xs: _*)())
-      case StmNextK(s, k) => moveUp2(Seq(s, k), StmNextK(_, _)())
       case e: SyntaxSugar =>
         // TODO: emit warning in case there's syntax sugar?
         e.map(moveUp)

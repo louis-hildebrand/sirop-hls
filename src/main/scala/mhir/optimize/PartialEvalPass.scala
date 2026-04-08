@@ -187,8 +187,6 @@ object PartialEvalPass {
                         && e1.typ.asInstanceOf[TyAnyInt].maxInt == hi
                         && e1.typ.asInstanceOf[TyAnyInt].minInt == lo =>
                     WrappingSum(e1, C(1)(e1.typ))()
-                  case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                    doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
                   case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
                     trueE
                   case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
@@ -316,12 +314,6 @@ object PartialEvalPass {
               doPartialEval(in),
               doPartialEval(out)
             )()
-          case StmNextK(s, k) =>
-            val peStm = doPartialEval(s)
-            doPartialEval(k) match {
-              case IntCst(k) if k <= 0 => peStm
-              case k                   => StmNextK(peStm, k)()
-            }
 
           case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
             e.map(doPartialEval)

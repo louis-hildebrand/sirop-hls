@@ -1,8 +1,9 @@
 package mhir.optimize
+package experimental
 
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
 
 import scala.annotation.tailrec

@@ -133,8 +133,7 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
         }
 
       // Not allowed
-      case e @ (_: Function | _: StmLiteral | _: StmBuild | _: StmNextK |
-          _: LetStm) =>
+      case e @ (_: Function | _: StmLiteral | _: StmBuild | _: LetStm) =>
         throw new IllegalArgumentException(
           s"Cannot schedule non-data expression $e"
         )

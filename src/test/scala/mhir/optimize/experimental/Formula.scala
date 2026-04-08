@@ -1,4 +1,5 @@
 package mhir.optimize
+package experimental
 
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
