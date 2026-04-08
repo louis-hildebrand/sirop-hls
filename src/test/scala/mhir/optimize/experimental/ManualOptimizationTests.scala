@@ -1,5 +1,6 @@
 package mhir.optimize.experimental
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.StreamFuser.StreamFusion

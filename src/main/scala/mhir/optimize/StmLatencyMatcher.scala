@@ -5,6 +5,7 @@ import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
 import mhir.optimize.{LatencyAnalysis => LA}
+import mhir.canonicalize._
 import org.slf4j.event.Level
 
 trait StmLatencyMatcher {

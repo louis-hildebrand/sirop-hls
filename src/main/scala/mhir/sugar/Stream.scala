@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.optimize.StreamFuser.StreamFusion
@@ -87,7 +88,9 @@ private[sugar] case class StmReset(
     StmReset(n, s, inputs)(typ)
   }
 
-  override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val rhsFreeVars = subs.toSeq
       .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
@@ -107,20 +110,22 @@ private[sugar] case class StmReset(
         })
         .++(renamings)
     StmReset(
-      this.n.subPreserveType(subs),
-      this.s.subPreserveType(newSubs),
+      this.n.subPreserveType(subs)(c),
+      this.s.subPreserveType(newSubs)(c),
       this.inputs.map({ case (x, stm) =>
         // There may be substitutions to do in the type
         val renamedX = renamings.getOrElse(x, x)
         val newX =
-          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
-        val newStm = stm.subPreserveType(subs)
+          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs)(c))
+        val newStm = stm.subPreserveType(subs)(c)
         newX -> newStm
       })
     )(this.typ)
   }
 
-  override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val rhsFreeVars = subs.toSeq
       .flatMap({ case (_, rhs) => rhs.freeVars })
       .toSet
@@ -140,14 +145,14 @@ private[sugar] case class StmReset(
         })
         .++(renamings)
     StmReset(
-      this.n.subAndEraseType(subs),
-      this.s.subAndEraseType(newSubs),
+      this.n.subAndEraseType(subs)(c),
+      this.s.subAndEraseType(newSubs)(c),
       this.inputs.map({ case (x, stm) =>
         // There may be substitutions to do in the type
         val renamedX = renamings.getOrElse(x, x)
         val newX =
-          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs))
-        val newStm = stm.subAndEraseType(subs)
+          Param(renamedX.prefix, renamedX.id)(renamedX.typ.substitute(subs)(c))
+        val newStm = stm.subAndEraseType(subs)(c)
         newX -> newStm
       })
     )()
@@ -236,7 +241,7 @@ private[sugar] case class StmReset(
   }
 
   private def lowerEmptyPipeline(): Option[Expr] = {
-    if (Type.sameLen(this.n, C(0)())) {
+    if (sameLen(this.n, C(0)())) {
       logger.trace(s"lowering $className with n = 0: $this")
       val TyStm(t, _) = s.typ
       Some(
@@ -250,7 +255,7 @@ private[sugar] case class StmReset(
   }
 
   private def lowerForNEqualsOne(): Option[Expr] = {
-    if (Type.sameLen(n, C(1)())) {
+    if (sameLen(n, C(1)())) {
       logger.trace(s"lowering $className with n = 1: $this")
       Some(s)
     } else {
@@ -867,7 +872,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
             + " Expected a stream."
         )
     }
-    if (!Type.sameLen(n1, n2)) {
+    if (!sameLen(n1, n2)) {
       throw new TypeError(
         s"Stream lengths in $className do not match: $n1 and $n2."
       )
@@ -946,7 +951,7 @@ case class StmAccess(
     }
     val annotations: Set[StmBuildAnnotation] = {
       val basicAnnotations = Set(NoOutputsAfterLastIn, SelfControlledOutputs)
-      if (Type.sameLen(SafeSum(k, 1)(), numRows)) {
+      if (sameLen(SafeSum(k, 1)(), numRows)) {
         basicAnnotations + NoInputsAfterLastOut
       } else {
         basicAnnotations
@@ -1244,7 +1249,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     requireType()
     val s = this.s.lower()
     val n = this.s.typ.asInstanceOf[TyStm].n
-    if (Type.sameLen(n, C(1)())) {
+    if (sameLen(n, C(1)())) {
       // Reduce over a stream of length 1 is a no-op
       s
     } else {

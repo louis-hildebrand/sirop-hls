@@ -2,11 +2,12 @@ package mhir.gen
 package vhdl
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.debug.indent
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
-import mhir.sugar.Default
+import mhir.sugar._
 import org.slf4j.event.Level
 import os.Path
 

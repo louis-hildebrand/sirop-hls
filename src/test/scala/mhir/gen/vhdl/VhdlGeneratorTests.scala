@@ -1,14 +1,14 @@
 package mhir.gen
 package vhdl
 
+import mhir.canonicalize._
 import mhir.gen.TestPassed
-import mhir.sugar.ExprLowering
-import mhir.optimize.StreamFuser.StreamFusion
-import mhir.sugar.Uncurrier.Uncurry
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
+import mhir.optimize.StreamFuser.StreamFusion
 import mhir.optimize.{StmBuildSimplifier, StmSimplifier}
-import mhir.sugar._
+import mhir.sugar.Uncurrier.Uncurry
+import mhir.sugar.{ExprLowering, _}
 import mhir.testing.HardwareTest
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck

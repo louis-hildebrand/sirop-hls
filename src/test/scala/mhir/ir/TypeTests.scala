@@ -1,7 +1,8 @@
 package mhir.ir
 
-import org.scalatest.funsuite.AnyFunSuite
+import mhir.canonicalize._
 import mhir.sugar._
+import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
   private val n = Param("n")(U8)
@@ -74,7 +75,10 @@ class TypeTests extends AnyFunSuite {
   test("IsCompatibleWith:Vec") {
     assert(TyVec(I16, n) ~= TyVec(I16, n))
     assert(TyVec(U8, m) ~= TyVec(U8, m))
-    assert(TyVec(I16, n) ~= TyVec(I16, n + C(2)(U8) + C(-2)(I8)))
+
+    val v1 = TyVec(I16, n)
+    val v2 = TyVec(I16, n + C(2)(U8) + C(-2)(I8))
+    assert(v1 ~= v2)
   }
 
   test("MinInt:SInt") {

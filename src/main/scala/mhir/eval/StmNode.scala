@@ -1,5 +1,6 @@
 package mhir.eval
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar.Default
 

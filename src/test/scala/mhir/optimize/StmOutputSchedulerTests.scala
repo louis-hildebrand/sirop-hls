@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._

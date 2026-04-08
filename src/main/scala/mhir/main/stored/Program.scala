@@ -1,5 +1,6 @@
 package mhir.main.stored
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException

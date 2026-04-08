@@ -31,6 +31,8 @@ trait StmBuildUtils {
       *   A map from old variables to new variables.
       */
     def renameVars(replacements: Map[Param, Param]): StmBuild = {
+      // No canonicalization should be required here
+      implicit val c: Canonicalizer = NoOpCanonicalizer
       require(
         replacements.keys.forall(x => this.stm.accVars.contains(x)),
         "all the variables to be replaced must appear in this stream"
@@ -46,6 +48,9 @@ trait StmBuildUtils {
     }
 
     def replaceVars(replacements: Map[Param, Expr]): StmBuild = {
+      // No canonicalization should be required here; accumulator variables
+      // should not be part of the type of an expression
+      implicit val c: Canonicalizer = NoOpCanonicalizer
       if (replacements.keys.exists(x => !this.stm.accVars.contains(x))) {
         val xs =
           replacements.keys.filter(x => !this.stm.accVars.contains(x)).toSeq

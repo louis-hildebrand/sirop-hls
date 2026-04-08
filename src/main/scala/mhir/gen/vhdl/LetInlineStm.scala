@@ -1,5 +1,6 @@
 package mhir.gen.vhdl
 
+import mhir.canonicalize._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.sugar._
@@ -45,7 +46,9 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
     this.out.subPreserveType(this.x -> this.in).lower()
   }
 
-  override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.contains(this.x)
     })
@@ -59,15 +62,17 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     LetInlineStm(
       // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
       // `x` is not bound here, so use the old subs
-      this.in.subPreserveType(subs),
+      this.in.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
-      this.out.subPreserveType(newSubs)
+      this.out.subPreserveType(newSubs)(c)
     )(this.typ)
   }
 
-  override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.contains(this.x)
     })
@@ -81,11 +86,11 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     LetInlineStm(
       // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
       // `x` is not bound here, so use the old subs
-      this.in.subAndEraseType(subs),
+      this.in.subAndEraseType(subs)(c),
       // `x` is bound here, so use the new subs
-      this.out.subAndEraseType(newSubs)
+      this.out.subAndEraseType(newSubs)(c)
     )()
   }
 

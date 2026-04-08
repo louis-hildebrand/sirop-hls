@@ -1,5 +1,6 @@
 package mhir.parse.sirop
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.parse.SyntaxError
 import mhir.sugar._

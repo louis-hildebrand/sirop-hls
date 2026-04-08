@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir.typecheck.{TProd, TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
@@ -62,7 +63,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     }(Let.logger)
   }
 
-  override def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.contains(this.x)
     })
@@ -76,15 +79,17 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     Let(
       // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
       // `x` is not bound here, so use the old subs
-      this.v.subPreserveType(subs),
+      this.v.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
-      this.in.subPreserveType(newSubs)
+      this.in.subPreserveType(newSubs)(c)
     )(this.typ)
   }
 
-  override def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.contains(this.x)
     })
@@ -98,11 +103,11 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
         .++(if (this.x == newX) Seq() else Seq(x -> newX))
     Let(
       // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
+      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
       // `x` is not bound here, so use the old subs
-      this.v.subAndEraseType(subs),
+      this.v.subAndEraseType(subs)(c),
       // `x` is bound here, so use the new subs
-      this.in.subAndEraseType(newSubs)
+      this.in.subAndEraseType(newSubs)(c)
     )()
   }
 
@@ -334,7 +339,7 @@ object ReshapeData {
         (ts1.length == ts2.length
         && ts1.zip(ts2).forall({ case (t1, t2) => canReshape(t1, t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canReshape(t1, t2) && Type.sameLen(n1, n2)
+        canReshape(t1, t2) && sameLen(n1, n2)
       case _ => false
     }
   }
@@ -361,7 +366,7 @@ object ReshapeData {
         } else {
           None
         }
-      case (TyVec(t1, n1), TyVec(t2, n2)) if Type.sameLen(n1, n2) =>
+      case (TyVec(t1, n1), TyVec(t2, n2)) if sameLen(n1, n2) =>
         narrowestCommonAncestor(t1, t2) match {
           case Some(t) => Some(TyVec(t, n1))
           case None    => None

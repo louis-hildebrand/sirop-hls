@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.canonicalize._
+
 /** The typechecker.
   *
   * To type check an expression, use the [[mhir.ir.typecheck.TypeCheck.tchk]]
@@ -427,7 +429,7 @@ package object typecheck {
                 "Cannot type check empty vector literal."
               )
             case _ =>
-              val newElems = elems.map(e => e.tchk())
+              val newElems = elems.map(e => e.tchk)
               for ((e, i) <- newElems.zipWithIndex.tail) {
                 if (e.typ != newElems.head.typ) {
                   throw new TypeError(
@@ -435,7 +437,10 @@ package object typecheck {
                   )
                 }
               }
-              vl.rebuild(TyVec(newElems.head.typ, newElems.length), newElems)
+              vl.rebuild(
+                TyVec(newElems.head.typ, newElems.length)(NoOpCanonicalizer),
+                newElems
+              )
           }
 
         case s: StmBuild =>
@@ -511,7 +516,7 @@ package object typecheck {
           val newOut = out.tchk(context + (newX -> newIn.typ))
           let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
         case sl @ StmLiteral(elems @ _*) =>
-          val checkedElems = elems.map(e => e.tchk())
+          val checkedElems = elems.map(e => e.tchk)
           val types = checkedElems.map(e => e.typ).toSet
           if (types.isEmpty) {
             throw new IllegalArgumentException(
@@ -519,7 +524,10 @@ package object typecheck {
             )
           } else if (types.size == 1) {
             val t = types.head
-            sl.rebuild(TyStm(t, checkedElems.length), checkedElems)
+            sl.rebuild(
+              TyStm(t, checkedElems.length)(NoOpCanonicalizer),
+              checkedElems
+            )
           } else {
             throw new IllegalArgumentException(
               "Inconsistent element types in stream literal."

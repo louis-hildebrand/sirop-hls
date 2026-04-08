@@ -1,5 +1,6 @@
 package mhir.debug
 
+import mhir.canonicalize._
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck

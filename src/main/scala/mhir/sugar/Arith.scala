@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.{TSum, TypeCheck, TypeError}
 
@@ -208,7 +209,7 @@ object Cast {
         (ts1.length == ts2.length
         && ts1.zip(ts2).forall({ case (t1, t2) => canCast(t1, t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canCast(t1, t2) && Type.sameLen(n1, n2)
+        canCast(t1, t2) && sameLen(n1, n2)
       case _ => false
     }
   }

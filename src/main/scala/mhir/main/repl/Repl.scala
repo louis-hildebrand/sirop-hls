@@ -1,5 +1,6 @@
 package mhir.main.repl
 
+import mhir.canonicalize._
 import mhir.eval.EvalException
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}

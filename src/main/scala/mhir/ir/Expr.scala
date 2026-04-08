@@ -232,9 +232,13 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
-          this.body.subAndEraseType(this.param -> fresh.rebuild(this.param.typ))
+          this.body.subAndEraseType(
+            this.param -> fresh.rebuild(this.param.typ)
+          )(NoOpCanonicalizer)
         val thatRenamed =
-          that.body.subAndEraseType(that.param -> fresh.rebuild(that.param.typ))
+          that.body.subAndEraseType(
+            that.param -> fresh.rebuild(that.param.typ)
+          )(NoOpCanonicalizer)
         thisRenamed == thatRenamed
       case _ => false
     }
@@ -247,7 +251,7 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     this.body
       .subAndEraseType(
         this.param -> Function.HashCodeParam.rebuild(this.param.typ)
-      )
+      )(NoOpCanonicalizer)
       .hashCode
   }
 }
@@ -991,11 +995,11 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val data = this.data.subAndEraseType(subs)
-    val valid = this.valid.subAndEraseType(subs)
+    val data = this.data.subAndEraseType(subs)(NoOpCanonicalizer)
+    val valid = this.valid.subAndEraseType(subs)(NoOpCanonicalizer)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
-        (z, next.subAndEraseType(subs))
+        (z, next.subAndEraseType(subs)(NoOpCanonicalizer))
       })
     val eqnsBag =
       eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
@@ -1038,18 +1042,18 @@ case class StmBuild(
           y -> fresh.rebuild(y.typ)
         })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).subAndEraseType(thisSubs)
-          == that.nextByVar(y).subAndEraseType(thatSubs))
+        (this.nextByVar(x).subAndEraseType(thisSubs)(NoOpCanonicalizer)
+          == that.nextByVar(y).subAndEraseType(thatSubs)(NoOpCanonicalizer))
       })
       val thisOutput =
         (
-          this.data.subAndEraseType(thisSubs),
-          this.valid.subAndEraseType(thisSubs)
+          this.data.subAndEraseType(thisSubs)(NoOpCanonicalizer),
+          this.valid.subAndEraseType(thisSubs)(NoOpCanonicalizer)
         )
       val thatOutput =
         (
-          that.data.subAndEraseType(thatSubs),
-          that.valid.subAndEraseType(thatSubs)
+          that.data.subAndEraseType(thatSubs)(NoOpCanonicalizer),
+          that.valid.subAndEraseType(thatSubs)(NoOpCanonicalizer)
         )
       eqnsMatch && thisOutput == thatOutput
     } else {
@@ -1176,8 +1180,10 @@ case class LetStm(
           this.out == that.out
         } else {
           val fresh = Param("equalsX")()
-          val thisOutRenamed = this.out.subAndEraseType(this.x -> fresh)
-          val thatOutRenamed = that.out.subAndEraseType(that.x -> fresh)
+          val thisOutRenamed =
+            this.out.subAndEraseType(this.x -> fresh)(NoOpCanonicalizer)
+          val thatOutRenamed =
+            that.out.subAndEraseType(that.x -> fresh)(NoOpCanonicalizer)
           thisOutRenamed == thatOutRenamed
         }
       case _ => false
@@ -1329,11 +1335,15 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     */
   def lowerSyntaxSugar(): Expr
 
-  def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
   }
 
-  def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
 }

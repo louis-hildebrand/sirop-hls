@@ -1,5 +1,6 @@
 package mhir.main.stored
 
+import mhir.canonicalize._
 import mhir.debug.{Trace, NameSimplifier => NS}
 import mhir.gen.vhdl.DirectTestInput
 import mhir.ir._

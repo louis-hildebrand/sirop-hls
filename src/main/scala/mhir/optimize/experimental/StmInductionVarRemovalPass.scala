@@ -1,6 +1,7 @@
 package mhir.optimize
 package experimental
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.optimize.{PartialEvalPass => PE, _}
@@ -16,7 +17,7 @@ import scala.annotation.tailrec
   * This construct is <i>not</i> synthesizable in general—stream must be read in
   * order starting from the beginning, but this allows jumping to a random index
   * within a stream. However, it is useful for certain optimization passes
-  * (e.g., [[mhir.optimize.StmInductionVarRemovalPass]]).
+  * (e.g., [[mhir.optimize.experimental.StmInductionVarRemovalPass]]).
   *
   * @param s
   *   the original stream.

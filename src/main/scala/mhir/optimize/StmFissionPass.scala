@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
+import mhir.canonicalize._
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec

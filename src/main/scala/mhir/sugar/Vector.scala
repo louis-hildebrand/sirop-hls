@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.StreamReplicator.StreamReplication
@@ -145,7 +146,7 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
             + " Expected a vector."
         )
     }
-    if (!Type.sameLen(n1, n2)) {
+    if (!sameLen(n1, n2)) {
       throw new TypeError(
         s"Vector lengths in $className do not match: $n1 and $n2."
       )
@@ -438,7 +439,7 @@ case class VecReduceComb(
     this.typ.lower match {
       case TyStm(t, m) =>
         require(
-          Type.sameLen(m, 1),
+          sameLen(m, 1),
           s"Cannot wrap result of $className into a stream of length $m."
         )
         val vv = Param("v")(v.typ.asInstanceOf[TyStm].t)

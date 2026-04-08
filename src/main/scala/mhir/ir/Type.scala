@@ -1,8 +1,38 @@
 package mhir.ir
 
-import mhir.sugar.ExprLowering
 import mhir.ir.typecheck.{TDiv, TMod, TProd, TSum, TypeCheck}
-import mhir.optimize.{PartialEvalPass => PE}
+
+/** Trait that provides a way of canonicalizing expressions for the sizes of
+  * collections.
+  */
+trait Canonicalizer {
+
+  /** Convert the given expression into a canonical form.
+    *
+    * This is used in [[TyStm]] and [[TyVec]] to ensure the lengths can be
+    * compared directly (e.g., so that `Vec[T, 1+1]` is treated the same as
+    * `Vec[T, 2]`).
+    */
+  def canonicalize(n: Expr): Expr
+
+  /** Conservatively check whether two lengths (e.g., vector sizes) are equal.
+    *
+    * If the result is <code>true</code> then the lengths are definitely equal,
+    * but if the result is <code>False</code> then they may or may not be equal.
+    */
+  def sameLen(n1: Expr, n2: Expr): Boolean
+}
+
+/** A [[Canonicalizer]] that leaves the expression as-is.
+  *
+  * This is acceptable for cases where the expression is known to already be in
+  * canonical form.
+  */
+object NoOpCanonicalizer extends Canonicalizer {
+  override def canonicalize(n: Expr): Expr = n
+
+  override def sameLen(n1: Expr, n2: Expr): Boolean = n1 == n2
+}
 
 /** The type of an expression.
   */
@@ -46,11 +76,13 @@ sealed trait Type {
     *   a map from old expressions (i.e., the ones to be replaced) to new
     *   expressions (i.e., what to replace the old expressions with).
     */
-  def substitute(subs: Map[Expr, Expr]): Type = {
+  def substitute(subs: Map[Expr, Expr])(implicit c: Canonicalizer): Type = {
     this match {
-      case TyVec(t, n)     => TyVec(t.substitute(subs), n.subPreserveType(subs))
-      case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
-      case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
+      case TyVec(t, n) =>
+        TyVec(t.substitute(subs), n.subPreserveType(subs))(c)
+      case TyStm(t, n) =>
+        TyStm(t.substitute(subs), n.subPreserveType(subs))(c)
+      case TyArrow(t1, t2)  => TyArrow(t1.substitute(subs), t2.substitute(subs))
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
       case t @ (Missing | TyBool | _: TySInt | _: TyUInt | _: TyFix) => t
     }
@@ -58,7 +90,9 @@ sealed trait Type {
 
   /** Shorthand for [[substitute(subs*]] with just one substitution.
     */
-  def substitute(sub: (Expr, Expr)): Type = substitute(Map(sub))
+  def substitute(sub: (Expr, Expr))(implicit c: Canonicalizer): Type = {
+    substitute(Map(sub))
+  }
 
   /** Finds all the free variables in this type.
     */
@@ -91,8 +125,8 @@ sealed trait Type {
         }
       case TyArrow(t1, t2)  => TyArrow(t1.uncurry, t2.uncurry)
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.uncurry): _*)
-      case TyVec(t, n)      => TyVec(t.uncurry, n)
-      case TyStm(t, n)      => TyStm(t.uncurry, n)
+      case TyVec(t, n)      => TyVec(t.uncurry, n)(NoOpCanonicalizer)
+      case TyStm(t, n)      => TyStm(t.uncurry, n)(NoOpCanonicalizer)
     }
   }
 
@@ -114,8 +148,9 @@ sealed trait Type {
           .zip(ts2)
           .forall({ case (t1, t2) => t1 ~= t2 }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        // TODO: Improve check for equality of lengths?
-        (t1 ~= t2) && Type.sameLen(n1, n2)
+        // n1 and n2 are already canonicalized, so we should be able to compare
+        // them syntactically
+        (t1 ~= t2) && (n1 == n2)
       case (TyStm(t1, _), TyStm(t2, _)) =>
         // Two streams are compatible even if they have different lengths!
         t1 ~= t2
@@ -159,19 +194,6 @@ sealed trait Type {
       case TyVec(t, _)                     => t.isData
       case Missing | _: TyArrow | _: TyStm => false
     }
-  }
-}
-
-/** Companion object for [[Type]].
-  */
-object Type {
-
-  /** Conservatively whether two lengths (e.g., vector sizes) are equal. If the
-    * result is <code>true</code> then the lengths are definitely equal, but if
-    * the result is <code>False</code> then they may or may not be equal.
-    */
-  def sameLen(e1: Expr, e2: Expr): Boolean = {
-    PE.isEqual(e1.tchk(), e2.tchk())().getOrElse(false)
   }
 }
 
@@ -413,12 +435,23 @@ case class TyTuple(ts: Type*) extends Type {
   * @param n
   *   the length of the vector.
   */
-case class TyVec(t: Type, n: Expr) extends Type {
+class TyVec(val t: Type, val n: Expr) extends Type {
   require(t != Missing, s"Type in TyVec must not be Missing.")
   require(
     n.hasType,
     s"Length in ${TyVec.getClass.getSimpleName} must have a type."
   )
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TyVec => this.t == that.t && this.n == that.n
+      case _           => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    (this.t, this.n).hashCode()
+  }
 
   override def toString: String = {
     s"Vec[$t, $n]"
@@ -431,9 +464,17 @@ object TyVec {
 
   /** Factory for [[TyVec]].
     */
-  def apply(t: Type, n: Expr): TyVec = {
-    new TyVec(t, PE.partialEval(n.tchk().lower()))
+  def apply(t: Type, n: Expr)(implicit c: Canonicalizer): TyVec = {
+    val n1 = n.tchk()
+    val n2 = (n1, n1.typ) match {
+      case (_: IntCst, _) => n1
+      case (_, _: TyUInt) => n1
+      case _              => ToUnsigned(n1)().tchk()
+    }
+    new TyVec(t, c.canonicalize(n2))
   }
+
+  def unapply(t: TyVec): Option[(Type, Expr)] = Some(t.t, t.n)
 }
 
 /** The type of a stream.
@@ -445,11 +486,22 @@ object TyVec {
   * @param n
   *   the length of the stream.
   */
-case class TyStm(t: Type, n: Expr) extends Type {
+class TyStm(val t: Type, val n: Expr) extends Type {
   require(
     n.hasType,
     s"Length in ${TyStm.getClass.getSimpleName} must have a type."
   )
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TyStm => this.t == that.t && this.n == that.n
+      case _           => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    (this.t, this.n).hashCode()
+  }
 
   override def toString: String = {
     s"Stm[$t, $n]"
@@ -462,9 +514,17 @@ object TyStm {
 
   /** Factory for [[TyStm]].
     */
-  def apply(t: Type, n: Expr): TyStm = {
-    new TyStm(t, PE.partialEval(n.tchk().lower()))
+  def apply(t: Type, n: Expr)(implicit c: Canonicalizer): TyStm = {
+    val n1 = n.tchk()
+    val n2 = (n1, n1.typ) match {
+      case (_: IntCst, _) => n1
+      case (_, _: TyUInt) => n1
+      case _              => ToUnsigned(n1)().tchk()
+    }
+    new TyStm(t, c.canonicalize(n2))
   }
+
+  def unapply(t: TyStm): Option[(Type, Expr)] = Some(t.t, t.n)
 }
 
 /** The type of an option (like Scala's [[scala.Option]]).

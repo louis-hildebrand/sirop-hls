@@ -1,9 +1,9 @@
 package mhir.optimize
 
-import mhir.sugar.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.ir.typecheck.TypeCheck
-import mhir.sugar._
+import mhir.sugar.{ExprLowering, _}
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmSimplifierTests extends AnyFunSuite {

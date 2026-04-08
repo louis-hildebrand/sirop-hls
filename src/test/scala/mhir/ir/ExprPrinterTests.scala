@@ -1,5 +1,6 @@
 package mhir.ir
 
+import mhir.canonicalize._
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite

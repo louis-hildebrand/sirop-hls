@@ -1,5 +1,6 @@
 package mhir.main.aetherling
 
+import mhir.canonicalize._
 import mhir.debug.{Trace, Tracer, NameSimplifier => NS}
 import mhir.gen.vhdl.DirectTestInput
 import mhir.ir._
