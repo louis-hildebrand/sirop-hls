@@ -17,7 +17,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     for (n <- -10 to 10) {
       val e = PadTo(IntCst(n)(I8), 16)()
       val actual = lpe(e)
-      val expected = mhir.ir.eval(e)
+      val expected = mhir.eval.eval(e)
       assert(actual == expected)
       assert(actual.typ == I16)
     }
@@ -37,7 +37,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     for (n <- -4 to 3) {
       val e = TruncateTo(IntCst(n)(I8), 3)()
       val actual = lpe(e)
-      val expected = mhir.ir.eval(e)
+      val expected = mhir.eval.eval(e)
       assert(actual == expected)
       assert(actual.typ == TySInt(3))
     }
@@ -104,7 +104,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     for (n <- 0 to 10) {
       val e = ToUnsigned(IntCst(n)(I8))()
       val actual = lpe(e)
-      val expected = mhir.ir.eval(e)
+      val expected = mhir.eval.eval(e)
       assert(actual == expected)
       assert(actual.typ == TyUInt(7))
     }
@@ -114,7 +114,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     for (n <- 0 to 10) {
       val e = ToSigned(IntCst(n)(U8))()
       val actual = lpe(e)
-      val expected = mhir.ir.eval(e)
+      val expected = mhir.eval.eval(e)
       assert(actual == expected)
       assert(actual.typ == TySInt(9))
     }

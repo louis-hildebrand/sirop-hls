@@ -154,18 +154,18 @@ class SugarTests extends AnyFunSuite {
   }
 
   test("SmartEqual:Bool") {
-    assert(mhir.ir.eval(False === False) == True)
-    assert(mhir.ir.eval(False === True) == False)
-    assert(mhir.ir.eval(True === False) == False)
-    assert(mhir.ir.eval(True === True) == True)
+    assert(mhir.eval.eval(False === False) == True)
+    assert(mhir.eval.eval(False === True) == False)
+    assert(mhir.eval.eval(True === False) == False)
+    assert(mhir.eval.eval(True === True) == True)
   }
 
   test("SmartEqual:Int") {
     for (t1 <- COMMON_INT_TYPES) {
       for (t2 <- COMMON_INT_TYPES) {
-        assert(mhir.ir.eval(IntCst(0)(t1) === IntCst(0)(t2)) == True)
-        assert(mhir.ir.eval(IntCst(63)(t1) === IntCst(63)(t2)) == True)
-        assert(mhir.ir.eval(IntCst(42)(t1) === IntCst(43)(t2)) == False)
+        assert(mhir.eval.eval(IntCst(0)(t1) === IntCst(0)(t2)) == True)
+        assert(mhir.eval.eval(IntCst(63)(t1) === IntCst(63)(t2)) == True)
+        assert(mhir.eval.eval(IntCst(42)(t1) === IntCst(43)(t2)) == False)
       }
     }
   }
@@ -176,12 +176,12 @@ class SugarTests extends AnyFunSuite {
     val v3 = VecBuild(5, U8 ::+ (i => Tuple(i + 1, i === 3)()))()
     val v4 = VecBuild(5, U8 ::+ (i => Tuple(i, True)()))()
 
-    assert(mhir.ir.eval(v1 === v2) == True)
-    assert(mhir.ir.eval(v2 === v1) == True)
-    assert(mhir.ir.eval(v1 === v3) == False)
-    assert(mhir.ir.eval(v1 !== v3) == True)
-    assert(mhir.ir.eval(v1 === v4) == False)
-    assert(mhir.ir.eval(v1 !== v4) == True)
+    assert(mhir.eval.eval(v1 === v2) == True)
+    assert(mhir.eval.eval(v2 === v1) == True)
+    assert(mhir.eval.eval(v1 === v3) == False)
+    assert(mhir.eval.eval(v1 !== v3) == True)
+    assert(mhir.eval.eval(v1 === v4) == False)
+    assert(mhir.eval.eval(v1 !== v4) == True)
   }
 
   test("SmartEqual:IncompatibleTypes") {
@@ -208,11 +208,11 @@ class SugarTests extends AnyFunSuite {
   test("SmartLessThan:Valid") {
     for (t1 <- COMMON_INT_TYPES) {
       for (t2 <- COMMON_INT_TYPES) {
-        assert(mhir.ir.eval(IntCst(0)(t1) < IntCst(0)(t2)) == False)
-        assert(mhir.ir.eval(IntCst(0)(t1) < IntCst(1)(t2)) == True)
-        assert(mhir.ir.eval(IntCst(42)(t1) < IntCst(41)(t2)) == False)
-        assert(mhir.ir.eval(IntCst(42)(t1) < IntCst(42)(t2)) == False)
-        assert(mhir.ir.eval(IntCst(42)(t1) < IntCst(43)(t2)) == True)
+        assert(mhir.eval.eval(IntCst(0)(t1) < IntCst(0)(t2)) == False)
+        assert(mhir.eval.eval(IntCst(0)(t1) < IntCst(1)(t2)) == True)
+        assert(mhir.eval.eval(IntCst(42)(t1) < IntCst(41)(t2)) == False)
+        assert(mhir.eval.eval(IntCst(42)(t1) < IntCst(42)(t2)) == False)
+        assert(mhir.eval.eval(IntCst(42)(t1) < IntCst(43)(t2)) == True)
       }
     }
   }
@@ -223,19 +223,19 @@ class SugarTests extends AnyFunSuite {
 
   test("SmartSum") {
     assert(
-      mhir.ir.eval(
+      mhir.eval.eval(
         SmartSum(IntCst(-1)(I8), IntCst(5)(TyUInt(7)), IntCst(-300)(I16))()
       )
         == IntCst(-296)()
     )
     assert(
-      mhir.ir.eval(
+      mhir.eval.eval(
         SmartSum(IntCst(3)(U8), IntCst(2)(U8), IntCst(1)(TyUInt(1)))()
       )
         == IntCst(3 + 2 + 1)()
     )
     assert(
-      mhir.ir.eval(
+      mhir.eval.eval(
         SmartSum(
           SmartSum(
             SmartSum(IntCst(1)(U8), IntCst(2)(U8))(),
@@ -246,14 +246,14 @@ class SugarTests extends AnyFunSuite {
       )
         == IntCst(1 + 2 + 3 + 4)()
     )
-    assert(mhir.ir.eval(SmartSum(C(0)(U0), C(0)(U0))()) == IntCst(0)())
-    assert(mhir.ir.eval(SmartSum()()) == IntCst(0)())
+    assert(mhir.eval.eval(SmartSum(C(0)(U0), C(0)(U0))()) == IntCst(0)())
+    assert(mhir.eval.eval(SmartSum()()) == IntCst(0)())
   }
 
   test("SmartProd") {
-    assert(mhir.ir.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
-    assert(mhir.ir.eval(SmartProd()()) == IntCst(1)())
-    assert(mhir.ir.eval(SmartProd(0, 42)()) == C(0)())
+    assert(mhir.eval.eval(IntCst(7)(U8) * IntCst(-6)(I16)) == IntCst(-42)())
+    assert(mhir.eval.eval(SmartProd()()) == IntCst(1)())
+    assert(mhir.eval.eval(SmartProd(0, 42)()) == C(0)())
   }
 
   test("SafeProd") {
@@ -263,25 +263,29 @@ class SugarTests extends AnyFunSuite {
     val e = SafeProd(IntCst(3)(u2), IntCst(4)(u3))().tchk()
 
     assert(e.typ == u5)
-    assert(mhir.ir.eval(e) == IntCst(12)())
+    assert(mhir.eval.eval(e) == IntCst(12)())
 
-    assert(mhir.ir.eval(SafeProd()()) == C(1)())
+    assert(mhir.eval.eval(SafeProd()()) == C(1)())
 
-    assert(mhir.ir.eval(SafeProd(42, 0)()) == C(0)())
+    assert(mhir.eval.eval(SafeProd(42, 0)()) == C(0)())
   }
 
   test("SmartDiv") {
     assert(
-      mhir.ir.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)()
+      mhir.eval.eval(SmartDiv(IntCst(42)(U16), IntCst(2)(U8))()) == IntCst(21)()
     )
     assert(
-      mhir.ir.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(-14)()
+      mhir.eval.eval(SmartDiv(IntCst(42)(U8), IntCst(-3)(I8))()) == IntCst(
+        -14
+      )()
     )
   }
 
   test("SmartMod") {
     assert(
-      mhir.ir.eval(SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()) == IntCst(
+      mhir.eval.eval(
+        SmartMod(IntCst(44)(U8), IntCst(3)(TyUInt(2)))()
+      ) == IntCst(
         2
       )()
     )

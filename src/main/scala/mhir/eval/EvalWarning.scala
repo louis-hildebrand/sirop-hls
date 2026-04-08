@@ -1,5 +1,6 @@
-package mhir.ir
-package evaluate
+package mhir.eval
+
+import mhir.ir._
 
 /** A problem that the evaluator encountered which does not immediately result
   * in an exception.

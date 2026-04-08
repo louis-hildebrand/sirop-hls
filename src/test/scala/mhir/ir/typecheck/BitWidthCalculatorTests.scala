@@ -5,7 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class BitWidthCalculatorTests extends AnyFunSuite {
   test("BitWidth:Sum:Empty") {
-    val emptySum = mhir.ir.eval(Sum()()).asInstanceOf[IntCst].i
+    val emptySum = mhir.eval.eval(Sum()()).asInstanceOf[IntCst].i
     assert(TSum().contains(emptySum))
   }
 
@@ -73,7 +73,7 @@ class BitWidthCalculatorTests extends AnyFunSuite {
   }
 
   test("BitWidth:Prod:Empty") {
-    val emptyProd = mhir.ir.eval(Prod()()).asInstanceOf[IntCst].i
+    val emptyProd = mhir.eval.eval(Prod()()).asInstanceOf[IntCst].i
     assert(TProd().contains(emptyProd))
   }
 

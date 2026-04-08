@@ -1,5 +1,6 @@
-package mhir.ir
-package evaluate
+package mhir.eval
+
+import mhir.ir._
 
 /** The result of evaluation along with warnings for the undefined behaviour
   * that affects the result, if any.

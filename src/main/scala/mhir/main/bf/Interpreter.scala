@@ -63,7 +63,7 @@ class Interpreter(
     val outputStreamSimplified =
       mhir.optimize.PartialEvalPass.partialEval(this.f(cmdStream)(inStream))
     val outputStream =
-      mhir.ir.eval(outputStreamSimplified).asInstanceOf[StmLiteral]
+      mhir.eval.eval(outputStreamSimplified).asInstanceOf[StmLiteral]
     outputStream.elems
       .map(_.asInstanceOf[IntCst])
       .map({ case IntCst(c) => c.toChar })

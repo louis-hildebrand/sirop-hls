@@ -48,7 +48,7 @@ private[vhdl] object VhdlType {
       case TyBool              => VhdlBool
       case TyTuple(ts @ _*)    => VhdlRecord(ts.map(t => VhdlType(t)))
       case TyVec(t, len) if len.freeVars.isEmpty =>
-        val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
+        val n = mhir.eval.eval(len).asInstanceOf[IntCst].i
         VhdlArray(n.toInt, VhdlType(t))
       case t =>
         throw new IllegalArgumentException(

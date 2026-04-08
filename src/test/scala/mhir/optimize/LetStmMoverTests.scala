@@ -238,8 +238,8 @@ class LetStmMoverTests extends AnyFunSuite {
     val actual = LetStmMover.moveDown(original)
 
     // Correctness
-    val actualVal = mhir.ir.eval(actual)
-    val expectedVal = mhir.ir.eval(original)
+    val actualVal = mhir.eval.eval(actual)
+    val expectedVal = mhir.eval.eval(original)
     assert(actualVal == expectedVal)
 
     // Expected value

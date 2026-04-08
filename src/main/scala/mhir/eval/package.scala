@@ -1,11 +1,10 @@
-package mhir.ir
-package evaluate
+package mhir
 
-import scala.language.{existentials, implicitConversions}
+import mhir.ir._
 
 /** The evaluator.
   */
-trait Eval {
+package object eval {
 
   /** See [[mhir.ir.evaluate.Evaluator.eval]].
     */

@@ -309,8 +309,8 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
       val simplified = PE.partialEval(original)
 
       // Correctness
-      val actualVal = mhir.ir.eval(simplified.subPreserveType(x -> xVal))
-      val expectedVal = mhir.ir.eval(original.subPreserveType(x -> xVal))
+      val actualVal = mhir.eval.eval(simplified.subPreserveType(x -> xVal))
+      val expectedVal = mhir.eval.eval(original.subPreserveType(x -> xVal))
       assert(actualVal == expectedVal)
 
       // Effective simplification

@@ -1,6 +1,6 @@
-package mhir.ir
-package evaluate
+package mhir.eval
 
+import mhir.ir._
 import mhir.sugar.Default
 
 /** A node in a streaming pipeline.
@@ -578,7 +578,7 @@ object LetStmNode {
       // With the extra slot, the consumer can read from the one slot while the
       // next slot is being filled.
       buffer =
-        (0 to (bufSize + 1)).map(_ => mhir.ir.eval(Default(elemTyp))).toArray,
+        (0 to (bufSize + 1)).map(_ => mhir.eval.eval(Default(elemTyp))).toArray,
       tail = 0,
       head = 0,
       readIdx = Map(),

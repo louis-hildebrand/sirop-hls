@@ -1,7 +1,5 @@
 package mhir
 
-import mhir.ir.evaluate.Eval
-
 import scala.language.implicitConversions
 
 /** The core IR, type checker ([[mhir.ir.typecheck]]), evaluator
@@ -18,8 +16,7 @@ import scala.language.implicitConversions
 // Use the fully-qualified name for CommonIntTypes; otherwise, Scaladoc fails
 // for some reason.
 package object ir
-    extends Eval
-    with mhir.ir.ExprUtils
+    extends mhir.ir.ExprUtils
     with mhir.ir.StmBuildUtils
     with mhir.ir.Conversions
     with mhir.ir.typecheck.CommonIntTypes

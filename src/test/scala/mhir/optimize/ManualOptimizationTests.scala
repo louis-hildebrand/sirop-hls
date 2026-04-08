@@ -52,12 +52,12 @@ class ManualOptimizationTests extends AnyFunSuite {
       for (sVal <- sExamples) {
         for (fVal <- fExamples) {
           val expected =
-            mhir.ir.eval(
+            mhir.eval.eval(
               Let(n, C(nVal)(U8), Let(f, fVal, Let(s, sVal, original)())())()
                 .tchk()
             )
           val actual =
-            mhir.ir.eval(
+            mhir.eval.eval(
               Let(n, C(nVal)(U8), Let(f, fVal, Let(s, sVal, optimized)())())()
                 .tchk()
             )
@@ -94,8 +94,8 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmRange(n, C(42)(U8), C(3)(U8))().tchk()
     )
     for (sVal <- sExamples) {
-      val originalVal = mhir.ir.eval(original.subPreserveType(s -> sVal))
-      val optimizedVal = mhir.ir.eval(optimized.subPreserveType(s -> sVal))
+      val originalVal = mhir.eval.eval(original.subPreserveType(s -> sVal))
+      val optimizedVal = mhir.eval.eval(optimized.subPreserveType(s -> sVal))
       assert(optimizedVal == originalVal)
     }
 
@@ -138,9 +138,9 @@ class ManualOptimizationTests extends AnyFunSuite {
     for (vVal <- vExamples) {
       for (zVal <- zExamples) {
         val expected =
-          mhir.ir.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
+          mhir.eval.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
         val actual =
-          mhir.ir.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
+          mhir.eval.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
         assert(actual == expected)
       }
     }
@@ -172,7 +172,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     // (Using one example input, f, and g)
     val call = (e: Expr) =>
       Let(n, C(5)(U8), Let(input, VecBuild(n, U32 ::+ (i => i + 1))(), e)())()
-    assert(mhir.ir.eval(call(original)) == mhir.ir.eval(call(optimized)))
+    assert(mhir.eval.eval(call(original)) == mhir.eval.eval(call(optimized)))
     // Successful fusion:
     // map(map(v, f), g) should simplify to the same thing as map(v, g . f)
     val ideal = optimize(
@@ -203,8 +203,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     // (Using one example input, f, and g)
     val call = (e: Expr) => Let(n, C(5)(U16), Let(input, StmCount(n)(), e)())()
     val expectedElems = StmLiteral(31, 67, 127, 217, 343)()
-    assert(mhir.ir.eval(call(s)) == expectedElems)
-    assert(mhir.ir.eval(call(actual)) == expectedElems)
+    assert(mhir.eval.eval(call(s)) == expectedElems)
+    assert(mhir.eval.eval(call(actual)) == expectedElems)
     // Successful fusion:
     // map(map(s, f), g) should simplify to the same thing as map(s, g . f)
     val ideal = optimize(
@@ -244,15 +244,15 @@ class ManualOptimizationTests extends AnyFunSuite {
         )()
     val expected =
       StmLiteral(
-        mhir.ir.eval(
+        mhir.eval.eval(
           C(42)(U16)
             + FunCall(f, C(0)(U16))()
             + FunCall(f, C(1)(U16))()
             + FunCall(f, C(2)(U16))()
         )
       )()
-    assert(mhir.ir.eval(call(s)) == expected)
-    assert(mhir.ir.eval(call(actual)) == expected)
+    assert(mhir.eval.eval(call(s)) == expected)
+    assert(mhir.eval.eval(call(actual)) == expected)
     // Successful fusion:
     // fold(map(s, f), z, a => x => g(a, x)) should simplify to the same thing
     // as fold(s, z, a => x => g(a, f(x))
@@ -297,12 +297,12 @@ class ManualOptimizationTests extends AnyFunSuite {
         )()
     val expected =
       StmLiteral(
-        mhir.ir.eval(42 + f(C(0)(U16))),
-        mhir.ir.eval(42 + f(C(0)(U16)) + f(C(1)(U16))),
-        mhir.ir.eval(42 + f(C(0)(U16)) + f(C(1)(U16)) + f(C(2)(U16)))
+        mhir.eval.eval(42 + f(C(0)(U16))),
+        mhir.eval.eval(42 + f(C(0)(U16)) + f(C(1)(U16))),
+        mhir.eval.eval(42 + f(C(0)(U16)) + f(C(1)(U16)) + f(C(2)(U16)))
       )()
-    assert(mhir.ir.eval(call(s)) == expected)
-    assert(mhir.ir.eval(call(actual)) == expected)
+    assert(mhir.eval.eval(call(s)) == expected)
+    assert(mhir.eval.eval(call(actual)) == expected)
     // Successful fusion:
     // fold(map(s, f), z, a => x => g(a, x)) should simplify to the same thing
     // as fold(s, z, a => x => g(a, f(x))
@@ -337,8 +337,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     val call =
       (e: Expr) => Let(n, C(5)(U8), Let(input, StmCount(n + 1)(), e)())()
     val expectedElems = StmLiteral(42, 0, 1, 2, 3, 4)()
-    assert(mhir.ir.eval(call(original)) == expectedElems)
-    assert(mhir.ir.eval(call(fused)) == expectedElems)
+    assert(mhir.eval.eval(call(original)) == expectedElems)
+    assert(mhir.eval.eval(call(fused)) == expectedElems)
     // Successful fusion
     val s = Param("s")(TyStm(U8, -1))
     val i = Param("i")(U32)
@@ -374,8 +374,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     // Correct behaviour
     val call = (e: Expr) => Let(input, StmCount(C(n)(U8))(), e)()
     val expectedElems = StmLiteral.ints(1, 2, 3, 4, 42)
-    assert(mhir.ir.eval(call(original)) == expectedElems)
-    assert(mhir.ir.eval(call(fused)) == expectedElems)
+    assert(mhir.eval.eval(call(original)) == expectedElems)
+    assert(mhir.eval.eval(call(fused)) == expectedElems)
     // Successful fusion
     val s = Param("s")(TyStm(U8, -1))
     val i = Param("i")(U8)
@@ -458,16 +458,16 @@ class ManualOptimizationTests extends AnyFunSuite {
     val f0 = U16 ::+ (i => i + 5)
     val expected0 = StmLiteral.ints(5, 6)
     val actual0 = (s: Expr) => Let(n, C(n0)(U16), Let(f, f0, s)())()
-    assert(mhir.ir.eval(actual0(s)) == expected0)
-    assert(mhir.ir.eval(actual0(optimized)) == expected0)
+    assert(mhir.eval.eval(actual0(s)) == expected0)
+    assert(mhir.eval.eval(actual0(optimized)) == expected0)
     val n1 = 15
     val f1 = U16 ::+ (i => (i + 1) * (i + 2) * (i + 3))
     val expected1 = StmLiteral(
       (0 until n1).map(i => IntCst((i + 1) * (i + 2) * (i + 3))()): _*
     )()
     val actual1 = (s: Expr) => Let(n, C(n1)(U16), Let(f, f1, s)())()
-    assert(mhir.ir.eval(actual1(s)) == expected1)
-    assert(mhir.ir.eval(actual1(optimized)) == expected1)
+    assert(mhir.eval.eval(actual1(s)) == expected1)
+    assert(mhir.eval.eval(actual1(optimized)) == expected1)
 
     // Effective simplification
     val i = Param("i")(U32)
@@ -513,10 +513,10 @@ class ManualOptimizationTests extends AnyFunSuite {
       for (nVal <- Seq(1, 2, 5)) {
         val expected =
           StmLiteral(
-            VecLiteral((0 until nVal).map(_ => mhir.ir.eval(cVal)): _*)()
+            VecLiteral((0 until nVal).map(_ => mhir.eval.eval(cVal)): _*)()
           )()
         val actual = Let(n, C(nVal)(U8), Let(c, cVal, v)())()
-        val actualVal = mhir.ir.eval(actual)
+        val actualVal = mhir.eval.eval(actual)
         assert(actualVal == expected)
       }
     }
@@ -561,7 +561,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         for (deltaVal <- -5 to 5) {
           val expected = {
             val elems =
-              mhir.ir
+              mhir.eval
                 .eval(
                   Let(
                     n,
@@ -578,7 +578,7 @@ class ManualOptimizationTests extends AnyFunSuite {
             C(nVal)(U16),
             Let(z, C(zVal)(I16), Let(delta, C(deltaVal)(I16), v)())()
           )()
-          assert(mhir.ir.eval(actual) == expected)
+          assert(mhir.eval.eval(actual) == expected)
         }
       }
     }
@@ -652,9 +652,9 @@ class ManualOptimizationTests extends AnyFunSuite {
     for (stm <- examples) {
       for (nVal <- Seq(2, 3, 10)) {
         val expected = Let(n, C(nVal)(U16), Let(s, stm, original)())().tchk()
-        val expectedVal = mhir.ir.eval(expected)
+        val expectedVal = mhir.eval.eval(expected)
         val actual = Let(n, C(nVal)(U16), Let(s, stm, optimized)())().tchk()
-        val actualVal = mhir.ir.eval(actual)
+        val actualVal = mhir.eval.eval(actual)
         assert(actualVal == expectedVal)
       }
     }
@@ -706,7 +706,7 @@ class ManualOptimizationTests extends AnyFunSuite {
           original.subPreserveType(v -> vec).subPreserveType(n -> C(nVal)(U16))
         val actual =
           optimized.subPreserveType(v -> vec).subPreserveType(n -> C(nVal)(U16))
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 
@@ -760,7 +760,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       for (nVal <- Seq(1, 2, 10)) {
         val expected = Let(n, C(nVal)(U8), Let(s, stm, original)())().tchk()
         val actual = Let(n, C(nVal)(U8), Let(s, stm, optimized)())().tchk()
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 
@@ -817,7 +817,7 @@ class ManualOptimizationTests extends AnyFunSuite {
         for (mVal <- Seq(1, 2, 10)) {
           val expected = Let(n, nVal, Let(m, mVal, Let(s, stm, original)())())()
           val actual = Let(n, nVal, Let(m, mVal, Let(s, stm, optimized)())())()
-          assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+          assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
         }
       }
     }

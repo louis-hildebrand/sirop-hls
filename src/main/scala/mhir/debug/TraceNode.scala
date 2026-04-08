@@ -1,7 +1,7 @@
 package mhir.debug
 
+import mhir.eval._
 import mhir.ir._
-import mhir.ir.evaluate._
 
 /** One node in a trace, showing the current state of a given node in the stream
   * pipeline.

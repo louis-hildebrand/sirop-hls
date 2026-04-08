@@ -40,8 +40,8 @@ class StmFissionPassTests extends AnyFunSuite {
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -76,8 +76,8 @@ class StmFissionPassTests extends AnyFunSuite {
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -119,8 +119,8 @@ class StmFissionPassTests extends AnyFunSuite {
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -153,8 +153,8 @@ class StmFissionPassTests extends AnyFunSuite {
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization

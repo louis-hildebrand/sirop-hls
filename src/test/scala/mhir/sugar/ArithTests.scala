@@ -11,7 +11,7 @@ class ArithTests extends AnyFunSuite {
     val e = Min(x, y)()
 
     val min = (xVal: Int, yVal: Int) =>
-      mhir.ir
+      mhir.eval
         .eval(Let(x, C(xVal)(), Let(y, C(yVal)(), e)())())
         .asInstanceOf[IntCst]
         .i
@@ -28,7 +28,7 @@ class ArithTests extends AnyFunSuite {
     val e = Max(x, y)()
 
     val max = (xVal: Int, yVal: Int) =>
-      mhir.ir
+      mhir.eval
         .eval(Let(x, C(xVal)(), Let(y, C(yVal)(), e)())())
         .asInstanceOf[IntCst]
         .i
@@ -45,7 +45,7 @@ class ArithTests extends AnyFunSuite {
     val e = CeilDiv(x, y)()
 
     val ceildiv = (xVal: Int, yVal: Int) =>
-      mhir.ir
+      mhir.eval
         .eval(Let(x, C(xVal)(I8), Let(y, C(yVal)(I8), e)())())
         .asInstanceOf[IntCst]
         .i
@@ -63,7 +63,7 @@ class ArithTests extends AnyFunSuite {
     val e = Cast(x, U8)().tchk().lower()
     val cast =
       (xVal: Int) =>
-        mhir.ir.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
+        mhir.eval.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
     assert(cast(0) == 0)
     assert(cast(1) == 1)
     assert(cast(2) == 2)
@@ -76,7 +76,7 @@ class ArithTests extends AnyFunSuite {
     val e = Cast(x, I8)().tchk().lower()
     val cast =
       (xVal: Int) =>
-        mhir.ir.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
+        mhir.eval.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
     assert(cast(0) == 0)
     assert(cast(1) == 1)
     assert(cast(2) == 2)
@@ -118,8 +118,8 @@ class ArithTests extends AnyFunSuite {
     val e = SafeSum(IntCst(4)(u3), IntCst(4)(u3))().tchk()
 
     assert(e.typ == u4)
-    assert(mhir.ir.eval(e) == IntCst(8)())
+    assert(mhir.eval.eval(e) == IntCst(8)())
 
-    assert(mhir.ir.eval(SafeSum()()) == C(0)())
+    assert(mhir.eval.eval(SafeSum()()) == C(0)())
   }
 }

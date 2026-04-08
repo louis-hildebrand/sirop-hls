@@ -534,7 +534,7 @@ object PartialEvalPass {
                   doPartialEval(next.subPreserveType(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
-                      val head = mhir.ir.eval(Default(t))
+                      val head = mhir.eval.eval(Default(t))
                       Some(Some(x -> (head, z)))
                     case True =>
                       val maybeHeadAndTail = z match {

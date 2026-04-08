@@ -20,8 +20,9 @@ class GreedyStmFuserTests extends AnyFunSuite {
 
     // Correctness
     val exampleIn = StmLiteral((0 until n).map(C(_)(U8)): _*)().tchk()
-    val originalVal = mhir.ir.eval(original.subPreserveType(input -> exampleIn))
-    val actualVal = mhir.ir.eval(actual.subPreserveType(input -> exampleIn))
+    val originalVal =
+      mhir.eval.eval(original.subPreserveType(input -> exampleIn))
+    val actualVal = mhir.eval.eval(actual.subPreserveType(input -> exampleIn))
     assert(actualVal == originalVal)
 
     // Successful fusion
@@ -60,8 +61,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
     val actual = fusionPass.fuse(original)
 
     // Correctness
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(actual)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(actual)
     assert(actualVal == originalVal)
 
     // Successful fusion
@@ -129,8 +130,9 @@ class GreedyStmFuserTests extends AnyFunSuite {
     val exampleIn = StmLiteral(
       (0 until n).map(x => -6 * (x + 1)).map(C(_)(I8)): _*
     )().tchk()
-    val originalVal = mhir.ir.eval(original.subPreserveType(input -> exampleIn))
-    val actualVal = mhir.ir.eval(actual.subPreserveType(input -> exampleIn))
+    val originalVal =
+      mhir.eval.eval(original.subPreserveType(input -> exampleIn))
+    val actualVal = mhir.eval.eval(actual.subPreserveType(input -> exampleIn))
     assert(actualVal == originalVal)
 
     // Successful fusion
@@ -195,8 +197,9 @@ class GreedyStmFuserTests extends AnyFunSuite {
         VecLiteral((0 until 4).map(i => C(t + i)(U16)): _*)()
       ): _*
     )().tchk()
-    val originalVal = mhir.ir.eval(original.subPreserveType(input -> exampleIn))
-    val actualVal = mhir.ir.eval(actual.subPreserveType(input -> exampleIn))
+    val originalVal =
+      mhir.eval.eval(original.subPreserveType(input -> exampleIn))
+    val actualVal = mhir.eval.eval(actual.subPreserveType(input -> exampleIn))
     assert(actualVal == originalVal)
 
     // No fusion

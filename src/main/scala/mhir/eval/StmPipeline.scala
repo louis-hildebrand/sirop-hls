@@ -1,5 +1,6 @@
-package mhir.ir
-package evaluate
+package mhir.eval
+
+import mhir.ir._
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir.typecheck.TypeError

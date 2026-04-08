@@ -23,7 +23,7 @@ object Binary {
   def apply(expressions: Expr*): Array[Byte] = {
     def str(e: Expr): String = {
       e match {
-        case Undefined(typ) => str(mhir.ir.eval(Default(typ)))
+        case Undefined(typ) => str(mhir.eval.eval(Default(typ)))
         case False          => "0"
         case True           => "1"
         case c: IntCst =>

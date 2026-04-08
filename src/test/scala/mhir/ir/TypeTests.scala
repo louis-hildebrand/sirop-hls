@@ -138,7 +138,7 @@ class TypeTests extends AnyFunSuite {
   test("LowerType:Stm[Stm[Int, 3], 4]") {
     val t = TyStm(TyStm(U8, 3), 4)
     val n = t.lower.asInstanceOf[TyStm].n
-    assert(mhir.ir.eval(n) == C(12)())
+    assert(mhir.eval.eval(n) == C(12)())
   }
 
   test("LowerType:Stm[Vec[Int]]") {

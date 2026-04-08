@@ -270,7 +270,7 @@ object VhdlTestbenchGenerator {
     for (xs <- in.elements.grouped(ChunkSize)) {
       val binaryData = xs.map({
         case Some(v) => Binary(v)
-        case None    => Binary(mhir.ir.eval(Default(in.elemTyp)))
+        case None    => Binary(mhir.eval.eval(Default(in.elemTyp)))
       })
       os.write.append(data, binaryData)
 
@@ -759,7 +759,7 @@ object VhdlTestbenchGenerator {
   }
 
   def valueToStdLogicVector(v: Expr): String = {
-    mhir.ir.eval(v).tchk() match {
+    mhir.eval.eval(v).tchk() match {
       case False => "\"0\""
       case True  => "\"1\""
       case c: IntCst =>
@@ -828,7 +828,7 @@ object VhdlTestbenchGenerator {
         val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
         FunCall(acc, arg)()
       })
-    val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]
+    val evaluated = mhir.eval.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
     val outputs = DirectTestOutput(evaluated.elems)
     (outputs, inputByParam)

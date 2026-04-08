@@ -14,7 +14,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(i => IntCst(i + j * i)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -29,7 +29,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(_ => IntCst(999 + 10 * t)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e.subPreserveType(s -> sVal))
+    val actual = mhir.eval.eval(e.subPreserveType(s -> sVal))
     assert(actual == expected)
   }
 
@@ -50,7 +50,7 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -67,7 +67,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(i => Tuple(j, i + j * i)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -95,7 +95,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(i => Tuple(j, i + j * i)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -111,7 +111,7 @@ class VectorTests extends AnyFunSuite {
         (0 until n).map(i => IntCst((0 until m).map(_ => i * i).sum)()): _*
       )()
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -136,7 +136,7 @@ class VectorTests extends AnyFunSuite {
           )()
         ): _*
       )().tchk()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -149,7 +149,7 @@ class VectorTests extends AnyFunSuite {
     val expected = StmLiteral(
       (0 until n).map(t => VecLiteral(C(t)(U8), C(42 + 2 * t)(U8))()): _*
     )().tchk()
-    val actual = mhir.ir.eval(original)
+    val actual = mhir.eval.eval(original)
     assert(actual == expected)
   }
 
@@ -164,28 +164,28 @@ class VectorTests extends AnyFunSuite {
     for (idxVal <- 0 until n) {
       val expected =
         StmLiteral((0 until m).map(t => IntCst(idxVal + t * idxVal)()): _*)()
-      val actual = mhir.ir.eval(Let(idx, C(idxVal)(U32), e)())
+      val actual = mhir.eval.eval(Let(idx, C(idxVal)(U32), e)())
       assert(actual == expected)
     }
   }
 
   test("BuildV_and_Access") {
     val cstVec = VecBuild(2, U32 ::+ (_ => 7))()
-    assert(mhir.ir.eval(VecAccess(cstVec, 0)()) == IntCst(7)())
-    assert(mhir.ir.eval(VecAccess(cstVec, 1)()) == IntCst(7)())
+    assert(mhir.eval.eval(VecAccess(cstVec, 0)()) == IntCst(7)())
+    assert(mhir.eval.eval(VecAccess(cstVec, 1)()) == IntCst(7)())
 
     val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
-    assert(mhir.ir.eval(VecAccess(oneTwoThreeVec, 0)()) == IntCst(1)())
-    assert(mhir.ir.eval(VecAccess(oneTwoThreeVec, 1)()) == IntCst(2)())
-    assert(mhir.ir.eval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3)())
+    assert(mhir.eval.eval(VecAccess(oneTwoThreeVec, 0)()) == IntCst(1)())
+    assert(mhir.eval.eval(VecAccess(oneTwoThreeVec, 1)()) == IntCst(2)())
+    assert(mhir.eval.eval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3)())
   }
 
   test("Map_and_Access") {
     val v0 = VecBuild(C(3)(U8), U8 ::+ (i => i + 1))()
     val v1 = VecMap(v0, U8 ::+ (x => x * x))().tchk()
-    assert(mhir.ir.eval(VecAccess(v1, 0)()) == IntCst(1)())
-    assert(mhir.ir.eval(VecAccess(v1, 1)()) == IntCst(4)())
-    assert(mhir.ir.eval(VecAccess(v1, 2)()) == IntCst(9)())
+    assert(mhir.eval.eval(VecAccess(v1, 0)()) == IntCst(1)())
+    assert(mhir.eval.eval(VecAccess(v1, 1)()) == IntCst(4)())
+    assert(mhir.eval.eval(VecAccess(v1, 2)()) == IntCst(9)())
   }
 
   test("VecMap:StmMap(VecMap(StmMap))") {
@@ -220,7 +220,7 @@ class VectorTests extends AnyFunSuite {
           )
         ): _*
       )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -265,7 +265,7 @@ class VectorTests extends AnyFunSuite {
           )
         ): _*
       )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -284,7 +284,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(i => IntCst((i to i + t).sum)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -300,7 +300,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral((0 until n).map(i => IntCst(i + t)()): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -308,7 +308,7 @@ class VectorTests extends AnyFunSuite {
     val oneTwoThreeVec = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
       VecFoldSeq(oneTwoThreeVec, C(7)(U32), PlusFunction(U32))().tchk()
-    assert(mhir.ir.eval(sum) == StmLiteral(IntCst(13)())())
+    assert(mhir.eval.eval(sum) == StmLiteral(IntCst(13)())())
   }
 
   test("VecFoldSeq:HornersMethod") {
@@ -321,7 +321,7 @@ class VectorTests extends AnyFunSuite {
       VecFoldSeq(v, C(0)(U32), U32 ::+ (acc => U32 ::+ (a => a + x * acc)))()
         .tchk()
         .lower()
-    assert(mhir.ir.eval(result) == StmLiteral(C(2345)())())
+    assert(mhir.eval.eval(result) == StmLiteral(C(2345)())())
   }
 
   test("VecFoldComb:SumAndProd") {
@@ -332,7 +332,7 @@ class VectorTests extends AnyFunSuite {
         Tuple(C(0)(U32), C(1)(U32))(),
         (U32, U32) ::+ (acc => U32 ::+ (a => Tuple(acc.__0 + a, acc.__0 * a)()))
       )().tchk().lower()
-    assert(mhir.ir.eval(sum) == Tuple(C(10)(), C(24)())())
+    assert(mhir.eval.eval(sum) == Tuple(C(10)(), C(24)())())
   }
 
   test("VecFoldComb:HornersMethod") {
@@ -345,14 +345,14 @@ class VectorTests extends AnyFunSuite {
       VecFoldComb(v, C(0)(U32), U32 ::+ (acc => U32 ::+ (a => a + x * acc)))()
         .tchk()
         .lower()
-    assert(mhir.ir.eval(result) == C(2345)())
+    assert(mhir.eval.eval(result) == C(2345)())
   }
 
   test("VecReduceComb:Vec[Int,3]:Sum") {
     val v = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
       VecReduceComb(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower()
-    assert(mhir.ir.eval(sum) == VecLiteral(C(6)())())
+    assert(mhir.eval.eval(sum) == VecLiteral(C(6)())())
   }
 
   test("VecReduceComb:Vec[Int,4]:HornersMethod") {
@@ -365,7 +365,7 @@ class VectorTests extends AnyFunSuite {
       VecReduceComb(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
         .tchk()
         .lower()
-    assert(mhir.ir.eval(result) == VecLiteral(C(2345)())())
+    assert(mhir.eval.eval(result) == VecLiteral(C(2345)())())
   }
 
   test("VecReduceComb:Vec[Vec[Int,1],4]:Sum") {
@@ -382,7 +382,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(C(4)(U8))()
     )().tchk()
     val expected = VecLiteral(VecLiteral(10)())()
-    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    val actual = mhir.eval.eval(sum.subPreserveType(v -> vVal))
     assert(actual == expected)
   }
 
@@ -398,7 +398,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8), C(5)(U8))()
       )().tchk()
     val expected = StmLiteral(VecLiteral(15)())()
-    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    val actual = mhir.eval.eval(sum.subPreserveType(v -> vVal))
     assert(actual == expected)
   }
 
@@ -437,7 +437,7 @@ class VectorTests extends AnyFunSuite {
         )()
       )().tchk()
     val expected = StmLiteral(VecLiteral(VecLiteral(VecLiteral(15)())())())()
-    val actual = mhir.ir.eval(sum.subPreserveType(v -> vVal))
+    val actual = mhir.eval.eval(sum.subPreserveType(v -> vVal))
     assert(actual == expected)
   }
 
@@ -449,7 +449,7 @@ class VectorTests extends AnyFunSuite {
         v,
         TyVec(U32, 2) ::+ (v => VecFoldComb(v, C(0)(U32), PlusFunction(U32))())
       )()
-    assert(mhir.ir.eval(v2) == VecLiteral(1, 3, 5)())
+    assert(mhir.eval.eval(v2) == VecLiteral(1, 3, 5)())
   }
 
   test("VecScanInclusive") {
@@ -462,7 +462,7 @@ class VectorTests extends AnyFunSuite {
         C(0)(U32),
         U32 ::+ (acc => U32 ::+ (x => x + 2 * acc))
       ).tchk()
-    assert(mhir.ir.eval(sum) == StmLiteral(VecLiteral(2, 7, 18, 41, 88)())())
+    assert(mhir.eval.eval(sum) == StmLiteral(VecLiteral(2, 7, 18, 41, 88)())())
   }
 
   test("VecScanExclusive") {
@@ -472,20 +472,20 @@ class VectorTests extends AnyFunSuite {
     val sum =
       VecScanExclusive(v, C(0)(U8), U8 ::+ (acc => U8 ::+ (x => x + 2 * acc)))
         .tchk()
-    assert(mhir.ir.eval(sum) == StmLiteral(VecLiteral(0, 2, 7, 18, 41)())())
+    assert(mhir.eval.eval(sum) == StmLiteral(VecLiteral(0, 2, 7, 18, 41)())())
   }
 
   test("Stm2Vec") {
     val v = Stm2Vec(StmCount(3)())().tchk()
     val expected = StmLiteral(VecLiteral.ints(0, 1, 2))()
-    assert(mhir.ir.eval(v) == expected)
+    assert(mhir.eval.eval(v) == expected)
   }
 
   test("VecPrepend:Vec[Int]") {
     val v = VecBuild(3, U8 ::+ (i => i + 5))()
     val actual = VecPrepend(v, C(42)(U8))().tchk().lower()
     val expected = VecLiteral(42, 5, 6, 7)()
-    assert(mhir.ir.eval(actual) == expected)
+    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("VecPrepend:Vec[Stm[Int]]") {
@@ -503,7 +503,7 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -511,8 +511,8 @@ class VectorTests extends AnyFunSuite {
     val v = VecBuild(3, U32 ::+ (i => i + 5))()
     val actual = VecAppend(v, C(42)(U32))()
     val expected = VecLiteral(5, 6, 7, 42)()
-    assert(mhir.ir.eval(actual) == expected)
-    assert(mhir.ir.eval(actual.tchk()) == expected)
+    assert(mhir.eval.eval(actual) == expected)
+    assert(mhir.eval.eval(actual.tchk()) == expected)
   }
 
   test("VecAppend:Vec[Stm[Int]]") {
@@ -528,16 +528,16 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
   test("VecPrefix:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.ir.eval(VecPrefix(v, 0)()) == VecLiteral()())
-    assert(mhir.ir.eval(VecPrefix(v, 1)()) == VecLiteral(0)())
-    assert(mhir.ir.eval(VecPrefix(v, 2)()) == VecLiteral(0, 1)())
-    assert(mhir.ir.eval(VecPrefix(v, 3)()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecPrefix(v, 0)()) == VecLiteral()())
+    assert(mhir.eval.eval(VecPrefix(v, 1)()) == VecLiteral(0)())
+    assert(mhir.eval.eval(VecPrefix(v, 2)()) == VecLiteral(0, 1)())
+    assert(mhir.eval.eval(VecPrefix(v, 3)()) == VecLiteral(0, 1, 2)())
   }
 
   test("VecPrefix:Vec[Stm[Int]]") {
@@ -552,17 +552,17 @@ class VectorTests extends AnyFunSuite {
           VecLiteral((0 until kVal).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
-      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
+      val actual = mhir.eval.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected, s"(for k = $kVal)")
     }
   }
 
   test("VecSuffix:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.ir.eval(VecSuffix(v, 0)().tchk()) == VecLiteral()())
-    assert(mhir.ir.eval(VecSuffix(v, 1)().tchk()) == VecLiteral(2)())
-    assert(mhir.ir.eval(VecSuffix(v, 2)().tchk()) == VecLiteral(1, 2)())
-    assert(mhir.ir.eval(VecSuffix(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecSuffix(v, 0)().tchk()) == VecLiteral()())
+    assert(mhir.eval.eval(VecSuffix(v, 1)().tchk()) == VecLiteral(2)())
+    assert(mhir.eval.eval(VecSuffix(v, 2)().tchk()) == VecLiteral(1, 2)())
+    assert(mhir.eval.eval(VecSuffix(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
   }
 
   test("VecSuffix:Vec[Stm[Int]]") {
@@ -577,7 +577,7 @@ class VectorTests extends AnyFunSuite {
           VecLiteral((n - kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
-      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
+      val actual = mhir.eval.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected, s"(for k = $kVal)")
     }
   }
@@ -585,7 +585,7 @@ class VectorTests extends AnyFunSuite {
   test("VecShiftLeft:Vec[Int, 3]") {
     val v = VecBuild(3, U32 ::+ (i => i * (i + 2)))()
     assert(
-      mhir.ir
+      mhir.eval
         .eval(VecShiftLeft(v, C(42)(U32))().tchk()) == VecLiteral(3, 8, 42)()
     )
   }
@@ -606,7 +606,7 @@ class VectorTests extends AnyFunSuite {
       C(6)(u3),
       C(3)(u3)
     )()
-    assert(mhir.ir.eval(actual) == expected)
+    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("VecShiftLeft:Vec[Stm[Int]]") {
@@ -624,14 +624,14 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
   test("VecShiftRight:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i * (i + 2)))()
     assert(
-      mhir.ir
+      mhir.eval
         .eval(VecShiftRight(v, C(42)(U32))().tchk()) == VecLiteral(42, 0, 3)()
     )
   }
@@ -651,7 +651,7 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -659,7 +659,7 @@ class VectorTests extends AnyFunSuite {
     def extract(e: Expr): Seq[Expr] = {
       e.asInstanceOf[VecLiteral].elems
     }
-    def eval(e: Expr): Expr = mhir.ir.eval(e, suppressWarnings = true)
+    def eval(e: Expr): Expr = mhir.eval.eval(e, suppressWarnings = true)
 
     val input = VecBuild(6, U8 ::+ (i => i))()
     val expected = (0 until 6).map(C(_)(U8))
@@ -681,10 +681,12 @@ class VectorTests extends AnyFunSuite {
     val v1 = VecBuild(2, U32 ::+ (i => i))()
     val v2 = VecBuild(4, U32 ::+ (i => i))()
     assert(
-      mhir.ir.eval(VecConcat(v1, v2)().tchk()) == VecLiteral(0, 1, 0, 1, 2, 3)()
+      mhir.eval.eval(VecConcat(v1, v2)().tchk()) == VecLiteral(0, 1, 0, 1, 2,
+        3)()
     )
     assert(
-      mhir.ir.eval(VecConcat(v2, v1)().tchk()) == VecLiteral(0, 1, 2, 3, 0, 1)()
+      mhir.eval.eval(VecConcat(v2, v1)().tchk()) == VecLiteral(0, 1, 2, 3, 0,
+        1)()
     )
   }
 
@@ -705,7 +707,7 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual1 = mhir.ir.eval(e1)
+    val actual1 = mhir.eval.eval(e1)
     assert(actual1 == expected1)
 
     val e2 = VecConcat(vs2, vs1)().tchk().lower()
@@ -718,14 +720,14 @@ class VectorTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val actual2 = mhir.ir.eval(e2)
+    val actual2 = mhir.eval.eval(e2)
     assert(actual2 == expected2)
   }
 
   test("Vec2Tuple") {
     val v = VecBuild(5, U32 ::+ (i => i * (i + 1)))()
     val expected = Tuple(0, 2, 6, 12, 20)()
-    val actual = mhir.ir.eval(Vec2Tuple(v))
+    val actual = mhir.eval.eval(Vec2Tuple(v))
     assert(actual == expected)
   }
 
@@ -735,7 +737,7 @@ class VectorTests extends AnyFunSuite {
     val v2 = VecBuild(n, U8 ::+ (i => i + 10))()
     val combined = VecMap2(v1, v2, TimesFunction(U8))()
     val expected = VecLiteral((0 until n).map(i => C(i * (i + 10))(U8)): _*)()
-    val actual = mhir.ir.eval(combined)
+    val actual = mhir.eval.eval(combined)
     assert(actual == expected)
   }
 
@@ -765,7 +767,7 @@ class VectorTests extends AnyFunSuite {
         VecLiteral(v1Elems ++ v2Elems: _*)()
       }): _*
     )()
-    val actual = mhir.ir.eval(combined)
+    val actual = mhir.eval.eval(combined)
     assert(actual == expected)
   }
 
@@ -810,7 +812,7 @@ class VectorTests extends AnyFunSuite {
         Tuple(C(11)(U8), C(-110)(I16))()
       )()
     )().tchk()
-    val actual = mhir.ir.eval(
+    val actual = mhir.eval.eval(
       map.subPreserveType(Map[Expr, Expr](v0 -> v0Val, v1 -> v1Val))
     )
     assert(actual == expected)
@@ -836,7 +838,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(VecLiteral(C(44)(U8), C(98)(U8), C(1)(U8))())(),
       VecLiteral(VecLiteral(C(46)(U8), C(97)(U8), C(2)(U8))())()
     )().tchk()
-    val actual = mhir.ir.eval(original)
+    val actual = mhir.eval.eval(original)
     assert(actual == expected)
   }
 
@@ -849,7 +851,7 @@ class VectorTests extends AnyFunSuite {
       Tuple(1, 4)(),
       Tuple(2, 6)()
     )()
-    assert(mhir.ir.eval(zipped) == expected)
+    assert(mhir.eval.eval(zipped) == expected)
   }
 
   test("VecRepeat:Vec[Int]") {
@@ -859,7 +861,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(IntCst(1)(), IntCst(4)(), IntCst(9)(), IntCst(16)())(),
       VecLiteral(IntCst(1)(), IntCst(4)(), IntCst(9)(), IntCst(16)())()
     )()
-    assert(mhir.ir.eval(v2) == expected)
+    assert(mhir.eval.eval(v2) == expected)
   }
 
   test("VecRepeat:Vec[Stm[Int]]") {
@@ -880,14 +882,14 @@ class VectorTests extends AnyFunSuite {
           )()
         ): _*
       )()
-      val actual = mhir.ir.eval(e.subPreserveType(k -> C(kVal)(U32)))
+      val actual = mhir.eval.eval(e.subPreserveType(k -> C(kVal)(U32)))
       assert(actual == expected)
     }
   }
 
   test("VecReverse:Vec[Int]") {
     val v = VecBuild(4, U32 ::+ (i => (i + 1) * (i + 1)))()
-    assert(mhir.ir.eval(VecReverse(v).tchk()) == VecLiteral(16, 9, 4, 1)())
+    assert(mhir.eval.eval(VecReverse(v).tchk()) == VecLiteral(16, 9, 4, 1)())
   }
 
   test("VecReverse:Vec[Stm[Int]]") {
@@ -903,7 +905,7 @@ class VectorTests extends AnyFunSuite {
         }): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -914,7 +916,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(IntCst(0)(), IntCst(1)(), IntCst(4)())(),
       VecLiteral(IntCst(9)(), IntCst(16)(), IntCst(25)())()
     )()
-    assert(mhir.ir.eval(split) == expected)
+    assert(mhir.eval.eval(split) == expected)
   }
 
   test("VecSplit:Vec[Stm[Int]]") {
@@ -936,7 +938,7 @@ class VectorTests extends AnyFunSuite {
           )()
         ): _*
       )()
-      val actual = mhir.ir.eval(e.subPreserveType(m -> C(mVal)(U32)))
+      val actual = mhir.eval.eval(e.subPreserveType(m -> C(mVal)(U32)))
       assert(actual == expected)
     }
   }
@@ -949,7 +951,7 @@ class VectorTests extends AnyFunSuite {
       VecBuild(3, U32 ::+ (i => VecBuild(2, U32 ::+ (j => i + j))()))()
     // [0, 1, 1, 2, 2, 3]
     val joined = VecJoin(v)().tchk()
-    assert(mhir.ir.eval(joined) == VecLiteral(0, 1, 1, 2, 2, 3)())
+    assert(mhir.eval.eval(joined) == VecLiteral(0, 1, 1, 2, 2, 3)())
   }
 
   test("VecJoin:Vec[Stm[Int]]") {
@@ -970,7 +972,7 @@ class VectorTests extends AnyFunSuite {
         }): _*)()
       ): _*
     )()
-    val actual = mhir.ir.eval(e)
+    val actual = mhir.eval.eval(e)
     assert(actual == expected)
   }
 
@@ -986,7 +988,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(IntCst(3)(), IntCst(6)(), IntCst(9)())(),
       VecLiteral(IntCst(6)(), IntCst(9)(), IntCst(12)())()
     )()
-    assert(mhir.ir.eval(actual) == expected)
+    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("VecTranspose") {
@@ -1002,7 +1004,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)())(),
       VecLiteral(Tuple(0, 3)(), Tuple(1, 3)(), Tuple(2, 3)())()
     )()
-    assert(mhir.ir.eval(v) == expected)
+    assert(mhir.eval.eval(v) == expected)
   }
 
   test("VecTransposeTranspose") {
@@ -1020,6 +1022,6 @@ class VectorTests extends AnyFunSuite {
     )()
     val actual = Let(x, v, VecTranspose(VecTranspose(x)))().tchk()
 
-    assert(mhir.ir.eval(actual) == expected)
+    assert(mhir.eval.eval(actual) == expected)
   }
 }

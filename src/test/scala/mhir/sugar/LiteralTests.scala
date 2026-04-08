@@ -144,7 +144,7 @@ class LiteralTests extends AnyFunSuite {
 
     val stmBuild = lowered.toStmBuild
     assert(stmBuild.typ == TyStm(TyVec((U8, U8, U8), 3), 8))
-    assert(mhir.ir.eval(stmBuild) == expected)
+    assert(mhir.eval.eval(stmBuild) == expected)
   }
 
   test("VecLiteral:Vec[Vec[Stm[(U8, U8, U8), 2], 3], 4]") {

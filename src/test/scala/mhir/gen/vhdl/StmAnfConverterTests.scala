@@ -24,8 +24,8 @@ class StmAnfConverterTests extends AnyFunSuite {
     val anf = StmAnfConverter.convert(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(anf)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(anf)
     assert(actualVal == expectedVal)
 
     // Correct form
@@ -91,8 +91,8 @@ class StmAnfConverterTests extends AnyFunSuite {
     val anf = StmAnfConverter.convert(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(anf)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(anf)
     assert(actualVal == expectedVal)
 
     // Correct form

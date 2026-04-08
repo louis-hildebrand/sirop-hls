@@ -299,7 +299,7 @@ object TopVhdl {
         // TODO: Proper error message
         ???
       case LetStm(bufSizeExpr, x, in: Param, out) =>
-        val IntCst(bufSize) = mhir.ir.eval(bufSizeExpr)
+        val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
         val (xs, newOut) = makeVariantsOfFreeVar(x, out)
         val rest = listChildren(newOut, inputs, unusedInputs)
         rest.copy(lets = (in, bufSize.toInt, xs) +: rest.lets)

@@ -71,7 +71,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
-    assert(mhir.ir.eval(s) == mhir.ir.eval(opt))
+    assert(mhir.eval.eval(s) == mhir.eval.eval(opt))
 
     // Effective simplification
     assertOneAccumulator(opt)
@@ -114,7 +114,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       for (deltaVal <- Seq(-42, 0, 42)) {
         val expected = Let(n, C(nVal)(U8), Let(delta, C(deltaVal)(I16), s)())()
         val actual = Let(n, C(nVal)(U8), Let(delta, C(deltaVal)(I16), opt)())()
-        assert(mhir.ir.eval(expected) == mhir.ir.eval(actual))
+        assert(mhir.eval.eval(expected) == mhir.eval.eval(actual))
       }
     }
 
@@ -145,7 +145,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (nVal <- 0 to 10) {
       val actual = Let(n, C(nVal)(U8), optimized)()
       val expected = Let(n, C(nVal)(U8), triangleSum)()
-      assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+      assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
     }
 
     // One counter can be removed, but not the sum
@@ -182,7 +182,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
     // Correctness
     val actual = (nVal: Int, mVal: Int) => {
-      mhir.ir.eval(
+      mhir.eval.eval(
         opt.subPreserveType(Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8)))
       )
     }
@@ -240,12 +240,12 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             .subPreserveType(z -> zVal)
             .subPreserveType(f -> fVal)
             .subPreserveType(n -> C(nVal)(U8))
-          val expectedVal = mhir.ir.eval(expected)
+          val expectedVal = mhir.eval.eval(expected)
           val actual = opt
             .subPreserveType(z -> zVal)
             .subPreserveType(f -> fVal)
             .subPreserveType(n -> C(nVal)(U8))
-          val actualVal = mhir.ir.eval(actual)
+          val actualVal = mhir.eval.eval(actual)
           assert(actualVal == expectedVal)
         }
       }
@@ -302,7 +302,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
                 )()
               )()
             assert(
-              mhir.ir.eval(actual) == mhir.ir.eval(expected),
+              mhir.eval.eval(actual) == mhir.eval.eval(expected),
               s"(for n = $nVal, i0 = $i0Val, k0 = $k0Val, k1 = $k1Val)"
             )
           }
@@ -349,7 +349,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               Let(i0, C(i0Val)(I8), Let(k, C(kVal)(I8), opt)())()
             )()
           assert(
-            mhir.ir.eval(actual) == mhir.ir.eval(expected),
+            mhir.eval.eval(actual) == mhir.eval.eval(expected),
             s"(for n = $nVal, i0 = $i0Val, k = $kVal)"
           )
         }
@@ -395,7 +395,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
               Let(i0, C(i0Val)(U32), Let(k, C(kVal)(U32), opt)())()
             )()
           assert(
-            mhir.ir.eval(actual) == mhir.ir.eval(expected),
+            mhir.eval.eval(actual) == mhir.eval.eval(expected),
             s"(for n = $nVal, i0 = $i0Val, k = $kVal)"
           )
         }
@@ -431,7 +431,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         val expected = Let(n, C(nVal)(U8), Let(k, C(kVal)(I8), s)())()
         val actual = Let(n, C(nVal)(U8), Let(k, C(kVal)(I8), opt)())()
         assert(
-          mhir.ir.eval(actual) == mhir.ir.eval(expected),
+          mhir.eval.eval(actual) == mhir.eval.eval(expected),
           s"(for n = $nVal, k = $kVal)"
         )
       }
@@ -466,7 +466,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         val expected = Let(n, C(nVal)(U8), Let(k, C(kVal)(I8), s)())()
         val actual = Let(n, C(nVal)(U8), Let(k, C(kVal)(I8), opt)())()
         assert(
-          mhir.ir.eval(actual) == mhir.ir.eval(expected),
+          mhir.eval.eval(actual) == mhir.eval.eval(expected),
           s"(for n = $nVal, k = $kVal)"
         )
       }
@@ -503,7 +503,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     for (nVal <- Seq(0, 1, 2, 5)) {
       val expected = Let(n, C(nVal)(U8), s)()
       val actual = Let(n, C(nVal)(U8), opt)()
-      assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+      assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
     }
 
     // Effective simplification
@@ -536,7 +536,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         val subs = Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8))
         val expected = s.subPreserveType(subs)
         val actual = opt.subPreserveType(subs)
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 
@@ -570,7 +570,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         val subs = Map[Expr, Expr](n -> C(nVal)(U8), m -> C(mVal)(U8))
         val expected = s.subPreserveType(subs)
         val actual = opt.subPreserveType(subs)
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 
@@ -716,11 +716,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     )
     for (sVal <- stmExamples) {
       for (nVal <- Seq(1, 2, 5)) {
-        val timeFunc = mhir.ir
+        val timeFunc = mhir.eval
           .eval(Let(n, C(nVal)(U8), Let(s, sVal, Function(t, e)())())().tchk())
           .asInstanceOf[Function]
         val recFunc =
-          mhir.ir.eval(Let(n, C(nVal)(U8), f)().tchk()).asInstanceOf[Function]
+          mhir.eval.eval(Let(n, C(nVal)(U8), f)().tchk()).asInstanceOf[Function]
         assertEquationsEqual(
           FunctionOfTime(timeFunc),
           StreamTimeRecurrence(
@@ -778,7 +778,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           .subPreserveType(n -> nVal)
         val actual =
           opt.subPreserveType(input -> exampleStm).subPreserveType(n -> nVal)
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 
@@ -837,7 +837,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         val expected =
           Let(n, C(nVal)(U8), Let(input, exampleStm, original)())().tchk()
         val actual = Let(n, C(nVal)(U8), Let(input, exampleStm, opt)())().tchk()
-        assert(mhir.ir.eval(actual) == mhir.ir.eval(expected))
+        assert(mhir.eval.eval(actual) == mhir.eval.eval(expected))
       }
     }
 

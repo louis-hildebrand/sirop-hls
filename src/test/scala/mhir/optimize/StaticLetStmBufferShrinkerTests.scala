@@ -34,8 +34,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
 
     // Effective optimization
@@ -58,8 +58,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
 
     // Effective optimization
@@ -82,8 +82,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
 
     // Effective optimization
@@ -148,8 +148,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
 
     // Effective optimization
@@ -208,8 +208,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
   }
 
@@ -270,8 +270,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
   }
 
@@ -286,8 +286,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
   }
 }

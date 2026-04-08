@@ -1,4 +1,4 @@
-package mhir.ir.evaluate
+package mhir.eval
 
 import mhir.ir._
 

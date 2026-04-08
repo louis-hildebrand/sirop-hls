@@ -39,8 +39,8 @@ class StreamFusionTests extends AnyFunSuite {
 
     // Correct behaviour
     val expectedElems = StmLiteral.ints(5, 6, 7)
-    assert(mhir.ir.eval(original) == expectedElems)
-    assert(mhir.ir.eval(fused) == expectedElems)
+    assert(mhir.eval.eval(original) == expectedElems)
+    assert(mhir.eval.eval(fused) == expectedElems)
     // Successful fusion
     val ideal = StmBuild(
       3,
@@ -94,7 +94,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 1) After fusion with x1
     val actual1 = lpe(s.fuseWith(x1))
     // 1a) Correct behaviour
-    assert(mhir.ir.eval(actual1) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual1) == mhir.eval.eval(s))
     // 1b) Successful fusion
     val ideal1 = lpe(
       StmBuild(
@@ -112,7 +112,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 2) After fusion with x2
     val actual2 = lpe(s.fuseWith(x2)).tchk()
     // 2a) Correct behaviour
-    assert(mhir.ir.eval(actual2) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual2) == mhir.eval.eval(s))
     // 2b) Successful fusion
     val ideal2 = lpe(
       StmBuild(
@@ -130,7 +130,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 3) After two fusions
     val actual3 = lpe(s.fuseCompletely())
     // 3a) Correct behaviour
-    assert(mhir.ir.eval(actual2) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual2) == mhir.eval.eval(s))
     // 3b) Successful fusion
     val ideal3 = lpe(
       StmBuild(
@@ -184,7 +184,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 1) After fusion with x1
     val actual1 = lpe(s.fuseWith(x1)).asInstanceOf[StmBuild]
     // 1a) Correct behaviour
-    assert(mhir.ir.eval(actual1) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual1) == mhir.eval.eval(s))
     // 1b) Successful fusion
     assert(!actual1.accVars.contains(x1))
     assert(!actual1.seedByVar.exists({ case (_, z) => z == c1 }))
@@ -192,7 +192,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 2) After fusion with x2
     val actual2 = lpe(s.fuseWith(x2)).asInstanceOf[StmBuild]
     // 2a) Correct behaviour
-    assert(mhir.ir.eval(actual2) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual2) == mhir.eval.eval(s))
     // 2b) Successful fusion
     assert(!actual2.accVars.contains(x2))
     assert(!actual2.seedByVar.exists({ case (_, z) => z == c2 }))
@@ -200,7 +200,7 @@ class StreamFusionTests extends AnyFunSuite {
     // 3) After two fusions
     val actual3 = lpe(s.fuseCompletely()).asInstanceOf[StmBuild]
     // 3a) Correct behaviour
-    assert(mhir.ir.eval(actual2) == mhir.ir.eval(s))
+    assert(mhir.eval.eval(actual2) == mhir.eval.eval(s))
     // 3b) Successful fusion
     assert(!actual3.accVars.contains(x1))
     assert(!actual3.accVars.contains(x2))
@@ -283,9 +283,9 @@ class StreamFusionTests extends AnyFunSuite {
     )
     for ((a, b) <- examples) {
       val expected =
-        mhir.ir.eval(LetStm(1, input, a, LetStm(1, sB, b, original)())())
+        mhir.eval.eval(LetStm(1, input, a, LetStm(1, sB, b, original)())())
       val actual =
-        mhir.ir.eval(LetStm(1, input, a, LetStm(1, sB, b, fused)())())
+        mhir.eval.eval(LetStm(1, input, a, LetStm(1, sB, b, fused)())())
       assert(actual == expected)
     }
 
@@ -335,12 +335,12 @@ class StreamFusionTests extends AnyFunSuite {
     // Correct behaviour
     val examples = Seq(42, 0, 201).map(C(_)(U8)).map(StmLiteral(_)().tchk())
     for (input <- examples) {
-      val originalVal = mhir.ir.eval(original.subPreserveType(s -> input))
+      val originalVal = mhir.eval.eval(original.subPreserveType(s -> input))
       val c = input.asInstanceOf[StmLiteral].elems.head
       val expectedVal =
         StmLiteral(Tuple(c, c)(), Tuple(c, c)(), Tuple(c, c)())().tchk()
       assert(originalVal == expectedVal)
-      val fusedVal = mhir.ir.eval(fused.subPreserveType(s -> input))
+      val fusedVal = mhir.eval.eval(fused.subPreserveType(s -> input))
       assert(fusedVal == originalVal)
     }
 

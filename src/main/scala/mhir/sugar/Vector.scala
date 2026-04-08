@@ -512,7 +512,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
 
 object Vec2Tuple {
   def apply(vec: VecBuild): Tuple = {
-    val n = mhir.ir.eval(VecLength(vec)()).asInstanceOf[IntCst].i
+    val n = mhir.eval.eval(VecLength(vec)()).asInstanceOf[IntCst].i
     val elems = (0 until n.toInt).map(i => VecAccess(vec, i)())
     Tuple(elems: _*)()
   }

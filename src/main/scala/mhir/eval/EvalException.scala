@@ -1,5 +1,4 @@
-package mhir.ir
-package evaluate
+package mhir.eval
 
 /** An error that occurred during evaluation.
   */

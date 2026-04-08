@@ -96,7 +96,7 @@ object VhdlGenerator {
   }
 
   def valueToStdLogicVector(v: Expr): String = {
-    mhir.ir.eval(v).tchk() match {
+    mhir.eval.eval(v).tchk() match {
       case False => "\"0\""
       case True  => "\"1\""
       case c: IntCst =>

@@ -277,7 +277,7 @@ private[sugar] case class StmReset(
               val TyStm(_, inLen) = p.typ
               val ctrTyp = inLen match {
                 case e if e.freeVars.isEmpty =>
-                  val IntCst(n) = mhir.ir.eval(e)
+                  val IntCst(n) = mhir.eval.eval(e)
                   TyAnyInt.tightest(0, n)
                 case _ => inLen.typ
               }
@@ -290,7 +290,7 @@ private[sugar] case class StmReset(
         val outCtr = {
           val ctrTyp = s.n match {
             case e if e.freeVars.isEmpty =>
-              val IntCst(n) = mhir.ir.eval(e)
+              val IntCst(n) = mhir.eval.eval(e)
               TyAnyInt.tightest(0, n)
             case _ => s.n.typ
           }
@@ -929,7 +929,7 @@ case class StmAccess(
     val i = { // index of current row
       val typ = numRows match {
         case e if e.freeVars.isEmpty =>
-          val IntCst(n) = mhir.ir.eval(e)
+          val IntCst(n) = mhir.eval.eval(e)
           TyAnyInt.tightest(0, n)
         case e => e.typ
       }
@@ -938,7 +938,7 @@ case class StmAccess(
     val j = { // index within row
       val typ = perRow match {
         case e if e.freeVars.isEmpty =>
-          val IntCst(n) = mhir.ir.eval(e)
+          val IntCst(n) = mhir.eval.eval(e)
           TyAnyInt.tightest(0, n)
         case e => e.typ
       }

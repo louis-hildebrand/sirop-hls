@@ -1,8 +1,8 @@
 package mhir.optimize
 
+import mhir.eval.CycleCounter
 import mhir.sugar.ExprLowering
 import mhir.ir._
-import mhir.ir.evaluate.CycleCounter
 import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
@@ -57,8 +57,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
 
     // Effective optimization
@@ -82,8 +82,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
 
     // Effective optimization
@@ -130,8 +130,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val expectedVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == expectedVal)
 
     // Non-pessimization
@@ -195,8 +195,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
 
     // Effective optimization
@@ -219,8 +219,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
 
     // Effective optimization
@@ -241,8 +241,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
     val optimized = pass.matchLatencies(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val actualVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
 
     // Non-pessimization

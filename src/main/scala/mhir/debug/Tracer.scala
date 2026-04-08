@@ -1,7 +1,7 @@
 package mhir.debug
 
+import mhir.eval._
 import mhir.ir._
-import mhir.ir.evaluate._
 
 import scala.annotation.tailrec
 

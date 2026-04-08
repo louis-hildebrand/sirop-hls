@@ -21,7 +21,9 @@ case class FunctionOfTime(f: Function) extends Formula {
     f.tchk().typ.asInstanceOf[TyArrow].t1.asInstanceOf[TyAnyInt]
 
   override def evalSeq(tMin: Int, iterations: Int): Seq[Expr] = {
-    (tMin until (tMin + iterations)).map(t => eval(FunCall(f, C(t)(timeTyp))()))
+    (tMin until (tMin + iterations)).map(t =>
+      mhir.eval.eval(FunCall(f, C(t)(timeTyp))())
+    )
   }
 
   override def tchk(): Formula = FunctionOfTime(f.tchk().asInstanceOf[Function])
@@ -43,7 +45,7 @@ case class TimeRecurrence(z: Expr, f: Function) extends Formula {
       val tail =
         TimeRecurrence(FunCall(FunCall(f, C(tMin)(timeTyp))(), z)(), f)
           .evalSeq(tMin + 1, iterations - 1)
-      mhir.ir.eval(z) +: tail
+      mhir.eval.eval(z) +: tail
     }
   }
 
@@ -60,9 +62,9 @@ case class StreamTimeRecurrence(z: Expr, f: Function) extends Formula {
     if (iterations <= 0) {
       Seq()
     } else {
-      val head = mhir.ir.eval(z)
+      val head = mhir.eval.eval(z)
       val nextHead =
-        mhir.ir.eval(FunCall(FunCall(f, C(tMin)(timeTyp))(), head)()) match {
+        mhir.eval.eval(FunCall(FunCall(f, C(tMin)(timeTyp))(), head)()) match {
           case True  => StmNextK(head, 1)().tchk()
           case False => head
           case _     => ???

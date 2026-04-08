@@ -65,7 +65,7 @@ class StreamReplicationTests extends AnyFunSuite {
       )
     )
     for ((in, expectedVal) <- examples) {
-      val actualVal = mhir.ir.eval(replicated.subPreserveType(input -> in))
+      val actualVal = mhir.eval.eval(replicated.subPreserveType(input -> in))
       assert(actualVal == expectedVal)
     }
   }
@@ -125,7 +125,7 @@ class StreamReplicationTests extends AnyFunSuite {
       )
     )
     for ((in, expectedVal) <- examples) {
-      val actualVal = mhir.ir.eval(replicated.subPreserveType(input -> in))
+      val actualVal = mhir.eval.eval(replicated.subPreserveType(input -> in))
       assert(actualVal == expectedVal)
     }
 
@@ -151,7 +151,7 @@ class StreamReplicationTests extends AnyFunSuite {
         )()
       ): _*
     )().tchk()
-    val actual = mhir.ir.eval(replicated.subPreserveType(s -> sVal))
+    val actual = mhir.eval.eval(replicated.subPreserveType(s -> sVal))
     assert(actual == expected)
   }
 }

@@ -1,10 +1,9 @@
-package mhir.ir
-package evaluate
+package mhir.eval
 
 import com.typesafe.scalalogging.Logger
-import mhir.sugar.ExprLowering
+import mhir.ir._
 import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.sugar.Default
+import mhir.sugar.{Default, ExprLowering}
 
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
@@ -74,7 +73,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
     }
   }
 
-  private[ir] def evalBigStep(
+  private[eval] def evalBigStep(
       stmData: Map[Param, Option[Expr]]
   )(e: Expr): Value = {
     val result: Value = e match {

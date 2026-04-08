@@ -1,4 +1,4 @@
-package mhir.ir.evaluate
+package mhir.eval
 
 /** An identifier that can be used to refer to a given node during evaluation,
   * even as the actual [[StmNode]] changes.

@@ -336,7 +336,7 @@ private[optimize] object ArithSimplifier {
   private def simplifyLLShift(ll: LLShift): Expr = {
     ll match {
       case LLShift(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(ll)
+        mhir.eval.eval(ll)
       case LLShift(e, IntCst(0)) =>
         // TODO: Should this actually be done after calling the library in
         //       case e2 is simplified to 0 but is not originally 0?
@@ -349,7 +349,7 @@ private[optimize] object ArithSimplifier {
   private def simplifyLRShift(lr: LRShift): Expr = {
     lr match {
       case LRShift(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(lr)
+        mhir.eval.eval(lr)
       case LRShift(e, IntCst(0)) =>
         simplifyWithoutLibrary(e)
       case LRShift(e1, e2) =>
@@ -387,7 +387,7 @@ private[optimize] object ArithSimplifier {
 
   private def simplifyWrappingSum(sum: WrappingSum): Expr = {
     if (sum.terms.forall(_.isInstanceOf[IntCst])) {
-      mhir.ir.eval(sum)
+      mhir.eval.eval(sum)
     } else {
       val (constants, otherTerms) =
         sum.terms
@@ -399,7 +399,7 @@ private[optimize] object ArithSimplifier {
             case e              => Seq(e)
           })
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.ir.eval(WrappingSum(constants: _*)())
+      val const = mhir.eval.eval(WrappingSum(constants: _*)())
       val allTerms = if (const == IntCst(0)()) {
         otherTerms
       } else {
@@ -412,14 +412,14 @@ private[optimize] object ArithSimplifier {
   private def simplifyWrappingDiff(diff: WrappingDiff): Expr = {
     diff match {
       case WrappingDiff(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(diff)
+        mhir.eval.eval(diff)
       case _ => diff
     }
   }
 
   private def simplifyWrappingProd(prod: WrappingProd): Expr = {
     if (prod.factors.forall(_.isInstanceOf[IntCst])) {
-      mhir.ir.eval(prod)
+      mhir.eval.eval(prod)
     } else {
       val (constants, otherFactors) =
         prod.factors
@@ -431,7 +431,7 @@ private[optimize] object ArithSimplifier {
             case e               => Seq(e)
           })
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.ir.eval(WrappingProd(constants: _*)())
+      val const = mhir.eval.eval(WrappingProd(constants: _*)())
       if (const == IntCst(0)()) {
         C(0)(prod.typ)
       } else if (const == IntCst(1)()) {
@@ -446,7 +446,7 @@ private[optimize] object ArithSimplifier {
     val newProd = prod.map(simplifyWithoutLibrary).tchk()
     newProd match {
       case IntFixProd(_: IntCst, _: FixCst) =>
-        mhir.ir.eval(newProd)
+        mhir.eval.eval(newProd)
       case IntFixProd(x, FixCst(0)) =>
         C(0)(x.typ)
       case IntFixProd(x @ IntCst(0), _) =>

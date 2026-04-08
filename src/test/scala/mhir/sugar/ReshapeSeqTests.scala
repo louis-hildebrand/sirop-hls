@@ -9,7 +9,7 @@ class ReshapeSeqTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U16, Sum(C(21)(U8), C(10)(U8), C(11)(U8))()))
     val reshaped = ReshapeSeq(s, TyStm(U16, 42))().tchk().lower()
     val sVal = StmLiteral((0 until 42).map(t => C(t)(U16)): _*)().tchk()
-    val actual = mhir.ir.eval(reshaped.subPreserveType(s -> sVal))
+    val actual = mhir.eval.eval(reshaped.subPreserveType(s -> sVal))
     assert(actual == sVal)
   }
 
@@ -23,7 +23,7 @@ class ReshapeSeqTests extends AnyFunSuite {
       VecLiteral(C(16)(U8))()
     )().tchk()
     val expected = StmLiteral(C(1)(U8), C(4)(U8), C(9)(U8), C(16)(U8))()
-    val actual = mhir.ir.eval(reshaped.subPreserveType(s -> sVal))
+    val actual = mhir.eval.eval(reshaped.subPreserveType(s -> sVal))
     assert(actual == expected)
   }
 
@@ -36,7 +36,7 @@ class ReshapeSeqTests extends AnyFunSuite {
     val expected = VecLiteral(
       Seq(42, 99).map(C(_)(U8)).map(VecLiteral(_)()): _*
     )().tchk()
-    val actual = mhir.ir.eval(reshaped.subPreserveType(v -> vVal))
+    val actual = mhir.eval.eval(reshaped.subPreserveType(v -> vVal))
     assert(actual == expected)
   }
 
@@ -47,7 +47,7 @@ class ReshapeSeqTests extends AnyFunSuite {
     val examples = Seq(0, 1, 42).map(C(_)(U8))
     for (xVal <- examples) {
       val expected = VecLiteral(xVal)().tchk()
-      val actual = mhir.ir.eval(reshaped.subPreserveType(x -> xVal))
+      val actual = mhir.eval.eval(reshaped.subPreserveType(x -> xVal))
       assert(actual == expected)
     }
   }
