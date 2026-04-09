@@ -1,9 +1,8 @@
 package mhir.eval
 
-import mhir.ir._
-
 import com.typesafe.scalalogging.Logger
-import mhir.sugar._
+import mhir.ir._
+import mhir.sugar.StmLiteralUtilsImplicit
 import mhir.typecheck.TypeError
 
 /** A streaming pipeline.
@@ -223,7 +222,7 @@ object StmPipeline {
             s"Undefined initial value for accumulator $x will be replaced by default value."
               + " I hope you know what you're doing."
           )
-          x -> eval(Default(typ))
+          x -> eval(DefaultVal(typ))
         case (x, (z, _)) => x -> eval(z)
       }),
       invalidSteps = 0

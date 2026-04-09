@@ -3,9 +3,8 @@ package mhir.eval
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sugar.ExprLowering
 import mhir.typecheck.{TypeCheck, TypeError}
-import mhir.sugar.{Default, ExprLowering}
-import mhir.typecheck.TypeError
 
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
@@ -27,7 +26,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
     *
     * @param e
     *   the expression to evaluate.
-    * @throws TypeError
+    * @throws mhir.typecheck.TypeError
     *   if the expression is ill-typed.
     * @throws EvalException
     *   if the evaluator encounters an undefined value <i>and it seems to affect
@@ -79,7 +78,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
   )(e: Expr): Value = {
     val result: Value = e match {
       case Undefined(typ) =>
-        val Value(v, warnings) = evalBigStep(stmData)(Default(typ).lower())
+        val Value(v, warnings) = evalBigStep(stmData)(DefaultVal(typ))
         Value(v, warnings + UndefinedPrimitive(typ))
       case x: Param =>
         throw new IllegalArgumentException(
@@ -115,7 +114,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
             Value(IntCst(result)(e.typ), warnings)
           } else {
             val overflowWarning = OverflowWarning(result, typ)
-            Value(Default.getDefault(typ), warnings + overflowWarning)
+            Value(DefaultVal(typ), warnings + overflowWarning)
           }
         } else {
           throw new IllegalArgumentException(
@@ -133,7 +132,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
             Value(IntCst(result)(e.typ), warnings)
           } else {
             val overflowWarning = OverflowWarning(result, typ)
-            Value(Default.getDefault(typ), warnings + overflowWarning)
+            Value(DefaultVal(typ), warnings + overflowWarning)
           }
         } else {
           throw new IllegalArgumentException(
@@ -145,7 +144,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
         val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
-            val v = Default.getDefault(e.typ)
+            val v = DefaultVal(e.typ)
             Value(v, (numerWarn ++ denomWarn) + DivByZeroWarning)
           case (IntCst(n1), IntCst(n2)) =>
             Value(IntCst(n1 / n2)(e.typ), numerWarn ++ denomWarn)
@@ -159,7 +158,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
         val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
-            val v = Default.getDefault(e.typ)
+            val v = DefaultVal(e.typ)
             Value(v, (numerWarn ++ denomWarn) + DivByZeroWarning)
           case (IntCst(n1), IntCst(n2)) =>
             Value(IntCst(n1 % n2)(e.typ), numerWarn ++ denomWarn)
@@ -452,7 +451,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
               case IntCst(i) =>
                 val t = v.tchk().typ.asInstanceOf[TyVec].t
                 val oobWarn = VecIndexOutOfBoundsWarning(elems.length, i)
-                evalBigStep(stmData)(Default(t).lower())
+                evalBigStep(stmData)(DefaultVal(t))
                   .addWarnings((vWarn ++ iWarn) + oobWarn)
               case v =>
                 throw new IllegalArgumentException(
@@ -479,7 +478,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
               s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
             )
           case Some(None) =>
-            evalBigStep(Map())(Default(sd.typ).lower())
+            evalBigStep(Map())(DefaultVal(sd.typ))
               .addWarnings(Set(StmDataWithoutReady(s)))
           case Some(Some(v)) =>
             Value(v, Set())

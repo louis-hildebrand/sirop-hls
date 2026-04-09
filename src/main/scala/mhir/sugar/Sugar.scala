@@ -2,9 +2,10 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.typecheck.{TProd, TypeCheck, TypeError}
+import mhir.eval.DefaultVal
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
+import mhir.typecheck.{TProd, TypeCheck, TypeError}
 
 /** A let expression.
   *
@@ -199,12 +200,12 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
 
   override def typecheck(implicit context: Map[Param, Type]): Expr = {
     // Check that the requested type indeed has a default
-    Default.getDefault(this.typ)
+    DefaultVal(this.typ)
     this
   }
 
   override def lowerSyntaxSugar(): Expr = {
-    Default.getDefault(this.typ).tchk()
+    DefaultVal(this.typ).tchk()
   }
 
   override def precedence: Int = Precedence.Min
@@ -212,32 +213,6 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   override def displayOneLine(): String = s"default[${this.typ}]"
 
   override def displayMultiLine(maxWidth: Int): String = this.displayOneLine()
-}
-
-/** Companion object for [[Default]].
-  */
-case object Default {
-  def getDefault(typ: Type): Expr = {
-    getDefaultOpt(typ) match {
-      case Some(v) => v
-      case None =>
-        throw new IllegalArgumentException(
-          s"Cannot construct default value for type $typ."
-        )
-    }
-  }
-
-  private def getDefaultOpt(typ: Type): Option[Expr] = {
-    typ match {
-      case _: TyAnyInt      => Some(IntCst(0)(typ))
-      case typ: TyFix       => Some(FixCst(0)(typ))
-      case TyBool           => Some(False)
-      case TyTuple(ts @ _*) => Some(Tuple(ts.map(t => getDefault(t)): _*)(typ))
-      case TyVec(t, n) =>
-        Some(VecBuild(n.tchk(), U32 ::+ (_ => getDefault(t)))(typ))
-      case _ => None
-    }
-  }
 }
 
 // Smart arithmetic and relational operators
