@@ -2,12 +2,12 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
+import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
 /** Transformation for converting a non-streaming program to a streaming
@@ -28,6 +28,42 @@ object Streamifier {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
+  def unwrapTopLevelFunction(
+      f: Expr,
+      rename: Boolean
+  ): (Seq[Param], Expr) = {
+    @tailrec
+    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
+      e match {
+        case Function(x, e) if x.typ == TyTuple() =>
+          unwrap(e, inputs)
+        case Function(x, e) =>
+          if (rename) {
+            val y = Param(s"I${inputs.length}", -1)(x.typ)
+            // If this assertion fails, then one of the following is true:
+            //  (1) a previous parameter is called the same thing, but that
+            //      should not happen.
+            //  (2) the expression has a free variable, but that's not allowed.
+            assert(x == y || !e.freeVars.contains(y))
+            unwrap(e.subPreserveType(x -> y), y +: inputs)
+          } else {
+            unwrap(e, x +: inputs)
+          }
+        case e =>
+          (inputs, e)
+      }
+    }
+
+    val (inputSeq, stm) = unwrap(f, Seq())
+    if (inputSeq.map(x => x.name).toSet.size != inputSeq.length) {
+      val paramList = inputSeq.reverse.map(x => x.name).mkString(", ")
+      throw new IllegalArgumentException(
+        s"Duplicate parameters in top-level parameter list $paramList."
+      )
+    }
+    (inputSeq.reverse, stm)
+  }
+
   implicit class Streamify(func: Expr) {
     def streamify(): Expr = {
       require(
@@ -40,8 +76,7 @@ object Streamifier {
       )
       time("streamifying", Level.TRACE) {
         logger.trace(s"streamifying expression: ${this.func}")
-        val (inputList, stm) =
-          VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
+        val (inputList, stm) = unwrapTopLevelFunction(this.func, rename = false)
         val oldToNewInputs = ListMap(
           inputList.map(x => x -> makeStreamParam(x)): _*
         )

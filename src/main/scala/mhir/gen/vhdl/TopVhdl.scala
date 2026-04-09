@@ -2,9 +2,8 @@ package mhir.gen.vhdl
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sugar.Streamifier
 import mhir.typecheck.TypeCheck
-
-import scala.annotation.tailrec
 
 private case class FlatPipeline(
     sbuilds: Seq[(Param, StmBuild)],
@@ -170,43 +169,6 @@ object TopVhdl {
     )
   }
 
-  // TODO: Move this somewhere else, since it's used in many places?
-  private def unwrapTopLevelFunction(
-      f: Expr,
-      rename: Boolean
-  ): (Seq[Param], Expr) = {
-    @tailrec
-    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
-      e match {
-        case Function(x, e) if x.typ == TyTuple() =>
-          unwrap(e, inputs)
-        case Function(x, e) =>
-          if (rename) {
-            val y = Param(s"I${inputs.length}", -1)(x.typ)
-            // If this assertion fails, then one of the following is true:
-            //  (1) a previous parameter is called the same thing, but that
-            //      should not happen.
-            //  (2) the expression has a free variable, but that's not allowed.
-            assert(x == y || !e.freeVars.contains(y))
-            unwrap(e.subPreserveType(x -> y), y +: inputs)
-          } else {
-            unwrap(e, x +: inputs)
-          }
-        case e =>
-          (inputs, e)
-      }
-    }
-
-    val (inputSeq, stm) = unwrap(f, Seq())
-    if (inputSeq.map(x => x.name).toSet.size != inputSeq.length) {
-      val paramList = inputSeq.reverse.map(x => x.name).mkString(", ")
-      throw new IllegalArgumentException(
-        s"Duplicate parameters in top-level parameter list $paramList."
-      )
-    }
-    (inputSeq.reverse, stm)
-  }
-
   private def validateExpr(e: Expr): Unit = {
     require(
       e.typ != Missing,
@@ -221,7 +183,7 @@ object TopVhdl {
       s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
-      case f: Function => unwrapTopLevelFunction(f, rename = false)
+      case f: Function => Streamifier.unwrapTopLevelFunction(f, rename = false)
       case e           => (Seq(), e)
     }
     for (x <- inputs) {
@@ -242,7 +204,7 @@ object TopVhdl {
 
   private def makeFlatPipeline(f: Expr): FlatPipeline = {
     validateExpr(f)
-    val (inputs, stm) = unwrapTopLevelFunction(f, rename = true)
+    val (inputs, stm) = Streamifier.unwrapTopLevelFunction(f, rename = true)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val anfStm = StmAnfConverter.convert(stm)
     val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)
