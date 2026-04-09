@@ -1322,7 +1322,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     ExprPrinter.displayFunCallMultiLine(this.className, this.children, maxWidth)
   }
 
-  def typecheck(implicit context: Map[Param, Type]): Expr
+  def typecheck(context: Map[Param, Type])(implicit c: Canonicalizer): Expr
 
   /** Remove syntax sugar from this node and its children.
     *
@@ -1333,7 +1333,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * checked. (This would make it easier to test expressions where lowering
     * does not require the type.)
     */
-  def lowerSyntaxSugar(): Expr
+  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
 
   def sugarSubAndKeepType(
       subs: Map[Expr, Expr]

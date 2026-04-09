@@ -1,5 +1,6 @@
 package mhir.main.aetherling
 
+import mhir.canonicalize._
 import mhir.gen.{verilog, vhdl}
 import mhir.ir._
 import mhir.typecheck.TypeCheck

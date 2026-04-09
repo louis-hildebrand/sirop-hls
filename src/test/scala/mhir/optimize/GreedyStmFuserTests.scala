@@ -57,7 +57,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           Map[Param, (Expr, Expr)](s -> (vecStm, True))
         )().tchk()
       }
-      vecAccessStm.lower()
+      vecAccessStm.lower
     }
     val actual = fusionPass.fuse(original)
 
@@ -123,7 +123,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      zip.lower()
+      zip.lower
     }
     val actual = fusionPass.fuse(original)
 
@@ -188,7 +188,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           )
         )().tchk()
       }
-      s1.lower()
+      s1.lower
     }
     val actual = fusionPass.fuse(original)
 

@@ -1,5 +1,6 @@
 package mhir.optimize.cost
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 

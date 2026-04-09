@@ -11,7 +11,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   /** Lower and partially evaluate.
     */
-  private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower())
+  private val lpe = (e: Expr) => PartialEvalPass.partialEval(e.tchk().lower)
 
   test("IntCst:U32") {
     val e = C(0)(U32)
@@ -394,7 +394,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val y = Param("y")(TyVec(I32, 3))
     val z = Param("z")(TyVec(I32, 3))
     val a = Param("a")(I8)
-    val e = Mux(x.__1 >= C(-2)(I8) + a, y, z)().tchk().lower()
+    val e = Mux(x.__1 >= C(-2)(I8) + a, y, z)().tchk().lower
 
     val facts0 = FactSet()
     val expected0 = Mux(Sum(2, x.__1)() lt a, z, y)()
@@ -409,7 +409,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val x = Param("x")(U8)
     val y = Param("y")(TyVec(I32, 3))
     val z = Param("z")(TyVec(I32, 3))
-    val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower()
+    val e = Mux(ToSigned(x)() < C(5)(I9), y, z)().tchk().lower
 
     val facts0 = FactSet()
     val expected0 = Mux(x lt 5, y, z)()
@@ -423,7 +423,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("LessThanWithBoundedVariable") {
     val a = Param("a")((U8, I32))
     val n = Param("n")(U8)
-    val e = (a.__0 >= n).tchk().lower()
+    val e = (a.__0 >= n).tchk().lower
 
     val facts0 = FactSet()
     val expected0 = Not(LessThan(a.__0, n)())()
@@ -448,7 +448,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val u7 = TyUInt(7)
     val x = Param("x")(I8)
     val e =
-      Mux(x + C(1)(I8) === C(0)(I8), C(0)(u7), ToUnsigned(x)())().tchk().lower()
+      Mux(x + C(1)(I8) === C(0)(I8), C(0)(u7), ToUnsigned(x)())().tchk().lower
     val expected = ToUnsigned(
       Mux(Sum(x, C(1)(I8))() equ C(0)(I8), C(0)(I8), x)()
     )().tchk()
@@ -459,7 +459,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("PossibleInvalidTruncationInFalseBranch") {
     val u3 = TyUInt(3)
     val x = Param("x")(U8)
-    val e = Mux(x === C(8)(U8), C(0)(u3), TruncateTo(x, 3)())().tchk().lower()
+    val e = Mux(x === C(8)(U8), C(0)(u3), TruncateTo(x, 3)())().tchk().lower
     val expected = TruncateTo(Mux(x equ C(8)(U8), C(0)(U8), x)(), 3)().tchk()
     val actual = PE.partialEval(e)
     assert(actual == expected)
@@ -559,7 +559,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val b = Param("b")(TyBool)
     val facts = FactSet().geq(n, 1)
-    val e = (((-1 + n) >= 0) && b).tchk().lower()
+    val e = (((-1 + n) >= 0) && b).tchk().lower
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == b)
   }
@@ -568,7 +568,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val b = Param("b")(TyBool)
     val facts = FactSet().geq(n, 2)
-    val e = (((-1 + n) === 0) || b).tchk().lower()
+    val e = (((-1 + n) === 0) || b).tchk().lower
     val actual = PartialEvalPass.partialEval(e)(facts)
     assert(actual == b)
   }
@@ -583,7 +583,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
   test("i == 1 && i == 1") {
     val i = Param("i")(U8)
-    val original = ((i equ C(1)(U8)) && (i equ C(1)(U8))).tchk().lower()
+    val original = ((i equ C(1)(U8)) && (i equ C(1)(U8))).tchk().lower
     val expected = i equ C(1)(U8)
     assert(PE.partialEval(original) == expected)
   }

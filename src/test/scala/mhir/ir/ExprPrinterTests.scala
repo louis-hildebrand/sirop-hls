@@ -713,7 +713,7 @@ class ExprPrinterTests extends AnyFunSuite {
           )()
         )
       )
-    )().tchk().lower()
+    )().tchk().lower
     val start = System.nanoTime()
     val str = ExprPrinter.display(e)
     val duration = (System.nanoTime() - start) / 10000000000L

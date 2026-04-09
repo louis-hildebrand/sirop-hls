@@ -1,6 +1,5 @@
 package mhir.sugar
 
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.{TypeCheck, TypeError}
 
@@ -19,7 +18,7 @@ import scala.annotation.tailrec
   *
   * {{{
   *   import mhir.ir.Uncurrier.Uncurry
-  *   f.uncurry()
+  *   f.uncurry
   * }}}
   */
 object Uncurrier {
@@ -30,7 +29,7 @@ object Uncurrier {
       * For example, <code>(x: Int) => (y: Int) => x + y</code> would be
       * replaced by <code>(z: (Int, Int)) => z.0 + z.1</code>.
       */
-    def uncurry(): Expr = {
+    def uncurry(implicit c: Canonicalizer): Expr = {
       @tailrec
       def getFuncAndArgs(fc: FunCall, args: Seq[Expr]): (Expr, Seq[Expr]) = {
         fc match {
@@ -44,8 +43,8 @@ object Uncurrier {
         //       For example, what about (x: Int) => if b then f0 else f1 (where
         //       f0 and f1 are themselves functions)?
         case Function(x, body) =>
-          val newX = x.uncurry().asInstanceOf[Param]
-          val newBody = body.uncurry()
+          val newX = x.uncurry.asInstanceOf[Param]
+          val newBody = body.uncurry
           newBody.typ match {
             case t: TyArrow =>
               newBody match {
@@ -64,11 +63,11 @@ object Uncurrier {
           }
         case fc: FunCall =>
           val (f, args) = getFuncAndArgs(fc, Seq())
-          val uncurriedArgs = args.map(_.uncurry())
+          val uncurriedArgs = args.map(_.uncurry)
           val argTuple = uncurriedArgs.init.foldRight(uncurriedArgs.last)({
             case (e, acc) => Tuple(e, acc)()
           })
-          val uncurried = FunCall(f.uncurry(), argTuple)()
+          val uncurried = FunCall(f.uncurry, argTuple)()
           try {
             uncurried.tchk()
           } catch {
@@ -80,7 +79,7 @@ object Uncurrier {
                   + s" (Expression: $fc)"
               )
           }
-        case e => e.rebuild(e.typ.uncurry, e.children.map(e => e.uncurry()))
+        case e => e.rebuild(e.typ.uncurry, e.children.map(e => e.uncurry))
       }
     }
   }

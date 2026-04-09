@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StreamFusionTests extends AnyFunSuite {
   private val lpe: Expr => Expr = e =>
-    PartialEvalPass.partialEval(e.tchk().lower())
+    PartialEvalPass.partialEval(e.tchk().lower)
 
   /** Simplest case of stream fusion: consumer always ready, producer always
     * valid.
@@ -34,7 +34,7 @@ class StreamFusionTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (counter, True)
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     }
     val fused = original.fuseCompletely()
 
@@ -70,7 +70,7 @@ class StreamFusionTests extends AnyFunSuite {
         ReshapeData(i + 11, I16)(),
         True,
         Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
-      )().tchk().lower()
+      )().tchk().lower
     // Valid every 2nd cycle
     val c2 =
       StmBuild(
@@ -78,7 +78,7 @@ class StreamFusionTests extends AnyFunSuite {
         i % 3 === 0,
         i % 2 === 0,
         Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
-      )().tchk().lower()
+      )().tchk().lower
     val s = StmBuild(
       n,
       Tuple(StmData(x1)(), StmData(x2)())(),
@@ -87,7 +87,7 @@ class StreamFusionTests extends AnyFunSuite {
         x1 -> (c1, True),
         x2 -> (c2, True)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val i1 = Param("i")(U8)
     val i2 = Param("i")(U8)
@@ -162,7 +162,7 @@ class StreamFusionTests extends AnyFunSuite {
         i + 3,
         i % 3 === 0,
         Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
-      )().tchk().lower()
+      )().tchk().lower
     // Valid every 5th cycle
     val c2 =
       StmBuild(
@@ -170,7 +170,7 @@ class StreamFusionTests extends AnyFunSuite {
         i * 5 + 1,
         i % 5 === 0,
         Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
-      )().tchk().lower()
+      )().tchk().lower
     val s = StmBuild(
       n,
       Mux(i % 2 === 0, StmData(x1)(), StmData(x2)())(),
@@ -180,7 +180,7 @@ class StreamFusionTests extends AnyFunSuite {
         x1 -> (c1, i % 2 === 0),
         x2 -> (c2, i % 2 !== 0)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     // 1) After fusion with x1
     val actual1 = lpe(s.fuseWith(x1)).asInstanceOf[StmBuild]
@@ -263,7 +263,7 @@ class StreamFusionTests extends AnyFunSuite {
     }
     val sA = Param("s_a")()
     val sB = Param("s_b")(TyStm(U8, n))
-    val original = LetStm(1, sA, input, interleave(sA, sB))().tchk().lower()
+    val original = LetStm(1, sA, input, interleave(sA, sB))().tchk().lower
 
     val fused = original.fuseCompletely()
 
@@ -330,7 +330,7 @@ class StreamFusionTests extends AnyFunSuite {
           )
         )()
       }
-    )().tchk().lower()
+    )().tchk().lower
     val fused = original.fuseCompletely()
 
     // Correct behaviour

@@ -1,6 +1,5 @@
 package mhir.sugar
 
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.{TypeCheck, TypeError}
 
@@ -16,11 +15,11 @@ import mhir.typecheck.{TypeCheck, TypeError}
   *
   * {{{
   *   import mhir.ir.Lowering.ExprLowering
-  *   exprWithSyntaxSugar.lower()
+  *   exprWithSyntaxSugar.lower
   * }}}
   * {{{
   *   import mhir.ir.Lowering.TypeLowering
-  *   typeWithSyntaxSugar.lower()
+  *   typeWithSyntaxSugar.lower
   * }}}
   */
 trait Lowering {
@@ -32,22 +31,22 @@ trait Lowering {
     /** Remove all syntax sugar from this expression and its children. This is
       * guaranteed to preserve type annotations.
       */
-    def lower(): Expr = {
+    def lower(implicit c: Canonicalizer): Expr = {
       val desugared = expr match {
         case s: SyntaxSugar =>
-          s.lowerSyntaxSugar()
+          s.lowerSyntaxSugar(c)
         case mux: Mux =>
           mux.requireType()
-          val c = mux.c.lower()
-          val t = mux.t.lower()
-          val f = mux.f.lower()
+          val cond = mux.c.lower
+          val t = mux.t.lower
+          val f = mux.f.lower
           t.typ match {
             case TyStm(elemTyp, n) =>
               val sT = Param("s_t")(TyStm(elemTyp, -1))
               val sF = Param("s_f")(TyStm(elemTyp, -1))
               StmBuild(
                 n,
-                Mux(c, StmData(sT)(), StmData(sF)())(),
+                Mux(cond, StmData(sT)(), StmData(sF)())(),
                 True,
                 Map[Param, (Expr, Expr)](
                   sT -> (t, True),
@@ -55,12 +54,12 @@ trait Lowering {
                 )
               )().annotate(NoInputsAfterLastOut).annotateWithName("Mux").tchk()
             case _ =>
-              Mux(c, t, f)().tchk()
+              Mux(cond, t, f)().tchk()
           }
         case vb: VecBuild =>
           vb.requireType()
-          val n = vb.len.lower()
-          val f = vb.f.lower().asInstanceOf[Function]
+          val n = vb.len.lower
+          val f = vb.f.lower.asInstanceOf[Function]
           vb.typ.asInstanceOf[TyVec].t.lower match {
             case _: TyStm =>
               val Function(i, s) = f
@@ -74,19 +73,19 @@ trait Lowering {
           }
         case va: VecAccess =>
           va.requireType()
-          val v = va.vec.lower()
-          val i = va.i.lower()
+          val v = va.vec.lower
+          val i = va.i.lower
           v.typ match {
             case _: TyVec => VecAccess(v, i)().tchk()
             case TyStm(tv: TyVec, _) =>
-              StmMap(v, tv ::+ (v => VecAccess(v, i)()))().tchk().lower()
+              StmMap(v, tv ::+ (v => VecAccess(v, i)()))().tchk().lower
             case t =>
               throw new TypeError(
                 s"Cannot lower ${VecAccess.getClass.getSimpleName} whose first argument has type $t."
               )
           }
         case v: VecLiteral =>
-          val loweredElems = v.elems.map(_.lower())
+          val loweredElems = v.elems.map(_.lower)
           val TyVec(elemTyp, nExpr) = v.typ
           elemTyp.lower match {
             case TyStm(elemTyp, mExpr) =>
@@ -114,7 +113,7 @@ trait Lowering {
               v.rebuild(v.typ, loweredElems)
           }
         case s: StmLiteral =>
-          val loweredElems = s.elems.map(_.lower())
+          val loweredElems = s.elems.map(_.lower)
           val TyStm(elemTyp, nExpr) = s.typ
           elemTyp.lower match {
             case TyStm(elemTyp, mExpr) =>
@@ -144,11 +143,11 @@ trait Lowering {
         case e @ (_: IntCst | _: Param | _: Undefined) =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.
-          e.rebuild(e.typ.lower, e.children.map(e => e.lower()))
+          e.rebuild(e.typ.lower, e.children.map(e => e.lower))
         case e =>
           // Re-run the type checker to ensure no type errors crept in during
           // lowering
-          val newE = e.rebuildAndEraseType(e.children.map(e => e.lower()))
+          val newE = e.rebuildAndEraseType(e.children.map(e => e.lower))
           if (e.typ != Missing) newE.tchk() else newE
       }
       // This is required because lowering may be syntax-directed (i.e., an
@@ -170,20 +169,20 @@ trait Lowering {
   /** The lowering transformation for types.
     */
   implicit class TypeLowering(typ: Type) {
-    def lower: Type = {
+    def lower(implicit c: Canonicalizer): Type = {
       typ match {
         case Missing | TyBool | _: TyAnyInt | _: TyFix => typ
         case TyArrow(t1, t2)  => TyArrow(t1.lower, t2.lower)
         case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.lower): _*)
         case TyVec(t, n) =>
-          val newN = n.lower()
+          val newN = n.lower
           t.lower match {
             case TyStm(t, m) => TyStm(TyVec(t, newN), m)
             case t           => TyVec(t, newN)
           }
         case TyStm(t, n) =>
           t.lower match {
-            case TyStm(t, m) => TyStm(t, SafeProd(n, m)().tchk().lower())
+            case TyStm(t, m) => TyStm(t, SafeProd(n, m)().tchk().lower)
             case t           => TyStm(t, n)
           }
       }

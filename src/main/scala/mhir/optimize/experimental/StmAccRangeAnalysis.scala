@@ -1,5 +1,6 @@
 package mhir.optimize.experimental
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.{FactSet, PartialEvalPass, ScalarRange, StmAccRange}
 import mhir.sugar._
@@ -49,7 +50,7 @@ object StmAccRangeAnalysis {
     )
 
     val z = stm.seedByVar(x)
-    val delta = (stm.nextByVar(x) - x).tchk().lower()
+    val delta = (stm.nextByVar(x) - x).tchk().lower
 
     // acc[i] >= z by induction on the step count if:
     //   (Base case) acc[i] = z at first, so acc[i] >= z   (always true)
@@ -67,7 +68,7 @@ object StmAccRangeAnalysis {
     //   (Base case) acc[i] = z at first, so acc[i] <= z   (always true)
     //   (Ind. case) acc[i] <= z ==> next(acc[i]) <= z     (to be shown)
     val zPlusOne =
-      PartialEvalPass.partialEval((z + 1).tchk().lower())(FactSet())
+      PartialEvalPass.partialEval((z + 1).tchk().lower)(FactSet())
     val fHi = FactSet().lt(x, zPlusOne)
     val isNonIncreasing =
       PartialEvalPass.isSmallerOrEqual(delta, 0)(fHi).getOrElse(false)

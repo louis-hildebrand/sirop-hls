@@ -1,6 +1,7 @@
 package mhir.gen
 package vhdl
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 import os.Path

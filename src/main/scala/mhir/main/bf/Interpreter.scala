@@ -93,7 +93,7 @@ class Interpreter(
           .replace("OUTPUT_LEN", s"$maxOutputLength:u32")
       )
     val typeChecked = parsed.tchk()
-    val lowered = typeChecked.lower()
+    val lowered = typeChecked.lower
     val simplified = mhir.optimize.PartialEvalPass.partialEval(lowered)
     simplified
   }

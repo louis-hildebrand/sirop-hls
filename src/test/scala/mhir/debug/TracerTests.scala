@@ -40,7 +40,7 @@ class TracerTests extends AnyFunSuite {
         i -> (IntCst(0)(U8), i + 1),
         j -> (IntCst(10)(U8), j + i)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(s)
     if (SaveTraces) {
@@ -87,7 +87,7 @@ class TracerTests extends AnyFunSuite {
         ),
         t -> (IntCst(0)(U8), t + 1)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(stm2vec)
     if (SaveTraces) {
@@ -143,7 +143,7 @@ class TracerTests extends AnyFunSuite {
           s1 -> (stm1, b),
           s2 -> (stm2, !b)
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     }
 
     val fullTrace = Tracer.traceAll(s)

@@ -39,7 +39,7 @@ class StreamReplicationTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(1, x, input, zipMap)().tchk().lower()
+      LetStm(1, x, input, zipMap)().tchk().lower
     }
     val i = Param("i")(U8)
     val replicated =
@@ -102,7 +102,7 @@ class StreamReplicationTests extends AnyFunSuite {
           )
         )()
       }
-      LetStm(1, ctr, count, zip)().tchk().lower()
+      LetStm(1, ctr, count, zip)().tchk().lower
     }
     val i = Param("i")(U8)
     val replicated =

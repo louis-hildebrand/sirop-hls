@@ -173,7 +173,7 @@ object StreamFuser {
             ++ Map(
               producer -> (producer, updateBuffer),
               bufData -> (
-                Default(producerElemTyp).tchk().lower(),
+                Default(producerElemTyp).tchk().lower,
                 Mux(updateBuffer, StmData(producer)(), bufData)()
               ),
               bufValid -> (
@@ -366,7 +366,7 @@ object StreamFuser {
                 case _: TyStm => False
                 case _        => y
               }
-            )().tchk().lower()
+            )().tchk().lower
           )
       }
     }

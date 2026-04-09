@@ -89,9 +89,9 @@ object PartialEvalPass {
               case Some(ScalarRange(Some(_: IntCst), Some(_: IntCst))) =>
                 x
               case Some(ScalarRange(Some(lo), Some(hi)))
-                  if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
+                  if isEqual(SafeSum(lo, 1)().tchk().lower, hi)(facts)
                     .getOrElse(false) =>
-                doPartialEval(ReshapeData(lo, x.typ)().tchk().lower())
+                doPartialEval(ReshapeData(lo, x.typ)().tchk().lower)
               case _ =>
                 x
             }
@@ -270,7 +270,7 @@ object PartialEvalPass {
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
                 doPartialEval(
-                  FunCall(f, Cast(i, fInT)().tchk().lower())().tchk()
+                  FunCall(f, Cast(i, fInT)().tchk().lower)().tchk()
                 )
               case (Undefined(TyVec(t, _)), _) =>
                 Undefined(t)
@@ -366,7 +366,7 @@ object PartialEvalPass {
     } else {
       val eq =
         try {
-          (e1 === e2).tchk().lower()
+          (e1 === e2).tchk().lower
         } catch {
           case _: TypeError =>
             return None
@@ -398,7 +398,7 @@ object PartialEvalPass {
       val (rhsPosTerms, rhsNegTerms) = getPosAndNegTerms(partialEval(e2)(facts))
       val newLhs = SmartSum(lhsPosTerms ++ rhsNegTerms: _*)()
       val newRhs = SmartSum(rhsPosTerms ++ lhsNegTerms: _*)()
-      (newLhs < newRhs).tchk().lower()
+      (newLhs < newRhs).tchk().lower
     }
     partialEval(lt)(facts) match {
       case True  => Some(true)

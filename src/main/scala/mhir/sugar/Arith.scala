@@ -1,6 +1,5 @@
 package mhir.sugar
 
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.{TSum, TypeCheck, TypeError}
 
@@ -31,9 +30,11 @@ case class Min(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val x = this.x.tchk.expectAnyInt()
-    val y = this.y.tchk.expectAnyInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val x = this.x.tchk(context).expectAnyInt()
+    val y = this.y.tchk(context).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
@@ -44,13 +45,13 @@ case class Min(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
       case Some(typ) =>
         Mux(x < y, ReshapeData(x, typ)(), ReshapeData(y, typ)())()
           .tchk()
-          .lower()
+          .lower
       case None =>
         throw new TypeError(
           s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
@@ -74,9 +75,11 @@ case class Max(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val x = this.x.tchk.expectAnyInt()
-    val y = this.y.tchk.expectAnyInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val x = this.x.tchk(context).expectAnyInt()
+    val y = this.y.tchk(context).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
@@ -87,13 +90,13 @@ case class Max(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
       case Some(typ) =>
         Mux(x > y, ReshapeData(x, typ)(), ReshapeData(y, typ)())()
           .tchk()
-          .lower()
+          .lower
       case None =>
         throw new TypeError(
           s"Could not find common supertype for $className with inputs of type ${x.typ} and ${y.typ}."
@@ -122,9 +125,11 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val x = this.x.tchk.expectAnyInt()
-    val y = this.y.tchk.expectAnyInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val x = this.x.tchk(context).expectAnyInt()
+    val y = this.y.tchk(context).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
@@ -135,21 +140,21 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val q = Param("q")()
     Let(
       q,
       x / y,
       Mux((x % y !== 0) && ((x < 0) === (y < 0)), q + 1, q)()
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 
 /** Convert from one data type to another, even if this may cause data loss.
   *
-  * For example, [[mhir.ir.ReshapeData]] will refuse to convert `u32` to `u8`,
-  * but [[Cast]] can do it (using [[mhir.ir.TruncateTo]]).
+  * For example, [[mhir.sugar.ReshapeData]] will refuse to convert `u32` to
+  * `u8`, but [[Cast]] can do it (using [[mhir.ir.TruncateTo]]).
   *
   * @param e
   *   the expression to convert.
@@ -165,16 +170,18 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val e = this.e.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val e = this.e.tchk(context)
     if (!Cast.canCast(e.typ, this.target)) {
       throw new TypeError(s"Cannot cast from ${e.typ} to ${this.target}.")
     }
     this.rebuild(this.target, Seq(e))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
-    val e = this.e.lower()
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    val e = this.e.lower
     val result = (e.typ, this.target) match {
       case (t1, t2) if t1 ~= t2 => e
       case (TyUInt(w1), TyUInt(w2)) =>
@@ -196,12 +203,14 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
       case _ =>
         throw new TypeError(s"Cannot cast from ${e.typ} to ${this.target}.")
     }
-    result.tchk().lower()
+    result.tchk().lower
   }
 }
 
 object Cast {
-  private def canCast(t1: Type, t2: Type): Boolean = {
+  private def canCast(t1: Type, t2: Type)(implicit
+      c: Canonicalizer
+  ): Boolean = {
     (t1, t2) match {
       case _ if t1 ~= t2              => true
       case (_: TyAnyInt, _: TyAnyInt) => true
@@ -209,7 +218,7 @@ object Cast {
         (ts1.length == ts2.length
         && ts1.zip(ts2).forall({ case (t1, t2) => canCast(t1, t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canCast(t1, t2) && sameLen(n1, n2)
+        canCast(t1, t2) && c.sameLen(n1, n2)
       case _ => false
     }
   }
@@ -229,22 +238,24 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
     SafeSum(newChildren: _*)(typ)
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val terms = this.terms.map(e => e.tchk.expectAnyInt())
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val terms = this.terms.map(e => e.tchk(context).expectAnyInt())
     this.rebuild(
       TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
       terms
     )
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val terms = this.terms.map(e => e.lower())
+    val terms = this.terms.map(e => e.lower)
     if (terms.isEmpty) {
       IntCst(0)(this.typ)
     } else {
       val typ = this.typ.asInstanceOf[TyAnyInt]
-      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
     }
   }
 }

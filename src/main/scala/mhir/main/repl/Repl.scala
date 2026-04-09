@@ -128,7 +128,7 @@ object Repl {
     mhir.eval.eval(
       e.tchk(typingContext)
         .subPreserveType(subs)
-        .lower()
+        .lower
     )
   }
 }

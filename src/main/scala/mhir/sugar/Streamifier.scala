@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck.TypeCheck
@@ -21,7 +20,7 @@ import scala.collection.immutable.ListMap
   *
   * {{{
   *   import mhir.ir.sugar.Streamifier.Streamify
-  *   e.streamify()
+  *   e.streamify
   * }}}
   */
 object Streamifier {
@@ -31,7 +30,7 @@ object Streamifier {
   def unwrapTopLevelFunction(
       f: Expr,
       rename: Boolean
-  ): (Seq[Param], Expr) = {
+  )(implicit c: Canonicalizer): (Seq[Param], Expr) = {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
       e match {
@@ -65,7 +64,7 @@ object Streamifier {
   }
 
   implicit class Streamify(func: Expr) {
-    def streamify(): Expr = {
+    def streamify(implicit c: Canonicalizer): Expr = {
       require(
         this.func.hasType,
         "Expression must be type-checked before it can be streamified."
@@ -122,7 +121,7 @@ object Streamifier {
     })
   }
 
-  private def makeStreamParam(x: Param): Param = {
+  private def makeStreamParam(x: Param)(implicit c: Canonicalizer): Param = {
     x.typ match {
       case _: TyStm  => x
       case TyData(t) => x.rebuild(TyStm(t, 1)).asInstanceOf[Param]
@@ -136,7 +135,7 @@ object Streamifier {
   private def streamifyBody(
       stm: Expr,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     require(stm.typ.isInstanceOf[TyStm])
     if (stm.typ.freeVars.intersect(oldToNewInputs.keySet).nonEmpty) {
       throw new IllegalArgumentException(
@@ -169,7 +168,7 @@ object Streamifier {
   private def streamifyScalar2Scalar(
       e: Expr,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     val oldInputs = oldToNewInputs.keys.toSeq
     require(
       oldInputs.forall(x => x.typ.isData), {
@@ -196,7 +195,7 @@ object Streamifier {
   private def streamifyStmBuild(
       originalStm: StmBuild,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     val withStreamifiedProducers =
       StmBuild(
         originalStm.n,
@@ -336,7 +335,7 @@ object Streamifier {
             case (x, (z, next)) if x.typ.isData =>
               // TODO: Only make the seed default[T] if it actually depends on at
               //       least one input?
-              val newSeed = Undefined(x.typ).lower()
+              val newSeed = Undefined(x.typ).lower
               val newNext = if (haltOnFirstStep) {
                 Mux(
                   isFirstStep,

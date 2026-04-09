@@ -2,6 +2,7 @@ package mhir.optimize
 
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
@@ -630,7 +631,7 @@ private[optimize] object ArithSimplifier {
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
             && PartialEvalPass
-              .isEqual(c1, (c0 + 1).tchk().lower())()
+              .isEqual(c1, (c0 + 1).tchk().lower)()
               .getOrElse(false) =>
         Equal(x0, c0)()
       case And(terms @ _*) if terms.length <= 3 =>

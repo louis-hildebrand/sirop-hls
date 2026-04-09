@@ -11,20 +11,20 @@ class StmSimplifierTests extends AnyFunSuite {
   private val simplifier = StmSimplifier()
 
   test("LetStm:ZeroUses") {
-    val count = simplifier.simplify(StmCount(C(42)(U8))().tchk().lower())
+    val count = simplifier.simplify(StmCount(C(42)(U8))().tchk().lower)
     val e = {
       val s = Param("s")()
-      LetStm(1, s, StmCount(C(10)(U8))(), count)().tchk().lower()
+      LetStm(1, s, StmCount(C(10)(U8))(), count)().tchk().lower
     }
     val actual = simplifier.simplify(e)
     assert(actual == count)
   }
 
   test("LetStm:OneUse") {
-    val count = StmCount(C(10)(U8))().tchk().lower()
+    val count = StmCount(C(10)(U8))().tchk().lower
     val s = Param("s")(TyStm(U8, 10))
-    val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower()
-    val e = LetStm(1, s, count, map)().tchk().lower()
+    val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower
+    val e = LetStm(1, s, count, map)().tchk().lower
     val expected = simplifier.simplify(map.subPreserveType(s -> count))
     val actual = simplifier.simplify(e)
     assert(actual == expected)

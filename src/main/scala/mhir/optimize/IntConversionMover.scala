@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import mhir.canonicalize._
 import mhir.eval.EvalException
 import mhir.ir._
 import mhir.typecheck.TypeCheck

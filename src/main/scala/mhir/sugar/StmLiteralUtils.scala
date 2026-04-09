@@ -1,13 +1,12 @@
 package mhir.sugar
 
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 
 trait StmLiteralUtils {
 
   implicit class StmLiteralUtilsImplicit(stm: StmLiteral) {
-    def toStmBuild: StmBuild = {
+    def toStmBuild(implicit c: Canonicalizer): StmBuild = {
       if (!this.stm.hasType) {
         throw new IllegalArgumentException(
           s"StmLiteral must be type-checked before it can be translated to a StmBuild."
@@ -24,7 +23,7 @@ trait StmLiteralUtils {
       }
       val TyStm(t, n) = this.stm.typ
       val lowered = this.stm.elems match {
-        case Seq()  => StmBuild(0, Default(t).lower(), True)()
+        case Seq()  => StmBuild(0, Default(t).lower, True)()
         case Seq(e) => StmBuild(1, e, True)()
         case _      =>
           // The index type must be at least wide enough to fit the value 1, since

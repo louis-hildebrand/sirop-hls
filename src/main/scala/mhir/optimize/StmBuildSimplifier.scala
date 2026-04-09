@@ -154,7 +154,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
               )()
             )
             val subs =
-              Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower())
+              Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower)
             StmBuild(
               s1.n,
               s1.data.subPreserveType(subs),

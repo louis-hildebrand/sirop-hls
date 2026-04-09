@@ -46,13 +46,13 @@ class StmLatencyMatcherTests extends AnyFunSuite {
               )()
             ),
             buf -> (
-              Default((U8, U8)).lower(),
+              Default((U8, U8)).lower,
               Mux(i === C(0)(U8), StmData(s)(), buf)()
             )
           )
         )()
       }
-      LetStm(1, s, count, delay)().tchk().lower()
+      LetStm(1, s, count, delay)().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 
@@ -77,7 +77,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       val plusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
       val timesTwo = SimpleMap(sB, x => Prod(C(2)(U8), x)())
       val zip = SimpleZip(sA, sB, timesTwo)
-      LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower()
+      LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 
@@ -125,7 +125,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
         )().tchk()
       }
       val zip = SimpleZip(delay, plusOne)
-      LetStm(1, s, count, zip)().tchk().lower()
+      LetStm(1, s, count, zip)().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 
@@ -190,7 +190,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
         )().tchk()
       }
       val zipped = SimpleZip(sumPlusFive, stm2Vec)
-      LetStm(1, x, count, zipped)().tchk().lower()
+      LetStm(1, x, count, zipped)().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 
@@ -214,7 +214,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       val count = SimpleCount(C(n)(U8))
       val plusFive = SimpleMap(s0, x => Sum(C(5)(U8), x)())
       val zip = SimpleZip(s0, plusFive)
-      LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower()
+      LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 
@@ -236,7 +236,7 @@ class StmLatencyMatcherTests extends AnyFunSuite {
       val s0 = Param("s0")(TyStm(U8, n))
       val count = SimpleCount(C(n)(U8))
       val concat = SimpleConcat(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
-      LetStm(n, s0, count, concat)().tchk().lower()
+      LetStm(n, s0, count, concat)().tchk().lower
     }
     val optimized = pass.matchLatencies(original)
 

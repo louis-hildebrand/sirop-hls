@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
 import mhir.eval.DefaultVal
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
@@ -25,7 +24,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val v = this.v.tchk(context)
     val x = this.x.typ match {
       case Missing => this.x.rebuild(v.typ).asInstanceOf[Param]
@@ -42,24 +43,24 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     Let(x, v, in)(in.typ)
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     time(s"lowering $className (${this.x})") {
       requireType()
       (v.typ.lower, in.typ.lower) match {
         case (_: TyStm, TyStm(_, inLen)) =>
-          val x = this.x.lower().asInstanceOf[Param]
-          val v = this.v.lower()
-          val in = this.in.lower()
+          val x = this.x.lower.asInstanceOf[Param]
+          val v = this.v.lower
+          val in = this.in.lower
           // Play it safe and buffer the whole input stream.
           // The optimizer may be able to improve this.
           LetStm(inLen, x, v, in)().tchk()
         case (TyData(_), TyData(_)) =>
-          val x = this.x.lower().asInstanceOf[Param]
-          val v = this.v.lower()
-          val in = this.in.lower()
+          val x = this.x.lower.asInstanceOf[Param]
+          val v = this.v.lower
+          val in = this.in.lower
           Let(x, v, in)().asFunCall().tchk()
         case _ =>
-          this.in.subPreserveType(this.x -> this.v).lower()
+          this.in.subPreserveType(this.x -> this.v).lower
       }
     }(Let.logger)
   }
@@ -198,13 +199,15 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     this
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     // Check that the requested type indeed has a default
     DefaultVal(this.typ)
     this
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     DefaultVal(this.typ).tchk()
   }
 
@@ -239,8 +242,10 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newE = e.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newE = e.tchk(context)
     if (ReshapeData.canReshape(newE.typ, targetType)) {
       this.rebuild(targetType, Seq(newE))
     } else {
@@ -250,9 +255,9 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val e = this.e.lower()
+    val e = this.e.lower
     (e, e.typ, targetType) match {
       case (IntCst(k), _, target) =>
         // This special case is not really necessary, it's just annoying to
@@ -273,13 +278,13 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
       case (_, _: TyTuple, TyTuple(ts2 @ _*)) =>
         Tuple(
           ts2.zipWithIndex.map({ case (t, i) =>
-            ReshapeData(TupleAccess(e, i)(), t)().tchk().lower()
+            ReshapeData(TupleAccess(e, i)(), t)().tchk().lower
           }): _*
         )().tchk()
       case (_, _: TyVec, TyVec(t2, n)) =>
         VecBuild(
           n,
-          U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)().tchk().lower())
+          U32 ::+ (i => ReshapeData(VecAccess(e, i)(), t2)().tchk().lower)
         )().tchk()
       case _ =>
         throw new TypeError(
@@ -303,7 +308,7 @@ object ReshapeData {
     * Furthermore <code>bool</code> cannot be converted to <code>u8</code>
     * because they are entirely different types.
     */
-  def canReshape(t1: Type, t2: Type): Boolean = {
+  def canReshape(t1: Type, t2: Type)(implicit c: Canonicalizer): Boolean = {
     (t1, t2) match {
       case (TyBool, TyBool)         => true
       case (TyUInt(w1), TyUInt(w2)) => w2 >= w1
@@ -314,7 +319,7 @@ object ReshapeData {
         (ts1.length == ts2.length
         && ts1.zip(ts2).forall({ case (t1, t2) => canReshape(t1, t2) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canReshape(t1, t2) && sameLen(n1, n2)
+        canReshape(t1, t2) && c.sameLen(n1, n2)
       case _ => false
     }
   }
@@ -322,7 +327,9 @@ object ReshapeData {
   /** Tries to find the narrowest type such that this type and the given type
     * can both be reshaped to that type.
     */
-  def narrowestCommonAncestor(t1: Type, t2: Type): Option[Type] = {
+  def narrowestCommonAncestor(t1: Type, t2: Type)(implicit
+      c: Canonicalizer
+  ): Option[Type] = {
     (t1, t2) match {
       case (TyBool, TyBool)         => Some(TyBool)
       case (TyUInt(w1), TyUInt(w2)) => Some(TyUInt(math.max(w1, w2)))
@@ -341,7 +348,7 @@ object ReshapeData {
         } else {
           None
         }
-      case (TyVec(t1, n1), TyVec(t2, n2)) if sameLen(n1, n2) =>
+      case (TyVec(t1, n1), TyVec(t2, n2)) if c.sameLen(n1, n2) =>
         narrowestCommonAncestor(t1, t2) match {
           case Some(t) => Some(TyVec(t, n1))
           case None    => None
@@ -350,7 +357,9 @@ object ReshapeData {
     }
   }
 
-  def narrowestCommonAncestor(ts: Seq[Type]): Option[Type] = {
+  def narrowestCommonAncestor(
+      ts: Seq[Type]
+  )(implicit c: Canonicalizer): Option[Type] = {
     require(ts.nonEmpty)
     ts.tail.foldLeft[Option[Type]](Some(ts.head))({ case (acc, t) =>
       acc match {
@@ -378,8 +387,10 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newE1 = e1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newE1 = e1.tchk(context)
     newE1.typ match {
       case t if t.isData => ()
       case t =>
@@ -387,7 +398,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
           s"Left-hand side of $className has non-data type $t."
         )
     }
-    val newE2 = e2.tchk
+    val newE2 = e2.tchk(context)
     newE2.typ match {
       case t if t.isData => ()
       case t =>
@@ -405,12 +416,12 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val e1 = this.e1.lower()
-    val e2 = this.e2.lower()
+    val e1 = this.e1.lower
+    val e2 = this.e2.lower
     val t = ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ).get
-    Equal(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower()
+    Equal(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower
   }
 
   override def precedence: Int = Precedence.Equal
@@ -446,8 +457,10 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newLhs = e1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newLhs = e1.tchk(context)
     newLhs.typ match {
       case _: TyAnyInt => ()
       case t =>
@@ -456,7 +469,7 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer."
         )
     }
-    val newRhs = e2.tchk
+    val newRhs = e2.tchk(context)
     newRhs.typ match {
       case _: TyAnyInt => ()
       case t =>
@@ -468,12 +481,12 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     this.rebuild(TyBool, Seq(newLhs, newRhs))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val e1 = this.e1.lower()
-    val e2 = this.e2.lower()
+    val e1 = this.e1.lower
+    val e2 = this.e2.lower
     val t = ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ).get
-    LessThan(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower()
+    LessThan(ReshapeData(e1, t)(), ReshapeData(e2, t)())().tchk().lower
   }
 
   override def precedence: Int = Precedence.LessThan
@@ -507,7 +520,9 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
     SmartSum(newChildren: _*)(typ)
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newTerms = terms.zipWithIndex.map({ case (e, i) =>
       val newE = e.tchk(context)
       newE.typ match {
@@ -527,14 +542,14 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
     this.rebuild(typ, newTerms)
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val terms = this.terms.map(e => e.lower())
+    val terms = this.terms.map(e => e.lower)
     if (terms.isEmpty) {
       IntCst(0)(this.typ)
     } else {
       val typ = this.typ.asInstanceOf[TyAnyInt]
-      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
     }
   }
 
@@ -570,7 +585,9 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     SmartProd(newChildren: _*)(typ)
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newFactors = factors.zipWithIndex.map({ case (e, i) =>
       val newE = e.tchk(context)
       newE.typ match {
@@ -590,14 +607,14 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     this.rebuild(typ, newFactors)
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val factors = this.factors.map(e => e.lower())
+    val factors = this.factors.map(e => e.lower)
     if (factors.isEmpty) {
       IntCst(1)(this.typ)
     } else {
       val typ = this.typ.asInstanceOf[TyAnyInt]
-      Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+      Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
     }
   }
 
@@ -631,17 +648,19 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
     SafeProd(newChildren: _*)(typ)
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val factors = this.factors.map(e => e.tchk.expectAnyInt())
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val factors = this.factors.map(e => e.tchk(context).expectAnyInt())
     this.rebuild(
       TProd(factors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
       factors
     )
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val factors = this.factors.map(e => e.lower())
+    val factors = this.factors.map(e => e.lower)
     if (factors.isEmpty) {
       IntCst(1)(this.typ)
     } else {
@@ -651,7 +670,7 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
           // but we know the product will be zero.
           IntCst(0)(TyUInt(0))
         case typ =>
-          Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower()
+          Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
       }
     }
   }
@@ -673,8 +692,10 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newLhs = e1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newLhs = e1.tchk(context)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -683,7 +704,7 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer"
         )
     }
-    val newRhs = e2.tchk
+    val newRhs = e2.tchk(context)
     val t2 = newRhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -696,12 +717,12 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
     this.rebuild(typ, Seq(newLhs, newRhs))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val typ = this.typ.asInstanceOf[TyAnyInt]
-    val e1 = this.e1.lower()
-    val e2 = this.e2.lower()
-    Div(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
+    val e1 = this.e1.lower
+    val e2 = this.e2.lower
+    Div(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower
   }
 
   override def precedence: Int = Precedence.Div
@@ -736,8 +757,10 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newLhs = e1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newLhs = e1.tchk(context)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -746,7 +769,7 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer"
         )
     }
-    val newRhs = e2.tchk
+    val newRhs = e2.tchk(context)
     val t2 = newRhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -759,12 +782,12 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
     this.rebuild(typ, Seq(newLhs, newRhs))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val typ = this.typ.asInstanceOf[TyAnyInt]
-    val e1 = this.e1.lower()
-    val e2 = this.e2.lower()
-    Mod(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower()
+    val e1 = this.e1.lower
+    val e2 = this.e2.lower
+    Mod(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower
   }
 
   override def precedence: Int = Precedence.Mod

@@ -42,7 +42,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
 
   /** Lower and partially evaluate.
     */
-  private def lpe(e: Expr): Expr = PE.partialEval(e.tchk().lower())
+  private def lpe(e: Expr): Expr = PE.partialEval(e.tchk().lower)
 
   /** Partially evaluate without lowering.
     */
@@ -68,7 +68,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a -> (C(-128)(I8), a + C(32)(I8))
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -105,7 +105,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         // counter (+ delta + 1)
         a5 -> (C(1)(I16), a5 + delta + 1)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = PE
       .partialEval(StmInductionVarRemovalPass().removeInductionVars(s))
       .asInstanceOf[StmBuild]
@@ -137,7 +137,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         sum -> (C(0)(U8), sum + i),
         t -> (C(0)(U8), t + 1)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val optimized = lpe(
       StmInductionVarRemovalPass().removeInductionVars(triangleSum)
     ).asInstanceOf[StmBuild]
@@ -178,7 +178,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (C(100)(U8), i + 2),
         v -> (VecBuild(m, U8 ::+ (j => j))(), VecShiftLeft(v, i)())
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -218,7 +218,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           VecBuild(n, U8 ::+ (j => FunCall(FunCall(f, a0)(), j)()))()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
@@ -274,7 +274,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         b0 -> (True, b0 && i < k0),
         b1 -> (True, b1 && i < k1)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -330,7 +330,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (i0, Mux(b, i + delta, i)()),
         b -> (True, b && i < k)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -376,7 +376,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         i -> (i0, Mux(b, i + delta, i)()),
         b -> (True, b && i < k)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -423,7 +423,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         a1 -> (C(1)(U8), Mux(a0 < k + 1, a1 + 1, a1)()),
         a2 -> (C(2)(U8), Mux(a0 <= -1 + k, a2 + 2, a2)())
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -458,7 +458,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         a1 -> (C(2)(U8), Mux(a0 >= k + 2, a1 + 1, a1)()),
         a2 -> (C(1)(U8), Mux(a0 > k, a2 + 2, a2)())
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -497,7 +497,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           )()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -528,7 +528,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           Mux(i < m, VecShiftLeft(v, 2 * i)(), v)()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -562,7 +562,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           Mux(i < m, v, VecShiftLeft(v, 3 * i + 1)())()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = StmInductionVarRemovalPass().removeInductionVars(s)
 
     // Correctness
@@ -585,7 +585,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val recEqn =
       (I33 ::+ (t => TyStm((U8, U8), n) ::+ (_ => t < n)))
         .tchk()
-        .lower()
+        .lower
         .asInstanceOf[Function]
     val result = RecurrenceSolver.tryFindClosedForm(0, s, recEqn)
 
@@ -604,7 +604,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val stmNextRecEqn =
       (I33 ::+ (t => TyStm(I16, n) ::+ (_ => t < n)))
         .tchk()
-        .lower()
+        .lower
         .asInstanceOf[Function]
     val stmNextFun =
       RecurrenceSolver
@@ -613,7 +613,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         .get
 
     val initialVec =
-      VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower()
+      VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower
     val next = Param("next")(stmNextFun.typ)
     val shiftRecEqn = (I33 ::+ (t =>
       TyVec(I16, n) ::+ (x =>
@@ -623,7 +623,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           x
         )()
       )
-    )).tchk().lower().subPreserveType(next -> stmNextFun).asInstanceOf[Function]
+    )).tchk().lower.subPreserveType(next -> stmNextFun).asInstanceOf[Function]
     val shiftEqn =
       RecurrenceSolver.tryFindClosedForm(0, initialVec, shiftRecEqn)
 
@@ -634,15 +634,15 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     val expected = pe(
       I33 ::+ (t =>
         Mux(
-          (t < n).tchk().lower(),
+          (t < n).tchk().lower,
           VecBuild(
             n,
             U32 ::+ (i =>
               Mux(
-                (i + t < 7).tchk().lower(),
-                Default(I16).tchk().lower(),
+                (i + t < 7).tchk().lower,
+                Default(I16).tchk().lower,
                 StmData(
-                  StmNextK(s, (-1 * n + t + ToSigned(i)()).tchk().lower())()
+                  StmNextK(s, (-1 * n + t + ToSigned(i)()).tchk().lower)()
                 )()
               )()
             )
@@ -761,7 +761,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val facts = FactSet().geq(n, 1)
     val opt = lpe(
       StmInductionVarRemovalPass(facts).removeInductionVars(original).tchk()
@@ -822,7 +822,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
           Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val opt = PE.partialEval(
       StmInductionVarRemovalPass().removeInductionVars(original)
     )

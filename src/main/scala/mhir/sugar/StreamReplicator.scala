@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 
@@ -51,7 +50,7 @@ object StreamReplicator {
         m: Expr,
         i: Param,
         varsToReplicate: Set[Param]
-    ): Expr = {
+    )(implicit c: Canonicalizer): Expr = {
       logger.trace(
         s"performing stream replication on ${this.stm.className}: ${this.stm}"
       )
@@ -108,7 +107,7 @@ object StreamReplicator {
       m: Expr,
       i: Param,
       varsToReplicate: Set[Param]
-  ): StmBuild = {
+  )(implicit c: Canonicalizer): StmBuild = {
     if (stm.n.freeVars.contains(i)) {
       throw new IllegalArgumentException(
         "Stream length must not vary with vector index."
@@ -255,7 +254,7 @@ object StreamReplicator {
       m: Expr,
       i: Param,
       varsToReplicate: Set[Param]
-  ): LetStm = {
+  )(implicit c: Canonicalizer): LetStm = {
     val LetStm(bufSize, x, in, out) = let
     val replicateIn = in.freeVars.intersect(varsToReplicate + i).nonEmpty
     if (replicateIn) {

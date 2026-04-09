@@ -33,7 +33,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
     *   the final value</i>, or if a stream seems to be deadlocked.
     */
   def eval(e: Expr, stmData: Map[Param, Option[Expr]] = Map()): Expr = {
-    val Value(v, warnings) = evalBigStep(stmData)(e.tchk().lower())
+    val Value(v, warnings) = evalBigStep(stmData)(e.tchk().lower)
     if (warnings.isEmpty) {
       v
     } else if (this.suppressWarnings) {

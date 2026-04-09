@@ -30,7 +30,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s = Param("s")(TyStm(I32, n))
     val f = Param("f")(TyArrow(I32, I32))
     val original = StmMap(s, I32 ::+ (x => FunCall(f, x)()))()
-    val tl = (e: Expr) => e.tchk().lower()
+    val tl = (e: Expr) => e.tchk().lower
     val optimize = (s: Expr) => {
       val s1 = tl(PE.partialEval(s))
       val s2 = tl(simplifier.simplify(s1)())
@@ -38,7 +38,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val s4 = tl(simplifier.simplify(s3))
       s4
     }
-    val optimized = optimize(original.tchk().lower())
+    val optimized = optimize(original.tchk().lower)
 
     // Correctness
     val nExamples = Seq(0, 1, 4)
@@ -73,7 +73,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       FunCall(f, StmData(sAcc)())(),
       True,
       Map[Param, (Expr, Expr)](sAcc -> (s, True))
-    )().tchk().lower()
+    )().tchk().lower
     assert(optimized == ideal)
   }
 
@@ -86,7 +86,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val n = C(16)(U8)
     val s = Param("s")(TyStm(U8, n))
     val k = C(15)(U8)
-    val original = StmPrefix(s, k)().tchk().lower()
+    val original = StmPrefix(s, k)().tchk().lower
     val optimized = simplifier.simplify(original)
 
     // Correctness
@@ -119,7 +119,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val v = Param("v")(TyVec(I16, C(n)(U8)))
     val z = Param("z")(I16)
     val original = VecFoldSeq(v, z, PlusFunction(I16))()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
@@ -150,7 +150,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       StmCst(
         1,
         Sum(z, VecAccess(v, 0)(), VecAccess(v, 1)(), VecAccess(v, 2)())()
-      )().tchk().lower()
+      )().tchk().lower
     assert(optimized == ideal)
   }
 
@@ -161,7 +161,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val input = Param("input")(TyVec(U32, n))
     val f = U32 ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val g = U32 ::+ (x => x + 10)
-    val original = VecMap(VecMap(input, f)(), g)().tchk().lower()
+    val original = VecMap(VecMap(input, f)(), g)().tchk().lower
     val optimize = (v: Expr) => {
       val v1 = PE.partialEval(v)
       v1
@@ -179,7 +179,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       VecMap(
         input,
         U32 ::+ (x => FunCall(g, FunCall(f, x)())())
-      )().tchk().lower()
+      )().tchk().lower
     )
     assert(optimized == ideal)
   }
@@ -191,10 +191,10 @@ class ManualOptimizationTests extends AnyFunSuite {
     val input = Param("input")(TyStm(U16, n))
     val f = U16 ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val g = U16 ::+ (x => x + 7)
-    val s = StmMap(StmMap(input, f)(), g)().tchk().lower()
+    val s = StmMap(StmMap(input, f)(), g)().tchk().lower
     val optimize = (s: Expr) => {
       val s1 = s.fuseCompletely()
-      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      val s2 = s1.tchk().lower.asInstanceOf[StmBuild]
       stmBuildSimplifier.simplify(s2)()
     }
     val actual = optimize(s)
@@ -210,7 +210,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val ideal = optimize(
       StmMap(input, U16 ::+ (x => FunCall(g, FunCall(f, x)())()))()
         .tchk()
-        .lower()
+        .lower
     )
     assert(actual == ideal)
   }
@@ -223,8 +223,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     val f = U16 ::+ (x => (x + 2) * (x + 3) * (x + 4))
     val z = Param("z")(U16)
     val s =
-      StmFold(StmMap(input, f)(), z, PlusFunction(U16))().tchk().lower()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+      StmFold(StmMap(input, f)(), z, PlusFunction(U16))().tchk().lower
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
@@ -276,8 +276,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s =
       StmScanInclusive(StmMap(input, f)(), z, PlusFunction(U16))()
         .tchk()
-        .lower()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+        .lower
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(s0.fuseCompletely())
@@ -322,11 +322,11 @@ class ManualOptimizationTests extends AnyFunSuite {
     val original =
       StmPrepend(StmPrefix(input, n)(), C(42)(U8))()
         .tchk()
-        .lower()
+        .lower
         .asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      val s2 = s1.tchk().lower.asInstanceOf[StmBuild]
       val s3 = stmBuildSimplifier.simplify(s2)()
       s3
     }
@@ -351,7 +351,7 @@ class ManualOptimizationTests extends AnyFunSuite {
           s -> (input, i === 1),
           i -> (C(0)(U32), Mux(i === 1, C(1)(U32), i + 1)())
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     )
     assert(fused == ideal)
   }
@@ -361,11 +361,11 @@ class ManualOptimizationTests extends AnyFunSuite {
     val input = Param("input")(TyStm(U8, n))
     val original = StmAppend(StmSuffix(input, n - 1)(), C(42)(U8))()
       .tchk()
-      .lower()
+      .lower
       .asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = s.fuseCompletely()
-      val s2 = s1.tchk().lower().asInstanceOf[StmBuild]
+      val s2 = s1.tchk().lower.asInstanceOf[StmBuild]
       val s3 = stmBuildSimplifier.simplify(s2)()
       s3
     }
@@ -397,7 +397,7 @@ class ManualOptimizationTests extends AnyFunSuite {
           ),
           j -> (C(0)(U8), Mux((i !== 4) || (j < 1), j + 1, j)())
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     )
     assert(fused == ideal)
   }
@@ -410,7 +410,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U8, n))
     val original = StmJoin(StmSplit(s, m)())()
     // This is basically free due to the way lowering works
-    val optimized = original.tchk().lower()
+    val optimized = original.tchk().lower
 
     // Effective simplification
     val ideal = s
@@ -425,7 +425,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyStm(U8, m), n))
     val original = StmSplit(StmJoin(s)(), m)()
     // This is basically free due to the way lowering works
-    val optimized = original.tchk().lower()
+    val optimized = original.tchk().lower
 
     // Effective simplification
     val ideal = s
@@ -440,8 +440,8 @@ class ManualOptimizationTests extends AnyFunSuite {
     val f = Param("f")(TyArrow(U16, U16))
     val n = Param("n")(U16)
     val v = VecBuild(n, U16 ::+ (i => FunCall(f, i)()))()
-    val s = Vec2StmOld(v)().tchk().lower()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val s = Vec2StmOld(v)().tchk().lower
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val s0 = tl(s)
       val s1 = tl(stmBuildSimplifier.simplify(s0)())
@@ -476,7 +476,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       FunCall(f, TruncateTo(i, 16)())(),
       True,
       Map[Param, (Expr, Expr)](i -> (C(0)(U32), Sum(C(1)(U32), i)()))
-    )().tchk().lower()
+    )().tchk().lower
     assert(optimized == ideal)
   }
 
@@ -491,14 +491,14 @@ class ManualOptimizationTests extends AnyFunSuite {
   ignore("Stm2Vec(StmCst(n, c)") {
     val n = Param("n")(U8)
     val c = Param("c")(U8)
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val v0 = tl(s)
       val v1 = tl(v0.fuseCompletely())
       val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
       val v3 = tl(stmBuildSimplifier.simplify(v2)())
       val v4 =
-        tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
+        tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower)())
       val v5 = tl({
         val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v4))
         PE.partialEval(v4)(facts).asInstanceOf[StmBuild]
@@ -539,14 +539,14 @@ class ManualOptimizationTests extends AnyFunSuite {
     val z = Param("z")(I16)
     val delta = Param("delta")(I16)
     val s = StmRange(n, z, delta)()
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: Expr) => {
       val v0 = tl(s)
       val v1 = tl(v0.fuseCompletely())
       val v2 = tl(StmInductionVarRemovalPass().removeInductionVars(v1))
       val v3 = tl(stmBuildSimplifier.simplify(v2)())
       val v4 =
-        tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower())())
+        tl(StmDelayRemovalPass.skipFirstCycles(v3, (n - 1).tchk().lower)())
       val v5 = tl({
         val facts = FactSet().range(v4, StmAccRangeAnalysis.findAccRanges(v3))
         PE.partialEval(v4)(facts).asInstanceOf[StmBuild]
@@ -593,7 +593,7 @@ class ManualOptimizationTests extends AnyFunSuite {
   ignore("Vec2Stm(Stm2Vec(s))") {
     val n = Param("n")(U16)
     val s = Param("s")(TyStm(U16, n))
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       // TODO: Can I get it to work for n >= 1 rather than n >= 2?
       val facts = FactSet().geq(n, 2)
@@ -631,7 +631,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val s3 = tl(StmInductionVarRemovalPass(facts).removeInductionVars(s2))
       val s4 = tl(stmBuildSimplifier.simplify(s3)(facts))
       val s5 = tl(
-        StmDelayRemovalPass.skipFirstCycles(s4, (n - 1).tchk().lower())(facts)
+        StmDelayRemovalPass.skipFirstCycles(s4, (n - 1).tchk().lower)(facts)
       )
       val s6 = tl(stmBuildSimplifier.simplify(s5)(facts))
       // Reset `t` to start at zero rather than n - 1
@@ -679,7 +679,7 @@ class ManualOptimizationTests extends AnyFunSuite {
   test("Stm2Vec(Vec2Stm(v))", Slow) {
     val n = Param("n")(U16)
     val v = Param("v")(TyVec(U16, n))
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val s1 = tl(s.fuseCompletely())
       val s2 = tl(simplifier.simplify(s1)())
@@ -688,7 +688,7 @@ class ManualOptimizationTests extends AnyFunSuite {
       val facts = FactSet().range(s4, StmAccRangeAnalysis.findAccRanges(s4))
       val s5 = tl(simplifier.simplify(s4)(facts))
       val s6 =
-        tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower())())
+        tl(StmDelayRemovalPass.skipFirstCycles(s5, (n - 1).tchk().lower)())
       val s7 = tl(PE.partialEvalStmBuild(s6))
       tl(simplifier.simplify(s7)())
     }
@@ -718,7 +718,7 @@ class ManualOptimizationTests extends AnyFunSuite {
   test("VecReverse(VecReverse(v))") {
     val n = Param("n")(U8)
     val v = Param("v")(TyVec(U8, n))
-    val original = VecReverse(VecReverse(v)).tchk().lower()
+    val original = VecReverse(VecReverse(v)).tchk().lower
     val optimized = PE.partialEval(original)
     val expected = VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))()
     assert(optimized == expected)
@@ -727,7 +727,7 @@ class ManualOptimizationTests extends AnyFunSuite {
   ignore("StmReverse(StmReverse(s))") {
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(U8, n))
-    val tl = (e: Expr) => e.tchk().lower().asInstanceOf[StmBuild]
+    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
     val optimize = (s: StmBuild) => {
       val facts = FactSet().geq(n, 1)
       val s0 = tl(PE.partialEval(s)(facts))

@@ -1,5 +1,6 @@
 package mhir.gen.verilog
 
+import mhir.canonicalize._
 import mhir.debug.indent
 import mhir.gen.Binary
 import mhir.ir._

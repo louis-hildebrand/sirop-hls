@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck.TypeCheck

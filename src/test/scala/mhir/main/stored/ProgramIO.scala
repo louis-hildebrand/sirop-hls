@@ -1,8 +1,9 @@
 package mhir.main.stored
 
+import mhir.canonicalize._
 import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, PositionalTestIO}
-import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
 import mhir.ir._
+import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
 import mhir.typecheck.TypeCheck
 
 object ProgramIO {

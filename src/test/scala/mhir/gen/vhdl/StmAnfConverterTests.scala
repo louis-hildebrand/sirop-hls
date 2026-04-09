@@ -19,7 +19,7 @@ class StmAnfConverterTests extends AnyFunSuite {
           x => Prod(C(3)(U8), x)()
         ),
         SimpleZip(SimpleMap(x, x => x), x, SimpleMap(x, x => Sum(x, x)()))
-      )().tchk().lower()
+      )().tchk().lower
     }
     val anf = StmAnfConverter.convert(original)
 
@@ -86,7 +86,7 @@ class StmAnfConverterTests extends AnyFunSuite {
         x,
         LetStm(1, y, SimpleCount(C(n)(U8)), forkJoin(y))(),
         forkJoin(x)
-      )().tchk().lower()
+      )().tchk().lower
     }
     val anf = StmAnfConverter.convert(original)
 

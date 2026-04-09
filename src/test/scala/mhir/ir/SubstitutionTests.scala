@@ -222,7 +222,7 @@ class SubstitutionTests extends AnyFunSuite {
     val a = Param("a")(TyStm(U16, n))
     val b = Param("b")(TyStm(U16, n))
     val x0 = Param("x")(TyStm(U16, n))
-    val original = before(x0, a, numBefore = 20, numAfter = 20).tchk().lower()
+    val original = before(x0, a, numBefore = 20, numAfter = 20).tchk().lower
     // Checking may take a very long time (since StmBuild.equals is slow).
     // The important thing for this test is that substitution should not take a
     // million years.

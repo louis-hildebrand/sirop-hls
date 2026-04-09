@@ -2,8 +2,8 @@ package mhir.main
 
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.logging.time2
 import mhir.main.aetherling.{
   Args => AetherlingArgs,
@@ -19,6 +19,7 @@ import mhir.main.shared.{
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
+import mhir.typecheck.{TypeCheck, TypeError}
 import org.slf4j.LoggerFactory
 
 import java.time.Duration

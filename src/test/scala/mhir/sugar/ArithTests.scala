@@ -61,7 +61,7 @@ class ArithTests extends AnyFunSuite {
 
   test("Cast:u32 to u8") {
     val x = Param("x")(U32)
-    val e = Cast(x, U8)().tchk().lower()
+    val e = Cast(x, U8)().tchk().lower
     val cast =
       (xVal: Int) =>
         mhir.eval.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
@@ -74,7 +74,7 @@ class ArithTests extends AnyFunSuite {
 
   test("Cast:u32 to i8") {
     val x = Param("x")(U32)
-    val e = Cast(x, I8)().tchk().lower()
+    val e = Cast(x, I8)().tchk().lower
     val cast =
       (xVal: Int) =>
         mhir.eval.eval(Let(x, C(xVal)(U32), e)()).asInstanceOf[IntCst].i
@@ -86,21 +86,21 @@ class ArithTests extends AnyFunSuite {
   }
 
   test("Cast:() to ()") {
-    val actual = Cast(Tuple()(), TyTuple())().tchk().lower()
+    val actual = Cast(Tuple()(), TyTuple())().tchk().lower
     val expected = Tuple()()
     assert(actual == expected)
   }
 
   test("Cast:(u8, u16, u32) to (u32, u16, u8)") {
     val x = Param("x")((U8, U16, U32))
-    val actual = Cast(x, (U32, U16, U8))().tchk().lower()
+    val actual = Cast(x, (U32, U16, U8))().tchk().lower
     val expected = Tuple(PadTo(x.__0, 32)(), x.__1, TruncateTo(x.__2, 8)())()
     assert(actual == expected)
   }
 
   test("Cast:(i8, i16, i32) to (i32, i16, i8)") {
     val x = Param("x")((I8, I16, I32))
-    val actual = Cast(x, (I32, I16, I8))().tchk().lower()
+    val actual = Cast(x, (I32, I16, I8))().tchk().lower
     val expected = Tuple(PadTo(x.__0, 32)(), x.__1, TruncateTo(x.__2, 8)())()
     assert(actual == expected)
   }
@@ -108,7 +108,7 @@ class ArithTests extends AnyFunSuite {
   test("Cast:Vec[u8, n] to Vec[u16, n]") {
     val n = Param("n")(U8)
     val x = Param("x")(TyVec(U8, n))
-    val actual = Cast(x, TyVec(U16, n))().tchk().lower()
+    val actual = Cast(x, TyVec(U16, n))().tchk().lower
     val expected = VecBuild(n, U8 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
     assert(actual == expected)
   }

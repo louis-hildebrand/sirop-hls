@@ -109,7 +109,7 @@ class SugarTests extends AnyFunSuite {
       )()
     }
     val let = Let(x, s, zipped)()
-    val actual = let.tchk().lower()
+    val actual = let.tchk().lower
     val expected = LetStm(1, x, s, zipped)()
     assert(actual == expected)
   }
@@ -129,7 +129,7 @@ class SugarTests extends AnyFunSuite {
   test("ReshapeData:Valid") {
     val x = Param("x")()
     val e =
-      (t1: Type, t2: Type) => ReshapeData(x.rebuild(t1), t2)().tchk().lower()
+      (t1: Type, t2: Type) => ReshapeData(x.rebuild(t1), t2)().tchk().lower
 
     assert(e(U8, U16) == PadTo(x, 16)())
     assert(e(I8, I32) == PadTo(x, 32)())

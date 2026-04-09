@@ -1,6 +1,7 @@
 package mhir.optimize
 package experimental
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 

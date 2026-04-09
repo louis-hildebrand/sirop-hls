@@ -29,7 +29,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val plusFive = SimpleMap(s, x => Sum(C(5)(U8), x)())
       val nop = SimpleNop(s)
       val zip = SimpleZip(plusFive, nop)
-      Let(s, count, zip)().tchk().lower()
+      Let(s, count, zip)().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
 
@@ -53,7 +53,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val plusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
       val timesTwo = SimpleMap(sB, x => Prod(C(2)(U8), x)())
       val zip = SimpleZip(SimpleNop(sA, delay = 4), SimpleNop(sB), timesTwo)
-      Let(sA, count, Let(sB, plusFive, zip)())().tchk().lower()
+      Let(sA, count, Let(sB, plusFive, zip)())().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
 
@@ -77,7 +77,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val count = SimpleCount(C(n)(U8))
       val plusFive = SimpleMap(s0, x => Sum(C(5)(U8), x)())
       val zip = SimpleZip(s0, plusFive)
-      Let(s1, Let(s0, count, zip)(), s1)().tchk().lower()
+      Let(s1, Let(s0, count, zip)(), s1)().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
 
@@ -143,7 +143,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         )().tchk()
       }
       val zipped = SimpleZip(sum, stm2Vec)
-      Let(x, count, zipped)().tchk().lower()
+      Let(x, count, zipped)().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
 
@@ -202,7 +202,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         )().tchk()
       }
       val zip = SimpleZip(delayedPrefix, rowSums)
-      LetStm(n * m, x, count, zip)().tchk().lower()
+      LetStm(n * m, x, count, zip)().tchk().lower
     }
     val pass = new StaticLetStmBufferShrinker(assumeThroughputsMatch = false)
     val optimized = pass.shrinkBuffers(original)
@@ -281,7 +281,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val s0 = Param("s0")(TyStm(U8, n))
       val count = SimpleCount(C(n)(U8))
       val concat = SimpleConcat(s0, s0)
-      LetStm(n, s0, count, concat)().tchk().lower()
+      LetStm(n, s0, count, concat)().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
 

@@ -16,7 +16,7 @@ object SimplifyingCanonicalizer extends Canonicalizer {
       case (_, _: TyUInt) => n1
       case _              => ToUnsigned(n1)().tchk()
     }
-    PE.partialEval(n2.tchk().lower())
+    PE.partialEval(n2.tchk().lower)
   }
 
   override def sameLen(n1: Expr, n2: Expr): Boolean = {

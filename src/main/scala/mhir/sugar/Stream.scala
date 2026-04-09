@@ -1,11 +1,10 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
-import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.optimize.StreamFuser.StreamFusion
 import mhir.sugar.Streamifier.Streamify
+import mhir.typecheck.{TypeCheck, TypeError}
 
 import scala.annotation.{elidable, tailrec}
 
@@ -14,8 +13,8 @@ private object SL {
 }
 
 object AsFusedStm2Stm {
-  def apply(f: Function): (Param, StmBuild) = {
-    f.lower().streamify() match {
+  def apply(f: Function)(implicit c: Canonicalizer): (Param, StmBuild) = {
+    f.lower.streamify match {
       case Function(x, body) =>
         // It is essential to fuse everything for StmMap and StmScan.
         // If f is a chain of stream producers, we want to reset them all, not
@@ -65,9 +64,11 @@ private[sugar] case class StmReset(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val n = this.n.tchk.expectUInt()
-    val s = this.s.tchk.expectStream()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val s = this.s.tchk(context).expectStream()
     val stmTyp = s.typ match {
       case t: TyStm => t
       case t =>
@@ -82,7 +83,7 @@ private[sugar] case class StmReset(
           s"Missing type annotation for variable in $className."
         )
       }
-      x -> s.tchk.expectType(x.typ)
+      x -> s.tchk(context).expectType(x.typ)
     })
     val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
     StmReset(n, s, inputs)(typ)
@@ -206,15 +207,14 @@ private[sugar] case class StmReset(
     s"reset ($nStr) {\n$indentedInputsStr\n} {\n$indentedPipeStr\n}"
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     // Assume each field (n, s, inputs) is already lowered
     // This is to avoid repeatedly traversing large expressions, which slows
     // down compilation
-    val loweredPipeline = this
-      .lowerEmptyPipeline()
-      .orElse(this.lowerForNEqualsOne())
-      .getOrElse(this.lowerStandard())
+    val loweredPipeline = this.lowerEmptyPipeline
+      .orElse(this.lowerForNEqualsOne)
+      .getOrElse(this.lowerStandard)
       .tchk()
     val ret = loweredPipeline.subPreserveType(this.inputs.toMap[Expr, Expr])
     assertNoNewFreeVars(ret.freeVars) // Sanity check
@@ -240,12 +240,12 @@ private[sugar] case class StmReset(
     )
   }
 
-  private def lowerEmptyPipeline(): Option[Expr] = {
-    if (sameLen(this.n, C(0)())) {
+  private def lowerEmptyPipeline(implicit c: Canonicalizer): Option[Expr] = {
+    if (c.sameLen(this.n, C(0)())) {
       logger.trace(s"lowering $className with n = 0: $this")
       val TyStm(t, _) = s.typ
       Some(
-        StmBuild(0, Default(t).lower(), True)()
+        StmBuild(0, Default(t).lower, True)()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName("Empty")
       )
@@ -254,8 +254,8 @@ private[sugar] case class StmReset(
     }
   }
 
-  private def lowerForNEqualsOne(): Option[Expr] = {
-    if (sameLen(n, C(1)())) {
+  private def lowerForNEqualsOne(implicit c: Canonicalizer): Option[Expr] = {
+    if (c.sameLen(n, C(1)())) {
       logger.trace(s"lowering $className with n = 1: $this")
       Some(s)
     } else {
@@ -263,7 +263,7 @@ private[sugar] case class StmReset(
     }
   }
 
-  private def lowerStandard(): Expr = {
+  private def lowerStandard(implicit c: Canonicalizer): Expr = {
     logger.trace(s"lowering $className the standard way: $this")
     val s0 = addCountersAndReset(this.s)
     val s1 = multiplyLengths(s0, this.inputVars)
@@ -271,7 +271,7 @@ private[sugar] case class StmReset(
     s2
   }
 
-  private def addCountersAndReset(s: Expr): Expr = {
+  private def addCountersAndReset(s: Expr)(implicit c: Canonicalizer): Expr = {
     s match {
       case x: Param =>
         x
@@ -322,7 +322,7 @@ private[sugar] case class StmReset(
             StmBuild(
               withInCtrs.n,
               withInCtrs.data,
-              withInCtrs.valid && (outCtr < outputsUntilReset).tchk().lower(),
+              withInCtrs.valid && (outCtr < outputsUntilReset).tchk().lower,
               withInCtrs.equations
             )(annotations = withInCtrs.annotations)
               .tchk()
@@ -333,7 +333,7 @@ private[sugar] case class StmReset(
         val shouldReset = if (s.annotations.contains(NoInputsAfterLastOut)) {
           // No need to count inputs: based on the annotation, once we read the
           // last output, we know we can reset immediately
-          (withCtrs.nextByVar(outCtr) === outputsUntilReset).tchk().lower()
+          (withCtrs.nextByVar(outCtr) === outputsUntilReset).tchk().lower
         } else if (s.annotations.contains(NoOutputsAfterLastIn)) {
           // No need to count outputs: based on the annotation, once we read the
           // last inputs, we know we can reset immediately
@@ -350,7 +350,7 @@ private[sugar] case class StmReset(
           val shouldReset = inputsUntilReset
             .map({ case (ctr, n) => withCtrs.nextByVar(ctr) === n })
             .reduce[Expr]({ case (x, y) => x && y })
-          shouldReset.tchk().lower()
+          shouldReset.tchk().lower
         } else {
           // Need both input and output counters, just in case
           val name = s.annotations
@@ -377,7 +377,7 @@ private[sugar] case class StmReset(
           val shouldReset = ((outCtr -> outputsUntilReset) +: inputsUntilReset)
             .map({ case (ctr, n) => withCtrs.nextByVar(ctr) === n })
             .reduce[Expr]({ case (x, y) => x && y })
-          shouldReset.tchk().lower()
+          shouldReset.tchk().lower
         }
         val result = StmBuild(
           withCtrs.n,
@@ -406,7 +406,9 @@ private[sugar] case class StmReset(
     }
   }
 
-  private def multiplyLengths(stm: Expr, inputStreams: Set[Param]): Expr = {
+  private def multiplyLengths(stm: Expr, inputStreams: Set[Param])(implicit
+      c: Canonicalizer
+  ): Expr = {
     stm match {
       case x: Param if inputStreams.contains(x) =>
         // Streams that are on the input list become longer.
@@ -418,7 +420,7 @@ private[sugar] case class StmReset(
         x
       case s: StmBuild =>
         StmBuild(
-          SafeProd(this.n, s.n)().tchk().lower(),
+          SafeProd(this.n, s.n)().tchk().lower,
           s.data,
           s.valid,
           s.equations.map({
@@ -430,7 +432,7 @@ private[sugar] case class StmReset(
       case LetStm(bufSize, x, in, out) =>
         val TyStm(t, n) = x.typ
         LetStm(
-          SafeProd(this.n, bufSize)().tchk().lower(),
+          SafeProd(this.n, bufSize)().tchk().lower,
           x.rebuild(TyStm(t, SafeProd(this.n, n)())).asInstanceOf[Param],
           multiplyLengths(in, inputStreams),
           multiplyLengths(out, inputStreams + x)
@@ -443,7 +445,7 @@ private[sugar] case class StmReset(
   private def repeatExternalInputs(
       stm: Expr,
       inputStreams: Set[Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     stm match {
       case x: Param if inputStreams.contains(x) =>
         // Streams that are on the input list or were bound by a LetStm are
@@ -453,7 +455,7 @@ private[sugar] case class StmReset(
         // Streams that are not on the input list will be read once *per
         // iteration* of this StmReset.
         // Therefore, they must be repeated.
-        StmJoin(StmRepeat(x, n)())().tchk().lower()
+        StmJoin(StmRepeat(x, n)())().tchk().lower
       case LetStm(bufSize, x, in, out) =>
         LetStm(
           bufSize,
@@ -491,18 +493,20 @@ case class Iterate(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val n = this.n.tchk.expectUInt()
-    val z = this.z.tchk
-    val f = this.f.tchk.expectType(z.typ ->: z.typ)
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val z = this.z.tchk(context)
+    val f = this.f.tchk(context).expectType(z.typ ->: z.typ)
     this.rebuild(TyStm(z.typ, 1), Seq(n, z, f))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    val z = this.z.lower()
-    val f = this.f.lower()
+    val n = this.n.lower
+    val z = this.z.lower
+    val f = this.f.lower
     val i = Param("i")(n.typ)
     val t = z.typ
     val acc = Param("acc")(t)
@@ -518,12 +522,12 @@ case class Iterate(
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
-      .lower()
+      .lower
   }
 }
 
-case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, c)(typ) {
+case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n, k)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, c) => StmCst(n, c)(typ)
@@ -531,24 +535,26 @@ case class StmCst(n: Expr, c: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk.expectUInt()
-    val newC = c.tchk
-    this.rebuild(TyStm(newC.typ, newN), Seq(newN, newC))
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val k = this.k.tchk(context)
+    this.rebuild(TyStm(k.typ, n), Seq(n, k))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    val c = this.c.lower()
-    val out = c.typ match {
-      case _: TyStm => StmRepeat(c, n)()
+    val n = this.n.lower
+    val k = this.k.lower
+    val out = k.typ match {
+      case _: TyStm => StmRepeat(k, n)()
       case _ =>
-        StmBuild(n, c, True)()
+        StmBuild(n, k, True)()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName(getClass.getSimpleName)
     }
-    out.tchk().lower()
+    out.tchk().lower
   }
 }
 
@@ -560,15 +566,17 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk.expectUInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newN = n.tchk(context).expectUInt()
     this.rebuild(TyStm(newN.typ, newN), Seq(newN))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    StmRange(n, IntCst(0)(n.typ), IntCst(1)(n.typ))().tchk().lower()
+    val n = this.n.lower
+    StmRange(n, IntCst(0)(n.typ), IntCst(1)(n.typ))().tchk().lower
   }
 }
 
@@ -593,24 +601,26 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk.expectUInt()
-    val newZ = z.tchk.expectAnyInt()
-    val newDelta = delta.tchk.expectType(newZ.typ)
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newN = n.tchk(context).expectUInt()
+    val newZ = z.tchk(context).expectAnyInt()
+    val newDelta = delta.tchk(context).expectType(newZ.typ)
     this.rebuild(TyStm(newZ.typ, newN), Seq(newN, newZ, newDelta))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
-    val n = this.n.lower()
-    val z = this.z.lower()
-    val delta = this.delta.lower()
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    val n = this.n.lower
+    val z = this.z.lower
+    val delta = this.delta.lower
     val a = Param("a")(z.typ)
     StmBuild(
       n,
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (z, (a + delta).tchk().lower())
+        a -> (z, (a + delta).tchk().lower)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
@@ -646,20 +656,22 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val n = this.n.tchk.expectUInt()
-    val m = this.m.tchk.expectUInt()
-    val z = this.z.tchk.expectAnyInt()
-    val delta = this.delta.tchk.expectType(z.typ)
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val m = this.m.tchk(context).expectUInt()
+    val z = this.z.tchk(context).expectAnyInt()
+    val delta = this.delta.tchk(context).expectType(z.typ)
     this.rebuild(TyStm(TyVec(z.typ, m), n), Seq(n, m, z, delta))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    val m = this.m.lower()
-    val z = this.z.lower()
-    val delta = this.delta.lower()
+    val n = this.n.lower
+    val m = this.m.lower
+    val z = this.z.lower
+    val delta = this.delta.lower
     val v = Param("v")(TyVec(z.typ, m))
     StmBuild(
       n,
@@ -667,10 +679,10 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
       True,
       Map[Param, (Expr, Expr)](
         v -> (
-          VecBuild(m, m.typ ::+ (i => z + i * delta))().tchk().lower(),
+          VecBuild(m, m.typ ::+ (i => z + i * delta))().tchk().lower,
           VecBuild(m, m.typ ::+ (i => VecAccess(v, i)() + m * delta))()
             .tchk()
-            .lower()
+            .lower
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -681,9 +693,9 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
 case class StmCst2D(
     n: Expr /* Int */,
     m: Expr /* Int */,
-    c: Expr /* T */
+    k: Expr /* T */
 )(typ: Type = Missing) /* Stm<Stm<T; m>; n> */
-    extends SyntaxSugar(n, m, c)(typ) {
+    extends SyntaxSugar(n, m, k)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, m, c) => StmCst2D(n, m, c)(typ)
@@ -691,19 +703,21 @@ case class StmCst2D(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newN = n.tchk.expectUInt()
-    val newM = m.tchk.expectUInt()
-    val newC = c.tchk
-    this.rebuild(TyStm(TyStm(newC.typ, newM), newN), Seq(newN, newM, newC))
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val m = this.m.tchk(context).expectUInt()
+    val k = this.k.tchk(context)
+    this.rebuild(TyStm(TyStm(k.typ, m), n), Seq(n, m, k))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    val m = this.m.lower()
-    val c = this.c.lower()
-    StmBuild(SafeProd(n, m)().tchk().lower(), c, True)()
+    val n = this.n.lower
+    val m = this.m.lower
+    val k = this.k.lower
+    StmBuild(SafeProd(n, m)().tchk().lower, k, True)()
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
@@ -719,16 +733,18 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val n = this.n.tchk(context).expectUInt()
     val m = this.m.tchk(context).expectUInt()
     this.rebuild(TyStm(TyStm((n.typ, m.typ), m), n), Seq(n, m))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n = this.n.lower()
-    val m = this.m.lower()
+    val n = this.n.lower
+    val m = this.m.lower
     val i = Param("i")(n.typ)
     val j = Param("j")(m.typ)
     StmBuild(
@@ -743,7 +759,7 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
-      .lower()
+      .lower
   }
 }
 
@@ -756,21 +772,23 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val n1 = this.n1.tchk.expectUInt()
-    val n2 = this.n2.tchk.expectUInt()
-    val n3 = this.n3.tchk.expectUInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n1 = this.n1.tchk(context).expectUInt()
+    val n2 = this.n2.tchk(context).expectUInt()
+    val n3 = this.n3.tchk(context).expectUInt()
     this.rebuild(
       TyStm(TyStm(TyStm((n1.typ, n2.typ, n3.typ), n3), n2), n1),
       Seq(n1, n2, n3)
     )
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val n1 = this.n1.lower()
-    val n2 = this.n2.lower()
-    val n3 = this.n3.lower()
+    val n1 = this.n1.lower
+    val n2 = this.n2.lower
+    val n3 = this.n3.lower
     val i = Param("i")(n1.typ)
     val j = Param("j")(n2.typ)
     val k = Param("k")(n3.typ)
@@ -800,7 +818,7 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
-      .lower()
+      .lower
   }
 }
 
@@ -816,13 +834,15 @@ case class StmMap(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = input.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmMap has type $t.")
     }
-    val newF = f.annotateFunc(t1).tchk
+    val newF = f.annotateFunc(t1).tchk(context)
     val t2 = newF.typ match {
       case TyArrow(t, t2) if t ~= t1 => t2
       case t =>
@@ -833,14 +853,14 @@ case class StmMap(
     this.rebuild(TyStm(t2, n), Seq(newS, newF))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     SL.logger.trace(s"lowering $className: $this")
     requireType()
-    val input = this.input.lower()
-    val f = this.f.lower().asInstanceOf[Function]
+    val input = this.input.lower
+    val f = this.f.lower.asInstanceOf[Function]
     val TyStm(_, n) = this.typ
-    val Function(s, innerStm) = f.streamify()
-    StmReset(n, innerStm, Map(s -> input))().tchk().lower()
+    val Function(s, innerStm) = f.streamify
+    StmReset(n, innerStm, Map(s -> input))().tchk().lower
   }
 }
 
@@ -853,8 +873,10 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val s1 = this.s1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s1 = this.s1.tchk(context)
     val (t1, n1) = s1.typ match {
       case TyStm(t, n) => (t, n)
       case t =>
@@ -863,7 +885,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
             + " Expected a stream."
         )
     }
-    val s2 = this.s2.tchk
+    val s2 = this.s2.tchk(context)
     val (t2, n2) = s2.typ match {
       case TyStm(t, n) => (t, n)
       case t =>
@@ -872,12 +894,12 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
             + " Expected a stream."
         )
     }
-    if (!sameLen(n1, n2)) {
+    if (!c.sameLen(n1, n2)) {
       throw new TypeError(
         s"Stream lengths in $className do not match: $n1 and $n2."
       )
     }
-    val f = this.f.annotateFunc(t1, t2).tchk
+    val f = this.f.annotateFunc(t1, t2).tchk(context)
     val t3 = f.typ match {
       case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
         ft3
@@ -890,15 +912,15 @@ case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
     this.rebuild(TyStm(t3, n1), Seq(s1, s2, f))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     SL.logger.trace(s"lowering $className: $this")
     requireType()
-    val s1 = this.s1.lower()
-    val s2 = this.s2.lower()
-    val f = this.f.lower().asInstanceOf[Function]
+    val s1 = this.s1.lower
+    val s2 = this.s2.lower
+    val f = this.f.lower.asInstanceOf[Function]
     val n = this.typ.asInstanceOf[TyStm].n
-    val Function(s1Param, Function(s2Param, innerStm)) = f.streamify()
-    StmReset(n, innerStm, Map(s1Param -> s1, s2Param -> s2))().tchk().lower()
+    val Function(s1Param, Function(s2Param, innerStm)) = f.streamify
+    StmReset(n, innerStm, Map(s1Param -> s1, s2Param -> s2))().tchk().lower
   }
 }
 
@@ -914,17 +936,19 @@ case class StmAccess(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val s = this.stm.tchk.expectStream()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.stm.tchk(context).expectStream()
     val t = s.typ.asInstanceOf[TyStm].t
-    val k = this.k.tchk.expectUInt()
+    val k = this.k.tchk(context).expectUInt()
     this.rebuild(TyStm(t, 1), Seq(s, k))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm = this.stm.lower()
-    val k = this.k.lower()
+    val stm = this.stm.lower
+    val k = this.k.lower
     val TyStm(_, numRows) = this.stm.typ
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
@@ -951,7 +975,7 @@ case class StmAccess(
     }
     val annotations: Set[StmBuildAnnotation] = {
       val basicAnnotations = Set(NoOutputsAfterLastIn, SelfControlledOutputs)
-      if (sameLen(SafeSum(k, 1)(), numRows)) {
+      if (c.sameLen(SafeSum(k, 1)(), numRows)) {
         basicAnnotations + NoInputsAfterLastOut
       } else {
         basicAnnotations
@@ -960,16 +984,16 @@ case class StmAccess(
     StmBuild(
       perRow,
       StmData(s)(),
-      (i === k).tchk().lower(),
+      (i === k).tchk().lower,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
         i -> (
           C(0)(i.typ),
-          Mux(j + 1 === perRow, i + 1, i)().tchk().lower()
+          Mux(j + 1 === perRow, i + 1, i)().tchk().lower
         ),
         j -> (
           C(0)(j.typ),
-          Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower()
+          Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower
         )
       )
     )(annotations = annotations).annotateWithName(this.className).tchk()
@@ -989,7 +1013,9 @@ case class StmFold(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stream.tchk(context)
     val t1 = newS.typ match {
       case TyStm(t, _) => t
@@ -1013,9 +1039,9 @@ case class StmFold(
     this.rebuild(TyStm(t2, 1), Seq(newS, newZ, newF))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    StmSuffix(StmScanInclusive(stream, z, f)(), 1)().tchk().lower()
+    StmSuffix(StmScanInclusive(stream, z, f)(), 1)().tchk().lower
   }
 }
 
@@ -1034,7 +1060,9 @@ case class StmScanInclusive(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = input.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1058,10 +1086,10 @@ case class StmScanInclusive(
     this.rebuild(TyStm(t2, n), Seq(newS, newZ, newF))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val input = this.input.lower()
-    val z = this.z.lower()
+    val input = this.input.lower
+    val z = this.z.lower
     // IMPORTANT: use the original input here, not the flattened version.
     // If we're scanning over a Stm[Stm[T, m], n], we will produce a stream of
     // length n, not a stream of length n * m.
@@ -1155,7 +1183,7 @@ case class StmScanInclusive(
       scan.freeVars == originalFreeVars,
       s"the set of free variables should be unchanged by StmScan (expected $originalFreeVars but got ${scan.freeVars})"
     )
-    scan.tchk().lower()
+    scan.tchk().lower
   }
 }
 
@@ -1172,7 +1200,9 @@ case class StmScanExclusive(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1196,10 +1226,10 @@ case class StmScanExclusive(
     this.rebuild(TyStm(t2, n), Seq(newS, newZ, newF))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     // Maybe it would be better to first take prefix of input stream, scan,
     // and then prepend
-    StmShiftRight(StmScanInclusive(stm, z, f)(), z)().tchk().lower()
+    StmShiftRight(StmScanInclusive(stm, z, f)(), z)().tchk().lower
   }
 }
 
@@ -1227,8 +1257,10 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val s = this.s.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
     // The type of the accumulator, but possibly wrapped in a bunch of vectors
     // and streams of length 1
     val wrappedTyp = s.typ match {
@@ -1240,21 +1272,24 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     }
     val tupledTyp = tupleElemType(wrappedTyp, this.f)
     val f =
-      this.f.annotateFunc(tupledTyp).tchk.expectType(tupledTyp ->: wrappedTyp)
+      this.f
+        .annotateFunc(tupledTyp)
+        .tchk(context)
+        .expectType(tupledTyp ->: wrappedTyp)
     this.rebuild(TyStm(wrappedTyp, 1), Seq(s, f))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     SL.logger.trace(s"lowering $className: $this")
     requireType()
-    val s = this.s.lower()
+    val s = this.s.lower
     val n = this.s.typ.asInstanceOf[TyStm].n
-    if (sameLen(n, C(1)())) {
+    if (c.sameLen(n, C(1)())) {
       // Reduce over a stream of length 1 is a no-op
       s
     } else {
       val wrappedTyp = this.typ.asInstanceOf[TyStm].t
-      val f = unwrapFunc(wrappedTyp, this.f).lower()
+      val f = unwrapFunc(wrappedTyp, this.f).lower
       val elemTyp = unwrapTyp(wrappedTyp, this.f).lower
       val acc = Param("acc")(elemTyp)
       val t = Param("t")(n.typ)
@@ -1270,7 +1305,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
           t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)()),
           sAcc -> (s, True),
           acc -> (
-            Default(elemTyp).lower(),
+            Default(elemTyp).lower,
             Mux(firstStep, sData, f(Tuple(acc, sData)()))()
           )
         )
@@ -1278,7 +1313,9 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     }
   }
 
-  private def tupleElemType(wrappedTyp: Type, f: Expr): Type = {
+  private def tupleElemType(wrappedTyp: Type, f: Expr)(implicit
+      c: Canonicalizer
+  ): Type = {
     (wrappedTyp, f) match {
       case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
         TyVec(tupleElemType(t, g), 1)
@@ -1351,7 +1388,9 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newV = v.tchk(context)
     newV.typ match {
       case TyVec(t, n) =>
@@ -1360,9 +1399,9 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val v = this.v.lower()
+    val v = this.v.lower
     v.typ match {
       case TyVec(_, n) =>
         val acc = Param("v")(v.typ)
@@ -1375,14 +1414,14 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
             // TODO: It might be useful to use undefined[T] rather than
             //       default[T] here. But it may be necessary to update the
             //       evaluator to allow this use of undefined[T]
-            acc -> (v, VecShiftLeft(acc, Default(elemTyp))().tchk().lower())
+            acc -> (v, VecShiftLeft(acc, Default(elemTyp))().tchk().lower)
           )
         )()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName(this.className)
           .tchk()
       case TyStm(tv: TyVec, _) =>
-        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower()
+        StmMap(v, tv ::+ (v => Vec2Stm(v)()))().tchk().lower
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
     }
   }
@@ -1399,7 +1438,9 @@ case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newV = v.tchk(context)
     newV.typ match {
       case TyVec(t, n) =>
@@ -1408,9 +1449,9 @@ case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val v = this.v.lower()
+    val v = this.v.lower
     v.typ match {
       case TyVec(_, n) =>
         val i = Param("i")(U32)
@@ -1423,9 +1464,9 @@ case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
           .annotate(NoInputsAfterLastOut)
           .annotateWithName(this.className)
           .tchk()
-          .lower()
+          .lower
       case TyStm(tv: TyVec, _) =>
-        StmMap(v, tv ::+ (v => Vec2StmOld(v)()))().tchk().lower()
+        StmMap(v, tv ::+ (v => Vec2StmOld(v)()))().tchk().lower
       case t => throw new TypeError(s"Invalid type for vector in Vec2Stm: $t.")
     }
   }
@@ -1442,7 +1483,9 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1452,9 +1495,9 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    StmConcat(StmCst(1, e)(), stm)().tchk().lower().asInstanceOf[StmBuild]
+    StmConcat(StmCst(1, e)(), stm)().tchk().lower.asInstanceOf[StmBuild]
   }
 }
 
@@ -1469,7 +1512,9 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1479,9 +1524,9 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    StmConcat(stm, StmCst(1, e)())().tchk().lower()
+    StmConcat(stm, StmCst(1, e)())().tchk().lower
   }
 }
 
@@ -1506,9 +1551,11 @@ case class StmPrefix(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val k = this.k.tchk.expectUInt()
-    val s = this.stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val k = this.k.tchk(context).expectUInt()
+    val s = this.stm.tchk(context)
     s.typ match {
       case TyStm(t, _) =>
         this.rebuild(TyStm(t, k), Seq(s, k))
@@ -1516,17 +1563,17 @@ case class StmPrefix(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm = this.stm.lower()
-    val k = this.k.lower()
+    val stm = this.stm.lower
+    val k = this.k.lower
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
       case _           => C(1)().tchk()
     }
     val s = Param("s")(stm.typ) // input stream
     StmBuild(
-      SafeProd(k, perRow)().tchk().lower(),
+      SafeProd(k, perRow)().tchk().lower,
       StmData(s)(),
       True,
       Map[Param, (Expr, Expr)](
@@ -1557,9 +1604,11 @@ case class StmSuffix(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newK = k.tchk.expectUInt()
-    val newS = stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newK = k.tchk(context).expectUInt()
+    val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, _) =>
         this.rebuild(TyStm(t, newK), Seq(newS, newK))
@@ -1567,10 +1616,10 @@ case class StmSuffix(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm = this.stm.lower()
-    val k = this.k.lower()
+    val stm = this.stm.lower
+    val k = this.k.lower
     val n = this.stm.typ.asInstanceOf[TyStm].n
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
@@ -1580,15 +1629,15 @@ case class StmSuffix(
     val i = Param("i")(U32) // index of current row
     val j = Param("j")(U32) // index within row
     StmBuild(
-      (k * perRow).tchk().lower(),
+      (k * perRow).tchk().lower,
       StmData(s)(),
-      (i >= n - k).tchk().lower(),
+      (i >= n - k).tchk().lower,
       Map[Param, (Expr, Expr)](
         s -> (stm, True),
-        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)().tchk().lower()),
+        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)().tchk().lower),
         j -> (
           C(0)(U32),
-          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower()
+          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -1614,7 +1663,9 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1624,10 +1675,10 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
-    StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
+    StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower
   }
 }
 
@@ -1650,7 +1701,9 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1660,10 +1713,10 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val n = this.typ.asInstanceOf[TyStm].n
-    StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower()
+    StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower
   }
 }
 
@@ -1683,7 +1736,9 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1694,7 +1749,8 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         s"Invalid element type $t in input stream of of $className."
       )
     }
-    val newShiftAmount = this.shiftAmount.tchk.expectUInt().asInstanceOf[IntCst]
+    val newShiftAmount =
+      this.shiftAmount.tchk(context).expectUInt().asInstanceOf[IntCst]
     if (newShiftAmount.i <= 0) {
       throw new TypeError(
         s"Shift amount in $className must be strictly positive (got $newShiftAmount)."
@@ -1703,11 +1759,11 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     this.rebuild(TyStm(t, n), Seq(newS, newShiftAmount))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     SL.logger.trace(s"lowering $className: $this")
     requireType()
-    val stm = this.stm.lower()
-    val shiftAmount = this.shiftAmount.lower().asInstanceOf[IntCst]
+    val stm = this.stm.lower
+    val shiftAmount = this.shiftAmount.lower.asInstanceOf[IntCst]
     val TyStm(t, n) = this.stm.typ
     val s = Param("s")(TyStm(t, -1))
     val buf = Param("buf")(TyVec(t, shiftAmount))
@@ -1719,7 +1775,7 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         s -> (stm, True),
         buf -> (
           Undefined(TyVec(t, shiftAmount)),
-          VecShiftRight(buf, StmData(s)())().tchk().lower()
+          VecShiftRight(buf, StmData(s)())().tchk().lower
         )
       )
     )().annotateWithName(this.className).tchk()
@@ -1764,8 +1820,10 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val stm = this.stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val stm = this.stm.tchk(context)
     stm.typ match {
       case TyStm(_: TyVec, _) => ()
       case t =>
@@ -1774,7 +1832,8 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
             + " Expected a stream of vectors."
         )
     }
-    val shiftAmount = this.shiftAmount.tchk.expectUInt().asInstanceOf[IntCst]
+    val shiftAmount =
+      this.shiftAmount.tchk(context).expectUInt().asInstanceOf[IntCst]
     if (shiftAmount.i <= 0) {
       throw new TypeError(
         s"Shift amount in $className must be strictly positive (got $shiftAmount)."
@@ -1783,11 +1842,11 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     this.rebuild(stm.typ, Seq(stm, shiftAmount))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     SL.logger.trace(s"lowering $className: $this")
     requireType()
-    val stm = this.stm.lower()
-    val shiftAmount = this.shiftAmount.lower().asInstanceOf[IntCst]
+    val stm = this.stm.lower
+    val shiftAmount = this.shiftAmount.lower.asInstanceOf[IntCst]
     stm.typ match {
       case TyStm(TyVec(t, IntCst(m)), n) if m > 0 =>
         val buf = Param("buf")(TyVec(t, shiftAmount))
@@ -1808,12 +1867,12 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         }
         StmBuild(
           n,
-          data.tchk().lower(),
+          data.tchk().lower,
           True,
           Map[Param, (Expr, Expr)](
             buf -> (
               Undefined(TyVec(t, shiftAmount)),
-              bufNext.tchk().lower()
+              bufNext.tchk().lower
             ),
             s -> (stm, True)
           )
@@ -1838,8 +1897,10 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newS1 = stm1.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newS1 = stm1.tchk(context)
     val (t1, n1) = newS1.typ match {
       case TyStm(t, n1) => (t, n1)
       case t =>
@@ -1847,7 +1908,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
           s"First input in StmConcat has type $t. Expected a stream."
         )
     }
-    val newS2 = stm2.tchk
+    val newS2 = stm2.tchk(context)
     val n2 = newS2.typ match {
       case TyStm(t2, n2) if t2 ~= t1 => n2
       case t =>
@@ -1858,10 +1919,10 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     this.rebuild(TyStm(t1, SafeSum(n1, n2)()), Seq(newS1, newS2))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm1 = this.stm1.lower()
-    val stm2 = this.stm2.lower()
+    val stm1 = this.stm1.lower
+    val stm2 = this.stm2.lower
     val n1 = stm1.typ.asInstanceOf[TyStm].n
     val n2 = stm2.typ.asInstanceOf[TyStm].n
     val s1 = Param("s1")(stm1.typ)
@@ -1880,7 +1941,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
-      .lower()
+      .lower
   }
 }
 
@@ -1895,7 +1956,9 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newA = a.tchk(context)
     val (t1, n) = newA.typ match {
       case TyStm(t1, n) if t1.isData => (t1, n)
@@ -1915,13 +1978,13 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
     this.rebuild(TyStm(TyTuple(t1, t2), n), Seq(newA, newB))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val t1 = this.a.typ.asInstanceOf[TyStm].t
     val t2 = this.b.typ.asInstanceOf[TyStm].t
     StmMap2(this.a, this.b, t1 ::+ (x => t2 ::+ (y => Tuple(x, y)())))()
       .tchk()
-      .lower()
+      .lower
   }
 }
 
@@ -1948,9 +2011,11 @@ case class StmRepeat(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk.expectUInt()
-    val newS = stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newM = m.tchk(context).expectUInt()
+    val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, n), m), Seq(newS, newM))
@@ -1958,10 +2023,10 @@ case class StmRepeat(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm = this.stm.lower()
-    val m = this.m.lower()
+    val stm = this.stm.lower
+    val m = this.m.lower
     val TyStm(typ, n) = stm.typ
     val s = Param("s")(TyStm(typ, -1))
     val v = Param("v")(TyVec(typ, n))
@@ -1972,7 +2037,7 @@ case class StmRepeat(
     val t = Param("t")(tTyp)
     val filling = Param("filling")(TyBool)
     StmBuild(
-      SafeProd(n, m)().tchk().lower(),
+      SafeProd(n, m)().tchk().lower,
       Mux(filling, StmData(s)(), VecAccess(v, t)())(),
       True,
       Map[Param, (Expr, Expr)](
@@ -1986,7 +2051,7 @@ case class StmRepeat(
             U32 ::+ (i =>
               Mux(filling && (i === t), StmData(s)(), VecAccess(v, i)())()
                 .tchk()
-                .lower()
+                .lower
             )
           )()
         ),
@@ -1997,11 +2062,11 @@ case class StmRepeat(
             t === ToUnsigned(C(-1)() + n)(),
             C(0)(t.typ),
             t + 1
-          )().tchk().lower()
+          )().tchk().lower
         ),
         filling -> (
           True,
-          (filling && (t < ToUnsigned(C(-1)() + n)())).tchk().lower()
+          (filling && (t < ToUnsigned(C(-1)() + n)())).tchk().lower
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -2019,7 +2084,9 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) =>
@@ -2031,8 +2098,8 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
-    val stm = this.stm.lower() // flat stream
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    val stm = this.stm.lower // flat stream
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
     val elemSize = this.stm.typ.asInstanceOf[TyStm].t.lower match {
@@ -2044,7 +2111,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
       TyVec(t, n) ::+ (v =>
         Vec2Stm(VecJoin(VecReverse(VecSplit(v, elemSize)()))())()
       )
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 
@@ -2059,9 +2126,11 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk.expectUInt()
-    val newS = stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newM = m.tchk(context).expectUInt()
+    val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, newM), n / newM), Seq(newS, newM))
@@ -2069,9 +2138,9 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     // Lowering must produce a flat stream, so leave it as-is
-    this.stm.lower()
+    this.stm.lower
   }
 }
 
@@ -2086,7 +2155,9 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(TyStm(t, m), n) =>
@@ -2098,10 +2169,10 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     // The stream is already flattened during lowering, so there is nothing
     // more to do here
-    this.stm.lower()
+    this.stm.lower
   }
 }
 
@@ -2133,10 +2204,12 @@ case class StmSlideV(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newWinSize = this.winSize.tchk.expectUInt()
-    val newStride = this.stride.tchk.expectUInt()
-    val newInput = this.input.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newWinSize = this.winSize.tchk(context).expectUInt()
+    val newStride = this.stride.tchk(context).expectUInt()
+    val newInput = this.input.tchk(context)
     newInput.typ match {
       case TyStm(t, n) if t.isData =>
         // First window start index (inclusive): 0
@@ -2150,7 +2223,7 @@ case class StmSlideV(
             newStride
           )()
             .tchk()
-            .lower()
+            .lower
         this.rebuild(
           TyStm(TyVec(t, newWinSize), newLen),
           Seq(newInput, newWinSize, newStride)
@@ -2162,11 +2235,11 @@ case class StmSlideV(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val input = this.input.lower()
-    val winSize = this.winSize.lower()
-    val stride = this.stride.lower()
+    val input = this.input.lower
+    val winSize = this.winSize.lower
+    val stride = this.stride.lower
     val TyStm(_, myLen) = this.typ
     val TyStm(t, _) = input.typ
     val s = Param("s")(TyStm(t, -1))
@@ -2180,8 +2253,8 @@ case class StmSlideV(
     val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
       myLen,
-      VecShiftLeft(v, StmData(s)())().tchk().lower(),
-      (i + 1 === winSize).tchk().lower(),
+      VecShiftLeft(v, StmData(s)())().tchk().lower,
+      (i + 1 === winSize).tchk().lower,
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         // Number of elements loaded so far
@@ -2189,14 +2262,14 @@ case class StmSlideV(
           C(0)(i.typ),
           Mux(
             i + 1 === winSize,
-            Cast(i + 1 - stride, i.typ)().tchk().lower(),
+            Cast(i + 1 - stride, i.typ)().tchk().lower,
             i + 1
-          )().tchk().lower()
+          )().tchk().lower
         ),
         // Vector for the window
         v -> (
           Undefined(TyVec(t, winSize)),
-          VecShiftLeft(v, StmData(s)())().tchk().lower()
+          VecShiftLeft(v, StmData(s)())().tchk().lower
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
@@ -2218,8 +2291,10 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val newM = m.tchk.expectUInt()
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newM = m.tchk(context).expectUInt()
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(t, n) if t.isData =>
@@ -2234,14 +2309,14 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     // It may be possible to optimize this version specifically by producing
     // elements while the shift register is still filling up
     requireType()
     val t = this.stm.typ.asInstanceOf[TyStm].t
     StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
       .tchk()
-      .lower()
+      .lower
   }
 }
 
@@ -2266,8 +2341,10 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val stm = this.stm.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val stm = this.stm.tchk(context)
     val (t, n, m) = stm.typ match {
       case TyStm(TyStm(TyData(t), m), n) => (t, n, m)
       case t =>
@@ -2275,8 +2352,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
           s"Stream in $className has type $t. Expected a 2D stream."
         )
     }
-    val winHeight = this.winHeight.tchk.expectUInt()
-    val winWidth = this.winWidth.tchk.expectUInt()
+    val winHeight = this.winHeight.tchk(context).expectUInt()
+    val winWidth = this.winWidth.tchk(context).expectUInt()
     val outHeight = ToUnsigned(SafeSum(n, 1, C(-1)() * winHeight)())()
     val outWidth = ToUnsigned(SafeSum(m, 1, C(-1)() * winWidth)())()
     val outTyp =
@@ -2284,11 +2361,11 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     this.rebuild(outTyp, Seq(stm, winHeight, winWidth))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val stm = this.stm.lower()
-    val winHeight = this.winHeight.lower()
-    val winWidth = this.winWidth.lower()
+    val stm = this.stm.lower
+    val winHeight = this.winHeight.lower
+    val winWidth = this.winWidth.lower
     val TyStm(TyStm(TyData(elemTyp), m), n) = this.stm.typ
     // Input stream
     val input = Param("s")(TyStm(elemTyp, -1))
@@ -2304,8 +2381,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     val buf2d =
       VecSplit(VecConcat(VecAppend(buf, StmData(input)())(), zeros)(), m)()
     // Input counters, to know when buffer is full
-    val maxCol = ToUnsigned(SafeSum(m, winWidth, -2)())().tchk().lower()
-    val maxRow = ToUnsigned(SafeSum(winHeight, -1)())().tchk().lower()
+    val maxCol = ToUnsigned(SafeSum(m, winWidth, -2)())().tchk().lower
+    val maxRow = ToUnsigned(SafeSum(winHeight, -1)())().tchk().lower
     val row = Param("row")(winHeight.typ)
     val col = Param("col")(maxCol.typ)
     StmBuild(
@@ -2314,7 +2391,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
           SafeSum(n, C(-1)() * winHeight, 1)(),
           SafeSum(m, C(-1)() * winWidth, 1)()
         )()
-      )().tchk().lower(),
+      )().tchk().lower,
       VecBuild(
         winHeight,
         winHeight.typ ::+ (i =>
@@ -2323,25 +2400,25 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
             winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
           )()
         )
-      )().tchk().lower(),
-      ((row === maxRow) && (col < m)).tchk().lower(),
+      )().tchk().lower,
+      ((row === maxRow) && (col < m)).tchk().lower,
       Map[Param, (Expr, Expr)](
         input -> (stm, True),
         buf -> (
           Undefined(buf.typ),
-          VecShiftLeft(buf, StmData(input)())().tchk().lower()
+          VecShiftLeft(buf, StmData(input)())().tchk().lower
         ),
         row -> (
           C(0)(row.typ),
           Mux((col === maxCol) && (row !== maxRow), row + 1, row)()
             .tchk()
-            .lower()
+            .lower
         ),
         col -> (
           C(0)(col.typ),
           Mux(col === maxCol, Cast(winWidth - 1, col.typ)(), col + 1)()
             .tchk()
-            .lower()
+            .lower
         )
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -2359,7 +2436,9 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
     val newS = stm.tchk(context)
     newS.typ match {
       case TyStm(TyStm(t, m), n) if t.isData =>
@@ -2371,10 +2450,10 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     }
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val m = this.stm.typ.asInstanceOf[TyStm].t.asInstanceOf[TyStm].n
-    val stm = this.stm.lower() // flat stream
+    val stm = this.stm.lower // flat stream
     val t = stm.typ.asInstanceOf[TyStm].t
     val n = stm.typ.asInstanceOf[TyStm].n
     StmMap(
@@ -2382,7 +2461,7 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
       TyVec(t, n) ::+ (v =>
         Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)()))())()
       )
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 

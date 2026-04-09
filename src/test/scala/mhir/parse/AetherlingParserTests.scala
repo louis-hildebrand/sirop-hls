@@ -1,5 +1,6 @@
 package mhir.parse
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite

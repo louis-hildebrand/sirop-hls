@@ -1,6 +1,5 @@
 package mhir.gen.vhdl
 
-import mhir.canonicalize._
 import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.sugar._
@@ -22,8 +21,10 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(implicit context: Map[Param, Type]): Expr = {
-    val in = this.in.tchk
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val in = this.in.tchk(context)
     val x = this.x.typ match {
       case Missing =>
         this.x.rebuild(in.typ).asInstanceOf[Param]
@@ -40,10 +41,10 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
     this.rebuild(out.typ, Seq(x, in, out))
   }
 
-  override def lowerSyntaxSugar(): Expr = {
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     assert(this.out.countFreeOccurrences(this.x) <= 1)
-    this.out.subPreserveType(this.x -> this.in).lower()
+    this.out.subPreserveType(this.x -> this.in).lower
   }
 
   override def sugarSubAndKeepType(

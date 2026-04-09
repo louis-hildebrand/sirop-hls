@@ -19,7 +19,7 @@ class LetStmMoverTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         s -> (lets, True)
       )
-    )().tchk().lower()
+    )().tchk().lower
     val actual = LetStmMover.moveUp(top)
     val expected = LetStm(
       1,
@@ -67,7 +67,7 @@ class LetStmMoverTests extends AnyFunSuite {
         s,
         LetStm(1, s, input, LetStm(1, s, s, zipped(TyBool))())(),
         zipped((TyBool, TyBool))
-      )().tchk().lower()
+      )().tchk().lower
     val actual = LetStmMover.moveUp(e)
     val expected =
       LetStm(
@@ -114,7 +114,7 @@ class LetStmMoverTests extends AnyFunSuite {
       )()
     }
     val original =
-      LetStm(1, a, LetStm(1, b, count, b)(), zipped)().tchk().lower()
+      LetStm(1, a, LetStm(1, b, count, b)(), zipped)().tchk().lower
     val actual = LetStmMover.moveUp(original)
     val expected = {
       // Rename the bound variable, but not the one inside `zipped`
@@ -149,7 +149,7 @@ class LetStmMoverTests extends AnyFunSuite {
         s0 -> (LetStm(1, b, count, b)(), True),
         s1 -> (b.rebuild(TyStm(TyBool, n)), True)
       )
-    )().tchk().lower()
+    )().tchk().lower
     val actual = LetStmMover.moveUp(original)
     val expected = {
       val b2 = Param("b")()
@@ -175,7 +175,7 @@ class LetStmMoverTests extends AnyFunSuite {
 
   test("MoveDown:TwoMaps") {
     val n = 15
-    val count = StmCount(C(n)(U16))().tchk().lower()
+    val count = StmCount(C(n)(U16))().tchk().lower
     val zipSelf = (input: Expr) => {
       val plusFive = {
         val s = Param("s")(TyStm(U16, n))
@@ -234,7 +234,7 @@ class LetStmMoverTests extends AnyFunSuite {
     }
     val original = {
       val s = Param("s")(TyStm(U16, n))
-      LetStm(1, s, count, dot(zipSelf(s)))().tchk().lower()
+      LetStm(1, s, count, dot(zipSelf(s)))().tchk().lower
     }
     val actual = LetStmMover.moveDown(original)
 
@@ -246,7 +246,7 @@ class LetStmMoverTests extends AnyFunSuite {
     // Expected value
     val expected = {
       val s = Param("s")(TyStm(U16, n))
-      dot(LetStm(1, s, count, zipSelf(s))()).tchk().lower()
+      dot(LetStm(1, s, count, zipSelf(s))()).tchk().lower
     }
     assert(actual == expected)
   }

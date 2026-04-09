@@ -73,7 +73,7 @@ object StmAccRemovalPass {
             })
           val x = xs.find(x => x.typ == typ).get
           val replacements =
-            (xs - x).map(y => y -> Cast(x, y.typ)().tchk().lower())
+            (xs - x).map(y => y -> Cast(x, y.typ)().tchk().lower)
           replacements
         })
         .toMap

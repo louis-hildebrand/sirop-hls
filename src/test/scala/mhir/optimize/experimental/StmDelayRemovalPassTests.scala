@@ -1,5 +1,6 @@
 package mhir.optimize.experimental
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.FactSet
 import mhir.sugar._
@@ -15,7 +16,7 @@ class StmDelayRemovalPassTests extends AnyFunSuite {
       t,
       t >= n,
       Map[Param, (Expr, Expr)](t -> (C(0)(I32), t + C(1)(I32)))
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val actual = StmDelayRemovalPass.skipFirstCycles(s, n)(FactSet())
     val expected = StmBuild(
       n,

@@ -87,14 +87,14 @@ object Compiler {
 
   private def lower(e: Expr): (Expr, Duration) = {
     time2("lowering", Level.DEBUG) {
-      translateStmLiteral(e.lower())
+      translateStmLiteral(e.lower)
     }
   }
 
   private def makeSynthesizable(e: Expr): (Expr, Duration) = {
     time2("making expression synthesizable", Level.DEBUG) {
       val e1 = inlineFunCalls(e)
-      val e2 = e1.streamify()
+      val e2 = e1.streamify
       val e3 = uncurryBody(e2)
       e3
     }
@@ -197,7 +197,7 @@ object Compiler {
 
   private def translateStmLiteral(e: Expr): Expr = {
     val result = e match {
-      case s: StmLiteral => s.lower().asInstanceOf[StmLiteral].toStmBuild
+      case s: StmLiteral => s.lower.asInstanceOf[StmLiteral].toStmBuild
       case e             => e.map(translateStmLiteral)
     }
     val checked = result.tchk()
@@ -233,7 +233,7 @@ object Compiler {
       case Function(x, body) =>
         Function(x, uncurryBody(body))()
       case e =>
-        e.uncurry()
+        e.uncurry
     }
     result.tchk()
   }

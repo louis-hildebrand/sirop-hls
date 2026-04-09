@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar.ExprLowering
 import mhir.testing.ParamStore
@@ -19,7 +20,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   // TODO: Also test Mux?
 
   test("Widen:Pad(x:u8 + y:u8)") {
-    val e = PadTo(Sum(x(U8), y(U8))(), 10)().tchk().lower()
+    val e = PadTo(Sum(x(U8), y(U8))(), 10)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = Sum(PadTo(x(U8), 10)(), PadTo(y(U8), 10)())()
     assert(actual == expected)
@@ -27,7 +28,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:Pad(2:i8 * x:i8)") {
-    val e = PadTo(Prod(C(2)(I8), x(I8))(), 16)().tchk().lower()
+    val e = PadTo(Prod(C(2)(I8), x(I8))(), 16)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = Prod(C(2)(I16), PadTo(x(I8), 16)())()
     assert(actual == expected)
@@ -39,7 +40,7 @@ class IntConversionMoverTests extends AnyFunSuite {
       val c = PadTo(Prod(x(U16), y(U16))(), 32)() equ C(6)(U32)
       val t = Div(x(U8), y(U8))()
       val f = Mod(x(U8), y(U8))()
-      PadTo(Mux(c, t, f)(), 20)().tchk().lower()
+      PadTo(Mux(c, t, f)(), 20)().tchk().lower
     }
     val actual = IntConversionMover.widen(e)
     val expected = {
@@ -55,7 +56,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   test("Widen:Truncate(x:i16) + y:i8 + Truncate(z:i16)") {
     val e = Sum(TruncateTo(x(I16), 8)(), y(I8), TruncateTo(z(I16), 8)())()
       .tchk()
-      .lower()
+      .lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(Sum(x(I16), PadTo(y(I8), 16)(), z(I16))(), 8)()
     assert(actual == expected)
@@ -63,7 +64,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:x:u8 * Truncate(y:u16)") {
-    val e = Prod(x(U8), TruncateTo(y(U16), 8)())().tchk().lower()
+    val e = Prod(x(U8), TruncateTo(y(U16), 8)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(Prod(PadTo(x(U8), 16)(), y(U16))(), 8)()
     assert(actual == expected)
@@ -71,7 +72,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToSigned(x:u8 + y:u8)") {
-    val e = ToSigned(Sum(x(U8), y(U8))())().tchk().lower()
+    val e = ToSigned(Sum(x(U8), y(U8))())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = Sum(ToSigned(x(U8))(), ToSigned(y(U8))())()
     assert(actual == expected)
@@ -83,7 +84,7 @@ class IntConversionMoverTests extends AnyFunSuite {
       val c = ToSigned(Prod(x(U16), y(U16))())() equ C(6)(I17)
       val t = Div(x(U8), y(U8))()
       val f = Mod(x(U8), y(U8))()
-      ToSigned(Mux(c, t, f)())().tchk().lower()
+      ToSigned(Mux(c, t, f)())().tchk().lower
     }
     val actual = IntConversionMover.widen(e)
     val expected = {
@@ -97,7 +98,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToUnsigned(x:i17) + y:u16") {
-    val e = Sum(ToUnsigned(x(I17))(), y(U16))().tchk().lower()
+    val e = Sum(ToUnsigned(x(I17))(), y(U16))().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = ToUnsigned(Sum(x(I17), ToSigned(y(U16))())())()
     assert(actual == expected)
@@ -106,7 +107,7 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:x:u8 * ToUnsigned(y:i9) * ToUnsigned(z:i9)") {
     val e =
-      Prod(x(U8), ToUnsigned(y(I9))(), ToUnsigned(z(I9))())().tchk().lower()
+      Prod(x(U8), ToUnsigned(y(I9))(), ToUnsigned(z(I9))())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = ToUnsigned(Prod(ToSigned(x(U8))(), y(I9), z(I9))())()
     assert(actual == expected)
@@ -116,7 +117,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   // Widen: padding/truncating primitives crossing paths ---------------------------------------------------------------
 
   test("Widen:PadTo(ToUnsigned(TruncateTo(x)))") {
-    val e = PadTo(ToUnsigned(TruncateTo(x(I16), 6)())(), 8)().tchk().lower()
+    val e = PadTo(ToUnsigned(TruncateTo(x(I16), 6)())(), 8)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = ToUnsigned(TruncateTo(x(I16), 9)())()
     assert(actual == expected)
@@ -124,7 +125,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:Pad(ToSigned(Truncate(x)))") {
-    val e = PadTo(ToSigned(TruncateTo(x(U16), 8)())(), 12)().tchk().lower()
+    val e = PadTo(ToSigned(TruncateTo(x(U16), 8)())(), 12)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(ToSigned(x(U16))(), 12)()
     assert(actual == expected)
@@ -132,7 +133,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToSigned(Truncate(ToUnsigned(x)))") {
-    val e = ToSigned(TruncateTo(ToUnsigned(x(I8))(), 5)())().tchk().lower()
+    val e = ToSigned(TruncateTo(ToUnsigned(x(I8))(), 5)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(x(I8), 6)()
     assert(actual == expected)
@@ -140,7 +141,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToSigned(Pad(ToUnsigned(x)))") {
-    val e = ToSigned(PadTo(ToUnsigned(x(I8))(), 15)())().tchk().lower()
+    val e = ToSigned(PadTo(ToUnsigned(x(I8))(), 15)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = PadTo(x(I8), 16)()
     assert(actual == expected)
@@ -148,7 +149,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:TruncateTo(PadTo(x:U8, 16), 12)") {
-    val e = TruncateTo(PadTo(x(U8), 16)(), 12)().tchk().lower()
+    val e = TruncateTo(PadTo(x(U8), 16)(), 12)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = PadTo(x(U8), 12)()
     assert(actual == expected)
@@ -156,7 +157,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:TruncateTo(PadTo(x:U8, 12), 6)") {
-    val e = TruncateTo(PadTo(x(U8), 12)(), 6)().tchk().lower()
+    val e = TruncateTo(PadTo(x(U8), 12)(), 6)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(x(U8), 6)()
     assert(actual == expected)
@@ -164,7 +165,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:TruncateTo(PadTo(x:U8, 13), 8)") {
-    val e = TruncateTo(PadTo(x(U8), 13)(), 8)().tchk().lower()
+    val e = TruncateTo(PadTo(x(U8), 13)(), 8)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = x(U8)
     assert(actual == expected)
@@ -172,7 +173,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToUnsigned(ToSigned(x))") {
-    val e = ToUnsigned(ToSigned(x(U8))())().tchk().lower()
+    val e = ToUnsigned(ToSigned(x(U8))())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = x(U8)
     assert(actual == expected)
@@ -184,7 +185,7 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:Truncate(ToUnsigned(Truncate(x))") {
     val e =
-      TruncateTo(ToUnsigned(TruncateTo(x(I16), 10)())(), 6)().tchk().lower()
+      TruncateTo(ToUnsigned(TruncateTo(x(I16), 10)())(), 6)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = ToUnsigned(TruncateTo(x(I16), 7)())()
     assert(actual == expected)
@@ -192,7 +193,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:PadTo(ToSigned(PadTo(x)))") {
-    val e = PadTo(ToSigned(PadTo(x(U8), 16)())(), 32)().tchk().lower()
+    val e = PadTo(ToSigned(PadTo(x(U8), 16)())(), 32)().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = PadTo(ToSigned(x(U8))(), 32)()
     assert(actual == expected)
@@ -200,7 +201,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   }
 
   test("Widen:ToUnsigned(x) + Truncate(y)") {
-    val e = Sum(ToUnsigned(x(I9))(), TruncateTo(y(U16), 8)())().tchk().lower()
+    val e = Sum(ToUnsigned(x(I9))(), TruncateTo(y(U16), 8)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected =
       ToUnsigned(
@@ -212,7 +213,7 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:TruncateTo(x:u16) + TruncateTo(y:u32)") {
     val e =
-      Sum(TruncateTo(x(U16), 8)(), TruncateTo(y(U32), 8)())().tchk().lower()
+      Sum(TruncateTo(x(U16), 8)(), TruncateTo(y(U32), 8)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(Sum(PadTo(x(U16), 32)(), y(U32))(), 8)()
     assert(actual == expected)
@@ -221,7 +222,7 @@ class IntConversionMoverTests extends AnyFunSuite {
 
   test("Widen:TruncateTo(x:i32) + TruncateTo(y:i16)") {
     val e =
-      Sum(TruncateTo(x(I32), 8)(), TruncateTo(y(I16), 8)())().tchk().lower()
+      Sum(TruncateTo(x(I32), 8)(), TruncateTo(y(I16), 8)())().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(Sum(x(I32), PadTo(y(I16), 32)())(), 8)()
     assert(actual == expected)
@@ -231,7 +232,7 @@ class IntConversionMoverTests extends AnyFunSuite {
   test("Widen:if c then Truncate(x) else ToUnsigned(y)") {
     val e = Mux(c(TyBool), TruncateTo(x(U16), 8)(), ToUnsigned(y(I9))())()
       .tchk()
-      .lower()
+      .lower
     val actual = IntConversionMover.widen(e)
     val expected = ToUnsigned(
       TruncateTo(
@@ -262,7 +263,7 @@ class IntConversionMoverTests extends AnyFunSuite {
     val e = Sum(
       ToSigned(Sum(C(1)(U8), TruncateTo(x(U16), 8)())())(),
       Prod(C(-1)(I9), ToSigned(TruncateTo(x(U16), 8)())())()
-    )().tchk().lower()
+    )().tchk().lower
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(
       Sum(

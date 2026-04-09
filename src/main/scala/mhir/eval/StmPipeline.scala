@@ -1,6 +1,7 @@
 package mhir.eval
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar.StmLiteralUtilsImplicit
 import mhir.typecheck.TypeError

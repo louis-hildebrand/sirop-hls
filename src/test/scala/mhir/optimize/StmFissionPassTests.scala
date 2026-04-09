@@ -16,8 +16,8 @@ class StmFissionPassTests extends AnyFunSuite {
   test("SharpenOne") {
     val n = 9
     val uint = U32
-    val inputA = StmRange(n, C(96)(uint), C(1)(uint))().tchk().lower()
-    val inputB = StmRange(n, C(80)(uint), C(5)(uint))().tchk().lower()
+    val inputA = StmRange(n, C(96)(uint), C(1)(uint))().tchk().lower
+    val inputB = StmRange(n, C(80)(uint), C(5)(uint))().tchk().lower
     val original = {
       val sA = Param("s_a")(TyStm(uint, n))
       val sB = Param("s_b")(TyStm(uint, n))
@@ -36,7 +36,7 @@ class StmFissionPassTests extends AnyFunSuite {
           sA -> (inputA, True),
           sB -> (inputB, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
@@ -60,7 +60,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -72,7 +72,7 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
@@ -99,7 +99,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -115,7 +115,7 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
@@ -139,7 +139,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -149,7 +149,7 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 

@@ -24,7 +24,7 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
           b -> (C(-3)(I8), b + 9),
           c -> (C(2)(I32), 2 * c + 2)
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
 
     val expectedRanges = StmAccRange(
       Map(
@@ -52,7 +52,7 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         b -> (C(3)(I8), b - 9),
         c -> (C(-4)(I32), 2 * c + 2)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val expectedRanges = StmAccRange(
       Map(
@@ -77,7 +77,7 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
         a -> (C(3)(I8), Mux(a % 2 === 0, a + 1, a - 3)()),
         b -> (C(1)(I8), b * -2)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val expectedRanges = StmAccRange(
       Map(
@@ -98,7 +98,7 @@ class StmAccRangeAnalysisTests extends AnyFunSuite {
       StmData(a)(),
       True,
       Map(a -> (s, True))
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val actualRanges = StmAccRangeAnalysis.findAccRanges(stm)
     assert(actualRanges == StmAccRange(Map()))
