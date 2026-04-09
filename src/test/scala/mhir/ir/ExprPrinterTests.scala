@@ -201,7 +201,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val f = Param("f", -1)(U16 ->: U16 ->: U16)
     val e = f(Sum(x, y, z)())(Prod(x, y, z, w)())
 
-    val expectedOneLine = s"f(x + y + z)(w * x * y * z)"
+    val expectedOneLine = s"f(x + y + z)(x * y * z * w)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
@@ -209,10 +209,10 @@ class ExprPrinterTests extends AnyFunSuite {
       s"""f(
          |  x + y + z
          |)(
-         |  w
-         |    * x
+         |  x
          |    * y
          |    * z
+         |    * w
          |)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 12)

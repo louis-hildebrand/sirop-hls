@@ -267,7 +267,7 @@ class IntConversionMoverTests extends AnyFunSuite {
     val actual = IntConversionMover.widen(e)
     val expected = TruncateTo(
       Sum(
-        Sum(ToSigned(x(U16))(), C(1)(I17))(),
+        Sum(C(1)(I17), ToSigned(x(U16))())(),
         Prod(C(-1)(I17), ToSigned(x(U16))())()
       )(),
       9

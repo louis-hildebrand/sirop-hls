@@ -45,16 +45,16 @@ object MuxMover {
       case f: Function               => f
       case FunCall(f, arg)           => moveUp2(Seq(f, arg), FunCall(_, _)())
       case c: IntCst                 => c
-      case Sum(terms @ _*)           => moveUpMany(terms, xs => Sum(xs: _*)())
-      case Prod(factors @ _*) => moveUpMany(factors, xs => Prod(xs: _*)())
+      case Sum(terms @ _*)    => moveUpMany(terms, xs => MaybeSum(xs: _*)())
+      case Prod(factors @ _*) => moveUpMany(factors, xs => MaybeProd(xs: _*)())
       case Div(e1, e2)        => moveUp2(Seq(e1, e2), Div(_, _)())
       case Mod(e1, e2)        => moveUp2(Seq(e1, e2), Mod(_, _)())
       case WrappingSum(terms @ _*) =>
-        moveUpMany(terms, xs => WrappingSum(xs: _*)())
+        moveUpMany(terms, xs => MaybeWrappingSum(xs: _*)())
       case WrappingDiff(e1, e2) =>
         moveUp2(Seq(e1, e2), WrappingDiff(_, _)())
       case WrappingProd(factors @ _*) =>
-        moveUpMany(factors, xs => WrappingProd(xs: _*)())
+        moveUpMany(factors, xs => MaybeWrappingProd(xs: _*)())
       case PadTo(e, w)        => moveUp1(e, PadTo(_, w)())
       case TruncateTo(e, w)   => moveUp1(e, TruncateTo(_, w)())
       case ToSigned(e)        => moveUp1(e, ToSigned(_)())
@@ -68,8 +68,8 @@ object MuxMover {
       case Equal(e1, e2)      => moveUp2(Seq(e1, e2), Equal(_, _)())
       case LessThan(e1, e2)   => moveUp2(Seq(e1, e2), LessThan(_, _)())
       case Not(e)             => moveUp1(e, Not(_)())
-      case And(terms @ _*)    => moveUpMany(terms, xs => And(xs: _*)())
-      case Or(terms @ _*)     => moveUpMany(terms, xs => Or(xs: _*)())
+      case And(terms @ _*)    => moveUpMany(terms, xs => MaybeAnd(xs: _*)())
+      case Or(terms @ _*)     => moveUpMany(terms, xs => MaybeOr(xs: _*)())
       case Mux(c, t, f) =>
         moveUp(c) match {
           case Mux(cc, ct, cf) =>

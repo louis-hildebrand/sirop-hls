@@ -43,16 +43,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     */
   def hasType: Boolean = this.typ != Missing
 
-  if (this.hasType) {
-    // This allows the type checker to completely skip expressions that already
-    // have a type
-    for ((e, i) <- this.children.zipWithIndex) {
-      assert(
-        e.hasType,
-        s"a typed node must have typed children, but child $i in ${this.getClass.getSimpleName} is untyped"
-      )
-    }
-  }
+  assert(
+    !this.hasType || this.children.forall(_.hasType),
+    s"a typed Expr must have typed children, but a child of $className has no type"
+  )
 
   lazy val hasSyntaxSugar: Boolean = {
     this match {
@@ -341,30 +335,26 @@ object C {
   * @param terms
   *   the expressions to add up.
   */
-case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
-  require(terms.length >= 2, "Sum must have at least two terms.")
+case class Sum(terms: Expr*)(typ: Type = Missing)
+    extends IntExpr(terms: _*)(typ) {
+  require(terms.length >= 2, s"$className must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Sum(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[Sum]].
+/** Smarter factory for [[Sum]].
   */
-case object Sum {
+object MaybeSum {
 
-  /** Constructs an expression representing the sum of the given terms.
-    *
-    * @note
-    *   the expression for the sum is not necessarily a [[Sum]].
+  /** Constructs a [[Sum]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new Sum(terms.sorted(ExprOrdering): _*)(typ)
+      case terms  => Sum(terms: _*)(typ)
     }
   }
 }
@@ -377,30 +367,26 @@ case object Sum {
   * @param factors
   *   the expressions to multiply.
   */
-case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
-  require(factors.length >= 2, "Prod must have at least two factors.")
+case class Prod(factors: Expr*)(typ: Type = Missing)
+    extends IntExpr(factors: _*)(typ) {
+  require(factors.length >= 2, s"$className must have at least two factors.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Prod(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[Prod]].
+/** Smarter factory for [[Prod]].
   */
-case object Prod {
+object MaybeProd {
 
-  /** Constructs an expression representing the product of the given factors.
-    *
-    * @note
-    *   the expression for the product is not necessarily a [[Prod]].
+  /** Constructs a [[Prod]], but only if at least two factors are given.
     */
   def apply(factors: Expr*)(typ: Type = Missing): Expr = {
     factors match {
       case Seq()   => IntCst(1)(typ)
       case Seq(e)  => e
-      case factors =>
-        // Sorting makes the tests less brittle
-        new Prod(factors.sorted(ExprOrdering): _*)(typ)
+      case factors => Prod(factors: _*)(typ)
     }
   }
 }
@@ -443,28 +429,24 @@ case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
   */
 case class WrappingSum(terms: Expr*)(typ: Type = Missing)
     extends IntExpr(terms: _*)(typ) {
+  assert(terms.length >= 2, s"$className must have at least two terms.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     WrappingSum(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[WrappingSum]].
+/** Smarter factory for [[WrappingSum]].
   */
-object WrappingSum {
+object MaybeWrappingSum {
 
-  /** Constructs an expression representing the sum of the given terms, with
-    * overflow wrapping around as usual in 2's complement.
-    *
-    * @note
-    *   the expression for the sum is not necessarily a [[WrappingSum]].
+  /** Constructs a [[WrappingSum]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new WrappingSum(terms.sorted(ExprOrdering): _*)(typ)
+      case terms  => WrappingSum(terms: _*)(typ)
     }
   }
 }
@@ -495,28 +477,24 @@ case class WrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
   */
 case class WrappingProd(factors: Expr*)(typ: Type = Missing)
     extends IntExpr(factors: _*)(typ) {
+  assert(factors.length >= 2, s"$className must have at least two factors.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     WrappingProd(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[WrappingProd]].
+/** Smarter factory for [[WrappingProd]].
   */
-object WrappingProd {
+object MaybeWrappingProd {
 
-  /** Constructs an expression representing the product of the given
-    * expressions, with overflow wrapping around as usual in 2's complement.
-    *
-    * @note
-    *   the expression for the product is not necessarily a [[WrappingProd]].
+  /** Constructs a [[WrappingProd]], but only if at least two factors are given.
     */
-  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
-    terms match {
-      case Seq()  => IntCst(1)(typ)
-      case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new WrappingProd(terms.sorted(ExprOrdering): _*)(typ)
+  def apply(factors: Expr*)(typ: Type = Missing): Expr = {
+    factors match {
+      case Seq()   => IntCst(1)(typ)
+      case Seq(e)  => e
+      case factors => WrappingProd(factors: _*)(typ)
     }
   }
 }
@@ -704,25 +682,12 @@ case object False extends BoolCst
   * @param f
   *   what to return if the condition evaluates to [[False]].
   */
-case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
+case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type = Missing)
     extends Expr(c, t, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(c, t, f) => Mux(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
-/** Companion object for [[Mux]].
-  */
-case object Mux {
-  def apply(c: Expr, t: Expr, f: Expr)(
-      typ: Type = Missing
-  ): Mux = {
-    c match {
-      case Not(c) => new Mux(c, f, t)(typ)
-      case c      => new Mux(c, t, f)(typ)
     }
   }
 }
@@ -775,24 +740,13 @@ case class Not(e: Expr)(typ: Type = Missing) extends BoolExpr(e)(typ) {
   }
 }
 
-/** Companion object for [[Mux]].
-  */
-case object Not {
-  def apply(e: Expr)(typ: Type = Missing): Not = {
-    if (typ == Missing && e.typ == TyBool) {
-      new Not(e)(TyBool)
-    } else {
-      new Not(e)(typ)
-    }
-  }
-}
-
 /** Logical AND.
   *
   * @param terms
   *   the operands.
   */
-case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+case class And(terms: Expr*)(typ: Type = Missing)
+    extends BoolExpr(terms: _*)(typ) {
   require(terms.length >= 2, "And must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -808,28 +762,17 @@ case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 
-/** Companion object for [[And]].
+/** Smarter factory for [[And]].
   */
-case object And {
+object MaybeAnd {
 
-  /** Constructs an expression representing the logical conjunction of the given
-    * terms.
-    *
-    * @note
-    *   the returned expression is not necessarily an [[And]].
+  /** Constructs an [[And]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => True
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-          TyBool
-        } else {
-          typ
-        }
-        // Sorting makes the tests less brittle
-        new And(terms.sorted(ExprOrdering): _*)(newTyp)
+      case terms  => And(terms: _*)(typ)
     }
   }
 }
@@ -839,7 +782,8 @@ case object And {
   * @param terms
   *   the operands.
   */
-case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+case class Or(terms: Expr*)(typ: Type = Missing)
+    extends BoolExpr(terms: _*)(typ) {
   require(terms.length >= 2, "Or must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -855,28 +799,17 @@ case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 
-/** Companion object for [[Or]].
+/** Smarter factory for [[Or]].
   */
-case object Or {
+object MaybeOr {
 
-  /** Constructs an expression representing the logical disjunction of the given
-    * terms.
-    *
-    * @note
-    *   the returned expression is not necessarily an [[Or]].
+  /** Constructs an [[Or]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => False
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-          TyBool
-        } else {
-          typ
-        }
-        // Sorting makes the tests less brittle
-        new Or(terms.sorted(ExprOrdering): _*)(newTyp)
+      case terms  => Or(terms: _*)(typ)
     }
   }
 }

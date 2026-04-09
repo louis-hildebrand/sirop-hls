@@ -381,7 +381,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         10,
         Tuple(True, a lt 4)(),
         True,
-        Map(a -> (C(0)(U8), Sum(a, 1)()))
+        Map(a -> (C(0)(U8), Sum(1, a)()))
       )()
     )()
     assert(actual == expected)
@@ -420,10 +420,10 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual = PE.partialEval(e)
     val expected = Sum(
       z,
-      Prod(delta, acc.__0)(),
-      Prod(delta, i)(),
-      Prod(-9, delta)()
-    )()
+      Prod(C(-9)(I8), delta)(),
+      Prod(i, delta)(),
+      Prod(delta, acc.__0)()
+    )().tchk()
     assert(actual == expected)
   }
 
@@ -485,7 +485,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     */
   test("x + 4:i4 < y - 4:i4") {
     val i4 = TySInt(4)
-    val e = Sum(x(i4), C(4)(i4))() lt Sum(y(i4), C(-4)(i4))()
+    val e = Sum(C(4)(i4), x(i4))() lt Sum(C(-4)(i4), y(i4))()
     assert(PE.partialEval(e) == e)
   }
 
@@ -507,7 +507,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       a,
       True,
       Map[Param, (Expr, Expr)](
-        a -> (z, Sum(a, C(3)())())
+        a -> (z, Sum(C(3)(), a)())
       )
     )()
     assert(PartialEvalPass.partialEval(s)(facts) == expected)
@@ -546,7 +546,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         s -> (StmCount(C(n)(U8))(), True)
       )
     )().tchk().lower
-    val expected = StmBuild(1, Sum(z, (0 until n).sum)(), True)()
+    val expected = StmBuild(1, Sum((0 until n).sum, z)(), True)()
     val actual = PartialEvalPass.partialEvalStmBuild(sum).tchk().lower
     assert(actual == expected)
   }
@@ -593,7 +593,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       )().tchk().lower
     val expected =
       Mux(
-        (x lt 10) && (x geq 0),
+        (x geq 0) && (x lt 10),
         Tuple(True, False, True, x lt 9)(),
         Tuple(x lt 9, x geq 10, x geq 11, True)()
       )()
@@ -637,7 +637,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val facts = FactSet().assumeTrue(c0 && (c0 || c1))
     val e = (U8 ::+ (i => Mux(c0, i + 1, i)())).tchk().lower
     val actual = PartialEvalPass.partialEval(e)(facts)
-    val expected = U8 ::+ (i => Sum(i, 1)())
+    val expected = U8 ::+ (i => Sum(1, i)())
     assert(actual == expected)
   }
 

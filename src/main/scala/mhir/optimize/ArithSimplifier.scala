@@ -243,14 +243,14 @@ private[optimize] object ArithSimplifier {
       case ae.Sum(terms) =>
         val exprTerms = terms.map(e => fromArithExpr(e, typ))
         if (exprTerms.forall(e => e.isDefined)) {
-          Some(Sum(exprTerms.map(e => e.get): _*)())
+          Some(MaybeSum(exprTerms.map(e => e.get): _*)())
         } else {
           None
         }
       case ae.Prod(factors) =>
         val exprFactors = factors.map(e => fromArithExpr(e, typ))
         if (exprFactors.forall(e => e.isDefined)) {
-          Some(Prod(exprFactors.map(e => e.get): _*)())
+          Some(MaybeProd(exprFactors.map(e => e.get): _*)())
         } else {
           None
         }
@@ -309,7 +309,7 @@ private[optimize] object ArithSimplifier {
       case Mux(c, True, False) =>
         unwrapMux(c)
       case Mux(c, False, True) =>
-        Not(unwrapMux(c))()
+        Not(unwrapMux(c))().tchk()
       case e =>
         e
     }
@@ -359,7 +359,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifySum(sum: Sum): Expr = {
-    Sum(
+    MaybeSum(
       sum.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -373,7 +373,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyProd(prod: Prod): Expr = {
-    Prod(
+    MaybeProd(
       prod.factors
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -399,14 +399,16 @@ private[optimize] object ArithSimplifier {
             case s: WrappingSum => s.terms
             case e              => Seq(e)
           })
+          // Sort to represent commutativity
+          .sorted(ExprOrdering)
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.eval.eval(WrappingSum(constants: _*)())
+      val const = mhir.eval.eval(MaybeWrappingSum(constants: _*)())
       val allTerms = if (const == IntCst(0)()) {
         otherTerms
       } else {
         const +: otherTerms
       }
-      WrappingSum(allTerms: _*)().tchk()
+      MaybeWrappingSum(allTerms: _*)().tchk()
     }
   }
 
@@ -431,14 +433,16 @@ private[optimize] object ArithSimplifier {
             case p: WrappingProd => p.factors
             case e               => Seq(e)
           })
+          // Sort to represent commutativity
+          .sorted(ExprOrdering)
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.eval.eval(WrappingProd(constants: _*)())
+      val const = mhir.eval.eval(MaybeWrappingProd(constants: _*)())
       if (const == IntCst(0)()) {
         C(0)(prod.typ)
       } else if (const == IntCst(1)()) {
-        WrappingProd(otherFactors: _*)().tchk()
+        MaybeWrappingProd(otherFactors: _*)().tchk()
       } else {
-        WrappingProd(const +: otherFactors: _*)().tchk()
+        MaybeWrappingProd(const +: otherFactors: _*)().tchk()
       }
     }
   }
@@ -590,7 +594,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyAnd(and: And): Expr = {
-    val flat = And(
+    val flat = MaybeAnd(
       and.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -635,7 +639,7 @@ private[optimize] object ArithSimplifier {
               .getOrElse(false) =>
         Equal(x0, c0)()
       case And(terms @ _*) if terms.length <= 3 =>
-        And(terms.filter({
+        MaybeAnd(terms.filter({
           case Not(Equal(x0, IntCst(k0))) =>
             !terms.exists({
               case Equal(x1, IntCst(k1)) => x0 == x1 && k0 != k1
@@ -650,7 +654,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyOr(or: Or): Expr = {
-    val flat = Or(
+    val flat = MaybeOr(
       or.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -699,12 +703,12 @@ private[optimize] object ArithSimplifier {
       case Not(False)  => True
       case Not(Not(e)) => e
       case Not(And(terms @ _*)) =>
-        Or(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+        MaybeOr(terms.map(e => simplifyNot(Not(e)())): _*)() match {
           case e: Or => simplifyOr(e)
           case e     => e
         }
       case Not(Or(terms @ _*)) =>
-        And(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+        MaybeAnd(terms.map(e => simplifyNot(Not(e)())): _*)() match {
           case e: And => simplifyAnd(e)
           case e      => e
         }

@@ -545,12 +545,7 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val terms = this.terms.map(e => e.lower)
-    if (terms.isEmpty) {
-      IntCst(0)(this.typ)
-    } else {
-      val typ = this.typ.asInstanceOf[TyAnyInt]
-      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
-    }
+    MaybeSum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
   }
 
   override def precedence: Int = Precedence.Sum
@@ -610,12 +605,7 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val factors = this.factors.map(e => e.lower)
-    if (factors.isEmpty) {
-      IntCst(1)(this.typ)
-    } else {
-      val typ = this.typ.asInstanceOf[TyAnyInt]
-      Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
-    }
+    MaybeProd(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
   }
 
   override def precedence: Int = Precedence.Prod
@@ -661,17 +651,13 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val factors = this.factors.map(e => e.lower)
-    if (factors.isEmpty) {
-      IntCst(1)(this.typ)
-    } else {
-      this.typ.asInstanceOf[TyAnyInt] match {
-        case TyUInt(0) =>
-          // Need this special case because you can't normally resize to a U0,
-          // but we know the product will be zero.
-          IntCst(0)(TyUInt(0))
-        case typ =>
-          Prod(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
-      }
+    this.typ.asInstanceOf[TyAnyInt] match {
+      case TyUInt(0) =>
+        // Need this special case because you can't normally resize to a U0,
+        // but we know the product will be zero.
+        IntCst(0)(TyUInt(0))
+      case typ =>
+        MaybeProd(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
     }
   }
 }

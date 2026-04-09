@@ -347,7 +347,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       for ((x, (z, Function(t, f))) <- newAccVars) {
         s = s.addAccumulator(x, z, FunCall(f, x)())
       }
-      s = s.addAccumulator(t, C(0)(t.typ), Sum(t, C(1)(t.typ))())
+      s = s.addAccumulator(t, C(0)(t.typ), Sum(C(1)(t.typ), t)())
       s
     }
   }
@@ -686,7 +686,7 @@ private object RecurrenceSolver {
     val nextIdx = next match {
       case Function(t, Function(x, body)) if !body.contains(x) =>
         val i = Param("i")(I33)
-        Function(t, Function(i, Mux(body, i + 1, i)())())()
+        Function(t, Function(i, Mux(body, 1 + i, i)())())()
       case _ =>
         throw new IllegalArgumentException(
           s"Invalid update function: $next."
@@ -760,7 +760,7 @@ private object RecurrenceSolver {
         case next @ StmNextK(_, k) =>
           // Need to show that 0 <= k(t + 1) - k(t) <= 1
           // (i.e., can only read one element at a time; can't skip, can't go backwards, etc.)
-          val nextK = k.subPreserveType(t -> (t + 1).tchk().lower)
+          val nextK = k.subPreserveType(t -> (1 + t).tchk().lower)
           val deltaK = PE.partialEval((nextK - k).tchk().lower)(facts)
           val isDeltaZeroOrOne = (
             PE.isGreaterOrEqual(deltaK, 0)(facts).getOrElse(false)
@@ -828,7 +828,7 @@ private object Counter {
         termsWithAcc match {
           case Seq(a) if a == acc =>
             val otherTerms = terms.diff(termsWithAcc)
-            val delta = Sum(otherTerms: _*)()
+            val delta = MaybeSum(otherTerms: _*)()
             val isConstInStream = !delta.contains(t)
             if (isConstInStream) {
               Some(delta)
@@ -892,7 +892,7 @@ private object LeftShiftRegister {
                 case Equal(i2: Param, n2)
                     if i2 == i0
                       && PE
-                        .isEqual((n2 + 1).tchk().lower, n0)()
+                        .isEqual((1 + n2).tchk().lower, n0)()
                         .getOrElse(false) =>
                   true
                 case _ =>
@@ -953,7 +953,7 @@ private object LeftShiftRegister {
             Some((n0, U32 ::+ (_ => Default(typ).lower), Function(t, e)()))
           case Equal(i2: Param, n2)
               if i2 == i0
-                && PE.isEqual((n2 + 1).tchk().lower, n0)().getOrElse(false) =>
+                && PE.isEqual((1 + n2).tchk().lower, n0)().getOrElse(false) =>
             Some((n0, U32 ::+ (_ => Default(typ).lower), Function(t, e)()))
           case _ => None
         }
@@ -1075,7 +1075,7 @@ private object LinearFunctionOf {
             (termWithX, x) match {
               case ConstMultipleOf(c1) =>
                 val termsWithoutX = terms.diff(termsWithX)
-                val c0 = Sum(termsWithoutX: _*)()
+                val c0 = MaybeSum(termsWithoutX: _*)()
                 Some((c0, c1))
               case _ => None
             }
@@ -1109,7 +1109,7 @@ private object ConstMultipleOf {
             val factorsWithoutX = factors.diff(factorsWithX)
             val coeff = factorsWithoutX match {
               case Seq(e) => e
-              case xs     => Prod(xs: _*)()
+              case xs     => MaybeProd(xs: _*)()
             }
             Some(coeff)
           case _ => None

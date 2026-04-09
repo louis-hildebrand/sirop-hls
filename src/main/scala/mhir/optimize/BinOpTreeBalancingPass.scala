@@ -70,23 +70,23 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
         })
         val (lhs, rhs) = if (nLeft < posTerms.length) {
           (
-            doBalance(Sum(posTerms.take(nLeft): _*)()),
-            doBalance(Sum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
+            doBalance(MaybeSum(posTerms.take(nLeft): _*)()),
+            doBalance(MaybeSum(posTerms.drop(nLeft) ++ negTermsWithMinus: _*)())
           )
         } else {
           val negTermsWithoutMinus = negTermsWithMinus.map({
             case Prod(IntCst(-1), rest @ _*) =>
-              Prod(rest: _*)()
+              MaybeProd(rest: _*)()
             case Prod(cst @ IntCst(k), rest @ _*) if k < 0 =>
-              Prod(IntCst(-k)(cst.typ) +: rest: _*)()
+              MaybeProd(IntCst(-k)(cst.typ) +: rest: _*)()
             case _ =>
               ???
           })
           val m = nLeft - posTerms.length
           val lhs =
-            doBalance(Sum(posTerms ++ negTermsWithMinus.take(m): _*)())
+            doBalance(MaybeSum(posTerms ++ negTermsWithMinus.take(m): _*)())
           val rhsPos =
-            doBalance(Sum(negTermsWithoutMinus.drop(m): _*)()).tchk()
+            doBalance(MaybeSum(negTermsWithoutMinus.drop(m): _*)()).tchk()
           assert(rhsPos.typ.isInstanceOf[TySInt])
           (
             lhs,
@@ -98,36 +98,36 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
       case Prod(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = doBalance(Prod(lhsFactors: _*)())
-        val rhs = doBalance(Prod(rhsFactors: _*)())
+        val lhs = doBalance(MaybeProd(lhsFactors: _*)())
+        val rhs = doBalance(MaybeProd(rhsFactors: _*)())
         Prod(lhs, rhs)()
       case s @ WrappingSum(_, _) => s
       case WrappingSum(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = doBalance(WrappingSum(lhsTerms: _*)())
-        val rhs = doBalance(WrappingSum(rhsTerms: _*)())
+        val lhs = doBalance(MaybeWrappingSum(lhsTerms: _*)())
+        val rhs = doBalance(MaybeWrappingSum(rhsTerms: _*)())
         WrappingSum(lhs, rhs)()
       case p @ WrappingProd(_, _) => p
       case WrappingProd(factors @ _*) =>
         assert(factors.length >= 3)
         val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
-        val lhs = doBalance(WrappingProd(lhsFactors: _*)())
-        val rhs = doBalance(WrappingProd(rhsFactors: _*)())
+        val lhs = doBalance(MaybeWrappingProd(lhsFactors: _*)())
+        val rhs = doBalance(MaybeWrappingProd(rhsFactors: _*)())
         WrappingProd(lhs, rhs)()
       case a @ And(_, _) => a
       case And(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = doBalance(And(lhsTerms: _*)())
-        val rhs = doBalance(And(rhsTerms: _*)())
+        val lhs = doBalance(MaybeAnd(lhsTerms: _*)())
+        val rhs = doBalance(MaybeAnd(rhsTerms: _*)())
         And(lhs, rhs)()
       case o @ Or(_, _) => o
       case Or(terms @ _*) =>
         assert(terms.length >= 3)
         val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
-        val lhs = doBalance(Or(lhsTerms: _*)())
-        val rhs = doBalance(Or(rhsTerms: _*)())
+        val lhs = doBalance(MaybeOr(lhsTerms: _*)())
+        val rhs = doBalance(MaybeOr(rhsTerms: _*)())
         Or(lhs, rhs)()
       case _ =>
         e.map(doBalance)

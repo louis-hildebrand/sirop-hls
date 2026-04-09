@@ -418,7 +418,7 @@ private object SingleWriteVector {
         indexToUpdate match {
           case Some(idx) =>
             val newCond =
-              And(terms: _*)().tchk().subPreserveType(i0 -> idx).tchk()
+              MaybeAnd(terms: _*)().tchk().subPreserveType(i0 -> idx).tchk()
             val newWrite = write.subPreserveType(i0 -> idx).tchk()
             Some((v0, z, newCond, idx, newWrite))
           case None => None

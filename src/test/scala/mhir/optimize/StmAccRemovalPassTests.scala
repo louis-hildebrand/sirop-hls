@@ -97,7 +97,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Tuple(1, b)(),
       True,
       Map[Param, (Expr, Expr)](
-        b -> (1, Sum(C(1)(U8), b)())
+        b -> (1, Sum(b, C(1)(U8))())
       )
     )()
     val actual = StmAccRemovalPass.removeConstantVars(s)
@@ -137,18 +137,22 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val c = Param("c")(U8)
     val d = Param("d")(U8)
     val e = Param("e")(TyTuple())
-    val s = StmBuild(
-      n,
-      Prod(a, c, d)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (C(0)(U8), a + C(1)(U8)),
-        b -> (Tuple()(), b),
-        c -> (C(1)(U8), c + C(2)(U8)),
-        d -> (C(2)(U8), d + C(3)(U8)),
-        e -> (Tuple()(), Tuple()())
+    val s = PartialEvalPass
+      .partialEval(
+        StmBuild(
+          n,
+          Prod(a, c, d)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            a -> (C(0)(U8), a + C(1)(U8)),
+            b -> (Tuple()(), b),
+            c -> (C(1)(U8), c + C(2)(U8)),
+            d -> (C(2)(U8), d + C(3)(U8)),
+            e -> (Tuple()(), Tuple()())
+          )
+        )().tchk().lower
       )
-    )().tchk().lower.asInstanceOf[StmBuild]
+      .asInstanceOf[StmBuild]
     val expected = StmBuild(
       n,
       Prod(a, c, d)(),

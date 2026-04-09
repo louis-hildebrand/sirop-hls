@@ -110,7 +110,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("EmptySum") {
-    assert(Sum()().tchk().typ == TyUInt(0))
+    assert(MaybeSum()().tchk().typ == TyUInt(0))
   }
 
   test("u8 + i8") {
@@ -162,7 +162,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("EmptyProd") {
-    assert(Prod()().tchk().typ == TyUInt(1))
+    assert(MaybeProd()().tchk().typ == TyUInt(1))
   }
 
   test("u8 * i8") {

@@ -121,26 +121,26 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
   test("MuxToWrappingSum:Valid1") {
     val x = Param("x")(U8)
     val e = Mux(x equ C(255)(U8), C(0)(U8), Sum(x, C(1)(U8))())().tchk()
-    assert(PE.partialEval(e) == WrappingSum(x, C(1)(U8))())
+    assert(PE.partialEval(e) == WrappingSum(C(1)(U8), x)())
   }
 
   test("MuxToWrappingSum:Valid2") {
     val x = Param("x")(I8)
     val e = Mux(x equ C(127)(I8), C(-128)(I8), Sum(x, C(1)(I8))())().tchk()
-    assert(PE.partialEval(e) == WrappingSum(x, C(1)(I8))())
+    assert(PE.partialEval(e) == WrappingSum(C(1)(I8), x)())
   }
 
   test("MuxToWrappingSum:NotValid1") {
     val x = Param("x")(U8)
     val u5 = TyUInt(5)
     val e =
-      Mux(x.rebuild(u5) equ C(31)(u5), C(0)(U8), Sum(x, C(1)(U8))())().tchk()
+      Mux(x.rebuild(u5) equ C(31)(u5), C(0)(U8), Sum(C(1)(U8), x)())().tchk()
     assert(PE.partialEval(e) == e)
   }
 
   test("MuxToWrappingSum:NotValid2") {
     val x = Param("x")(I8)
-    val e = Mux(x equ C(127)(I8), C(0)(I8), Sum(x, C(1)(I8))())().tchk()
+    val e = Mux(x equ C(127)(I8), C(0)(I8), Sum(C(1)(I8), x)())().tchk()
     assert(PE.partialEval(e) == e)
   }
 
@@ -450,7 +450,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     val e =
       Mux(x + C(1)(I8) === C(0)(I8), C(0)(u7), ToUnsigned(x)())().tchk().lower
     val expected = ToUnsigned(
-      Mux(Sum(x, C(1)(I8))() equ C(0)(I8), C(0)(I8), x)()
+      Mux(Sum(C(1)(I8), x)() equ C(0)(I8), C(0)(I8), x)()
     )().tchk()
     val actual = PE.partialEval(e)
     assert(actual == expected)
@@ -495,21 +495,21 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
 
     val e0 = Mux(x !== 0, 2 / x, C(1)(U8))()
     val expected0 =
-      Mux(Not(Equal(x, C(0)(U8))())(), Div(C(2)(), x)(), C(1)(U8))()
+      Mux(Equal(x, C(0)(U8))(), C(1)(U8), Div(C(2)(), x)())()
     assert(lpe(e0) == expected0)
 
     val e1 = Mux(x !== 1, 3 / (1 - x), C(1)(I9))()
     val expected1 =
       Mux(
-        Not(Equal(x, C(1)(U8))())(),
-        Div(C(3)(I9), Sum(C(1)(I9), Prod(C(-1)(I9), ToSigned(x)())())())(),
-        C(1)(I9)
+        Equal(x, C(1)(U8))(),
+        C(1)(I9),
+        Div(C(3)(I9), Sum(C(1)(I9), Prod(C(-1)(I9), ToSigned(x)())())())()
       )()
     assert(lpe(e1) == expected1)
 
     val e2 = Mux(x <= 0, C(0)(U8), 10 / x)()
     val expected2 =
-      Mux(Not(LessThan(C(0)(U8), x)())(), C(0)(U8), Div(C(10)(U8), x)())()
+      Mux(LessThan(C(0)(U8), x)(), Div(C(10)(U8), x)(), C(0)(U8))()
     assert(lpe(e2) == expected2)
   }
 

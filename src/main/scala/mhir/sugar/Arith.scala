@@ -251,11 +251,6 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val terms = this.terms.map(e => e.lower)
-    if (terms.isEmpty) {
-      IntCst(0)(this.typ)
-    } else {
-      val typ = this.typ.asInstanceOf[TyAnyInt]
-      Sum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
-    }
+    MaybeSum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
   }
 }
