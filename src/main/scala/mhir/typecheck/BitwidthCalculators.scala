@@ -1,23 +1,24 @@
-package mhir.ir
-package typecheck
+package mhir.typecheck
+
+import mhir.ir.{TyAnyInt, TySInt, TyUInt}
 
 trait BitwidthCalculators {
 
   implicit class BitwidthCalculatorsImplicit(typ: TyAnyInt) {
 
-    /** See [[mhir.ir.typecheck.TSum]].
+    /** See [[TSum]].
       */
     def +(that: TyAnyInt): TyAnyInt = TSum(this.typ, that)
 
-    /** See [[mhir.ir.typecheck.TProd]].
+    /** See [[TProd]].
       */
     def *(that: TyAnyInt): TyAnyInt = TProd(this.typ, that)
 
-    /** See [[mhir.ir.typecheck.TDiv]].
+    /** See [[TDiv]].
       */
     def /(that: TyAnyInt): TyAnyInt = TDiv(this.typ, that)
 
-    /** See [[mhir.ir.typecheck.TMod]].
+    /** See [[TMod]].
       */
     def %(that: TyAnyInt): TyAnyInt = TMod(this.typ, that)
   }

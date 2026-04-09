@@ -2,8 +2,8 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Uncurrier.Uncurry
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class LoweringTests extends AnyFunSuite {

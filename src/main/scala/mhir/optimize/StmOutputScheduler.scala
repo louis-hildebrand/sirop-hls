@@ -2,9 +2,9 @@ package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.canonicalize._
+import mhir.typecheck.TypeCheck
 
 /** Transformation to split up the output of a stream into at most two steps.
   */

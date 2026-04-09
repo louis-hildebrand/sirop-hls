@@ -2,7 +2,7 @@ package mhir.main.aetherling
 
 import mhir.gen.{verilog, vhdl}
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 /** Inputs and expected outputs to use in tests for each Aetherling benchmark.
   */

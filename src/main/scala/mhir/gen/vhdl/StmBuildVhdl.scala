@@ -3,7 +3,7 @@ package mhir.gen.vhdl
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 import scala.collection.immutable.ListMap
 

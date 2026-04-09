@@ -3,8 +3,8 @@ package mhir.sugar
 import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Streamifier.Streamify
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamifierTests extends AnyFunSuite {

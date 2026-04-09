@@ -2,9 +2,9 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{Cast, ExprLowering}
+import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 

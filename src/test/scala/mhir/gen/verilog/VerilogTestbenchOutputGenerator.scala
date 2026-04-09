@@ -3,7 +3,7 @@ package mhir.gen.verilog
 import mhir.debug.indent
 import mhir.gen.Binary
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 import os.Path
 
 import scala.annotation.tailrec

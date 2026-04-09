@@ -1,5 +1,4 @@
-package mhir.ir
-package typecheck
+package mhir.typecheck
 
 /** Thrown to say that an expression is ill-typed.
   *

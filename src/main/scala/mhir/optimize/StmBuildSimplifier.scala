@@ -3,10 +3,10 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.{ExprLowering, ReshapeData}
+import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 

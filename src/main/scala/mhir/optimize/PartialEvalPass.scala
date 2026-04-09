@@ -3,7 +3,7 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar._
 
 import scala.annotation.tailrec

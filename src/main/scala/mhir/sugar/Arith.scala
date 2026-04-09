@@ -2,7 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TSum, TypeCheck, TypeError}
+import mhir.typecheck.{TSum, TypeCheck, TypeError}
 
 /** A function which computes the sum of two values.
   */

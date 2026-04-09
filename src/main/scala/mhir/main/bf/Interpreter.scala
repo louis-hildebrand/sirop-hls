@@ -2,8 +2,8 @@ package mhir.main.bf
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.ExprLowering
+import mhir.typecheck.TypeCheck
 
 /** An interpreter for the Brainfuck programming language
   * (https://brainfuck.org/).

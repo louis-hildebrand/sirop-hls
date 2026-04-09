@@ -1,6 +1,6 @@
-package mhir.ir
-package typecheck
+package mhir.typecheck
 
+import mhir.ir._
 import org.scalatest.funsuite.AnyFunSuite
 
 class BitWidthCalculatorTests extends AnyFunSuite {

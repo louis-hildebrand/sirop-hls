@@ -5,12 +5,12 @@ import mhir.canonicalize._
 import mhir.eval.Evaluator
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.{time, time2}
 import mhir.optimize.{Optimizer, OptimizerOptions}
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 import os.Path
 

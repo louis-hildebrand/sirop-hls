@@ -1,10 +1,9 @@
 package mhir.optimize
 
-import mhir.sugar.ExprLowering
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar.ExprLowering
 import mhir.testing.ParamStore
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for [[IntConversionMover]].

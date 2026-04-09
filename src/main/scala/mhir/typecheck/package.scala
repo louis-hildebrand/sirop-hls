@@ -1,12 +1,12 @@
-package mhir.ir
+package mhir
 
 import mhir.canonicalize._
+import mhir.ir._
 
 /** The typechecker.
   *
-  * To type check an expression, use the [[mhir.ir.typecheck.TypeCheck.tchk]]
-  * extension method. The implicit class [[mhir.ir.typecheck.TypeCheck]] must be
-  * in scope.
+  * To type check an expression, use the [[TypeCheck.tchk]] extension method.
+  * The implicit class [[TypeCheck]] must be in scope.
   *
   * @example
   *

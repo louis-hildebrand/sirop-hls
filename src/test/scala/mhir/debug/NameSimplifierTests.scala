@@ -3,8 +3,8 @@ package mhir.debug
 import mhir.canonicalize._
 import mhir.debug.{NameSimplifier => NS}
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class NameSimplifierTests extends AnyFunSuite {

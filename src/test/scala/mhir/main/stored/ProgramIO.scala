@@ -3,7 +3,7 @@ package mhir.main.stored
 import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, PositionalTestIO}
 import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 object ProgramIO {
   def apply(name: String): PositionalTestIO = {

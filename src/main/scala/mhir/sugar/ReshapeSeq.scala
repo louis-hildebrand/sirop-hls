@@ -2,7 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
     extends SyntaxSugar(e)(typ) {

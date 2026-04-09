@@ -2,10 +2,10 @@ package mhir.optimize.experimental
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.StreamFuser.StreamFusion
 import mhir.optimize.{PartialEvalPass => PE, _}
-import mhir.sugar.{ExprLowering, _}
+import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
 

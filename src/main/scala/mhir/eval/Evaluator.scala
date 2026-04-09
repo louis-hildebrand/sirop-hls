@@ -3,8 +3,9 @@ package mhir.eval
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.{Default, ExprLowering}
+import mhir.typecheck.TypeError
 
 import scala.annotation.tailrec
 import scala.language.{existentials, implicitConversions}
@@ -26,8 +27,7 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
     *
     * @param e
     *   the expression to evaluate.
-    *
-    * @throws mhir.ir.typecheck.TypeError
+    * @throws TypeError
     *   if the expression is ill-typed.
     * @throws EvalException
     *   if the evaluator encounters an undefined value <i>and it seems to affect

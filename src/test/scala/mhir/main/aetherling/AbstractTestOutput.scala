@@ -1,9 +1,9 @@
 package mhir.main.aetherling
 
+import mhir.canonicalize._
 import mhir.gen.{verilog, vhdl}
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.canonicalize._
+import mhir.typecheck._
 
 /** A sequence of expected outputs that can be converted to the format required
   * by the VHDL or Verilog testbench generators.

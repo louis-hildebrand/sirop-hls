@@ -1,7 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.canonicalize._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.sugar._
 

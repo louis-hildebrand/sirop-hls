@@ -1,8 +1,8 @@
 package mhir.optimize
 
 import mhir.canonicalize._
+import mhir.typecheck._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 

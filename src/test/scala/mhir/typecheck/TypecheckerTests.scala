@@ -1,7 +1,7 @@
-package mhir.ir
-package typecheck
+package mhir.typecheck
 
 import mhir.canonicalize._
+import mhir.ir._
 import mhir.sugar._
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite

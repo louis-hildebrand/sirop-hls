@@ -4,10 +4,10 @@ import mhir.canonicalize._
 import mhir.debug.{Trace, Tracer, NameSimplifier => NS}
 import mhir.gen.vhdl.DirectTestInput
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.OptimizerOptions
 import mhir.sugar.StmLiteralUtilsImplicit
+import mhir.typecheck._
 
 import java.time.Duration
 

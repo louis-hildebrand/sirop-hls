@@ -1,7 +1,7 @@
 package mhir.optimize.cost
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 object SimpleDelayCostModel {
 

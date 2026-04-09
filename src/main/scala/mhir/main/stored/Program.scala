@@ -2,11 +2,11 @@ package mhir.main.stored
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.main.shared.BadArgsException
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 
 import scala.io.Source
 

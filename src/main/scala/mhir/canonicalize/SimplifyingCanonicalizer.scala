@@ -1,9 +1,9 @@
 package mhir.canonicalize
 
-import mhir.ir.typecheck.TypeCheck
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar.ExprLowering
+import mhir.typecheck.TypeCheck
 
 /** A [[mhir.ir.Canonicalizer]] that works by partially evaluating the
   * expression.

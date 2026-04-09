@@ -2,7 +2,7 @@ package mhir.optimize
 
 import org.scalatest.funsuite.AnyFunSuite
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 class BinOpTreeBalancingPassTests extends AnyFunSuite {
   private val x0 = Param("x0", -1)(I8)

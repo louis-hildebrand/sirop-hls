@@ -3,8 +3,8 @@ package mhir.optimize
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec

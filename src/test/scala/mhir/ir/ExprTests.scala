@@ -1,9 +1,9 @@
 package mhir.ir
 
 import mhir.canonicalize._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.PartialEvalPass
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {

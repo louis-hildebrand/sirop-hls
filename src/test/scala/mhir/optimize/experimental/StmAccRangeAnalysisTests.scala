@@ -2,9 +2,9 @@ package mhir.optimize.experimental
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{ScalarRange, StmAccRange}
 import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRangeAnalysisTests extends AnyFunSuite {

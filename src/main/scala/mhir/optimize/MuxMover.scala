@@ -2,7 +2,7 @@ package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 /** Transformations for moving [[mhir.ir.Mux]]es around in the AST.
   */

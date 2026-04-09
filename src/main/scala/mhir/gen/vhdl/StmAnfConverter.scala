@@ -1,7 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 private sealed trait Binding
 private case class LetInlineBinding(x: Param, e: Expr) extends Binding

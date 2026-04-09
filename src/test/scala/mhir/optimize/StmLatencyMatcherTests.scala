@@ -3,8 +3,8 @@ package mhir.optimize
 import mhir.canonicalize._
 import mhir.eval.CycleCounter
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{ExprLowering, _}
+import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmLatencyMatcherTests extends AnyFunSuite {

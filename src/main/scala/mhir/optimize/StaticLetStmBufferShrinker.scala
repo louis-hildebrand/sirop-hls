@@ -2,9 +2,9 @@ package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
 import mhir.optimize.{LatencyAnalysis => LA}
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
 class StaticLetStmBufferShrinker(

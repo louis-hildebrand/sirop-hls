@@ -2,7 +2,7 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.optimize.StreamFuser.StreamFusion
 import mhir.sugar.Streamifier.Streamify

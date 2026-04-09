@@ -2,7 +2,7 @@ package mhir.optimize
 
 import mhir.eval.EvalException
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 /** Transformations for moving integer conversion primitives ([[mhir.ir.PadTo]],
   * [[mhir.ir.TruncateTo]], [[mhir.ir.ToSigned]], and [[mhir.ir.ToUnsigned]])

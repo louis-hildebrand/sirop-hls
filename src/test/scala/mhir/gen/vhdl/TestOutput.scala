@@ -2,7 +2,7 @@ package mhir.gen
 package vhdl
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 import os.Path
 
 /** A sequence of outputs that a VHDL design under test is expected to produce.

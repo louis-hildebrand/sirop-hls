@@ -2,7 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 
 /** The lowering transformation, which removes syntax sugar from an expression
   * or a type.

@@ -3,7 +3,7 @@ package mhir.sugar
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar.StreamReplicator.StreamReplication
 import mhir.sugar.Streamifier.Streamify
 

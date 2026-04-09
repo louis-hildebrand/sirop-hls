@@ -1,7 +1,7 @@
 package mhir.optimize
 
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 case class FactSet(
     rangeByExpr: Map[Expr, Range] = Map(),

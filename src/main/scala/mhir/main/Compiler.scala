@@ -3,7 +3,7 @@ package mhir.main
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.logging.time2
 import mhir.main.aetherling.{
   Args => AetherlingArgs,

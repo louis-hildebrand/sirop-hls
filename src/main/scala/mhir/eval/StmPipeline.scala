@@ -3,8 +3,8 @@ package mhir.eval
 import mhir.ir._
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.typecheck.TypeError
 import mhir.sugar._
+import mhir.typecheck.TypeError
 
 /** A streaming pipeline.
   *
@@ -12,7 +12,6 @@ import mhir.sugar._
   *   this class is mutable so that there can be circular references between the
   *   pipeline and its nodes. The pipeline should not actually be mutated after
   *   construction.
-  *
   * @param connections
   *   a directed graph representing the connections between nodes.
   * @param nodes
