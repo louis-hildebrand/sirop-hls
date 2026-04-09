@@ -174,7 +174,7 @@ object VhdlWriter {
         for (name <- c.VhdNames) {
           os.write.over(
             dir / name,
-            Source.fromResource(s"mhir/gen/vhdl/${c.VhdNames}").mkString
+            Source.fromResource(s"mhir/gen/vhdl/$name").mkString
           )
         }
       case c: CustomVhdlComponent =>
