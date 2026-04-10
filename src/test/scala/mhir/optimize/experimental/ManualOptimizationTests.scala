@@ -5,6 +5,7 @@ import mhir.ir._
 import mhir.optimize.StreamFuser.StreamFusion
 import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
+import mhir.sugar.experimental.{StmFold, StmScanInclusive, VecFoldSeq}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow

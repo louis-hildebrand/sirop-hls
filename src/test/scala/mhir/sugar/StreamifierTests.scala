@@ -4,6 +4,7 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.sugar.Streamifier.Streamify
+import mhir.sugar.experimental.StmFold
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 

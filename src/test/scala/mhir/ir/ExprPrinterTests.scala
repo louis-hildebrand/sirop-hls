@@ -2,6 +2,7 @@ package mhir.ir
 
 import mhir.canonicalize._
 import mhir.sugar._
+import mhir.sugar.experimental.StmFold
 import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 

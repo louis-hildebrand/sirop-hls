@@ -8,6 +8,7 @@ import mhir.optimize.StreamFuser.StreamFusion
 import mhir.optimize.{StmBuildSimplifier, StmSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
+import mhir.sugar.experimental.{StmFold, StmScanExclusive, StmScanInclusive}
 import mhir.testing.HardwareTest
 import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
