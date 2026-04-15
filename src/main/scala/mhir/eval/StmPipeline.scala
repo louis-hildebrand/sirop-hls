@@ -219,7 +219,7 @@ object StmPipeline {
       n = n,
       acc = accumulators.map({
         case (x, (Undefined(typ), _)) =>
-          logger.info(
+          logger.debug(
             s"Undefined initial value for accumulator $x will be replaced by default value."
               + " I hope you know what you're doing."
           )
