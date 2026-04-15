@@ -455,7 +455,7 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     StmBuild(
       1,
       VecShiftLeft(v, StmData(p)())().tchk().lower,
-      (Sum(C(1)(i.typ), i)() === n).tchk().lower,
+      (Sum(C(1)(i.typ), i)() >= n).tchk().lower,
       Map[Param, (Expr, Expr)](
         p -> (s, True),
         v -> (
