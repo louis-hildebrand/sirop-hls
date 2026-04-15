@@ -1,7 +1,7 @@
 package mhir.debug
 
+import mhir.eval._
 import mhir.ir.DiGraph
-import mhir.ir.evaluate._
 import os.Path
 
 /** A step-by-step account of the execution of a pipeline.

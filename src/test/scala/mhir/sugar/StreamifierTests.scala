@@ -1,46 +1,47 @@
 package mhir.sugar
 
+import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.sugar.Streamifier.Streamify
+import mhir.sugar.experimental.StmFold
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamifierTests extends AnyFunSuite {
   test("u8") {
     val e = C(42)(U8)
-    val actual = e.streamify().tchk().lower()
+    val actual = e.streamify.tchk().lower
     val expected = StmLiteral(e)()
-    assert(mhir.ir.eval(actual) == expected)
+    assert(mhir.eval.eval(actual) == expected)
     VhdlGenerator.validateExpr(actual)
   }
 
   test("Vec[bool, 20]") {
-    val e = VecBuild(20, U8 ::+ (i => i))().tchk().lower()
-    val actual = e.streamify().tchk().lower()
-    val expected = mhir.ir.eval(StmLiteral(e)())
-    assert(mhir.ir.eval(actual) == expected)
+    val e = VecBuild(20, U8 ::+ (i => i))().tchk().lower
+    val actual = e.streamify.tchk().lower
+    val expected = mhir.eval.eval(StmLiteral(e)())
+    assert(mhir.eval.eval(actual) == expected)
     VhdlGenerator.validateExpr(actual)
   }
 
   test("u8 -> u8") {
-    val f = (U8 ::+ (x => x + C(42)(U8))).tchk().lower()
-    val actual = f.streamify().asInstanceOf[Function]
+    val f = (U8 ::+ (x => x + C(42)(U8))).tchk().lower
+    val actual = f.streamify.asInstanceOf[Function]
     val examples = Seq(
       (StmLiteral(C(0)(U8))(), StmLiteral(C(42)(U8))()),
       (StmLiteral(C(99)(U8))(), StmLiteral(C(141)(U8))())
     )
     for ((in, out) <- examples) {
-      val actualVal = mhir.ir.eval(LetStm(1, actual.param, in, actual.body)())
+      val actualVal = mhir.eval.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
     VhdlGenerator.validateExpr(actual)
   }
 
   test("i16 -> i16 -> i16") {
-    val f = PlusFunction(I16).tchk().lower()
-    val actual = f.streamify().asInstanceOf[Function]
+    val f = PlusFunction(I16).tchk().lower
+    val actual = f.streamify.asInstanceOf[Function]
     val examples = Seq(
       (-1, 42, 41),
       (-100, 99, -1)
@@ -54,7 +55,7 @@ class StreamifierTests extends AnyFunSuite {
       val in1Stm = StmLiteral(C(in1)(I16))()
       val in2Stm = StmLiteral(C(in2)(I16))()
       val actualVal =
-        mhir.ir.eval(LetStm(1, x1, in1Stm, LetStm(1, x2, in2Stm, body)())())
+        mhir.eval.eval(LetStm(1, x1, in1Stm, LetStm(1, x2, in2Stm, body)())())
       val expectedVal = StmLiteral(C(out)(I16))()
       assert(actualVal == expectedVal)
     }
@@ -76,9 +77,9 @@ class StreamifierTests extends AnyFunSuite {
           )
         )()
       }
-      Function(s, map)().tchk().lower()
+      Function(s, map)().tchk().lower
     }
-    val actual = f.streamify().asInstanceOf[Function]
+    val actual = f.streamify.asInstanceOf[Function]
     val examples = Seq(
       (
         StmLiteral((0 until n).map(t => C(t)(U8)): _*)(),
@@ -90,15 +91,15 @@ class StreamifierTests extends AnyFunSuite {
       )
     )
     for ((in, out) <- examples) {
-      val actualVal = mhir.ir.eval(LetStm(1, actual.param, in, actual.body)())
+      val actualVal = mhir.eval.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
     VhdlGenerator.validateExpr(actual)
   }
 
   test("(x : Stm[u8, 10]) => (y : Stm[u8, 10]) => x") {
-    val f = (TyStm(U8, 10) ::+ (x => TyStm(U8, 10) ::+ (_ => x))).tchk().lower()
-    val actual = f.streamify()
+    val f = (TyStm(U8, 10) ::+ (x => TyStm(U8, 10) ::+ (_ => x))).tchk().lower
+    val actual = f.streamify
     val expected =
       (TyStm(U8, 10) ::+ (x =>
         TyStm(U8, 10) ::+ (_ =>
@@ -109,14 +110,14 @@ class StreamifierTests extends AnyFunSuite {
             Map[Param, (Expr, Expr)](x -> (x, True))
           )()
         )
-      )).tchk().lower()
+      )).tchk().lower
     assert(actual == expected)
     VhdlGenerator.validateExpr(actual)
   }
 
   test("(x : Stm[u8, 10]) => (y : Stm[u8, 10]) => y") {
-    val f = (TyStm(U8, 10) ::+ (_ => TyStm(U8, 10) ::+ (y => y))).tchk().lower()
-    val actual = f.streamify()
+    val f = (TyStm(U8, 10) ::+ (_ => TyStm(U8, 10) ::+ (y => y))).tchk().lower
+    val actual = f.streamify
     val expected =
       (TyStm(U8, 10) ::+ (_ =>
         TyStm(U8, 10) ::+ (y =>
@@ -127,7 +128,7 @@ class StreamifierTests extends AnyFunSuite {
             Map[Param, (Expr, Expr)](y -> (y, True))
           )()
         )
-      )).tchk().lower()
+      )).tchk().lower
     assert(actual == expected)
     VhdlGenerator.validateExpr(actual)
   }
@@ -143,13 +144,14 @@ class StreamifierTests extends AnyFunSuite {
           i -> (c, i + C(1)(U8))
         )
       )()
-    )).tchk().lower()
-    val actual = f.streamify().asInstanceOf[Function]
+    )).tchk().lower
+    val actual = f.streamify.asInstanceOf[Function]
     val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
     for (c <- examples) {
       val cStm = StmLiteral(c)()
-      val actualVal = mhir.ir.eval(LetStm(1, actual.param, cStm, actual.body)())
-      val expectedVal = mhir.ir.eval(f(c))
+      val actualVal =
+        mhir.eval.eval(LetStm(1, actual.param, cStm, actual.body)())
+      val expectedVal = mhir.eval.eval(f(c))
       assert(actualVal == expectedVal)
     }
     VhdlGenerator.validateExpr(actual)
@@ -159,12 +161,12 @@ class StreamifierTests extends AnyFunSuite {
     val n = 7
     val f = (U8 ::+ (c => StmZip(StmCst(n, c)(), StmRange(n, c, C(1)(U8))())()))
       .tchk()
-      .lower()
-    val actual = f.streamify()
+      .lower
+    val actual = f.streamify
     val examples = Seq(C(0)(U8), C(42)(U8), C(200)(U8))
     for (c <- examples) {
-      val actualVal = mhir.ir.eval(actual(StmLiteral(c)()))
-      val expectedVal = mhir.ir.eval(f(c))
+      val actualVal = mhir.eval.eval(actual(StmLiteral(c)()))
+      val expectedVal = mhir.eval.eval(f(c))
       assert(actualVal == expectedVal)
     }
     VhdlGenerator.validateExpr(actual)
@@ -192,16 +194,17 @@ class StreamifierTests extends AnyFunSuite {
           )
         )()
       }
-      Function(c, concat)().tchk().lower()
+      Function(c, concat)().tchk().lower
     }
-    val actual = f.streamify().asInstanceOf[Function]
+    val actual = f.streamify.asInstanceOf[Function]
 
     // Check correct behaviour
     val examples = Seq(0, 42, 200).map(C(_)(U8))
     for (c <- examples) {
       val cStm = StmLiteral(c)()
-      val actualVal = mhir.ir.eval(LetStm(1, actual.param, cStm, actual.body)())
-      val expectedVal = mhir.ir.eval(f(c))
+      val actualVal =
+        mhir.eval.eval(LetStm(1, actual.param, cStm, actual.body)())
+      val expectedVal = mhir.eval.eval(f(c))
       assert(actualVal == expectedVal)
     }
 
@@ -247,7 +250,7 @@ class StreamifierTests extends AnyFunSuite {
           )
         )()
       }
-      Function(c, LetStm(1, c, c, concat)())().tchk().lower()
+      Function(c, LetStm(1, c, c, concat)())().tchk().lower
     }
     assert(actual == expected)
 
@@ -268,17 +271,17 @@ class StreamifierTests extends AnyFunSuite {
         b -> (True, !b)
       )
     )()
-    val originalFunc = Function(even, originalStm)().tchk().lower()
-    val streamifiedFunc = originalFunc.streamify()
+    val originalFunc = Function(even, originalStm)().tchk().lower
+    val streamifiedFunc = originalFunc.streamify
 
-    val expectedF = mhir.ir.eval(originalFunc(False))
+    val expectedF = mhir.eval.eval(originalFunc(False))
     val actualF =
-      mhir.ir.eval(streamifiedFunc(StmCst(1, False)().tchk().lower()))
+      mhir.eval.eval(streamifiedFunc(StmCst(1, False)().tchk().lower))
     assert(actualF == expectedF)
 
-    val expectedT = mhir.ir.eval(originalFunc(True))
+    val expectedT = mhir.eval.eval(originalFunc(True))
     val actualT =
-      mhir.ir.eval(streamifiedFunc(StmCst(1, True)().tchk().lower()))
+      mhir.eval.eval(streamifiedFunc(StmCst(1, True)().tchk().lower))
     assert(actualT == expectedT)
   }
 
@@ -298,17 +301,17 @@ class StreamifierTests extends AnyFunSuite {
         evenAcc -> (even, evenAcc)
       )
     )()
-    val originalFunc = Function(even, originalStm)().tchk().lower()
-    val streamifiedFunc = originalFunc.streamify()
+    val originalFunc = Function(even, originalStm)().tchk().lower
+    val streamifiedFunc = originalFunc.streamify
 
-    val expectedF = mhir.ir.eval(originalFunc(False))
+    val expectedF = mhir.eval.eval(originalFunc(False))
     val actualF =
-      mhir.ir.eval(streamifiedFunc(StmCst(1, False)().tchk().lower()))
+      mhir.eval.eval(streamifiedFunc(StmCst(1, False)().tchk().lower))
     assert(actualF == expectedF)
 
-    val expectedT = mhir.ir.eval(originalFunc(True))
+    val expectedT = mhir.eval.eval(originalFunc(True))
     val actualT =
-      mhir.ir.eval(streamifiedFunc(StmCst(1, True)().tchk().lower()))
+      mhir.eval.eval(streamifiedFunc(StmCst(1, True)().tchk().lower))
     assert(actualT == expectedT)
   }
 
@@ -316,15 +319,15 @@ class StreamifierTests extends AnyFunSuite {
     val n = 10
     val f = (U8 ::+ (c => TyStm(I16, n) ::+ (s => StmZip(StmCst(n, c)(), s)())))
       .tchk()
-      .lower()
-    val actual = f.streamify()
+      .lower
+    val actual = f.streamify
     val examples = Seq(
       (C(42)(U8), StmLiteral((0 until n).map(t => C(t - 5)(I16)): _*)()),
       (C(99)(U8), StmLiteral((0 until n).map(t => C(t * t)(I16)): _*)())
     )
     for ((c, s) <- examples) {
-      val actualVal = mhir.ir.eval(actual(StmLiteral(c)())(s))
-      val expectedVal = mhir.ir.eval(f(c)(s))
+      val actualVal = mhir.eval.eval(actual(StmLiteral(c)())(s))
+      val expectedVal = mhir.eval.eval(f(c)(s))
       assert(actualVal == expectedVal)
     }
     VhdlGenerator.validateExpr(actual)
@@ -334,15 +337,15 @@ class StreamifierTests extends AnyFunSuite {
     val n = 10
     val f = (U32 ::+ (c =>
       TyStm(I16, n) ::+ (s => StmZip(s, StmRange(n, c, C(1)(U32))())())
-    )).tchk().lower()
-    val actual = f.streamify()
+    )).tchk().lower
+    val actual = f.streamify
     val examples = Seq(
       (C(42)(U32), StmLiteral((0 until n).map(t => C(t - 5)(I16)): _*)()),
       (C(999)(U32), StmLiteral((0 until n).map(t => C(t * t)(I16)): _*)())
     )
     for ((c, s) <- examples) {
-      val actualVal = mhir.ir.eval(actual(StmLiteral(c)())(s))
-      val expectedVal = mhir.ir.eval(f(c)(s))
+      val actualVal = mhir.eval.eval(actual(StmLiteral(c)())(s))
+      val expectedVal = mhir.eval.eval(f(c)(s))
       assert(actualVal == expectedVal)
     }
     VhdlGenerator.validateExpr(actual)
@@ -367,16 +370,16 @@ class StreamifierTests extends AnyFunSuite {
             )()
           )()
         )
-      )).tchk().lower()
+      )).tchk().lower
     }
-    val actual = f.streamify()
+    val actual = f.streamify
     val examples = Seq(
       (C(42)(U16), StmLiteral((0 until n).map(t => C(t - 5)(I8)): _*)()),
       (C(999)(U16), StmLiteral((0 until n).map(t => C(t * t)(I8)): _*)())
     )
     for ((c, s) <- examples) {
-      val actualVal = mhir.ir.eval(actual(StmLiteral(c)())(s))
-      val expectedVal = mhir.ir.eval(f(c)(s))
+      val actualVal = mhir.eval.eval(actual(StmLiteral(c)())(s))
+      val expectedVal = mhir.eval.eval(f(c)(s))
       assert(actualVal == expectedVal)
     }
     VhdlGenerator.validateExpr(actual)
@@ -386,8 +389,8 @@ class StreamifierTests extends AnyFunSuite {
   test("FreeVar:u8") {
     val n = 11
     val c = Param("c")(U8)
-    val original = StmBuild(n, c, True)().tchk().lower()
-    val actual = original.streamify()
+    val original = StmBuild(n, c, True)().tchk().lower
+    val actual = original.streamify
     assert(actual == original)
   }
 
@@ -403,16 +406,16 @@ class StreamifierTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         acc -> (s, True)
       )
-    )().tchk().lower()
-    val actual = original.streamify()
+    )().tchk().lower
+    val actual = original.streamify
     assert(actual == original)
   }
 
   // The length of the top-level stream must not depend on any input.
   // If it did, what expression would we use to represent the stream's type?
   test("TopStreamLengthDependingOnInput") {
-    val f = (U8 ::+ (n => StmCount(n)())).tchk().lower()
-    val exc = intercept[IllegalArgumentException](f.streamify())
+    val f = (U8 ::+ (n => StmCount(n)())).tchk().lower
+    val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
   }
 
@@ -422,16 +425,16 @@ class StreamifierTests extends AnyFunSuite {
   test("ProducerStreamLengthDependingOnInput") {
     val f = (U8 ::+ (n => StmFold(StmCount(n)(), C(0)(U8), PlusFunction(U8))()))
       .tchk()
-      .lower()
-    val exc = intercept[IllegalArgumentException](f.streamify())
+      .lower
+    val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
   }
 
   test("VecLengthDependingOnInput") {
     val f = (U8 ::+ (n => StmCst(1, VecBuild(n, U8 ::+ (i => i + 1))())()))
       .tchk()
-      .lower()
-    val exc = intercept[IllegalArgumentException](f.streamify())
+      .lower
+    val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
   }
 }

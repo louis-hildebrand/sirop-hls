@@ -1,9 +1,10 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
 class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {

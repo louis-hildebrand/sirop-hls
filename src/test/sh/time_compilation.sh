@@ -12,6 +12,6 @@ time (
     && ./aetherling_generate.py --skip-sbt --skip-verilog --skip-synth
 )
 
-./ablation_extract_compile_time.py
+./ablation_extract_compile_time.py --lvl all except_letstm_simpl except_fuse except_fission
 ./shir_extract_compile_time.py
 ./aetherling_extract_compile_time.py

@@ -1,6 +1,7 @@
 package mhir.parse
 package sirop
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite

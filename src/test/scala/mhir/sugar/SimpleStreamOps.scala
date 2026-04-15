@@ -1,8 +1,8 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck._
 
 import scala.annotation.tailrec
 
@@ -32,7 +32,7 @@ object SimpleCount {
       i,
       True,
       Map[Param, (Expr, Expr)](i -> (C(0)(n.typ), Sum(C(1)(n.typ), i)()))
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 
@@ -47,7 +47,7 @@ object SimpleMap {
       Map[Param, (Expr, Expr)](
         sAcc -> (input, True)
       )
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 
@@ -77,7 +77,7 @@ object SimpleZip {
         .zip(inputs)
         .map({ case (acc, in) => acc -> (in, True) })
         .toMap
-    )().tchk().lower()
+    )().tchk().lower
   }
 }
 

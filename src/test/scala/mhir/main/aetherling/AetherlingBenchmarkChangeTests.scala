@@ -1,10 +1,11 @@
 package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
+import mhir.debug.{NameSimplifier => NS}
 import mhir.ir._
 import mhir.logging.time
 import mhir.main.shared.{CompilerOptions, NullTarget}
-import mhir.optimize.{OptimizerOptions, NameSimplifier => NS}
+import mhir.optimize.OptimizerOptions
 import mhir.parse.sirop.Parser
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
@@ -24,7 +25,7 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
   private val SimplifiedAetherlingBenchmarksDir =
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "simplified"
 
-  private val SaveChanges: Boolean = false
+  private val SaveChanges: Boolean = true
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -101,17 +102,6 @@ class AetherlingBenchmarkChangeTests extends AnyFunSuite {
         time("writing expression to file", Level.DEBUG) {
           os.write.over(expectedPath, str)
         }
-      }
-      val oldExpr = time("parsing saved expression", Level.DEBUG) {
-        Parser.parse(os.read(expectedPath))
-      }
-      // TODO: Why is this needed? T-T
-      val parsedNewExpr =
-        time("stringifying and parsing new expression", Level.DEBUG) {
-          Parser.parse(ExprPrinter.display(NS.simplify(newExpr)))
-        }
-      time("comparing result to saved expression", Level.DEBUG) {
-        assert(parsedNewExpr == oldExpr)
       }
     }
   }

@@ -29,7 +29,7 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
     os.pwd / "src" / "test" / "resources" / "aetherling_benchmarks" / "verilog"
   private val VhdlDir = os.pwd / "src" / "test" / "vhdl"
   private val VerilogDir = os.pwd / "src" / "test" / "verilog"
-  private val TimeLimit: String = "0" // 0 means no timeout
+  private val TimeLimit: String = "2m" // 0 would mean no timeout
 
   private val AllBenchmarks: Seq[String] =
     os.list(AetherlingBenchmarksDir).map(_.baseName)

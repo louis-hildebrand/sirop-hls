@@ -1,7 +1,5 @@
 package mhir.ir
 
-import mhir.ir.typecheck.TypeError
-
 import java.util.concurrent.atomic.AtomicLong
 
 /** A node in the IR.
@@ -45,16 +43,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     */
   def hasType: Boolean = this.typ != Missing
 
-  if (this.hasType) {
-    // This allows the type checker to completely skip expressions that already
-    // have a type
-    for ((e, i) <- this.children.zipWithIndex) {
-      assert(
-        e.hasType,
-        s"a typed node must have typed children, but child $i in ${this.getClass.getSimpleName} is untyped"
-      )
-    }
-  }
+  assert(
+    !this.hasType || this.children.forall(_.hasType),
+    s"a typed Expr must have typed children, but a child of $className has no type"
+  )
 
   lazy val hasSyntaxSugar: Boolean = {
     this match {
@@ -232,9 +224,13 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
-          this.body.subAndEraseType(this.param -> fresh.rebuild(this.param.typ))
+          this.body.subAndEraseType(
+            this.param -> fresh.rebuild(this.param.typ)
+          )(NoOpCanonicalizer)
         val thatRenamed =
-          that.body.subAndEraseType(that.param -> fresh.rebuild(that.param.typ))
+          that.body.subAndEraseType(
+            that.param -> fresh.rebuild(that.param.typ)
+          )(NoOpCanonicalizer)
         thisRenamed == thatRenamed
       case _ => false
     }
@@ -247,7 +243,7 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     this.body
       .subAndEraseType(
         this.param -> Function.HashCodeParam.rebuild(this.param.typ)
-      )
+      )(NoOpCanonicalizer)
       .hashCode
   }
 }
@@ -303,7 +299,9 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
         throw OverflowException(i, int)
       }
     case t =>
-      throw new TypeError(s"Invalid type $t for integer constant.")
+      throw new IllegalArgumentException(
+        s"Invalid type $t for integer constant."
+      )
   }
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -337,30 +335,26 @@ object C {
   * @param terms
   *   the expressions to add up.
   */
-case class Sum(terms: Expr*)(typ: Type) extends IntExpr(terms: _*)(typ) {
-  require(terms.length >= 2, "Sum must have at least two terms.")
+case class Sum(terms: Expr*)(typ: Type = Missing)
+    extends IntExpr(terms: _*)(typ) {
+  require(terms.length >= 2, s"$className must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Sum(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[Sum]].
+/** Smarter factory for [[Sum]].
   */
-case object Sum {
+object MaybeSum {
 
-  /** Constructs an expression representing the sum of the given terms.
-    *
-    * @note
-    *   the expression for the sum is not necessarily a [[Sum]].
+  /** Constructs a [[Sum]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new Sum(terms.sorted(ExprOrdering): _*)(typ)
+      case terms  => Sum(terms: _*)(typ)
     }
   }
 }
@@ -373,30 +367,26 @@ case object Sum {
   * @param factors
   *   the expressions to multiply.
   */
-case class Prod(factors: Expr*)(typ: Type) extends IntExpr(factors: _*)(typ) {
-  require(factors.length >= 2, "Prod must have at least two factors.")
+case class Prod(factors: Expr*)(typ: Type = Missing)
+    extends IntExpr(factors: _*)(typ) {
+  require(factors.length >= 2, s"$className must have at least two factors.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     Prod(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[Prod]].
+/** Smarter factory for [[Prod]].
   */
-case object Prod {
+object MaybeProd {
 
-  /** Constructs an expression representing the product of the given factors.
-    *
-    * @note
-    *   the expression for the product is not necessarily a [[Prod]].
+  /** Constructs a [[Prod]], but only if at least two factors are given.
     */
   def apply(factors: Expr*)(typ: Type = Missing): Expr = {
     factors match {
       case Seq()   => IntCst(1)(typ)
       case Seq(e)  => e
-      case factors =>
-        // Sorting makes the tests less brittle
-        new Prod(factors.sorted(ExprOrdering): _*)(typ)
+      case factors => Prod(factors: _*)(typ)
     }
   }
 }
@@ -439,28 +429,24 @@ case class Mod(e1: Expr, e2: Expr)(typ: Type = Missing)
   */
 case class WrappingSum(terms: Expr*)(typ: Type = Missing)
     extends IntExpr(terms: _*)(typ) {
+  assert(terms.length >= 2, s"$className must have at least two terms.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     WrappingSum(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[WrappingSum]].
+/** Smarter factory for [[WrappingSum]].
   */
-object WrappingSum {
+object MaybeWrappingSum {
 
-  /** Constructs an expression representing the sum of the given terms, with
-    * overflow wrapping around as usual in 2's complement.
-    *
-    * @note
-    *   the expression for the sum is not necessarily a [[WrappingSum]].
+  /** Constructs a [[WrappingSum]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => IntCst(0)(typ)
       case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new WrappingSum(terms.sorted(ExprOrdering): _*)(typ)
+      case terms  => WrappingSum(terms: _*)(typ)
     }
   }
 }
@@ -491,28 +477,24 @@ case class WrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
   */
 case class WrappingProd(factors: Expr*)(typ: Type = Missing)
     extends IntExpr(factors: _*)(typ) {
+  assert(factors.length >= 2, s"$className must have at least two factors.")
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     WrappingProd(newChildren: _*)(typ)
   }
 }
 
-/** Companion object for [[WrappingProd]].
+/** Smarter factory for [[WrappingProd]].
   */
-object WrappingProd {
+object MaybeWrappingProd {
 
-  /** Constructs an expression representing the product of the given
-    * expressions, with overflow wrapping around as usual in 2's complement.
-    *
-    * @note
-    *   the expression for the product is not necessarily a [[WrappingProd]].
+  /** Constructs a [[WrappingProd]], but only if at least two factors are given.
     */
-  def apply(terms: Expr*)(typ: Type = Missing): Expr = {
-    terms match {
-      case Seq()  => IntCst(1)(typ)
-      case Seq(e) => e
-      case terms  =>
-        // Sorting makes the tests less brittle
-        new WrappingProd(terms.sorted(ExprOrdering): _*)(typ)
+  def apply(factors: Expr*)(typ: Type = Missing): Expr = {
+    factors match {
+      case Seq()   => IntCst(1)(typ)
+      case Seq(e)  => e
+      case factors => WrappingProd(factors: _*)(typ)
     }
   }
 }
@@ -700,25 +682,12 @@ case object False extends BoolCst
   * @param f
   *   what to return if the condition evaluates to [[False]].
   */
-case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type)
+case class Mux(c: Expr, t: Expr, f: Expr)(typ: Type = Missing)
     extends Expr(c, t, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(c, t, f) => Mux(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
-/** Companion object for [[Mux]].
-  */
-case object Mux {
-  def apply(c: Expr, t: Expr, f: Expr)(
-      typ: Type = Missing
-  ): Mux = {
-    c match {
-      case Not(c) => new Mux(c, f, t)(typ)
-      case c      => new Mux(c, t, f)(typ)
     }
   }
 }
@@ -771,24 +740,13 @@ case class Not(e: Expr)(typ: Type = Missing) extends BoolExpr(e)(typ) {
   }
 }
 
-/** Companion object for [[Mux]].
-  */
-case object Not {
-  def apply(e: Expr)(typ: Type = Missing): Not = {
-    if (typ == Missing && e.typ == TyBool) {
-      new Not(e)(TyBool)
-    } else {
-      new Not(e)(typ)
-    }
-  }
-}
-
 /** Logical AND.
   *
   * @param terms
   *   the operands.
   */
-case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+case class And(terms: Expr*)(typ: Type = Missing)
+    extends BoolExpr(terms: _*)(typ) {
   require(terms.length >= 2, "And must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -804,28 +762,17 @@ case class And(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 
-/** Companion object for [[And]].
+/** Smarter factory for [[And]].
   */
-case object And {
+object MaybeAnd {
 
-  /** Constructs an expression representing the logical conjunction of the given
-    * terms.
-    *
-    * @note
-    *   the returned expression is not necessarily an [[And]].
+  /** Constructs an [[And]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => True
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-          TyBool
-        } else {
-          typ
-        }
-        // Sorting makes the tests less brittle
-        new And(terms.sorted(ExprOrdering): _*)(newTyp)
+      case terms  => And(terms: _*)(typ)
     }
   }
 }
@@ -835,7 +782,8 @@ case object And {
   * @param terms
   *   the operands.
   */
-case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
+case class Or(terms: Expr*)(typ: Type = Missing)
+    extends BoolExpr(terms: _*)(typ) {
   require(terms.length >= 2, "Or must have at least two terms.")
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
@@ -851,28 +799,17 @@ case class Or(terms: Expr*)(typ: Type) extends BoolExpr(terms: _*)(typ) {
   }
 }
 
-/** Companion object for [[Or]].
+/** Smarter factory for [[Or]].
   */
-case object Or {
+object MaybeOr {
 
-  /** Constructs an expression representing the logical disjunction of the given
-    * terms.
-    *
-    * @note
-    *   the returned expression is not necessarily an [[Or]].
+  /** Constructs an [[Or]], but only if at least two terms are given.
     */
   def apply(terms: Expr*)(typ: Type = Missing): Expr = {
     terms match {
       case Seq()  => False
       case Seq(e) => e
-      case terms =>
-        val newTyp = if (typ == Missing && terms.forall(e => e.typ == TyBool)) {
-          TyBool
-        } else {
-          typ
-        }
-        // Sorting makes the tests less brittle
-        new Or(terms.sorted(ExprOrdering): _*)(newTyp)
+      case terms  => Or(terms: _*)(typ)
     }
   }
 }
@@ -889,7 +826,7 @@ case class Undefined(override val typ: Type) extends Expr()(typ) {
 object Undefined {
   def apply(typ: Type): Undefined = {
     if (!typ.isData) {
-      throw new TypeError(
+      throw new IllegalArgumentException(
         s"Cannot construct undefined value for non-data type $typ."
       )
     }
@@ -991,11 +928,11 @@ case class StmBuild(
     val subs: Map[Expr, Expr] =
       this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
     val len = this.n
-    val data = this.data.subAndEraseType(subs)
-    val valid = this.valid.subAndEraseType(subs)
+    val data = this.data.subAndEraseType(subs)(NoOpCanonicalizer)
+    val valid = this.valid.subAndEraseType(subs)(NoOpCanonicalizer)
     val eqns = this.equations.toSeq
       .map({ case (_, (z, next)) =>
-        (z, next.subAndEraseType(subs))
+        (z, next.subAndEraseType(subs)(NoOpCanonicalizer))
       })
     val eqnsBag =
       eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
@@ -1038,18 +975,18 @@ case class StmBuild(
           y -> fresh.rebuild(y.typ)
         })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).subAndEraseType(thisSubs)
-          == that.nextByVar(y).subAndEraseType(thatSubs))
+        (this.nextByVar(x).subAndEraseType(thisSubs)(NoOpCanonicalizer)
+          == that.nextByVar(y).subAndEraseType(thatSubs)(NoOpCanonicalizer))
       })
       val thisOutput =
         (
-          this.data.subAndEraseType(thisSubs),
-          this.valid.subAndEraseType(thisSubs)
+          this.data.subAndEraseType(thisSubs)(NoOpCanonicalizer),
+          this.valid.subAndEraseType(thisSubs)(NoOpCanonicalizer)
         )
       val thatOutput =
         (
-          that.data.subAndEraseType(thatSubs),
-          that.valid.subAndEraseType(thatSubs)
+          that.data.subAndEraseType(thatSubs)(NoOpCanonicalizer),
+          that.valid.subAndEraseType(thatSubs)(NoOpCanonicalizer)
         )
       eqnsMatch && thisOutput == thatOutput
     } else {
@@ -1176,8 +1113,10 @@ case class LetStm(
           this.out == that.out
         } else {
           val fresh = Param("equalsX")()
-          val thisOutRenamed = this.out.subAndEraseType(this.x -> fresh)
-          val thatOutRenamed = that.out.subAndEraseType(that.x -> fresh)
+          val thisOutRenamed =
+            this.out.subAndEraseType(this.x -> fresh)(NoOpCanonicalizer)
+          val thatOutRenamed =
+            that.out.subAndEraseType(that.x -> fresh)(NoOpCanonicalizer)
           thisOutRenamed == thatOutRenamed
         }
       case _ => false
@@ -1285,33 +1224,9 @@ object StmLiteral {
   }
 }
 
-/** Construct a new stream by skipping a certain number of elements within
-  * another stream.
-  *
-  * This construct is <i>not</i> synthesizable in general—stream must be read in
-  * order starting from the beginning, but this allows jumping to a random index
-  * within a stream. However, it is useful for certain optimization passes
-  * (e.g., [[mhir.optimize.StmInductionVarRemovalPass]]).
-  *
-  * @param s
-  *   the original stream.
-  * @param k
-  *   the number of elements to skip.
-  */
-case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
-    typ: Type = Missing
-) extends Expr(s, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s, i) => StmNextK(s, i)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-}
-
 /** A node outside the core IR.
   *
-  * This can be used to define syntax sugar (e.g., [[Let]], [[SmartSum]]).
+  * This can be used to define syntax sugar (e.g., `StmMap`, `VecReduce`).
   */
 abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
@@ -1340,7 +1255,7 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     ExprPrinter.displayFunCallMultiLine(this.className, this.children, maxWidth)
   }
 
-  def typecheck(implicit context: Map[Param, Type]): Expr
+  def typecheck(context: Map[Param, Type])(implicit c: Canonicalizer): Expr
 
   /** Remove syntax sugar from this node and its children.
     *
@@ -1351,13 +1266,17 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     * checked. (This would make it easier to test expressions where lowering
     * does not require the type.)
     */
-  def lowerSyntaxSugar(): Expr
+  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
 
-  def sugarSubAndKeepType(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
   }
 
-  def sugarSubAndEraseType(subs: Map[Expr, Expr]): Expr = {
+  def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
     this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
 }

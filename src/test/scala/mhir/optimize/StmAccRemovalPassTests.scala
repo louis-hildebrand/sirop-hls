@@ -1,8 +1,9 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmAccRemovalPassTests extends AnyFunSuite {
@@ -89,14 +90,14 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a -> (C(1)(U8), Mux(a - 1 === 0, C(1)(U8), b + 42)()),
         b -> (C(1)(U8), b + C(1)(U8))
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     // `a` will always be 1, so the optimizer should be able to get rid of it
     val expected = StmBuild(
       n,
       Tuple(1, b)(),
       True,
       Map[Param, (Expr, Expr)](
-        b -> (1, Sum(C(1)(U8), b)())
+        b -> (1, Sum(b, C(1)(U8))())
       )
     )()
     val actual = StmAccRemovalPass.removeConstantVars(s)
@@ -118,7 +119,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         ),
         b -> (C(2)(U8), Mux(a - 1 === 0 && b + 2 === 4, a + 1, b + 1)())
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val expected = StmBuild(
       n,
       Tuple(1, 2)(),
@@ -136,18 +137,22 @@ class StmAccRemovalPassTests extends AnyFunSuite {
     val c = Param("c")(U8)
     val d = Param("d")(U8)
     val e = Param("e")(TyTuple())
-    val s = StmBuild(
-      n,
-      Prod(a, c, d)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (C(0)(U8), a + C(1)(U8)),
-        b -> (Tuple()(), b),
-        c -> (C(1)(U8), c + C(2)(U8)),
-        d -> (C(2)(U8), d + C(3)(U8)),
-        e -> (Tuple()(), Tuple()())
+    val s = PartialEvalPass
+      .partialEval(
+        StmBuild(
+          n,
+          Prod(a, c, d)(),
+          True,
+          Map[Param, (Expr, Expr)](
+            a -> (C(0)(U8), a + C(1)(U8)),
+            b -> (Tuple()(), b),
+            c -> (C(1)(U8), c + C(2)(U8)),
+            d -> (C(2)(U8), d + C(3)(U8)),
+            e -> (Tuple()(), Tuple()())
+          )
+        )().tchk().lower
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+      .asInstanceOf[StmBuild]
     val expected = StmBuild(
       n,
       Prod(a, c, d)(),
@@ -211,7 +216,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a0 -> (C(0)(U8), a0 + C(1)(U8)),
         a2 -> (C(0)(U32), a2 + C(1)(U32))
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(U8)
     val expected = StmBuild(
       n,
@@ -246,7 +251,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
             Mux(a1 === C(2)(U32), C(0)(U32), Sum(C(1)(U32), a1)())()
           )
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     }
     val expected = {
       val t = Param("t")(u2)
@@ -260,7 +265,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
             Mux(PadTo(t, 32)() === C(2)(U32), C(0)(u2), Sum(C(1)(u2), t)())()
           )
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val actual = StmAccRemovalPass.deduplicateVars(original)
     assert(actual == expected)
@@ -281,7 +286,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a2 -> (C(-10)(I32), a2 + C(1)(I32)),
         a0 -> (C(-10)(I8), a0 + C(1)(I8))
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(I8)
     val expected = StmBuild(
       n,
@@ -313,7 +318,7 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a2 -> (C(0)(u9), a2 + C(1)(u9)),
         a3 -> (C(0)(I9), a3 + C(1)(I9))
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(U8)
     val expected = StmBuild(
       n,

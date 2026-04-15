@@ -1,13 +1,12 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.gen.vhdl.VhdlGenerator
-import mhir.ir.Lowering.ExprLowering
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
+import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
 /** Transformation for converting a non-streaming program to a streaming
@@ -21,15 +20,51 @@ import scala.collection.immutable.ListMap
   *
   * {{{
   *   import mhir.ir.sugar.Streamifier.Streamify
-  *   e.streamify()
+  *   e.streamify
   * }}}
   */
 object Streamifier {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
+  def unwrapTopLevelFunction(
+      f: Expr,
+      rename: Boolean
+  )(implicit c: Canonicalizer): (Seq[Param], Expr) = {
+    @tailrec
+    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
+      e match {
+        case Function(x, e) if x.typ == TyTuple() =>
+          unwrap(e, inputs)
+        case Function(x, e) =>
+          if (rename) {
+            val y = Param(s"I${inputs.length}", -1)(x.typ)
+            // If this assertion fails, then one of the following is true:
+            //  (1) a previous parameter is called the same thing, but that
+            //      should not happen.
+            //  (2) the expression has a free variable, but that's not allowed.
+            assert(x == y || !e.freeVars.contains(y))
+            unwrap(e.subPreserveType(x -> y), y +: inputs)
+          } else {
+            unwrap(e, x +: inputs)
+          }
+        case e =>
+          (inputs, e)
+      }
+    }
+
+    val (inputSeq, stm) = unwrap(f, Seq())
+    if (inputSeq.map(x => x.name).toSet.size != inputSeq.length) {
+      val paramList = inputSeq.reverse.map(x => x.name).mkString(", ")
+      throw new IllegalArgumentException(
+        s"Duplicate parameters in top-level parameter list $paramList."
+      )
+    }
+    (inputSeq.reverse, stm)
+  }
+
   implicit class Streamify(func: Expr) {
-    def streamify(): Expr = {
+    def streamify(implicit c: Canonicalizer): Expr = {
       require(
         this.func.hasType,
         "Expression must be type-checked before it can be streamified."
@@ -40,8 +75,7 @@ object Streamifier {
       )
       time("streamifying", Level.TRACE) {
         logger.trace(s"streamifying expression: ${this.func}")
-        val (inputList, stm) =
-          VhdlGenerator.unwrapTopLevelFunction(this.func, rename = false)
+        val (inputList, stm) = unwrapTopLevelFunction(this.func, rename = false)
         val oldToNewInputs = ListMap(
           inputList.map(x => x -> makeStreamParam(x)): _*
         )
@@ -87,7 +121,7 @@ object Streamifier {
     })
   }
 
-  private def makeStreamParam(x: Param): Param = {
+  private def makeStreamParam(x: Param)(implicit c: Canonicalizer): Param = {
     x.typ match {
       case _: TyStm  => x
       case TyData(t) => x.rebuild(TyStm(t, 1)).asInstanceOf[Param]
@@ -101,7 +135,7 @@ object Streamifier {
   private def streamifyBody(
       stm: Expr,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     require(stm.typ.isInstanceOf[TyStm])
     if (stm.typ.freeVars.intersect(oldToNewInputs.keySet).nonEmpty) {
       throw new IllegalArgumentException(
@@ -134,7 +168,7 @@ object Streamifier {
   private def streamifyScalar2Scalar(
       e: Expr,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     val oldInputs = oldToNewInputs.keys.toSeq
     require(
       oldInputs.forall(x => x.typ.isData), {
@@ -161,7 +195,7 @@ object Streamifier {
   private def streamifyStmBuild(
       originalStm: StmBuild,
       oldToNewInputs: ListMap[Param, Param]
-  ): Expr = {
+  )(implicit c: Canonicalizer): Expr = {
     val withStreamifiedProducers =
       StmBuild(
         originalStm.n,
@@ -301,7 +335,7 @@ object Streamifier {
             case (x, (z, next)) if x.typ.isData =>
               // TODO: Only make the seed default[T] if it actually depends on at
               //       least one input?
-              val newSeed = Undefined(x.typ).lower()
+              val newSeed = Undefined(x.typ).lower
               val newNext = if (haltOnFirstStep) {
                 Mux(
                   isFirstStep,

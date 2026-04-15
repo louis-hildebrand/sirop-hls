@@ -1,11 +1,11 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.testing.ParamStore
-import org.scalatest.funsuite.AnyFunSuite
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.VecReduceComb
+import mhir.sugar._
+import mhir.testing.ParamStore
+import mhir.typecheck._
+import org.scalatest.funsuite.AnyFunSuite
 
 class StmOutputSchedulerTests extends AnyFunSuite {
 
@@ -18,7 +18,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
   /** Simple example where computation is all done in the producer.
     */
   test("x + y") {
-    val e = (x(U8) + y(U8)).tchk().lower()
+    val e = (x(U8) + y(U8)).tchk().lower
     val actual = pass.schedule(e)
     val expected = InProducer(e)
     assert(actual == expected)
@@ -27,7 +27,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
   /** Simple example where computation is split between producer and consumer.
     */
   test("x * y + z") {
-    val e = Sum(Prod(x(U8), y(U8))(), z(U8))().tchk().lower()
+    val e = Sum(Prod(x(U8), y(U8))(), z(U8))().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp0 = Param("tmp0")(U8)
@@ -49,7 +49,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
       False,
       True,
       FixCst(32)(TyFix(U8, 7))
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp = Param("tmp")(U8)
@@ -68,7 +68,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = Tuple(
       Sum(Prod(C(3)(U16), x(U16))(), y(U16))(),
       Sum(Prod(C(5)(U16), x(U16))(), y(U16))()
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp0 = Param("tmp0")(U16)
@@ -92,7 +92,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = VecBuild(
       n,
       U8 ::+ (i => Sum(Prod(VecAccess(v, i)(), x(U8))(), y(U8))())
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp0 = Param("tmp0")(U8)
@@ -123,7 +123,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
           )
         )()
       )
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp0 = Param("tmp0")(U8)
@@ -159,7 +159,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = FunCall(
       Function(y(U8), Sum(y(U8), z(U8))())(),
       Sum(x(U8), C(1)(U8))()
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = InProducer(e)
     assert(actual == expected)
@@ -177,7 +177,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         Function(x(U8), WrappingDiff(x(U8), C(1)(U8))())(),
         Prod(C(5)(U8), z(U8))()
       )()
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp0 = Param("tmp0")(U8)
@@ -199,7 +199,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = FunCall(
       Function(x(U8), Sum(x(U8), z(U8))())(),
       Sum(Prod(x(U8), y(U8))(), C(1)(U8))()
-    )().tchk().lower()
+    )().tchk().lower
     val actual = pass.schedule(e)
     val expected = {
       val tmp = Param("tmp")(U8)

@@ -2,10 +2,12 @@ package mhir.gen
 package vhdl
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.debug.indent
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
+import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 import os.Path
 
@@ -269,7 +271,7 @@ object VhdlTestbenchGenerator {
     for (xs <- in.elements.grouped(ChunkSize)) {
       val binaryData = xs.map({
         case Some(v) => Binary(v)
-        case None    => Binary(mhir.ir.eval(Default(in.elemTyp)))
+        case None    => Binary(mhir.eval.eval(Default(in.elemTyp)))
       })
       os.write.append(data, binaryData)
 
@@ -758,7 +760,7 @@ object VhdlTestbenchGenerator {
   }
 
   def valueToStdLogicVector(v: Expr): String = {
-    mhir.ir.eval(v).tchk() match {
+    mhir.eval.eval(v).tchk() match {
       case False => "\"0\""
       case True  => "\"1\""
       case c: IntCst =>
@@ -810,7 +812,7 @@ object VhdlTestbenchGenerator {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case let: LetStm => (Seq(), let)
-      case f: Function => VhdlGenerator.unwrapTopLevelFunction(f, rename = true)
+      case f: Function => Streamifier.unwrapTopLevelFunction(f, rename = true)
       case e =>
         throw new IllegalArgumentException(
           s"I don't know how to find expected output for expression $e."
@@ -827,7 +829,7 @@ object VhdlTestbenchGenerator {
         val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
         FunCall(acc, arg)()
       })
-    val evaluated = mhir.ir.eval(substituted).asInstanceOf[StmLiteral]
+    val evaluated = mhir.eval.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
     val outputs = DirectTestOutput(evaluated.elems)
     (outputs, inputByParam)

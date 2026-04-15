@@ -1,7 +1,7 @@
 package mhir.debug
 
+import mhir.eval._
 import mhir.ir._
-import mhir.ir.evaluate._
 import os.Path
 
 /** Provides functions for visualizing a [[Trace]] using

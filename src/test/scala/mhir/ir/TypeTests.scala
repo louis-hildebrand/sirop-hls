@@ -1,6 +1,7 @@
 package mhir.ir
 
-import mhir.ir.Lowering.TypeLowering
+import mhir.canonicalize._
+import mhir.sugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
@@ -74,7 +75,10 @@ class TypeTests extends AnyFunSuite {
   test("IsCompatibleWith:Vec") {
     assert(TyVec(I16, n) ~= TyVec(I16, n))
     assert(TyVec(U8, m) ~= TyVec(U8, m))
-    assert(TyVec(I16, n) ~= TyVec(I16, n + C(2)(U8) + C(-2)(I8)))
+
+    val v1 = TyVec(I16, n)
+    val v2 = TyVec(I16, n + C(2)(U8) + C(-2)(I8))
+    assert(v1 ~= v2)
   }
 
   test("MinInt:SInt") {
@@ -138,7 +142,7 @@ class TypeTests extends AnyFunSuite {
   test("LowerType:Stm[Stm[Int, 3], 4]") {
     val t = TyStm(TyStm(U8, 3), 4)
     val n = t.lower.asInstanceOf[TyStm].n
-    assert(mhir.ir.eval(n) == C(12)())
+    assert(mhir.eval.eval(n) == C(12)())
   }
 
   test("LowerType:Stm[Vec[Int]]") {

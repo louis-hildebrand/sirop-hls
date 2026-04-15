@@ -1,10 +1,10 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.cost.SimpleDelayCostModel
-import mhir.sugar.{StmRange, VecReduceComb}
+import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StmFissionPassTests extends AnyFunSuite {
@@ -16,8 +16,8 @@ class StmFissionPassTests extends AnyFunSuite {
   test("SharpenOne") {
     val n = 9
     val uint = U32
-    val inputA = StmRange(n, C(96)(uint), C(1)(uint))().tchk().lower()
-    val inputB = StmRange(n, C(80)(uint), C(5)(uint))().tchk().lower()
+    val inputA = StmRange(n, C(96)(uint), C(1)(uint))().tchk().lower
+    val inputB = StmRange(n, C(80)(uint), C(5)(uint))().tchk().lower
     val original = {
       val sA = Param("s_a")(TyStm(uint, n))
       val sB = Param("s_b")(TyStm(uint, n))
@@ -36,13 +36,13 @@ class StmFissionPassTests extends AnyFunSuite {
           sA -> (inputA, True),
           sB -> (inputB, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -60,7 +60,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -72,13 +72,13 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -99,7 +99,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -115,13 +115,13 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization
@@ -139,7 +139,7 @@ class StmFissionPassTests extends AnyFunSuite {
       (0 until n).map(t =>
         VecLiteral((0 until m).map(i => C(t + i)(uint)): _*)()
       ): _*
-    )().tchk().lower()
+    )().tchk().lower
     val original = {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
@@ -149,13 +149,13 @@ class StmFissionPassTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
-      )().tchk().lower()
+      )().tchk().lower
     }
     val optimized = pass.fission(original)
 
     // Correct behaviour
-    val originalVal = mhir.ir.eval(original)
-    val optimizedVal = mhir.ir.eval(optimized)
+    val originalVal = mhir.eval.eval(original)
+    val optimizedVal = mhir.eval.eval(optimized)
     assert(optimizedVal == originalVal)
 
     // Effective optimization

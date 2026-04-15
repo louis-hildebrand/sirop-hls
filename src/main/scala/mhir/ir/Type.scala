@@ -1,8 +1,36 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.{TDiv, TMod, TProd, TSum, TypeCheck}
-import mhir.optimize.{PartialEvalPass => PE}
+/** Trait that provides a way of canonicalizing expressions for the sizes of
+  * collections.
+  */
+trait Canonicalizer {
+
+  /** Convert the given expression into a canonical form.
+    *
+    * This is used in [[TyStm]] and [[TyVec]] to ensure the lengths can be
+    * compared directly (e.g., so that `Vec[T, 1+1]` is treated the same as
+    * `Vec[T, 2]`).
+    */
+  def canonicalize(n: Expr): Expr
+
+  /** Conservatively check whether two lengths (e.g., vector sizes) are equal.
+    *
+    * If the result is <code>true</code> then the lengths are definitely equal,
+    * but if the result is <code>False</code> then they may or may not be equal.
+    */
+  def sameLen(n1: Expr, n2: Expr): Boolean
+}
+
+/** A [[Canonicalizer]] that leaves the expression as-is.
+  *
+  * This is acceptable for cases where the expression is known to already be in
+  * canonical form.
+  */
+object NoOpCanonicalizer extends Canonicalizer {
+  override def canonicalize(n: Expr): Expr = n
+
+  override def sameLen(n1: Expr, n2: Expr): Boolean = n1 == n2
+}
 
 /** The type of an expression.
   */
@@ -46,11 +74,13 @@ sealed trait Type {
     *   a map from old expressions (i.e., the ones to be replaced) to new
     *   expressions (i.e., what to replace the old expressions with).
     */
-  def substitute(subs: Map[Expr, Expr]): Type = {
+  def substitute(subs: Map[Expr, Expr])(implicit c: Canonicalizer): Type = {
     this match {
-      case TyVec(t, n)     => TyVec(t.substitute(subs), n.subPreserveType(subs))
-      case TyStm(t, n)     => TyStm(t.substitute(subs), n.subPreserveType(subs))
-      case TyArrow(t1, t2) => TyArrow(t1.substitute(subs), t2.substitute(subs))
+      case TyVec(t, n) =>
+        TyVec(t.substitute(subs), n.subPreserveType(subs))(c)
+      case TyStm(t, n) =>
+        TyStm(t.substitute(subs), n.subPreserveType(subs))(c)
+      case TyArrow(t1, t2)  => TyArrow(t1.substitute(subs), t2.substitute(subs))
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.substitute(subs)): _*)
       case t @ (Missing | TyBool | _: TySInt | _: TyUInt | _: TyFix) => t
     }
@@ -58,7 +88,9 @@ sealed trait Type {
 
   /** Shorthand for [[substitute(subs*]] with just one substitution.
     */
-  def substitute(sub: (Expr, Expr)): Type = substitute(Map(sub))
+  def substitute(sub: (Expr, Expr))(implicit c: Canonicalizer): Type = {
+    substitute(Map(sub))
+  }
 
   /** Finds all the free variables in this type.
     */
@@ -91,8 +123,8 @@ sealed trait Type {
         }
       case TyArrow(t1, t2)  => TyArrow(t1.uncurry, t2.uncurry)
       case TyTuple(ts @ _*) => TyTuple(ts.map(t => t.uncurry): _*)
-      case TyVec(t, n)      => TyVec(t.uncurry, n)
-      case TyStm(t, n)      => TyStm(t.uncurry, n)
+      case TyVec(t, n)      => TyVec(t.uncurry, n)(NoOpCanonicalizer)
+      case TyStm(t, n)      => TyStm(t.uncurry, n)(NoOpCanonicalizer)
     }
   }
 
@@ -114,8 +146,9 @@ sealed trait Type {
           .zip(ts2)
           .forall({ case (t1, t2) => t1 ~= t2 }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        // TODO: Improve check for equality of lengths?
-        (t1 ~= t2) && Type.sameLen(n1, n2)
+        // n1 and n2 are already canonicalized, so we should be able to compare
+        // them syntactically
+        (t1 ~= t2) && (n1 == n2)
       case (TyStm(t1, _), TyStm(t2, _)) =>
         // Two streams are compatible even if they have different lengths!
         t1 ~= t2
@@ -162,19 +195,6 @@ sealed trait Type {
   }
 }
 
-/** Companion object for [[Type]].
-  */
-object Type {
-
-  /** Conservatively whether two lengths (e.g., vector sizes) are equal. If the
-    * result is <code>true</code> then the lengths are definitely equal, but if
-    * the result is <code>False</code> then they may or may not be equal.
-    */
-  def sameLen(e1: Expr, e2: Expr): Boolean = {
-    PE.isEqual(e1.tchk(), e2.tchk())().getOrElse(false)
-  }
-}
-
 /** Placeholder type for an expression which has not been type checked.
   */
 case object Missing extends Type
@@ -186,22 +206,6 @@ case object Missing extends Type
   */
 sealed abstract class TyAnyInt(val w: Int) extends Type {
   require(w >= 0, "Bit width must be non-negative.")
-
-  /** See [[mhir.ir.typecheck.TSum]].
-    */
-  def +(that: TyAnyInt): TyAnyInt = TSum(this, that)
-
-  /** See [[mhir.ir.typecheck.TProd]].
-    */
-  def *(that: TyAnyInt): TyAnyInt = TProd(this, that)
-
-  /** See [[mhir.ir.typecheck.TDiv]].
-    */
-  def /(that: TyAnyInt): TyAnyInt = TDiv(this, that)
-
-  /** See [[mhir.ir.typecheck.TMod]].
-    */
-  def %(that: TyAnyInt): TyAnyInt = TMod(this, that)
 
   /** Construct a new type with the same sign as this one but a width of [[w]].
     *
@@ -413,12 +417,23 @@ case class TyTuple(ts: Type*) extends Type {
   * @param n
   *   the length of the vector.
   */
-case class TyVec(t: Type, n: Expr) extends Type {
+class TyVec(val t: Type, val n: Expr) extends Type {
   require(t != Missing, s"Type in TyVec must not be Missing.")
   require(
     n.hasType,
     s"Length in ${TyVec.getClass.getSimpleName} must have a type."
   )
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TyVec => this.t == that.t && this.n == that.n
+      case _           => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    (this.t, this.n).hashCode()
+  }
 
   override def toString: String = {
     s"Vec[$t, $n]"
@@ -431,9 +446,11 @@ object TyVec {
 
   /** Factory for [[TyVec]].
     */
-  def apply(t: Type, n: Expr): TyVec = {
-    new TyVec(t, PE.partialEval(n.tchk().lower()))
+  def apply(t: Type, n: Expr)(implicit c: Canonicalizer): TyVec = {
+    new TyVec(t, c.canonicalize(n))
   }
+
+  def unapply(t: TyVec): Option[(Type, Expr)] = Some(t.t, t.n)
 }
 
 /** The type of a stream.
@@ -445,11 +462,22 @@ object TyVec {
   * @param n
   *   the length of the stream.
   */
-case class TyStm(t: Type, n: Expr) extends Type {
+class TyStm(val t: Type, val n: Expr) extends Type {
   require(
     n.hasType,
     s"Length in ${TyStm.getClass.getSimpleName} must have a type."
   )
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TyStm => this.t == that.t && this.n == that.n
+      case _           => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    (this.t, this.n).hashCode()
+  }
 
   override def toString: String = {
     s"Stm[$t, $n]"
@@ -462,9 +490,11 @@ object TyStm {
 
   /** Factory for [[TyStm]].
     */
-  def apply(t: Type, n: Expr): TyStm = {
-    new TyStm(t, PE.partialEval(n.tchk().lower()))
+  def apply(t: Type, n: Expr)(implicit c: Canonicalizer): TyStm = {
+    new TyStm(t, c.canonicalize(n))
   }
+
+  def unapply(t: TyStm): Option[(Type, Expr)] = Some(t.t, t.n)
 }
 
 /** The type of an option (like Scala's [[scala.Option]]).
@@ -486,4 +516,56 @@ object TyData {
       None
     }
   }
+}
+
+/** Shorthands for common integer types.
+  */
+trait CommonIntTypes {
+
+  /** The type of a 0-bit unsigned number—i.e., a number which can only be zero.
+    */
+  val U0: TyUInt = TyUInt(0)
+
+  /** The type of an 8-bit unsigned integer.
+    */
+  val U8: TyUInt = TyUInt(8)
+
+  /** The type of a 16-bit unsigned integer.
+    */
+  val U16: TyUInt = TyUInt(16)
+
+  /** The type of a 32-bit unsigned integer.
+    */
+  val U32: TyUInt = TyUInt(32)
+
+  /** The type of an 8-bit signed integer.
+    */
+  val I8: TySInt = TySInt(8)
+
+  /** The type of a 9-bit signed integer. (This is the type of [[ToSigned]] when
+    * the input has type [[U8]].)
+    */
+  val I9: TySInt = TySInt(9)
+
+  /** The type of a 16-bit signed integer.
+    */
+  val I16: TySInt = TySInt(16)
+
+  /** The type of a 17-bit signed integer. (This is the type of [[ToSigned]]
+    * when the input has type [[U16]].)
+    */
+  val I17: TySInt = TySInt(17)
+
+  /** The type of a 32-bit signed integer.
+    */
+  val I32: TySInt = TySInt(32)
+
+  /** The type of a 33-bit signed integer. (This is the type of [[ToSigned]]
+    * when the input has type [[U32]].)
+    */
+  val I33: TySInt = TySInt(33)
+
+  /** Common integer types.
+    */
+  val COMMON_INT_TYPES: Seq[TyAnyInt] = Seq(U8, U16, U32, I8, I16, I32)
 }

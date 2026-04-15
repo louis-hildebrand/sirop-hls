@@ -1,9 +1,10 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class FactSetTests extends AnyFunSuite {
@@ -29,7 +30,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeTrue:-5 + t < 5") {
     val t = Param("t")(U8)
-    val cond = PE.partialEval((-5 + t < 5).tchk().lower())
+    val cond = PE.partialEval((-5 + t < 5).tchk().lower)
     val facts = FactSet().assumeTrue(cond)
     val expectedRange = ScalarRange(Some(0), Some(10))
     val actualRange = facts.getRange(t)
@@ -38,7 +39,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeTrue:10 < x") {
     val x = Param("x")(U16)
-    val cond = PE.partialEval((10 < x).tchk().lower())
+    val cond = PE.partialEval((10 < x).tchk().lower)
     val facts = FactSet().assumeTrue(cond)
     val expectedRange = ScalarRange(Some(11), Some(65536))
     val actualRange = facts.getRange(x)
@@ -47,7 +48,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeFalse:-5 + t < 5") {
     val t = Param("t")(U8)
-    val cond = PE.partialEval((-5 + t < 5).tchk().lower())
+    val cond = PE.partialEval((-5 + t < 5).tchk().lower)
     val facts = FactSet().assumeFalse(cond)
     val expectedRange = ScalarRange(Some(10), Some(256))
     val actualRange = facts.getRange(t)
@@ -56,7 +57,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeFalse:10 < x") {
     val x = Param("x")(U16)
-    val cond = PE.partialEval((10 < x).tchk().lower())
+    val cond = PE.partialEval((10 < x).tchk().lower)
     val facts = FactSet().assumeFalse(cond)
     val expectedRange = ScalarRange(Some(0), Some(11))
     val actualRange = facts.getRange(x)
@@ -65,7 +66,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeTrue:x == -1") {
     val x = Param("x")(I8)
-    val cond = PE.partialEval((x === -1).tchk().lower())
+    val cond = PE.partialEval((x === -1).tchk().lower)
     val facts = FactSet().assumeTrue(cond)
     val expectedRange = ScalarRange(Some(-1), Some(0))
     val actualRange = facts.getRange(x)
@@ -74,7 +75,7 @@ class FactSetTests extends AnyFunSuite {
 
   test("AssumeTrue:42 == x") {
     val x = Param("x")(I8)
-    val cond = PE.partialEval((42 === x).tchk().lower())
+    val cond = PE.partialEval((42 === x).tchk().lower)
     val facts = FactSet().assumeTrue(cond)
     val expectedRange = ScalarRange(Some(42), Some(43))
     val actualRange = facts.getRange(x)

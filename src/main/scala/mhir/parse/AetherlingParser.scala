@@ -1,5 +1,6 @@
 package mhir.parse
 
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar._
 
@@ -368,7 +369,7 @@ object AetherlingParser {
       val suffix2 = expect(suffix1, " ")
       val (e, suffix3) = parseExpr(suffix2, modules)
       val abs = typ.asInstanceOf[TyAnyInt] match {
-        case _: TySInt => Mux(e < 0, -1 * e, e)()
+        case _: TySInt => Mux(e < 0, C(-1)() * e, e)()
         case _: TyUInt => e
       }
       (abs, suffix3)

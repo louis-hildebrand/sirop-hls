@@ -17,7 +17,9 @@ private[ir] trait Substitution {
       *   a map from old expressions (i.e., the ones to be replaced) to new
       *   expressions (i.e., what to replace the old expressions with).
       */
-    def subPreserveType(subs: Map[Expr, Expr]): Expr = {
+    def subPreserveType(
+        subs: Map[Expr, Expr]
+    )(implicit c: Canonicalizer): Expr = {
       // !!!!!!!!!! WARNINGS !!!!!!!!!!
       //
       // Suppose we have a variable binder like Function(x, body).
@@ -158,7 +160,7 @@ private[ir] trait Substitution {
 
     /** See [[subPreserveType(subs*)]].
       */
-    def subPreserveType(sub: (Expr, Expr)*): Expr = {
+    def subPreserveType(sub: (Expr, Expr)*)(implicit c: Canonicalizer): Expr = {
       subPreserveType(Map(sub: _*))
     }
 
@@ -169,7 +171,9 @@ private[ir] trait Substitution {
       *   a map from old expressions (i.e., the ones to be replaced) to new
       *   expressions (i.e., what to replace the old expressions with).
       */
-    def subAndEraseType(subs: Map[Expr, Expr]): Expr = {
+    def subAndEraseType(
+        subs: Map[Expr, Expr]
+    )(implicit c: Canonicalizer): Expr = {
       // !!!!!!!!!! WARNINGS !!!!!!!!!!
       //
       // Suppose we have a variable binder like Function(x, body).
@@ -288,7 +292,7 @@ private[ir] trait Substitution {
 
     /** See [[subAndEraseType(subs*]].
       */
-    def subAndEraseType(sub: (Expr, Expr)*): Expr = {
+    def subAndEraseType(sub: (Expr, Expr)*)(implicit c: Canonicalizer): Expr = {
       subAndEraseType(Map(sub: _*))
     }
   }

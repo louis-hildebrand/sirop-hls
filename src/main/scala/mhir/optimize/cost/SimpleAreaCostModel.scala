@@ -126,8 +126,6 @@ object SimpleAreaCostModel {
         val c = elems.map(cost(sv)).foldLeft(AreaCost.Zero)(_ + _)
         val w = 1 + (elems.length + 1) * BitWidth(stm.typ.asInstanceOf[TyStm].t)
         c + AreaCost(5, w, 0)
-      case e: StmNextK =>
-        throw new IllegalArgumentException(s"Cannot compute cost for $e")
       case e: SyntaxSugar =>
         throw new IllegalArgumentException(
           s"Cannot compute cost for syntax sugar $e"

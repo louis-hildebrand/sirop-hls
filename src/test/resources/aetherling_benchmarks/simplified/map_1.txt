@@ -1,7 +1,0 @@
-(I : Stm[u8, 200:u8]) =>
-  sbuild(200:u8)(5:u8 +% sdata(I), true) {} {
-    (I : Stm[u8, -1:i1]) = {
-      stm: I,
-      ready: true
-    }
-  }

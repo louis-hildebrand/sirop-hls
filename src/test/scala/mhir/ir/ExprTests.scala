@@ -1,24 +1,12 @@
 package mhir.ir
 
-import mhir.ir.typecheck.TypeCheck
+import mhir.canonicalize._
 import mhir.optimize.PartialEvalPass
-import mhir.sugar.StmZip
+import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {
-  test("Mux:MakeCondPositive") {
-    val c = Param("c")()
-    val t = Param("t")()
-    val f = Param("f")()
-
-    val e0 = Mux(c, t, f)()
-    assert(e0.c == c)
-    assert(e0.t == t)
-    assert(e0.f == f)
-
-    val e1 = Mux(Not(c)(), f, t)()
-    assert(e0 == e1)
-  }
 
   test("FreeVars:Function") {
     val x = Param("x")(U8)

@@ -1,10 +1,10 @@
 package mhir.optimize
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.Cast
 import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar.{Cast, ExprLowering}
+import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 
@@ -73,7 +73,7 @@ object StmAccRemovalPass {
             })
           val x = xs.find(x => x.typ == typ).get
           val replacements =
-            (xs - x).map(y => y -> Cast(x, y.typ)().tchk().lower())
+            (xs - x).map(y => y -> Cast(x, y.typ)().tchk().lower)
           replacements
         })
         .toMap

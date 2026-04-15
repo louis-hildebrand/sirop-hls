@@ -1,8 +1,9 @@
 package mhir.debug
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class TracerTests extends AnyFunSuite {
@@ -39,7 +40,7 @@ class TracerTests extends AnyFunSuite {
         i -> (IntCst(0)(U8), i + 1),
         j -> (IntCst(10)(U8), j + i)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(s)
     if (SaveTraces) {
@@ -86,7 +87,7 @@ class TracerTests extends AnyFunSuite {
         ),
         t -> (IntCst(0)(U8), t + 1)
       )
-    )().tchk().lower().asInstanceOf[StmBuild]
+    )().tchk().lower.asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(stm2vec)
     if (SaveTraces) {
@@ -142,7 +143,7 @@ class TracerTests extends AnyFunSuite {
           s1 -> (stm1, b),
           s2 -> (stm2, !b)
         )
-      )().tchk().lower().asInstanceOf[StmBuild]
+      )().tchk().lower.asInstanceOf[StmBuild]
     }
 
     val fullTrace = Tracer.traceAll(s)

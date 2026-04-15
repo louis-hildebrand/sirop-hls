@@ -1,7 +1,8 @@
 package mhir.main.aetherling
 
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 object AetherlingPrimitivesIO {
   def apply(testName: String): TestIO = {

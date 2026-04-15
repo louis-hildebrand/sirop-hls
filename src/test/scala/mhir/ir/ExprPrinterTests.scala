@@ -1,8 +1,9 @@
 package mhir.ir
 
-import mhir.ir.Lowering.ExprLowering
-import mhir.ir.typecheck.TypeCheck
-import mhir.sugar.{StmCount, StmCount3D, StmCst, StmFold, StmMap, StmZip}
+import mhir.canonicalize._
+import mhir.sugar._
+import mhir.sugar.experimental.StmFold
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
@@ -201,7 +202,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val f = Param("f", -1)(U16 ->: U16 ->: U16)
     val e = f(Sum(x, y, z)())(Prod(x, y, z, w)())
 
-    val expectedOneLine = s"f(x + y + z)(w * x * y * z)"
+    val expectedOneLine = s"f(x + y + z)(x * y * z * w)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
@@ -209,10 +210,10 @@ class ExprPrinterTests extends AnyFunSuite {
       s"""f(
          |  x + y + z
          |)(
-         |  w
-         |    * x
+         |  x
          |    * y
          |    * z
+         |    * w
          |)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 12)
@@ -484,23 +485,6 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e, maxWidth = 15) == expectedMultiLine)
   }
 
-  test("StmNextK") {
-    val s = Param("s", -1)(TyStm(U8, 42))
-    val k = Param("k", -1)(U8)
-    val e = StmNextK(s, k)()
-
-    val expectedOneLine = "snextk(s, k)"
-    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
-
-    val expectedMultiLine =
-      s"""snextk(
-         |  s,
-         |  k
-         |)
-         |""".stripMargin.stripTrailing
-    assert(ExprPrinter.display(e, maxWidth = 10) == expectedMultiLine)
-  }
-
   test("if-else-if") {
     val e = Mux(
       True,
@@ -730,7 +714,7 @@ class ExprPrinterTests extends AnyFunSuite {
           )()
         )
       )
-    )().tchk().lower()
+    )().tchk().lower
     val start = System.nanoTime()
     val str = ExprPrinter.display(e)
     val duration = (System.nanoTime() - start) / 10000000000L

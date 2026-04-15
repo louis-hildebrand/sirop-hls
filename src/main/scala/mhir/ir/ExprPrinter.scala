@@ -283,8 +283,6 @@ object ExprPrinter {
         displayFunCallMultiLine("unsign", Seq(e), maxWidth)
       case StmData(s) =>
         displayFunCallMultiLine("sdata", Seq(s), maxWidth)
-      case StmNextK(s, k) =>
-        displayFunCallMultiLine("snextk", Seq(s, k), maxWidth)
 
       case Mux(c, t, f) =>
         val cStr = {
@@ -718,8 +716,6 @@ object ExprPrinter {
         elems
           .map(e => displayOneLine(e, Precedence.Max))
           .mkString("[", ", ", "]s")
-      case StmNextK(s, k) =>
-        displayFunCallOneLine("snextk", Seq(s, k))
       case e: SyntaxSugar =>
         e.displayOneLine()
     }
@@ -912,8 +908,6 @@ object ExprPrinter {
         s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"
       case sd @ StmData(s) =>
         s"StmData(${showScala(s)})(${showScala(sd.typ)})"
-      case sn @ StmNextK(s, k) =>
-        s"StmNextK(${showScala(s)},${showScala(k)})(${showScala(sn.typ)})"
       case vb @ VecBuild(n, f) =>
         s"VecBuild(${showScala(n)},${showScala(f)})(${showScala(vb.typ)})"
       case v @ VecLiteral(elems @ _*) =>
@@ -921,8 +915,6 @@ object ExprPrinter {
         s"VecLiteral(${children.mkString(",")})(${showScala(v.typ)})"
       case va @ VecAccess(v, i) =>
         s"VecAccess(${showScala(v)},${showScala(i)})(${showScala(va.typ)})"
-      case Default(t) =>
-        s"Default(${showScala(t)})"
       case e: SyntaxSugar =>
         val name = e.getClass.getSimpleName
         val children = e.children.map(showScala).mkString(", ")

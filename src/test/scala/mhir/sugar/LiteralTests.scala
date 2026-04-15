@@ -1,9 +1,9 @@
 package mhir.sugar
 
-import mhir.ir.Lowering.ExprLowering
-import org.scalatest.funsuite.AnyFunSuite
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck._
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Tests for lowering [[mhir.ir.StmLiteral]] and [[mhir.ir.VecLiteral]].
   */
@@ -13,7 +13,7 @@ class LiteralTests extends AnyFunSuite {
 
   test("StmLiteral:Stm[U8, 5]") {
     val original = StmLiteral((0 until 5).map(C(_)(U8)): _*)().tchk()
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == original)
     assert(lowered.typ == TyStm(U8, 5))
   }
@@ -24,14 +24,14 @@ class LiteralTests extends AnyFunSuite {
         VecLiteral((0 until 4).map(i => Tuple(C(t)(U8), C(i)(I16))()): _*)()
       ): _*
     )().tchk()
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == original)
     assert(lowered.typ == TyStm(TyVec((U8, I16), 4), 5))
   }
 
   test("VecLiteral:Vec[U8, 7]") {
     val original = VecLiteral((0 until 7).map(C(_)(U8)): _*)().tchk()
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered.typ == TyVec(U8, 7))
     assert(lowered == original)
   }
@@ -50,7 +50,7 @@ class LiteralTests extends AnyFunSuite {
       ): _*
     )().tchk()
 
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered.typ == TyStm(TyVec((U8, U8), 3), 4))
     assert(lowered == expected)
   }
@@ -59,7 +59,7 @@ class LiteralTests extends AnyFunSuite {
     val original = VecLiteral()(TyVec(TyStm(U8, 3), 0))
     val expected =
       StmLiteral((0 until 3).map(_ => VecLiteral()(TyVec(U8, 0))): _*)().tchk()
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == expected)
     assert(lowered.typ == TyStm(TyVec(U8, 0), 3))
   }
@@ -68,7 +68,7 @@ class LiteralTests extends AnyFunSuite {
     val original =
       VecLiteral((0 until 3).map(_ => StmLiteral()(TyStm(U8, 0))): _*)().tchk()
     val expected = StmLiteral()(TyStm(TyVec(U8, 3), 0))
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == expected)
     assert(lowered.typ == TyStm(TyVec(U8, 3), 0))
   }
@@ -91,7 +91,7 @@ class LiteralTests extends AnyFunSuite {
       }): _*
     )().tchk()
 
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered.typ == TyStm((U8, U8), 6))
     assert(lowered == expected)
   }
@@ -99,7 +99,7 @@ class LiteralTests extends AnyFunSuite {
   test("StmLiteral:Stm[Stm[U8, 3], 0]") {
     val original = StmLiteral()(TyStm(TyStm(U8, 3), 0))
     val expected = StmLiteral()(TyStm(U8, 0))
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == expected)
     assert(lowered.typ == TyStm(U8, 0))
   }
@@ -108,7 +108,7 @@ class LiteralTests extends AnyFunSuite {
     val original =
       StmLiteral((0 until 3).map(_ => StmLiteral()(TyStm(U8, 0))): _*)().tchk()
     val expected = StmLiteral()(TyStm(U8, 0))
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered == expected)
     assert(lowered.typ == TyStm(U8, 0))
   }
@@ -139,13 +139,13 @@ class LiteralTests extends AnyFunSuite {
       ): _*
     )().tchk()
 
-    val lowered = original.lower().asInstanceOf[StmLiteral]
+    val lowered = original.lower.asInstanceOf[StmLiteral]
     assert(lowered.typ == TyStm(TyVec((U8, U8, U8), 3), 8))
     assert(lowered == expected)
 
     val stmBuild = lowered.toStmBuild
     assert(stmBuild.typ == TyStm(TyVec((U8, U8, U8), 3), 8))
-    assert(mhir.ir.eval(stmBuild) == expected)
+    assert(mhir.eval.eval(stmBuild) == expected)
   }
 
   test("VecLiteral:Vec[Vec[Stm[(U8, U8, U8), 2], 3], 4]") {
@@ -171,7 +171,7 @@ class LiteralTests extends AnyFunSuite {
         )()
       ): _*
     )()
-    val lowered = original.lower()
+    val lowered = original.lower
     assert(lowered.typ == TyStm(TyVec(TyVec((U8, U8, U8), 3), 4), 2))
     assert(lowered == expected)
   }

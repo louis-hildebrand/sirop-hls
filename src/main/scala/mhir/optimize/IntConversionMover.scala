@@ -1,8 +1,9 @@
 package mhir.optimize
 
+import mhir.canonicalize._
+import mhir.eval.EvalException
 import mhir.ir._
-import mhir.ir.evaluate.EvalException
-import mhir.ir.typecheck.TypeCheck
+import mhir.typecheck.TypeCheck
 
 /** Transformations for moving integer conversion primitives ([[mhir.ir.PadTo]],
   * [[mhir.ir.TruncateTo]], [[mhir.ir.ToSigned]], and [[mhir.ir.ToUnsigned]])
@@ -29,7 +30,7 @@ object IntConversionMover {
       case PadTo(arg, w) =>
         widen(arg) match {
           case v: IntCst =>
-            mhir.ir.eval(PadTo(v, w)())
+            mhir.eval.eval(PadTo(v, w)())
           case PadTo(arg, _) =>
             PadTo(arg, w)()
           case TruncateTo(arg, _) =>
@@ -58,7 +59,7 @@ object IntConversionMover {
               // target range (and this can occur while speculatively
               // partially evaluating one branch of a MUX to see whether it
               // is equivalent to the other)
-              mhir.ir.eval(TruncateTo(v, w)())
+              mhir.eval.eval(TruncateTo(v, w)())
             } catch {
               case _: EvalException => e
             }
@@ -80,7 +81,7 @@ object IntConversionMover {
       case ToSigned(arg) =>
         widen(arg) match {
           case v: IntCst =>
-            mhir.ir.eval(ToSigned(v)())
+            mhir.eval.eval(ToSigned(v)())
           case PadTo(arg, _) =>
             val finalWidth = e.typ.asInstanceOf[TyAnyInt].w
             PadTo(widen(ToSigned(arg)()), finalWidth)()
@@ -107,7 +108,7 @@ object IntConversionMover {
               // target range (and this can occur while speculatively
               // partially evaluating one branch of a MUX to see whether it
               // is equivalent to the other)
-              mhir.ir.eval(ToUnsigned(v)())
+              mhir.eval.eval(ToUnsigned(v)())
             } catch {
               case _: EvalException => e
             }

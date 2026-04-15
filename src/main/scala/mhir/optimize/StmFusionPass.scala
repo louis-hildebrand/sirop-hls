@@ -1,9 +1,10 @@
 package mhir.optimize
 
-import mhir.ir.StreamFuser.StmBuildFusion
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.cost.{SimpleAreaCostModel, SimpleDelayCostModel}
+import mhir.optimize.StreamFuser.StmBuildFusion
+import mhir.optimize.cost.SimpleDelayCostModel
+import mhir.typecheck.TypeCheck
 
 /** Stream fusion combines producer and consumer into a single
   * [[mhir.ir.StmBuild]].

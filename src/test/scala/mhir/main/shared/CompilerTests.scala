@@ -26,6 +26,6 @@ class CompilerTests extends AnyFunSuite {
     val out = Compiler.compile(in, options, Duration.ZERO, Duration.ZERO)
     val expected =
       StmLiteral(C(5)(U8), C(6)(U8), C(7)(U8), C(8)(U8), C(9)(U8))()
-    assert(mhir.ir.eval(out) == expected)
+    assert(mhir.eval.eval(out) == expected)
   }
 }

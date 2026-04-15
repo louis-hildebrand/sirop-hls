@@ -1,9 +1,9 @@
 package mhir.debug
 
+import mhir.eval._
 import mhir.ir._
-import mhir.ir.evaluate._
-import upickle.default._
 import ujson._
+import upickle.default._
 
 object TraceSerialization {
   // See https://docs.scala-lang.org/toolkit/json-serialize.html

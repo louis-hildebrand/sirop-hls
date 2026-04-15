@@ -1,10 +1,10 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
-import mhir.sugar.{Cast, SafeSum}
+import mhir.typecheck.{TypeCheck, TypeError}
+import mhir.sugar._
 
 import scala.annotation.tailrec
 
@@ -89,9 +89,9 @@ object PartialEvalPass {
               case Some(ScalarRange(Some(_: IntCst), Some(_: IntCst))) =>
                 x
               case Some(ScalarRange(Some(lo), Some(hi)))
-                  if isEqual(SafeSum(lo, 1)().tchk().lower(), hi)(facts)
+                  if isEqual(SafeSum(lo, 1)().tchk().lower, hi)(facts)
                     .getOrElse(false) =>
-                doPartialEval(ReshapeData(lo, x.typ)().tchk().lower())
+                doPartialEval(ReshapeData(lo, x.typ)().tchk().lower)
               case _ =>
                 x
             }
@@ -169,34 +169,35 @@ object PartialEvalPass {
           case True  => True
           case False => False
           case Mux(c, t, f) =>
+            def simplify(cond: Expr, t: Expr, f: Expr): Expr = {
+              val trueE = doPartialEval(t)(facts.assumeTrue(cond))
+              val falseE = doPartialEval(f)(facts.assumeFalse(cond))
+              (cond, trueE, falseE) match {
+                case _ if trueE == falseE => trueE
+                case (_, _, _: Undefined) => trueE
+                case (_, _: Undefined, _) => falseE
+                case _ if trueE.typ == TyBool =>
+                  ArithSimplifier.simplifyArithmetic(
+                    (cond && trueE) || (!cond && falseE)
+                  )(facts)
+                case (Equal(e0, IntCst(hi)), IntCst(lo), Sum(IntCst(1), e1))
+                    if e0 == e1
+                      && e1.typ.asInstanceOf[TyAnyInt].maxInt == hi
+                      && e1.typ.asInstanceOf[TyAnyInt].minInt == lo =>
+                  WrappingSum(e1, C(1)(e1.typ))()
+                case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
+                  trueE
+                case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
+                  falseE
+                case _ =>
+                  Mux(cond, trueE, falseE)()
+              }
+            }
             doPartialEval(c)(facts) match {
-              case True  => doPartialEval(t)
-              case False => doPartialEval(f)
-              case cond =>
-                val trueE = doPartialEval(t)(facts.assumeTrue(cond))
-                val falseE = doPartialEval(f)(facts.assumeFalse(cond))
-                (cond, trueE, falseE) match {
-                  case _ if trueE == falseE => trueE
-                  case (_, _, _: Undefined) => trueE
-                  case (_, _: Undefined, _) => falseE
-                  case _ if trueE.typ == TyBool =>
-                    ArithSimplifier.simplifyArithmetic(
-                      (cond && trueE) || (!cond && falseE)
-                    )(facts)
-                  case (Equal(e0, IntCst(hi)), IntCst(lo), Sum(IntCst(1), e1))
-                      if e0 == e1
-                        && e1.typ.asInstanceOf[TyAnyInt].maxInt == hi
-                        && e1.typ.asInstanceOf[TyAnyInt].minInt == lo =>
-                    WrappingSum(e1, C(1)(e1.typ))()
-                  case (_, StmNextK(s0, k0), StmNextK(s1, k1)) if s0 == s1 =>
-                    doPartialEval(StmNextK(s0, Mux(cond, k0, k1)())())
-                  case _ if trueBranchIsMoreGeneral(cond, trueE, falseE) =>
-                    trueE
-                  case _ if falseBranchIsMoreGeneral(cond, trueE, falseE) =>
-                    falseE
-                  case _ =>
-                    Mux(cond, trueE, falseE)()
-                }
+              case True      => doPartialEval(t)
+              case False     => doPartialEval(f)
+              case Not(cond) => simplify(cond, f, t)
+              case cond      => simplify(cond, t, f)
             }
           case Equal(lhs, rhs) =>
             val (newLhs, newRhs) = if (lhs.typ.isInstanceOf[TyAnyInt]) {
@@ -271,7 +272,9 @@ object PartialEvalPass {
                 // Out-of-bounds vector access is undefined behaviour, so just
                 // don't worry about it
                 val fInT = f.typ.asInstanceOf[TyArrow].t1
-                doPartialEval(FunCall(f, Cast(i, fInT)())().tchk().lower())
+                doPartialEval(
+                  FunCall(f, Cast(i, fInT)().tchk().lower)().tchk()
+                )
               case (Undefined(TyVec(t, _)), _) =>
                 Undefined(t)
               case (v, i) => VecAccess(v, i)()
@@ -315,12 +318,6 @@ object PartialEvalPass {
               doPartialEval(in),
               doPartialEval(out)
             )()
-          case StmNextK(s, k) =>
-            val peStm = doPartialEval(s)
-            doPartialEval(k) match {
-              case IntCst(k) if k <= 0 => peStm
-              case k                   => StmNextK(peStm, k)()
-            }
 
           case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
             e.map(doPartialEval)
@@ -372,7 +369,7 @@ object PartialEvalPass {
     } else {
       val eq =
         try {
-          (e1 === e2).tchk().lower()
+          (e1 === e2).tchk().lower
         } catch {
           case _: TypeError =>
             return None
@@ -404,7 +401,7 @@ object PartialEvalPass {
       val (rhsPosTerms, rhsNegTerms) = getPosAndNegTerms(partialEval(e2)(facts))
       val newLhs = SmartSum(lhsPosTerms ++ rhsNegTerms: _*)()
       val newRhs = SmartSum(rhsPosTerms ++ lhsNegTerms: _*)()
-      (newLhs < newRhs).tchk().lower()
+      (newLhs < newRhs).tchk().lower
     }
     partialEval(lt)(facts) match {
       case True  => Some(true)
@@ -457,13 +454,16 @@ object PartialEvalPass {
     }
     lhsCst - rhsCst match {
       case 0 =>
-        (Sum(lhsNonCstTerms: _*)(lhs.typ), Sum(rhsNonCstTerms: _*)(rhs.typ))
+        (
+          MaybeSum(lhsNonCstTerms: _*)(lhs.typ),
+          MaybeSum(rhsNonCstTerms: _*)(rhs.typ)
+        )
       case k if k > 0 =>
         try {
           val cst = C(k)(lhs.typ)
           (
-            Sum(cst +: lhsNonCstTerms: _*)(lhs.typ),
-            Sum(rhsNonCstTerms: _*)(rhs.typ)
+            MaybeSum(cst +: lhsNonCstTerms: _*)(lhs.typ),
+            MaybeSum(rhsNonCstTerms: _*)(rhs.typ)
           )
         } catch {
           case _: OverflowException =>
@@ -473,8 +473,8 @@ object PartialEvalPass {
         try {
           val cst = C(-k)(rhs.typ)
           (
-            Sum(lhsNonCstTerms: _*)(lhs.typ),
-            Sum(cst +: rhsNonCstTerms: _*)(rhs.typ)
+            MaybeSum(lhsNonCstTerms: _*)(lhs.typ),
+            MaybeSum(cst +: rhsNonCstTerms: _*)(rhs.typ)
           )
         } catch {
           case _: OverflowException =>
@@ -533,7 +533,7 @@ object PartialEvalPass {
                   doPartialEval(next.subPreserveType(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
-                      val head = mhir.ir.eval(Default(t))
+                      val head = mhir.eval.eval(Default(t))
                       Some(Some(x -> (head, z)))
                     case True =>
                       val maybeHeadAndTail = z match {

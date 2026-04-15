@@ -1,6 +1,6 @@
 package mhir.debug
 
-import mhir.ir.evaluate.{EvalException, StmNodeId, StmPipeline}
+import mhir.eval._
 
 /** One time step in a trace.
   */

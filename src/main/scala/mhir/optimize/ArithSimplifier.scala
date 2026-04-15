@@ -2,10 +2,10 @@ package mhir.optimize
 
 import lift.arithmetic.{simplifier => aes}
 import lift.{arithmetic => ae}
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar._
+import mhir.typecheck.TypeCheck
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
@@ -243,14 +243,14 @@ private[optimize] object ArithSimplifier {
       case ae.Sum(terms) =>
         val exprTerms = terms.map(e => fromArithExpr(e, typ))
         if (exprTerms.forall(e => e.isDefined)) {
-          Some(Sum(exprTerms.map(e => e.get): _*)())
+          Some(MaybeSum(exprTerms.map(e => e.get): _*)())
         } else {
           None
         }
       case ae.Prod(factors) =>
         val exprFactors = factors.map(e => fromArithExpr(e, typ))
         if (exprFactors.forall(e => e.isDefined)) {
-          Some(Prod(exprFactors.map(e => e.get): _*)())
+          Some(MaybeProd(exprFactors.map(e => e.get): _*)())
         } else {
           None
         }
@@ -309,7 +309,7 @@ private[optimize] object ArithSimplifier {
       case Mux(c, True, False) =>
         unwrapMux(c)
       case Mux(c, False, True) =>
-        Not(unwrapMux(c))()
+        Not(unwrapMux(c))().tchk()
       case e =>
         e
     }
@@ -337,7 +337,7 @@ private[optimize] object ArithSimplifier {
   private def simplifyLLShift(ll: LLShift): Expr = {
     ll match {
       case LLShift(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(ll)
+        mhir.eval.eval(ll)
       case LLShift(e, IntCst(0)) =>
         // TODO: Should this actually be done after calling the library in
         //       case e2 is simplified to 0 but is not originally 0?
@@ -350,7 +350,7 @@ private[optimize] object ArithSimplifier {
   private def simplifyLRShift(lr: LRShift): Expr = {
     lr match {
       case LRShift(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(lr)
+        mhir.eval.eval(lr)
       case LRShift(e, IntCst(0)) =>
         simplifyWithoutLibrary(e)
       case LRShift(e1, e2) =>
@@ -359,7 +359,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifySum(sum: Sum): Expr = {
-    Sum(
+    MaybeSum(
       sum.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -373,7 +373,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyProd(prod: Prod): Expr = {
-    Prod(
+    MaybeProd(
       prod.factors
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -388,7 +388,7 @@ private[optimize] object ArithSimplifier {
 
   private def simplifyWrappingSum(sum: WrappingSum): Expr = {
     if (sum.terms.forall(_.isInstanceOf[IntCst])) {
-      mhir.ir.eval(sum)
+      mhir.eval.eval(sum)
     } else {
       val (constants, otherTerms) =
         sum.terms
@@ -399,28 +399,30 @@ private[optimize] object ArithSimplifier {
             case s: WrappingSum => s.terms
             case e              => Seq(e)
           })
+          // Sort to represent commutativity
+          .sorted(ExprOrdering)
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.ir.eval(WrappingSum(constants: _*)())
+      val const = mhir.eval.eval(MaybeWrappingSum(constants: _*)())
       val allTerms = if (const == IntCst(0)()) {
         otherTerms
       } else {
         const +: otherTerms
       }
-      WrappingSum(allTerms: _*)().tchk()
+      MaybeWrappingSum(allTerms: _*)().tchk()
     }
   }
 
   private def simplifyWrappingDiff(diff: WrappingDiff): Expr = {
     diff match {
       case WrappingDiff(_: IntCst, _: IntCst) =>
-        mhir.ir.eval(diff)
+        mhir.eval.eval(diff)
       case _ => diff
     }
   }
 
   private def simplifyWrappingProd(prod: WrappingProd): Expr = {
     if (prod.factors.forall(_.isInstanceOf[IntCst])) {
-      mhir.ir.eval(prod)
+      mhir.eval.eval(prod)
     } else {
       val (constants, otherFactors) =
         prod.factors
@@ -431,14 +433,16 @@ private[optimize] object ArithSimplifier {
             case p: WrappingProd => p.factors
             case e               => Seq(e)
           })
+          // Sort to represent commutativity
+          .sorted(ExprOrdering)
           .partition(_.isInstanceOf[IntCst])
-      val const = mhir.ir.eval(WrappingProd(constants: _*)())
+      val const = mhir.eval.eval(MaybeWrappingProd(constants: _*)())
       if (const == IntCst(0)()) {
         C(0)(prod.typ)
       } else if (const == IntCst(1)()) {
-        WrappingProd(otherFactors: _*)().tchk()
+        MaybeWrappingProd(otherFactors: _*)().tchk()
       } else {
-        WrappingProd(const +: otherFactors: _*)().tchk()
+        MaybeWrappingProd(const +: otherFactors: _*)().tchk()
       }
     }
   }
@@ -447,7 +451,7 @@ private[optimize] object ArithSimplifier {
     val newProd = prod.map(simplifyWithoutLibrary).tchk()
     newProd match {
       case IntFixProd(_: IntCst, _: FixCst) =>
-        mhir.ir.eval(newProd)
+        mhir.eval.eval(newProd)
       case IntFixProd(x, FixCst(0)) =>
         C(0)(x.typ)
       case IntFixProd(x @ IntCst(0), _) =>
@@ -590,7 +594,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyAnd(and: And): Expr = {
-    val flat = And(
+    val flat = MaybeAnd(
       and.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -631,11 +635,11 @@ private[optimize] object ArithSimplifier {
       case And(Not(LessThan(x0, c0)), LessThan(x1, c1))
           if x0 == x1
             && PartialEvalPass
-              .isEqual(c1, (c0 + 1).tchk().lower())()
+              .isEqual(c1, (c0 + 1).tchk().lower)()
               .getOrElse(false) =>
         Equal(x0, c0)()
       case And(terms @ _*) if terms.length <= 3 =>
-        And(terms.filter({
+        MaybeAnd(terms.filter({
           case Not(Equal(x0, IntCst(k0))) =>
             !terms.exists({
               case Equal(x1, IntCst(k1)) => x0 == x1 && k0 != k1
@@ -650,7 +654,7 @@ private[optimize] object ArithSimplifier {
   }
 
   private def simplifyOr(or: Or): Expr = {
-    val flat = Or(
+    val flat = MaybeOr(
       or.terms
         .map(simplifyWithoutLibrary)
         // Flatten to represent associativity
@@ -699,12 +703,12 @@ private[optimize] object ArithSimplifier {
       case Not(False)  => True
       case Not(Not(e)) => e
       case Not(And(terms @ _*)) =>
-        Or(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+        MaybeOr(terms.map(e => simplifyNot(Not(e)())): _*)() match {
           case e: Or => simplifyOr(e)
           case e     => e
         }
       case Not(Or(terms @ _*)) =>
-        And(terms.map(e => simplifyNot(Not(e)())): _*)() match {
+        MaybeAnd(terms.map(e => simplifyNot(Not(e)())): _*)() match {
           case e: And => simplifyAnd(e)
           case e      => e
         }
@@ -722,7 +726,7 @@ private[optimize] object ArithSimplifier {
             x1 == x0 && k0 != k1
           case _ => false
         })
-      case e =>
+      case _ =>
         false
     })
   }

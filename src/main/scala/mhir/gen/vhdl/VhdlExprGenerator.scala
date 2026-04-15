@@ -1,8 +1,9 @@
 package mhir.gen.vhdl
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 
 import scala.collection.immutable.ListMap
 
@@ -200,7 +201,7 @@ private object VhdlExprGenerator {
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName} in this position."
         )
-      case _: StmNextK | _: StmLiteral =>
+      case _: StmLiteral =>
         throw new IllegalArgumentException(
           s"Cannot generate hardware for ${e.getClass.getSimpleName}."
         )
@@ -283,7 +284,7 @@ private object VhdlExprGenerator {
       case vb @ VecBuild(len, f) =>
         if (len.freeVars.isEmpty) {
           // TODO: Use for-generate or for-loop here instead?
-          val n = mhir.ir.eval(len).asInstanceOf[IntCst].i
+          val n = mhir.eval.eval(len).asInstanceOf[IntCst].i
           val idxTyp = f.param.typ.asInstanceOf[TyAnyInt]
           val VhdlExpr(fVhdl, fDecls) = exprToVhdl(f)
           val vhdlElems = (0 until n.toInt).map({ i =>
@@ -481,7 +482,7 @@ private object VhdlExprGenerator {
       case Undefined(typ) =>
         makeUndefined(typ)
       case _ =>
-        mhir.ir.eval(v).tchk() match {
+        mhir.eval.eval(v).tchk() match {
           case False => "false"
           case True  => "true"
           case c: IntCst =>

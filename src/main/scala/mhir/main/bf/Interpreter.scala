@@ -1,14 +1,9 @@
 package mhir.main.bf
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
-import mhir.optimize.{
-  EnabledLetStmSimplifier,
-  EnabledStmBuildSimplifier,
-  StmSimplifier
-}
-import mhir.sugar.{Min, VecShiftLeft}
+import mhir.sugar.ExprLowering
+import mhir.typecheck.TypeCheck
 
 /** An interpreter for the Brainfuck programming language
   * (https://brainfuck.org/).
@@ -69,7 +64,7 @@ class Interpreter(
     val outputStreamSimplified =
       mhir.optimize.PartialEvalPass.partialEval(this.f(cmdStream)(inStream))
     val outputStream =
-      mhir.ir.eval(outputStreamSimplified).asInstanceOf[StmLiteral]
+      mhir.eval.eval(outputStreamSimplified).asInstanceOf[StmLiteral]
     outputStream.elems
       .map(_.asInstanceOf[IntCst])
       .map({ case IntCst(c) => c.toChar })
@@ -98,7 +93,7 @@ class Interpreter(
           .replace("OUTPUT_LEN", s"$maxOutputLength:u32")
       )
     val typeChecked = parsed.tchk()
-    val lowered = typeChecked.lower()
+    val lowered = typeChecked.lower
     val simplified = mhir.optimize.PartialEvalPass.partialEval(lowered)
     simplified
   }

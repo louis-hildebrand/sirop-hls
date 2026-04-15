@@ -1,12 +1,13 @@
 package mhir.main.repl
 
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
+import mhir.eval.EvalException
 import mhir.ir._
-import mhir.ir.evaluate.EvalException
-import mhir.ir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.main.shared.Version
 import mhir.parse.SyntaxError
 import mhir.parse.sirop.Parser
+import mhir.sugar.ExprLowering
 import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.reader.{
   EndOfFileException,
@@ -124,10 +125,10 @@ object Repl {
   private def eval(e: Expr, env: Map[Param, Expr]): Expr = {
     val typingContext = env.map({ case (x, v) => x -> v.typ })
     val subs = env.toMap[Expr, Expr]
-    mhir.ir.eval(
+    mhir.eval.eval(
       e.tchk(typingContext)
         .subPreserveType(subs)
-        .lower()
+        .lower
     )
   }
 }

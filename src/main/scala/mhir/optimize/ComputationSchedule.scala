@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import mhir.canonicalize._
 import mhir.ir._
 
 /** Which pipeline stage a certain computation should be performed in---producer

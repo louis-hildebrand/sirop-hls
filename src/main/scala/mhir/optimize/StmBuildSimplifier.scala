@@ -1,11 +1,12 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
-import mhir.ir.Lowering.ExprLowering
+import mhir.canonicalize._
 import mhir.ir._
-import mhir.ir.typecheck.TypeCheck
 import mhir.logging.time
 import mhir.optimize.{PartialEvalPass => PE}
+import mhir.sugar.{ExprLowering, ReshapeData}
+import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
 
@@ -153,7 +154,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
               )()
             )
             val subs =
-              Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower())
+              Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower)
             StmBuild(
               s1.n,
               s1.data.subPreserveType(subs),
