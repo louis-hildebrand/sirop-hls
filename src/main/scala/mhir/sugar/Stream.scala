@@ -799,13 +799,13 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
 
 case class StmMap(
     input: Expr /* Stm<A; n> */,
-    f: Function /* A -> B */
+    f: Expr /* A -> B */
 )(typ: Type = Missing) /* Stm<B; n> */
     extends SyntaxSugar(input, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, f: Function) => StmMap(s, f)(typ)
-      case _                   => throw new BadRebuildError(this, newChildren)
+      case Seq(s, f) => StmMap(s, f)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -839,12 +839,12 @@ case class StmMap(
   }
 }
 
-case class StmMap2(s1: Expr, s2: Expr, f: Function)(typ: Type = Missing)
+case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
     extends SyntaxSugar(s1, s2, f)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)(typ)
-      case _ => throw new BadRebuildError(this, newChildren)
+      case Seq(s1, s2, f) => StmMap2(s1, s2, f)(typ)
+      case _              => throw new BadRebuildError(this, newChildren)
     }
   }
 

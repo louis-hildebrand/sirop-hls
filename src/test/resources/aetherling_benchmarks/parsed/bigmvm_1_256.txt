@@ -10,13 +10,7 @@ let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n11: (u16, u16)
         n1,
         n4,
         (I0 : Stm[u16, 256:u9]) =>
-          (I1 : Stm[u16, 256:u9]) =>
-            StmMap2(
-              I0,
-              I1,
-              (I0 : u16) =>
-                (I1 : u16) => let n11: (u16, u16) = (I0, I1) in n11.0 *% n11.1
-            )
+          (I1 : Stm[u16, 256:u9]) => StmMap2(I0, I1, module0)
       )
     ) in
     let n17: Stm[Stm[u16, 1:u1], 256:u9] = (

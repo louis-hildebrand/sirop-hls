@@ -805,13 +805,13 @@ object Parser {
         }
       case f @ Param("StmMap", -1) =>
         args match {
-          case Seq(s, f: Function) => StmMap(s, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
+          case Seq(s, f) => StmMap(s, f)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmMap2", -1) =>
         args match {
-          case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
+          case Seq(s1, s2, f) => StmMap2(s1, s2, f)()
+          case _              => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmZip", -1) =>
         args match {
