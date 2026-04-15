@@ -266,10 +266,8 @@ private[sugar] case class StmReset(
             case (x, p) if x.typ.isInstanceOf[TyStm] =>
               val TyStm(_, inLen) = p.typ
               val ctrTyp = inLen match {
-                case e if e.freeVars.isEmpty =>
-                  val IntCst(n) = mhir.eval.eval(e)
-                  TyAnyInt.tightest(0, n)
-                case _ => inLen.typ
+                case IntCst(n) => TyAnyInt.tightest(0, n)
+                case _         => inLen.typ
               }
               Some(x -> Param("in_ctr")(ctrTyp))
             case _ => None
@@ -278,11 +276,9 @@ private[sugar] case class StmReset(
           acc.addInputCounter(x, ctr)
         })
         val outCtr = {
-          val ctrTyp = s.n match {
-            case e if e.freeVars.isEmpty =>
-              val IntCst(n) = mhir.eval.eval(e)
-              TyAnyInt.tightest(0, n)
-            case _ => s.n.typ
+          val ctrTyp = s.typ match {
+            case TyStm(_, IntCst(n)) => TyAnyInt.tightest(0, n)
+            case _                   => s.n.typ
           }
           Param("out_ctr")(ctrTyp)
         }
@@ -942,19 +938,15 @@ case class StmAccess(
     val s = Param("s")(stm.typ) // input stream
     val i = { // index of current row
       val typ = numRows match {
-        case e if e.freeVars.isEmpty =>
-          val IntCst(n) = mhir.eval.eval(e)
-          TyAnyInt.tightest(0, n)
-        case e => e.typ
+        case IntCst(n) => TyAnyInt.tightest(0, n)
+        case e         => e.typ
       }
       Param("i")(typ)
     } // index of current row
     val j = { // index within row
       val typ = perRow match {
-        case e if e.freeVars.isEmpty =>
-          val IntCst(n) = mhir.eval.eval(e)
-          TyAnyInt.tightest(0, n)
-        case e => e.typ
+        case IntCst(n) => TyAnyInt.tightest(0, n)
+        case e         => e.typ
       }
       Param("j")(typ)
     }

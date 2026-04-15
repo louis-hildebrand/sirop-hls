@@ -1,8 +1,4 @@
-package mhir.eval
-
-import mhir.canonicalize._
-import mhir.ir._
-import mhir.typecheck._
+package mhir.ir
 
 /** Produces a "default" value for each data type.
   */
@@ -34,10 +30,9 @@ object DefaultVal {
         } else {
           Some(childrenOptions.map(_.head))
         }
-        children.map(xs => Tuple(xs: _*)().tchk())
+        children.map(xs => Tuple(xs: _*)(typ))
       case TyVec(t, n) =>
-        getDefaultOpt(t)
-          .map(v => VecBuild(n.tchk(), U32 ::+ (_ => v))().tchk())
+        getDefaultOpt(t).map(v => VecBuild(n, n.typ ::+ (_ => v))(typ))
       case _ => None
     }
   }

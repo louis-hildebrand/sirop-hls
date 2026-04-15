@@ -448,10 +448,8 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     val p = Param("s")(TyStm(t, -1))
     val v = Param("v")(TyVec(t, n))
     val ctrTyp = n match {
-      case e if e.freeVars.isEmpty =>
-        val IntCst(n) = mhir.eval.eval(e)
-        TyAnyInt.tightest(0, n)
-      case _ => n.typ
+      case IntCst(n) => TyAnyInt.tightest(0, n)
+      case _         => n.typ
     }
     val i = Param("i")(ctrTyp)
     StmBuild(
@@ -470,11 +468,34 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
   }
 }
 
-object Vec2Tuple {
-  def apply(vec: VecBuild): Tuple = {
-    val n = mhir.eval.eval(VecLength(vec)()).asInstanceOf[IntCst].i
-    val elems = (0 until n.toInt).map(i => VecAccess(vec, i)())
-    Tuple(elems: _*)()
+case class Vec2Tuple(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => Vec2Tuple(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(context: Map[Param, Type])(implicit
+      c: Canonicalizer
+  ): Expr = {
+    val v = this.v.tchk(context)
+    val (t, n) = v.typ match {
+      case TyVec(t, IntCst(n)) => (t, n)
+      case TyVec(_, n) =>
+        throw new TypeError(
+          s"cannot convert variable-length vector (length $n) to tuple"
+        )
+    }
+    val typ = TyTuple((0 until n.toInt).map(_ => t): _*)
+    this.rebuild(typ, Seq(v))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyVec(_, IntCst(n)) = this.v.typ
+    val elems = (0 until n.toInt).map(i => VecAccess(v, i)())
+    Tuple(elems: _*)().tchk().lower
   }
 }
 

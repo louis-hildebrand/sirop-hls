@@ -650,7 +650,7 @@ class VectorTests extends AnyFunSuite {
   test("Vec2Tuple") {
     val v = VecBuild(5, U32 ::+ (i => i * (i + 1)))()
     val expected = Tuple(0, 2, 6, 12, 20)()
-    val actual = mhir.eval.eval(Vec2Tuple(v))
+    val actual = mhir.eval.eval(Vec2Tuple(v)())
     assert(actual == expected)
   }
 

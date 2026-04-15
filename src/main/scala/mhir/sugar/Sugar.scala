@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
-import mhir.eval.DefaultVal
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
 import mhir.typecheck.{TProd, TypeCheck, TypeError}
