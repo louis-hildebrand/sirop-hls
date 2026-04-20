@@ -267,14 +267,14 @@ private[vhdl] case class CustomVhdlComponent(
     val portDecls =
       (inPorts.map(p => s"${p.name} : in ${p.typ.vhdlName}")
         ++ outPorts.map(p => s"${p.name} : out ${p.typ.vhdlName}"))
-        .sortBy(x => x)
+        .sortBy(x => x.toLowerCase)
     os.write.append(
       f,
       s"""entity $name is
          |port (
          |    ${portDecls.mkString(";\n    ")}
          |);
-         |end;
+         |end entity $name;
          |""".stripMargin
     )
   }

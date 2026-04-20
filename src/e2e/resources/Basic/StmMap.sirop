@@ -1,0 +1,8 @@
+/* let n = 10:u8 in
+ * let m = 4:u8 in
+ * (s: Stm[Vec[u16, 4], 10]) =>
+ *     s.StmMap((v) => v.VecMap((x) => x + 5:u16))
+ */
+
+(s: Stm[Vec[u16, 4], 10]) =>
+    s.StmMap((v) => v.VecMap((x) => x + 5:u16))
