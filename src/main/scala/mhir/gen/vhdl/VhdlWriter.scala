@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
+import mhir.gen.CodegenError
 import os.Path
 
 import scala.io.Source
@@ -15,8 +16,12 @@ object VhdlWriter {
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir)
+    emitComponents(top, designDir, readReservedWords())
     emitProjectFiles(dir, designDir, topName = top.name)
+  }
+
+  private def readReservedWords(): Set[String] = {
+    Source.fromResource("mhir/gen/vhdl/reserved_words.txt").getLines().toSet
   }
 
   private def emitProjectFiles(
@@ -182,7 +187,11 @@ object VhdlWriter {
       ++ Seq(f.returnType)).toSet
   }
 
-  private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
+  private def emitComponents(
+      c: VhdlComponent,
+      dir: Path,
+      reservedWords: Set[String]
+  ): Unit = {
     c match {
       case c: StmNoOpComponent =>
         os.write.over(
@@ -197,9 +206,14 @@ object VhdlWriter {
           )
         }
       case c: CustomVhdlComponent =>
+        if (reservedWords.contains(c.name.toLowerCase)) {
+          throw CodegenError(
+            s"cannot generate entity '${c.name}', since its name is a reserved keyword in VHDL"
+          )
+        }
         c.writeVhdl(dir / s"${c.name}.vhd")
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {
-          emitComponents(child, dir)
+          emitComponents(child, dir, reservedWords)
         }
     }
   }
