@@ -211,6 +211,8 @@ object Lexer {
         consumeComment(consume(code, "/*"), pt.consume("/*"), lvl = lvl + 1)
       } else if (code.startsWith("*/")) {
         consumeComment(consume(code, "*/"), pt.consume("*/"), lvl = lvl - 1)
+      } else if (code.startsWith("\n")) {
+        consumeComment(code.tail, pt.moveDown(), lvl)
       } else {
         consumeComment(code.tail, pt.moveRightBy(1), lvl)
       }

@@ -1,3 +1,6 @@
+/* This is a multi-line comment.
+ * Indeed, here's another line.
+ */
 (s: Stm[u8, 5]) =>
     StmMap(
         s,
