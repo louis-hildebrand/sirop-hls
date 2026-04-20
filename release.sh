@@ -3,7 +3,7 @@ set -ue
 
 function check_version {
     local version; version="$1"
-    local pat; pat='[0-9]+\.[0-9]+\.[0-9]+'
+    local pat; pat='^[0-9]+\.[0-9]+\.[0-9]+$'
     if [[ ! "$version" =~ $pat ]]; then
         echo "Invalid version: $version"
         echo "Versions should match the regular expression '$pat'"
@@ -15,6 +15,8 @@ cd "$(git rev-parse --show-toplevel)"
 version_path="$(readlink -f "./src/main/resources/version.txt")"
 version="$(sed "$version_path" -e 's/-SNAPSHOT//')"
 check_version "$version"
+# Remove the trailing SNAPSHOT from the version.txt file for release
+echo "$version" > "$version_path"
 
 echo "Creating release for $version..."
 
@@ -28,5 +30,4 @@ git push origin "v$version"
 echo "$version-SNAPSHOT" > "$version_path"
 
 echo ""
-echo "Release created at $target"
-echo "Don't forget to upload the .jar file to Bitbucket"
+echo "Release JAR created at $target"
