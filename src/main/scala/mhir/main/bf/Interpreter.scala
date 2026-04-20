@@ -84,7 +84,7 @@ class Interpreter(
     val src = os.read(
       os.pwd / "src" / "main" / "scala" / "mhir" / "main" / "bf" / "interpreter.sirop"
     )
-    val parsed =
+    val Program(_, parsed) =
       mhir.parse.sirop.Parser.parse(
         src
           .replace("TAPE_LEN", s"$tapeLength:u32")

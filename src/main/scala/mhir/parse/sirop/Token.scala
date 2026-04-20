@@ -304,6 +304,17 @@ case class ExitToken(loc: SourcePoint) extends Token {
   */
 object ExitToken extends KeywordCategory("exit")
 
+/** The keyword "accelerator".
+  */
+case class AcceleratorToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = AcceleratorToken
+  override def original: String = "accelerator"
+}
+
+/** Category of [[AcceleratorToken]].
+  */
+object AcceleratorToken extends KeywordCategory("accelerator")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.

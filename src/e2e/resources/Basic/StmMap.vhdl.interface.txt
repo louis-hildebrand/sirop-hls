@@ -1,4 +1,4 @@
-entity top is
+entity add5 is
 port (
     clk : in std_logic;
     data : out std_logic_vector(63 downto 0);
@@ -9,4 +9,4 @@ port (
     reset : in std_logic;
     valid : out std_logic
 );
-end entity top;
+end entity add5;

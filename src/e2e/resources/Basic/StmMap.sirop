@@ -4,5 +4,5 @@
  *     s.StmMap((v) => v.VecMap((x) => x + 5:u16))
  */
 
-(s: Stm[Vec[u16, 4], 10]) =>
+accelerator add5 = (s: Stm[Vec[u16, 4], 10]) =>
     s.StmMap((v) => v.VecMap((x) => x + 5:u16))

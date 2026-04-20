@@ -18,7 +18,7 @@ object Compiler {
     */
   def compile(args: Args, argparseTime: Duration): Expr = {
     SC.compile(
-      args.program,
+      mhir.ir.Program(args.program),
       args.options,
       argparseTime = argparseTime,
       parseTime = Duration.ZERO

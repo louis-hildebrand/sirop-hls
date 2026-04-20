@@ -22,35 +22,41 @@ object Compiler {
 
   /** Runs the compiler.
     *
-    * @param e
-    *   the expression to compile.
+    * @param prog
+    *   the program to compile.
     * @param options
     *   compiler options.
     * @return
     *   the final program from which VHDL was generated.
     */
   def compile(
-      e: Expr,
+      prog: Program,
       options: CompilerOptions,
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
     time("compilation", Level.DEBUG) {
-      doCompile(e, options, argparseTime = argparseTime, parseTime = parseTime)
+      doCompile(
+        prog,
+        options,
+        argparseTime = argparseTime,
+        parseTime = parseTime
+      )
     }
   }
 
   private def doCompile(
-      parsed: Expr,
+      prog: Program,
       options: CompilerOptions,
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
+    val Program(topName, parsed) = prog
     val (checked, tchkTime) = typecheck(parsed)
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
-    val genTime = generateCode(finalProgram, options.targets)
+    val genTime = generateCode(topName, finalProgram, options.targets)
     options.targets.toSeq
       .foreach({
         case NullTarget => ()
@@ -110,13 +116,14 @@ object Compiler {
   }
 
   private def generateCode(
+      topName: String,
       prog: Expr,
       targets: Set[CompilerTarget]
   ): Duration = {
     val (_, time) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
-          emitVhdl(prog, outDir, overwrite)
+          emitVhdl(topName, prog, outDir, overwrite)
         case _: EvalTarget        => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
@@ -147,6 +154,7 @@ object Compiler {
   }
 
   private def emitVhdl(
+      topName: String,
       finalProgram: Expr,
       outDir: Path,
       overwrite: Boolean
@@ -161,7 +169,7 @@ object Compiler {
           )
         }
       }
-      VhdlGenerator.emitVhdl(finalProgram, outDir)
+      VhdlGenerator.emitVhdl(finalProgram, outDir, topName = topName)
     }
   }
 

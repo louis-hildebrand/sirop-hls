@@ -1,11 +1,11 @@
 /home/louis/Projects/sirop/src/e2e/resources/actual/Basic/StmMap
-├── design
-│   ├── conversions.vhd
-│   ├── sbuild_1.vhd
-│   ├── top.vhd
-│   └── typedefs.vhd
-├── top.qpf
-├── top.qsf
-└── top.sdc
+├── add5.qpf
+├── add5.qsf
+├── add5.sdc
+└── design
+    ├── add5.vhd
+    ├── conversions.vhd
+    ├── sbuild_1.vhd
+    └── typedefs.vhd
 
 1 directory, 7 files

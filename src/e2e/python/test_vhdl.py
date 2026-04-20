@@ -52,6 +52,7 @@ def test_vhdl(src: Path) -> bool:
             "--quiet",
         ],
         check=False,
+        capture_output=True,
     )
     # Check error code
     expected_code = 1 if src.parent.name.endswith("Error") else 0

@@ -11,15 +11,31 @@ import scala.collection.immutable.Queue
 
 object Parser {
 
-  def parse(f: Path): Expr = parse(os.read(f))
+  def parse(f: Path): Program = parse(os.read(f))
 
-  def parse(code: String): Expr = {
-    val (e, remainingTokens) = parseExpr(Lexer.lex(code).toList)
+  def parse(code: String): Program = {
+    val (prog, remainingTokens) = parseProgram(Lexer.lex(code).toList)
     if (remainingTokens.nonEmpty) {
       val loc = remainingTokens.head.loc
       throw SyntaxError("unexpected tokens remaining at end of file", loc)
     }
-    e
+    prog
+  }
+
+  def parseProgram(tokens: Seq[Token]): (Program, Seq[Token]) = {
+    tokens match {
+      case Seq(
+            _: AcceleratorToken,
+            IdentToken(name),
+            _: AssignToken,
+            rest1 @ _*
+          ) =>
+        val (e, rest2) = parseExpr(rest1)
+        (Program(name, e), rest2)
+      case rest1 =>
+        val (e, rest2) = parseExpr(rest1)
+        (Program(e), rest2)
+    }
   }
 
   def parseStmt(code: String): Stmt = {
