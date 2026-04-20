@@ -4,6 +4,7 @@
 Script for running end-to-end tests.
 """
 
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 import os
 import subprocess
@@ -137,7 +138,7 @@ def test_repl(repl_output: Path, compiler_version: str) -> bool:
     return True
 
 
-def main() -> None:
+def main(test_sources: list[Path]) -> None:
     """
     Script entry point.
     """
@@ -153,10 +154,6 @@ def main() -> None:
     )
     compiler_version = compiler_version.stdout.strip()
     print(f"Testing v{compiler_version}")
-    test_sources = sorted(c.RESOURCES.rglob("**/*.sirop"))
-    if not test_sources:
-        print("No test cases found")
-        sys.exit(1)
     print(f"Found {len(test_sources)} .sirop files to test")
     print()
     error_count = 0
@@ -189,5 +186,33 @@ def main() -> None:
     print("All tests passed!")
 
 
+def _parse_args() -> Namespace:
+    """
+    Parse the command-line arguments.
+    """
+    parser = ArgumentParser(
+        description="run end-to-end tests"
+    )
+    parser.add_argument(
+        "test_sources",
+        nargs="*",
+        help="path of the .sirop files to test",
+        type=Path,
+    )
+    args = parser.parse_args()
+    if not args.test_sources:
+        args.test_sources = sorted(c.RESOURCES.glob("**/*.sirop"))
+    if not args.test_sources:
+        parser.error("no test cases found")
+    args.test_sources = [p.resolve() for p in args.test_sources]
+    for p in args.test_sources:
+        if not p.is_file():
+            parser.error(f"file {p} does not exist")
+        if not p.name.endswith(".sirop"):
+            parser.error(f"invalid path {p}: all paths should end in .sirop")
+    return args
+
+
 if __name__ == "__main__":
-    main()
+    _args = _parse_args()
+    main(_args.test_sources)
