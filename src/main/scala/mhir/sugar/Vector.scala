@@ -1005,15 +1005,40 @@ object VecSlide {
   }
 }
 
-object VecTranspose {
-  def apply(v: Expr /* Vec<Vec<A; m>; n> */ ): Expr /* Vec<Vec<A; n>; m> */ = {
-    val n = VecLength(v)()
-    val m = VecLength(VecAccess(v, 0)())()
+case class VecTranspose(v: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(v)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecTranspose(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context)
+    val (t, n, m) = v.typ match {
+      case TyVec(TyVec(t, m), n) => (t, n, m)
+      case t =>
+        throw new TypeError(
+          s"Vector in $className has type $t."
+            + " Expected a nested vector."
+        )
+    }
+    this.rebuild(TyVec(TyVec(t, n), m), Seq(v))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val v = this.v.lower
+    val TyVec(TyVec(_, m), n) = v.typ
     VecBuild(
       m,
       U32 ::+ (i =>
         VecBuild(n, U32 ::+ (j => VecAccess(VecAccess(v, j)(), i)()))()
       )
-    )()
+    )().tchk()
   }
 }

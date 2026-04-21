@@ -920,7 +920,7 @@ class VectorTests extends AnyFunSuite {
         3,
         U32 ::+ (i => VecBuild(4, U32 ::+ (j => Tuple(i, j)()))())
       )()
-    ).tchk()
+    )().tchk()
     val expected = VecLiteral(
       VecLiteral(Tuple(0, 0)(), Tuple(1, 0)(), Tuple(2, 0)())(),
       VecLiteral(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)())(),
@@ -943,7 +943,7 @@ class VectorTests extends AnyFunSuite {
       VecLiteral(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)())(),
       VecLiteral(Tuple(3, 0)(), Tuple(3, 1)(), Tuple(3, 2)())()
     )()
-    val actual = Let(x, v, VecTranspose(VecTranspose(x)))().tchk()
+    val actual = Let(x, v, VecTranspose(VecTranspose(x)())())().tchk()
 
     assert(mhir.eval.eval(actual) == expected)
   }

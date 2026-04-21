@@ -782,7 +782,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val m = Param("n")(U8)
     val v = Param("v")(TyVec(TyVec(U8, m), n))
-    val tt = VecTranspose(VecTranspose(v))
+    val tt = VecTranspose(VecTranspose(v)())()
     val optimized = PE.partialEval(tt)
     // TODO: I need some way to essentially eta-reduce a 2D VecBuild
     assert(optimized == v)

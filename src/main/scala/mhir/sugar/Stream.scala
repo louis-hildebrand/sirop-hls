@@ -2203,7 +2203,7 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     StmMap(
       Stm2Vec(stm)(), // flat vector
       TyVec(t, n) ::+ (v =>
-        Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)()))())()
+        Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)())())())()
       )
     )().tchk().lower
   }

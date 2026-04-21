@@ -623,6 +623,11 @@ object Parser {
           case Seq(v, f) => VecMap(v, f)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecMap2", -1) =>
+        args match {
+          case Seq(v1, v2, f) => VecMap2(v1, v2, f)()
+          case _              => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("VecZip", -1) =>
         args match {
           case Seq(v1, v2) => VecZip(v1, v2)()
@@ -632,11 +637,6 @@ object Parser {
         args match {
           case Seq(v, f) => VecReduceComb(v, f)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
-        }
-      case f @ Param("VecReverse", -1) =>
-        args match {
-          case Seq(v) => VecReverse(v)
-          case _      => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("VecSplit", -1) =>
         args match {
@@ -648,10 +648,50 @@ object Parser {
           case Seq(v) => VecJoin(v)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecReverse", -1) =>
+        args match {
+          case Seq(v) => VecReverse(v)
+          case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("VecTranspose", -1) =>
+        args match {
+          case Seq(v) => VecTranspose(v)()
+          case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         args match {
           case Seq(s) => Stm2Vec(s)()
+          case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmMap", -1) =>
+        args match {
+          case Seq(s, f: Function) => StmMap(s, f)()
+          case _ => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmMap2", -1) =>
+        args match {
+          case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)()
+          case _ => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmZip", -1) =>
+        args match {
+          case Seq(s1, s2) => StmZip(s1, s2)()
+          case _           => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmReduce", -1) =>
+        args match {
+          case Seq(s, f) => StmReduce(s, f)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmSplit", -1) =>
+        args match {
+          case Seq(s, m) => StmSplit(s, m)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmJoin", -1) =>
+        args match {
+          case Seq(s) => StmJoin(s)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmRange", -1) =>
@@ -663,26 +703,6 @@ object Parser {
         args match {
           case Seq(n, m) => StmCount2D(n, m)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
-        }
-      case f @ Param("StmMap", -1) =>
-        args match {
-          case Seq(s, f: Function) => StmMap(s, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
-        }
-      case f @ Param("StmReduce", -1) =>
-        args match {
-          case Seq(s, f) => StmReduce(s, f)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
-        }
-      case f @ Param("StmMap2", -1) =>
-        args match {
-          case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
-        }
-      case f @ Param("StmZip", -1) =>
-        args match {
-          case Seq(s1, s2) => StmZip(s1, s2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmSlide", -1) =>
         args match {
@@ -699,15 +719,15 @@ object Parser {
           case Seq(s, i) => StmAccess(s, i)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
-      case f @ Param("StmSplit", -1) =>
+      case f @ Param("StmPrefix", -1) =>
         args match {
-          case Seq(s, m) => StmSplit(s, m)()
+          case Seq(s, k) => StmPrefix(s, k)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
-      case f @ Param("StmJoin", -1) =>
+      case f @ Param("StmSuffix", -1) =>
         args match {
-          case Seq(s) => StmJoin(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case Seq(s, k) => StmSuffix(s, k)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
         }
       case _ =>
         args match {
