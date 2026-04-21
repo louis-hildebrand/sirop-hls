@@ -64,9 +64,9 @@ object Parser {
     val (nameToken: IdentToken, rest2) = expect(IdentToken, rest1)
     val rest3 = rest2 match {
       case Seq(_: ColonToken, rest @ _*) => rest
-      case Seq(tok, _*) =>
+      case _ =>
         throw SyntaxError(
-          "missing type annotation (all const declarations require a type annotation)",
+          "missing type annotation. All const declarations require a type annotation.",
           nameToken.loc
         )
     }
@@ -944,7 +944,18 @@ object Parser {
         // since n is free here!
         // Therefore, type check the length beforehand, with the set of
         // constants as the typing context.
-        val checkedLen = len.tchk(constants)
+        val checkedLen = {
+          val freeVars = len.freeVars.diff(constants.keySet)
+          if (freeVars.nonEmpty) {
+            val freeVarList = freeVars.map(_.name).toSeq.sorted.mkString(", ")
+            throw SyntaxError(
+              s"type has free variable(s): $freeVarList."
+                + " All variables in types should be const.",
+              rest3.head.loc
+            )
+          }
+          len.tchk(constants)
+        }
         (TyStm(typ, checkedLen), rest5)
       case Seq(tok, _*) =>
         throw SyntaxError(s"expected a Stm type but found ${tok.quot}")
