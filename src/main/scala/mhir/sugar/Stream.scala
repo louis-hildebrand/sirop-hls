@@ -2062,6 +2062,9 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 }
 
+/** Like [[StmSlideV]], but with a defined initial value for the window and with
+  * the output always being valid.
+  */
 case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
     extends SyntaxSugar(s, z)(typ) {
 
