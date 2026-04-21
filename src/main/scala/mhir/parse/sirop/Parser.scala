@@ -648,6 +648,11 @@ object Parser {
           case Seq(v) => VecJoin(v)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecConcat", -1) =>
+        args match {
+          case Seq(v1, v2) => VecConcat(v1, v2)()
+          case _           => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("VecReverse", -1) =>
         args match {
           case Seq(v) => VecReverse(v)
@@ -693,6 +698,11 @@ object Parser {
         args match {
           case Seq(s) => StmJoin(s)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmConcat", -1) =>
+        args match {
+          case Seq(s1, s2) => StmConcat(s1, s2)()
+          case _           => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmRange", -1) =>
         args match {
