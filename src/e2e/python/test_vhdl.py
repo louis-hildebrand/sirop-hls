@@ -63,6 +63,9 @@ def test_vhdl(src: Path) -> bool:
         check=False,
     )
     # Check error code
+    actual_stderr = result.stderr
+    actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.stderr.txt"
+    actual_stderr_file.write_text(actual_stderr, encoding="utf-8")
     expected_code = 1 if src.parent.name.endswith("Error") else 0
     if result.returncode != expected_code:
         print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
@@ -71,13 +74,10 @@ def test_vhdl(src: Path) -> bool:
     expected_out_path = src.with_suffix(".vhdl.stderr.txt")
     if expected_out_path.is_file():
         expected_stderr = expected_out_path.read_text(encoding="utf-8")
-        actual_stderr = result.stderr
-        actual_out_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.stderr.txt"
-        actual_out_file.write_text(actual_stderr, encoding="utf-8")
         if actual_stderr != expected_stderr:
             print(
                 f"WRONG OUTPUT (compare {expected_out_path.relative_to(c.ROOT)}"
-                f" with {actual_out_file.relative_to(c.ROOT)})"
+                f" with {actual_stderr_file.relative_to(c.ROOT)})"
             )
             return False
     # Check file tree (if applicable)

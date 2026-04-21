@@ -10,7 +10,7 @@ import mhir.optimize.{Optimizer, OptimizerOptions}
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{TypeCheck, TypeCheckProgram}
 import org.slf4j.event.Level
 import os.Path
 
@@ -51,8 +51,8 @@ object Compiler {
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
-    val Program(topName, parsed) = prog
-    val (checked, tchkTime) = typecheck(parsed)
+    val topName = prog.name
+    val (checked, tchkTime) = typecheck(prog)
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
@@ -85,16 +85,27 @@ object Compiler {
     finalProgram
   }
 
-  private def typecheck(e: Expr): (Expr, Duration) = {
+  private def typecheck(prog: Program): (Program, Duration) = {
     time2("type checking", Level.DEBUG) {
-      e.tchk()
+      prog.tchk()
     }
   }
 
-  private def lower(e: Expr): (Expr, Duration) = {
+  private def lower(prog: Program): (Expr, Duration) = {
     time2("lowering", Level.DEBUG) {
+      val e = inlineConstants(prog)
       translateStmLiteral(e.lower)
     }
+  }
+
+  private def inlineConstants(prog: Program): Expr = {
+    val subs = prog.constants.foldLeft(Map[Expr, Expr]())({
+      case (subs, ConstDecl(x, e)) =>
+        val v = mhir.eval.eval(e.subPreserveType(subs))
+        val newX = x.lower.subPreserveType(subs)
+        subs + (newX -> v)
+    })
+    prog.e.subPreserveType(subs)
   }
 
   private def makeSynthesizable(e: Expr): (Expr, Duration) = {

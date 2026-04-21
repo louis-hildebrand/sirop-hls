@@ -70,7 +70,10 @@ object Repl {
     } else {
       val newState =
         try {
-          val s = Parser.parseStmt(line)
+          val s = Parser.parseStmt(
+            line,
+            state.variables.map({ case (x, _) => x -> x.typ })
+          )
           val (newState, exit) = exec(s, state, writer)
           if (exit) {
             writer.print(GoodbyeMessage)

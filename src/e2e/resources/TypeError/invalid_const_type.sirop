@@ -1,0 +1,3 @@
+const n: u8 = 99_999
+
+accelerator top = (s: Stm[u16, n]) => s

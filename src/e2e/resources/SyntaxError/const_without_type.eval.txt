@@ -1,0 +1,1 @@
+SyntaxError(1:7): missing type annotation (all const declarations require a type annotation)

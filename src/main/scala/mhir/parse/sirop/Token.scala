@@ -315,6 +315,17 @@ case class AcceleratorToken(loc: SourcePoint) extends Token {
   */
 object AcceleratorToken extends KeywordCategory("accelerator")
 
+/** The keyword "const".
+  */
+case class ConstToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ConstToken
+  override def original: String = "const"
+}
+
+/** Category of [[ConstToken]].
+  */
+object ConstToken extends KeywordCategory("const")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.

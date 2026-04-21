@@ -56,4 +56,5 @@
     <logger name="mhir.optimize.NameSimplifier$" />
     <logger name="mhir.optimize.EnabledLetStmSimplifier$" />
     <logger name="mhir.optimize.PartialEvalPass$" />
+    <logger name="mhir.parse.sirop.Parser$" />
 </configuration>
