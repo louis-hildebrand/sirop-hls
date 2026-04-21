@@ -1937,10 +1937,8 @@ case class StmSlideV(
     input: Expr /* Stm<A; n> */,
     winSize: Expr /* Int */,
     stride: Expr = C(1)() /* Int */
-)(
-    typ: Type = Missing
-) /* Stm<Vec<A; m>; n-m+1> */
-    extends SyntaxSugar(input, winSize)(typ) {
+)(typ: Type = Missing) /* Stm<Vec<A; m>; n-m+1> */
+    extends SyntaxSugar(input, winSize, stride)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(s, winSize, stride) => StmSlideV(s, winSize, stride)(typ)
