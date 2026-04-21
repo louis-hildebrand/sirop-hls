@@ -194,6 +194,17 @@ case class UndefinedToken(loc: SourcePoint) extends Token {
   */
 object UndefinedToken extends KeywordCategory("undefined")
 
+/** The keyword "default".
+  */
+case class DefaultToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = DefaultToken
+  override def original: String = "default"
+}
+
+/** Category of [[DefaultToken]].
+  */
+object DefaultToken extends KeywordCategory("default")
+
 /** The keyword "true".
   */
 case class TrueToken(loc: SourcePoint) extends Token {

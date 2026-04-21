@@ -51,12 +51,13 @@ expr1'          ::= ""
                   | "." nat expr1'
                   | "." ident "(" expr_list ")" expr1'
                   | "[" expr "]" expr1'
-# First(expr0) = { "(", "{", ident, "undefined", "true", "false", "+", "-", nat, "[" }
+# First(expr0) = { "(", "{", ident, "undefined", "default", "true", "false", "+", "-", nat, "[" }
 expr0           ::= "(" expr ")"
                   | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
                   | ident
                   | "undefined" "[" typ "]"
+                  | "default" "[" typ "]"
                   | "true" | "false"
                   | int_cst
                   # Type annotation is required if the vec/stm literal is empty.

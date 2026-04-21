@@ -125,6 +125,7 @@ object Parser {
       LeftCurlyToken,
       IdentToken,
       UndefinedToken,
+      DefaultToken,
       TrueToken,
       FalseToken,
       PlusToken,
@@ -787,6 +788,10 @@ object Parser {
         val (typ, rest2) = parseTyp(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
         (Undefined(typ), rest3)
+      case Seq(_: DefaultToken, _: LeftSquareToken, rest1 @ _*) =>
+        val (typ, rest2) = parseTyp(rest1, constants)
+        val (_, rest3) = expect(RightSquareToken, rest2)
+        (Default(typ), rest3)
       case Seq(_: TrueToken, rest @ _*)  => (True, rest)
       case Seq(_: FalseToken, rest @ _*) => (False, rest)
       case Seq(_: NatToken, _*) | Seq(_: PlusToken, _*) |

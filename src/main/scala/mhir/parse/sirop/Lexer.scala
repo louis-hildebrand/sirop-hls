@@ -146,6 +146,7 @@ object Lexer {
           case "sbuild"      => SbuildToken(start)
           case "sdata"       => SdataToken(start)
           case "undefined"   => UndefinedToken(start)
+          case "default"     => DefaultToken(start)
           case "true"        => TrueToken(start)
           case "false"       => FalseToken(start)
           case "init"        => InitToken(start)
