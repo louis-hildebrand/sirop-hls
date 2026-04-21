@@ -2078,6 +2078,23 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual) == expected)
   }
 
+  test("StmSlideInit:1D:SmallWindow") {
+    val actual1 = StmSlideInit(
+      // [1, 4, 9, 16, 25]
+      build1D(5, i => C((i + 1) * (i + 1))(U8)),
+      Default(TyVec(U8, 3))
+    )().tchk().lower
+    val expected1 = StmLiteral(
+      VecLiteral(C(0)(U8), C(0)(U8), C(1)(U8))(),
+      VecLiteral(C(0)(U8), C(1)(U8), C(4)(U8))(),
+      VecLiteral(C(1)(U8), C(4)(U8), C(9)(U8))(),
+      VecLiteral(C(4)(U8), C(9)(U8), C(16)(U8))(),
+      VecLiteral(C(9)(U8), C(16)(U8), C(25)(U8))()
+    )().tchk()
+    assert(actual1.typ == expected1.typ)
+    assert(mhir.eval.eval(actual1) == expected1)
+  }
+
   test("StmSlideS:1D:UnitWindow") {
     val actual = StmSlideS(StmCount(3)(), 1)().tchk()
     val expected = StmLiteral(0, 1, 2)()

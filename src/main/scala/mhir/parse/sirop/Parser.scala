@@ -709,6 +709,11 @@ object Parser {
           case Seq(s, w) => StmSlideV(s, w)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("StmSlideInit", -1) =>
+        args match {
+          case Seq(s, z) => StmSlideInit(s, z)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("StmSlide2D", -1) =>
         args match {
           case Seq(s, h, w) => StmSlide2D(s, h, w)()

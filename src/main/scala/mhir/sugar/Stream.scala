@@ -2019,8 +2019,8 @@ case class StmSlideV(
   }
 }
 
-/** Similar to <code>StmSlideS</code>, but produces a nested stream rather than
-  * a stream of vectors.
+/** Similar to [[StmSlideV]], but produces a nested stream rather than a stream
+  * of vectors.
   */
 case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     typ: Type = Missing
@@ -2059,6 +2059,60 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
       .tchk()
       .lower
+  }
+}
+
+case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s, z)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, z) => StmSlideInit(s, z)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
+    val (elemTyp, n) = s.typ match {
+      case TyStm(TyData(t), n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Stream in $className has type $t. Expected a non-nested stream."
+        )
+    }
+    val z = this.z.tchk(context)
+    val m = z.typ match {
+      case TyVec(TyData(t1), m) if t1 == elemTyp => m
+      case t =>
+        throw new TypeError(
+          s"Initial window in $className has type $t."
+            + s" Expected a vector whose elements have type $elemTyp."
+        )
+    }
+    this.rebuild(TyStm(TyVec(elemTyp, m), n), Seq(s, z))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val s = this.s.lower
+    val TyStm(TyData(elemTyp), n) = s.typ
+    val z = this.z.lower
+    val TyVec(_, m) = z.typ
+    val p = Param("s")(TyStm(elemTyp, -1))
+    val buf = Param("buf")(z.typ)
+    val shiftedBuf = VecShiftLeft(buf, StmData(p)())().tchk().lower
+    StmBuild(
+      n,
+      shiftedBuf,
+      True,
+      Map[Param, (Expr, Expr)](
+        p -> (s, True),
+        buf -> (z, shiftedBuf)
+      )
+    )().tchk()
   }
 }
 
