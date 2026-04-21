@@ -210,6 +210,18 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
     DefaultVal(this.typ).tchk()
   }
 
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    Default(this.typ.substitute(subs))
+  }
+
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    Default(this.typ.substitute(subs))
+  }
+
   override def precedence: Int = Precedence.Min
 
   override def displayOneLine(): String = s"default[${this.typ}]"

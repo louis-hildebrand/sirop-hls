@@ -27,6 +27,14 @@ class SugarTests extends AnyFunSuite {
     assert(e.subAndEraseType(x -> y) == expected)
   }
 
+  test("Substitute:[4/n](default[Vec[u8,n]])") {
+    val n = Param("n")(U8)
+    val e = Default(TyVec(U8, n))
+    val actual = e.subPreserveType(n -> C(4)(U8))
+    assert(actual == Default(TyVec(U8, 4)))
+    assert(actual.typ == TyVec(U8, 4))
+  }
+
   test("Let:Equals") {
     val e1 = {
       val x = Param("x")(U8)
