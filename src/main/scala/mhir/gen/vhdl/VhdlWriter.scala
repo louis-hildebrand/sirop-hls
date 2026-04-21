@@ -41,7 +41,13 @@ object VhdlWriter {
     )
     os.write(
       dir / s"$topName.qsf",
-      Source.fromResource("mhir/gen/top.qsf").mkString
+      Source
+        .fromResource("mhir/gen/top.qsf")
+        .mkString
+        .replace(
+          "set_global_assignment -name TOP_LEVEL_ENTITY top",
+          s"set_global_assignment -name TOP_LEVEL_ENTITY $topName"
+        )
     )
     os.write(
       dir / s"$topName.sdc",
