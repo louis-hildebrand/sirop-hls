@@ -85,7 +85,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       this.v.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
       this.in.subPreserveType(newSubs)(c)
-    )(this.typ)
+    )(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(
@@ -298,7 +298,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
     ReshapeData(
       this.e.subPreserveType(subs),
       this.targetType.substitute(subs)
-    )(this.typ)
+    )(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(

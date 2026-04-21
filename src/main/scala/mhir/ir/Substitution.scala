@@ -22,7 +22,14 @@ private[ir] trait Substitution {
     )(implicit c: Canonicalizer): Expr = {
       // !!!!!!!!!! WARNINGS !!!!!!!!!!
       //
-      // Suppose we have a variable binder like Function(x, body).
+      // There are a few tricky points to consider with substitution.
+      //
+      // (A) For any expression, there may be substitutions to do in the type.
+      // For example, if we're performing the substitution n -> 4 in an
+      // expression of type Vec[u8, n], we want the expression to have type
+      // Vec[u8, 4] after substitution.
+      //
+      // (B) Suppose we have a variable binder like Function(x, body).
       // The same warnings apply for any expression which binds a variable x.
       //
       // Things to watch out for (correctness):
@@ -73,7 +80,7 @@ private[ir] trait Substitution {
                     // There may be substitutions to do within the type annotation
                     Param(newX.prefix, newX.id)(newX.typ.substitute(subs)),
                     body.subPreserveType(newSubs)
-                  )(f.typ)
+                  )(f.typ.substitute(subs))
                 }
               case let @ LetStm(bufSize, x, in, out) =>
                 time(s"performing subs $subs in let $x = ...") {
@@ -98,7 +105,7 @@ private[ir] trait Substitution {
                     in.subPreserveType(subs),
                     // `x` is bound here, so use the new subs
                     out.subPreserveType(newSubs)
-                  )(let.typ)
+                  )(let.typ.substitute(subs))
                 }
               case s: StmBuild =>
                 time(s"performing subs $subs in StmBuild...") {
@@ -138,23 +145,24 @@ private[ir] trait Substitution {
                       val newNext = next.subPreserveType(newSubs)
                       newX -> (newZ, newNext)
                     })
-                  )(s.typ, annotations = s.annotations)
+                  )(s.typ.substitute(subs), annotations = s.annotations)
                 }
               case e: SyntaxSugar => e.sugarSubAndKeepType(subs)
               case e =>
-                e.rebuild(e.typ, e.children.map(e => e.subPreserveType(subs)))
+                e.rebuild(
+                  e.typ.substitute(subs),
+                  e.children.map(e => e.subPreserveType(subs))
+                )
             }
         }
         if (this.expr.hasType) {
+          val expectedTyp = this.expr.typ.substitute(subs)
           assert(
-            out.typ ~= this.expr.typ,
-            s"the type should be preserved after substitution (expected ${this.expr.typ}, found ${out.typ} after substitutions $subs in ${this.expr})"
+            out.typ ~= expectedTyp,
+            s"the type should be preserved after substitution (expected $expectedTyp, found ${out.typ} after substitutions $subs in ${this.expr})"
           )
         }
-        // The expressions to replace may occur within the type (e.g., in the
-        // length of a vector)
-        val newType = out.typ.substitute(subs)
-        out.rebuild(newType)
+        out
       }
     }
 

@@ -1271,7 +1271,10 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   def sugarSubAndKeepType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    this.rebuild(this.typ, this.children.map(e => e.subPreserveType(subs)))
+    this.rebuild(
+      this.typ.substitute(subs),
+      this.children.map(e => e.subPreserveType(subs))
+    )
   }
 
   def sugarSubAndEraseType(

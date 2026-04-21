@@ -106,7 +106,7 @@ private[sugar] case class StmReset(
         val newStm = stm.subPreserveType(subs)(c)
         newX -> newStm
       })
-    )(this.typ)
+    )(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(
