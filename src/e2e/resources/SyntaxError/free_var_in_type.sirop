@@ -1,0 +1,2 @@
+let n = 8:u32 in
+(s: Stm[u8, n]) => s

@@ -1,0 +1,3 @@
+const n = 42
+
+accelerator top = (s: Stm[u8, n]) => s

@@ -2,6 +2,8 @@ package mhir.typecheck
 
 import mhir.ir._
 
+import scala.annotation.tailrec
+
 trait TypeChecker {
 
   implicit class TypeCheck(expr: Expr) {
@@ -605,6 +607,40 @@ trait TypeChecker {
         throw new TypeError(s"Expected type $t but found ${this.expr.typ}.")
       }
       this.expr
+    }
+  }
+
+  implicit class TypeCheckProgram(prog: Program) {
+
+    /** Type checks the given program.
+      *
+      * This includes type checking all constants as well as the main
+      * accelerator body.
+      */
+    def tchk()(implicit c: Canonicalizer): Program = {
+      @tailrec
+      def tchk(
+          checkedConstants: Seq[ConstDecl],
+          uncheckedConstants: Seq[ConstDecl]
+      ): Seq[ConstDecl] = {
+        uncheckedConstants match {
+          case Seq() =>
+            checkedConstants
+          case Seq(ConstDecl(x, e), rest @ _*) =>
+            // TODO: Would it be quicker to have the context as a parameter and
+            //       extend it gradually, rather than rebuilding it from scratch
+            //       at each iteration?
+            val context =
+              checkedConstants.map({ case ConstDecl(y, _) => y -> y.typ }).toMap
+            val newE = e.tchk(context)
+            tchk(checkedConstants :+ ConstDecl(x, newE), rest)
+        }
+      }
+      val newConstants = tchk(Seq(), this.prog.constants)
+      val context =
+        this.prog.constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
+      val newE = this.prog.e.tchk(context)
+      Program(this.prog.name, newConstants, newE)
     }
   }
 }

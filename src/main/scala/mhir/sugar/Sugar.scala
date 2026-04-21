@@ -85,7 +85,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       this.v.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
       this.in.subPreserveType(newSubs)(c)
-    )(this.typ)
+    )(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(
@@ -249,7 +249,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
       this.rebuild(targetType, Seq(newE))
     } else {
       throw new TypeError(
-        s"Cannot reshape from type ${newE.typ} to type $targetType."
+        s"Value of type ${newE.typ} might not fit in type $targetType."
       )
     }
   }
@@ -287,9 +287,27 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
         )().tchk()
       case _ =>
         throw new TypeError(
-          s"Cannot reshape from type ${e.typ} to $targetType."
+          s"Value of type ${e.typ} might not fit in type $targetType."
         )
     }
+  }
+
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    ReshapeData(
+      this.e.subPreserveType(subs),
+      this.targetType.substitute(subs)
+    )(this.typ.substitute(subs))
+  }
+
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    ReshapeData(
+      this.e.subAndEraseType(subs),
+      this.targetType.substitute(subs)
+    )()
   }
 }
 

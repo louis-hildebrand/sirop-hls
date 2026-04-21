@@ -1,13 +1,14 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
+import mhir.gen.CodegenError
 import os.Path
 
 import scala.io.Source
 
 object VhdlWriter {
 
-  def emit(top: VhdlComponent, dir: Path): Unit = {
+  def emit(top: CustomVhdlComponent, dir: Path): Unit = {
     val typesToDefine =
       findTypesUsedIn(top).flatMap(t => t.descendants + t)
     if (os.isDir(dir)) os.remove.all(dir)
@@ -15,17 +16,40 @@ object VhdlWriter {
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir)
-    emitProjectFiles(dir, designDir)
+    emitComponents(top, designDir, readReservedWords())
+    emitProjectFiles(dir, designDir, topName = top.name)
   }
 
-  private def emitProjectFiles(dir: Path, designDir: Path): Unit = {
-    os.write(dir / "top.qpf", Source.fromResource("mhir/gen/top.qpf").mkString)
-    os.write(dir / "top.qsf", Source.fromResource("mhir/gen/top.qsf").mkString)
-    os.write(dir / "top.sdc", Source.fromResource("mhir/gen/top.sdc").mkString)
+  private def readReservedWords(): Set[String] = {
+    Source.fromResource("mhir/gen/vhdl/reserved_words.txt").getLines().toSet
+  }
+
+  private def emitProjectFiles(
+      dir: Path,
+      designDir: Path,
+      topName: String
+  ): Unit = {
+    os.write(
+      dir / s"$topName.qpf",
+      Source
+        .fromResource("mhir/gen/top.qpf")
+        .mkString
+        .replace(
+          """PROJECT_REVISION = "top"""",
+          s"""PROJECT_REVISION = "$topName""""
+        )
+    )
+    os.write(
+      dir / s"$topName.qsf",
+      Source.fromResource("mhir/gen/top.qsf").mkString
+    )
+    os.write(
+      dir / s"$topName.sdc",
+      Source.fromResource("mhir/gen/top.sdc").mkString
+    )
     for (p <- os.list(designDir)) {
       os.write.append(
-        dir / "top.qsf",
+        dir / s"$topName.qsf",
         s"set_global_assignment -name VHDL_FILE ${p.relativeTo(dir)}\n"
       )
     }
@@ -163,7 +187,11 @@ object VhdlWriter {
       ++ Seq(f.returnType)).toSet
   }
 
-  private def emitComponents(c: VhdlComponent, dir: Path): Unit = {
+  private def emitComponents(
+      c: VhdlComponent,
+      dir: Path,
+      reservedWords: Set[String]
+  ): Unit = {
     c match {
       case c: StmNoOpComponent =>
         os.write.over(
@@ -178,9 +206,14 @@ object VhdlWriter {
           )
         }
       case c: CustomVhdlComponent =>
+        if (reservedWords.contains(c.name.toLowerCase)) {
+          throw CodegenError(
+            s"cannot generate entity '${c.name}', since its name is a reserved keyword in VHDL"
+          )
+        }
         c.writeVhdl(dir / s"${c.name}.vhd")
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {
-          emitComponents(child, dir)
+          emitComponents(child, dir, reservedWords)
         }
     }
   }

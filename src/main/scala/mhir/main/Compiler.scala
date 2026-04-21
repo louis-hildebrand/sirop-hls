@@ -3,6 +3,7 @@ package mhir.main
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.gen.CodegenError
 import mhir.ir._
 import mhir.logging.time2
 import mhir.main.aetherling.{
@@ -66,11 +67,8 @@ object Compiler {
     try {
       compile(a, argparseTime)
     } catch {
-      case ex: SyntaxError =>
-        println(ex.getMessage)
-        sys.exit(1)
-      case ex: TypeError =>
-        println(ex.getMessage)
+      case ex @ (_: SyntaxError | _: TypeError | _: CodegenError) =>
+        Console.err.println(ex.getMessage)
         sys.exit(1)
     }
   }

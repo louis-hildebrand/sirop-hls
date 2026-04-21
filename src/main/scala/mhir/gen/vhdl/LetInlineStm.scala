@@ -68,7 +68,7 @@ case class LetInlineStm(x: Param, in: Expr, out: Expr)(typ: Type = Missing)
       this.in.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
       this.out.subPreserveType(newSubs)(c)
-    )(this.typ)
+    )(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(

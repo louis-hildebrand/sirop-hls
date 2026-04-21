@@ -31,7 +31,7 @@ object Compiler {
       AetherlingParser.parse(aetherlingCode)
     }
     SC.compile(
-      parsed,
+      Program(parsed),
       args.options,
       argparseTime = argparseTime,
       parseTime = parseTime

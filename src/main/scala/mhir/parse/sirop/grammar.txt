@@ -1,6 +1,17 @@
 # TODO: Add fixed-point number operations and type
 # TODO: Allow trailing commas (e.g., in sbuild, in sequence literals)
 
+program ::= const_decl* accel_decl
+          | expr
+
+##### Declarations #####################################################################################################
+
+const_decl ::= "const" ident ":" typ "=" expr
+
+accel_decl ::= "accelerator" ident "=" expr
+
+##### Expressions ######################################################################################################
+
 expr            ::= expr10
 # First(expr10) = { "if", "(", "letstm" } U First(expr2)
 expr10          ::= "if" expr "then" expr "else" expr
@@ -83,6 +94,8 @@ ident           ::= (letter | "_") (digit | letter | "_" )*
 
 nat             ::= "0" | nonzero_nat
 nonzero_nat     ::= nonzero_digit ( digit | "_" )*
+
+##### Statements (for the REPL) ########################################################################################
 
 stmt            ::= expr
                   | "exit"

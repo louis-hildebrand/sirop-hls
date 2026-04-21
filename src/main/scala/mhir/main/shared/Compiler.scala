@@ -10,7 +10,7 @@ import mhir.optimize.{Optimizer, OptimizerOptions}
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{TypeCheck, TypeCheckProgram}
 import org.slf4j.event.Level
 import os.Path
 
@@ -22,35 +22,41 @@ object Compiler {
 
   /** Runs the compiler.
     *
-    * @param e
-    *   the expression to compile.
+    * @param prog
+    *   the program to compile.
     * @param options
     *   compiler options.
     * @return
     *   the final program from which VHDL was generated.
     */
   def compile(
-      e: Expr,
+      prog: Program,
       options: CompilerOptions,
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
     time("compilation", Level.DEBUG) {
-      doCompile(e, options, argparseTime = argparseTime, parseTime = parseTime)
+      doCompile(
+        prog,
+        options,
+        argparseTime = argparseTime,
+        parseTime = parseTime
+      )
     }
   }
 
   private def doCompile(
-      parsed: Expr,
+      prog: Program,
       options: CompilerOptions,
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
-    val (checked, tchkTime) = typecheck(parsed)
+    val topName = prog.name
+    val (checked, tchkTime) = typecheck(prog)
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
-    val genTime = generateCode(finalProgram, options.targets)
+    val genTime = generateCode(topName, finalProgram, options.targets)
     options.targets.toSeq
       .foreach({
         case NullTarget => ()
@@ -79,16 +85,27 @@ object Compiler {
     finalProgram
   }
 
-  private def typecheck(e: Expr): (Expr, Duration) = {
+  private def typecheck(prog: Program): (Program, Duration) = {
     time2("type checking", Level.DEBUG) {
-      e.tchk()
+      prog.tchk()
     }
   }
 
-  private def lower(e: Expr): (Expr, Duration) = {
+  private def lower(prog: Program): (Expr, Duration) = {
     time2("lowering", Level.DEBUG) {
+      val e = inlineConstants(prog)
       translateStmLiteral(e.lower)
     }
+  }
+
+  private def inlineConstants(prog: Program): Expr = {
+    val subs = prog.constants.foldLeft(Map[Expr, Expr]())({
+      case (subs, ConstDecl(x, e)) =>
+        val v = mhir.eval.eval(e.subPreserveType(subs))
+        val newX = x.lower.subPreserveType(subs)
+        subs + (newX -> v)
+    })
+    prog.e.subPreserveType(subs)
   }
 
   private def makeSynthesizable(e: Expr): (Expr, Duration) = {
@@ -110,13 +127,14 @@ object Compiler {
   }
 
   private def generateCode(
+      topName: String,
       prog: Expr,
       targets: Set[CompilerTarget]
   ): Duration = {
     val (_, time) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
-          emitVhdl(prog, outDir, overwrite)
+          emitVhdl(topName, prog, outDir, overwrite)
         case _: EvalTarget        => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
@@ -147,6 +165,7 @@ object Compiler {
   }
 
   private def emitVhdl(
+      topName: String,
       finalProgram: Expr,
       outDir: Path,
       overwrite: Boolean
@@ -161,7 +180,7 @@ object Compiler {
           )
         }
       }
-      VhdlGenerator.emitVhdl(finalProgram, outDir)
+      VhdlGenerator.emitVhdl(finalProgram, outDir, topName = topName)
     }
   }
 

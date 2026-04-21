@@ -1,0 +1,1 @@
+CodegenError: cannot generate entity 'buffer', since its name is a reserved keyword in VHDL

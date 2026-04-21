@@ -85,13 +85,15 @@ class Interpreter(
       os.pwd / "src" / "main" / "scala" / "mhir" / "main" / "bf" / "interpreter.sirop"
     )
     val parsed =
-      mhir.parse.sirop.Parser.parse(
-        src
-          .replace("TAPE_LEN", s"$tapeLength:u32")
-          .replace("PROG_LEN", s"$programLength:u32")
-          .replace("INPUT_LEN", s"$inputLength:u32")
-          .replace("OUTPUT_LEN", s"$maxOutputLength:u32")
-      )
+      mhir.parse.sirop.Parser
+        .parse(
+          src
+            .replace("TAPE_LEN", s"$tapeLength:u32")
+            .replace("PROG_LEN", s"$programLength:u32")
+            .replace("INPUT_LEN", s"$inputLength:u32")
+            .replace("OUTPUT_LEN", s"$maxOutputLength:u32")
+        )
+        .e
     val typeChecked = parsed.tchk()
     val lowered = typeChecked.lower
     val simplified = mhir.optimize.PartialEvalPass.partialEval(lowered)

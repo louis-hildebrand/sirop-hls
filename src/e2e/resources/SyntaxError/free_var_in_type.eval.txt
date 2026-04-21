@@ -1,0 +1,1 @@
+SyntaxError(2:13): type has free variable(s): n. All variables in types should be const.

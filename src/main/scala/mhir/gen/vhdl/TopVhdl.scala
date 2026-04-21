@@ -14,7 +14,7 @@ private case class FlatPipeline(
 )
 
 object TopVhdl {
-  def apply(f: Expr): VhdlComponent = {
+  def apply(f: Expr, topName: String): CustomVhdlComponent = {
     val pipe = makeFlatPipeline(f)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
@@ -158,7 +158,7 @@ object TopVhdl {
     }
     CustomVhdlComponent(
       expr = Some(f),
-      name = "top",
+      name = topName,
       inPorts =
         ports.filter(_.isInstanceOf[InPort]).map(_.asInstanceOf[InPort]),
       outPorts =
