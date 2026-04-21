@@ -3,7 +3,7 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.eval.Evaluator
-import mhir.gen.vhdl.VhdlGenerator
+import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
 import mhir.optimize.{Optimizer, OptimizerOptions}
@@ -47,16 +47,18 @@ object Compiler {
 
   private def doCompile(
       prog: Program,
-      options: CompilerOptions,
+      originalOptions: CompilerOptions,
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
     val topName = prog.name
+    val options =
+      originalOptions.copy(vhdl = originalOptions.vhdl.copy(topName = topName))
     val (checked, tchkTime) = typecheck(prog)
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
-    val genTime = generateCode(topName, finalProgram, options.targets)
+    val genTime = generateCode(options.vhdl, finalProgram, options.targets)
     options.targets.toSeq
       .foreach({
         case NullTarget => ()
@@ -127,14 +129,14 @@ object Compiler {
   }
 
   private def generateCode(
-      topName: String,
+      options: VhdlGeneratorOptions,
       prog: Expr,
       targets: Set[CompilerTarget]
   ): Duration = {
     val (_, time) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
-          emitVhdl(topName, prog, outDir, overwrite)
+          emitVhdl(options, prog, outDir, overwrite)
         case _: EvalTarget        => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
@@ -165,7 +167,7 @@ object Compiler {
   }
 
   private def emitVhdl(
-      topName: String,
+      options: VhdlGeneratorOptions,
       finalProgram: Expr,
       outDir: Path,
       overwrite: Boolean
@@ -180,7 +182,7 @@ object Compiler {
           )
         }
       }
-      VhdlGenerator.emitVhdl(finalProgram, outDir, topName = topName)
+      VhdlGenerator.emitVhdl(finalProgram, outDir, options)
     }
   }
 

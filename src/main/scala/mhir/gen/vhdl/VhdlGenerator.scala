@@ -20,9 +20,13 @@ object VhdlGenerator {
     * @param dir
     *   the directory in which to save the design.
     */
-  def emitVhdl(f: Expr, dir: Path, topName: String = "top"): Unit = {
-    val topComponent = TopVhdl(f, topName)
-    VhdlWriter.emit(topComponent, dir)
+  def emitVhdl(
+      f: Expr,
+      dir: Path,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
+  ): Unit = {
+    val topComponent = TopVhdl(f, options.topName)
+    VhdlWriter.emit(topComponent, dir, options)
   }
 
   def validateExpr(e: Expr): Unit = {

@@ -1,6 +1,7 @@
 package mhir.main
 
 import ch.qos.logback.classic.Level
+import mhir.gen.vhdl.VhdlGeneratorOptions
 import mhir.main.shared._
 import mhir.main.stored.Program
 import mhir.optimize.OptimizerOptions
@@ -44,6 +45,9 @@ object Args {
     var overwrite = false
     var mutArgs = args
     var logLevel = Level.DEBUG
+    // VHDL args
+    var vhdlFamily: Option[String] = None
+    var vhdlDevice: Option[String] = None
     // Optimizer args
     var simplifyStmBuild = true
     var inlineLetStm = true
@@ -127,6 +131,23 @@ object Args {
           logLevel = Level.INFO
         case "-v" | "--verbose" =>
           logLevel = Level.DEBUG
+        // VHDL args
+        case "--out:vhdl:family" =>
+          mutArgs.drop(1).headOption match {
+            case Some(family) =>
+              vhdlFamily = Some(family)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:device" =>
+          mutArgs.drop(1).headOption match {
+            case Some(device) =>
+              vhdlDevice = Some(device)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
         // Optimizer args
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
@@ -211,6 +232,18 @@ object Args {
     }
     val options = CompilerOptions(
       targets = targets,
+      vhdl = {
+        val opt0 = VhdlGeneratorOptions()
+        val opt1 = vhdlFamily match {
+          case Some(family) => opt0.copy(deviceFamily = family)
+          case None         => opt0
+        }
+        val opt2 = vhdlDevice match {
+          case Some(device) => opt1.copy(device = device)
+          case None         => opt1
+        }
+        opt2
+      },
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
         inlineLetStm = inlineLetStm,
@@ -266,6 +299,10 @@ object Args {
          |                                 false then raise an error
          |  -q,--quiet                     reduce the number of log messages
          |  -v,--verbose                   increase the number of log messages
+         |
+         |VHDL Output Arguments:
+         |  --out:vhdl:family   the value for the FAMILY assignment in the .qsf file
+         |  --out:vhdl:device   the value for the DEVICE assignment in the .qsf file
          |
          |Optimization Flags:
          |  --opt:no-simplify-sbuild        skip basic sbuild simplifications

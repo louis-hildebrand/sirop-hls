@@ -8,7 +8,11 @@ import scala.io.Source
 
 object VhdlWriter {
 
-  def emit(top: CustomVhdlComponent, dir: Path): Unit = {
+  def emit(
+      top: CustomVhdlComponent,
+      dir: Path,
+      options: VhdlGeneratorOptions
+  ): Unit = {
     val typesToDefine =
       findTypesUsedIn(top).flatMap(t => t.descendants + t)
     if (os.isDir(dir)) os.remove.all(dir)
@@ -17,7 +21,7 @@ object VhdlWriter {
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir, readReservedWords())
-    emitProjectFiles(dir, designDir, topName = top.name)
+    emitProjectFiles(dir, designDir, options)
   }
 
   private def readReservedWords(): Set[String] = {
@@ -27,27 +31,39 @@ object VhdlWriter {
   private def emitProjectFiles(
       dir: Path,
       designDir: Path,
-      topName: String
+      options: VhdlGeneratorOptions
   ): Unit = {
+    val topName = options.topName
     os.write(
       dir / s"$topName.qpf",
       Source
         .fromResource("mhir/gen/top.qpf")
-        .mkString
-        .replace(
-          """PROJECT_REVISION = "top"""",
-          s"""PROJECT_REVISION = "$topName""""
+        .getLines()
+        .map(
+          _.replace(
+            """PROJECT_REVISION = "top"""",
+            s"""PROJECT_REVISION = "$topName""""
+          )
         )
+        .mkString("\n")
     )
     os.write(
       dir / s"$topName.qsf",
       Source
         .fromResource("mhir/gen/top.qsf")
-        .mkString
-        .replace(
-          "set_global_assignment -name TOP_LEVEL_ENTITY top",
-          s"set_global_assignment -name TOP_LEVEL_ENTITY $topName"
-        )
+        .getLines()
+        .map({ line =>
+          if (line.startsWith("set_global_assignment -name TOP_LEVEL_ENTITY")) {
+            s"set_global_assignment -name TOP_LEVEL_ENTITY $topName"
+          } else if (line.startsWith("set_global_assignment -name FAMILY")) {
+            s"""set_global_assignment -name FAMILY "${options.deviceFamily}""""
+          } else if (line.startsWith("set_global_assignment -name DEVICE")) {
+            s"""set_global_assignment -name DEVICE "${options.device}""""
+          } else {
+            line
+          }
+        })
+        .map(_ + "\n")
     )
     os.write(
       dir / s"$topName.sdc",

@@ -1,6 +1,7 @@
 package mhir.main.shared
 
 import ch.qos.logback.classic.Level
+import mhir.gen.vhdl.VhdlGeneratorOptions
 import mhir.optimize.OptimizerOptions
 import os.Path
 
@@ -14,5 +15,6 @@ import os.Path
 case class CompilerOptions(
     targets: Set[CompilerTarget],
     optFlags: OptimizerOptions,
+    vhdl: VhdlGeneratorOptions = VhdlGeneratorOptions(),
     logLevel: Option[Level] = None
 )
