@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier
 import mhir.typecheck.TypeCheck
 
@@ -14,7 +15,21 @@ private case class FlatPipeline(
 )
 
 object TopVhdl {
-  def apply(f: Expr, topName: String): CustomVhdlComponent = {
+
+  /** Generate the top-level VHDL entity.
+    *
+    * @param f
+    *   the function defining the accelerator's behaviour.
+    * @param topName
+    *   the name of the top-level entity.
+    * @param outName
+    *   the name for the output stream.
+    */
+  def apply(
+      f: Expr,
+      topName: String,
+      outName: Option[String] = None
+  ): CustomVhdlComponent = {
     val pipe = makeFlatPipeline(f)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
@@ -86,7 +101,7 @@ object TopVhdl {
             name = s"${x.name}_ready",
             typ = VhdlStdLogic,
             assignStmt = if (x == pipe.sink) {
-              Some(s"${x.name}_ready <= ready;")
+              Some(s"${x.name}_ready <= ${topReady(outName)};")
             } else {
               None
             }
@@ -128,16 +143,19 @@ object TopVhdl {
         InPort("reset", VhdlStdLogic),
         // Handshake with consumer
         OutPort(
-          "data",
+          topData(outName),
           VhdlType(outElemTyp).toStdLogicVec,
           assign = Some(s"${pipe.sink.name}_data")
         ),
         OutPort(
-          "valid",
+          topValid(outName),
           VhdlStdLogic,
           assign = Some(s"${pipe.sink.name}_valid")
         ),
-        InPort("ready", VhdlStdLogic)
+        InPort(
+          topReady(outName),
+          VhdlStdLogic
+        )
       ) ++ pipe.inputs.flatMap({ x =>
         val TyStm(inElemTyp, _) = x.typ
         Seq(
@@ -169,6 +187,18 @@ object TopVhdl {
     )
   }
 
+  def topData(outName: Option[String]): String = {
+    outName.map(_ + "_").getOrElse("") + "data"
+  }
+
+  def topValid(outName: Option[String]): String = {
+    outName.map(_ + "_").getOrElse("") + "valid"
+  }
+
+  def topReady(outName: Option[String]): String = {
+    outName.map(_ + "_").getOrElse("") + "ready"
+  }
+
   private def validateExpr(e: Expr): Unit = {
     require(
       e.typ != Missing,
@@ -183,7 +213,7 @@ object TopVhdl {
       s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
-      case f: Function => Streamifier.unwrapTopLevelFunction(f, rename = false)
+      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
       case e           => (Seq(), e)
     }
     for (x <- inputs) {
@@ -204,7 +234,7 @@ object TopVhdl {
 
   private def makeFlatPipeline(f: Expr): FlatPipeline = {
     validateExpr(f)
-    val (inputs, stm) = Streamifier.unwrapTopLevelFunction(f, rename = true)
+    val (inputs, stm) = SemanticAnalyzer.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val anfStm = StmAnfConverter.convert(stm)
     val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)

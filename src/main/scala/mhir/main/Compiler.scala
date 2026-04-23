@@ -20,6 +20,7 @@ import mhir.main.shared.{
 import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
+import mhir.sem.SemanticError
 import mhir.typecheck.{TypeCheck, TypeError}
 import org.slf4j.LoggerFactory
 
@@ -67,7 +68,8 @@ object Compiler {
     try {
       compile(a, argparseTime)
     } catch {
-      case ex @ (_: SyntaxError | _: TypeError | _: CodegenError) =>
+      case ex @ (_: SyntaxError | _: TypeError | _: SemanticError |
+          _: CodegenError) =>
         Console.err.println(ex.getMessage)
         sys.exit(1)
     }

@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier
 import mhir.typecheck.TypeCheck
 import os.Path
@@ -25,7 +26,8 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
-    val topComponent = TopVhdl(f, options.topName)
+    val topComponent =
+      TopVhdl(f, topName = options.topName, outName = options.outName)
     VhdlWriter.emit(topComponent, dir, options)
   }
 
@@ -43,7 +45,7 @@ object VhdlGenerator {
       s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
-      case f: Function => Streamifier.unwrapTopLevelFunction(f, rename = false)
+      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
       case e           => (Seq(), e)
     }
     for (x <- inputs) {

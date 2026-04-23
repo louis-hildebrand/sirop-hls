@@ -640,7 +640,7 @@ trait TypeChecker {
       val context =
         this.prog.constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       val newE = this.prog.e.tchk(context)
-      Program(this.prog.name, newConstants, newE)
+      Program(this.prog.name, this.prog.annotations, newConstants, newE)
     }
   }
 }

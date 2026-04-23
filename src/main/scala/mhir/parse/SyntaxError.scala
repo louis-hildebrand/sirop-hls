@@ -7,7 +7,7 @@ package mhir.parse
   * @param loc
   *   the location of the error in the source code.
   */
-case class SyntaxError(msg: String)(loc: Option[SourcePoint])
+case class SyntaxError(msg: String)(val loc: Option[SourcePoint])
     extends RuntimeException(msg) {
   override def getMessage: String = {
     loc match {

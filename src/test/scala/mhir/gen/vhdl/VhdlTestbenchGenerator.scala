@@ -6,6 +6,7 @@ import mhir.canonicalize._
 import mhir.debug.indent
 import mhir.ir._
 import mhir.logging.time
+import mhir.sem.SemanticAnalyzer
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
@@ -30,14 +31,15 @@ object VhdlTestbenchGenerator {
       inputs: Seq[Seq[DirectTestInput]],
       e: Expr,
       dir: Path,
-      testNotReady: Boolean = true
+      testNotReady: Boolean = true,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
     require(inputs.nonEmpty)
     val io = TestSuiteIO(inputs.map({ in =>
       val (out, inputsByVar) = getExpectedOutput(e, in)
       KeywordTestIO(inputsByVar, out)
     }))
-    makeTestbench(io, dir, testNotReady = testNotReady)
+    makeTestbench(io, dir, testNotReady = testNotReady, options = options)
   }
 
   /** Make a testbench where all inputs and expected outputs are stored in
@@ -57,7 +59,8 @@ object VhdlTestbenchGenerator {
   def makeFileBasedTestbench(
       io: PositionalTestIO,
       dir: Path,
-      testNotReady: Boolean = false
+      testNotReady: Boolean = false,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
     val testDir = dir / "test"
     os.makeDir.all(testDir)
@@ -104,7 +107,8 @@ object VhdlTestbenchGenerator {
     makeTestbench(
       io = TestSuiteIO(Seq(KeywordTestIO(fileInputsByVar, fileOutput))),
       dir = dir,
-      testNotReady = testNotReady
+      testNotReady = testNotReady,
+      options = options
     )
   }
 
@@ -112,7 +116,8 @@ object VhdlTestbenchGenerator {
       inputs: Seq[DirectTestInput],
       expectedOutput: DirectTestOutput,
       dir: Path,
-      testNotReady: Boolean
+      testNotReady: Boolean,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
     val testDir = dir / "test"
     os.makeDir.all(testDir)
@@ -122,7 +127,8 @@ object VhdlTestbenchGenerator {
     makeTestbench(
       io = TestSuiteIO(Seq(KeywordTestIO(inputsByVar, expectedOutput))),
       dir = dir,
-      testNotReady = testNotReady
+      testNotReady = testNotReady,
+      options = options
     )
   }
 
@@ -137,10 +143,11 @@ object VhdlTestbenchGenerator {
   private def makeTestbench(
       io: TestSuiteIO,
       dir: Path,
-      testNotReady: Boolean
+      testNotReady: Boolean,
+      options: VhdlGeneratorOptions
   ): Unit = {
     val outElemType = VhdlType(io.outElemTyp)
-    val portMap = getPortMap(io.params)
+    val portMap = getPortMap(io.params, options.topName, options.outName)
     val sharedDecls = getSharedDecls(io)
     val testCaseDecls = io.tests.zipWithIndex
       .map({ case (io, idx) => getTestDecls(io, idx) })
@@ -300,14 +307,24 @@ object VhdlTestbenchGenerator {
     }
   }
 
-  private def getPortMap(inputVars: Seq[Param]): String = {
-    val assignments = (
-      Seq("clk", "reset", "data", "valid", "ready")
-        ++ inputVars.flatMap(x =>
-          Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
-        )
-    ).map(x => s"$x => $x").mkString(", ")
-    s"DUT : entity work.top port map($assignments);"
+  private def getPortMap(
+      inputVars: Seq[Param],
+      topName: String,
+      outName: Option[String]
+  ): String = {
+    val assignments = (Seq(
+      "clk => clk",
+      "reset => reset",
+      s"${TopVhdl.topData(outName)} => data",
+      s"${TopVhdl.topValid(outName)} => valid",
+      s"${TopVhdl.topReady(outName)} => ready"
+    ) ++ inputVars
+      .flatMap(x =>
+        Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
+      )
+      .map(x => s"$x => $x"))
+      .mkString(", ")
+    s"DUT : entity work.$topName port map($assignments);"
   }
 
   private def getSharedDecls(io: TestSuiteIO): String = {
@@ -812,7 +829,7 @@ object VhdlTestbenchGenerator {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case let: LetStm => (Seq(), let)
-      case f: Function => Streamifier.unwrapTopLevelFunction(f, rename = true)
+      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
       case e =>
         throw new IllegalArgumentException(
           s"I don't know how to find expected output for expression $e."

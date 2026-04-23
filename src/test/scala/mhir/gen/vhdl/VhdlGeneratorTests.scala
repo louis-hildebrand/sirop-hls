@@ -158,7 +158,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s =
       StmRange(10, C(-2)(I8), C(3)(I8))().tchk().lower.asInstanceOf[StmBuild]
     val inputs = Seq(Seq(), Seq())
-    assert(VhdlTestRunner.testExpr(s, inputs) == TestPassed)
+    val options = VhdlGeneratorOptions(outName = Some("result"))
+    assert(VhdlTestRunner.testExpr(s, inputs, options) == TestPassed)
   }
 
   test("StmCst(20, True)") {
@@ -262,7 +263,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
         )
       )().tchk().lower.asInstanceOf[StmBuild]
     }
-    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+    val options =
+      VhdlGeneratorOptions(topName = "my_counter", outName = Some("the_count"))
+    assert(VhdlTestRunner.testExpr(s, options = options) == TestPassed)
   }
 
   test("StmCount |> StmScanInclusive(0, +)") {
@@ -371,9 +374,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("a => b => c => StmZip(StmZip(a, b), c)") {
     val n = 20
-    val a = Param("s")(TyStm(U16, n))
-    val b = Param("s")(TyStm(U16, n))
-    val c = Param("s")(TyStm(U16, n))
+    val a = Param("a")(TyStm(U16, n))
+    val b = Param("b")(TyStm(U16, n))
+    val c = Param("c")(TyStm(U16, n))
     val zip = StmZip(StmZip(a, b)(), c)().tchk().lower
     val f = Function(a, Function(b, Function(c, zip)())())().tchk()
     val inputs = Seq(

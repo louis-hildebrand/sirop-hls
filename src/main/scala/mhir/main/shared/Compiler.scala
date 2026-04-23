@@ -7,6 +7,7 @@ import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
 import mhir.optimize.{Optimizer, OptimizerOptions}
+import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
@@ -53,8 +54,16 @@ object Compiler {
   ): Expr = {
     val topName = prog.name
     val options =
-      originalOptions.copy(vhdl = originalOptions.vhdl.copy(topName = topName))
+      originalOptions.copy(
+        vhdl = originalOptions.vhdl.copy(
+          topName = topName,
+          outName = prog.outName
+        )
+      )
     val (checked, tchkTime) = typecheck(prog)
+    time("semantic analysis", Level.DEBUG) {
+      SemanticAnalyzer.check(prog)
+    }
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)

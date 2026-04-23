@@ -6,9 +6,12 @@ program ::= const_decl* accel_decl
 
 ##### Declarations #####################################################################################################
 
-const_decl ::= "const" ident ":" typ "=" expr
+const_decl        ::= "const" ident ":" typ "=" expr
 
-accel_decl ::= "accelerator" ident "=" expr
+accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" expr
+accel_annotations ::= ""
+                    | accel_annotation ( "," accel_annotation )*
+accel_annotation  ::= ident [ "=" expr ]
 
 ##### Expressions ######################################################################################################
 

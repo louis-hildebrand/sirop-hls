@@ -1,0 +1,12 @@
+entity times3 is
+port (
+    clk : in std_logic;
+    data : out std_logic_vector(1023 downto 0);
+    ready : in std_logic;
+    reset : in std_logic;
+    s_data : in std_logic_vector(1023 downto 0);
+    s_ready : out std_logic;
+    s_valid : in std_logic;
+    valid : out std_logic
+);
+end entity times3;

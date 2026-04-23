@@ -1,0 +1,1 @@
+SemanticError: duplicate parameters in top-level function: s1, s2

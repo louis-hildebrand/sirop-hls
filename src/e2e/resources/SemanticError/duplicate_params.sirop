@@ -1,0 +1,7 @@
+accelerator top =
+    (s0: Stm[(u8, bool), 10]) =>
+    (s1: Stm[u8, 10]) =>
+    (s2: Stm[bool, 10]) =>
+    (s1: Stm[i32, 10]) =>
+    (s2: Stm[i8, 10]) =>
+        StmZip(s0, StmZip(s1, s2))

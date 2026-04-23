@@ -83,14 +83,57 @@ object Parser {
   ): (Program, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing accel_decl")
     val (_, rest1) = expect(AcceleratorToken, tokens)
-    val (IdentToken(name), rest2) = expect(IdentToken, rest1)
-    val (_, rest3) = expect(AssignToken, rest2)
-    val (body, rest4) =
+    val (annotations, rest2) = rest1 match {
+      case Seq(_: LeftSquareToken, rest2 @ _*) =>
+        val (annotations, rest3) = parseAcceleratorAnnotations(rest2)
+        val (_, rest4) = expect(RightSquareToken, rest3)
+        (annotations, rest4)
+      case _ => (Map[String, Expr](), rest1)
+    }
+    val (IdentToken(name), rest3) = expect(IdentToken, rest2)
+    val (_, rest4) = expect(AssignToken, rest3)
+    val (body, rest5) =
       parseExpr(
-        rest3,
+        rest4,
         constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       )
-    (Program(name, constants, body), rest4)
+    (Program(name, annotations, constants, body), rest5)
+  }
+
+  private def parseAcceleratorAnnotations(
+      tokens: Seq[Token]
+  ): (Map[String, Expr], Seq[Token]) = {
+    tokens match {
+      case Seq(_: IdentToken, _*) =>
+        val (acc, rest1) = parseAcceleratorAnnotation(tokens)
+        var annotations = Map(acc)
+        var rest2 = rest1
+        while (rest2.headOption.exists(_.category == CommaToken)) {
+          val (acc, rest3) = parseAcceleratorAnnotation(rest2.tail)
+          annotations = annotations + acc
+          rest2 = rest3
+        }
+        (annotations, rest2)
+      case _ => (Map(), tokens)
+    }
+  }
+
+  private def parseAcceleratorAnnotation(
+      tokens: Seq[Token]
+  ): ((String, Expr), Seq[Token]) = {
+    val (keyTok @ IdentToken(key), rest1) = expect(IdentToken, tokens)
+    val (value, rest2) = rest1 match {
+      case Seq(_: AssignToken, rest2 @ _*) =>
+        val (e, rest3) = parseExpr(rest2, Map())
+        (Some(e), rest3)
+      case _ => (None, rest1)
+    }
+    Program.checkAnnotation(
+      key,
+      value,
+      msg => throw SyntaxError(msg, keyTok.loc)
+    )
+    ((key, value.getOrElse(True)), rest2)
   }
 
   def parseStmt(code: String, constants: Map[Param, Type]): Stmt = {

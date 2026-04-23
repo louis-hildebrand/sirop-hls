@@ -625,6 +625,48 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).e == expected)
   }
 
+  test("AcceleratorAnnotation:OutName") {
+    val src = "accelerator[out_name=my_name] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.name == "top")
+    assert(prog.annotations("out_name") == Param("my_name", -1)(Missing))
+    assert(prog.e == TyStm(U8, 10) ::+ (s => s))
+  }
+
+  test("AcceleratorAnnotation:UnknownKey") {
+    val src = "accelerator[foo=bar] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "unknown annotation key: 'foo'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
+  test("AcceleratorAnnotation:OutName:MissingValue") {
+    val src = "accelerator [out_name] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      ex.msg == "missing value for annotation 'out_name'. Expected an identifier."
+    )
+    assert(ex.loc.contains(SourcePoint(1, 14)))
+  }
+
+  test("AcceleratorAnnotation:OutName:BadValue1") {
+    val src = "accelerator[out_name=()] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      ex.msg == "invalid value for annotation 'out_name'. Expected an identifier."
+    )
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
+  test("AcceleratorAnnotation:OutName:BadValue2") {
+    val src = "accelerator[out_name=1+1] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      ex.msg == "invalid value for annotation 'out_name'. Expected an identifier."
+    )
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment

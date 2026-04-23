@@ -1,0 +1,1 @@
+SemanticError: output name 'my_stream' is already used for an input
