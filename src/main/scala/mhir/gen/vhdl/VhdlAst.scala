@@ -234,10 +234,10 @@ private[vhdl] case class CustomVhdlComponent(
     }
   }
 
-  def writeVhdl(f: Path): Unit = {
+  def writeVhdl(f: Path, options: VhdlGeneratorOptions): Unit = {
     writeHeader(f)
     writeEntity(f)
-    writeArchitecture(f)
+    writeArchitecture(f, options)
   }
 
   private def writeHeader(f: Path): Unit = {
@@ -279,7 +279,10 @@ private[vhdl] case class CustomVhdlComponent(
     )
   }
 
-  private def writeArchitecture(f: Path): Unit = {
+  private def writeArchitecture(
+      f: Path,
+      options: VhdlGeneratorOptions
+  ): Unit = {
     os.write.append(f, s"architecture arch of $name is\n")
 
     val signalCategories = signals
@@ -383,7 +386,7 @@ private[vhdl] case class CustomVhdlComponent(
     } else {
       s"""process
          |begin
-         |    wait until rising_edge(clk);
+         |    wait until rising_edge(${options.clock});
          |
          |${indent(clkStmts)}
          |end process ;

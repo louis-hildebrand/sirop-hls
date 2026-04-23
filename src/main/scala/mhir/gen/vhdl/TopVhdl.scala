@@ -3,7 +3,6 @@ package mhir.gen.vhdl
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sem.SemanticAnalyzer
-import mhir.sugar.Streamifier
 import mhir.typecheck.TypeCheck
 
 private case class FlatPipeline(
@@ -20,26 +19,23 @@ object TopVhdl {
     *
     * @param f
     *   the function defining the accelerator's behaviour.
-    * @param topName
-    *   the name of the top-level entity.
-    * @param outName
-    *   the name for the output stream.
     */
-  def apply(
-      f: Expr,
-      topName: String,
-      outName: Option[String] = None
-  ): CustomVhdlComponent = {
+  def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
     val pipe = makeFlatPipeline(f)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case ((x, s: StmBuild), i) =>
           val inputsOfS = s.freeVars
-          val component = StmBuildVhdl(s, inputsOfS, name = s"sbuild_${i + 1}")
+          val component = StmBuildVhdl(
+            s,
+            inputsOfS,
+            name = s"sbuild_${i + 1}",
+            options = options
+          )
           val portMap = PortMap(
             Map(
-              "clk" -> "clk",
-              "reset" -> "reset",
+              options.clock -> options.clock,
+              options.reset -> options.reset,
               // Handshake with consumer
               s"data" -> s"${x.name}_data",
               s"valid" -> s"${x.name}_valid",
@@ -60,12 +56,13 @@ object TopVhdl {
           x,
           bufSize,
           xs.toSeq.sortBy(_.name),
-          name = s"letstm_${i + 1}"
+          name = s"letstm_${i + 1}",
+          options = options
         )
         val portMap = PortMap(
           Map(
-            "clk" -> "clk",
-            "reset" -> "reset",
+            options.clock -> options.clock,
+            options.reset -> options.reset,
             // Handshake with consumer
             s"${x.name}_data" -> s"${x.name}_data",
             s"${x.name}_valid" -> s"${x.name}_valid",
@@ -101,7 +98,7 @@ object TopVhdl {
             name = s"${x.name}_ready",
             typ = VhdlStdLogic,
             assignStmt = if (x == pipe.sink) {
-              Some(s"${x.name}_ready <= ${topReady(outName)};")
+              Some(s"${x.name}_ready <= ${topReady(options.outName)};")
             } else {
               None
             }
@@ -139,21 +136,21 @@ object TopVhdl {
     val ports = {
       val TyStm(outElemTyp, _) = pipe.sink.typ
       Seq(
-        InPort("clk", VhdlStdLogic),
-        InPort("reset", VhdlStdLogic),
+        InPort(options.clock, VhdlStdLogic),
+        InPort(options.reset, VhdlStdLogic),
         // Handshake with consumer
         OutPort(
-          topData(outName),
+          topData(options.outName),
           VhdlType(outElemTyp).toStdLogicVec,
           assign = Some(s"${pipe.sink.name}_data")
         ),
         OutPort(
-          topValid(outName),
+          topValid(options.outName),
           VhdlStdLogic,
           assign = Some(s"${pipe.sink.name}_valid")
         ),
         InPort(
-          topReady(outName),
+          topReady(options.outName),
           VhdlStdLogic
         )
       ) ++ pipe.inputs.flatMap({ x =>
@@ -176,7 +173,7 @@ object TopVhdl {
     }
     CustomVhdlComponent(
       expr = Some(f),
-      name = topName,
+      name = options.topName,
       inPorts =
         ports.filter(_.isInstanceOf[InPort]).map(_.asInstanceOf[InPort]),
       outPorts =

@@ -17,6 +17,14 @@ case class Program(
   def outName: Option[String] = {
     this.annotations.get("out_name").collect({ case x: Param => x.name })
   }
+
+  def clock: Option[String] = {
+    this.annotations.get("clock").collect({ case x: Param => x.name })
+  }
+
+  def reset: Option[String] = {
+    this.annotations.get("reset").collect({ case x: Param => x.name })
+  }
 }
 
 /** Companion object for [[Program]].
@@ -33,15 +41,24 @@ object Program {
       err: String => Nothing
   ): Unit = {
     key match {
-      case "out_name" =>
-        value match {
-          case Some(_: Param) => ()
-          case None =>
-            err(s"missing value for annotation '$key'. Expected an identifier.")
-          case _ =>
-            err(s"invalid value for annotation '$key'. Expected an identifier.")
-        }
-      case _ => err(s"unknown annotation key: '$key'")
+      case "clock"    => expectIdent(key, value, err)
+      case "out_name" => expectIdent(key, value, err)
+      case "reset"    => expectIdent(key, value, err)
+      case _          => err(s"unknown annotation key: '$key'")
+    }
+  }
+
+  private def expectIdent(
+      key: String,
+      value: Option[Expr],
+      err: String => Nothing
+  ): Unit = {
+    value match {
+      case Some(_: Param) => ()
+      case None =>
+        err(s"missing value for annotation '$key'. Expected an identifier.")
+      case _ =>
+        err(s"invalid value for annotation '$key'. Expected an identifier.")
     }
   }
 }

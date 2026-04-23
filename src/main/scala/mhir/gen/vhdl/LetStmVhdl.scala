@@ -9,7 +9,8 @@ object LetStmVhdl {
       input: Param,
       bufSize: Int,
       outputs: Seq[Param],
-      name: String
+      name: String,
+      options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
     val TyStm(elemTyp, _) = input.typ
     val bitWidth = VhdlType(elemTyp).bitWidth
@@ -21,8 +22,8 @@ object LetStmVhdl {
       )
       val portMap = PortMap(
         Map(
-          "clk" -> "clk",
-          "reset" -> "reset",
+          "clk" -> options.clock,
+          "reset" -> options.reset,
           "p_data" -> s"${input.name}_data",
           "p_valid" -> s"${input.name}_valid",
           "p_ready" -> s"${input.name}_ready",
@@ -64,8 +65,8 @@ object LetStmVhdl {
     }
     val ports: Seq[Port] = {
       Seq(
-        InPort("clk", VhdlStdLogic),
-        InPort("reset", VhdlStdLogic),
+        InPort(options.clock, VhdlStdLogic),
+        InPort(options.reset, VhdlStdLogic),
         // Handshake with producer
         InPort(s"${input.name}_data", VhdlType(elemTyp).toStdLogicVec),
         InPort(s"${input.name}_valid", VhdlStdLogic),

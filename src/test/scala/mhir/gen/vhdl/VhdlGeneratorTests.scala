@@ -263,8 +263,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
         )
       )().tchk().lower.asInstanceOf[StmBuild]
     }
-    val options =
-      VhdlGeneratorOptions(topName = "my_counter", outName = Some("the_count"))
+    val options = VhdlGeneratorOptions(
+      topName = "my_counter",
+      clock = "clock",
+      reset = "reset",
+      outName = Some("the_count")
+    )
     assert(VhdlTestRunner.testExpr(s, options = options) == TestPassed)
   }
 

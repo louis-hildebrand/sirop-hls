@@ -3,7 +3,6 @@ package mhir.gen.vhdl
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sem.SemanticAnalyzer
-import mhir.sugar.Streamifier
 import mhir.typecheck.TypeCheck
 import os.Path
 
@@ -26,8 +25,7 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
-    val topComponent =
-      TopVhdl(f, topName = options.topName, outName = options.outName)
+    val topComponent = TopVhdl(f, options)
     VhdlWriter.emit(topComponent, dir, options)
   }
 

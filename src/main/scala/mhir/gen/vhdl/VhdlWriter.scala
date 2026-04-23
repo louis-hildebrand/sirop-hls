@@ -20,7 +20,7 @@ object VhdlWriter {
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir, readReservedWords())
+    emitComponents(top, designDir, readReservedWords(), options)
     emitProjectFiles(dir, designDir, options)
   }
 
@@ -212,7 +212,8 @@ object VhdlWriter {
   private def emitComponents(
       c: VhdlComponent,
       dir: Path,
-      reservedWords: Set[String]
+      reservedWords: Set[String],
+      options: VhdlGeneratorOptions
   ): Unit = {
     c match {
       case c: StmNoOpComponent =>
@@ -233,9 +234,9 @@ object VhdlWriter {
             s"cannot generate entity '${c.name}', since its name is a reserved keyword in VHDL"
           )
         }
-        c.writeVhdl(dir / s"${c.name}.vhd")
+        c.writeVhdl(dir / s"${c.name}.vhd", options)
         for (VhdlEntityInstantiation(_, child, _) <- c.children) {
-          emitComponents(child, dir, reservedWords)
+          emitComponents(child, dir, reservedWords, options)
         }
     }
   }

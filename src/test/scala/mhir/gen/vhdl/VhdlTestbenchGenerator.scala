@@ -147,7 +147,7 @@ object VhdlTestbenchGenerator {
       options: VhdlGeneratorOptions
   ): Unit = {
     val outElemType = VhdlType(io.outElemTyp)
-    val portMap = getPortMap(io.params, options.topName, options.outName)
+    val portMap = getPortMap(io.params, options)
     val sharedDecls = getSharedDecls(io)
     val testCaseDecls = io.tests.zipWithIndex
       .map({ case (io, idx) => getTestDecls(io, idx) })
@@ -309,22 +309,21 @@ object VhdlTestbenchGenerator {
 
   private def getPortMap(
       inputVars: Seq[Param],
-      topName: String,
-      outName: Option[String]
+      options: VhdlGeneratorOptions
   ): String = {
     val assignments = (Seq(
-      "clk => clk",
-      "reset => reset",
-      s"${TopVhdl.topData(outName)} => data",
-      s"${TopVhdl.topValid(outName)} => valid",
-      s"${TopVhdl.topReady(outName)} => ready"
+      s"${options.clock} => clk",
+      s"${options.reset} => reset",
+      s"${TopVhdl.topData(options.outName)} => data",
+      s"${TopVhdl.topValid(options.outName)} => valid",
+      s"${TopVhdl.topReady(options.outName)} => ready"
     ) ++ inputVars
       .flatMap(x =>
         Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
       )
       .map(x => s"$x => $x"))
       .mkString(", ")
-    s"DUT : entity work.$topName port map($assignments);"
+    s"DUT : entity work.${options.topName} port map($assignments);"
   }
 
   private def getSharedDecls(io: TestSuiteIO): String = {

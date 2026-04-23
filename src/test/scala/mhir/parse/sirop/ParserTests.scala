@@ -667,6 +667,48 @@ class ParserTests extends AnyFunSuite {
     assert(ex.loc.contains(SourcePoint(1, 13)))
   }
 
+  test("AcceleratorAnnotation:Clock1") {
+    val src = "accelerator[clock=clk] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.clock.contains("clk"))
+  }
+
+  test("AcceleratorAnnotation:Clock2") {
+    val src = "accelerator[clock=clock] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.clock.contains("clock"))
+  }
+
+  test("AcceleratorAnnotation:Clock:BadValue") {
+    val src = "accelerator[clock=175] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      ex.msg == "invalid value for annotation 'clock'. Expected an identifier."
+    )
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
+  test("AcceleratorAnnotation:Reset1") {
+    val src = "accelerator[reset=rst] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.reset.contains("rst"))
+  }
+
+  test("AcceleratorAnnotation:Reset2") {
+    val src = "accelerator[reset=reset] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.reset.contains("reset"))
+  }
+
+  test("AcceleratorAnnotation:Reset:BadValue") {
+    val src = "accelerator[reset=175] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      ex.msg == "invalid value for annotation 'reset'. Expected an identifier."
+    )
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment

@@ -53,13 +53,22 @@ object Compiler {
       parseTime: Duration
   ): Expr = {
     val topName = prog.name
-    val options =
-      originalOptions.copy(
-        vhdl = originalOptions.vhdl.copy(
-          topName = topName,
-          outName = prog.outName
-        )
+    val vhdlOptions = {
+      val vhdl0 = originalOptions.vhdl.copy(
+        topName = topName,
+        outName = prog.outName
       )
+      val vhdl1 = prog.clock match {
+        case Some(clock) => vhdl0.copy(clock = clock)
+        case None        => vhdl0
+      }
+      val vhdl2 = prog.reset match {
+        case Some(reset) => vhdl1.copy(reset = reset)
+        case None        => vhdl1
+      }
+      vhdl2
+    }
+    val options = originalOptions.copy(vhdl = vhdlOptions)
     val (checked, tchkTime) = typecheck(prog)
     time("semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(prog)

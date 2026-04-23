@@ -25,7 +25,8 @@ private[vhdl] object StmBuildVhdl {
   private[vhdl] def apply(
       stm: StmBuild,
       inputs: Set[Param],
-      name: String
+      name: String,
+      options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
     val s = {
       // Freshen all variables first to avoid clashes
@@ -82,13 +83,13 @@ private[vhdl] object StmBuildVhdl {
       producerInterface(readyExprByProducer)
 
     val allDecls = (
-      defaultDecls(s.n, s.data, s.valid)
-        ++ registerDecls(registerEquations)
+      defaultDecls(s.n, s.data, s.valid, options)
+        ++ registerDecls(registerEquations, options)
         ++ producerSignals
         ++ readyExprDecls
     )
     val allPorts = (
-      defaultInPorts
+      defaultInPorts(options)
         ++ defaultOutPorts(VhdlType(s.data.typ))
         ++ producerPorts
     )
@@ -119,10 +120,10 @@ private[vhdl] object StmBuildVhdl {
 
   /** Input ports that appear in all stream components.
     */
-  private def defaultInPorts: Seq[InPort] = {
+  private def defaultInPorts(options: VhdlGeneratorOptions): Seq[InPort] = {
     Seq(
-      InPort("clk", VhdlStdLogic),
-      InPort("reset", VhdlStdLogic),
+      InPort(options.clock, VhdlStdLogic),
+      InPort(options.reset, VhdlStdLogic),
       InPort("ready", VhdlStdLogic)
     )
   }
@@ -148,7 +149,12 @@ private[vhdl] object StmBuildVhdl {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultDecls(n: Expr, data: Expr, valid: Expr)(implicit
+  private def defaultDecls(
+      n: Expr,
+      data: Expr,
+      valid: Expr,
+      options: VhdlGeneratorOptions
+  )(implicit
       ctx: VhdlContext
   ): Seq[Decl] = {
     val VhdlExpr(_, nDecls) = VhdlExprGenerator.exprToVhdl(n)
@@ -169,7 +175,7 @@ private[vhdl] object StmBuildVhdl {
         typ = VhdlBool,
         init = Some("false"),
         assignStmt = Some(
-          s"""if sl2bool(reset) then
+          s"""if sl2bool(${options.reset}) then
              |    valid_internal <= false;
              |elsif transfer_ok or can_update_acc then
              |    valid_internal <= ($validVhdl) and all_required_producers_valid;
@@ -216,7 +222,8 @@ private[vhdl] object StmBuildVhdl {
     *   registers.
     */
   private def registerDecls(
-      registerEquations: Iterable[(Param, (Expr, Expr))]
+      registerEquations: Iterable[(Param, (Expr, Expr))],
+      options: VhdlGeneratorOptions
   )(implicit ctx: VhdlContext): Seq[Decl] = {
     registerEquations
       .flatMap({
@@ -273,7 +280,7 @@ private[vhdl] object StmBuildVhdl {
                  |end if;
                  |""".stripMargin.stripTrailing
               val reset = if (shouldReset) {
-                s"""if sl2bool(reset) then
+                s"""if sl2bool(${options.reset}) then
                  |    ${x.name} <= $initVhdl;
                  |els
                  |""".stripMargin.stripTrailing
