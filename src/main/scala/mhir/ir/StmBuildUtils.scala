@@ -213,5 +213,9 @@ trait StmBuildUtils {
         this.stm.equations
       )(this.stm.typ, newAnnotations)
     }
+
+    def nameAnnotation: Option[String] = {
+      this.stm.annotations.collectFirst({ case NameAnnotation(name) => name })
+    }
   }
 }

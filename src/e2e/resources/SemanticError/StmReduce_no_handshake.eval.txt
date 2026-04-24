@@ -1,0 +1,1 @@
+SemanticError: stream operator StmReduce cannot be used without the handshake protocol: its output is not always valid

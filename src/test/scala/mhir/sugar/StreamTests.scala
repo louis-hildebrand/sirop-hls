@@ -657,7 +657,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:2D-2D:StmSlideV") {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(5)(U8))(),
-      TyStm((U8, U8), 5) ::+ (s => StmSlideV(s, 3)())
+      TyStm((U8, U8), 5) ::+ (s => StmSlide(s, 3)())
     )().tchk()
     val expected = StmLiteral(
       Seq(
@@ -2001,7 +2001,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmSlideV:1D:UnitWindow") {
-    val actual1 = StmSlideV(StmCount(C(3)(U8))(), winSize = 1)().tchk()
+    val actual1 = StmSlide(StmCount(C(3)(U8))(), winSize = 1)().tchk()
     val expected1 = StmLiteral(
       VecLiteral(C(0)(U8))(),
       VecLiteral(C(1)(U8))(),
@@ -2011,7 +2011,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual1) == expected1)
 
     val actual2 =
-      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 2)().tchk()
+      StmSlide(StmCount(C(3)(U8))(), winSize = 1, stride = 2)().tchk()
     val expected2 = StmLiteral(
       VecLiteral(C(0)(U8))(),
       VecLiteral(C(2)(U8))()
@@ -2020,7 +2020,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual2) == expected2)
 
     val actual3 =
-      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 3)().tchk()
+      StmSlide(StmCount(C(3)(U8))(), winSize = 1, stride = 3)().tchk()
     val expected3 = StmLiteral(
       VecLiteral(C(0)(U8))()
     )().tchk()
@@ -2028,7 +2028,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual3) == expected3)
 
     val actual4 =
-      StmSlideV(StmCount(C(3)(U8))(), winSize = 1, stride = 4)().tchk()
+      StmSlide(StmCount(C(3)(U8))(), winSize = 1, stride = 4)().tchk()
     val expected4 = StmLiteral(
       VecLiteral(C(0)(U8))()
     )().tchk()
@@ -2037,7 +2037,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmSlideV:1D:SmallWindow") {
-    val actual1 = StmSlideV(StmCount(C(4)(U8))(), winSize = 2)().tchk().lower
+    val actual1 = StmSlide(StmCount(C(4)(U8))(), winSize = 2)().tchk().lower
     val expected1 = StmLiteral(
       VecLiteral(C(0)(U8), C(1)(U8))(),
       VecLiteral(C(1)(U8), C(2)(U8))(),
@@ -2047,7 +2047,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual1) == expected1)
 
     val actual2 =
-      StmSlideV(StmCount(C(4)(U8))(), winSize = 2, stride = 2)().tchk().lower
+      StmSlide(StmCount(C(4)(U8))(), winSize = 2, stride = 2)().tchk().lower
     val expected2 = StmLiteral(
       VecLiteral(C(0)(U8), C(1)(U8))(),
       VecLiteral(C(2)(U8), C(3)(U8))()
@@ -2056,7 +2056,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual2) == expected2)
 
     val actual3 =
-      StmSlideV(StmCount(C(4)(U8))(), winSize = 2, stride = 3)().tchk().lower
+      StmSlide(StmCount(C(4)(U8))(), winSize = 2, stride = 3)().tchk().lower
     val expected3 = StmLiteral(
       VecLiteral(C(0)(U8), C(1)(U8))()
     )().tchk()
@@ -2065,7 +2065,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmSlideV:1D:LargestWindow") {
-    val actual = StmSlideV(StmCount(5)(), 5)().tchk()
+    val actual = StmSlide(StmCount(5)(), 5)().tchk()
     val expected = StmLiteral(
       VecLiteral(
         IntCst(0)(),

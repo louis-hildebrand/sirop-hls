@@ -6,7 +6,12 @@ import scala.annotation.tailrec
 
 object SemanticAnalyzer {
 
-  def check(prog: Program): Unit = {
+  /** Check for errors like duplicate input names, collisions between the input
+    * and output names, etc.
+    *
+    * This check can be run before lowering.
+    */
+  def checkNames(prog: Program): Unit = {
     val (inputs, _) = unwrapTopLevelFunction(prog.e)
 
     val duplicateInputs =
@@ -27,6 +32,22 @@ object SemanticAnalyzer {
     }
   }
 
+  /** Check for semantic issues other than those covered by [[checkNames]]
+    * (e.g., that the conditions for the no_handshake annotation are met).
+    *
+    * This cannot be run before lowering.
+    */
+  def check(prog: Program): Unit = {
+    require(
+      !prog.e.hasSyntaxSugar,
+      "semantic analysis cannot be run before lowering"
+    )
+
+    if (!prog.handshake) {
+      checkNoHandshake(prog.e)
+    }
+  }
+
   def unwrapTopLevelFunction(f: Expr): (Seq[Param], Expr) = {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
@@ -40,5 +61,36 @@ object SemanticAnalyzer {
     }
     val (inputs, body) = unwrap(f, Seq())
     (inputs.reverse, body)
+  }
+
+  private def checkNoHandshake(e: Expr): Unit = {
+    e match {
+      case s: StmBuild =>
+        if (s.valid != True) {
+          val name = s.nameAnnotation.getOrElse("(unknown name)")
+          throw SemanticError(
+            s"stream operator $name cannot be used without the handshake protocol:" +
+              s" its output is not always valid"
+          )
+        }
+        for (eqn <- s.equations) {
+          eqn match {
+            case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
+              if (ready != True) {
+                val name = s.nameAnnotation.getOrElse("(unknown name)")
+                throw SemanticError(
+                  s"stream operator $name cannot be used without the handshake protocol:"
+                    + " it is not always ready to receive input"
+                )
+              }
+              checkNoHandshake(p)
+            case _ => ()
+          }
+        }
+      case e =>
+        for (child <- e.children) {
+          checkNoHandshake(child)
+        }
+    }
   }
 }

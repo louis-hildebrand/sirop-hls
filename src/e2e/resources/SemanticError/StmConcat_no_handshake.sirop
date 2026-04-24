@@ -1,0 +1,4 @@
+accelerator[no_handshake]
+top = (s1: Stm[u8, 100]) => (s2: Stm[u8, 50]) =>
+    StmConcat(s1, s2)
+    .StmMap((x) => x + 5:u8)
