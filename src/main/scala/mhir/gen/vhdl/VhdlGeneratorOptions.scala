@@ -1,5 +1,7 @@
 package mhir.gen.vhdl
 
+import scala.io.Source
+
 /** Settings for VHDL generation.
   *
   * @param topName
@@ -26,4 +28,9 @@ case class VhdlGeneratorOptions(
     handshake: Boolean = true,
     deviceFamily: String = "Agilex 7",
     device: String = "AGIC040R39A1E1VC"
-)
+) {
+
+  def reservedKeywords: Set[String] = {
+    Source.fromResource("mhir/gen/vhdl/reserved_words.txt").getLines().toSet
+  }
+}

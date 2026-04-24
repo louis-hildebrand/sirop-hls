@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 package nohandshake
 
+import mhir.gen.CodegenError
 import mhir.ir._
 
 object TopVhdl {
@@ -12,7 +13,20 @@ object TopVhdl {
     */
   def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
     require(!options.handshake)
-    val pipe = FlattenPipeline(f)
+    val pipe = FlattenPipeline(f, options)
+    for ((_, bufSize, _) <- pipe.lets) {
+      if (bufSize != 0) {
+        throw CodegenError(
+          s"cannot generate letstm with a nonzero buffer size when the handshake protocol is disabled"
+        )
+      }
+    }
+    if (pipe.inputs.map(_.name).contains(topData(options.outName))) {
+      val name = topData(options.outName)
+      throw CodegenError(
+        s"'$name' cannot be used as an input stream name, since it is also used for the output stream"
+      )
+    }
     val childComponents = pipe.sbuilds.zipWithIndex.map({
       case ((x, s: StmBuild), i) =>
         val inputsOfS = s.freeVars

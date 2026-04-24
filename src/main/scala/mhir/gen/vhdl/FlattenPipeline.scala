@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.canonicalize._
+import mhir.gen.CodegenError
 import mhir.ir._
 import mhir.sem._
 import mhir.typecheck._
@@ -15,8 +16,11 @@ private[vhdl] case class FlatPipeline(
 
 object FlattenPipeline {
 
-  private[vhdl] def apply(f: Expr): FlatPipeline = {
-    validateExpr(f)
+  private[vhdl] def apply(
+      f: Expr,
+      options: VhdlGeneratorOptions
+  ): FlatPipeline = {
+    validateExpr(f, options)
     val (inputs, stm) = SemanticAnalyzer.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val anfStm = StmAnfConverter.convert(stm)
@@ -24,7 +28,7 @@ object FlattenPipeline {
     ensureAtLeastOneBuffer(pipe)
   }
 
-  private def validateExpr(e: Expr): Unit = {
+  private def validateExpr(e: Expr, options: VhdlGeneratorOptions): Unit = {
     require(
       e.typ != Missing,
       "Expression must be type checked before hardware generation."
@@ -54,6 +58,20 @@ object FlattenPipeline {
           + " No top-level parameter should be used more than once."
           + " To describe a stream with multiple consumers, consider using LetStm."
       )
+      if (options.reservedKeywords.contains(x.name)) {
+        throw CodegenError(
+          s"'${x.name}' cannot be used as an input stream name, since it is a reserved keyword in VHDL"
+        )
+      }
+    }
+    options.outName match {
+      case None => ()
+      case Some(outName) =>
+        if (options.reservedKeywords.contains(outName)) {
+          throw CodegenError(
+            s"'$outName' cannot be used as an output stream name, since it is a reserved keyword in VHDL"
+          )
+        }
     }
   }
 

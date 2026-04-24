@@ -12,7 +12,7 @@ object TopVhdl {
     */
   def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
     require(options.handshake)
-    val pipe = FlattenPipeline(f)
+    val pipe = FlattenPipeline(f, options)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case ((x, s: StmBuild), i) =>
