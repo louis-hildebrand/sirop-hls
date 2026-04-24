@@ -334,15 +334,9 @@ private[sugar] case class StmReset(
           shouldReset.tchk().lower
         } else {
           // Need both input and output counters, just in case
-          val name = s.annotations
-            .flatMap({
-              case NameAnnotation(name) => Some(name)
-              case _                    => None
-            })
-            .headOption
-            .getOrElse("unknown name")
+          val name = s.nameAnnotation.getOrElse("(unknown name)")
           logger.warn(
-            s"StmBuild node ($name) is neither annotated with $NoInputsAfterLastOut nor $NoOutputsAfterLastIn."
+            s"StmBuild node $name is neither annotated with $NoInputsAfterLastOut nor $NoOutputsAfterLastIn."
               + " Both input and output counters will be added, which may increase resource usage."
           )
           val inputsUntilReset: Seq[(Param, Expr)] =
@@ -1933,7 +1927,7 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   * @param stride
   *   (`Int`) how much to move the window per step.
   */
-case class StmSlideV(
+case class StmSlide(
     input: Expr /* Stm<A; n> */,
     winSize: Expr /* Int */,
     stride: Expr = C(1)() /* Int */
@@ -1941,7 +1935,7 @@ case class StmSlideV(
     extends SyntaxSugar(input, winSize, stride)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, winSize, stride) => StmSlideV(s, winSize, stride)(typ)
+      case Seq(s, winSize, stride) => StmSlide(s, winSize, stride)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -2019,7 +2013,7 @@ case class StmSlideV(
   }
 }
 
-/** Similar to [[StmSlideV]], but produces a nested stream rather than a stream
+/** Similar to [[StmSlide]], but produces a nested stream rather than a stream
   * of vectors.
   */
 case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
@@ -2056,13 +2050,13 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     // elements while the shift register is still filling up
     requireType()
     val t = this.stm.typ.asInstanceOf[TyStm].t
-    StmMap(StmSlideV(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
+    StmMap(StmSlide(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
       .tchk()
       .lower
   }
 }
 
-/** Like [[StmSlideV]], but with a defined initial value for the window and with
+/** Like [[StmSlide]], but with a defined initial value for the window and with
   * the output always being valid.
   */
 case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)

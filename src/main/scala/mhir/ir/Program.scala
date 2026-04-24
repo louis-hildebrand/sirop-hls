@@ -25,6 +25,10 @@ case class Program(
   def reset: Option[String] = {
     this.annotations.get("reset").collect({ case x: Param => x.name })
   }
+
+  def handshake: Boolean = {
+    !this.annotations.contains("no_handshake")
+  }
 }
 
 /** Companion object for [[Program]].
@@ -41,7 +45,12 @@ object Program {
       err: String => Nothing
   ): Unit = {
     key match {
-      case "clock"    => expectIdent(key, value, err)
+      case "clock" => expectIdent(key, value, err)
+      case "no_handshake" =>
+        value match {
+          case None    => ()
+          case Some(_) => err(s"unexpected value for annotation '$key'")
+        }
       case "out_name" => expectIdent(key, value, err)
       case "reset"    => expectIdent(key, value, err)
       case _          => err(s"unknown annotation key: '$key'")

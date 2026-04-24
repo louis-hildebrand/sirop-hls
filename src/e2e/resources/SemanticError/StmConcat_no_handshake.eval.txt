@@ -1,0 +1,1 @@
+SemanticError: stream operator StmConcat cannot be used without the handshake protocol: it is not always ready to receive input

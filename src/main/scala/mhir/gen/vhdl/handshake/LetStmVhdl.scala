@@ -1,5 +1,6 @@
-package mhir.gen.vhdl
+package mhir.gen.vhdl.handshake
 
+import mhir.gen.vhdl._
 import mhir.ir._
 
 /** VHDL converter for [[mhir.ir.LetStm]].

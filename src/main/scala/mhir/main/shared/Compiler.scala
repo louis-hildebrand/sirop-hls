@@ -66,16 +66,23 @@ object Compiler {
         case Some(reset) => vhdl1.copy(reset = reset)
         case None        => vhdl1
       }
-      vhdl2
+      val vhdl3 = vhdl2.copy(handshake = prog.handshake)
+      vhdl3
     }
     val options = originalOptions.copy(vhdl = vhdlOptions)
     val (checked, tchkTime) = typecheck(prog)
-    time("semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(prog)
+    time("semantic analysis (only names)", Level.DEBUG) {
+      SemanticAnalyzer.checkNames(checked)
     }
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
+    time("semantic analysis", Level.DEBUG) {
+      SemanticAnalyzer.check(checked.copy(e = synthesizable))
+    }
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
+    time("post-optimization semantic analysis", Level.DEBUG) {
+      SemanticAnalyzer.check(checked.copy(e = finalProgram))
+    }
     val genTime = generateCode(options.vhdl, finalProgram, options.targets)
     options.targets.toSeq
       .foreach({

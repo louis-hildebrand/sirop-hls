@@ -760,7 +760,7 @@ object Parser {
         }
       case f @ Param("StmSlide", -1) =>
         args match {
-          case Seq(s, w) => StmSlideV(s, w)()
+          case Seq(s, w) => StmSlide(s, w)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmSlideInit", -1) =>

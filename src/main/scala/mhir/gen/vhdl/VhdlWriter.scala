@@ -20,12 +20,8 @@ object VhdlWriter {
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir, readReservedWords(), options)
+    emitComponents(top, designDir, options.reservedKeywords, options)
     emitProjectFiles(dir, designDir, options)
-  }
-
-  private def readReservedWords(): Set[String] = {
-    Source.fromResource("mhir/gen/vhdl/reserved_words.txt").getLines().toSet
   }
 
   private def emitProjectFiles(

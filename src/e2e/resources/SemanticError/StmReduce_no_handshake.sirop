@@ -1,0 +1,5 @@
+accelerator[no_handshake]
+top = (s1: Stm[u8, 100]) => (s2: Stm[u8, 100]) =>
+    StmZip(s1, s2)
+    .StmMap((x) => x.0 * x.1)
+    .StmReduce((x) => x.0 + x.1)

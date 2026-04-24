@@ -83,4 +83,30 @@ object VhdlTestRunner {
       testExistingProject(VHDL_TEST_DIR)
     }
   }
+
+  def testWithoutHandshake(
+      e: Expr,
+      inputs: Seq[DirectTestInput] = Seq(),
+      output: DirectTestOutput,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
+  ): TestResult = {
+    val updatedOptions = options.copy(handshake = false)
+    os.remove.all(VHDL_TEST_DIR)
+    os.makeDir.all(VHDL_TEST_DIR)
+    time("generating VHDL design", Level.DEBUG) {
+      VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR, options = updatedOptions)
+    }
+    time("generating VHDL testbench", Level.DEBUG) {
+      VhdlTestbenchGenerator.makeDirectTestbench(
+        inputs,
+        output,
+        VHDL_TEST_DIR,
+        testNotReady = false,
+        options = updatedOptions
+      )
+    }
+    time("running simulation", Level.DEBUG) {
+      testExistingProject(VHDL_TEST_DIR)
+    }
+  }
 }

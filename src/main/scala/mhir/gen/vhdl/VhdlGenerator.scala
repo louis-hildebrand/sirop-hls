@@ -25,7 +25,11 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
-    val topComponent = TopVhdl(f, options)
+    val topComponent = if (options.handshake) {
+      handshake.TopVhdl(f, options)
+    } else {
+      nohandshake.TopVhdl(f, options)
+    }
     VhdlWriter.emit(topComponent, dir, options)
   }
 
