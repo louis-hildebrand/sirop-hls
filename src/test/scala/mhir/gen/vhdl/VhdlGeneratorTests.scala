@@ -397,6 +397,56 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
 
+  test("[no_handshake] a => b => c => StmZip(StmZip(a, b), c)") {
+    val n = 20
+    val latency = 2
+    val a = Param("I0", -1)(TyStm(U16, n))
+    val b = Param("I1", -1)(TyStm(U16, n))
+    val c = Param("I2", -1)(TyStm(U16, n))
+    val zip = SimpleZip(SimpleZip(a, b), SimpleNop(c)).tchk().lower
+    val f = Function(a, Function(b, Function(c, zip)())())().tchk()
+    val inputs = Seq(
+      DirectTestInput((0 until n).map(i => Some(C(i)(U16)))),
+      DirectTestInput((0 until n).map(i => Some(C(i * 2)(U16)))),
+      DirectTestInput((0 until n).map(i => Some(C(i * i)(U16))))
+    )
+    val outputs = DirectTestOutput(
+      (0 until latency).map(_ => Undefined(TyTuple(TyTuple(U16, U16), U16))) ++
+        (0 until n).map(i => Tuple(C(i)(U16), C(i * 2)(U16), C(i * i)(U16))())
+    )
+    assert(
+      VhdlTestRunner.testWithoutHandshake(f, inputs, outputs) == TestPassed
+    )
+  }
+
+  test("[no_handshake] s => StmZip(StmMap(s,*2),StmMap(s,+5))") {
+    val n = 10
+    val latency = 3
+    val s = Param("I0", -1)(TyStm(I16, n))
+    val f = Function(
+      s,
+      LetStm(
+        0,
+        s,
+        s,
+        SimpleMap(
+          SimpleZip(SimpleMap(s, x => x * x), SimpleMap(s, x => x * C(3)(I16))),
+          x => x.__0 + x.__1
+        )
+      )()
+    )().tchk().lower
+    val inputs = Seq(
+      DirectTestInput((0 until n).map(C(_)(I16)).map(Some(_)))
+    )
+    val outputs = DirectTestOutput(
+      (0 until latency).map(_ => Undefined(I16)) ++
+        (0 until n).map(i => C(i * i + 3 * i)(I16))
+    )
+    assert(
+      VhdlTestRunner.testWithoutHandshake(f, inputs, outputs) == TestPassed
+    )
+  }
+
   test("s => StmConcat(s, s)") {
     val n = 5
     val s = Param("s", -1)(TyStm(U8, n))

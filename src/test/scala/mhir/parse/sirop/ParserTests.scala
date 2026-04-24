@@ -709,6 +709,25 @@ class ParserTests extends AnyFunSuite {
     assert(ex.loc.contains(SourcePoint(1, 13)))
   }
 
+  test("AcceleratorAnnotation:Handshake") {
+    val src = "accelerator top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(prog.handshake)
+  }
+
+  test("AcceleratorAnnotation:NoHandshake") {
+    val src = "accelerator[no_handshake] top = (s: Stm[u8, 10]) => s"
+    val prog = Parser.parse(src)
+    assert(!prog.handshake)
+  }
+
+  test("AcceleratorAnnotation:NoHandshake:BadValue") {
+    val src = "accelerator[no_handshake=foo] top = (s: Stm[u8, 10]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "unexpected value for annotation 'no_handshake'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment

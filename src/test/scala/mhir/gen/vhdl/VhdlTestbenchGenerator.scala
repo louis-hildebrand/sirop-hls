@@ -119,6 +119,10 @@ object VhdlTestbenchGenerator {
       testNotReady: Boolean,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
+    require(
+      options.handshake || !testNotReady,
+      "cannot use testNotReady with handshake=false"
+    )
     val testDir = dir / "test"
     os.makeDir.all(testDir)
 
@@ -148,7 +152,7 @@ object VhdlTestbenchGenerator {
   ): Unit = {
     val outElemType = VhdlType(io.outElemTyp)
     val portMap = getPortMap(io.params, options)
-    val sharedDecls = getSharedDecls(io)
+    val sharedDecls = getSharedDecls(io, options)
     val testCaseDecls = io.tests.zipWithIndex
       .map({ case (io, idx) => getTestDecls(io, idx) })
       .mkString("\n\n")
@@ -313,22 +317,44 @@ object VhdlTestbenchGenerator {
   ): String = {
     val assignments = (Seq(
       s"${options.clock} => clk",
-      s"${options.reset} => reset",
-      s"${TopVhdl.topData(options.outName)} => data",
-      s"${TopVhdl.topValid(options.outName)} => valid",
-      s"${TopVhdl.topReady(options.outName)} => ready"
-    ) ++ inputVars
-      .flatMap(x =>
-        Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
-      )
-      .map(x => s"$x => $x"))
-      .mkString(", ")
+      s"${options.reset} => reset"
+    ) ++ (
+      if (options.handshake) {
+        val topVhdl = mhir.gen.vhdl.handshake.TopVhdl
+        Seq(
+          s"${topVhdl.topData(options.outName)} => data",
+          s"${topVhdl.topValid(options.outName)} => valid",
+          s"${topVhdl.topReady(options.outName)} => ready"
+        )
+      } else {
+        val topVhdl = mhir.gen.vhdl.nohandshake.TopVhdl
+        Seq(
+          s"${topVhdl.topData(options.outName)} => data"
+        )
+      }
+    ) ++ (
+      if (options.handshake) {
+        inputVars
+          .flatMap(x =>
+            Seq(s"${x.name}_data", s"${x.name}_valid", s"${x.name}_ready")
+          )
+          .map(x => s"$x => $x")
+      } else {
+        inputVars.map(x => s"${x.name} => ${x.name}_data")
+      }
+    )).mkString(", ")
     s"DUT : entity work.${options.topName} port map($assignments);"
   }
 
-  private def getSharedDecls(io: TestSuiteIO): String = {
-    (io.params.map(getSharedInputStreamDecls).mkString("\n\n")
-      + getSharedOutputCheckDecls(VhdlType(io.outElemTyp)))
+  private def getSharedDecls(
+      io: TestSuiteIO,
+      options: VhdlGeneratorOptions
+  ): String = {
+    (io.params
+      .map(getSharedInputStreamDecls(_, options))
+      .map(x => s"$x\n\n")
+      .mkString
+      + getSharedOutputCheckDecls(VhdlType(io.outElemTyp), options))
   }
 
   private def getTestDecls(io: KeywordTestIO, testIdx: Int): String = {
@@ -419,13 +445,18 @@ object VhdlTestbenchGenerator {
   /** Get signal declarations related to the input streams that are shared
     * across test cases.
     */
-  private def getSharedInputStreamDecls(x: Param): String = {
+  private def getSharedInputStreamDecls(
+      x: Param,
+      options: VhdlGeneratorOptions
+  ): String = {
     val elemType = x.typ.asInstanceOf[TyStm].t
     val vhdlType = VhdlStdLogicVec(VhdlType(elemType).bitWidth)
+    val initValid = if (options.handshake) "" else " := '1'"
+    val initReady = if (options.handshake) "'0'" else "'1'";
     s"""-- Input stream: ${x.name}
        |signal ${x.name}_data  : ${vhdlType.vhdlName};
-       |signal ${x.name}_valid : std_logic;
-       |signal ${x.name}_ready : std_logic := '0';
+       |signal ${x.name}_valid : std_logic$initValid;
+       |signal ${x.name}_ready : std_logic := $initReady;
        |""".stripMargin.stripTrailing
   }
 
@@ -557,11 +588,16 @@ object VhdlTestbenchGenerator {
        |""".stripMargin.stripTrailing
   }
 
-  private def getSharedOutputCheckDecls(outElemType: VhdlType): String = {
+  private def getSharedOutputCheckDecls(
+      outElemType: VhdlType,
+      options: VhdlGeneratorOptions
+  ): String = {
+    val initValid = if (options.handshake) "" else " := '1'"
+    val initReady = if (options.handshake) "'0'" else "'1'"
     s"""-- Expected outputs
        |signal data            : std_logic_vector(${outElemType.bitWidth - 1} downto 0);
-       |signal valid           : std_logic;
-       |signal ready           : std_logic := '0';
+       |signal valid           : std_logic$initValid;
+       |signal ready           : std_logic := $initReady;
        |""".stripMargin.stripTrailing
   }
 

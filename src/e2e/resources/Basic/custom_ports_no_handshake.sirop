@@ -1,0 +1,9 @@
+const n: u32 = 100
+const m: u32 = n -% 36:u32
+const coeffs: Vec[u16, m] = vbuild(m) { (_: u32) => 3:u16 }
+
+accelerator[no_handshake, clock=my_clk, reset=my_rst, out_name=result] times3 = (s: Stm[Vec[u16, m], n]) =>
+    s.StmMap((v) =>
+        v.VecZip(coeffs)
+            .VecMap((x) => x.0 * x.1)
+    )

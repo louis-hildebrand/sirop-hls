@@ -66,7 +66,8 @@ object Compiler {
         case Some(reset) => vhdl1.copy(reset = reset)
         case None        => vhdl1
       }
-      vhdl2
+      val vhdl3 = vhdl2.copy(handshake = prog.handshake)
+      vhdl3
     }
     val options = originalOptions.copy(vhdl = vhdlOptions)
     val (checked, tchkTime) = typecheck(prog)
