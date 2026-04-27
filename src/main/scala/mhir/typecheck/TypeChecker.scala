@@ -3,6 +3,7 @@ package mhir.typecheck
 import mhir.ir._
 
 import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 
 trait TypeChecker {
 
@@ -633,6 +634,8 @@ trait TypeChecker {
             val context =
               checkedConstants.map({ case ConstDecl(y, _) => y -> y.typ }).toMap
             val newE = e.tchk(context)
+            assert(x.typ != Missing)
+            assert(newE.typ == x.typ)
             tchk(checkedConstants :+ ConstDecl(x, newE), rest)
         }
       }
@@ -641,9 +644,128 @@ trait TypeChecker {
         this.prog.constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       val newBody = this.prog.body.tchk(context)
       val newAccelDecl = this.prog.accel.copy(body = newBody)
-      // TODO: Typecheck the test suite
-      val newTestSuite = this.prog.test
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(newBody)
+      assert(body.typ != Missing)
+      val newTestSuite =
+        typecheckTestSuite(
+          this.prog.test,
+          Seq(),
+          context,
+          inputs.toSet,
+          body.typ
+        )
       Program(newConstants, newAccelDecl, newTestSuite)
     }
+
+    @tailrec
+    private def typecheckTestSuite(
+        unchecked: Seq[TestDecl],
+        checked: Seq[TestDecl],
+        context: Map[Param, Type],
+        accelInputs: Set[Param],
+        accelOutput: Type
+    )(implicit c: Canonicalizer): Seq[TestDecl] = {
+      unchecked match {
+        case Seq() =>
+          checked
+        case Seq(decl, rest @ _*) =>
+          decl match {
+            case ConstDecl(x, e) =>
+              val newE = e.tchk(context)
+              assert(x.typ != Missing)
+              assert(newE.typ == x.typ)
+              typecheckTestSuite(
+                rest,
+                checked :+ ConstDecl(x, e.tchk(context)),
+                context + (x -> x.typ),
+                accelInputs,
+                accelOutput
+              )
+            case Assertion(in, out) =>
+              checkInputNames(params = accelInputs, args = in.keySet)
+              val newIn = in.map({ case (x, e) =>
+                val newE = e.tchk(context)
+                val newX = x.rebuild(newE.typ).asInstanceOf[Param]
+                newX -> newE
+              })
+              checkInputTypes(params = accelInputs, args = newIn.keySet)
+              val newOut = out.tchk(context)
+              if (!(newOut.typ ~= accelOutput)) {
+                throw new TypeError(
+                  "invalid expected output in assertion:" +
+                    s" accelerator produces $accelOutput but assertion uses ${newOut.typ}"
+                )
+              }
+              typecheckTestSuite(
+                rest,
+                checked :+ Assertion(newIn, newOut),
+                context,
+                accelInputs,
+                accelOutput
+              )
+          }
+      }
+    }
+
+    private def checkInputNames(params: Set[Param], args: Set[Param]): Unit = {
+      val missingInputs = params.diff(args)
+      val missingInputsStr = missingInputs
+        .map(x => s"'${x.name}'")
+        .toSeq
+        .sorted
+        .mkString(", ")
+      val unknownInputs = args.diff(params)
+      val unknownInputsStr = unknownInputs
+        .map(x => s"'${x.name}'")
+        .toSeq
+        .sorted
+        .mkString(", ")
+      if (missingInputs.nonEmpty && unknownInputs.nonEmpty) {
+        throw new TypeError(
+          s"invalid inputs in assertion:"
+            + s" missing argument for $missingInputsStr and unknown parameter $unknownInputsStr"
+        )
+      } else if (missingInputs.nonEmpty) {
+        throw new TypeError(
+          s"invalid inputs in assertion:"
+            + s" missing argument for $missingInputsStr"
+        )
+      } else if (unknownInputs.nonEmpty) {
+        throw new TypeError(
+          s"invalid inputs in assertion:"
+            + s" unknown parameter $unknownInputsStr"
+        )
+      }
+    }
+
+    private def checkInputTypes(params: Set[Param], args: Set[Param]): Unit = {
+      assert(params == args)
+      for ((p, a) <- params.zip(args)) {
+        if (!(a.typ ~= p.typ)) {
+          throw new TypeError(
+            "invalid inputs in assertion:"
+              + s" parameter '${p.name}' has type ${p.typ} but assertion provides ${a.typ}"
+          )
+        }
+      }
+    }
+  }
+}
+
+object TypeChecker {
+
+  def unwrapTopLevelFunction(f: Expr): (Seq[Param], Expr) = {
+    @tailrec
+    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
+      e match {
+        case Function(x, e) if x.typ == TyTuple() =>
+          // TODO: Why is this case needed again?
+          unwrap(e, inputs)
+        case Function(x, e) => unwrap(e, x +: inputs)
+        case e              => (inputs, e)
+      }
+    }
+    val (inputs, body) = unwrap(f, Seq())
+    (inputs.reverse, body)
   }
 }

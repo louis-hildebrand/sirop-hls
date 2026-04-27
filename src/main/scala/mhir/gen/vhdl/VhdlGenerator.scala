@@ -3,7 +3,7 @@ package mhir.gen.vhdl
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sem.SemanticAnalyzer
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{TypeCheck, TypeChecker}
 import os.Path
 
 /** The main class for generating VHDL from an [[mhir.ir.Expr]].
@@ -47,7 +47,7 @@ object VhdlGenerator {
       s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
-      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
+      case f: Function => TypeChecker.unwrapTopLevelFunction(f)
       case e           => (Seq(), e)
     }
     for (x <- inputs) {

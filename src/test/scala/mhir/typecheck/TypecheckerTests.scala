@@ -2,6 +2,7 @@ package mhir.typecheck
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.parse.sirop.Parser
 import mhir.sugar._
 import mhir.testing.ParamStore
 import org.scalatest.funsuite.AnyFunSuite
@@ -590,5 +591,140 @@ class TypecheckerTests extends AnyFunSuite {
   test("StmData:NonStmTarget") {
     val x = Param("x")(U8)
     assertThrows[TypeError](StmData(x)().tchk())
+  }
+
+  test("TestSuite:OK") {
+    val src =
+      """const N: u32 = 10
+        |
+        |accelerator top = (s: Stm[u8, N]) => s.StmMap((x) => x + 5:u8)
+        |
+        |const M: u32 = 5
+        |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
+        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
+        |assert { s = StmRange(N, Z, 1:u8) } yields StmRange(N, Z + 5:u8, 1:u8)
+        |
+        |const V2: Vec[u8, N] = vbuild(N) { (i: u8) => i }
+        |const Z2: u8 = V2.VecReduce( (x) => x.0 + x.1 )[0]
+        |const DELTA2: u8 = 2
+        |assert {
+        |  s = StmRange(N, Z2, DELTA2)
+        |}
+        |yields StmRange(N, Z2 + 5:u8, DELTA2)
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val checked = prog.tchk()
+    assert(checked.accel.body.hasType)
+    for (td <- checked.test) {
+      td match {
+        case ConstDecl(_, e) =>
+          assert(e.hasType)
+        case Assertion(inputs, expectedOutput) =>
+          for ((_, e) <- inputs) {
+            assert(e.hasType)
+          }
+          assert(expectedOutput.hasType)
+      }
+    }
+  }
+
+  test("TestSuite:Error:MainAcceleratorUsingTestConst") {
+    val src =
+      """accelerator top = (s: Stm[u8, 3]) => s.StmMap( (x) => x + K )
+        |
+        |const K: u8 = 5
+        |assert { s = StmRange(3, 0:u8, 1:u8) } yields [K, K + 1:u8, K + 2:u8]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(ex.getMessage.toLowerCase.contains("free variable: k"))
+  }
+
+  test("TestSuite:Error:MissingAcceleratorArg") {
+    val src =
+      """accelerator top = (a: Stm[bool, 4]) => (b: Stm[i8, 4]) => StmZip(a, b)
+        |
+        |assert { a = [true, false, false, true]s }
+        |yields [(true, 0:i8), (false, 0:i8), (false, 0:i8), (true, 0:i8)]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .toLowerCase()
+        .contains("invalid inputs in assertion: missing argument for 'b'")
+    )
+  }
+
+  test("TestSuite:Error:AdditionalAcceleratorArg") {
+    val src =
+      """accelerator top = (a: Stm[bool, 4]) => a.StmMap( (x) => (x, 0:i8) )
+        |
+        |assert { a = [true, false, false, true]s, b = [0:i8, 0:i8, 0:i8]s }
+        |yields [(true, 0:i8), (false, 0:i8), (false, 0:i8), (true, 0:i8)]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .toLowerCase()
+        .contains("invalid inputs in assertion: unknown parameter 'b'")
+    )
+  }
+
+  test("TestSuite:Error:MisnamedAcceleratorArg") {
+    val src =
+      """accelerator top = (a: Stm[bool, 4]) => a.StmMap( (x) => (x, 0:i8) )
+        |
+        |assert { s = [true, false, false, true]s }
+        |yields [(true, 0:i8), (false, 0:i8), (false, 0:i8), (true, 0:i8)]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .toLowerCase()
+        .contains(
+          "invalid inputs in assertion: missing argument for 'a' and unknown parameter 's'"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongOutputType") {
+    // Although the bitwidth is the same here, using the wrong type could still
+    // cause problems.
+    // In the evaluator, this would obviously be an issue because 0 != [0]v.
+    // Even for VHDL simulation, the testbench might not compile if it tries to
+    // convert the output to a type that's not defined in the main VHDL code.
+    val src =
+      """accelerator top = StmRange(4, 0:u8, 1:u8)
+        |
+        |assert {} yields [[0:u8]v, [1:u8]v, [2:u8]v, [3:u8]v]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .contains(
+          "invalid expected output in assertion:" +
+            " accelerator produces Stm[u8, 4:u3] but assertion uses Stm[Vec[u8, 1:u1], 4:u3]"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongInputType") {
+    val src =
+      """accelerator top = (s: Stm[Vec[u8, 1], 3]) => s.StmMap( (x) => x[0] )
+        |
+        |assert { s = [0:u8, 1:u8, 2:u8]s }
+        |yields [0:u8, 1:u8, 2:u8]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage.contains(
+        "invalid inputs in assertion: parameter 's' has type Stm[Vec[u8, 1:u1], 3:u2] but assertion provides Stm[u8, 3:u2]"
+      )
+    )
   }
 }

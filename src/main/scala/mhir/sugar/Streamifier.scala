@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
 import mhir.sem.{SemanticAnalyzer, SemanticError}
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec
@@ -41,7 +41,7 @@ object Streamifier {
       time("streamifying", Level.TRACE) {
         logger.trace(s"streamifying expression: ${this.func}")
         val (inputList, stm) =
-          SemanticAnalyzer.unwrapTopLevelFunction(this.func)
+          TypeChecker.unwrapTopLevelFunction(this.func)
         val oldToNewInputs = ListMap(
           inputList.map(x => x -> makeStreamParam(x)): _*
         )

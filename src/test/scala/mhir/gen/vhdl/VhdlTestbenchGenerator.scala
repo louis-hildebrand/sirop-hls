@@ -8,7 +8,7 @@ import mhir.ir._
 import mhir.logging.time
 import mhir.sem.SemanticAnalyzer
 import mhir.sugar._
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
 
@@ -864,7 +864,7 @@ object VhdlTestbenchGenerator {
     val (params, _) = e match {
       case s: StmBuild => (Seq(), s)
       case let: LetStm => (Seq(), let)
-      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
+      case f: Function => TypeChecker.unwrapTopLevelFunction(f)
       case e =>
         throw new IllegalArgumentException(
           s"I don't know how to find expected output for expression $e."
