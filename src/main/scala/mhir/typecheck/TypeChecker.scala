@@ -641,7 +641,9 @@ trait TypeChecker {
         this.prog.constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       val newBody = this.prog.body.tchk(context)
       val newAccelDecl = this.prog.accel.copy(body = newBody)
-      Program(newConstants, newAccelDecl)
+      // TODO: Typecheck the test suite
+      val newTestSuite = this.prog.test
+      Program(newConstants, newAccelDecl, newTestSuite)
     }
   }
 }

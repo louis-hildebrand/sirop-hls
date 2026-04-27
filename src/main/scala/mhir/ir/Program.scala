@@ -4,7 +4,8 @@ package mhir.ir
   */
 case class Program(
     constants: Seq[ConstDecl],
-    accel: AccelDecl
+    accel: AccelDecl,
+    test: Seq[TestDecl]
 ) {
 
   /** The expression for the main accelerator.
@@ -38,7 +39,9 @@ object Program {
 
   /** Creates a [[Program]] with a default name and no other declarations.
     */
-  def apply(e: Expr): Program = Program(Seq(), AccelDecl("top", e, Map()))
+  def apply(e: Expr): Program = {
+    Program(Seq(), AccelDecl("top", e, Map()), Seq())
+  }
 
   def checkAnnotation(
       key: String,

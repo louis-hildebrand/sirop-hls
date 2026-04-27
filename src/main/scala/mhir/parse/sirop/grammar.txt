@@ -1,8 +1,8 @@
 # TODO: Add fixed-point number operations and type
 # TODO: Allow trailing commas (e.g., in sbuild, in sequence literals)
 
-program ::= const_decl* accel_decl
-          | expr
+program    ::= const_decl* accel_decl test_decl*
+             | expr
 
 ##### Declarations #####################################################################################################
 
@@ -12,6 +12,15 @@ accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" expr
 accel_annotations ::= ""
                     | accel_annotation ( "," accel_annotation )*
 accel_annotation  ::= ident [ "=" expr ]
+
+test_decl         ::= const_decl
+                    | assertion
+
+assertion         ::= "assert" input_specs "yields" expr
+input_specs       ::= "{" "}"
+                    | ""
+                    | "{" input_spec ( "," input_spec )* "}"
+input_spec        ::= ident "=" expr
 
 ##### Expressions ######################################################################################################
 

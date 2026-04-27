@@ -159,6 +159,8 @@ object Lexer {
           case "exit"        => ExitToken(start)
           case "accelerator" => AcceleratorToken(start)
           case "const"       => ConstToken(start)
+          case "assert"      => AssertToken(start)
+          case "yields"      => YieldsToken(start)
           case x if x.matches("pad[0-9]+") =>
             val suffix = consume(x, "pad")
             PadToken(suffix.toInt)(start)

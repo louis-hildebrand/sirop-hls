@@ -728,6 +728,139 @@ class ParserTests extends AnyFunSuite {
     assert(ex.loc.contains(SourcePoint(1, 13)))
   }
 
+  test("TestSuite:OK1") {
+    val src =
+      """const N: u32 = 10
+        |
+        |accelerator top = (s: Stm[u8, N]) => s.StmMap((x) => x + 5)
+        |
+        |const M: u32 = 5
+        |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
+        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
+        |assert { s = StmRange(N, Z, 1:u8) } yields StmRange(N, Z + 5, 1:u8)
+        |
+        |const Z2: u8 = 9
+        |const DELTA2: u8 = 2
+        |assert {
+        |  s = StmRange(N, Z2, DELTA2)
+        |}
+        |yields StmRange(N, Z2 + 5, DELTA2)
+        |""".stripMargin
+    val actual = Parser.parse(src)
+    val expected = {
+      val n = Param("N", -1)(U32)
+      val s = Param("s", -1)(TyStm(U8, n))
+      val m = Param("M", -1)(U32)
+      val v = Param("V", -1)(TyVec(U8, m))
+      val z = Param("Z", -1)(U8)
+      val z2 = Param("Z2", -1)(U8)
+      val delta2 = Param("DELTA2", -1)(U8)
+      Program(
+        Seq(ConstDecl(n, ReshapeData(C(10)(), U32)())),
+        AccelDecl(
+          "top",
+          Function(s, StmMap(s, Missing ::+ (x => Sum(x, C(5)())()))())(),
+          Map()
+        ),
+        Seq(
+          ConstDecl(m, ReshapeData(C(5)(), U32)()),
+          ConstDecl(
+            v,
+            ReshapeData(VecBuild(m, U8 ::+ (i => i))(), TyVec(U8, m))()
+          ),
+          ConstDecl(
+            z,
+            ReshapeData(
+              VecAccess(
+                VecReduceComb(v, Missing ::+ (x => Sum(x.__0, x.__1)()))(),
+                0
+              )(),
+              U8
+            )()
+          ),
+          Assertion(
+            Map(s -> StmRange(n, z, C(1)(U8))()),
+            StmRange(n, Sum(z, C(5)())(), C(1)(U8))()
+          ),
+          ConstDecl(z2, ReshapeData(C(9)(), U8)()),
+          ConstDecl(delta2, ReshapeData(C(2)(), U8)()),
+          Assertion(
+            Map(s -> StmRange(n, z2, delta2)()),
+            StmRange(n, Sum(z2, C(5)())(), delta2)()
+          )
+        )
+      )
+    }
+    assert(actual == expected)
+  }
+
+  test("TestSuite:OK2") {
+    val src =
+      """accelerator top = (a: Stm[u8, 4]) => (b: Stm[bool, 4]) =>
+        |  StmZip(a, b)
+        |
+        |assert {
+        |  a = [0:u8, 1:u8, 2:u8, 3:u8]s,
+        |  b = [false, true, true, false]s
+        |}
+        |yields [(0:u8, false), (1:u8, true), (2:u8, true), (3:u8, false)]s
+        |""".stripMargin
+    val actual = Parser.parse(src)
+    val expected = {
+      val a = Param("a", -1)(TyStm(U8, 4))
+      val b = Param("b", -1)(TyStm(TyBool, 4))
+      Program(
+        Seq(),
+        AccelDecl("top", Function(a, Function(b, StmZip(a, b)())())(), Map()),
+        Seq(
+          Assertion(
+            Map(
+              a -> StmLiteral(C(0)(), C(1)(), C(2)(), C(3)())(),
+              b -> StmLiteral(False, True, True, False)()
+            ),
+            StmLiteral(
+              Tuple(C(0)(), False)(),
+              Tuple(C(1)(), True)(),
+              Tuple(C(2)(), True)(),
+              Tuple(C(3)(), False)()
+            )()
+          )
+        )
+      )
+    }
+    assert(actual == expected)
+  }
+
+  test("TestSuite:OK3") {
+    val src =
+      """accelerator top = StmRange(5, -2:i16, 1:i16)
+        |
+        |assert {} yields [-2:i16, -1:i16, 0:i16, 1:i16, 2:i16]s
+        |""".stripMargin
+    val actual = Parser.parse(src)
+    val expected = Program(
+      Seq(),
+      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
+      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)()))
+    )
+    assert(actual == expected)
+  }
+
+  test("TestSuite:OK4") {
+    val src =
+      """accelerator top = StmRange(5, -2:i16, 1:i16)
+        |
+        |assert yields [-2:i16, -1:i16, 0:i16, 1:i16, 2:i16]s
+        |""".stripMargin
+    val actual = Parser.parse(src)
+    val expected = Program(
+      Seq(),
+      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
+      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)()))
+    )
+    assert(actual == expected)
+  }
+
   // TODO: Forbid leading zeros in int literals?
   // TODO: Test comments
   // TODO: Test unclosed comment
