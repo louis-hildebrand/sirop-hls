@@ -13,88 +13,88 @@ class ParserTests extends AnyFunSuite {
   private val z = Param("z", -1)(Missing)
 
   test("ParenthesizedExpr") {
-    assert(Parser.parse("(42)").e == C(42)())
-    assert(Parser.parse("(true)").e == True)
+    assert(Parser.parse("(42)").body == C(42)())
+    assert(Parser.parse("(true)").body == True)
   }
 
   test("EmptyTuple") {
-    assert(Parser.parse("()").e == Tuple()())
+    assert(Parser.parse("()").body == Tuple()())
   }
 
   test("1-tuple") {
-    assert(Parser.parse("(42,)").e == Tuple(C(42)())())
+    assert(Parser.parse("(42,)").body == Tuple(C(42)())())
   }
 
   test("2-tuple") {
-    assert(Parser.parse("(true, 1_000)").e == Tuple(True, C(1000)())())
+    assert(Parser.parse("(true, 1_000)").body == Tuple(True, C(1000)())())
   }
 
   test("3-tuple") {
     assert(
-      Parser.parse("(1, false, ())").e == Tuple(C(1)(), False, Tuple()())()
+      Parser.parse("(1, false, ())").body == Tuple(C(1)(), False, Tuple()())()
     )
   }
 
   test("Ident") {
-    assert(Parser.parse("x").e == x)
+    assert(Parser.parse("x").body == x)
   }
 
   test("undefined[()]") {
-    assert(Parser.parse("undefined[()]").e == Undefined(TyTuple()))
+    assert(Parser.parse("undefined[()]").body == Undefined(TyTuple()))
   }
 
   test("undefined[(u8,)]") {
-    assert(Parser.parse("undefined[(u8,)]").e == Undefined(TyTuple(U8)))
+    assert(Parser.parse("undefined[(u8,)]").body == Undefined(TyTuple(U8)))
   }
 
   test("undefined[(u8)]") {
-    assert(Parser.parse("undefined[(u8)]").e == Undefined(U8))
+    assert(Parser.parse("undefined[(u8)]").body == Undefined(U8))
   }
 
   test("undefined[(i16, bool, u8, Vec[u32, 5])]") {
     val src = "undefined[(i16, bool, u8, Vec[u32, 5])]"
     val expected = Undefined(TyTuple(I16, TyBool, U8, TyVec(U32, 5)))
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("True") {
-    assert(Parser.parse("true").e == True)
+    assert(Parser.parse("true").body == True)
   }
 
   test("False") {
-    assert(Parser.parse("false").e == False)
+    assert(Parser.parse("false").body == False)
   }
 
   test("IntCst:NoAnnotation:Basic") {
-    assert(Parser.parse("42").e == C(42)())
+    assert(Parser.parse("42").body == C(42)())
   }
 
   test("IntCst:NoAnnotation:ThousandsSeparators") {
-    assert(Parser.parse("1_123_000").e == C(1123000)())
+    assert(Parser.parse("1_123_000").body == C(1123000)())
   }
 
   test("IntCst:NoAnnotation:LeadingPlus") {
-    assert(Parser.parse("+10").e == C(10)())
+    assert(Parser.parse("+10").body == C(10)())
   }
 
   test("IntCst:NoAnnotation:LeadingMinus") {
-    assert(Parser.parse("-99").e == C(-99)())
+    assert(Parser.parse("-99").body == C(-99)())
   }
 
   test("IntCst:ValidAnnotation:JustRight") {
-    val e1 = Parser.parse("42:u6").e
+    val e1 = Parser.parse("42:u6").body
     assert(e1 == C(42)(TyUInt(6)))
     assert(e1.typ == TyUInt(6))
   }
 
   test("IntCst:ValidAnnotation:Larger") {
-    val e2 = Parser.parse("42:u16").e
+    val e2 = Parser.parse("42:u16").body
     assert(e2 == C(42)(U16))
     assert(e2.typ == U16)
   }
 
   test("IntCst:ValidAnnotation:LeadingMinus") {
-    val e3 = Parser.parse("-1_000_000:i32").e
+    val e3 = Parser.parse("-1_000_000:i32").body
     assert(e3 == C(-1000000)(I32))
     assert(e3.typ == I32)
   }
@@ -111,7 +111,7 @@ class ParserTests extends AnyFunSuite {
 
   test("VecLiteral:Empty") {
     val src = "[]v:Vec[u8,0]"
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == VecLiteral()())
     assert(actual.typ == TyVec(U8, 0))
   }
@@ -138,7 +138,7 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("VecLiteral:OneElem") {
-    assert(Parser.parse("[42:u8]v").e == VecLiteral(C(42)(U8))())
+    assert(Parser.parse("[42:u8]v").body == VecLiteral(C(42)(U8))())
   }
 
   test("VecLiteral:OneElem:TypeAnnotation") {
@@ -153,12 +153,12 @@ class ParserTests extends AnyFunSuite {
   test("VecLiteral:ThreeElems") {
     val src = "[false, true, false]v"
     val expected = VecLiteral(False, True, False)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("StmLiteral:Empty") {
     val src = "[]s:Stm[u8,0]"
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == StmLiteral()())
     assert(actual.typ == TyStm(U8, 0))
   }
@@ -185,7 +185,7 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("StmLiteral:OneElem") {
-    assert(Parser.parse("[42:u8]s").e == StmLiteral(C(42)(U8))())
+    assert(Parser.parse("[42:u8]s").body == StmLiteral(C(42)(U8))())
   }
 
   test("StmLiteral:OneElem:TypeAnnotation") {
@@ -200,35 +200,35 @@ class ParserTests extends AnyFunSuite {
   test("StmLiteral:ThreeElems") {
     val src = "[false, true, false]s"
     val expected = StmLiteral(False, True, False)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("Pad") {
-    assert(Parser.parse("pad7(x)").e == PadTo(x, 7)())
-    assert(Parser.parse("pad16(x)").e == PadTo(x, 16)())
+    assert(Parser.parse("pad7(x)").body == PadTo(x, 7)())
+    assert(Parser.parse("pad16(x)").body == PadTo(x, 16)())
   }
 
   test("Truncate") {
-    assert(Parser.parse("truncate7(x)").e == TruncateTo(x, 7)())
-    assert(Parser.parse("truncate16(x)").e == TruncateTo(x, 16)())
+    assert(Parser.parse("truncate7(x)").body == TruncateTo(x, 7)())
+    assert(Parser.parse("truncate16(x)").body == TruncateTo(x, 16)())
   }
 
   test("Sign") {
-    assert(Parser.parse("sign(x)").e == ToSigned(x)())
+    assert(Parser.parse("sign(x)").body == ToSigned(x)())
   }
 
   test("Unsign") {
-    assert(Parser.parse("unsign(x)").e == ToUnsigned(x)())
+    assert(Parser.parse("unsign(x)").body == ToUnsigned(x)())
   }
 
   test("Sdata") {
-    assert(Parser.parse("sdata(s)").e == StmData(Param("s", -1)(Missing))())
+    assert(Parser.parse("sdata(s)").body == StmData(Param("s", -1)(Missing))())
   }
 
   test("vbuild") {
     val src = "vbuild(42) { (i: u8) => sign(i) }"
     val expected = VecBuild(42, U8 ::+ (i => ToSigned(i)()))()
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[VecBuild].f.param.typ == expected.f.param.typ)
   }
@@ -246,7 +246,7 @@ class ParserTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)()))
       )()
     }
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   // Two accumulators, zero producers
@@ -271,7 +271,7 @@ class ParserTests extends AnyFunSuite {
         )
       )()
     }
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   // Zero accumulators, one producer
@@ -290,7 +290,7 @@ class ParserTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](s -> (s, True))
       )()
     }
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   // Zero accumulators, two producers
@@ -314,13 +314,13 @@ class ParserTests extends AnyFunSuite {
         )
       )()
     }
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("sdata(s).0.1.2") {
     val src = "sdata(s).0.1.2"
     val expected = StmData(Param("s", -1)(Missing))().__0.__1.__2
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("sdata(s)[i][j][0]") {
@@ -335,7 +335,7 @@ class ParserTests extends AnyFunSuite {
       )(),
       0
     )()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("f(42)(x, y)()") {
@@ -347,127 +347,127 @@ class ParserTests extends AnyFunSuite {
       )(),
       Tuple()()
     )()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("!x") {
-    assert(Parser.parse("!x").e == !x)
+    assert(Parser.parse("!x").body == !x)
   }
 
   test("x * y * z") {
     val src = "x * y * z"
     val expected = Prod(Prod(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x *% y *% z") {
     val src = "x *% y *% z"
     val expected = WrappingProd(WrappingProd(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x / y / z") {
     val src = "x / y / z"
     val expected = Div(Div(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x % y % z") {
     val src = "x % y % z"
     val expected = Mod(Mod(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x + y + z") {
     val src = "x + y + z"
     val expected = Sum(Sum(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x +% y +% z") {
     val src = "x +% y +% z"
     val expected = WrappingSum(WrappingSum(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x -% y -% z") {
     val src = "x -% y -% z"
     val expected = WrappingDiff(WrappingDiff(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x + y * z") {
     val src = "x + y * z"
     val expected = Sum(x, Prod(y, z)())()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x * y + z") {
     val src = "x * y + z"
     val expected = Sum(Prod(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("(x + y) * z") {
     val src = "(x + y) * z"
     val expected = Prod(Sum(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x <<< y <<< z") {
     val src = "x <<< y <<< z"
     val expected = LLShift(LLShift(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x >>> y >>> z") {
     val src = "x >>> y >>> z"
     val expected = LRShift(LRShift(x, y)(), z)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("x < y") {
-    assert(Parser.parse("x < y").e == (x lt y))
+    assert(Parser.parse("x < y").body == (x lt y))
   }
 
   test("x > y") {
-    assert(Parser.parse("x > y").e == (x gt y))
+    assert(Parser.parse("x > y").body == (x gt y))
   }
 
   test("x <= y") {
-    assert(Parser.parse("x <= y").e == (x leq y))
+    assert(Parser.parse("x <= y").body == (x leq y))
   }
 
   test("x >= y") {
-    assert(Parser.parse("x >= y").e == (x geq y))
+    assert(Parser.parse("x >= y").body == (x geq y))
   }
 
   test("x == y") {
-    assert(Parser.parse("x == y").e == (x equ y))
+    assert(Parser.parse("x == y").body == (x equ y))
   }
 
   test("x != y") {
-    assert(Parser.parse("x != y").e == (x nequ y))
+    assert(Parser.parse("x != y").body == (x nequ y))
   }
 
   test("x && y && z") {
-    assert(Parser.parse("x && y && z").e == And(And(x, y)(), z)())
+    assert(Parser.parse("x && y && z").body == And(And(x, y)(), z)())
   }
 
   test("x || y || z") {
-    assert(Parser.parse("x || y || z").e == Or(Or(x, y)(), z)())
+    assert(Parser.parse("x || y || z").body == Or(Or(x, y)(), z)())
   }
 
   test("x || y && z") {
-    assert(Parser.parse("x || y && z").e == Or(x, And(y, z)())())
+    assert(Parser.parse("x || y && z").body == Or(x, And(y, z)())())
   }
 
   test("x && y || z") {
-    assert(Parser.parse("x && y || z").e == Or(And(x, y)(), z)())
+    assert(Parser.parse("x && y || z").body == Or(And(x, y)(), z)())
   }
 
   test("(x || y) && z") {
-    assert(Parser.parse("(x || y) && z").e == And(Or(x, y)(), z)())
+    assert(Parser.parse("(x || y) && z").body == And(Or(x, y)(), z)())
   }
 
   test("if c1 || c2 then x + y else x * y") {
@@ -475,7 +475,7 @@ class ParserTests extends AnyFunSuite {
     val c2 = Param("c2", -1)(Missing)
     val src = "if c1 || c2 then x + y else x * y"
     val expected = Mux(c1 || c2, Sum(x, y)(), Prod(x, y)())()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("if (c) then { t } else { f }") {
@@ -485,13 +485,13 @@ class ParserTests extends AnyFunSuite {
       Param("t", -1)(Missing),
       Param("f", -1)(Missing)
     )()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("(_) => true") {
     val src = "(_) => true"
     val expected = Missing ::+ (_ => True)
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
@@ -499,7 +499,7 @@ class ParserTests extends AnyFunSuite {
   test("(s : Stm[u8, 42]) => s") {
     val src = "(s : Stm[u8, 42]) => s"
     val expected = TyStm(U8, 42) ::+ (s => s)
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
@@ -507,7 +507,7 @@ class ParserTests extends AnyFunSuite {
   test("(f : u32 -> bool) => f") {
     val src = "(f : u32 -> bool) => f"
     val expected = (U32 ->: TyBool) ::+ (f => f)
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
@@ -515,7 +515,7 @@ class ParserTests extends AnyFunSuite {
   test("(g : i32 -> i16 -> i8) => g") {
     val src = "(f : i32 -> i16 -> i8) => f"
     val expected = TyArrow(I32, TyArrow(I16, I8)) ::+ (f => f)
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
@@ -523,7 +523,7 @@ class ParserTests extends AnyFunSuite {
   test("(h:(i32 -> i16) -> i8) => h") {
     val src = "(h:(i32 -> i16) -> i8) => h"
     val expected = TyArrow(TyArrow(I32, I16), I8) ::+ (f => f)
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
@@ -532,7 +532,7 @@ class ParserTests extends AnyFunSuite {
     val src = "letstm[42] x = s1 in s2"
     val expected =
       LetStm(42, x, Param("s1", -1)(Missing), Param("s2", -1)(Missing))()
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[LetStm].x.typ == expected.x.typ)
   }
@@ -545,7 +545,7 @@ class ParserTests extends AnyFunSuite {
       Param("s1", -1)(Missing),
       Param("s2", -1)(Missing)
     )()
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[LetStm].x.typ == expected.x.typ)
   }
@@ -553,7 +553,7 @@ class ParserTests extends AnyFunSuite {
   test("let x = 42 in x + 5") {
     val src = "let x = 42 in x + 5"
     val expected = Let(Param("x", -1)(Missing), 42, Sum(x, 5)())()
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
   }
@@ -565,7 +565,7 @@ class ParserTests extends AnyFunSuite {
       C(250)(U8),
       WrappingSum(WrappingProd(x, x)(), C(42)(U8))()
     )()
-    val actual = Parser.parse(src).e
+    val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
   }
@@ -573,7 +573,7 @@ class ParserTests extends AnyFunSuite {
   test("StmRange") {
     val src = "StmRange(100, 1:i32, -3:i32)"
     val expected = StmRange(100, C(1)(I32), C(-3)(I32))()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("StmMap") {
@@ -581,7 +581,7 @@ class ParserTests extends AnyFunSuite {
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected = StmMap(s, Function(x, Sum(x, 5)())())()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("StmReduce") {
@@ -589,7 +589,7 @@ class ParserTests extends AnyFunSuite {
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected = StmReduce(s, Function(x, WrappingDiff(x.__0, x.__1)())())()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("StmMap2") {
@@ -600,7 +600,7 @@ class ParserTests extends AnyFunSuite {
     val x2 = Param("x2", -1)(Missing)
     val expected =
       StmMap2(s1, s2, Function(x1, Function(x2, WrappingDiff(x1, x2)())())())()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("StmZip") {
@@ -608,7 +608,7 @@ class ParserTests extends AnyFunSuite {
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
     val expected = StmZip(s1, s2)()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("Dot:MethodStyle") {
@@ -622,15 +622,15 @@ class ParserTests extends AnyFunSuite {
         StmMap(StmZip(s1, s2)(), Function(x, x.__0 *% x.__1)())(),
         Function(x, x.__0 +% x.__1)()
       )()
-    assert(Parser.parse(src).e == expected)
+    assert(Parser.parse(src).body == expected)
   }
 
   test("AcceleratorAnnotation:OutName") {
     val src = "accelerator[out_name=my_name] top = (s: Stm[u8, 10]) => s"
     val prog = Parser.parse(src)
     assert(prog.name == "top")
-    assert(prog.annotations("out_name") == Param("my_name", -1)(Missing))
-    assert(prog.e == TyStm(U8, 10) ::+ (s => s))
+    assert(prog.accel.annotations("out_name") == Param("my_name", -1)(Missing))
+    assert(prog.body == TyStm(U8, 10) ::+ (s => s))
   }
 
   test("AcceleratorAnnotation:UnknownKey") {

@@ -29,7 +29,10 @@ object Parser {
   private def parseProgram(tokens: Seq[Token]): (Program, Seq[Token]) = {
     tokens match {
       case Seq(tok, _*) if FirstDecl.contains(tok.category) =>
-        parseConstDecls(tokens, Seq())
+        val (constants, rest1) = parseConstDecls(tokens, Seq())
+        val (accel, rest2) = parseAcceleratorDecl(rest1, constants)
+        val prog = Program(constants, accel)
+        (prog, rest2)
       case _ =>
         val (e, rest) = parseExpr(tokens, Map())
         (Program(e), rest)
@@ -42,7 +45,7 @@ object Parser {
   private def parseConstDecls(
       tokens: Seq[Token],
       constants: Seq[ConstDecl]
-  ): (Program, Seq[Token]) = {
+  ): (Seq[ConstDecl], Seq[Token]) = {
     tokens match {
       case Seq(_: ConstToken, _*) =>
         val (decl, rest) = parseConstDecl(
@@ -51,7 +54,7 @@ object Parser {
         )
         parseConstDecls(rest, constants :+ decl)
       case _ =>
-        parseAcceleratorDecl(tokens, constants)
+        (constants, tokens)
     }
   }
 
@@ -80,7 +83,7 @@ object Parser {
   private def parseAcceleratorDecl(
       tokens: Seq[Token],
       constants: Seq[ConstDecl]
-  ): (Program, Seq[Token]) = {
+  ): (AccelDecl, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing accel_decl")
     val (_, rest1) = expect(AcceleratorToken, tokens)
     val (annotations, rest2) = rest1 match {
@@ -97,7 +100,7 @@ object Parser {
         rest4,
         constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       )
-    (Program(name, annotations, constants, body), rest5)
+    (AccelDecl(name, body, annotations), rest5)
   }
 
   private def parseAcceleratorAnnotations(

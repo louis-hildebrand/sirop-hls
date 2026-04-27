@@ -12,7 +12,7 @@ object SemanticAnalyzer {
     * This check can be run before lowering.
     */
   def checkNames(prog: Program): Unit = {
-    val (inputs, _) = unwrapTopLevelFunction(prog.e)
+    val (inputs, _) = unwrapTopLevelFunction(prog.body)
 
     val duplicateInputs =
       inputs.groupBy(x => x).collect({ case (x, Seq(_, _, _*)) => x }).toSeq
@@ -39,12 +39,12 @@ object SemanticAnalyzer {
     */
   def check(prog: Program): Unit = {
     require(
-      !prog.e.hasSyntaxSugar,
+      !prog.body.hasSyntaxSugar,
       "semantic analysis cannot be run before lowering"
     )
 
     if (!prog.handshake) {
-      checkNoHandshake(prog.e)
+      checkNoHandshake(prog.body)
     }
   }
 

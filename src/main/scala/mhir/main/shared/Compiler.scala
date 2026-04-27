@@ -77,11 +77,15 @@ object Compiler {
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     time("semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(checked.copy(e = synthesizable))
+      SemanticAnalyzer.check(
+        checked.copy(accel = checked.accel.copy(body = synthesizable))
+      )
     }
     val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
     time("post-optimization semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(checked.copy(e = finalProgram))
+      SemanticAnalyzer.check(
+        checked.copy(accel = checked.accel.copy(body = finalProgram))
+      )
     }
     val genTime = generateCode(options.vhdl, finalProgram, options.targets)
     options.targets.toSeq
@@ -132,7 +136,7 @@ object Compiler {
         val newX = x.lower.subPreserveType(subs)
         subs + (newX -> v)
     })
-    prog.e.subPreserveType(subs)
+    prog.body.subPreserveType(subs)
   }
 
   private def makeSynthesizable(e: Expr): (Expr, Duration) = {

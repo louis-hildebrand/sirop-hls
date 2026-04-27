@@ -63,7 +63,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("CheckNames:OutNameMatchesInName") {
     val x = Param("x", -1)(TyStm(U16, 100))
     val f = Function(x, SimpleMap(x, x => x + C(5)(U16)))().tchk().lower
-    val prog = Program("top", Map("out_name" -> x), Seq(), f)
+    val prog = Program(Seq(), AccelDecl("top", f, Map("out_name" -> x)))
     val ex = intercept[SemanticError](SemanticAnalyzer.checkNames(prog))
     assert(ex.msg == "output name 'x' is already used for an input")
   }
@@ -75,7 +75,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
       x => x * x
     ).tchk().lower
-    val prog = Program("top", Map(), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map()))
     SemanticAnalyzer.check(prog)
   }
 
@@ -86,7 +86,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
       x => x * x
     ).tchk().lower
-    val prog = Program("top", Map("no_handshake" -> True), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)))
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmConcat cannot be used without the handshake protocol: it is not always ready to receive input"
@@ -99,7 +99,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
-    val prog = Program("top", Map(), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map()))
     SemanticAnalyzer.check(prog)
   }
 
@@ -109,7 +109,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
-    val prog = Program("top", Map("no_handshake" -> True), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)))
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmSlide cannot be used without the handshake protocol: its output is not always valid"
@@ -120,7 +120,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(16)(U8)
     val m = C(16)(U8)
     val e = StmSlide2D(StmCount2D(n, m)(), 3, 3)().tchk().lower
-    val prog = Program("top", Map("no_handshake" -> True), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)))
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmSlide2D cannot be used without the handshake protocol: its output is not always valid"
@@ -133,7 +133,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmCount(n)(),
       (U8, U8) ::+ (x => x.__0 + x.__1)
     )().tchk().lower
-    val prog = Program("top", Map("no_handshake" -> True), Seq(), e)
+    val prog = Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)))
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmReduce cannot be used without the handshake protocol: its output is not always valid"
