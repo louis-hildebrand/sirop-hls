@@ -15,6 +15,8 @@ sealed trait StmNode {
     */
   def id: StmNodeId
 
+  def loc: StmNodeLocation
+
   /** The output from this node to a given consumer.
     *
     * @param consumerId
@@ -150,7 +152,8 @@ case class StmBuildNode(
     data: Option[Expr],
     n: Long,
     acc: Map[Param, Expr],
-    invalidSteps: Int
+    invalidSteps: Int,
+    loc: StmNodeLocation
 ) extends StmNode {
   override def out(consumerId: StmNodeId): Option[Expr] = this.data
 
@@ -177,7 +180,8 @@ case class StmBuildNode(
         this.data,
         this.n,
         this.acc,
-        this.invalidSteps
+        this.invalidSteps,
+        this.loc
       )
     } else {
       val newData = if (this.transferOk || this.canUpdateAcc) {
@@ -241,7 +245,8 @@ case class StmBuildNode(
         data = newData,
         n = newN,
         acc = newAcc,
-        invalidSteps = newInvalidSteps
+        invalidSteps = newInvalidSteps,
+        loc = this.loc
       )
     }
   }
@@ -407,7 +412,8 @@ case class LetStmNode(
     head: Int,
     readIdx: Map[StmNodeId, Int],
     output: Map[StmNodeId, Option[Expr]],
-    typ: TyStm
+    typ: TyStm,
+    loc: StmNodeLocation
 ) extends StmNode {
 
   override def out(consumerId: StmNodeId): Option[Expr] = {
@@ -453,7 +459,8 @@ case class LetStmNode(
       head = newHead,
       readIdx = newReadIdx,
       output = newOutput,
-      typ = this.typ
+      typ = this.typ,
+      loc = this.loc
     )
   }
 
@@ -541,7 +548,8 @@ case class LetStmNode(
       head = this.head,
       readIdx = consumerIds.map(_ -> 0).toMap,
       output = consumerIds.map(_ -> None).toMap,
-      typ = this.typ
+      typ = this.typ,
+      loc = this.loc
     )
   }
 }
@@ -563,7 +571,8 @@ object LetStmNode {
       pipe: StmPipeline,
       id: StmNodeId,
       inTyp: TyStm,
-      bufSize: Int
+      bufSize: Int,
+      loc: StmNodeLocation
   ): LetStmNode = {
     val TyStm(elemTyp, _) = inTyp
     new LetStmNode(
@@ -584,7 +593,8 @@ object LetStmNode {
       head = 0,
       readIdx = Map(),
       output = Map(),
-      typ = inTyp
+      typ = inTyp,
+      loc = loc
     )
   }
 }
@@ -598,8 +608,12 @@ object LetStmNode {
   * @param typ
   *   the type of the stream produced by this node.
   */
-case class StmNopNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
-    extends StmNode {
+case class StmNopNode(
+    pipe: StmPipeline,
+    id: StmNodeId,
+    typ: TyStm,
+    loc: StmNodeLocation
+) extends StmNode {
   override def out(consumerId: StmNodeId): Option[Expr] = {
     // TODO: Check that the given ID indeed belongs to a consumer of this node?
     this.producer.out(this.id)
@@ -611,7 +625,7 @@ case class StmNopNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
   }
 
   override def step(newPipe: StmPipeline): StmNode = {
-    StmNopNode(pipe = newPipe, id = this.id, typ = this.typ)
+    StmNopNode(pipe = newPipe, id = this.id, typ = this.typ, loc = this.loc)
   }
 
   override def isEmpty: Boolean = this.producer.isEmpty
@@ -639,6 +653,9 @@ case class StmNopNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
   */
 case class TerminalNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
     extends StmNode {
+
+  def loc: StmNodeLocation = Sink
+
   override def out(consumerId: StmNodeId): Option[Expr] = {
     this.producer.out(this.id)
   }

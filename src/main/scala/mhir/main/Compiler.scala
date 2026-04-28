@@ -3,6 +3,7 @@ package mhir.main
 import ch.qos.logback.classic.LoggerContext
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.eval.{EvalException, TestError}
 import mhir.gen.CodegenError
 import mhir.ir._
 import mhir.logging.time2
@@ -69,7 +70,7 @@ object Compiler {
       compile(a, argparseTime)
     } catch {
       case ex @ (_: SyntaxError | _: TypeError | _: SemanticError |
-          _: CodegenError) =>
+          _: CodegenError | _: EvalException | _: TestError) =>
         Console.err.println(ex.getMessage)
         sys.exit(1)
     }

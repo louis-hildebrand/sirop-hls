@@ -17,6 +17,16 @@ object NullTarget extends CompilerTarget
   */
 case class EvalTarget(maxInvalidSteps: Option[Int]) extends CompilerTarget
 
+/** Generate a trace of the given test case.
+  *
+  * @param outDir
+  *   the directory in which to save the trace.
+  * @param testIdx
+  *   the index of the test case to use to get the input streams.
+  */
+case class TraceTarget(outDir: Path, testIdx: Int, overwrite: Boolean)
+    extends CompilerTarget
+
 /** Run the tests in the Sirop file and print the results.
   */
 object TestTarget extends CompilerTarget

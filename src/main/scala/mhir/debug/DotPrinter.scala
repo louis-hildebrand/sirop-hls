@@ -25,7 +25,8 @@ object DotPrinter {
   def dumpDot(
       trace: Trace,
       dir: Path = os.pwd / "traces" / "default",
-      overwrite: Boolean = false
+      overwrite: Boolean = false,
+      topName: String = "main"
   ): Unit = {
     val alreadyExists =
       os.exists(dir) || (os.isDir(dir) && os.list(dir).nonEmpty)
@@ -40,7 +41,7 @@ object DotPrinter {
     for ((step, i) <- trace.steps.zipWithIndex) {
       val dot = step match {
         case step: ValidTraceStep =>
-          toDot(step, trace.structure)
+          toDot(step, trace.structure, topName)
         case step: ErrorTraceStep =>
           val label = step.err.toString
           s"""digraph g {
@@ -67,8 +68,12 @@ object DotPrinter {
     * @param g
     *   the immutable structure of the stream pipeline.
     */
-  private def toDot(step: ValidTraceStep, g: DiGraph[StmNodeId]): String = {
-    val nodes = nodesToDot(step)
+  private def toDot(
+      step: ValidTraceStep,
+      g: DiGraph[StmNodeId],
+      topName: String
+  ): String = {
+    val nodes = nodesToDot(step, topName)
     val edges = edgesToDot(
       step,
       g = g.mapNodes(id => {
@@ -86,8 +91,34 @@ object DotPrinter {
       + "\n}\n")
   }
 
-  private def nodesToDot(step: ValidTraceStep): String = {
-    step.nodes.map({ case (id, node) => nodeToDot(id, node) }).mkString("\n")
+  private def nodesToDot(step: ValidTraceStep, topName: String): String = {
+    val mainNodes = step.nodes
+      .filter({ case (_, node) => node.loc == InMain })
+      .map({ case (id, node) => nodeToDot(id, node) })
+      .mkString("\n")
+    val otherNodes = step.nodes
+      .flatMap({ case (id, node) =>
+        node.loc match {
+          case InMain          => None
+          case _: TestStimulus => Some(testStimulusNodeToDot(id, node))
+          case Sink            => Some(nodeToDot(id, node))
+        }
+      })
+      .mkString("\n")
+    s"""subgraph cluster_main {
+       |    label = "$topName";
+       |    style = "dotted";
+       |
+       |${indent(mainNodes)}
+       |}
+       |
+       |$otherNodes
+       |""".stripMargin.stripTrailing
+  }
+
+  private def testStimulusNodeToDot(id: StmNodeId, node: TraceNode): String = {
+    val TestStimulus(x) = node.loc
+    s"""$id [shape="ellipse", label="$x", style="dotted", fontcolor="gray"];"""
   }
 
   private def nodeToDot(id: StmNodeId, node: TraceNode): String = {

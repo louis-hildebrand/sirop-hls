@@ -10,15 +10,16 @@ object TestRunner {
   private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Run the tests defined in the given program.
-    * @return
-    *   `true` if the tests were run successfully, `false` if there were errors.
+    *
+    * @throws TestError
+    *   if the tests were unsuccessful.
     */
-  def run(prog: Program): Boolean = {
+  def run(prog: Program): Unit = {
     val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.accel.body)
     val assertions = prog.test.collect({ case a: Assertion => a })
     if (assertions.isEmpty) {
       println("No tests were found.")
-      false
+      throw TestError(s"no tests were found")
     } else {
       val numTests = assertions.length
       val testOrTests = if (numTests == 1) "test" else "tests"
@@ -34,10 +35,8 @@ object TestRunner {
       println()
       if (errors == 0) {
         println(s"$numTests/$numTests $testOrTests passed!")
-        true
       } else {
-        println(s"$errors/$numTests $testOrTests failed.")
-        false
+        throw TestError(s"$errors/$numTests $testOrTests failed.")
       }
     }
   }

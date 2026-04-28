@@ -1,8 +1,10 @@
 package mhir.main.shared
 
 import com.typesafe.scalalogging.Logger
+import jdk.jshell.EvalException
 import mhir.canonicalize._
-import mhir.eval.{Evaluator, TestRunner}
+import mhir.debug.{DotPrinter, Tracer}
+import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
@@ -11,7 +13,7 @@ import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.{TypeCheck, TypeCheckProgram}
+import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
 
@@ -82,6 +84,8 @@ object Compiler {
       )
     }
     val (finalExpr, optimTime) = optimize(synthesizable, options.optFlags)
+    val finalProgram =
+      lowered.copy(accel = lowered.accel.copy(body = finalExpr))
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(
         lowered.copy(accel = lowered.accel.copy(body = finalExpr))
@@ -93,12 +97,13 @@ object Compiler {
         case NullTarget           => 0
         case _: PrettyPrintTarget => 1
         case _: EvalTarget        => 2
-        case _: CompileTimeTarget => 3
+        case _: TraceTarget       => 3
+        case _: CompileTimeTarget => 4
         // The compiler will exit early if the tests fail.
         // Therefore, run things like pretty-printing beforehand, since they
         // may be useful for debugging the failing tests.
-        case TestTarget    => 4
-        case _: VhdlTarget => 5
+        case TestTarget    => 5
+        case _: VhdlTarget => 6
       })
       .foreach({
         case NullTarget => ()
@@ -108,13 +113,29 @@ object Compiler {
             evaluator.eval(finalExpr)
           }
           println(ExprPrinter.display(result))
-        case TestTarget =>
-          val finalProgram =
-            lowered.copy(accel = lowered.accel.copy(body = finalExpr))
-          val ok = TestRunner.run(finalProgram)
-          if (!ok) {
-            sys.exit(1)
+        case TraceTarget(outDir, testIdx, overwrite) =>
+          val allAssertions = finalProgram.test
+            .collect({ case a: Assertion => a })
+          if (testIdx < 0 || testIdx >= allAssertions.length) {
+            val numTests = allAssertions.length
+            val isOrAre = if (numTests == 1) "is" else "are"
+            val testOrTests = if (numTests == 1) "test" else "tests"
+            throw TestError(
+              s"cannot generate trace from test case $testIdx because no such test exists." +
+                s" There $isOrAre ${allAssertions.length} $testOrTests in total."
+            )
           }
+          val Assertion(inputs, _) = allAssertions(testIdx)
+          val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
+          val trace = Tracer.traceAll(body, inputs)
+          DotPrinter.dumpDot(
+            trace,
+            outDir,
+            overwrite = overwrite,
+            topName = finalProgram.accel.name
+          )
+        case TestTarget =>
+          TestRunner.run(finalProgram)
         case _: VhdlTarget => () // already done
         case PrettyPrintTarget(dest, overwrite) =>
           emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
@@ -194,6 +215,7 @@ object Compiler {
         case VhdlTarget(outDir, overwrite) =>
           emitVhdl(options, prog, outDir, overwrite)
         case _: EvalTarget        => ()
+        case _: TraceTarget       => ()
         case TestTarget           => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()

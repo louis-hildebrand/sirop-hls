@@ -44,7 +44,7 @@ object CycleCounter {
       countCycles(newPipe, t + 1, maxCycles)
     }
 
-    val pipe = StmPipeline(s)
+    val pipe = StmPipeline(s, Map())
     try {
       countCycles(pipe, t = 0, maxCycles)
         // Subtract one for the last step, which shows the empty pipeline

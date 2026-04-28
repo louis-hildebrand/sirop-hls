@@ -65,7 +65,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -74,7 +75,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -86,7 +88,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -100,7 +103,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -109,7 +113,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -118,7 +123,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -131,7 +137,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -144,7 +151,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -162,7 +170,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -171,7 +180,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -183,7 +193,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -197,7 +208,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -206,7 +218,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -215,7 +228,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -228,7 +242,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -241,7 +256,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -259,7 +275,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -268,7 +285,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -280,7 +298,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -294,7 +313,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -303,7 +323,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -312,7 +333,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -325,7 +347,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -338,7 +361,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -356,7 +380,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -365,7 +390,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -378,7 +404,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -392,7 +419,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -401,7 +429,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -410,7 +439,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -423,7 +453,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -436,7 +467,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -454,7 +486,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -463,7 +496,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -476,7 +510,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -490,7 +525,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -499,7 +535,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -508,7 +545,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -521,7 +559,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -534,7 +573,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -552,7 +592,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -561,7 +602,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -575,7 +617,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -589,7 +632,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -598,7 +642,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -607,7 +652,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -620,7 +666,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -633,7 +680,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -651,7 +699,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -660,7 +709,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -675,7 +725,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -689,7 +740,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -698,7 +750,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -707,7 +760,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -720,7 +774,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -733,7 +788,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -751,7 +807,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -760,7 +817,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -776,7 +834,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -790,7 +849,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -799,7 +859,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -808,7 +869,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -822,7 +884,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -835,7 +898,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -853,7 +917,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -862,7 +927,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -878,7 +944,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -892,7 +959,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -901,7 +969,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -910,7 +979,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -923,7 +993,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -936,7 +1007,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -954,7 +1026,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -963,7 +1036,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -979,7 +1053,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -993,7 +1068,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1002,7 +1078,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1011,7 +1088,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1024,7 +1102,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1037,7 +1116,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1055,7 +1135,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1064,7 +1145,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1080,7 +1162,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1094,7 +1177,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1103,7 +1187,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1112,7 +1197,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1125,7 +1211,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1138,7 +1225,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1156,7 +1244,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1165,7 +1254,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1181,7 +1271,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1195,7 +1286,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1204,7 +1296,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1213,7 +1306,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1227,7 +1321,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1240,7 +1335,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1258,7 +1354,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1267,7 +1364,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1283,7 +1381,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1297,7 +1396,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1306,7 +1406,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1315,7 +1416,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1328,7 +1430,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1341,7 +1444,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1359,7 +1463,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1368,7 +1473,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1384,7 +1490,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1398,7 +1505,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1407,7 +1515,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1416,7 +1525,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1429,7 +1539,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1442,7 +1553,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1460,7 +1572,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1469,7 +1582,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1485,7 +1599,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1499,7 +1614,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1508,7 +1624,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1517,7 +1634,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1530,7 +1648,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1543,7 +1662,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1561,7 +1681,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1570,7 +1691,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1586,7 +1708,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1600,7 +1723,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1609,7 +1733,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1618,7 +1743,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1632,7 +1758,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1645,7 +1772,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1663,7 +1791,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1672,7 +1801,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1688,7 +1818,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1702,7 +1833,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1711,7 +1843,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1720,7 +1853,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1733,7 +1867,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1746,7 +1881,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1764,7 +1900,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1773,7 +1910,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1789,7 +1927,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1803,7 +1942,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1812,7 +1952,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1821,7 +1962,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1834,7 +1976,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1847,7 +1990,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1865,7 +2009,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1874,7 +2019,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1890,7 +2036,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1904,7 +2051,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -1913,7 +2061,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1922,7 +2071,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1935,7 +2085,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -1948,7 +2099,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -1966,7 +2118,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -1975,7 +2128,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -1991,7 +2145,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2005,7 +2160,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2014,7 +2170,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2023,7 +2180,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2037,7 +2195,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2050,7 +2209,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2068,7 +2228,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2077,7 +2238,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2093,7 +2255,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2107,7 +2270,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2116,7 +2280,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2125,7 +2290,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2138,7 +2304,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2151,7 +2318,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2169,7 +2337,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2178,7 +2347,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2194,7 +2364,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2208,7 +2379,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2217,7 +2389,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2226,7 +2399,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2239,7 +2413,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2252,7 +2427,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2270,7 +2446,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2279,7 +2456,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2295,7 +2473,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2309,7 +2488,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2318,7 +2498,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2327,7 +2508,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2340,7 +2522,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2353,7 +2536,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2371,7 +2555,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2380,7 +2565,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2396,7 +2582,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2410,7 +2597,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2419,7 +2607,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2428,7 +2617,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2442,7 +2632,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2455,7 +2646,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2473,7 +2665,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2482,7 +2675,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2498,7 +2692,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2512,7 +2707,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2521,7 +2717,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2530,7 +2727,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2543,7 +2741,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2556,7 +2755,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2574,7 +2774,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2583,7 +2784,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2599,7 +2801,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2613,7 +2816,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2622,7 +2826,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2631,7 +2836,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2644,7 +2850,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2657,7 +2864,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2675,7 +2883,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2684,7 +2893,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2700,7 +2910,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2714,7 +2925,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2723,7 +2935,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2732,7 +2945,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2745,7 +2959,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2758,7 +2973,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2776,7 +2992,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2785,7 +3002,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2801,7 +3019,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2815,7 +3034,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2824,7 +3044,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2833,7 +3054,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2847,7 +3069,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2860,7 +3083,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2878,7 +3102,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2887,7 +3112,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -2903,7 +3129,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2917,7 +3144,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -2926,7 +3154,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2935,7 +3164,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2948,7 +3178,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -2961,7 +3192,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -2979,7 +3211,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -2988,7 +3221,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3004,7 +3238,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3018,7 +3253,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3027,7 +3263,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3036,7 +3273,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3049,7 +3287,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3062,7 +3301,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3080,7 +3320,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3089,7 +3330,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3105,7 +3347,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3119,7 +3362,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3128,7 +3372,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3137,7 +3382,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3150,7 +3396,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3163,7 +3410,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3181,7 +3429,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3190,7 +3439,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3206,7 +3456,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3220,7 +3471,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3229,7 +3481,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3238,7 +3491,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3252,7 +3506,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3265,7 +3520,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3283,7 +3539,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3292,7 +3549,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3308,7 +3566,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3322,7 +3581,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3331,7 +3591,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3340,7 +3601,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3353,7 +3615,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3366,7 +3629,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3384,7 +3648,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3393,7 +3658,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3409,7 +3675,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3423,7 +3690,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3432,7 +3700,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3441,7 +3710,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3454,7 +3724,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3467,7 +3738,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3485,7 +3757,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3494,7 +3767,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3509,7 +3783,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3523,7 +3798,8 @@
                     },
                     "ready": [
                         "nop_12"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3532,7 +3808,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3541,7 +3818,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3554,7 +3832,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3567,7 +3846,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3585,7 +3865,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3594,7 +3875,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3607,7 +3889,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3621,7 +3904,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3630,7 +3914,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3639,7 +3924,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3653,7 +3939,8 @@
                     "ready": [
                         "sbuild_13",
                         "sbuild_15"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3666,7 +3953,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3684,7 +3972,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3693,7 +3982,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3705,7 +3995,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3719,7 +4010,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3728,7 +4020,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3737,7 +4030,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3750,7 +4044,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3763,7 +4058,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         },
@@ -3781,7 +4077,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "nop_14": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3790,7 +4087,8 @@
                     },
                     "ready": [
                         "let_11"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "let_11": {
                     "$type": "mhir.debug.LetStmTraceNode",
@@ -3802,7 +4100,8 @@
                     },
                     "ready": [
                         "sbuild_10"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_13": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3816,7 +4115,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -3825,7 +4125,8 @@
                     },
                     "ready": [
                         "sbuild_16"
-                    ]
+                    ],
+                    "loc": "Sink"
                 },
                 "nop_12": {
                     "$type": "mhir.debug.StmNopTraceNode",
@@ -3834,7 +4135,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_16": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3847,7 +4149,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_15": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -3860,7 +4163,8 @@
                     },
                     "ready": [
                         "nop_14"
-                    ]
+                    ],
+                    "loc": "InMain"
                 }
             }
         }

@@ -470,7 +470,10 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
         Value(v, warnings)
 
       case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
-        Value(evalPipeline(StmPipeline(s), Seq(), invalidSteps = 0), Set())
+        Value(
+          evalPipeline(StmPipeline(s, Map()), Seq(), invalidSteps = 0),
+          Set()
+        )
       case sd @ StmData(s: Param) =>
         stmData.get(s) match {
           case None =>

@@ -100,16 +100,22 @@ object StmPipeline {
 
   /** Makes a pipeline representing the given stream expression.
     *
-    * @param e
-    *   an expression representing a stream ([[StmBuild]], [[LetStm]], etc.).
+    * @param f
+    *   an expression representing a stream ([[StmBuild]], [[LetStm]], etc.) or
+    *   a function on streams.
     */
-  def apply(e: Expr): StmPipeline = {
+  def apply(f: Expr, inputs: Map[Param, Expr]): StmPipeline = {
     val pipe = new StmPipeline(
       connections = DiGraph(),
       sinkId = StmNodeId(""),
       nodes = Map()
     )
-    init(pipe, e, Map())
+    val fWithInputs = f.subPreserveType(
+      inputs
+        .map({ case (x, e) => x -> TestInput(e, x.name)(e.typ) })
+        .toMap[Expr, Expr]
+    )
+    init(pipe, fWithInputs, Map(), loc = InMain)
     // Initialize the flags in each LetStmNode so that they will raise their
     // `ready` signal at the beginning.
     // This can only happen once we actually know who the consumers for the
@@ -129,7 +135,8 @@ object StmPipeline {
   private def init(
       pipe: StmPipeline,
       e: Expr,
-      idByVar: Map[Param, StmNodeId]
+      idByVar: Map[Param, StmNodeId],
+      loc: StmNodeLocation
   ): StmNodeId = {
     require(
       e.typ != Missing,
@@ -140,15 +147,15 @@ object StmPipeline {
         val newNode = {
           val typ = e.typ.asInstanceOf[TyStm]
           val id = StmNodeId(Param("nop")().name)
-          StmNopNode(pipe = pipe, id = id, typ = typ)
+          StmNopNode(pipe = pipe, id = id, typ = typ, loc)
         }
         pipe.addNode(newNode)
         pipe.addEdges(idByVar(x) -> newNode.id)
         pipe.sinkId = newNode.id
       case s: StmLiteral =>
-        init(pipe, s.toStmBuild, idByVar)
+        init(pipe, s.toStmBuild, idByVar, loc)
       case s: StmBuild =>
-        val newSink = makeStmBuildNode(s, pipe, idByVar)
+        val newSink = makeStmBuildNode(s, pipe, idByVar, loc)
         pipe.addNode(newSink)
         pipe.addEdges(
           newSink.hw.inputs.map({ case (_, id) => id -> newSink.id }).toSeq: _*
@@ -163,18 +170,21 @@ object StmPipeline {
                 + "It must evaluate to an integer."
             )
         }
-        init(pipe, in, idByVar)
+        init(pipe, in, idByVar, loc)
         val newNode =
           LetStmNode(
             pipe = pipe,
             id = StmNodeId(Param("let")().name),
             inTyp = in.typ.asInstanceOf[TyStm],
-            bufSize = bufSizeVal.toInt
+            bufSize = bufSizeVal.toInt,
+            loc = loc
           )
         pipe.addNode(newNode)
         pipe.addEdges(pipe.sinkId -> newNode.id)
         pipe.sinkId = newNode.id
-        init(pipe, out, idByVar + (x -> newNode.id))
+        init(pipe, out, idByVar + (x -> newNode.id), loc)
+      case TestInput(e, x) =>
+        init(pipe, e, idByVar, loc = TestStimulus(x))
       case e =>
         throw new IllegalArgumentException(
           s"Expression cannot be made into a stream pipeline: $e"
@@ -186,7 +196,8 @@ object StmPipeline {
   private def makeStmBuildNode(
       s: StmBuild,
       pipe: StmPipeline,
-      idByVar: Map[Param, StmNodeId]
+      idByVar: Map[Param, StmNodeId],
+      loc: StmNodeLocation
   ): StmBuildNode = {
     val n = eval(s.n) match {
       case IntCst(n) => n
@@ -200,7 +211,7 @@ object StmPipeline {
     val readyByInput = inputStreams
       .map({ case (x, (_, ready)) => x -> ready })
     val inputs = inputStreams.map({ case (x, (z, _)) =>
-      x -> init(pipe, z, idByVar)
+      x -> init(pipe, z, idByVar, loc)
     })
     StmBuildNode(
       pipe = pipe,
@@ -226,7 +237,8 @@ object StmPipeline {
           x -> eval(DefaultVal(typ))
         case (x, (z, _)) => x -> eval(z)
       }),
-      invalidSteps = 0
+      invalidSteps = 0,
+      loc = loc
     )
   }
 }

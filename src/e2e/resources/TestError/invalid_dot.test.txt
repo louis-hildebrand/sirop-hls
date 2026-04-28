@@ -2,4 +2,4 @@ Running 1 test...
 
 Test 0 ... FAILED
 
-1/1 test failed.
+TestError: 1/1 test failed.
