@@ -41,6 +41,7 @@ object Args {
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
     var eval: Boolean = false
+    var runTests: Boolean = false
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
@@ -125,6 +126,8 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:test" =>
+          runTests = true
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
@@ -204,12 +207,17 @@ object Args {
         }
         None
       }
+      val testTarget = if (runTests) Some(TestTarget) else None
       val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
       val timeReportTarget =
         timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
-      evalTarget.toSet ++ vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
+      (evalTarget.toSet
+        ++ testTarget.toSet
+        ++ vhdlTarget.toSet
+        ++ ppTarget.toSet
+        ++ timeReportTarget.toSet)
     }
     val src: Option[Source] = (sourceLang, input) match {
       case ("sirop", None) =>
@@ -289,20 +297,26 @@ object Args {
          |  --out:eval:max-invalid-steps   maximum number of invalid sbuild outputs when
          |                                 evaluating. A negative value disables the
          |                                 limit.
+         |
+         |  --out:test                     run the tests and print the results
+         |
          |  --out:vhdl DIR                 emit VHDL code in the given directory
+         |  --out:vhdl:family              the value for the FAMILY assignment in the
+         |                                 .qsf file
+         |  --out:vhdl:device              the value for the DEVICE assignment in the
+         |                                 .qsf file
+         |
          |  --out:pp (FILE|-)              pretty-print the final program to the given
          |                                 file, or to stdout if argument "-" is given
+         |
          |  --out:ctime FILE               write a report of the compile time to the given
          |                                 directory
+         |
          |  --overwrite                    what to do if the output file or directory
          |                                 already exists: if true then delete it, if
          |                                 false then raise an error
          |  -q,--quiet                     reduce the number of log messages
          |  -v,--verbose                   increase the number of log messages
-         |
-         |VHDL Output Arguments:
-         |  --out:vhdl:family   the value for the FAMILY assignment in the .qsf file
-         |  --out:vhdl:device   the value for the DEVICE assignment in the .qsf file
          |
          |Optimization Flags:
          |  --opt:no-simplify-sbuild        skip basic sbuild simplifications

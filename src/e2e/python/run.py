@@ -10,8 +10,9 @@ import os
 import subprocess
 import sys
 
-from test_vhdl import is_used_for_vhdl_test, test_vhdl, vhdl_test_exists
 import constants as c
+import test_test as stest
+import test_vhdl as vhdl
 
 
 def look_for_unused_files() -> None:
@@ -31,7 +32,9 @@ def look_for_unused_files() -> None:
                 continue
             if f.name.endswith(".repl.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
                 continue
-            if is_used_for_vhdl_test(f):
+            if vhdl.uses_file(f):
+                continue
+            if stest.uses_file(f):
                 continue
             print(f"File {f.relative_to(c.ROOT)} is not used for testing")
             error_count += 1
@@ -169,9 +172,14 @@ def main(test_sources: list[Path]) -> None:
             ok = test_repl(repl_output, compiler_version)
             if not ok:
                 error_count += 1
-        if vhdl_test_exists(test):
+        if vhdl.can_run(test):
             ran = True
-            ok = test_vhdl(test)
+            ok = vhdl.run(test)
+            if not ok:
+                error_count += 1
+        if stest.can_run(test):
+            ran = True
+            ok = stest.run(test)
             if not ok:
                 error_count += 1
         if not ran:

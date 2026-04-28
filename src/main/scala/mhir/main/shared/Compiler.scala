@@ -2,7 +2,7 @@ package mhir.main.shared
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.eval.Evaluator
+import mhir.eval.{Evaluator, TestRunner}
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
@@ -75,31 +75,49 @@ object Compiler {
       SemanticAnalyzer.checkNames(checked)
     }
     val (lowered, lowerTime) = lower(checked)
-    val (synthesizable, synthTime) = makeSynthesizable(lowered)
+    val (synthesizable, synthTime) = makeSynthesizable(lowered.body)
     time("semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(
-        checked.copy(accel = checked.accel.copy(body = synthesizable))
+        lowered.copy(accel = lowered.accel.copy(body = synthesizable))
       )
     }
-    val (finalProgram, optimTime) = optimize(synthesizable, options.optFlags)
+    val (finalExpr, optimTime) = optimize(synthesizable, options.optFlags)
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(
-        checked.copy(accel = checked.accel.copy(body = finalProgram))
+        lowered.copy(accel = lowered.accel.copy(body = finalExpr))
       )
     }
-    val genTime = generateCode(options.vhdl, finalProgram, options.targets)
+    val genTime = generateCode(options.vhdl, finalExpr, options.targets)
     options.targets.toSeq
+      .sortBy({
+        case NullTarget           => 0
+        case _: PrettyPrintTarget => 1
+        case _: EvalTarget        => 2
+        case _: CompileTimeTarget => 3
+        // The compiler will exit early if the tests fail.
+        // Therefore, run things like pretty-printing beforehand, since they
+        // may be useful for debugging the failing tests.
+        case TestTarget    => 4
+        case _: VhdlTarget => 5
+      })
       .foreach({
         case NullTarget => ()
         case EvalTarget(maxInvalidSteps) =>
           val evaluator = Evaluator(maxInvalidSteps = maxInvalidSteps)
           val result = time("evaluation", Level.DEBUG) {
-            evaluator.eval(finalProgram)
+            evaluator.eval(finalExpr)
           }
           println(ExprPrinter.display(result))
+        case TestTarget =>
+          val finalProgram =
+            lowered.copy(accel = lowered.accel.copy(body = finalExpr))
+          val ok = TestRunner.run(finalProgram)
+          if (!ok) {
+            sys.exit(1)
+          }
         case _: VhdlTarget => () // already done
         case PrettyPrintTarget(dest, overwrite) =>
-          emitPrettyPrinted(finalProgram, dest = dest, overwrite = overwrite)
+          emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
         case CompileTimeTarget(f, overwrite) =>
           emitCompileTimeReport(
             f,
@@ -113,7 +131,7 @@ object Compiler {
             codegen = genTime
           )
       })
-    finalProgram
+    finalExpr
   }
 
   private def typecheck(prog: Program): (Program, Duration) = {
@@ -122,21 +140,30 @@ object Compiler {
     }
   }
 
-  private def lower(prog: Program): (Expr, Duration) = {
+  private def lower(prog: Program): (Program, Duration) = {
     time2("lowering", Level.DEBUG) {
-      val e = inlineConstants(prog)
-      translateStmLiteral(e.lower)
+      val inlinedProg = inlineConstants(prog)
+      val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
+      inlinedProg.copy(accel = inlinedProg.accel.copy(body = loweredExpr))
     }
   }
 
-  private def inlineConstants(prog: Program): Expr = {
-    val subs = prog.constants.foldLeft(Map[Expr, Expr]())({
-      case (subs, ConstDecl(x, e)) =>
-        val v = mhir.eval.eval(e.subPreserveType(subs))
-        val newX = x.lower.subPreserveType(subs)
-        subs + (newX -> v)
-    })
-    prog.body.subPreserveType(subs)
+  private def inlineConstants(prog: Program): Program = {
+    val mainConstVals = prog.constants
+      .map({ case ConstDecl(x, e) => x -> e })
+      .toMap[Expr, Expr]
+    val newAccel =
+      prog.accel.copy(body = prog.accel.body.subPreserveType(mainConstVals))
+    val (_, newTestSuite) =
+      prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
+        case ((subs, result), ConstDecl(x, e)) =>
+          (subs + (x -> e), result)
+        case ((subs, result), Assertion(in, out)) =>
+          val newIn = in.map({ case (x, e) => x -> e.subPreserveType(subs) })
+          val newOut = out.subPreserveType(subs)
+          (subs, result :+ Assertion(newIn, newOut))
+      })
+    Program(Seq(), newAccel, newTestSuite)
   }
 
   private def makeSynthesizable(e: Expr): (Expr, Duration) = {
@@ -167,6 +194,7 @@ object Compiler {
         case VhdlTarget(outDir, overwrite) =>
           emitVhdl(options, prog, outDir, overwrite)
         case _: EvalTarget        => ()
+        case TestTarget           => ()
         case NullTarget           => ()
         case _: PrettyPrintTarget => ()
         case _: CompileTimeTarget => ()

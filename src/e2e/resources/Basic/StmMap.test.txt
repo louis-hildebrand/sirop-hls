@@ -1,0 +1,6 @@
+Running 2 tests...
+
+Test 0 ... OK
+Test 1 ... OK
+
+2/2 tests passed!

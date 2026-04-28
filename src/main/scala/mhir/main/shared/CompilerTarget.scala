@@ -9,13 +9,17 @@ sealed trait CompilerTarget
 /** Don't send the program anywhere, just return it.
   *
   * This is useful for test code that invokes [[mhir.main.shared.Compiler]]
-  * directly, but should not be used at the commend line.
+  * directly, but should not be used at the command line.
   */
 object NullTarget extends CompilerTarget
 
 /** Evaluate the program and print its value.
   */
 case class EvalTarget(maxInvalidSteps: Option[Int]) extends CompilerTarget
+
+/** Run the tests in the Sirop file and print the results.
+  */
+object TestTarget extends CompilerTarget
 
 /** Pretty-print the program.
   *

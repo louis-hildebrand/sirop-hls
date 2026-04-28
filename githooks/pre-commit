@@ -73,7 +73,7 @@ fi
 if ! git diff --staged --quiet ./src/e2e/python; then
     cd ./src/e2e/python
     pyright .
-    pylint .
+    pylint . --rcfile ../../test/python/.pylintrc
     cd -
 fi
 
