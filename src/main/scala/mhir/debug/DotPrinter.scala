@@ -51,9 +51,13 @@ object DotPrinter {
       }
       os.write(dir / s"step_$i.dot", dot)
     }
-    os.proc(os.pwd / "src" / "main" / "sh" / "dots_to_svg.sh", dir.toString())
-      .call(cwd = os.pwd)
-    for (f <- os.list(dir)) {
+    for (f <- os.list.stream(dir)) {
+      if (f.ext == "dot") {
+        val outPath = dir / s"${f.baseName}.svg"
+        os.proc("dot", "-T", "svg", "-o", outPath, f).call(cwd = os.pwd)
+      }
+    }
+    for (f <- os.list.stream(dir)) {
       if (f.ext == "dot") {
         os.remove(f)
       }
