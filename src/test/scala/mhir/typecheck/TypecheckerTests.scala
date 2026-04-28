@@ -599,6 +599,9 @@ class TypecheckerTests extends AnyFunSuite {
         |
         |accelerator top = (s: Stm[u8, N]) => s.StmMap((x) => x + 5:u8)
         |
+        |assert { s = [0:u8, 1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8, 9:u8]s }
+        |yields [5:u8, 6:u8, 7:u8, 8:u8, 9:u8, 10:u8, 11:u8, 12:u8, 13:u8, 14:u8]s
+        |
         |const M: u32 = 5
         |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
         |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
@@ -707,7 +710,55 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid expected output in assertion:" +
-            " accelerator produces Stm[u8, 4:u3] but assertion uses Stm[Vec[u8, 1:u1], 4:u3]"
+            " accelerator produces Stm[u8, 4:u3] but assertion expects Stm[Vec[u8, 1:u1], 4:u3]"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongOutputStreamLength1") {
+    // Although the bitwidth is the same here, using the wrong type could still
+    // cause problems.
+    // In the evaluator, this would obviously be an issue because 0 != [0]v.
+    // Even for VHDL simulation, the testbench might not compile if it tries to
+    // convert the output to a type that's not defined in the main VHDL code.
+    val src =
+      """accelerator top = StmRange(4, 0:u8, 1:u8)
+        |
+        |assert {} yields [0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .contains(
+          "invalid expected output in assertion:" +
+            " accelerator produces Stm[u8, 4:u3] but assertion expects Stm[u8, 5:u3]"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongOutputStreamLength2") {
+    // Although the bitwidth is the same here, using the wrong type could still
+    // cause problems.
+    // In the evaluator, this would obviously be an issue because 0 != [0]v.
+    // Even for VHDL simulation, the testbench might not compile if it tries to
+    // convert the output to a type that's not defined in the main VHDL code.
+    val src =
+      """const N: u32 = 4
+        |const Z: u8 = 0
+        |const DELTA: u8 = 1
+        |
+        |accelerator top = StmRange(N, Z, DELTA)
+        |
+        |assert {} yields [0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .contains(
+          "invalid expected output in assertion:" +
+            " accelerator produces Stm[u8, N] but assertion expects Stm[u8, 5:u3] (note that N = 4:u32)"
         )
     )
   }
@@ -724,6 +775,42 @@ class TypecheckerTests extends AnyFunSuite {
     assert(
       ex.getMessage.contains(
         "invalid inputs in assertion: parameter 's' has type Stm[Vec[u8, 1:u1], 3:u2] but assertion provides Stm[u8, 3:u2]"
+      )
+    )
+  }
+
+  test("TestSuite:Error:WrongInputStreamLength1") {
+    val src =
+      """accelerator top = (s: Stm[u8, 3]) => s.StmMap( (x) => x + 5:u8 )
+        |
+        |assert { s = [0:u8, 1:u8, 2:u8, 3:u8]s }
+        |yields [5:u8, 6:u8, 7:u8]s
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage.contains(
+        "invalid inputs in assertion: parameter 's' has type Stm[u8, 3:u2] but assertion provides Stm[u8, 4:u3]"
+      )
+    )
+  }
+
+  test("TestSuite:Error:WrongInputStreamLength2") {
+    val src = {
+      """const N: u32 = 3
+        |const K: u8 = 5
+        |
+        |accelerator top = (s: Stm[u8, N]) => s.StmMap( (x) => x + K )
+        |
+        |assert { s = [0:u8, 1:u8, 2:u8, 3:u8]s }
+        |yields [5:u8, 6:u8, 7:u8]s
+        |""".stripMargin
+    }
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage.contains(
+        "invalid inputs in assertion: parameter 's' has type Stm[u8, N] but assertion provides Stm[u8, 4:u3] (note that N = 3:u32)"
       )
     )
   }
