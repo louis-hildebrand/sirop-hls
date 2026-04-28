@@ -782,6 +782,11 @@ object Parser {
           case Seq(v1, v2) => VecConcat(v1, v2)()
           case _           => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecRange", -1) =>
+        args match {
+          case Seq(n, z, delta) => VecRange(n, z, delta)()
+          case _                => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("VecReverse", -1) =>
         args match {
           case Seq(v) => VecReverse(v)
