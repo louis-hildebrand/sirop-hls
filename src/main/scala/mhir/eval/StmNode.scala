@@ -621,7 +621,7 @@ case class StmNopNode(
 
   override def ready(producerId: StmNodeId): Boolean = {
     // TODO: Check that the given ID indeed belongs to a producer of this node?
-    this.consumer.ready(this.id)
+    this.consumers.forall(_.ready(this.id))
   }
 
   override def step(newPipe: StmPipeline): StmNode = {

@@ -24,7 +24,11 @@ object Tracer {
     * @param optFlags
     *   the optimization settings to use.
     */
-  def trace(progName: String, optFlags: OptimizerOptions): Trace = {
+  def trace(
+      progName: String,
+      optFlags: OptimizerOptions,
+      handshake: Boolean = true
+  ): Trace = {
     val io = ProgramIO(s"${progName}_")
     val args = Args(
       program = Program(progName),
@@ -47,6 +51,6 @@ object Tracer {
           s"Cannot trace when input is stored in a file."
         )
     })
-    mhir.debug.Tracer.traceAll(NS.simplify(stm))
+    mhir.debug.Tracer.traceAll(NS.simplify(stm), handshake = handshake)
   }
 }

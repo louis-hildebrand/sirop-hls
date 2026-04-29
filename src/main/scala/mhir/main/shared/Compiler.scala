@@ -108,7 +108,10 @@ object Compiler {
       .foreach({
         case NullTarget => ()
         case EvalTarget(maxInvalidSteps) =>
-          val evaluator = Evaluator(maxInvalidSteps = maxInvalidSteps)
+          val evaluator = Evaluator(
+            handshake = finalProgram.handshake,
+            maxInvalidSteps = maxInvalidSteps
+          )
           val result = time("evaluation", Level.DEBUG) {
             evaluator.eval(finalExpr)
           }
@@ -127,7 +130,12 @@ object Compiler {
           }
           val Assertion(inputs, _) = allAssertions(testIdx)
           val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
-          val trace = Tracer.traceAll(body, inputs)
+          val trace =
+            Tracer.traceAll(
+              body,
+              handshake = finalProgram.handshake,
+              inputs = inputs
+            )
           DotPrinter.dumpDot(
             trace,
             outDir,

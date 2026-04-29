@@ -53,3 +53,8 @@ object TooManySteps extends DeadlockReason {
 object PipelineFixpoint extends DeadlockReason {
   override def name: String = "pipeline reached fixpoint"
 }
+
+object InvalidLetStmBufSize
+    extends EvalException(
+      "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled"
+    )

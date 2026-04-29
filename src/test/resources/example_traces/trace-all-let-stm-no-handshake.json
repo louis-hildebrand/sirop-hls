@@ -1,0 +1,1220 @@
+{
+    "structure": {
+        "nodes": [
+            [
+                "let_10",
+                "nop_11",
+                "nop_13",
+                "sbuild_12",
+                "sbuild_14",
+                "sbuild_15",
+                "sbuild_16",
+                "sbuild_9",
+                "sink"
+            ]
+        ],
+        "edges": [
+            [
+                [
+                    "let_10",
+                    "nop_11"
+                ],
+                [
+                    "let_10",
+                    "nop_13"
+                ],
+                [
+                    "nop_11",
+                    "sbuild_12"
+                ],
+                [
+                    "nop_13",
+                    "sbuild_14"
+                ],
+                [
+                    "sbuild_12",
+                    "sbuild_15"
+                ],
+                [
+                    "sbuild_14",
+                    "sbuild_15"
+                ],
+                [
+                    "sbuild_15",
+                    "sbuild_16"
+                ],
+                [
+                    "sbuild_16",
+                    "sink"
+                ],
+                [
+                    "sbuild_9",
+                    "let_10"
+                ]
+            ]
+        ]
+    },
+    "sink": "sink",
+    "steps": [
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "i_1": "2:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "acc_8": "(0:u16, 1:u16)"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_13"
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "nop_11": "2:u16",
+                        "nop_13": "2:u16"
+                    },
+                    "ready": [
+                        "sbuild_9"
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 4,
+                    "out": {
+                        "let_10": "2:u16"
+                    },
+                    "accumulators": {
+                        "i_1": "3:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_11"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_12": "2:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "acc_8": "(0:u16, 1:u16)"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_14": "2:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 4,
+                    "out": {
+                        "sbuild_15": "7:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_13"
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "nop_13": "3:u16",
+                        "nop_11": "3:u16"
+                    },
+                    "ready": [
+                        "sbuild_9"
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 3,
+                    "out": {
+                        "let_10": "3:u16"
+                    },
+                    "accumulators": {
+                        "i_1": "4:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 4,
+                    "out": {
+                        "sbuild_15": "2:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_11"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_12": "3:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "acc_8": "(0:u16, 1:u16)"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_14",
+                        "sbuild_12"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_14": "3:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 3,
+                    "out": {
+                        "sbuild_15": "8:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_13"
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "nop_13": "4:u16",
+                        "nop_11": "4:u16"
+                    },
+                    "ready": [
+                        "sbuild_9"
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 2,
+                    "out": {
+                        "let_10": "4:u16"
+                    },
+                    "accumulators": {
+                        "i_1": "5:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 3,
+                    "out": {
+                        "sbuild_15": "3:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_11"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_12": "4:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 5,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "acc_8": "(0:u16, 1:u16)"
+                    },
+                    "ready": [
+                        "sbuild_15"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 4,
+                    "out": {
+                        "sbuild_16": "(2:u16, 7:u16)"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_14",
+                        "sbuild_12"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_14": "4:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 2,
+                    "out": {
+                        "sbuild_15": "9:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_13"
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "nop_11": "5:u16",
+                        "nop_13": "5:u16"
+                    },
+                    "ready": [
+                        "sbuild_9"
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        "": "(0:u16, 1:u16)"
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 1,
+                    "out": {
+                        "let_10": "5:u16"
+                    },
+                    "accumulators": {
+                        "i_1": "6:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 2,
+                    "out": {
+                        "sbuild_15": "4:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_11"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_12": "5:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 4,
+                    "out": {
+                        "sink": "(0:u16, 1:u16)"
+                    },
+                    "accumulators": {
+                        "acc_8": "(2:u16, 7:u16)"
+                    },
+                    "ready": [
+                        "sbuild_15"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 3,
+                    "out": {
+                        "sbuild_16": "(3:u16, 8:u16)"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_14",
+                        "sbuild_12"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_14": "5:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 1,
+                    "out": {
+                        "sbuild_15": "10:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_13"
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "nop_11": "6:u16",
+                        "nop_13": "6:u16"
+                    },
+                    "ready": [
+                        "sbuild_9"
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        "": "(2:u16, 7:u16)"
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        "let_10": "6:u16"
+                    },
+                    "accumulators": {
+                        "i_1": "7:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 1,
+                    "out": {
+                        "sbuild_15": "5:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "nop_11"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_12": "6:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 3,
+                    "out": {
+                        "sink": "(2:u16, 7:u16)"
+                    },
+                    "accumulators": {
+                        "acc_8": "(5:u16, 56:u16)"
+                    },
+                    "ready": [
+                        "sbuild_15"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 2,
+                    "out": {
+                        "sbuild_16": "(4:u16, 9:u16)"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_14",
+                        "sbuild_12"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        "sbuild_14": "6:u16"
+                    },
+                    "ready": [
+                        "let_10"
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        "sbuild_15": "11:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        "": "(5:u16, 56:u16)"
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "i_1": "7:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        "sbuild_15": "6:u16"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 2,
+                    "out": {
+                        "sink": "(5:u16, 56:u16)"
+                    },
+                    "accumulators": {
+                        "acc_8": "(9:u16, 504:u16)"
+                    },
+                    "ready": [
+                        "sbuild_15"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 1,
+                    "out": {
+                        "sbuild_16": "(5:u16, 10:u16)"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_14",
+                        "sbuild_12"
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        "": "(9:u16, 504:u16)"
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "i_1": "7:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 1,
+                    "out": {
+                        "sink": "(9:u16, 504:u16)"
+                    },
+                    "accumulators": {
+                        "acc_8": "(14:u16, 5040:u16)"
+                    },
+                    "ready": [
+                        "sbuild_15"
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        "sbuild_16": "(6:u16, 11:u16)"
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        "": "(14:u16, 5040:u16)"
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "i_1": "7:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        "sink": "(14:u16, 5040:u16)"
+                    },
+                    "accumulators": {
+                        "acc_8": "(20:u16, 55440:u16)"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        },
+        {
+            "$type": "mhir.debug.ValidTraceStep",
+            "nodes": {
+                "sbuild_14": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "let_10": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sink": {
+                    "$type": "mhir.debug.TerminalTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        "sbuild_16"
+                    ],
+                    "loc": "Sink"
+                },
+                "sbuild_9": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "i_1": "7:u16"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_12": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_11": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_16": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        "acc_8": "(20:u16, 55440:u16)"
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "sbuild_15": {
+                    "$type": "mhir.debug.StmBuildTraceNode",
+                    "n": 0,
+                    "out": {
+                        
+                    },
+                    "accumulators": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                },
+                "nop_13": {
+                    "$type": "mhir.debug.StmNopTraceNode",
+                    "out": {
+                        
+                    },
+                    "ready": [
+                        
+                    ],
+                    "loc": "InMain"
+                }
+            }
+        }
+    ]
+}

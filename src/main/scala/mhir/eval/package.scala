@@ -10,11 +10,13 @@ package object eval {
     */
   def eval(
       e: Expr,
+      handshake: Boolean = true,
       stmData: Map[Param, Option[Expr]] = Map(),
       maxInvalidSteps: Option[Int] = None,
       suppressWarnings: Boolean = false
   ): Expr = {
     val evaluator = Evaluator(
+      handshake = handshake,
       maxInvalidSteps = maxInvalidSteps,
       suppressWarnings = suppressWarnings
     )

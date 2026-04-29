@@ -31,10 +31,15 @@ object AetherlingBenchmarkTracer {
       optFlags: OptimizerOptions = OptimizerOptions.all(
         assumeThroughputsMatch = true,
         maxLetStmBufSize = None
-      )
+      ),
+      handshake: Boolean = true
   ): Trace = {
     val stm = makeTraceable(benchName, optFlags)
-    Tracer.traceAll(NS.simplify(stm), maxCycles = maxCycles)
+    Tracer.traceAll(
+      NS.simplify(stm),
+      maxCycles = maxCycles,
+      handshake = handshake
+    )
   }
 
   def makeTraceable(

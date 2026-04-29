@@ -18,7 +18,11 @@ import scala.language.{existentials, implicitConversions}
   *   if `false`, do not throw any errors for warnings (e.g., when the output
   *   seems to be undefined).
   */
-class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
+class Evaluator(
+    val handshake: Boolean,
+    val maxInvalidSteps: Int,
+    val suppressWarnings: Boolean
+) {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -471,7 +475,11 @@ class Evaluator(val maxInvalidSteps: Int, val suppressWarnings: Boolean) {
 
       case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
         Value(
-          evalPipeline(StmPipeline(s, Map()), Seq(), invalidSteps = 0),
+          evalPipeline(
+            StmPipeline(s, Map(), handshake = this.handshake),
+            Seq(),
+            invalidSteps = 0
+          ),
           Set()
         )
       case sd @ StmData(s: Param) =>
@@ -558,10 +566,12 @@ object Evaluator {
   private val DefaultMaxInvalidSteps: Int = 10000
 
   def apply(
+      handshake: Boolean,
       maxInvalidSteps: Option[Int] = None,
       suppressWarnings: Boolean = false
   ): Evaluator = {
     new Evaluator(
+      handshake = handshake,
       maxInvalidSteps = maxInvalidSteps.getOrElse(DefaultMaxInvalidSteps),
       suppressWarnings = suppressWarnings
     )

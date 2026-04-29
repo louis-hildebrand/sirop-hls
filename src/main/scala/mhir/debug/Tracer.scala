@@ -25,6 +25,7 @@ object Tracer {
     */
   def traceAll(
       s: Expr,
+      handshake: Boolean,
       inputs: Map[Param, Expr] = Map(),
       maxCycles: Option[Int] = None
   ): Trace = {
@@ -61,7 +62,8 @@ object Tracer {
 
     val pipe = StmPipeline(
       s.tchk().lower,
-      inputs.map({ case (x, e) => x -> e.tchk().lower })
+      inputs.map({ case (x, e) => x -> e.tchk().lower }),
+      handshake = handshake
     )
     try {
       Trace(

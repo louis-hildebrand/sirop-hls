@@ -63,8 +63,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalCount = CycleCounter.count(original).get
-    val optimizedCount = CycleCounter.count(optimized).get
+    val originalCount = CycleCounter.count(original, handshake = true).get
+    val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
   }
 
@@ -88,8 +88,9 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalCycleCount = CycleCounter.count(original).get
-    val optimizedCycleCount = CycleCounter.count(optimized).get
+    val originalCycleCount = CycleCounter.count(original, handshake = true).get
+    val optimizedCycleCount =
+      CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCycleCount < originalCycleCount)
     assert(optimizedCycleCount == 17)
   }
@@ -136,7 +137,10 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Non-pessimization
     // (Cycle count should not be increased)
-    assert(CycleCounter.count(optimized) == CycleCounter.count(original))
+    assert(
+      CycleCounter.count(optimized, handshake = true)
+        == CycleCounter.count(original, handshake = true)
+    )
   }
 
   test("Reduction") {
@@ -201,8 +205,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalCount = CycleCounter.count(original).get
-    val optimizedCount = CycleCounter.count(optimized).get
+    val originalCount = CycleCounter.count(original, handshake = true).get
+    val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
   }
 
@@ -225,8 +229,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
-    val originalCount = CycleCounter.count(original).get
-    val optimizedCount = CycleCounter.count(optimized).get
+    val originalCount = CycleCounter.count(original, handshake = true).get
+    val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
   }
 
@@ -247,8 +251,8 @@ class StmLatencyMatcherTests extends AnyFunSuite {
 
     // Non-pessimization
     // (Cycle count should not get worse)
-    val originalCount = CycleCounter.count(original).get
-    val optimizedCount = CycleCounter.count(optimized).get
+    val originalCount = CycleCounter.count(original, handshake = true).get
+    val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount <= originalCount)
   }
 }
