@@ -83,7 +83,8 @@ object Compiler {
         lowered.copy(accel = lowered.accel.copy(body = synthesizable))
       )
     }
-    val (finalExpr, optimTime) = optimize(synthesizable, options.optFlags)
+    val (finalExpr, optimTime) =
+      optimize(synthesizable, options.optFlags, handshake = lowered.handshake)
     val finalProgram =
       lowered.copy(accel = lowered.accel.copy(body = finalExpr))
     time("post-optimization semantic analysis", Level.DEBUG) {
@@ -129,10 +130,9 @@ object Compiler {
             )
           }
           val Assertion(inputs, _) = allAssertions(testIdx)
-          val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
           val trace =
             Tracer.traceAll(
-              body,
+              finalProgram.body,
               handshake = finalProgram.handshake,
               inputs = inputs
             )
@@ -206,10 +206,11 @@ object Compiler {
 
   private def optimize(
       e: Expr,
-      optFlags: OptimizerOptions
+      optFlags: OptimizerOptions,
+      handshake: Boolean
   ): (Expr, Duration) = {
     time2("optimization", Level.DEBUG) {
-      Optimizer(optFlags).optimize(e)
+      Optimizer(optFlags, handshake = handshake).optimize(e)
     }
   }
 

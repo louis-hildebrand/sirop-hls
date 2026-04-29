@@ -9,7 +9,11 @@ import org.scalatest.funsuite.AnyFunSuite
 class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
 
   private val pass: LetStmBufferShrinker =
-    new StaticLetStmBufferShrinker(assumeThroughputsMatch = true)
+    new StaticLetStmBufferShrinker(
+      latencyAnalysis = new LatencyAnalysis(handshake = true),
+      handshake = true,
+      assumeThroughputsMatch = true
+    )
 
   private def assertAllBufSizesAreOne(e: Expr): Unit = {
     e match {
@@ -76,7 +80,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm((U8, U8), n))
       val count = SimpleCount(C(n)(U8))
       val plusFive = SimpleMap(s0, x => Sum(C(5)(U8), x)())
-      val zip = SimpleZip(s0, plusFive)
+      val timesThree = SimpleMap(s0, x => Prod(C(3)(U8), x)())
+      val zip = SimpleZip(timesThree, plusFive)
       Let(s1, Let(s0, count, zip)(), s1)().tchk().lower
     }
     val optimized = pass.shrinkBuffers(original)
@@ -204,7 +209,11 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zip = SimpleZip(delayedPrefix, rowSums)
       LetStm(n * m, x, count, zip)().tchk().lower
     }
-    val pass = new StaticLetStmBufferShrinker(assumeThroughputsMatch = false)
+    val pass = new StaticLetStmBufferShrinker(
+      latencyAnalysis = new LatencyAnalysis(handshake = true),
+      handshake = true,
+      assumeThroughputsMatch = false
+    )
     val optimized = pass.shrinkBuffers(original)
 
     // Correct behaviour

@@ -60,11 +60,14 @@ object Tracer {
       }
     }
 
-    val pipe = StmPipeline(
-      s.tchk().lower,
-      inputs.map({ case (x, e) => x -> e.tchk().lower }),
-      handshake = handshake
-    )
+    val pipe = {
+      val (_, body) = TypeChecker.unwrapTopLevelFunction(s.tchk().lower)
+      StmPipeline(
+        body,
+        inputs.map({ case (x, e) => x -> e.tchk().lower }),
+        handshake = handshake
+      )
+    }
     try {
       Trace(
         structure = pipe.connections,

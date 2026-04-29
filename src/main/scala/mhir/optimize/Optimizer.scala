@@ -16,7 +16,7 @@ class Optimizer(
     letStmSimplifier: LetStmSimplifier,
     fusionPass: StmFusionPass,
     fissionPass: StmFissionPass,
-    latencyMatcher: StmLatencyMatcher,
+    latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass
 ) {
@@ -103,7 +103,7 @@ class Optimizer(
 }
 
 object Optimizer {
-  def apply(options: OptimizerOptions): Optimizer = {
+  def apply(options: OptimizerOptions, handshake: Boolean): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
     val letStmSimplifier = LetStmSimplifier(enabled = options.inlineLetStm)
@@ -121,11 +121,15 @@ object Optimizer {
         enabled = options.fission
       )
     )
-    val latencyMatcher = StmLatencyMatcher(enabled = options.matchLatency)
+    val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
+    val latencyMatcher =
+      LatencyMatcher(latencyAnalysis, enabled = options.matchLatency)
     val letStmBufShrinker = {
       val staticPass = if (options.staticallyShrinkLetStmBuffers) {
         Some(
           new StaticLetStmBufferShrinker(
+            latencyAnalysis = latencyAnalysis,
+            handshake = handshake,
             assumeThroughputsMatch = options.assumeThroughputsMatch
           )
         )
