@@ -807,4 +807,34 @@ class EvalTests extends AnyFunSuite {
     val exc = intercept[UndefinedValException](mhir.eval.eval(e))
     assert(exc.warnings.contains(StmDataWithoutReady(s)))
   }
+
+  test("NoHandshake:IllegalBackpressure") {
+    val n = 5
+    val a = StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower
+    val b = StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
+    val original =
+      SimpleZip(a, SimpleMap(b, x => Sum(x, C(-5)(I8))()))
+        .tchk()
+        .lower
+
+    assertThrows[IllegalBackpressure.type](
+      mhir.eval.eval(original, handshake = false)
+    )
+  }
+
+  test("NoHandshake:OK") {
+    val n = 5
+    val a = StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower
+    val b = StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
+    val original =
+      SimpleZip(SimpleMap(a, x => x), SimpleMap(b, x => Sum(x, C(-5)(I8))()))
+        .tchk()
+        .lower
+
+    val actual = mhir.eval.eval(original, handshake = false)
+    val expected = StmLiteral(
+      (0 until n).map(t => Tuple(C(t)(U8), C(t - 2 - 5)(I8))()): _*
+    )().tchk()
+    assert(actual == expected)
+  }
 }

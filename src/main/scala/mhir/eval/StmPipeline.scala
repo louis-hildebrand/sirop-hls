@@ -152,7 +152,13 @@ object StmPipeline {
         val newNode = {
           val typ = e.typ.asInstanceOf[TyStm]
           val id = StmNodeId(Param("nop")().name)
-          StmNopNode(pipe = pipe, id = id, typ = typ, loc)
+          StmNopNode(
+            pipe = pipe,
+            id = id,
+            typ = typ,
+            loc = loc,
+            handshake = handshake
+          )
         }
         pipe.addNode(newNode)
         pipe.addEdges(idByVar(x) -> newNode.id)
@@ -196,7 +202,8 @@ object StmPipeline {
             pipe = pipe,
             id = StmNodeId(Param("let")().name),
             typ = in.typ.asInstanceOf[TyStm],
-            loc = loc
+            loc = loc,
+            handshake = handshake
           )
         }
         pipe.addNode(newNode)
@@ -259,7 +266,8 @@ object StmPipeline {
         case (x, (z, _)) => x -> eval(z)
       }),
       invalidSteps = 0,
-      loc = loc
+      loc = loc,
+      handshake = handshake
     )
   }
 }

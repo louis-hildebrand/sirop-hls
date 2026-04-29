@@ -153,7 +153,8 @@ case class StmBuildNode(
     n: Long,
     acc: Map[Param, Expr],
     invalidSteps: Int,
-    loc: StmNodeLocation
+    loc: StmNodeLocation,
+    handshake: Boolean
 ) extends StmNode {
   override def out(consumerId: StmNodeId): Option[Expr] = this.data
 
@@ -168,7 +169,13 @@ case class StmBuildNode(
           s"Node with ID $producerId is not an input of node with ID ${this.id}."
         )
     }
-    this.canUpdateAcc && this.readyInternal(x)
+    val ready = this.canUpdateAcc && this.readyInternal(x)
+    val illegalBackpressure =
+      !this.handshake && !ready && this.pipe.nodes(producerId).valid(this.id)
+    if (illegalBackpressure) {
+      throw IllegalBackpressure
+    }
+    ready
   }
 
   override def step(newPipe: StmPipeline): StmBuildNode = {
@@ -181,7 +188,8 @@ case class StmBuildNode(
         this.n,
         this.acc,
         this.invalidSteps,
-        this.loc
+        this.loc,
+        this.handshake
       )
     } else {
       val newData = if (this.transferOk || this.canUpdateAcc) {
@@ -246,7 +254,8 @@ case class StmBuildNode(
         n = newN,
         acc = newAcc,
         invalidSteps = newInvalidSteps,
-        loc = this.loc
+        loc = this.loc,
+        handshake = this.handshake
       )
     }
   }
@@ -612,7 +621,8 @@ case class StmNopNode(
     pipe: StmPipeline,
     id: StmNodeId,
     typ: TyStm,
-    loc: StmNodeLocation
+    loc: StmNodeLocation,
+    handshake: Boolean
 ) extends StmNode {
   override def out(consumerId: StmNodeId): Option[Expr] = {
     // TODO: Check that the given ID indeed belongs to a consumer of this node?
@@ -621,11 +631,23 @@ case class StmNopNode(
 
   override def ready(producerId: StmNodeId): Boolean = {
     // TODO: Check that the given ID indeed belongs to a producer of this node?
-    this.consumers.forall(_.ready(this.id))
+    val ready = this.consumers.forall(_.ready(this.id))
+    val illegalBackpressure =
+      !this.handshake && !ready && this.pipe.nodes(producerId).valid(this.id)
+    if (illegalBackpressure) {
+      throw IllegalBackpressure
+    }
+    ready
   }
 
   override def step(newPipe: StmPipeline): StmNode = {
-    StmNopNode(pipe = newPipe, id = this.id, typ = this.typ, loc = this.loc)
+    StmNopNode(
+      pipe = newPipe,
+      id = this.id,
+      typ = this.typ,
+      loc = this.loc,
+      handshake = this.handshake
+    )
   }
 
   override def isEmpty: Boolean = this.producer.isEmpty
