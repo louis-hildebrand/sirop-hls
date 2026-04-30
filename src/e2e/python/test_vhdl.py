@@ -114,7 +114,7 @@ def _get_tree(vhdl_dir: Path) -> str:
     Get the output of the `tree` command for the given path.
     """
     result = subprocess.run(
-        ["tree", vhdl_dir.resolve().as_posix()],
+        ["tree", vhdl_dir.resolve().relative_to(c.ROOT).as_posix()],
         check=True,
         encoding="utf-8",
         stdout=subprocess.PIPE,

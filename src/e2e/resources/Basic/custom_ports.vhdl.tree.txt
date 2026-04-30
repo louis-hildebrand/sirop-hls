@@ -1,4 +1,4 @@
-/home/louis/Projects/sirop/src/e2e/resources/actual/Basic/custom_ports
+src/e2e/resources/actual/Basic/custom_ports
 ├── design
 │   ├── conversions.vhd
 │   ├── sbuild_1.vhd
