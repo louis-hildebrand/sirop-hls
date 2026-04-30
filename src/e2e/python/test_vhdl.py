@@ -56,7 +56,6 @@ def run(src: Path, cli_args: list[str]) -> bool:
             "-i", src.as_posix(),
             "--out:vhdl", vhdl_dir.as_posix(),
             "--overwrite",
-            "--quiet",
         ] + cli_args,
         encoding="utf-8",
         capture_output=True,

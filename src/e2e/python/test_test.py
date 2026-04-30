@@ -37,7 +37,6 @@ def run(src: Path, cli_args: list[str]) -> bool:
             "java", "-jar", c.JAR.as_posix(),
             "-i", src.as_posix(),
             "--out:test",
-            "--quiet",
         ] + cli_args,
         encoding="utf-8",
         stdout=subprocess.PIPE,

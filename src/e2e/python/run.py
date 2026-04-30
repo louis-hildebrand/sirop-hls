@@ -65,7 +65,6 @@ def test_eval(eval_output: Path, cli_args: list[str]) -> bool:
             "java", "-jar", c.JAR.as_posix(),
             "-i", source_path.as_posix(),
             "--out:eval",
-            "--quiet",
         ] + cli_args,
         encoding="utf-8",
         stdout=subprocess.PIPE,

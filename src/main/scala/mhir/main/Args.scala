@@ -47,7 +47,7 @@ object Args {
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
-    var logLevel = Level.DEBUG
+    var logLevel = Level.INFO
     // VHDL args
     var vhdlFamily: Option[String] = None
     var vhdlDevice: Option[String] = None
@@ -158,7 +158,7 @@ object Args {
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
-          logLevel = Level.INFO
+          logLevel = Level.WARN
         case "-v" | "--verbose" =>
           logLevel = Level.DEBUG
         // VHDL args
