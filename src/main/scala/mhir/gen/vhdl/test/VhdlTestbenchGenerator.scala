@@ -1,12 +1,12 @@
 package mhir.gen
 package vhdl
+package test
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.indent
 import mhir.ir._
 import mhir.logging.time
-import mhir.sem.SemanticAnalyzer
 import mhir.sugar._
 import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
@@ -113,6 +113,22 @@ object VhdlTestbenchGenerator {
   }
 
   def makeDirectTestbench(
+      io: TestSuiteIO,
+      dir: Path,
+      testNotReady: Boolean,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
+  ): Unit = {
+    require(
+      options.handshake || !testNotReady,
+      "cannot use testNotReady with handshake=false"
+    )
+    val testDir = dir / "test"
+    os.makeDir.all(testDir)
+
+    makeTestbench(io, dir = dir, testNotReady = testNotReady, options = options)
+  }
+
+  def makeDirectTestbenchFromPositionalInputs(
       inputs: Seq[DirectTestInput],
       expectedOutput: DirectTestOutput,
       dir: Path,
@@ -256,7 +272,7 @@ object VhdlTestbenchGenerator {
 
     val testDir = dir / "test"
     os.makeDir.all(testDir)
-    val testbenchFile = testDir / "test_top.vhd"
+    val testbenchFile = testDir / s"test_${options.topName}.vhd"
     if (os.isFile(testbenchFile)) os.remove(testbenchFile)
     os.write(testbenchFile, str)
   }

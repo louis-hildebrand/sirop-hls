@@ -18,46 +18,56 @@ object TestRunner {
     val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.accel.body)
     val assertions = prog.test.collect({ case a: Assertion => a })
     if (assertions.isEmpty) {
-      println("No tests were found.")
       throw TestError(s"no tests were found")
     } else {
       val numTests = assertions.length
       val testOrTests = if (numTests == 1) "test" else "tests"
-      println(s"Running $numTests $testOrTests...")
-      println()
+      logger.debug(s"running $numTests $testOrTests...")
       var errors = 0
       for ((a, i) <- assertions.zipWithIndex) {
-        val ok = run(i, a, body)
+        val ok = run(i, a, body, handshake = prog.handshake)
         if (!ok) {
           errors += 1
         }
       }
-      println()
       if (errors == 0) {
-        println(s"$numTests/$numTests $testOrTests passed!")
+        logger.info(s"$numTests/$numTests $testOrTests passed!")
       } else {
         throw TestError(s"$errors/$numTests $testOrTests failed.")
       }
     }
   }
 
-  private def run(testIdx: Int, a: Assertion, body: Expr): Boolean = {
-    print(s"Test $testIdx ... ")
-    logger.whenDebugEnabled {
-      // Don't print debug messages on the same line as the "Test i ..." message
-      println()
-    }
-    val bodyWithInputs = body.subPreserveType(a.inputs.toMap[Expr, Expr])
-    val actualOutput = mhir.eval.eval(bodyWithInputs)
-    val expectedOutput = mhir.eval.eval(a.expectedOutput)
-    logger.debug(s"expected output is $expectedOutput")
-    logger.debug(s"actual output is   $actualOutput")
-    if (actualOutput == expectedOutput) {
-      println("OK")
-      true
-    } else {
-      println("FAILED")
-      false
+  private def run(
+      testIdx: Int,
+      a: Assertion,
+      body: Expr,
+      handshake: Boolean
+  ): Boolean = {
+    logger.debug(s"running test $testIdx ... ")
+    // Evaluate inputs to avoid errors due to the inputs not having latency
+    // matching
+    val evaluatedInputs = a.inputs
+      .map({ case (x, e) => x -> mhir.eval.eval(e) })
+      .toMap[Expr, Expr]
+    val bodyWithInputs = body.subPreserveType(evaluatedInputs)
+    try {
+      val expectedOutput = mhir.eval.eval(a.expectedOutput)
+      logger.debug(s"expected output is $expectedOutput")
+      val actualOutput = mhir.eval.eval(bodyWithInputs, handshake = handshake)
+      logger.debug(s"actual output is   $actualOutput")
+      if (actualOutput == expectedOutput) {
+        logger.info(s"test $testIdx: PASSED")
+        true
+      } else {
+        logger.warn(s"test $testIdx: FAILED")
+        false
+      }
+    } catch {
+      case ex: EvalException =>
+        logger.debug(ex.getMessage)
+        logger.warn(s"test $testIdx: ERROR")
+        false
     }
   }
 }

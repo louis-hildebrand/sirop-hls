@@ -1,19 +1,19 @@
 package mhir.main.shared
 
 import com.typesafe.scalalogging.Logger
-import jdk.jshell.EvalException
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
 import mhir.eval.{Evaluator, TestError, TestRunner}
+import mhir.gen.vhdl.test._
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
-import mhir.optimize.{Optimizer, OptimizerOptions}
+import mhir.optimize.{LatencyAnalysis, Optimizer, OptimizerOptions}
 import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
+import mhir.typecheck.{TypeCheck, TypeCheckProgram}
 import org.slf4j.event.Level
 import os.Path
 
@@ -87,12 +87,35 @@ object Compiler {
       optimize(synthesizable, options.optFlags, handshake = lowered.handshake)
     val finalProgram =
       lowered.copy(accel = lowered.accel.copy(body = finalExpr))
+    val latency = new LatencyAnalysis(handshake = lowered.handshake)
+      .actualLatency(finalProgram.body)
+      .latency
+    latency match {
+      case None =>
+        if (finalProgram.handshake) {
+          logger.debug(s"the latency of the design is unknown")
+        } else {
+          logger.warn(
+            s"latency matching failed or was disabled, and the handshake protocol is disabled." +
+              s" The VHDL design may not behave correctly."
+          )
+        }
+      case Some(n) =>
+        val cycleOrCycles = if (n == 1) "cycle" else "cycles"
+        val msg = s"the design has a latency of $n $cycleOrCycles"
+        if (finalProgram.handshake) {
+          logger.debug(msg)
+        } else {
+          logger.info(msg)
+        }
+    }
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(
         lowered.copy(accel = lowered.accel.copy(body = finalExpr))
       )
     }
-    val genTime = generateCode(options.vhdl, finalExpr, options.targets)
+    val genTime =
+      generateCode(options.vhdl, finalProgram, options.targets, latency)
     options.targets.toSeq
       .sortBy({
         case NullTarget           => 0
@@ -216,13 +239,14 @@ object Compiler {
 
   private def generateCode(
       options: VhdlGeneratorOptions,
-      prog: Expr,
-      targets: Set[CompilerTarget]
+      prog: Program,
+      targets: Set[CompilerTarget],
+      latency: Option[Int]
   ): Duration = {
-    val (_, time) = time2("codegen", Level.DEBUG) {
+    val (_, codegenTime) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite) =>
-          emitVhdl(options, prog, outDir, overwrite)
+          emitVhdl(options, prog, outDir, overwrite, latency)
         case _: EvalTarget        => ()
         case _: TraceTarget       => ()
         case TestTarget           => ()
@@ -231,7 +255,7 @@ object Compiler {
         case _: CompileTimeTarget => ()
       })
     }
-    time
+    codegenTime
   }
 
   private def emitPrettyPrinted(
@@ -256,11 +280,12 @@ object Compiler {
 
   private def emitVhdl(
       options: VhdlGeneratorOptions,
-      finalProgram: Expr,
+      finalProgram: Program,
       outDir: Path,
-      overwrite: Boolean
+      overwrite: Boolean,
+      latency: Option[Int]
   ): Unit = {
-    time("generating VHDL", Level.DEBUG) {
+    time("generating VHDL design", Level.DEBUG) {
       if (os.exists(outDir)) {
         if (overwrite) {
           os.remove.all(outDir)
@@ -270,7 +295,81 @@ object Compiler {
           )
         }
       }
-      VhdlGenerator.emitVhdl(finalProgram, outDir, options)
+      VhdlGenerator.emitVhdl(finalProgram.body, outDir, options)
+    }
+    val assertions = finalProgram.test.collect({ case a: Assertion => a })
+    if (assertions.nonEmpty) {
+      emitVhdlTestbench(assertions, options, outDir, latency)
+    } else {
+      logger.info(
+        s"skipping VHDL testbench generation because no assertions were found in the source code"
+      )
+    }
+  }
+
+  private def emitVhdlTestbench(
+      assertions: Seq[Assertion],
+      options: VhdlGeneratorOptions,
+      outDir: Path,
+      latency: Option[Int]
+  ): Unit = {
+    time("generating VHDL testbench", Level.DEBUG) {
+      assert(os.isDir(outDir))
+      val io = TestSuiteIO(assertions.map({ case Assertion(in, out) =>
+        val inputs = in.map({ case (x, e) =>
+          x -> (mhir.eval.eval(e) match {
+            case StmLiteral(elems @ _*) =>
+              DirectTestInput(elems.map(Some(_)))
+            case e =>
+              assert(
+                e.typ.isData,
+                "if the result of evaluation is not a stream, it should be one piece of data"
+              )
+              logger.warn(
+                s"input for '$x' does not seem to be a stream." +
+                  s" Accelerator inputs should normally be streams."
+              )
+              DirectTestInput(Seq(Some(e)))
+          })
+        })
+        val expectedOutput = {
+          val elems = mhir.eval.eval(out) match {
+            case StmLiteral(elems @ _*) =>
+              elems
+            case e =>
+              assert(
+                e.typ.isData,
+                "if the result of evaluation is not a stream, it should be one piece of data"
+              )
+              logger.warn(
+                "expected output does not seem to be a stream" +
+                  s" The accelerator output should normally be a stream."
+              )
+              Seq(e)
+          }
+          latency match {
+            case Some(latency) if !options.handshake =>
+              logger.debug(
+                s"adding $latency invalids at the beginning of the expected output to account for latency"
+              )
+              val typ = out.typ match {
+                case TyStm(t, _) => t
+                case t           => t
+              }
+              val invalids = (0 until latency).map(_ => Undefined(typ))
+              DirectTestOutput(invalids ++ elems)
+            case _ =>
+              DirectTestOutput(elems)
+          }
+        }
+        KeywordTestIO(inputs, expectedOutput)
+      }))
+      VhdlTestbenchGenerator.makeDirectTestbench(
+        io = io,
+        dir = outDir,
+        testNotReady = false,
+        options = options
+      )
     }
   }
 

@@ -71,7 +71,7 @@ class StaticLetStmBufferShrinker(
               case Some(_) if !this.handshake =>
                 assert(bufSize.typ.isInstanceOf[TyUInt])
                 assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
-                C(1)(bufSize.typ)
+                C(0)(bufSize.typ)
               case Some(_) if this.assumeThroughputsMatch =>
                 assert(bufSize.typ.isInstanceOf[TyUInt])
                 assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)

@@ -1,5 +1,2 @@
-Running 1 test...
-
-Test 0 ... FAILED
-
+[WARN ] test 0: FAILED
 TestError: 1/1 test failed.

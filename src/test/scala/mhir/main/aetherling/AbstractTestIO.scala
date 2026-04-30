@@ -10,7 +10,7 @@ sealed trait TestIO {
   /** The inputs and expected outputs in the format required for testing a VHDL
     * design.
     */
-  def toVhdl: vhdl.PositionalTestIO
+  def toVhdl: vhdl.test.PositionalTestIO
 
   /** The inputs and expected outputs in the format required for testing a
     * Verilog design.
@@ -26,8 +26,8 @@ case class AbstractTestIO(in: AbstractTestInput, out: AbstractTestOutput)
 
   /** Converts to the format required by the VHDL testbench generator.
     */
-  def toVhdl: vhdl.PositionalTestIO = {
-    vhdl.PositionalTestIO(inputs = in.toVhdl, expectedOutput = out.toVhdl)
+  def toVhdl: vhdl.test.PositionalTestIO = {
+    vhdl.test.PositionalTestIO(inputs = in.toVhdl, expectedOutput = out.toVhdl)
   }
 
   /** Converts to the format required by the Verilog testbench generator.

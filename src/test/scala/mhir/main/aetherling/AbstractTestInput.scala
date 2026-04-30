@@ -28,9 +28,9 @@ case class AbstractTestInput(
 
   /** Converts to the format required by the VHDL testbench generator.
     */
-  def toVhdl: Seq[vhdl.TestInput] = {
+  def toVhdl: Seq[vhdl.test.TestInput] = {
     (0 until nStreams).map({ i =>
-      vhdl.DirectTestInput(
+      vhdl.test.DirectTestInput(
         (t: Int) => Some(f(t)(i)),
         elemTyp = elemTypes(i),
         len = len

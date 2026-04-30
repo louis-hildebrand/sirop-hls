@@ -17,7 +17,7 @@ object TopVhdl {
     for ((_, bufSize, _) <- pipe.lets) {
       if (bufSize != 0) {
         throw CodegenError(
-          s"cannot generate letstm with a nonzero buffer size when the handshake protocol is disabled"
+          s"cannot generate letstm with a nonzero buffer size ($bufSize) when the handshake protocol is disabled"
         )
       }
     }

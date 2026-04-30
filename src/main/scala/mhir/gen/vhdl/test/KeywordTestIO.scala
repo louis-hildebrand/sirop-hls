@@ -1,4 +1,5 @@
 package mhir.gen.vhdl
+package test
 
 import mhir.ir.Param
 

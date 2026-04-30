@@ -8,18 +8,24 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
 
-  private val pass: LetStmBufferShrinker =
+  private val passWithHandshake: LetStmBufferShrinker =
     new StaticLetStmBufferShrinker(
       latencyAnalysis = new LatencyAnalysis(handshake = true),
       handshake = true,
       assumeThroughputsMatch = true
     )
+  private val passWithoutHandshake: LetStmBufferShrinker =
+    new StaticLetStmBufferShrinker(
+      latencyAnalysis = new LatencyAnalysis(handshake = false),
+      handshake = false,
+      assumeThroughputsMatch = true
+    )
 
-  private def assertAllBufSizesAreOne(e: Expr): Unit = {
+  private def assertAllBufSizesEqual(e: Expr, expected: IntCst): Unit = {
     e match {
       case LetStm(bufSize, _, _, _) =>
-        assert(bufSize == C(1)())
-      case e => e.children.foreach(assertAllBufSizesAreOne)
+        assert(bufSize == expected)
+      case e => e.children.foreach(c => assertAllBufSizesEqual(c, expected))
     }
   }
 
@@ -35,7 +41,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zip = SimpleZip(plusFive, nop)
       Let(s, count, zip)().tchk().lower
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -43,7 +49,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     assert(actualVal == expectedVal)
 
     // Effective optimization
-    assertAllBufSizesAreOne(optimized)
+    assertAllBufSizesEqual(optimized, 1)
   }
 
   /** Successful case with nested LetStm.
@@ -59,7 +65,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zip = SimpleZip(SimpleNop(sA, delay = 4), SimpleNop(sB), timesTwo)
       Let(sA, count, Let(sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -68,7 +74,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
 
     // Effective optimization
     // (letstm buffers should all be shrunk to 1)
-    assertAllBufSizesAreOne(optimized)
+    assertAllBufSizesEqual(optimized, 1)
   }
 
   /** Successful case with nested LetStm.
@@ -84,7 +90,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zip = SimpleZip(timesThree, plusFive)
       Let(s1, Let(s0, count, zip)(), s1)().tchk().lower
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -93,7 +99,33 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
 
     // Effective optimization
     // (letstm buffers should all be shrunk to 1)
-    assertAllBufSizesAreOne(optimized)
+    assertAllBufSizesEqual(optimized, 1)
+  }
+
+  /** Successful case with nested LetStm.
+    */
+  test("TwoLetsInSeries:NoHandshake") {
+    val n = 5
+    val original = {
+      val s0 = Param("s0")(TyStm(U8, n))
+      val s1 = Param("s1")(TyStm((U8, U8), n))
+      val count = SimpleCount(C(n)(U8))
+      val plusFive = SimpleMap(s0, x => Sum(C(5)(U8), x)())
+      val timesThree = SimpleMap(s0, x => Prod(C(3)(U8), x)())
+      val zip = SimpleZip(timesThree, plusFive)
+      Let(s1, Let(s0, count, zip)(), s1)().tchk().lower
+    }
+    val optimized = passWithoutHandshake.shrinkBuffers(original)
+
+    // Correct behaviour
+    val originalVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(optimized)
+    assert(actualVal == originalVal)
+
+    // Effective optimization
+    // (letstm buffers should all be shrunk to 0, in this case, since the
+    // handshake protocol is disabled)
+    assertAllBufSizesEqual(optimized, 0)
   }
 
   /** Successful case with reductions.
@@ -150,7 +182,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zipped = SimpleZip(sum, stm2Vec)
       Let(x, count, zipped)().tchk().lower
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -159,7 +191,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
 
     // Effective optimization
     // (letstm buffers should all be shrunk to 1)
-    assertAllBufSizesAreOne(optimized)
+    assertAllBufSizesEqual(optimized, 1)
   }
 
   /** The condition that all branches have the same throughput is necessary for
@@ -276,7 +308,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val zip = SimpleZip(rowSums, rowHeads)
       LetStm(m, x, count, zip)().tchk()
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -292,7 +324,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val concat = SimpleConcat(s0, s0)
       LetStm(n, s0, count, concat)().tchk().lower
     }
-    val optimized = pass.shrinkBuffers(original)
+    val optimized = passWithHandshake.shrinkBuffers(original)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)

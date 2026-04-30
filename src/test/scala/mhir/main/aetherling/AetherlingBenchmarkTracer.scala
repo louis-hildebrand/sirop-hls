@@ -2,7 +2,7 @@ package mhir.main.aetherling
 
 import mhir.canonicalize._
 import mhir.debug.{Trace, Tracer, NameSimplifier => NS}
-import mhir.gen.vhdl.DirectTestInput
+import mhir.gen.vhdl.test._
 import mhir.ir._
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.OptimizerOptions

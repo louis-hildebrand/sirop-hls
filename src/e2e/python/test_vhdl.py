@@ -43,7 +43,7 @@ def can_run(src: Path) -> bool:
     return False
 
 
-def run(src: Path) -> bool:
+def run(src: Path, cli_args: list[str]) -> bool:
     """
     Test that the VHDL code looks OK (files generated, interface of the top-level entity).
     """
@@ -57,7 +57,7 @@ def run(src: Path) -> bool:
             "--out:vhdl", vhdl_dir.as_posix(),
             "--overwrite",
             "--quiet",
-        ],
+        ] + cli_args,
         encoding="utf-8",
         capture_output=True,
         check=False,

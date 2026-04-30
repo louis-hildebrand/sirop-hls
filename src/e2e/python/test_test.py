@@ -26,7 +26,7 @@ def can_run(src: Path) -> bool:
     return src.with_suffix(".test.txt").is_file()
 
 
-def run(src: Path) -> bool:
+def run(src: Path, cli_args: list[str]) -> bool:
     """
     Test that the Sirop test runner produces the expected outputs.
     """
@@ -38,7 +38,7 @@ def run(src: Path) -> bool:
             "-i", src.as_posix(),
             "--out:test",
             "--quiet",
-        ],
+        ] + cli_args,
         encoding="utf-8",
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

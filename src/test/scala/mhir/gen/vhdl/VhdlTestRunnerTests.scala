@@ -1,5 +1,6 @@
 package mhir.gen.vhdl
 
+import mhir.gen.vhdl.test.VhdlTestRunner
 import mhir.gen.{
   DesignCompileFailed,
   SimulationFailed,

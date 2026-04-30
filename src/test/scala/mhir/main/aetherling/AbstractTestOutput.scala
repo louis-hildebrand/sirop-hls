@@ -27,8 +27,8 @@ case class AbstractTestOutput(
 
   /** Converts to the format required by the VHDL testbench generator.
     */
-  def toVhdl: vhdl.TestOutput = {
-    vhdl.DirectTestOutput(f, elemTyp = elemTyp, len = len)
+  def toVhdl: vhdl.test.TestOutput = {
+    vhdl.test.DirectTestOutput(f, elemTyp = elemTyp, len = len)
   }
 
   /** Converts to the format required by the Verilog testbench generator.

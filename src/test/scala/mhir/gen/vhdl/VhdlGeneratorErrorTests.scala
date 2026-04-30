@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 
 import mhir.canonicalize._
 import mhir.gen.CodegenError
+import mhir.gen.vhdl.test.VhdlTestRunner
 import mhir.ir._
 import mhir.sugar._
 import mhir.typecheck._
@@ -56,7 +57,7 @@ class VhdlGeneratorErrorTests extends AnyFunSuite {
     val s = Param("s")(TyStm(U8, 10))
     val f = Function(
       s,
-      LetStm(1, s, s, SimpleZip(s, SimpleMap(s, x => x + C(5)(U8))))()
+      LetStm(3, s, s, SimpleZip(s, SimpleMap(s, x => x + C(5)(U8))))()
     )().tchk().lower
     val options = VhdlGeneratorOptions(handshake = false)
     val exc = intercept[CodegenError](
@@ -64,7 +65,7 @@ class VhdlGeneratorErrorTests extends AnyFunSuite {
     )
     assert(
       exc.getMessage.contains(
-        "cannot generate letstm with a nonzero buffer size when the handshake protocol is disabled"
+        "cannot generate letstm with a nonzero buffer size (3) when the handshake protocol is disabled"
       )
     )
   }

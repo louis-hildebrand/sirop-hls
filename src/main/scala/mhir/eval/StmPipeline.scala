@@ -195,7 +195,7 @@ object StmPipeline {
           if (bufSizeVal != 0) {
             logger.warn(
               "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled." +
-                " The buffer size will be ignored, which may lead to the design getting stuck or producing expected results."
+                " The buffer size will be ignored, which may lead to the design getting stuck or producing incorrect results."
             )
           }
           StmNopNode(

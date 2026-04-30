@@ -2,7 +2,7 @@ package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.verilog.VerilogTestbenchGenerator
-import mhir.gen.vhdl.VhdlTestbenchGenerator
+import mhir.gen.vhdl.test._
 import os.Path
 
 import scala.sys.exit

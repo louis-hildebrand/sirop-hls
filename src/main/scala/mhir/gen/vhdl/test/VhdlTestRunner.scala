@@ -1,5 +1,6 @@
 package mhir.gen
 package vhdl
+package test
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.{
@@ -86,8 +87,7 @@ object VhdlTestRunner {
 
   def testWithoutHandshake(
       e: Expr,
-      inputs: Seq[DirectTestInput] = Seq(),
-      output: DirectTestOutput,
+      io: TestSuiteIO,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): TestResult = {
     val updatedOptions = options.copy(handshake = false)
@@ -98,8 +98,7 @@ object VhdlTestRunner {
     }
     time("generating VHDL testbench", Level.DEBUG) {
       VhdlTestbenchGenerator.makeDirectTestbench(
-        inputs,
-        output,
+        io,
         VHDL_TEST_DIR,
         testNotReady = false,
         options = updatedOptions

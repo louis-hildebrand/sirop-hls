@@ -1,0 +1,32 @@
+const N: u32 = 16
+
+/* Computes (a^2 + b + 2) * (a^2 + b).
+ */
+accelerator[no_handshake]
+top = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
+    let a_squared_plus_b =
+        a
+        .StmMap( (x) => x * x )
+        .StmZip(b)
+        .StmMap( (x) => x.0 + x.1 )
+    in
+    a_squared_plus_b
+    .StmMap( (x) => x + 2:u16 )
+    .StmZip(a_squared_plus_b)
+    .StmMap( (x) => x.0 * x.1 )
+
+assert {
+    a = StmRange(16, 0:u16, 1:u16),
+    b = StmRange(16, 0:u16, 1:u16)
+}
+yields {
+    [0:u16, 8:u16, 48:u16, 168:u16, 440:u16, 960:u16, 1848:u16, 3248:u16, 5328:u16, 8280:u16, 12320:u16, 17688:u16, 24648:u16, 33488:u16, 44520:u16, 58080:u16]s
+}
+
+assert {
+    a = StmCount2D(4:u16, 4:u16).StmJoin().StmMap( (x) => x.0 ),
+    b = StmCount2D(4:u16, 4:u16).StmJoin().StmMap( (x) => x.1 )
+}
+yields {
+    [0:u16, 3:u16, 8:u16, 15:u16, 3:u16, 8:u16, 15:u16, 24:u16, 24:u16, 35:u16, 48:u16, 63:u16, 99:u16, 120:u16, 143:u16, 168:u16]s
+}
