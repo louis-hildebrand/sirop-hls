@@ -12,6 +12,9 @@ DESIGN_COMPILE_FAILED=4
 TESTBENCH_COMPILE_FAILED=5
 SIMULATION_TIMEOUT=6
 SIMULATION_FAILED=7
+NO_TESTS=8
+MISSING_VSIM=9
+MISSING_VCOM=10
 
 function print_basic_usage {
     echo "Usage: test_vhdl.sh PROJ_DIR [-h|--help] [-v|--verbose] [-i|--interactive] [--time-limit=TL]"
@@ -34,6 +37,9 @@ function print_usage {
     echo "  $TESTBENCH_COMPILE_FAILED  The testbench could not be compiled"
     echo "  $SIMULATION_TIMEOUT  The simulation timed out"
     echo "  $SIMULATION_FAILED  The simulation failed (probably due to incorrect output from the design)"
+    echo "  $NO_TESTS  No tests were found."
+    echo "  $MISSING_VSIM  vsim does not seem to be available."
+    echo "  $MISSING_VCOM  vcom does not seem to be available."
 }
 
 function echoerr {
@@ -103,8 +109,23 @@ function main {
         exit "$MISSING_PROJ"
     }
 
+    if [[ ! -d "./test/" ]]; then
+        echoerr "The project does not have a test/ directory."
+        exit "$NO_TESTS"
+    fi
+
+    # shellcheck disable=SC2162
+    { find ./test/ -name '*.vhd' | read ; } || {
+        echoerr "No .vhd files found in the test/ directory."
+        exit "$NO_TESTS"
+    }
+
     echo ""
     compile design/*.vhd || {
+        vcom -version >/dev/null 2>&1 || {
+            echoerr "The command 'vcom -version' failed. Is vcom installed and in your PATH?"
+            exit "$MISSING_VCOM"
+        }
         echoerr "Failed to compile design."
         exit "$DESIGN_COMPILE_FAILED"
     }
@@ -118,13 +139,18 @@ function main {
     echo ""
     echo "Running simulation..."
     run_simulation || {
-        case "$?" in
+        vsim_status="$?"
+        case "$vsim_status" in
           124)
             echoerr "Simulation timed out. Is there an infinite loop?"
             exit "$SIMULATION_TIMEOUT"
             ;;
           *)
-            echoerr "Simulation failed."
+            vsim -version >/dev/null 2>&1 || {
+               echoerr "The command 'vsim -version' failed. Is vsim installed and in your PATH?"
+               exit "$MISSING_VSIM"
+            }
+            echoerr "Simulation failed (code $vsim_status)."
             exit "$SIMULATION_FAILED"
             ;;
         esac

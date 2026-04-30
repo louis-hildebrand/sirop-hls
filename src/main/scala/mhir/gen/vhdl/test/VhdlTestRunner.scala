@@ -17,13 +17,13 @@ import mhir.logging.time
 import org.slf4j.event.Level
 import os.{Path, RelPath}
 
+import scala.io.Source
 import scala.sys.process._
 
 /** Provides methods for testing a VHDL project.
   */
 object VhdlTestRunner {
   private val VHDL_DIR = os.pwd / "src" / "test" / "vhdl"
-  private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_vhdl.sh"
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
 
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -48,7 +48,9 @@ object VhdlTestRunner {
     *   the test result.
     */
   def testExistingProject(dir: Path, timeLimit: String = ""): TestResult = {
-    val cmd = s"$RUN_TEST_SH $dir"
+    val shellScriptPath = dir / "test_vhdl.sh"
+    os.write.over(shellScriptPath, testVhdlBashScript(), perms = "rwxrwxr-x")
+    val cmd = s"$shellScriptPath $dir"
     val cmdWithTimeout =
       if (timeLimit.isBlank) cmd else s"$cmd --time-limit=$timeLimit"
     cmdWithTimeout.! match {
@@ -57,6 +59,8 @@ object VhdlTestRunner {
       case 5 => TestbenchCompileFailed
       case 6 => SimulationTimeout
       case 7 => SimulationFailed
+      case 8 => NoTests
+      case 9 => MissingVsim
       case _ => UnknownFailure
     }
   }
@@ -107,5 +111,9 @@ object VhdlTestRunner {
     time("running simulation", Level.DEBUG) {
       testExistingProject(VHDL_TEST_DIR)
     }
+  }
+
+  private def testVhdlBashScript(): Iterator[String] = {
+    Source.fromResource("mhir/gen/vhdl/test_vhdl.sh").getLines().map(_ + "\n")
   }
 }

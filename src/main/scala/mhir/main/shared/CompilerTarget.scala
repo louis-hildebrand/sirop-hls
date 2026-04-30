@@ -46,8 +46,11 @@ case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
   * @param overwrite
   *   what to if the output directory already exists. If `true`, then delete the
   *   existing directory. If `false`, throw an exception.
+  * @param runSim
+  *   whether to run VHDL simulation after codegen.
   */
-case class VhdlTarget(outDir: Path, overwrite: Boolean) extends CompilerTarget
+case class VhdlTarget(outDir: Path, overwrite: Boolean, runSim: Boolean)
+    extends CompilerTarget
 
 /** Report the compile time.
   *

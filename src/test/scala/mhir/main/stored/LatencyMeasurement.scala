@@ -68,7 +68,12 @@ object LatencyMeasurement {
       VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     }
     val proc = os
-      .proc("./src/test/sh/test_vhdl.sh", dir, "-v", s"--time-limit=$TimeLimit")
+      .proc(
+        "./src/main/resources/mhir/gen/vhdl/test_vhdl.sh",
+        dir,
+        "-v",
+        s"--time-limit=$TimeLimit"
+      )
       .call(
         cwd = os.pwd,
         check = false

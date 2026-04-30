@@ -38,6 +38,9 @@ object Args {
     var input: Option[String] = None
     // Output args
     var vhdlDir: Option[Path] = None
+    var runVhdlSim: Option[Boolean] = None
+    var vhdlFamily: Option[String] = None
+    var vhdlDevice: Option[String] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
     var eval: Boolean = false
@@ -48,9 +51,6 @@ object Args {
     var overwrite = false
     var mutArgs = args
     var logLevel = Level.INFO
-    // VHDL args
-    var vhdlFamily: Option[String] = None
-    var vhdlDevice: Option[String] = None
     // Optimizer args
     var simplifyStmBuild = true
     var inlineLetStm = true
@@ -87,6 +87,24 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
               vhdlDir = Some(Path(dirName, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:run-sim" =>
+          runVhdlSim = Some(true)
+        case "--out:vhdl:family" =>
+          mutArgs.drop(1).headOption match {
+            case Some(family) =>
+              vhdlFamily = Some(family)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:device" =>
+          mutArgs.drop(1).headOption match {
+            case Some(device) =>
+              vhdlDevice = Some(device)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -161,23 +179,6 @@ object Args {
           logLevel = Level.WARN
         case "-v" | "--verbose" =>
           logLevel = Level.DEBUG
-        // VHDL args
-        case "--out:vhdl:family" =>
-          mutArgs.drop(1).headOption match {
-            case Some(family) =>
-              vhdlFamily = Some(family)
-              numToDrop = 2
-            case None =>
-              throw new BadArgsException(s"missing value for ${mutArgs.head}")
-          }
-        case "--out:vhdl:device" =>
-          mutArgs.drop(1).headOption match {
-            case Some(device) =>
-              vhdlDevice = Some(device)
-              numToDrop = 2
-            case None =>
-              throw new BadArgsException(s"missing value for ${mutArgs.head}")
-          }
         // Optimizer args
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
@@ -242,7 +243,23 @@ object Args {
         )
       )
       val testTarget = if (runTests) Some(TestTarget) else None
-      val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
+      val vhdlTarget = vhdlDir match {
+        case Some(vhdlDir) =>
+          Some(
+            VhdlTarget(
+              vhdlDir,
+              overwrite = overwrite,
+              runSim = runVhdlSim.getOrElse(false)
+            )
+          )
+        case None =>
+          if (runVhdlSim.isDefined) {
+            throw new BadArgsException(
+              "--out:vhdl:run-sim is only valid when --out:vhdl is also given"
+            )
+          }
+          None
+      }
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
       val timeReportTarget =
@@ -343,6 +360,7 @@ object Args {
          |  --out:test                       run the tests and print the results
          |
          |  --out:vhdl DIR                   emit VHDL code in the given directory
+         |  --out:vhdl:run-sim               run the VHDL testbench after codegen
          |  --out:vhdl:family                the value for the FAMILY assignment in the
          |                                   .qsf file
          |  --out:vhdl:device                the value for the DEVICE assignment in the

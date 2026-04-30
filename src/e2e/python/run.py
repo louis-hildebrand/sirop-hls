@@ -13,6 +13,7 @@ import sys
 import constants as c
 import test_test as stest
 import test_vhdl as vhdl
+import test_vsim as vsim
 
 
 def look_for_unused_files() -> None:
@@ -37,6 +38,8 @@ def look_for_unused_files() -> None:
             if vhdl.uses_file(f):
                 continue
             if stest.uses_file(f):
+                continue
+            if vsim.uses_file(f):
                 continue
             print(f"File {f.relative_to(c.ROOT)} is not used for testing")
             error_count += 1
@@ -142,7 +145,7 @@ def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> 
     return True
 
 
-def main(test_sources: list[Path]) -> None:
+def main(test_sources: list[Path], skip_vsim: bool) -> None:
     """
     Script entry point.
     """
@@ -187,6 +190,11 @@ def main(test_sources: list[Path]) -> None:
             ok = stest.run(test, cli_args=cli_args)
             if not ok:
                 error_count += 1
+        if vsim.can_run(test):
+            ran = True
+            ok = skip_vsim or vsim.run(test, cli_args=cli_args)
+            if not ok:
+                error_count += 1
         if not ran:
             print(f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}")
             error_count += 1
@@ -209,8 +217,13 @@ def _parse_args() -> Namespace:
     parser.add_argument(
         "test_sources",
         nargs="*",
-        help="path of the .sirop files to test",
         type=Path,
+        help="path of the .sirop files to test",
+    )
+    parser.add_argument(
+        "--skip-vsim",
+        action="store_true",
+        help="don't run the tests related to VHDL simulation",
     )
     args = parser.parse_args()
     if not args.test_sources:
@@ -228,4 +241,4 @@ def _parse_args() -> Namespace:
 
 if __name__ == "__main__":
     _args = _parse_args()
-    main(_args.test_sources)
+    main(_args.test_sources, skip_vsim=_args.skip_vsim)

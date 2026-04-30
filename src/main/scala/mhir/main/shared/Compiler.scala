@@ -4,6 +4,17 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
 import mhir.eval.{Evaluator, TestError, TestRunner}
+import mhir.gen.{
+  DesignCompileFailed,
+  MissingVcom,
+  MissingVsim,
+  NoTests,
+  SimulationFailed,
+  SimulationTimeout,
+  TestPassed,
+  TestbenchCompileFailed,
+  UnknownFailure
+}
 import mhir.gen.vhdl.test._
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
@@ -167,7 +178,48 @@ object Compiler {
           )
         case TestTarget =>
           TestRunner.run(finalProgram)
-        case _: VhdlTarget => () // already done
+        case VhdlTarget(outDir, _, runSim) =>
+          if (runSim) {
+            val result = VhdlTestRunner.testExistingProject(outDir)
+            val moreInfoMsg =
+              "For more details, try running './test_vhdl.sh . -v' in the generated VHDL directory."
+            result match {
+              case TestPassed =>
+                logger.info("VHDL testbench passed!")
+              case MissingVcom =>
+                throw TestError(
+                  "vcom does not seem to be working." +
+                    " Is it installed and in your PATH?"
+                )
+              case DesignCompileFailed =>
+                throw TestError(
+                  s"compilation of the VHDL design failed. $moreInfoMsg"
+                )
+              case MissingVsim =>
+                throw TestError(
+                  "vsim does not seem to be working." +
+                    " Is it installed and in your PATH?"
+                )
+              case TestbenchCompileFailed =>
+                throw TestError(
+                  s"compilation of the VHDL testbench failed. $moreInfoMsg"
+                )
+              case SimulationFailed =>
+                throw TestError(s"VHDL simulation failed. $moreInfoMsg")
+              case SimulationTimeout =>
+                throw TestError(
+                  "VHDL simulation timed out." +
+                    " Is there an infinite loop?" +
+                    s" $moreInfoMsg"
+                )
+              case NoTests =>
+                throw TestError("no tests were found")
+              case UnknownFailure =>
+                throw TestError(
+                  s"VHDL simulation failed for an unknown reason. $moreInfoMsg"
+                )
+            }
+          }
         case PrettyPrintTarget(dest, overwrite) =>
           emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
         case CompileTimeTarget(f, overwrite) =>
@@ -245,8 +297,14 @@ object Compiler {
   ): Duration = {
     val (_, codegenTime) = time2("codegen", Level.DEBUG) {
       targets.foreach({
-        case VhdlTarget(outDir, overwrite) =>
-          emitVhdl(options, prog, outDir, overwrite, latency)
+        case VhdlTarget(outDir, overwrite, _) =>
+          emitVhdl(
+            options,
+            prog,
+            outDir,
+            latency = latency,
+            overwrite = overwrite
+          )
         case _: EvalTarget        => ()
         case _: TraceTarget       => ()
         case TestTarget           => ()
