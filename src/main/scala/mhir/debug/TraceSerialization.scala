@@ -20,6 +20,16 @@ object TraceSerialization {
   implicit val nodeIdWriter: Writer[StmNodeId] =
     stringKeyW(upickle.default.writer[String].comap(_.id))
 
+  implicit val nodeLocationWriter: Writer[StmNodeLocation] = stringKeyW(
+    upickle.default
+      .writer[String]
+      .comap({
+        case InMain          => "InMain"
+        case TestStimulus(x) => s"TestStimulus($x)"
+        case Sink            => "Sink"
+      })
+  )
+
   implicit val graphWriter: Writer[DiGraph[StmNodeId]] =
     upickle.default
       .writer[ujson.Value]

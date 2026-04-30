@@ -8,7 +8,7 @@ import subprocess
 import constants as c
 
 
-def is_used_for_vhdl_test(p: Path) -> bool:
+def uses_file(p: Path) -> bool:
     """
     Check whether the given file is used for the VHDL tests.
     """
@@ -30,7 +30,7 @@ def is_used_for_vhdl_test(p: Path) -> bool:
     return False
 
 
-def vhdl_test_exists(src: Path) -> bool:
+def can_run(src: Path) -> bool:
     """
     Check whether there are any files describing expected outputs for VHDL.
     """
@@ -43,7 +43,7 @@ def vhdl_test_exists(src: Path) -> bool:
     return False
 
 
-def test_vhdl(src: Path) -> bool:
+def run(src: Path, cli_args: list[str]) -> bool:
     """
     Test that the VHDL code looks OK (files generated, interface of the top-level entity).
     """
@@ -56,8 +56,7 @@ def test_vhdl(src: Path) -> bool:
             "-i", src.as_posix(),
             "--out:vhdl", vhdl_dir.as_posix(),
             "--overwrite",
-            "--quiet",
-        ],
+        ] + cli_args,
         encoding="utf-8",
         capture_output=True,
         check=False,
@@ -115,7 +114,7 @@ def _get_tree(vhdl_dir: Path) -> str:
     Get the output of the `tree` command for the given path.
     """
     result = subprocess.run(
-        ["tree", vhdl_dir.resolve().as_posix()],
+        ["tree", vhdl_dir.resolve().relative_to(c.ROOT).as_posix()],
         check=True,
         encoding="utf-8",
         stdout=subprocess.PIPE,

@@ -16,6 +16,8 @@ sealed trait TraceNode {
   def out: Map[StmNodeId, Expr]
 
   def ready: Set[StmNodeId]
+
+  def loc: StmNodeLocation
 }
 
 /** Companion object for [[TraceNode]].
@@ -37,7 +39,7 @@ object TraceNode {
   }
 }
 
-/** One node in a trace representing a [[mhir.ir.evaluate.StmBuildNode]].
+/** One node in a trace representing a [[mhir.eval.StmBuildNode]].
   *
   * @param n
   *   the remaining number of outputs.
@@ -50,7 +52,8 @@ case class StmBuildTraceNode(
     n: Long,
     out: Map[StmNodeId, Expr],
     accumulators: Map[String, String],
-    ready: Set[StmNodeId]
+    ready: Set[StmNodeId],
+    loc: StmNodeLocation
 ) extends TraceNode
 
 /** Companion object for [[StmBuildTraceNode]].
@@ -76,7 +79,8 @@ object StmBuildTraceNode {
         case None    => Map()
       },
       accumulators = acc,
-      ready = s.producerIds.filter(s.ready)
+      ready = s.producerIds.filter(s.ready),
+      loc = s.loc
     )
   }
 }
@@ -89,7 +93,8 @@ object StmBuildTraceNode {
 case class LetStmTraceNode(
     buffer: Array[Expr],
     out: Map[StmNodeId, Expr],
-    ready: Set[StmNodeId]
+    ready: Set[StmNodeId],
+    loc: StmNodeLocation
 ) extends TraceNode
 
 /** Companion object for [[LetStmTraceNode]].
@@ -113,20 +118,24 @@ object LetStmTraceNode {
           }
         )
         .toMap,
-      ready = s.producerIds.filter(s.ready)
+      ready = s.producerIds.filter(s.ready),
+      loc = s.loc
     )
   }
 }
 
-/** One node in a trace representing a [[mhir.ir.evaluate.StmNopNode]].
+/** One node in a trace representing a [[mhir.eval.StmNopNode]].
   *
   * @param out
   *   the current output of the stream.
   * @param ready
   *   the set of producers for which this node's `ready` signal is raised.
   */
-case class StmNopTraceNode(out: Map[StmNodeId, Expr], ready: Set[StmNodeId])
-    extends TraceNode
+case class StmNopTraceNode(
+    out: Map[StmNodeId, Expr],
+    ready: Set[StmNodeId],
+    loc: StmNodeLocation
+) extends TraceNode
 
 /** Companion object for [[StmNopTraceNode]].
   */
@@ -144,13 +153,17 @@ object StmNopTraceNode {
           }
         )
         .toMap,
-      ready = s.producerIds.filter(s.ready)
+      ready = s.producerIds.filter(s.ready),
+      loc = s.loc
     )
   }
 }
 
-case class TerminalTraceNode(out: Map[StmNodeId, Expr], ready: Set[StmNodeId])
-    extends TraceNode
+case class TerminalTraceNode(
+    out: Map[StmNodeId, Expr],
+    ready: Set[StmNodeId],
+    loc: StmNodeLocation
+) extends TraceNode
 
 /** Companion object for [[TerminalTraceNode]].
   */
@@ -161,7 +174,8 @@ object TerminalTraceNode {
   def apply(s: TerminalNode): TerminalTraceNode = {
     TerminalTraceNode(
       out = s.out(StmNodeId("")).map(StmNodeId("") -> _).toMap,
-      ready = s.producerIds.filter(s.ready)
+      ready = s.producerIds.filter(s.ready),
+      loc = s.loc
     )
   }
 }

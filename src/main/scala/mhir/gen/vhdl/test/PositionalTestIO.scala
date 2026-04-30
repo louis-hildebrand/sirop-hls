@@ -1,4 +1,5 @@
 package mhir.gen.vhdl
+package test
 
 /** Inputs and expected outputs for testing a VHDL design, with the inputs
   * passed in positional format.

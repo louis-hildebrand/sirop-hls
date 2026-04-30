@@ -36,7 +36,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -50,7 +51,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -59,7 +61,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -77,7 +80,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -91,7 +95,8 @@
                     },
                     "ready": [
                         "sbuild_1"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -100,7 +105,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -118,7 +124,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -132,7 +139,8 @@
                     },
                     "ready": [
                         "sbuild_1"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -141,7 +149,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -159,7 +168,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -173,7 +183,8 @@
                     },
                     "ready": [
                         "sbuild_1"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -182,7 +193,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -200,7 +212,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -214,7 +227,8 @@
                     },
                     "ready": [
                         "sbuild_1"
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -223,7 +237,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -241,7 +256,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -255,7 +271,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -264,7 +281,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         },
@@ -282,7 +300,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
@@ -296,7 +315,8 @@
                     },
                     "ready": [
                         
-                    ]
+                    ],
+                    "loc": "InMain"
                 },
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
@@ -305,7 +325,8 @@
                     },
                     "ready": [
                         "sbuild_2"
-                    ]
+                    ],
+                    "loc": "Sink"
                 }
             }
         }

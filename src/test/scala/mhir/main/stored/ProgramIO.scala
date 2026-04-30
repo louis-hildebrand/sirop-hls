@@ -1,7 +1,7 @@
 package mhir.main.stored
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.{DirectTestInput, DirectTestOutput, PositionalTestIO}
+import mhir.gen.vhdl.test._
 import mhir.ir._
 import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
 import mhir.typecheck.TypeCheck
@@ -209,7 +209,7 @@ object ProgramIO {
       val sharpened = blurred.flatten
         .zip(original.flatten)
         .map({ case (a, b) =>
-          val alphaH = (b - a).toInt >>> 2
+          val alphaH = (b - a) >>> 2
           b + alphaH
         })
       sharpened.map(C(_)(k.typ))

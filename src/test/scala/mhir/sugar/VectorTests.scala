@@ -165,6 +165,12 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3)())
   }
 
+  test("VecRange") {
+    val v = VecRange(3, C(2)(U8), C(4)(U8))().tchk().lower
+    val expected = VecLiteral(C(2)(U8), C(6)(U8), C(10)(U8))().tchk()
+    assert(mhir.eval.eval(v) == expected)
+  }
+
   test("Map_and_Access") {
     val v0 = VecBuild(C(3)(U8), U8 ::+ (i => i + 1))()
     val v1 = VecMap(v0, U8 ::+ (x => x * x))().tchk()

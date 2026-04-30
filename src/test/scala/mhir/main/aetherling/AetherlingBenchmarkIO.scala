@@ -663,7 +663,7 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
-  private def smallMMMVhdlIO: Map[String, vhdl.PositionalTestIO] = {
+  private def smallMMMVhdlIO: Map[String, vhdl.test.PositionalTestIO] = {
     val n = 4
     val matA = (0 until n).map(i =>
       (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
@@ -700,7 +700,7 @@ object AetherlingBenchmarkIO {
     )
   }
 
-  private def bigMMMVhdlIO: Map[String, vhdl.PositionalTestIO] = {
+  private def bigMMMVhdlIO: Map[String, vhdl.test.PositionalTestIO] = {
     val n = 256
     val matA = (0 until n).map(i =>
       (0 until n).map(j => ((4 * i + j) * (4 * i + j)) % 6)
@@ -839,7 +839,7 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
-  private def matVecIO: Map[String, vhdl.PositionalTestIO] = {
+  private def matVecIO: Map[String, vhdl.test.PositionalTestIO] = {
     Seq(1, 2, 4, 8, 16, 32)
       .map({ par =>
         val io = mhir.main.stored.ProgramIO
@@ -960,7 +960,7 @@ object AetherlingBenchmarkIO {
     * @note
     *   this must be manually updated for each new benchmark.
     */
-  val vhdlIO: Map[String, vhdl.PositionalTestIO] = (
+  val vhdlIO: Map[String, vhdl.test.PositionalTestIO] = (
     mapIO.mapValues(_.toVhdl)
       ++ sumIO.mapValues(_.toVhdl)
       ++ dotIO.mapValues(_.toVhdl)

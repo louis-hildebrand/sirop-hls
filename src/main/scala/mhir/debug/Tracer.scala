@@ -1,7 +1,10 @@
 package mhir.debug
 
+import mhir.canonicalize._
 import mhir.eval._
 import mhir.ir._
+import mhir.sugar.ExprLowering
+import mhir.typecheck._
 
 import scala.annotation.tailrec
 
@@ -14,11 +17,18 @@ object Tracer {
     * for all streams.
     *
     * @param s
-    *   the stream to trace.
+    *   the streaming accelerator to trace.
+    * @param inputs
+    *   the inputs to provide to the accelerator.
     * @return
     *   a summary of the stream state and output at each step.
     */
-  def traceAll(s: Expr, maxCycles: Option[Int] = None): Trace = {
+  def traceAll(
+      s: Expr,
+      handshake: Boolean,
+      inputs: Map[Param, Expr] = Map(),
+      maxCycles: Option[Int] = None
+  ): Trace = {
     @tailrec
     def trace(
         pipe: StmPipeline,
@@ -50,7 +60,14 @@ object Tracer {
       }
     }
 
-    val pipe = StmPipeline(s)
+    val pipe = {
+      val (_, body) = TypeChecker.unwrapTopLevelFunction(s.tchk().lower)
+      StmPipeline(
+        body,
+        inputs.map({ case (x, e) => x -> e.tchk().lower }),
+        handshake = handshake
+      )
+    }
     try {
       Trace(
         structure = pipe.connections,

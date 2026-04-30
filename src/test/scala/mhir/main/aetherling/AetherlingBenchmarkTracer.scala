@@ -2,7 +2,7 @@ package mhir.main.aetherling
 
 import mhir.canonicalize._
 import mhir.debug.{Trace, Tracer, NameSimplifier => NS}
-import mhir.gen.vhdl.DirectTestInput
+import mhir.gen.vhdl.test._
 import mhir.ir._
 import mhir.main.shared.{CompilerOptions, NullTarget}
 import mhir.optimize.OptimizerOptions
@@ -31,10 +31,15 @@ object AetherlingBenchmarkTracer {
       optFlags: OptimizerOptions = OptimizerOptions.all(
         assumeThroughputsMatch = true,
         maxLetStmBufSize = None
-      )
+      ),
+      handshake: Boolean = true
   ): Trace = {
     val stm = makeTraceable(benchName, optFlags)
-    Tracer.traceAll(NS.simplify(stm), maxCycles = maxCycles)
+    Tracer.traceAll(
+      NS.simplify(stm),
+      maxCycles = maxCycles,
+      handshake = handshake
+    )
   }
 
   def makeTraceable(

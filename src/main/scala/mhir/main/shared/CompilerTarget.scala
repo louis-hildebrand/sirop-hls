@@ -9,13 +9,27 @@ sealed trait CompilerTarget
 /** Don't send the program anywhere, just return it.
   *
   * This is useful for test code that invokes [[mhir.main.shared.Compiler]]
-  * directly, but should not be used at the commend line.
+  * directly, but should not be used at the command line.
   */
 object NullTarget extends CompilerTarget
 
 /** Evaluate the program and print its value.
   */
 case class EvalTarget(maxInvalidSteps: Option[Int]) extends CompilerTarget
+
+/** Generate a trace of the given test case.
+  *
+  * @param outDir
+  *   the directory in which to save the trace.
+  * @param testIdx
+  *   the index of the test case to use to get the input streams.
+  */
+case class TraceTarget(outDir: Path, testIdx: Int, overwrite: Boolean)
+    extends CompilerTarget
+
+/** Run the tests in the Sirop file and print the results.
+  */
+object TestTarget extends CompilerTarget
 
 /** Pretty-print the program.
   *
@@ -32,8 +46,11 @@ case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
   * @param overwrite
   *   what to if the output directory already exists. If `true`, then delete the
   *   existing directory. If `false`, throw an exception.
+  * @param runSim
+  *   whether to run VHDL simulation after codegen.
   */
-case class VhdlTarget(outDir: Path, overwrite: Boolean) extends CompilerTarget
+case class VhdlTarget(outDir: Path, overwrite: Boolean, runSim: Boolean)
+    extends CompilerTarget
 
 /** Report the compile time.
   *

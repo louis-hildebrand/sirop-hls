@@ -38,16 +38,19 @@ object Args {
     var input: Option[String] = None
     // Output args
     var vhdlDir: Option[Path] = None
+    var runVhdlSim: Option[Boolean] = None
+    var vhdlFamily: Option[String] = None
+    var vhdlDevice: Option[String] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
     var eval: Boolean = false
+    var traceOutDir: Option[Path] = None
+    var traceTestIdx: Option[Int] = None
+    var runTests: Boolean = false
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
-    var logLevel = Level.DEBUG
-    // VHDL args
-    var vhdlFamily: Option[String] = None
-    var vhdlDevice: Option[String] = None
+    var logLevel = Level.INFO
     // Optimizer args
     var simplifyStmBuild = true
     var inlineLetStm = true
@@ -84,6 +87,24 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
               vhdlDir = Some(Path(dirName, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:run-sim" =>
+          runVhdlSim = Some(true)
+        case "--out:vhdl:family" =>
+          mutArgs.drop(1).headOption match {
+            case Some(family) =>
+              vhdlFamily = Some(family)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:device" =>
+          mutArgs.drop(1).headOption match {
+            case Some(device) =>
+              vhdlDevice = Some(device)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -125,29 +146,39 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:trace" =>
+          mutArgs.drop(1).headOption match {
+            case Some(dirName) =>
+              traceOutDir = Some(Path(dirName, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:trace:test" =>
+          mutArgs.drop(1).headOption match {
+            case Some(num) =>
+              val testIdx =
+                try {
+                  num.toInt
+                } catch {
+                  case _: NumberFormatException =>
+                    throw new BadArgsException(
+                      s"value for ${mutArgs.head} must be an integer (found $num)"
+                    )
+                }
+              traceTestIdx = Some(testIdx)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:test" =>
+          runTests = true
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
-          logLevel = Level.INFO
+          logLevel = Level.WARN
         case "-v" | "--verbose" =>
           logLevel = Level.DEBUG
-        // VHDL args
-        case "--out:vhdl:family" =>
-          mutArgs.drop(1).headOption match {
-            case Some(family) =>
-              vhdlFamily = Some(family)
-              numToDrop = 2
-            case None =>
-              throw new BadArgsException(s"missing value for ${mutArgs.head}")
-          }
-        case "--out:vhdl:device" =>
-          mutArgs.drop(1).headOption match {
-            case Some(device) =>
-              vhdlDevice = Some(device)
-              numToDrop = 2
-            case None =>
-              throw new BadArgsException(s"missing value for ${mutArgs.head}")
-          }
         // Optimizer args
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
@@ -204,12 +235,41 @@ object Args {
         }
         None
       }
-      val vhdlTarget = vhdlDir.map(VhdlTarget(_, overwrite = overwrite))
+      val traceTarget = traceOutDir.map(
+        TraceTarget(
+          _,
+          testIdx = traceTestIdx.getOrElse(0),
+          overwrite = overwrite
+        )
+      )
+      val testTarget = if (runTests) Some(TestTarget) else None
+      val vhdlTarget = vhdlDir match {
+        case Some(vhdlDir) =>
+          Some(
+            VhdlTarget(
+              vhdlDir,
+              overwrite = overwrite,
+              runSim = runVhdlSim.getOrElse(false)
+            )
+          )
+        case None =>
+          if (runVhdlSim.isDefined) {
+            throw new BadArgsException(
+              "--out:vhdl:run-sim is only valid when --out:vhdl is also given"
+            )
+          }
+          None
+      }
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
       val timeReportTarget =
         timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
-      evalTarget.toSet ++ vhdlTarget.toSet ++ ppTarget.toSet ++ timeReportTarget.toSeq
+      (evalTarget.toSet
+        ++ traceTarget.toSet
+        ++ testTarget.toSet
+        ++ vhdlTarget.toSet
+        ++ ppTarget.toSet
+        ++ timeReportTarget.toSet)
     }
     val src: Option[Source] = (sourceLang, input) match {
       case ("sirop", None) =>
@@ -285,24 +345,38 @@ object Args {
          |  --version                     print the compiler version and exit
          |
          |Output Arguments:
-         |  --out:eval                     evaluate the program and print its value
-         |  --out:eval:max-invalid-steps   maximum number of invalid sbuild outputs when
-         |                                 evaluating. A negative value disables the
-         |                                 limit.
-         |  --out:vhdl DIR                 emit VHDL code in the given directory
-         |  --out:pp (FILE|-)              pretty-print the final program to the given
-         |                                 file, or to stdout if argument "-" is given
-         |  --out:ctime FILE               write a report of the compile time to the given
-         |                                 directory
-         |  --overwrite                    what to do if the output file or directory
-         |                                 already exists: if true then delete it, if
-         |                                 false then raise an error
-         |  -q,--quiet                     reduce the number of log messages
-         |  -v,--verbose                   increase the number of log messages
+         |  --out:eval                       evaluate the program and print its value
+         |  --out:eval:max-invalid-steps N   maximum number of invalid sbuild outputs when
+         |                                   evaluating. A negative value disables the
+         |                                   limit.
          |
-         |VHDL Output Arguments:
-         |  --out:vhdl:family   the value for the FAMILY assignment in the .qsf file
-         |  --out:vhdl:device   the value for the DEVICE assignment in the .qsf file
+         |  --out:trace DIR                  generate a trace in the given directory. The
+         |                                   trace shows the state of the accelerator at
+         |                                   each time step.
+         |  --out:trace:test TEST            the zero-based index of the test case from
+         |                                   which to get the inputs to the accelerator
+         |                                   when generating the trace
+         |
+         |  --out:test                       run the tests and print the results
+         |
+         |  --out:vhdl DIR                   emit VHDL code in the given directory
+         |  --out:vhdl:run-sim               run the VHDL testbench after codegen
+         |  --out:vhdl:family                the value for the FAMILY assignment in the
+         |                                   .qsf file
+         |  --out:vhdl:device                the value for the DEVICE assignment in the
+         |                                   .qsf file
+         |
+         |  --out:pp (FILE|-)                pretty-print the final program to the given
+         |                                   file, or to stdout if argument "-" is given
+         |
+         |  --out:ctime FILE                 write a report of the compile time to the given
+         |                                   directory
+         |
+         |  --overwrite                      what to do if the output file or directory
+         |                                   already exists: if true then delete it, if
+         |                                   false then raise an error
+         |  -q,--quiet                       reduce the number of log messages
+         |  -v,--verbose                     increase the number of log messages
          |
          |Optimization Flags:
          |  --opt:no-simplify-sbuild        skip basic sbuild simplifications

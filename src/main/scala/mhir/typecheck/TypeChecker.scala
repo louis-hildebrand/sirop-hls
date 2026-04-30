@@ -618,29 +618,206 @@ trait TypeChecker {
       * accelerator body.
       */
     def tchk()(implicit c: Canonicalizer): Program = {
-      @tailrec
-      def tchk(
-          checkedConstants: Seq[ConstDecl],
-          uncheckedConstants: Seq[ConstDecl]
-      ): Seq[ConstDecl] = {
-        uncheckedConstants match {
-          case Seq() =>
-            checkedConstants
-          case Seq(ConstDecl(x, e), rest @ _*) =>
-            // TODO: Would it be quicker to have the context as a parameter and
-            //       extend it gradually, rather than rebuilding it from scratch
-            //       at each iteration?
-            val context =
-              checkedConstants.map({ case ConstDecl(y, _) => y -> y.typ }).toMap
-            val newE = e.tchk(context)
-            tchk(checkedConstants :+ ConstDecl(x, newE), rest)
-        }
+      val prog1 = this.checkAndEvalConstants()
+      TypeCheckProgram(prog1).checkOthers()
+    }
+
+    private def checkAndEvalConstants()(implicit c: Canonicalizer): Program = {
+      // Type checking and evaluating constants need to be interleaved because
+      // type checking an expression may depend on the value of previous
+      // constants.
+      // For example, the expression
+      //    VecZip(v, [0:u8, 1:u8, 2:u8]v)
+      // is only well-typed if v has length 3.
+      // What if v has length N?
+      // Then we need to know the value of N to determine whether the
+      // expression is well-typed.
+      val (constTypes, constVals, newConstants) = this.prog.constants
+        .foldLeft(Map[Param, Type](), Map[Param, Expr](), Seq[ConstDecl]())({
+          case ((types, values, result), decl) =>
+            val newDecl = TypeChecker.checkAndEvalConst(decl, types, values)
+            (
+              types + (newDecl.x -> newDecl.x.typ),
+              values + (newDecl.x -> newDecl.e),
+              result :+ newDecl
+            )
+        })
+      val (_, _, newTestSuite) = this.prog.test
+        .foldLeft(constTypes, constVals, Seq[TestDecl]())({
+          case ((types, values, result), decl: ConstDecl) =>
+            val newDecl = TypeChecker.checkAndEvalConst(decl, types, values)
+            (
+              types + (newDecl.x -> newDecl.x.typ),
+              values + (newDecl.x -> newDecl.e),
+              result :+ newDecl
+            )
+          case ((types, values, result), a: Assertion) =>
+            (types, values, result :+ a)
+        })
+      Program(newConstants, this.prog.accel, newTestSuite)
+    }
+
+    private def checkOthers()(implicit c: Canonicalizer): Program = {
+      val mainConstTypes = this.prog.constants
+        .map({ case ConstDecl(x, _) => x -> x.typ })
+        .toMap
+      val mainConstVals = this.prog.constants
+        .map({ case ConstDecl(x, e) => x -> e })
+        .toMap
+      val newAccel =
+        this.prog.accel.copy(body = this.prog.accel.body.tchk(mainConstTypes))
+      val (accelInputs, accelOutTyp) = {
+        val (params, body) = TypeChecker.unwrapTopLevelFunction(newAccel.body)
+        assert(body.typ != Missing)
+        (params.toSet, body.typ)
       }
-      val newConstants = tchk(Seq(), this.prog.constants)
-      val context =
-        this.prog.constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
-      val newE = this.prog.e.tchk(context)
-      Program(this.prog.name, this.prog.annotations, newConstants, newE)
+      val (_, _, newTestSuite) =
+        this.prog.test
+          .foldLeft(mainConstTypes, mainConstVals, Seq[TestDecl]())({
+            case ((types, values, result), decl @ ConstDecl(x, e)) =>
+              (types + (x -> x.typ), values + (x -> e), result :+ decl)
+            case ((types, values, result), a: Assertion) =>
+              (
+                types,
+                values,
+                result :+ TypeChecker.check(
+                  a,
+                  types,
+                  values,
+                  accelInputs = accelInputs,
+                  accelOutTyp = accelOutTyp
+                )
+              )
+          })
+      Program(this.prog.constants, newAccel, newTestSuite)
+    }
+  }
+}
+
+object TypeChecker {
+
+  def unwrapTopLevelFunction(f: Expr): (Seq[Param], Expr) = {
+    @tailrec
+    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
+      e match {
+        case Function(x, e) if x.typ == TyTuple() =>
+          // TODO: Why is this case needed again?
+          unwrap(e, inputs)
+        case Function(x, e) => unwrap(e, x +: inputs)
+        case e              => (inputs, e)
+      }
+    }
+    val (inputs, body) = unwrap(f, Seq())
+    (inputs.reverse, body)
+  }
+
+  private def checkAndEvalConst(
+      decl: ConstDecl,
+      constTypes: Map[Param, Type],
+      constVals: Map[Param, Expr]
+  )(implicit c: Canonicalizer): ConstDecl = {
+    val ConstDecl(x, e) = decl
+    val checkedE = e.tchk(constTypes)
+    assert(x.typ != Missing)
+    assert(checkedE.typ == x.typ)
+    val evaluatedE =
+      mhir.eval.eval(checkedE.subPreserveType(constVals.toMap[Expr, Expr]))
+    ConstDecl(x, evaluatedE)
+  }
+
+  private def check(
+      a: Assertion,
+      constTypes: Map[Param, Type],
+      constVals: Map[Param, Expr],
+      accelInputs: Set[Param],
+      accelOutTyp: Type
+  )(implicit c: Canonicalizer): Assertion = {
+    checkInputNames(params = accelInputs, args = a.inputs.keySet)
+    val newIn = a.inputs.map({ case (x, e) =>
+      val newE = e.tchk(constTypes)
+      val newX = x.rebuild(newE.typ).asInstanceOf[Param]
+      newX -> newE
+    })
+    checkInputTypes(
+      params = accelInputs,
+      args = newIn.keySet,
+      constVals
+    )
+    val newOut = a.expectedOutput.tchk(constTypes)
+    if (!newOut.typ.equalsGivenConstants(accelOutTyp, constVals)) {
+      val constNote = listRelevantConstants(constVals, newOut.typ, accelOutTyp)
+      throw new TypeError(
+        "invalid expected output in assertion:" +
+          s" accelerator produces $accelOutTyp but assertion expects ${newOut.typ}$constNote"
+      )
+    }
+    Assertion(newIn, newOut)
+  }
+
+  private def checkInputNames(params: Set[Param], args: Set[Param]): Unit = {
+    val missingInputs = params.diff(args)
+    val missingInputsStr = missingInputs
+      .map(x => s"'${x.name}'")
+      .toSeq
+      .sorted
+      .mkString(", ")
+    val unknownInputs = args.diff(params)
+    val unknownInputsStr = unknownInputs
+      .map(x => s"'${x.name}'")
+      .toSeq
+      .sorted
+      .mkString(", ")
+    if (missingInputs.nonEmpty && unknownInputs.nonEmpty) {
+      throw new TypeError(
+        s"invalid inputs in assertion:"
+          + s" missing argument for $missingInputsStr and unknown parameter $unknownInputsStr"
+      )
+    } else if (missingInputs.nonEmpty) {
+      throw new TypeError(
+        s"invalid inputs in assertion:"
+          + s" missing argument for $missingInputsStr"
+      )
+    } else if (unknownInputs.nonEmpty) {
+      throw new TypeError(
+        s"invalid inputs in assertion:"
+          + s" unknown parameter $unknownInputsStr"
+      )
+    }
+  }
+
+  private def checkInputTypes(
+      params: Set[Param],
+      args: Set[Param],
+      constants: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Unit = {
+    assert(params == args)
+    for ((p, a) <- params.zip(args)) {
+      if (!a.typ.equalsGivenConstants(p.typ, constants)) {
+        val constNote = listRelevantConstants(constants, p.typ, a.typ)
+        throw new TypeError(
+          "invalid inputs in assertion:"
+            + s" parameter '${p.name}' has type ${p.typ} but assertion provides ${a.typ}$constNote"
+        )
+      }
+    }
+  }
+
+  def listRelevantConstants(
+      allConstVals: Map[Param, Expr],
+      types: Type*
+  ): String = {
+    val freeVars = TyTuple(types: _*).freeVars
+    val relevantConstants =
+      allConstVals.keySet.intersect(freeVars)
+    if (relevantConstants.isEmpty) {
+      ""
+    } else {
+      val constList = relevantConstants
+        .map(x => s"${x.name} = ${allConstVals(x)}")
+        .toSeq
+        .sorted
+        .mkString(", ")
+      s" (note that $constList)"
     }
   }
 }

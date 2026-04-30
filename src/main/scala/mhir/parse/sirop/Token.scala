@@ -337,6 +337,28 @@ case class ConstToken(loc: SourcePoint) extends Token {
   */
 object ConstToken extends KeywordCategory("const")
 
+/** The keyword "assert".
+  */
+case class AssertToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = AssertToken
+  override def original: String = "assert"
+}
+
+/** Category of [[AssertToken]].
+  */
+object AssertToken extends KeywordCategory("assert")
+
+/** The keyword "yields".
+  */
+case class YieldsToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = YieldsToken
+  override def original: String = "yields"
+}
+
+/** Category of [[YieldsToken]].
+  */
+object YieldsToken extends KeywordCategory("yields")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.

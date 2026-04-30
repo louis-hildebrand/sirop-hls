@@ -2,7 +2,7 @@ package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.verilog.VerilogTestbenchGenerator
-import mhir.gen.vhdl.VhdlTestbenchGenerator
+import mhir.gen.vhdl.test._
 import os.Path
 
 import scala.sys.exit
@@ -92,7 +92,12 @@ object AetherlingBenchmarkLatencyMeasurement {
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     val proc = os
-      .proc("./src/test/sh/test_vhdl.sh", dir, "-v", s"--time-limit=$TimeLimit")
+      .proc(
+        "./src/main/resources/mhir/gen/vhdl/test_vhdl.sh",
+        dir,
+        "-v",
+        s"--time-limit=$TimeLimit"
+      )
       .call(
         cwd = os.pwd,
         check = false

@@ -193,6 +193,14 @@ sealed trait Type {
       case Missing | _: TyArrow | _: TyStm => false
     }
   }
+
+  def equalsGivenConstants(
+      that: Type,
+      constVals: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Boolean = {
+    val subs = constVals.toMap[Expr, Expr]
+    this.substitute(subs) == that.substitute(subs)
+  }
 }
 
 /** Placeholder type for an expression which has not been type checked.

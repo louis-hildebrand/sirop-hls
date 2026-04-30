@@ -1,0 +1,1 @@
+TestError: VHDL simulation failed. For more details, try running './test_vhdl.sh . -v' in the generated VHDL directory.

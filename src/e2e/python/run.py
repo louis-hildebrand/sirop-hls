@@ -10,8 +10,10 @@ import os
 import subprocess
 import sys
 
-from test_vhdl import is_used_for_vhdl_test, test_vhdl, vhdl_test_exists
 import constants as c
+import test_test as stest
+import test_vhdl as vhdl
+import test_vsim as vsim
 
 
 def look_for_unused_files() -> None:
@@ -27,11 +29,17 @@ def look_for_unused_files() -> None:
         for f in files:
             if f.name.endswith(".sirop"):
                 continue
+            if f.name.endswith(".cliargs.txt"):
+                continue
             if f.name.endswith(".eval.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
                 continue
             if f.name.endswith(".repl.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
                 continue
-            if is_used_for_vhdl_test(f):
+            if vhdl.uses_file(f):
+                continue
+            if stest.uses_file(f):
+                continue
+            if vsim.uses_file(f):
                 continue
             print(f"File {f.relative_to(c.ROOT)} is not used for testing")
             error_count += 1
@@ -48,7 +56,7 @@ def look_for_unused_files() -> None:
         sys.exit(1)
 
 
-def test_eval(eval_output: Path) -> bool:
+def test_eval(eval_output: Path, cli_args: list[str]) -> bool:
     """
     Test that evaluating the program produces the expected output from the given file.
     """
@@ -60,8 +68,7 @@ def test_eval(eval_output: Path) -> bool:
             "java", "-jar", c.JAR.as_posix(),
             "-i", source_path.as_posix(),
             "--out:eval",
-            "--quiet",
-        ],
+        ] + cli_args,
         encoding="utf-8",
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -87,7 +94,7 @@ def test_eval(eval_output: Path) -> bool:
     return True
 
 
-def test_repl(repl_output: Path, compiler_version: str) -> bool:
+def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> bool:
     """
     Test that an interactive session produces the expected output from the given file.
     """
@@ -108,7 +115,7 @@ def test_repl(repl_output: Path, compiler_version: str) -> bool:
                 # No warning is printed in either case.
                 "--illegal-access=deny",
                 "-jar", c.JAR.as_posix()
-            ],
+            ] + cli_args,
             encoding="utf-8",
             stdin=f,
             stdout=subprocess.PIPE,
@@ -138,7 +145,7 @@ def test_repl(repl_output: Path, compiler_version: str) -> bool:
     return True
 
 
-def main(test_sources: list[Path]) -> None:
+def main(test_sources: list[Path], skip_vsim: bool) -> None:
     """
     Script entry point.
     """
@@ -159,19 +166,33 @@ def main(test_sources: list[Path]) -> None:
     error_count = 0
     for test in test_sources:
         ran = False
+        if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
+            cli_args = cli_args_file.read_text(encoding="utf-8").split()
+        else:
+            cli_args = []
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
             ran = True
-            ok = test_eval(eval_output)
+            ok = test_eval(eval_output, cli_args=cli_args)
             if not ok:
                 error_count += 1
         if (repl_output := test.with_suffix(".repl.txt")).is_file():
             ran = True
-            ok = test_repl(repl_output, compiler_version)
+            ok = test_repl(repl_output, compiler_version, cli_args=cli_args)
             if not ok:
                 error_count += 1
-        if vhdl_test_exists(test):
+        if vhdl.can_run(test):
             ran = True
-            ok = test_vhdl(test)
+            ok = vhdl.run(test, cli_args=cli_args)
+            if not ok:
+                error_count += 1
+        if stest.can_run(test):
+            ran = True
+            ok = stest.run(test, cli_args=cli_args)
+            if not ok:
+                error_count += 1
+        if vsim.can_run(test):
+            ran = True
+            ok = skip_vsim or vsim.run(test, cli_args=cli_args)
             if not ok:
                 error_count += 1
         if not ran:
@@ -196,8 +217,13 @@ def _parse_args() -> Namespace:
     parser.add_argument(
         "test_sources",
         nargs="*",
-        help="path of the .sirop files to test",
         type=Path,
+        help="path of the .sirop files to test",
+    )
+    parser.add_argument(
+        "--skip-vsim",
+        action="store_true",
+        help="don't run the tests related to VHDL simulation",
     )
     args = parser.parse_args()
     if not args.test_sources:
@@ -215,4 +241,4 @@ def _parse_args() -> Namespace:
 
 if __name__ == "__main__":
     _args = _parse_args()
-    main(_args.test_sources)
+    main(_args.test_sources, skip_vsim=_args.skip_vsim)

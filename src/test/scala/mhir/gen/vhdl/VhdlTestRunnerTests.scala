@@ -1,7 +1,9 @@
 package mhir.gen.vhdl
 
+import mhir.gen.vhdl.test.VhdlTestRunner
 import mhir.gen.{
   DesignCompileFailed,
+  NoTests,
   SimulationFailed,
   SimulationTimeout,
   TestPassed,
@@ -14,6 +16,17 @@ import org.scalatest.funsuite.AnyFunSuite
   */
 @HardwareTest
 class VhdlTestRunnerTests extends AnyFunSuite {
+
+  test("no-tests-1") {
+    val result = VhdlTestRunner.testExistingProject("examples/no-tests-1")
+    assert(result == NoTests)
+  }
+
+  test("no-tests-2") {
+    val result = VhdlTestRunner.testExistingProject("examples/no-tests-2")
+    assert(result == NoTests)
+  }
+
   test("or-gate") {
     val result = VhdlTestRunner.testExistingProject("examples/or-gate")
     assert(result == TestPassed)

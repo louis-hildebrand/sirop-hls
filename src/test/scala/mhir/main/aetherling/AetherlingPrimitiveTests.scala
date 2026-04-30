@@ -7,7 +7,7 @@ import mhir.gen.verilog.{
   VerilogTestRunner,
   VerilogTestbenchGenerator
 }
-import mhir.gen.vhdl.{VhdlTestRunner, VhdlTestbenchGenerator}
+import mhir.gen.vhdl.test._
 import mhir.logging.time
 import mhir.main.shared.{CompilerOptions, VhdlTarget}
 import mhir.optimize.OptimizerOptions
@@ -46,7 +46,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          targets = Set(VhdlTarget(outDir, overwrite = true)),
+          targets = Set(VhdlTarget(outDir, overwrite = true, runSim = false)),
           optFlags = OptimizerOptions.all(
             assumeThroughputsMatch = true,
             maxLetStmBufSize = None
@@ -72,7 +72,7 @@ class AetherlingPrimitiveTests extends AnyFunSuite {
       val args = Args(
         inFile = inFile,
         options = CompilerOptions(
-          targets = Set(VhdlTarget(outDir, overwrite = true)),
+          targets = Set(VhdlTarget(outDir, overwrite = true, runSim = false)),
           optFlags = OptimizerOptions.Empty
         )
       )

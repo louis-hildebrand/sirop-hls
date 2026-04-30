@@ -1,9 +1,4 @@
 #!/bin/sh
-#
-# An example hook script to verify what is about to be committed.
-# Called by "git commit" with no arguments.  The hook should
-# exit with non-zero status after issuing an appropriate message if
-# it wants to stop the commit.
 
 set -u
 
@@ -58,7 +53,9 @@ sbt 'testQuick * -- -l mhir.testing.HardwareTest -l org.scalatest.tags.Slow' || 
     exit 1
 }
 
-./src/e2e/python/run.py || {
+# I don't want to have to check out the Quartus license for each and every
+# commit, so just skip the vsim-related tests here
+./src/e2e/python/run.py --skip-vsim || {
     echo "End-to-end tests failed."
     exit 1
 }
@@ -73,7 +70,7 @@ fi
 if ! git diff --staged --quiet ./src/e2e/python; then
     cd ./src/e2e/python
     pyright .
-    pylint .
+    pylint . --rcfile ../../test/python/.pylintrc
     cd -
 fi
 

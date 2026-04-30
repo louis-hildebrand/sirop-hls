@@ -1,11 +1,13 @@
-/home/louis/Projects/sirop/src/e2e/resources/actual/Basic/StmMap
+src/e2e/resources/actual/Basic/StmMap
 ├── add5.qpf
 ├── add5.qsf
 ├── add5.sdc
-└── design
-    ├── add5.vhd
-    ├── conversions.vhd
-    ├── sbuild_1.vhd
-    └── typedefs.vhd
+├── design
+│   ├── add5.vhd
+│   ├── conversions.vhd
+│   ├── sbuild_1.vhd
+│   └── typedefs.vhd
+└── test
+    └── test_add5.vhd
 
-1 directory, 7 files
+2 directories, 8 files

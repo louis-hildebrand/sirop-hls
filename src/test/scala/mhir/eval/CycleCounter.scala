@@ -9,7 +9,11 @@ object CycleCounter {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def count(s: Expr, maxCycles: Option[Int] = None): Option[Int] = {
+  def count(
+      s: Expr,
+      handshake: Boolean,
+      maxCycles: Option[Int] = None
+  ): Option[Int] = {
     @tailrec
     def countCycles(
         pipe: StmPipeline,
@@ -44,7 +48,7 @@ object CycleCounter {
       countCycles(newPipe, t + 1, maxCycles)
     }
 
-    val pipe = StmPipeline(s)
+    val pipe = StmPipeline(s, Map(), handshake = handshake)
     try {
       countCycles(pipe, t = 0, maxCycles)
         // Subtract one for the last step, which shows the empty pipeline

@@ -21,7 +21,7 @@ object FlattenPipeline {
       options: VhdlGeneratorOptions
   ): FlatPipeline = {
     validateExpr(f, options)
-    val (inputs, stm) = SemanticAnalyzer.unwrapTopLevelFunction(f)
+    val (inputs, stm) = TypeChecker.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val anfStm = StmAnfConverter.convert(stm)
     val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)
@@ -42,7 +42,7 @@ object FlattenPipeline {
       s"Cannot generate hardware for expression with free variables (${e.freeVars})."
     )
     val (inputs, stm) = e match {
-      case f: Function => SemanticAnalyzer.unwrapTopLevelFunction(f)
+      case f: Function => TypeChecker.unwrapTopLevelFunction(f)
       case e           => (Seq(), e)
     }
     for (x <- inputs) {

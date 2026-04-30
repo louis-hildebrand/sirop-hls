@@ -1,33 +1,35 @@
 package mhir.ir
 
 /** A full program defining a streaming accelerator.
-  *
-  * @param name
-  *   the name of the top-level entity.
-  * @param e
-  *   the expression describing the accelerator.
   */
 case class Program(
-    name: String,
-    annotations: Map[String, Expr],
     constants: Seq[ConstDecl],
-    e: Expr
+    accel: AccelDecl,
+    test: Seq[TestDecl]
 ) {
 
+  /** The expression for the main accelerator.
+    */
+  def body: Expr = this.accel.body
+
+  /** The name of the accelerator.
+    */
+  def name: String = this.accel.name
+
   def outName: Option[String] = {
-    this.annotations.get("out_name").collect({ case x: Param => x.name })
+    this.accel.annotations.get("out_name").collect({ case x: Param => x.name })
   }
 
   def clock: Option[String] = {
-    this.annotations.get("clock").collect({ case x: Param => x.name })
+    this.accel.annotations.get("clock").collect({ case x: Param => x.name })
   }
 
   def reset: Option[String] = {
-    this.annotations.get("reset").collect({ case x: Param => x.name })
+    this.accel.annotations.get("reset").collect({ case x: Param => x.name })
   }
 
   def handshake: Boolean = {
-    !this.annotations.contains("no_handshake")
+    !this.accel.annotations.contains("no_handshake")
   }
 }
 
@@ -35,9 +37,11 @@ case class Program(
   */
 object Program {
 
-  /** Creates a [[Program]] with the default name.
+  /** Creates a [[Program]] with a default name and no other declarations.
     */
-  def apply(e: Expr): Program = Program("top", Map(), Seq(), e)
+  def apply(e: Expr): Program = {
+    Program(Seq(), AccelDecl("top", e, Map()), Seq())
+  }
 
   def checkAnnotation(
       key: String,

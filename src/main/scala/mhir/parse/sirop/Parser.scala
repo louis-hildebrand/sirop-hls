@@ -28,21 +28,68 @@ object Parser {
 
   private def parseProgram(tokens: Seq[Token]): (Program, Seq[Token]) = {
     tokens match {
-      case Seq(tok, _*) if FirstDecl.contains(tok.category) =>
-        parseConstDecls(tokens, Seq())
+      case Seq(tok, _*) if FirstMainDecl.contains(tok.category) =>
+        val (constants, rest1) = parseConstDecls(tokens, Seq())
+        val (accel, rest2) = parseAcceleratorDecl(rest1, constants)
+        val (test, rest3) = parseTestDecls(
+          rest2,
+          constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap,
+          Seq()
+        )
+        val prog = Program(constants, accel, test)
+        (prog, rest3)
       case _ =>
         val (e, rest) = parseExpr(tokens, Map())
         (Program(e), rest)
     }
   }
 
-  private val FirstDecl: Set[TokenCategory] = Set(ConstToken, AcceleratorToken)
+  private val FirstMainDecl: Set[TokenCategory] =
+    Set(ConstToken, AcceleratorToken)
+
+  private val FirstTestDecl: Set[TokenCategory] = Set(ConstToken, AssertToken)
+
+  @tailrec
+  private def parseTestDecls(
+      tokens: Seq[Token],
+      constants: Map[Param, Type],
+      testDecls: Seq[TestDecl]
+  ): (Seq[TestDecl], Seq[Token]) = {
+    tokens match {
+      case Seq(tok, _*) if FirstTestDecl.contains(tok.category) =>
+        val (testDecl, rest1) = parseTestDecl(tokens, constants)
+        val newConstants = testDecl match {
+          case ConstDecl(x, _) =>
+            assert(x.hasType)
+            constants + (x -> x.typ)
+          case _ =>
+            constants
+        }
+        parseTestDecls(rest1, newConstants, testDecls :+ testDecl)
+      case _ =>
+        (testDecls, tokens)
+    }
+  }
+
+  private def parseTestDecl(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (TestDecl, Seq[Token]) = {
+    tokens match {
+      case Seq(_: ConstToken, _*)  => parseConstDecl(tokens, constants)
+      case Seq(_: AssertToken, _*) => parseAssertion(tokens, constants)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"parseTestDecl called with invalid arguments (next token: ${constants.headOption})"
+        )
+    }
+  }
 
   @tailrec
   private def parseConstDecls(
       tokens: Seq[Token],
       constants: Seq[ConstDecl]
-  ): (Program, Seq[Token]) = {
+  ): (Seq[ConstDecl], Seq[Token]) = {
     tokens match {
       case Seq(_: ConstToken, _*) =>
         val (decl, rest) = parseConstDecl(
@@ -51,7 +98,7 @@ object Parser {
         )
         parseConstDecls(rest, constants :+ decl)
       case _ =>
-        parseAcceleratorDecl(tokens, constants)
+        (constants, tokens)
     }
   }
 
@@ -80,7 +127,7 @@ object Parser {
   private def parseAcceleratorDecl(
       tokens: Seq[Token],
       constants: Seq[ConstDecl]
-  ): (Program, Seq[Token]) = {
+  ): (AccelDecl, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing accel_decl")
     val (_, rest1) = expect(AcceleratorToken, tokens)
     val (annotations, rest2) = rest1 match {
@@ -97,7 +144,7 @@ object Parser {
         rest4,
         constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       )
-    (Program(name, annotations, constants, body), rest5)
+    (AccelDecl(name, body, annotations), rest5)
   }
 
   private def parseAcceleratorAnnotations(
@@ -134,6 +181,44 @@ object Parser {
       msg => throw SyntaxError(msg, keyTok.loc)
     )
     ((key, value.getOrElse(True)), rest2)
+  }
+
+  private def parseAssertion(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Assertion, Seq[Token]) = {
+    val (_, rest1) = expect(AssertToken, tokens)
+    val (inputs, rest2) = parseInputSpecs(rest1, constants)
+    val (_, rest3) = expect(YieldsToken, rest2)
+    val (expectedOutput, rest4) = parseExpr(rest3, constants)
+    (Assertion(inputs, expectedOutput), rest4)
+  }
+
+  private def parseInputSpecs(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Map[Param, Expr], Seq[Token]) = {
+    tokens match {
+      case Seq(_: LeftCurlyToken, _: RightCurlyToken, rest @ _*) =>
+        (Map(), rest)
+      case Seq(_: LeftCurlyToken, rest1 @ _*) =>
+        val (IdentToken(x), rest2) = expect(IdentToken, rest1)
+        val (_, rest3) = expect(AssignToken, rest2)
+        var (e, rest4) = parseExpr(rest3, constants)
+        var inputs = Map(Param(x, -1)(Missing) -> e)
+        while (rest4.headOption.exists(_.category == CommaToken)) {
+          val (_, rest5) = expect(CommaToken, rest4)
+          val (IdentToken(x), rest6) = expect(IdentToken, rest5)
+          val (_, rest7) = expect(AssignToken, rest6)
+          val (e, rest8) = parseExpr(rest7, constants)
+          inputs += (Param(x, -1)(Missing) -> e)
+          rest4 = rest8
+        }
+        val (_, rest5) = expect(RightCurlyToken, rest4)
+        (inputs, rest5)
+      case _ =>
+        (Map(), tokens)
+    }
   }
 
   def parseStmt(code: String, constants: Map[Param, Type]): Stmt = {
@@ -696,6 +781,11 @@ object Parser {
         args match {
           case Seq(v1, v2) => VecConcat(v1, v2)()
           case _           => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("VecRange", -1) =>
+        args match {
+          case Seq(n, z, delta) => VecRange(n, z, delta)()
+          case _                => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("VecReverse", -1) =>
         args match {

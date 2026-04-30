@@ -1,8 +1,7 @@
 package mhir.sem
 
 import mhir.ir._
-
-import scala.annotation.tailrec
+import mhir.typecheck.TypeChecker
 
 object SemanticAnalyzer {
 
@@ -12,7 +11,7 @@ object SemanticAnalyzer {
     * This check can be run before lowering.
     */
   def checkNames(prog: Program): Unit = {
-    val (inputs, _) = unwrapTopLevelFunction(prog.e)
+    val (inputs, _) = TypeChecker.unwrapTopLevelFunction(prog.body)
 
     val duplicateInputs =
       inputs.groupBy(x => x).collect({ case (x, Seq(_, _, _*)) => x }).toSeq
@@ -39,28 +38,13 @@ object SemanticAnalyzer {
     */
   def check(prog: Program): Unit = {
     require(
-      !prog.e.hasSyntaxSugar,
+      !prog.body.hasSyntaxSugar,
       "semantic analysis cannot be run before lowering"
     )
 
     if (!prog.handshake) {
-      checkNoHandshake(prog.e)
+      checkNoHandshake(prog.body)
     }
-  }
-
-  def unwrapTopLevelFunction(f: Expr): (Seq[Param], Expr) = {
-    @tailrec
-    def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
-      e match {
-        case Function(x, e) if x.typ == TyTuple() =>
-          // TODO: Why is this case needed again?
-          unwrap(e, inputs)
-        case Function(x, e) => unwrap(e, x +: inputs)
-        case e              => (inputs, e)
-      }
-    }
-    val (inputs, body) = unwrap(f, Seq())
-    (inputs.reverse, body)
   }
 
   private def checkNoHandshake(e: Expr): Unit = {

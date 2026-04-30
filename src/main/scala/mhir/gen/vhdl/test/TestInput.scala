@@ -1,5 +1,6 @@
 package mhir.gen
 package vhdl
+package test
 
 import mhir.canonicalize._
 import mhir.ir._
