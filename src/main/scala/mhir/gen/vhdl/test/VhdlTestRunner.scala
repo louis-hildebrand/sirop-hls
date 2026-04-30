@@ -54,14 +54,15 @@ object VhdlTestRunner {
     val cmdWithTimeout =
       if (timeLimit.isBlank) cmd else s"$cmd --time-limit=$timeLimit"
     cmdWithTimeout.! match {
-      case 0 => TestPassed
-      case 4 => DesignCompileFailed
-      case 5 => TestbenchCompileFailed
-      case 6 => SimulationTimeout
-      case 7 => SimulationFailed
-      case 8 => NoTests
-      case 9 => MissingVsim
-      case _ => UnknownFailure
+      case 0  => TestPassed
+      case 4  => DesignCompileFailed
+      case 5  => TestbenchCompileFailed
+      case 6  => SimulationTimeout
+      case 7  => SimulationFailed
+      case 8  => NoTests
+      case 9  => MissingVsim
+      case 10 => MissingVcom
+      case _  => UnknownFailure
     }
   }
 
