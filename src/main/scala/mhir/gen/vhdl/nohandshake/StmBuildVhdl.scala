@@ -115,7 +115,8 @@ private[vhdl] object StmBuildVhdl {
   private def defaultInPorts(options: VhdlGeneratorOptions): Seq[InPort] = {
     Seq(
       InPort(options.clock, VhdlStdLogic),
-      InPort(options.reset, VhdlStdLogic)
+      InPort(options.reset, VhdlStdLogic),
+      InPort("go", VhdlStdLogic)
     )
   }
 
@@ -213,11 +214,6 @@ private[vhdl] object StmBuildVhdl {
             typ = VhdlType(x.typ),
             init = Some(initVhdl),
             assignStmt = Some({
-              val update =
-                s"""if can_update_acc then
-                 |    ${x.name} <= $nextVhdl;
-                 |end if;
-                 |""".stripMargin.stripTrailing
               val reset = if (shouldReset) {
                 s"""if sl2bool(${options.reset}) then
                  |    ${x.name} <= $initVhdl;
@@ -226,6 +222,11 @@ private[vhdl] object StmBuildVhdl {
               } else {
                 ""
               }
+              val update =
+                s"""if sl2bool(go) then
+                   |    ${x.name} <= $nextVhdl;
+                   |end if;
+                   |""".stripMargin.stripTrailing
               s"$reset$update"
             }),
             cond = Some("true")

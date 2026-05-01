@@ -155,6 +155,11 @@ private[vhdl] case class StmNoOpComponent(bitWidth: Int) extends VhdlComponent {
   val VhdName: String = "stm_nop.vhd"
 }
 
+private[vhdl] case class StartDelayComponent(maxLatency: Int)
+    extends VhdlComponent {
+  val VhdName: String = "start_delay.vhd"
+}
+
 /** The predefined `letstm_buf` component.
   *
   * @param bitWidth
@@ -213,6 +218,8 @@ private[vhdl] case class CustomVhdlComponent(
             "p_valid",
             "p_ready"
           )
+        case _: StartDelayComponent =>
+          Set("clk", "reset", "go")
         case _: LetStmBufComponent =>
           Set(
             "clk",
@@ -319,6 +326,12 @@ private[vhdl] case class CustomVhdlComponent(
           case c: StmNoOpComponent =>
             s"""    $name : entity work.stm_nop
                |            generic map(BIT_WIDTH => ${c.bitWidth})
+               |            port map(
+               |                $assignments);
+               |""".stripMargin.stripTrailing
+          case c: StartDelayComponent =>
+            s"""    $name : entity work.start_delay
+               |            generic map(MAX_LATENCY => ${c.maxLatency})
                |            port map(
                |                $assignments);
                |""".stripMargin.stripTrailing

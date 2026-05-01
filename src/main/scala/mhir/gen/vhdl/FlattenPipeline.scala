@@ -3,16 +3,13 @@ package mhir.gen.vhdl
 import mhir.canonicalize._
 import mhir.gen.CodegenError
 import mhir.ir._
-import mhir.sem._
+import mhir.optimize.{
+  LatencyAnalysis,
+  LatencyLetStm,
+  LatencyNode,
+  LatencyStmBuild
+}
 import mhir.typecheck._
-
-private[vhdl] case class FlatPipeline(
-    sbuilds: Seq[(Param, StmBuild)],
-    lets: Seq[(Param, Int, Set[Param])],
-    inputs: Set[Param],
-    unusedInputs: Set[Param],
-    sink: Param
-)
 
 object FlattenPipeline {
 
@@ -23,8 +20,17 @@ object FlattenPipeline {
     validateExpr(f, options)
     val (inputs, stm) = TypeChecker.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
-    val anfStm = StmAnfConverter.convert(stm)
-    val pipe = listChildren(anfStm, inputs.toSet, unusedInputs)
+    val latency =
+      new LatencyAnalysis(handshake = options.handshake).actualLatency(f)
+    val (sink1, nodes1) = makePipeline(stm, latency)
+    val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
+    val pipe = FlatPipeline(
+      sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
+      lets = nodes2.collect({ case n: LetStmNode => n }),
+      inputs = inputs.toSet,
+      unusedInputs = unusedInputs,
+      sink = sink2
+    )
     ensureAtLeastOneBuffer(pipe)
   }
 
@@ -75,77 +81,146 @@ object FlattenPipeline {
     }
   }
 
-  /** Makes a fresh copy of a given variable for each place it occurs free in
-    * the given expression.
-    *
-    * @example
-    *   `StmZip(s, s)` may be replaced with `StmZip(s1, s2)`, where `s`, `s1`,
-    *   and `s2` are all different from each other.
-    *
-    * @param x
-    *   the variable to freshen.
-    * @param expr
-    *   the expression in which to search for the variable.
-    * @return
-    *   all the fresh copies of the variable, along with the updated expression.
-    */
-  private def makeVariantsOfFreeVar(
-      x: Param,
-      expr: Expr
-  ): (Set[Param], Expr) = {
-    require(expr.hasType)
-    val (xs, newE) = expr match {
-      case y: Param if y == x =>
-        val newX = x.freshCopy
-        (Set(newX), newX)
-      case Function(y, _) if y == x =>
-        (Set[Param](), expr)
-      case LetStm(_, y, _, _) if y == x =>
-        (Set[Param](), expr)
-      case s: StmBuild if s.accVars.contains(x) =>
-        (Set[Param](), expr)
+  private def makePipeline(
+      e: Expr,
+      latency: LatencyNode
+  ): (Param, Seq[PipelineNode]) = {
+    e match {
+      case x: Param =>
+        (x, Seq())
+      case s: StmBuild =>
+        var newEquations = Map[Param, (Expr, Expr)]()
+        var newNodes = Seq[PipelineNode]()
+        assert(
+          latency.isInstanceOf[LatencyStmBuild],
+          s"expression $s does not correspond to latency node $latency"
+        )
+        val lat @ LatencyStmBuild(_, _, producerLatencies) = latency
+        for (eqn <- s.equations) {
+          eqn match {
+            case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
+              val (sink, nodes) = makePipeline(p, producerLatencies(x))
+              newNodes ++= nodes
+              newEquations += x -> (sink, ready)
+            case eqn =>
+              newEquations += eqn
+          }
+        }
+        val newStm = StmBuild(
+          s.n,
+          s.data,
+          s.valid,
+          newEquations
+        )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
+        val x = Param("s")(newStm.typ)
+        (
+          x,
+          newNodes :+ StmBuildNode(x, newStm, inputLatency = lat.inputLatency)
+        )
+      case LetStm(bufSizeExpr, x, in, out) =>
+        assert(
+          latency.isInstanceOf[LatencyLetStm],
+          s"expression $e does not correspond to latency node $latency"
+        )
+        val LatencyLetStm(_, inLat, outLat) = latency
+        val (sinkIn, nodesIn) = makePipeline(in, inLat)
+        val (sinkOut, nodesOut) = makePipeline(out, outLat)
+        val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
+        val newNode = LetStmNode(sinkIn, bufSize.toInt, Set(x))
+        (sinkOut, nodesIn ++ (newNode +: nodesOut))
       case _ =>
-        val (freshVars, newChildren) =
-          expr.children.map(e => makeVariantsOfFreeVar(x, e)).unzip
-        (freshVars.flatten.toSet, expr.rebuild(expr.typ, newChildren))
+        throw new IllegalArgumentException(
+          s"cannot convert non-streaming expression to ANF: $e"
+        )
     }
-    assert(newE.typ == expr.typ)
-    (xs, newE)
   }
 
-  private def listChildren(
-      stm: Expr,
-      inputs: Set[Param],
-      unusedInputs: Set[Param]
-  ): FlatPipeline = {
-    stm match {
-      case LetInlineStm(x, in: StmBuild, out) =>
-        val rest = listChildren(out, inputs, unusedInputs)
-        rest.copy(sbuilds = (x -> in) +: rest.sbuilds)
-      case LetInlineStm(_, in, _) =>
-        // TODO: Proper error message
-        ???
-      case LetStm(bufSizeExpr, x, in: Param, out) =>
-        val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
-        val (xs, newOut) = makeVariantsOfFreeVar(x, out)
-        val rest = listChildren(newOut, inputs, unusedInputs)
-        rest.copy(lets = (in, bufSize.toInt, xs) +: rest.lets)
-      case LetStm(_, _, in, _) =>
-        // TODO: Proper error message
-        ???
-      case x: Param =>
-        FlatPipeline(
-          sbuilds = Seq(),
-          lets = Seq(),
-          inputs = inputs,
-          unusedInputs = unusedInputs,
-          sink = x
-        )
-      case e =>
-        throw new IllegalArgumentException(
-          s"Expected pipeline output to be a variable, but found ${e.getClass.getSimpleName}: $e"
-        )
+  /** Make separate copies of the output variables in [[LetStmNode]], such that
+    * each one is used only once.
+    *
+    * After the initial pipeline construction, you might end up with a pipeline
+    * like
+    * {{{
+    *   Seq(
+    *     LetStmNode(..., out = Set(x)),
+    *     StmBuildNode(s = StmMap(x, ...), out = y),
+    *     StmBuildNode(s = StmZip(x, y), ...)
+    *   )
+    * }}}
+    * (of course, `StmMap` and `StmZip` would actually be lowered to `sbuild`).
+    * Notice how the output `x` from the [[LetStmNode]] is used in two separate
+    * places. We need to replace the pipeline above with something more like
+    * this:
+    * {{{
+    *   Seq(
+    *     LetStmNode(..., out = Set(x_1, x_2)),
+    *     StmBuildNode(s = StmMap(x_1, ...), out = y),
+    *     StmBuildNode(s = StmZip(x_2, y), ...)
+    *   )
+    * }}}
+    */
+  private def deduplicateVars(
+      sink: Param,
+      nodes: Seq[PipelineNode]
+  ): (Param, Seq[PipelineNode]) = {
+    def deduplicateVars(
+        nodes: Seq[PipelineNode],
+        varsToRename: Set[Param]
+    ): (Map[Param, Set[Param]], Param, Seq[PipelineNode]) = {
+      nodes match {
+        case Seq() =>
+          if (varsToRename.contains(sink)) {
+            val newSink = sink.freshCopy
+            (Map(sink -> Set(newSink)), newSink, Seq())
+          } else {
+            (Map(), sink, Seq())
+          }
+        case Seq(StmBuildNode(x, s, latency), rest @ _*) =>
+          var (renamings, newSink, newRest) =
+            deduplicateVars(rest, varsToRename)
+          var newEquations = Map[Param, (Expr, Expr)]()
+          for (eqn <- s.equations) {
+            eqn match {
+              case (x, (p: Param, ready))
+                  if x.typ.isInstanceOf[TyStm] && varsToRename.contains(p) =>
+                val newP = p.freshCopy
+                renamings = renamings +
+                  (p -> (renamings.getOrElse(p, Set()) + newP))
+                newEquations += x -> (newP, ready)
+              case eqn =>
+                newEquations += eqn
+            }
+          }
+          val newStm = StmBuild(
+            s.n,
+            s.data,
+            s.valid,
+            newEquations
+          )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
+          val newNode = StmBuildNode(x, newStm, latency)
+          (renamings, newSink, newNode +: newRest)
+        case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
+          val (renamings, newSink, newRest) =
+            deduplicateVars(rest, varsToRename ++ out)
+          val newOut = out.flatMap(x => renamings.getOrElse(x, Set()))
+          val (newRenamings, newNode) = if (varsToRename.contains(in)) {
+            val newIn = in.freshCopy
+            (
+              renamings + (in -> (renamings.getOrElse(in, Set()) + newIn)),
+              LetStmNode(newIn, bufSize, newOut)
+            )
+          } else {
+            (renamings, LetStmNode(in, bufSize, newOut))
+          }
+          // The variable inside `out` is no longer needed in the renamings
+          // set; it shouldn't appear in any of the nodes that may have come
+          // before this one
+          (newRenamings -- out, newSink, newNode +: newRest)
+      }
     }
+    val (renamings, newSink, newNodes) = deduplicateVars(nodes, Set())
+    assert(renamings.isEmpty)
+    (newSink, newNodes)
   }
 
   private def ensureAtLeastOneBuffer(pipe: FlatPipeline): FlatPipeline = {
@@ -161,7 +236,8 @@ object FlattenPipeline {
           Map[Param, (Expr, Expr)](s -> (pipe.sink, True))
         )().tchk().asInstanceOf[StmBuild]
       }
-      pipe.copy(sbuilds = pipe.sbuilds :+ (newSink, nop), sink = newSink)
+      val newNode = StmBuildNode(newSink, nop, Some(0))
+      pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe
     }

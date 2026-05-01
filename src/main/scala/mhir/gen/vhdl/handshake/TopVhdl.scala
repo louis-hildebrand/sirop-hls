@@ -15,7 +15,7 @@ object TopVhdl {
     val pipe = FlattenPipeline(f, options)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
-        case ((x, s: StmBuild), i) =>
+        case (StmBuildNode(x, s, _), i) =>
           val inputsOfS = s.freeVars
           val component = StmBuildVhdl(
             s,
@@ -42,37 +42,38 @@ object TopVhdl {
           )
           VhdlEntityInstantiation(component.name, component, portMap)
       })
-      val lets = pipe.lets.zipWithIndex.map({ case ((x, bufSize, xs), i) =>
-        val component = LetStmVhdl(
-          x,
-          bufSize,
-          xs.toSeq.sortBy(_.name),
-          name = s"letstm_${i + 1}",
-          options = options
-        )
-        val portMap = PortMap(
-          Map(
-            options.clock -> options.clock,
-            options.reset -> options.reset,
-            // Handshake with consumer
-            s"${x.name}_data" -> s"${x.name}_data",
-            s"${x.name}_valid" -> s"${x.name}_valid",
-            s"${x.name}_ready" -> s"${x.name}_ready"
-          ) ++ xs.flatMap({ x =>
-            // Handshake with producers
+      val lets = pipe.lets.zipWithIndex.map({
+        case (LetStmNode(x, bufSize, xs), i) =>
+          val component = LetStmVhdl(
+            x,
+            bufSize,
+            xs.toSeq.sortBy(_.name),
+            name = s"letstm_${i + 1}",
+            options = options
+          )
+          val portMap = PortMap(
             Map(
+              options.clock -> options.clock,
+              options.reset -> options.reset,
+              // Handshake with consumer
               s"${x.name}_data" -> s"${x.name}_data",
               s"${x.name}_valid" -> s"${x.name}_valid",
               s"${x.name}_ready" -> s"${x.name}_ready"
-            )
-          })
-        )
-        VhdlEntityInstantiation(component.name, component, portMap)
+            ) ++ xs.flatMap({ x =>
+              // Handshake with producers
+              Map(
+                s"${x.name}_data" -> s"${x.name}_data",
+                s"${x.name}_valid" -> s"${x.name}_valid",
+                s"${x.name}_ready" -> s"${x.name}_ready"
+              )
+            })
+          )
+          VhdlEntityInstantiation(component.name, component, portMap)
       })
       sbuilds ++ lets
     }
     val signals = {
-      val sbuildOutputs = pipe.sbuilds.flatMap({ case (x, _) =>
+      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _, _) =>
         Seq(
           Signal(
             category = "",
@@ -96,7 +97,7 @@ object TopVhdl {
           )
         )
       })
-      val letOutputs = pipe.lets.flatMap({ case (_, _, xs) =>
+      val letOutputs = pipe.lets.flatMap({ case LetStmNode(_, _, xs) =>
         xs.flatMap({ x =>
           Seq(
             Signal(

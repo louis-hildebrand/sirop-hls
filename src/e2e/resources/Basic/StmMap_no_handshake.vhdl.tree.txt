@@ -6,6 +6,7 @@ src/e2e/resources/actual/Basic/StmMap_no_handshake
     ├── add5.vhd
     ├── conversions.vhd
     ├── sbuild_1.vhd
+    ├── start_delay.vhd
     └── typedefs.vhd
 
-1 directory, 7 files
+1 directory, 8 files
