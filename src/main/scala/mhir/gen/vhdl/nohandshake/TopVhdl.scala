@@ -14,7 +14,7 @@ object TopVhdl {
   def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
     require(!options.handshake)
     val pipe = FlattenPipeline(f, options)
-    for ((_, bufSize, _) <- pipe.lets) {
+    for (LetStmNode(_, bufSize, _) <- pipe.lets) {
       if (bufSize != 0) {
         throw CodegenError(
           s"cannot generate letstm with a nonzero buffer size ($bufSize) when the handshake protocol is disabled"
@@ -28,7 +28,7 @@ object TopVhdl {
       )
     }
     val childComponents = pipe.sbuilds.zipWithIndex.map({
-      case ((x, s: StmBuild), i) =>
+      case (StmBuildNode(x, s), i) =>
         val inputsOfS = s.freeVars
         val component = StmBuildVhdl(
           s,
@@ -46,7 +46,7 @@ object TopVhdl {
         VhdlEntityInstantiation(component.name, component, portMap)
     })
     val signals = {
-      val sbuildOutputs = pipe.sbuilds.flatMap({ case (x, _) =>
+      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>
         Seq(
           Signal(
             category = "sbuild outputs",
@@ -55,7 +55,7 @@ object TopVhdl {
           )
         )
       })
-      val letOutputs = pipe.lets.flatMap({ case (in, _, xs) =>
+      val letOutputs = pipe.lets.flatMap({ case LetStmNode(in, _, xs) =>
         xs.flatMap({ x =>
           Seq(
             Signal(

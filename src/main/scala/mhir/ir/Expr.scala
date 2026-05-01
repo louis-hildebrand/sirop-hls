@@ -172,6 +172,9 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
     Param(this.prefix, this.id)(typ)
   }
 
+  /** Create a new variable with the same prefix as this one, but with a fresh
+    * ID.
+    */
   def freshCopy: Param = Param(this.prefix)(this.typ)
 
   override def toString: String = name
