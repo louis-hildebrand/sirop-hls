@@ -3,6 +3,12 @@ package mhir.gen.vhdl
 import mhir.canonicalize._
 import mhir.gen.CodegenError
 import mhir.ir._
+import mhir.optimize.{
+  LatencyAnalysis,
+  LatencyLetStm,
+  LatencyNode,
+  LatencyStmBuild
+}
 import mhir.typecheck._
 
 object FlattenPipeline {
@@ -14,7 +20,9 @@ object FlattenPipeline {
     validateExpr(f, options)
     val (inputs, stm) = TypeChecker.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
-    val (sink1, nodes1) = makePipeline(stm)
+    val latency =
+      new LatencyAnalysis(handshake = options.handshake).actualLatency(f)
+    val (sink1, nodes1) = makePipeline(stm, latency)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
     val pipe = FlatPipeline(
       sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
@@ -73,16 +81,25 @@ object FlattenPipeline {
     }
   }
 
-  private def makePipeline(e: Expr): (Param, Seq[PipelineNode]) = {
+  private def makePipeline(
+      e: Expr,
+      latency: LatencyNode
+  ): (Param, Seq[PipelineNode]) = {
     e match {
-      case x: Param => (x, Seq())
+      case x: Param =>
+        (x, Seq())
       case s: StmBuild =>
         var newEquations = Map[Param, (Expr, Expr)]()
         var newNodes = Seq[PipelineNode]()
+        assert(
+          latency.isInstanceOf[LatencyStmBuild],
+          s"expression $s does not correspond to latency node $latency"
+        )
+        val lat @ LatencyStmBuild(_, _, producerLatencies) = latency
         for (eqn <- s.equations) {
           eqn match {
             case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
-              val (sink, nodes) = makePipeline(p)
+              val (sink, nodes) = makePipeline(p, producerLatencies(x))
               newNodes ++= nodes
               newEquations += x -> (sink, ready)
             case eqn =>
@@ -96,10 +113,18 @@ object FlattenPipeline {
           newEquations
         )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
         val x = Param("s")(newStm.typ)
-        (x, newNodes :+ StmBuildNode(x, newStm))
+        (
+          x,
+          newNodes :+ StmBuildNode(x, newStm, inputLatency = lat.inputLatency)
+        )
       case LetStm(bufSizeExpr, x, in, out) =>
-        val (sinkIn, nodesIn) = makePipeline(in)
-        val (sinkOut, nodesOut) = makePipeline(out)
+        assert(
+          latency.isInstanceOf[LatencyLetStm],
+          s"expression $e does not correspond to latency node $latency"
+        )
+        val LatencyLetStm(_, inLat, outLat) = latency
+        val (sinkIn, nodesIn) = makePipeline(in, inLat)
+        val (sinkOut, nodesOut) = makePipeline(out, outLat)
         val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
         val newNode = LetStmNode(sinkIn, bufSize.toInt, Set(x))
         (sinkOut, nodesIn ++ (newNode +: nodesOut))
@@ -150,7 +175,7 @@ object FlattenPipeline {
           } else {
             (Map(), sink, Seq())
           }
-        case Seq(StmBuildNode(x, s), rest @ _*) =>
+        case Seq(StmBuildNode(x, s, latency), rest @ _*) =>
           var (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename)
           var newEquations = Map[Param, (Expr, Expr)]()
@@ -172,7 +197,7 @@ object FlattenPipeline {
             s.valid,
             newEquations
           )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
-          val newNode = StmBuildNode(x, newStm)
+          val newNode = StmBuildNode(x, newStm, latency)
           (renamings, newSink, newNode +: newRest)
         case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
           val (renamings, newSink, newRest) =
@@ -211,7 +236,7 @@ object FlattenPipeline {
           Map[Param, (Expr, Expr)](s -> (pipe.sink, True))
         )().tchk().asInstanceOf[StmBuild]
       }
-      val newNode = StmBuildNode(newSink, nop)
+      val newNode = StmBuildNode(newSink, nop, Some(0))
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe

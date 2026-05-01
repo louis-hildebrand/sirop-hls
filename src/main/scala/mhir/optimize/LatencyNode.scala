@@ -12,7 +12,15 @@ case class LatencyStmBuild(
     latency: Option[Int],
     selfLatency: Option[Int],
     producers: Map[Param, LatencyNode]
-) extends LatencyNode
+) extends LatencyNode {
+
+  def inputLatency: Option[Int] = {
+    this.latency
+      .zip(this.selfLatency)
+      .map({ case (out, self) => out - self })
+      .headOption
+  }
+}
 
 case class LatencyLetStm(
     latency: Option[Int],

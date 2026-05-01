@@ -2,10 +2,11 @@ src/e2e/resources/actual/Basic/custom_ports_no_handshake
 ├── design
 │   ├── conversions.vhd
 │   ├── sbuild_1.vhd
+│   ├── start_delay.vhd
 │   ├── times3.vhd
 │   └── typedefs.vhd
 ├── times3.qpf
 ├── times3.qsf
 └── times3.sdc
 
-1 directory, 7 files
+1 directory, 8 files

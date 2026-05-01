@@ -15,7 +15,7 @@ object TopVhdl {
     val pipe = FlattenPipeline(f, options)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
-        case (StmBuildNode(x, s), i) =>
+        case (StmBuildNode(x, s, _), i) =>
           val inputsOfS = s.freeVars
           val component = StmBuildVhdl(
             s,
@@ -73,7 +73,7 @@ object TopVhdl {
       sbuilds ++ lets
     }
     val signals = {
-      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>
+      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _, _) =>
         Seq(
           Signal(
             category = "",

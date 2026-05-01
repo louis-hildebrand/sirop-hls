@@ -183,6 +183,11 @@ object VhdlWriter {
     c match {
       case c: StmNoOpComponent =>
         Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
+      case StartDelayComponent(maxLatency) =>
+        Set(
+          VhdlStdLogic,
+          VhdlStdLogicVec(n = 1 + maxLatency, direction = IndexUp)
+        )
       case c: LetStmBufComponent =>
         Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
       case c: CustomVhdlComponent =>
@@ -213,6 +218,11 @@ object VhdlWriter {
   ): Unit = {
     c match {
       case c: StmNoOpComponent =>
+        os.write.over(
+          dir / c.VhdName,
+          Source.fromResource(s"mhir/gen/vhdl/${c.VhdName}").mkString
+        )
+      case c: StartDelayComponent =>
         os.write.over(
           dir / c.VhdName,
           Source.fromResource(s"mhir/gen/vhdl/${c.VhdName}").mkString

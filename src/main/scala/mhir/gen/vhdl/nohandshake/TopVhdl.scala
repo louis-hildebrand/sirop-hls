@@ -27,8 +27,19 @@ object TopVhdl {
         s"'$name' cannot be used as an input stream name, since it is also used for the output stream"
       )
     }
-    val childComponents = pipe.sbuilds.zipWithIndex.map({
-      case (StmBuildNode(x, s), i) =>
+    val maxLatency =
+      pipe.sbuilds
+        .map({ case StmBuildNode(_, _, lat) => lat.getOrElse(0) })
+        .max
+    val startDelayInstantiation = {
+      val component = StartDelayComponent(maxLatency = maxLatency)
+      val portMap = PortMap(
+        Map("clk" -> options.clock, "reset" -> options.reset, "go" -> "go")
+      )
+      VhdlEntityInstantiation("start_delay", component, portMap)
+    }
+    val childComponents = startDelayInstantiation +:
+      pipe.sbuilds.zipWithIndex.map({ case (StmBuildNode(x, s, latency), i) =>
         val inputsOfS = s.freeVars
         val component = StmBuildVhdl(
           s,
@@ -36,17 +47,25 @@ object TopVhdl {
           name = s"sbuild_${i + 1}",
           options = options
         )
+        val latencyVal = latency match {
+          case Some(lat) => lat
+          case None =>
+            throw new IllegalArgumentException(
+              s"missing latency for sbuild node"
+            )
+        }
         val portMap = PortMap(
           Map(
             options.clock -> options.clock,
             options.reset -> options.reset,
-            "data" -> x.name
+            "data" -> x.name,
+            "go" -> s"go($latencyVal)"
           ) ++ inputsOfS.map(x => x.name -> x.name)
         )
         VhdlEntityInstantiation(component.name, component, portMap)
-    })
+      })
     val signals = {
-      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>
+      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _, _) =>
         Seq(
           Signal(
             category = "sbuild outputs",
@@ -67,7 +86,12 @@ object TopVhdl {
           )
         })
       })
-      sbuildOutputs ++ letOutputs
+      val go = Signal(
+        category = "start delay",
+        name = "go",
+        typ = VhdlStdLogicVec(n = 1 + maxLatency, direction = IndexUp)
+      )
+      go +: (sbuildOutputs ++ letOutputs)
     }
     val ports = {
       val TyStm(outElemTyp, _) = pipe.sink.typ

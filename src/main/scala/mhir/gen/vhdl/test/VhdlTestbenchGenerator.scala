@@ -187,15 +187,7 @@ object VhdlTestbenchGenerator {
       })
       .mkString("\n\n")
     val testProcedureCalls = io.tests.indices
-      .map({ i =>
-        s"""    wait until falling_edge(clk);
-           |    reset <= '1';
-           |    wait until falling_edge(clk);
-           |    reset <= '0';
-           |
-           |    run_test_$i;
-           |""".stripMargin.stripTrailing
-      })
+      .map(i => s"run_test_$i;")
       .mkString("\n\n")
     val mainTestProcess =
       s"""main : process
@@ -421,7 +413,11 @@ object VhdlTestbenchGenerator {
     }
     s"""procedure run_test_$testIdx is
        |begin
+       |    wait until falling_edge(clk);
+       |    reset <= '1';
        |    test_${testIdx}_start <= true;
+       |    wait until falling_edge(clk);
+       |    reset <= '0';
        |    wait until $allInputsDone and test_${testIdx}_outputs_done;
        |    report "Test $testIdx done." severity note;
        |end procedure run_test_$testIdx;
@@ -690,7 +686,7 @@ object VhdlTestbenchGenerator {
       """-- If the consumer is not ready, the producer must keep working until
         |-- it has a valid value and then it must wait
         |ready <= '0';
-        |wait until rising_edge(clk) and valid = '1';
+        |wait until rising_edge(clk) and reset = '0' and valid = '1';
         |wait until rising_edge(clk);
         |assert(valid = '1') report "Design dropped its valid signal.";
         |""".stripMargin.stripTrailing
@@ -749,7 +745,7 @@ object VhdlTestbenchGenerator {
       """-- If the consumer is not ready, the producer must keep working until
         |-- it has a valid value and then it must wait
         |ready <= '0';
-        |wait until rising_edge(clk) and valid = '1';
+        |wait until rising_edge(clk) and reset = '0' and valid = '1';
         |wait until rising_edge(clk);
         |assert(valid = '1') report "Design dropped its valid signal.";
         |""".stripMargin.stripTrailing
