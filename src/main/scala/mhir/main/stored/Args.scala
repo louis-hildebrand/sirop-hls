@@ -1,13 +1,12 @@
 package mhir.main.stored
 
-import mhir.ir.Expr
-import mhir.main.shared.{BadArgsException, CompilerOptions, HelpException}
+import mhir.main.shared.CompilerOptions
 
 /** Parsed command-line options.
   *
   * @param program
-  *   the expression to compile.
+  *   the name of the program to compile.
   * @param options
   *   compiler options.
   */
-case class Args(program: Expr, options: CompilerOptions)
+case class Args(program: String, options: CompilerOptions)

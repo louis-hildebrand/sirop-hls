@@ -3,7 +3,6 @@ package mhir.main
 import ch.qos.logback.classic.Level
 import mhir.gen.vhdl.VhdlGeneratorOptions
 import mhir.main.shared._
-import mhir.main.stored.Program
 import mhir.optimize.OptimizerOptions
 import os.Path
 
@@ -279,7 +278,7 @@ object Args {
       case ("aetherling", Some(f)) =>
         Some(AetherlingSource(Path(f, base = os.pwd)))
       case ("stored", Some(progName)) =>
-        Some(StoredSource(Program(progName)))
+        Some(StoredSource(progName))
       case (lang @ ("aetherling" | "stored"), None) =>
         throw new BadArgsException(
           s"REPL is not available for language '$lang'"

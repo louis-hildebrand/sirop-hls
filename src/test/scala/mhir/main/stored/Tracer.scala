@@ -31,7 +31,7 @@ object Tracer {
   ): Trace = {
     val io = ProgramIO(s"${progName}_")
     val args = Args(
-      program = Program(progName),
+      program = progName,
       options = CompilerOptions(
         targets = Set(NullTarget),
         optFlags = optFlags

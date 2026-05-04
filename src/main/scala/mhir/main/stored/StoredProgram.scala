@@ -2,64 +2,47 @@ package mhir.main.stored
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.main.shared.BadArgsException
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
 
+import scala.annotation.tailrec
 import scala.io.Source
 
 /** A collection of pre-written programs.
   */
-object Program {
+object StoredProgram {
 
   private val MatVecSize: Int = 256
 
-  def apply(name: String): Expr = {
+  @tailrec
+  def apply(name: String): Program = {
     name.toLowerCase match {
-      case "map"         => Parser.parse(getSource("map.sirop")).body
-      case "shir:map"    => Parser.parse(getSource("map.sirop")).body
-      case "dot"         => Parser.parse(getSource("dot.sirop")).body
-      case "shir:dot"    => Parser.parse(getSource("dot.sirop")).body
-      case "matvec"      => Parser.parse(getSource("matvec.sirop")).body
-      case "shir:matvec" => Parser.parse(getSource("matvec.sirop")).body
-      case "smallmatmat" => Parser.parse(getSource("small_matmat.sirop")).body
-      case "shir:smallmatmat" =>
-        Parser.parse(getSource("small_matmat.sirop")).body
-      case "matmat"             => Parser.parse(getSource("matmat.sirop")).body
-      case "shir:matmat"        => Parser.parse(getSource("matmat.sirop")).body
-      case "conv1d"             => Parser.parse(getSource("conv1d.sirop")).body
-      case "shir:conv1d"        => Parser.parse(getSource("conv1d.sirop")).body
-      case "conv2d"             => Parser.parse(getSource("conv2d.sirop")).body
-      case "shir:conv2d"        => Parser.parse(getSource("conv2d.sirop")).body
-      case "aetherling:conv2d"  => AetherlingConv2d
-      case "convb2b"            => Parser.parse(getSource("convb2b.sirop")).body
-      case "shir:convb2b"       => Parser.parse(getSource("convb2b.sirop")).body
-      case "aetherling:convb2b" => AetherlingConvB2b
-      case "jacobi"             => Parser.parse(getSource("jacobi.sirop")).body
-      case "shir:jacobi"        => Parser.parse(getSource("jacobi.sirop")).body
-      case "sharpen"            => Parser.parse(getSource("sharpen.sirop")).body
-      case "shir:sharpen"       => Parser.parse(getSource("sharpen.sirop")).body
-      case "aetherling:sharpen" => AetherlingSharpen
-      case "sobel"              => Parser.parse(getSource("sobel.sirop")).body
-      case "shir:sobel"         => Parser.parse(getSource("sobel.sirop")).body
-      case "aetherling:sobel"   => AetherlingSobel
-      case "camera"             => Parser.parse(getSource("camera.sirop")).body
-      case "shir:camera"        => Parser.parse(getSource("camera.sirop")).body
-      case "aetherling:camera"  => AetherlingCamera
+      case "aetherling:conv2d"  => Program(AetherlingConv2d)
+      case "aetherling:convb2b" => Program(AetherlingConvB2b)
+      case "aetherling:sharpen" => Program(AetherlingSharpen)
+      case "aetherling:sobel"   => Program(AetherlingSobel)
+      case "aetherling:camera"  => Program(AetherlingCamera)
       case str if str.startsWith("matvec_") =>
         val parStr = str.substring("matvec_".length)
         val par = parStr.toInt
-        MatVecMul(
-          width = MatVecSize,
-          height = MatVecSize,
-          par = par,
-          uint = U16
+        Program(
+          MatVecMul(
+            width = MatVecSize,
+            height = MatVecSize,
+            par = par,
+            uint = U16
+          )
         )
-      case "sqrt" => Sqrt
+      case "sqrt" => Program(Sqrt)
+      case name if name.startsWith("shir:") =>
+        StoredProgram(name.substring("shir:".length))
+      case name if !name.endsWith(".sirop") =>
+        StoredProgram(s"$name.sirop")
       case name =>
-        throw new BadArgsException(s"unknown program: $name")
+        assert(name.endsWith(".sirop"))
+        Parser.parse(getSource(name))
     }
   }
 
