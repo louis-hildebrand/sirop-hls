@@ -4,7 +4,7 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.out</target>
         <encoder>
-            <pattern>[%highlight(%-5level)] %msg%n</pattern>
+            <pattern>[%-5level] %msg%n</pattern>
         </encoder>
         <!-- Send only TRACE, DEBUG, and INFO messages to stdout -->
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -31,7 +31,7 @@
     <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.err</target>
         <encoder>
-            <pattern>[%highlight(%-5level)] %msg%n</pattern>
+            <pattern>[%-5level] %msg%n</pattern>
         </encoder>
         <!-- Send warnings and errors to stderr -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
