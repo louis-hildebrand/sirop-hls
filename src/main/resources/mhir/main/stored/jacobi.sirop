@@ -1,17 +1,15 @@
-(I: Stm[Stm[u8, 128], 1024]) =>
-    let windows = StmSlide2D(I, 3, 3) in
-    StmMap(
-        windows,
-        (row) =>
-            StmMap(
-                row,
-                (window: Vec[Vec[u8, 3], 3]) => {
-                    truncate8(
-                        (pad10(window[0][1])
-                            + pad10(window[1][0])
-                            + pad10(window[1][2])
-                            + pad10(window[2][1])) >>> 2
-                    )
-                }
+accelerator
+top = (I: Stm[Stm[u8, 128], 1024]) =>
+    I
+    .StmSlide2D(3, 3)
+    .StmMap( (row) =>
+        row
+        .StmMap( (window: Vec[Vec[u8, 3], 3]) =>
+            truncate8(
+                (pad10(window[0][1])
+                    + pad10(window[1][0])
+                    + pad10(window[1][2])
+                    + pad10(window[2][1])) >>> 2
             )
+        )
     )

@@ -1,38 +1,38 @@
-let kernel1 = [
+const KERNEL1: Vec[Vec[u32, 3], 3] = [
     [1:u32, 2:u32, 1:u32]v,
     [2:u32, 4:u32, 2:u32]v,
     [1:u32, 2:u32, 1:u32]v
-]v in
-let kernel2 = [
+]v
+const KERNEL2: Vec[Vec[u32, 2], 2] = [
     [1:u32, 2:u32]v,
     [4:u32, 1:u32]v
-]v in
-(I: Stm[Stm[u32, 1920], 1080]) =>
-    let step1 = StmMap(
-        StmSlide2D(I, 3, 3),
-        (row) =>
-            StmMap(
-                row,
-                (window: Vec[Vec[u32, 3], 3]) => {
-                    let zipped = VecZip(VecJoin(window), VecJoin(kernel1)) in
-                    let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                    let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-                    sum >>> 4
-                }
-            )
-    ) in
-    let step2 = StmMap(
-        StmSlide2D(step1, 2, 2),
-        (row) =>
-            StmMap(
-                row,
-                (window: Vec[Vec[u32, 2], 2]) => {
-                    let zipped = VecZip(VecJoin(window), VecJoin(kernel2)) in
-                    let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                    let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-                    sum >>> 3
+]v
 
-                }
+accelerator
+top = (I: Stm[Stm[u32, 1920], 1080]) =>
+    let step1 =
+        I
+        .StmSlide2D(3, 3)
+        .StmMap( (row) =>
+            row
+            .StmMap( (window: Vec[Vec[u32, 3], 3]) =>
+                let zipped = VecZip(VecJoin(window), VecJoin(KERNEL1)) in
+                let products = VecMap(zipped, (x) => x.0 *% x.1) in
+                let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                sum >>> 4
             )
-    ) in
+        )
+    in
+    let step2 =
+        StmSlide2D(step1, 2, 2)
+        .StmMap( (row) =>
+            row
+            .StmMap( (window: Vec[Vec[u32, 2], 2]) =>
+                let zipped = VecZip(VecJoin(window), VecJoin(KERNEL2)) in
+                let products = VecMap(zipped, (x) => x.0 *% x.1) in
+                let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                sum >>> 3
+            )
+        )
+    in
     step2

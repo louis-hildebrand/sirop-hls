@@ -1,14 +1,11 @@
-(mat : Stm[Stm[u16, 256], 256]) =>
-(vec :     Stm[u16, 256]      ) =>
-    StmMap(
-        mat,
-        (row : Stm[u16, 256]) =>
-            /* dot(row, vec) */
-            StmReduce(
-                StmMap(
-                    StmZip(row, vec),
-                    (x : (u16, u16)) => x.0 * x.1
-                ),
-                (x : (u16, u16)) => x.0 + x.1
-            )
+accelerator
+top = (I0 : Stm[Stm[u16, 256], 256]) =>
+      (I1 :     Stm[u16, 256]      ) =>
+    let mat = I0 in
+    let vec = I1 in
+    mat.StmMap( (row: Stm[u16, 256]) =>
+        /* dot(row, vec) */
+        StmZip(row, vec)
+        .StmMap( (x) => x.0 *% x.1)
+        .StmReduce( (x) => x.0 +% x.1 )
     )

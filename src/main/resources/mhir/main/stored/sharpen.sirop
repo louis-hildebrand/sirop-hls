@@ -1,36 +1,32 @@
-(I: Stm[Stm[u32, 1920], 1080]) =>
-    let windows = StmSlide2D(I, 3, 3) in
-    let blurred_and_cropped = StmMap(
-        windows,
-        (x) =>
-            StmMap(
-                x,
-                (window) => {
-                    let blurred = {
-                        let kernel = VecJoin([
-                            [1:u32, 2:u32, 1:u32]v,
-                            [2:u32, 4:u32, 2:u32]v,
-                            [1:u32, 2:u32, 1:u32]v
-                        ]v) in
-                        let flat_window = VecJoin(window) in
-                        let zipped = VecZip(flat_window, kernel) in
-                        let products = VecMap(zipped, (x) => x.0 * x.1) in
-                        let sum = VecReduce(products, (x) => x.0 + x.1)[0] in
-                        sum >>> 4
-                    } in
-                    let cropped = window[1][1] in
-                    (blurred, cropped)
-                }
-            )
-    ) in
-    StmMap(
-        blurred_and_cropped,
-        (x) => StmMap(
-            x,
-            (ab) =>
-                let a = ab.0 in
-                let b = ab.1 in
-                let alpha = (b -% a) >>> 2 in
-                b + alpha
+const KERNEL: Vec[Vec[u32, 3], 3] = [
+    [1:u32, 2:u32, 1:u32]v,
+    [2:u32, 4:u32, 2:u32]v,
+    [1:u32, 2:u32, 1:u32]v
+]v
+
+accelerator
+top = (I: Stm[Stm[u32, 1920], 1080]) =>
+    I
+    .StmSlide2D(3, 3)
+    .StmMap( (row) =>
+        row
+        .StmMap( (window) =>
+            let blurred = {
+                let zipped = VecZip(VecJoin(window), VecJoin(KERNEL)) in
+                let products = VecMap(zipped, (x) => x.0 * x.1) in
+                let sum = VecReduce(products, (x) => x.0 + x.1)[0] in
+                sum >>> 4
+            } in
+            let cropped = window[1][1] in
+            (blurred, cropped)
+        )
+    )
+    .StmMap( (row) =>
+        row
+        .StmMap( (ab) =>
+            let a = ab.0 in
+            let b = ab.1 in
+            let alpha = (b -% a) >>> 2 in
+            b + alpha
         )
     )

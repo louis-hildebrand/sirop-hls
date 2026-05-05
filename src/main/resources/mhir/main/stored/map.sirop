@@ -1,1 +1,2 @@
-(I : Stm[u8, 200]) => StmMap(I, (x: u8) => x +% 5:u8)
+accelerator
+top = (I: Stm[u8, 200]) => I.StmMap( (x: u8) => x +% 5:u8 )

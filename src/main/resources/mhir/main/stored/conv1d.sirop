@@ -1,12 +1,11 @@
-let kernel = [-1:i8, 0:i8, 1:i8]v in
-(I: Stm[i8, 16]) =>
-    let windows = StmSlide(I, 3) in
-    StmMap(
-        windows,
-        (window: Vec[i8, 3]) => {
-            let zipped = VecZip(window, kernel) in
-            let products = VecMap(zipped, (x) => x.0 *% x.1) in
-            let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
-            sum
-        }
+const KERNEL: Vec[i8, 3] = [-1:i8, 0:i8, 1:i8]v
+
+accelerator
+top = (I: Stm[i8, 16]) =>
+    I
+    .StmSlide(3)
+    .StmMap( (window: Vec[i8, 3]) =>
+        VecZip(window, KERNEL)
+        .VecMap( (x) => x.0 *% x.1 )
+        .VecReduce( (x) => x.0 +% x.1 )[0]
     )

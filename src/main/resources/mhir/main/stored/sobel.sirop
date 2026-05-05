@@ -1,35 +1,36 @@
-let sqrt = (s: Stm[i32, 2_067_604]) => {
-    let step = (x: (i32, i32, i32) ) => {
-        let n = x.0 in
-        let lo = x.1 in
-        let hi = x.2 in
-        let mid = (1:i32 + lo + hi) >>> 1 in
-        if (mid*mid <= n) then {
-            (n, mid, hi)
-        } else {
-            (n, lo, mid -% 1:i32)
-        }
+accelerator
+top = (I: Stm[Stm[i32, 1920], 1080]) =>
+    let sqrt = (s: Stm[i32, 2_067_604]) => {
+        let step = (x: (i32, i32, i32) ) => {
+            let n = x.0 in
+            let lo = x.1 in
+            let hi = x.2 in
+            let mid = (1:i32 + lo + hi) >>> 1 in
+            if (mid*mid <= n) then {
+                (n, mid, hi)
+            } else {
+                (n, lo, mid -% 1:i32)
+            }
+        } in
+        let s0  = StmMap(s, (n : i32) => (n, 0:i32, 65_535:i32 /* 2^16 - 1 */)) in
+        let s1  = StmMap(s0,  (x) => step(x)) in
+        let s2  = StmMap(s1,  (x) => step(x)) in
+        let s3  = StmMap(s2,  (x) => step(x)) in
+        let s4  = StmMap(s3,  (x) => step(x)) in
+        let s5  = StmMap(s4,  (x) => step(x)) in
+        let s6  = StmMap(s5,  (x) => step(x)) in
+        let s7  = StmMap(s6,  (x) => step(x)) in
+        let s8  = StmMap(s7,  (x) => step(x)) in
+        let s9  = StmMap(s8,  (x) => step(x)) in
+        let s10 = StmMap(s9,  (x) => step(x)) in
+        let s11 = StmMap(s10, (x) => step(x)) in
+        let s12 = StmMap(s11, (x) => step(x)) in
+        let s13 = StmMap(s12, (x) => step(x)) in
+        let s14 = StmMap(s13, (x) => step(x)) in
+        let s15 = StmMap(s14, (x) => step(x)) in
+        let s16 = StmMap(s15, (x) => step(x)) in
+        StmMap(s16, (x : (i32, i32, i32)) => x.1)
     } in
-    let s0  = StmMap(s, (n : i32) => (n, 0:i32, 65_535:i32 /* 2^16 - 1 */)) in
-    let s1  = StmMap(s0,  (x) => step(x)) in
-    let s2  = StmMap(s1,  (x) => step(x)) in
-    let s3  = StmMap(s2,  (x) => step(x)) in
-    let s4  = StmMap(s3,  (x) => step(x)) in
-    let s5  = StmMap(s4,  (x) => step(x)) in
-    let s6  = StmMap(s5,  (x) => step(x)) in
-    let s7  = StmMap(s6,  (x) => step(x)) in
-    let s8  = StmMap(s7,  (x) => step(x)) in
-    let s9  = StmMap(s8,  (x) => step(x)) in
-    let s10 = StmMap(s9,  (x) => step(x)) in
-    let s11 = StmMap(s10, (x) => step(x)) in
-    let s12 = StmMap(s11, (x) => step(x)) in
-    let s13 = StmMap(s12, (x) => step(x)) in
-    let s14 = StmMap(s13, (x) => step(x)) in
-    let s15 = StmMap(s14, (x) => step(x)) in
-    let s16 = StmMap(s15, (x) => step(x)) in
-    StmMap(s16, (x : (i32, i32, i32)) => x.1)
-} in
-(I: Stm[Stm[i32, 1920], 1080]) =>
     let windows = StmJoin(StmSlide2D(I, 3, 3)) in
     let gx_and_gy = StmMap(
         windows,

@@ -1,17 +1,21 @@
-/* Matrix-matrix multiplication. The matrix B must already be transposed. */
-(A : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) => (B_T : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) =>
-    StmMap(A, (row_a) =>
-        StmMap(B_T, (row_b) =>
-            StmReduce(
-                StmMap(
-                    StmZip(row_a, row_b),
-                    (x) =>
-                        VecReduce(
-                            VecMap(VecZip(x.0, x.1), (x) => x.0 *% x.1),
-                            (x) => x.0 +% x.1
-                        )[0]
-                ),
-                (x) => x.0 +% x.1
+/* Matrix-matrix multiplication.
+ * The matrix B (I1) must already be transposed.
+ * The inputs should be named I0 and I1, just because this is what the testbench
+ * generator assumes.
+ */
+accelerator
+top = (I0 : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) =>
+      (I1 : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) =>
+    let A = I0 in
+    let B_T = I1 in
+    A.StmMap( (row_a) =>
+        B_T.StmMap( (row_b) =>
+            StmZip(row_a, row_b)
+            .StmMap( (x) =>
+                VecZip(x.0, x.1)
+                .VecMap( (x) => x.0 *% x.1 )
+                .VecReduce( (x) => x.0 +% x.1 )[0]
             )
+            .StmReduce( (x) => x.0 +% x.1 )
         )
     )
