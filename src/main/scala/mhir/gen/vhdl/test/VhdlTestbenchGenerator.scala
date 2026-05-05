@@ -270,12 +270,21 @@ object VhdlTestbenchGenerator {
   }
 
   private def toNamedArgs[T <: TestInput](inputs: Seq[T]): Map[Param, T] = {
-    inputs.zipWithIndex
-      .map({ case (in, i) =>
-        val x = Param(s"I$i", -1)(TyStm(in.elemTyp, -1))
-        x -> in
-      })
-      .toMap
+    if (inputs.length == 1) {
+      inputs
+        .map({ in =>
+          val x = Param(s"I", -1)(TyStm(in.elemTyp, -1))
+          x -> in
+        })
+        .toMap
+    } else {
+      inputs.zipWithIndex
+        .map({ case (in, i) =>
+          val x = Param(s"I$i", -1)(TyStm(in.elemTyp, -1))
+          x -> in
+        })
+        .toMap
+    }
   }
 
   private val ChunkSize = 1000
