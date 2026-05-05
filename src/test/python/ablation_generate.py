@@ -32,14 +32,15 @@ def main(programs: list[str], levels: list[OptimizationLevel], skip_sbt: bool = 
         for lvl in levels:
             out_dir = c.ABLATION_VHDL_DIR.joinpath(f"{prog}_{lvl}")
             ctime_file = c.ABLATION_COMPILE_TIME_DIR.joinpath(f"{prog}_{lvl}.csv")
-            command = (
-                # Increase stack size because some poorly-optimized programs may need it
-                f"java -Xss8m -jar {c.JAR_PATH} -s stored -i {prog}"
-                f" --out:vhdl {out_dir} --overwrite"
-                f" --out:pp -"
-                f" --out:ctime {ctime_file}"
-                f" {lvl.flags}"
-            ).split(" ")
+            command = [
+                "java", "-Xss8m", "-jar", c.JAR_PATH.as_posix(),
+                "-s", "stored", "-i", prog,
+                "--out:vhdl", out_dir.as_posix(), "--overwrite",
+                "--out:vhdl:family", "Arria 10",
+                "--out:vhdl:device", "10AX115N2F40E2LG",
+                "--out:pp", "-",
+                "--out:ctime", ctime_file.as_posix(),
+            ] + lvl.flags.split()
             command = [x for x in command if x]
             print()
             print(f"Running : {' '.join(command)}")
@@ -76,7 +77,7 @@ def parse_args() -> Namespace:
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
     if not args.lvl:
-        args.lvl = list(OptimizationLevel)
+        args.lvl = c.ACTIVE_OPT_LEVELS
     return args
 
 

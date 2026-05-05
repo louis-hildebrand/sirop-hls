@@ -4,6 +4,8 @@ Constants.
 
 from pathlib import Path
 
+from lib.optimization_level import OptimizationLevel
+
 VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
 LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
 
@@ -100,4 +102,11 @@ ACTIVE_BENCHES = [
     "dot", "matvec", "matmat",
     "conv1d", "conv2d", "convb2b", "jacobi",
     "sharpen", "sobel", "camera",
+]
+# The optimization levels that are shown in the ablation study in the paper
+ACTIVE_OPT_LEVELS = [
+    OptimizationLevel.ALL,
+    OptimizationLevel.EXCEPT_LETSTM_SIMPL,
+    OptimizationLevel.EXCEPT_FUSE,
+    OptimizationLevel.EXCEPT_FISSION,
 ]

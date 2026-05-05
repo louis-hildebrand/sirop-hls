@@ -43,16 +43,19 @@ def generate_vhdl(benchmarks: list[str], skip_sbt: bool) -> None:
     if skip_sbt:
         subprocess.run(["sbt", "assembly"], check=True)
     for bench in benchmarks:
-        in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve().as_posix()
-        out_dir = c.VHDL_DIR.joinpath(bench).resolve().as_posix()
-        ctime_file = c.AETHERLING_COMPILE_TIME_DIR.joinpath(f"{bench}.csv").resolve().as_posix()
-        command = (
-            f"java -jar {c.JAR_PATH} -s aetherling -i {in_file}"
-            f" --out:vhdl {out_dir} --overwrite"
-            f" --out:pp -"
-            f" --out:ctime {ctime_file}"
-            f" {OptimizationLevel.ALL.flags}"
-        ).split(" ")
+        in_file = c.AETHERLING_SPACETIME_DIR.joinpath(f"{bench}.txt").resolve()
+        out_dir = c.VHDL_DIR.joinpath(bench).resolve()
+        ctime_file = c.AETHERLING_COMPILE_TIME_DIR.joinpath(f"{bench}.csv").resolve()
+        lvl = OptimizationLevel.ALL
+        command = [
+            "java", "-jar", c.JAR_PATH.as_posix(),
+            "-s", "aetherling", "-i", in_file.as_posix(),
+            "--out:vhdl", out_dir.as_posix(), "--overwrite",
+            "--out:vhdl:family", "Arria 10",
+            "--out:vhdl:device", "10AX115N2F40E2LG",
+            "--out:pp", "-",
+            "--out:ctime", ctime_file.as_posix(),
+        ] + lvl.flags.split()
         command = [x for x in command if x]
         print()
         print(f"Running : {' '.join(command)}")

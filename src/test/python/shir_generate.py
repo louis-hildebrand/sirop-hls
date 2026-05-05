@@ -62,13 +62,15 @@ def generate_sirop(prog: str) -> None:
     out_dir = c.SHIR_SIROP_VHDL_DIR.joinpath(prog)
     ctime_file = c.SHIR_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
     lvl = OptimizationLevel.ALL
-    command = (
-        f"java -jar {c.JAR_PATH} -s stored -i shir:{prog}"
-        f" --out:vhdl {out_dir} --overwrite"
-        f" --out:pp -"
-        f" --out:ctime {ctime_file}"
-        f" {lvl.flags}"
-    ).split(" ")
+    command = [
+        "java", "-jar", c.JAR_PATH.as_posix(),
+        "-s", "stored", "-i", f"shir:{prog}",
+        "--out:vhdl", out_dir.as_posix(), "--overwrite",
+        "--out:vhdl:family", "Arria 10",
+        "--out:vhdl:device", "10AX115N2F40E2LG",
+        "--out:pp", "-",
+        "--out:ctime", ctime_file.as_posix(),
+    ] + lvl.flags.split()
     command = [x for x in command if x]
     print()
     print(f"Running : {' '.join(command)}")

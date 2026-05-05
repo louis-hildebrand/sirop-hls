@@ -96,7 +96,7 @@ def parse_args() -> Namespace:
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
     if not args.lvl:
-        args.lvl = list(OptimizationLevel)
+        args.lvl = c.ACTIVE_OPT_LEVELS
     return args
 
 
