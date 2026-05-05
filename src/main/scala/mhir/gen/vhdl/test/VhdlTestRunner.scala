@@ -48,8 +48,7 @@ object VhdlTestRunner {
     *   the test result.
     */
   def testExistingProject(dir: Path, timeLimit: String = ""): TestResult = {
-    val shellScriptPath = dir / "test_vhdl.sh"
-    os.write.over(shellScriptPath, testVhdlBashScript(), perms = "rwxrwxr-x")
+    val shellScriptPath = copyTestBashScript(dir)
     val cmd = s"$shellScriptPath $dir"
     val cmdWithTimeout =
       if (timeLimit.isBlank) cmd else s"$cmd --time-limit=$timeLimit"
@@ -112,6 +111,20 @@ object VhdlTestRunner {
     time("running simulation", Level.DEBUG) {
       testExistingProject(VHDL_TEST_DIR)
     }
+  }
+
+  /** Copy the Bash script for running VHDL simulation over to the given
+    * directory.
+    *
+    * @param dir
+    *   the VHDL project directory.
+    * @return
+    *   the path to the Bash script (inside [[dir]]).
+    */
+  def copyTestBashScript(dir: Path): Path = {
+    val shellScriptPath = dir / "test_vhdl.sh"
+    os.write.over(shellScriptPath, testVhdlBashScript(), perms = "rwxrwxr-x")
+    shellScriptPath
   }
 
   private def testVhdlBashScript(): Iterator[String] = {

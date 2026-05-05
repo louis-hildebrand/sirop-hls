@@ -1,7 +1,7 @@
 package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
-import mhir.gen.verilog.VerilogTestbenchGenerator
+import mhir.gen.verilog.{VerilogTestRunner, VerilogTestbenchGenerator}
 import mhir.gen.vhdl.test._
 import os.Path
 
@@ -65,17 +65,10 @@ object AetherlingBenchmarkLatencyMeasurement {
     val benchName = dir.baseName
     val io = AetherlingBenchmarkIO.verilogIO(benchName)
     VerilogTestbenchGenerator.makeFileBasedTestbench(io, dir)
+    val testScript = VerilogTestRunner.copyTestBashScript(dir)
     val proc = os
-      .proc(
-        "./src/test/sh/test_verilog.sh",
-        dir,
-        "-v",
-        s"--time-limit=$TimeLimit"
-      )
-      .call(
-        cwd = os.pwd,
-        check = false
-      )
+      .proc(testScript, dir, "-v", s"--time-limit=$TimeLimit")
+      .call(cwd = os.pwd, check = false)
     if (proc.exitCode != 0) {
       logger.error(s"Simulation exited with nonzero code: ${proc.exitCode}")
     }
@@ -91,17 +84,10 @@ object AetherlingBenchmarkLatencyMeasurement {
     val benchName = dir.baseName
     val io = AetherlingBenchmarkIO.vhdlIO(benchName)
     VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
+    val testScript = VhdlTestRunner.copyTestBashScript(dir)
     val proc = os
-      .proc(
-        "./src/main/resources/mhir/gen/vhdl/test_vhdl.sh",
-        dir,
-        "-v",
-        s"--time-limit=$TimeLimit"
-      )
-      .call(
-        cwd = os.pwd,
-        check = false
-      )
+      .proc(testScript, dir, "-v", s"--time-limit=$TimeLimit")
+      .call(cwd = os.pwd, check = false)
     if (proc.exitCode != 0) {
       logger.error(s"Simulation exited with nonzero code: ${proc.exitCode}")
     }

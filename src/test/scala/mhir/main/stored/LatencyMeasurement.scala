@@ -67,17 +67,10 @@ object LatencyMeasurement {
       val io = ProgramIO(dir.baseName)
       VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     }
+    val testScript = VhdlTestRunner.copyTestBashScript(dir)
     val proc = os
-      .proc(
-        "./src/main/resources/mhir/gen/vhdl/test_vhdl.sh",
-        dir,
-        "-v",
-        s"--time-limit=$TimeLimit"
-      )
-      .call(
-        cwd = os.pwd,
-        check = false
-      )
+      .proc(testScript, dir, "-v", s"--time-limit=$TimeLimit")
+      .call(cwd = os.pwd, check = false)
     if (proc.exitCode != 0) {
       logger.error(s"Simulation exited with nonzero code: ${proc.exitCode}")
     }

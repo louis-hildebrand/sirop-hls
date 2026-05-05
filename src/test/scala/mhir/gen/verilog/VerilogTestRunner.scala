@@ -52,4 +52,18 @@ object VerilogTestRunner {
       case _ => UnknownFailure
     }
   }
+
+  /** Copy the Bash script for running Verilog simulation over to the given
+    * directory.
+    *
+    * @param dir
+    *   the Verilog project directory.
+    * @return
+    *   the path to the Bash script (inside [[dir]]).
+    */
+  def copyTestBashScript(dir: Path): Path = {
+    val shellScriptPath = dir / "test_verilog.sh"
+    os.copy.over(from = RUN_TEST_SH, to = shellScriptPath)
+    shellScriptPath
+  }
 }
