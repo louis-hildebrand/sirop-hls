@@ -8,31 +8,31 @@ import mhir.typecheck.TypeCheck
 
 object ProgramIO {
   def apply(name: String): PositionalTestIO = {
-    if (name.startsWith("map_") || name == "shir:map") {
+    if (name.startsWith("map") || name == "shir:map") {
       mapIO
-    } else if (name.startsWith("dot_") || name == "shir:dot") {
+    } else if (name.startsWith("dot") || name == "shir:dot") {
       dotIO
-    } else if (name.startsWith("matvec_") || name == "shir:matvec") {
+    } else if (name.startsWith("matvec") || name == "shir:matvec") {
       matVecMulIO(width = 256, height = 256, par = 1, uint = U16)
-    } else if (name.startsWith("smallmatmat_") || name == "shir:smallmatmat") {
+    } else if (name.startsWith("smallmatmat") || name == "shir:smallmatmat") {
       matMatMulIO(n = 4, m = 4, k = 4, par = 2, uint = U16)
-    } else if (name.startsWith("matmat_") || name == "shir:matmat") {
+    } else if (name.startsWith("matmat") || name == "shir:matmat") {
       matMatMulIO(n = 256, m = 256, k = 256, par = 16, uint = U16)
-    } else if (name.startsWith("conv1d_") || name == "shir:conv1d") {
+    } else if (name.startsWith("conv1d") || name == "shir:conv1d") {
       conv1dIO
-    } else if (name.startsWith("conv2d_") || name == "shir:conv2d") {
+    } else if (name.startsWith("conv2d") || name == "shir:conv2d") {
       shirConv2dIO
-    } else if (name.startsWith("convb2b_") || name == "shir:convb2b") {
+    } else if (name.startsWith("convb2b") || name == "shir:convb2b") {
       shirConvB2bIO
-    } else if (name.startsWith("jacobi_") || name == "shir:jacobi") {
+    } else if (name.startsWith("jacobi") || name == "shir:jacobi") {
       shirJacobiIO
-    } else if (name.startsWith("sharpen_") || name == "shir:sharpen") {
+    } else if (name.startsWith("sharpen") || name == "shir:sharpen") {
       shirSharpenIO
-    } else if (name.startsWith("sobel_") || name == "shir:sobel") {
+    } else if (name.startsWith("sobel") || name == "shir:sobel") {
       shirSobelIO
-    } else if (name.startsWith("camera_") || name == "shir:camera") {
+    } else if (name.startsWith("camera") || name == "shir:camera") {
       shirCameraIO
-    } else if (name.startsWith("sqrt_")) {
+    } else if (name.startsWith("sqrt")) {
       sqrtIO
     } else {
       throw new IllegalArgumentException(s"unknown program: $name")
@@ -40,11 +40,11 @@ object ProgramIO {
   }
 
   private def mapIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("map_1")
+    AetherlingBenchmarkIO.mapIO("map_1").toVhdl
   }
 
   private def dotIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("dot_1_840")
+    AetherlingBenchmarkIO.dotIO("dot_1_840").toVhdl
   }
 
   private def conv1dIO: PositionalTestIO = {
@@ -55,10 +55,6 @@ object ProgramIO {
       Seq(DirectTestInput(inputs.map(C(_)(I8)).map(Some(_)))),
       DirectTestOutput(outputs.map(C(_)(I8)))
     )
-  }
-
-  private def conv2dIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("bigconv2d_1")
   }
 
   /** Finds the width and height of a rectangular array.
@@ -283,18 +279,6 @@ object ProgramIO {
       Seq(DirectTestInput(basicInputExprs.map(Some(_)))),
       DirectTestOutput(basicOutputs)
     )
-  }
-
-  private def convb2bIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("bigconvb2b_1")
-  }
-
-  private def sharpenIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("bigsharpen_1")
-  }
-
-  private def cameraIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("bigcamera_1")
   }
 
   /** Matrix-vector multiplication.

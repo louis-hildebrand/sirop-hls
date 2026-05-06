@@ -19,7 +19,7 @@ from lib.latency import LatencyResult
 
 def measure_latency(proj_dir: Path) -> LatencyResult:
     """
-    Measure the latency of one SHIR design.
+    Measure the latency of one Sirop design.
     """
     result = subprocess.run(
         [
@@ -41,16 +41,16 @@ def measure_latency(proj_dir: Path) -> LatencyResult:
 
 def measure_and_save_latency(prog_name: str, writer: csv.DictWriter) -> None:
     """
-    Measure the latency of a SHIR design and save it.
+    Measure the latency of a Sirop design and save it.
     """
     print(
-        f"Measuring latency for {prog_name} (SHIR)... ",
+        f"Measuring latency for {prog_name} (Sirop)... ",
         end="",
         flush=True,
     )
-    latency = measure_latency(c.SHIR_VHDL_DIR.joinpath(prog_name))
+    latency = measure_latency(c.SIROP_VHDL_DIR.joinpath(prog_name))
     print(latency)
-    bi = BenchmarkImpl(Benchmark(prog_name, Fraction(-1)), "shir")
+    bi = BenchmarkImpl(Benchmark(prog_name, Fraction(-1)), "sirop")
     crud.save_latency(writer, bi, latency)
 
 
@@ -58,7 +58,7 @@ def main(programs: list[str]) -> None:
     """
     Script entry point.
     """
-    out_path = c.SHIR_LATENCY_CSV
+    out_path = c.SIROP_LATENCY_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():

@@ -7,20 +7,13 @@ This script runs all the Aetherling-related experiments for the given benchmarks
 import subprocess
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Literal
 
 import aetherling_extract_compile_time
 import aetherling_extract_fmax_estimate
 import aetherling_extract_resource_usage
 import aetherling_generate
-import aetherling_measure_fmax
 import aetherling_measure_latency
-import aetherling_plot_compile_time
-import aetherling_plot_fmax_estimates
-import aetherling_plot_fmax_measurements
-import aetherling_plot_latency
-import aetherling_plot_resource_usage
-import lib.constants as c
+import aetherling_synth
 import lib.list_benchmarks as lb
 
 
@@ -35,14 +28,11 @@ def open_plot(f: Path) -> None:
 def main(
     bench_names: list[str],
     *,
-    fmax: Literal["estimate", "measure"],
-    skip_plots: bool,
-    view_plots: bool,
-    clean: bool,
-    skip_verilog: bool,
-    skip_vhdl: bool,
+    skip_chisel: bool,
+    skip_sirop: bool,
     skip_gen: bool,
     skip_latency: bool,
+    recompile_sirop: bool,
 ) -> None:
     """
     Script entry point.
@@ -50,68 +40,37 @@ def main(
     if not skip_gen:
         aetherling_generate.main(
             bench_names,
-            skip_verilog=skip_verilog,
-            skip_vhdl=skip_vhdl,
-            skip_synth=False
+            skip_chisel=skip_chisel,
+            skip_sirop=skip_sirop,
+            recompile_sirop=recompile_sirop,
+        )
+        aetherling_synth.main(
+            bench_names,
+            skip_chisel=skip_chisel,
+            skip_sirop=skip_sirop,
         )
 
-    if clean:
-        c.RESOURCE_USAGE_CSV.unlink(missing_ok=True)
-        if not skip_latency:
-            c.LATENCY_CSV.unlink(missing_ok=True)
-        c.FMAX_ESTIMATE_CSV.unlink(missing_ok=True)
-        c.FMAX_MEASUREMENT_CSV.unlink(missing_ok=True)
-
     aetherling_extract_compile_time.main(bench_names)
-    if not skip_plots:
-        aetherling_plot_compile_time.main()
-        if view_plots:
-            open_plot(c.AETHERLING_COMPILE_TIME_PDF)
 
     aetherling_extract_resource_usage.main(
         bench_names,
-        skip_verilog=skip_verilog,
-        skip_vhdl=skip_vhdl,
+        skip_chisel=skip_chisel,
+        skip_sirop=skip_sirop,
     )
-    if not skip_plots:
-        aetherling_plot_resource_usage.main()
-        if view_plots:
-            open_plot(c.RESOURCE_USAGE_PDF)
 
     if not skip_latency:
         aetherling_measure_latency.main(
             bench_names,
-            skip_verilog=skip_verilog,
-            skip_vhdl=skip_vhdl,
+            skip_chisel=skip_chisel,
+            skip_sirop=skip_sirop,
         )
-        if not skip_plots:
-            aetherling_plot_latency.main()
-            if view_plots:
-                open_plot(c.LATENCY_PDF)
 
-    if fmax == "estimate":
-        aetherling_extract_fmax_estimate.main(
-            bench_names,
-            skip_verilog=skip_verilog,
-            skip_vhdl=skip_vhdl,
-            save_to_csv=True,
-        )
-        if not skip_plots:
-            aetherling_plot_fmax_estimates.main()
-            if view_plots:
-                open_plot(c.FMAX_ESTIMATE_PDF)
-    else:
-        aetherling_measure_fmax.main(
-            bench_names,
-            skip_verilog=skip_verilog,
-            skip_vhdl=skip_vhdl,
-            save_to_csv=True,
-            max_steps=10,
-        )
-        if not skip_plots:
-            aetherling_plot_fmax_measurements.main()
-            if view_plots:
-                open_plot(c.FMAX_MEASUREMENT_PDF)
+    aetherling_extract_fmax_estimate.main(
+        bench_names,
+        skip_chisel=skip_chisel,
+        skip_sirop=skip_sirop,
+        save_to_csv=True,
+    )
 
 
 def parse_args() -> Namespace:
@@ -142,38 +101,19 @@ def parse_args() -> Namespace:
         help="skip the latency measurement step"
     )
     parser.add_argument(
-        "--fmax",
-        choices=["measure", "estimate"],
-        default="estimate",
-        help=(
-            "whether to carefully measure the maximum clock frequency by repeated synthesis,"
-            " or simply take Quartus' first estimate of fmax"
-        ),
+        "--skip-chisel",
+        action="store_true",
+        help="skip the Chisel-generated Verilog projects",
     )
     parser.add_argument(
-        "--skip-plots",
+        "--skip-sirop",
         action="store_true",
-        help="skip generating the plots",
+        help="skip the Sirop-generated VHDL projects",
     )
     parser.add_argument(
-        "--view-plots",
+        "--recompile-sirop",
         action="store_true",
-        help="open the generated plots once they are generated",
-    )
-    parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="delete the previous results before running the experiments",
-    )
-    parser.add_argument(
-        "--skip-verilog",
-        action="store_true",
-        help="skip the Verilog implementation of each benchmark",
-    )
-    parser.add_argument(
-        "--skip-vhdl",
-        action="store_true",
-        help="skip the VHDL implementation of each benchmark",
+        help="run 'sbt assembly' before invoking the Sirop compiler",
     )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
@@ -184,12 +124,9 @@ if __name__ == "__main__":
     _args = parse_args()
     main(
         bench_names=_args.benchmarks,
-        fmax=_args.fmax,
-        skip_plots=_args.skip_plots,
-        view_plots=_args.view_plots,
-        clean=_args.clean,
-        skip_verilog=_args.skip_verilog,
-        skip_vhdl=_args.skip_vhdl,
+        skip_chisel=_args.skip_chisel,
+        skip_sirop=_args.skip_sirop,
         skip_gen=_args.skip_gen,
         skip_latency=_args.skip_latency,
+        recompile_sirop=_args.recompile_sirop,
     )

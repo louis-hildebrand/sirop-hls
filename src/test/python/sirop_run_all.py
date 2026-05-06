@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 
 """
-This script runs all the measurements for the comparison with SHIR.
+This script runs all the measurements for evaluating the Sirop compiler.
 """
 
 from argparse import ArgumentParser, Namespace
 
 import lib.constants as c
-import shir_extract_fmax
-import shir_extract_resource_usage
-import shir_generate
-import shir_measure_latency
-import shir_synth
+import sirop_extract_fmax
+import sirop_extract_resource_usage
+import sirop_generate
+import sirop_measure_latency
+import sirop_synth
 
 
-def main(programs: list[str], skip_latency: bool) -> None:
+def main(programs: list[str], skip_latency: bool, recompile_sirop: bool) -> None:
     """
     Script entry point.
     """
-    shir_generate.main(programs)
-    shir_synth.main(programs)
+    sirop_generate.main(programs, recompile_sirop=recompile_sirop)
+    sirop_synth.main(programs)
 
-    shir_extract_resource_usage.main(programs)
-    shir_extract_fmax.main(programs)
+    sirop_extract_resource_usage.main(programs)
+    sirop_extract_fmax.main(programs)
     if not skip_latency:
-        shir_measure_latency.main(programs)
+        sirop_measure_latency.main(programs)
 
 def parse_args() -> Namespace:
     """
@@ -46,6 +46,11 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    parser.add_argument(
+        "--recompile-sirop",
+        action="store_true",
+        help="run 'sbt assembly' before invoking the Sirop compiler",
+    )
     args = parser.parse_args()
     if not args.programs:
         args.programs = c.ACTIVE_BENCHES
@@ -57,4 +62,5 @@ if __name__ == "__main__":
     main(
         _args.programs,
         skip_latency=_args.skip_latency,
+        recompile_sirop=_args.recompile_sirop,
     )

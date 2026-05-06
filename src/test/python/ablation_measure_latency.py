@@ -23,7 +23,7 @@ def measure_latency(proj_dir: Path) -> LatencyResult:
     """
     result = subprocess.run(
         [
-            c.TEST_SH_DIR.joinpath("ablation_measure_latency_with_logging.sh"),
+            c.TEST_SH_DIR.joinpath("measure_latency_with_logging.sh"),
             proj_dir.resolve().as_posix()
         ],
         check=False,

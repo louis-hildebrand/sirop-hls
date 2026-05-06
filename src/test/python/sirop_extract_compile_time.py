@@ -23,7 +23,7 @@ def extract_and_save_compile_time(
     Extract the compile time for the given benchmark and save the result.
     """
     print(f"Extracting compile time for {prog}... ")
-    ctime_file = c.SHIR_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
+    ctime_file = c.SIROP_COMPILE_TIME_DIR.joinpath(f"{prog}.csv")
     ctime = CompileTimeReport.extract(ctime_file)
     crud.save_compile_time(writer, Benchmark(prog, Fraction(-1)), ctime)
     f.flush()
@@ -33,7 +33,7 @@ def main(programs: list[str]) -> None:
     """
     Script entry point.
     """
-    out_path = c.SHIR_COMPILE_TIME_CSV
+    out_path = c.SIROP_COMPILE_TIME_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():

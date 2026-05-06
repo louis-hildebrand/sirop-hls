@@ -7,31 +7,34 @@ from pathlib import Path
 from lib.optimization_level import OptimizationLevel
 
 VERILOG_PROJ_INITIALIZER = "mhir.gen.verilog.VerilogProjectInitializer"
-LATENCY_MEASUREMENT_CLS = "mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement"
+AETHERLING_TESTBENCH_GEN_CLS = "mhir.main.aetherling.GenTestbench"
+STORED_TESTBENCH_GEN_CLS = "mhir.main.stored.GenTestbench"
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent.parent.resolve()
 JAR_PATH = ROOT_DIR.joinpath("target", "scala-2.12", "sirop.jar")
 AETHERLING_SPACETIME_DIR = (
     ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "original")
 )
-AETHERLING_VERILOG_DIR = (
-    ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
-)
 SHIR_SUBMODULE_DIR = ROOT_DIR.joinpath("src", "test", "shir")
 SHIR_TESTBENCHES_DIR = ROOT_DIR.joinpath("src", "test", "resources", "shir_benchmarks")
-VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling")
+AETHERLING_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "aetherling_sirop")
 ABLATION_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "ablation")
 DSE_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "dse")
-SHIR_SHIR_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir_shir")
-SHIR_SIROP_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir_sirop")
-VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling")
+SHIR_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "shir")
+SIROP_VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl", "sirop")
+CHISEL_VERILOG_SRC_DIR = (
+    ROOT_DIR.joinpath("src", "test", "resources", "aetherling_benchmarks", "verilog")
+)
+CHISEL_VERILOG_DST_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling_chisel")
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 IHC_DIR = ROOT_DIR.joinpath("src", "test", "hls")
+
+TEST_VHDL_SH = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "test_vhdl.sh")
 
 AETHERLING_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "aetherling")
 ABLATION_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "ablation")
 DSE_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "dse")
-SHIR_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "shir")
+SIROP_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "sirop")
 
 RESULTS_DIR = ROOT_DIR.joinpath("results")
 RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("aetherling_resource_usage.csv")
@@ -54,12 +57,16 @@ ABLATION_LATENCY_PDF = RESULTS_DIR.joinpath("ablation_latency.pdf")
 ABLATION_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("ablation_compile_time.csv")
 ABLATION_COMPILE_TIME_PDF = RESULTS_DIR.joinpath("ablation_compile_time.pdf")
 
+SIROP_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("sirop_compile_time.csv")
+SIROP_FMAX_CSV = RESULTS_DIR.joinpath("sirop_fmax.csv")
+SIROP_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("sirop_resource_usage.csv")
+SIROP_LATENCY_CSV = RESULTS_DIR.joinpath("sirop_latency.csv")
+
 SHIR_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("shir_resource_usage.csv")
 SHIR_RESOURCE_USAGE_PDF = RESULTS_DIR.joinpath("shir_resource_usage.pdf")
 SHIR_FMAX_CSV = RESULTS_DIR.joinpath("shir_fmax.csv")
 SHIR_LATENCY_CSV = RESULTS_DIR.joinpath("shir_latency.csv")
 SHIR_LATENCY_PDF = RESULTS_DIR.joinpath("shir_latency.pdf")
-SHIR_COMPILE_TIME_CSV = RESULTS_DIR.joinpath("shir_compile_time.csv")
 
 IHC_FMAX_CSV = RESULTS_DIR.joinpath("ihc_fmax.csv")
 IHC_RESOURCE_USAGE_CSV = RESULTS_DIR.joinpath("ihc_resource_usage.csv")

@@ -36,7 +36,7 @@ def measure_latency(proj_dir: Path) -> LatencyResult:
     return LatencyResult(latency=latency, sim_success=sim_success)
 
 
-def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
+def main(bench_names: list[str], skip_chisel: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -48,8 +48,8 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
     if out_path.exists():
         shutil.copy(src=out_path, dst=backup_out_path)
 
-    c.VHDL_DIR.mkdir(exist_ok=True)
-    c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
+    c.AETHERLING_VHDL_DIR.mkdir(exist_ok=True)
+    c.CHISEL_VERILOG_DST_DIR.mkdir(exist_ok=True, parents=True)
 
     print("-" * 80)
     print("- Measuring latency...")
@@ -62,22 +62,22 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
             writer = csv.DictWriter(out_file, fieldnames=crud.LATENCY_HEADERS)
             writer.writeheader()
             for bench in benchmarks:
-                if not skip_verilog:
+                if not skip_chisel:
                     print(
                         f"Measuring latency for {bench.full_name} (Verilog)... ",
                         end="",
                         flush=True,
                     )
-                    latency = measure_latency(c.VERILOG_DIR.joinpath(bench.full_name))
+                    latency = measure_latency(c.CHISEL_VERILOG_DST_DIR.joinpath(bench.full_name))
                     print(latency)
                     crud.save_latency(writer, BenchmarkImpl(bench, "verilog"), latency)
-                if not skip_vhdl:
+                if not skip_sirop:
                     print(
                         f"Measuring latency for {bench.full_name} (VHDL)... ",
                         end="",
                         flush=True,
                     )
-                    latency = measure_latency(c.VHDL_DIR.joinpath(bench.full_name))
+                    latency = measure_latency(c.AETHERLING_VHDL_DIR.joinpath(bench.full_name))
                     print(latency)
                     crud.save_latency(writer, BenchmarkImpl(bench, "vhdl"), latency)
     finally:
@@ -105,14 +105,14 @@ def parse_args() -> Namespace:
         ),
     )
     parser.add_argument(
-        "--skip-verilog",
+        "--skip-chisel",
         action="store_true",
-        help="don't process the Verilog implementation of the benchmarks"
+        help="don't process the Chisel-generated Verilog projects",
     )
     parser.add_argument(
-        "--skip-vhdl",
+        "--skip-sirop",
         action="store_true",
-        help="don't process the VHDL implementation of the benchmarks"
+        help="don't process the Sirop-generated VHDL projects",
     )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
@@ -123,6 +123,6 @@ if __name__ == "__main__":
     _args = parse_args()
     main(
         bench_names=_args.benchmarks,
-        skip_verilog=_args.skip_verilog,
-        skip_vhdl=_args.skip_vhdl,
+        skip_chisel=_args.skip_chisel,
+        skip_sirop=_args.skip_sirop,
     )

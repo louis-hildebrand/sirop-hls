@@ -76,7 +76,7 @@ object AetherlingBenchmarkIO {
     outputs
   }
 
-  private def mapIO: Map[String, AbstractTestIO] = {
+  def mapIO: Map[String, AbstractTestIO] = {
     val n = 200
     val sequentialIn = AbstractTestInput(
       (t: Int) => (_: Int) => C(t)(U8),
@@ -123,7 +123,7 @@ object AetherlingBenchmarkIO {
       .toMap
   }
 
-  private def dotIO: Map[String, AbstractTestIO] = {
+  def dotIO: Map[String, AbstractTestIO] = {
     val n = 840
     val result = (0 until n)
       .zip((n - 1) until 0 by -1)
@@ -960,7 +960,7 @@ object AetherlingBenchmarkIO {
     * @note
     *   this must be manually updated for each new benchmark.
     */
-  val vhdlIO: Map[String, vhdl.test.PositionalTestIO] = (
+  lazy val vhdlIO: Map[String, vhdl.test.PositionalTestIO] = (
     mapIO.mapValues(_.toVhdl)
       ++ sumIO.mapValues(_.toVhdl)
       ++ dotIO.mapValues(_.toVhdl)
@@ -989,7 +989,7 @@ object AetherlingBenchmarkIO {
     * @note
     *   this must be manually updated for each new benchmark.
     */
-  val verilogIO: Map[String, verilog.TestIO] = (
+  lazy val verilogIO: Map[String, verilog.TestIO] = (
     mapIO.mapValues(_.toVerilog)
       ++ sumIO.mapValues(_.toVerilog)
       ++ dotIO.mapValues(_.toVerilog)

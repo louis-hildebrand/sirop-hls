@@ -18,21 +18,21 @@ def extract_and_save_resource_usage(prog: str, writer: csv.DictWriter) -> None:
     Extract the resource usage for the given benchmark and save the results.
     """
     print(
-        f"Extracting resource usage for {prog} (SHIR)... ",
+        f"Extracting resource usage for {prog} (Sirop)... ",
         flush=True,
         end="",
     )
-    project_dir = c.SHIR_VHDL_DIR.joinpath(prog)
+    project_dir = c.SIROP_VHDL_DIR.joinpath(prog)
     ru = extract_resource_usage(project_dir)
     print("failed" if ru is None else "OK")
-    crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "shir"), ru)
+    crud.save_resource_usage(writer, BenchmarkImpl(Benchmark(prog, Fraction(-1)), "sirop"), ru)
 
 
 def main(programs: list[str]) -> None:
     """
     Script entry point.
     """
-    out_path = c.SHIR_RESOURCE_USAGE_CSV
+    out_path = c.SIROP_RESOURCE_USAGE_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():

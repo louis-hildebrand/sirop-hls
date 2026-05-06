@@ -17,7 +17,7 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl
 
 
-def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhdl: bool) -> None:
+def main(bench_names: list[str], save_to_csv: bool, skip_chisel: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -29,8 +29,8 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
     if out_path.exists():
         shutil.copy(src=out_path, dst=backup_out_path)
 
-    c.VHDL_DIR.mkdir(exist_ok=True)
-    c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
+    c.AETHERLING_VHDL_DIR.mkdir(exist_ok=True)
+    c.CHISEL_VERILOG_DST_DIR.mkdir(exist_ok=True, parents=True)
 
     print("-" * 80)
     print("- Extracting fmax...")
@@ -50,25 +50,25 @@ def main(bench_names: list[str], save_to_csv: bool, skip_verilog: bool, skip_vhd
             )
             writer.writeheader()
         for bench in benchmarks:
-            if not skip_verilog:
+            if not skip_chisel:
                 print(
                     f"Measuring fmax for {bench.full_name} (Verilog)... ",
                     flush=True,
                     end="",
                 )
-                fmax = fm.extract_fmax(c.VERILOG_DIR.joinpath(bench.full_name))
+                fmax = fm.extract_fmax(c.CHISEL_VERILOG_DST_DIR.joinpath(bench.full_name))
                 print("not found" if fmax is None else f"{fmax} MHz")
                 if save_to_csv:
                     assert out_file is not None
                     assert writer is not None
                     crud.save_fmax_estimate(writer, BenchmarkImpl(bench, "verilog"), fmax)
-            if not skip_vhdl:
+            if not skip_sirop:
                 print(
                     f"Measuring fmax for {bench.full_name} (VHDL)... ",
                     flush=True,
                     end="",
                 )
-                fmax = fm.extract_fmax(c.VHDL_DIR.joinpath(bench.full_name))
+                fmax = fm.extract_fmax(c.AETHERLING_VHDL_DIR.joinpath(bench.full_name))
                 print("not found" if fmax is None else f"{fmax} MHz")
                 if save_to_csv:
                     assert out_file is not None
@@ -105,14 +105,14 @@ def parse_args() -> Namespace:
         help="don't write the results to the CSV file"
     )
     parser.add_argument(
-        "--skip-verilog",
+        "--skip-chisel",
         action="store_true",
-        help="don't process the Verilog implementation of the benchmarks"
+        help="don't process the Chisel-generated Verilog projects",
     )
     parser.add_argument(
-        "--skip-vhdl",
+        "--skip-sirop",
         action="store_true",
-        help="don't process the VHDL implementation of the benchmarks"
+        help="don't process the Sirop-generated VHDL projects",
     )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
@@ -124,6 +124,6 @@ if __name__ == "__main__":
     main(
         bench_names=_args.benchmarks,
         save_to_csv=not _args.no_save,
-        skip_verilog=_args.skip_verilog,
-        skip_vhdl=_args.skip_vhdl,
+        skip_chisel=_args.skip_chisel,
+        skip_sirop=_args.skip_sirop,
     )

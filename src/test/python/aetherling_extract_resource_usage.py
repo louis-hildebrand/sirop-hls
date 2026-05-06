@@ -29,9 +29,9 @@ def extract_and_save_resource_usage(
         end="",
     )
     project_dir = (
-        c.VERILOG_DIR.joinpath(bench.full_name)
+        c.CHISEL_VERILOG_DST_DIR.joinpath(bench.full_name)
         if b.language.lower() == "verilog"
-        else c.VHDL_DIR.joinpath(bench.full_name)
+        else c.AETHERLING_VHDL_DIR.joinpath(bench.full_name)
     )
     ru = extract_resource_usage(project_dir)
     print("failed" if ru is None else "OK")
@@ -39,7 +39,7 @@ def extract_and_save_resource_usage(
     f.flush()
 
 
-def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
+def main(bench_names: list[str], skip_chisel: bool, skip_sirop: bool) -> None:
     """
     Script entry point.
     """
@@ -51,8 +51,8 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
     if out_path.exists():
         shutil.copy(src=out_path, dst=backup_out_path)
 
-    c.VHDL_DIR.mkdir(exist_ok=True)
-    c.VERILOG_DIR.mkdir(exist_ok=True, parents=True)
+    c.AETHERLING_VHDL_DIR.mkdir(exist_ok=True)
+    c.CHISEL_VERILOG_DST_DIR.mkdir(exist_ok=True, parents=True)
 
     print("-" * 80)
     print("- Extracting resource usage...")
@@ -68,13 +68,13 @@ def main(bench_names: list[str], skip_verilog: bool, skip_vhdl: bool) -> None:
             )
             writer.writeheader()
             for bench in benchmarks:
-                if not skip_verilog:
+                if not skip_chisel:
                     extract_and_save_resource_usage(
                         BenchmarkImpl(bench, "verilog"),
                         writer=writer,
                         f=out_file,
                     )
-                if not skip_vhdl:
+                if not skip_sirop:
                     extract_and_save_resource_usage(
                         BenchmarkImpl(bench, "vhdl"),
                         writer=writer,
@@ -106,14 +106,14 @@ def parse_args() -> Namespace:
         ),
     )
     parser.add_argument(
-        "--skip-verilog",
+        "--skip-chisel",
         action="store_true",
-        help="don't process the Verilog implementation of the benchmarks"
+        help="don't process the Chisel-generated Verilog projects",
     )
     parser.add_argument(
-        "--skip-vhdl",
+        "--skip-sirop",
         action="store_true",
-        help="don't process the VHDL implementation of the benchmarks"
+        help="don't process the Sirop-generated VHDL projects",
     )
     args = parser.parse_args()
     args.benchmarks = lb.names_from_args(args.benchmarks)
@@ -124,6 +124,6 @@ if __name__ == "__main__":
     _args = parse_args()
     main(
         bench_names=_args.benchmarks,
-        skip_verilog=_args.skip_verilog,
-        skip_vhdl=_args.skip_vhdl,
+        skip_chisel=_args.skip_chisel,
+        skip_sirop=_args.skip_sirop,
     )

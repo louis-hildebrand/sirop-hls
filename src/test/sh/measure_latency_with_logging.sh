@@ -2,14 +2,21 @@
 
 set -u
 
-proj_dir="$(readlink -f "$1")"
+TIME_LIMIT='1h'
 
-mhir_repo_root="$(readlink -f "$(dirname "$(readlink -f "$0")")/../../..")"
+proj_dir="$(readlink -f "$1")"
 
 now="$(date '+%Y%m%d-%H%M%S')"
 log_file="$proj_dir/latency-$now.log"
-cd "$mhir_repo_root"
-sbt "Test / runMain mhir.main.aetherling.AetherlingBenchmarkLatencyMeasurement \"$proj_dir\"" &> "$log_file"
+cd "$proj_dir" || exit 1
+if [[ -f ./test_vhdl.sh ]]; then
+    ./test_vhdl.sh . -v --time-limit="$TIME_LIMIT" &> "$log_file"
+elif [[ -f ./test_verilog.sh ]]; then
+    ./test_verilog.sh . -v --time-limit="$TIME_LIMIT" &> "$log_file"
+else
+    echo "No test runner shell script found"
+    exit 1
+fi
 exit_code=$?
-cat "$log_file" | sed -nE 's/^LATENCY: ([0-9]+) cycles$/\1/p'
+cat "$log_file" | sed -nE 's/.*LATENCY:\s+([0-9]+) cycles$/\1/p'
 exit "$exit_code"

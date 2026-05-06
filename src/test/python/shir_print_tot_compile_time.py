@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-This script reports the total compile time for all the SHIR benchmarks.
+This script reports the total compile time for all the benchmarks directly written in Sirop
+(but not those translated from Aetherling or the ablation study).
 """
 
 import lib.constants as c
@@ -12,7 +13,7 @@ def main() -> None:
     """
     Script entry point.
     """
-    results = crud.read_compile_times(c.SHIR_COMPILE_TIME_CSV)
+    results = crud.read_compile_times(c.SIROP_COMPILE_TIME_CSV)
     tot_ctime = sum(t.total for t in results.values())
     max_ctime = max(t.total for t in results.values())
     print(f"Number of programs: {len(results)}")

@@ -13,10 +13,6 @@ import ablation_extract_fmax
 import ablation_extract_resource_usage
 import ablation_generate
 import ablation_measure_latency
-import ablation_plot_compile_time
-import ablation_plot_fmax
-import ablation_plot_latency
-import ablation_plot_resource_usage
 import ablation_synth
 import lib.constants as c
 from lib.optimization_level import OptimizationLevel
@@ -34,47 +30,19 @@ def main(
     programs: list[str],
     levels: list[OptimizationLevel],
     *,
-    clean: bool,
     skip_latency: bool,
-    skip_plots: bool,
-    view_plots: bool,
+    recompile_sirop: bool
 ) -> None:
     """
     Script entry point.
     """
-    ablation_generate.main(programs, levels)
+    ablation_generate.main(programs, levels, recompile_sirop=recompile_sirop)
     ablation_synth.main(programs, levels)
-
-    if clean:
-        c.ABLATION_RESOURCE_USAGE_CSV.unlink(missing_ok=True)
-        if not skip_latency:
-            c.ABLATION_LATENCY_CSV.unlink(missing_ok=True)
-        c.ABLATION_FMAX_CSV.unlink(missing_ok=True)
-
     ablation_extract_compile_time.main(programs, levels)
-    if not skip_plots:
-        ablation_plot_compile_time.main()
-        if view_plots:
-            open_plot(c.ABLATION_COMPILE_TIME_PDF)
-
     ablation_extract_resource_usage.main(programs, levels)
-    if not skip_plots:
-        ablation_plot_resource_usage.main()
-        if view_plots:
-            open_plot(c.ABLATION_RESOURCE_USAGE_PDF)
-
     ablation_extract_fmax.main(programs, levels)
-    if not skip_plots:
-        ablation_plot_fmax.main()
-        if view_plots:
-            open_plot(c.ABLATION_FMAX_PDF)
-
     if not skip_latency:
         ablation_measure_latency.main(programs, levels)
-        if not skip_plots:
-            ablation_plot_latency.main()
-            if view_plots:
-                open_plot(c.ABLATION_LATENCY_PDF)
 
 
 def parse_args() -> Namespace:
@@ -85,24 +53,14 @@ def parse_args() -> Namespace:
         description="This script runs the full ablation study."
     )
     parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="delete the previous results before running the experiments",
-    )
-    parser.add_argument(
         "--skip-latency",
         action="store_true",
         help="skip the latency measurement step"
     )
     parser.add_argument(
-        "--skip-plots",
+        "--recompile-sirop",
         action="store_true",
-        help="skip generating the plots",
-    )
-    parser.add_argument(
-        "--view-plots",
-        action="store_true",
-        help="open the generated plots once they are generated",
+        help="run 'sbt assembly' before invoking the Sirop compiler",
     )
     parser.add_argument(
         "programs",
@@ -131,8 +89,6 @@ if __name__ == "__main__":
     main(
         programs=_args.programs,
         levels=_args.lvl,
-        clean=_args.clean,
         skip_latency=_args.skip_latency,
-        skip_plots=_args.skip_plots,
-        view_plots=_args.view_plots,
+        recompile_sirop=_args.recompile_sirop,
     )

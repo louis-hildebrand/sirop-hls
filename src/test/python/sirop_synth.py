@@ -10,11 +10,11 @@ import lib.constants as c
 from lib import synth
 
 
-def synthesize_shir(prog: str) -> None:
+def synthesize_sirop(prog: str) -> None:
     """
     Invoke the synthesis tool for the given program.
     """
-    proj_dir = c.SHIR_VHDL_DIR.joinpath(prog)
+    proj_dir = c.SIROP_VHDL_DIR.joinpath(prog)
     ok = synth.synthesize_design(proj_dir, top="top")
     if not ok:
         print(f"Failed to synthesize {proj_dir}")
@@ -29,9 +29,9 @@ def main(programs: list[str]) -> None:
     print(f"- Programs : {', '.join(programs)}")
     print("-" * 80)
 
-    print("Synthesizing SHIR designs...")
+    print("Synthesizing Sirop designs...")
     for prog in programs:
-        synthesize_shir(prog)
+        synthesize_sirop(prog)
 
 
 def parse_args() -> Namespace:
