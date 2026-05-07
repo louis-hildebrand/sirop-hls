@@ -31,6 +31,7 @@ def main(command: str, image: str, skip_chmod: bool) -> None:
         "--rm",
         "--mount", f"type=bind,src={c.VHDL_DIR.as_posix()},dst=/sirop/src/test/vhdl",
         "--mount", f"type=bind,src={c.VERILOG_DIR.as_posix()},dst=/sirop/src/test/verilog",
+        "--mount", f"type=bind,src={c.RESULTS_DIR.as_posix()},dst=/sirop/results",
         image,
         "/bin/bash", "-c", container_command,
     ]
