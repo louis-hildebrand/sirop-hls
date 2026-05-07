@@ -70,3 +70,5 @@ metals.sbt
 /src/test/resources/aetherling_benchmarks/simplified/
 /src/main/resources/commit.txt
 /src/e2e/resources/actual/
+/src/test/vhdl/
+/src/test/verilog/

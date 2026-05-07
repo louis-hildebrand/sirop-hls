@@ -17,18 +17,21 @@ import org.scalatest.funsuite.AnyFunSuite
 @HardwareTest
 class VhdlTestRunnerTests extends AnyFunSuite {
 
+  private val EXAMPLES =
+    os.pwd / "src" / "test" / "resources" / "mhir" / "gen" / "vhdl"
+
   test("no-tests-1") {
-    val result = VhdlTestRunner.testExistingProject("examples/no-tests-1")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "no-tests-1")
     assert(result == NoTests)
   }
 
   test("no-tests-2") {
-    val result = VhdlTestRunner.testExistingProject("examples/no-tests-2")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "no-tests-2")
     assert(result == NoTests)
   }
 
   test("or-gate") {
-    val result = VhdlTestRunner.testExistingProject("examples/or-gate")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "or-gate")
     assert(result == TestPassed)
   }
 
@@ -36,29 +39,29 @@ class VhdlTestRunnerTests extends AnyFunSuite {
     // The files are deliberately out of order (stm_1_scan.vhd depends on
     // stm_2_count.vhd but the former comes before the latter in an
     // alphabetical listing of the files).
-    val result = VhdlTestRunner.testExistingProject("examples/stm-count-sum")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "stm-count-sum")
     assert(result == TestPassed)
   }
 
   test("design-compile-error") {
     val result =
-      VhdlTestRunner.testExistingProject("examples/design-compile-error")
+      VhdlTestRunner.testExistingProject(EXAMPLES / "design-compile-error")
     assert(result == DesignCompileFailed)
   }
 
   test("testbench-compile-error") {
     val result =
-      VhdlTestRunner.testExistingProject("examples/testbench-compile-error")
+      VhdlTestRunner.testExistingProject(EXAMPLES / "testbench-compile-error")
     assert(result == TestbenchCompileFailed)
   }
 
   test("wrong-output") {
-    val result = VhdlTestRunner.testExistingProject("examples/wrong-output")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "wrong-output")
     assert(result == SimulationFailed)
   }
 
   test("infinite-loop") {
-    val result = VhdlTestRunner.testExistingProject("examples/infinite-loop")
+    val result = VhdlTestRunner.testExistingProject(EXAMPLES / "infinite-loop")
     assert(result == SimulationTimeout)
   }
 }

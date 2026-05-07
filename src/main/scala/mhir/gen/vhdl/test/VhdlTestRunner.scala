@@ -15,7 +15,7 @@ import mhir.gen.{
 import mhir.ir._
 import mhir.logging.time
 import org.slf4j.event.Level
-import os.{Path, RelPath}
+import os.Path
 
 import scala.io.Source
 import scala.sys.process._
@@ -27,18 +27,6 @@ object VhdlTestRunner {
   private[vhdl] val VHDL_TEST_DIR = VHDL_DIR / "auto_tests"
 
   private implicit val logger: Logger = Logger(getClass.getName)
-
-  /** See [[testExistingProject(dir:Path*]].
-    *
-    * @param dir
-    *   the name of the VHDL project, relative to the `vhdl` directory within
-    *   this repository.
-    * @return
-    *   the test result.
-    */
-  def testExistingProject(dir: String): TestResult = {
-    testExistingProject(VHDL_DIR / RelPath(dir))
-  }
 
   /** Test an existing VHDL project that has both a design and a testbench.
     *

@@ -1,15 +1,7 @@
 package mhir.gen.verilog
 
-import mhir.gen.{
-  DesignCompileFailed,
-  SimulationFailed,
-  SimulationTimeout,
-  TestPassed,
-  TestResult,
-  TestbenchCompileFailed,
-  UnknownFailure
-}
-import os.{Path, RelPath}
+import mhir.gen._
+import os.Path
 
 import scala.sys.process._
 
@@ -17,20 +9,8 @@ import scala.sys.process._
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]].
   */
 object VerilogTestRunner {
-  private val VERILOG_DIR = os.pwd / "src" / "test" / "verilog"
-  private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_verilog.sh"
 
-  /** See [[testExistingProject(dir:Path*]].
-    *
-    * @param dir
-    *   the name of the Verilog project, relative to the `verilog` directory
-    *   within this repository.
-    * @return
-    *   the test result.
-    */
-  def testExistingProject(dir: String): TestResult = {
-    testExistingProject(VERILOG_DIR / RelPath(dir))
-  }
+  private val RUN_TEST_SH = os.pwd / "src" / "test" / "sh" / "test_verilog.sh"
 
   /** Test an existing Verilog project that has both a design and a testbench.
     *

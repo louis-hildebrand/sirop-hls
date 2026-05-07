@@ -5,7 +5,6 @@
 !.gitignore
 
 # ... and don't ignore the example .vhd files
-!/examples/
-!/examples/**/
-!/examples/**/design/*.vhd
-!/examples/**/test/*.vhd
+!/**/
+!/**/design/*.vhd
+!/**/test/*.vhd
