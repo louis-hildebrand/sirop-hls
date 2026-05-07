@@ -215,6 +215,20 @@ vsim dot.prj/verification/vsim.wlf
 >
 > Don't forget to `cd` back to `$SIROP/src/test/python` to follow the rest of these instructions!
 
+#### SHIR
+
+<!-- TODO: text -->
+
+```sh
+./docker_run.py './shir_generate.py map'
+
+./shir_synth.py map
+./shir_extract_fmax.py map
+./shir_extract_resource_usage.py map
+
+/shir_measure_latency.py map
+```
+
 #### Aetherling
 
 Aetherling's existing Chisel backend is evaluated as part of generating figure 19.
@@ -227,13 +241,13 @@ Figure 18 uses the same data.
 <!-- TODO: text -->
 
 ```sh
-docker_run.py './sirop_generate.py map'
+./docker_run.py './sirop_generate.py map'
 
 ./sirop_synth.py map
 ./sirop_extract_fmax.py map
 ./sirop_extract_resource_usage.py map
 
-./sirop_latency.py map
+./sirop_measure_latency.py map
 ```
 
 #### Plotting the Data
