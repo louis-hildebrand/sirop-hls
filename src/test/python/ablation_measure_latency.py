@@ -90,11 +90,15 @@ def parse_args() -> Namespace:
             f" (the ones in the paper are: {' '.join(c.ACTIVE_BENCHES)})"
         )
     )
+    valid_levels = [lvl.value for lvl in c.ACTIVE_OPT_LEVELS]
     parser.add_argument(
         "--lvl",
         nargs="*",
         type=OptimizationLevel,
-        help="the optimization levels to test",
+        help=(
+            "the optimization levels to test"
+            f" (the ones in the paper are: {' '.join(valid_levels)})"
+        ),
     )
     args = parser.parse_args()
     if not args.programs:
