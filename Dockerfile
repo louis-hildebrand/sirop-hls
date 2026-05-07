@@ -2,8 +2,7 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
-COPY src/test/python/requirements.txt /requirements.txt
-RUN <<EOF
+RUN --mount=type=bind,src=src/test/python/requirements.txt,dst=/requirements.txt <<EOF
 # Install basic tools
 apt-get update
 apt-get install -yq --no-install-recommends \
@@ -23,29 +22,47 @@ apt-get install -yq --no-install-recommends \
     openjdk-11-jdk \
     sbt=1.9.7
 # Install Python dependencies
-# TODO: This LaTeX installation is way too big; try installing texlive-base and adding only the required packages
 apt-get install -yq --no-install-recommends \
     python3 \
-    python3-pip \
-    texlive-latex-extra \
-    cm-super
+    python3-pip
 python3 -m pip install --break-system-packages -r /requirements.txt
 EOF
 
-# Clone and build Sirop compiler
-# Change the echoed string to force re-cloning the repo
-# TODO: It would probably be better to use docker COPY instead of clone
-RUN echo flip > /dev/null \
- && git clone \
-    --single-branch \
-    --depth 1 --shallow-submodules \
-    --recurse-submodules \
-    https://bitbucket.org/louishildebrand/sirop.git
+# TODO: This LaTeX installation is way too big; try installing texlive-base and adding only the required packages
+RUN <<EOF
+# Install LaTeX so I can generate plots
+apt-get update
+apt-get install -yq --no-install-recommends \
+    texlive-latex-extra \
+    cm-super
+EOF
+
+# Copy over Sirop and SHIR compilers
+COPY --parents \
+     --exclude=target/ \
+     --exclude=__pycache__/ \
+     ./lib/ \
+     ./project/build.properties \
+     ./project/plugins.sbt \
+     ./src/main/ \
+     ./src/test/java/ \
+     ./src/test/python/ \
+     ./src/test/resources/aetherling_benchmarks/*.csv \
+     ./src/test/resources/aetherling_benchmarks/original/ \
+     ./src/test/resources/aetherling_benchmarks/verilog/ \
+     ./src/test/resources/shir_benchmarks/ \
+     ./src/test/scala/ \
+     ./src/test/sh/ \
+     ./src/test/shir/ \
+     ./build.sbt \
+     /sirop
 WORKDIR /sirop
-# Run post-commit hook to create commit.txt, which is needed by build.sbt
-# Also compile the tests and the SHIR tests so the user doesn't spend time waiting for it
-RUN ./githooks/post-commit \
- && sbt assembly \
+# Compile the tests and the SHIR tests so the user doesn't spend time waiting for it.
+# It adds 100-200 MB to the image size, but saves the user a minute or two.
+# It also has the minor benefit that we confirm compilation succeeds when building the docker
+# image; if there is a problem, we catch it immediately rather than when the user tries running
+# the container.
+RUN sbt assembly \
  && sbt 'Test/compile' \
  && cd /sirop/src/test/shir \
  && sbt 'Test/compile'

@@ -34,6 +34,8 @@ def main(command: str, image: str, skip_chmod: bool) -> None:
         image,
         "/bin/bash", "-c", container_command,
     ]
+    c.VHDL_DIR.mkdir(exist_ok=True)
+    c.VERILOG_DIR.mkdir(exist_ok=True)
     subprocess.run(docker_command, check=True)
 
 
