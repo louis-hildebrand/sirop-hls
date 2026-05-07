@@ -1,0 +1,12 @@
+bench_name,bench_throughput,language,latency,sim_success
+camera,-1,sirop,15363,True
+conv1d,-1,sirop,16,True
+conv2d,-1,sirop,30721,True
+convb2b,-1,sirop,30721,True
+dot,-1,sirop,841,True
+jacobi,-1,sirop,4096,True
+map,-1,sirop,200,True
+matmat,-1,sirop,1048579,True
+matvec,-1,sirop,65538,True
+sharpen,-1,sirop,30721,True
+sobel,-1,sirop,30768,True

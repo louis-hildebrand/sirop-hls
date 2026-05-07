@@ -1,0 +1,12 @@
+bench_name,bench_throughput,language,fmax
+camera,-1,sirop,243.72
+conv1d,-1,sirop,645.16
+conv2d,-1,sirop,294.12
+convb2b,-1,sirop,268.38
+dot,-1,sirop,462.53
+jacobi,-1,sirop,382.56
+map,-1,sirop,645.16
+matmat,-1,sirop,210.17
+matvec,-1,sirop,282.33
+sharpen,-1,sirop,225.84
+sobel,-1,sirop,222.62

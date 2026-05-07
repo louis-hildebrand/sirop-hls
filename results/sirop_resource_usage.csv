@@ -1,0 +1,12 @@
+bench_name,bench_throughput,language,alm,bram,dsp
+camera,-1,sirop,1052,27,0
+conv1d,-1,sirop,14,0,0
+conv2d,-1,sirop,187,8,0
+convb2b,-1,sirop,252,11,0
+dot,-1,sirop,30,0,1
+jacobi,-1,sirop,33,1,0
+map,-1,sirop,6,0,0
+matmat,-1,sirop,518,59,8
+matvec,-1,sirop,68,1,1
+sharpen,-1,sirop,199,8,0
+sobel,-1,sirop,2096,8,26
