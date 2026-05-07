@@ -32,7 +32,7 @@ def generate_verilog(benchmarks: list[str]) -> None:
             print(f"WARNING: missing file {top}")
             return None
         cls = c.VERILOG_PROJ_INITIALIZER
-        return f"Test / runMain {cls} {verilog_proj_dir(bench)} {top} --overwrite"
+        return f"Test/runMain {cls} {verilog_proj_dir(bench)} {top} --overwrite"
     tasks = [make_task(b) for b in benchmarks]
     tasks = [t for t in tasks if t is not None]
     os.chdir(c.ROOT_DIR)
@@ -51,6 +51,8 @@ def generate_verilog_testbenches(benchmarks: list[str]) -> None:
     sbt_command = "; ".join([
         f"Test/runMain {cls} {verilog_proj_dir(bench).resolve().as_posix()}"
         for bench in benchmarks
+        # Skip bigsobel_1_3, for which no Verilog project is generated
+        if c.CHISEL_VERILOG_SRC_DIR.joinpath(f"{bench}.v").is_file()
     ])
     subprocess.run(["sbt", sbt_command], check=True)
 
