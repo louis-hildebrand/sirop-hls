@@ -8,6 +8,7 @@ apt-get update
 apt-get install -yq --no-install-recommends \
     apt-transport-https \
     ca-certificates \
+    cloc \
     curl \
     git \
     gnupg
@@ -37,7 +38,8 @@ apt-get install -yq --no-install-recommends \
     cm-super
 EOF
 
-# Copy over Sirop and SHIR compilers
+# Copy over Sirop, Aetherling, and SHIR compilers
+ADD https://github.com/chipsalliance/chisel.git#v3.2.8 /chisel
 COPY --parents \
      --exclude=target/ \
      --exclude=__pycache__/ \
@@ -45,6 +47,8 @@ COPY --parents \
      ./project/build.properties \
      ./project/plugins.sbt \
      ./src/main/ \
+     ./src/test/aetherling/src/ \
+     ./src/test/aetherling/chiselAetherling/ \
      ./src/test/java/ \
      ./src/test/python/ \
      ./src/test/resources/aetherling_benchmarks/*.csv \
@@ -57,7 +61,7 @@ COPY --parents \
      ./build.sbt \
      /sirop
 WORKDIR /sirop
-# Compile the tests and the SHIR tests so the user doesn't spend time waiting for it.
+# Compile the tests and the SHIR compiler so the user doesn't spend time waiting for it.
 # It adds 100-200 MB to the image size, but saves the user a minute or two.
 # It also has the minor benefit that we confirm compilation succeeds when building the docker
 # image; if there is a problem, we catch it immediately rather than when the user tries running
