@@ -1,40 +1,93 @@
 # LCTES '26 Artifact Evaluation: Sirop
 
-## Setup
+## Getting started guide
 
-[//]: # TODO: explain how to connect to lab server
+Running the full evaluation requires the following software:
 
-[//]: # TODO: explain how to obtain and unzip sirop repo
+- Quartus Prime (tested with 19.2.0)
+- ModelSim (tested with vsim 2021.1)
+- Intel HLS (tested with 21.1.0)
+- Python >= 3.10
+
+All of these (except Python) are proprietary software and are therefore not included in the Docker image.
+Python is needed to run the host-side evaluation scripts that call these tools.
+The included script `check_host_tools.sh` will look for the required tools and exit with a non-zero code if any are missing.
+
+### Lab server
+
+The LCTES '26 artifact evaluation committee (AEC) members will be provided with SSH keys to access a lab server with the required software.
+To access the server:
 
 ```sh
-SIROP=~/sirop
+# Add the key to the SSH agent
+ssh-add path/to/your/key
+# Connect to the server (e.g., replace $CSUSER by your username, e.g., csuser104)
+ssh -A -J $CSUSER@jump.cs.mcgill.ca $CSUSER@solaire.cs.mcgill.ca
+# Update PATH to include required tools
+export PATH="/opt/intelFPGA_pro/quartus_19.2.0b57/quartus/bin:$PATH"
+export PATH="/opt/intelFPGA_pro/21.1/modelsim_ae/bin:$PATH"
+export PATH="/opt/intelFPGA_pro/21.1/hls/bin:$PATH"
+export PATH="/opt/anaconda3/bin:$PATH"
 ```
 
-[//]: # TODO: explain how to set up venv on lab server, since scripts need at least Python 3.10
+With these updates to `PATH`, the `check_host_tools.sh` script should now succeed with output similar to:
 
-[//]: # TODO: tell reader about `check_host_tools.sh`
+```sh
+$ ./check_host_tools.sh
+Quartus Prime Shell
+Version 19.2.0 Build 57 06/24/2019 Patches 0.01rc SJ Pro Edition
+Copyright (C) 2019  Intel Corporation. All rights reserved.
 
-[//]: # TODO: tell reader about precompiled solutions and how they can use those to immediately generate the plots?
+Model Technology ModelSim - Intel FPGA Edition vcom 2021.1 Compiler 2021.02 Feb  2 2021
 
-[//]: # TODO: rest of guide assumes user is in src/test/python
+Model Technology ModelSim - Intel FPGA Edition vsim 2021.1 Simulator 2021.02 Feb  2 2021
 
-[//]: # TODO: explain how to debug (e.g., run `test_vhdl.sh . -v`, check `transcript` and `latency*.log`)
+Intel(R) HLS Compiler
+Version 21.1.0 Build 173.3
+Copyright (C) 2021 Intel Corporation
 
-[//]: # TODO: suggest deleting results/ folder before starting to prove that the new results are fresh?
+Python 3.10.9
 
-[//]: # TODO: Add logging
+Everything seems to be in order.
+```
 
-[//]: # TODO: ignore info message about no assertions in source code
+### Context
 
-[//]: # TODO: ignore warning about missing `bigsobel_1_3.v`
+<!-- TODO: explain how to obtain and unzip sirop repo? -->
 
-[//]: # TODO: Say how long each step will take
+For the rest of this guide, the variable `$SIROP` will refer to the root of the Sirop repository.
+For example, if you extracted the artifact zip file to `~/lctes26paper61/`, run
 
-[//]: # TODO: Say where the benchmark source code is found in each case
+```sh
+SIROP=~/lctes26paper61/sirop
+[[ -f "$SIROP/build.sbt" ]] && echo "Looks good" || echo "Something's wrong: I don't see build.sbt"
+```
 
-[//]: # TODO: Add --docker flag for each of the `*_run_all.py` scripts to make things easier?
+Furthermore, the rest of this guide will assume the current working directory is `$SIROP/src/test/python`, since this is where most of the evaluation scripts are located.
 
-[//]: # TODO: Explain how to check results in section 7.5, paragraph "Extensibility"
+### Docker image
+
+The artifact includes a Docker image containing the Sirop compiler and various other tools used in the evaluation.
+To load the image included in the artifact, run
+
+```sh
+sudo docker load -i sirop-lctes26-artifact-image.tar
+```
+
+or, to download the image from Docker Hub, run
+
+```sh
+sudo docker pull louishildebrand/sirop-lctes26-artifact:latest
+```
+
+Once the image is loaded, test that it works by running the following command.
+(Recall that the current working directory at this point should be `$SIROP/src/test/python`.)
+
+```sh
+./docker_run.py 'java -jar /sirop/target/scala-2.12/sirop.jar --version'
+```
+
+It should print out a version like `1.2.0-A_COMMIT_HASH`.
 
 ## Step-by-step instructions
 
@@ -54,6 +107,7 @@ For example, to do this only for the `map` benchmark, run the following command.
 >
 > Most of the scripts mentioned in this document accept a list of benchmarks to run.
 > For example, the command above will call the Sirop compiler only for the `map` benchmark.
+> To see the list of available benchmarks, run `./ablation_generate.py --help`.
 > Passing an empty list instead will cause the scripts to run all benchmarks.
 > For example, `./docker_run.py './ablation_generate.py'` will call the Sirop compiler for all benchmarks.
 
@@ -71,7 +125,7 @@ One PDF file will be generated: `$SIROP/ablation_resource_usage.pdf`.
 Figure 17 in the paper shows just the resource usage.
 
 ```sh
-./docker_run './ablation_plot_resource_usage.py'
+./docker_run.py './ablation_plot_resource_usage.py'
 ```
 
 *Optionally*, the latency can also be measured and plotted.
@@ -89,7 +143,7 @@ The result will be saved in `$SIROP/results/ablation_latency.csv`.
 > So far, we have only reproduced the results for the `map` benchmark.
 > To try other benchmarks, follow the same instructions but replace `map`.
 
-[//]: # TODO: explain how to copy plot off of lab server
+<!-- TODO: explain how to copy plot off of lab server -->
 
 ### Figure 19 (design space exploration with Aetherling)
 
@@ -121,8 +175,8 @@ Together, they form figure 19.
 ./aetherling_extract_fmax_estimates.py ../resources/aetherling_benchmarks/original/map_1.txt
 ./aetherling_extract_resource_usage.py ../resources/aetherling_benchmarks/original/map_1.txt
 
-./docker_run './ablation_plot_resource_usage.py'
-./docker_run './ablation_plot_latency.py'
+./docker_run.py './ablation_plot_resource_usage.py'
+./docker_run.py './ablation_plot_latency.py'
 ```
 
 ### Figure 18 (comparison with prior works)
@@ -155,7 +209,7 @@ Then, inspect the timing diagram by running
 vsim dot.prj/verification/vsim.wlf
 ```
 
-[//]: # TODO: Provide more details about how to count clock cycles
+<!-- TODO: Provide more details about how to count clock cycles -->
 
 > ***Reminder***
 >
@@ -166,14 +220,14 @@ vsim dot.prj/verification/vsim.wlf
 Aetherling's existing Chisel backend is evaluated as part of generating figure 19.
 Figure 18 uses the same data.
 
-[//]: # TODO: explain how the scripts choose among the different benchmark/throughput pairs?
+<!-- TODO: explain how the scripts choose among the different benchmark/throughput pairs? -->
 
 #### Sirop
 
-[//]: # TODO
+<!-- TODO: text -->
 
 ```sh
-docker_run.py ./sirop_generate.py map
+docker_run.py './sirop_generate.py map'
 
 ./sirop_synth.py map
 ./sirop_extract_fmax.py map
@@ -187,11 +241,13 @@ docker_run.py ./sirop_generate.py map
 The following scripts will produce the two PDF files that make up figure 18: `$SIROP/results/cpw_resource_usage.pdf` and `$SIROP/results/cpw_latency.pdf`.
 
 ```sh
-./docker_run './cpw_plot_resource_usage.py'
-./docker_run './cpw_plot_latency.py'
+./docker_run.py './cpw_plot_resource_usage.py'
+./docker_run.py './cpw_plot_latency.py'
 ```
 
 ### Table 2 (hardware generator code size)
+
+<!-- TODO: Explain why the numbers have changed a bit -->
 
 This section explains how to find the data in table 2, which shows the size of different HLS tools' hardware generators.
 
@@ -223,7 +279,7 @@ To count the lines of Scala code required for hardware generation in SHIR, use t
 ./docker_run.py 'cloc /sirop/src/test/shir/src/main/backend/hdl/{graph,vhdl}'
 ```
 
-[//]: # TODO: This number is not what I had before. How was I measuring it previously?
+<!-- TODO: This number is not what I had before. How was I measuring it previously? -->
 
 To measure the amount of VHDL code used for hardware generation in SHIR, use the following command.
 
@@ -245,3 +301,14 @@ Note that two directories are excluded because they implement features that are 
 
 - `nohandshake` implements hardware generation without a handshake protocol (i.e., `valid` and `ready` must always be true). Aetherling generates hardware with static schedules, but it does not have *both* options available (dynamic and static scheduling).
 - `test` implements a testbench generator, which allows the programmer to specify test cases in Sirop and obtain a VHDL testbench.
+
+<!-- TODO: tell reader about precompiled solutions and how they can use those to immediately generate the plots? -->
+<!-- TODO: explain how to debug (e.g., run `test_vhdl.sh . -v`, check `transcript` and `latency*.log`) -->
+<!-- TODO: suggest deleting results/ folder before starting to prove that the new results are fresh? -->
+<!-- TODO: Add logging -->
+<!-- TODO: ignore info message about no assertions in source code -->
+<!-- TODO: ignore warning about missing `bigsobel_1_3.v` -->
+<!-- TODO: Say how long each step will take -->
+<!-- TODO: Say where the benchmark source code is found in each case -->
+<!-- TODO: Add --docker flag for each of the `*_run_all.py` scripts to make things easier? -->
+<!-- TODO: Explain how to check results in section 7.5, paragraph "Extensibility" -->
