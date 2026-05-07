@@ -2,7 +2,7 @@
 
 set -u
 
-TIME_LIMIT='1h'
+TIME_LIMIT='3h'
 
 proj_dir="$(readlink -f "$1")"
 

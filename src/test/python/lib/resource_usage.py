@@ -34,7 +34,10 @@ def extract_resource_usage(project_dir: Path, component: str | None = None) -> R
     """
     Extract the resource usage for a given design.
     """
-    os.chdir(project_dir)
+    try:
+        os.chdir(project_dir)
+    except FileNotFoundError:
+        return None
     args = [component] if component is not None else []
     try:
         result = subprocess.run(

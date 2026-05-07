@@ -24,7 +24,7 @@ def extract_and_save_resource_usage(
     """
     bench = b.bench
     print(
-        f"Measuring resource usage for {bench.full_name} ({b.language})... ",
+        f"Extracting resource usage for {bench.full_name} ({b.language})... ",
         flush=True,
         end="",
     )
@@ -34,7 +34,7 @@ def extract_and_save_resource_usage(
         else c.AETHERLING_VHDL_DIR.joinpath(bench.full_name)
     )
     ru = extract_resource_usage(project_dir)
-    print("failed" if ru is None else "OK")
+    print("FAILED" if ru is None else str(ru))
     crud.save_resource_usage(writer, b, ru)
     f.flush()
 
