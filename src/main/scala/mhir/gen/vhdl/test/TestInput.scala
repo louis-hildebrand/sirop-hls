@@ -45,9 +45,16 @@ object DirectTestInput {
 /** A sequence of inputs to read from files.
   *
   * @param data
-  *   the path to the file containing the values for the `data` signal.
+  *   the full path to the file containing the values for the `data` signal.
   * @param valid
-  *   the path to the file containing the values for the `valid` signal.
+  *   the full path to the file containing the values for the `valid` signal.
+  * @param dir
+  *   the path of the VHDL project directory.
   */
-case class TestInputFromFiles(data: Path, valid: Path, elemTyp: Type, len: Int)
-    extends TestInput
+case class TestInputFromFiles(
+    data: Path,
+    valid: Path,
+    dir: Path,
+    elemTyp: Type,
+    len: Int
+) extends TestInput

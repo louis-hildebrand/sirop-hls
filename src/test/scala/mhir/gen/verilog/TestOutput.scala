@@ -41,6 +41,8 @@ case class DirectTestOutput(f: Int => Expr, elemTyp: Type, len: Int, skip: Int)
   *   ignore certain parts of the output (e.g., because they are undefined).
   *   Note that invalid elements (i.e., ones where there is <i>no</i> output
   *   because the `valid` signal is lowered) are always ignored.
+  * @param dir
+  *   the path to the Verilog project directory.
   * @param elemTyp
   *   the type of the elements within the stream.
   * @param len
@@ -51,6 +53,7 @@ case class DirectTestOutput(f: Int => Expr, elemTyp: Type, len: Int, skip: Int)
 case class TestOutputFromFile(
     data: Path,
     mask: Path,
+    dir: Path,
     elemTyp: Type,
     len: Int,
     skip: Int

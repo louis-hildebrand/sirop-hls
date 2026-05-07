@@ -42,16 +42,23 @@ object DirectTestOutput {
 /** A sequence of expected outputs to read from files.
   *
   * @param data
-  *   the path to the file containing the expected data.
+  *   the full path of the file containing the expected data.
   * @param mask
-  *   the path to the file containing output masks. This makes it possible to
-  *   ignore certain parts of the output (e.g., because they are undefined).
+  *   the full path of the file containing output masks. This makes it possible
+  *   to ignore certain parts of the output (e.g., because they are undefined).
   *   Note that invalid elements (i.e., ones where there is <i>no</i> output
   *   because the `valid` signal is lowered) are always ignored.
+  * @param dir
+  *   the path of the VHDL project directory.
   * @param elemTyp
   *   the type of the elements within the stream.
   * @param len
   *   the length of the stream.
   */
-case class TestOutputFromFile(data: Path, mask: Path, elemTyp: Type, len: Int)
-    extends TestOutput
+case class TestOutputFromFile(
+    data: Path,
+    mask: Path,
+    dir: Path,
+    elemTyp: Type,
+    len: Int
+) extends TestOutput

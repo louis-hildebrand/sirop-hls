@@ -131,13 +131,14 @@ private[verilog] object VerilogTestbenchInputGenerator {
   def getFileInputBlock(in: TestInputFromFile): String = {
     val portList = getNames(in).mkString("{ ", ", ", " }")
     val bitsPerRow = Binary.paddedBitWidth(in.elemTypes: _*)
+    val path = in.f.relativeTo(in.dir)
     s"""// Input generation
        |
        |task prepare_inputs ();
        |    integer fd, i, code, msb;
        |begin
-       |    $$display("Reading inputs from ${in.f} ...");
-       |    fd = $$fopen("${in.f}", "r");
+       |    $$display("Reading inputs from $path ...");
+       |    fd = $$fopen("$path", "r");
        |    if (fd === 0) begin
        |        $$error("Failed to open input file.");
        |        $$stop(0);

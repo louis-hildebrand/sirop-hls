@@ -39,6 +39,7 @@ object VerilogTestbenchGenerator {
         }
         TestInputFromFile(
           f,
+          dir = dir,
           elemTypes = in.elemTypes,
           len = in.len,
           hold = in.hold
@@ -55,6 +56,7 @@ object VerilogTestbenchGenerator {
         TestOutputFromFile(
           data = dataFile,
           mask = maskFile,
+          dir = dir,
           elemTyp = out.elemTyp,
           len = out.len,
           skip = out.skip

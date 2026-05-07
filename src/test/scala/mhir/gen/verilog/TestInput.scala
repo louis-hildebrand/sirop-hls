@@ -49,9 +49,16 @@ case class DirectTestInput(
 /** A sequence of inputs to read from a file.
   *
   * @param f
-  *   the path to the file containing the input data.
+  *   the full path to the file containing the input data.
+  * @param dir
+  *   the path of the Verilog project directory.
   * @param hold
   *   the number of cycles for which to hold each input element.
   */
-case class TestInputFromFile(f: Path, elemTypes: Seq[Type], len: Int, hold: Int)
-    extends TestInput
+case class TestInputFromFile(
+    f: Path,
+    dir: Path,
+    elemTypes: Seq[Type],
+    len: Int,
+    hold: Int
+) extends TestInput

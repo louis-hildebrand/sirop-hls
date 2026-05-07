@@ -73,6 +73,7 @@ object VhdlTestbenchGenerator {
         val fileInput = TestInputFromFiles(
           data = dataFile,
           valid = validFile,
+          dir = dir,
           elemTyp = in.elemTyp,
           len = in.len
         )
@@ -90,6 +91,7 @@ object VhdlTestbenchGenerator {
         val fileOutput = TestOutputFromFile(
           data = dataFile,
           mask = maskFile,
+          dir = dir,
           elemTyp = io.expectedOutput.elemTyp,
           len = io.expectedOutput.len
         )
@@ -499,7 +501,7 @@ object VhdlTestbenchGenerator {
        |    variable msb : integer range -1 to ${8 * bytesPerRow - 1};
        |    variable ram : ${x.name}_data_ram_type;
        |begin
-       |    file_open(f, "${in.data}");
+       |    file_open(f, "${in.data.relativeTo(in.dir)}");
        |    for i in 0 to ${x.name}_LEN - 1 loop
        |        msb := ${8 * bytesPerRow - 1};
        |        while msb >= 7 loop
@@ -519,7 +521,7 @@ object VhdlTestbenchGenerator {
        |    variable byte : std_logic_vector(7 downto 0);
        |    variable ram : ${x.name}_valid_ram_type;
        |begin
-       |    file_open(f, "${in.valid}");
+       |    file_open(f, "${in.valid.relativeTo(in.dir)}");
        |    for i in 0 to ${x.name}_LEN - 1 loop
        |        read(f, c);
        |        byte := std_logic_vector(to_unsigned(character'pos(c), 8));
@@ -641,7 +643,7 @@ object VhdlTestbenchGenerator {
        |    variable lsb : integer range -9 to $initLsb;
        |    variable ram : out_ram_type;
        |begin
-       |    file_open(f, "${out.data}");
+       |    file_open(f, "${out.data.relativeTo(out.dir)}");
        |    for i in 0 to OUT_LEN - 1 loop
        |        msb := $initMsb;
        |        lsb := $initLsb;
@@ -665,7 +667,7 @@ object VhdlTestbenchGenerator {
        |    variable lsb : integer range -9 to $initLsb;
        |    variable ram : out_ram_type;
        |begin
-       |    file_open(f, "${out.mask}");
+       |    file_open(f, "${out.mask.relativeTo(out.dir)}");
        |    for i in 0 to OUT_LEN - 1 loop
        |        msb := $initMsb;
        |        lsb := $initLsb;

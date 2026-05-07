@@ -119,13 +119,15 @@ object VerilogTestbenchOutputGenerator {
     val totWidth = widthByPort(out).values.sum
     val outPortList = getNames(out).mkString("{ ", ", ", " }")
     val bitsPerRow = Binary.paddedBitWidth(out.elemTyp)
+    val dataFilePath = out.data.relativeTo(out.dir)
+    val maskFilePath = out.mask.relativeTo(out.dir)
     s"""// Output checking
        |
        |task read_output_data ();
        |    integer fd, i, msb;
        |begin
-       |    $$display("Reading output data from ${out.data}...");
-       |    fd = $$fopen("${out.data}", "r");
+       |    $$display("Reading output data from $dataFilePath...");
+       |    fd = $$fopen("$dataFilePath", "r");
        |    if (fd === 0) begin
        |        $$error("Failed to open output data file.");
        |        $$stop(0);
@@ -146,8 +148,8 @@ object VerilogTestbenchOutputGenerator {
        |task read_output_masks ();
        |    integer fd, i, msb;
        |begin
-       |    $$display("Reading output masks from ${out.mask}...");
-       |    fd = $$fopen("${out.mask}", "r");
+       |    $$display("Reading output masks from $maskFilePath...");
+       |    fd = $$fopen("$maskFilePath", "r");
        |    if (fd === 0) begin
        |        $$error("Failed to open output mask file.");
        |        $$stop(0);
