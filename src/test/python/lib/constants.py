@@ -29,6 +29,9 @@ CHISEL_VERILOG_DST_DIR = ROOT_DIR.joinpath("src", "test", "verilog", "aetherling
 TEST_SH_DIR = ROOT_DIR.joinpath("src", "test", "sh")
 IHC_DIR = ROOT_DIR.joinpath("src", "test", "hls")
 
+VHDL_DIR = ROOT_DIR.joinpath("src", "test", "vhdl")
+VERILOG_DIR = ROOT_DIR.joinpath("src", "test", "verilog")
+
 TEST_VHDL_SH = ROOT_DIR.joinpath("src", "main", "resources", "mhir", "gen", "vhdl", "test_vhdl.sh")
 
 AETHERLING_COMPILE_TIME_DIR = ROOT_DIR.joinpath("src", "test", "compile_time", "aetherling")
