@@ -112,14 +112,14 @@ def plot_fmax(results: dict[BenchmarkImpl, float]) -> None:
         ncols=3,
     )
     fig.tight_layout()
-    fig.savefig(c.FMAX_ESTIMATE_PDF, bbox_inches="tight")
+    fig.savefig(c.AETHERLING_FMAX_ESTIMATE_PDF, bbox_inches="tight")
 
 
 def main() -> None:
     """
     The program entry point.
     """
-    results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
+    results = crud.read_valid_fmax_estimates(c.AETHERLING_FMAX_ESTIMATE_CSV)
     if not results:
         sys.exit("No results to plot.")
     plot_fmax(results)

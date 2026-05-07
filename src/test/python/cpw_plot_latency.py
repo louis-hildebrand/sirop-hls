@@ -317,15 +317,18 @@ def main() -> None:
     The program entry point.
     """
     (_, latency_results, fmax_results) = crud.read_combined_results(
-        c.RESOURCE_USAGE_CSV,
-        c.LATENCY_CSV,
-        c.FMAX_ESTIMATE_CSV,
+        c.AETHERLING_RESOURCE_USAGE_CSV,
+        c.AETHERLING_LATENCY_CSV,
+        c.AETHERLING_FMAX_ESTIMATE_CSV,
         c.SHIR_RESOURCE_USAGE_CSV,
         c.SHIR_LATENCY_CSV,
         c.SHIR_FMAX_CSV,
         c.IHC_RESOURCE_USAGE_CSV,
         c.IHC_LATENCY_CSV,
         c.IHC_FMAX_CSV,
+        c.SIROP_RESOURCE_USAGE_CSV,
+        c.SIROP_LATENCY_CSV,
+        c.SIROP_FMAX_CSV,
     )
     plot_latencies(latency_results, fmax_results)
 

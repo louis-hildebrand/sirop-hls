@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import aetherling_extract_compile_time
-import aetherling_extract_fmax_estimate
+import aetherling_extract_fmax
 import aetherling_extract_resource_usage
 import aetherling_generate
 import aetherling_measure_latency
@@ -65,7 +65,7 @@ def main(
             skip_sirop=skip_sirop,
         )
 
-    aetherling_extract_fmax_estimate.main(
+    aetherling_extract_fmax.main(
         bench_names,
         skip_chisel=skip_chisel,
         skip_sirop=skip_sirop,

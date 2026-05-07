@@ -206,14 +206,14 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
         bbox_to_anchor=(0.5, 0),
         ncols=5,
     )
-    fig.savefig(c.LATENCY_PDF, bbox_inches="tight")
+    fig.savefig(c.AETHERLING_LATENCY_PDF, bbox_inches="tight")
 
 
 def main() -> None:
     """
     The program entry point.
     """
-    latency_results = crud.read_valid_latency_results(c.LATENCY_CSV)
+    latency_results = crud.read_valid_latency_results(c.AETHERLING_LATENCY_CSV)
     plot_latency(latency_results)
 
 

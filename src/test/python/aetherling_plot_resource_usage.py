@@ -277,15 +277,15 @@ def plot_resource_usages(
         bbox_to_anchor=(0.5, 0),
         ncols=4,
     )
-    fig.savefig(c.RESOURCE_USAGE_PDF, bbox_inches="tight")
+    fig.savefig(c.AETHERLING_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
 
 def main() -> None:
     """
     The program entry point.
     """
-    area_results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
-    fmax_results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
+    area_results = crud.read_valid_resource_usage_results(c.AETHERLING_RESOURCE_USAGE_CSV)
+    fmax_results = crud.read_valid_fmax_estimates(c.AETHERLING_FMAX_ESTIMATE_CSV)
     plot_resource_usages(area_results, fmax_results)
 
 

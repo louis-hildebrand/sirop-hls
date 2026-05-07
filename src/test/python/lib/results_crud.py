@@ -422,6 +422,9 @@ def read_combined_results(
     ihc_area_path: Path,
     ihc_latency_path: Path,
     ihc_fmax_path: Path,
+    sirop_area_path: Path,
+    sirop_latency_path: Path,
+    sirop_fmax_path: Path,
 ) -> tuple[
     dict[BenchmarkImpl, ResourceUsage],
     dict[BenchmarkImpl, LatencyResult],
@@ -439,9 +442,12 @@ def read_combined_results(
     ihc_area = read_valid_resource_usage_results(ihc_area_path)
     ihc_latency = read_valid_latency_results(ihc_latency_path)
     ihc_fmax = read_valid_fmax_estimates(ihc_fmax_path)
-    combined_area = shir_area | ihc_area
-    combined_latency = shir_latency | ihc_latency
-    combined_fmax = shir_fmax | ihc_fmax
+    sirop_area = read_valid_resource_usage_results(sirop_area_path)
+    sirop_latency = read_valid_latency_results(sirop_latency_path)
+    sirop_fmax = read_valid_fmax_estimates(sirop_fmax_path)
+    combined_area = shir_area | ihc_area | sirop_area
+    combined_latency = shir_latency | ihc_latency | sirop_latency
+    combined_fmax = shir_fmax | ihc_fmax | sirop_fmax
     all_benches = {b.bench.name for b in combined_area.keys()}
     for bench_name in all_benches:
         target_bi = BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "sirop")

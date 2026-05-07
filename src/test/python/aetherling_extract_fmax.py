@@ -23,7 +23,7 @@ def main(bench_names: list[str], save_to_csv: bool, skip_chisel: bool, skip_siro
     """
     benchmarks = sorted([Benchmark.parse(b) for b in bench_names])
 
-    out_path = c.FMAX_ESTIMATE_CSV
+    out_path = c.AETHERLING_FMAX_ESTIMATE_CSV
     out_path.parent.mkdir(exist_ok=True)
     backup_out_path = out_path.with_suffix(out_path.suffix + ".bak")
     if out_path.exists():

@@ -120,9 +120,9 @@ def main() -> None:
     """
     Script entry point.
     """
-    area_results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
-    latency_results = crud.read_valid_latency_results(c.LATENCY_CSV)
-    fmax_results = crud.read_valid_fmax_estimates(c.FMAX_ESTIMATE_CSV)
+    area_results = crud.read_valid_resource_usage_results(c.AETHERLING_RESOURCE_USAGE_CSV)
+    latency_results = crud.read_valid_latency_results(c.AETHERLING_LATENCY_CSV)
+    fmax_results = crud.read_valid_fmax_estimates(c.AETHERLING_FMAX_ESTIMATE_CSV)
     print_alm_table(area_results)
     print()
     print_bram_table(area_results)

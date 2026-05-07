@@ -48,7 +48,7 @@ def main() -> None:
     """
     Script entry point.
     """
-    results = crud.read_valid_resource_usage_results(c.RESOURCE_USAGE_CSV)
+    results = crud.read_valid_resource_usage_results(c.AETHERLING_RESOURCE_USAGE_CSV)
     result_pairs = resource_usage_pairs(results)
     for b, (vhdl, verilog) in sorted(result_pairs.items()):
         print(b.full_name)
