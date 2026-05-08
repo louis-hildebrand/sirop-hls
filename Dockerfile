@@ -44,13 +44,13 @@ ADD https://github.com/chipsalliance/chisel.git#v3.2.8 /chisel
 COPY --parents \
      --exclude=target/ \
      --exclude=__pycache__/ \
+     --exclude=halide_data/ \
      ./.git/ \
      ./lib/ \
      ./project/build.properties \
      ./project/plugins.sbt \
      ./src/main/ \
-     ./src/test/aetherling/src/ \
-     ./src/test/aetherling/chiselAetherling/ \
+     ./src/test/aetherling/ \
      ./src/test/java/ \
      ./src/test/python/ \
      ./src/test/resources/aetherling_benchmarks/*.csv \

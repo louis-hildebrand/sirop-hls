@@ -1,3 +1,11 @@
+/* The source code looks superficially different than what's in the paper, but it's equivalent:
+ *  1. We explicitly define the name of the top-level entity as "top."
+ *  2. We use the names "I0" and "I1" for the input streams.
+ * The program in the paper (i.e., no "accelerator top = " and I0, I1 renamed) is also valid:
+ * calling the compiler with that input will still yield a working VHDL design.
+ * However, the testbench generator used for this evaluation is a bit hacky and assumes the
+ * top-level entity is called "top" and the inputs are I0, I1, ...
+ */
 accelerator
 top = (I0 : Stm[Stm[u16, 256], 256]) =>
       (I1 :     Stm[u16, 256]      ) =>
