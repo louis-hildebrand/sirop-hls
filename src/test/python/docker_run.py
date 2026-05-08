@@ -37,6 +37,8 @@ def main(command: str, image: str, skip_chmod: bool) -> None:
     ]
     c.VHDL_DIR.mkdir(exist_ok=True)
     c.VERILOG_DIR.mkdir(exist_ok=True)
+    c.RESULTS_DIR.mkdir(exist_ok=True)
+    print(f"Running : {' '.join(docker_command)}")
     subprocess.run(docker_command, check=True)
 
 

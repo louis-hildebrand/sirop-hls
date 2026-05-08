@@ -451,7 +451,7 @@ def read_combined_results(
     all_benches = {b.bench.name for b in combined_area.keys()}
     for bench_name in all_benches:
         target_bi = BenchmarkImpl(Benchmark(bench_name, Fraction(-1)), "sirop")
-        target_latency = shir_latency[target_bi].latency or 0
+        target_latency = sirop_latency[target_bi].latency or 0
         candidates = [
             (bi, lat)
             for (bi, lat) in aetherling_latency.items()
