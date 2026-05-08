@@ -39,10 +39,12 @@ apt-get install -yq --no-install-recommends \
 EOF
 
 # Copy over Sirop, Aetherling, and SHIR compilers
+# Need to include the .git/ folder so we can check the diff from adding `StmSlide2D`
 ADD https://github.com/chipsalliance/chisel.git#v3.2.8 /chisel
 COPY --parents \
      --exclude=target/ \
      --exclude=__pycache__/ \
+     ./.git/ \
      ./lib/ \
      ./project/build.properties \
      ./project/plugins.sbt \

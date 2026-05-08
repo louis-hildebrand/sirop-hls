@@ -274,7 +274,7 @@ python3 -u /shir_measure_latency.py map
 } | tee "$SIROP/shir_$(date +%Y%m%d%H%M%S).log"
 ```
 
-The benchmark source code is located in `$SIROP/src/test/shir/src/test/backend/hdl/arch/SiropBenches.scala` (also accessible in the docker container).
+The benchmark source code is located in `$SIROP/src/test/shir/src/test/backend/hdl/arch/SiropBenches.scala` (accessible in the docker container).
 Notice how some benchmarks use the `Registered` primitive to manually insert registers.
 Without these, the design may not run at full throughput or may not meet the timing requirements.
 (If you'd like to check this claim, you'll need to update the benchmark source code in the Docker container.
@@ -382,6 +382,77 @@ Note that two directories are excluded because they implement features that are 
 - `nohandshake` implements hardware generation without a handshake protocol (i.e., `valid` and `ready` must always be true). Aetherling generates hardware with static schedules, but it does not have *both* options available (dynamic and static scheduling).
 - `test` implements a testbench generator, which allows the programmer to specify test cases in Sirop and obtain a VHDL testbench.
 
+### Section 7.5, paragraph "Extensibility"
+
+This section explains how to count the lines of code needed to implement `StmSlide2D` in Sirop and SHIR.
+
+In Sirop, a commit before the change is 3ea3566bdaa354bc37cffefbc455fbd11203981a and a commit after the change is c4815af6e4dbabe58ae85226b254bb33ce88251c.
+This includes both the initial commit and a later revision to clean up the code a bit.
+The only relevant changes are in the `$SIROP/src/main/scala/mhir/sugar` directory; others changes were from other commits related to testing and bug fixes.
+Thus, the size of the diff can be found using
+
+```sh
+BEFORE=3ea3566bdaa354bc37cffefbc455fbd11203981a
+AFTER=c4815af6e4dbabe58ae85226b254bb33ce88251c
+./docker_run.py "cd /sirop && cloc --git --diff $BEFORE $AFTER --match-d 'src/main/scala/mhir/sugar' ; cd -"
+```
+
+This should produce output like the following, showing 85 lines of Scala code were added.
+
+```
+github.com/AlDanial/cloc v 1.98  T=0.44 s (2.3 files/s, 4847.6 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Scala
+ same                            0              0            239           1788
+ modified                        1              0              0              0
+ added                           0              3             15             85
+ removed                         0              0              0              0
+-------------------------------------------------------------------------------
+SUM:
+ same                            0              0            239           1788
+ modified                        1              0              0              0
+ added                           0              3             15             85
+ removed                         0              0              0              0
+-------------------------------------------------------------------------------
+```
+
+In SHIR, we can similarly find the size of the diff using
+
+```sh
+BEFORE=a0dfabbf010b5ca00a475dc1440183fe73bab470
+AFTER=b05fe6f596d4fe1f0b95f45ab3f2bf5316d57e32
+./docker_run.py "cd /sirop/src/test/shir && cloc --git --diff $BEFORE $AFTER --match-d 'src/main|vhdltemplates' ; cd -"
+```
+
+This should produce output like the following, showing 109 lines of Scala and 95 lines of VHDL were added.
+Error messages like "ref HEAD is not a symbolic ref" can be ignored.
+
+```
+github.com/AlDanial/cloc v 1.98  T=0.37 s (13.5 files/s, 17162.6 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Scala
+ same                            0              0            505           5641
+ modified                        4              0              0              0
+ added                           0              1              0            109
+ removed                         0              0              0              0
+VHDL
+ same                            0              0              0              0
+ modified                        0              0              0              0
+ added                           1             12              5             95
+ removed                         0              0              0              0
+-------------------------------------------------------------------------------
+SUM:
+ same                            0              0            505           5641
+ modified                        4              0              0              0
+ added                           1             13              5            204
+ removed                         0              0              0              0
+-------------------------------------------------------------------------------
+```
+
 <!-- TODO: tell reader about precompiled solutions and how they can use those to immediately generate the plots? -->
 <!-- TODO: suggest deleting results/ folder before starting to prove that the new results are fresh? -->
 <!-- TODO: ignore info message about no assertions in source code -->
@@ -390,4 +461,3 @@ Note that two directories are excluded because they implement features that are 
 <!-- TODO: Say how long each step will take -->
 <!-- TODO: Say where the benchmark source code is found in each case -->
 <!-- TODO: Add --docker flag for each of the `*_run_all.py` scripts to make things easier? -->
-<!-- TODO: Explain how to check results in section 7.5, paragraph "Extensibility" -->
