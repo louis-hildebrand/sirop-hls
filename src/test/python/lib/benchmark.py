@@ -223,8 +223,8 @@ def set_ticks(ax: Axes, bench_name: str) -> None:
         )
     elif bench_name in {"sum", "dot"}:
         ax.set_xticks(
-            [1/840, 2/840, 4/840, 8/840],
-            [r"$\frac{1}{840}$", r"$\frac{2}{840}$", r"$\frac{4}{840}$", r"$\frac{8}{840}$"],
+            [1/840, 3/840, 8/840],
+            [r"$\frac{1}{840}$", r"$\frac{3}{840}$", r"$\frac{8}{840}$"],
         )
     elif bench_name == "map":
         ax.set_xticks(

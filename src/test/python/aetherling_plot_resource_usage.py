@@ -39,12 +39,12 @@ def plot_resource_usages(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 7,
+        "font.size": 8,
     })
     fig, axes = plt.subplots(
         nrows=3, ncols=len(benchmark_names),
         squeeze=False,
-        figsize=(8, 2.2),
+        figsize=(8, 2.6),
         layout="compressed",
         sharey="row",
         sharex="col",

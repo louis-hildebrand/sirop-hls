@@ -49,7 +49,7 @@ def plot_latencies(
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 0.65),
+        figsize=(8, 0.85),
         layout="compressed",
         sharex="col",
         sharey="row",
@@ -249,7 +249,7 @@ def plot_latencies(
     ax.set_ylabel("Latency\n(log)")
     ax.set_yscale("log")
     ax.set_yticks([10**0, 10**2, 10**4, 10**6])
-    ax.set_ylim(1, 4*10**8)
+    ax.set_ylim(1, 10**8)
     ax.grid(
         visible=True,
         which="major",
@@ -258,7 +258,7 @@ def plot_latencies(
         color=(0.8, 0.8, 0.8)
     )
 
-    pu.draw_lower_is_better_message(fig, 0.024, -0.24)
+    pu.draw_lower_is_better_message(fig, 0.024, -0.21)
 
     # Legend
     fig.legend(
@@ -306,8 +306,8 @@ def plot_latencies(
         bbox_to_anchor=(1, 0),
         ncols=6,
     )
-    fig.text(0.611, -0.320, SYNTH_FAIL, color="red", zorder=1000)
-    fig.text(0.863, -0.310, SIM_FAIL, color="red", zorder=1000)
+    fig.text(0.611, -0.245, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.863, -0.235, SIM_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_LATENCY_PDF, bbox_inches="tight")
 

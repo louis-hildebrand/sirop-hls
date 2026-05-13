@@ -46,11 +46,11 @@ def plot_latency(results: dict[BenchmarkImpl, LatencyResult]) -> None:
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 7,
+        "font.size": 8,
     })
     fig, axes = plt.subplots(
         nrows=1, ncols=len(benchmark_names),
-        figsize=(8, 1.1),
+        figsize=(8, 1.21),
         squeeze=False,
         sharey="row",
         layout="compressed",

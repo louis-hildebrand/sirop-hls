@@ -43,7 +43,7 @@ def plot_resource_usages(
     })
     fig, alm_ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(8, 0.8),
+        figsize=(8, 0.95),
         layout="compressed",
         sharex="col",
     )
@@ -100,7 +100,10 @@ def plot_resource_usages(
         for x, p, alm_y in zip(xs, program_names, ys):
             pv = ProgramVariant(p, lvl)
             if pv not in fmax_results or fmax_results[pv] < c.TARGET_FREQ:
-                y = 1.2 * max(1, alm_y)
+                if alm_y < 1:
+                    y = 1.2
+                else:
+                    y = 2.9 * alm_y
                 alm_ax.annotate(WARNING, (x, y), ha="center", color="red")
     # Display settings
     alm_ax.grid(
@@ -126,7 +129,7 @@ def plot_resource_usages(
     alm_ax.set_yticks([])
     alm_ax.set_ylim(0.15, 20)
 
-    pu.draw_lower_is_better_message(fig, 0.025, -0.13)
+    pu.draw_lower_is_better_message(fig, 0.025, -0.15)
 
     legend_cols = 1 + math.ceil( (len(aps.LEVELS_TO_PLOT) + 1) / aps.LEGEND_ROWS )
     legend_labels=(
@@ -143,7 +146,7 @@ def plot_resource_usages(
         ncols=legend_cols,
         handlelength=1.5,
     )
-    fig.text(0.77, -0.24, WARNING, color="red", zorder=1000)
+    fig.text(0.77, -0.195, WARNING, color="red", zorder=1000)
 
     fig.savefig(c.ABLATION_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
