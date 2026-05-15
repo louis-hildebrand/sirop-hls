@@ -35,6 +35,237 @@ class SugarTests extends AnyFunSuite {
     assert(actual.typ == TyVec(U8, 4))
   }
 
+  test("PatternFunction:FreeVars") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Sum(x, y, z)()
+    )()
+    assert(f.freeVars == Set(z))
+
+    val e = f(Tuple(x, x)())
+    assert(e.freeVars == Set(x, z))
+  }
+
+  test("PatternFunction:Equals1") {
+    val f = {
+      val x = Param("x")(U8)
+      val y = Param("y")(U8)
+      PatternFunction(
+        TuplePattern(ParamPattern(x), ParamPattern(y)),
+        (x + 1) * (y + 2)
+      )()
+    }
+    val g = {
+      val z = Param("z")(U8)
+      val w = Param("w")(U8)
+      PatternFunction(
+        TuplePattern(ParamPattern(z), ParamPattern(w)),
+        (z + 1) * (w + 2)
+      )()
+    }
+    assert(f == g)
+    assert(g == f)
+    assert(f.hashCode == g.hashCode)
+  }
+
+  test("PatternFunction:Equals2") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      (x + 1) * (y + 2)
+    )()
+    val g = PatternFunction(
+      TuplePattern(ParamPattern(y), ParamPattern(x)),
+      (y + 1) * (x + 2)
+    )()
+    assert(f == g)
+    assert(g == f)
+    assert(f.hashCode == g.hashCode)
+  }
+
+  test("PatternFunction:NotEquals:SwappedNames") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      (x + 1) * (y + 2)
+    )()
+    val g = PatternFunction(
+      TuplePattern(ParamPattern(y), ParamPattern(x)),
+      (x + 1) * (y + 2)
+    )()
+    assert(f != g)
+    assert(g != f)
+  }
+
+  test("PatternFunction:NotEquals:DifferentShape1") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), TuplePattern(ParamPattern(y))),
+      Tuple(x, y)()
+    )()
+    val g = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Tuple(x, y)()
+    )()
+    assert(f != g)
+    assert(g != f)
+  }
+
+  test("PatternFunction:NotEquals:DifferentShape2") {
+    val x = Param("x")(U8)
+    val y = Param("y")(U8)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y), TuplePattern()),
+      Tuple(x, y)()
+    )()
+    val g = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Tuple(x, y)()
+    )()
+    assert(f != g)
+    assert(g != f)
+  }
+
+  test("PatternFunction:Substitute") {
+    val x = Param("x")(U8)
+    val x2 = Param("x2")(U8)
+    val y = Param("y")(TyStm(U8, 5))
+    val z = Param("z")(U8)
+    val original = Tuple(
+      StmData(y)(),
+      PatternFunction(
+        TuplePattern(ParamPattern(x)),
+        Tuple(
+          x,
+          StmData(y)() + 2,
+          PatternFunction(
+            TuplePattern(ParamPattern(z), ParamPattern(y)),
+            StmData(y)() * z
+          )()
+        )()
+      )()
+    )().tchk()
+    val subs = Map[Expr, Expr](StmData(y)() -> (x % 2).tchk())
+    val expected = Tuple(
+      x % 2,
+      // (1) Need to rename the variable in the outer function to avoid
+      //     variable capture.
+      // (2) Must NOT replace the StmData(y) in the innermost function
+      //     because that occurrence of y is referring to the function
+      //     parameter, not y in the global scope.
+      PatternFunction(
+        TuplePattern(ParamPattern(x2)),
+        Tuple(
+          x2,
+          x % 2 + 2,
+          PatternFunction(
+            TuplePattern(ParamPattern(z), ParamPattern(y)),
+            StmData(y)() * z
+          )()
+        )()
+      )()
+    )()
+
+    val actual1 = original.subAndEraseType(subs)
+    assert(actual1 == expected)
+
+    val actual2 = original.subPreserveType(subs)
+    assert(actual2 == expected)
+    assert(actual2.typ != Missing)
+  }
+
+  test("PatternFunction:Display:(x: u16, y: u16)") {
+    val x = Param("x", -1)(U16)
+    val y = Param("y", -1)(U16)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Sum(x, y)()
+    )()
+
+    val expectedOneLine = "@(x: u16, y: u16) => x + y"
+    val actualOneLine = ExprPrinter.displayOneLine(f)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiline =
+      """@(x: u16, y: u16) =>
+        |  x + y
+        |""".stripMargin.stripTrailing
+    val actualMultiline = ExprPrinter.displayMultiLine(f)
+    assert(actualMultiline == expectedMultiline)
+  }
+
+  test("PatternFunction:Display:(x,)") {
+    val x = Param("x", -1)(Missing)
+    val f = PatternFunction(TuplePattern(ParamPattern(x)), x)()
+
+    val expectedOneLine = "@(x,) => x"
+    val actualOneLine = ExprPrinter.displayOneLine(f)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiline =
+      """@(x,) =>
+        |  x
+        |""".stripMargin.stripTrailing
+    val actualMultiline = ExprPrinter.displayMultiLine(f)
+    assert(actualMultiline == expectedMultiline)
+  }
+
+  test("PatternFunction:Display:(x: u8,)") {
+    val x = Param("x", -1)(U8)
+    val f = PatternFunction(TuplePattern(ParamPattern(x)), x)()
+
+    val expectedOneLine = "@(x: u8,) => x"
+    val actualOneLine = ExprPrinter.displayOneLine(f)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiline =
+      """@(x: u8,) =>
+        |  x
+        |""".stripMargin.stripTrailing
+    val actualMultiline = ExprPrinter.displayMultiLine(f)
+    assert(actualMultiline == expectedMultiline)
+  }
+
+  test("PatternFunction:Eval:EmptyTuple") {
+    val f = PatternFunction(TuplePattern(), C(42)(U8))()
+    val e = FunCall(f, Tuple()())().tchk().lower
+    assert(mhir.eval.eval(e) == C(42)(U8))
+  }
+
+  test("PatternFunction:Eval:NestedTuple") {
+    val x = Param("x")((U8, U8))
+    val y = Param("y")(U8)
+    val z = Param("z")(U8)
+    val w = Param("w")(U8)
+    val p = TuplePattern(
+      TuplePattern(
+        TuplePattern(ParamPattern(x), TuplePattern(ParamPattern(y))),
+        ParamPattern(z)
+      ),
+      TuplePattern(),
+      ParamPattern(w)
+    )
+    val f = PatternFunction(p, Tuple(x.__1, x.__0, y, z, w)())()
+    val arg = Tuple(
+      Tuple(
+        Tuple(Tuple(C(0)(U8), C(1)(U8))(), Tuple(C(2)(U8))())(),
+        C(3)(U8)
+      )(),
+      Tuple()(),
+      C(4)(U8)
+    )()
+    val e = f(arg).tchk().lower
+    val expected = Tuple(C(1)(U8), C(0)(U8), C(2)(U8), C(3)(U8), C(4)(U8))()
+    assert(mhir.eval.eval(e) == expected)
+  }
+
   test("Let:Equals") {
     val e1 = {
       val x = Param("x")(U8)

@@ -112,6 +112,8 @@ object Lexer {
       lex(consume(code, "."), tokens :+ DotToken(p), p.consume("."))
     } else if (code.startsWith(",")) {
       lex(consume(code, ","), tokens :+ CommaToken(p), p.consume(","))
+    } else if (code.startsWith("@")) {
+      lex(consume(code, "@"), tokens :+ AtToken(p), p.consume("@"))
     } else {
       throw SyntaxError(s"unexpected character: '${code.head}'", p)
     }

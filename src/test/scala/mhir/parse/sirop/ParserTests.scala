@@ -528,6 +528,83 @@ class ParserTests extends AnyFunSuite {
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
+  test("Pattern:() => 42") {
+    val src = "@() => 42:u8"
+    val expected = PatternFunction(TuplePattern(), C(42)(U8))()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
+  test("Pattern:(x) => x") {
+    val src = "@(x) => x"
+    val exc = intercept[SyntaxError](Parser.parse(src))
+    assert(
+      exc.getMessage.toLowerCase.contains(
+        "to match a 1-tuple, add a comma, as in (x,)."
+          + " otherwise, omit the parentheses."
+      )
+    )
+  }
+
+  test("Pattern:(x: u16) => x") {
+    val src = "@(x: u16) => x"
+    val exc = intercept[SyntaxError](Parser.parse(src))
+    assert(exc.loc.contains(SourcePoint(1, 2)))
+    assert(
+      exc.getMessage.toLowerCase.contains(
+        "to match a 1-tuple, add a comma, as in (x: u16,)."
+          + " otherwise, omit the parentheses."
+      )
+    )
+  }
+
+  test("Pattern:(x,) => x") {
+    val src = "@(x,) => x"
+    val x = Param("x", -1)(Missing)
+    val expected = PatternFunction(TuplePattern(ParamPattern(x)), x)()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
+  test("Pattern:(x: u32, y: bool) => if y then x + 1 else x") {
+    val src = "@(x: u32, y: bool) => if y then x + 1:u32 else x"
+    val x = Param("x", -1)(U32)
+    val y = Param("y", -1)(TyBool)
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Mux(y, Sum(x, C(1)(U32))(), x)()
+    )()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+    assert(actual.asInstanceOf[PatternFunction].p.typ == TyTuple(U32, TyBool))
+  }
+
+  test("Pattern:(((x: u8, y), z: bool), (), w) => (x, y, z, w)") {
+    val src = "@(((x: u8, y), z: bool), (), w) => (x, y, z, w)"
+    val x = Param("x", -1)(U8)
+    val y = Param("y", -1)(Missing)
+    val z = Param("z", -1)(TyBool)
+    val w = Param("w", -1)(Missing)
+    val p = TuplePattern(
+      TuplePattern(
+        TuplePattern(ParamPattern(x), ParamPattern(y)),
+        ParamPattern(z)
+      ),
+      TuplePattern(),
+      ParamPattern(w)
+    )
+    val expected = PatternFunction(p, Tuple(x, y, z, w)())()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
+  test("Pattern:DuplicateNames") {
+    val src = "@(a, b, ((y, x), (x, (y,))), z) => x"
+    val exc = intercept[SyntaxError](Parser.parse(src))
+    assert(exc.loc.contains(SourcePoint(1, 9)))
+    assert(exc.getMessage.contains("duplicate parameter(s) in pattern: x, y"))
+  }
+
   test("letstm[42] x = s1 in s2") {
     val src = "letstm[42] x = s1 in s2"
     val expected =

@@ -5,6 +5,215 @@ import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
 import mhir.typecheck.{TProd, TypeCheck, TypeError}
 
+case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(p, body)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(p: Pattern, body) => PatternFunction(p, body)(typ)
+      case _                     => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val p = this.p.tchk(context)
+    val body = this.body.tchk(context ++ makeContext(this.p))
+    val typ = p.typ ->: body.typ
+    this.rebuild(typ, Seq(p, body))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val x = this.p.toParam
+    val subs = makeSubs(this.p, x)
+    Function(x, this.body.subPreserveType(subs))().tchk().lower
+  }
+
+  override def precedence: Int = Precedence.Max
+
+  override def displayOneLine(): String = {
+    val bodyStr =
+      EP.displayOneLine(this.body, parentPrecedence = Precedence.Max)
+    s"@${this.p} => $bodyStr"
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    val bodyStr = EP.display(
+      body,
+      maxWidth = maxWidth - EP.Indent.length,
+      parentPrecedence = Precedence.Max
+    )
+    s"@${this.p} =>\n${EP.indent(bodyStr)}"
+  }
+
+  override def annotateFuncSyntaxSugar(typ: Type*): Expr = {
+    require(typ.nonEmpty)
+    val newP = this.p.mergeType(typ.head)
+    val newBody = if (typ.tail.isEmpty) {
+      this.body
+    } else {
+      this.body.annotateFunc(typ.tail: _*)
+    }
+    PatternFunction(newP, newBody)()
+  }
+
+  private def makeSubs(p: Pattern, target: Expr): Map[Expr, Expr] = {
+    p match {
+      case TuplePattern(elems @ _*) =>
+        elems.zipWithIndex
+          .flatMap({ case (p, i) =>
+            val ii = C(i)(TyAnyInt.tightest(0, i))
+            makeSubs(p, TupleAccess(target, ii)(p.typ))
+          })
+          .toMap
+      case ParamPattern(x) => Map(x -> target)
+    }
+  }
+
+  private def makeContext(p: Pattern): Map[Param, Type] = {
+    p match {
+      case ParamPattern(x)          => Map(x -> x.typ)
+      case TuplePattern(elems @ _*) => elems.flatMap(makeContext).toMap
+    }
+  }
+
+  override lazy val freeVars: Set[Param] = {
+    this.body.freeVars.diff(this.p.params.toSet)
+  }
+
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val patParams = this.p.params.toSet
+    val wouldCapture = subs.exists({ case (_, rhs) =>
+      rhs.freeVars.intersect(patParams).nonEmpty
+    })
+    val (newP, patSubs) = if (wouldCapture) {
+      val patSubs = p.params
+        .map({ x =>
+          x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
+        })
+        .toMap[Param, Param]
+      (p.rename(patSubs), patSubs)
+    } else {
+      (p, Map[Param, Param]())
+    }
+    val newSubs =
+      subs
+        // If a free variable on the LHS is becoming bound, it will never match
+        // again and therefore we can discard that substitution
+        .filter({ case (lhs, _) => lhs.freeVars.intersect(patParams).isEmpty })
+        // Rename the bound variables if necessary
+        .++(patSubs)
+    PatternFunction(
+      newP,
+      body.subPreserveType(newSubs)
+    )(this.typ.substitute(subs))
+  }
+
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val patParams = this.p.params.toSet
+    val wouldCapture = subs.exists({ case (_, rhs) =>
+      rhs.freeVars.intersect(patParams).nonEmpty
+    })
+    val (newP, patSubs) = if (wouldCapture) {
+      val patSubs = p.params
+        .map({ x =>
+          x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
+        })
+        .toMap[Param, Param]
+      (p.rename(patSubs), patSubs)
+    } else {
+      (p, Map[Param, Param]())
+    }
+    val newSubs =
+      subs
+        // If a free variable on the LHS is becoming bound, it will never match
+        // again and therefore we can discard that substitution
+        .filter({ case (lhs, _) => lhs.freeVars.intersect(patParams).isEmpty })
+        // Rename the bound variables if necessary
+        .++(patSubs)
+    PatternFunction(newP, body.subAndEraseType(newSubs))()
+  }
+
+  override def equals(x: Any): Boolean = {
+    x match {
+      case that: PatternFunction if this.p == that.p =>
+        // Skip the substitutions, which may be slow
+        this.body == that.body
+      case that: PatternFunction =>
+        implicit val c: Canonicalizer = NoOpCanonicalizer
+        PatternFunction.zip(this.p, that.p) match {
+          case None => false
+          case Some(pairs) =>
+            val newParams = pairs.map({ case (x, _) => x.freshCopy })
+            val thisSubs =
+              pairs.map({ case (x, _) => x }).zip(newParams).toMap[Expr, Expr]
+            val thisRenamed = this.body.subAndEraseType(thisSubs)
+            val thatSubs =
+              pairs.map({ case (_, y) => y }).zip(newParams).toMap[Expr, Expr]
+            val thatRenamed = that.body.subAndEraseType(thatSubs)
+            thisRenamed == thatRenamed
+        }
+      case _ => false
+    }
+  }
+
+  override lazy val hashCode: Int = {
+    // This implementation should be correct, but it may cause excessive
+    // collisions when dealing with nested functions. For example,
+    // x => y => x - y and x => y => y - x will be assigned the same hash code.
+    implicit val c: Canonicalizer = NoOpCanonicalizer
+    val renamings = this.p.params.zipWithIndex
+      .map({ case (x, i) => x -> PatternFunction.hashCodeParam(i, x.typ) })
+      .toMap
+    (
+      this.p.rename(renamings),
+      this.body.subAndEraseType(renamings.toMap[Expr, Expr])
+    ).hashCode
+  }
+}
+
+object PatternFunction {
+
+  private def freshenPattern(p: Pattern): (Pattern, Map[Param, Param]) = {
+    p match {
+      case ParamPattern(x) =>
+        val y = x.freshCopy
+        (ParamPattern(y), Map(x -> y))
+      case TuplePattern(elems @ _*) =>
+        val (patterns, renamings) = elems.map(freshenPattern).unzip
+        (TuplePattern(patterns: _*), renamings.flatten.toMap)
+    }
+  }
+
+  private def zip(p1: Pattern, p2: Pattern): Option[Seq[(Param, Param)]] = {
+    (p1, p2) match {
+      case (ParamPattern(x), ParamPattern(y)) =>
+        Some(Seq((x, y)))
+      case (TuplePattern(elems1 @ _*), TuplePattern(elems2 @ _*))
+          if elems1.length == elems2.length =>
+        val zippedElems =
+          elems1.zip(elems2).map({ case (p1, p2) => zip(p1, p2) })
+        if (zippedElems.contains(None)) {
+          None
+        } else {
+          Some(zippedElems.flatMap(_.get))
+        }
+      case _ =>
+        None
+    }
+  }
+
+  private def hashCodeParam(i: Int, typ: Type): Param = {
+    Param("_PatternFunctionHashCode", i + 1)(typ)
+  }
+}
+
 /** A let expression.
   *
   * @param x

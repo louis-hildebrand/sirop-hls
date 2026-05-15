@@ -786,4 +786,17 @@ case class CommaToken(loc: SourcePoint) extends Token {
   override def original: String = ","
 }
 
+/** Category of [[CommaToken]].
+  */
 object CommaToken extends SymbolCategory(",")
+
+/** The symbol "@".
+  */
+case class AtToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = AtToken
+  override def original: String = "@"
+}
+
+/** Category of [[AtToken]].
+  */
+object AtToken extends SymbolCategory("@")

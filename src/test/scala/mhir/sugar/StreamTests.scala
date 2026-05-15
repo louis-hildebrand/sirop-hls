@@ -1150,7 +1150,12 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmReduce:Stm[Int,4]:Sum") {
     val s = StmCount(C(4)(U8))()
-    val sum = StmReduce(s, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
+    val f = {
+      val x = Param("x")()
+      val y = Param("y")()
+      PatternFunction(TuplePattern(ParamPattern(x), ParamPattern(y)), x + y)()
+    }
+    val sum = StmReduce(s, f)().tchk().lower
     val expected = StmLiteral(C(6)())()
     val actual = mhir.eval.eval(sum)
     assert(actual == expected)

@@ -165,6 +165,8 @@ case class TupleAccess(t: Expr, i: IntCst)(typ: Type = Missing)
   *   the unique number for the variable name.
   */
 case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
+  assert(prefix.nonEmpty, "parameter prefix should not be empty")
+
   val name: String = if (this.id <= 0) prefix else s"${prefix}_$id"
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Param = {
@@ -1289,4 +1291,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   )(implicit c: Canonicalizer): Expr = {
     this.rebuildAndEraseType(this.children.map(e => e.subAndEraseType(subs)))
   }
+
+  def annotateFuncSyntaxSugar(typ: Type*): Expr = this
 }
