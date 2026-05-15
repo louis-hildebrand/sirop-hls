@@ -11,13 +11,7 @@ let module0: u8 -> u8 -> u8 = (I0 : u8) => (I1 : u8) => let n12: (u8, u8) = (I0,
         n1,
         n5,
         (I0 : Vec[u8, 4:u3]) =>
-          (I1 : Vec[u8, 4:u3]) =>
-            VecMap2(
-              I0,
-              I1,
-              (I0 : u8) =>
-                (I1 : u8) => let n12: (u8, u8) = (I0, I1) in n12.0 *% n12.1
-            )
+          (I1 : Vec[u8, 4:u3]) => VecMap2(I0, I1, module0)
       )
     ) in
     let n18: Stm[Vec[u8, 1:u1], 4:u3] = (

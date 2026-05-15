@@ -787,14 +787,7 @@ let module22: (i32, (i32, i32)) -> i32 = (I : (i32, (i32, i32))) => let n741: (i
       n141,
       n177,
       (I0 : Vec[i32, 16:u5]) =>
-        (I1 : Vec[i32, 16:u5]) =>
-          VecMap2(
-            I0,
-            I1,
-            (I0 : i32) =>
-              (I1 : i32) =>
-                let n184: (i32, i32) = (I0, I1) in n184.0 +% n184.1
-          )
+        (I1 : Vec[i32, 16:u5]) => VecMap2(I0, I1, module4)
     )
   ) in
   let n194: Stm[Vec[(i32, (i32, i32)), 16:u5], 129600:u17] = StmMap(n178, (I : Vec[i32, 16:u5]) => VecMap(I, module5)) in

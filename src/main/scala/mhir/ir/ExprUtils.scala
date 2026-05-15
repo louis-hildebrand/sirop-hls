@@ -151,7 +151,8 @@ trait ExprUtils {
             new ExprUtilsImplicit(body).annotateFunc(typ.tail: _*)
           }
           Function(newX, newBody)()
-        case f => f
+        case e: SyntaxSugar => e.annotateFuncSyntaxSugar(typ: _*)
+        case f              => f
       }
     }
 

@@ -22,7 +22,8 @@ ThisBuild / scalaVersion := "2.12.19"
 ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
-  "-Wconf:cat=other-match-analysis:error"
+  "-Wconf:cat=other-match-analysis:error",
+  "-feature"
 )
 ThisBuild / showSuccess := false
 Global / excludeLintKeys += showSuccess

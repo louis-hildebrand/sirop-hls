@@ -25,13 +25,17 @@ input_spec        ::= ident "=" expr
 ##### Expressions ######################################################################################################
 
 expr            ::= expr10
-# First(expr10) = { "if", "(", "letstm" } U First(expr2)
+# First(expr10) = { "if", "(", "letstm", "@" } U First(expr2)
 expr10          ::= "if" expr "then" expr "else" expr
                   | function
+                  | pat_function
                   | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr
                   | "let" ident [ ":" typ ] "=" expr "in" expr
                   | expr9
 function        ::= "(" ident [ ":" typ ] ")" "=>" expr
+pat_function    ::= "@" pattern "=>" expr
+pattern         ::= ident [ ":" typ ]
+                  | "()" | "(" pattern ",)" | "(" pattern ( "," pattern )+ ")"
 expr9           ::= expr8 ( "||"                        expr8 )*
 expr8           ::= expr7 ( "&&"                        expr7 )*
 expr7           ::= expr6 ( ( "==" | "!=" )             expr6 )*

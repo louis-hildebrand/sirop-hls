@@ -9,13 +9,7 @@ let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n10: (u16, u16)
         n1,
         n3,
         (I0 : Vec[u16, 8:u4]) =>
-          (I1 : Vec[u16, 8:u4]) =>
-            VecMap2(
-              I0,
-              I1,
-              (I0 : u16) =>
-                (I1 : u16) => let n10: (u16, u16) = (I0, I1) in n10.0 *% n10.1
-            )
+          (I1 : Vec[u16, 8:u4]) => VecMap2(I0, I1, module0)
       )
     ) in
     let n16: Stm[Vec[u16, 1:u1], 105:u7] = (

@@ -273,7 +273,8 @@ object Parser {
       // expr10
       IfToken,
       LeftParToken,
-      LetStmToken
+      LetStmToken,
+      AtToken
     )
 
   private def parseExpr(
@@ -311,6 +312,11 @@ object Parser {
           ) =>
         val (body, rest2) = parseExpr(rest1, constants)
         (Function(Param(param, -1)(Missing), body)(), rest2)
+      case Seq(_: AtToken, rest1 @ _*) =>
+        val (pat, rest2) = parsePattern(rest1, constants)
+        val (_, rest3) = expect(DoubleArrowToken, rest2)
+        val (body, rest4) = parseExpr(rest3, constants)
+        (PatternFunction(pat, body)(), rest4)
       case Seq(_: LetStmToken, _: LeftSquareToken, rest1 @ _*) =>
         val (bufSize, rest2) = parseExpr(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
@@ -335,6 +341,60 @@ object Parser {
         val (out, rest6) = parseExpr(rest5, constants)
         (Let(Param(x, -1)(typ), in, out)(), rest6)
       case _ => parseExpr9(tokens, constants)
+    }
+  }
+
+  private def parsePattern(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Pattern, Seq[Token]) = {
+    tokens match {
+      case Seq(IdentToken(name), _: ColonToken, rest1 @ _*) =>
+        val (typ, rest2) = parseTyp(rest1, constants)
+        (ParamPattern(Param(name, -1)(typ)), rest2)
+      case Seq(IdentToken(name), rest @ _*) =>
+        (ParamPattern(Param(name, -1)(Missing)), rest)
+      case Seq(_: LeftParToken, _: RightParToken, rest @ _*) =>
+        (TuplePattern(), rest)
+      case Seq(lpar: LeftParToken, rest1 @ _*) =>
+        val (p, rest2) = parsePattern(rest1, constants)
+        rest2 match {
+          case Seq(_: RightParToken, _*) =>
+            throw SyntaxError(
+              "invalid pattern."
+                + s" To match a 1-tuple, add a comma, as in ($p,)."
+                + " Otherwise, omit the parentheses.",
+              lpar.loc
+            )
+          case Seq(_: CommaToken, _: RightParToken, rest3 @ _*) =>
+            (TuplePattern(p), rest3)
+          case _ =>
+            var rest3 = rest2
+            var elems = Seq(p)
+            while (rest3.headOption.exists(_.category == CommaToken)) {
+              val (nextElem, rest4) = parsePattern(rest3.tail, constants)
+              rest3 = rest4
+              elems = elems :+ nextElem
+            }
+            val (_, rest4) = expect(RightParToken, rest3)
+            val pat = TuplePattern(elems: _*)
+            val duplicateNames = pat.paramPrefixes
+              .groupBy(x => x)
+              .collect({ case (x, Seq(_, _, _*)) => x })
+              .toSeq
+              .sorted
+            if (duplicateNames.nonEmpty) {
+              val list = duplicateNames.mkString(", ")
+              throw SyntaxError(
+                s"duplicate parameter(s) in pattern: $list",
+                lpar.loc
+              )
+            }
+            (pat, rest4)
+        }
+      case Seq(tok, _*) =>
+        throw SyntaxError(s"unexpected token: ${tok.quot}")
+      case Seq() => throw SyntaxError("unexpected end of file")
     }
   }
 
@@ -805,13 +865,13 @@ object Parser {
         }
       case f @ Param("StmMap", -1) =>
         args match {
-          case Seq(s, f: Function) => StmMap(s, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
+          case Seq(s, f) => StmMap(s, f)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmMap2", -1) =>
         args match {
-          case Seq(s1, s2, f: Function) => StmMap2(s1, s2, f)()
-          case _ => throw SyntaxError(s"invalid arguments to $f")
+          case Seq(s1, s2, f) => StmMap2(s1, s2, f)()
+          case _              => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmZip", -1) =>
         args match {

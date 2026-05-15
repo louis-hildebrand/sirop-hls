@@ -290,57 +290,7 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         StmJoin(StmMap(I, (x_8 : Vec[Stm[u8, 3:u3], 3:u3]) => Vec2Stm(x_8)))
     )
   ) in
-  let n141: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = (
-    StmMap(
-      n101,
-      (I : Stm[Stm[u8, 3:u2], 3:u2]) =>
-        let n146: Stm[Stm[u8, 3:u2], 3:u2] = [[0:u8, 1:u8, 0:u8]s, [1:u8, 2:u8, 1:u8]s, [0:u8, 1:u8, 0:u8]s]s in
-        let n105: Stm[Stm[(u8, u8), 3:u2], 3:u2] = (
-          StmMap2(
-            I,
-            n146,
-            (I0 : Stm[u8, 3:u2]) =>
-              (I1 : Stm[u8, 3:u2]) =>
-                StmMap2(I0, I1, (I0 : u8) => (I1 : u8) => (I0, I1))
-          )
-        ) in
-        let n116: Stm[Stm[u8, 3:u2], 3:u2] = (
-          StmMap(
-            n105,
-            (I : Stm[(u8, u8), 3:u2]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 <<< I.1)
-          )
-        ) in
-        let n121: Stm[Stm[u8, 1:u1], 3:u2] = (
-          StmMap(
-            n116,
-            (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
-          )
-        ) in
-        let n126: Stm[Stm[u8, 1:u1], 1:u1] = (
-          StmReduce(
-            n121,
-            (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
-          )
-        ) in
-        let n147: Stm[Stm[u8, 1:u1], 1:u1] = [[4:u8]s]s in
-        let n129: Stm[Stm[(u8, u8), 1:u1], 1:u1] = (
-          StmMap2(
-            n126,
-            n147,
-            (I0 : Stm[u8, 1:u1]) =>
-              (I1 : Stm[u8, 1:u1]) =>
-                StmMap2(I0, I1, (I0 : u8) => (I1 : u8) => (I0, I1))
-          )
-        ) in
-        StmMap(
-          n129,
-          (I : Stm[(u8, u8), 1:u1]) =>
-            StmMap(I, (I : (u8, u8)) => I.0 >>> I.1)
-        )
-    )
-  ) in
+  let n141: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = StmMap(n101, module0) in
   let n142: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = ReshapeSeq[Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5]](n141) in
   let n143: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = n142 in
   let n144: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = n143 in

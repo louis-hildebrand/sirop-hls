@@ -705,13 +705,7 @@ object AetherlingParser {
       val (f, suffix1) = parseExpr(suffix0, modules)
       val suffix2 = expect(suffix1, " ")
       val (s, suffix3) = parseExpr(suffix2, modules)
-      val g: Function = f match {
-        case x: Param if modules.contains(x) =>
-          // The function in StmMap must be a literal function, so inline
-          modules(x)
-        case _ =>
-          Function(Param("I", -1)(Missing), f)()
-      }
+      val g = makeUnaryFunction(f, modules)
       (StmMap(StmCst(1, s)(), g)(), suffix3)
     } else if (code.startsWith("Remove_1_sN ")) {
       // Remove_1_sN seems to have type
@@ -752,13 +746,7 @@ object AetherlingParser {
       val (f, suffix1) = parseExpr(suffix0, modules)
       val suffix2 = expect(suffix1, " ")
       val (s, suffix3) = parseExpr(suffix2, modules)
-      val g: Function = f match {
-        case x: Param if modules.contains(x) =>
-          // The function in StmMap must be a literal function, so inline
-          modules(x)
-        case _ =>
-          Function(Param("I", -1)(Missing), f)()
-      }
+      val g = makeUnaryFunction(f, modules)
       (StmJoin(StmMap(s, g)())(), suffix3)
     } else if (code.startsWith("Map_sN ")) {
       val suffix0 = expect(code, "Map_sN ")
@@ -778,13 +766,7 @@ object AetherlingParser {
       val (f, suffix5) = parseExpr(suffix4, modules)
       val suffix6 = expect(suffix5, " ")
       val (s, suffix7) = parseExpr(suffix6, modules)
-      val g: Function = f match {
-        case x: Param if modules.contains(x) =>
-          // The function in StmMap must be a literal function, so inline
-          modules(x)
-        case _ =>
-          Function(Param("I", -1)(Missing), f)()
-      }
+      val g = makeUnaryFunction(f, modules)
       (StmMap(s, g)(), suffix7)
     } else if (code.startsWith("Map2_sN ")) {
       val suffix0 = expect(code, "Map2_sN ")
@@ -795,7 +777,7 @@ object AetherlingParser {
       val (v1, suffix5) = parseExpr(suffix4, modules)
       val suffix6 = expect(suffix5, " ")
       val (v2, suffix7) = parseExpr(suffix6, modules)
-      (VecMap2(v1, v2, makeInlinedBinaryFunction(f, modules))(), suffix7)
+      (VecMap2(v1, v2, makeBinaryFunction(f, modules))(), suffix7)
     } else if (code.startsWith("Map2_tN ")) {
       val suffix0 = expect(code, "Map2_tN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -807,7 +789,7 @@ object AetherlingParser {
       val (s1, suffix7) = parseExpr(suffix6, modules)
       val suffix8 = expect(suffix7, " ")
       val (s2, suffix9) = parseExpr(suffix8, modules)
-      (StmMap2(s1, s2, makeInlinedBinaryFunction(f, modules))(), suffix9)
+      (StmMap2(s1, s2, makeBinaryFunction(f, modules))(), suffix9)
     } else if (code.startsWith("Reduce_sN ")) {
       val suffix0 = expect(code, "Reduce_sN ")
       val (_, suffix1) = parseNat(suffix0)
@@ -932,13 +914,13 @@ object AetherlingParser {
     }
   }
 
-  private def makeInlinedBinaryFunction(
+  private def makeBinaryFunction(
       f: Expr,
       modules: Map[Param, Function]
-  ): Function = {
+  ): Expr = {
     f match {
       case x: Param if modules.contains(x) =>
-        modules(x)
+        x
       case _ =>
         Function(
           Param("I0", -1)(Missing),

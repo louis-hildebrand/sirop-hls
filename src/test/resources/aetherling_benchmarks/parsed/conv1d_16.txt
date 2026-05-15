@@ -3,14 +3,7 @@ let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n24: (i8, i8) = (I0,
 let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
   (I : Vec[i8, 3:u2]) =>
     let n33: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8]v in
-    let n21: Vec[i8, 3:u2] = (
-      VecMap2(
-        I,
-        n33,
-        (I0 : i8) =>
-          (I1 : i8) => let n24: (i8, i8) = (I0, I1) in n24.0 *% n24.1
-      )
-    ) in
+    let n21: Vec[i8, 3:u2] = VecMap2(I, n33, module0) in
     VecReduceComb(n21, (I : (i8, i8)) => I.0 +% I.1)
 ) in
 (I : Vec[i8, 16:u5]) =>

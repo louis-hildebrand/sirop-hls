@@ -27,15 +27,7 @@ let module2: Stm[Vec[u16, 8:u4], 32:u6] -> Stm[u16, 1:u1] = (
 (I0 : Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u9]) =>
   (I1 : Stm[Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u9], 1:u1]) =>
     let n1: Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u9] = I0 in
-    let n6: Stm[Stm[Vec[u16, 8:u4], 8192:u14], 256:u9] = (
-      StmMap(
-        n1,
-        (I : Stm[Vec[u16, 8:u4], 32:u6]) =>
-          let n3: Stm[Stm[Vec[u16, 8:u4], 32:u6], 1:u6] = StmSplit(I, 32:u6) in
-          let n4: Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u15] = StmJoin(StmRepeat(n3, 256:u9)) in
-          ReshapeSeq[Stm[Vec[u16, 8:u4], 8192:u14]](n4)
-      )
-    ) in
+    let n6: Stm[Stm[Vec[u16, 8:u4], 8192:u14], 256:u9] = StmMap(n1, module0) in
     let n7: Stm[Vec[u16, 8:u4], 2097152:u22] = ReshapeSeq[Stm[Vec[u16, 8:u4], 2097152:u22]](n6) in
     let n13: Stm[Vec[u16, 8:u4], 2097152:u22] = n7 in
     let n9: Stm[Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u9], 1:u1] = I1 in
@@ -47,37 +39,11 @@ let module2: Stm[Vec[u16, 8:u4], 32:u6] -> Stm[u16, 1:u1] = (
         n13,
         n12,
         (I0 : Vec[u16, 8:u4]) =>
-          (I1 : Vec[u16, 8:u4]) =>
-            VecMap2(
-              I0,
-              I1,
-              (I0 : u16) =>
-                (I1 : u16) => let n20: (u16, u16) = (I0, I1) in n20.0 *% n20.1
-            )
+          (I1 : Vec[u16, 8:u4]) => VecMap2(I0, I1, module1)
       )
     ) in
     let n22: Stm[Stm[Vec[u16, 8:u4], 32:u6], 65536:u22] = StmSplit(n14, 32:u6) in
-    let n33: Stm[Stm[u16, 1:u1], 65536:u22] = (
-      StmMap(
-        n22,
-        (I : Stm[Vec[u16, 8:u4], 32:u6]) =>
-          let n28: Stm[Vec[u16, 1:u1], 32:u6] = (
-            StmMap(
-              I,
-              (I : Vec[u16, 8:u4]) =>
-                VecReduceComb(I, (I : (u16, u16)) => I.0 +% I.1)
-            )
-          ) in
-          let n31: Stm[Vec[u16, 1:u1], 1:u1] = (
-            StmReduce(
-              n28,
-              (I : Vec[(u16, u16), 1:u1]) =>
-                VecMap(I, (I : (u16, u16)) => I.0 +% I.1)
-            )
-          ) in
-          ReshapeSeq[Stm[u16, 1:u1]](n31)
-      )
-    ) in
+    let n33: Stm[Stm[u16, 1:u1], 65536:u22] = StmMap(n22, module2) in
     let n34: Stm[Stm[u16, 1:u1], 65536:u22] = n33 in
     let n35: Stm[Stm[u16, 1:u1], 65536:u22] = n34 in
     n35
