@@ -25,6 +25,26 @@ For example, some scripts use Bash.
 Everything has been tested on RHEL 7.6 and Ubuntu 22.04.
 Windows users should be able to use WSL.
 
+### Checking the Artifact Integrity
+
+Since the artifact is large, it is good to check that it was downloaded successfully.
+The MD5 checksum is available on Zenodo.
+For example, for version LCTES-2026-AEC-submission, the checksum of paper61.zip is
+
+```sh
+PAPER61_ZIP_MD5=42d7215332a954bea83a399ec0169ff6
+```
+
+With this value in hand, the file integrity can be checked as follows (note that there are *two* spaces before paper61.zip):
+
+```sh
+echo "$PAPER61_ZIP_MD5  paper61.zip" | md5sum --check
+```
+
+This should print a message like "paper61.zip: OK".
+If it says "paper61.zip: FAILED", the file appears to be corrupted.
+Please try deleting the existing artifact and downloading it again.
+
 ### Lab server
 
 The LCTES '26 artifact evaluation committee (AEC) members will be provided with SSH keys to access a lab server with the required software.
