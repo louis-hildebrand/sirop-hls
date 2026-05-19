@@ -81,8 +81,8 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
                   producer.equations
                 )().tchk()
                 val newEquations =
-                  (consumer.equations - x).map({ case (x, (z, next)) =>
-                    x -> (z, next.subAndEraseType(x -> newX).tchk())
+                  (consumer.equations - x).map({ case (y, (z, next)) =>
+                    y -> (z, next.subAndEraseType(x -> newX).tchk())
                   }) + (newX -> (newProducer, ready))
                 StmBuild(
                   consumer.n,
@@ -142,7 +142,7 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
       case SomeUnused(useElems @ _*) =>
         e match {
           case Tuple(exprElems @ _*) =>
-            assert(exprElems == useElems)
+            assert(exprElems.length == useElems.length)
             val newExprElems = exprElems
               .zip(useElems)
               .map({ case (e, u) => transformExpr(e, u) })

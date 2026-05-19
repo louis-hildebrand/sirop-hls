@@ -89,4 +89,69 @@ class UnusedDataRemoverTests extends AnyFunSuite {
       "the first stage of one branch should contain only bool"
     )
   }
+
+  test("(used, (used, (used, used)), ((unused, unused), used))") {
+    val typ = TyTuple(
+      TyTuple(U8, TyBool),
+      TyTuple(I16, (I16, I16)),
+      TyTuple(TyTuple(I16, I16), I16)
+    )
+    val original = {
+      val n = 10
+      val p = Param("p")(TyStm(typ, -1))
+      val input = SimpleMap(
+        SimpleCount(C(n)(U8)),
+        x => {
+          val xI16 = PadTo(ToSigned(x)(), 16)()
+          Tuple(
+            Tuple(x, Mod(x, C(2)(U8))() equ C(0)(U8))(),
+            Tuple(
+              Sum(xI16, C(2)(I16))(),
+              Tuple(Sum(xI16, C(3)(I16))(), Sum(xI16, C(4)(I16))())()
+            )(),
+            Tuple(
+              Tuple(Sum(xI16, C(5)(I16))(), Sum(xI16, C(6)(I16))())(),
+              Sum(xI16, C(7)(I16))()
+            )()
+          )()
+        }
+      ).tchk()
+      val sum = Param("sum")(I16)
+      val prod = Param("prod")(I16)
+      val min = Param("min")(I16)
+      StmBuild(
+        n,
+        Tuple(
+          StmData(p)().__0,
+          sum,
+          prod,
+          min
+        )(),
+        StmData(p)().__2.__1 geq C(0)(I16),
+        Map[Param, (Expr, Expr)](
+          p -> (input, True),
+          sum -> (C(0)(I16), Sum(sum, StmData(p)().__1.__0)()),
+          prod -> (C(0)(I16), Prod(prod, StmData(p)().__1.__1.__0)()),
+          min -> (C(0)(I16), Sum(sum, StmData(p)().__1.__1.__1)())
+        )
+      )().tchk().asInstanceOf[StmBuild]
+    }
+    val actual = pass.removeUnusedData(original)
+
+    // Correctness
+    val expectedVal = mhir.eval.eval(original)
+    val actualVal = mhir.eval.eval(actual)
+    assert(actualVal == expectedVal)
+
+    // Effective simplification
+    val actualConsumer = actual.asInstanceOf[StmBuild]
+    val (actualProducer, _) = actualConsumer.producers.head
+    val TyStm(producerDataTyp, _) = actualProducer.typ
+    val expectedTyp = TyTuple(
+      TyTuple(U8, TyBool),
+      TyTuple(I16, (I16, I16)),
+      TyTuple(TyTuple(), I16)
+    )
+    assert(producerDataTyp == expectedTyp)
+  }
 }
