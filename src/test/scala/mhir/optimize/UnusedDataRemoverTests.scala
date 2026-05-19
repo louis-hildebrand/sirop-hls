@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class UnusedDataRemoverTests extends AnyFunSuite {
 
-  val pass: UnusedDataRemover.type = UnusedDataRemover
+  val pass: UnusedDataRemover = EnabledUnusedDataRemover
 
   test("(i16, bool) fork-join") {
     val n = 10

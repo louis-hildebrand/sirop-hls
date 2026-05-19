@@ -18,7 +18,8 @@ class Optimizer(
     fissionPass: StmFissionPass,
     latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
-    binOpBalancer: BinOpTreeBalancingPass
+    binOpBalancer: BinOpTreeBalancingPass,
+    unusedDataRemover: UnusedDataRemover
 ) {
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -72,20 +73,22 @@ class Optimizer(
 
     val s4 = latencyMatcher.matchLatencies(s3)
 
-    val s5 = letStmBufShrinker.shrinkBuffers(s4)
+    val s5 = unusedDataRemover.removeUnusedData(s4)
+
+    val s6 = letStmBufShrinker.shrinkBuffers(s5)
 
     // I think the program is more readable like this.
     // I don't think a compiler flag is needed, since it shouldn't change the
     // generated hardware in any meaningful way.
-    val s6 = time("moving LetStm up", Level.DEBUG) {
-      LetStmMover.moveUp(s5)
+    val s7 = time("moving LetStm up", Level.DEBUG) {
+      LetStmMover.moveUp(s6)
     }
 
-    val s7 = binOpBalancer.balance(s6)
+    val s8 = binOpBalancer.balance(s7)
 
-    val areaCost = SimpleAreaCostModel.cost(s7)
+    val areaCost = SimpleAreaCostModel.cost(s8)
     logger.debug(s"final area cost: $areaCost")
-    val delayCost = SimpleDelayCostModel.cost(s7)
+    val delayCost = SimpleDelayCostModel.cost(s8)
     logger.debug(
       s"final delay cost: $delayCost (max ${SimpleDelayCostModel.FullCycleDelay})"
     )
@@ -98,7 +101,7 @@ class Optimizer(
       )
     }
 
-    s7
+    s8
   }
 }
 
@@ -140,14 +143,17 @@ object Optimizer {
         options.maxLetStmBufSize.map(mbs => new ManualLetStmBufferShrinker(mbs))
       new CombinedLetStmBufferShrinker(Seq(staticPass, manualPass).flatten)
     }
+    val unusedDataRemover =
+      UnusedDataRemover(enabled = options.removeUnusedData)
     new Optimizer(
       loggingSimplifier,
       letStmSimplifier,
       fusionPass,
       fissionPass,
       latencyMatcher,
-      letStmBufShrinker = letStmBufShrinker,
-      binOpBalancerWithLogging
+      letStmBufShrinker,
+      binOpBalancerWithLogging,
+      unusedDataRemover
     )
   }
 }

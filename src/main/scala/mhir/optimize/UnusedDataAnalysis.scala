@@ -38,6 +38,14 @@ case object AllUsed extends UseStatus
 case object AllUnused extends UseStatus
 case class SomeUnused(elems: UseStatus*) extends UseStatus
 
+/** This analysis identifies parts of the output of an `sbuild` that are not
+  * used by the consumer.
+  *
+  * See also: the [[UnusedDataRemover]] transformation.
+  *
+  * @param target
+  *   the producer stream whose output should be analyzed.
+  */
 case class UnusedDataAnalysis(target: Param) {
 
   def findUnused(s: StmBuild): UseStatus = {

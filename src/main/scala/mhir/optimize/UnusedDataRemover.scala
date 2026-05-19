@@ -4,7 +4,36 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck._
 
+/** This transformation removes parts of the sbuild output data that are not
+  * used by the consumer.
+  *
+  * @example
+  *   in the following code, element 1 of the output of `x` is unused
+  *   {{{
+  *     sbuild(n)(sdata(s).0 + 5:u8, true) {} {
+  *       (x: Stm[(u8, u8), n]) = { stm: ..., ready: true }
+  *     }
+  *   }}}
+  *   Therefore, the `Stm[(u8, u8), n]` can be replaced by a `Stm[(u8, ()), n]`.
+  */
+trait UnusedDataRemover {
+
+  def removeUnusedData(e: Expr): Expr
+}
+
 object UnusedDataRemover {
+
+  def apply(enabled: Boolean): UnusedDataRemover = {
+    if (enabled) EnabledUnusedDataRemover else DisabledUnusedDataRemover
+  }
+}
+
+object DisabledUnusedDataRemover extends UnusedDataRemover {
+
+  override def removeUnusedData(e: Expr): Expr = e
+}
+
+object EnabledUnusedDataRemover extends UnusedDataRemover {
 
   def removeUnusedData(e: Expr): Expr = {
     require(
