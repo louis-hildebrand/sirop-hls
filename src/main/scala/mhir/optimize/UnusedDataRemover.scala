@@ -1,8 +1,11 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.logging.time
 import mhir.typecheck._
+import org.slf4j.event.Level
 
 /** This transformation removes parts of the sbuild output data that are not
   * used by the consumer.
@@ -30,12 +33,29 @@ object UnusedDataRemover {
 
 object DisabledUnusedDataRemover extends UnusedDataRemover {
 
-  override def removeUnusedData(e: Expr): Expr = e
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
+
+  override def removeUnusedData(e: Expr): Expr = {
+    if (!hasLogged) {
+      hasLogged = true
+      logger.debug("unused data removal is disabled")
+    }
+    e
+  }
 }
 
 object EnabledUnusedDataRemover extends UnusedDataRemover {
 
+  private implicit val logger: Logger = Logger(getClass.getName)
+
   def removeUnusedData(e: Expr): Expr = {
+    time("removing unused parts of sbuild data", Level.DEBUG) {
+      doRemoveUnusedData(e)
+    }
+  }
+
+  private def doRemoveUnusedData(e: Expr): Expr = {
     require(
       e.hasType,
       "expression must be type-checked before removing unused data"
@@ -81,12 +101,12 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
           s2.valid,
           s2.equations.map({
             case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (removeUnusedData(s), ready)
+              x -> (doRemoveUnusedData(s), ready)
             case eqn => eqn
           })
         )().tchk().asInstanceOf[StmBuild]
       case e =>
-        e.map(removeUnusedData)
+        e.map(doRemoveUnusedData)
     }
     val typedResult = result.tchk()
     assert(
