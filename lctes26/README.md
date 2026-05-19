@@ -28,17 +28,22 @@ Windows users should be able to use WSL.
 ### Lab server
 
 The LCTES '26 artifact evaluation committee (AEC) members will be provided with SSH keys to access a lab server with the required software.
-To access the server:
+To access the server, take the following steps.
+
+> ***Note***
+>
+> It may be necessary to start your ssh-agent by running `eval "$(ssh-agent -s)"` first.
 
 ```sh
 # Replace by your assigned username
 CSUSER=csuser104
 # Add the key to the SSH agent (after ensuring it is not readable by others, as required by ssh-add)
-chmod 400 "$CSUSER_id_ssh_rsa"
-ssh-add "$CSUSER_id_ssh_rsa"
+chmod 400 "${CSUSER}_id_ssh_rsa"
+ssh-add "${CSUSER}_id_ssh_rsa"
 # Copy artifact to the server and then connect
-scp -J "$CSUSER@jump.cs.mcgill.ca" sirop-lctes26-artifact.zip "$CSUSER@solaire.cs.mcgill.ca:~"
-ssh -AXJ "$CSUSER@jump.cs.mcgill.ca" "$CSUSER@solaire.cs.mcgill.ca"
+# NOTE: sirop-lctes26-artifact.zip is not the full artifact downloaded from Zenodo, but just the inner .zip file.
+scp -J "${CSUSER}@jump.cs.mcgill.ca" sirop-lctes26-artifact.zip "${CSUSER}@solaire.cs.mcgill.ca:~"
+ssh -AXJ "${CSUSER}@jump.cs.mcgill.ca" "${CSUSER}@solaire.cs.mcgill.ca"
 # On the server, unzip the artifact
 [[ -f ~/sirop-lctes26-artifact.zip ]] || echo "Something's wrong: I don't see the artifact zip file"
 unzip ~/sirop-lctes26-artifact.zip
@@ -180,10 +185,10 @@ Figure 17 in the paper shows just the ALM usage.
 ```
 
 To view the plot, it may be most convenient to copy it off the lab server using `scp`.
-On your local machine, run the following command (where `$CSUSER` is again replaced by your assigned username)
+On your local machine, run the following command (where `${CSUSER}` is again replaced by your assigned username)
 
 ```sh
-scp -J "$CSUSER@jump.cs.mcgill.ca" "$CSUSER@solaire.cs.mcgill.ca:~/sirop-lctes26-artifact/sirop/results/ablation_resource_usage.pdf" ./ablation_resource_usage.pdf
+scp -J "${CSUSER}@jump.cs.mcgill.ca" "${CSUSER}@solaire.cs.mcgill.ca:~/sirop-lctes26-artifact/sirop/results/ablation_resource_usage.pdf" ./ablation_resource_usage.pdf
 ```
 
 *Optionally*, the latency can also be measured and plotted.
@@ -203,8 +208,6 @@ For the benchmarks with longer input sequences, changes to the pipeline depth ha
 >
 > So far, we have only reproduced the results for the `map` benchmark.
 > To try other benchmarks, follow the same instructions but replace `map` with nothing (to run everything) or other benchmark names.
-
-<!-- TODO: explain why sobel without letstm inlining now no longer meets the timing requirements -->
 
 ### Figure 19 (design space exploration with Aetherling)
 
@@ -238,8 +241,8 @@ python3 -u ./aetherling_extract_resource_usage.py ../resources/aetherling_benchm
 python3 -u ./aetherling_measure_latency.py ../resources/aetherling_benchmarks/original/map_1.txt
 } | tee "$SIROP/aetherling_$(date +%Y%m%d%H%M%S).log"
 
-./docker_run.py './ablation_plot_resource_usage.py'
-./docker_run.py './ablation_plot_latency.py'
+./docker_run.py './aetherling_plot_resource_usage.py'
+./docker_run.py './aetherling_plot_latency.py'
 ```
 
 As mentioned in the paper, there is no Verilog for the `sobel` benchmark with throughput 1/3.
@@ -327,8 +330,6 @@ See `./docker_run.py` for details like the image name and required bind-mount po
 
 Aetherling's existing Chisel backend is evaluated as part of generating figure 19.
 Figure 18 uses the same data.
-
-<!-- TODO: explain how the scripts choose among the different benchmark/throughput pairs? -->
 
 #### Sirop
 
@@ -563,8 +564,3 @@ In case of simulation errors (i.e., while measuring the latency of a program), t
 4. Try re-running `./test_vhdl.sh . -v`.
 
 Don't forget to move back to `$SIROP/src/test/python` afterwards.
-
-<!-- TODO: tell reader about precompiled solutions and how they can use those to immediately generate the plots? -->
-<!-- TODO: Say how long each step will take -->
-<!-- TODO: Say where the benchmark source code is found in each case -->
-<!-- TODO: Add --docker flag for each of the `*_run_all.py` scripts to make things easier? -->
