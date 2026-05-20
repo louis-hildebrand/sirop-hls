@@ -12,8 +12,13 @@ package mhir.optimize
   *   whether to perform stream fission.
   * @param matchLatency
   *   whether to perform latency matching.
+  * @param removeUnusedData
+  *   whether to perform the unused data removal pass.
   * @param balanceBinOpTrees
   *   whether to balance trees of binary operators.
+  * @param madd
+  *   whether the DSPs on the target device support multiplication and addition
+  *   in one cycle.
   * @param assumeThroughputsMatch
   *   whether the optimizer can assume the throughputs along different branches
   *   of a [[mhir.ir.LetStm]] match.
@@ -28,6 +33,7 @@ case class OptimizerOptions(
     staticallyShrinkLetStmBuffers: Boolean,
     maxLetStmBufSize: Option[Int],
     balanceBinOpTrees: Boolean,
+    madd: Boolean,
     assumeThroughputsMatch: Boolean
 )
 
@@ -51,6 +57,7 @@ object OptimizerOptions {
       staticallyShrinkLetStmBuffers = true,
       maxLetStmBufSize = maxLetStmBufSize,
       balanceBinOpTrees = true,
+      madd = false,
       assumeThroughputsMatch = assumeThroughputsMatch
     )
   }
@@ -70,6 +77,7 @@ object OptimizerOptions {
       staticallyShrinkLetStmBuffers = false,
       maxLetStmBufSize = None,
       balanceBinOpTrees = false,
+      madd = false,
       assumeThroughputsMatch = false
     )
   }

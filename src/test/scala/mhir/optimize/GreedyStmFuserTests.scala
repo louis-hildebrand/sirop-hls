@@ -2,13 +2,17 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class GreedyStmFuserTests extends AnyFunSuite {
 
-  private val fusionPass = new GreedyStmFusionPass(StmBuildSimplifier())
+  private val fusionPass = new GreedyStmFusionPass(
+    StmBuildSimplifier(),
+    delayCostModel = SimpleDelayCostModel(madd = false)
+  )
 
   /* Map(+3) is clearly better than Map(+1) |> Map(+2).
    */

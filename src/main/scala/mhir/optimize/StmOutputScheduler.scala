@@ -8,7 +8,10 @@ import mhir.typecheck.TypeCheck
 
 /** Transformation to split up the output of a stream into at most two steps.
   */
-case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
+case class StmOutputScheduler(
+    binOpBalancer: BinOpTreeBalancingPass,
+    delayCostModel: SimpleDelayCostModel
+) {
 
   private val logger: Logger = Logger(getClass.getName)
 
@@ -70,8 +73,7 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
       case FunCall(Function(x, body), arg) =>
         doSchedule(staticVars, varCosts)(arg) match {
           case InProducer(arg) =>
-            val argCost =
-              SimpleDelayCostModel.rawCost(arg, staticVars, varCosts)
+            val argCost = delayCostModel.rawCost(arg, staticVars, varCosts)
             val bodyDecomp =
               doSchedule(staticVars, varCosts + (x -> argCost))(body)
             bodyDecomp match {
@@ -99,12 +101,12 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
           _: TruncateTo | _: ToSigned | _: ToUnsigned | _: LLShift |
           _: LRShift | _: IntFixProd | _: Equal | _: LessThan | _: Not |
           _: And | _: Or) =>
-        val cost = SimpleDelayCostModel.rawCost(
+        val cost = delayCostModel.rawCost(
           e,
           staticVars = staticVars,
           varCosts = varCosts
         )
-        val stayInProducer = if (cost <= SimpleDelayCostModel.FullCycleDelay) {
+        val stayInProducer = if (cost <= delayCostModel.FullCycleDelay) {
           true
         } else if (allChildrenAtomic(e, staticVars, varCosts)) {
           logger.warn(
@@ -149,7 +151,7 @@ case class StmOutputScheduler(binOpBalancer: BinOpTreeBalancingPass) {
       varCosts: Map[Param, Long]
   ): Boolean = {
     e.children.forall({ e =>
-      SimpleDelayCostModel.rawCost(e, staticVars, varCosts) == 0
+      delayCostModel.rawCost(e, staticVars, varCosts) == 0
     })
   }
 

@@ -9,8 +9,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmFissionPassTests extends AnyFunSuite {
 
+  private val delay = SimpleDelayCostModel(madd = false)
   private val pass = EnabledStmFissionPass(
-    StmOutputScheduler(EnabledBinOpTreeBalancingPass)
+    StmOutputScheduler(EnabledBinOpTreeBalancingPass, delay)
   )
 
   test("SharpenOne") {
@@ -46,10 +47,10 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedVal == originalVal)
 
     // Effective optimization
-    val originalDelayCost = SimpleDelayCostModel.cost(original)
-    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
-    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
-    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+    val originalDelayCost = delay.cost(original)
+    assert(originalDelayCost > delay.FullCycleDelay)
+    val optimizedDelayCost = delay.cost(optimized)
+    assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 
   test("ProdReductionTree:Nested") {
@@ -82,10 +83,10 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedVal == originalVal)
 
     // Effective optimization
-    val originalDelayCost = SimpleDelayCostModel.cost(original)
-    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
-    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
-    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+    val originalDelayCost = delay.cost(original)
+    assert(originalDelayCost > delay.FullCycleDelay)
+    val optimizedDelayCost = delay.cost(optimized)
+    assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 
   /** Avoid infinite loops when an expression doesn't fit anywhere even when all
@@ -125,10 +126,10 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedVal == originalVal)
 
     // Effective optimization
-    val originalDelayCost = SimpleDelayCostModel.cost(original)
-    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
-    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
-    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+    val originalDelayCost = delay.cost(original)
+    assert(originalDelayCost > delay.FullCycleDelay)
+    val optimizedDelayCost = delay.cost(optimized)
+    assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 
   test("ProdReductionTree:VecReduceComb") {
@@ -159,9 +160,9 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedVal == originalVal)
 
     // Effective optimization
-    val originalDelayCost = SimpleDelayCostModel.cost(original)
-    assert(originalDelayCost > SimpleDelayCostModel.FullCycleDelay)
-    val optimizedDelayCost = SimpleDelayCostModel.cost(optimized)
-    assert(optimizedDelayCost <= SimpleDelayCostModel.FullCycleDelay)
+    val originalDelayCost = delay.cost(original)
+    assert(originalDelayCost > delay.FullCycleDelay)
+    val optimizedDelayCost = delay.cost(optimized)
+    assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 }
