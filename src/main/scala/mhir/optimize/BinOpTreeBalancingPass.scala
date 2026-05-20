@@ -58,8 +58,7 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
     val result = typedE match {
       case s @ Sum(_, _) => s
       case Sum(terms @ _*) =>
-        assert(terms.length >= 3)
-        val nLeft = terms.length / 2
+        val nLeft = this.nLeft(terms.length)
         val (negTermsWithMinus, posTerms) = terms.partition({
           case Prod(cst @ IntCst(k), _ @_*) =>
             // Consider cst = -128:i8. 128 does not fit within type i8.
@@ -96,36 +95,33 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
         Sum(lhs, rhs)()
       case p @ Prod(_, _) => p
       case Prod(factors @ _*) =>
-        assert(factors.length >= 3)
-        val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
+        val (lhsFactors, rhsFactors) =
+          factors.splitAt(this.nLeft(factors.length))
         val lhs = doBalance(MaybeProd(lhsFactors: _*)())
         val rhs = doBalance(MaybeProd(rhsFactors: _*)())
         Prod(lhs, rhs)()
       case s @ WrappingSum(_, _) => s
       case WrappingSum(terms @ _*) =>
-        assert(terms.length >= 3)
-        val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
+        val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeWrappingSum(lhsTerms: _*)())
         val rhs = doBalance(MaybeWrappingSum(rhsTerms: _*)())
         WrappingSum(lhs, rhs)()
       case p @ WrappingProd(_, _) => p
       case WrappingProd(factors @ _*) =>
-        assert(factors.length >= 3)
-        val (lhsFactors, rhsFactors) = factors.splitAt(factors.length / 2)
+        val (lhsFactors, rhsFactors) =
+          factors.splitAt(this.nLeft(factors.length))
         val lhs = doBalance(MaybeWrappingProd(lhsFactors: _*)())
         val rhs = doBalance(MaybeWrappingProd(rhsFactors: _*)())
         WrappingProd(lhs, rhs)()
       case a @ And(_, _) => a
       case And(terms @ _*) =>
-        assert(terms.length >= 3)
-        val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
+        val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeAnd(lhsTerms: _*)())
         val rhs = doBalance(MaybeAnd(rhsTerms: _*)())
         And(lhs, rhs)()
       case o @ Or(_, _) => o
       case Or(terms @ _*) =>
-        assert(terms.length >= 3)
-        val (lhsTerms, rhsTerms) = terms.splitAt(terms.length / 2)
+        val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeOr(lhsTerms: _*)())
         val rhs = doBalance(MaybeOr(rhsTerms: _*)())
         Or(lhs, rhs)()
@@ -135,6 +131,61 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
     val typedResult = result.tchk()
     assert(typedResult.typ ~= typedE.typ)
     typedResult
+  }
+
+  /** Decide how many terms should go on the left.
+    *
+    * @param n
+    *   the total number of terms.
+    */
+  private def nLeft(n: Int): Int = {
+    require(n >= 3)
+    /* Prefer even splits so that we end up with
+     *                  (+)
+     *                 /   \
+     *                /     \
+     *               /       \
+     *              /         \
+     *             /           (+)
+     *            /           /   \
+     *           /           /     \
+     *          /           /       \
+     *       (+)         (+)         (+)
+     *      /   \       /   \       /   \
+     *   x0*y0 x1*y1 x2*y2 x3*y3 x4*y4 x5*y5
+     *
+     * rather than
+     *
+     *                  (+)
+     *                 /   \
+     *                /     \
+     *               /       \
+     *              /         \
+     *             /           \
+     *            /             \
+     *         (+)               (+)
+     *        /   \             /   \
+     *       /     (+)         /     (+)
+     *      /     /   \       /     /   \
+     *   x0*y0 x1*y1 x2*y2 x3*y3 x4*y4 x5*y5
+     *
+     * The former maps well to the multiplier adder mode on some DSPs: there
+     * are clearly three mul-add operations followed by two adders.
+     * The latter only has two clear mul-add operations, and there are three
+     * other adders.
+     */
+    val closestSplit = n / 2
+    val result = if (n % 2 == 0 && closestSplit % 2 == 1) {
+      // Turn odd + odd into even + even
+      closestSplit - 1
+    } else {
+      // We have (_ + even) or (even + _), so we can't do any better
+      closestSplit
+    }
+    assert(result > 0)
+    assert(result < n)
+    assert(if (n % 2 == 0) result % 2 == 0 else true)
+    result
   }
 }
 
