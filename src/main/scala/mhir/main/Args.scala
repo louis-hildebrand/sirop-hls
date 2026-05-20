@@ -56,6 +56,7 @@ object Args {
     var fuse = true
     var fission = true
     var matchLatency = true
+    var removeUnusedData = true
     var staticallyShrinkLetStmBuffers = true
     var maxLetStmBufSize: Option[Int] = None
     var balanceBinOpTrees = true
@@ -189,6 +190,8 @@ object Args {
           fission = false
         case "--opt:no-latmatch" =>
           matchLatency = false
+        case "--opt:no-remove-unused-data" =>
+          removeUnusedData = false
         case "--opt:no-static-buf-shrink" =>
           staticallyShrinkLetStmBuffers = false
         case "--opt:max-let-buf-size" =>
@@ -309,6 +312,7 @@ object Args {
         fuse = fuse,
         fission = fission,
         matchLatency = matchLatency,
+        removeUnusedData = removeUnusedData,
         staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
         maxLetStmBufSize = maxLetStmBufSize,
         balanceBinOpTrees = balanceBinOpTrees,
@@ -383,6 +387,7 @@ object Args {
          |  --opt:no-fuse                   skip the greedy stream fusion pass
          |  --opt:no-fission                skip the stream fission pass
          |  --opt:no-latmatch               skip the latency matching pass
+         |  --opt:no-remove-unused-data     skip the unused data removal pass
          |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
          |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm
          |  --opt:no-balance-binop-trees    skip the binop tree balancing pass
