@@ -842,6 +842,16 @@ object Parser {
           case Seq(v1, v2) => VecConcat(v1, v2)()
           case _           => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecShiftLeft", -1) =>
+        args match {
+          case Seq(v, e) => VecShiftLeft(v, e)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("VecCst", -1) =>
+        args match {
+          case Seq(n, c) => VecCst(n, c)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("VecRange", -1) =>
         args match {
           case Seq(n, z, delta) => VecRange(n, z, delta)()
@@ -897,6 +907,16 @@ object Parser {
         args match {
           case Seq(s1, s2) => StmConcat(s1, s2)()
           case _           => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmShiftLeft", -1) =>
+        args match {
+          case Seq(s, e) => StmShiftLeft(s, e)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmCst", -1) =>
+        args match {
+          case Seq(n, c) => StmCst(n, c)()
+          case _         => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmRange", -1) =>
         args match {

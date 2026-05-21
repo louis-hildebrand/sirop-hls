@@ -41,6 +41,32 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 }
 
+case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(n, k)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(n, k) => VecCst(n, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context).expectUInt()
+    val k = this.k.tchk(context)
+    this.rebuild(TyVec(k.typ, n), Seq(n, k))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val n = this.n.lower
+    val k = this.k.lower
+    VecBuild(n, n.typ ::+ (_ => k))().tchk().lower
+  }
+}
+
 case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     extends SyntaxSugar(n, z, delta)(typ) {
 

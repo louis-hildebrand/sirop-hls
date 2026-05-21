@@ -165,6 +165,13 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(VecAccess(oneTwoThreeVec, 2)()) == IntCst(3)())
   }
 
+  test("VecCst") {
+    val c = Tuple(C(42)(U8), False)().tchk()
+    val v = VecCst(3, c)().tchk().lower
+    val expected = VecLiteral(c, c, c)().tchk()
+    assert(mhir.eval.eval(v) == expected)
+  }
+
   test("VecRange") {
     val v = VecRange(3, C(2)(U8), C(4)(U8))().tchk().lower
     val expected = VecLiteral(C(2)(U8), C(6)(U8), C(10)(U8))().tchk()
