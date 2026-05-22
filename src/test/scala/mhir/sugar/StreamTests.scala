@@ -2090,11 +2090,16 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       Default(TyVec(U8, 3))
     )().tchk().lower
     val expected1 = StmLiteral(
+      VecLiteral(C(0)(U8), C(0)(U8), C(0)(U8))(),
       VecLiteral(C(0)(U8), C(0)(U8), C(1)(U8))(),
       VecLiteral(C(0)(U8), C(1)(U8), C(4)(U8))(),
       VecLiteral(C(1)(U8), C(4)(U8), C(9)(U8))(),
-      VecLiteral(C(4)(U8), C(9)(U8), C(16)(U8))(),
-      VecLiteral(C(9)(U8), C(16)(U8), C(25)(U8))()
+      VecLiteral(C(4)(U8), C(9)(U8), C(16)(U8))()
+      // TODO: Include this again?
+      //       It's currently excluded because including it would require
+      //       dropping the ready signal at the last step, which is not allowed
+      //       in no_handshake mode
+      // VecLiteral(C(9)(U8), C(16)(U8), C(25)(U8))()
     )().tchk()
     assert(actual1.typ == expected1.typ)
     assert(mhir.eval.eval(actual1) == expected1)
