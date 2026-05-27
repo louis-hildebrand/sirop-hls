@@ -191,9 +191,9 @@ def benchmark_title(bench_name: str) -> str | None:
     if bench_name.startswith("big"):
         bench_name = bench_name[len("big"):]
     if bench_name in {"mvm", "matvec"}:
-        bench_name = "mv"
+        bench_name = "matvec"
     if bench_name in {"mmm", "matmat"}:
-        bench_name = "mm"
+        bench_name = "matmat"
     return f"\\texttt{{{bench_name}}}"
 
 

@@ -16,9 +16,8 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.latency import LatencyResult
 
-BAR_SPACE = 0.3
-BAR_WIDTH = (1 - BAR_SPACE) / 4
-BAR_PADDING = 0.04
+BAR_SPACE = 0.5
+BAR_PADDING = 0.06
 IHC_HATCH = "xxx"
 SHIR_HATCH = "///"
 AETHERLING_HATCH = "\\\\\\"
@@ -31,6 +30,9 @@ SIM_FAIL = r"\textbf{\Large $\times$}"
 def plot_latencies(
     results: dict[BenchmarkImpl, LatencyResult],
     fmax_results: dict[BenchmarkImpl, float],
+    skip_ihc: bool,
+    skip_shir: bool,
+    skip_aetherling: bool,
 ) -> None:
     """
     Plot latency for each program.
@@ -45,7 +47,7 @@ def plot_latencies(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 10,
+        "font.size": 12,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
@@ -54,6 +56,9 @@ def plot_latencies(
         sharex="col",
         sharey="row",
     )
+
+    num_bars = 1 + sum([not skip_ihc, not skip_shir, not skip_aetherling])
+    BAR_WIDTH = (1 - BAR_SPACE) / num_bars
 
     ihc_sim_ok = [
         (
@@ -107,42 +112,49 @@ def plot_latencies(
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].latency or 0
         for p in program_names
     ]
+    delta_x = 0
+    if not skip_ihc:
+        ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if ihc_latency[i] is not None],
+            height=[x for x in ihc_latency if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.IHC_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=IHC_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_shir:
+        ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if shir_latency[i] is not None],
+            height=[x for x in shir_latency if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.SHIR_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=SHIR_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_aetherling:
+        ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if aetherling_latency[i] is not None],
+            height=[x for x in aetherling_latency if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.AETHERLING_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=AETHERLING_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
     ax.bar(
         bottom=0,
-        x=[x for i, x in enumerate(xs) if ihc_latency[i] is not None],
-        height=[x for x in ihc_latency if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.IHC_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=IHC_HATCH,
-        zorder=10,
-    )
-    ax.bar(
-        bottom=0,
-        x=[x + BAR_WIDTH for i, x in enumerate(xs) if shir_latency[i] is not None],
-        height=[x for x in shir_latency if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.SHIR_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=SHIR_HATCH,
-        zorder=10,
-    )
-    ax.bar(
-        bottom=0,
-        x=[x + 2*BAR_WIDTH for i, x in enumerate(xs) if aetherling_latency[i] is not None],
-        height=[x for x in aetherling_latency if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.AETHERLING_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=AETHERLING_HATCH,
-        zorder=10,
-    )
-    ax.bar(
-        bottom=0,
-        x=[x + 3*BAR_WIDTH for x in xs],
+        x=[x + delta_x for x in xs],
         height=sirop_latency,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
@@ -152,89 +164,6 @@ def plot_latencies(
         zorder=10,
     )
 
-    # Fmax warning labels
-    ihc_fmax = [
-        (
-            None
-            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "ihc") not in fmax_results
-            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "ihc")]
-        )
-        for p in program_names
-    ]
-    shir_fmax = [
-        (
-            None
-            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir") not in fmax_results
-            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "shir")]
-        )
-        for p in program_names
-    ]
-    aetherling_fmax = [
-        (
-            None
-            if BenchmarkImpl(Benchmark(p, Fraction(-1)), "aetherling") not in fmax_results
-            else fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "aetherling")]
-        )
-        for p in program_names
-    ]
-    sirop_fmax = [
-        fmax_results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")]
-        for p in program_names
-    ]
-    for x, fmax, lat in zip(xs, ihc_fmax, ihc_latency):
-        if fmax is not None and fmax >= c.TARGET_FREQ:
-            continue
-        ax.annotate(
-            SYNTH_FAIL,
-            (x, 2 * (lat or 1)),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-    for x, fmax, lat in zip(xs, shir_fmax, shir_latency):
-        if fmax is not None and fmax >= c.TARGET_FREQ:
-            continue
-        ax.annotate(
-            SYNTH_FAIL,
-            (x + BAR_WIDTH, 2 * (lat or 1)),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-    for x, fmax, lat in zip(xs, aetherling_fmax, aetherling_latency):
-        if fmax is not None and fmax >= c.TARGET_FREQ:
-            continue
-        ax.annotate(
-            SYNTH_FAIL,
-            (x + 2*BAR_WIDTH, 2 * (lat or 1)),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-    for x, fmax, lat in zip(xs, sirop_fmax, sirop_latency):
-        if fmax is not None and fmax >= c.TARGET_FREQ:
-            continue
-        ax.annotate(
-            SYNTH_FAIL,
-            (x + 3*BAR_WIDTH, 2 * (lat or 1)),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-
-    # Simulation fail warning labels
-    for i, (prog, lat) in enumerate(zip(program_names, aetherling_latency)):
-        bi = BenchmarkImpl(Benchmark(prog, Fraction(-1)), "aetherling")
-        if results[bi].sim_success:
-            continue
-        ax.annotate(
-            SIM_FAIL,
-            (xs[i] + 2*BAR_WIDTH, 2 * (lat or 1)),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-
     # Display settings
     xlim = (
         -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
@@ -242,7 +171,7 @@ def plot_latencies(
     )
     ax.set_xlim(xlim)
     ax.set_xticks(
-        [x + 1.5*BAR_WIDTH for x in xs],
+        [x + (num_bars-1)/2*BAR_WIDTH for x in xs],
         [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     ax.tick_params(axis="x", which="both", length=0)
@@ -261,53 +190,52 @@ def plot_latencies(
     pu.draw_lower_is_better_message(fig, 0.028, -0.21)
 
     # Legend
-    fig.legend(
-        handles=[
+    handles = []
+    if not skip_ihc:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.IHC_LABEL,
                 facecolor=c.IHC_COLOR,
                 edgecolor="black",
                 hatch=IHC_HATCH,
-            ),
+            )
+        )
+    if not skip_shir:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.SHIR_LABEL,
                 facecolor=c.SHIR_COLOR,
                 edgecolor="black",
                 hatch=SHIR_HATCH,
-            ),
+            )
+        )
+    if not skip_aetherling:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label="Aetherling",
                 facecolor=c.AETHERLING_COLOR,
                 edgecolor="black",
                 hatch=AETHERLING_HATCH,
-            ),
-            Rectangle(
-                (0, 0), 1, 1,
-                label=c.OUR_LABEL,
-                facecolor=c.OUR_COLOR_PALE,
-                edgecolor="black",
-                hatch=OUR_HATCH,
-            ),
-            Rectangle(
-                (0, 0), 0, 0,
-                label="timing requirements not met",
-                visible=False,
-            ),
-            Rectangle(
-                (0, 0), 0, 0,
-                label="simulation fail",
-                visible=False,
             )
-        ],
+        )
+    handles.append(
+        Rectangle(
+            (0, 0), 1, 1,
+            label=c.OUR_LABEL,
+            facecolor=c.OUR_COLOR_PALE,
+            edgecolor="black",
+            hatch=OUR_HATCH,
+        )
+    )
+    fig.legend(
+        handles=handles,
         loc="upper right",
         bbox_to_anchor=(1, 0),
-        ncols=3,
+        ncols=len(handles),
     )
-    fig.text(0.728, -0.275, SYNTH_FAIL, color="red", zorder=1000)
-    fig.text(0.727, -0.490, SIM_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_LATENCY_PDF, bbox_inches="tight")
 
@@ -330,7 +258,8 @@ def main() -> None:
         c.SIROP_LATENCY_CSV,
         c.SIROP_FMAX_CSV,
     )
-    plot_latencies(latency_results, fmax_results)
+    # TODO: Expose these as command-line flags
+    plot_latencies(latency_results, fmax_results, skip_ihc=False, skip_shir=True, skip_aetherling=True)
 
 
 if __name__ == "__main__":

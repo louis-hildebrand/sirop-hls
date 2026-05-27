@@ -17,9 +17,8 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.resource_usage import ResourceUsage
 
-BAR_SPACE = 0.3
-BAR_WIDTH = (1 - BAR_SPACE) / 4
-BAR_PADDING = 0.04
+BAR_SPACE = 0.5
+BAR_PADDING = 0.06
 AETHERLING_HATCH = "\\\\\\"
 IHC_HATCH = "xxx"
 SHIR_HATCH = "///"
@@ -29,6 +28,9 @@ SYNTH_FAIL = r"\textbf{\Large $\times$}"
 
 def plot_resource_usages(
     results: dict[BenchmarkImpl, ResourceUsage],
+    skip_ihc: bool,
+    skip_shir: bool,
+    skip_aetherling: bool,
 ) -> None:
     """
     Plot resource usage for each program.
@@ -44,7 +46,7 @@ def plot_resource_usages(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 10,
+        "font.size": 12,
     })
     fig, (alm_ax, bram_ax, dsp_ax) = plt.subplots(
         nrows=3, ncols=1,
@@ -53,6 +55,9 @@ def plot_resource_usages(
         sharex="col",
         sharey="row",
     )
+
+    num_bars = 1 + sum([not skip_ihc, not skip_shir, not skip_aetherling])
+    BAR_WIDTH = (1 - BAR_SPACE) / num_bars
 
     # Resource usages
     xs = list(range(len(program_names)))
@@ -85,42 +90,49 @@ def plot_resource_usages(
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].alm
         for p in program_names
     ]
+    delta_x = 0
+    if not skip_ihc:
+        alm_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if ihc_alms[i] is not None],
+            height=[x for x in ihc_alms if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.IHC_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=IHC_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_shir:
+        alm_ax.bar(
+            bottom=0,
+            x=[x + delta_x for x in xs],
+            height=[x or 0 for x in shir_alms],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.SHIR_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=SHIR_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_aetherling:
+        alm_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if aetherling_alms[i] is not None],
+            height=[x for x in aetherling_alms if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.AETHERLING_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=AETHERLING_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
     alm_ax.bar(
         bottom=0,
-        x=[x for i, x in enumerate(xs) if ihc_alms[i] is not None],
-        height=[x for x in ihc_alms if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.IHC_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=IHC_HATCH,
-        zorder=10,
-    )
-    alm_ax.bar(
-        bottom=0,
-        x=[x + BAR_WIDTH for x in xs],
-        height=[x or 0 for x in shir_alms],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.SHIR_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=SHIR_HATCH,
-        zorder=10,
-    )
-    alm_ax.bar(
-        bottom=0,
-        x=[x + 2*BAR_WIDTH for i, x in enumerate(xs) if aetherling_alms[i] is not None],
-        height=[x for x in aetherling_alms if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.AETHERLING_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=AETHERLING_HATCH,
-        zorder=10,
-    )
-    alm_ax.bar(
-        bottom=0,
-        x=[x + 3*BAR_WIDTH for x in xs],
+        x=[x + delta_x for x in xs],
         height=sirop_alms,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
@@ -155,42 +167,49 @@ def plot_resource_usages(
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].bram
         for p in program_names
     ]
+    delta_x = 0
+    if not skip_ihc:
+        bram_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if ihc_brams[i] is not None],
+            height=[x for x in ihc_brams if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.IHC_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=IHC_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_shir:
+        bram_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if shir_brams[i] is not None],
+            height=[x for x in shir_brams if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.SHIR_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=SHIR_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_aetherling:
+        bram_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if aetherling_brams[i] is not None],
+            height=[x for x in aetherling_brams if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.AETHERLING_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=AETHERLING_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
     bram_ax.bar(
         bottom=0,
-        x=[x for i, x in enumerate(xs) if ihc_brams[i] is not None],
-        height=[x for x in ihc_brams if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.IHC_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=IHC_HATCH,
-        zorder=10,
-    )
-    bram_ax.bar(
-        bottom=0,
-        x=[x + BAR_WIDTH for i, x in enumerate(xs) if shir_brams[i] is not None],
-        height=[x for x in shir_brams if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.SHIR_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=SHIR_HATCH,
-        zorder=10,
-    )
-    bram_ax.bar(
-        bottom=0,
-        x=[x + 2*BAR_WIDTH for i, x in enumerate(xs) if aetherling_brams[i] is not None],
-        height=[x for x in aetherling_brams if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.AETHERLING_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=AETHERLING_HATCH,
-        zorder=10,
-    )
-    bram_ax.bar(
-        bottom=0,
-        x=[x + 3*BAR_WIDTH for x in xs],
+        x=[x + delta_x for x in xs],
         height=sirop_brams,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
@@ -225,42 +244,49 @@ def plot_resource_usages(
         results[BenchmarkImpl(Benchmark(p, Fraction(-1)), "sirop")].dsp
         for p in program_names
     ]
+    delta_x = 0
+    if not skip_ihc:
+        dsp_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if ihc_dsps[i] is not None],
+            height=[x for x in ihc_dsps if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.IHC_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=IHC_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_shir:
+        dsp_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if shir_dsps[i] is not None],
+            height=[x for x in shir_dsps if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.SHIR_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=SHIR_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
+    if not skip_aetherling:
+        dsp_ax.bar(
+            bottom=0,
+            x=[x + delta_x for i, x in enumerate(xs) if aetherling_dsps[i] is not None],
+            height=[x for x in aetherling_dsps if x is not None],
+            width=BAR_WIDTH - BAR_PADDING,
+            facecolor=c.AETHERLING_COLOR,
+            edgecolor="black",
+            linestyle="-",
+            hatch=AETHERLING_HATCH,
+            zorder=10,
+        )
+        delta_x += BAR_WIDTH
     dsp_ax.bar(
         bottom=0,
-        x=[x for i, x in enumerate(xs) if ihc_dsps[i] is not None],
-        height=[x for x in ihc_dsps if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.IHC_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=IHC_HATCH,
-        zorder=10,
-    )
-    dsp_ax.bar(
-        bottom=0,
-        x=[x + BAR_WIDTH for i, x in enumerate(xs) if shir_dsps[i] is not None],
-        height=[x for x in shir_dsps if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.SHIR_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=SHIR_HATCH,
-        zorder=10,
-    )
-    dsp_ax.bar(
-        bottom=0,
-        x=[x + 2*BAR_WIDTH for i, x in enumerate(xs) if aetherling_dsps[i] is not None],
-        height=[x for x in aetherling_dsps if x is not None],
-        width=BAR_WIDTH - BAR_PADDING,
-        facecolor=c.AETHERLING_COLOR,
-        edgecolor="black",
-        linestyle="-",
-        hatch=AETHERLING_HATCH,
-        zorder=10,
-    )
-    dsp_ax.bar(
-        bottom=0,
-        x=[x + 3*BAR_WIDTH for x in xs],
+        x=[x + delta_x for x in xs],
         height=sirop_dsps,
         width=BAR_WIDTH - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
@@ -270,32 +296,6 @@ def plot_resource_usages(
         zorder=10,
     )
 
-    # Synthesis fail labels
-    for i, shir_alm in enumerate(shir_alms):
-        if shir_alm is not None:
-            continue
-        alm_ax.annotate(
-            SYNTH_FAIL,
-            (xs[i] + BAR_WIDTH, 3),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-        bram_ax.annotate(
-            SYNTH_FAIL,
-            (xs[i] + BAR_WIDTH, 1.5),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-        dsp_ax.annotate(
-            SYNTH_FAIL,
-            (xs[i] + BAR_WIDTH, 1),
-            ha="center",
-            color="red",
-            zorder=999,
-        )
-
     # Display settings
     xlim = (
         -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
@@ -304,7 +304,7 @@ def plot_resource_usages(
     alm_ax.set_xlim(xlim)
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_xticks(
-        [x + 1.5*BAR_WIDTH for x in xs],
+        [x + (num_bars-1)/2*BAR_WIDTH for x in xs],
         [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.grid(
@@ -359,47 +359,52 @@ def plot_resource_usages(
     fig.patches.extend([down_arrow])
 
     # Legend
-    fig.legend(
-        handles=[
+    handles = []
+    if not skip_ihc:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.IHC_LABEL,
                 facecolor=c.IHC_COLOR,
                 edgecolor="black",
                 hatch=IHC_HATCH,
-            ),
+            )
+        )
+    if not skip_shir:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label=c.SHIR_LABEL,
                 facecolor=c.SHIR_COLOR,
                 edgecolor="black",
                 hatch=SHIR_HATCH,
-            ),
+            )
+        )
+    if not skip_aetherling:
+        handles.append(
             Rectangle(
                 (0, 0), 1, 1,
                 label="Aetherling",
                 facecolor=c.AETHERLING_COLOR,
                 edgecolor="black",
                 hatch=AETHERLING_HATCH,
-            ),
-            Rectangle(
-                (0, 0), 1, 1,
-                label=c.OUR_LABEL,
-                facecolor=c.OUR_COLOR_PALE,
-                edgecolor="black",
-                hatch=OUR_HATCH,
-            ),
-            Rectangle(
-                (0, 0), 0, 0,
-                label="synthesis fail",
-                visible=False,
-            ),
-        ],
+            )
+        )
+    handles.append(
+        Rectangle(
+            (0, 0), 1, 1,
+            label=c.OUR_LABEL,
+            facecolor=c.OUR_COLOR_PALE,
+            edgecolor="black",
+            hatch=OUR_HATCH,
+        )
+    )
+    fig.legend(
+        handles=handles,
         loc="upper right",
         bbox_to_anchor=(1, 0),
-        ncols=5,
+        ncols=len(handles),
     )
-    fig.text(0.871, -0.087, SYNTH_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_RESOURCE_USAGE_PDF, bbox_inches="tight")
 
@@ -422,7 +427,8 @@ def main() -> None:
         c.SIROP_LATENCY_CSV,
         c.SIROP_FMAX_CSV,
     )
-    plot_resource_usages(area_results)
+    # TODO: Expose these as command-line flags
+    plot_resource_usages(area_results, skip_ihc=False, skip_shir=True, skip_aetherling=True)
 
 
 if __name__ == "__main__":
