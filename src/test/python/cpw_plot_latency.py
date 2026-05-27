@@ -24,7 +24,7 @@ SHIR_HATCH = "///"
 AETHERLING_HATCH = "\\\\\\"
 OUR_HATCH = ""
 # pylint: disable-next=line-too-long
-SYNTH_FAIL = r"\textbf{{\large $\triangle$}\hspace{-0.685em}\raisebox{0.125em}{\scriptsize!}}\hspace{0.5em}"
+SYNTH_FAIL = r"\textbf{{\large $\triangle$}\hspace{-0.585em}\raisebox{0.090em}{\scriptsize!}}\hspace{0.5em}"
 SIM_FAIL = r"\textbf{\Large $\times$}"
 
 
@@ -45,7 +45,7 @@ def plot_latencies(
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "Times New Roman",
-        "font.size": 8,
+        "font.size": 10,
     })
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
@@ -258,7 +258,7 @@ def plot_latencies(
         color=(0.8, 0.8, 0.8)
     )
 
-    pu.draw_lower_is_better_message(fig, 0.024, -0.21)
+    pu.draw_lower_is_better_message(fig, 0.028, -0.21)
 
     # Legend
     fig.legend(
@@ -304,10 +304,10 @@ def plot_latencies(
         ],
         loc="upper right",
         bbox_to_anchor=(1, 0),
-        ncols=6,
+        ncols=3,
     )
-    fig.text(0.611, -0.245, SYNTH_FAIL, color="red", zorder=1000)
-    fig.text(0.863, -0.235, SIM_FAIL, color="red", zorder=1000)
+    fig.text(0.728, -0.275, SYNTH_FAIL, color="red", zorder=1000)
+    fig.text(0.727, -0.490, SIM_FAIL, color="red", zorder=1000)
 
     fig.savefig(c.CPW_LATENCY_PDF, bbox_inches="tight")
 
