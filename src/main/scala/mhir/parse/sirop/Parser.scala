@@ -958,6 +958,11 @@ object Parser {
           case Seq(s, k) => StmSuffix(s, k)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("MulAddCascaded", -1) =>
+        args match {
+          case Seq(s1, s2) => MulAddCascaded(s1, s2)()
+          case _           => throw SyntaxError(s"invalid arguments to $f")
+        }
       case _ =>
         args match {
           case Seq(x) => FunCall(f, x)()

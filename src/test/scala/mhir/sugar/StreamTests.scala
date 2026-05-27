@@ -1230,6 +1230,40 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == expected)
   }
 
+  test("MulAddCascaded") {
+    val s1 = StmLiteral(
+      VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))(),
+      VecLiteral(C(5)(U16), C(6)(U16), C(7)(U16), C(8)(U16))(),
+      VecLiteral(C(9)(U16), C(10)(U16), C(11)(U16), C(12)(U16))(),
+      VecLiteral(C(13)(U16), C(14)(U16), C(15)(U16), C(16)(U16))(),
+      VecLiteral(C(17)(U16), C(18)(U16), C(19)(U16), C(20)(U16))(),
+      VecLiteral(C(21)(U16), C(22)(U16), C(23)(U16), C(24)(U16))(),
+      VecLiteral(C(25)(U16), C(26)(U16), C(27)(U16), C(28)(U16))()
+    )()
+    val s2 = StmLiteral(
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
+    )()
+    val n = 7
+    assert(s1.elems.length == n)
+    assert(s2.elems.length == n)
+    // TODO: Automatically drop the first few elements?
+    val actualExpr = StmSuffix(MulAddCascaded(s1, s2)(), n - 3)().tchk().lower
+    val actual = mhir.eval.eval(actualExpr)
+    val expected = StmLiteral(
+      C(3 * (1 + 6 + 11 + 16))(U16),
+      C(3 * (5 + 10 + 15 + 20))(U16),
+      C(3 * (9 + 14 + 19 + 24))(U16),
+      C(3 * (13 + 18 + 23 + 28))(U16)
+    )().tchk()
+    assert(actual == expected)
+  }
+
   test("Vec2Stm:1D") {
     val v = VecBuild(5, U32 ::+ (i => i + 1))()
     assert(
