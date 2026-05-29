@@ -338,6 +338,134 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("v[i:j]") {
+    val actual = Parser.parse("v[1+1:2*2]").body
+    val expected =
+      VecSlice(Param("v", -1)(Missing), Sum(1, 1)(), Prod(2, 2)(), Tuple()())()
+    assert(actual == expected)
+  }
+
+  test("v[i:]") {
+    val actual = Parser.parse("v[i:]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Param("i", -1)(Missing),
+      Tuple()(),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[:j]") {
+    val actual = Parser.parse("v[:j]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Param("j", -1)(Missing),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[:]") {
+    val actual = Parser.parse("v[:]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Tuple()(),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[i:j:k]") {
+    val actual = Parser.parse("v[i:j:k]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Param("i", -1)(Missing),
+      Param("j", -1)(Missing),
+      Param("k", -1)(Missing)
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[i:j:]") {
+    val actual = Parser.parse("v[i:j:]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Param("i", -1)(Missing),
+      Param("j", -1)(Missing),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[i::k]") {
+    val actual = Parser.parse("v[i::k]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Param("i", -1)(Missing),
+      Tuple()(),
+      Param("k", -1)(Missing)
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[i::]") {
+    val actual = Parser.parse("v[i::]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Param("i", -1)(Missing),
+      Tuple()(),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[:j:k]") {
+    val actual = Parser.parse("v[:j:k]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Param("j", -1)(Missing),
+      Param("k", -1)(Missing)
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[:j:]") {
+    val actual = Parser.parse("v[:j:]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Param("j", -1)(Missing),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[::k]") {
+    val actual = Parser.parse("v[::k]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Tuple()(),
+      Param("k", -1)(Missing)
+    )()
+    assert(actual == expected)
+  }
+
+  test("v[::]") {
+    val actual = Parser.parse("v[::]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      Tuple()(),
+      Tuple()(),
+      Tuple()()
+    )()
+    assert(actual == expected)
+  }
+
   test("f(42)(x, y)()") {
     val src = "f(42)(x, y)()"
     val expected = FunCall(

@@ -775,11 +775,82 @@ object Parser {
         )
       case Seq(_: DotToken, NatToken(i), rest @ _*) =>
         parseExpr1Prime(TupleAccess(e, i.toInt)(), rest, constants)
+      case Seq(_: LeftSquareToken, _: ColonToken, rest1 @ _*) =>
+        // v[:...
+        val start = Tuple()()
+        val (len, step, rest2) = parseVecSliceAfterStartColon(rest1, constants)
+        parseExpr1Prime(VecSlice(e, start, len, step)(), rest2, constants)
       case Seq(_: LeftSquareToken, rest1 @ _*) =>
         val (i, rest2) = parseExpr(rest1, constants)
-        val (_, rest3) = expect(RightSquareToken, rest2)
-        parseExpr1Prime(VecAccess(e, i)(), rest3, constants)
+        rest2 match {
+          case Seq(_: RightSquareToken, rest3 @ _*) =>
+            // v[i]
+            parseExpr1Prime(VecAccess(e, i)(), rest3, constants)
+          case Seq(_: ColonToken, rest3 @ _*) =>
+            // v[i:...
+            val (len, step, rest4) =
+              parseVecSliceAfterStartColon(rest3, constants)
+            parseExpr1Prime(VecSlice(e, i, len, step)(), rest4, constants)
+          case Seq(tok, _*) =>
+            throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+          case Seq() => throw SyntaxError("unexpected end of file")
+        }
       case _ => (e, tokens)
+    }
+  }
+
+  /** Parse what comes after something like `v[start:`.
+    *
+    * @return
+    *   `(len, step, rest)`, where `len` is the length of the slice, `step` is
+    *   the step size of the slice, and `rest` is the sequence of tokens after
+    *   the slice.
+    */
+  private def parseVecSliceAfterStartColon(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Expr, Seq[Token]) = {
+    tokens match {
+      case Seq(_: RightSquareToken, rest1 @ _*) =>
+        // v[start:]
+        (Tuple()(), Tuple()(), rest1)
+      case Seq(_: ColonToken, _*) =>
+        // v[start::step]
+        val (step, rest2) = parseVecSliceAfterLen(tokens, constants)
+        (Tuple()(), step, rest2)
+      case rest1 =>
+        // v[start:len:...
+        val (len, rest2) = parseExpr(rest1, constants)
+        val (step, rest3) = parseVecSliceAfterLen(rest2, constants)
+        (len, step, rest3)
+    }
+  }
+
+  /** Parse what comes after something like `v[start:len`.
+    *
+    * @return
+    *   `(step, rest)`, where `step` is the step size of the slice and `rest` is
+    *   the sequence of tokens after the slice.
+    */
+  private def parseVecSliceAfterLen(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Seq[Token]) = {
+    tokens match {
+      case Seq(_: RightSquareToken, rest1 @ _*) =>
+        // v[start:len]
+        (Tuple()(), rest1)
+      case Seq(_: ColonToken, _: RightSquareToken, rest1 @ _*) =>
+        // v[start:len:]
+        (Tuple()(), rest1)
+      case Seq(_: ColonToken, rest1 @ _*) =>
+        // v[start:len:...
+        val (step, rest2) = parseExpr(rest1, constants)
+        val (_, rest3) = expect(RightSquareToken, rest2)
+        (step, rest3)
+      case Seq(tok, _*) =>
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case Seq() => throw SyntaxError("unexpected end of file")
     }
   }
 

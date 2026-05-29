@@ -95,6 +95,122 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   }
 }
 
+case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
+    typ: Type = Missing
+) extends SyntaxSugar(v, start, len, step)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, start, len, step) => VecSlice(v, start, len, step)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context)
+    val (elemTyp, n) = v.typ match {
+      case TyVec(t, n) => (t, n)
+      case t =>
+        throw new TypeError(
+          s"Left-hand side of vector slice has type $t."
+            + s" Expected a vector."
+        )
+    }
+    val maybeStep = this.step.tchk(context)
+    val step = maybeStep.typ match {
+      case _: TyAnyInt => maybeStep
+      case TyTuple()   => C(1)().tchk()
+      case t =>
+        throw new TypeError(
+          s"Step in vector slice has type $t."
+            + s" Expected an integer or an empty tuple."
+        )
+    }
+    val maybeStart = this.start.tchk(context)
+    val start = maybeStart.typ match {
+      case _: TyAnyInt => maybeStart
+      case TyTuple()   =>
+        // What if the vector is empty?
+        // Then the length of the slice has better also be zero, otherwise the
+        // slice will definitely make an out-of-bounds access.
+        // And if the length of the slice is zero, it doesn't really matter
+        // what goes on inside.
+        val lastIndex = (n - 1).tchk().lower
+        Mux(
+          step < 0,
+          lastIndex,
+          C(0)(lastIndex.typ)
+        )().tchk()
+      case t =>
+        throw new TypeError(
+          s"Start in vector slice has type $t."
+            + s" Expected an integer or an empty tuple."
+        )
+    }
+    val maybeLen = this.len.tchk(context)
+    val len = maybeLen.typ match {
+      case _: TyAnyInt => maybeLen
+      case TyTuple() =>
+        Mux(
+          n === 0,
+          C(0)(U32),
+          ToUnsigned(
+            Mux(
+              step < 0,
+              // 1 + start/-step
+              Sum(
+                C(1)(I33),
+                Div(
+                  ReshapeData(start, I33)(),
+                  Prod(C(-1)(I33), ReshapeData(step, I33)())()
+                )()
+              )(),
+              // 1 + (n - 1 - start)/step
+              Sum(
+                C(1)(I33),
+                Div(
+                  Sum(
+                    ReshapeData(n, I33)(),
+                    C(-1)(I33),
+                    Prod(C(-1)(I33), ReshapeData(start, I33)())()
+                  )(),
+                  ReshapeData(step, I33)()
+                )()
+              )()
+            )()
+          )()
+        )().tchk()
+      case t =>
+        throw new TypeError(
+          s"Length in vector slice has type $t."
+            + s" Expected an integer or an empty tuple."
+        )
+    }
+    this.rebuild(TyVec(elemTyp, len), Seq(v, start, len, step))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val v = this.v.lower
+    val start = ReshapeData(this.start, I33)().tchk().lower
+    val len = this.len.tchk().lower
+    val step = ReshapeData(this.step, I33)().tchk().lower
+    VecBuild(
+      len,
+      U32 ::+ (i =>
+        VecAccess(
+          v,
+          ToUnsigned(Sum(start, Prod(step, ReshapeData(i, I33)())())())()
+            .tchk()
+            .lower
+        )()
+      )
+    )().tchk()
+  }
+}
+
 case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     typ: Type = Missing
 ) /* Vec<B; n> */

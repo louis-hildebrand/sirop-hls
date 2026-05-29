@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import mhir.canonicalize._
+import mhir.eval.EvalException
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -176,6 +177,138 @@ class VectorTests extends AnyFunSuite {
     val v = VecRange(3, C(2)(U8), C(4)(U8))().tchk().lower
     val expected = VecLiteral(C(2)(U8), C(6)(U8), C(10)(U8))().tchk()
     assert(mhir.eval.eval(v) == expected)
+  }
+
+  test("VecSlice:[1:4:3]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, C(1)(), C(4)(), C(3)())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral(C(1)(U8), C(4)(U8), C(7)(U8), C(10)(U8))().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[3:5:0]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, 5, 3, 0)()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral((0 until 3).map(_ => C(5)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[2:3:]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, C(2)(), C(3)(), Tuple()())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral(Seq(2, 3, 4).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  for (start <- 0 to 3) {
+    test(s"VecSlice:[$start::]:Empty") {
+      val input = VecLiteral()(TyVec(U8, 0))
+      val e = VecSlice(input, start, Tuple()(), Tuple()())().tchk().lower
+      val actual = mhir.eval.eval(e)
+      assert(actual == VecLiteral()(TyVec(U8, 0)))
+    }
+    val input = VecRange(4, C(0)(U8), C(1)(U8))().tchk().lower
+    for (step <- -5 to -1) {
+      test(s"VecSlice:[$start::$step]") {
+        val e = VecSlice(input, start, Tuple()(), step)().tchk().lower
+        val actual = mhir.eval.eval(e)
+        val expected =
+          VecLiteral((start to 0 by step).map(C(_)(U8)): _*)().tchk()
+        assert(actual == expected)
+      }
+    }
+    for (step <- 1 to 5) {
+      test(s"VecSlice:[$start::$step]") {
+        val e = VecSlice(input, start, Tuple()(), step)().tchk().lower
+        val actual = mhir.eval.eval(e)
+        val expected =
+          VecLiteral((start until 4 by step).map(C(_)(U8)): _*)().tchk()
+        assert(actual == expected)
+      }
+    }
+  }
+
+  test("VecSlice:[::0]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())()
+    assertThrows[EvalException](mhir.eval.eval(e))
+  }
+
+  test("VecSlice:[2::]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
+    val actual = mhir.eval.eval(e)
+    val expected =
+      VecLiteral(Seq(0, 2, 4, 6, 8, 10, 12, 14).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[:4:2]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), C(4)(), C(2)())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral(Seq(0, 2, 4, 6).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[:4:-1]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), C(3)(), C(-1)())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral(Seq(15, 14, 13).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[:3:]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), C(3)(), Tuple()())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral(Seq(0, 1, 2).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[::2]:InitialLength15") {
+    val input = VecRange(15, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
+    val actual = mhir.eval.eval(e)
+    val expected =
+      VecLiteral(Seq(0, 2, 4, 6, 8, 10, 12, 14).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[::2]:InitialLength16") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
+    val actual = mhir.eval.eval(e)
+    val expected =
+      VecLiteral(Seq(0, 2, 4, 6, 8, 10, 12, 14).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[::-1]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(-1)())()
+    val actual = mhir.eval.eval(e)
+    val expected = VecLiteral((15 to 0 by -1).map(C(_)(U8)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[::]") {
+    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val e = VecSlice(input, Tuple()(), Tuple()(), Tuple()())()
+    val actual = mhir.eval.eval(e)
+    val expected = mhir.eval.eval(input)
+    assert(actual == expected)
+  }
+
+  test("VecSlice:[::]:Empty") {
+    val input = VecLiteral()(TyVec(U8, 0))
+    val e = VecSlice(input, Tuple()(), Tuple()(), Tuple()())()
+    val actual = mhir.eval.eval(e)
+    assert(actual == input)
   }
 
   test("Map_and_Access") {

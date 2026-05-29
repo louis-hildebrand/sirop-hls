@@ -67,6 +67,7 @@ expr1'          ::= ""
                   | "." nat expr1'
                   | "." ident "(" expr_list ")" expr1'
                   | "[" expr "]" expr1'
+                  | "[" [ expr ] ":" [ expr ] [ ":" [ expr ] ] "]" expr1'
 # First(expr0) = { "(", "{", ident, "undefined", "default", "true", "false", "+", "-", nat, "[" }
 expr0           ::= "(" expr ")"
                   | "{" expr "}"
