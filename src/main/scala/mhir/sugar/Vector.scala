@@ -326,6 +326,40 @@ case class VecFoldComb(
   }
 }
 
+case class VecAll(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecAll(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context)
+    v.typ match {
+      case TyVec(TyBool, _) => ()
+      case t =>
+        throw new TypeError(
+          s"Input to $className has type $t."
+            + s" Expected a vector of booleans."
+        )
+    }
+    this.rebuild(TyBool, Seq(v))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    VecFoldComb(
+      v,
+      True,
+      TyBool ::+ (a => TyBool ::+ (b => And(a, b)()))
+    )().tchk().lower
+  }
+}
+
 /** Combinational reduce over a vector
   *
   * This is a bit like [[VecFoldComb]], but the first element of the vector is

@@ -1213,6 +1213,113 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
   }
 }
 
+case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s, z, f)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, z, f) => StmFold1D(s, z, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
+    val t1 = s.typ match {
+      case TyStm(TyData(t), _) => t
+      case TyStm(_: TyStm, _) =>
+        throw new TypeError(s"$className does not accept nested streams.")
+      case t =>
+        throw new TypeError(
+          s"First input to $className has type $t."
+            + s" Expected a stream."
+        )
+    }
+    val z = this.z.tchk(context)
+    val t2 = z.typ match {
+      case TyData(t) => t
+      case t =>
+        throw new TypeError(
+          s"Second input to $className has type $t."
+            + s" Expected a data type."
+        )
+    }
+    val f = this.f.tchk(context).expectType((t2, t1) ->: t2)
+    this.rebuild(TyStm(z.typ, 1), Seq(s, z, f))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val s = this.s.lower
+    val TyStm(t1, n) = s.typ
+    val z = this.z.lower
+    val t2 = z.typ
+    val f = this.f.lower
+    val p = Param("p")(TyStm(t1, -1))
+    val acc = Param("acc")(t2)
+    val i = {
+      val typ = n.typ match {
+        case TyUInt(0) => TyUInt(1)
+        case t         => t
+      }
+      Param("i")(typ)
+    }
+    StmBuild(
+      1,
+      Mux(
+        n === 0,
+        z,
+        f(Tuple(acc, StmData(p)())())
+      )().tchk().lower,
+      ((n === 0) || Sum(C(1)(i.typ), i)() === n).tchk().lower,
+      Map[Param, (Expr, Expr)](
+        p -> (s, (n !== 0).tchk().lower),
+        acc -> (
+          z,
+          Mux(n === 0, z, f(Tuple(acc, StmData(p)())()))().tchk().lower
+        ),
+        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)())
+      )
+    )().tchk()
+  }
+}
+
+case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmAll(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
+    s.typ match {
+      case TyStm(TyBool, _) => ()
+      case t =>
+        throw new TypeError(
+          s"Input to $className has type $t."
+            + s" Expected a stream of booleans."
+        )
+    }
+    this.rebuild(TyStm(TyBool, 1), Seq(s))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    StmFold1D(
+      s,
+      True,
+      (TyBool, TyBool) ::+ (x => And(x.__0, x.__1)())
+    )().tchk().lower
+  }
+}
+
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
