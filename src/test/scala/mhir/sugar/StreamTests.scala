@@ -1300,6 +1300,28 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == StmLiteral(False)())
   }
 
+  test("StmAny:Empty") {
+    val e = StmAny(StmLiteral()(TyStm(TyBool, 0)))().tchk().lower
+    assert(mhir.eval.eval(e) == StmLiteral(False)())
+  }
+
+  test("StmAny:AllFalse") {
+    val input = StmLiteral((0 until 8).map(_ => False): _*)().tchk().lower
+    val e = StmAny(input)().tchk().lower
+    val actual = mhir.eval.eval(e)
+    assert(actual == StmLiteral(False)())
+  }
+
+  test("StmAll:OneTrue") {
+    val input = StmLiteral((0 until 9).map({
+      case 0 => True
+      case _ => False
+    }): _*)().tchk().lower
+    val e = StmAny(input)().tchk().lower
+    val actual = mhir.eval.eval(e)
+    assert(actual == StmLiteral(True)())
+  }
+
   test("Vec2Stm:1D") {
     val v = VecBuild(5, U32 ::+ (i => i + 1))()
     assert(

@@ -837,6 +837,11 @@ object Parser {
           case Seq(v) => VecAll(v)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
         }
+      case f @ Param("VecAny", -1) =>
+        args match {
+          case Seq(v) => VecAny(v)()
+          case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
       case f @ Param("VecSplit", -1) =>
         args match {
           case Seq(s, m) => VecSplit(s, m)()
@@ -903,7 +908,7 @@ object Parser {
           case Seq(s, f) => StmReduce(s, f)()
           case _         => throw SyntaxError(s"invalid arguments to $f")
         }
-      case f @ Param("StmFold", -1) =>
+      case f @ Param("StmFold1D", -1) =>
         args match {
           case Seq(s, z, f) => StmFold1D(s, z, f)()
           case _            => throw SyntaxError(s"invalid arguments to $f")
@@ -911,6 +916,11 @@ object Parser {
       case f @ Param("StmAll", -1) =>
         args match {
           case Seq(s) => StmAll(s)()
+          case _      => throw SyntaxError(s"invalid arguments to $f")
+        }
+      case f @ Param("StmAny", -1) =>
+        args match {
+          case Seq(s) => StmAny(s)()
           case _      => throw SyntaxError(s"invalid arguments to $f")
         }
       case f @ Param("StmSplit", -1) =>

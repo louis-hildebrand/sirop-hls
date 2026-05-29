@@ -1320,6 +1320,40 @@ case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 }
 
+case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmAny(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
+    s.typ match {
+      case TyStm(TyBool, _) => ()
+      case t =>
+        throw new TypeError(
+          s"Input to $className has type $t."
+            + s" Expected a stream of booleans."
+        )
+    }
+    this.rebuild(TyStm(TyBool, 1), Seq(s))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    StmFold1D(
+      s,
+      False,
+      (TyBool, TyBool) ::+ (x => Or(x.__0, x.__1)())
+    )().tchk().lower
+  }
+}
+
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */

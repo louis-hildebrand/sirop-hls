@@ -422,6 +422,28 @@ class VectorTests extends AnyFunSuite {
     assert(actual == False)
   }
 
+  test("VecAny:Empty") {
+    val e = VecAny(VecLiteral()(TyVec(TyBool, 0)))().tchk().lower
+    assert(mhir.eval.eval(e) == False)
+  }
+
+  test("VecAny:AllFalse") {
+    val v = VecLiteral((0 until 8).map(_ => False): _*)()
+    val e = VecAny(v)().tchk().lower
+    val actual = mhir.eval.eval(e)
+    assert(actual == False)
+  }
+
+  test("VecAny:OneTrue") {
+    val v = VecLiteral((0 until 9).map({
+      case 0 => True
+      case _ => False
+    }): _*)()
+    val e = VecAny(v)().tchk().lower
+    val actual = mhir.eval.eval(e)
+    assert(actual == True)
+  }
+
   test("SumRows") {
     val v =
       VecBuild(3, U32 ::+ (i => VecBuild(2, U32 ::+ (j => i + j))()))()
