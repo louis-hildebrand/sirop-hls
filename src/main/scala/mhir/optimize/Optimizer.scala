@@ -3,7 +3,7 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
-import mhir.optimize.cost.{SimpleAreaCostModel, SimpleDelayCostModel}
+import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.optimize.{PartialEvalPass => PE}
 import org.slf4j.event.Level
 
@@ -16,6 +16,7 @@ class Optimizer(
     letStmSimplifier: LetStmSimplifier,
     fusionPass: StmFusionPass,
     fissionPass: StmFissionPass,
+    delay: SimpleDelayCostModel,
     latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass,
@@ -86,15 +87,13 @@ class Optimizer(
 
     val s8 = binOpBalancer.balance(s7)
 
-    val areaCost = SimpleAreaCostModel.cost(s8)
-    logger.debug(s"final area cost: $areaCost")
-    val delayCost = SimpleDelayCostModel.cost(s8)
+    val delayCost = delay.cost(s8)
     logger.debug(
-      s"final delay cost: $delayCost (max ${SimpleDelayCostModel.FullCycleDelay})"
+      s"final delay cost: $delayCost (max ${delay.FullCycleDelay})"
     )
-    if (delayCost > SimpleDelayCostModel.FullCycleDelay) {
+    if (delayCost > delay.FullCycleDelay) {
       val percent =
-        100 * (delayCost / SimpleDelayCostModel.FullCycleDelay.toDouble)
+        100 * (delayCost / delay.FullCycleDelay.toDouble)
       logger.warn(
         f"delay cost of $delayCost is $percent%.0f%% of maximum."
           + " Design may not meet timing requirements."
@@ -116,11 +115,15 @@ object Optimizer {
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     val binOpBalancerWithLogging =
       BinOpTreeBalancingPassWithLogging(binOpBalancer)
-    val fusionPass =
-      StmFusionPass(simplifier = stmBuildSimplifier, enabled = options.fuse)
+    val delayCostModel = SimpleDelayCostModel(madd = options.madd)
+    val fusionPass = StmFusionPass(
+      simplifier = stmBuildSimplifier,
+      delayCostModel = delayCostModel,
+      enabled = options.fuse
+    )
     val fissionPass = StmFissionPassWithLogging(
       StmFissionPass(
-        scheduler = StmOutputScheduler(binOpBalancer),
+        scheduler = StmOutputScheduler(binOpBalancer, delayCostModel),
         enabled = options.fission
       )
     )
@@ -150,6 +153,7 @@ object Optimizer {
       letStmSimplifier,
       fusionPass,
       fissionPass,
+      delayCostModel,
       latencyMatcher,
       letStmBufShrinker,
       binOpBalancerWithLogging,

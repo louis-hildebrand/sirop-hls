@@ -3,6 +3,7 @@ package mhir.optimize.experimental
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.StreamFuser.StreamFusion
+import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
 import mhir.sugar.experimental.{StmFold, StmScanInclusive, VecFoldSeq}
@@ -20,7 +21,10 @@ class ManualOptimizationTests extends AnyFunSuite {
 
   private val stmBuildSimplifier = StmBuildSimplifier()
   private val simplifier = StmSimplifier(stmBuildSimplifier)
-  private val fusionPass = new GreedyStmFusionPass(stmBuildSimplifier)
+  private val fusionPass = new GreedyStmFusionPass(
+    stmBuildSimplifier,
+    SimpleDelayCostModel(madd = false)
+  )
 
   /** The optimizer can produce a nice design for a simple map on a 1D stream,
     * even though the lowering pass spits out something a bit gross (since it

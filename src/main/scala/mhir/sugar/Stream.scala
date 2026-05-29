@@ -2,8 +2,9 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
+import mhir.parse.SyntaxError
 import mhir.sugar.Streamifier.Streamify
-import mhir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck._
 
 import scala.annotation.{elidable, tailrec}
 
@@ -1115,6 +1116,103 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   }
 }
 
+// TODO: Generalize to include pre-adder?
+// TODO: Generalize to allow 27-bit systolic mode?
+case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s1, s2)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s1, s2) => MulAddCascaded(s1, s2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s1 = this.s1.tchk(context)
+    val (n, m) = s1.typ match {
+      case TyStm(TyVec(_: TyAnyInt, m), n) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        (n, m)
+      case t =>
+        throw new TypeError(
+          s"First stream in $className has type $t."
+            + s" Expected a stream of vectors."
+        )
+    }
+    val s2 = this.s2.tchk(context)
+    s2.typ match {
+      case TyStm(TyVec(_: TyAnyInt, m2), n2) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        if (!c.sameLen(n, n2)) {
+          throw new TypeError(
+            s"Second stream in $className has length $n2."
+              + s" Expected a stream of length $n."
+          )
+        }
+        if (!c.sameLen(m, m2)) {
+          throw new TypeError(
+            s"Second stream in $className contains vectors of length $m2."
+              + s" Expected vectors of length $m."
+          )
+        }
+        ()
+      case t =>
+        throw new TypeError(
+          s"Second stream in $className has type $t." +
+            s" Expected a stream of vectors."
+        )
+    }
+    this.rebuild(TyStm(TySInt(44), n), Seq(s1, s2))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val s1 = this.s1.lower
+    val s2 = this.s2.lower
+    val TyStm(int, n) = this.typ
+    val (t1, m) = this.s1.typ match {
+      case TyStm(TyVec(t, m), _) =>
+        m match {
+          case IntCst(0) => ???
+          case IntCst(1) => ???
+          case IntCst(m) => (t, m.toInt)
+          case e         => ???
+        }
+      case _ => ???
+    }
+    val t2 = this.s2.typ match {
+      case TyStm(TyVec(t, _), _) => t
+      case _                     => ???
+    }
+    val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
+    val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
+    val stageVars = (0 until m).map(i => Param(s"stage$i")(int))
+    val stages = stageVars.zipWithIndex
+      .map({ case (x, i) =>
+        val z = Undefined(int)
+        val mul = Prod(
+          ReshapeData(VecAccess(StmData(p1)(), i)(), int)(),
+          ReshapeData(VecAccess(StmData(p2)(), i)(), int)()
+        )().tchk().lower
+        val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
+        x -> (z, next)
+      })
+      .toMap
+    StmBuild(
+      n,
+      stages.last._2._2,
+      True,
+      stages.init ++ Map[Param, (Expr, Expr)](
+        p1 -> (s1, True),
+        p2 -> (s2, True)
+      )
+    )().tchk()
+  }
+}
+
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
@@ -2097,17 +2195,15 @@ case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
     val s = this.s.lower
     val TyStm(TyData(elemTyp), n) = s.typ
     val z = this.z.lower
-    val TyVec(_, m) = z.typ
     val p = Param("s")(TyStm(elemTyp, -1))
     val buf = Param("buf")(z.typ)
-    val shiftedBuf = VecShiftLeft(buf, StmData(p)())().tchk().lower
     StmBuild(
       n,
-      shiftedBuf,
+      buf,
       True,
       Map[Param, (Expr, Expr)](
         p -> (s, True),
-        buf -> (z, shiftedBuf)
+        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower)
       )
     )().tchk()
   }

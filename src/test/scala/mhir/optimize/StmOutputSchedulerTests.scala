@@ -2,6 +2,7 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
 import mhir.testing.ParamStore
 import mhir.typecheck._
@@ -13,7 +14,10 @@ class StmOutputSchedulerTests extends AnyFunSuite {
   private val y = ParamStore("y")
   private val z = ParamStore("z")
 
-  private val pass = StmOutputScheduler(EnabledBinOpTreeBalancingPass)
+  private val pass = StmOutputScheduler(
+    EnabledBinOpTreeBalancingPass,
+    SimpleDelayCostModel(madd = false)
+  )
 
   /** Simple example where computation is all done in the producer.
     */
@@ -218,7 +222,11 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     */
   test("ManyInputProd") {
     val e = Prod(x(U8), y(U8), z(U8))().tchk()
-    val actual = StmOutputScheduler(DisabledBinOpTreeBalancingPass).schedule(e)
+    val scheduler = StmOutputScheduler(
+      DisabledBinOpTreeBalancingPass,
+      SimpleDelayCostModel(madd = false)
+    )
+    val actual = scheduler.schedule(e)
     val expected = InProducer(e)
     assert(actual == expected)
   }

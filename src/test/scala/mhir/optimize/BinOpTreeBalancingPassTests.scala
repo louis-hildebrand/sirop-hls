@@ -18,6 +18,12 @@ class BinOpTreeBalancingPassTests extends AnyFunSuite {
   private val b1 = Param("b1", -1)(TyBool)
   private val b2 = Param("b2", -1)(TyBool)
   private val b3 = Param("b3", -1)(TyBool)
+  private val y0 = Param("y0", -1)(I8)
+  private val y1 = Param("y1", -1)(I8)
+  private val y2 = Param("y2", -1)(I8)
+  private val y3 = Param("y3", -1)(I8)
+  private val y4 = Param("y4", -1)(I8)
+  private val y5 = Param("y5", -1)(I8)
 
   private val pass: BinOpTreeBalancingPass = BinOpTreeBalancingPass()
 
@@ -84,11 +90,56 @@ class BinOpTreeBalancingPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("x0 +% x1 +% x3 +% x4") {
+  test("x0 +% x1 +% x2 +% x3") {
     val e = WrappingSum(x0, x1, x2, x3)().tchk()
     val expected = WrappingSum(WrappingSum(x0, x1)(), WrappingSum(x2, x3)())()
     val actual = pass.balance(e)
     assert(actual == expected)
+  }
+
+  test("FIR6") {
+    val e = WrappingSum(
+      x0 *% y0,
+      x1 *% y1,
+      x2 *% y2,
+      x3 *% y3,
+      x4 *% y4,
+      x5 *% y5
+    )().tchk()
+    val expected = WrappingSum(
+      WrappingSum(x0 *% y0, x1 *% y1)(),
+      WrappingSum(
+        WrappingSum(x2 *% y2, x3 *% y3)(),
+        WrappingSum(x4 *% y4, x5 *% y5)()
+      )()
+    )().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  /* Split in such a way that binary ops are as close as possible to the leaves.
+   * Thus, the number of mul-add operations is maximized.
+   */
+  {
+    def countMadd(e: Expr): Int = {
+      e match {
+        case Sum(Prod(_, _), Prod(_, _)) => 1
+        case e                           => e.children.map(countMadd).sum
+      }
+    }
+    for (n <- 2 until 20) {
+      test(s"MaxMulAdd:$n") {
+        val original = Sum(
+          (0 until n).map(i =>
+            Prod(Param(s"x$i", -1)(I16), Param(s"y$i", -1)(I16))()
+          ): _*
+        )().tchk()
+        val balanced = pass.balance(original)
+        val expectedMadd = n / 2
+        val actualMadd = countMadd(balanced)
+        assert(actualMadd == expectedMadd)
+      }
+    }
   }
 
   test("x0 * x1 * x3 * x4") {

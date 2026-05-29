@@ -60,6 +60,7 @@ object Args {
     var staticallyShrinkLetStmBuffers = true
     var maxLetStmBufSize: Option[Int] = None
     var balanceBinOpTrees = true
+    var madd = true
     var assumeThroughputsMatch = false
 
     while (mutArgs.nonEmpty) {
@@ -218,6 +219,8 @@ object Args {
           }
         case "--opt:no-balance-binop-trees" =>
           balanceBinOpTrees = false
+        case "--opt:no-madd" =>
+          madd = false
         case "--opt:assume-throughputs-match" =>
           assumeThroughputsMatch = true
         case a =>
@@ -316,6 +319,7 @@ object Args {
         staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
         maxLetStmBufSize = maxLetStmBufSize,
         balanceBinOpTrees = balanceBinOpTrees,
+        madd = madd,
         assumeThroughputsMatch = (
           // The Aetherling compiler guarantees that each producer/consumer pair
           // has the same "time."
@@ -391,6 +395,10 @@ object Args {
          |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
          |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm
          |  --opt:no-balance-binop-trees    skip the binop tree balancing pass
+         |  --opt:no-madd                   disallow chaining multiplication and addition.
+         |                                  Use this option if the DSPs on the target
+         |                                  device do NOT include a mode like
+         |                                  ax*ay + bx*by
          |  --opt:assume-throughputs-match  whether the optimizer can assume the
          |                                  throughputs along different branches of a
          |                                  letstm match. This is always the case for
