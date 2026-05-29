@@ -394,6 +394,41 @@ case class VecAny(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 }
 
+case class VecSum(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v) => VecSum(v)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context)
+    val typ = v.typ match {
+      case TyVec(t: TyAnyInt, _) => t
+      case t =>
+        throw new TypeError(
+          s"Input to $className has type $t."
+            + s" Expected a vector of integers."
+        )
+    }
+    this.rebuild(typ, Seq(v))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyVec(typ, _) = this.v.typ
+    VecFoldComb(
+      v,
+      C(0)(typ),
+      typ ::+ (a => typ ::+ (b => WrappingSum(a, b)()))
+    )().tchk().lower
+  }
+}
+
 /** Combinational reduce over a vector
   *
   * This is a bit like [[VecFoldComb]], but the first element of the vector is

@@ -1354,6 +1354,41 @@ case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 }
 
+case class StmSum(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmSum(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context)
+    val typ = s.typ match {
+      case TyStm(t: TyAnyInt, _) => t
+      case t =>
+        throw new TypeError(
+          s"Input to $className has type $t."
+            + s" Expected a stream of integers."
+        )
+    }
+    this.rebuild(TyStm(typ, 1), Seq(s))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyStm(typ, _) = this.s.typ
+    StmFold1D(
+      s,
+      C(0)(typ),
+      (typ, typ) ::+ (x => WrappingSum(x.__0, x.__1)())
+    )().tchk().lower
+  }
+}
+
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */

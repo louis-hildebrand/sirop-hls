@@ -1265,13 +1265,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   for (n <- 0 until 10) {
-    test(s"StmFold1D:Sum:$n") {
+    test(s"StmSum:$n") {
       val input = StmCount(C(n)(U8))()
-      val e = StmFold1D(
-        input,
-        C(0)(U8),
-        (U8, U8) ::+ (x => x.__0 + x.__1)
-      )().tchk().lower
+      val e = StmSum(input)().tchk().lower
       val actual = mhir.eval.eval(e)
       val expected = StmLiteral(C((0 until n).sum)(U8))().tchk()
       assert(actual == expected)
