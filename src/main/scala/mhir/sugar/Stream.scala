@@ -1190,7 +1190,9 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
     val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
     val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
     val stageVars = (0 until m).map(i => Param(s"stage$i")(int))
-    val stages = stageVars.zipWithIndex
+    // stages must be an ordered sequence, since I extract the last element
+    // later on
+    val stages: Seq[(Param, (Expr, Expr))] = stageVars.zipWithIndex
       .map({ case (x, i) =>
         val z = Undefined(int)
         val mul = Prod(
@@ -1200,12 +1202,11 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
         val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
         x -> (z, next)
       })
-      .toMap
     StmBuild(
       n,
       stages.last._2._2,
       True,
-      stages.init ++ Map[Param, (Expr, Expr)](
+      stages.init.toMap ++ Map[Param, (Expr, Expr)](
         p1 -> (s1, True),
         p2 -> (s2, True)
       )
