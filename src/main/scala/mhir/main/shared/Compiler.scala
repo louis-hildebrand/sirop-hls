@@ -129,16 +129,17 @@ object Compiler {
       generateCode(options.vhdl, finalProgram, options.targets, latency)
     options.targets.toSeq
       .sortBy({
-        case NullTarget           => 0
-        case _: PrettyPrintTarget => 1
-        case _: EvalTarget        => 2
-        case _: TraceTarget       => 3
-        case _: CompileTimeTarget => 4
+        case NullTarget                        => 0
+        case _: PrettyPrintAfterLoweringTarget => 10
+        case _: PrettyPrintTarget              => 20
+        case _: EvalTarget                     => 30
+        case _: TraceTarget                    => 40
+        case _: CompileTimeTarget              => 50
         // The compiler will exit early if the tests fail.
         // Therefore, run things like pretty-printing beforehand, since they
         // may be useful for debugging the failing tests.
-        case TestTarget    => 5
-        case _: VhdlTarget => 6
+        case TestTarget    => 60
+        case _: VhdlTarget => 70
       })
       .foreach({
         case NullTarget => ()
@@ -222,6 +223,8 @@ object Compiler {
           }
         case PrettyPrintTarget(dest, overwrite) =>
           emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
+        case PrettyPrintAfterLoweringTarget(dest, overwrite) =>
+          emitPrettyPrinted(lowered.body, dest = dest, overwrite = overwrite)
         case CompileTimeTarget(f, overwrite) =>
           emitCompileTimeReport(
             f,
@@ -305,12 +308,13 @@ object Compiler {
             latency = latency,
             overwrite = overwrite
           )
-        case _: EvalTarget        => ()
-        case _: TraceTarget       => ()
-        case TestTarget           => ()
-        case NullTarget           => ()
-        case _: PrettyPrintTarget => ()
-        case _: CompileTimeTarget => ()
+        case _: EvalTarget                     => ()
+        case _: TraceTarget                    => ()
+        case TestTarget                        => ()
+        case NullTarget                        => ()
+        case _: PrettyPrintTarget              => ()
+        case _: PrettyPrintAfterLoweringTarget => ()
+        case _: CompileTimeTarget              => ()
       })
     }
     codegenTime

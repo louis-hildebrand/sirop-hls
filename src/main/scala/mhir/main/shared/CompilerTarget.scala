@@ -39,6 +39,16 @@ object TestTarget extends CompilerTarget
 case class PrettyPrintTarget(dest: PrettyPrintDestination, overwrite: Boolean)
     extends CompilerTarget
 
+/** Pretty-print the program after lowering but before optimization.
+  *
+  * @param dest
+  *   where to send the pretty-printed program.
+  */
+case class PrettyPrintAfterLoweringTarget(
+    dest: PrettyPrintDestination,
+    overwrite: Boolean
+) extends CompilerTarget
+
 /** Generate VHDL.
   *
   * @param outDir

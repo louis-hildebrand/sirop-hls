@@ -41,6 +41,7 @@ object Args {
     var vhdlFamily: Option[String] = None
     var vhdlDevice: Option[String] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
+    var prettyPrintLoweredDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
     var eval: Boolean = false
     var traceOutDir: Option[Path] = None
@@ -116,6 +117,16 @@ object Args {
               prettyPrintDest = Some(PPStdout)
             case Some(fName) =>
               prettyPrintDest = Some(PPFile(Path(fName, base = os.pwd)))
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+          numToDrop = 2
+        case "--out:pp:lowered" =>
+          mutArgs.drop(1).headOption match {
+            case Some("-") =>
+              prettyPrintLoweredDest = Some(PPStdout)
+            case Some(fName) =>
+              prettyPrintLoweredDest = Some(PPFile(Path(fName, base = os.pwd)))
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
@@ -267,6 +278,9 @@ object Args {
       }
       val ppTarget =
         prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
+      val ppLoweredTarget = prettyPrintLoweredDest.map(
+        PrettyPrintAfterLoweringTarget(_, overwrite = overwrite)
+      )
       val timeReportTarget =
         timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
       (evalTarget.toSet
@@ -274,6 +288,7 @@ object Args {
         ++ testTarget.toSet
         ++ vhdlTarget.toSet
         ++ ppTarget.toSet
+        ++ ppLoweredTarget.toSet
         ++ timeReportTarget.toSet)
     }
     val src: Option[Source] = (sourceLang, input) match {
@@ -375,6 +390,8 @@ object Args {
          |
          |  --out:pp (FILE|-)                pretty-print the final program to the given
          |                                   file, or to stdout if argument "-" is given
+         |  --out:pp:lowered (FILE|-)        pretty-print the program after lowering but
+         |                                   before optimization
          |
          |  --out:ctime FILE                 write a report of the compile time to the given
          |                                   directory
