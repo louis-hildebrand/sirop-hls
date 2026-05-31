@@ -243,7 +243,7 @@ class ParserTests extends AnyFunSuite {
         42,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)()))
+        Map[Param, (Expr, Expr)](i -> (C(0)(U8), SmartSum(C(1)(U8), i)()))
       )()
     }
     assert(Parser.parse(src).body == expected)
@@ -266,7 +266,7 @@ class ParserTests extends AnyFunSuite {
         Tuple(i, b)(),
         True,
         Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)()),
+          i -> (C(0)(U8), SmartSum(C(1)(U8), i)()),
           b -> (True, !b)
         )
       )()
@@ -285,7 +285,7 @@ class ParserTests extends AnyFunSuite {
       val s = Param("s", -1)(TyStm(U8, 42))
       StmBuild(
         42,
-        Sum(StmData(s)(), C(5)(U8))(),
+        SmartSum(StmData(s)(), C(5)(U8))(),
         True,
         Map[Param, (Expr, Expr)](s -> (s, True))
       )()
@@ -339,9 +339,13 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("v[i:j]") {
-    val actual = Parser.parse("v[1+1:2*2]").body
-    val expected =
-      VecSlice(Param("v", -1)(Missing), Sum(1, 1)(), Prod(2, 2)(), Tuple()())()
+    val actual = Parser.parse("v[2+1:4*2]").body
+    val expected = VecSlice(
+      Param("v", -1)(Missing),
+      SmartSum(2, 1)(),
+      SmartProd(4, 2)(),
+      Tuple()()
+    )()
     assert(actual == expected)
   }
 
@@ -484,7 +488,7 @@ class ParserTests extends AnyFunSuite {
 
   test("x * y * z") {
     val src = "x * y * z"
-    val expected = Prod(Prod(x, y)(), z)()
+    val expected = SmartProd(SmartProd(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -496,25 +500,31 @@ class ParserTests extends AnyFunSuite {
 
   test("x / y / z") {
     val src = "x / y / z"
-    val expected = Div(Div(x, y)(), z)()
+    val expected = SmartDiv(SmartDiv(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
   test("x % y % z") {
     val src = "x % y % z"
-    val expected = Mod(Mod(x, y)(), z)()
+    val expected = SmartMod(SmartMod(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
   test("x + y + z") {
     val src = "x + y + z"
-    val expected = Sum(Sum(x, y)(), z)()
+    val expected = SmartSum(SmartSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
   test("x +% y +% z") {
     val src = "x +% y +% z"
     val expected = WrappingSum(WrappingSum(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x - y - z") {
+    val src = "x - y - z"
+    val expected = SmartDiff(SmartDiff(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -526,19 +536,19 @@ class ParserTests extends AnyFunSuite {
 
   test("x + y * z") {
     val src = "x + y * z"
-    val expected = Sum(x, Prod(y, z)())()
+    val expected = SmartSum(x, SmartProd(y, z)())()
     assert(Parser.parse(src).body == expected)
   }
 
   test("x * y + z") {
     val src = "x * y + z"
-    val expected = Sum(Prod(x, y)(), z)()
+    val expected = SmartSum(SmartProd(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
   test("(x + y) * z") {
     val src = "(x + y) * z"
-    val expected = Prod(Sum(x, y)(), z)()
+    val expected = SmartProd(SmartSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -602,7 +612,7 @@ class ParserTests extends AnyFunSuite {
     val c1 = Param("c1", -1)(Missing)
     val c2 = Param("c2", -1)(Missing)
     val src = "if c1 || c2 then x + y else x * y"
-    val expected = Mux(c1 || c2, Sum(x, y)(), Prod(x, y)())()
+    val expected = Mux(c1 || c2, SmartSum(x, y)(), SmartProd(x, y)())()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -700,7 +710,7 @@ class ParserTests extends AnyFunSuite {
     val y = Param("y", -1)(TyBool)
     val expected = PatternFunction(
       TuplePattern(ParamPattern(x), ParamPattern(y)),
-      Mux(y, Sum(x, C(1)(U32))(), x)()
+      Mux(y, SmartSum(x, C(1)(U32))(), x)()
     )()
     val actual = Parser.parse(src).body
     assert(actual == expected)
@@ -757,7 +767,7 @@ class ParserTests extends AnyFunSuite {
 
   test("let x = 42 in x + 5") {
     val src = "let x = 42 in x + 5"
-    val expected = Let(Param("x", -1)(Missing), 42, Sum(x, 5)())()
+    val expected = Let(Param("x", -1)(Missing), 42, SmartSum(x, 5)())()
     val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
@@ -785,7 +795,7 @@ class ParserTests extends AnyFunSuite {
     val src = "StmMap(s, (x) => x + 5:u8)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected = StmMap(s, Function(x, Sum(x, 5)())())()
+    val expected = StmMap(s, Function(x, SmartSum(x, 5)())())()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -964,7 +974,7 @@ class ParserTests extends AnyFunSuite {
         Seq(ConstDecl(n, ReshapeData(C(10)(), U32)())),
         AccelDecl(
           "top",
-          Function(s, StmMap(s, Missing ::+ (x => Sum(x, C(5)())()))())(),
+          Function(s, StmMap(s, Missing ::+ (x => SmartSum(x, C(5)())()))())(),
           Map()
         ),
         Seq(
@@ -977,7 +987,7 @@ class ParserTests extends AnyFunSuite {
             z,
             ReshapeData(
               VecAccess(
-                VecReduceComb(v, Missing ::+ (x => Sum(x.__0, x.__1)()))(),
+                VecReduceComb(v, Missing ::+ (x => SmartSum(x.__0, x.__1)()))(),
                 0
               )(),
               U8
@@ -985,13 +995,13 @@ class ParserTests extends AnyFunSuite {
           ),
           Assertion(
             Map(s -> StmRange(n, z, C(1)(U8))()),
-            StmRange(n, Sum(z, C(5)())(), C(1)(U8))()
+            StmRange(n, SmartSum(z, C(5)())(), C(1)(U8))()
           ),
           ConstDecl(z2, ReshapeData(C(9)(), U8)()),
           ConstDecl(delta2, ReshapeData(C(2)(), U8)()),
           Assertion(
             Map(s -> StmRange(n, z2, delta2)()),
-            StmRange(n, Sum(z2, C(5)())(), delta2)()
+            StmRange(n, SmartSum(z2, C(5)())(), delta2)()
           )
         )
       )

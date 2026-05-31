@@ -802,6 +802,73 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
   }
 }
 
+/** The difference of two values, even ones with slightly different types.
+  *
+  * @param e1
+  *   the minuend.
+  * @param e2
+  *   the subtrahend.
+  */
+case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(e1, e2)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => SmartDiff(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val newLhs = e1.tchk(context)
+    val t1 = newLhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Left-hand side of $className has type $t."
+            + " Expected an integer"
+        )
+    }
+    val newRhs = e2.tchk(context)
+    val t2 = newRhs.typ match {
+      case t: TyAnyInt => t
+      case t =>
+        throw new TypeError(
+          s"Right-hand side of $className has type $t."
+            + " Expected an integer."
+        )
+    }
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    this.rebuild(typ, Seq(newLhs, newRhs))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val typ = this.typ.asInstanceOf[TyAnyInt]
+    val e1 = this.e1.lower
+    val e2 = this.e2.lower
+    // TODO: Lower this to Diff (with undefined overflow behaviour) when I add Diff?
+    WrappingDiff(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower
+  }
+
+  override def precedence: Int = Precedence.Sum
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "-!!", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      Seq(this.e1, this.e2),
+      "-!!",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
+  }
+}
+
 /** The product of multiple values, even ones with slightly different types.
   *
   * Each operand will be reshaped to be compatible with the others. However, the

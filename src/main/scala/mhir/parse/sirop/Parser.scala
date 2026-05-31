@@ -540,10 +540,13 @@ object Parser {
     tokens match {
       case Seq(_: PlusToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(Sum(e1, e2)(), rest2, constants)
+        parseExpr4Prime(SmartSum(e1, e2)(), rest2, constants)
       case Seq(_: PlusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingSum(e1, e2)(), rest2, constants)
+      case Seq(_: MinusToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SmartDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingDiff(e1, e2)(), rest2, constants)
@@ -568,16 +571,16 @@ object Parser {
     tokens match {
       case Seq(_: TimesToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Prod(e1, e2)(), rest2, constants)
+        parseExpr3Prime(SmartProd(e1, e2)(), rest2, constants)
       case Seq(_: TimesPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(WrappingProd(e1, e2)(), rest2, constants)
       case Seq(_: SlashToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Div(e1, e2)(), rest2, constants)
+        parseExpr3Prime(SmartDiv(e1, e2)(), rest2, constants)
       case Seq(_: PercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Mod(e1, e2)(), rest2, constants)
+        parseExpr3Prime(SmartMod(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
