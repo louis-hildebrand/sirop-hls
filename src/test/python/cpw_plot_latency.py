@@ -33,6 +33,7 @@ def plot_latencies(
     skip_ihc: bool,
     skip_shir: bool,
     skip_aetherling: bool,
+    hide_results: bool,
 ) -> None:
     """
     Plot latency for each program.
@@ -124,6 +125,7 @@ def plot_latencies(
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
+            visible=not hide_results,
         )
         delta_x += BAR_WIDTH
     if not skip_shir:
@@ -137,6 +139,7 @@ def plot_latencies(
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
+            visible=not hide_results,
         )
         delta_x += BAR_WIDTH
     if not skip_aetherling:
@@ -150,6 +153,7 @@ def plot_latencies(
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
+            visible=not hide_results,
         )
         delta_x += BAR_WIDTH
     ax.bar(
@@ -162,6 +166,7 @@ def plot_latencies(
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
+        visible=not hide_results,
     )
 
     # Display settings
@@ -259,7 +264,14 @@ def main() -> None:
         c.SIROP_FMAX_CSV,
     )
     # TODO: Expose these as command-line flags
-    plot_latencies(latency_results, fmax_results, skip_ihc=False, skip_shir=True, skip_aetherling=True)
+    plot_latencies(
+        latency_results,
+        fmax_results,
+        skip_ihc=False,
+        skip_shir=True,
+        skip_aetherling=True,
+        hide_results=False,
+    )
 
 
 if __name__ == "__main__":

@@ -31,6 +31,9 @@ def plot_resource_usages(
     skip_ihc: bool,
     skip_shir: bool,
     skip_aetherling: bool,
+    hide_alm: bool,
+    hide_bram: bool,
+    hide_dsp: bool,
 ) -> None:
     """
     Plot resource usage for each program.
@@ -102,6 +105,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
+            visible=not hide_alm,
         )
         delta_x += BAR_WIDTH
     if not skip_shir:
@@ -115,6 +119,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
+            visible=not hide_alm,
         )
         delta_x += BAR_WIDTH
     if not skip_aetherling:
@@ -128,6 +133,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
+            visible=not hide_alm,
         )
         delta_x += BAR_WIDTH
     alm_ax.bar(
@@ -140,6 +146,7 @@ def plot_resource_usages(
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
+        visible=not hide_alm,
     )
     # BRAM usage
     ihc_brams = [
@@ -179,6 +186,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
+            visible=not hide_bram,
         )
         delta_x += BAR_WIDTH
     if not skip_shir:
@@ -192,6 +200,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
+            visible=not hide_bram,
         )
         delta_x += BAR_WIDTH
     if not skip_aetherling:
@@ -205,6 +214,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
+            visible=not hide_bram,
         )
         delta_x += BAR_WIDTH
     bram_ax.bar(
@@ -217,6 +227,7 @@ def plot_resource_usages(
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
+        visible=not hide_bram,
     )
     # DSP usage
     ihc_dsps = [
@@ -256,6 +267,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
+            visible=not hide_dsp,
         )
         delta_x += BAR_WIDTH
     if not skip_shir:
@@ -269,6 +281,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
+            visible=not hide_dsp,
         )
         delta_x += BAR_WIDTH
     if not skip_aetherling:
@@ -282,6 +295,7 @@ def plot_resource_usages(
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
+            visible=not hide_dsp,
         )
         delta_x += BAR_WIDTH
     dsp_ax.bar(
@@ -294,6 +308,7 @@ def plot_resource_usages(
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
+        visible=not hide_dsp,
     )
 
     # Display settings
@@ -428,7 +443,15 @@ def main() -> None:
         c.SIROP_FMAX_CSV,
     )
     # TODO: Expose these as command-line flags
-    plot_resource_usages(area_results, skip_ihc=False, skip_shir=True, skip_aetherling=True)
+    plot_resource_usages(
+        area_results,
+        skip_ihc=False,
+        skip_shir=True,
+        skip_aetherling=True,
+        hide_alm=False,
+        hide_bram=False,
+        hide_dsp=False,
+    )
 
 
 if __name__ == "__main__":
