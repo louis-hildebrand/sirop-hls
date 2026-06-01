@@ -4,6 +4,45 @@ Sirop is an intermediate representation and compiler for streaming accelerators.
 Its goal is to convert a high-level program into a high-performance streaming accelerator (e.g., in VHDL).
 Programs are expressed using building blocks like `StmMap` (`map` over streams - i.e., with pipeline parallelism), `VecMap` (`map` over vectors - i.e., with spatial parallelism), `StmReduce`, `VecReduce`, etc.
 
+## Installing
+
+The [Releases tab](https://github.com/louis-hildebrand/sirop-hls/releases) has executable .jar files.
+Download the .jar file and run it with
+
+```sh
+java -jar sirop.jar --version
+```
+
+For convenience, you could define an alias like
+
+```sh
+alias sirop='java -jar /absolute/path/to/sirop.jar'
+```
+
+and then run
+
+```sh
+sirop --version
+```
+
+To quickly see what an expression evaluates to, try the REPL:
+
+```sh
+$ sirop
+Welcome to the Sirop REPL (v1.3.0)!
+Type 'exit' or press Ctrl+D to exit.
+> u = [1:u8, 2:u8, 3:u8, 4:u8]s
+> v = [5:u8, 6:u8, 7:u8, 8:u8]s
+> StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
+[70:u8]s
+```
+
+For help with the command-line interface, run
+
+```sh
+sirop --help
+```
+
 ## Examples
 
 Example programs can be found in the [src/main/resources/mhir/main/stored/](./src/main/resources/mhir/main/stored) directory.
