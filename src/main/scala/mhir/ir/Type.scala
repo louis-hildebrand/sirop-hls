@@ -573,6 +573,10 @@ trait CommonIntTypes {
     */
   val I33: TySInt = TySInt(33)
 
+  /** The type of a 64-bit signed integer.
+    */
+  val I64: TySInt = TySInt(64)
+
   /** Common integer types.
     */
   val COMMON_INT_TYPES: Seq[TyAnyInt] = Seq(U8, U16, U32, I8, I16, I32)

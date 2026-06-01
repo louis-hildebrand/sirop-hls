@@ -947,10 +947,10 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
       context: Map[Param, Type]
   )(implicit c: Canonicalizer): Expr = {
     val factors = this.factors.map(e => e.tchk(context).expectAnyInt())
-    this.rebuild(
-      TProd(factors.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-      factors
-    )
+    val factorTypes = factors.map(_.typ.asInstanceOf[TyAnyInt])
+    val minTyp = TProd(factorTypes: _*)
+    val typ = ReshapeData.narrowestCommonAncestor(minTyp +: factorTypes).get
+    this.rebuild(typ, factors)
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -1094,5 +1094,35 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
       maxWidth = maxWidth,
       precedence = this.precedence
     )
+  }
+}
+
+case class EnsureUnsigned(e: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(e)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => EnsureUnsigned(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type]
+  )(implicit c: Canonicalizer): Expr = {
+    val e = this.e.tchk().expectAnyInt()
+    val outTyp = e.typ.asInstanceOf[TyAnyInt] match {
+      case typ: TyUInt => typ
+      case TySInt(w)   => TyUInt(w - 1)
+    }
+    this.rebuild(outTyp, Seq(e))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    this.e.typ.asInstanceOf[TyAnyInt] match {
+      case _: TyUInt => e.lower
+      case _: TySInt => ToUnsigned(e)().tchk().lower
+    }
   }
 }

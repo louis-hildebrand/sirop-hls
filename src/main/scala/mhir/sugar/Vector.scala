@@ -153,32 +153,31 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
     val len = maybeLen.typ match {
       case _: TyAnyInt => maybeLen
       case TyTuple() =>
-        Mux(
-          n === 0,
-          C(0)(U32),
-          ToUnsigned(
+        val ifNZero = C(0)(U0)
+        val ifStepNegative =
+          // 1 + start/(-step)
+          SafeSum(C(1)(), SafeProd(C(-1)(), SmartDiv(start, step)())())()
+            .tchk()
+            .lower
+        val ifStepNonnegative =
+          // 1 + (n - 1 - start)/step
+          SafeSum(
+            C(1)(),
+            SmartDiv(SafeSum(n, C(-1)(), SafeProd(C(-1)(), start)())(), step)()
+          )().tchk().lower
+        val typ = ReshapeData
+          .narrowestCommonAncestor(
+            Seq(ifNZero.typ, ifStepNegative.typ, ifStepNonnegative.typ)
+          )
+          .get
+        ToUnsigned(
+          Mux(
+            n === 0,
+            ReshapeData(ifNZero, typ)(),
             Mux(
               step < 0,
-              // 1 + start/-step
-              Sum(
-                C(1)(I33),
-                Div(
-                  ReshapeData(start, I33)(),
-                  Prod(C(-1)(I33), ReshapeData(step, I33)())()
-                )()
-              )(),
-              // 1 + (n - 1 - start)/step
-              Sum(
-                C(1)(I33),
-                Div(
-                  Sum(
-                    ReshapeData(n, I33)(),
-                    C(-1)(I33),
-                    Prod(C(-1)(I33), ReshapeData(start, I33)())()
-                  )(),
-                  ReshapeData(step, I33)()
-                )()
-              )()
+              ReshapeData(ifStepNegative, typ)(),
+              ReshapeData(ifStepNonnegative, typ)()
             )()
           )()
         )().tchk()
@@ -194,15 +193,15 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val v = this.v.lower
-    val start = ReshapeData(this.start, I33)().tchk().lower
-    val len = this.len.tchk().lower
-    val step = ReshapeData(this.step, I33)().tchk().lower
+    val start = this.start.lower
+    val len = this.len.lower
+    val step = this.step.lower
     VecBuild(
       len,
-      U32 ::+ (i =>
+      len.typ ::+ (i =>
         VecAccess(
           v,
-          ToUnsigned(Sum(start, Prod(step, ReshapeData(i, I33)())())())()
+          EnsureUnsigned(SafeSum(start, SafeProd(step, i)())())()
             .tchk()
             .lower
         )()

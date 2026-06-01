@@ -181,7 +181,8 @@ class VectorTests extends AnyFunSuite {
 
   test("VecSlice:[1:4:3]") {
     val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
-    val e = VecSlice(input, C(1)(), C(4)(), C(3)())()
+    val u33 = TyUInt(33)
+    val e = VecSlice(input, C(1)(u33), C(4)(u33), C(3)(u33))()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral(C(1)(U8), C(4)(U8), C(7)(U8), C(10)(U8))().tchk()
     assert(actual == expected)
