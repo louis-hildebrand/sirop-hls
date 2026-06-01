@@ -2334,12 +2334,12 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
 /** Like [[StmSlide]], but with a defined initial value for the window and with
   * the output always being valid.
   */
-case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
+case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     extends SyntaxSugar(s, z)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, z) => StmSlideInit(s, z)(typ)
+      case Seq(s, z) => StmSlideStartingWith(s, z)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -2364,7 +2364,7 @@ case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
             + s" Expected a vector whose elements have type $elemTyp."
         )
     }
-    this.rebuild(TyStm(TyVec(elemTyp, m), n), Seq(s, z))
+    this.rebuild(TyStm(TyVec(elemTyp, SafeSum(m, C(1)())()), n), Seq(s, z))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -2376,7 +2376,7 @@ case class StmSlideInit(s: Expr, z: Expr)(typ: Type = Missing)
     val buf = Param("buf")(z.typ)
     StmBuild(
       n,
-      buf,
+      VecAppend(buf, StmData(p)())().tchk().lower,
       True,
       Map[Param, (Expr, Expr)](
         p -> (s, True),

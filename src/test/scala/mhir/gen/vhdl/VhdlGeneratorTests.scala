@@ -483,7 +483,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("I0", -1)(TyStm(U16, n))
     val f = Function(
       s,
-      StmSlideInit(SimpleMap(s, x => x * x), Default(TyVec(U16, w)))()
+      StmSlideStartingWith(SimpleMap(s, x => x * x), Default(TyVec(U16, w)))()
     )().tchk().lower
     val io = TestSuiteIO(
       Seq(
