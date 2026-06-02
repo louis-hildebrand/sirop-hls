@@ -2,7 +2,6 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
-import mhir.parse.SyntaxError
 import mhir.sugar.Streamifier.Streamify
 import mhir.typecheck._
 
@@ -974,7 +973,7 @@ case class StmAccess(
 
 /** Reduction over a stream.
   *
-  * This is a bit like [[StmFold]], but the head of the stream is used as the
+  * This is a bit like [[StmFold1D]], but the head of the stream is used as the
   * initial value.
   *
   * This is meant to mirror the `reduce_t` primitive from
@@ -1170,47 +1169,47 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val s1 = this.s1.lower
-    val s2 = this.s2.lower
-    val TyStm(int, n) = this.typ
-    val (t1, m) = this.s1.typ match {
-      case TyStm(TyVec(t, m), _) =>
-        m match {
-          case IntCst(0) => ???
-          case IntCst(1) => ???
-          case IntCst(m) => (t, m.toInt)
-          case e         => ???
-        }
-      case _ => ???
+    val TyStm(TyVec(t1: TyAnyInt, m), _) = this.s1.typ
+    m match {
+      case IntCst(mLong) if mLong > 0 =>
+        val m = mLong.toInt
+        val s1 = this.s1.lower
+        val s2 = this.s2.lower
+        val TyStm(int, n) = this.typ
+        val TyStm(TyVec(t2, _), _) = this.s2.typ
+        val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
+        val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
+        val stageVars = (0 until m).map(i => Param(s"stage$i")(int))
+        // IMPORTANT: stages must be an ordered sequence (not a Map!), since I
+        // extract the last element later on
+        val stages: Seq[(Param, (Expr, Expr))] = stageVars.zipWithIndex
+          .map({ case (x, i) =>
+            val z = Undefined(int)
+            val mul = Prod(
+              ReshapeData(VecAccess(StmData(p1)(), i)(), int)(),
+              ReshapeData(VecAccess(StmData(p2)(), i)(), int)()
+            )().tchk().lower
+            val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
+            x -> (z, next)
+          })
+        StmBuild(
+          n,
+          stages.last._2._2,
+          True,
+          stages.init.toMap ++ Map[Param, (Expr, Expr)](
+            p1 -> (s1, True),
+            p2 -> (s2, True)
+          )
+        )().tchk()
+      case IntCst(0) =>
+        val TyStm(int, n) = this.typ
+        StmBuild(n, C(0)(int), True)().tchk()
+      case e =>
+        throw new TypeError(
+          s"$className is not applicable when the vectors have length $e."
+            + s" Only non-negative, constant lengths are supported."
+        )
     }
-    val t2 = this.s2.typ match {
-      case TyStm(TyVec(t, _), _) => t
-      case _                     => ???
-    }
-    val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
-    val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
-    val stageVars = (0 until m).map(i => Param(s"stage$i")(int))
-    // stages must be an ordered sequence, since I extract the last element
-    // later on
-    val stages: Seq[(Param, (Expr, Expr))] = stageVars.zipWithIndex
-      .map({ case (x, i) =>
-        val z = Undefined(int)
-        val mul = Prod(
-          ReshapeData(VecAccess(StmData(p1)(), i)(), int)(),
-          ReshapeData(VecAccess(StmData(p2)(), i)(), int)()
-        )().tchk().lower
-        val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
-        x -> (z, next)
-      })
-    StmBuild(
-      n,
-      stages.last._2._2,
-      True,
-      stages.init.toMap ++ Map[Param, (Expr, Expr)](
-        p1 -> (s1, True),
-        p2 -> (s2, True)
-      )
-    )().tchk()
   }
 }
 
