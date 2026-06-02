@@ -492,10 +492,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
             s -> DirectTestInput((0 until n).map(C(_)(I16)).map(Some(_)))
           ),
           DirectTestOutput(
-            (0 until latency).map(_ => Undefined(TyVec(U16, w))) ++ {
-              ((0 until w - 1).map(_ => 0).map(C(_)(U16))
+            (0 until latency).map(_ => Undefined(TyVec(U16, w + 1))) ++ {
+              ((0 until w).map(_ => 0).map(C(_)(U16))
                 ++ (0 until n).map(x => x * x).map(C(_)(U16)))
-                .sliding(w)
+                .sliding(w + 1)
                 .map(xs => VecLiteral(xs: _*)())
                 .toSeq
             }
@@ -506,10 +506,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
             s -> DirectTestInput((n to 1 by -1).map(C(_)(I16)).map(Some(_)))
           ),
           DirectTestOutput(
-            (0 until latency).map(_ => Undefined(TyVec(U16, w))) ++ {
-              ((0 until w - 1).map(_ => 0).map(C(_)(U16))
+            (0 until latency).map(_ => Undefined(TyVec(U16, w + 1))) ++ {
+              ((0 until w).map(_ => 0).map(C(_)(U16))
                 ++ (n to 1 by -1).map(x => x * x).map(C(_)(U16)))
-                .sliding(w)
+                .sliding(w + 1)
                 .map(xs => VecLiteral(xs: _*)())
                 .toSeq
             }
