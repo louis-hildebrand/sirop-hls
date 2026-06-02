@@ -24,7 +24,7 @@ import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.{TypeCheck, TypeCheckProgram}
+import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
 
@@ -277,8 +277,9 @@ object Compiler {
     time2("making expression synthesizable", Level.DEBUG) {
       val e1 = inlineFunCalls(e)
       val e2 = e1.streamify
-      val e3 = uncurryBody(e2)
-      e3
+      val e3 = insertLetForTopLevelInputs(e2)
+      val e4 = uncurryBody(e3)
+      e4
     }
   }
 
@@ -499,6 +500,25 @@ object Compiler {
     }
   }
 
+  /** Insert [[mhir.sugar.Let]] for each top-level component input, in case the
+    * input is used in many places.
+    *
+    * @param e
+    *   the expression to transform. All inputs must be streams (i.e., the
+    *   streamifier must be applied before calling this function).
+    */
+  private def insertLetForTopLevelInputs(e: Expr): Expr = {
+    val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+    val newBody = inputs.foldRight(body)({ case (x, body) =>
+      val TyStm(_, n) = x.typ
+      LetStm(n, x, x, body)().tchk().lower
+    })
+    TypeChecker.wrapTopLevelFunction(inputs, newBody)
+  }
+
+  /** Remove uncurried functions in the body of the program, but leave the
+    * top-level component inputs curried.
+    */
   private def uncurryBody(e: Expr): Expr = {
     val result = e match {
       case Function(x, body) =>

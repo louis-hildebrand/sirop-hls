@@ -696,6 +696,11 @@ trait TypeChecker {
 
 object TypeChecker {
 
+  def wrapTopLevelFunction(inputs: Seq[Param], body: Expr): Expr = {
+    implicit val c: Canonicalizer = NoOpCanonicalizer
+    inputs.foldRight(body)({ case (x, acc) => Function(x, acc)().tchk() })
+  }
+
   def unwrapTopLevelFunction(f: Expr): (Seq[Param], Expr) = {
     @tailrec
     def unwrap(e: Expr, inputs: Seq[Param]): (Seq[Param], Expr) = {
