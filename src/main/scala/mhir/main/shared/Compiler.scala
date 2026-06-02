@@ -432,6 +432,7 @@ object Compiler {
         testNotReady = false,
         options = options
       )
+      VhdlTestRunner.copyTestBashScript(outDir)
     }
   }
 
