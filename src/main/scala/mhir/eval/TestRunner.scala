@@ -45,15 +45,15 @@ object TestRunner {
       handshake: Boolean
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
-    // Evaluate inputs to avoid errors due to the inputs not having latency
-    // matching
-    val evaluatedInputs = a.inputs
-      .map({ case (x, e) => x -> mhir.eval.eval(e) })
-      .toMap[Expr, Expr]
-    val bodyWithInputs = body.subPreserveType(evaluatedInputs)
     try {
       val expectedOutput = mhir.eval.eval(a.expectedOutput)
       logger.debug(s"expected output is $expectedOutput")
+      // Evaluate inputs to avoid errors due to the inputs not having latency
+      // matching
+      val evaluatedInputs = a.inputs
+        .map({ case (x, e) => x -> mhir.eval.eval(e) })
+        .toMap[Expr, Expr]
+      val bodyWithInputs = body.subPreserveType(evaluatedInputs)
       val actualOutput = mhir.eval.eval(bodyWithInputs, handshake = handshake)
       logger.debug(s"actual output is   $actualOutput")
       if (actualOutput == expectedOutput) {

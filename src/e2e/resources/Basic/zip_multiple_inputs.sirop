@@ -11,19 +11,12 @@ top = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
         .StmMap( (x) => x.0 + x.1 )
     in
     a_squared_plus_b
-    .StmMap( (x) => x + 2 )
+    .StmZip(StmCst(N, 2))
+    .StmMap( @(x, y) => x + y )
     .StmZip(a_squared_plus_b)
     .StmMap( @(x, y) => x * y )
     .StmZip(a)
     .StmMap( @(x, y) => x + y )
-
-assert {
-    a = StmRange(16, 0:u16, 1:u16),
-    b = StmRange(16, 0:u16, 1:u16)
-}
-yields {
-    [0:u16, 9:u16, 50:u16, 171:u16, 444:u16, 965:u16, 1854:u16, 3255:u16, 5336:u16, 8289:u16, 12330:u16, 17699:u16, 24660:u16, 33501:u16, 44534:u16, 58095:u16]s
-}
 
 assert {
     a = StmCount2D(4:u16, 4:u16).StmJoin().StmMap( (x) => x.0 ),
@@ -31,4 +24,12 @@ assert {
 }
 yields {
     [0:u16, 3:u16, 8:u16, 15:u16, 4:u16, 9:u16, 16:u16, 25:u16, 26:u16, 37:u16, 50:u16, 65:u16, 102:u16, 123:u16, 146:u16, 171:u16]s
+}
+
+assert {
+    a = StmRange(16, 0:u16, 1:u16),
+    b = StmRange(16, 0:u16, 1:u16)
+}
+yields {
+    [0:u16, 9:u16, 50:u16, 171:u16, 444:u16, 965:u16, 1854:u16, 3255:u16, 5336:u16, 8289:u16, 12330:u16, 17699:u16, 24660:u16, 33501:u16, 44534:u16, 58095:u16]s
 }

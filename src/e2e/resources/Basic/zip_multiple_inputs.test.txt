@@ -1,4 +1,4 @@
-[INFO ] the design has a latency of 8 cycles
+[INFO ] the design has a latency of 9 cycles
 [INFO ] test 0: PASSED
 [INFO ] test 1: PASSED
 [INFO ] 2/2 tests passed!
