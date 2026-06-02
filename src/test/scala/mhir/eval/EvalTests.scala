@@ -826,14 +826,30 @@ class EvalTests extends AnyFunSuite {
     val n = 5
     val a = StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower
     val b = StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
-    val original =
-      SimpleZip(SimpleMap(a, x => x), SimpleMap(b, x => Sum(x, C(-5)(I8))()))
-        .tchk()
-        .lower
+    val c = Param("c")(TyStm(I32, n))
+    val original = SimpleZip(
+      SimpleMap(a, x => x),
+      SimpleMap(b, x => Sum(x, C(-5)(I8))()),
+      SimpleNop(SimpleNop(c))
+    ).tchk().lower
 
-    val actual = mhir.eval.eval(original, handshake = false)
+    val actual = mhir.eval.eval(
+      original,
+      handshake = false,
+      inputs = Map(
+        c -> SimpleMap(
+          SimpleMap(
+            SimpleCount(C(n)(U8)),
+            x => PadTo(ToSigned(Prod(x, x)())(), 32)()
+          ),
+          x => Sum(x, C(-10)(I32))()
+        )
+      )
+    )
     val expected = StmLiteral(
-      (0 until n).map(t => Tuple(C(t)(U8), C(t - 2 - 5)(I8))()): _*
+      (0 until n).map(t =>
+        Tuple(C(t)(U8), C(t - 2 - 5)(I8), C(t * t - 10)(I32))()
+      ): _*
     )().tchk()
     assert(actual == expected)
   }

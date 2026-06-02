@@ -36,8 +36,12 @@ class Evaluator(
     *   if the evaluator encounters an undefined value <i>and it seems to affect
     *   the final value</i>, or if a stream seems to be deadlocked.
     */
-  def eval(e: Expr, stmData: Map[Param, Option[Expr]] = Map()): Expr = {
-    val Value(v, warnings) = evalBigStep(stmData)(e.tchk().lower)
+  def eval(
+      e: Expr,
+      inputs: Map[Param, Expr] = Map(),
+      stmData: Map[Param, Option[Expr]] = Map()
+  ): Expr = {
+    val Value(v, warnings) = evalBigStep(inputs, stmData)(e.tchk().lower)
     if (warnings.isEmpty) {
       v
     } else if (this.suppressWarnings) {
@@ -78,11 +82,12 @@ class Evaluator(
   }
 
   private[eval] def evalBigStep(
+      inputs: Map[Param, Expr],
       stmData: Map[Param, Option[Expr]]
   )(e: Expr): Value = {
     val result: Value = e match {
       case Undefined(typ) =>
-        val Value(v, warnings) = evalBigStep(stmData)(DefaultVal(typ))
+        val Value(v, warnings) = evalBigStep(inputs, stmData)(DefaultVal(typ))
         Value(v, warnings + UndefinedPrimitive(typ))
       case x: Param =>
         throw new IllegalArgumentException(
@@ -90,15 +95,15 @@ class Evaluator(
         )
       case f: Function => Value(f, Set())
       case FunCall(f, arg) =>
-        val Value(fVal, fWarn) = evalBigStep(stmData)(f)
+        val Value(fVal, fWarn) = evalBigStep(inputs, stmData)(f)
         fVal match {
           case Function(x, body) =>
             // Leave stream inputs unevaluated
             val Value(a, aWarn) = arg.typ match {
               case _: TyStm => Value(arg, Set())
-              case _        => evalBigStep(stmData)(arg)
+              case _        => evalBigStep(inputs, stmData)(arg)
             }
-            evalBigStep(stmData)(body.subPreserveType(x -> a))
+            evalBigStep(inputs, stmData)(body.subPreserveType(x -> a))
               .addWarnings(aWarn ++ fWarn)
           case v =>
             throw new IllegalArgumentException(
@@ -108,7 +113,7 @@ class Evaluator(
 
       case n: IntCst => Value(n, Set())
       case Sum(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
+        val termValues = terms.map(evalBigStep(inputs, stmData))
         if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = termValues.flatMap(v => v.warnings).toSet
@@ -126,7 +131,7 @@ class Evaluator(
           )
         }
       case Prod(factors @ _*) =>
-        val factorValues = factors.map(evalBigStep(stmData))
+        val factorValues = factors.map(evalBigStep(inputs, stmData))
         if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = factorValues.flatMap(v => v.warnings).toSet
@@ -144,8 +149,8 @@ class Evaluator(
           )
         }
       case Div(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
-        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
+        val Value(numer, numerWarn) = evalBigStep(inputs, stmData)(e1)
+        val Value(denom, denomWarn) = evalBigStep(inputs, stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             val v = DefaultVal(e.typ)
@@ -158,8 +163,8 @@ class Evaluator(
             )
         }
       case Mod(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
-        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
+        val Value(numer, numerWarn) = evalBigStep(inputs, stmData)(e1)
+        val Value(denom, denomWarn) = evalBigStep(inputs, stmData)(e2)
         (numer, denom) match {
           case (IntCst(_), IntCst(0)) =>
             val v = DefaultVal(e.typ)
@@ -172,7 +177,7 @@ class Evaluator(
             )
         }
       case s @ WrappingSum(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
+        val termValues = terms.map(evalBigStep(inputs, stmData))
         if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = termValues.flatMap(v => v.warnings).toSet
@@ -186,8 +191,8 @@ class Evaluator(
           )
         }
       case d @ WrappingDiff(e1, e2) =>
-        val Value(v1, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(v2, e2Warn) = evalBigStep(stmData)(e2)
+        val Value(v1, e1Warn) = evalBigStep(inputs, stmData)(e1)
+        val Value(v2, e2Warn) = evalBigStep(inputs, stmData)(e2)
         (v1, v2) match {
           case (IntCst(n1), IntCst(n2)) =>
             val result = n1 - n2
@@ -200,7 +205,7 @@ class Evaluator(
             )
         }
       case p @ WrappingProd(factors @ _*) =>
-        val factorValues = factors.map(evalBigStep(stmData))
+        val factorValues = factors.map(evalBigStep(inputs, stmData))
         if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
           val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
           val warnings = factorValues.flatMap(v => v.warnings).toSet
@@ -214,7 +219,7 @@ class Evaluator(
           )
         }
       case PadTo(e, targetWidth) =>
-        val v = evalBigStep(stmData)(e)
+        val v = evalBigStep(inputs, stmData)(e)
         assert(
           v.e.isInstanceOf[IntCst],
           s"argument of ${PadTo.getClass.getSimpleName} must be an integer (found ${v.e})"
@@ -229,7 +234,7 @@ class Evaluator(
           case _: TyUInt => Value(v.e.rebuild(TyUInt(targetWidth)), v.warnings)
         }
       case TruncateTo(e, targetWidth) =>
-        val Value(IntCst(i), warnings) = evalBigStep(stmData)(e)
+        val Value(IntCst(i), warnings) = evalBigStep(inputs, stmData)(e)
         val typ = e.typ.asInstanceOf[TyAnyInt]
         assert(
           targetWidth <= typ.w,
@@ -246,13 +251,13 @@ class Evaluator(
           )
         }
       case ToSigned(e) =>
-        val v = evalBigStep(stmData)(e)
+        val v = evalBigStep(inputs, stmData)(e)
         v.e.typ.asInstanceOf[TyUInt] match {
           case TyUInt(w) =>
             Value(v.e.rebuild(TySInt(w + 1)), v.warnings)
         }
       case ToUnsigned(e) =>
-        val v = evalBigStep(stmData)(e)
+        val v = evalBigStep(inputs, stmData)(e)
         val i = v.e.asInstanceOf[IntCst].i
         v.e.typ.asInstanceOf[TySInt] match {
           case TySInt(w) =>
@@ -267,8 +272,8 @@ class Evaluator(
             }
         }
       case LLShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(stmData)(e1)
-        val Value(n2, warn2) = evalBigStep(stmData)(e2)
+        val Value(n1, warn1) = evalBigStep(inputs, stmData)(e1)
+        val Value(n2, warn2) = evalBigStep(inputs, stmData)(e2)
         (n1, n2) match {
           case (IntCst(k1), IntCst(k2)) =>
             val result = truncate(k1 << k2, n1.typ.asInstanceOf[TyAnyInt])
@@ -279,8 +284,8 @@ class Evaluator(
             )
         }
       case LRShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(stmData)(e1)
-        val Value(n2, warn2) = evalBigStep(stmData)(e2)
+        val Value(n1, warn1) = evalBigStep(inputs, stmData)(e1)
+        val Value(n2, warn2) = evalBigStep(inputs, stmData)(e2)
         (n1, n2) match {
           case (IntCst(k1), IntCst(k2)) =>
             val w = n1.typ.asInstanceOf[TyAnyInt].w
@@ -298,8 +303,8 @@ class Evaluator(
 
       case c: FixCst => Value(c, Set())
       case p @ IntFixProd(e1, e2) =>
-        val Value(v1, warn1) = evalBigStep(stmData)(e1)
-        val Value(v2, warn2) = evalBigStep(stmData)(e2)
+        val Value(v1, warn1) = evalBigStep(inputs, stmData)(e1)
+        val Value(v2, warn2) = evalBigStep(inputs, stmData)(e2)
         (v1, v2) match {
           case (v1 @ IntCst(k), v2 @ FixCst(numer)) =>
             val result = (k * numer) >>> v2.typ.shift
@@ -315,7 +320,7 @@ class Evaluator(
       case True  => Value(True, Set())
       case False => Value(False, Set())
       case Not(e) =>
-        evalBigStep(stmData)(e) match {
+        evalBigStep(inputs, stmData)(e) match {
           case Value(False, w) => Value(True, w)
           case Value(True, w)  => Value(False, w)
           case v =>
@@ -324,7 +329,7 @@ class Evaluator(
             )
         }
       case And(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
+        val termValues = terms.map(evalBigStep(inputs, stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == False)) {
             False
@@ -347,7 +352,7 @@ class Evaluator(
           )
         }
       case Or(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
+        val termValues = terms.map(evalBigStep(inputs, stmData))
         if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
           val v = if (termValues.exists(v => v.e == True)) {
             True
@@ -370,13 +375,13 @@ class Evaluator(
           )
         }
       case Equal(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
+        val Value(e1Val, e1Warn) = evalBigStep(inputs, stmData)(e1)
+        val Value(e2Val, e2Warn) = evalBigStep(inputs, stmData)(e2)
         val result = if (areEqual(e1Val, e2Val)) True else False
         Value(result, e1Warn ++ e2Warn)
       case LessThan(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
+        val Value(e1Val, e1Warn) = evalBigStep(inputs, stmData)(e1)
+        val Value(e2Val, e2Warn) = evalBigStep(inputs, stmData)(e2)
         (e1Val, e2Val) match {
           case (IntCst(n1), IntCst(n2)) =>
             val v = if (n1 < n2) True else False
@@ -387,13 +392,13 @@ class Evaluator(
             )
         }
       case Mux(c, t, f) =>
-        val Value(cVal, cWarn) = evalBigStep(stmData)(c)
+        val Value(cVal, cWarn) = evalBigStep(inputs, stmData)(c)
         cVal match {
           case True =>
-            val Value(tVal, tWarn) = evalBigStep(stmData)(t)
+            val Value(tVal, tWarn) = evalBigStep(inputs, stmData)(t)
             Value(tVal, cWarn ++ tWarn)
           case False =>
-            val Value(fVal, fWarn) = evalBigStep(stmData)(f)
+            val Value(fVal, fWarn) = evalBigStep(inputs, stmData)(f)
             Value(fVal, cWarn ++ fWarn)
           case v =>
             throw new IllegalArgumentException(
@@ -402,14 +407,14 @@ class Evaluator(
         }
 
       case Tuple(elems @ _*) =>
-        val elemValues = elems.map(evalBigStep(stmData))
+        val elemValues = elems.map(evalBigStep(inputs, stmData))
         val v = Tuple(elemValues.map(v => v.e): _*)()
         val warnings = elemValues.flatMap(v => v.warnings).toSet
         Value(v, warnings)
       case TupleAccess(t, IntCst(i)) =>
         // TODO: make the warnings more accurate by somehow only taking the
         //       ones that apply to the chosen element?
-        val Value(tVal, tWarn) = evalBigStep(stmData)(t)
+        val Value(tVal, tWarn) = evalBigStep(inputs, stmData)(t)
         tVal match {
           case Tuple(elems @ _*) =>
             val v = if (elems.indices.contains(i)) {
@@ -428,13 +433,15 @@ class Evaluator(
 
       case vb @ VecBuild(n, f) =>
         assert(vb.typ.isInstanceOf[TyVec])
-        val Value(nVal, nWarn) = evalBigStep(stmData)(n)
+        val Value(nVal, nWarn) = evalBigStep(inputs, stmData)(n)
         nVal match {
           case IntCst(n) if n >= 0 =>
             val elemValues = (0 until n.toInt).map(i => {
               val inTyp = f.param.typ
               assert(inTyp.isInstanceOf[TyUInt])
-              evalBigStep(stmData)(FunCall(f, IntCst(i)(inTyp))().tchk())
+              evalBigStep(inputs, stmData)(
+                FunCall(f, IntCst(i)(inTyp))().tchk()
+              )
             })
             val v = VecLiteral(elemValues.map(v => v.e): _*)(vb.typ)
             val warnings = nWarn ++ elemValues.flatMap(v => v.warnings).toSet
@@ -445,17 +452,17 @@ class Evaluator(
             )
         }
       case VecAccess(v, i) =>
-        val Value(vVal, vWarn) = evalBigStep(stmData)(v)
+        val Value(vVal, vWarn) = evalBigStep(inputs, stmData)(v)
         vVal match {
           case VecLiteral(elems @ _*) =>
-            val Value(iVal, iWarn) = evalBigStep(stmData)(i)
+            val Value(iVal, iWarn) = evalBigStep(inputs, stmData)(i)
             iVal match {
               case IntCst(i) if elems.indices.contains(i) =>
                 Value(elems(i.toInt), vWarn ++ iWarn)
               case IntCst(i) =>
                 val t = v.tchk().typ.asInstanceOf[TyVec].t
                 val oobWarn = VecIndexOutOfBoundsWarning(elems.length, i)
-                evalBigStep(stmData)(DefaultVal(t))
+                evalBigStep(inputs, stmData)(DefaultVal(t))
                   .addWarnings((vWarn ++ iWarn) + oobWarn)
               case v =>
                 throw new IllegalArgumentException(
@@ -468,7 +475,7 @@ class Evaluator(
             )
         }
       case vl: VecLiteral =>
-        val elemValues = vl.elems.map(e => evalBigStep(stmData)(e))
+        val elemValues = vl.elems.map(e => evalBigStep(inputs, stmData)(e))
         val v = VecLiteral(elemValues.map(v => v.e): _*)(e.typ)
         val warnings = elemValues.flatMap(v => v.warnings).toSet
         Value(v, warnings)
@@ -476,7 +483,7 @@ class Evaluator(
       case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
         Value(
           evalPipeline(
-            StmPipeline(s, Map(), handshake = this.handshake),
+            StmPipeline(s, inputs = inputs, handshake = this.handshake),
             Seq(),
             invalidSteps = 0
           ),
@@ -489,7 +496,7 @@ class Evaluator(
               s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
             )
           case Some(None) =>
-            evalBigStep(Map())(DefaultVal(sd.typ))
+            evalBigStep(Map(), Map())(DefaultVal(sd.typ))
               .addWarnings(Set(StmDataWithoutReady(s)))
           case Some(Some(v)) =>
             Value(v, Set())

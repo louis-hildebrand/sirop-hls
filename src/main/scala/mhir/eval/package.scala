@@ -11,6 +11,7 @@ package object eval {
   def eval(
       e: Expr,
       handshake: Boolean = true,
+      inputs: Map[Param, Expr] = Map(),
       stmData: Map[Param, Option[Expr]] = Map(),
       maxInvalidSteps: Option[Int] = None,
       suppressWarnings: Boolean = false
@@ -20,6 +21,6 @@ package object eval {
       maxInvalidSteps = maxInvalidSteps,
       suppressWarnings = suppressWarnings
     )
-    evaluator.eval(e, stmData = stmData)
+    evaluator.eval(e, inputs = inputs, stmData = stmData)
   }
 }

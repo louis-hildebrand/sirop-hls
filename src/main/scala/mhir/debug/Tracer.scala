@@ -62,11 +62,7 @@ object Tracer {
 
     val pipe = {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(s.tchk().lower)
-      // Evaluate inputs to avoid errors due to the inputs not having latency
-      // matching
-      val evaluatedInputs = inputs
-        .map({ case (x, e) => x -> mhir.eval.eval(e) })
-      StmPipeline(body, evaluatedInputs, handshake = handshake)
+      StmPipeline(body, inputs = inputs, handshake = handshake)
     }
     try {
       Trace(

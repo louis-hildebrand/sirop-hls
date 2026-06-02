@@ -58,6 +58,8 @@ class LatencyAnalysis(handshake: Boolean) {
   ): LatencyNode = {
     e match {
       case Function(x, body) =>
+        // Assume the inputs are available immediately, at the first rising
+        // clock edge where reset is not asserted
         latency(body, latencyByVar + (x -> Some(0)), sbuildAggregator)
       case x: Param =>
         latencyByVar.get(x) match {
@@ -85,7 +87,11 @@ class LatencyAnalysis(handshake: Boolean) {
           .forall({ case (_, (_, ready)) => ready == True })
         val selfLatency = stmBuildSelfLatency(s)
         val outLatency = if (latencyChildren.isEmpty) {
-          Some(0)
+          // The output from this node will not be available immediately: you
+          // need to take the self-latency into account.
+          // (Usually this would be one cycle, since there is a register for the
+          // output.)
+          selfLatency
         } else if (alwaysReady) {
           if (latencyChildren.exists({ case (_, c) => c.latency.isEmpty })) {
             None

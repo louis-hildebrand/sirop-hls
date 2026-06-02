@@ -3,8 +3,8 @@ package mhir.eval
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.sugar.StmLiteralUtilsImplicit
-import mhir.typecheck.TypeError
+import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
+import mhir.typecheck.{TypeCheck, TypeError}
 
 /** A streaming pipeline.
   *
@@ -49,6 +49,14 @@ class StmPipeline(
     newPipe
   }
 
+  def stepUntilFirstValid(): StmPipeline = {
+    if (this.sink.valid(StmNodeId(""))) {
+      this
+    } else {
+      this.step().stepUntilFirstValid()
+    }
+  }
+
   /** Whether this pipeline is empty; i.e., has successfully produced the number
     * of outputs that it was supposed to and no longer has valid output.
     */
@@ -82,6 +90,17 @@ class StmPipeline(
     this.nodes = this.nodes + (node.id -> node)
   }
 
+  /** Adds new nodes to this pipeline.
+    *
+    * @param nodes
+    *   the nodes to add.
+    */
+  def addNodes(nodes: StmNode*): Unit = {
+    for (v <- nodes) {
+      this.addNode(v)
+    }
+  }
+
   /** Adds new edges to this pipeline.
     *
     * @param edgesToAdd
@@ -107,7 +126,8 @@ object StmPipeline {
   def apply(
       f: Expr,
       inputs: Map[Param, Expr],
-      handshake: Boolean = true
+      handshake: Boolean = true,
+      initialLoc: StmNodeLocation = InMain
   ): StmPipeline = {
     val pipe = new StmPipeline(
       connections = DiGraph(),
@@ -116,10 +136,18 @@ object StmPipeline {
     )
     val fWithInputs = f.subPreserveType(
       inputs
-        .map({ case (x, e) => x -> TestInput(e, x.name)(e.typ) })
+        .map({ case (x, e) =>
+          val loweredX = x.tchk().lower.asInstanceOf[Param]
+          // Evaluate the input because we may be in no_handshake mode, but
+          // inputs are always evaluated with the handshake protocol (because
+          // it's less restrictive for the programmer and I don't want to have
+          // to do latency matching for the inputs)
+          val evaluatedE = mhir.eval.eval(e)
+          loweredX -> TestInput(evaluatedE, x.name)(evaluatedE.typ)
+        })
         .toMap[Expr, Expr]
     )
-    init(pipe, fWithInputs, Map(), loc = InMain, handshake = handshake)
+    init(pipe, fWithInputs, Map(), loc = initialLoc, handshake = handshake)
     // Initialize the flags in each LetStmNode so that they will raise their
     // `ready` signal at the beginning.
     // This can only happen once we actually know who the consumers for the
@@ -211,7 +239,27 @@ object StmPipeline {
         pipe.sinkId = newNode.id
         init(pipe, out, idByVar + (x -> newNode.id), loc, handshake = handshake)
       case TestInput(e, x) =>
-        init(pipe, e, idByVar, loc = TestStimulus(x), handshake = handshake)
+        val tempPipe = StmPipeline(
+          e,
+          inputs = Map(),
+          handshake = handshake,
+          initialLoc = TestStimulus(x)
+        ).stepUntilFirstValid()
+        pipe.addNodes(
+          (tempPipe.nodes - tempPipe.sinkId).values
+            .map(_.inPipe(pipe))
+            .toSeq: _*
+        )
+        pipe.addEdges(
+          tempPipe.connections.edges
+            .filter({ case (u, v) =>
+              u != tempPipe.sinkId && v != tempPipe.sinkId
+            })
+            .toSeq: _*
+        )
+        pipe.sinkId = tempPipe.connections.edges
+          .collectFirst({ case (u, v) if v == tempPipe.sinkId => u })
+          .get
       case e =>
         throw new IllegalArgumentException(
           s"Expression cannot be made into a stream pipeline: $e"

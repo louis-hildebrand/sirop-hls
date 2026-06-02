@@ -3,7 +3,8 @@ package mhir.eval
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck.TypeChecker
+import mhir.sugar.ExprLowering
+import mhir.typecheck.{TypeCheck, TypeChecker}
 
 object TestRunner {
 
@@ -48,13 +49,8 @@ object TestRunner {
     try {
       val expectedOutput = mhir.eval.eval(a.expectedOutput)
       logger.debug(s"expected output is $expectedOutput")
-      // Evaluate inputs to avoid errors due to the inputs not having latency
-      // matching
-      val evaluatedInputs = a.inputs
-        .map({ case (x, e) => x -> mhir.eval.eval(e) })
-        .toMap[Expr, Expr]
-      val bodyWithInputs = body.subPreserveType(evaluatedInputs)
-      val actualOutput = mhir.eval.eval(bodyWithInputs, handshake = handshake)
+      val actualOutput =
+        mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
       logger.debug(s"actual output is   $actualOutput")
       if (actualOutput == expectedOutput) {
         logger.info(s"test $testIdx: PASSED")

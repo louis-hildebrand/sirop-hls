@@ -236,11 +236,11 @@ class TracerTests extends AnyFunSuite {
     assume(!SaveTraces)
   }
 
-  test("LetStmNoHandshake") {
+  test("NoHandshake:LetStm") {
     mhir.ir.reset()
     // StmScan(
     //     let s = StmRange(5, 2, 1) in
-    //         StmZip(StmMap(s, x => x), StmMap(x => x + 5)),
+    //         StmZip(StmMap(s, x => x), StmMap(s, x => x + 5)),
     //     (acc : (u8, u8)) => (x : (u8, u8)) =>
     //         (acc.0 + x.0, acc.1 * x.1)
     // )
@@ -324,6 +324,35 @@ class TracerTests extends AnyFunSuite {
     } else {
       val expectedFullTrace =
         os.read(TracesDir / "trace-all-let-stm-no-handshake.json")
+      assert(fullTrace.json == expectedFullTrace)
+    }
+    assume(!SaveTraces)
+  }
+
+  test("NoHandshake:ZipWithIndex") {
+    mhir.ir.reset()
+    val n = 5
+    val input = Param("input", -1)(TyStm(I32, n))
+    val stm = SimpleZip(SimpleCount(C(n)(U8)), SimpleNop(input))
+
+    val fullTrace = Tracer.traceAll(
+      stm,
+      handshake = false,
+      inputs = Map(
+        input -> SimpleMap(
+          SimpleMap(
+            SimpleCount(C(n)(U8)),
+            x => PadTo(ToSigned(Prod(x, x)())(), 32)()
+          ),
+          x => Sum(x, C(-10)(I32))()
+        )
+      )
+    )
+    if (SaveTraces) {
+      save(fullTrace, "trace-all-zip-with-index-no-handshake.json")
+    } else {
+      val expectedFullTrace =
+        os.read(TracesDir / "trace-all-zip-with-index-no-handshake.json")
       assert(fullTrace.json == expectedFullTrace)
     }
     assume(!SaveTraces)

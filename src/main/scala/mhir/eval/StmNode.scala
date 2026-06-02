@@ -42,6 +42,11 @@ sealed trait StmNode {
     */
   def step(newPipe: StmPipeline): StmNode
 
+  /** Changes the pipeline that this node is part of, but does not update this
+    * node's internal state.
+    */
+  def inPipe(newPipe: StmPipeline): StmNode
+
   /** Check whether this node has the same state as `that`, ignoring the
     * [[StmPipeline]] reference.
     */
@@ -178,19 +183,23 @@ case class StmBuildNode(
     ready
   }
 
+  override def inPipe(newPipe: StmPipeline): StmBuildNode = {
+    StmBuildNode(
+      newPipe,
+      this.id,
+      this.hw,
+      this.data,
+      this.n,
+      this.acc,
+      this.invalidSteps,
+      this.loc,
+      this.handshake
+    )
+  }
+
   override def step(newPipe: StmPipeline): StmBuildNode = {
     if (this.isEmpty) {
-      StmBuildNode(
-        newPipe,
-        this.id,
-        this.hw,
-        this.data,
-        this.n,
-        this.acc,
-        this.invalidSteps,
-        this.loc,
-        this.handshake
-      )
+      this.inPipe(newPipe)
     } else {
       val newData = if (this.transferOk || this.canUpdateAcc) {
         val valid = (
@@ -434,6 +443,20 @@ case class LetStmNode(
     this.readyForProducer
   }
 
+  override def inPipe(newPipe: StmPipeline): StmNode = {
+    LetStmNode(
+      pipe = newPipe,
+      id = this.id,
+      buffer = this.buffer,
+      tail = this.tail,
+      head = this.head,
+      readIdx = this.readIdx,
+      output = this.output,
+      typ = this.typ,
+      loc = this.loc
+    )
+  }
+
   override def step(newPipe: StmPipeline): StmNode = {
     val newBuffer = if (this.willIncrementHead) {
       val Some(elem) = this.producer.out(this.id)
@@ -640,7 +663,7 @@ case class StmNopNode(
     ready
   }
 
-  override def step(newPipe: StmPipeline): StmNode = {
+  override def inPipe(newPipe: StmPipeline): StmNode = {
     StmNopNode(
       pipe = newPipe,
       id = this.id,
@@ -649,6 +672,8 @@ case class StmNopNode(
       handshake = this.handshake
     )
   }
+
+  override def step(newPipe: StmPipeline): StmNode = this.inPipe(newPipe)
 
   override def isEmpty: Boolean = this.producer.isEmpty
 
@@ -684,8 +709,12 @@ case class TerminalNode(pipe: StmPipeline, id: StmNodeId, typ: TyStm)
 
   override def ready(producerId: StmNodeId): Boolean = true
 
-  override def step(newPipe: StmPipeline): StmNode = {
+  override def inPipe(newPipe: StmPipeline): StmNode = {
     TerminalNode(pipe = newPipe, id = this.id, typ = this.typ)
+  }
+
+  override def step(newPipe: StmPipeline): StmNode = {
+    this.inPipe(newPipe)
   }
 
   override def isEmpty: Boolean = this.producer.isEmpty
