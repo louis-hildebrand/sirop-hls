@@ -85,7 +85,7 @@ class LatencyAnalysis(handshake: Boolean) {
           .forall({ case (_, (_, ready)) => ready == True })
         val selfLatency = stmBuildSelfLatency(s)
         val outLatency = if (latencyChildren.isEmpty) {
-          Some(1)
+          Some(0)
         } else if (alwaysReady) {
           if (latencyChildren.exists({ case (_, c) => c.latency.isEmpty })) {
             None
