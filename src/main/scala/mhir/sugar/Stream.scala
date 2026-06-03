@@ -50,10 +50,11 @@ private[sugar] case class StmReset(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val s = this.s.tchk(context).expectStream()
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val s = this.s.tchk(context, constValues).expectStream()
     val stmTyp = s.typ match {
       case t: TyStm => t
       case t =>
@@ -68,7 +69,14 @@ private[sugar] case class StmReset(
           s"Missing type annotation for variable in $className."
         )
       }
-      x -> s.tchk(context).expectType(x.typ)
+      val newS = s.tchk(context, constValues)
+      x.typ match {
+        case TyStm(elemTyp, _) =>
+          newS.expectStreamOf(elemTyp, constValues)
+        case _ =>
+          newS.expectType(x.typ, constValues)
+      }
+      x -> newS
     })
     val typ = TyStm(stmTyp.t, SafeProd(n, stmTyp.n)())
     StmReset(n, s, inputs)(typ)
@@ -469,11 +477,14 @@ case class Iterate(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val z = this.z.tchk(context)
-    val f = this.f.tchk(context).expectType(z.typ ->: z.typ)
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val z = this.z.tchk(context, constValues)
+    val f = this.f
+      .tchk(context, constValues)
+      .expectType(z.typ ->: z.typ, constValues)
     this.rebuild(TyStm(z.typ, 1), Seq(n, z, f))
   }
 
@@ -511,10 +522,11 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val k = this.k.tchk(context)
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val k = this.k.tchk(context, constValues)
     this.rebuild(TyStm(k.typ, n), Seq(n, k))
   }
 
@@ -542,9 +554,10 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newN = n.tchk(context).expectUInt()
+    val newN = n.tchk(context, constValues).expectUInt()
     this.rebuild(TyStm(newN.typ, newN), Seq(newN))
   }
 
@@ -577,11 +590,14 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newN = n.tchk(context).expectUInt()
-    val newZ = z.tchk(context).expectAnyInt()
-    val newDelta = delta.tchk(context).expectType(newZ.typ)
+    val newN = n.tchk(context, constValues).expectUInt()
+    val newZ = z.tchk(context, constValues).expectAnyInt()
+    val newDelta = delta
+      .tchk(context, constValues)
+      .expectType(newZ.typ, constValues)
     this.rebuild(TyStm(newZ.typ, newN), Seq(newN, newZ, newDelta))
   }
 
@@ -632,12 +648,15 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val m = this.m.tchk(context).expectUInt()
-    val z = this.z.tchk(context).expectAnyInt()
-    val delta = this.delta.tchk(context).expectType(z.typ)
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val m = this.m.tchk(context, constValues).expectUInt()
+    val z = this.z.tchk(context, constValues).expectAnyInt()
+    val delta = this.delta
+      .tchk(context, constValues)
+      .expectType(z.typ, constValues)
     this.rebuild(TyStm(TyVec(z.typ, m), n), Seq(n, m, z, delta))
   }
 
@@ -679,11 +698,12 @@ case class StmCst2D(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val m = this.m.tchk(context).expectUInt()
-    val k = this.k.tchk(context)
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val m = this.m.tchk(context, constValues).expectUInt()
+    val k = this.k.tchk(context, constValues)
     this.rebuild(TyStm(TyStm(k.typ, m), n), Seq(n, m, k))
   }
 
@@ -709,10 +729,11 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val m = this.m.tchk(context).expectUInt()
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val m = this.m.tchk(context, constValues).expectUInt()
     this.rebuild(TyStm(TyStm((n.typ, m.typ), m), n), Seq(n, m))
   }
 
@@ -748,11 +769,12 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n1 = this.n1.tchk(context).expectUInt()
-    val n2 = this.n2.tchk(context).expectUInt()
-    val n3 = this.n3.tchk(context).expectUInt()
+    val n1 = this.n1.tchk(context, constValues).expectUInt()
+    val n2 = this.n2.tchk(context, constValues).expectUInt()
+    val n3 = this.n3.tchk(context, constValues).expectUInt()
     this.rebuild(
       TyStm(TyStm(TyStm((n1.typ, n2.typ, n3.typ), n3), n2), n1),
       Seq(n1, n2, n3)
@@ -810,19 +832,22 @@ case class StmMap(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = input.tchk(context)
+    val newS = input.tchk(context, constValues)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmMap has type $t.")
     }
-    val newF = f.annotateFunc(t1).tchk(context)
+    val newF = f.annotateFunc(t1).tchk(context, constValues)
     val t2 = newF.typ match {
-      case TyArrow(t, t2) if t ~= t1 => t2
+      case TyArrow(t, t2) if t.equalsGivenConstants(t1, constValues) =>
+        t2
       case t =>
         throw new TypeError(
-          s"Function in StmMap has type $t. Expected a function whose input type is $t1."
+          s"function in StmMap has type $t. Expected a function whose input type is $t1",
+          TypeChecker.relevantBindings(constValues, t, t1)
         )
     }
     this.rebuild(TyStm(t2, n), Seq(newS, newF))
@@ -849,9 +874,10 @@ case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s1 = this.s1.tchk(context)
+    val s1 = this.s1.tchk(context, constValues)
     val (t1, n1) = s1.typ match {
       case TyStm(t, n) => (t, n)
       case t =>
@@ -860,7 +886,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
             + " Expected a stream."
         )
     }
-    val s2 = this.s2.tchk(context)
+    val s2 = this.s2.tchk(context, constValues)
     val (t2, n2) = s2.typ match {
       case TyStm(t, n) => (t, n)
       case t =>
@@ -869,19 +895,22 @@ case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
             + " Expected a stream."
         )
     }
-    if (!c.sameLen(n1, n2)) {
+    if (!c.sameLen(n1, n2, constValues)) {
       throw new TypeError(
         s"Stream lengths in $className do not match: $n1 and $n2."
       )
     }
-    val f = this.f.annotateFunc(t1, t2).tchk(context)
+    val f = this.f.annotateFunc(t1, t2).tchk(context, constValues)
     val t3 = f.typ match {
-      case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
+      case TyArrow(ft1, TyArrow(ft2, ft3))
+          if ft1.equalsGivenConstants(t1, constValues)
+            && ft2.equalsGivenConstants(t2, constValues) =>
         ft3
       case t =>
         throw new TypeError(
           s"Function in $className has type $t."
-            + s" Expected a function with input types $t1 and $t2"
+            + s" Expected a function with input types $t1 and $t2",
+          TypeChecker.relevantBindings(constValues, t, t1, t2)
         )
     }
     this.rebuild(TyStm(t3, n1), Seq(s1, s2, f))
@@ -912,11 +941,12 @@ case class StmAccess(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.stm.tchk(context).expectStream()
+    val s = this.stm.tchk(context, constValues).expectStream()
     val t = s.typ.asInstanceOf[TyStm].t
-    val k = this.k.tchk(context).expectUInt()
+    val k = this.k.tchk(context, constValues).expectUInt()
     this.rebuild(TyStm(t, 1), Seq(s, k))
   }
 
@@ -996,9 +1026,10 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     // The type of the accumulator, but possibly wrapped in a bunch of vectors
     // and streams of length 1
     val wrappedTyp = s.typ match {
@@ -1012,8 +1043,8 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
     val f =
       this.f
         .annotateFunc(tupledTyp)
-        .tchk(context)
-        .expectType(tupledTyp ->: wrappedTyp)
+        .tchk(context, constValues)
+        .expectType(tupledTyp ->: wrappedTyp, constValues)
     this.rebuild(TyStm(wrappedTyp, 1), Seq(s, f))
   }
 
@@ -1128,9 +1159,10 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s1 = this.s1.tchk(context)
+    val s1 = this.s1.tchk(context, constValues)
     val (n, m) = s1.typ match {
       case TyStm(TyVec(_: TyAnyInt, m), n) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
@@ -1141,17 +1173,17 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
             + s" Expected a stream of vectors."
         )
     }
-    val s2 = this.s2.tchk(context)
+    val s2 = this.s2.tchk(context, constValues)
     s2.typ match {
       case TyStm(TyVec(_: TyAnyInt, m2), n2) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
-        if (!c.sameLen(n, n2)) {
+        if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
               + s" Expected a stream of length $n."
           )
         }
-        if (!c.sameLen(m, m2)) {
+        if (!c.sameLen(m, m2, constValues)) {
           throw new TypeError(
             s"Second stream in $className contains vectors of length $m2."
               + s" Expected vectors of length $m."
@@ -1224,9 +1256,10 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     val t1 = s.typ match {
       case TyStm(TyData(t), _) => t
       case TyStm(_: TyStm, _) =>
@@ -1237,7 +1270,7 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
             + s" Expected a stream."
         )
     }
-    val z = this.z.tchk(context)
+    val z = this.z.tchk(context, constValues)
     val t2 = z.typ match {
       case TyData(t) => t
       case t =>
@@ -1246,7 +1279,9 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
             + s" Expected a data type."
         )
     }
-    val f = this.f.tchk(context).expectType((t2, t1) ->: t2)
+    val f = this.f
+      .tchk(context, constValues)
+      .expectType((t2, t1) ->: t2, constValues)
     this.rebuild(TyStm(z.typ, 1), Seq(s, z, f))
   }
 
@@ -1296,9 +1331,10 @@ case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     s.typ match {
       case TyStm(TyBool, _) => ()
       case t =>
@@ -1330,9 +1366,10 @@ case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     s.typ match {
       case TyStm(TyBool, _) => ()
       case t =>
@@ -1364,9 +1401,10 @@ case class StmSum(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     val typ = s.typ match {
       case TyStm(t: TyAnyInt, _) => t
       case t =>
@@ -1401,9 +1439,10 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, n) =>
         this.rebuild(TyStm(t, n), Seq(newV))
@@ -1451,9 +1490,10 @@ case class Vec2StmOld(v: Expr /* Vec<A; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, n) =>
         this.rebuild(TyStm(t, n), Seq(newV))
@@ -1496,14 +1536,15 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmPrepend has type $t.")
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
@@ -1525,14 +1566,15 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmAppend has type $t.")
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyStm(t, n + 1), Seq(newS, newE))
   }
 
@@ -1564,10 +1606,11 @@ case class StmPrefix(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val k = this.k.tchk(context).expectUInt()
-    val s = this.stm.tchk(context)
+    val k = this.k.tchk(context, constValues).expectUInt()
+    val s = this.stm.tchk(context, constValues)
     s.typ match {
       case TyStm(t, _) =>
         this.rebuild(TyStm(t, k), Seq(s, k))
@@ -1617,10 +1660,11 @@ case class StmSuffix(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newK = k.tchk(context).expectUInt()
-    val newS = stm.tchk(context)
+    val newK = k.tchk(context, constValues).expectUInt()
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, _) =>
         this.rebuild(TyStm(t, newK), Seq(newS, newK))
@@ -1676,14 +1720,15 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmShiftLeft has type $t.")
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
@@ -1714,14 +1759,15 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmShiftRight has type $t.")
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyStm(t, n), Seq(newS, newE))
   }
 
@@ -1749,9 +1795,10 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in $className has type $t.")
@@ -1762,7 +1809,10 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
       )
     }
     val newShiftAmount =
-      this.shiftAmount.tchk(context).expectUInt().asInstanceOf[IntCst]
+      this.shiftAmount
+        .tchk(context, constValues)
+        .expectUInt()
+        .asInstanceOf[IntCst]
     if (newShiftAmount.i <= 0) {
       throw new TypeError(
         s"Shift amount in $className must be strictly positive (got $newShiftAmount)."
@@ -1833,9 +1883,10 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val stm = this.stm.tchk(context)
+    val stm = this.stm.tchk(context, constValues)
     stm.typ match {
       case TyStm(_: TyVec, _) => ()
       case t =>
@@ -1845,7 +1896,10 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         )
     }
     val shiftAmount =
-      this.shiftAmount.tchk(context).expectUInt().asInstanceOf[IntCst]
+      this.shiftAmount
+        .tchk(context, constValues)
+        .expectUInt()
+        .asInstanceOf[IntCst]
     if (shiftAmount.i <= 0) {
       throw new TypeError(
         s"Shift amount in $className must be strictly positive (got $shiftAmount)."
@@ -1910,9 +1964,10 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS1 = stm1.tchk(context)
+    val newS1 = stm1.tchk(context, constValues)
     val (t1, n1) = newS1.typ match {
       case TyStm(t, n1) => (t, n1)
       case t =>
@@ -1920,12 +1975,13 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
           s"First input in StmConcat has type $t. Expected a stream."
         )
     }
-    val newS2 = stm2.tchk(context)
+    val newS2 = stm2.tchk(context, constValues)
     val n2 = newS2.typ match {
-      case TyStm(t2, n2) if t2 ~= t1 => n2
+      case TyStm(t2, n2) if t2.equalsGivenConstants(t1, constValues) => n2
       case t =>
         throw new TypeError(
-          s"Second input in StmConcat has type $t. Expected a stream of $t1."
+          s"second input in StmConcat has type $t. Expected a stream of $t1",
+          TypeChecker.relevantBindings(constValues, t, t1)
         )
     }
     this.rebuild(TyStm(t1, SafeSum(n1, n2)()), Seq(newS1, newS2))
@@ -1969,9 +2025,10 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newA = a.tchk(context)
+    val newA = a.tchk(context, constValues)
     val (t1, n) = newA.typ match {
       case TyStm(t1, n) if t1.isData => (t1, n)
       case t =>
@@ -1979,7 +2036,7 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
           s"First stream in StmZip has type $t. Expected a non-nested stream."
         )
     }
-    val newB = b.tchk(context)
+    val newB = b.tchk(context, constValues)
     val t2 = newB.typ match {
       case TyStm(t2, _) if t1.isData => t2
       case t =>
@@ -2024,10 +2081,11 @@ case class StmRepeat(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newM = m.tchk(context).expectUInt()
-    val newS = stm.tchk(context)
+    val newM = m.tchk(context, constValues).expectUInt()
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, n), m), Seq(newS, newM))
@@ -2097,9 +2155,10 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(t, n), Seq(newS))
@@ -2139,10 +2198,11 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newM = m.tchk(context).expectUInt()
-    val newS = stm.tchk(context)
+    val newM = m.tchk(context, constValues).expectUInt()
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(TyStm(t, newM), n / newM), Seq(newS, newM))
@@ -2168,9 +2228,10 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(TyStm(t, m), n) =>
         this.rebuild(TyStm(t, SafeProd(m, n)()), Seq(newS))
@@ -2215,11 +2276,12 @@ case class StmSlide(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newWinSize = this.winSize.tchk(context).expectUInt()
-    val newStride = this.stride.tchk(context).expectUInt()
-    val newInput = this.input.tchk(context)
+    val newWinSize = this.winSize.tchk(context, constValues).expectUInt()
+    val newStride = this.stride.tchk(context, constValues).expectUInt()
+    val newInput = this.input.tchk(context, constValues)
     newInput.typ match {
       case TyStm(t, n) if t.isData =>
         // First window start index (inclusive): 0
@@ -2302,10 +2364,11 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newM = m.tchk(context).expectUInt()
-    val newS = stm.tchk(context)
+    val newM = m.tchk(context, constValues).expectUInt()
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) if t.isData =>
         this.rebuild(
@@ -2344,9 +2407,10 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val s = this.s.tchk(context)
+    val s = this.s.tchk(context, constValues)
     val (elemTyp, n) = s.typ match {
       case TyStm(TyData(t), n) => (t, n)
       case t =>
@@ -2354,7 +2418,7 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
           s"Stream in $className has type $t. Expected a non-nested stream."
         )
     }
-    val z = this.z.tchk(context)
+    val z = this.z.tchk(context, constValues)
     val m = z.typ match {
       case TyVec(TyData(t1), m) if t1 == elemTyp => m
       case t =>
@@ -2407,9 +2471,10 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val stm = this.stm.tchk(context)
+    val stm = this.stm.tchk(context, constValues)
     val (t, n, m) = stm.typ match {
       case TyStm(TyStm(TyData(t), m), n) => (t, n, m)
       case t =>
@@ -2417,8 +2482,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
           s"Stream in $className has type $t. Expected a 2D stream."
         )
     }
-    val winHeight = this.winHeight.tchk(context).expectUInt()
-    val winWidth = this.winWidth.tchk(context).expectUInt()
+    val winHeight = this.winHeight.tchk(context, constValues).expectUInt()
+    val winWidth = this.winWidth.tchk(context, constValues).expectUInt()
     val outHeight = ToUnsigned(SafeSum(n, 1, C(-1)() * winHeight)())()
     val outWidth = ToUnsigned(SafeSum(m, 1, C(-1)() * winWidth)())()
     val outTyp =
@@ -2502,9 +2567,10 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(TyStm(t, m), n) if t.isData =>
         this.rebuild(TyStm(TyStm(t, n), m), Seq(newS))

@@ -13,10 +13,11 @@ case class TestInput(e: Expr, x: String)(typ: Type)
     }
   }
 
-  override def typecheck(context: Map[Param, Type])(implicit
-      c: Canonicalizer
-  ): Expr = {
-    val e = this.e.tchk(context)
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val e = this.e.tchk(context, constValues)
     this.rebuild(e.typ, Seq(e))
   }
 

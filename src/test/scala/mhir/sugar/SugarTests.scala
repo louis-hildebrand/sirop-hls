@@ -322,6 +322,40 @@ class SugarTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == "1:u8 + (let x = 42:u8 in x)")
   }
 
+  test("Let:Vec[bool, n] <- Vec[bool, 3]") {
+    val n = Param("n")(U8)
+    val nVal = C(3)(U8)
+    val constValues = Map(n -> nVal)
+    val x = Param("x")(TyVec(TyBool, n))
+    val rhs = VecLiteral(True, False, True)()
+    val let = Let(x, rhs, VecBuild(n, U8 ::+ (i => !VecAccess(x, i)()))())()
+    val actual = mhir.eval.eval(
+      let
+        .tchk(Map(), constValues)
+        .subPreserveType(constValues.toMap[Expr, Expr])
+        .lower
+    )
+    val expected = VecLiteral(False, True, False)()
+    assert(actual == expected)
+  }
+
+  test("Let:Vec[bool, 4] <- Vec[bool, n]") {
+    val n = Param("n")(U8)
+    val nVal = C(4)(U8)
+    val constValues = Map(n -> nVal)
+    val x = Param("x")(TyVec(TyBool, 4))
+    val rhs = VecBuild(n, U8 ::+ (i => i % C(2)(U8) equ C(0)(U8)))()
+    val let = Let(x, rhs, VecBuild(n, U8 ::+ (i => !VecAccess(x, i)()))())()
+    val actual = mhir.eval.eval(
+      let
+        .tchk(Map(), constValues)
+        .subPreserveType(constValues.toMap[Expr, Expr])
+        .lower
+    )
+    val expected = VecLiteral(False, True, False, True)()
+    assert(actual == expected)
+  }
+
   test("Lets") {
     val x = Param("x")()
     val y = Param("y")()
@@ -381,6 +415,32 @@ class SugarTests extends AnyFunSuite {
       e(TyVec(I8, 5), TyVec(I16, 5))
         == VecBuild(5, U32 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
     )
+  }
+
+  test("ReshapeData:Valid:ConstInType1") {
+    val n = Param("n")(U8)
+    val nVal = 8
+    val constValues = Map(n -> C(nVal)(U8))
+    val t2 = TyVec(U16, nVal)
+    val v = VecBuild(n, U8 ::+ (i => i))().tchk().lower
+    val e = ReshapeData(v, t2)().tchk(Map(), constValues).lower
+    val actual =
+      mhir.eval.eval(e.subPreserveType(constValues.toMap[Expr, Expr]))
+    val expected = VecLiteral((0 until nVal).map(C(_)(U16)): _*)().tchk()
+    assert(actual == expected)
+  }
+
+  test("ReshapeData:Valid:ConstInType2") {
+    val n = Param("n")(U8)
+    val nVal = 9
+    val constValues = Map(n -> C(nVal)(U8))
+    val t2 = TyVec(U16, n)
+    val v = VecBuild(nVal, U8 ::+ (i => i))().tchk().lower
+    val e = ReshapeData(v, t2)().tchk(Map(), constValues).lower
+    val actual =
+      mhir.eval.eval(e.subPreserveType(constValues.toMap[Expr, Expr]))
+    val expected = VecLiteral((0 until nVal).map(C(_)(U16)): _*)().tchk()
+    assert(actual == expected)
   }
 
   test("ReshapeData:Invalid") {

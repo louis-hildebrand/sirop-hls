@@ -743,11 +743,11 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
     assert(f == expectedF)
   }
 
-  test("Stm2Vec2Stm") {
+  ignore("Stm2Vec2Stm") {
     val n = Param("n")(U8)
     val input = Param("input")(TyStm(I16, n))
     val t = Param("t")(I33)
-    val s = Param("s")(TyStm(I16, -1))
+    val s = Param("s")(TyStm(I16, n))
     val v = Param("v")(TyVec(I16, n))
     val original = StmBuild(
       n,

@@ -13,9 +13,10 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val e = this.e.tchk(context)
+    val e = this.e.tchk(context, constValues)
     // TODO: Check whether the given in/out type combination is supported?
     this.rebuild(targetTyp, Seq(e))
   }

@@ -10,7 +10,8 @@ sealed abstract class Pattern(children: Expr*)(typ: Type)
     extends SyntaxSugar(children: _*)(typ) {
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     if (this.typ == Missing) {
       throw new TypeError("missing type annotations for pattern")

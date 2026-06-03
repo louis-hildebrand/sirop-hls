@@ -3,7 +3,7 @@ package mhir.sugar
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
-import mhir.typecheck.{TProd, TypeCheck, TypeError}
+import mhir.typecheck.{TProd, TypeCheck, TypeChecker, TypeError}
 
 case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
     extends SyntaxSugar(p, body)(typ) {
@@ -16,10 +16,11 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val p = this.p.tchk(context)
-    val body = this.body.tchk(context ++ makeContext(this.p))
+    val p = this.p.tchk(context, constValues)
+    val body = this.body.tchk(context ++ makeContext(this.p), constValues)
     val typ = p.typ ->: body.typ
     this.rebuild(typ, Seq(p, body))
   }
@@ -233,21 +234,23 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     val x = this.x.typ match {
       case Missing => this.x.rebuild(v.typ).asInstanceOf[Param]
       case t =>
-        if (t ~= v.typ) {
+        if (t.equalsGivenConstants(v.typ, constValues)) {
           this.x
         } else {
           throw new TypeError(
-            s"Cannot assign value of type ${v.typ} to variable of type $t."
+            s"cannot assign value of type ${v.typ} to variable of type $t",
+            TypeChecker.relevantBindings(constValues, v.typ, t)
           )
         }
     }
-    val in = this.in.tchk(context + (this.x -> v.typ))
+    val in = this.in.tchk(context + (this.x -> v.typ), constValues)
     Let(x, v, in)(in.typ)
   }
 
@@ -408,7 +411,8 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     // Check that the requested type indeed has a default
     DefaultVal(this.typ)
@@ -463,10 +467,11 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newE = e.tchk(context)
-    if (ReshapeData.canReshape(newE.typ, targetType)) {
+    val newE = e.tchk(context, constValues)
+    if (ReshapeData.canReshape(newE.typ, targetType, constValues)) {
       this.rebuild(targetType, Seq(newE))
     } else {
       throw new TypeError(
@@ -546,7 +551,11 @@ object ReshapeData {
     * Furthermore <code>bool</code> cannot be converted to <code>u8</code>
     * because they are entirely different types.
     */
-  def canReshape(t1: Type, t2: Type)(implicit c: Canonicalizer): Boolean = {
+  def canReshape(
+      t1: Type,
+      t2: Type,
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Boolean = {
     (t1, t2) match {
       case (TyBool, TyBool)         => true
       case (TyUInt(w1), TyUInt(w2)) => w2 >= w1
@@ -555,9 +564,11 @@ object ReshapeData {
       case (TySInt(w1), TySInt(w2)) => w2 >= w1
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length
-        && ts1.zip(ts2).forall({ case (t1, t2) => canReshape(t1, t2) }))
+        && ts1
+          .zip(ts2)
+          .forall({ case (t1, t2) => canReshape(t1, t2, constValues) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canReshape(t1, t2) && c.sameLen(n1, n2)
+        canReshape(t1, t2, constValues) && c.sameLen(n1, n2, constValues)
       case _ => false
     }
   }
@@ -565,9 +576,11 @@ object ReshapeData {
   /** Tries to find the narrowest type such that this type and the given type
     * can both be reshaped to that type.
     */
-  def narrowestCommonAncestor(t1: Type, t2: Type)(implicit
-      c: Canonicalizer
-  ): Option[Type] = {
+  def narrowestCommonAncestor(
+      t1: Type,
+      t2: Type,
+      constValues: Map[Param, Expr] = Map()
+  )(implicit c: Canonicalizer): Option[Type] = {
     (t1, t2) match {
       case (TyBool, TyBool)         => Some(TyBool)
       case (TyUInt(w1), TyUInt(w2)) => Some(TyUInt(math.max(w1, w2)))
@@ -580,14 +593,16 @@ object ReshapeData {
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) if ts1.length == ts2.length =>
         val elemTypeOptions = ts1
           .zip(ts2)
-          .map({ case (t1, t2) => ReshapeData.narrowestCommonAncestor(t1, t2) })
+          .map({ case (t1, t2) =>
+            ReshapeData.narrowestCommonAncestor(t1, t2, constValues)
+          })
         if (elemTypeOptions.forall(x => x.isDefined)) {
           Some(TyTuple(elemTypeOptions.map(x => x.get): _*))
         } else {
           None
         }
-      case (TyVec(t1, n1), TyVec(t2, n2)) if c.sameLen(n1, n2) =>
-        narrowestCommonAncestor(t1, t2) match {
+      case (TyVec(t1, n1), TyVec(t2, n2)) if c.sameLen(n1, n2, constValues) =>
+        narrowestCommonAncestor(t1, t2, constValues) match {
           case Some(t) => Some(TyVec(t, n1))
           case None    => None
         }
@@ -596,13 +611,14 @@ object ReshapeData {
   }
 
   def narrowestCommonAncestor(
-      ts: Seq[Type]
+      ts: Seq[Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Option[Type] = {
     require(ts.nonEmpty)
     ts.tail.foldLeft[Option[Type]](Some(ts.head))({ case (acc, t) =>
       acc match {
         case None      => None
-        case Some(acc) => narrowestCommonAncestor(acc, t)
+        case Some(acc) => narrowestCommonAncestor(acc, t, constValues)
       }
     })
   }
@@ -626,9 +642,10 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newE1 = e1.tchk(context)
+    val newE1 = e1.tchk(context, constValues)
     newE1.typ match {
       case t if t.isData => ()
       case t =>
@@ -636,7 +653,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
           s"Left-hand side of $className has non-data type $t."
         )
     }
-    val newE2 = e2.tchk(context)
+    val newE2 = e2.tchk(context, constValues)
     newE2.typ match {
       case t if t.isData => ()
       case t =>
@@ -644,7 +661,11 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
           s"Right-hand side of $className has non-data type $t."
         )
     }
-    ReshapeData.narrowestCommonAncestor(newE1.typ, newE2.typ) match {
+    ReshapeData.narrowestCommonAncestor(
+      newE1.typ,
+      newE2.typ,
+      constValues
+    ) match {
       case Some(_) =>
         this.rebuild(TyBool, Seq(newE1, newE2))
       case None =>
@@ -696,9 +717,10 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newLhs = e1.tchk(context)
+    val newLhs = e1.tchk(context, constValues)
     newLhs.typ match {
       case _: TyAnyInt => ()
       case t =>
@@ -707,7 +729,7 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer."
         )
     }
-    val newRhs = e2.tchk(context)
+    val newRhs = e2.tchk(context, constValues)
     newRhs.typ match {
       case _: TyAnyInt => ()
       case t =>
@@ -759,10 +781,11 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val newTerms = terms.zipWithIndex.map({ case (e, i) =>
-      val newE = e.tchk(context)
+      val newE = e.tchk(context, constValues)
       newE.typ match {
         case _: TyAnyInt => newE
         case t =>
@@ -775,7 +798,9 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
     val typ = if (newTerms.isEmpty) {
       TyUInt(0)
     } else {
-      ReshapeData.narrowestCommonAncestor(newTerms.map(e => e.typ)).get
+      ReshapeData
+        .narrowestCommonAncestor(newTerms.map(e => e.typ), constValues)
+        .get
     }
     this.rebuild(typ, newTerms)
   }
@@ -820,9 +845,10 @@ case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newLhs = e1.tchk(context)
+    val newLhs = e1.tchk(context, constValues)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -831,7 +857,7 @@ case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer"
         )
     }
-    val newRhs = e2.tchk(context)
+    val newRhs = e2.tchk(context, constValues)
     val t2 = newRhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -840,7 +866,7 @@ case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer."
         )
     }
-    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2, constValues).get
     this.rebuild(typ, Seq(newLhs, newRhs))
   }
 
@@ -886,10 +912,11 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val newFactors = factors.zipWithIndex.map({ case (e, i) =>
-      val newE = e.tchk(context)
+      val newE = e.tchk(context, constValues)
       newE.typ match {
         case _: TyAnyInt => newE
         case t =>
@@ -902,7 +929,9 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
     val typ = if (newFactors.isEmpty) {
       TyUInt(1)
     } else {
-      ReshapeData.narrowestCommonAncestor(newFactors.map(e => e.typ)).get
+      ReshapeData
+        .narrowestCommonAncestor(newFactors.map(e => e.typ), constValues)
+        .get
     }
     this.rebuild(typ, newFactors)
   }
@@ -944,12 +973,16 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val factors = this.factors.map(e => e.tchk(context).expectAnyInt())
+    val factors =
+      this.factors.map(e => e.tchk(context, constValues).expectAnyInt())
     val factorTypes = factors.map(_.typ.asInstanceOf[TyAnyInt])
     val minTyp = TProd(factorTypes: _*)
-    val typ = ReshapeData.narrowestCommonAncestor(minTyp +: factorTypes).get
+    val typ = ReshapeData
+      .narrowestCommonAncestor(minTyp +: factorTypes, constValues)
+      .get
     this.rebuild(typ, factors)
   }
 
@@ -984,9 +1017,10 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newLhs = e1.tchk(context)
+    val newLhs = e1.tchk(context, constValues)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -995,7 +1029,7 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer"
         )
     }
-    val newRhs = e2.tchk(context)
+    val newRhs = e2.tchk(context, constValues)
     val t2 = newRhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -1004,7 +1038,7 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer."
         )
     }
-    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2, constValues).get
     this.rebuild(typ, Seq(newLhs, newRhs))
   }
 
@@ -1049,9 +1083,10 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newLhs = e1.tchk(context)
+    val newLhs = e1.tchk(context, constValues)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -1060,7 +1095,7 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer"
         )
     }
-    val newRhs = e2.tchk(context)
+    val newRhs = e2.tchk(context, constValues)
     val t2 = newRhs.typ match {
       case t: TyAnyInt => t
       case t =>
@@ -1069,7 +1104,7 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
             + " Expected an integer."
         )
     }
-    val typ = ReshapeData.narrowestCommonAncestor(t1, t2).get
+    val typ = ReshapeData.narrowestCommonAncestor(t1, t2, constValues).get
     this.rebuild(typ, Seq(newLhs, newRhs))
   }
 
@@ -1108,7 +1143,8 @@ case class EnsureUnsigned(e: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val e = this.e.tchk().expectAnyInt()
     val outTyp = e.typ.asInstanceOf[TyAnyInt] match {

@@ -974,15 +974,36 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecZip") {
-    val v0 = VecBuild(3, U32 ::+ (i => i))()
+    val n = Param("n")(U8)
+    val nVal = C(3)(U8)
+    val constValues = Map(n -> nVal)
+    val v0 = VecBuild(n, U32 ::+ (i => i))()
     val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
-    val zipped = VecZip(v0, v1)().tchk()
+    val zipped =
+      VecZip(v0, v1)()
+        .tchk(Map(), constValues)
+        .subPreserveType(constValues.toMap[Expr, Expr])
     val expected = VecLiteral(
       Tuple(0, 2)(),
       Tuple(1, 4)(),
       Tuple(2, 6)()
     )()
     assert(mhir.eval.eval(zipped) == expected)
+  }
+
+  test("VecZip:DifferentLengths1") {
+    val v0 = VecBuild(4, U32 ::+ (i => i))()
+    val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
+    assertThrows[TypeError](VecZip(v0, v1)().tchk())
+  }
+
+  test("VecZip:DifferentLengths2") {
+    val n = Param("n")(U8)
+    val nVal = C(4)(U8)
+    val constValues = Map(n -> nVal)
+    val v0 = VecBuild(n, U32 ::+ (i => i))()
+    val v1 = VecBuild(3, U32 ::+ (i => (i + 1) * 2))()
+    assertThrows[TypeError](VecZip(v0, v1)().tchk(Map(), constValues))
   }
 
   test("VecRepeat:Vec[Int]") {

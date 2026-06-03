@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.sugar.StreamReplicator.StreamReplication
 import mhir.sugar.Streamifier.Streamify
-import mhir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{TypeCheck, TypeChecker, TypeError}
 
 import scala.annotation.tailrec
 
@@ -21,9 +21,10 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(_, n) =>
         assert(n.typ != Missing)
@@ -52,10 +53,11 @@ case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val k = this.k.tchk(context)
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val k = this.k.tchk(context, constValues)
     this.rebuild(TyVec(k.typ, n), Seq(n, k))
   }
 
@@ -77,12 +79,15 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     }
   }
 
-  override def typecheck(context: Map[Param, Type])(implicit
-      c: Canonicalizer
-  ): Expr = {
-    val n = this.n.tchk(context).expectUInt()
-    val z = this.z.tchk(context).expectAnyInt()
-    val delta = this.delta.tchk(context).expectType(z.typ)
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val n = this.n.tchk(context, constValues).expectUInt()
+    val z = this.z.tchk(context, constValues).expectAnyInt()
+    val delta = this.delta
+      .tchk(context, constValues)
+      .expectType(z.typ, constValues)
     this.rebuild(TyVec(z.typ, n), Seq(n, z, delta))
   }
 
@@ -107,9 +112,10 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     val (elemTyp, n) = v.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -118,7 +124,7 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
             + s" Expected a vector."
         )
     }
-    val maybeStep = this.step.tchk(context)
+    val maybeStep = this.step.tchk(context, constValues)
     val step = maybeStep.typ match {
       case _: TyAnyInt => maybeStep
       case TyTuple()   => C(1)().tchk()
@@ -128,7 +134,7 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
             + s" Expected an integer or an empty tuple."
         )
     }
-    val maybeStart = this.start.tchk(context)
+    val maybeStart = this.start.tchk(context, constValues)
     val start = maybeStart.typ match {
       case _: TyAnyInt => maybeStart
       case TyTuple()   =>
@@ -149,7 +155,7 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
             + s" Expected an integer or an empty tuple."
         )
     }
-    val maybeLen = this.len.tchk(context)
+    val maybeLen = this.len.tchk(context, constValues)
     val len = maybeLen.typ match {
       case _: TyAnyInt => maybeLen
       case TyTuple() =>
@@ -167,7 +173,8 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
           )().tchk().lower
         val typ = ReshapeData
           .narrowestCommonAncestor(
-            Seq(ifNZero.typ, ifStepNegative.typ, ifStepNonnegative.typ)
+            Seq(ifNZero.typ, ifStepNegative.typ, ifStepNonnegative.typ),
+            constValues
           )
           .get
         ToUnsigned(
@@ -222,9 +229,10 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     val (t1, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -232,13 +240,14 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
           s"Vector of $className has type $t. Expected a vector."
         )
     }
-    val newF = this.f.annotateFunc(t1).tchk(context)
+    val newF = this.f.annotateFunc(t1).tchk(context, constValues)
     newF.typ match {
-      case TyArrow(t, t2) if t ~= t1 =>
+      case TyArrow(t, t2) if t.equalsGivenConstants(t1, constValues) =>
         this.rebuild(TyVec(t2, n), Seq(newV, newF))
       case t =>
         throw new TypeError(
-          s"Function of VecMap has type $t. Expected a function with input type $t1."
+          s"function of VecMap has type $t. Expected a function with input type $t1.",
+          TypeChecker.relevantBindings(constValues, t, t1)
         )
     }
   }
@@ -300,9 +309,10 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v1 = this.v1.tchk(context)
+    val v1 = this.v1.tchk(context, constValues)
     val (t1, n1) = v1.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -311,7 +321,7 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
             + " Expected a vector."
         )
     }
-    val v2 = this.v2.tchk(context)
+    val v2 = this.v2.tchk(context, constValues)
     val (t2, n2) = v2.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -320,19 +330,22 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
             + " Expected a vector."
         )
     }
-    if (!c.sameLen(n1, n2)) {
+    if (!c.sameLen(n1, n2, constValues)) {
       throw new TypeError(
         s"Vector lengths in $className do not match: $n1 and $n2."
       )
     }
-    val f = this.f.annotateFunc(t1, t2).tchk(context)
+    val f = this.f.annotateFunc(t1, t2).tchk(context, constValues)
     val t3 = f.typ match {
-      case TyArrow(ft1, TyArrow(ft2, ft3)) if (ft1 ~= t1) && (ft2 ~= t2) =>
+      case TyArrow(ft1, TyArrow(ft2, ft3))
+          if ft1.equalsGivenConstants(t1, constValues)
+            && ft2.equalsGivenConstants(t2, constValues) =>
         ft3
       case t =>
         throw new TypeError(
-          s"Function in $className has type $t."
-            + s" Expected a function with input types $t1 and $t2."
+          s"function in $className has type $t."
+            + s" Expected a function with input types $t1 and $t2.",
+          TypeChecker.relevantBindings(constValues, t, t1, t2)
         )
     }
     this.rebuild(TyVec(t3, n1), Seq(v1, v2, f))
@@ -406,9 +419,10 @@ case class VecFoldComb(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     val t1 = v.typ match {
       case TyVec(t, _) => t
       case t =>
@@ -416,9 +430,11 @@ case class VecFoldComb(
           s"Vector in $className has type $t. Expected a vector."
         )
     }
-    val z = this.z.tchk(context)
+    val z = this.z.tchk(context, constValues)
     val t2 = z.typ
-    val f = this.f.tchk(context).expectType(t2 ->: t1 ->: t2)
+    val f = this.f
+      .tchk(context, constValues)
+      .expectType(t2 ->: t1 ->: t2, constValues)
     this.rebuild(t2, Seq(v, z, f))
   }
 
@@ -451,9 +467,10 @@ case class VecAll(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     v.typ match {
       case TyVec(TyBool, _) => ()
       case t =>
@@ -485,9 +502,10 @@ case class VecAny(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     v.typ match {
       case TyVec(TyBool, _) => ()
       case t =>
@@ -519,9 +537,10 @@ case class VecSum(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     val typ = v.typ match {
       case TyVec(t: TyAnyInt, _) => t
       case t =>
@@ -567,9 +586,10 @@ case class VecReduceComb(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     // The type of the accumulator, but possibly wrapped in a bunch of vectors
     // and streams of length 1
     val wrappedTyp = v.typ match {
@@ -583,8 +603,8 @@ case class VecReduceComb(
     val f =
       this.f
         .annotateFunc(tupledTyp)
-        .tchk(context)
-        .expectType(tupledTyp ->: wrappedTyp)
+        .tchk(context, constValues)
+        .expectType(tupledTyp ->: wrappedTyp, constValues)
     this.rebuild(TyVec(wrappedTyp, 1), Seq(v, f))
   }
 
@@ -700,9 +720,10 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = s.tchk(context)
+    val newS = s.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) => this.rebuild(TyStm(TyVec(t, n), 1), Seq(newS))
       case t           => throw new TypeError(s"Stream in Stm2Vec has type $t.")
@@ -748,10 +769,11 @@ case class Vec2Tuple(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
     }
   }
 
-  override def typecheck(context: Map[Param, Type])(implicit
-      c: Canonicalizer
-  ): Expr = {
-    val v = this.v.tchk(context)
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context, constValues)
     val (t, n) = v.typ match {
       case TyVec(t, IntCst(n)) => (t, n)
       case TyVec(_, n) =>
@@ -783,21 +805,22 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t => throw new TypeError(s"Vector of VecPrepend has type $t.")
     }
-    val newE = e.tchk(context)
-    if (newE.typ ~= t) {
-      this.rebuild(TyVec(t, SafeSum(n, 1)().tchk()), Seq(newV, newE))
-    } else {
+    val newE = e.tchk(context, constValues)
+    if (!newE.typ.equalsGivenConstants(t, constValues)) {
       throw new TypeError(
-        s"Element of VecPrepend has type ${newE.typ}. Expected $t."
+        s"element of VecPrepend has type ${newE.typ}. Expected $t.",
+        TypeChecker.relevantBindings(constValues, newE.typ, t)
       )
     }
+    this.rebuild(TyVec(t, SafeSum(n, 1)().tchk()), Seq(newV, newE))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -817,21 +840,22 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t => throw new TypeError(s"Vector of VecAppend has type $t.")
     }
-    val newE = e.tchk(context)
-    if (newE.typ ~= t) {
-      this.rebuild(TyVec(t, SafeSum(n, 1)().tchk()), Seq(newV, newE))
-    } else {
+    val newE = e.tchk(context, constValues)
+    if (!newE.typ.equalsGivenConstants(t, constValues)) {
       throw new TypeError(
-        s"Element of VecAppend has type ${newE.typ}. Expected $t."
+        s"element of VecAppend has type ${newE.typ}. Expected $t.",
+        TypeChecker.relevantBindings(constValues, newE.typ, t)
       )
     }
+    this.rebuild(TyVec(t, SafeSum(n, 1)()), Seq(newV, newE))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -852,10 +876,11 @@ case class VecPrefix(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newK = k.tchk(context).expectUInt()
-    val newV = vec.tchk(context)
+    val newK = k.tchk(context, constValues).expectUInt()
+    val newV = vec.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, _) =>
         this.rebuild(TyVec(t, newK), Seq(newV, newK))
@@ -884,10 +909,11 @@ case class VecSuffix(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newK = k.tchk(context).expectUInt()
-    val newV = vec.tchk(context)
+    val newK = k.tchk(context, constValues).expectUInt()
+    val newV = vec.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, _) =>
         this.rebuild(TyVec(t, k), Seq(newV, newK))
@@ -928,9 +954,10 @@ case class VecShiftLeft(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = vec.tchk(context)
+    val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -938,7 +965,7 @@ case class VecShiftLeft(
           s"First argument in ${VecShiftLeft.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyVec(t, n), Seq(newV, newE))
   }
 
@@ -983,9 +1010,10 @@ case class VecShiftRight(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = vec.tchk(context)
+    val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -993,7 +1021,7 @@ case class VecShiftRight(
           s"First argument in ${VecShiftRight.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
-    val newE = e.tchk(context).expectType(t)
+    val newE = e.tchk(context, constValues).expectType(t, constValues)
     this.rebuild(TyVec(t, n), Seq(newV, newE))
   }
 
@@ -1021,9 +1049,10 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = vec.tchk(context)
+    val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -1032,7 +1061,10 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
         )
     }
     val newShiftAmount =
-      this.shiftAmount.tchk(context).expectUInt().asInstanceOf[IntCst]
+      this.shiftAmount
+        .tchk(context, constValues)
+        .expectUInt()
+        .asInstanceOf[IntCst]
     if (newShiftAmount.i <= 0) {
       throw new TypeError(
         s"Shift amount in $className must be strictly positive (got $newShiftAmount)."
@@ -1068,9 +1100,10 @@ case class VecConcat(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV1 = v1.tchk(context)
+    val newV1 = v1.tchk(context, constValues)
     val (t1, n1) = newV1.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -1078,7 +1111,7 @@ case class VecConcat(
           s"First argument in VecConcat has type $t. Expected a vector."
         )
     }
-    val newV2 = v2.tchk(context)
+    val newV2 = v2.tchk(context, constValues)
     val (t2, n2) = newV2.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -1086,13 +1119,13 @@ case class VecConcat(
           s"Second argument in VecConcat has type $t. Expected a vector."
         )
     }
-    if (t1 ~= t2) {
-      this.rebuild(TyVec(t1, SafeSum(n1, n2)().tchk()), Seq(newV1, newV2))
-    } else {
+    if (!t1.equalsGivenConstants(t2, constValues)) {
       throw new TypeError(
-        s"First vector in VecConcat contains elements of type $t1, but second vector contains elements of type $t2."
+        s"first vector in VecConcat contains elements of type $t1, but second vector contains elements of type $t2",
+        TypeChecker.relevantBindings(constValues, t1, t2)
       )
     }
+    this.rebuild(TyVec(t1, SafeSum(n1, n2)().tchk()), Seq(newV1, newV2))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -1133,9 +1166,10 @@ case class VecZip(a: Expr, b: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val a = this.a.tchk(context)
+    val a = this.a.tchk(context, constValues)
     val (aElem, aLen) = a.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -1143,13 +1177,18 @@ case class VecZip(a: Expr, b: Expr)(typ: Type = Missing)
           s"First argument to $className has type $t. Expected a vector."
         )
     }
-    val b = this.b.tchk(context)
-    val bElem = b.typ match {
-      case TyVec(t, _) => t
+    val b = this.b.tchk(context, constValues)
+    val (bElem, bLen) = b.typ match {
+      case TyVec(t, n) => (t, n)
       case t =>
         throw new TypeError(
           s"First argument to $className has type $t. Expected a vector."
         )
+    }
+    if (!c.sameLen(aLen, bLen, constValues)) {
+      throw new TypeError(
+        s"Vector lengths in $className do not match: $aLen and $bLen."
+      )
     }
     this.rebuild(TyVec((aElem, bElem), aLen), Seq(a, b))
   }
@@ -1199,9 +1238,10 @@ case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val vec = this.vec.tchk(context)
+    val vec = this.vec.tchk(context, constValues)
     val (t, n) = vec.typ match {
       case TyVec(t, n) => (t, n)
       case t =>
@@ -1210,7 +1250,7 @@ case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
             + " Expected a vector."
         )
     }
-    val m = this.m.tchk(context).expectUInt()
+    val m = this.m.tchk(context, constValues).expectUInt()
     this.rebuild(TyVec(TyVec(t, m), n / m), Seq(vec, m))
   }
 
@@ -1238,9 +1278,10 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newV = v.tchk(context)
+    val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(TyVec(t, m), n) =>
         this.rebuild(TyVec(t, SafeProd(n, m)().tchk()), Seq(newV))
@@ -1288,9 +1329,10 @@ case class VecTranspose(v: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context)
+    val v = this.v.tchk(context, constValues)
     val (t, n, m) = v.typ match {
       case TyVec(TyVec(t, m), n) => (t, n, m)
       case t =>

@@ -1291,7 +1291,7 @@ object Parser {
         // since n is free here!
         // Therefore, type check the length beforehand, with the set of
         // constants as the typing context.
-        val checkedLen = len.tchk(constants)
+        val checkedLen = len.tchk(constants, Map())
         (TyVec(typ, checkedLen), rest5)
       case Seq(tok, _*) =>
         throw SyntaxError(s"expected a Vec type but found ${tok.quot}")
@@ -1326,7 +1326,7 @@ object Parser {
               rest3.head.loc
             )
           }
-          len.tchk(constants)
+          len.tchk(constants, Map())
         }
         (TyStm(typ, checkedLen), rest5)
       case Seq(tok, _*) =>

@@ -420,7 +420,7 @@ class ExprTests extends AnyFunSuite {
         ),
         inCtr -> (IntCst(1)(U8), inCtr + 2)
       )
-    )().tchk(context).asInstanceOf[StmBuild]
+    )().tchk(context, Map()).asInstanceOf[StmBuild]
 
     val actual = PartialEvalPass
       .partialEval(original.addInputCounter(s, inCtr))

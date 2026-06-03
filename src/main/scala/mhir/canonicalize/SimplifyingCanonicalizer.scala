@@ -19,7 +19,16 @@ object SimplifyingCanonicalizer extends Canonicalizer {
     PE.partialEval(n2.tchk().lower)
   }
 
-  override def sameLen(n1: Expr, n2: Expr): Boolean = {
-    PE.isEqual(n1.tchk(), n2.tchk())().getOrElse(false)
+  override def sameLen(
+      n1: Expr,
+      n2: Expr,
+      constValues: Map[Param, Expr]
+  ): Boolean = {
+    val subs = constValues.toMap[Expr, Expr]
+    PE.isEqual(
+      n1.tchk().lower.subPreserveType(subs),
+      n2.tchk().lower.subPreserveType(subs)
+    )()
+      .getOrElse(false)
   }
 }

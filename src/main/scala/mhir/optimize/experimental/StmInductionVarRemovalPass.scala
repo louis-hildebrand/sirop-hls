@@ -35,9 +35,10 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newK = this.k.tchk(context)(c)
+    val newK = this.k.tchk(context, constValues)(c)
     newK.typ match {
       case _: TyAnyInt => ()
       case t =>
@@ -46,7 +47,7 @@ case class StmNextK(s: Expr /* Stm<A; n> */, k: Expr /* Int */ )(
             + " Expected an integer."
         )
     }
-    val newS = s.tchk(context)(c)
+    val newS = s.tchk(context, constValues)(c)
     newS.typ match {
       case TyStm(t, n) =>
         this.rebuild(TyStm(t, n - k)(c), Seq(newS, newK))
@@ -85,7 +86,7 @@ class StmInductionVarRemovalPass(facts: FactSet) {
       c: Expr
   ): Option[Map[Param, Expr]] = {
     require(
-      ReshapeData.canReshape(c.typ, I33),
+      ReshapeData.canReshape(c.typ, I33, Map()),
       s"Unsupported type for time (expected something that can be reshaped to $I33, got ${c.typ})."
     )
 

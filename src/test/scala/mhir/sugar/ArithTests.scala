@@ -105,11 +105,19 @@ class ArithTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("Cast:Vec[u8, n] to Vec[u16, n]") {
+  test("Cast:Vec[u8, 5] to Vec[u16, n]") {
     val n = Param("n")(U8)
-    val x = Param("x")(TyVec(U8, n))
-    val actual = Cast(x, TyVec(U16, n))().tchk().lower
-    val expected = VecBuild(n, U8 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
+    val nVal = C(5)(U8)
+    val constValues = Map(n -> nVal)
+    val v = VecLiteral(C(0)(U8), C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8))()
+    val actual = mhir.eval.eval(
+      Cast(v, TyVec(U16, n))()
+        .tchk(Map(), constValues)
+        .lower
+        .subPreserveType(n -> nVal)
+    )
+    val expected =
+      VecLiteral(C(0)(U16), C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))()
     assert(actual == expected)
   }
 

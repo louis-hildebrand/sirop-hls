@@ -36,16 +36,17 @@ case class StmScanInclusive(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = input.tchk(context)
+    val newS = input.tchk(context, constValues)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmScanInclusive has type $t.")
     }
-    val newZ = z.tchk(context)
+    val newZ = z.tchk(context, constValues)
     val t2 = newZ.typ
-    val newF = f.tchk(context)
+    val newF = f.tchk(context, constValues)
     newF.typ match {
       case TyArrow(t3, TyArrow(t4, t5))
           if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
@@ -176,16 +177,17 @@ case class StmScanExclusive(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stm.tchk(context)
+    val newS = stm.tchk(context, constValues)
     val (t1, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
       case t => throw new TypeError(s"Stream in StmScanExclusive has type $t.")
     }
-    val newZ = z.tchk(context)
+    val newZ = z.tchk(context, constValues)
     val t2 = newZ.typ
-    val newF = f.tchk(context)
+    val newF = f.tchk(context, constValues)
     newF.typ match {
       case TyArrow(t3, TyArrow(t4, t5))
           if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>
@@ -222,16 +224,17 @@ case class StmFold(
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newS = stream.tchk(context)
+    val newS = stream.tchk(context, constValues)
     val t1 = newS.typ match {
       case TyStm(t, _) => t
       case t           => throw new TypeError(s"Stream in StmFold has type $t.")
     }
-    val newZ = z.tchk(context)
+    val newZ = z.tchk(context, constValues)
     val t2 = newZ.typ
-    val newF = f.tchk(context)
+    val newF = f.tchk(context, constValues)
     newF.typ match {
       case TyArrow(t3, TyArrow(t4, t5))
           if (t3 ~= t2) && (t4 ~= t1) && (t5 ~= t2) =>

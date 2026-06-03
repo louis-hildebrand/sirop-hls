@@ -31,11 +31,12 @@ case class Min(x: Expr, y: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val x = this.x.tchk(context).expectAnyInt()
-    val y = this.y.tchk(context).expectAnyInt()
-    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+    val x = this.x.tchk(context, constValues).expectAnyInt()
+    val y = this.y.tchk(context, constValues).expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
       case None =>
@@ -76,11 +77,12 @@ case class Max(x: Expr, y: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val x = this.x.tchk(context).expectAnyInt()
-    val y = this.y.tchk(context).expectAnyInt()
-    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+    val x = this.x.tchk(context, constValues).expectAnyInt()
+    val y = this.y.tchk(context, constValues).expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
       case None =>
@@ -126,11 +128,12 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val x = this.x.tchk(context).expectAnyInt()
-    val y = this.y.tchk(context).expectAnyInt()
-    ReshapeData.narrowestCommonAncestor(x.typ, y.typ) match {
+    val x = this.x.tchk(context, constValues).expectAnyInt()
+    val y = this.y.tchk(context, constValues).expectAnyInt()
+    ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
       case Some(typ) =>
         this.rebuild(typ, Seq(x, y))
       case None =>
@@ -171,10 +174,11 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val e = this.e.tchk(context)
-    if (!Cast.canCast(e.typ, this.target)) {
+    val e = this.e.tchk(context, constValues)
+    if (!Cast.canCast(e.typ, this.target, constValues)) {
       throw new TypeError(s"Cannot cast from ${e.typ} to ${this.target}.")
     }
     this.rebuild(this.target, Seq(e))
@@ -208,17 +212,21 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
 }
 
 object Cast {
-  private def canCast(t1: Type, t2: Type)(implicit
-      c: Canonicalizer
-  ): Boolean = {
+  private def canCast(
+      t1: Type,
+      t2: Type,
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Boolean = {
     (t1, t2) match {
       case _ if t1 ~= t2              => true
       case (_: TyAnyInt, _: TyAnyInt) => true
       case (TyTuple(ts1 @ _*), TyTuple(ts2 @ _*)) =>
         (ts1.length == ts2.length
-        && ts1.zip(ts2).forall({ case (t1, t2) => canCast(t1, t2) }))
+        && ts1
+          .zip(ts2)
+          .forall({ case (t1, t2) => canCast(t1, t2, constValues) }))
       case (TyVec(t1, n1), TyVec(t2, n2)) =>
-        canCast(t1, t2) && c.sameLen(n1, n2)
+        canCast(t1, t2, constValues) && c.sameLen(n1, n2, constValues)
       case _ => false
     }
   }
@@ -239,9 +247,10 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
   }
 
   override def typecheck(
-      context: Map[Param, Type]
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val terms = this.terms.map(e => e.tchk(context).expectAnyInt())
+    val terms = this.terms.map(e => e.tchk(context, constValues).expectAnyInt())
     this.rebuild(
       TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
       terms

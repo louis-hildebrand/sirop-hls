@@ -18,7 +18,11 @@ trait Canonicalizer {
     * If the result is <code>true</code> then the lengths are definitely equal,
     * but if the result is <code>False</code> then they may or may not be equal.
     */
-  def sameLen(n1: Expr, n2: Expr): Boolean
+  def sameLen(
+      n1: Expr,
+      n2: Expr,
+      constValues: Map[Param, Expr] = Map()
+  ): Boolean
 }
 
 /** A [[Canonicalizer]] that leaves the expression as-is.
@@ -29,7 +33,14 @@ trait Canonicalizer {
 object NoOpCanonicalizer extends Canonicalizer {
   override def canonicalize(n: Expr): Expr = n
 
-  override def sameLen(n1: Expr, n2: Expr): Boolean = n1 == n2
+  override def sameLen(
+      n1: Expr,
+      n2: Expr,
+      constValues: Map[Param, Expr]
+  ): Boolean = {
+    val subs = constValues.toMap[Expr, Expr]
+    n1.subPreserveType(subs)(this) == n2.subPreserveType(subs)(this)
+  }
 }
 
 /** The type of an expression.

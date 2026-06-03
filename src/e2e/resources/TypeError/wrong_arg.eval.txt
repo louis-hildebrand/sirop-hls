@@ -1,1 +1,1 @@
-TypeError: Function expects type u8, but argument has type bool.
+TypeError: function expects type u8, but argument has type bool

@@ -8,8 +8,18 @@ trait TypeChecker {
 
   implicit class TypeCheck(expr: Expr) {
 
+    def tchk()(implicit c: Canonicalizer): Expr = {
+      this.tchk(Map(), Map())(c)
+    }
+
     /** Type checks this expression and annotates it with its type.
       *
+      * @param context
+      *   the typing context. This maps bound variables to their types.
+      * @param constValues
+      *   the value of each constant. This allows the type checker to recognize
+      *   that, for instance, `Vec[u16, 8]` is the same as `Vec[u16, N]` in case
+      *   `N = 8`.
       * @return
       *   a new expression that is equal to this one but has a type annotation
       *   that is not [[Missing]].
@@ -17,7 +27,8 @@ trait TypeChecker {
       *   if the expression is ill-typed.
       */
     def tchk(
-        context: Map[Param, Type] = Map()
+        context: Map[Param, Type],
+        constValues: Map[Param, Expr]
     )(implicit c: Canonicalizer): Expr = {
       if (this.expr.typ != Missing) {
         return this.expr
@@ -37,20 +48,20 @@ trait TypeChecker {
               throw new TypeError(s"Missing function input type annotation.")
             case t => t
           }
-          val newBody = body.tchk(context + (x -> t))
+          val newBody = body.tchk(context + (x -> t), constValues)
           Function(x, newBody)(TyArrow(t, newBody.typ))
         case fc @ FunCall(f, arg) =>
-          val newArg = arg.tchk(context)
-          val newF = f.annotateFunc(newArg.typ).tchk(context)
+          val newArg = arg.tchk(context, constValues)
+          val newF = f.annotateFunc(newArg.typ).tchk(context, constValues)
           newF.typ match {
             case TyArrow(t1, t2) =>
-              if (newArg.typ ~= t1) {
-                fc.rebuild(t2, Seq(newF, newArg))
-              } else {
+              if (!newArg.typ.equalsGivenConstants(t1, constValues)) {
                 throw new TypeError(
-                  s"Function expects type $t1, but argument has type ${newArg.typ}."
+                  s"function expects type $t1, but argument has type ${newArg.typ}",
+                  TypeChecker.relevantBindings(constValues, t1, newArg.typ)
                 )
               }
+              fc.rebuild(t2, Seq(newF, newArg))
             case t =>
               throw new TypeError(
                 s"Left-hand side of function call has type $t. It should be a function."
@@ -61,7 +72,7 @@ trait TypeChecker {
           assert(cst.typ == Missing)
           cst.rebuild(TyAnyInt.tightest(n, n))
         case s @ Sum(terms @ _*) =>
-          val newTerms = terms.map(e => e.tchk(context))
+          val newTerms = terms.map(e => e.tchk(context, constValues))
           for ((t, i) <- newTerms.zipWithIndex) {
             if (!t.typ.isInstanceOf[TyAnyInt]) {
               throw new TypeError(
@@ -79,7 +90,7 @@ trait TypeChecker {
             s.rebuild(elemTypes.head, newTerms)
           }
         case p @ Prod(factors @ _*) =>
-          val newFactors = factors.map(e => e.tchk(context))
+          val newFactors = factors.map(e => e.tchk(context, constValues))
           for ((t, i) <- newFactors.zipWithIndex) {
             if (!t.typ.isInstanceOf[TyAnyInt]) {
               throw new TypeError(
@@ -97,7 +108,7 @@ trait TypeChecker {
             p.rebuild(elemTypes.head, newFactors)
           }
         case d @ Div(e1, e2) =>
-          val newLhs = e1.tchk(context)
+          val newLhs = e1.tchk(context, constValues)
           val t1 = newLhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -106,7 +117,7 @@ trait TypeChecker {
                   + " Expected an integer"
               )
           }
-          val newRhs = e2.tchk(context)
+          val newRhs = e2.tchk(context, constValues)
           val t2 = newRhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -115,15 +126,15 @@ trait TypeChecker {
                   + " Expected an integer."
               )
           }
-          if (t1 ~= t2) {
-            d.rebuild(t1, Seq(newLhs, newRhs))
-          } else {
+          if (!t1.equalsGivenConstants(t2, constValues)) {
             throw new TypeError(
-              s"Left-hand side of ${d.className} has type $t1, but right-hand side has type $t2."
+              s"left-hand side of ${d.className} has type $t1, but right-hand side has type $t2.",
+              TypeChecker.relevantBindings(constValues, t1, t2)
             )
           }
+          d.rebuild(t1, Seq(newLhs, newRhs))
         case m @ Mod(e1, e2) =>
-          val newLhs = e1.tchk(context)
+          val newLhs = e1.tchk(context, constValues)
           val t1 = newLhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -132,7 +143,7 @@ trait TypeChecker {
                   + " Expected an integer"
               )
           }
-          val newRhs = e2.tchk(context)
+          val newRhs = e2.tchk(context, constValues)
           val t2 = newRhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -141,15 +152,15 @@ trait TypeChecker {
                   + " Expected an integer."
               )
           }
-          if (t1 ~= t2) {
-            m.rebuild(t1, Seq(newLhs, newRhs))
-          } else {
+          if (!t1.equalsGivenConstants(t2, constValues)) {
             throw new TypeError(
-              s"Left-hand side of ${m.className} has type $t1, but right-hand side has type $t2."
+              s"left-hand side of ${m.className} has type $t1, but right-hand side has type $t2",
+              TypeChecker.relevantBindings(constValues, t1, t2)
             )
           }
+          m.rebuild(t1, Seq(newLhs, newRhs))
         case s @ WrappingSum(terms @ _*) =>
-          val newTerms = terms.map(e => e.tchk(context))
+          val newTerms = terms.map(e => e.tchk(context, constValues))
           for ((t, i) <- newTerms.zipWithIndex) {
             if (!t.typ.isInstanceOf[TyAnyInt]) {
               throw new TypeError(
@@ -167,7 +178,7 @@ trait TypeChecker {
             s.rebuild(elemTypes.head, newTerms)
           }
         case d @ WrappingDiff(e1, e2) =>
-          val newLhs = e1.tchk(context)
+          val newLhs = e1.tchk(context, constValues)
           val t1 = newLhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -176,7 +187,7 @@ trait TypeChecker {
                   + " Expected an integer"
               )
           }
-          val newRhs = e2.tchk(context)
+          val newRhs = e2.tchk(context, constValues)
           val t2 = newRhs.typ match {
             case t: TyAnyInt => t
             case t =>
@@ -185,15 +196,15 @@ trait TypeChecker {
                   + " Expected an integer."
               )
           }
-          if (t1 ~= t2) {
-            d.rebuild(t1, Seq(newLhs, newRhs))
-          } else {
+          if (!t1.equalsGivenConstants(t2, constValues)) {
             throw new TypeError(
-              s"Left-hand side of ${d.className} has type $t1, but right-hand side has type $t2."
+              s"left-hand side of ${d.className} has type $t1, but right-hand side has type $t2.",
+              TypeChecker.relevantBindings(constValues, t1, t2)
             )
           }
+          d.rebuild(t1, Seq(newLhs, newRhs))
         case p @ WrappingProd(factors @ _*) =>
-          val newFactors = factors.map(e => e.tchk(context))
+          val newFactors = factors.map(e => e.tchk(context, constValues))
           for ((t, i) <- newFactors.zipWithIndex) {
             if (!t.typ.isInstanceOf[TyAnyInt]) {
               throw new TypeError(
@@ -211,7 +222,7 @@ trait TypeChecker {
             p.rebuild(elemTypes.head, newFactors)
           }
         case pad @ PadTo(e, targetWidth) =>
-          val newE = e.tchk(context)
+          val newE = e.tchk(context, constValues)
           newE.typ match {
             case t @ TyAnyInt(srcWidth) if targetWidth >= srcWidth =>
               pad.rebuild(t.withWidth(targetWidth), Seq(newE))
@@ -227,7 +238,7 @@ trait TypeChecker {
               )
           }
         case trunc @ TruncateTo(e, targetWidth) =>
-          val newE = e.tchk(context)
+          val newE = e.tchk(context, constValues)
           newE.typ match {
             case t @ TyAnyInt(srcWidth) if targetWidth <= srcWidth =>
               trunc.rebuild(t.withWidth(targetWidth), Seq(newE))
@@ -243,12 +254,12 @@ trait TypeChecker {
               )
           }
         case sgn @ ToSigned(e) =>
-          val newE = e.tchk(context).expectUInt()
+          val newE = e.tchk(context, constValues).expectUInt()
           val w = newE.typ.asInstanceOf[TyUInt].w
           // Widen by one bit so that the value is guaranteed to fit
           sgn.rebuild(TySInt(w + 1), Seq(newE))
         case uns @ ToUnsigned(e) =>
-          val newE = e.tchk(context)
+          val newE = e.tchk(context, constValues)
           newE.typ match {
             case TySInt(w) =>
               // We don't need the sign bit anymore
@@ -261,40 +272,40 @@ trait TypeChecker {
               )
           }
         case ll @ LLShift(e1, e2) =>
-          val newE1 = e1.tchk(context).expectAnyInt()
-          val newE2 = e2.tchk(context).expectUInt()
+          val newE1 = e1.tchk(context, constValues).expectAnyInt()
+          val newE2 = e2.tchk(context, constValues).expectUInt()
           ll.rebuild(newE1.typ, Seq(newE1, newE2))
         case lr @ LRShift(e1, e2) =>
-          val newE1 = e1.tchk(context).expectAnyInt()
-          val newE2 = e2.tchk(context).expectUInt()
+          val newE1 = e1.tchk(context, constValues).expectAnyInt()
+          val newE2 = e2.tchk(context, constValues).expectUInt()
           lr.rebuild(newE1.typ, Seq(newE1, newE2))
 
         case c: FixCst => c
         case p @ IntFixProd(e1, e2) =>
-          val newE1 = e1.tchk(context).expectUInt()
-          val newE2 = e2.tchk(context).expectFixPoint()
+          val newE1 = e1.tchk(context, constValues).expectUInt()
+          val newE2 = e2.tchk(context, constValues).expectFixPoint()
           p.rebuild(newE1.typ, Seq(newE1, newE2))
 
         case True  => True
         case False => False
         case mux @ Mux(cond, t, f) =>
-          val newC = cond.tchk(context)
+          val newC = cond.tchk(context, constValues)
           newC.typ match {
             case TyBool => ()
             case t =>
               throw new TypeError(s"Expected type $TyBool but found $t.")
           }
-          val newT = t.tchk(context)
-          val newF = f.tchk(context)
-          if (newT.typ ~= newF.typ) {
-            mux.rebuild(newT.typ, Seq(newC, newT, newF))
-          } else {
+          val newT = t.tchk(context, constValues)
+          val newF = f.tchk(context, constValues)
+          if (!newT.typ.equalsGivenConstants(newF.typ, constValues)) {
             throw new TypeError(
-              s"True branch of MUX has type ${newT.typ} but false branch has type ${newF.typ}."
+              s"true branch of if-then-else has type ${newT.typ} but false branch has type ${newF.typ}",
+              TypeChecker.relevantBindings(constValues, newT.typ, newF.typ)
             )
           }
+          mux.rebuild(newT.typ, Seq(newC, newT, newF))
         case a @ And(terms @ _*) =>
-          val newTerms = terms.map(e => e.tchk(context))
+          val newTerms = terms.map(e => e.tchk(context, constValues))
           for ((t, i) <- newTerms.zipWithIndex) {
             if (t.typ != TyBool) {
               throw new TypeError(s"Term $i of AND has type ${t.typ}.")
@@ -302,7 +313,7 @@ trait TypeChecker {
           }
           a.rebuild(TyBool, newTerms)
         case or @ Or(terms @ _*) =>
-          val newTerms = terms.map(e => e.tchk(context))
+          val newTerms = terms.map(e => e.tchk(context, constValues))
           for ((t, i) <- newTerms.zipWithIndex) {
             if (t.typ != TyBool) {
               throw new TypeError(s"Term $i of OR has type ${t.typ}.")
@@ -310,7 +321,7 @@ trait TypeChecker {
           }
           or.rebuild(TyBool, newTerms)
         case n @ Not(e) =>
-          val newE = e.tchk(context)
+          val newE = e.tchk(context, constValues)
           newE.typ match {
             case TyBool => ()
             case t =>
@@ -318,7 +329,7 @@ trait TypeChecker {
           }
           n.rebuild(TyBool, Seq(newE))
         case eq @ Equal(e1, e2) =>
-          val newE1 = e1.tchk(context)
+          val newE1 = e1.tchk(context, constValues)
           newE1.typ match {
             case t if t.isData => ()
             case t =>
@@ -326,7 +337,7 @@ trait TypeChecker {
                 s"Left-hand side of ${eq.className} has non-data type $t."
               )
           }
-          val newE2 = e2.tchk(context)
+          val newE2 = e2.tchk(context, constValues)
           newE2.typ match {
             case t if t.isData => ()
             case t =>
@@ -334,15 +345,15 @@ trait TypeChecker {
                 s"Right-hand side of ${eq.className} has non-data type $t."
               )
           }
-          if (newE1.typ ~= newE2.typ) {
-            eq.rebuild(TyBool, Seq(newE1, newE2))
-          } else {
+          if (!newE1.typ.equalsGivenConstants(newE2.typ, constValues)) {
             throw new TypeError(
-              s"Left-hand side of ${eq.className} has type ${newE1.typ} but right-hand side has type ${newE2.typ}."
+              s"left-hand side of ${eq.className} has type ${newE1.typ} but right-hand side has type ${newE2.typ}",
+              TypeChecker.relevantBindings(constValues, newE1.typ, newE2.typ)
             )
           }
+          eq.rebuild(TyBool, Seq(newE1, newE2))
         case lt @ LessThan(e1, e2) =>
-          val newLhs = e1.tchk(context)
+          val newLhs = e1.tchk(context, constValues)
           newLhs.typ match {
             case _: TyAnyInt => ()
             case t =>
@@ -351,7 +362,7 @@ trait TypeChecker {
                   + " Expected an integer."
               )
           }
-          val newRhs = e2.tchk(context)
+          val newRhs = e2.tchk(context, constValues)
           newRhs.typ match {
             case _: TyAnyInt => ()
             case t =>
@@ -360,21 +371,21 @@ trait TypeChecker {
                   + " Expected an integer."
               )
           }
-          if (newLhs.typ ~= newRhs.typ) {
-            lt.rebuild(TyBool, Seq(newLhs, newRhs))
-          } else {
+          if (!newLhs.typ.equalsGivenConstants(newRhs.typ, constValues)) {
             throw new TypeError(
-              s"Left-hand side of ${lt.className} has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}."
+              s"left-hand side of ${lt.className} has type ${newLhs.typ} but right-hand side has type ${newRhs.typ}",
+              TypeChecker.relevantBindings(constValues, newLhs.typ, newRhs.typ)
             )
           }
+          lt.rebuild(TyBool, Seq(newLhs, newRhs))
 
         case t @ Tuple(elems @ _*) =>
-          val newElems = elems.map(e => e.tchk(context))
+          val newElems = elems.map(e => e.tchk(context, constValues))
           t.rebuild(TyTuple(newElems.map(e => e.typ): _*), newElems)
         case ta @ TupleAccess(t, idx: IntCst) =>
-          val newIdx = idx.tchk(context)
+          val newIdx = idx.tchk(context, constValues)
           assert(newIdx.typ.isInstanceOf[TyAnyInt])
-          val newT = t.tchk(context)
+          val newT = t.tchk(context, constValues)
           newT.typ match {
             case TyTuple(ts @ _*) =>
               ta.rebuild(ts(idx.i.toInt), Seq(newT, newIdx))
@@ -385,8 +396,8 @@ trait TypeChecker {
           }
 
         case vb @ VecBuild(n, f) =>
-          val newN = n.tchk(context).expectUInt()
-          val newF = f.tchk(context)
+          val newN = n.tchk(context, constValues).expectUInt()
+          val newF = f.tchk(context, constValues)
           val vecT = newF.typ match {
             case TyArrow(uint @ TyUInt(wI), t) =>
               newN match {
@@ -406,13 +417,13 @@ trait TypeChecker {
           }
           vb.rebuild(TyVec(vecT, newN), Seq(newN, newF))
         case va @ VecAccess(v, i) =>
-          val newV = v.tchk(context)
+          val newV = v.tchk(context, constValues)
           val vecT = newV.typ match {
             case TyVec(t, _) => t
             case t =>
               throw new TypeError(s"Left-hand side of VecAccess has type $t.")
           }
-          val newI = i.tchk(context).expectUInt()
+          val newI = i.tchk(context, constValues).expectUInt()
           va.rebuild(vecT, Seq(newV, newI))
         case vl @ VecLiteral(elems @ _*) =>
           elems match {
@@ -421,7 +432,7 @@ trait TypeChecker {
                 "Cannot type check empty vector literal."
               )
             case _ =>
-              val newElems = elems.map(e => e.tchk(context))
+              val newElems = elems.map(e => e.tchk(context, constValues))
               for ((e, i) <- newElems.zipWithIndex.tail) {
                 if (e.typ != newElems.head.typ) {
                   throw new TypeError(
@@ -455,36 +466,68 @@ trait TypeChecker {
                 )
             }
           })
-          val newN = s.n.tchk(context).expectUInt()
-          val newEquations = s.equations.map({ case (x, (z, next)) =>
-            val newZ = z.tchk(context)
-            if (!(newZ.typ ~= x.typ)) {
+          val newN = s.n.tchk(context, constValues).expectUInt()
+          val newEquations = s.equations.map({
+            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
+              val newS = s.tchk(context, constValues)
+              val TyStm(elemTyp, _) = x.typ
+              newS.typ match {
+                case TyStm(t, _) =>
+                  if (!t.equalsGivenConstants(elemTyp, constValues)) {
+                    throw new TypeError(
+                      s"stream for producer $x has type $t." +
+                        s" Expected a stream of type $elemTyp",
+                      TypeChecker.relevantBindings(constValues, t, elemTyp)
+                    )
+                  }
+                case t =>
+                  throw new TypeError(
+                    s"stream for producer $x has type $t. Expected a stream"
+                  )
+              }
+              val newReady = ready.tchk(newContext, constValues)
+              if (newReady.typ != TyBool) {
+                throw new TypeError(
+                  s"ready expression for producer $x has type ${newReady.typ}."
+                    + s" Expected type $TyBool",
+                  TypeChecker.relevantBindings(constValues, newReady.typ, x.typ)
+                )
+              }
+              x -> (newS, newReady)
+            case (x, (z, next)) if x.typ.isData =>
+              val newZ = z.tchk(context, constValues)
+              if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
+                throw new TypeError(
+                  s"seed for accumulator $x has type ${newZ.typ}."
+                    + s" Expected type ${x.typ}.",
+                  TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
+                )
+              }
+              val newNext = next.tchk(newContext, constValues)
+              if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
+                throw new TypeError(
+                  s"next value for accumulator $x has type ${newNext.typ}."
+                    + s" Expected type ${x.typ}",
+                  TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
+                )
+              }
+              x -> (newZ, newNext)
+            case (x, _) =>
               throw new TypeError(
-                s"Seed for accumulator $x has type ${newZ.typ}."
-                  + s" Expected type ${x.typ}."
+                s"variable $x in sbuild has type ${x.typ}." +
+                  s" Expected a stream or data."
               )
-            }
-            val newNext = next.tchk(newContext)
-            val expectedNextTyp = x.typ match {
-              case _: TyStm => TyBool
-              case _        => x.typ
-            }
-            if (!(newNext.typ ~= expectedNextTyp)) {
-              throw new TypeError(
-                s"Next value for accumulator $x has type ${newNext.typ}."
-                  + s" Expected type $expectedNextTyp."
-              )
-            }
-            x -> (newZ, newNext)
           })
-          val newData = s.data.tchk(newContext)
-          val newValid = s.valid.tchk(newContext).expectType(TyBool)
+          val newData = s.data.tchk(newContext, constValues)
+          val newValid = s.valid
+            .tchk(newContext, constValues)
+            .expectType(TyBool, constValues)
           StmBuild(newN, newData, newValid, newEquations)(
             TyStm(newData.typ, newN),
             s.annotations
           )
         case sn @ StmData(s) =>
-          val newS = s.tchk(context)
+          val newS = s.tchk(context, constValues)
           newS.typ match {
             case TyStm(t, _) => sn.rebuild(t, Seq(newS))
             case t =>
@@ -493,24 +536,45 @@ trait TypeChecker {
               )
           }
         case let @ LetStm(bufSize, x, in, out) =>
-          val newBufSize = bufSize.tchk(context).expectUInt()
-          val newIn = in.tchk(context)
+          val newBufSize = bufSize.tchk(context, constValues).expectUInt()
+          val newIn = in.tchk(context, constValues)
           val newX = x.typ match {
             case Missing =>
               x.rebuild(newIn.typ).asInstanceOf[Param]
-            case t =>
-              if (t ~= newIn.typ) {
-                x
-              } else {
-                throw new TypeError(
-                  s"Cannot bind variable of type $t to stream of type ${newIn.typ}."
-                )
+            case TyStm(xElemTyp, _) =>
+              newIn.typ match {
+                case TyStm(inElemTyp, _) =>
+                  if (!xElemTyp.equalsGivenConstants(inElemTyp, constValues)) {
+                    throw new TypeError(
+                      s"cannot bind variable of type ${x.typ} to stream of type ${newIn.typ}",
+                      TypeChecker.relevantBindings(
+                        constValues,
+                        xElemTyp,
+                        inElemTyp
+                      )
+                    )
+                  }
+                case _ =>
+                  throw new TypeError(
+                    s"cannot bind variable of type ${x.typ} to stream of type ${newIn.typ}",
+                    TypeChecker.relevantBindings(
+                      constValues,
+                      xElemTyp,
+                      newIn.typ
+                    )
+                  )
               }
+              x
+            case t =>
+              throw new TypeError(
+                s"variable in letstm has type $t." +
+                  s" Expected a stream type."
+              )
           }
-          val newOut = out.tchk(context + (newX -> newIn.typ))
+          val newOut = out.tchk(context + (newX -> newIn.typ), constValues)
           let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
         case sl @ StmLiteral(elems @ _*) =>
-          val checkedElems = elems.map(e => e.tchk(context))
+          val checkedElems = elems.map(e => e.tchk(context, constValues))
           val types = checkedElems.map(e => e.typ).toSet
           if (types.isEmpty) {
             throw new IllegalArgumentException(
@@ -527,7 +591,7 @@ trait TypeChecker {
             )
           }
 
-        case s: SyntaxSugar => s.typecheck(context)
+        case s: SyntaxSugar => s.typecheck(context, constValues)
       }
     }
 
@@ -592,6 +656,25 @@ trait TypeChecker {
       }
     }
 
+    def expectStreamOf(
+        elemTyp: Type,
+        constValues: Map[Param, Expr]
+    )(implicit c: Canonicalizer): Expr = {
+      this.expr.typ match {
+        case TyStm(t, _) =>
+          if (!t.equalsGivenConstants(elemTyp, constValues)) {
+            throw new TypeError(
+              s"expected a stream with elements of type $elemTyp," +
+                s" but found a stream with elements of type $t",
+              TypeChecker.relevantBindings(constValues, elemTyp, t)
+            )
+          }
+        case t =>
+          throw new TypeError(s"Expected a stream but found $t.")
+      }
+      this.expr
+    }
+
     /** Insist that this expression's type is compatible with the given type (as
       * determined by [[Type.~=]]).
       *
@@ -602,9 +685,15 @@ trait TypeChecker {
       * @throws TypeError
       *   if this expression does not have the expected type.
       */
-    def expectType(t: Type): Expr = {
-      if (!(this.expr.typ ~= t)) {
-        throw new TypeError(s"Expected type $t but found ${this.expr.typ}.")
+    def expectType(
+        t: Type,
+        constValues: Map[Param, Expr]
+    )(implicit c: Canonicalizer): Expr = {
+      if (!this.expr.typ.equalsGivenConstants(t, constValues)) {
+        throw new TypeError(
+          s"expected type $t but found ${this.expr.typ}",
+          TypeChecker.relevantBindings(constValues, t, this.expr.typ)
+        )
       }
       this.expr
     }
@@ -665,7 +754,8 @@ trait TypeChecker {
         .map({ case ConstDecl(x, e) => x -> e })
         .toMap
       val newAccel =
-        this.prog.accel.copy(body = this.prog.accel.body.tchk(mainConstTypes))
+        this.prog.accel
+          .copy(body = this.prog.accel.body.tchk(mainConstTypes, mainConstVals))
       val (accelInputs, accelOutTyp) = {
         val (params, body) = TypeChecker.unwrapTopLevelFunction(newAccel.body)
         assert(body.typ != Missing)
@@ -696,6 +786,16 @@ trait TypeChecker {
 
 object TypeChecker {
 
+  def relevantBindings(
+      constValues: Map[Param, Expr],
+      typ: Type*
+  ): Map[Param, Expr] = {
+    val freeVarsInTypes = typ.foldLeft(Set[Param]())({ case (acc, t) =>
+      acc.union(t.freeVars)
+    })
+    constValues.filterKeys(x => freeVarsInTypes.contains(x))
+  }
+
   def wrapTopLevelFunction(inputs: Seq[Param], body: Expr): Expr = {
     implicit val c: Canonicalizer = NoOpCanonicalizer
     inputs.foldRight(body)({ case (x, acc) => Function(x, acc)().tchk() })
@@ -722,7 +822,7 @@ object TypeChecker {
       constVals: Map[Param, Expr]
   )(implicit c: Canonicalizer): ConstDecl = {
     val ConstDecl(x, e) = decl
-    val checkedE = e.tchk(constTypes)
+    val checkedE = e.tchk(constTypes, constVals)
     assert(x.typ != Missing)
     assert(checkedE.typ == x.typ)
     val evaluatedE =
@@ -739,7 +839,7 @@ object TypeChecker {
   )(implicit c: Canonicalizer): Assertion = {
     checkInputNames(params = accelInputs, args = a.inputs.keySet)
     val newIn = a.inputs.map({ case (x, e) =>
-      val newE = e.tchk(constTypes)
+      val newE = e.tchk(constTypes, constVals)
       val newX = x.rebuild(newE.typ).asInstanceOf[Param]
       newX -> newE
     })
@@ -748,7 +848,7 @@ object TypeChecker {
       args = newIn.keySet,
       constVals
     )
-    val newOut = a.expectedOutput.tchk(constTypes)
+    val newOut = a.expectedOutput.tchk(constTypes, constVals)
     if (!newOut.typ.equalsGivenConstants(accelOutTyp, constVals)) {
       val constNote = listRelevantConstants(constVals, newOut.typ, accelOutTyp)
       throw new TypeError(
@@ -807,7 +907,7 @@ object TypeChecker {
     }
   }
 
-  def listRelevantConstants(
+  private def listRelevantConstants(
       allConstVals: Map[Param, Expr],
       types: Type*
   ): String = {

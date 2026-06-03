@@ -129,7 +129,7 @@ object Repl {
     val typingContext = env.map({ case (x, v) => x -> v.typ })
     val subs = env.toMap[Expr, Expr]
     mhir.eval.eval(
-      e.tchk(typingContext)
+      e.tchk(typingContext, env)
         .subPreserveType(subs)
         .lower
     )

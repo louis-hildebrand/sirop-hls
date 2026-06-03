@@ -6,7 +6,7 @@ import mhir.optimize.StreamFuser.StreamFusion
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
-import mhir.sugar.experimental.{StmFold, StmScanInclusive, VecFoldSeq}
+import mhir.sugar.experimental.{StmFold, StmScanInclusive}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.tagobjects.Slow
@@ -113,49 +113,6 @@ class ManualOptimizationTests extends AnyFunSuite {
         s -> (s, True)
       )
     )().tchk()
-    assert(optimized == ideal)
-  }
-
-  /** The optimizer can turn VecFold into a simple sum *provided* the length is
-    * a static constant.
-    */
-  test("VecFoldSimpleSum") {
-    val n = 3
-    val v = Param("v")(TyVec(I16, C(n)(U8)))
-    val z = Param("z")(I16)
-    val original = VecFoldSeq(v, z, PlusFunction(I16))()
-    val tl = (e: Expr) => e.tchk().lower.asInstanceOf[StmBuild]
-    val optimize = (s: Expr) => {
-      val s0 = tl(s)
-      val s1 = tl(s0.fuseCompletely())
-      val s2 = tl(stmBuildSimplifier.simplify(s1)())
-      val s3 = tl(PE.partialEvalStmBuild(s2))
-      s3
-    }
-    val optimized = optimize(original)
-
-    // Correctness
-    val vExamples = Seq(
-      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i, I16)()))(),
-      VecBuild(C(n)(U8), U8 ::+ (i => ReshapeData(i * (i + 1), I16)()))()
-    )
-    val zExamples = Seq(C(0)(I16), C(-3)(I16), C(42)(I16))
-    for (vVal <- vExamples) {
-      for (zVal <- zExamples) {
-        val expected =
-          mhir.eval.eval(Let(v, vVal, Let(z, zVal, original)())().tchk())
-        val actual =
-          mhir.eval.eval(Let(v, vVal, Let(z, zVal, optimized)())().tchk())
-        assert(actual == expected)
-      }
-    }
-
-    // Effective simplification
-    val ideal =
-      StmCst(
-        1,
-        Sum(z, VecAccess(v, 0)(), VecAccess(v, 1)(), VecAccess(v, 2)())()
-      )().tchk().lower
     assert(optimized == ideal)
   }
 

@@ -1456,6 +1456,35 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual3) == expected3)
   }
 
+  test("StmConcat:1D:Stm[Vec]") {
+    val v = VecLiteral(C(-1)(I16), C(0)(I16), C(1)(I16))()
+    val s1 = StmCst(3, v)()
+    val n = Param("n")(U8)
+    val nVal = C(3)(U8)
+    val constValues = Map(n -> nVal)
+    val s2 = StmMap(
+      StmCount(C(4)(U8))(),
+      U8 ::+ (t =>
+        VecBuild(n, U8 ::+ (i => ReshapeData(Sum(i, Prod(t, t)())(), I16)()))()
+      )
+    )()
+    val actual = StmConcat(s1, s2)()
+      .tchk(Map(), constValues)
+      .subPreserveType(n -> nVal)
+      .lower
+    val actualVal = mhir.eval.eval(actual)
+    val expected = StmLiteral(
+      v,
+      v,
+      v,
+      VecLiteral(C(0)(I16), C(1)(I16), C(2)(I16))(),
+      VecLiteral(C(1)(I16), C(2)(I16), C(3)(I16))(),
+      VecLiteral(C(4)(I16), C(5)(I16), C(6)(I16))(),
+      VecLiteral(C(9)(I16), C(10)(I16), C(11)(I16))()
+    )().tchk()
+    assert(actualVal == expected)
+  }
+
   test("StmConcat:2D") {
     val s0 = StmCst2D(2, 2, Tuple(C(99)(U8), C(99)(U8))())()
     val s1 = StmCount2D(C(3)(U8), C(2)(U8))()
@@ -1951,12 +1980,17 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmZip:1D") {
+    val n = Param("n")(U8)
+    val nVal = 4
+    val constValues = Map(n -> C(nVal)(U8))
     val a = StmCount(4)()
     val b = {
       val b = Param("b")(TyBool)
-      StmBuild(4, b, True, Map[Param, (Expr, Expr)](b -> (True, !b)))()
+      StmBuild(n, b, True, Map[Param, (Expr, Expr)](b -> (True, !b)))()
     }
-    val s = StmZip(a, b)().tchk()
+    val s = StmZip(a, b)()
+      .tchk(Map(), constValues)
+      .subPreserveType(constValues.toMap[Expr, Expr])
     val expected =
       StmLiteral(
         Tuple(0, True)(),

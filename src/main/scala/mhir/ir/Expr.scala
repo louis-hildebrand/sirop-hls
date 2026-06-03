@@ -1264,7 +1264,10 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
     ExprPrinter.displayFunCallMultiLine(this.className, this.children, maxWidth)
   }
 
-  def typecheck(context: Map[Param, Type])(implicit c: Canonicalizer): Expr
+  def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr
 
   /** Remove syntax sugar from this node and its children.
     *

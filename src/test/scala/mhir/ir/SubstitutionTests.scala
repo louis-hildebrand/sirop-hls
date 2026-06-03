@@ -10,7 +10,7 @@ class SubstitutionTests extends AnyFunSuite {
     val s = Param("s")()
     val v = Param("v")()
 
-    val original = (5 + StmData(s)()).tchk(Map(s -> TyStm(U16, 2)))
+    val original = (5 + StmData(s)()).tchk(Map(s -> TyStm(U16, 2)), Map())
     val subbedSameType =
       original.subPreserveType(StmData(s)() -> v.rebuild(U16))
     assert(subbedSameType == 5 + v)
@@ -70,7 +70,7 @@ class SubstitutionTests extends AnyFunSuite {
         y -> (x.__1 / 2 + z, y + 2 + z)
       )
     )()
-    val original = Tuple(2 * x.__1 * z, stm)().tchk(context)
+    val original = Tuple(2 * x.__1 * z, stm)().tchk(context, Map())
     val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)(U8))
     val expected = Tuple(
       2 * y * 99,
