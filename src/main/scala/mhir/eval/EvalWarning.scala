@@ -34,8 +34,10 @@ case class VecIndexOutOfBoundsWarning(n: Int, i: Long) extends EvalWarning {
   * @param typ
   *   the type of the expression that overflowed.
   */
-case class OverflowWarning(n: Long, typ: TyAnyInt) extends EvalWarning {
-  override def display: String = s"value $n does not fit in type $typ"
+case class OverflowWarning(n: Long, typ: TyAnyInt, op: String)
+    extends EvalWarning {
+  override def display: String =
+    s"value $n does not fit in type $typ (while evaluating $op)"
 }
 
 /** A consumer stream tried to read the data from a producer while the `ready`

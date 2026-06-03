@@ -122,7 +122,12 @@ class Evaluator(
           if (typ.contains(result)) {
             Value(IntCst(result)(e.typ), warnings)
           } else {
-            val overflowWarning = OverflowWarning(result, typ)
+            val overflowWarning =
+              OverflowWarning(
+                result,
+                typ,
+                Sum(termValues.map(_.e): _*)().toString
+              )
             Value(DefaultVal(typ), warnings + overflowWarning)
           }
         } else {
@@ -140,7 +145,11 @@ class Evaluator(
           if (typ.contains(result)) {
             Value(IntCst(result)(e.typ), warnings)
           } else {
-            val overflowWarning = OverflowWarning(result, typ)
+            val overflowWarning = OverflowWarning(
+              result,
+              typ,
+              Prod(factorValues.map(_.e): _*)().toString
+            )
             Value(DefaultVal(typ), warnings + overflowWarning)
           }
         } else {
@@ -234,7 +243,7 @@ class Evaluator(
           case _: TyUInt => Value(v.e.rebuild(TyUInt(targetWidth)), v.warnings)
         }
       case TruncateTo(e, targetWidth) =>
-        val Value(IntCst(i), warnings) = evalBigStep(inputs, stmData)(e)
+        val Value(k @ IntCst(i), warnings) = evalBigStep(inputs, stmData)(e)
         val typ = e.typ.asInstanceOf[TyAnyInt]
         assert(
           targetWidth <= typ.w,
@@ -244,7 +253,8 @@ class Evaluator(
         if (targetTyp.contains(i)) {
           Value(IntCst(i)(targetTyp), warnings)
         } else {
-          val overflowWarning = OverflowWarning(i, targetTyp)
+          val overflowWarning =
+            OverflowWarning(i, targetTyp, TruncateTo(k, targetWidth)().toString)
           Value(
             IntCst(truncate(i, targetTyp))(targetTyp),
             warnings + overflowWarning
@@ -267,7 +277,8 @@ class Evaluator(
             if (typ.contains(i)) {
               Value(IntCst(i)(typ), v.warnings)
             } else {
-              val overflowWarning = OverflowWarning(i, typ)
+              val overflowWarning =
+                OverflowWarning(i, typ, ToUnsigned(v.e)().toString)
               Value(IntCst(truncate(i, typ))(typ), v.warnings + overflowWarning)
             }
         }

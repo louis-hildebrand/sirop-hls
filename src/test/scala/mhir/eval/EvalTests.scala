@@ -20,9 +20,14 @@ class EvalTests extends AnyFunSuite {
     * @param typ
     *   the expected type in the [[OverflowWarning]].
     */
-  private def assertOverflow(e: Expr, n: Int, typ: TyAnyInt): Unit = {
+  private def assertOverflow(
+      e: Expr,
+      n: Int,
+      typ: TyAnyInt,
+      op: String
+  ): Unit = {
     val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings == Set(OverflowWarning(n, typ)))
+    assert(exc.warnings == Set(OverflowWarning(n, typ, op)))
   }
 
   test("IntCst") {
@@ -242,12 +247,20 @@ class EvalTests extends AnyFunSuite {
     assert(exc.reasons == Seq(EmptyStreamRead))
   }
 
-  test("Overflow:Used") {
-    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8)
-    assertOverflow(Sum(C(32767)(I16), C(1)(I16))(), 32768, I16)
-    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8)
-    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8)
-    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8)
+  test("Overflow:Used:Sum") {
+    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8, "255:u8 + 1:u8")
+    assertOverflow(
+      Sum(C(32767)(I16), C(1)(I16))(),
+      32768,
+      I16,
+      "32767:i16 + 1:i16"
+    )
+    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8, "-127:i8 + -2:i8")
+  }
+
+  test("Overflow:Used:Prod") {
+    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8, "128:u8 * 2:u8")
+    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8, "-64:i8 * 3:i8")
   }
 
   test("Overflow:Unused") {
@@ -324,13 +337,28 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("TruncateTo:ValueOutOfRange") {
-    assertOverflow(TruncateTo(C(-129)(I16), 8)(), -129, I8)
-    assertOverflow(TruncateTo(C(-130)(I16), 8)(), -130, I8)
-    assertOverflow(TruncateTo(C(128)(I16), 8)(), 128, I8)
-    assertOverflow(TruncateTo(C(129)(I16), 8)(), 129, I8)
-    assertOverflow(TruncateTo(C(256)(U32), 8)(), 256, U8)
-    assertOverflow(TruncateTo(C(257)(U32), 8)(), 257, U8)
-    assertOverflow(TruncateTo(C(2049)(U16), 9)(), 2049, TyUInt(9))
+    assertOverflow(
+      TruncateTo(C(-129)(I16), 8)(),
+      -129,
+      I8,
+      "truncate8(-129:i16)"
+    )
+    assertOverflow(
+      TruncateTo(C(-130)(I16), 8)(),
+      -130,
+      I8,
+      "truncate8(-130:i16)"
+    )
+    assertOverflow(TruncateTo(C(128)(I16), 8)(), 128, I8, "truncate8(128:i16)")
+    assertOverflow(TruncateTo(C(129)(I16), 8)(), 129, I8, "truncate8(129:i16)")
+    assertOverflow(TruncateTo(C(256)(U32), 8)(), 256, U8, "truncate8(256:u32)")
+    assertOverflow(TruncateTo(C(257)(U32), 8)(), 257, U8, "truncate8(257:u32)")
+    assertOverflow(
+      TruncateTo(C(2049)(U16), 9)(),
+      2049,
+      TyUInt(9),
+      "truncate9(2049:u16)"
+    )
   }
 
   test("ToSigned") {
@@ -349,8 +377,8 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("ToUnsigned:NegativeInput") {
-    assertOverflow(ToUnsigned(C(-5)(I8))(), -5, TyUInt(7))
-    assertOverflow(ToUnsigned(C(-1)(I32))(), -1, TyUInt(31))
+    assertOverflow(ToUnsigned(C(-5)(I8))(), -5, TyUInt(7), "unsign(-5:i8)")
+    assertOverflow(ToUnsigned(C(-1)(I32))(), -1, TyUInt(31), "unsign(-1:i32)")
   }
 
   test("u0 << u8") {
