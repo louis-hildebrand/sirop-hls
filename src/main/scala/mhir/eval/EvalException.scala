@@ -14,7 +14,7 @@ sealed abstract class EvalException(msg: String) extends RuntimeException(msg) {
 case class UndefinedValException(warnings: Set[EvalWarning])
     extends EvalException(
       "value may rely on undefined behaviours: "
-        ++ warnings.map(w => w.display).mkString("", ", ", ". ")
+        ++ warnings.map(w => w.display).mkString("", ", ", ".")
     )
 
 /** The stream became deadlocked.

@@ -85,48 +85,78 @@ object TestRunner {
       actualPath: Option[Path]
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
-    try {
-      val expectedOutput = mhir.eval.eval(a.expectedOutput)
-      expectedPath match {
-        case None =>
-          logger.debug(s"expected output is $expectedOutput")
-        case Some(p) =>
-          val msg = (
-            (if (testIdx == 0) "" else "\n")
-              + s"/* Test $testIdx */\n"
-              + ExprPrinter.display(expectedOutput)
-              + "\n"
-          )
-          os.write.append(p, msg)
-          logger.debug(s"appended expected output to $p")
+    val expectedOutput =
+      try {
+        val result = mhir.eval.eval(a.expectedOutput)
+        expectedPath match {
+          case None =>
+            logger.debug(s"expected output is $result")
+          case Some(p) =>
+            val msg = formatOutput(testIdx, ExprPrinter.display(result))
+            os.write.append(p, msg)
+            logger.debug(s"appended expected output to $p")
+        }
+        Some(result)
+      } catch {
+        case ex: EvalException =>
+          expectedPath match {
+            case None =>
+              logger.debug(ex.getMessage)
+            case Some(p) =>
+              os.write.append(p, formatOutput(testIdx, ex.getMessage))
+              logger.debug(s"appended error (in expected output) to $p")
+          }
+          None
       }
-      val actualOutput =
-        mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
-      actualPath match {
-        case None =>
-          logger.debug(s"actual output is   $actualOutput")
-        case Some(p) =>
-          val msg = (
-            (if (testIdx == 0) "" else "\n")
-              + s"/* Test $testIdx */\n"
-              + ExprPrinter.display(actualOutput)
-              + "\n"
-          )
-          os.write.append(p, msg)
-          logger.debug(s"appended actual output to $p")
+    val actualOutput =
+      try {
+        val result =
+          mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
+        actualPath match {
+          case None =>
+            logger.debug(s"actual output is   $result")
+          case Some(p) =>
+            val msg = formatOutput(testIdx, ExprPrinter.display(result))
+            os.write.append(p, msg)
+            logger.debug(s"appended actual output to $p")
+        }
+        Some(result)
+      } catch {
+        case ex: EvalException =>
+          actualPath match {
+            case None =>
+              logger.debug(ex.getMessage)
+            case Some(p) =>
+              os.write.append(p, formatOutput(testIdx, ex.getMessage))
+              logger.debug(s"appended error (in actual output) to $p")
+          }
+          None
       }
-      if (actualOutput == expectedOutput) {
+    (expectedOutput, actualOutput) match {
+      case (Some(expected), Some(actual)) if actual == expected =>
         logger.info(s"test $testIdx: PASSED")
         true
-      } else {
+      case (Some(_), Some(_)) =>
         logger.warn(s"test $testIdx: FAILED")
         false
-      }
-    } catch {
-      case ex: EvalException =>
-        logger.debug(ex.getMessage)
-        logger.warn(s"test $testIdx: ERROR")
+      case (None, Some(_)) =>
+        logger.warn(s"test $testIdx: ERROR (when evaluating expected output)")
+        false
+      case (Some(_), None) =>
+        logger.warn(s"test $testIdx: ERROR (when evaluating actual output)")
+        false
+      case (None, None) =>
+        logger.warn(
+          s"test $testIdx: ERROR (when evaluating expected and actual outputs)"
+        )
         false
     }
+  }
+
+  private def formatOutput(testIdx: Int, msg: String): String = {
+    ((if (testIdx == 0) "" else "\n")
+      + s"/* Test $testIdx */\n"
+      + msg
+      + "\n")
   }
 }
