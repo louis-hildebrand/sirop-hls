@@ -105,7 +105,7 @@ private object VhdlExprGenerator {
         assert(w >= 1)
         val ev = exprToVhdl(e)
         VhdlExpr(s"truncate(unsigned(${ev.vhdl}), ${w - 1})", ev.decls)
-      case LLShift(e1, e2) =>
+      case LShift(e1, e2) =>
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
         val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
         VhdlExpr(s"($e1Vhdl) sll to_integer($e2Vhdl)", e1Decls ++ e2Decls)

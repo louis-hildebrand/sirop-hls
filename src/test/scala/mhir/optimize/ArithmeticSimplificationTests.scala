@@ -315,7 +315,7 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
       assert(actualVal == expectedVal)
 
       // Effective simplification
-      val expected = x <<< C(n)(U8)
+      val expected = x << C(n)(U8)
       assert(simplified == expected)
     }
   }
@@ -356,18 +356,18 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(simplified == x)
   }
 
-  test("LLShift") {
+  test("LShift") {
     val e = Param("x")(U8)
 
-    assert(lpe(C(0)(U8) <<< C(0)(U8)) == C(0)())
-    assert(lpe(C(0)(U0) <<< C(1)(U8)) == C(0)())
-    assert(lpe(C(42)(U8) <<< C(1)(U8)) == C(84)())
-    assert(lpe(C(42)(U8) <<< C(3)(U8)) == C(80)())
-    assert(lpe(C(42)(U16) <<< C(3)(U8)) == C(336)())
-    assert(lpe(C(99)(I8) <<< C(1)(U8)) == C(-58)())
-    assert(lpe(C(99)(I16) <<< C(1)(U8)) == C(198)())
+    assert(lpe(C(0)(U8) << C(0)(U8)) == C(0)())
+    assert(lpe(C(0)(U0) << C(1)(U8)) == C(0)())
+    assert(lpe(C(42)(U8) << C(1)(U8)) == C(84)())
+    assert(lpe(C(42)(U8) << C(3)(U8)) == C(80)())
+    assert(lpe(C(42)(U16) << C(3)(U8)) == C(336)())
+    assert(lpe(C(99)(I8) << C(1)(U8)) == C(-58)())
+    assert(lpe(C(99)(I16) << C(1)(U8)) == C(198)())
 
-    assert(lpe(e <<< C(0)(U8)) == e)
+    assert(lpe(e << C(0)(U8)) == e)
   }
 
   test("LRShift") {

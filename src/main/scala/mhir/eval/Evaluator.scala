@@ -282,7 +282,7 @@ class Evaluator(
               Value(IntCst(truncate(i, typ))(typ), v.warnings + overflowWarning)
             }
         }
-      case LLShift(e1, e2) =>
+      case LShift(e1, e2) =>
         val Value(n1, warn1) = evalBigStep(inputs, stmData)(e1)
         val Value(n2, warn2) = evalBigStep(inputs, stmData)(e2)
         (n1, n2) match {
@@ -291,7 +291,7 @@ class Evaluator(
             Value(C(result)(n1.typ), warn1 ++ warn2)
           case (v1, v2) =>
             throw new TypeError(
-              s"Operands of LLShift evaluated to $v1 and $v2. They must each evaluate to an integer."
+              s"Operands of LShift evaluated to $v1 and $v2. They must each evaluate to an integer."
             )
         }
       case LRShift(e1, e2) =>

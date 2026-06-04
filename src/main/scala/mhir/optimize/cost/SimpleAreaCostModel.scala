@@ -68,8 +68,8 @@ object SimpleAreaCostModel {
       case TruncateTo(e, _)                    => cost(sv)(e)
       case ToSigned(e)                         => cost(sv)(e)
       case ToUnsigned(e)                       => cost(sv)(e)
-      case LLShift(e1, e2) if isStatic(e2, sv) => cost(sv)(e1)
-      case LLShift(e1, e2)                     => cost(sv)(e1) + cost(sv)(e2)
+      case LShift(e1, e2) if isStatic(e2, sv)  => cost(sv)(e1)
+      case LShift(e1, e2)                      => cost(sv)(e1) + cost(sv)(e2)
       case LRShift(e1, e2) if isStatic(e2, sv) => cost(sv)(e1)
       case LRShift(e1, e2)                     => cost(sv)(e1) + cost(sv)(e2)
       case Equal(e1, e2) =>

@@ -26,9 +26,9 @@ trait ExprUtils {
       */
     def *%(that: Expr): Expr = WrappingProd(this.expr, that)()
 
-    /** See [[LLShift]].
+    /** See [[LShift]].
       */
-    def <<<(that: Expr): Expr = LLShift(this.expr, that)()
+    def <<(that: Expr): Expr = LShift(this.expr, that)()
 
     /** See [[LRShift]].
       */

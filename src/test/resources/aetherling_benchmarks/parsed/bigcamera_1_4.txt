@@ -12,7 +12,7 @@ let module1: u32 -> bool = (
     let n104: (u32, u8) = (I, n103) in
     let n105: u32 = n104.0 >>> n104.1 in
     let n106: (u32, u8) = (n105, n103) in
-    let n107: u32 = n106.0 <<< n106.1 in
+    let n107: u32 = n106.0 << n106.1 in
     let n108: (u32, u32) = (I, n107) in
     let n109: bool = n108.0 === n108.1 in
     !n109

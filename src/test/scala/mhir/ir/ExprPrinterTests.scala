@@ -431,17 +431,17 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expected)
   }
 
-  test("a <<< b") {
+  test("a << b") {
     val a = Param("a", -1)(U8)
     val b = Param("b", -1)(U8)
-    val e = LLShift(a, b)()
+    val e = LShift(a, b)()
 
-    val expectedOneLine = "a <<< b"
+    val expectedOneLine = "a << b"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""a
-         |  <<< b
+         |  << b
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
   }

@@ -571,18 +571,18 @@ case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
   }
 }
 
-/** Logical left shift.
+/** Bitwise left shift.
   *
   * @param e1
   *   the number to shift.
   * @param e2
   *   the number of bits to shift by.
   */
-case class LLShift(e1: Expr, e2: Expr)(typ: Type = Missing)
+case class LShift(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends IntExpr(e1, e2)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(e1, e2) => LLShift(e1, e2)(typ)
+      case Seq(e1, e2) => LShift(e1, e2)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
     }
   }

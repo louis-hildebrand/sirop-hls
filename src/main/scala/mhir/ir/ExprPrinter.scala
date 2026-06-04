@@ -214,10 +214,10 @@ object ExprPrinter {
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
-      case LLShift(e1, e2) =>
+      case LShift(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "<<<",
+          op = "<<",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -608,8 +608,8 @@ object ExprPrinter {
           myPrecedence,
           canElideFirstParens = false
         )
-      case LLShift(e1, e2) =>
-        displayOneLineInfixOp(Seq(e1, e2), "<<<", myPrecedence)
+      case LShift(e1, e2) =>
+        displayOneLineInfixOp(Seq(e1, e2), "<<", myPrecedence)
       case LRShift(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), ">>>", myPrecedence)
       case PadTo(e, w) =>
@@ -854,8 +854,8 @@ object ExprPrinter {
         s"ToSigned(${showScala(x)})(${showScala(ts.typ)})"
       case tu @ ToUnsigned(x) =>
         s"ToUnsigned(${showScala(x)})(${showScala(tu.typ)})"
-      case ll @ LLShift(e1, e2) =>
-        s"LLShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
+      case ll @ LShift(e1, e2) =>
+        s"LShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
       case lr @ LRShift(e1, e2) =>
         s"LRShift(${showScala(e1)},${showScala(e2)})(${showScala(lr.typ)})"
       case c @ FixCst(numer) => s"FixCst($numer)(${showScala(c.typ)})"

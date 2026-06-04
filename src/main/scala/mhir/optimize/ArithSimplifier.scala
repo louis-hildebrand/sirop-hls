@@ -318,7 +318,7 @@ private[optimize] object ArithSimplifier {
   private def simplifyWithoutLibrary(e: Expr): Expr = {
     require(e.hasType)
     val simplified = e match {
-      case ll: LLShift     => simplifyLLShift(ll)
+      case ll: LShift      => simplifyLShift(ll)
       case lr: LRShift     => simplifyLRShift(lr)
       case s: Sum          => simplifySum(s)
       case p: Prod         => simplifyProd(p)
@@ -334,16 +334,16 @@ private[optimize] object ArithSimplifier {
     simplified.tchk()
   }
 
-  private def simplifyLLShift(ll: LLShift): Expr = {
+  private def simplifyLShift(ll: LShift): Expr = {
     ll match {
-      case LLShift(_: IntCst, _: IntCst) =>
+      case LShift(_: IntCst, _: IntCst) =>
         mhir.eval.eval(ll)
-      case LLShift(e, IntCst(0)) =>
+      case LShift(e, IntCst(0)) =>
         // TODO: Should this actually be done after calling the library in
         //       case e2 is simplified to 0 but is not originally 0?
         simplifyWithoutLibrary(e)
-      case LLShift(e1, e2) =>
-        LLShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
+      case LShift(e1, e2) =>
+        LShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
     }
   }
 
@@ -461,7 +461,7 @@ private[optimize] object ArithSimplifier {
         if (netRightShift > 0) {
           LRShift(x, netRightShift)().tchk()
         } else if (netRightShift < 0) {
-          LLShift(x, -netRightShift)().tchk()
+          LShift(x, -netRightShift)().tchk()
         } else {
           x
         }

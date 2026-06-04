@@ -271,7 +271,7 @@ trait TypeChecker {
                   + " Expected a signed integer."
               )
           }
-        case ll @ LLShift(e1, e2) =>
+        case ll @ LShift(e1, e2) =>
           val newE1 = e1.tchk(context, constValues).expectAnyInt()
           val newE2 = e2.tchk(context, constValues).expectUInt()
           ll.rebuild(newE1.typ, Seq(newE1, newE2))
