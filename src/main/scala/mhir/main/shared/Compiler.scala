@@ -138,7 +138,7 @@ object Compiler {
         // The compiler will exit early if the tests fail.
         // Therefore, run things like pretty-printing beforehand, since they
         // may be useful for debugging the failing tests.
-        case TestTarget    => 60
+        case _: TestTarget => 60
         case _: VhdlTarget => 70
       })
       .foreach({
@@ -177,8 +177,13 @@ object Compiler {
             overwrite = overwrite,
             topName = finalProgram.accel.name
           )
-        case TestTarget =>
-          TestRunner.run(finalProgram)
+        case TestTarget(expectedPath, actualPath, overwrite) =>
+          TestRunner.run(
+            finalProgram,
+            expectedPath = expectedPath,
+            actualPath = actualPath,
+            overwrite = overwrite
+          )
         case VhdlTarget(outDir, _, runSim) =>
           if (runSim) {
             val result = VhdlTestRunner.testExistingProject(outDir)
@@ -311,7 +316,7 @@ object Compiler {
           )
         case _: EvalTarget                     => ()
         case _: TraceTarget                    => ()
-        case TestTarget                        => ()
+        case _: TestTarget                     => ()
         case NullTarget                        => ()
         case _: PrettyPrintTarget              => ()
         case _: PrettyPrintAfterLoweringTarget => ()

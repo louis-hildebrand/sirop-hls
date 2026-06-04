@@ -28,8 +28,17 @@ case class TraceTarget(outDir: Path, testIdx: Int, overwrite: Boolean)
     extends CompilerTarget
 
 /** Run the tests in the Sirop file and print the results.
+  *
+  * @param expectedPath
+  *   the path in which to write the expected outputs.
+  * @param actualPath
+  *   the path in which to write the actual outputs.
   */
-object TestTarget extends CompilerTarget
+case class TestTarget(
+    expectedPath: Option[Path],
+    actualPath: Option[Path],
+    overwrite: Boolean
+) extends CompilerTarget
 
 /** Pretty-print the program.
   *

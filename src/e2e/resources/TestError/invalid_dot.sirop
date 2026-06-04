@@ -4,5 +4,13 @@ accelerator dot = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
     .StmMap( (x) => x.0 + x.1 ) /* <-- Mistake! We should be multiplying, not adding. */
     .StmReduce( (x) => x.0 + x.1 )
 
+/* It just so happens to work in this case. */
+assert {
+    a = StmCst(N, 2:u16),
+    b = StmCst(N, 2:u16)
+}
+yields [16:u16]s
+
+/* This case should fail. */
 assert { a = StmRange(N, 1:u16, 1:u16), b = StmRange(N, 5:u16, 1:u16) }
 yields [70:u16]s

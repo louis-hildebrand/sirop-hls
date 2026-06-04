@@ -1,10 +1,9 @@
 package mhir.eval
 
 import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
 import mhir.ir._
-import mhir.sugar.ExprLowering
-import mhir.typecheck.{TypeCheck, TypeChecker}
+import mhir.typecheck.TypeChecker
+import os.Path
 
 object TestRunner {
 
@@ -12,10 +11,24 @@ object TestRunner {
 
   /** Run the tests defined in the given program.
     *
+    * @param prog
+    *   the program to test.
+    * @param expectedPath
+    *   the path to the file in which to save the expected outputs.
+    * @param actualPath
+    *   the path to the file in which to save the actual outputs.
+    *
     * @throws TestError
     *   if the tests were unsuccessful.
     */
-  def run(prog: Program): Unit = {
+  def run(
+      prog: Program,
+      expectedPath: Option[Path],
+      actualPath: Option[Path],
+      overwrite: Boolean
+  ): Unit = {
+    expectedPath.foreach(checkIfFileExists(_, overwrite))
+    actualPath.foreach(checkIfFileExists(_, overwrite))
     val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.accel.body)
     val assertions = prog.test.collect({ case a: Assertion => a })
     if (assertions.isEmpty) {
@@ -26,7 +39,14 @@ object TestRunner {
       logger.debug(s"running $numTests $testOrTests...")
       var errors = 0
       for ((a, i) <- assertions.zipWithIndex) {
-        val ok = run(i, a, body, handshake = prog.handshake)
+        val ok = run(
+          i,
+          a,
+          body,
+          handshake = prog.handshake,
+          expectedPath = expectedPath,
+          actualPath = actualPath
+        )
         if (!ok) {
           errors += 1
         }
@@ -39,19 +59,62 @@ object TestRunner {
     }
   }
 
+  private def checkIfFileExists(path: Path, overwrite: Boolean): Unit = {
+    if (os.isFile(path)) {
+      if (overwrite) {
+        os.remove(path)
+      } else {
+        throw FileError(
+          s"destination for test outputs ($path) already exists."
+            + " Pass the --overwrite command-line flag to overwrite it."
+        )
+      }
+    } else if (os.exists(path)) {
+      throw FileError(
+        s"destination for test outputs ($path) exists but is not a file"
+      )
+    }
+  }
+
   private def run(
       testIdx: Int,
       a: Assertion,
       body: Expr,
-      handshake: Boolean
+      handshake: Boolean,
+      expectedPath: Option[Path],
+      actualPath: Option[Path]
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
     try {
       val expectedOutput = mhir.eval.eval(a.expectedOutput)
-      logger.debug(s"expected output is $expectedOutput")
+      expectedPath match {
+        case None =>
+          logger.debug(s"expected output is $expectedOutput")
+        case Some(p) =>
+          val msg = (
+            (if (testIdx == 0) "" else "\n")
+              + s"/* Test $testIdx */\n"
+              + ExprPrinter.display(expectedOutput)
+              + "\n"
+          )
+          os.write.append(p, msg)
+          logger.debug(s"appended expected output to $p")
+      }
       val actualOutput =
         mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
-      logger.debug(s"actual output is   $actualOutput")
+      actualPath match {
+        case None =>
+          logger.debug(s"actual output is   $actualOutput")
+        case Some(p) =>
+          val msg = (
+            (if (testIdx == 0) "" else "\n")
+              + s"/* Test $testIdx */\n"
+              + ExprPrinter.display(actualOutput)
+              + "\n"
+          )
+          os.write.append(p, msg)
+          logger.debug(s"appended actual output to $p")
+      }
       if (actualOutput == expectedOutput) {
         logger.info(s"test $testIdx: PASSED")
         true

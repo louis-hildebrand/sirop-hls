@@ -47,6 +47,8 @@ object Args {
     var traceOutDir: Option[Path] = None
     var traceTestIdx: Option[Int] = None
     var runTests: Boolean = false
+    var testExpectedPath: Option[Path] = None
+    var testActualPath: Option[Path] = None
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
@@ -185,6 +187,24 @@ object Args {
           }
         case "--out:test" =>
           runTests = true
+        case "--out:test:expected" =>
+          mutArgs.drop(1).headOption match {
+            case Some(path) =>
+              runTests = true
+              testExpectedPath = Some(Path(path, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:test:actual" =>
+          mutArgs.drop(1).headOption match {
+            case Some(path) =>
+              runTests = true
+              testActualPath = Some(Path(path, base = os.pwd))
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
@@ -258,7 +278,11 @@ object Args {
           overwrite = overwrite
         )
       )
-      val testTarget = if (runTests) Some(TestTarget) else None
+      val testTarget = if (runTests) {
+        Some(TestTarget(testExpectedPath, testActualPath, overwrite))
+      } else {
+        None
+      }
       val vhdlTarget = vhdlDir match {
         case Some(vhdlDir) =>
           Some(
@@ -380,6 +404,8 @@ object Args {
          |                                   when generating the trace
          |
          |  --out:test                       run the tests and print the results
+         |  --out:test:expected FILE         where to write the expected outputs
+         |  --out:test:actual FILE           where to write the actual outputs
          |
          |  --out:vhdl DIR                   emit VHDL code in the given directory
          |  --out:vhdl:run-sim               run the VHDL testbench after codegen
@@ -393,8 +419,8 @@ object Args {
          |  --out:pp:lowered (FILE|-)        pretty-print the program after lowering but
          |                                   before optimization
          |
-         |  --out:ctime FILE                 write a report of the compile time to the given
-         |                                   directory
+         |  --out:ctime FILE                 write a report of the compile time to the
+         |                                   given directory
          |
          |  --overwrite                      what to do if the output file or directory
          |                                   already exists: if true then delete it, if
