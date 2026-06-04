@@ -78,10 +78,12 @@ object Lexer {
       lex(consume(code, "||"), tokens :+ LogOrToken(p), p.consume("||"))
     } else if (code.startsWith("&&")) {
       lex(consume(code, "&&"), tokens :+ LogAndToken(p), p.consume("%%"))
-    } else if (code.startsWith("<<<")) {
-      lex(consume(code, "<<<"), tokens :+ LLShiftToken(p), p.consume("<<<"))
+    } else if (code.startsWith("<<")) {
+      lex(consume(code, "<<"), tokens :+ LShiftToken(p), p.consume("<<"))
     } else if (code.startsWith(">>>")) {
       lex(consume(code, ">>>"), tokens :+ LRShiftToken(p), p.consume(">>>"))
+    } else if (code.startsWith(">>")) {
+      lex(consume(code, ">>"), tokens :+ ARShiftToken(p), p.consume(">>"))
     } else if (code.startsWith("<=")) {
       lex(consume(code, "<="), tokens :+ LeqToken(p), p.consume("<="))
     } else if (code.startsWith(">=")) {

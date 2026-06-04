@@ -105,14 +105,49 @@ private object VhdlExprGenerator {
         assert(w >= 1)
         val ev = exprToVhdl(e)
         VhdlExpr(s"truncate(unsigned(${ev.vhdl}), ${w - 1})", ev.decls)
-      case LLShift(e1, e2) =>
+      case LShift(e1, e2) =>
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
-        val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
-        VhdlExpr(s"($e1Vhdl) sll to_integer($e2Vhdl)", e1Decls ++ e2Decls)
+        val VhdlExpr(e2Vhdl, e2Decls) = e2 match {
+          case IntCst(k) =>
+            VhdlExpr(s"$k", Seq())
+          case e2 =>
+            val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
+            VhdlExpr(s"to_integer($e2Vhdl)", e2Decls)
+        }
+        VhdlExpr(s"($e1Vhdl) sll $e2Vhdl", e1Decls ++ e2Decls)
+      case ARShift(e1, e2) =>
+        val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
+        val VhdlExpr(e2Vhdl, e2Decls) = e2 match {
+          case IntCst(k) =>
+            VhdlExpr(s"$k", Seq())
+          case e2 =>
+            val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
+            VhdlExpr(s"to_integer($e2Vhdl)", e2Decls)
+        }
+        val decls = e1Decls ++ e2Decls
+        e1.typ.asInstanceOf[TyAnyInt] match {
+          case _: TySInt =>
+            VhdlExpr(
+              s"signed(to_stdlogicvector(to_bitvector(std_logic_vector($e1Vhdl)) sra $e2Vhdl))",
+              decls
+            )
+          case _: TyUInt =>
+            // Arithmetic shift right is the same as logical shift right for
+            // unsigned values.
+            // We can't use sra here (at least not the bitvector version)
+            // because the MSB might be 1.
+            VhdlExpr(s"($e1Vhdl) srl $e2Vhdl", decls)
+        }
       case LRShift(e1, e2) =>
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
-        val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
-        VhdlExpr(s"($e1Vhdl) srl to_integer($e2Vhdl)", e1Decls ++ e2Decls)
+        val VhdlExpr(e2Vhdl, e2Decls) = e2 match {
+          case IntCst(k) =>
+            VhdlExpr(s"$k", Seq())
+          case e2 =>
+            val VhdlExpr(e2Vhdl, e2Decls) = exprToVhdl(e2)
+            VhdlExpr(s"to_integer($e2Vhdl)", e2Decls)
+        }
+        VhdlExpr(s"($e1Vhdl) srl $e2Vhdl", e1Decls ++ e2Decls)
 
       case c: FixCst =>
         exprToVhdl(C(c.numer)(c.typ.t))

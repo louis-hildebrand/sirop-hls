@@ -603,16 +603,27 @@ case class LogAndToken(loc: SourcePoint) extends Token {
   */
 object LogAndToken extends SymbolCategory("&&")
 
-/** The symbol "<<<".
+/** The symbol "&lt;&lt;".
   */
-case class LLShiftToken(loc: SourcePoint) extends Token {
-  override def category: TokenCategory = LLShiftToken
-  override def original: String = "<<<"
+case class LShiftToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LShiftToken
+  override def original: String = "<<"
 }
 
-/** Category of [[LLShiftToken]].
+/** Category of [[LShiftToken]].
   */
-object LLShiftToken extends SymbolCategory("<<<")
+object LShiftToken extends SymbolCategory("<<")
+
+/** The symbol ">>".
+  */
+case class ARShiftToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LRShiftToken
+  override def original: String = ">>"
+}
+
+/** Category of [[ARShiftToken]].
+  */
+object ARShiftToken extends SymbolCategory(">>>")
 
 /** The symbol ">>>".
   */
@@ -625,7 +636,7 @@ case class LRShiftToken(loc: SourcePoint) extends Token {
   */
 object LRShiftToken extends SymbolCategory(">>>")
 
-/** The symbol "<=".
+/** The symbol "&lt;=".
   */
 case class LeqToken(loc: SourcePoint) extends Token {
   override def category: TokenCategory = LeqToken
@@ -647,7 +658,7 @@ case class GeqToken(loc: SourcePoint) extends Token {
   */
 object GeqToken extends SymbolCategory(">=")
 
-/** The symbol "<".
+/** The symbol "&lt;".
   */
 case class LtToken(loc: SourcePoint) extends Token {
   override def category: TokenCategory = LtToken

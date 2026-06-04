@@ -40,7 +40,7 @@ expr9           ::= expr8 ( "||"                        expr8 )*
 expr8           ::= expr7 ( "&&"                        expr7 )*
 expr7           ::= expr6 ( ( "==" | "!=" )             expr6 )*
 expr6           ::= expr5 ( ( "<" | ">" | "<=" | ">=" ) expr5 )*
-expr5           ::= expr4 ( ( "<<<" | ">>>" )           expr4 )*
+expr5           ::= expr4 ( ( "<<" | ">>" | ">>>" )           expr4 )*
 expr4           ::= expr3 ( ( "+" | "+%" | "-" | "-%" ) expr3 )*
 expr3           ::= expr2 ( ( "*" | "*%" | "/" | "%" )  expr2 )*
 # First(expr2) = { "!" } U First(expr1)

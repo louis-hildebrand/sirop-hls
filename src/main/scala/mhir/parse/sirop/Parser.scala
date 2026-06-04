@@ -513,9 +513,12 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
-      case Seq(_: LLShiftToken, rest1 @ _*) =>
+      case Seq(_: LShiftToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr4(rest1, constants)
-        parseExpr5Prime(LLShift(e1, e2)(), rest2, constants)
+        parseExpr5Prime(LShift(e1, e2)(), rest2, constants)
+      case Seq(_: ARShiftToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr4(rest1, constants)
+        parseExpr5Prime(ARShift(e1, e2)(), rest2, constants)
       case Seq(_: LRShiftToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr4(rest1, constants)
         parseExpr5Prime(LRShift(e1, e2)(), rest2, constants)

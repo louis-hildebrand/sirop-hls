@@ -382,57 +382,120 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("u0 << u8") {
-    assert(mhir.eval.eval(C(0)(U0) <<< C(0)(U8)) == C(0)(U0))
-    assert(mhir.eval.eval(C(0)(U0) <<< C(5)(U8)) == C(0)(U0))
+    assert(mhir.eval.eval(C(0)(U0) << C(0)(U8)) == C(0)(U0))
+    assert(mhir.eval.eval(C(0)(U0) << C(5)(U8)) == C(0)(U0))
   }
 
   test("u8 << u8") {
     // 42 = (00101010)_2
-    assert(mhir.eval.eval(C(42)(U8) <<< C(0)(U8)) == C(42)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(1)(U8)) == C(84)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(2)(U8)) == C(168)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(3)(U8)) == C(80)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(4)(U8)) == C(160)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(5)(U8)) == C(64)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(6)(U8)) == C(128)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(7)(U8)) == C(0)())
-    assert(mhir.eval.eval(C(42)(U8) <<< C(8)(U8)) == C(0)())
+    assert(mhir.eval.eval(C(42)(U8) << C(0)(U8)) == C(42)())
+    assert(mhir.eval.eval(C(42)(U8) << C(1)(U8)) == C(84)())
+    assert(mhir.eval.eval(C(42)(U8) << C(2)(U8)) == C(168)())
+    assert(mhir.eval.eval(C(42)(U8) << C(3)(U8)) == C(80)())
+    assert(mhir.eval.eval(C(42)(U8) << C(4)(U8)) == C(160)())
+    assert(mhir.eval.eval(C(42)(U8) << C(5)(U8)) == C(64)())
+    assert(mhir.eval.eval(C(42)(U8) << C(6)(U8)) == C(128)())
+    assert(mhir.eval.eval(C(42)(U8) << C(7)(U8)) == C(0)())
+    assert(mhir.eval.eval(C(42)(U8) << C(8)(U8)) == C(0)())
   }
 
   test("u16 << u8") {
     // 42 = (00000000 00101010)_2
-    assert(mhir.eval.eval(C(42)(U16) <<< C(3)(U8)) == C(336)())
-    assert(mhir.eval.eval(C(42)(U16) <<< C(10)(U8)) == C(43008)())
-    assert(mhir.eval.eval(C(42)(U16) <<< C(11)(U8)) == C(20480)())
+    assert(mhir.eval.eval(C(42)(U16) << C(3)(U8)) == C(336)())
+    assert(mhir.eval.eval(C(42)(U16) << C(10)(U8)) == C(43008)())
+    assert(mhir.eval.eval(C(42)(U16) << C(11)(U8)) == C(20480)())
   }
 
   test("i8 << u8") {
     // 99 = (01100011)_2
-    assert(mhir.eval.eval(C(99)(I8) <<< C(0)(U8)) == C(99)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(1)(U8)) == C(-58)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(2)(U8)) == C(-116)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(3)(U8)) == C(24)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(4)(U8)) == C(48)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(5)(U8)) == C(96)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(6)(U8)) == C(-64)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(7)(U8)) == C(-128)())
-    assert(mhir.eval.eval(C(99)(I8) <<< C(8)(U8)) == C(0)())
+    assert(mhir.eval.eval(C(99)(I8) << C(0)(U8)) == C(99)())
+    assert(mhir.eval.eval(C(99)(I8) << C(1)(U8)) == C(-58)())
+    assert(mhir.eval.eval(C(99)(I8) << C(2)(U8)) == C(-116)())
+    assert(mhir.eval.eval(C(99)(I8) << C(3)(U8)) == C(24)())
+    assert(mhir.eval.eval(C(99)(I8) << C(4)(U8)) == C(48)())
+    assert(mhir.eval.eval(C(99)(I8) << C(5)(U8)) == C(96)())
+    assert(mhir.eval.eval(C(99)(I8) << C(6)(U8)) == C(-64)())
+    assert(mhir.eval.eval(C(99)(I8) << C(7)(U8)) == C(-128)())
+    assert(mhir.eval.eval(C(99)(I8) << C(8)(U8)) == C(0)())
   }
 
   test("i16 << u8") {
     // 99 = (00000000 01100011)_2
-    assert(mhir.eval.eval(C(99)(I16) <<< C(1)(U8)) == C(198)())
-    assert(mhir.eval.eval(C(99)(I16) <<< C(9)(U8)) == C(-14848)())
-    assert(mhir.eval.eval(C(99)(I16) <<< C(10)(U8)) == C(-29696)())
-    assert(mhir.eval.eval(C(99)(I16) <<< C(11)(U8)) == C(6144)())
+    assert(mhir.eval.eval(C(99)(I16) << C(1)(U8)) == C(198)())
+    assert(mhir.eval.eval(C(99)(I16) << C(9)(U8)) == C(-14848)())
+    assert(mhir.eval.eval(C(99)(I16) << C(10)(U8)) == C(-29696)())
+    assert(mhir.eval.eval(C(99)(I16) << C(11)(U8)) == C(6144)())
   }
 
   test("u0 >> u8") {
+    assert(mhir.eval.eval(C(0)(U0) >> C(0)(U8)) == C(0)(U0))
+    assert(mhir.eval.eval(C(0)(U0) >> C(5)(U8)) == C(0)(U0))
+  }
+
+  test("u8 >> u8") {
+    // 168 = (10101000)_2
+    assert(mhir.eval.eval(C(168)(U8) >> C(0)(U8)) == C(168)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(1)(U8)) == C(84)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(2)(U8)) == C(42)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(3)(U8)) == C(21)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(4)(U8)) == C(10)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(5)(U8)) == C(5)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(6)(U8)) == C(2)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(7)(U8)) == C(1)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(8)(U8)) == C(0)())
+    assert(mhir.eval.eval(C(168)(U8) >> C(9)(U8)) == C(0)())
+  }
+
+  test("u9 >> u8") {
+    // 341 = (101010101)_2
+    val u9 = TyUInt(9)
+    assert(mhir.eval.eval(C(341)(u9) >> C(0)(U8)) == C(341)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(1)(U8)) == C(170)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(2)(U8)) == C(85)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(3)(U8)) == C(42)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(4)(U8)) == C(21)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(5)(U8)) == C(10)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(6)(U8)) == C(5)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(7)(U8)) == C(2)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(8)(U8)) == C(1)())
+    assert(mhir.eval.eval(C(341)(u9) >> C(9)(U8)) == C(0)())
+  }
+
+  test("i8 >> u8") {
+    // -29 = (11100011)_2
+    assert(mhir.eval.eval(C(-29)(I8) >> C(0)(U8)) == C(-29)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(1)(U8)) == C(-15)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(2)(U8)) == C(-8)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(3)(U8)) == C(-4)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(4)(U8)) == C(-2)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(5)(U8)) == C(-1)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(6)(U8)) == C(-1)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(7)(U8)) == C(-1)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(8)(U8)) == C(-1)())
+    assert(mhir.eval.eval(C(-29)(I8) >> C(9)(U8)) == C(-1)())
+  }
+
+  test("i9 >> u8") {
+    // -171 = (101010101)_2
+    val i9 = TySInt(9)
+    assert(mhir.eval.eval(C(-171)(i9) >> C(0)(U8)) == C(-171)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(1)(U8)) == C(-86)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(2)(U8)) == C(-43)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(3)(U8)) == C(-22)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(4)(U8)) == C(-11)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(5)(U8)) == C(-6)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(6)(U8)) == C(-3)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(7)(U8)) == C(-2)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(8)(U8)) == C(-1)())
+    assert(mhir.eval.eval(C(-171)(i9) >> C(9)(U8)) == C(-1)())
+  }
+
+  test("u0 >>> u8") {
     assert(mhir.eval.eval(C(0)(U0) >>> C(0)(U8)) == C(0)(U0))
     assert(mhir.eval.eval(C(0)(U0) >>> C(5)(U8)) == C(0)(U0))
   }
 
-  test("u8 >> u8") {
+  test("u8 >>> u8") {
     // 168 = (10101000)_2
     assert(mhir.eval.eval(C(168)(U8) >>> C(0)(U8)) == C(168)())
     assert(mhir.eval.eval(C(168)(U8) >>> C(1)(U8)) == C(84)())
@@ -446,7 +509,7 @@ class EvalTests extends AnyFunSuite {
     assert(mhir.eval.eval(C(168)(U8) >>> C(9)(U8)) == C(0)())
   }
 
-  test("u9 >> u8") {
+  test("u9 >>> u8") {
     // 341 = (101010101)_2
     val u9 = TyUInt(9)
     assert(mhir.eval.eval(C(341)(u9) >>> C(0)(U8)) == C(341)())
@@ -461,7 +524,7 @@ class EvalTests extends AnyFunSuite {
     assert(mhir.eval.eval(C(341)(u9) >>> C(9)(U8)) == C(0)())
   }
 
-  test("i8 >> u8") {
+  test("i8 >>> u8") {
     // -29 = (11100011)_2
     assert(mhir.eval.eval(C(-29)(I8) >>> C(0)(U8)) == C(-29)())
     assert(mhir.eval.eval(C(-29)(I8) >>> C(1)(U8)) == C(113)())
@@ -475,7 +538,7 @@ class EvalTests extends AnyFunSuite {
     assert(mhir.eval.eval(C(-29)(I8) >>> C(9)(U8)) == C(0)())
   }
 
-  test("i9 >> u8") {
+  test("i9 >>> u8") {
     // -171 = (101010101)_2
     val i9 = TySInt(9)
     assert(mhir.eval.eval(C(-171)(i9) >>> C(0)(U8)) == C(-171)())
