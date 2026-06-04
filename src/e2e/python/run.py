@@ -29,6 +29,9 @@ def look_for_unused_files() -> None:
         for f in files:
             if f.name.endswith(".sirop"):
                 continue
+            if f.name.endswith(".swp"):
+                # Vim swap file (in case the file is being edited)
+                continue
             if f.name.endswith(".cliargs.txt"):
                 continue
             if f.name.endswith(".eval.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
