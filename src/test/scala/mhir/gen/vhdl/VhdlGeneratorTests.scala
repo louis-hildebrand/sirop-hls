@@ -56,20 +56,61 @@ class VhdlGeneratorTests extends AnyFunSuite {
         Tuple(i + j, i + (-1 * j), (-1 * i) + j, (-1 * i) + (-1 * j))(),
         Tuple(i * j, i * (-1 * j), (-1 * i) * j, (-1 * i) * (-1 * j))(),
         Tuple(i / j, i / (-1 * j), (-1 * i) / j, (-1 * i) / (-1 * j))(),
-        Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))(),
-        Tuple(
-          i << ToUnsigned(-1 + j)(),
-          ToUnsigned(i)() << ToUnsigned(-1 + j)()
-        )(),
-        Tuple(
-          i >>> ToUnsigned(-1 + j)(),
-          ToUnsigned(i)() >>> ToUnsigned(-1 + j)()
-        )()
+        Tuple(i % j, i % (-1 * j), (-1 * i) % j, (-1 * i) % (-1 * j))()
       )(),
       True,
       Map[Param, (Expr, Expr)](
         i -> (C(0)(I8), Mux(j === m, i + 1, i)()),
         j -> (C(1)(I8), Mux(j === m, C(1)(I8), j + 1)())
+      )
+    )().tchk().lower
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("BitwiseShifts") {
+    val n = 16
+    val u4 = TyUInt(4)
+    val i4 = TySInt(4)
+    val i = Param("i")(u4)
+    val j = Param("j")(i4)
+    val s = StmBuild(
+      n,
+      Tuple(
+        Tuple(
+          i,
+          i << 0,
+          i << 1,
+          i << 2,
+          i << 3,
+          i >> 0,
+          i >> 1,
+          i >> 2,
+          i >> 3,
+          i >>> 0,
+          i >>> 1,
+          i >>> 2,
+          i >>> 3
+        )(),
+        Tuple(
+          j,
+          j << 0,
+          j << 1,
+          j << 2,
+          j << 3,
+          j >> 0,
+          j >> 1,
+          j >> 2,
+          j >> 3,
+          j >>> 0,
+          j >>> 1,
+          j >>> 2,
+          j >>> 3
+        )()
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (C(0)(u4), Sum(C(1)(u4), i)()),
+        j -> (C(-8)(i4), Sum(C(1)(i4), j)())
       )
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)

@@ -30,6 +30,10 @@ trait ExprUtils {
       */
     def <<(that: Expr): Expr = LShift(this.expr, that)()
 
+    /** See [[ARShift]].
+      */
+    def >>(that: Expr): Expr = ARShift(this.expr, that)()
+
     /** See [[LRShift]].
       */
     def >>>(that: Expr): Expr = LRShift(this.expr, that)()

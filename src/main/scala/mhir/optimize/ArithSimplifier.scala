@@ -319,6 +319,7 @@ private[optimize] object ArithSimplifier {
     require(e.hasType)
     val simplified = e match {
       case ll: LShift      => simplifyLShift(ll)
+      case ar: ARShift     => simplifyARShift(ar)
       case lr: LRShift     => simplifyLRShift(lr)
       case s: Sum          => simplifySum(s)
       case p: Prod         => simplifyProd(p)
@@ -344,6 +345,17 @@ private[optimize] object ArithSimplifier {
         simplifyWithoutLibrary(e)
       case LShift(e1, e2) =>
         LShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
+    }
+  }
+
+  private def simplifyARShift(ar: ARShift): Expr = {
+    ar match {
+      case ARShift(_: IntCst, _: IntCst) =>
+        mhir.eval.eval(ar)
+      case ARShift(e, IntCst(0)) =>
+        simplifyWithoutLibrary(e)
+      case ARShift(e1, e2) =>
+        ARShift(simplifyWithoutLibrary(e1), simplifyWithoutLibrary(e2))().tchk()
     }
   }
 

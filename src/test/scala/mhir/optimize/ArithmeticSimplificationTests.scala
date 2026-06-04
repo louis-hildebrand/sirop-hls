@@ -370,6 +370,19 @@ class ArithmeticSimplificationTests extends AnyFunSuite {
     assert(lpe(e << C(0)(U8)) == e)
   }
 
+  test("ARShift") {
+    val e = Param("x")(U8)
+
+    assert(lpe(C(0)(U8) >> C(0)(U8)) == C(0)())
+    assert(lpe(C(0)(U0) >> C(1)(U8)) == C(0)())
+    assert(lpe(C(168)(U8) >> C(1)(U8)) == C(84)())
+    assert(lpe(C(168)(U16) >> C(3)(U8)) == C(21)())
+    assert(lpe(C(-29)(I8) >> C(1)(U8)) == C(-15)())
+    assert(lpe(C(-29)(I16) >> C(1)(U8)) == C(-15)())
+
+    assert(lpe(e >> C(0)(U8)) == e)
+  }
+
   test("LRShift") {
     val e = Param("x")(U8)
 

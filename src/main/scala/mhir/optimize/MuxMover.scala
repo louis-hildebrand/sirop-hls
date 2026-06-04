@@ -60,6 +60,7 @@ object MuxMover {
       case ToSigned(e)        => moveUp1(e, ToSigned(_)())
       case ToUnsigned(e)      => moveUp1(e, ToUnsigned(_)())
       case LShift(e1, e2)     => moveUp2(Seq(e1, e2), LShift(_, _)())
+      case ARShift(e1, e2)    => moveUp2(Seq(e1, e2), ARShift(_, _)())
       case LRShift(e1, e2)    => moveUp2(Seq(e1, e2), LRShift(_, _)())
       case c: FixCst          => c
       case IntFixProd(e1, e2) => moveUp2(Seq(e1, e2), IntFixProd(_, _)())

@@ -275,6 +275,10 @@ trait TypeChecker {
           val newE1 = e1.tchk(context, constValues).expectAnyInt()
           val newE2 = e2.tchk(context, constValues).expectUInt()
           ll.rebuild(newE1.typ, Seq(newE1, newE2))
+        case ar @ ARShift(e1, e2) =>
+          val newE1 = e1.tchk(context, constValues).expectAnyInt()
+          val newE2 = e2.tchk(context, constValues).expectUInt()
+          ar.rebuild(newE1.typ, Seq(newE1, newE2))
         case lr @ LRShift(e1, e2) =>
           val newE1 = e1.tchk(context, constValues).expectAnyInt()
           val newE2 = e2.tchk(context, constValues).expectUInt()

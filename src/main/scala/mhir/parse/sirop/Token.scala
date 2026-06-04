@@ -614,6 +614,17 @@ case class LShiftToken(loc: SourcePoint) extends Token {
   */
 object LShiftToken extends SymbolCategory("<<")
 
+/** The symbol ">>".
+  */
+case class ARShiftToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LRShiftToken
+  override def original: String = ">>"
+}
+
+/** Category of [[ARShiftToken]].
+  */
+object ARShiftToken extends SymbolCategory(">>>")
+
 /** The symbol ">>>".
   */
 case class LRShiftToken(loc: SourcePoint) extends Token {

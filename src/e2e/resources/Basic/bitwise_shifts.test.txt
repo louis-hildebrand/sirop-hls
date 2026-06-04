@@ -1,0 +1,2 @@
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!

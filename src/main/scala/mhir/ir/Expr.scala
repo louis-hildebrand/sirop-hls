@@ -588,6 +588,23 @@ case class LShift(e1: Expr, e2: Expr)(typ: Type = Missing)
   }
 }
 
+/** Arithmetic right shift.
+  *
+  * @param e1
+  *   the number to shift.
+  * @param e2
+  *   the number of bits to shift by.
+  */
+case class ARShift(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends IntExpr(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e1, e2) => ARShift(e1, e2)(typ)
+      case _           => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** Logical right shift.
   *
   * @param e1

@@ -102,6 +102,8 @@ case class SimpleDelayCostModel(madd: Boolean) {
       case ToUnsigned(e)    => cost(staticVars, varCosts)(e)
       case LShift(e1, e2) =>
         math.max(cost(staticVars, varCosts)(e1), cost(staticVars, varCosts)(e2))
+      case ARShift(e1, e2) =>
+        math.max(cost(staticVars, varCosts)(e1), cost(staticVars, varCosts)(e2))
       case LRShift(e1, e2) =>
         math.max(cost(staticVars, varCosts)(e1), cost(staticVars, varCosts)(e2))
       case Equal(e1, e2) =>
