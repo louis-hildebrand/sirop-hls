@@ -20,10 +20,15 @@ case class SyntaxError(msg: String)(val loc: Option[SourcePoint])
 /** Companion object for [[SyntaxError]].
   */
 object SyntaxError {
-  def apply(msg: String): SyntaxError = {
-    new SyntaxError(msg)(None)
+
+  /** Creates a [[SyntaxError]] with no location information.
+    */
+  def apply(msg: String, loc: None.type): SyntaxError = {
+    new SyntaxError(msg)(loc)
   }
 
+  /** Creates a [[SyntaxError]] with the given location.
+    */
   def apply(msg: String, loc: SourcePoint): SyntaxError = {
     new SyntaxError(msg)(Some(loc))
   }

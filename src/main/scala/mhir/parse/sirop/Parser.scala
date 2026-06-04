@@ -3,7 +3,7 @@ package mhir.parse.sirop
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.parse.SyntaxError
+import mhir.parse.{SourcePoint, SyntaxError}
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
 import os.Path
@@ -393,8 +393,8 @@ object Parser {
             (pat, rest4)
         }
       case Seq(tok, _*) =>
-        throw SyntaxError(s"unexpected token: ${tok.quot}")
-      case Seq() => throw SyntaxError("unexpected end of file")
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case Seq() => throw SyntaxError("unexpected end of file", None)
     }
   }
 
@@ -633,7 +633,8 @@ object Parser {
             (VecBuild(len, f)(), rest6)
           case e =>
             throw SyntaxError(
-              s"expected a function literal in body of vbuild but found $e"
+              s"expected a function literal in body of vbuild but found $e",
+              rest4.headOption.map(_.loc).getOrElse(SourcePoint(0, 0))
             )
         }
       case Seq(_: SbuildToken, _*) => parseSbuild(tokens, constants)
@@ -764,15 +765,15 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
-      case Seq(_: LeftParToken, rest1 @ _*) =>
+      case Seq(lpar: LeftParToken, rest1 @ _*) =>
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        parseExpr1Prime(parseFunCall(e, args), rest3, constants)
-      case Seq(_: DotToken, IdentToken(op), _: LeftParToken, rest1 @ _*) =>
+        parseExpr1Prime(parseFunCall(e, args, lpar.loc), rest3, constants)
+      case Seq(_: DotToken, IdentToken(op), lpar: LeftParToken, rest1 @ _*) =>
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
         parseExpr1Prime(
-          parseFunCall(Param(op, -1)(Missing), e +: args),
+          parseFunCall(Param(op, -1)(Missing), e +: args, lpar.loc),
           rest3,
           constants
         )
@@ -796,7 +797,7 @@ object Parser {
             parseExpr1Prime(VecSlice(e, i, len, step)(), rest4, constants)
           case Seq(tok, _*) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
-          case Seq() => throw SyntaxError("unexpected end of file")
+          case Seq() => throw SyntaxError("unexpected end of file", None)
         }
       case _ => (e, tokens)
     }
@@ -853,229 +854,232 @@ object Parser {
         (step, rest3)
       case Seq(tok, _*) =>
         throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
-      case Seq() => throw SyntaxError("unexpected end of file")
+      case Seq() => throw SyntaxError("unexpected end of file", None)
     }
   }
 
-  private def parseFunCall(f: Expr, args: Seq[Expr]): Expr = {
+  private def parseFunCall(f: Expr, args: Seq[Expr], loc: SourcePoint): Expr = {
+    val error = { (f: Param) =>
+      throw SyntaxError(s"wrong number of arguments for $f", loc)
+    }
     f match {
       // Arithmetic operators ----------------------------------------------
       case f @ Param("min", -1) =>
         args match {
           case Seq(x, y) => Min(x, y)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("max", -1) =>
         args match {
           case Seq(x, y) => Max(x, y)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       // Vector operators --------------------------------------------------
       case f @ Param("VecLength", -1) =>
         args match {
           case Seq(v) => VecLength(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("Vec2Stm", -1) =>
         args match {
           case Seq(v) => Vec2Stm(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecMap", -1) =>
         args match {
           case Seq(v, f) => VecMap(v, f)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("VecMap2", -1) =>
         args match {
           case Seq(v1, v2, f) => VecMap2(v1, v2, f)()
-          case _              => throw SyntaxError(s"invalid arguments to $f")
+          case _              => error(f)
         }
       case f @ Param("VecZip", -1) =>
         args match {
           case Seq(v1, v2) => VecZip(v1, v2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
+          case _           => error(f)
         }
       case f @ Param("VecReduce", -1) =>
         args match {
           case Seq(v, f) => VecReduceComb(v, f)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("VecFold", -1) =>
         args match {
           case Seq(v, z, f) => VecFoldComb(v, z, f)()
-          case _            => throw SyntaxError(s"invalid arguments to $f")
+          case _            => error(f)
         }
       case f @ Param("VecAll", -1) =>
         args match {
           case Seq(v) => VecAll(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecAny", -1) =>
         args match {
           case Seq(v) => VecAny(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecSum", -1) =>
         args match {
           case Seq(v) => VecSum(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecSplit", -1) =>
         args match {
           case Seq(s, m) => VecSplit(s, m)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("VecJoin", -1) =>
         args match {
           case Seq(v) => VecJoin(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecConcat", -1) =>
         args match {
           case Seq(v1, v2) => VecConcat(v1, v2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
+          case _           => error(f)
         }
       case f @ Param("VecShiftLeft", -1) =>
         args match {
           case Seq(v, e) => VecShiftLeft(v, e)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("VecCst", -1) =>
         args match {
           case Seq(n, c) => VecCst(n, c)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("VecRange", -1) =>
         args match {
           case Seq(n, z, delta) => VecRange(n, z, delta)()
-          case _                => throw SyntaxError(s"invalid arguments to $f")
+          case _                => error(f)
         }
       case f @ Param("VecReverse", -1) =>
         args match {
           case Seq(v) => VecReverse(v)
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("VecTranspose", -1) =>
         args match {
           case Seq(v) => VecTranspose(v)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         args match {
           case Seq(s) => Stm2Vec(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("StmMap", -1) =>
         args match {
           case Seq(s, f) => StmMap(s, f)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmMap2", -1) =>
         args match {
           case Seq(s1, s2, f) => StmMap2(s1, s2, f)()
-          case _              => throw SyntaxError(s"invalid arguments to $f")
+          case _              => error(f)
         }
       case f @ Param("StmZip", -1) =>
         args match {
           case Seq(s1, s2) => StmZip(s1, s2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
+          case _           => error(f)
         }
       case f @ Param("StmReduce", -1) =>
         args match {
           case Seq(s, f) => StmReduce(s, f)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmFold1D", -1) =>
         args match {
           case Seq(s, z, f) => StmFold1D(s, z, f)()
-          case _            => throw SyntaxError(s"invalid arguments to $f")
+          case _            => error(f)
         }
       case f @ Param("StmAll", -1) =>
         args match {
           case Seq(s) => StmAll(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("StmAny", -1) =>
         args match {
           case Seq(s) => StmAny(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("StmSum", -1) =>
         args match {
           case Seq(s) => StmSum(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("StmSplit", -1) =>
         args match {
           case Seq(s, m) => StmSplit(s, m)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmJoin", -1) =>
         args match {
           case Seq(s) => StmJoin(s)()
-          case _      => throw SyntaxError(s"invalid arguments to $f")
+          case _      => error(f)
         }
       case f @ Param("StmConcat", -1) =>
         args match {
           case Seq(s1, s2) => StmConcat(s1, s2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
+          case _           => error(f)
         }
       case f @ Param("StmShiftLeft", -1) =>
         args match {
           case Seq(s, e) => StmShiftLeft(s, e)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmCst", -1) =>
         args match {
           case Seq(n, c) => StmCst(n, c)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmRange", -1) =>
         args match {
           case Seq(n, z, delta) => StmRange(n, z, delta)()
-          case _                => throw SyntaxError(s"invalid arguments to $f")
+          case _                => error(f)
         }
       case f @ Param("StmCount2D", -1) =>
         args match {
           case Seq(n, m) => StmCount2D(n, m)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmSlide", -1) =>
         args match {
           case Seq(s, w) => StmSlide(s, w)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmSlideStartingWith", -1) =>
         args match {
           case Seq(s, z) => StmSlideStartingWith(s, z)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmSlide2D", -1) =>
         args match {
           case Seq(s, h, w) => StmSlide2D(s, h, w)()
-          case _            => throw SyntaxError(s"invalid arguments to $f")
+          case _            => error(f)
         }
       case f @ Param("StmAccess", -1) =>
         args match {
           case Seq(s, i) => StmAccess(s, i)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmPrefix", -1) =>
         args match {
           case Seq(s, k) => StmPrefix(s, k)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("StmSuffix", -1) =>
         args match {
           case Seq(s, k) => StmSuffix(s, k)()
-          case _         => throw SyntaxError(s"invalid arguments to $f")
+          case _         => error(f)
         }
       case f @ Param("MulAddCascaded", -1) =>
         args match {
           case Seq(s1, s2) => MulAddCascaded(s1, s2)()
-          case _           => throw SyntaxError(s"invalid arguments to $f")
+          case _           => error(f)
         }
       case _ =>
         args match {
@@ -1130,7 +1134,7 @@ object Parser {
           Seq(_: MinusToken, _*) =>
         parseIntCst(tokens)
       case Seq(
-            _: LeftSquareToken,
+            lsq: LeftSquareToken,
             _: RightSquareVToken,
             _: ColonToken,
             rest1 @ _*
@@ -1138,14 +1142,18 @@ object Parser {
         val (vecTyp, rest2) = parseVecTyp(rest1, constants)
         if (vecTyp.n != C(0)()) {
           throw SyntaxError(
-            s"wrong length in Vec type annotation: ${vecTyp.n} (expected 0)"
+            s"wrong length in Vec type annotation: ${vecTyp.n} (expected 0)",
+            lsq.loc
           )
         }
         (VecLiteral()(vecTyp), rest2)
-      case Seq(_: LeftSquareToken, _: RightSquareVToken, _*) =>
-        throw SyntaxError("missing type annotation for empty Vec literal")
+      case Seq(lsq: LeftSquareToken, _: RightSquareVToken, _*) =>
+        throw SyntaxError(
+          "missing type annotation for empty Vec literal",
+          lsq.loc
+        )
       case Seq(
-            _: LeftSquareToken,
+            lsq: LeftSquareToken,
             _: RightSquareSToken,
             _: ColonToken,
             rest1 @ _*
@@ -1153,34 +1161,40 @@ object Parser {
         val (stmTyp, rest2) = parseStmTyp(rest1, constants)
         if (stmTyp.n != C(0)()) {
           throw SyntaxError(
-            s"wrong length in Stm type annotation: ${stmTyp.n} (expected 0)"
+            s"wrong length in Stm type annotation: ${stmTyp.n} (expected 0)",
+            lsq.loc
           )
         }
         (StmLiteral()(stmTyp), rest2)
-      case Seq(_: LeftSquareToken, _: RightSquareSToken, _*) =>
-        throw SyntaxError("missing type annotation for empty Stm literal")
-      case Seq(_: LeftSquareToken, rest1 @ _*) =>
+      case Seq(lsq: LeftSquareToken, _: RightSquareSToken, _*) =>
+        throw SyntaxError(
+          "missing type annotation for empty Stm literal",
+          lsq.loc
+        )
+      case Seq(lsq: LeftSquareToken, rest1 @ _*) =>
         val (elems, rest2) = parseExprList(rest1, constants)
         rest2 match {
           case Seq(_: RightSquareVToken, _: ColonToken, _*) =>
             throw SyntaxError(
-              "type annotations are forbidden for non-empty Vec literals"
+              "type annotations are forbidden for non-empty Vec literals",
+              lsq.loc
             )
           case Seq(_: RightSquareSToken, _: ColonToken, _*) =>
             throw SyntaxError(
-              "type annotations are forbidden for non-empty Stm literals"
+              "type annotations are forbidden for non-empty Stm literals",
+              lsq.loc
             )
           case Seq(_: RightSquareVToken, rest3 @ _*) =>
             (VecLiteral(elems: _*)(), rest3)
           case Seq(_: RightSquareSToken, rest3 @ _*) =>
             (StmLiteral(elems: _*)(), rest3)
           case Seq(tok, _*) =>
-            throw SyntaxError(s"unexpected token: ${tok.quot}")
-          case Seq() => throw SyntaxError("unexpected end of file")
+            throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+          case Seq() => throw SyntaxError("unexpected end of file", None)
         }
       case Seq(tok, _*) =>
-        throw SyntaxError(s"unexpected token: ${tok.quot}")
-      case Seq() => throw SyntaxError("unexpected end of file")
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case Seq() => throw SyntaxError("unexpected end of file", None)
     }
   }
 
@@ -1190,13 +1204,16 @@ object Parser {
       case Seq(_: PlusToken, NatToken(n), rest @ _*)  => (IntCst(n)(), rest)
       case Seq(_: MinusToken, NatToken(n), rest @ _*) => (IntCst(-n)(), rest)
       case Seq(tok, _ @_*) =>
-        throw SyntaxError(s"unexpected token: ${tok.quot}")
-      case Seq() => throw SyntaxError("unexpected end of file")
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case Seq() => throw SyntaxError("unexpected end of file", None)
     }
     rest1 match {
-      case Seq(_: ColonToken, IntToken(typ), rest2 @ _*) =>
+      case Seq(colon: ColonToken, IntToken(typ), rest2 @ _*) =>
         if (!typ.contains(e.i)) {
-          throw SyntaxError(s"type $typ is not valid for constant ${e.i}")
+          throw SyntaxError(
+            s"constant ${e.i} does not fit in type $typ",
+            colon.loc
+          )
         }
         (e.rebuild(typ).asInstanceOf[IntCst], rest2)
       case _ =>
@@ -1255,9 +1272,9 @@ object Parser {
       case Seq(_: VecToken, _*)    => parseVecTyp(tokens, constants)
       case Seq(_: BigStmToken, _*) => parseStmTyp(tokens, constants)
       case Seq(tok, _*) =>
-        throw SyntaxError(s"expected a type but found ${tok.quot}")
+        throw SyntaxError(s"expected a type but found ${tok.quot}", tok.loc)
       case Seq() =>
-        throw SyntaxError("expected a type but reached end of file")
+        throw SyntaxError("expected a type but reached end of file", None)
     }
     parseTypPrime(typ, rest, constants)
   }
@@ -1294,9 +1311,9 @@ object Parser {
         val checkedLen = len.tchk(constants, Map())
         (TyVec(typ, checkedLen), rest5)
       case Seq(tok, _*) =>
-        throw SyntaxError(s"expected a Vec type but found ${tok.quot}")
+        throw SyntaxError(s"expected a Vec type but found ${tok.quot}", tok.loc)
       case Seq() =>
-        throw SyntaxError("expected a Vec type but reached end of file")
+        throw SyntaxError("expected a Vec type but reached end of file", None)
     }
   }
 
@@ -1330,9 +1347,9 @@ object Parser {
         }
         (TyStm(typ, checkedLen), rest5)
       case Seq(tok, _*) =>
-        throw SyntaxError(s"expected a Stm type but found ${tok.quot}")
+        throw SyntaxError(s"expected a Stm type but found ${tok.quot}", tok.loc)
       case Seq() =>
-        throw SyntaxError("expected a Stm type but reached end of file")
+        throw SyntaxError("expected a Stm type but reached end of file", None)
     }
   }
 
@@ -1360,7 +1377,7 @@ object Parser {
         }
         (t, rest)
       case Seq() =>
-        throw SyntaxError(s"expected ${tc.name} but reached end of file")
+        throw SyntaxError(s"expected ${tc.name} but reached end of file", None)
     }
   }
 
