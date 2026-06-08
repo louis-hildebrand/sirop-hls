@@ -8,7 +8,7 @@ This script plots the resource usage for Sirop compared to prior works
 from fractions import Fraction
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Rectangle
+from matplotlib.patches import Rectangle
 
 import lib.benchmark as lb
 import lib.constants as c
@@ -17,8 +17,8 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.resource_usage import ResourceUsage
 
-BAR_SPACE = 0.5
-BAR_PADDING = 0.06
+BAR_SPACE = 0.3
+BAR_PADDING = 0.04
 AETHERLING_HATCH = "\\\\\\"
 IHC_HATCH = "xxx"
 SHIR_HATCH = "///"
@@ -31,9 +31,18 @@ def plot_resource_usages(
     skip_ihc: bool,
     skip_shir: bool,
     skip_aetherling: bool,
-    hide_alm: bool,
-    hide_bram: bool,
-    hide_dsp: bool,
+    hide_ihc_alm: bool,
+    hide_ihc_bram: bool,
+    hide_ihc_dsp: bool,
+    hide_shir_alm: bool,
+    hide_shir_bram: bool,
+    hide_shir_dsp: bool,
+    hide_aetherling_alm: bool,
+    hide_aetherling_bram: bool,
+    hide_aetherling_dsp: bool,
+    hide_sirop_alm: bool,
+    hide_sirop_bram: bool,
+    hide_sirop_dsp: bool,
 ) -> None:
     """
     Plot resource usage for each program.
@@ -60,7 +69,7 @@ def plot_resource_usages(
     )
 
     num_bars = 1 + sum([not skip_ihc, not skip_shir, not skip_aetherling])
-    BAR_WIDTH = (1 - BAR_SPACE) / num_bars
+    bar_width = (1 - BAR_SPACE) / num_bars
 
     # Resource usages
     xs = list(range(len(program_names)))
@@ -99,54 +108,54 @@ def plot_resource_usages(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if ihc_alms[i] is not None],
             height=[x for x in ihc_alms if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.IHC_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
-            visible=not hide_alm,
+            visible=not hide_ihc_alm,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_shir:
         alm_ax.bar(
             bottom=0,
             x=[x + delta_x for x in xs],
             height=[x or 0 for x in shir_alms],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.SHIR_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
-            visible=not hide_alm,
+            visible=not hide_shir_alm,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_aetherling:
         alm_ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if aetherling_alms[i] is not None],
             height=[x for x in aetherling_alms if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.AETHERLING_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
-            visible=not hide_alm,
+            visible=not hide_aetherling_alm,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     alm_ax.bar(
         bottom=0,
         x=[x + delta_x for x in xs],
         height=sirop_alms,
-        width=BAR_WIDTH - BAR_PADDING,
+        width=bar_width - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
-        visible=not hide_alm,
+        visible=not hide_sirop_alm,
     )
     # BRAM usage
     ihc_brams = [
@@ -180,54 +189,54 @@ def plot_resource_usages(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if ihc_brams[i] is not None],
             height=[x for x in ihc_brams if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.IHC_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
-            visible=not hide_bram,
+            visible=not hide_ihc_bram,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_shir:
         bram_ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if shir_brams[i] is not None],
             height=[x for x in shir_brams if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.SHIR_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
-            visible=not hide_bram,
+            visible=not hide_shir_bram,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_aetherling:
         bram_ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if aetherling_brams[i] is not None],
             height=[x for x in aetherling_brams if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.AETHERLING_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
-            visible=not hide_bram,
+            visible=not hide_aetherling_bram,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     bram_ax.bar(
         bottom=0,
         x=[x + delta_x for x in xs],
         height=sirop_brams,
-        width=BAR_WIDTH - BAR_PADDING,
+        width=bar_width - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
-        visible=not hide_bram,
+        visible=not hide_sirop_bram,
     )
     # DSP usage
     ihc_dsps = [
@@ -261,65 +270,65 @@ def plot_resource_usages(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if ihc_dsps[i] is not None],
             height=[x for x in ihc_dsps if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.IHC_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
-            visible=not hide_dsp,
+            visible=not hide_ihc_dsp,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_shir:
         dsp_ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if shir_dsps[i] is not None],
             height=[x for x in shir_dsps if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.SHIR_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
-            visible=not hide_dsp,
+            visible=not hide_shir_dsp,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_aetherling:
         dsp_ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if aetherling_dsps[i] is not None],
             height=[x for x in aetherling_dsps if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.AETHERLING_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
-            visible=not hide_dsp,
+            visible=not hide_aetherling_dsp,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     dsp_ax.bar(
         bottom=0,
         x=[x + delta_x for x in xs],
         height=sirop_dsps,
-        width=BAR_WIDTH - BAR_PADDING,
+        width=bar_width - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
-        visible=not hide_dsp,
+        visible=not hide_sirop_dsp,
     )
 
     # Display settings
     xlim = (
-        -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
-        len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
+        -0.5*bar_width - 0.2*BAR_SPACE,
+        len(program_names) - 0.5*bar_width - 0.5*BAR_SPACE
     )
     alm_ax.set_xlim(xlim)
     alm_ax.tick_params(axis="x", which="both", length=0)
     alm_ax.set_xticks(
-        [x + (num_bars-1)/2*BAR_WIDTH for x in xs],
+        [x + (num_bars-1)/2*bar_width for x in xs],
         [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     alm_ax.grid(
@@ -363,15 +372,6 @@ def plot_resource_usages(
     dsp_ax.set_ylim(0.5, 100)
 
     fig.align_ylabels()
-
-    # "Lower is better" message
-    fig.text(0.02, -0.03, "Lower is better")
-    down_arrow = Polygon(
-        [(0.005, 0.006), (0.013, 0.006), (0.009, -0.025)],
-        fill=True, color='black', zorder=1000,
-        transform=fig.transFigure, figure=fig
-    )
-    fig.patches.extend([down_arrow])
 
     # Legend
     handles = []
@@ -445,12 +445,21 @@ def main() -> None:
     # TODO: Expose these as command-line flags
     plot_resource_usages(
         area_results,
-        skip_ihc=False,
-        skip_shir=True,
-        skip_aetherling=True,
-        hide_alm=False,
-        hide_bram=False,
-        hide_dsp=False,
+        skip_ihc             = False,
+        skip_shir            = False,
+        skip_aetherling      = False,
+        hide_ihc_alm         = False,
+        hide_ihc_bram        = False,
+        hide_ihc_dsp         = False,
+        hide_shir_alm        = False,
+        hide_shir_bram       = False,
+        hide_shir_dsp        = False,
+        hide_aetherling_alm  = False,
+        hide_aetherling_bram = False,
+        hide_aetherling_dsp  = False,
+        hide_sirop_alm       = False,
+        hide_sirop_bram      = False,
+        hide_sirop_dsp       = False,
     )
 
 

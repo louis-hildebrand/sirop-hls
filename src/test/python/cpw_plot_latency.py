@@ -16,8 +16,8 @@ import lib.results_crud as crud
 from lib.benchmark import Benchmark, BenchmarkImpl, benchmark_order
 from lib.latency import LatencyResult
 
-BAR_SPACE = 0.5
-BAR_PADDING = 0.06
+BAR_SPACE = 0.3
+BAR_PADDING = 0.04
 IHC_HATCH = "xxx"
 SHIR_HATCH = "///"
 AETHERLING_HATCH = "\\\\\\"
@@ -29,11 +29,13 @@ SIM_FAIL = r"\textbf{\Large $\times$}"
 
 def plot_latencies(
     results: dict[BenchmarkImpl, LatencyResult],
-    fmax_results: dict[BenchmarkImpl, float],
     skip_ihc: bool,
     skip_shir: bool,
     skip_aetherling: bool,
-    hide_results: bool,
+    hide_ihc: bool,
+    hide_shir: bool,
+    hide_aetherling: bool,
+    hide_sirop: bool,
 ) -> None:
     """
     Plot latency for each program.
@@ -59,7 +61,7 @@ def plot_latencies(
     )
 
     num_bars = 1 + sum([not skip_ihc, not skip_shir, not skip_aetherling])
-    BAR_WIDTH = (1 - BAR_SPACE) / num_bars
+    bar_width = (1 - BAR_SPACE) / num_bars
 
     ihc_sim_ok = [
         (
@@ -119,64 +121,64 @@ def plot_latencies(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if ihc_latency[i] is not None],
             height=[x for x in ihc_latency if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.IHC_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=IHC_HATCH,
             zorder=10,
-            visible=not hide_results,
+            visible=not hide_ihc,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_shir:
         ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if shir_latency[i] is not None],
             height=[x for x in shir_latency if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.SHIR_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=SHIR_HATCH,
             zorder=10,
-            visible=not hide_results,
+            visible=not hide_shir,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     if not skip_aetherling:
         ax.bar(
             bottom=0,
             x=[x + delta_x for i, x in enumerate(xs) if aetherling_latency[i] is not None],
             height=[x for x in aetherling_latency if x is not None],
-            width=BAR_WIDTH - BAR_PADDING,
+            width=bar_width - BAR_PADDING,
             facecolor=c.AETHERLING_COLOR,
             edgecolor="black",
             linestyle="-",
             hatch=AETHERLING_HATCH,
             zorder=10,
-            visible=not hide_results,
+            visible=not hide_aetherling,
         )
-        delta_x += BAR_WIDTH
+        delta_x += bar_width
     ax.bar(
         bottom=0,
         x=[x + delta_x for x in xs],
         height=sirop_latency,
-        width=BAR_WIDTH - BAR_PADDING,
+        width=bar_width - BAR_PADDING,
         facecolor=c.OUR_COLOR_PALE,
         edgecolor="black",
         linestyle="-",
         hatch=OUR_HATCH,
         zorder=10,
-        visible=not hide_results,
+        visible=not hide_sirop,
     )
 
     # Display settings
     xlim = (
-        -0.5*BAR_WIDTH - 0.2*BAR_SPACE,
-        len(program_names) - 0.5*BAR_WIDTH - 0.5*BAR_SPACE
+        -0.5*bar_width - 0.2*BAR_SPACE,
+        len(program_names) - 0.5*bar_width - 0.5*BAR_SPACE
     )
     ax.set_xlim(xlim)
     ax.set_xticks(
-        [x + (num_bars-1)/2*BAR_WIDTH for x in xs],
+        [x + (num_bars-1)/2*bar_width for x in xs],
         [lb.benchmark_title(p) or "NONE" for p in program_names]
     )
     ax.tick_params(axis="x", which="both", length=0)
@@ -192,7 +194,7 @@ def plot_latencies(
         color=(0.8, 0.8, 0.8)
     )
 
-    pu.draw_lower_is_better_message(fig, 0.028, -0.21)
+    pu.draw_lower_is_better_message(fig, 0.032, -0.31)
 
     # Legend
     handles = []
@@ -249,7 +251,7 @@ def main() -> None:
     """
     The program entry point.
     """
-    (_, latency_results, fmax_results) = crud.read_combined_results(
+    (_, latency_results, _) = crud.read_combined_results(
         c.AETHERLING_RESOURCE_USAGE_CSV,
         c.AETHERLING_LATENCY_CSV,
         c.AETHERLING_FMAX_ESTIMATE_CSV,
@@ -266,11 +268,13 @@ def main() -> None:
     # TODO: Expose these as command-line flags
     plot_latencies(
         latency_results,
-        fmax_results,
         skip_ihc=False,
-        skip_shir=True,
-        skip_aetherling=True,
-        hide_results=False,
+        skip_shir=False,
+        skip_aetherling=False,
+        hide_ihc=False,
+        hide_shir=False,
+        hide_aetherling=False,
+        hide_sirop=False,
     )
 
 
