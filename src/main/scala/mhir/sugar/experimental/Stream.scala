@@ -2,7 +2,7 @@ package mhir.sugar
 package experimental
 
 import mhir.ir._
-import mhir.optimize.StreamFuser.StreamFusion
+import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
 import mhir.sugar.Streamifier.Streamify
 import mhir.typecheck.{TypeCheck, TypeError}
 

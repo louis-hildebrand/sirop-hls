@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
-import mhir.optimize.StreamFuser.StreamFusion
+import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
 import mhir.optimize.{StmBuildSimplifier, StmSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._

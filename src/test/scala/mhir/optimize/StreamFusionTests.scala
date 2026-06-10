@@ -3,7 +3,8 @@ package mhir.optimize
 import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
-import mhir.optimize.StreamFuser.{StmBuildFusion, StreamFusion}
+import mhir.optimize.StreamFuser.StmBuildFusion
+import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
 import mhir.sugar._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite

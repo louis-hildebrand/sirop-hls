@@ -2,7 +2,7 @@ package mhir.optimize.experimental
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.optimize.StreamFuser.StreamFusion
+import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.optimize.{PartialEvalPass => PE, _}
 import mhir.sugar._
