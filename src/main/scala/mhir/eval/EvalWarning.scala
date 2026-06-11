@@ -45,7 +45,7 @@ case class OverflowWarning(n: Long, typ: TyAnyInt, op: String)
   */
 case class StmDataWithoutReady(x: Param) extends EvalWarning {
   override def display: String =
-    s"attempt to read StmData($x) while ready = false"
+    s"attempt to read sdata($x) while ready = false"
 }
 
 case class UndefinedPrimitive(typ: Type) extends EvalWarning {

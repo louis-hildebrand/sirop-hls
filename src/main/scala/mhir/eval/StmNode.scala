@@ -241,7 +241,8 @@ case class StmBuildNode(
             // Who cares if the final accumulator values invoke undefined
             // behaviour?
             // They won't be used anyway.
-            suppressWarnings = newN == 0
+//            suppressWarnings = newN == 0
+            suppressWarnings = true
           )
           x -> evalNext
         })

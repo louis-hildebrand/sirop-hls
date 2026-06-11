@@ -42,12 +42,22 @@ object StreamFuser {
       val fused = consumer.seedByVar.get(x) match {
         case Some(e: StmBuild) =>
           // Avoid accumulator name clashes
-          val producer =
-            if (e.accVars.intersect(consumer.accVars).nonEmpty) {
+          val producer = {
+            val s1 = if (e.accVars.intersect(consumer.accVars).nonEmpty) {
               e.renameVars
             } else {
               e
             }
+            // Need to be careful if the valid expression uses sdata; we need
+            // to make sure we don't end up using sdata in the ready expression
+            // somewhere
+            val s2 = if (s1.valid.contains(e => e.isInstanceOf[StmData])) {
+              addOutputRegisters(s1)
+            } else {
+              s1
+            }
+            s2
+          }
           val consumerReady = consumer.nextByVar(x)
           val newData = {
             // CASE 1: Consumer is ready (i.e., reading from producer).
@@ -136,5 +146,36 @@ object StreamFuser {
       )
       fused
     }
+  }
+
+  private def addOutputRegisters(s: StmBuild): StmBuild = {
+    val data = Param("data")(s.data.typ)
+    val valid = Param("valid")(TyBool)
+    // Adding these output registers leads to a problem at the last time step:
+    // we're reading one more element from the input streams than we used to.
+    // (We're also updating the other accumulators one time more than we used
+    // to, which might cause the evaluator to complain about issues like
+    // overflow, although maybe that's more a problem in the evaluator than
+    // here.)
+    // To address this, we need to freeze the existing accumulators and
+    // producers once we reach the last time step.
+    val i = Param("i")(s.n.typ)
+    val freeze = i equ s.n
+    val newEquations = (s.equations ++ Map[Param, (Expr, Expr)](
+      data -> (Undefined(data.typ), s.data),
+      valid -> (False, s.valid),
+      i -> (C(0)(i.typ), Mux(s.valid, Sum(i, C(1)(i.typ))(), i)())
+    )).map({
+      case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
+        x -> (stm, And(!freeze, ready)().tchk())
+      case (x, (z, next)) =>
+        x -> (z, Mux(freeze, x, next)().tchk())
+    })
+    StmBuild(
+      s.n,
+      data,
+      valid,
+      newEquations
+    )().tchk().asInstanceOf[StmBuild]
   }
 }

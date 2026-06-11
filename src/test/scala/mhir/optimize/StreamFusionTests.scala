@@ -5,6 +5,7 @@ import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.optimize.StreamFuser.StmBuildFusion
 import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
+import mhir.parse.sirop.Parser
 import mhir.sugar._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -355,5 +356,273 @@ class StreamFusionTests extends AnyFunSuite {
     )
 
     VhdlGenerator.validateExpr(Function(s, fused)().tchk())
+  }
+
+  test("FilterWithOutputRegisters") {
+    val in1 = Param("in_stm_1", -1)(TyStm(U8, 8))
+    val in2 = Param("in_stm_2", -1)(TyStm(U8, 8))
+    val original = Parser
+      .parse(
+        """/* StmConcat */
+          |sbuild(8)(if i == 4:u8 then sdata(p2) else sdata(p1), true) {
+          |  (i: u8) = {
+          |    init: 0:u8,
+          |    next: if i == 4:u8 then 4:u8 else i + 1
+          |  }
+          |} {
+          |  /* Only even inputs, along with the sum of all previous elements */
+          |  (p1: Stm[(u8, u8), 4]) = {
+          |    stm: sbuild(4)(data, valid) {
+          |      (data: (u8, u8)) = {
+          |        init: undefined[(u8, u8)],
+          |        next: (sum, sdata(p))
+          |      },
+          |      (valid: bool) = {
+          |        init: false,
+          |        next: sdata(p) % 2 == 0:u8
+          |      },
+          |      (j: u8) = {
+          |        init: 0:u8,
+          |        next: if sdata(p) % 2 == 0:u8 then j + 1 else j
+          |      },
+          |      (sum: u8) = {
+          |        init: 0:u8,
+          |        next: sum + sdata(p)
+          |      }
+          |    } {
+          |      (p: Stm[u8, 8]) = {
+          |        stm: in_stm_1,
+          |        ready: j < 4:u8
+          |      }
+          |    },
+          |    ready: i != 4:u8
+          |  },
+          |  /* Only odd inputs, along with their index */
+          |  (p2: Stm[(u8, u8), 4]) = {
+          |    stm: sbuild(4)(data, valid) {
+          |      (data: (u8, u8)) = {
+          |        init: undefined[(u8, u8)],
+          |        next: (i, sdata(p))
+          |      },
+          |      (valid: bool) = {
+          |        init: false,
+          |        next: sdata(p) % 2 != 0:u8
+          |      },
+          |      (j: u8) = {
+          |        init: 0:u8,
+          |        next: if sdata(p) %2 != 0:u8 then j + 1 else j
+          |      },
+          |      (i: u8) = {
+          |        init: 0:u8,
+          |        next: i + 1
+          |      }
+          |    } {
+          |      (p: Stm[u8, 8]) = {
+          |        stm: in_stm_2,
+          |        ready: j < 4:u8
+          |      }
+          |    },
+          |    ready: i == 4:u8
+          |  }
+          |}
+          |""".stripMargin
+      )
+      .body
+      .tchk(Map(in1 -> in1.typ, in2 -> in2.typ), Map())
+      .lower
+      .asInstanceOf[StmBuild]
+
+    // Check that this code works the way I expect
+    val in1Val = StmLiteral(
+      C(1)(U8),
+      C(2)(U8),
+      C(3)(U8),
+      C(4)(U8),
+      C(6)(U8), // deliberately swapped
+      C(5)(U8), // deliberately swapped
+      C(7)(U8),
+      C(8)(U8)
+    )().tchk()
+    val in2Val = StmLiteral(
+      C(1)(U8),
+      C(2)(U8),
+      C(33)(U8),
+      C(4)(U8),
+      C(26)(U8),
+      C(15)(U8),
+      C(7)(U8),
+      C(8)(U8)
+    )().tchk()
+    val expected = StmLiteral(
+      Tuple(C(1)(U8), C(2)(U8))(),
+      Tuple(C(6)(U8), C(4)(U8))(),
+      Tuple(C(10)(U8), C(6)(U8))(),
+      Tuple(C(28)(U8), C(8)(U8))(),
+      Tuple(C(0)(U8), C(1)(U8))(),
+      Tuple(C(2)(U8), C(33)(U8))(),
+      Tuple(C(5)(U8), C(15)(U8))(),
+      Tuple(C(6)(U8), C(7)(U8))()
+    )().tchk()
+    val actual0 =
+      mhir.eval.eval(
+        original,
+        inputs = Map(in1 -> in1Val, in2 -> in2Val),
+        suppressWarnings = true
+      )
+    assert(actual0 == expected)
+
+    // Fuse with p1
+    {
+      val p1 = Param("p1", -1)(TyStm((U8, U8), 4))
+      val fused = original.fuseWith(p1)
+      // (Correct behaviour)
+      val actual =
+        mhir.eval.eval(fused, inputs = Map(in1 -> in1Val, in2 -> in2Val))
+      assert(actual == expected)
+      // (Successful fusion)
+      val numProducers = fused.equations
+        .count({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+      assert(numProducers == 2)
+      val in1UsedDirectly = fused.equations
+        .exists({ case (_, (z, _)) => z == in1 })
+      assert(in1UsedDirectly)
+    }
+
+    // Fuse with p2
+    {
+      val p2 = Param("p2", -1)(TyStm((U8, U8), 4))
+      val fused = original.fuseWith(p2)
+      // (Correct behaviour)
+      val actual =
+        mhir.eval.eval(fused, inputs = Map(in1 -> in1Val, in2 -> in2Val))
+      assert(actual == expected)
+      // (Successful fusion)
+      val numProducers = fused.equations
+        .count({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+      assert(numProducers == 2)
+      val in2UsedDirectly = fused.equations
+        .exists({ case (_, (z, _)) => z == in2 })
+      assert(in2UsedDirectly)
+    }
+  }
+
+  test("Filter") {
+    val in1 = Param("in_stm_1", -1)(TyStm(U8, 8))
+    val in2 = Param("in_stm_2", -1)(TyStm(U8, 8))
+    val original = Parser
+      .parse(
+        """/* StmConcat */
+          |sbuild(8)(if i == 4:u8 then sdata(p2) else sdata(p1), true) {
+          |  (i: u8) = {
+          |    init: 0:u8,
+          |    next: if i == 4:u8 then 4:u8 else i + 1
+          |  }
+          |} {
+          |  /* Only even inputs, along with the sum of all previous elements */
+          |  (p1: Stm[(u8, u8), 4]) = {
+          |    stm: sbuild(4)((sum, sdata(p)), sdata(p) % 2 == 0:u8) {
+          |      (sum: u8) = {
+          |        init: 0:u8,
+          |        next: sum + sdata(p)
+          |      }
+          |    } {
+          |      (p: Stm[u8, 8]) = {
+          |        stm: in_stm_1,
+          |        ready: true
+          |      }
+          |    },
+          |    ready: i != 4:u8
+          |  },
+          |  /* Only odd inputs, along with their index */
+          |  (p2: Stm[(u8, u8), 4]) = {
+          |    stm: sbuild(4)((i, sdata(p)), sdata(p) % 2:u8 != 0:u8) {
+          |      (i: u8) = {
+          |        init: 0:u8,
+          |        next: i + 1
+          |      }
+          |    } {
+          |      (p: Stm[u8, 8]) = {
+          |        stm: in_stm_2,
+          |        ready: true
+          |      }
+          |    },
+          |    ready: i == 4:u8
+          |  }
+          |}
+          |""".stripMargin
+      )
+      .body
+      .tchk(Map(in1 -> in1.typ, in2 -> in2.typ), Map())
+      .lower
+      .asInstanceOf[StmBuild]
+
+    // Check that this code works the way I expect
+    val in1Val = StmLiteral(
+      C(1)(U8),
+      C(2)(U8),
+      C(3)(U8),
+      C(4)(U8),
+      C(6)(U8), // deliberately swapped
+      C(5)(U8), // deliberately swapped
+      C(7)(U8),
+      C(8)(U8)
+    )().tchk()
+    val in2Val = StmLiteral(
+      C(1)(U8),
+      C(2)(U8),
+      C(33)(U8),
+      C(4)(U8),
+      C(26)(U8),
+      C(15)(U8),
+      C(7)(U8),
+      C(8)(U8)
+    )().tchk()
+    val expected = StmLiteral(
+      Tuple(C(1)(U8), C(2)(U8))(),
+      Tuple(C(6)(U8), C(4)(U8))(),
+      Tuple(C(10)(U8), C(6)(U8))(),
+      Tuple(C(28)(U8), C(8)(U8))(),
+      Tuple(C(0)(U8), C(1)(U8))(),
+      Tuple(C(2)(U8), C(33)(U8))(),
+      Tuple(C(5)(U8), C(15)(U8))(),
+      Tuple(C(6)(U8), C(7)(U8))()
+    )().tchk()
+    val actual0 =
+      mhir.eval.eval(original, inputs = Map(in1 -> in1Val, in2 -> in2Val))
+    assert(actual0 == expected)
+
+    // Fuse with p1
+    {
+      val p1 = Param("p1", -1)(TyStm((U8, U8), 4))
+      val fused = original.fuseWith(p1)
+      // (Correct behaviour)
+      val actual =
+        mhir.eval.eval(fused, inputs = Map(in1 -> in1Val, in2 -> in2Val))
+      assert(actual == expected)
+      // (Successful fusion)
+      val numProducers = fused.equations
+        .count({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+      assert(numProducers == 2)
+      val in1UsedDirectly = fused.equations
+        .exists({ case (_, (z, _)) => z == in1 })
+      assert(in1UsedDirectly)
+    }
+
+    // Fuse with p2
+    {
+      val p2 = Param("p2", -1)(TyStm((U8, U8), 4))
+      val fused = original.fuseWith(p2)
+      // (Correct behaviour)
+      val actual =
+        mhir.eval.eval(fused, inputs = Map(in1 -> in1Val, in2 -> in2Val))
+      assert(actual == expected)
+      // (Successful fusion)
+      val numProducers = fused.equations
+        .count({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+      assert(numProducers == 2)
+      val in2UsedDirectly = fused.equations
+        .exists({ case (_, (z, _)) => z == in2 })
+      assert(in2UsedDirectly)
+    }
   }
 }
