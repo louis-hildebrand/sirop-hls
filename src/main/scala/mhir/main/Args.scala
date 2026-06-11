@@ -40,6 +40,7 @@ object Args {
     var runVhdlSim: Option[Boolean] = None
     var vhdlFamily: Option[String] = None
     var vhdlDevice: Option[String] = None
+    var vhdlVirtualPins: Option[Boolean] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var prettyPrintLoweredDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
@@ -113,6 +114,8 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:vhdl:no-virtual-pins" =>
+          vhdlVirtualPins = Some(false)
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
             case Some("-") =>
@@ -346,7 +349,11 @@ object Args {
           case Some(device) => opt1.copy(device = device)
           case None         => opt1
         }
-        opt2
+        val opt3 = vhdlVirtualPins match {
+          case Some(b) => opt2.copy(virtualPins = b)
+          case None    => opt2
+        }
+        opt3
       },
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
@@ -413,6 +420,8 @@ object Args {
          |                                   .qsf file
          |  --out:vhdl:device                the value for the DEVICE assignment in the
          |                                   .qsf file
+         |  --out:vhdl:no-virtual-pins       don't mark the ports of the top-level entity
+         |                                   as virtual pins
          |
          |  --out:pp (FILE|-)                pretty-print the final program to the given
          |                                   file, or to stdout if argument "-" is given

@@ -21,13 +21,14 @@ object VhdlWriter {
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir, options.reservedKeywords, options)
-    emitProjectFiles(dir, designDir, options)
+    emitProjectFiles(dir, designDir, options, top)
   }
 
   private def emitProjectFiles(
       dir: Path,
       designDir: Path,
-      options: VhdlGeneratorOptions
+      options: VhdlGeneratorOptions,
+      top: CustomVhdlComponent
   ): Unit = {
     val topName = options.topName
     os.write(
@@ -70,6 +71,15 @@ object VhdlWriter {
         dir / s"$topName.qsf",
         s"set_global_assignment -name VHDL_FILE ${p.relativeTo(dir)}\n"
       )
+    }
+    if (options.virtualPins) {
+      val allPorts = top.inPorts.map(_.name) ++ top.outPorts.map(_.name)
+      for (port <- allPorts) {
+        os.write.append(
+          dir / s"$topName.qsf",
+          s"set_instance_assignment -name VIRTUAL_PIN ON -to $port -entity $topName\n"
+        )
+      }
     }
   }
 

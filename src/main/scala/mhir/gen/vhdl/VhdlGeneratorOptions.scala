@@ -19,6 +19,8 @@ import scala.io.Source
   *   value for the FAMILY setting in the .qsf file.
   * @param device
   *   value for the DEVICE setting in the .qsf file.
+  * @param virtualPins
+  *   whether to mark the ports of the top-level entity as virtual pins.
   */
 case class VhdlGeneratorOptions(
     topName: String = "top",
@@ -27,7 +29,8 @@ case class VhdlGeneratorOptions(
     outName: Option[String] = None,
     handshake: Boolean = true,
     deviceFamily: String = "Agilex 7",
-    device: String = "AGIC040R39A1E1VC"
+    device: String = "AGIC040R39A1E1VC",
+    virtualPins: Boolean = true
 ) {
 
   def reservedKeywords: Set[String] = {
