@@ -170,8 +170,8 @@ class ExprPrinterTests extends AnyFunSuite {
     val x = Param("x", -1)(U8)
     val y = Param("y", -1)(U8)
     val e = FunCall(f, Mod(x, y)())()
-    assert(ExprPrinter.displayOneLine(e) == s"f(x % y)")
-    assert(ExprPrinter.display(e) == s"f(x % y)")
+    assert(ExprPrinter.displayOneLine(e) == s"f(x %` y)")
+    assert(ExprPrinter.display(e) == s"f(x %` y)")
   }
 
   test("(x => y => x + y + 1)(42)(43)") {
@@ -257,13 +257,13 @@ class ExprPrinterTests extends AnyFunSuite {
     val v = Param("v", -1)(TyVec(TyVec(U8, 100), 100))
     val e = VecAccess(VecAccess(v, Div(i, j)())(), Sum(i, j, k)())()
 
-    val expectedOneLine = s"v[i / j][i +` j +` k]"
+    val expectedOneLine = s"v[i /` j][i +` j +` k]"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""v[
-         |  i / j
+         |  i /` j
          |][
          |  i
          |    +` j
@@ -352,7 +352,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val w = Param("w", -1)(U8)
     val e = Div(Div(x, y)(), Div(z, w)())()
     // No need for parentheses in this case: the AST is unambiguous
-    val expected = "x / y / (z / w)"
+    val expected = "x /` y /` (z /` w)"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }

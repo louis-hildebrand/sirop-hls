@@ -175,14 +175,14 @@ object ExprPrinter {
       case Div(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "/",
+          op = "/`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
       case Mod(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "%",
+          op = "%`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -570,9 +570,9 @@ object ExprPrinter {
           canElideFirstParens = false
         )
       case Div(e1, e2) =>
-        displayOneLineInfixOp(Seq(e1, e2), "/", myPrecedence)
+        displayOneLineInfixOp(Seq(e1, e2), "/`", myPrecedence)
       case Mod(e1, e2) =>
-        displayOneLineInfixOp(Seq(e1, e2), "%", myPrecedence)
+        displayOneLineInfixOp(Seq(e1, e2), "%`", myPrecedence)
       case WrappingSum(terms @ _*) =>
         displayOneLineInfixOp(
           terms,

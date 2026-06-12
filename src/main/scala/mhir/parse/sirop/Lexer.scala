@@ -128,8 +128,12 @@ object Lexer {
       lex(consume(code, "*`"), tokens :+ TimesTickToken(p), p.consume("*`"))
     } else if (code.startsWith("*")) {
       lex(consume(code, "*"), tokens :+ TimesToken(p), p.consume("*"))
+    } else if (code.startsWith("/`")) {
+      lex(consume(code, "/`"), tokens :+ SlashTickToken(p), p.consume("/`"))
     } else if (code.startsWith("/")) {
       lex(consume(code, "/"), tokens :+ SlashToken(p), p.consume("/"))
+    } else if (code.startsWith("%`")) {
+      lex(consume(code, "%`"), tokens :+ PercentTickToken(p), p.consume("%`"))
     } else if (code.startsWith("%")) {
       lex(consume(code, "%"), tokens :+ PercentToken(p), p.consume("%"))
     } else if (code.startsWith("!")) {

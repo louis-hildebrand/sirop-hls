@@ -605,9 +605,15 @@ object Parser {
       case Seq(_: SlashToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartDiv(e1, e2)(), rest2, constants)
+      case Seq(_: SlashTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Div(e1, e2)(), rest2, constants)
       case Seq(_: PercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartMod(e1, e2)(), rest2, constants)
+      case Seq(_: PercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Mod(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }

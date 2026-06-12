@@ -522,9 +522,21 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("x /` y /` z") {
+    val src = "x /` y /` z"
+    val expected = Div(Div(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x % y % z") {
     val src = "x % y % z"
     val expected = SmartMod(SmartMod(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x %` y %` z") {
+    val src = "x %` y %` z"
+    val expected = Mod(Mod(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 

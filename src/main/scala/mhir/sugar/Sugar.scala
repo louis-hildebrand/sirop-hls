@@ -1048,13 +1048,13 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def precedence: Int = Precedence.Div
 
   override def displayOneLine(): String = {
-    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "//", this.precedence)
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "/", this.precedence)
   }
 
   override def displayMultiLine(maxWidth: Int): String = {
     EP.displayMultiLineInfixOp(
       Seq(this.e1, this.e2),
-      "//",
+      "/",
       maxWidth = maxWidth,
       precedence = this.precedence
     )
@@ -1114,13 +1114,13 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def precedence: Int = Precedence.Mod
 
   override def displayOneLine(): String = {
-    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "%%", this.precedence)
+    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "%", this.precedence)
   }
 
   override def displayMultiLine(maxWidth: Int): String = {
     EP.displayMultiLineInfixOp(
       Seq(this.e1, this.e2),
-      "%%",
+      "%",
       maxWidth = maxWidth,
       precedence = this.precedence
     )

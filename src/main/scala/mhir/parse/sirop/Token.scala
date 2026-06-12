@@ -834,6 +834,17 @@ case class TimesToken(loc: SourcePoint) extends Token {
   */
 object TimesToken extends SymbolCategory("*")
 
+/** The symbol "/&#96;".
+  */
+case class SlashTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = SlashTickToken
+  override def original: String = "/`"
+}
+
+/** Category of [[SlashTickToken]].
+  */
+object SlashTickToken extends SymbolCategory("/`")
+
 /** The symbol "/".
   */
 case class SlashToken(loc: SourcePoint) extends Token {
@@ -844,6 +855,17 @@ case class SlashToken(loc: SourcePoint) extends Token {
 /** Category of [[SlashToken]].
   */
 object SlashToken extends SymbolCategory("/")
+
+/** The symbol "%&#96;".
+  */
+case class PercentTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PercentTickToken
+  override def original: String = "%`"
+}
+
+/** Category of [[PercentTickToken]].
+  */
+object PercentTickToken extends SymbolCategory("%`")
 
 /** The symbol "%".
   */
