@@ -3,7 +3,7 @@ package mhir.sugar
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.logging.time
-import mhir.typecheck.{TProd, TypeCheck, TypeChecker, TypeError}
+import mhir.typecheck.{TProd, TSum, TypeCheck, TypeChecker, TypeError}
 
 case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
     extends SyntaxSugar(p, body)(typ) {
@@ -635,6 +635,7 @@ object ReshapeData {
   */
 case class SmartSum(terms: Expr*)(typ: Type = Missing)
     extends SyntaxSugar(terms: _*)(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     SmartSum(newChildren: _*)(typ)
   }
@@ -673,13 +674,96 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
   override def precedence: Int = Precedence.Sum
 
   override def displayOneLine(): String = {
-    EP.displayOneLineInfixOp(this.terms, "++", this.precedence)
+    EP.displayOneLineInfixOp(this.terms, "+", this.precedence)
   }
 
   override def displayMultiLine(maxWidth: Int): String = {
     EP.displayMultiLineInfixOp(
       this.terms,
-      "++",
+      "+",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
+  }
+}
+
+/** The sum of two values, even ones with slightly different types.
+  *
+  * Each operand will be reshaped to be compatible with the others. Furthermore,
+  * on overflow, the result will wrap around as you'd expect for twos complement
+  * numbers.
+  */
+case class SmartWrappingSum(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BinOpSyntaxSugar(e1, e2)(typ) {
+
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+    case (typ, Seq(e1, e2)) => SmartWrappingSum(e1, e2)(typ)
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val e1 = this.e1.tchk(context, constValues).expectAnyInt()
+    val e2 = this.e2.tchk(context, constValues).expectAnyInt()
+    val typ =
+      ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ, constValues).get
+    this.rebuild(typ, Seq(e1, e2))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val e1 = ReshapeData(this.e1, this.typ)().tchk().lower
+    val e2 = ReshapeData(this.e2, this.typ)().tchk().lower
+    WrappingSum(e1, e2)().tchk()
+  }
+
+  override def symbol: String = "+%"
+
+  override def precedence: Int = Precedence.Sum
+}
+
+/** The sum of several values <i>without overflow</i>.
+  *
+  * The type of this expression will be chosen so as to guarantee that the sum
+  * can be computed without overflow.
+  *
+  * @param terms
+  *   the values to add up.
+  */
+case class SafeSum(terms: Expr*)(typ: Type = Missing)
+    extends SyntaxSugar(terms: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    SafeSum(newChildren: _*)(typ)
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val terms = this.terms.map(e => e.tchk(context, constValues).expectAnyInt())
+    this.rebuild(
+      TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
+      terms
+    )
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val terms = this.terms.map(e => e.lower)
+    MaybeSum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
+  }
+
+  override def precedence: Int = Precedence.Sum
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(this.terms, "+^", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      this.terms,
+      "+^",
       maxWidth = maxWidth,
       precedence = this.precedence
     )

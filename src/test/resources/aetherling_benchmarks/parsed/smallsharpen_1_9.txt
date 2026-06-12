@@ -20,13 +20,13 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
     let n121: Stm[Stm[u8, 1:u1], 3:u2] = (
       StmMap(
         n116,
-        (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n126: Stm[Stm[u8, 1:u1], 1:u1] = (
       StmReduce(
         n121,
-        (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n185: Stm[Stm[u8, 1:u1], 1:u1] = [[4:u8]s]s in
@@ -67,7 +67,7 @@ let module1: u8 -> u8 -> u8 = (
       let n173: (u8, u8) = (n170, n183) in
       let n174: u8 = n173.0 >>> n173.1 in
       let n175: (u8, u8) = (I1, n174) in
-      n175.0 +% n175.1
+      n175.0 +%` n175.1
 ) in
 (I : Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5]) =>
   let n1: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = I in

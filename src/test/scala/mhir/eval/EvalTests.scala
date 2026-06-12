@@ -248,14 +248,14 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("Overflow:Used:Sum") {
-    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8, "255:u8 + 1:u8")
+    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8, "255:u8 +` 1:u8")
     assertOverflow(
       Sum(C(32767)(I16), C(1)(I16))(),
       32768,
       I16,
-      "32767:i16 + 1:i16"
+      "32767:i16 +` 1:i16"
     )
-    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8, "-127:i8 + -2:i8")
+    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8, "-127:i8 +` -2:i8")
   }
 
   test("Overflow:Used:Prod") {

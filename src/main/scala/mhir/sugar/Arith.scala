@@ -1,7 +1,7 @@
 package mhir.sugar
 
 import mhir.ir._
-import mhir.typecheck.{TSum, TypeCheck, TypeError}
+import mhir.typecheck._
 
 /** A function which computes the sum of two values.
   */
@@ -229,37 +229,5 @@ object Cast {
         canCast(t1, t2, constValues) && c.sameLen(n1, n2, constValues)
       case _ => false
     }
-  }
-}
-
-/** The sum of several values <i>without overflow</i>.
-  *
-  * The type of this expression will be chosen so as to guarantee that the sum
-  * can be computed without overflow.
-  *
-  * @param terms
-  *   the values to add up.
-  */
-case class SafeSum(terms: Expr*)(typ: Type = Missing)
-    extends SyntaxSugar(terms: _*)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    SafeSum(newChildren: _*)(typ)
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    val terms = this.terms.map(e => e.tchk(context, constValues).expectAnyInt())
-    this.rebuild(
-      TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
-      terms
-    )
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val terms = this.terms.map(e => e.lower)
-    MaybeSum(terms.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
   }
 }

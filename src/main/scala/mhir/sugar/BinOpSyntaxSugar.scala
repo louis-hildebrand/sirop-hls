@@ -9,8 +9,6 @@ abstract class BinOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
   def rebuild: PartialFunction[(Type, Seq[Expr]), Expr]
   def symbol: String
 
-  def checkInputType(typ: Type): Option[String]
-
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     if (this.rebuild.isDefinedAt((typ, newChildren))) {
       this.rebuild((typ, newChildren))
@@ -35,6 +33,8 @@ abstract class BinOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
 
 abstract class RelationalOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BinOpSyntaxSugar(e1, e2)(typ) {
+
+  def checkInputType(typ: Type): Option[String]
 
   override def typecheck(
       context: Map[Param, Type],

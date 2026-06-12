@@ -4,7 +4,7 @@ let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
   (I : Stm[i8, 3:u2]) =>
     let n36: Stm[i8, 3:u2] = [-1:i8, 0:i8, 1:i8]s in
     let n24: Stm[i8, 3:u2] = StmMap2(I, n36, module0) in
-    StmReduce(n24, (I : (i8, i8)) => I.0 +% I.1)
+    StmReduce(n24, (I : (i8, i8)) => I.0 +%` I.1)
 ) in
 (I : Stm[Stm[i8, 1:u1], 16:u5]) =>
   let n1: Stm[Stm[i8, 1:u1], 16:u5] = I in

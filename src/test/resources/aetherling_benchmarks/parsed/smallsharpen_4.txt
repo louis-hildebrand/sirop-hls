@@ -20,13 +20,13 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
     let n126: Vec[Vec[u8, 1:u1], 3:u2] = (
       VecMap(
         n121,
-        (I : Vec[u8, 3:u2]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Vec[u8, 3:u2]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n131: Vec[Vec[u8, 1:u1], 1:u1] = (
       VecReduceComb(
         n126,
-        (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n189: Vec[Vec[u8, 1:u1], 1:u1] = [[4:u8]v]v in
@@ -67,7 +67,7 @@ let module1: u8 -> u8 -> u8 = (
       let n177: (u8, u8) = (n174, n187) in
       let n178: u8 = n177.0 >>> n177.1 in
       let n179: (u8, u8) = (I1, n178) in
-      n179.0 +% n179.1
+      n179.0 +%` n179.1
 ) in
 (I : Stm[Vec[u8, 4:u3], 4:u3]) =>
   let n1: Stm[Vec[u8, 4:u3], 4:u3] = I in

@@ -16,7 +16,7 @@ let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n11: (u16, u16)
     let n17: Stm[Stm[u16, 1:u1], 256:u9] = (
       StmMap(
         n5,
-        (I : Stm[u16, 256:u9]) => StmReduce(I, (I : (u16, u16)) => I.0 +% I.1)
+        (I : Stm[u16, 256:u9]) => StmReduce(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
     let n18: Stm[Stm[u16, 1:u1], 256:u9] = n17 in

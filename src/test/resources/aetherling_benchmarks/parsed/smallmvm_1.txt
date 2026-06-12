@@ -17,7 +17,7 @@ let module0: u8 -> u8 -> u8 = (I0 : u8) => (I1 : u8) => let n12: (u8, u8) = (I0,
     let n18: Stm[Vec[u8, 1:u1], 4:u3] = (
       StmMap(
         n6,
-        (I : Vec[u8, 4:u3]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Vec[u8, 4:u3]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n19: Stm[Vec[u8, 1:u1], 4:u3] = ReshapeSeq[Stm[Vec[u8, 1:u1], 4:u3]](n18) in

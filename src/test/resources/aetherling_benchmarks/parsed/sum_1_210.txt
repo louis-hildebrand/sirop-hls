@@ -4,13 +4,13 @@
   let n6: Stm[Vec[u32, 1:u1], 210:u8] = (
     StmMap(
       n1,
-      (I : Vec[u32, 4:u3]) => VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+      (I : Vec[u32, 4:u3]) => VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
     )
   ) in
   let n9: Stm[Vec[u32, 1:u1], 1:u1] = (
     StmReduce(
       n6,
-      (I : Vec[(u32, u32), 1:u1]) => VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+      (I : Vec[(u32, u32), 1:u1]) => VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
     )
   ) in
   let n10: Stm[u32, 1:u1] = ReshapeSeq[Stm[u32, 1:u1]](n9) in

@@ -1,7 +1,7 @@
 // Output type: Stm[u32, 840:u10] -> Stm[u32, 1:u1]
 (I : Stm[u32, 840:u10]) =>
   let n1: Stm[u32, 840:u10] = I in
-  let n4: Stm[u32, 1:u1] = StmReduce(n1, (I : (u32, u32)) => I.0 +% I.1) in
+  let n4: Stm[u32, 1:u1] = StmReduce(n1, (I : (u32, u32)) => I.0 +%` I.1) in
   let n5: Stm[u32, 1:u1] = n4 in
   let n6: Stm[u32, 1:u1] = n5 in
   n6

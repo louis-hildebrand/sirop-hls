@@ -96,8 +96,18 @@ object Lexer {
       lex(consume(code, "<"), tokens :+ LtToken(p), p.consume("<"))
     } else if (code.startsWith(">")) {
       lex(consume(code, ">"), tokens :+ GtToken(p), p.consume(">"))
+    } else if (code.startsWith("+^")) {
+      lex(consume(code, "+^"), tokens :+ PlusCaretToken(p), p.consume("+^"))
+    } else if (code.startsWith("+%`")) {
+      lex(
+        consume(code, "+%`"),
+        tokens :+ PlusPercentTickToken(p),
+        p.consume("+%`")
+      )
     } else if (code.startsWith("+%")) {
       lex(consume(code, "+%"), tokens :+ PlusPercentToken(p), p.consume("+%"))
+    } else if (code.startsWith("+`")) {
+      lex(consume(code, "+`"), tokens :+ PlusTickToken(p), p.consume("+`"))
     } else if (code.startsWith("+")) {
       lex(consume(code, "+"), tokens :+ PlusToken(p), p.consume("+"))
     } else if (code.startsWith("-%")) {

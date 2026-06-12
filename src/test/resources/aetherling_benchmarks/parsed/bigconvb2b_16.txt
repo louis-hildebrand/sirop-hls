@@ -22,14 +22,14 @@ let module0: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n121,
         (I : Vec[u32, 3:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n131: Vec[Vec[u32, 1:u1], 1:u1] = (
       VecReduceComb(
         n126,
         (I : Vec[(u32, u32), 1:u1]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n254: Vec[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]v in
@@ -71,14 +71,14 @@ let module1: Vec[Vec[u32, 2:u2], 2:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n219,
         (I : Vec[u32, 2:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n229: Vec[Vec[u32, 1:u1], 1:u1] = (
       VecReduceComb(
         n224,
         (I : Vec[(u32, u32), 1:u1]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n252: Vec[Vec[fix8_7, 1:u1], 1:u1] = [[(16/2e7):fix8_7]v]v in

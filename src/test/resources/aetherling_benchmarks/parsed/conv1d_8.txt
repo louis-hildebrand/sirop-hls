@@ -4,7 +4,7 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
   (I : Vec[i8, 3:u2]) =>
     let n45: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8]v in
     let n32: Vec[i8, 3:u2] = VecMap2(I, n45, module0) in
-    VecReduceComb(n32, (I : (i8, i8)) => I.0 +% I.1)
+    VecReduceComb(n32, (I : (i8, i8)) => I.0 +%` I.1)
 ) in
 (I : Stm[Vec[i8, 8:u4], 2:u2]) =>
   let n1: Stm[Vec[i8, 8:u4], 2:u2] = I in

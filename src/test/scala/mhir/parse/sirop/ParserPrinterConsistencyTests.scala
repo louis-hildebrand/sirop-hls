@@ -13,6 +13,7 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
     }
   }
 
+  // Relational operators
   testBinop("==")
   testBinop("==`")
   testBinop("!=")
@@ -21,4 +22,11 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   testBinop(">")
   testBinop("<=")
   testBinop(">=")
+
+  // Arithmetic
+  testBinop("+")
+  testBinop("+`")
+  testBinop("+%")
+  testBinop("+%`")
+  testBinop("+^")
 }

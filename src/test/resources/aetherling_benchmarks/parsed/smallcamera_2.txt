@@ -64,7 +64,7 @@ let module6: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[(bool, bool), 1:u1], 1:u1] -> 
         VecMap(
           n166,
           (I : Vec[(u32, u32), 1:u1]) =>
-            VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+            VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
         )
       ) in
       let n184: Vec[Vec[(u32, u8), 1:u1], 1:u1] = VecMap(n177, (I : Vec[u32, 1:u1]) => VecMap(I, module2)) in
@@ -108,7 +108,7 @@ let module6: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[(bool, bool), 1:u1], 1:u1] -> 
         VecMap(
           n201,
           (I : Vec[(u32, u32), 1:u1]) =>
-            VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+            VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
         )
       ) in
       let n219: Vec[Vec[(u32, u8), 1:u1], 1:u1] = VecMap(n212, (I : Vec[u32, 1:u1]) => VecMap(I, module3)) in
@@ -192,7 +192,7 @@ let module6: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[(bool, bool), 1:u1], 1:u1] -> 
         VecMap(
           n264,
           (I : Vec[u32, 4:u4]) =>
-            VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+            VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
         )
       ) in
       let n276: Vec[Vec[(u32, u8), 1:u1], 1:u1] = VecMap(n269, (I : Vec[u32, 1:u1]) => VecMap(I, module4)) in
@@ -280,7 +280,7 @@ let module6: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[(bool, bool), 1:u1], 1:u1] -> 
         VecMap(
           n319,
           (I : Vec[u32, 4:u4]) =>
-            VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+            VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
         )
       ) in
       let n331: Vec[Vec[(u32, u8), 1:u1], 1:u1] = VecMap(n324, (I : Vec[u32, 1:u1]) => VecMap(I, module5)) in
@@ -517,14 +517,14 @@ let module8: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n571,
         (I : Vec[u32, 3:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n581: Vec[Vec[u32, 1:u1], 1:u1] = (
       VecReduceComb(
         n576,
         (I : Vec[(u32, u32), 1:u1]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n1026: Vec[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]v in
@@ -567,7 +567,7 @@ let module9: u32 -> u32 -> u32 = (
       let n627: (u32, fix8_7) = (n624, n1024) in
       let n628: u32 = n627.0 *_ n627.1 in
       let n630: (u32, u32) = (n629, n628) in
-      n630.0 +% n630.1
+      n630.0 +%` n630.1
 ) in
 let module10: (u32, (u32, u32)) -> u32 = (I : (u32, (u32, u32))) => let n634: (u32, u32) = I.1 in n634.0 in
 let module11: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
@@ -593,14 +593,14 @@ let module11: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n757,
         (I : Vec[u32, 3:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n767: Vec[Vec[u32, 1:u1], 1:u1] = (
       VecReduceComb(
         n762,
         (I : Vec[(u32, u32), 1:u1]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n1036: Vec[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]v in
@@ -643,7 +643,7 @@ let module12: u32 -> u32 -> u32 = (
       let n813: (u32, fix8_7) = (n810, n1034) in
       let n814: u32 = n813.0 *_ n813.1 in
       let n816: (u32, u32) = (n815, n814) in
-      n816.0 +% n816.1
+      n816.0 +%` n816.1
 ) in
 let module13: (u32, (u32, u32)) -> u32 = (I : (u32, (u32, u32))) => let n820: (u32, u32) = I.1 in n820.1 in
 let module14: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
@@ -669,14 +669,14 @@ let module14: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n943,
         (I : Vec[u32, 3:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n953: Vec[Vec[u32, 1:u1], 1:u1] = (
       VecReduceComb(
         n948,
         (I : Vec[(u32, u32), 1:u1]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n1042: Vec[Vec[fix8_7, 1:u1], 1:u1] = [[(8/2e7):fix8_7]v]v in
@@ -719,7 +719,7 @@ let module15: u32 -> u32 -> u32 = (
       let n999: (u32, fix8_7) = (n996, n1040) in
       let n1000: u32 = n999.0 *_ n999.1 in
       let n1002: (u32, u32) = (n1001, n1000) in
-      n1002.0 +% n1002.1
+      n1002.0 +%` n1002.1
 ) in
 (I : Stm[Vec[u32, 2:u2], 32:u6]) =>
   let n1: Stm[Vec[u32, 2:u2], 32:u6] = I in

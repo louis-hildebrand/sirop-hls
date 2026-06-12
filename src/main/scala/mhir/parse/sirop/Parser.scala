@@ -550,9 +550,18 @@ object Parser {
       case Seq(_: PlusToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(SmartSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(Sum(e1, e2)(), rest2, constants)
       case Seq(_: PlusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SmartWrappingSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SafeSum(e1, e2)(), rest2, constants)
       case Seq(_: MinusToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(SmartDiff(e1, e2)(), rest2, constants)

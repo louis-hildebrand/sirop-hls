@@ -43,7 +43,7 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Vec[u32, 3:u2]) =>
-              VecReduceComb(I, (I : (u32, u32)) => I.0 +% I.1)
+              VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -54,7 +54,7 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
           VecReduceComb(
             I,
             (I : Vec[(u32, u32), 1:u1]) =>
-              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -65,7 +65,7 @@ let module0: Stm[Vec[Vec[u32, 3:u2], 3:u2], 1:u1] -> Stm[Vec[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Vec[(u32, u32), 1:u1]) =>
-              VecMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -110,7 +110,7 @@ let module1: u32 -> u32 -> u32 = (
       let n182: (u32, fix8_7) = (n179, n193) in
       let n183: u32 = n182.0 *_ n182.1 in
       let n185: (u32, u32) = (n184, n183) in
-      n185.0 +% n185.1
+      n185.0 +%` n185.1
 ) in
 (I : Stm[Vec[u32, 1:u1], 2073600:u21]) =>
   let n1: Stm[Vec[u32, 1:u1], 2073600:u21] = I in

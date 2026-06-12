@@ -6,14 +6,14 @@ let module1: Stm[Vec[u16, 4:u3], 64:u7] -> Stm[u16, 1:u1] = (
       StmMap(
         I,
         (I : Vec[u16, 4:u3]) =>
-          VecReduceComb(I, (I : (u16, u16)) => I.0 +% I.1)
+          VecReduceComb(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
     let n24: Stm[Vec[u16, 1:u1], 1:u1] = (
       StmReduce(
         n21,
         (I : Vec[(u16, u16), 1:u1]) =>
-          VecMap(I, (I : (u16, u16)) => I.0 +% I.1)
+          VecMap(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
     ReshapeSeq[Stm[u16, 1:u1]](n24)

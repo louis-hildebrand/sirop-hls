@@ -161,7 +161,7 @@ object ExprPrinter {
       case Sum(terms @ _*) =>
         displayMultiLineInfixOp(
           terms,
-          op = "+",
+          op = "+`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -189,7 +189,7 @@ object ExprPrinter {
       case WrappingSum(terms @ _*) =>
         displayMultiLineInfixOp(
           terms,
-          op = "+%",
+          op = "+%`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -558,7 +558,7 @@ object ExprPrinter {
       case Sum(terms @ _*) =>
         displayOneLineInfixOp(
           terms,
-          "+",
+          "+`",
           myPrecedence,
           canElideFirstParens = false
         )
@@ -576,7 +576,7 @@ object ExprPrinter {
       case WrappingSum(terms @ _*) =>
         displayOneLineInfixOp(
           terms,
-          "+%",
+          "+%`",
           myPrecedence,
           canElideFirstParens = false
         )
