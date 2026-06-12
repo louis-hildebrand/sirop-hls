@@ -399,26 +399,20 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("false || true == (true && false)") {
     val e = False || (True equ (False && True))
-    assert(ExprPrinter.displayOneLine(e) == "false || true == (false && true)")
-    assert(ExprPrinter.display(e) == "false || true == (false && true)")
-  }
-
-  test("1 != 2") {
-    val e = Not(Equal(C(1)(I8), C(2)(I8))())()
-    assert(ExprPrinter.displayOneLine(e) == "1:i8 != 2:i8")
-    assert(ExprPrinter.display(e) == "1:i8 != 2:i8")
+    assert(ExprPrinter.displayOneLine(e) == "false || true ==` (false && true)")
+    assert(ExprPrinter.display(e) == "false || true ==` (false && true)")
   }
 
   test("42 < 43") {
     val e = C(42)(U16) lt C(43)(U16)
-    assert(ExprPrinter.displayOneLine(e) == "42:u16 < 43:u16")
-    assert(ExprPrinter.display(e) == "42:u16 < 43:u16")
+    assert(ExprPrinter.displayOneLine(e) == "42:u16 <` 43:u16")
+    assert(ExprPrinter.display(e) == "42:u16 <` 43:u16")
   }
 
   test("42 >= 43") {
     val e = !(C(42)(U16) lt C(43)(U16))
-    assert(ExprPrinter.displayOneLine(e) == "42:u16 >= 43:u16")
-    assert(ExprPrinter.display(e) == "42:u16 >= 43:u16")
+    assert(ExprPrinter.displayOneLine(e) == "!(42:u16 <` 43:u16)")
+    assert(ExprPrinter.display(e) == "!(42:u16 <` 43:u16)")
   }
 
   test("!((a || b) && c))") {

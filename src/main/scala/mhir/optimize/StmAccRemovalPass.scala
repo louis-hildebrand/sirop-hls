@@ -89,35 +89,6 @@ object StmAccRemovalPass {
     newStm
   }
 
-  def removePrefixCounter(s: StmBuild): StmBuild = {
-    // TODO: It would be nice to be able to remove the counter from a 1D
-    //       StmPrefix without this special case.
-    s.valid match {
-      case Not(Equal(i: Param, k))
-          if s.accVars.contains(i)
-            && PartialEvalPass.isSmallerOrEqual(k, s.n)().getOrElse(false) =>
-        s.equations(i) match {
-          case (IntCst(0), Mux(Equal(i0, k0), k1, Sum(IntCst(1), i1)))
-              if i0 == i && i1 == i && k0 == k && k1 == k =>
-            val newValid = True
-            val newEquations =
-              s.equations.map({
-                case (x, (z, _)) if x == i =>
-                  i -> (z, Sum(C(1)(i.typ), i)())
-                case eqn => eqn
-              })
-            StmBuild(
-              s.n,
-              s.data,
-              newValid,
-              newEquations
-            )().tchk().asInstanceOf[StmBuild]
-          case _ => s
-        }
-      case _ => s
-    }
-  }
-
   @tailrec
   private def findConstantAccumulatorElems(
       stm: StmBuild,

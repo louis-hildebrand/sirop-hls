@@ -238,30 +238,16 @@ object ExprPrinter {
       case Equal(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "==",
+          op = "==`",
           maxWidth = maxWidth,
           precedence = myPrecedence
-        )
-      case Not(eq @ Equal(e1, e2)) =>
-        displayMultiLineInfixOp(
-          Seq(e1, e2),
-          op = "!=",
-          maxWidth = maxWidth,
-          precedence = Precedence(eq)
         )
       case LessThan(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "<",
+          op = "<`",
           maxWidth = maxWidth,
           precedence = myPrecedence
-        )
-      case Not(lt @ LessThan(e1, e2)) =>
-        displayMultiLineInfixOp(
-          Seq(e1, e2),
-          op = ">=",
-          maxWidth = maxWidth,
-          precedence = Precedence(lt)
         )
       case And(terms @ _*) =>
         displayMultiLineInfixOp(
@@ -632,13 +618,9 @@ object ExprPrinter {
       case True  => "true"
       case False => "false"
       case Equal(e1, e2) =>
-        s"${displayOneLine(e1, myPrecedence)} == ${displayOneLine(e2, myPrecedence)}"
-      case Not(eq @ Equal(e1, e2)) =>
-        s"${displayOneLine(e1, Precedence(eq))} != ${displayOneLine(e2, Precedence(eq))}"
+        displayOneLineInfixOp(Seq(e1, e2), "==`", myPrecedence)
       case LessThan(e1, e2) =>
-        s"${displayOneLine(e1, myPrecedence)} < ${displayOneLine(e2, myPrecedence)}"
-      case Not(lt @ LessThan(e1, e2)) =>
-        s"${displayOneLine(e1, Precedence(lt))} >= ${displayOneLine(e2, Precedence(lt))}"
+        displayOneLineInfixOp(Seq(e1, e2), "<`", myPrecedence)
       case Not(e) =>
         s"!${displayOneLine(e, myPrecedence)}"
       case And(terms @ _*) =>

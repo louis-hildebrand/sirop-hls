@@ -3,7 +3,7 @@ let module0: u32 -> bool = (
   (I : u32) =>
     let n95: u32 = 8:u32 in
     let n96: (u32, u32) = (I, n95) in
-    let n97: bool = n96.0 << n96.1 in
+    let n97: bool = n96.0 < n96.1 in
     !n97
 ) in
 let module1: u32 -> bool = (
@@ -14,7 +14,7 @@ let module1: u32 -> bool = (
     let n106: (u32, u8) = (n105, n103) in
     let n107: u32 = n106.0 << n106.1 in
     let n108: (u32, u32) = (I, n107) in
-    let n109: bool = n108.0 === n108.1 in
+    let n109: bool = n108.0 == n108.1 in
     !n109
 ) in
 let module2: u32 -> (u32, u8) = (I : u32) => let n999: u8 = 1:u8 in (I, n999) in
@@ -152,7 +152,7 @@ let module6: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[(bool, bool), 1:u1]
                 I1,
                 (I0 : u32) =>
                   (I1 : u32) =>
-                    vbuild(2:u2) { (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
+                    vbuild(2:u2) { (x_4 : u8) => if (x_4 == 0:u0) then { I0 } else { I1 }
                     }
               )
         )
@@ -220,7 +220,7 @@ let module6: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[(bool, bool), 1:u1]
                 I1,
                 (I0 : u32) =>
                   (I1 : u32) =>
-                    vbuild(2:u2) { (x_6 : u8) => if (x_6 === 0:u0) then { I0 } else { I1 }
+                    vbuild(2:u2) { (x_6 : u8) => if (x_6 == 0:u0) then { I0 } else { I1 }
                     }
               )
         )
@@ -574,12 +574,12 @@ let module9: u32 -> u32 -> u32 = (
       let n596: (u32, u32) = (I0, I1) in
       let n597: u32 = n596.0 -% n596.1 in
       let n599: (u32, u32) = (n993, n597) in
-      let n600: bool = n599.0 << n599.1 in
+      let n600: bool = n599.0 < n599.1 in
       let n994: u32 = 15:u32 in
       let n601: (u32, u32) = (I1, I0) in
       let n602: u32 = n601.0 -% n601.1 in
       let n604: (u32, u32) = (n994, n602) in
-      let n605: bool = n604.0 << n604.1 in
+      let n605: bool = n604.0 < n604.1 in
       let n606: (bool, bool) = (n600, n605) in
       let n607: bool = n606.0 || n606.1 in
       let n995: u32 = 0:u32 in
@@ -688,12 +688,12 @@ let module12: u32 -> u32 -> u32 = (
       let n774: (u32, u32) = (I0, I1) in
       let n775: u32 = n774.0 -% n774.1 in
       let n777: (u32, u32) = (n1003, n775) in
-      let n778: bool = n777.0 << n777.1 in
+      let n778: bool = n777.0 < n777.1 in
       let n1004: u32 = 15:u32 in
       let n779: (u32, u32) = (I1, I0) in
       let n780: u32 = n779.0 -% n779.1 in
       let n782: (u32, u32) = (n1004, n780) in
-      let n783: bool = n782.0 << n782.1 in
+      let n783: bool = n782.0 < n782.1 in
       let n784: (bool, bool) = (n778, n783) in
       let n785: bool = n784.0 || n784.1 in
       let n1005: u32 = 0:u32 in
@@ -802,12 +802,12 @@ let module15: u32 -> u32 -> u32 = (
       let n952: (u32, u32) = (I0, I1) in
       let n953: u32 = n952.0 -% n952.1 in
       let n955: (u32, u32) = (n1009, n953) in
-      let n956: bool = n955.0 << n955.1 in
+      let n956: bool = n955.0 < n955.1 in
       let n1010: u32 = 15:u32 in
       let n957: (u32, u32) = (I1, I0) in
       let n958: u32 = n957.0 -% n957.1 in
       let n960: (u32, u32) = (n1010, n958) in
-      let n961: bool = n960.0 << n960.1 in
+      let n961: bool = n960.0 < n960.1 in
       let n962: (bool, bool) = (n956, n961) in
       let n963: bool = n962.0 || n962.1 in
       let n1011: u32 = 0:u32 in
@@ -837,7 +837,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_8 : u8) => if (x_8 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_8 : u8) => if (x_8 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -880,7 +880,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_10 : u8) => if (x_10 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_10 : u8) => if (x_10 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -921,7 +921,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(2:u2) { (x_12 : u8) => if (x_12 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_12 : u8) => if (x_12 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -939,7 +939,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_13 : u8) => if (x_13 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_13 : u8) => if (x_13 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1025,7 +1025,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_15 : u8) => if (x_15 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_15 : u8) => if (x_15 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1068,7 +1068,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_17 : u8) => if (x_17 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_17 : u8) => if (x_17 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1109,7 +1109,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(2:u2) { (x_19 : u8) => if (x_19 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_19 : u8) => if (x_19 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1127,7 +1127,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_20 : u8) => if (x_20 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_20 : u8) => if (x_20 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1206,7 +1206,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_22 : u8) => if (x_22 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_22 : u8) => if (x_22 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1249,7 +1249,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_24 : u8) => if (x_24 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_24 : u8) => if (x_24 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1290,7 +1290,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(2:u2) { (x_26 : u8) => if (x_26 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_26 : u8) => if (x_26 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1308,7 +1308,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_27 : u8) => if (x_27 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_27 : u8) => if (x_27 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1387,7 +1387,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_29 : u8) => if (x_29 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_29 : u8) => if (x_29 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1430,7 +1430,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_31 : u8) => if (x_31 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_31 : u8) => if (x_31 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1471,7 +1471,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(2:u2) { (x_33 : u8) => if (x_33 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_33 : u8) => if (x_33 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -1489,7 +1489,7 @@ let module15: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_34 : u8) => if (x_34 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_34 : u8) => if (x_34 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )

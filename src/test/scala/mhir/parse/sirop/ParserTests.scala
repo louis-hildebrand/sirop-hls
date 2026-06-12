@@ -571,27 +571,35 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("x < y") {
-    assert(Parser.parse("x < y").body == (x lt y))
+    assert(Parser.parse("x < y").body == SmartLessThan(x, y)())
+  }
+
+  test("x <` y") {
+    assert(Parser.parse("x <` y").body == LessThan(x, y)())
   }
 
   test("x > y") {
-    assert(Parser.parse("x > y").body == (x gt y))
+    assert(Parser.parse("x > y").body == SmartGreaterThan(x, y)())
   }
 
   test("x <= y") {
-    assert(Parser.parse("x <= y").body == (x leq y))
+    assert(Parser.parse("x <= y").body == SmartLessThanOrEqual(x, y)())
   }
 
   test("x >= y") {
-    assert(Parser.parse("x >= y").body == (x geq y))
+    assert(Parser.parse("x >= y").body == SmartGreaterThanOrEqual(x, y)())
   }
 
   test("x == y") {
-    assert(Parser.parse("x == y").body == (x equ y))
+    assert(Parser.parse("x == y").body == SmartEqual(x, y)())
+  }
+
+  test("x ==` y") {
+    assert(Parser.parse("x ==` y").body == Equal(x, y)())
   }
 
   test("x != y") {
-    assert(Parser.parse("x != y").body == (x nequ y))
+    assert(Parser.parse("x != y").body == SmartNotEqual(x, y)())
   }
 
   test("x && y && z") {

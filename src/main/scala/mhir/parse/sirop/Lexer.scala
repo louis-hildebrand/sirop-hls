@@ -66,6 +66,8 @@ object Lexer {
       lex(consume(code, "->"), tokens :+ SingleArrowToken(p), p.consume("->"))
     } else if (code.startsWith("=>")) {
       lex(consume(code, "=>"), tokens :+ DoubleArrowToken(p), p.consume("=>"))
+    } else if (code.startsWith("==`")) {
+      lex(consume(code, "==`"), tokens :+ EqTickToken(p), p.consume("==`"))
     } else if (code.startsWith("==")) {
       lex(consume(code, "=="), tokens :+ EqToken(p), p.consume("=="))
     } else if (code.startsWith("!=")) {
@@ -88,6 +90,8 @@ object Lexer {
       lex(consume(code, "<="), tokens :+ LeqToken(p), p.consume("<="))
     } else if (code.startsWith(">=")) {
       lex(consume(code, ">="), tokens :+ GeqToken(p), p.consume(">="))
+    } else if (code.startsWith("<`")) {
+      lex(consume(code, "<`"), tokens :+ LtTickToken(p), p.consume("<`"))
     } else if (code.startsWith("<")) {
       lex(consume(code, "<"), tokens :+ LtToken(p), p.consume("<"))
     } else if (code.startsWith(">")) {

@@ -550,6 +550,17 @@ case class EqToken(loc: SourcePoint) extends Token {
   */
 object EqToken extends SymbolCategory("==")
 
+/** The symbol "==&#96;".
+  */
+case class EqTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = EqTickToken
+  override def original: String = "==`"
+}
+
+/** Category of [[EqTickToken]].
+  */
+object EqTickToken extends SymbolCategory("==`")
+
 /** The symbol "!=".
   */
 case class NeqToken(loc: SourcePoint) extends Token {
@@ -668,6 +679,17 @@ case class LtToken(loc: SourcePoint) extends Token {
 /** Category of [[LtToken]].
   */
 object LtToken extends SymbolCategory("<")
+
+/** The symbol "&lt;&#96;".
+  */
+case class LtTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = LtTickToken
+  override def original: String = "<`"
+}
+
+/** Category of [[LtTickToken]].
+  */
+object LtTickToken extends SymbolCategory("<`")
 
 /** The symbol ">".
   */

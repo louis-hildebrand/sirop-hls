@@ -459,10 +459,13 @@ object Parser {
     tokens match {
       case Seq(_: EqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(e1 equ e2, rest2, constants)
+        parseExpr7Prime(SmartEqual(e1, e2)(), rest2, constants)
+      case Seq(_: EqTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr6(rest1, constants)
+        parseExpr7Prime(Equal(e1, e2)(), rest2, constants)
       case Seq(_: NeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(e1 nequ e2, rest2, constants)
+        parseExpr7Prime(SmartNotEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
@@ -482,18 +485,21 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
+      case Seq(_: LtTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr5(rest1, constants)
+        parseExpr6Prime(LessThan(e1, e2)(), rest2, constants)
       case Seq(_: LtToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 lt e2, rest2, constants)
+        parseExpr6Prime(SmartLessThan(e1, e2)(), rest2, constants)
       case Seq(_: GtToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 gt e2, rest2, constants)
+        parseExpr6Prime(SmartGreaterThan(e1, e2)(), rest2, constants)
       case Seq(_: LeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 leq e2, rest2, constants)
+        parseExpr6Prime(SmartLessThanOrEqual(e1, e2)(), rest2, constants)
       case Seq(_: GeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 geq e2, rest2, constants)
+        parseExpr6Prime(SmartGreaterThanOrEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }

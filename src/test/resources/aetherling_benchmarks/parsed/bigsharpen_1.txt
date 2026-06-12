@@ -94,12 +94,12 @@ let module1: u32 -> u32 -> u32 = (
       let n163: (u32, u32) = (I0, I1) in
       let n164: u32 = n163.0 -% n163.1 in
       let n166: (u32, u32) = (n190, n164) in
-      let n167: bool = n166.0 << n166.1 in
+      let n167: bool = n166.0 < n166.1 in
       let n191: u32 = 15:u32 in
       let n168: (u32, u32) = (I1, I0) in
       let n169: u32 = n168.0 -% n168.1 in
       let n171: (u32, u32) = (n191, n169) in
-      let n172: bool = n171.0 << n171.1 in
+      let n172: bool = n171.0 < n171.1 in
       let n173: (bool, bool) = (n167, n172) in
       let n174: bool = n173.0 || n173.1 in
       let n192: u32 = 0:u32 in
@@ -129,7 +129,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_1 : u8) => if (x_1 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -172,7 +172,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_2 : u8) => if (x_2 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -213,7 +213,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : Vec[u32, 3:u3]) =>
               (I1 : Vec[u32, 3:u3]) =>
-                vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_3 : u8) => if (x_3 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -231,7 +231,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_4 : u8) => if (x_4 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
