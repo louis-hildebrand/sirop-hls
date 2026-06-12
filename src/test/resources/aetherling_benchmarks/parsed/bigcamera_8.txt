@@ -510,7 +510,7 @@ let module8: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n560,
         (I : Vec[(u32, u32), 3:u2]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 *%` I.1)
       )
     ) in
     let n576: Vec[Vec[u32, 1:u1], 3:u2] = (
@@ -586,7 +586,7 @@ let module11: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n746,
         (I : Vec[(u32, u32), 3:u2]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 *%` I.1)
       )
     ) in
     let n762: Vec[Vec[u32, 1:u1], 3:u2] = (
@@ -662,7 +662,7 @@ let module14: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
       VecMap(
         n932,
         (I : Vec[(u32, u32), 3:u2]) =>
-          VecMap(I, (I : (u32, u32)) => I.0 *% I.1)
+          VecMap(I, (I : (u32, u32)) => I.0 *%` I.1)
       )
     ) in
     let n948: Vec[Vec[u32, 1:u1], 3:u2] = (

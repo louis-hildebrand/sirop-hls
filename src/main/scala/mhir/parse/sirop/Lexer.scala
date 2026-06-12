@@ -114,8 +114,18 @@ object Lexer {
       lex(consume(code, "-%"), tokens :+ MinusPercentToken(p), p.consume("-%"))
     } else if (code.startsWith("-")) {
       lex(consume(code, "-"), tokens :+ MinusToken(p), p.consume("-"))
+    } else if (code.startsWith("*^")) {
+      lex(consume(code, "*^"), tokens :+ TimesCaretToken(p), p.consume("*^"))
+    } else if (code.startsWith("*%`")) {
+      lex(
+        consume(code, "*%`"),
+        tokens :+ TimesPercentTickToken(p),
+        p.consume("*%`")
+      )
     } else if (code.startsWith("*%")) {
       lex(consume(code, "*%"), tokens :+ TimesPercentToken(p), p.consume("*%"))
+    } else if (code.startsWith("*`")) {
+      lex(consume(code, "*`"), tokens :+ TimesTickToken(p), p.consume("*`"))
     } else if (code.startsWith("*")) {
       lex(consume(code, "*"), tokens :+ TimesToken(p), p.consume("*"))
     } else if (code.startsWith("/")) {

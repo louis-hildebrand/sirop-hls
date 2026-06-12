@@ -1,5 +1,5 @@
 // Output type: Stm[Stm[i8, 1:u1], 16:u5] -> Stm[Stm[i8, 1:u1], 16:u5]
-let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n27: (i8, i8) = (I0, I1) in n27.0 *% n27.1 in
+let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n27: (i8, i8) = (I0, I1) in n27.0 *%` n27.1 in
 let module1: Stm[i8, 3:u2] -> Stm[i8, 1:u1] = (
   (I : Stm[i8, 3:u2]) =>
     let n36: Stm[i8, 3:u2] = [-1:i8, 0:i8, 1:i8]s in

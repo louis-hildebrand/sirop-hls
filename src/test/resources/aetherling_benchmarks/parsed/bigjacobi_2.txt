@@ -14,7 +14,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
     let n121: Vec[Vec[u8, 3:u2], 3:u2] = (
       VecMap(
         n110,
-        (I : Vec[(u8, u8), 3:u2]) => VecMap(I, (I : (u8, u8)) => I.0 *% I.1)
+        (I : Vec[(u8, u8), 3:u2]) => VecMap(I, (I : (u8, u8)) => I.0 *%` I.1)
       )
     ) in
     let n126: Vec[Vec[u8, 1:u1], 3:u2] = (

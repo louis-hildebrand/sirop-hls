@@ -850,6 +850,7 @@ case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
   */
 case class SmartProd(factors: Expr*)(typ: Type = Missing)
     extends SyntaxSugar(factors: _*)(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     SmartProd(newChildren: _*)(typ)
   }
@@ -888,16 +889,52 @@ case class SmartProd(factors: Expr*)(typ: Type = Missing)
   override def precedence: Int = Precedence.Prod
 
   override def displayOneLine(): String = {
-    EP.displayOneLineInfixOp(this.factors, "**", this.precedence)
+    EP.displayOneLineInfixOp(this.factors, "*", this.precedence)
   }
 
   override def displayMultiLine(maxWidth: Int): String = {
     EP.displayMultiLineInfixOp(
       this.factors,
-      "**",
+      "*",
       maxWidth = maxWidth,
       precedence = this.precedence
     )
+  }
+}
+
+/** The product of two values, even ones with slightly different types.
+  *
+  * Each operand will be reshaped to be compatible with the others. Furthermore,
+  * on overflow, the result will wrap around as you'd expect for twos complement
+  * numbers.
+  */
+case class SmartWrappingProd(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BinOpSyntaxSugar(e1, e2)(typ) {
+
+  override def symbol: String = "*%"
+
+  override def precedence: Int = Precedence.Prod
+
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+    case (typ, Seq(e1, e2)) => SmartWrappingProd(e1, e2)(typ)
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val e1 = this.e1.tchk(context, constValues).expectAnyInt()
+    val e2 = this.e2.tchk(context, constValues).expectAnyInt()
+    val typ =
+      ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ, constValues).get
+    this.rebuild(typ, Seq(e1, e2))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val e1 = ReshapeData(this.e1, this.typ)().tchk().lower
+    val e2 = ReshapeData(this.e2, this.typ)().tchk().lower
+    WrappingProd(e1, e2)().tchk()
   }
 }
 
@@ -940,6 +977,21 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
       case typ =>
         MaybeProd(factors.map(e => ReshapeData(e, typ)()): _*)().tchk().lower
     }
+  }
+
+  override def precedence: Int = Precedence.Prod
+
+  override def displayOneLine(): String = {
+    EP.displayOneLineInfixOp(this.factors, "*^", this.precedence)
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    EP.displayMultiLineInfixOp(
+      this.factors,
+      "*^",
+      maxWidth = maxWidth,
+      precedence = this.precedence
+    )
   }
 }
 

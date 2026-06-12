@@ -95,14 +95,14 @@ class ExprPrinterTests extends AnyFunSuite {
     val z = Param("z", -1)(U8)
     val e = WrappingProd(x, y, z)()
 
-    val expectedOneLine = "x *% y *% z"
+    val expectedOneLine = "x *%` y *%` z"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """x
-        |  *% y
-        |  *% z
+        |  *%` y
+        |  *%` z
         |""".stripMargin.stripTrailing()
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -202,7 +202,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val f = Param("f", -1)(U16 ->: U16 ->: U16)
     val e = f(Sum(x, y, z)())(Prod(x, y, z, w)())
 
-    val expectedOneLine = s"f(x +` y +` z)(x * y * z * w)"
+    val expectedOneLine = s"f(x +` y +` z)(x *` y *` z *` w)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
@@ -213,9 +213,9 @@ class ExprPrinterTests extends AnyFunSuite {
          |    +` z
          |)(
          |  x
-         |    * y
-         |    * z
-         |    * w
+         |    *` y
+         |    *` z
+         |    *` w
          |)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 12)
@@ -298,7 +298,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val y = Param("y", -1)(U8)
     val z = Param("z", -1)(U8)
     val e = Prod(C(2)(U8), Sum(y, z)())()
-    val expected = s"2:u8 * (y +` z)"
+    val expected = s"2:u8 *` (y +` z)"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }
@@ -333,13 +333,13 @@ class ExprPrinterTests extends AnyFunSuite {
 
     // Show nesting because, although the value is the same, the AST is
     // different
-    val expectedOneLine = "(w * x) * (y * z)"
+    val expectedOneLine = "(w *` x) *` (y *` z)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      """(w * x)
-        |  * (y * z)
+      """(w *` x)
+        |  *` (y *` z)
         |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)

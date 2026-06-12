@@ -168,7 +168,7 @@ object ExprPrinter {
       case Prod(factors @ _*) =>
         displayMultiLineInfixOp(
           factors,
-          op = "*",
+          op = "*`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -203,7 +203,7 @@ object ExprPrinter {
       case WrappingProd(factors @ _*) =>
         displayMultiLineInfixOp(
           factors,
-          op = "*%",
+          op = "*%`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -565,7 +565,7 @@ object ExprPrinter {
       case Prod(factors @ _*) =>
         displayOneLineInfixOp(
           factors,
-          "*",
+          "*`",
           myPrecedence,
           canElideFirstParens = false
         )
@@ -590,7 +590,7 @@ object ExprPrinter {
       case WrappingProd(factors @ _*) =>
         displayOneLineInfixOp(
           factors,
-          "*%",
+          "*%`",
           myPrecedence,
           canElideFirstParens = false
         )

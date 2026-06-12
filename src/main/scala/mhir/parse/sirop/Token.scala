@@ -779,6 +779,28 @@ case class MinusToken(loc: SourcePoint) extends Token {
   */
 object MinusToken extends SymbolCategory("-")
 
+/** The symbol "*&#94;".
+  */
+case class TimesCaretToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TimesCaretToken
+  override def original: String = "*^"
+}
+
+/** Category of [[TimesCaretToken]].
+  */
+object TimesCaretToken extends SymbolCategory("*^")
+
+/** The symbol "*%&#96;".
+  */
+case class TimesPercentTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TimesPercentTickToken
+  override def original: String = "*%`"
+}
+
+/** Category of [[TimesPercentTickToken]].
+  */
+object TimesPercentTickToken extends SymbolCategory("*%`")
+
 /** The symbol "*%".
   */
 case class TimesPercentToken(loc: SourcePoint) extends Token {
@@ -789,6 +811,17 @@ case class TimesPercentToken(loc: SourcePoint) extends Token {
 /** Category of [[TimesPercentToken]].
   */
 object TimesPercentToken extends SymbolCategory("*%")
+
+/** The symbol "*&#96;".
+  */
+case class TimesTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TimesTickToken
+  override def original: String = "*`"
+}
+
+/** Category of [[TimesTickToken]].
+  */
+object TimesTickToken extends SymbolCategory("*`")
 
 /** The symbol "*".
   */

@@ -32,7 +32,7 @@ let module0: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[i32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[(i32, i32), 3:u2]) =>
-              StmMap(I, (I : (i32, i32)) => I.0 *% I.1)
+              StmMap(I, (I : (i32, i32)) => I.0 *%` I.1)
           )
       )
     ) in
@@ -71,7 +71,7 @@ let module0: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[i32, 1:u1], 1:u1] =
     ) in
     ReshapeSeq[Stm[Stm[i32, 1:u1], 1:u1]](n124)
 ) in
-let module1: i32 -> i32 = (I : i32) => let n130: (i32, i32) = (I, I) in n130.0 *% n130.1 in
+let module1: i32 -> i32 = (I : i32) => let n130: (i32, i32) = (I, I) in n130.0 *%` n130.1 in
 let module2: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[i32, 1:u1], 1:u1] = (
   (I : Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1]) =>
     let n799: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] = (
@@ -105,7 +105,7 @@ let module2: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[i32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[(i32, i32), 3:u2]) =>
-              StmMap(I, (I : (i32, i32)) => I.0 *% I.1)
+              StmMap(I, (I : (i32, i32)) => I.0 *%` I.1)
           )
       )
     ) in
@@ -144,7 +144,7 @@ let module2: Stm[Vec[Stm[i32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[i32, 1:u1], 1:u1] =
     ) in
     ReshapeSeq[Stm[Stm[i32, 1:u1], 1:u1]](n170)
 ) in
-let module3: i32 -> i32 = (I : i32) => let n176: (i32, i32) = (I, I) in n176.0 *% n176.1 in
+let module3: i32 -> i32 = (I : i32) => let n176: (i32, i32) = (I, I) in n176.0 *%` n176.1 in
 let module4: i32 -> i32 -> i32 = (
   (I0 : i32) =>
     (I1 : i32) => let n186: (i32, i32) = (I0, I1) in n186.0 +%` n186.1
@@ -174,7 +174,7 @@ let module6: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n211: (i32, u8) = (n208, n796) in
     let n212: i32 = n211.0 >>> n211.1 in
     let n213: (i32, i32) = (n212, n212) in
-    let n214: i32 = n213.0 *% n213.1 in
+    let n214: i32 = n213.0 *%` n213.1 in
     let n216: (i32, i32) = (n215, n214) in
     let n217: bool = n216.0 < n216.1 in
     let n797: i32 = 1:i32 in
@@ -205,7 +205,7 @@ let module7: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n245: (i32, u8) = (n242, n793) in
     let n246: i32 = n245.0 >>> n245.1 in
     let n247: (i32, i32) = (n246, n246) in
-    let n248: i32 = n247.0 *% n247.1 in
+    let n248: i32 = n247.0 *%` n247.1 in
     let n250: (i32, i32) = (n249, n248) in
     let n251: bool = n250.0 < n250.1 in
     let n794: i32 = 1:i32 in
@@ -236,7 +236,7 @@ let module8: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n279: (i32, u8) = (n276, n790) in
     let n280: i32 = n279.0 >>> n279.1 in
     let n281: (i32, i32) = (n280, n280) in
-    let n282: i32 = n281.0 *% n281.1 in
+    let n282: i32 = n281.0 *%` n281.1 in
     let n284: (i32, i32) = (n283, n282) in
     let n285: bool = n284.0 < n284.1 in
     let n791: i32 = 1:i32 in
@@ -267,7 +267,7 @@ let module9: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n313: (i32, u8) = (n310, n787) in
     let n314: i32 = n313.0 >>> n313.1 in
     let n315: (i32, i32) = (n314, n314) in
-    let n316: i32 = n315.0 *% n315.1 in
+    let n316: i32 = n315.0 *%` n315.1 in
     let n318: (i32, i32) = (n317, n316) in
     let n319: bool = n318.0 < n318.1 in
     let n788: i32 = 1:i32 in
@@ -298,7 +298,7 @@ let module10: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n347: (i32, u8) = (n344, n784) in
     let n348: i32 = n347.0 >>> n347.1 in
     let n349: (i32, i32) = (n348, n348) in
-    let n350: i32 = n349.0 *% n349.1 in
+    let n350: i32 = n349.0 *%` n349.1 in
     let n352: (i32, i32) = (n351, n350) in
     let n353: bool = n352.0 < n352.1 in
     let n785: i32 = 1:i32 in
@@ -329,7 +329,7 @@ let module11: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n381: (i32, u8) = (n378, n781) in
     let n382: i32 = n381.0 >>> n381.1 in
     let n383: (i32, i32) = (n382, n382) in
-    let n384: i32 = n383.0 *% n383.1 in
+    let n384: i32 = n383.0 *%` n383.1 in
     let n386: (i32, i32) = (n385, n384) in
     let n387: bool = n386.0 < n386.1 in
     let n782: i32 = 1:i32 in
@@ -360,7 +360,7 @@ let module12: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n415: (i32, u8) = (n412, n778) in
     let n416: i32 = n415.0 >>> n415.1 in
     let n417: (i32, i32) = (n416, n416) in
-    let n418: i32 = n417.0 *% n417.1 in
+    let n418: i32 = n417.0 *%` n417.1 in
     let n420: (i32, i32) = (n419, n418) in
     let n421: bool = n420.0 < n420.1 in
     let n779: i32 = 1:i32 in
@@ -391,7 +391,7 @@ let module13: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n449: (i32, u8) = (n446, n775) in
     let n450: i32 = n449.0 >>> n449.1 in
     let n451: (i32, i32) = (n450, n450) in
-    let n452: i32 = n451.0 *% n451.1 in
+    let n452: i32 = n451.0 *%` n451.1 in
     let n454: (i32, i32) = (n453, n452) in
     let n455: bool = n454.0 < n454.1 in
     let n776: i32 = 1:i32 in
@@ -422,7 +422,7 @@ let module14: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n483: (i32, u8) = (n480, n772) in
     let n484: i32 = n483.0 >>> n483.1 in
     let n485: (i32, i32) = (n484, n484) in
-    let n486: i32 = n485.0 *% n485.1 in
+    let n486: i32 = n485.0 *%` n485.1 in
     let n488: (i32, i32) = (n487, n486) in
     let n489: bool = n488.0 < n488.1 in
     let n773: i32 = 1:i32 in
@@ -453,7 +453,7 @@ let module15: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n517: (i32, u8) = (n514, n769) in
     let n518: i32 = n517.0 >>> n517.1 in
     let n519: (i32, i32) = (n518, n518) in
-    let n520: i32 = n519.0 *% n519.1 in
+    let n520: i32 = n519.0 *%` n519.1 in
     let n522: (i32, i32) = (n521, n520) in
     let n523: bool = n522.0 < n522.1 in
     let n770: i32 = 1:i32 in
@@ -484,7 +484,7 @@ let module16: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n551: (i32, u8) = (n548, n766) in
     let n552: i32 = n551.0 >>> n551.1 in
     let n553: (i32, i32) = (n552, n552) in
-    let n554: i32 = n553.0 *% n553.1 in
+    let n554: i32 = n553.0 *%` n553.1 in
     let n556: (i32, i32) = (n555, n554) in
     let n557: bool = n556.0 < n556.1 in
     let n767: i32 = 1:i32 in
@@ -515,7 +515,7 @@ let module17: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n585: (i32, u8) = (n582, n763) in
     let n586: i32 = n585.0 >>> n585.1 in
     let n587: (i32, i32) = (n586, n586) in
-    let n588: i32 = n587.0 *% n587.1 in
+    let n588: i32 = n587.0 *%` n587.1 in
     let n590: (i32, i32) = (n589, n588) in
     let n591: bool = n590.0 < n590.1 in
     let n764: i32 = 1:i32 in
@@ -546,7 +546,7 @@ let module18: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n619: (i32, u8) = (n616, n760) in
     let n620: i32 = n619.0 >>> n619.1 in
     let n621: (i32, i32) = (n620, n620) in
-    let n622: i32 = n621.0 *% n621.1 in
+    let n622: i32 = n621.0 *%` n621.1 in
     let n624: (i32, i32) = (n623, n622) in
     let n625: bool = n624.0 < n624.1 in
     let n761: i32 = 1:i32 in
@@ -577,7 +577,7 @@ let module19: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n653: (i32, u8) = (n650, n757) in
     let n654: i32 = n653.0 >>> n653.1 in
     let n655: (i32, i32) = (n654, n654) in
-    let n656: i32 = n655.0 *% n655.1 in
+    let n656: i32 = n655.0 *%` n655.1 in
     let n658: (i32, i32) = (n657, n656) in
     let n659: bool = n658.0 < n658.1 in
     let n758: i32 = 1:i32 in
@@ -608,7 +608,7 @@ let module20: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n687: (i32, u8) = (n684, n754) in
     let n688: i32 = n687.0 >>> n687.1 in
     let n689: (i32, i32) = (n688, n688) in
-    let n690: i32 = n689.0 *% n689.1 in
+    let n690: i32 = n689.0 *%` n689.1 in
     let n692: (i32, i32) = (n691, n690) in
     let n693: bool = n692.0 < n692.1 in
     let n755: i32 = 1:i32 in
@@ -639,7 +639,7 @@ let module21: (i32, (i32, i32)) -> (i32, (i32, i32)) = (
     let n721: (i32, u8) = (n718, n751) in
     let n722: i32 = n721.0 >>> n721.1 in
     let n723: (i32, i32) = (n722, n722) in
-    let n724: i32 = n723.0 *% n723.1 in
+    let n724: i32 = n723.0 *%` n723.1 in
     let n726: (i32, i32) = (n725, n724) in
     let n727: bool = n726.0 < n726.1 in
     let n752: i32 = 1:i32 in

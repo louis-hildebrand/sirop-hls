@@ -512,7 +512,7 @@ let module8: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[(u32, u32), 3:u2]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 *%` I.1)
           )
       )
     ) in
@@ -626,7 +626,7 @@ let module11: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] 
           VecMap(
             I,
             (I : Stm[(u32, u32), 3:u2]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 *%` I.1)
           )
       )
     ) in
@@ -740,7 +740,7 @@ let module14: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] 
           VecMap(
             I,
             (I : Stm[(u32, u32), 3:u2]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 *%` I.1)
           )
       )
     ) in

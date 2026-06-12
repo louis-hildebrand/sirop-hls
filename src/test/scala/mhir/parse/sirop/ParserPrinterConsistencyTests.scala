@@ -29,4 +29,9 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   testBinop("+%")
   testBinop("+%`")
   testBinop("+^")
+  testBinop("*")
+  testBinop("*`")
+  testBinop("*%")
+  testBinop("*%`")
+  testBinop("*^")
 }

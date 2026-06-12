@@ -5,7 +5,7 @@ let module0: Stm[Vec[u16, 8:u4], 32:u6] -> Stm[Vec[u16, 8:u4], 8192:u14] = (
     let n4: Stm[Stm[Vec[u16, 8:u4], 32:u6], 256:u15] = StmJoin(StmRepeat(n3, 256:u9)) in
     ReshapeSeq[Stm[Vec[u16, 8:u4], 8192:u14]](n4)
 ) in
-let module1: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n20: (u16, u16) = (I0, I1) in n20.0 *% n20.1 in
+let module1: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n20: (u16, u16) = (I0, I1) in n20.0 *%` n20.1 in
 let module2: Stm[Vec[u16, 8:u4], 32:u6] -> Stm[u16, 1:u1] = (
   (I : Stm[Vec[u16, 8:u4], 32:u6]) =>
     let n28: Stm[Vec[u16, 1:u1], 32:u6] = (

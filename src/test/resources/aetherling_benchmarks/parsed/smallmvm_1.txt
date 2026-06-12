@@ -1,5 +1,5 @@
 // Output type: Stm[Vec[u8, 4:u3], 4:u3] -> Stm[Vec[u8, 4:u3], 1:u1] -> Stm[Vec[u8, 1:u1], 4:u3]
-let module0: u8 -> u8 -> u8 = (I0 : u8) => (I1 : u8) => let n12: (u8, u8) = (I0, I1) in n12.0 *% n12.1 in
+let module0: u8 -> u8 -> u8 = (I0 : u8) => (I1 : u8) => let n12: (u8, u8) = (I0, I1) in n12.0 *%` n12.1 in
 (I0 : Stm[Vec[u8, 4:u3], 4:u3]) =>
   (I1 : Stm[Vec[u8, 4:u3], 1:u1]) =>
     let n1: Stm[Vec[u8, 4:u3], 4:u3] = I0 in

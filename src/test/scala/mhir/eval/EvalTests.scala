@@ -259,8 +259,8 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("Overflow:Used:Prod") {
-    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8, "128:u8 * 2:u8")
-    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8, "-64:i8 * 3:i8")
+    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8, "128:u8 *` 2:u8")
+    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8, "-64:i8 *` 3:i8")
   }
 
   test("Overflow:Unused") {

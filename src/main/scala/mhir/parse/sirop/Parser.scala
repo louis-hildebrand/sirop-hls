@@ -590,9 +590,18 @@ object Parser {
       case Seq(_: TimesToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Prod(e1, e2)(), rest2, constants)
       case Seq(_: TimesPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(SmartWrappingProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(WrappingProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(SafeProd(e1, e2)(), rest2, constants)
       case Seq(_: SlashToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartDiv(e1, e2)(), rest2, constants)

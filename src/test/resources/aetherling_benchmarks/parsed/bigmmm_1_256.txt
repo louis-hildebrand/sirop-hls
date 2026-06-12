@@ -4,7 +4,7 @@ let module0: Stm[Stm[u16, 256:u9], 1:u1] -> Stm[u16, 65536:u17] = (
     let n3: Stm[Stm[u16, 256:u9], 256:u9] = StmJoin(StmRepeat(I, 256:u9)) in
     ReshapeSeq[Stm[u16, 65536:u17]](n3)
 ) in
-let module1: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n18: (u16, u16) = (I0, I1) in n18.0 *% n18.1 in
+let module1: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n18: (u16, u16) = (I0, I1) in n18.0 *%` n18.1 in
 (I0 : Stm[Stm[Stm[u16, 256:u9], 1:u1], 256:u9]) =>
   (I1 : Stm[Stm[Stm[u16, 256:u9], 256:u9], 1:u1]) =>
     let n1: Stm[Stm[Stm[u16, 256:u9], 1:u1], 256:u9] = I0 in
