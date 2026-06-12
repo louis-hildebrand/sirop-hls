@@ -757,6 +757,28 @@ case class PlusToken(loc: SourcePoint) extends Token {
   */
 object PlusToken extends SymbolCategory("+")
 
+/** The symbol "-&#94;".
+  */
+case class MinusCaretToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = MinusCaretToken
+  override def original: String = "-^"
+}
+
+/** Category of [[MinusCaretToken]].
+  */
+object MinusCaretToken extends SymbolCategory("-^")
+
+/** The symbol "-%&#96;".
+  */
+case class MinusPercentTickToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = MinusPercentTickToken
+  override def original: String = "-%`"
+}
+
+/** Category of [[MinusPercentTickToken]].
+  */
+object MinusPercentTickToken extends SymbolCategory("-%`")
+
 /** The symbol "-%".
   */
 case class MinusPercentToken(loc: SourcePoint) extends Token {

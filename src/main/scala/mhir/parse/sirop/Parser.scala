@@ -567,7 +567,13 @@ object Parser {
         parseExpr4Prime(SmartDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SmartWrappingDiff(e1, e2)(), rest2, constants)
+      case Seq(_: MinusPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingDiff(e1, e2)(), rest2, constants)
+      case Seq(_: MinusCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SafeDiff(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }

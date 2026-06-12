@@ -196,7 +196,7 @@ object ExprPrinter {
       case WrappingDiff(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
-          op = "-%",
+          op = "-%`",
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
@@ -583,7 +583,7 @@ object ExprPrinter {
       case WrappingDiff(e1, e2) =>
         displayOneLineInfixOp(
           Seq(e1, e2),
-          "-%",
+          "-%`",
           myPrecedence,
           canElideFirstParens = false
         )

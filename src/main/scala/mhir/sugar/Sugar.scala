@@ -770,6 +770,40 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
   }
 }
 
+/** The difference of two values <i>without overflow</i>.
+  *
+  * @param e1
+  *   the minuend.
+  * @param e2
+  *   the subtrahend.
+  */
+case class SafeDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BinOpSyntaxSugar(e1, e2)(typ) {
+
+  override def symbol: String = "-^"
+
+  override def precedence: Int = Precedence.Sum
+
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+    case (typ, Seq(e1, e2)) => SafeDiff(e1, e2)(typ)
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val e1 = this.e1.tchk(context, constValues).expectAnyInt()
+    val e2 = this.e2.tchk(context, constValues).expectAnyInt()
+    val typ = SafeSum(this.e1, SafeProd(C(-1)(), this.e2)())().tchk().typ
+    this.rebuild(typ, Seq(e1, e2))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    SafeSum(this.e1, SafeProd(C(-1)(), this.e2)())().tchk().lower
+  }
+}
+
 /** The difference of two values, even ones with slightly different types.
   *
   * @param e1
@@ -778,63 +812,69 @@ case class SafeSum(terms: Expr*)(typ: Type = Missing)
   *   the subtrahend.
   */
 case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e1, e2)(typ) {
+    extends BinOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(e1, e2) => SmartDiff(e1, e2)(typ)
-      case _           => throw new BadRebuildError(this, newChildren)
-    }
+  override def symbol: String = "-"
+
+  override def precedence: Int = Precedence.Sum
+
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+    case (typ, Seq(e1, e2)) => SmartDiff(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val newLhs = e1.tchk(context, constValues)
-    val t1 = newLhs.typ match {
-      case t: TyAnyInt => t
-      case t =>
-        throw new TypeError(
-          s"Left-hand side of $className has type $t."
-            + " Expected an integer"
-        )
-    }
-    val newRhs = e2.tchk(context, constValues)
-    val t2 = newRhs.typ match {
-      case t: TyAnyInt => t
-      case t =>
-        throw new TypeError(
-          s"Right-hand side of $className has type $t."
-            + " Expected an integer."
-        )
-    }
-    val typ = ReshapeData.narrowestCommonAncestor(t1, t2, constValues).get
-    this.rebuild(typ, Seq(newLhs, newRhs))
+    val e1 = this.e1.tchk(context, constValues).expectAnyInt()
+    val e2 = this.e2.tchk(context, constValues).expectAnyInt()
+    val typ =
+      ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ, constValues).get
+    this.rebuild(typ, Seq(e1, e2))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val typ = this.typ.asInstanceOf[TyAnyInt]
-    val e1 = this.e1.lower
-    val e2 = this.e2.lower
-    // TODO: Lower this to Diff (with undefined overflow behaviour) when I add Diff?
-    WrappingDiff(ReshapeData(e1, typ)(), ReshapeData(e2, typ)())().tchk().lower
+    Cast(SafeSum(this.e1, SafeProd(C(-1)(), this.e2)())(), this.typ)()
+      .tchk()
+      .lower
   }
+}
+
+/** The difference of two values, even ones with slightly different types.
+  *
+  * @param e1
+  *   the minuend.
+  * @param e2
+  *   the subtrahend.
+  */
+case class SmartWrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
+    extends BinOpSyntaxSugar(e1, e2)(typ) {
+
+  override def symbol: String = "-%"
 
   override def precedence: Int = Precedence.Sum
 
-  override def displayOneLine(): String = {
-    EP.displayOneLineInfixOp(Seq(this.e1, this.e2), "-!!", this.precedence)
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+    case (typ, Seq(e1, e2)) => SmartWrappingDiff(e1, e2)(typ)
   }
 
-  override def displayMultiLine(maxWidth: Int): String = {
-    EP.displayMultiLineInfixOp(
-      Seq(this.e1, this.e2),
-      "-!!",
-      maxWidth = maxWidth,
-      precedence = this.precedence
-    )
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val e1 = this.e1.tchk(context, constValues).expectAnyInt()
+    val e2 = this.e2.tchk(context, constValues).expectAnyInt()
+    val typ =
+      ReshapeData.narrowestCommonAncestor(e1.typ, e2.typ, constValues).get
+    this.rebuild(typ, Seq(e1, e2))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val e1 = ReshapeData(this.e1, this.typ)().tchk().lower
+    val e2 = ReshapeData(this.e2, this.typ)().tchk().lower
+    WrappingDiff(e1, e2)().tchk()
   }
 }
 

@@ -110,6 +110,14 @@ object Lexer {
       lex(consume(code, "+`"), tokens :+ PlusTickToken(p), p.consume("+`"))
     } else if (code.startsWith("+")) {
       lex(consume(code, "+"), tokens :+ PlusToken(p), p.consume("+"))
+    } else if (code.startsWith("-^")) {
+      lex(consume(code, "-^"), tokens :+ MinusCaretToken(p), p.consume("-^"))
+    } else if (code.startsWith("-%`")) {
+      lex(
+        consume(code, "-%`"),
+        tokens :+ MinusPercentTickToken(p),
+        p.consume("-%`")
+      )
     } else if (code.startsWith("-%")) {
       lex(consume(code, "-%"), tokens :+ MinusPercentToken(p), p.consume("-%"))
     } else if (code.startsWith("-")) {

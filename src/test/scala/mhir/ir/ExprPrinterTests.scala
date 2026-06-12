@@ -77,13 +77,13 @@ class ExprPrinterTests extends AnyFunSuite {
     val y = Param("y", -1)(U8)
     val e = WrappingDiff(x, y)()
 
-    val expectedOneLine = "x -% y"
+    val expectedOneLine = "x -%` y"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """x
-        |  -% y
+        |  -%` y
         |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)

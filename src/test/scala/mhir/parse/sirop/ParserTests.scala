@@ -578,7 +578,19 @@ class ParserTests extends AnyFunSuite {
 
   test("x -% y -% z") {
     val src = "x -% y -% z"
+    val expected = SmartWrappingDiff(SmartWrappingDiff(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x -%` y -%` z") {
+    val src = "x -%` y -%` z"
     val expected = WrappingDiff(WrappingDiff(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x -^ y -^ z") {
+    val src = "x -^ y -^ z"
+    val expected = SafeDiff(SafeDiff(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -862,21 +874,21 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("StmReduce") {
-    val src = "StmReduce(s, (x) => x.0 -% x.1)"
+    val src = "StmReduce(s, (x) => x.0 - x.1)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected = StmReduce(s, Function(x, WrappingDiff(x.__0, x.__1)())())()
+    val expected = StmReduce(s, Function(x, SmartDiff(x.__0, x.__1)())())()
     assert(Parser.parse(src).body == expected)
   }
 
   test("StmMap2") {
-    val src = "StmMap2(s1, s2, (x1) => (x2) => x1 -% x2)"
+    val src = "StmMap2(s1, s2, (x1) => (x2) => x1 - x2)"
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
     val x1 = Param("x1", -1)(Missing)
     val x2 = Param("x2", -1)(Missing)
     val expected =
-      StmMap2(s1, s2, Function(x1, Function(x2, WrappingDiff(x1, x2)())())())()
+      StmMap2(s1, s2, Function(x1, Function(x2, SmartDiff(x1, x2)())())())()
     assert(Parser.parse(src).body == expected)
   }
 
