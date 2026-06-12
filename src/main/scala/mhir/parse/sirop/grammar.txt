@@ -36,13 +36,33 @@ function        ::= "(" ident [ ":" typ ] ")" "=>" expr
 pat_function    ::= "@" pattern "=>" expr
 pattern         ::= ident [ ":" typ ]
                   | "()" | "(" pattern ",)" | "(" pattern ( "," pattern )+ ")"
-expr9           ::= expr8 ( "||"                        expr8 )*
-expr8           ::= expr7 ( "&&"                        expr7 )*
-expr7           ::= expr6 ( ( "==" | "!=" )             expr6 )*
-expr6           ::= expr5 ( ( "<" | ">" | "<=" | ">=" ) expr5 )*
-expr5           ::= expr4 ( ( "<<" | ">>" | ">>>" )           expr4 )*
-expr4           ::= expr3 ( ( "+" | "+%" | "-" | "-%" ) expr3 )*
-expr3           ::= expr2 ( ( "*" | "*%" | "/" | "%" )  expr2 )*
+expr9           ::= expr8 ( "||"                                               expr8 )*
+expr8           ::= expr7 ( "&&"                                               expr7 )*
+expr7           ::= expr6 ( ( eq_symbol | neq_symbol )                         expr6 )*
+expr6           ::= expr5 ( ( lt_symbol | gt_symbol | leq_symbol | geq_symbol) expr5 )*
+expr5           ::= expr4 ( ( "<<" | ">>" | ">>>" )                            expr4 )*
+expr4           ::= expr3 ( ( plus_symbol | minus_symbol )                     expr3 )*
+expr3           ::= expr2 ( ( times_symbol | div_symbol | mod_symbol )         expr2 )*
+eq_symbol       ::= "==" | "==`"
+neq_symbol      ::= "!=" | "!=`"
+lt_symbol       ::= "<"  | "<`"
+gt_symbol       ::= ">"  | ">`"
+leq_symbol      ::= "<=" | "<=`"
+geq_symbol      ::= ">=" | ">=`"
+plus_symbol     ::= "+"
+                  | "+!" | "+!`"
+                  | "+%" | "+%`"
+                  | "+^"
+minus_symbol    ::= "-"
+                  | "-!" | "-!`"
+                  | "-%" | "-%`"
+                  | "-^"
+times_symbol    ::= "*"
+                  | "*!" | "*!`"
+                  | "*%" | "*%`"
+                  | "*^"
+div_symbol      ::= "/" | "/`"
+mod_symbol      ::= "%" | "%`"
 # First(expr2) = { "!" } U First(expr1)
 expr2           ::= "!" expr2
                   | expr1
