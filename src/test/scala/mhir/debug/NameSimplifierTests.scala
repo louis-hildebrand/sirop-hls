@@ -27,7 +27,7 @@ class NameSimplifierTests extends AnyFunSuite {
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
-    assert(simplified.toString() == "(x : u16) => (y : u16) => x + y")
+    assert(simplified.toString() == "(x : u16) => (y : u16) => x +` y")
   }
 
   /** If one variable shadows another, you can rename even if they have the same
@@ -40,7 +40,7 @@ class NameSimplifierTests extends AnyFunSuite {
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
-    assert(simplified.toString() == "(x : i8) => (x : i8) => 1:i8 + x")
+    assert(simplified.toString() == "(x : i8) => (x : i8) => 1:i8 +` x")
   }
 
   /** You cannot rename if it would lead to variable capture.
@@ -55,7 +55,7 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified == original)
     // You can still rename the first param
-    assert(simplified.toString() == "(x : i8) => (x_2 : i8) => x + x_2")
+    assert(simplified.toString() == "(x : i8) => (x_2 : i8) => x +` x_2")
   }
 
   /** Parameters with unique prefixes can obviously be renamed.
@@ -145,7 +145,7 @@ class NameSimplifierTests extends AnyFunSuite {
       """sbuild(((x : u3) => x)(4:u3))(((x : u8) => x)(a), ((x : bool) => x)(b)) {
         |  (a : u8) = {
         |    init: ((x : u8) => x)(0:u8),
-        |    next: 1:u8 + a
+        |    next: 1:u8 +` a
         |  },
         |  (b : bool) = {
         |    init: true,
@@ -184,7 +184,7 @@ class NameSimplifierTests extends AnyFunSuite {
       """sbuild(6:u3)((a, b_1, b_2), b_1) {
         |  (a : u8) = {
         |    init: 0:u8,
-        |    next: 1:u8 + a
+        |    next: 1:u8 +` a
         |  },
         |  (b_1 : bool) = {
         |    init: true,

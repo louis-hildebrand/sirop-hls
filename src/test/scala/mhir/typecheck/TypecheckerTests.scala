@@ -544,8 +544,8 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("Equal:DifferentTypes") {
-    assertThrows[TypeError]((IntCst(42)() === True).tchk())
-    assertThrows[TypeError]((True === IntCst(42)()).tchk())
+    assertThrows[TypeError]((IntCst(42)() equ True).tchk())
+    assertThrows[TypeError]((True equ IntCst(42)()).tchk())
   }
 
   test("Equal:Streams") {
@@ -563,7 +563,7 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("LessThan:Bool") {
-    assertThrows[TypeError]((True < False).tchk())
+    assertThrows[TypeError]((True lt False).tchk())
   }
 
   test("TupleAccess:NonTuple") {

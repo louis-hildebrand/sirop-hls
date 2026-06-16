@@ -20,13 +20,13 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
     let n85: Vec[Vec[u8, 1:u1], 3:u2] = (
       VecMap(
         n80,
-        (I : Vec[u8, 3:u2]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Vec[u8, 3:u2]) => VecReduceComb(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n90: Vec[Vec[u8, 1:u1], 1:u1] = (
       VecReduceComb(
         n85,
-        (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Vec[(u8, u8), 1:u1]) => VecMap(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n112: Vec[Vec[u8, 1:u1], 1:u1] = [[4:u8]v]v in
@@ -56,7 +56,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n4,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_1 : u8) => if (x_1 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -76,7 +76,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n20,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_2 : u8) => if (x_2 === 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_2 : u8) => if (x_2 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -94,7 +94,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n35,
       (I0 : Vec[u8, 3:u3]) =>
         (I1 : Vec[u8, 3:u3]) =>
-          vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_3 : u8) => if (x_3 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -106,7 +106,7 @@ let module0: Vec[Vec[u8, 3:u2], 3:u2] -> Vec[Vec[u8, 1:u1], 1:u1] = (
       n40,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_4 : u8) => if (x_4 === 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_4 : u8) => if (x_4 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in

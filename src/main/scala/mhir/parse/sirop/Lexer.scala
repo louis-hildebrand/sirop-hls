@@ -66,6 +66,8 @@ object Lexer {
       lex(consume(code, "->"), tokens :+ SingleArrowToken(p), p.consume("->"))
     } else if (code.startsWith("=>")) {
       lex(consume(code, "=>"), tokens :+ DoubleArrowToken(p), p.consume("=>"))
+    } else if (code.startsWith("==`")) {
+      lex(consume(code, "==`"), tokens :+ EqTickToken(p), p.consume("==`"))
     } else if (code.startsWith("==")) {
       lex(consume(code, "=="), tokens :+ EqToken(p), p.consume("=="))
     } else if (code.startsWith("!=")) {
@@ -88,24 +90,58 @@ object Lexer {
       lex(consume(code, "<="), tokens :+ LeqToken(p), p.consume("<="))
     } else if (code.startsWith(">=")) {
       lex(consume(code, ">="), tokens :+ GeqToken(p), p.consume(">="))
+    } else if (code.startsWith("<`")) {
+      lex(consume(code, "<`"), tokens :+ LtTickToken(p), p.consume("<`"))
     } else if (code.startsWith("<")) {
       lex(consume(code, "<"), tokens :+ LtToken(p), p.consume("<"))
     } else if (code.startsWith(">")) {
       lex(consume(code, ">"), tokens :+ GtToken(p), p.consume(">"))
+    } else if (code.startsWith("+^")) {
+      lex(consume(code, "+^"), tokens :+ PlusCaretToken(p), p.consume("+^"))
+    } else if (code.startsWith("+%`")) {
+      lex(
+        consume(code, "+%`"),
+        tokens :+ PlusPercentTickToken(p),
+        p.consume("+%`")
+      )
     } else if (code.startsWith("+%")) {
       lex(consume(code, "+%"), tokens :+ PlusPercentToken(p), p.consume("+%"))
+    } else if (code.startsWith("+`")) {
+      lex(consume(code, "+`"), tokens :+ PlusTickToken(p), p.consume("+`"))
     } else if (code.startsWith("+")) {
       lex(consume(code, "+"), tokens :+ PlusToken(p), p.consume("+"))
+    } else if (code.startsWith("-^")) {
+      lex(consume(code, "-^"), tokens :+ MinusCaretToken(p), p.consume("-^"))
+    } else if (code.startsWith("-%`")) {
+      lex(
+        consume(code, "-%`"),
+        tokens :+ MinusPercentTickToken(p),
+        p.consume("-%`")
+      )
     } else if (code.startsWith("-%")) {
       lex(consume(code, "-%"), tokens :+ MinusPercentToken(p), p.consume("-%"))
     } else if (code.startsWith("-")) {
       lex(consume(code, "-"), tokens :+ MinusToken(p), p.consume("-"))
+    } else if (code.startsWith("*^")) {
+      lex(consume(code, "*^"), tokens :+ TimesCaretToken(p), p.consume("*^"))
+    } else if (code.startsWith("*%`")) {
+      lex(
+        consume(code, "*%`"),
+        tokens :+ TimesPercentTickToken(p),
+        p.consume("*%`")
+      )
     } else if (code.startsWith("*%")) {
       lex(consume(code, "*%"), tokens :+ TimesPercentToken(p), p.consume("*%"))
+    } else if (code.startsWith("*`")) {
+      lex(consume(code, "*`"), tokens :+ TimesTickToken(p), p.consume("*`"))
     } else if (code.startsWith("*")) {
       lex(consume(code, "*"), tokens :+ TimesToken(p), p.consume("*"))
+    } else if (code.startsWith("/`")) {
+      lex(consume(code, "/`"), tokens :+ SlashTickToken(p), p.consume("/`"))
     } else if (code.startsWith("/")) {
       lex(consume(code, "/"), tokens :+ SlashToken(p), p.consume("/"))
+    } else if (code.startsWith("%`")) {
+      lex(consume(code, "%`"), tokens :+ PercentTickToken(p), p.consume("%`"))
     } else if (code.startsWith("%")) {
       lex(consume(code, "%"), tokens :+ PercentToken(p), p.consume("%"))
     } else if (code.startsWith("!")) {

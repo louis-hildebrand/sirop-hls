@@ -20,13 +20,13 @@ let module0: Stm[Stm[u8, 3:u2], 3:u2] -> Stm[Stm[u8, 1:u1], 1:u1] = (
     let n121: Stm[Stm[u8, 1:u1], 3:u2] = (
       StmMap(
         n116,
-        (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n126: Stm[Stm[u8, 1:u1], 1:u1] = (
       StmReduce(
         n121,
-        (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+        (I : Stm[(u8, u8), 1:u1]) => StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
       )
     ) in
     let n185: Stm[Stm[u8, 1:u1], 1:u1] = [[4:u8]s]s in
@@ -49,14 +49,14 @@ let module1: u8 -> u8 -> u8 = (
     (I1 : u8) =>
       let n180: u8 = 15:u8 in
       let n154: (u8, u8) = (I0, I1) in
-      let n155: u8 = n154.0 -% n154.1 in
+      let n155: u8 = n154.0 -%` n154.1 in
       let n157: (u8, u8) = (n180, n155) in
-      let n158: bool = n157.0 << n157.1 in
+      let n158: bool = n157.0 < n157.1 in
       let n181: u8 = 15:u8 in
       let n159: (u8, u8) = (I1, I0) in
-      let n160: u8 = n159.0 -% n159.1 in
+      let n160: u8 = n159.0 -%` n159.1 in
       let n162: (u8, u8) = (n181, n160) in
-      let n163: bool = n162.0 << n162.1 in
+      let n163: bool = n162.0 < n162.1 in
       let n164: (bool, bool) = (n158, n163) in
       let n165: bool = n164.0 || n164.1 in
       let n182: u8 = 0:u8 in
@@ -67,7 +67,7 @@ let module1: u8 -> u8 -> u8 = (
       let n173: (u8, u8) = (n170, n183) in
       let n174: u8 = n173.0 >>> n173.1 in
       let n175: (u8, u8) = (I1, n174) in
-      n175.0 +% n175.1
+      n175.0 +%` n175.1
 ) in
 (I : Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5]) =>
   let n1: Stm[Stm[Stm[u8, 1:u1], 1:u1], 16:u5] = I in
@@ -112,7 +112,7 @@ let module1: u8 -> u8 -> u8 = (
                   (I0 : u8) =>
                     (I1 : u8) =>
                       vbuild(2:u2) { (x_1 : u8) =>
-                        if (x_1 === 0:u0) then { I0 } else { I1 }
+                        if (x_1 == 0:u0) then { I0 } else { I1 }
                       }
                 )
           )
@@ -177,7 +177,7 @@ let module1: u8 -> u8 -> u8 = (
                   (I0 : u8) =>
                     (I1 : u8) =>
                       vbuild(2:u2) { (x_3 : u8) =>
-                        if (x_3 === 0:u0) then { I0 } else { I1 }
+                        if (x_3 == 0:u0) then { I0 } else { I1 }
                       }
                 )
           )
@@ -224,7 +224,7 @@ let module1: u8 -> u8 -> u8 = (
             I1,
             (I0 : Stm[u8, 3:u3]) =>
               (I1 : Stm[u8, 3:u3]) =>
-                vbuild(2:u2) { (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_5 : u8) => if (x_5 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -258,7 +258,7 @@ let module1: u8 -> u8 -> u8 = (
                   (I0 : u8) =>
                     (I1 : u8) =>
                       vbuild(2:u2) { (x_6 : u8) =>
-                        if (x_6 === 0:u0) then { I0 } else { I1 }
+                        if (x_6 == 0:u0) then { I0 } else { I1 }
                       }
                 )
           )

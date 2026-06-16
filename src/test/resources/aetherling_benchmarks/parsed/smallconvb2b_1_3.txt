@@ -34,7 +34,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         (I : Vec[Stm[u8, 3:u2], 3:u2]) =>
           VecMap(
             I,
-            (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
+            (I : Stm[u8, 3:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -45,7 +45,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecReduceComb(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -56,7 +56,7 @@ let module0: Stm[Vec[Stm[u8, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecMap(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -111,7 +111,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
         (I : Vec[Stm[u8, 2:u2], 2:u2]) =>
           VecMap(
             I,
-            (I : Stm[u8, 2:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +% I.1)
+            (I : Stm[u8, 2:u2]) => StmReduce(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -122,7 +122,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecReduceComb(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -133,7 +133,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
           VecMap(
             I,
             (I : Stm[(u8, u8), 1:u1]) =>
-              StmMap(I, (I : (u8, u8)) => I.0 +% I.1)
+              StmMap(I, (I : (u8, u8)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -170,7 +170,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : u8) =>
               (I1 : u8) =>
-                vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_1 : u8) => if (x_1 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -213,7 +213,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : u8) =>
               (I1 : u8) =>
-                vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_3 : u8) => if (x_3 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -254,7 +254,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : Stm[u8, 3:u2]) =>
               (I1 : Stm[u8, 3:u2]) =>
-                vbuild(2:u2) { (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_5 : u8) => if (x_5 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -272,7 +272,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : u8) =>
               (I1 : u8) =>
-                vbuild(2:u2) { (x_6 : u8) => if (x_6 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_6 : u8) => if (x_6 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -339,7 +339,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : u8) =>
               (I1 : u8) =>
-                vbuild(2:u2) { (x_8 : u8) => if (x_8 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_8 : u8) => if (x_8 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -368,7 +368,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : u8) =>
               (I1 : u8) =>
-                vbuild(2:u2) { (x_10 : u8) => if (x_10 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_10 : u8) => if (x_10 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -396,7 +396,7 @@ let module1: Stm[Vec[Stm[u8, 2:u2], 2:u2], 1:u1] -> Stm[Stm[u8, 1:u1], 1:u1] = (
             I1,
             (I0 : Stm[u8, 2:u2]) =>
               (I1 : Stm[u8, 2:u2]) =>
-                vbuild(2:u2) { (x_12 : u8) => if (x_12 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_12 : u8) => if (x_12 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )

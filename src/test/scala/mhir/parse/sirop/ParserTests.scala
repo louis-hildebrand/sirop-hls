@@ -492,9 +492,27 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("x *` y *` z") {
+    val src = "x *` y *` z"
+    val expected = Prod(Prod(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x *% y *% z") {
     val src = "x *% y *% z"
+    val expected = SmartWrappingProd(SmartWrappingProd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x *%` y *%` z") {
+    val src = "x *%` y *%` z"
     val expected = WrappingProd(WrappingProd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x *^ y *^ z") {
+    val src = "x *^ y *^ z"
+    val expected = SafeProd(SafeProd(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -504,9 +522,21 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("x /` y /` z") {
+    val src = "x /` y /` z"
+    val expected = Div(Div(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x % y % z") {
     val src = "x % y % z"
     val expected = SmartMod(SmartMod(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x %` y %` z") {
+    val src = "x %` y %` z"
+    val expected = Mod(Mod(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -516,9 +546,27 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("x +` y +` z") {
+    val src = "x +` y +` z"
+    val expected = Sum(Sum(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x +% y +% z") {
     val src = "x +% y +% z"
+    val expected = SmartWrappingSum(SmartWrappingSum(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x +%` y +%` z") {
+    val src = "x +%` y +%` z"
     val expected = WrappingSum(WrappingSum(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x +^ y +^ z") {
+    val src = "x +^ y +^ z"
+    val expected = SafeSum(SafeSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -530,7 +578,19 @@ class ParserTests extends AnyFunSuite {
 
   test("x -% y -% z") {
     val src = "x -% y -% z"
+    val expected = SmartWrappingDiff(SmartWrappingDiff(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x -%` y -%` z") {
+    val src = "x -%` y -%` z"
     val expected = WrappingDiff(WrappingDiff(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x -^ y -^ z") {
+    val src = "x -^ y -^ z"
+    val expected = SafeDiff(SafeDiff(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -571,27 +631,35 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("x < y") {
-    assert(Parser.parse("x < y").body == (x lt y))
+    assert(Parser.parse("x < y").body == SmartLessThan(x, y)())
+  }
+
+  test("x <` y") {
+    assert(Parser.parse("x <` y").body == LessThan(x, y)())
   }
 
   test("x > y") {
-    assert(Parser.parse("x > y").body == (x gt y))
+    assert(Parser.parse("x > y").body == SmartGreaterThan(x, y)())
   }
 
   test("x <= y") {
-    assert(Parser.parse("x <= y").body == (x leq y))
+    assert(Parser.parse("x <= y").body == SmartLessThanOrEqual(x, y)())
   }
 
   test("x >= y") {
-    assert(Parser.parse("x >= y").body == (x geq y))
+    assert(Parser.parse("x >= y").body == SmartGreaterThanOrEqual(x, y)())
   }
 
   test("x == y") {
-    assert(Parser.parse("x == y").body == (x equ y))
+    assert(Parser.parse("x == y").body == SmartEqual(x, y)())
+  }
+
+  test("x ==` y") {
+    assert(Parser.parse("x ==` y").body == Equal(x, y)())
   }
 
   test("x != y") {
-    assert(Parser.parse("x != y").body == (x nequ y))
+    assert(Parser.parse("x != y").body == SmartNotEqual(x, y)())
   }
 
   test("x && y && z") {
@@ -779,12 +847,12 @@ class ParserTests extends AnyFunSuite {
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
   }
 
-  test("let x: u8 = 250:u8 in x *% x +% 42:u8") {
-    val src = "let x: u8 = 250:u8 in x *% x +% 42:u8"
+  test("let x: u8 = 250:u8 in x * x + 42:u8") {
+    val src = "let x: u8 = 250:u8 in x * x + 42:u8"
     val expected = Let(
       Param("x", -1)(U8),
       C(250)(U8),
-      WrappingSum(WrappingProd(x, x)(), C(42)(U8))()
+      SmartSum(SmartProd(x, x)(), C(42)(U8))()
     )()
     val actual = Parser.parse(src).body
     assert(actual == expected)
@@ -806,21 +874,21 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("StmReduce") {
-    val src = "StmReduce(s, (x) => x.0 -% x.1)"
+    val src = "StmReduce(s, (x) => x.0 - x.1)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected = StmReduce(s, Function(x, WrappingDiff(x.__0, x.__1)())())()
+    val expected = StmReduce(s, Function(x, SmartDiff(x.__0, x.__1)())())()
     assert(Parser.parse(src).body == expected)
   }
 
   test("StmMap2") {
-    val src = "StmMap2(s1, s2, (x1) => (x2) => x1 -% x2)"
+    val src = "StmMap2(s1, s2, (x1) => (x2) => x1 - x2)"
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
     val x1 = Param("x1", -1)(Missing)
     val x2 = Param("x2", -1)(Missing)
     val expected =
-      StmMap2(s1, s2, Function(x1, Function(x2, WrappingDiff(x1, x2)())())())()
+      StmMap2(s1, s2, Function(x1, Function(x2, SmartDiff(x1, x2)())())())()
     assert(Parser.parse(src).body == expected)
   }
 
@@ -834,14 +902,14 @@ class ParserTests extends AnyFunSuite {
 
   test("Dot:MethodStyle") {
     val src =
-      "s1.StmZip(s2).StmMap( (x) => x.0 *% x.1 ).StmReduce( (x) => x.0 +% x.1 )"
+      "s1.StmZip(s2).StmMap( (x) => x.0 * x.1 ).StmReduce( (x) => x.0 + x.1 )"
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected =
       StmReduce(
-        StmMap(StmZip(s1, s2)(), Function(x, x.__0 *% x.__1)())(),
-        Function(x, x.__0 +% x.__1)()
+        StmMap(StmZip(s1, s2)(), Function(x, SmartProd(x.__0, x.__1)())())(),
+        Function(x, SmartSum(x.__0, x.__1)())()
       )()
     assert(Parser.parse(src).body == expected)
   }

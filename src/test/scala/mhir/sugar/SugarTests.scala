@@ -186,7 +186,7 @@ class SugarTests extends AnyFunSuite {
     val y = Param("y", -1)(U16)
     val f = PatternFunction(
       TuplePattern(ParamPattern(x), ParamPattern(y)),
-      Sum(x, y)()
+      SmartSum(x, y)()
     )()
 
     val expectedOneLine = "@(x: u16, y: u16) => x + y"
@@ -300,7 +300,8 @@ class SugarTests extends AnyFunSuite {
   test("Let:Display") {
     val x = Param("x", -1)(U8)
     val y = Param("y", -1)(Missing)
-    val e = Let(x, C(42)(U8), Let(y, C(-1)(I9), Sum(ToSigned(x)(), y)())())()
+    val e =
+      Let(x, C(42)(U8), Let(y, C(-1)(I9), SmartSum(ToSigned(x)(), y)())())()
 
     val expectedOneLine = "let x: u8 = 42:u8 in let y = -1:i9 in sign(x) + y"
     val actualOneLine = ExprPrinter.displayOneLine(e)
@@ -317,7 +318,7 @@ class SugarTests extends AnyFunSuite {
 
   test("Let+1:Display") {
     val x = Param("x", -1)(Missing)
-    val e = Sum(C(1)(U8), Let(x, C(42)(U8), x)())()
+    val e = SmartSum(C(1)(U8), Let(x, C(42)(U8), x)())()
     assert(ExprPrinter.displayOneLine(e) == "1:u8 + (let x = 42:u8 in x)")
     assert(ExprPrinter.display(e) == "1:u8 + (let x = 42:u8 in x)")
   }

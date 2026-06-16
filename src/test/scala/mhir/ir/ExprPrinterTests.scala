@@ -59,14 +59,14 @@ class ExprPrinterTests extends AnyFunSuite {
     val z = Param("z", -1)(U8)
     val e = WrappingSum(x, y, z)()
 
-    val expectedOneLine = "x +% y +% z"
+    val expectedOneLine = "x +%` y +%` z"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """x
-        |  +% y
-        |  +% z
+        |  +%` y
+        |  +%` z
         |""".stripMargin.stripTrailing()
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -77,13 +77,13 @@ class ExprPrinterTests extends AnyFunSuite {
     val y = Param("y", -1)(U8)
     val e = WrappingDiff(x, y)()
 
-    val expectedOneLine = "x -% y"
+    val expectedOneLine = "x -%` y"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """x
-        |  -% y
+        |  -%` y
         |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -95,14 +95,14 @@ class ExprPrinterTests extends AnyFunSuite {
     val z = Param("z", -1)(U8)
     val e = WrappingProd(x, y, z)()
 
-    val expectedOneLine = "x *% y *% z"
+    val expectedOneLine = "x *%` y *%` z"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """x
-        |  *% y
-        |  *% z
+        |  *%` y
+        |  *%` z
         |""".stripMargin.stripTrailing()
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -142,8 +142,8 @@ class ExprPrinterTests extends AnyFunSuite {
   test("x.__0 + x.__1") {
     val x = Param("x", -1)(TyTuple(U8, U8))
     val e = Sum(x.__0, x.__1)()
-    assert(ExprPrinter.displayOneLine(e) == s"x.0 + x.1")
-    assert(ExprPrinter.display(e) == s"x.0 + x.1")
+    assert(ExprPrinter.displayOneLine(e) == s"x.0 +` x.1")
+    assert(ExprPrinter.display(e) == s"x.0 +` x.1")
   }
 
   test("mux.__2") {
@@ -170,8 +170,8 @@ class ExprPrinterTests extends AnyFunSuite {
     val x = Param("x", -1)(U8)
     val y = Param("y", -1)(U8)
     val e = FunCall(f, Mod(x, y)())()
-    assert(ExprPrinter.displayOneLine(e) == s"f(x % y)")
-    assert(ExprPrinter.display(e) == s"f(x % y)")
+    assert(ExprPrinter.displayOneLine(e) == s"f(x %` y)")
+    assert(ExprPrinter.display(e) == s"f(x %` y)")
   }
 
   test("(x => y => x + y + 1)(42)(43)") {
@@ -181,14 +181,14 @@ class ExprPrinterTests extends AnyFunSuite {
     val e = f(C(42)(U8))(C(43)(U8))
 
     val expectedOneLine =
-      s"((x : u8) => (y : u8) => 1:u8 + x + y)(42:u8)(43:u8)"
+      s"((x : u8) => (y : u8) => 1:u8 +` x +` y)(42:u8)(43:u8)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""((x : u8) =>
          |  (y : u8) =>
-         |    1:u8 + x + y
+         |    1:u8 +` x +` y
          |)(42:u8)(43:u8)
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.display(e, maxWidth = 20) == expectedMultiLine)
@@ -202,18 +202,20 @@ class ExprPrinterTests extends AnyFunSuite {
     val f = Param("f", -1)(U16 ->: U16 ->: U16)
     val e = f(Sum(x, y, z)())(Prod(x, y, z, w)())
 
-    val expectedOneLine = s"f(x + y + z)(x * y * z * w)"
+    val expectedOneLine = s"f(x +` y +` z)(x *` y *` z *` w)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""f(
-         |  x + y + z
+         |  x
+         |    +` y
+         |    +` z
          |)(
          |  x
-         |    * y
-         |    * z
-         |    * w
+         |    *` y
+         |    *` z
+         |    *` w
          |)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 12)
@@ -233,14 +235,14 @@ class ExprPrinterTests extends AnyFunSuite {
     val e = VecAccess(VecAccess(v, C(42)(U8))(), C(43)(U8))()
 
     val expectedOneLine =
-      s"vbuild(100:u8) { (i : u8) => vbuild(100:u8) { (j : u8) => 42:u8 + i + j } }[42:u8][43:u8]"
+      s"vbuild(100:u8) { (i : u8) => vbuild(100:u8) { (j : u8) => 42:u8 +` i +` j } }[42:u8][43:u8]"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""vbuild(100:u8) { (i : u8) =>
          |  vbuild(100:u8) { (j : u8) =>
-         |    42:u8 + i + j
+         |    42:u8 +` i +` j
          |  }
          |}[42:u8][43:u8]
          |""".stripMargin.stripTrailing
@@ -255,17 +257,17 @@ class ExprPrinterTests extends AnyFunSuite {
     val v = Param("v", -1)(TyVec(TyVec(U8, 100), 100))
     val e = VecAccess(VecAccess(v, Div(i, j)())(), Sum(i, j, k)())()
 
-    val expectedOneLine = s"v[i / j][i + j + k]"
+    val expectedOneLine = s"v[i /` j][i +` j +` k]"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""v[
-         |  i / j
+         |  i /` j
          |][
          |  i
-         |    + j
-         |    + k
+         |    +` j
+         |    +` k
          |]
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.display(e, maxWidth = 9)
@@ -296,7 +298,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val y = Param("y", -1)(U8)
     val z = Param("z", -1)(U8)
     val e = Prod(C(2)(U8), Sum(y, z)())()
-    val expected = s"2:u8 * (y + z)"
+    val expected = s"2:u8 *` (y +` z)"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }
@@ -310,13 +312,13 @@ class ExprPrinterTests extends AnyFunSuite {
 
     // Show nesting because, although the value is the same, the AST is
     // different
-    val expectedOneLine = "(w + x) + (y + z)"
+    val expectedOneLine = "(w +` x) +` (y +` z)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      """(w + x)
-        |  + (y + z)
+      """(w +` x)
+        |  +` (y +` z)
         |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -331,13 +333,13 @@ class ExprPrinterTests extends AnyFunSuite {
 
     // Show nesting because, although the value is the same, the AST is
     // different
-    val expectedOneLine = "(w * x) * (y * z)"
+    val expectedOneLine = "(w *` x) *` (y *` z)"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      """(w * x)
-        |  * (y * z)
+      """(w *` x)
+        |  *` (y *` z)
         |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(e)
     assert(actualMultiLine == expectedMultiLine)
@@ -350,7 +352,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val w = Param("w", -1)(U8)
     val e = Div(Div(x, y)(), Div(z, w)())()
     // No need for parentheses in this case: the AST is unambiguous
-    val expected = "x / y / (z / w)"
+    val expected = "x /` y /` (z /` w)"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }
@@ -399,26 +401,20 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("false || true == (true && false)") {
     val e = False || (True equ (False && True))
-    assert(ExprPrinter.displayOneLine(e) == "false || true == (false && true)")
-    assert(ExprPrinter.display(e) == "false || true == (false && true)")
-  }
-
-  test("1 != 2") {
-    val e = Not(Equal(C(1)(I8), C(2)(I8))())()
-    assert(ExprPrinter.displayOneLine(e) == "1:i8 != 2:i8")
-    assert(ExprPrinter.display(e) == "1:i8 != 2:i8")
+    assert(ExprPrinter.displayOneLine(e) == "false || true ==` (false && true)")
+    assert(ExprPrinter.display(e) == "false || true ==` (false && true)")
   }
 
   test("42 < 43") {
     val e = C(42)(U16) lt C(43)(U16)
-    assert(ExprPrinter.displayOneLine(e) == "42:u16 < 43:u16")
-    assert(ExprPrinter.display(e) == "42:u16 < 43:u16")
+    assert(ExprPrinter.displayOneLine(e) == "42:u16 <` 43:u16")
+    assert(ExprPrinter.display(e) == "42:u16 <` 43:u16")
   }
 
   test("42 >= 43") {
     val e = !(C(42)(U16) lt C(43)(U16))
-    assert(ExprPrinter.displayOneLine(e) == "42:u16 >= 43:u16")
-    assert(ExprPrinter.display(e) == "42:u16 >= 43:u16")
+    assert(ExprPrinter.displayOneLine(e) == "!(42:u16 <` 43:u16)")
+    assert(ExprPrinter.display(e) == "!(42:u16 <` 43:u16)")
   }
 
   test("!((a || b) && c))") {
@@ -478,7 +474,7 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("mux + 1") {
     val e = Sum(C(1)(U8), Mux(True, C(42)(U8), C(99)(U8))())()
-    val expected = s"1:u8 + (if (true) then { 42:u8 } else { 99:u8 })"
+    val expected = s"1:u8 +` (if (true) then { 42:u8 } else { 99:u8 })"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }
@@ -489,12 +485,12 @@ class ExprPrinterTests extends AnyFunSuite {
     val z = Param("z", -1)(U8)
     val e = PadTo(Sum(x, y, z)(), 16)()
 
-    val expectedOneLine = "pad16(x + y + z)"
+    val expectedOneLine = "pad16(x +` y +` z)"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""pad16(
-         |  x + y + z
+         |  x +` y +` z
          |)
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.display(e, maxWidth = 15) == expectedMultiLine)
@@ -579,18 +575,18 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"sbuild(42:u8)(sign(sdata(s)) + j, true) { (j : i9) = { init: -10:i9, next: 2:i9 + j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {}, ready: true } }"
+      s"sbuild(42:u8)(sign(sdata(s)) +` j, true) { (j : i9) = { init: -10:i9, next: 2:i9 +` j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 +` i } } {}, ready: true } }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""sbuild(42:u8)(sign(sdata(s)) + j, true) {
+      s"""sbuild(42:u8)(sign(sdata(s)) +` j, true) {
          |  (j : i9) = {
          |    init: -10:i9,
-         |    next: 2:i9 + j
+         |    next: 2:i9 +` j
          |  }
          |} {
          |  (s : Stm[u8, -1:i1]) = {
-         |    stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 + i } } {},
+         |    stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 +` i } } {},
          |    ready: true
          |  }
          |}

@@ -32,7 +32,7 @@ let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[(u32, u32), 3:u2]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 *% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 *%` I.1)
           )
       )
     ) in
@@ -43,7 +43,7 @@ let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[u32, 3:u2]) =>
-              StmReduce(I, (I : (u32, u32)) => I.0 +% I.1)
+              StmReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -54,7 +54,7 @@ let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
           VecReduceComb(
             I,
             (I : Stm[(u32, u32), 1:u1]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -65,7 +65,7 @@ let module0: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
           VecMap(
             I,
             (I : Stm[(u32, u32), 1:u1]) =>
-              StmMap(I, (I : (u32, u32)) => I.0 +% I.1)
+              StmMap(I, (I : (u32, u32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -92,14 +92,14 @@ let module1: u32 -> u32 -> u32 = (
       let n171: u32 = I1 in
       let n177: u32 = 15:u32 in
       let n150: (u32, u32) = (I0, I1) in
-      let n151: u32 = n150.0 -% n150.1 in
+      let n151: u32 = n150.0 -%` n150.1 in
       let n153: (u32, u32) = (n177, n151) in
-      let n154: bool = n153.0 << n153.1 in
+      let n154: bool = n153.0 < n153.1 in
       let n178: u32 = 15:u32 in
       let n155: (u32, u32) = (I1, I0) in
-      let n156: u32 = n155.0 -% n155.1 in
+      let n156: u32 = n155.0 -%` n155.1 in
       let n158: (u32, u32) = (n178, n156) in
-      let n159: bool = n158.0 << n158.1 in
+      let n159: bool = n158.0 < n158.1 in
       let n160: (bool, bool) = (n154, n159) in
       let n161: bool = n160.0 || n160.1 in
       let n179: u32 = 0:u32 in
@@ -110,7 +110,7 @@ let module1: u32 -> u32 -> u32 = (
       let n169: (u32, fix8_7) = (n166, n180) in
       let n170: u32 = n169.0 *_ n169.1 in
       let n172: (u32, u32) = (n171, n170) in
-      n172.0 +% n172.1
+      n172.0 +%` n172.1
 ) in
 (I : Stm[Stm[u32, 1:u1], 2073600:u21]) =>
   let n1: Stm[Stm[u32, 1:u1], 2073600:u21] = I in
@@ -129,7 +129,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_1 : u8) => if (x_1 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_1 : u8) => if (x_1 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -172,7 +172,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_3 : u8) => if (x_3 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_3 : u8) => if (x_3 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -213,7 +213,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : Stm[u32, 3:u2]) =>
               (I1 : Stm[u32, 3:u2]) =>
-                vbuild(2:u2) { (x_5 : u8) => if (x_5 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_5 : u8) => if (x_5 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )
@@ -231,7 +231,7 @@ let module1: u32 -> u32 -> u32 = (
             I1,
             (I0 : u32) =>
               (I1 : u32) =>
-                vbuild(2:u2) { (x_6 : u8) => if (x_6 === 0:u0) then { I0 } else { I1 }
+                vbuild(2:u2) { (x_6 : u8) => if (x_6 == 0:u0) then { I0 } else { I1 }
                 }
           )
     )

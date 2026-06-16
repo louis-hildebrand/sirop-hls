@@ -1,0 +1,29 @@
+accelerator
+top = (s: Stm[u8, 5]) =>
+    s
+    .StmMap( (x) =>
+        (
+            (x == 41, x == 42, x == 43),
+            (x != 41, x != 42, x != 43),
+            (x > 41,  x > 42,  x > 43),
+            (x >= 41, x >= 42, x >= 43),
+            (x < 41,  x < 42,  x < 43),
+            (x <= 41, x <= 42, x <= 43)
+        )
+    )
+
+assert {
+    s = [40:u8, 41:u8, 42:u8, 43:u8, 44:u8]s
+}
+yields [
+    /* 40 */
+    ((false, false, false), (true, true, true), (false, false, false), (false, false, false), (true, true, true), (true, true, true)),
+    /* 41 */
+    ((true, false, false), (false, true, true), (false, false, false), (true, false, false), (false, true, true), (true, true, true)),
+    /* 42 */
+    ((false, true, false), (true, false, true), (true, false, false), (true, true, false), (false, false, true), (false, true, true)),
+    /* 43 */
+    ((false, false, true), (true, true, false), (true, true, false), (true, true, true), (false, false, false), (false, false, true)),
+    /* 44 */
+    ((false, false, false), (true, true, true), (true, true, true), (true, true, true), (false, false, false), (false, false, false))
+]s

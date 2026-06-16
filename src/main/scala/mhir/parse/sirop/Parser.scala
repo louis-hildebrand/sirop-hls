@@ -459,10 +459,13 @@ object Parser {
     tokens match {
       case Seq(_: EqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(e1 equ e2, rest2, constants)
+        parseExpr7Prime(SmartEqual(e1, e2)(), rest2, constants)
+      case Seq(_: EqTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr6(rest1, constants)
+        parseExpr7Prime(Equal(e1, e2)(), rest2, constants)
       case Seq(_: NeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(e1 nequ e2, rest2, constants)
+        parseExpr7Prime(SmartNotEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
@@ -482,18 +485,21 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
+      case Seq(_: LtTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr5(rest1, constants)
+        parseExpr6Prime(LessThan(e1, e2)(), rest2, constants)
       case Seq(_: LtToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 lt e2, rest2, constants)
+        parseExpr6Prime(SmartLessThan(e1, e2)(), rest2, constants)
       case Seq(_: GtToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 gt e2, rest2, constants)
+        parseExpr6Prime(SmartGreaterThan(e1, e2)(), rest2, constants)
       case Seq(_: LeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 leq e2, rest2, constants)
+        parseExpr6Prime(SmartLessThanOrEqual(e1, e2)(), rest2, constants)
       case Seq(_: GeqToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(e1 geq e2, rest2, constants)
+        parseExpr6Prime(SmartGreaterThanOrEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
@@ -544,15 +550,30 @@ object Parser {
       case Seq(_: PlusToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(SmartSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(Sum(e1, e2)(), rest2, constants)
       case Seq(_: PlusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SmartWrappingSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingSum(e1, e2)(), rest2, constants)
+      case Seq(_: PlusCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SafeSum(e1, e2)(), rest2, constants)
       case Seq(_: MinusToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(SmartDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SmartWrappingDiff(e1, e2)(), rest2, constants)
+      case Seq(_: MinusPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
         parseExpr4Prime(WrappingDiff(e1, e2)(), rest2, constants)
+      case Seq(_: MinusCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr3(rest1, constants)
+        parseExpr4Prime(SafeDiff(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
@@ -575,15 +596,30 @@ object Parser {
       case Seq(_: TimesToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Prod(e1, e2)(), rest2, constants)
       case Seq(_: TimesPercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(SmartWrappingProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesPercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(WrappingProd(e1, e2)(), rest2, constants)
+      case Seq(_: TimesCaretToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(SafeProd(e1, e2)(), rest2, constants)
       case Seq(_: SlashToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartDiv(e1, e2)(), rest2, constants)
+      case Seq(_: SlashTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Div(e1, e2)(), rest2, constants)
       case Seq(_: PercentToken, rest1 @ _*) =>
         val (e2, rest2) = parseExpr2(rest1, constants)
         parseExpr3Prime(SmartMod(e1, e2)(), rest2, constants)
+      case Seq(_: PercentTickToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr2(rest1, constants)
+        parseExpr3Prime(Mod(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
