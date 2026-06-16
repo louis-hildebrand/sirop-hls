@@ -499,13 +499,22 @@ trait TypeChecker {
               }
               x -> (newS, newReady)
             case (x, (z, next)) if x.typ.isData =>
-              val newZ = z.tchk(context, constValues)
-              if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
-                throw new TypeError(
-                  s"seed for accumulator $x has type ${newZ.typ}."
-                    + s" Expected type ${x.typ}.",
-                  TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
-                )
+              val newZ = (z, x.typ) match {
+                // TODO: Generalize this by using ReshapeData?
+                //       But then there will be a circular dependency between
+                //       the type checker and the lowering package :(
+                case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
+                  IntCst(z)(x.typ)
+                case _ =>
+                  val newZ = z.tchk(context, constValues)
+                  if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
+                    throw new TypeError(
+                      s"seed for accumulator $x has type ${newZ.typ}."
+                        + s" Expected type ${x.typ}.",
+                      TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
+                    )
+                  }
+                  newZ
               }
               val newNext = next.tchk(newContext, constValues)
               if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {

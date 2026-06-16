@@ -409,7 +409,7 @@ class TypecheckerTests extends AnyFunSuite {
         a,
         b,
         Map[Param, (Expr, Expr)](
-          a -> (ReshapeData(0, U8)(), Mux(b, a + 2, a + 1)()),
+          a -> (C(0)(), Mux(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
         )
       )()
@@ -600,6 +600,13 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("StmBuild:NonBoolValid") {
     val e = StmBuild(42, Tuple(43, 44)(), 45)()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:InitWrongType") {
+    val a = Param("a")(U8)
+    val e =
+      StmBuild(4, a, True, Map[Param, (Expr, Expr)](a -> (True, C(0)(U8))))()
     assertThrows[TypeError](e.tchk())
   }
 
