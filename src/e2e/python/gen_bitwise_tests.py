@@ -12,22 +12,61 @@ from bitstring import Bits
 
 N = 8
 
-def u4_to_string(x: int) -> str:
-    bits = Bits(uint=x, length=4).bin
-    return f"{x:>2}:u4 /*{bits}*/"
+
+def uint2str(x: int, bitwidth: int) -> str:
+    bits = Bits(uint=x, length=bitwidth).bin
+    w = len(str(2**bitwidth-1))
+    return f"{x:>{w}} /*{bits}*/"
 
 
-def i3_to_string(x: int) -> str:
-    bits = Bits(int=x, length=3).bin
-    return f"{x:>2}:i3 /*{bits}*/"
+def int2str(x: int, bitwidth: int) -> str:
+    bits = Bits(int=x, length=bitwidth).bin
+    w = len(str(2**(bitwidth-1)-1))
+    return f"{x:>{w}} /*{bits}*/"
 
 
 def tuple_to_string(x: tuple[list[int], int, bool]) -> str:
     (v, n, b) = x
-    v_elems = ", ".join([u4_to_string(x) for x in v])
-    n = i3_to_string(n)
+    v_elems = ", ".join([uint2str(x, 4) for x in v])
+    n = int2str(n, 3)
     b = "true " if b else "false"
     return f"([{v_elems}]v, {n}, {b})"
+
+
+def vvb2str(x: tuple[list[int], list[int], bool]) -> str:
+    """
+    (Vec[u8], Vec[i8], bool) to string.
+    """
+    (v1, v2, b) = x
+    v1 = "[" + ", ".join([uint2str(x, 8) for x in v1]) + "]v"
+    v2 = "[" + ", ".join([int2str(x, 8) for x in v2]) + "]v"
+    b = "true " if b else "false"
+    return f"({v1}, {v2}, {b})"
+
+
+def vvb2boolvec(x: tuple[list[int], list[int], bool]) -> str:
+    """
+    (Vec[u8], Vec[i8], bool) to Vec[bool].
+    """
+    (v1, v2, b) = x
+    bits = ",".join([
+        ",".join([
+            "T" if bit else "F"
+            # Pyright complains that Bits is not iterable, but in practice it is
+            for bit in Bits(uint=x, length=8) # pyright: ignore[reportGeneralTypeIssues]
+        ])
+        for x in v1
+    ])
+    bits += "," + ",".join([
+        ",".join([
+            "T" if bit else "F"
+            # Pyright complains that Bits is not iterable, but in practice it is
+            for bit in Bits(int=x, length=8) # pyright: ignore[reportGeneralTypeIssues]
+        ])
+        for x in v2
+    ])
+    bits += "," + ("T" if b else "F")
+    return "[" + bits + "]v"
 
 
 def bitwise_and(
@@ -62,7 +101,7 @@ def bitwise_or(
     return (zv, zn, zb)
 
 
-def main(
+def main_binop(
     f: Callable[
         [tuple[list[int], int, bool], tuple[list[int], int, bool]],
         tuple[list[int], int, bool]
@@ -102,5 +141,46 @@ def main(
         if i != N//2 - 1:
             print()
 
+
+def main_to_bits(flip: bool = False) -> None:
+    """
+    Generate test cases for the to_bits primitive (by default)
+    or for the bits_to primitive (when flip=True).
+    """
+    for i in range(8):
+        uint_start = i * 4 * N
+        int_start = uint_start - 128
+        tuples = [
+            (
+                [4*j + uint_start + k for k in range(4)],
+                [4*j + int_start + k for k in range(4)],
+                j % 2 == 0
+            )
+            for j in range(8)
+        ]
+        bool_vectors = [vvb2boolvec(x) for x in tuples]
+        if flip:
+            inputs = bool_vectors
+            outputs = [vvb2str(x) for x in tuples]
+        else:
+            inputs = [vvb2str(x) for x in tuples]
+            outputs = bool_vectors
+        print("assert {")
+        print("    s = [")
+        for j, x in enumerate(inputs):
+            print(f"        {x}", end="")
+            print("" if j == 7 else ",")
+        print("    ]s")
+        print("}")
+        print("yields [")
+        for j, x in enumerate(outputs):
+            print(f"    {x}", end="")
+            print("" if j == 7 else ",")
+        print("]s")
+        if i != 7:
+            print()
+
+
 if __name__ == "__main__":
-    main(bitwise_or)
+    # main_binop(bitwise_or)
+    main_to_bits(flip=True)

@@ -1,0 +1,9 @@
+[INFO ] test 0: PASSED
+[INFO ] test 1: PASSED
+[INFO ] test 2: PASSED
+[INFO ] test 3: PASSED
+[INFO ] test 4: PASSED
+[INFO ] test 5: PASSED
+[INFO ] test 6: PASSED
+[INFO ] test 7: PASSED
+[INFO ] 8/8 tests passed!
