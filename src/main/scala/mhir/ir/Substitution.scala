@@ -147,6 +147,11 @@ private[ir] trait Substitution {
                     })
                   )(s.typ.substitute(subs), annotations = s.annotations)
                 }
+              case ia @ InterpretAs(e, targetTyp) =>
+                InterpretAs(
+                  e.subPreserveType(subs),
+                  targetTyp.substitute(subs)
+                )(ia.typ.substitute(subs))
               case e: SyntaxSugar => e.sugarSubAndKeepType(subs)
               case e =>
                 e.rebuild(
@@ -285,6 +290,11 @@ private[ir] trait Substitution {
                     newX -> (newZ, newNext)
                   })
                 )(annotations = s.annotations)
+              case ia @ InterpretAs(e, targetTyp) =>
+                InterpretAs(
+                  e.subAndEraseType(subs),
+                  targetTyp.substitute(subs)
+                )()
               case e: SyntaxSugar =>
                 e.sugarSubAndEraseType(subs)
               case Undefined(typ) =>

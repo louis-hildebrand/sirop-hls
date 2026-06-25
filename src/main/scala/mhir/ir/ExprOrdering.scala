@@ -67,6 +67,7 @@ case object ExprOrdering extends Ordering[Expr] {
       case _: Mux          => 25000
       case _: Tuple        => 26000
       case _: Bits         => 26500
+      case _: InterpretAs  => 25750
       case _: Function     => 27000
       case _: StmBuild     => 28000
       case _: StmData      => 29000

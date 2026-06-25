@@ -271,6 +271,37 @@ trait TypeChecker {
                   + " Expected a signed integer."
               )
           }
+        case b @ Bits(e) =>
+          val newE = e.tchk(context, constValues)
+          if (!newE.typ.isData) {
+            throw new TypeError(
+              s"Cannot convert non-data type ${newE.typ} to binary."
+            )
+          }
+          b.rebuild(TyVec(TyBool, newE.typ.bitwidth), Seq(newE))
+        case ia @ InterpretAs(e, targetTyp) =>
+          val newE = e.tchk(context, constValues)
+          val inWidth = newE.typ match {
+            case TyVec(TyBool, n) => n
+            case t =>
+              throw new TypeError(
+                s"Argument of ${ia.className} has type $t." +
+                  s" Expected a vector of booleans."
+              )
+          }
+          if (!targetTyp.isData) {
+            throw new TypeError(
+              s"Cannot interpret as non-data type $targetTyp."
+            )
+          }
+          val outWidth = targetTyp.bitwidth
+          if (!c.sameLen(inWidth, outWidth, constValues)) {
+            throw new TypeError(
+              s"Bitwidths in ${ia.className} do not match: "
+                + s"input is $inWidth bits wide but the target type is $outWidth bits wide."
+            )
+          }
+          ia.rebuild(targetTyp, Seq(newE))
         case ll @ LShift(e1, e2) =>
           val newE1 = e1.tchk(context, constValues).expectAnyInt()
           val newE2 = e2.tchk(context, constValues).expectUInt()
@@ -451,15 +482,6 @@ trait TypeChecker {
                 newElems
               )
           }
-
-        case b @ Bits(e) =>
-          val newE = e.tchk(context, constValues)
-          if (!newE.typ.isData) {
-            throw new TypeError(
-              s"Cannot convert non-data type ${newE.typ} to binary."
-            )
-          }
-          b.rebuild(TyVec(TyBool, newE.typ.bitwidth), Seq(newE))
 
         case s: StmBuild =>
           val newContext = s.accVars.foldLeft(context)({ case (ctx, x) =>

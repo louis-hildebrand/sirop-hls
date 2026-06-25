@@ -399,7 +399,7 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](VecBuild(65538, U16 ::+ (i => i))().tchk())
   }
 
-  test("Bits:U5") {
+  test("Bits:u5") {
     val x = Param("x")(TyUInt(5))
     val checked = Bits(x)().tchk()
     assert(checked.typ == TyVec(TyBool, 5))
@@ -419,6 +419,68 @@ class TypecheckerTests extends AnyFunSuite {
   test("Bits:Stm[u8, 8]") {
     val s = Param("s")(TyStm(U8, 8))
     assertThrows[TypeError](Bits(s)().tchk())
+  }
+
+  test("InterpretAs:bool") {
+    val x = Param("x")(TyVec(TyBool, 1))
+    val e = InterpretAs(x, TyBool)()
+    val checked = e.tchk()
+    assert(checked == e)
+    assert(checked.typ == TyBool)
+  }
+
+  test("InterpretAs:u16") {
+    val x = Param("x")(TyVec(TyBool, 16))
+    val e = InterpretAs(x, U16)()
+    val checked = e.tchk()
+    assert(checked == e)
+    assert(checked.typ == U16)
+  }
+
+  test("InterpretAs:i16") {
+    val x = Param("x")(TyVec(TyBool, 16))
+    val e = InterpretAs(x, I16)()
+    val checked = e.tchk()
+    assert(checked == e)
+    assert(checked.typ == I16)
+  }
+
+  test("InterpretAs:(i8, bool)") {
+    val x = Param("x")(TyVec(TyBool, 9))
+    val e = InterpretAs(x, (I8, TyBool))()
+    val checked = e.tchk()
+    assert(checked == e)
+    assert(checked.typ == TyTuple(I8, TyBool))
+  }
+
+  test("InterpretAs:Vec[u8, 3]") {
+    val x = Param("x")(TyVec(TyBool, 24))
+    val e = InterpretAs(x, TyVec(U8, 3))()
+    val checked = e.tchk()
+    assert(checked == e)
+    assert(checked.typ == TyVec(U8, 3))
+  }
+
+  // Target type is too narrow
+  test("InterpretAs:Vec[bool, 25] to Vec[u8, 3]") {
+    val x = Param("x")(TyVec(TyBool, 25))
+    assertThrows[TypeError](InterpretAs(x, TyVec(U8, 3))().tchk())
+  }
+
+  // Target type is too wide
+  test("InterpretAs:Vec[bool, 8] to (i8, bool)") {
+    val x = Param("x")(TyVec(TyBool, 8))
+    assertThrows[TypeError](InterpretAs(x, (I8, TyBool))().tchk())
+  }
+
+  test("InterpretAs:u8 -> u8") {
+    val f = Param("f")(TyVec(TyBool, 8))
+    assertThrows[TypeError](InterpretAs(f, U8 ->: U8)().tchk())
+  }
+
+  test("InterpretAs:Stm[u8, 8]") {
+    val s = Param("s")(TyVec(TyBool, 8))
+    assertThrows[TypeError](InterpretAs(s, TyStm(U8, 8))().tchk())
   }
 
   test("SimpleStream") {

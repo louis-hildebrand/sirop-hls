@@ -102,6 +102,30 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
 
+  test("InterpretAs") {
+    val i = Param("i")(TyVec(TyBool, 8))
+    val s = StmBuild(
+      255,
+      Tuple(
+        InterpretAs(VecSlice(i, 5, 1, 1)(), TyBool)(),
+        InterpretAs(VecSlice(i, 6, 1, 1)(), TyBool)(),
+        InterpretAs(VecSlice(i, 7, 1, 1)(), TyBool)(),
+        InterpretAs(i, U8)(),
+        InterpretAs(i, I8)(),
+        InterpretAs(i, (TyUInt(3), TySInt(5)))(),
+        InterpretAs(i, TyVec(TyUInt(2), 4))()
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (
+          Default(i.typ),
+          Bits(WrappingSum(C(1)(U8), InterpretAs(i, U8)())())()
+        )
+      )
+    )().tchk().lower
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("BitwiseShifts") {
     val n = 16
     val u4 = TyUInt(4)

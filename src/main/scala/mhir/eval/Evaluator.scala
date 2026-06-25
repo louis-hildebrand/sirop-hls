@@ -283,7 +283,6 @@ class Evaluator(
             }
         }
       case Bits(e) =>
-        val Value(v, warnings) = evalBigStep(inputs, stmData)(e)
         def toBits(e: Expr): Seq[BoolCst] = {
           e match {
             case b: BoolCst => Seq(b)
@@ -320,8 +319,61 @@ class Evaluator(
               throw new TypeError(s"Cannot find binary representation for $e")
           }
         }
+        val Value(v, warnings) = evalBigStep(inputs, stmData)(e)
         val bits = toBits(v)
         Value(VecLiteral(bits: _*)(TyVec(TyBool, bits.length)), warnings)
+      case InterpretAs(e, targetTyp) =>
+        @tailrec
+        def intFromBits(bits: Seq[BoolCst], k: Long): Long = {
+          bits match {
+            case Seq()               => k
+            case Seq(False, bs @ _*) => intFromBits(bs, k << 1)
+            case Seq(True, bs @ _*)  => intFromBits(bs, (k << 1) | 1)
+          }
+        }
+        def fromBits(bits: Seq[BoolCst], targetTyp: Type): Expr = {
+          targetTyp match {
+            case TyBool =>
+              bits.head
+            case uint: TyUInt => C(intFromBits(bits, 0))(uint)
+            case int: TySInt =>
+              bits.head match {
+                case False =>
+                  C(intFromBits(bits, 0))(int)
+                case True =>
+                  // Start with -1 (which is all 1s in twos complement) to
+                  // handle sign extension
+                  C(intFromBits(bits, -1))(int)
+              }
+            case typ @ TyTuple(elems @ _*) =>
+              val elemRangeStarts = elems.scanLeft(0)({ case (acc, t) =>
+                val IntCst(w) = t.bitwidth
+                acc + w.toInt
+              })
+              val elemRangeEnds = elemRangeStarts.drop(1)
+              Tuple(
+                elems
+                  .zip(elemRangeStarts.zip(elemRangeEnds))
+                  .map({ case (typ, (from, until)) =>
+                    fromBits(bits.slice(from, until), typ)
+                  }): _*
+              )(typ)
+            case vecTyp @ TyVec(elemTyp, IntCst(n)) =>
+              val IntCst(wLong) = elemTyp.bitwidth
+              val w = wLong.toInt
+              VecLiteral(
+                (0 until n.toInt)
+                  .map({ i =>
+                    fromBits(bits.slice(i * w, (i + 1) * w), elemTyp)
+                  }): _*
+              )(vecTyp)
+          }
+        }
+        val Value(v: VecLiteral, warnings) = evalBigStep(inputs, stmData)(e)
+        Value(
+          fromBits(v.elems.map(_.asInstanceOf[BoolCst]), targetTyp),
+          warnings
+        )
       case LShift(e1, e2) =>
         val Value(n1, warn1) = evalBigStep(inputs, stmData)(e1)
         val Value(n2, warn2) = evalBigStep(inputs, stmData)(e2)

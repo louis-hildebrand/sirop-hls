@@ -585,6 +585,16 @@ case class Bits(e: Expr)(typ: Type = Missing) extends Expr(e)(typ) {
   }
 }
 
+case class InterpretAs(e: Expr, targetTyp: Type)(typ: Type = Missing)
+    extends Expr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => InterpretAs(e, this.targetTyp)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** Bitwise left shift.
   *
   * @param e1

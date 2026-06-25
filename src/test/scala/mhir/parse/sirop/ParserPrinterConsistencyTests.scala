@@ -53,4 +53,5 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   }
 
   testFunCallLike("bits")
+  testFunCallLike("interpret_as:[(Vec[(u8, i8), 4:u3], bool)]")
 }

@@ -132,6 +132,33 @@ private object VhdlExprGenerator {
           }
         }
         VhdlExpr(tempVar.name, tempVar +: eVhdl.decls)
+      case InterpretAs(e, targetTyp) =>
+        val eVhdl = exprToVhdl(e)
+        val converted = VhdlConversionGenerator.fromStdLogicVector(
+          VhdlConversionGenerator.toStdLogicVector(eVhdl.vhdl, VhdlType(e.typ)),
+          VhdlType(targetTyp)
+        )
+        val tempVar = {
+          val name = Param("interpret_as")().name
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(targetTyp),
+                assignStmt = Some(
+                  s"$name <= $converted;"
+                )
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(targetTyp),
+                assignStmt = s"$name := $converted;"
+              )
+          }
+        }
+        VhdlExpr(tempVar.name, tempVar +: eVhdl.decls)
       case LShift(e1, e2) =>
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
         val VhdlExpr(e2Vhdl, e2Decls) = e2 match {

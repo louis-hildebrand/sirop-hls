@@ -618,6 +618,24 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("x.bits()") {
+    val src = "x.bits()"
+    val expected = Bits(x)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("interpret_as:[bool](x)") {
+    val src = "interpret_as:[bool](x)"
+    val expected = InterpretAs(x, TyBool)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("interpret_as:[(i16, bool)](x)") {
+    val src = "interpret_as:[(i16, bool)](x)"
+    val expected = InterpretAs(x, (I16, TyBool))()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x << y << z") {
     val src = "x << y << z"
     val expected = LShift(LShift(x, y)(), z)()

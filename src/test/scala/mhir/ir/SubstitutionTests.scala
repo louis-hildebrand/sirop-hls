@@ -352,4 +352,26 @@ class SubstitutionTests extends AnyFunSuite {
     assert(actualInputStm == s2)
     assert(actualInputStm.typ == TyStm(U8, 20))
   }
+
+  test("Substitute:InterpretAs") {
+    val n = Param("n")(U32)
+    val x = Param("x")(TyVec(TyBool, Prod(C(8)(U32), n)()))
+    val e = InterpretAs(x, TyVec(U8, n))().tchk()
+
+    val expected =
+      InterpretAs(x.rebuild(TyVec(TyBool, 40)), TyVec(U8, 5))().tchk()
+
+    {
+      val actual = e.subPreserveType(n -> C(5)(U32))
+      assert(actual == expected)
+      assert(actual.typ == TyVec(U8, 5))
+      assert(actual.asInstanceOf[InterpretAs].e.typ == TyVec(TyBool, 40))
+    }
+
+    {
+      val expected = InterpretAs(x, TyVec(U8, 5))()
+      val actual = e.subAndEraseType(n -> C(5)(U32))
+      assert(actual == expected)
+    }
+  }
 }

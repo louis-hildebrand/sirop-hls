@@ -212,8 +212,8 @@ sealed trait Type {
     * @note
     *   this is only defined for types where [[isData]] returns `true`.
     */
-  def bitwidth: Expr = {
-    this match {
+  def bitwidth(implicit c: Canonicalizer): Expr = {
+    val w = this match {
       case TyBool      => C(1)()
       case TyAnyInt(w) => C(w)()
       case TyFix(t, _) => t.bitwidth
@@ -225,6 +225,7 @@ sealed trait Type {
           s"bitwidth is not defined for non-data type $this"
         )
     }
+    c.canonicalize(w)
   }
 
   def equalsGivenConstants(

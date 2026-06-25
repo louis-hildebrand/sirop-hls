@@ -98,9 +98,9 @@ case class StmOutputScheduler(
           _: Undefined | _: Tuple | _: TupleAccess | _: VecLiteral |
           _: VecAccess | _: Mux | _: Sum | _: Prod | _: Div | _: Mod |
           _: WrappingSum | _: WrappingDiff | _: WrappingProd | _: PadTo |
-          _: TruncateTo | _: ToSigned | _: ToUnsigned | _: Bits | _: LShift |
-          _: ARShift | _: LRShift | _: IntFixProd | _: Equal | _: LessThan |
-          _: Not | _: And | _: Or) =>
+          _: TruncateTo | _: ToSigned | _: ToUnsigned | _: Bits |
+          _: InterpretAs | _: LShift | _: ARShift | _: LRShift | _: IntFixProd |
+          _: Equal | _: LessThan | _: Not | _: And | _: Or) =>
         val cost = delayCostModel.rawCost(
           e,
           staticVars = staticVars,

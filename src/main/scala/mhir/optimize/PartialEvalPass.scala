@@ -143,16 +143,6 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
-          case PadTo(e, w) =>
-            PadTo(doPartialEval(e), w)()
-          case TruncateTo(arg, w) =>
-            TruncateTo(doPartialEval(arg), w)()
-          case ToSigned(e) =>
-            ToSigned(doPartialEval(e))()
-          case ToUnsigned(arg) =>
-            ToUnsigned(doPartialEval(arg))()
-          case Bits(e) =>
-            Bits(doPartialEval(e))()
           case ll @ LShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
@@ -230,8 +220,6 @@ object PartialEvalPass {
           case Not(e) =>
             ArithSimplifier.simplifyArithmetic(Not(doPartialEval(e))())(facts)
 
-          case t: Tuple =>
-            Tuple(t.elems.map(doPartialEval): _*)()
           case TupleAccess(t: Expr, IntCst(i)) =>
             doPartialEval(t) match {
               case tuple: Tuple =>
@@ -316,7 +304,6 @@ object PartialEvalPass {
                 )
               })
             )()
-          case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(bufSize, x, in, out) =>
             LetStm(
               doPartialEval(bufSize),
@@ -325,7 +312,7 @@ object PartialEvalPass {
               doPartialEval(out)
             )()
 
-          case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
+          case _ =>
             e.map(doPartialEval)
         }
     }

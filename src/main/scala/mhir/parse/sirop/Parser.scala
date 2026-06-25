@@ -949,6 +949,11 @@ object Parser {
           case (Seq(), Seq(e)) => Bits(e)()
           case _               => error(f)
         }
+      case f @ Param("interpret_as", -1) =>
+        combinedArgs match {
+          case (Seq(targetTyp), Seq(e)) => InterpretAs(e, targetTyp)()
+          case _                        => error(f)
+        }
       // Vector operators --------------------------------------------------
       case f @ Param("VecLength", -1) =>
         combinedArgs match {

@@ -96,12 +96,12 @@ case class SimpleDelayCostModel(madd: Boolean) {
           cost(staticVars, varCosts)(e1),
           cost(staticVars, varCosts)(e2)
         ) + FullCycleDelay
-      case PadTo(e, _)      => cost(staticVars, varCosts)(e)
-      case TruncateTo(e, _) => cost(staticVars, varCosts)(e)
-      case ToSigned(e)      => cost(staticVars, varCosts)(e)
-      case ToUnsigned(e)    => cost(staticVars, varCosts)(e)
-      case Bits(e) =>
-        cost(staticVars, varCosts)(e)
+      case PadTo(e, _)       => cost(staticVars, varCosts)(e)
+      case TruncateTo(e, _)  => cost(staticVars, varCosts)(e)
+      case ToSigned(e)       => cost(staticVars, varCosts)(e)
+      case ToUnsigned(e)     => cost(staticVars, varCosts)(e)
+      case Bits(e)           => cost(staticVars, varCosts)(e)
+      case InterpretAs(e, _) => cost(staticVars, varCosts)(e)
       case LShift(e1, e2) =>
         math.max(cost(staticVars, varCosts)(e1), cost(staticVars, varCosts)(e2))
       case ARShift(e1, e2) =>

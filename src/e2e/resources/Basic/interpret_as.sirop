@@ -1,6 +1,8 @@
+const N: u32 = 4
+
 accelerator top =
-(s: Stm[Vec[bool, 65], 8]) =>
-    s.StmMap( (x) => x.interpret_as:[(Vec[u8, 4], Vec[i8, 4], bool)]() )
+(s: Stm[Vec[bool, 16*N + 1], 8]) =>
+    s.StmMap( (x) => x.interpret_as:[(Vec[u8, N], Vec[i8, N], bool)]() )
 
 const T: bool = true
 const F: bool = false
