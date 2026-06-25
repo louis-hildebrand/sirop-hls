@@ -67,6 +67,41 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("Bits") {
+    val elemTyp = TyTuple(TyVec(U8, 8), TyVec(I8, 8), TyBool)
+    val p = Param("p")(TyStm(elemTyp, -1))
+    val f = TyStm(elemTyp, 32) ::+ (s =>
+      StmBuild(
+        32,
+        Tuple(Bits(StmData(p)())(), Bits(VecAccess(StmData(p)().__1, 0)())())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          p -> (s, True)
+        )
+      )().tchk().lower
+    )
+    val inputs = Seq(
+      Seq(
+        DirectTestInput(
+          (0 until 32).map(t =>
+            Some(
+              Tuple(
+                VecLiteral(
+                  (0 until 8).map(i => 8 * t + i).map(C(_)(U8)): _*
+                )(),
+                VecLiteral(
+                  (0 until 8).map(i => -128 + 8 * t + i).map(C(_)(I8)): _*
+                )(),
+                if (t % 2 == 0) True else False
+              )()
+            )
+          )
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
   test("BitwiseShifts") {
     val n = 16
     val u4 = TyUInt(4)

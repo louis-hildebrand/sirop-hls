@@ -282,6 +282,46 @@ class Evaluator(
               Value(IntCst(truncate(i, typ))(typ), v.warnings + overflowWarning)
             }
         }
+      case Bits(e) =>
+        val Value(v, warnings) = evalBigStep(inputs, stmData)(e)
+        def toBits(e: Expr): Seq[BoolCst] = {
+          e match {
+            case b: BoolCst => Seq(b)
+            case c: IntCst =>
+              val w = c.typ.asInstanceOf[TyAnyInt].w
+              // TODO: This seems like it would probably be quite slow.
+              //       Make a faster version?
+              // TODO: This duplicates functionality in mhir.gen.
+              //       Share the code somehow?
+              if (c.i < 0) {
+                val bin = c.i.toBinaryString
+                  .map(_ == '1')
+                  .map(x => if (x) True else False)
+                assert(bin.head == True)
+                assert(bin.length == 64)
+                val truncated = bin.takeRight(w)
+                assert(truncated.head == True)
+                truncated
+              } else {
+                val bin = c.i.toBinaryString
+                  .map(_ == '1')
+                  .map(x => if (x) True else False)
+                assert(bin.length <= w)
+                val padded = (0 until (w - bin.length)).map(_ => False) ++ bin
+                if (c.typ.isInstanceOf[TySInt]) {
+                  assert(padded.head == False)
+                }
+                padded
+              }
+            case k: FixCst              => toBits(C(k.numer)(k.typ.t))
+            case Tuple(elems @ _*)      => elems.flatMap(toBits)
+            case VecLiteral(elems @ _*) => elems.flatMap(toBits)
+            case e =>
+              throw new TypeError(s"Cannot find binary representation for $e")
+          }
+        }
+        val bits = toBits(v)
+        Value(VecLiteral(bits: _*)(TyVec(TyBool, bits.length)), warnings)
       case LShift(e1, e2) =>
         val Value(n1, warn1) = evalBigStep(inputs, stmData)(e1)
         val Value(n2, warn2) = evalBigStep(inputs, stmData)(e2)

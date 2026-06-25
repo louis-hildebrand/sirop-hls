@@ -105,6 +105,33 @@ private object VhdlExprGenerator {
         assert(w >= 1)
         val ev = exprToVhdl(e)
         VhdlExpr(s"truncate(unsigned(${ev.vhdl}), ${w - 1})", ev.decls)
+      case Bits(e) =>
+        val eVhdl = exprToVhdl(e)
+        val converted = VhdlConversionGenerator.fromStdLogicVector(
+          VhdlConversionGenerator.toStdLogicVector(eVhdl.vhdl, VhdlType(e.typ)),
+          VhdlType(e.typ).toBoolVec
+        )
+        val tempVar = {
+          val name = Param("bits")().name
+          mode match {
+            case NormalMode =>
+              Signal(
+                category = "Intermediate signals",
+                name = name,
+                typ = VhdlType(e.typ).toBoolVec,
+                assignStmt = Some(
+                  s"$name <= $converted;"
+                )
+              )
+            case InFunctionMode =>
+              VhdlVariable(
+                name = name,
+                typ = VhdlType(e.typ).toBoolVec,
+                assignStmt = s"$name := $converted;"
+              )
+          }
+        }
+        VhdlExpr(tempVar.name, tempVar +: eVhdl.decls)
       case LShift(e1, e2) =>
         val VhdlExpr(e1Vhdl, e1Decls) = exprToVhdl(e1)
         val VhdlExpr(e2Vhdl, e2Decls) = e2 match {

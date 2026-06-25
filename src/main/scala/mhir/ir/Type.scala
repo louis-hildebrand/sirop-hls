@@ -1,5 +1,7 @@
 package mhir.ir
 
+import mhir.sugar.{SafeProd, SafeSum}
+
 /** Trait that provides a way of canonicalizing expressions for the sizes of
   * collections.
   */
@@ -202,6 +204,26 @@ sealed trait Type {
       case TyTuple(ts @ _*)                => ts.forall(t => t.isData)
       case TyVec(t, _)                     => t.isData
       case Missing | _: TyArrow | _: TyStm => false
+    }
+  }
+
+  /** Calculates the bitwidth of this type.
+    *
+    * @note
+    *   this is only defined for types where [[isData]] returns `true`.
+    */
+  def bitwidth: Expr = {
+    this match {
+      case TyBool      => C(1)()
+      case TyAnyInt(w) => C(w)()
+      case TyFix(t, _) => t.bitwidth
+      // TODO: Circular dependency between mhir.ir and mhir.sugar :(
+      case TyTuple(ts @ _*) => SafeSum(ts.map(_.bitwidth): _*)()
+      case TyVec(t, n)      => SafeProd(t.bitwidth, n)()
+      case Missing | _: TyArrow | _: TyStm =>
+        throw new IllegalArgumentException(
+          s"bitwidth is not defined for non-data type $this"
+        )
     }
   }
 

@@ -61,7 +61,7 @@ object Precedence {
         0
       case _: FunCall | _: TupleAccess | _: VecAccess => 1
       case _: PadTo | _: TruncateTo | _: ToSigned | _: ToUnsigned |
-          _: StmBuild | _: StmData | _: VecBuild =>
+          _: StmBuild | _: StmData | _: VecBuild | _: Bits =>
         // These all look like function calls
         Precedence.FunCall
       case _: Not                                                      => 2

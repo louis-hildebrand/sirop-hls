@@ -59,6 +59,7 @@ object MuxMover {
       case TruncateTo(e, w)   => moveUp1(e, TruncateTo(_, w)())
       case ToSigned(e)        => moveUp1(e, ToSigned(_)())
       case ToUnsigned(e)      => moveUp1(e, ToUnsigned(_)())
+      case Bits(e)            => moveUp1(e, Bits(_)())
       case LShift(e1, e2)     => moveUp2(Seq(e1, e2), LShift(_, _)())
       case ARShift(e1, e2)    => moveUp2(Seq(e1, e2), ARShift(_, _)())
       case LRShift(e1, e2)    => moveUp2(Seq(e1, e2), LRShift(_, _)())

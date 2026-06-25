@@ -151,6 +151,8 @@ object PartialEvalPass {
             ToSigned(doPartialEval(e))()
           case ToUnsigned(arg) =>
             ToUnsigned(doPartialEval(arg))()
+          case Bits(e) =>
+            Bits(doPartialEval(e))()
           case ll @ LShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier

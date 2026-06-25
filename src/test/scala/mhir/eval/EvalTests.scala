@@ -381,6 +381,64 @@ class EvalTests extends AnyFunSuite {
     assertOverflow(ToUnsigned(C(-1)(I32))(), -1, TyUInt(31), "unsign(-1:i32)")
   }
 
+  test("bits(bool)") {
+    assert(mhir.eval.eval(Bits(False)()) == VecLiteral(False)())
+    assert(mhir.eval.eval(Bits(True)()) == VecLiteral(True)())
+  }
+
+  test("bits(u3)") {
+    val f = False
+    val t = True
+    val u3 = TyUInt(3)
+    assert(mhir.eval.eval(Bits(C(0)(u3))()) == VecLiteral(f, f, f)())
+    assert(mhir.eval.eval(Bits(C(1)(u3))()) == VecLiteral(f, f, t)())
+    assert(mhir.eval.eval(Bits(C(2)(u3))()) == VecLiteral(f, t, f)())
+    assert(mhir.eval.eval(Bits(C(3)(u3))()) == VecLiteral(f, t, t)())
+    assert(mhir.eval.eval(Bits(C(4)(u3))()) == VecLiteral(t, f, f)())
+    assert(mhir.eval.eval(Bits(C(5)(u3))()) == VecLiteral(t, f, t)())
+    assert(mhir.eval.eval(Bits(C(6)(u3))()) == VecLiteral(t, t, f)())
+    assert(mhir.eval.eval(Bits(C(7)(u3))()) == VecLiteral(t, t, t)())
+  }
+
+  test("bits(i3)") {
+    val f = False
+    val t = True
+    val i3 = TySInt(3)
+    assert(mhir.eval.eval(Bits(C(-4)(i3))()) == VecLiteral(t, f, f)())
+    assert(mhir.eval.eval(Bits(C(-3)(i3))()) == VecLiteral(t, f, t)())
+    assert(mhir.eval.eval(Bits(C(-2)(i3))()) == VecLiteral(t, t, f)())
+    assert(mhir.eval.eval(Bits(C(-1)(i3))()) == VecLiteral(t, t, t)())
+    assert(mhir.eval.eval(Bits(C(0)(i3))()) == VecLiteral(f, f, f)())
+    assert(mhir.eval.eval(Bits(C(1)(i3))()) == VecLiteral(f, f, t)())
+    assert(mhir.eval.eval(Bits(C(2)(i3))()) == VecLiteral(f, t, f)())
+    assert(mhir.eval.eval(Bits(C(3)(i3))()) == VecLiteral(f, t, t)())
+  }
+
+  test("bits((Vec[u8, 4], Vec[u8, 4]))") {
+    val e = Bits(
+      Tuple(
+        VecLiteral(C(0)(U8), C(42)(U8), C(128)(U8), C(255)(U8))(),
+        VecLiteral(C(-128)(I8), C(-1)(I8), C(42)(I8), C(127)(I8))()
+      )()
+    )().tchk()
+    val f = False
+    val t = True
+    val expected = VecLiteral(
+      Seq(
+        Seq(f, f, f, f, f, f, f, f), //    0:u8 = 0b00000000
+        Seq(f, f, t, f, t, f, t, f), //   42:u8 = 0b00101010
+        Seq(t, f, f, f, f, f, f, f), //  128:u8 = 0b10000000
+        Seq(t, t, t, t, t, t, t, t), //  255:u8 = 0b11111111
+        Seq(t, f, f, f, f, f, f, f), // -128:i8 = 0b10000000
+        Seq(t, t, t, t, t, t, t, t), //   -1:i8 = 0b11111111
+        Seq(f, f, t, f, t, f, t, f), //   42:i8 = 0b00101010
+        Seq(f, t, t, t, t, t, t, t) ///  127:i8 = 0b01111111
+      ).flatten: _*
+    )()
+    val actual = mhir.eval.eval(e)
+    assert(actual == expected)
+  }
+
   test("u0 << u8") {
     assert(mhir.eval.eval(C(0)(U0) << C(0)(U8)) == C(0)(U0))
     assert(mhir.eval.eval(C(0)(U0) << C(5)(U8)) == C(0)(U0))

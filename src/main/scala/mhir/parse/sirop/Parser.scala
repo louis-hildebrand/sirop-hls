@@ -913,6 +913,11 @@ object Parser {
           case Seq(x, y) => Max(x, y)()
           case _         => error(f)
         }
+      case f @ Param("bits", -1) =>
+        args match {
+          case Seq(e) => Bits(e)()
+          case _      => error(f)
+        }
       // Vector operators --------------------------------------------------
       case f @ Param("VecLength", -1) =>
         args match {

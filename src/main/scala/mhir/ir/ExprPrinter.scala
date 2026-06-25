@@ -214,6 +214,8 @@ object ExprPrinter {
           maxWidth = maxWidth,
           precedence = myPrecedence
         )
+      case Bits(e) =>
+        displayFunCallMultiLine("bits", Seq(e), maxWidth = maxWidth)
       case LShift(e1, e2) =>
         displayMultiLineInfixOp(
           Seq(e1, e2),
@@ -601,6 +603,8 @@ object ExprPrinter {
           myPrecedence,
           canElideFirstParens = false
         )
+      case Bits(e) =>
+        displayFunCallOneLine("bits", Seq(e))
       case LShift(e1, e2) =>
         displayOneLineInfixOp(Seq(e1, e2), "<<", myPrecedence)
       case ARShift(e1, e2) =>
@@ -845,6 +849,8 @@ object ExprPrinter {
         s"ToSigned(${showScala(x)})(${showScala(ts.typ)})"
       case tu @ ToUnsigned(x) =>
         s"ToUnsigned(${showScala(x)})(${showScala(tu.typ)})"
+      case b @ Bits(e) =>
+        s"Bits(${showScala(e)})(${showScala(b.typ)})"
       case ll @ LShift(e1, e2) =>
         s"LShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
       case ar @ ARShift(e1, e2) =>

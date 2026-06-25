@@ -452,6 +452,15 @@ trait TypeChecker {
               )
           }
 
+        case b @ Bits(e) =>
+          val newE = e.tchk(context, constValues)
+          if (!newE.typ.isData) {
+            throw new TypeError(
+              s"Cannot convert non-data type ${newE.typ} to binary."
+            )
+          }
+          b.rebuild(TyVec(TyBool, newE.typ.bitwidth), Seq(newE))
+
         case s: StmBuild =>
           val newContext = s.accVars.foldLeft(context)({ case (ctx, x) =>
             x.typ match {

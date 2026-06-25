@@ -399,6 +399,28 @@ class TypecheckerTests extends AnyFunSuite {
     assertThrows[TypeError](VecBuild(65538, U16 ::+ (i => i))().tchk())
   }
 
+  test("Bits:U5") {
+    val x = Param("x")(TyUInt(5))
+    val checked = Bits(x)().tchk()
+    assert(checked.typ == TyVec(TyBool, 5))
+  }
+
+  test("Bits:(Vec[u8, 4], Vec[i8, 4], bool)") {
+    val x = Param("x")((TyVec(U8, 4), TyVec(I8, 4), TyBool))
+    val checked = Bits(x)().tchk()
+    assert(checked.typ == TyVec(TyBool, 8 * 4 + 8 * 4 + 1))
+  }
+
+  test("Bits:u8 -> u8") {
+    val f = Param("f")(U8 ->: U8)
+    assertThrows[TypeError](Bits(f)().tchk())
+  }
+
+  test("Bits:Stm[u8, 8]") {
+    val s = Param("s")(TyStm(U8, 8))
+    assertThrows[TypeError](Bits(s)().tchk())
+  }
+
   test("SimpleStream") {
     val n = Param("n")()
     val b = Param("b")(TyBool)

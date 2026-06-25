@@ -16,13 +16,13 @@ N = 8
 def uint2str(x: int, bitwidth: int) -> str:
     bits = Bits(uint=x, length=bitwidth).bin
     w = len(str(2**bitwidth-1))
-    return f"{x:>{w}} /*{bits}*/"
+    return f"{x:>{w}}:u{bitwidth} /*{bits}*/"
 
 
 def int2str(x: int, bitwidth: int) -> str:
     bits = Bits(int=x, length=bitwidth).bin
-    w = len(str(2**(bitwidth-1)-1))
-    return f"{x:>{w}} /*{bits}*/"
+    w = max(len(str(-2**(bitwidth-1))), len(str(2**(bitwidth-1)-1)))
+    return f"{x:>{w}}:i{bitwidth} /*{bits}*/"
 
 
 def tuple_to_string(x: tuple[list[int], int, bool]) -> str:

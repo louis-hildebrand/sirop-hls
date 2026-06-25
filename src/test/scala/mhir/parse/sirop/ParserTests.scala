@@ -612,6 +612,12 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("bits(x)") {
+    val src = "bits(x)"
+    val expected = Bits(x)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x << y << z") {
     val src = "x << y << z"
     val expected = LShift(LShift(x, y)(), z)()

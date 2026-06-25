@@ -42,4 +42,15 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   testBinop("/`")
   testBinop("%")
   testBinop("%`")
+
+  def testFunCallLike(f: String, args: Seq[String] = Seq("x")): Unit = {
+    test(f) {
+      val src = s"$f(${args.mkString(", ")})"
+      val parsed = Parser.parse(src).body
+      val printed = parsed.toString
+      assert(printed == src)
+    }
+  }
+
+  testFunCallLike("bits")
 }
