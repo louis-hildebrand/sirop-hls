@@ -685,6 +685,13 @@ trait TypeChecker {
       }
     }
 
+    def expectData(): Expr = {
+      if (!this.expr.typ.isData) {
+        throw new TypeError(s"Expected a data type but found ${this.expr.typ}.")
+      }
+      this.expr
+    }
+
     /** Insists that this expression's type is [[TyStm]].
       *
       * @return

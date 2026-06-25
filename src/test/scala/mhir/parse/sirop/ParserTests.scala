@@ -486,6 +486,36 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse("!x").body == !x)
   }
 
+  test("x & y & z") {
+    val src = "x & y & z"
+    val expected = BitwiseAnd(BitwiseAnd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x | y | z") {
+    val src = "x | y | z"
+    val expected = BitwiseOr(BitwiseOr(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x & y | z") {
+    val src = "x & y | z"
+    val expected = BitwiseOr(BitwiseAnd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x | y & z") {
+    val src = "x | y & z"
+    val expected = BitwiseOr(x, BitwiseAnd(y, z)())()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("(x | y) & z") {
+    val src = "(x | y) & z"
+    val expected = BitwiseAnd(BitwiseOr(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x * y * z") {
     val src = "x * y * z"
     val expected = SmartProd(SmartProd(x, y)(), z)()
@@ -633,6 +663,12 @@ class ParserTests extends AnyFunSuite {
   test("interpret_as:[(i16, bool)](x)") {
     val src = "interpret_as:[(i16, bool)](x)"
     val expected = InterpretAs(x, (I16, TyBool))()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("~x") {
+    val src = "~x"
+    val expected = BitwiseNot(x)()
     assert(Parser.parse(src).body == expected)
   }
 

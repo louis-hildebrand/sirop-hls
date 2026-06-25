@@ -84,8 +84,12 @@ object Lexer {
       lex(consume(code, ":"), tokens :+ ColonToken(p), p.consume(":"))
     } else if (code.startsWith("||")) {
       lex(consume(code, "||"), tokens :+ LogOrToken(p), p.consume("||"))
+    } else if (code.startsWith("|")) {
+      lex(consume(code, "|"), tokens :+ BitOrToken(p), p.consume("|"))
     } else if (code.startsWith("&&")) {
       lex(consume(code, "&&"), tokens :+ LogAndToken(p), p.consume("%%"))
+    } else if (code.startsWith("&")) {
+      lex(consume(code, "&"), tokens :+ BitAndToken(p), p.consume("&"))
     } else if (code.startsWith("<<")) {
       lex(consume(code, "<<"), tokens :+ LShiftToken(p), p.consume("<<"))
     } else if (code.startsWith(">>>")) {
@@ -152,6 +156,8 @@ object Lexer {
       lex(consume(code, "%"), tokens :+ PercentToken(p), p.consume("%"))
     } else if (code.startsWith("!")) {
       lex(consume(code, "!"), tokens :+ BangToken(p), p.consume("!"))
+    } else if (code.startsWith("~")) {
+      lex(consume(code, "~"), tokens :+ TildeToken(p), p.consume("~"))
     } else if (code.startsWith(".")) {
       lex(consume(code, "."), tokens :+ DotToken(p), p.consume("."))
     } else if (code.startsWith(",")) {

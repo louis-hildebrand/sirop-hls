@@ -2,7 +2,7 @@ accelerator
 top = (a: Stm[(Vec[u4, 4], i3, bool), 8]) =>
       (b: Stm[(Vec[u4, 4], i3, bool), 8]) =>
     StmZip(a, b)
-    .StmMap( @(a, b) => a && b )
+    .StmMap( @(a, b) => a & b )
 
 assert {
     a = [

@@ -42,6 +42,18 @@ object Precedence {
     */
   val LessThan: Int = Precedence(mhir.ir.LessThan(C(1)(), C(1)())())
 
+  /** The precedence of [[mhir.ir.Not]].
+    */
+  val Not: Int = Precedence(mhir.ir.Not(C(1)())())
+
+  /** The precedence of bitwise AND.
+    */
+  val BitwiseAnd: Int = 800
+
+  /** The precedence of bitwise OR.
+    */
+  val BitwiseOr: Int = 900
+
   /** Gets the precedence of the given expression.
     *
     * Lower numbers indicate that the given operator binds "more tightly." For
@@ -59,20 +71,20 @@ object Precedence {
       case _: Tuple | _: VecLiteral | _: StmLiteral =>
         // Already have some kind of brackets
         0
-      case _: FunCall | _: TupleAccess | _: VecAccess => 1
+      case _: FunCall | _: TupleAccess | _: VecAccess => 100
       case _: PadTo | _: TruncateTo | _: ToSigned | _: ToUnsigned |
           _: StmBuild | _: StmData | _: VecBuild | _: Bits | _: InterpretAs =>
         // These all look like function calls
         Precedence.FunCall
-      case _: Not                                                      => 2
-      case _: Prod | _: WrappingProd | _: IntFixProd | _: Div | _: Mod => 3
-      case _: Sum | _: WrappingSum | _: WrappingDiff                   => 4
-      case _: LShift | _: ARShift | _: LRShift                         => 5
-      case _: LessThan                                                 => 6
-      case _: Equal                                                    => 7
-      case _: And                                                      => 8
-      case _: Or                                                       => 9
-      case _: Function | _: Mux                                        => 10
+      case _: Not                                                      => 200
+      case _: Prod | _: WrappingProd | _: IntFixProd | _: Div | _: Mod => 300
+      case _: Sum | _: WrappingSum | _: WrappingDiff                   => 400
+      case _: LShift | _: ARShift | _: LRShift                         => 500
+      case _: LessThan                                                 => 600
+      case _: Equal                                                    => 700
+      case _: And                                                      => 1000
+      case _: Or                                                       => 1100
+      case _: Function | _: Mux                                        => 1200
       case _: LetStm      => Precedence.Max
       case e: SyntaxSugar => e.precedence
     }

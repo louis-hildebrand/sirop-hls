@@ -260,7 +260,7 @@ object Parser {
       MinusToken,
       NatToken,
       LeftSquareToken,
-      // expr1
+      // expr100
       PadToken,
       TruncateToken,
       SignToken,
@@ -268,9 +268,9 @@ object Parser {
       VbuildToken,
       SbuildToken,
       SdataToken,
-      // expr2
+      // expr200
       BangToken,
-      // expr10
+      // expr1200
       IfToken,
       LeftParToken,
       LetStmToken,
@@ -282,10 +282,10 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing expr")
-    parseExpr10(tokens, constants)
+    parseExpr1200(tokens, constants)
   }
 
-  private def parseExpr10(
+  private def parseExpr1200(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
@@ -340,7 +340,7 @@ object Parser {
         val (_, rest5) = expect(InToken, rest4)
         val (out, rest6) = parseExpr(rest5, constants)
         (Let(Param(x, -1)(typ), in, out)(), rest6)
-      case _ => parseExpr9(tokens, constants)
+      case _ => parseExpr1100(tokens, constants)
     }
   }
 
@@ -398,245 +398,292 @@ object Parser {
     }
   }
 
-  private def parseExpr9(
+  private def parseExpr1100(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr8(tokens, constants)
-    parseExpr9Prime(e, rest, constants)
+    val (e, rest) = parseExpr1000(tokens, constants)
+    parseExpr1100Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr9Prime(
+  private def parseExpr1100Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: LogOrToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr8(rest1, constants)
-        parseExpr9Prime(e1 || e2, rest2, constants)
+        val (e2, rest2) = parseExpr1000(rest1, constants)
+        parseExpr1100Prime(e1 || e2, rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr8(
+  private def parseExpr1000(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr7(tokens, constants)
-    parseExpr8Prime(e, rest, constants)
+    val (e, rest) = parseExpr900(tokens, constants)
+    parseExpr1000Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr8Prime(
+  private def parseExpr1000Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: LogAndToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr7(rest1, constants)
-        parseExpr8Prime(e1 && e2, rest2, constants)
+        val (e2, rest2) = parseExpr900(rest1, constants)
+        parseExpr1000Prime(e1 && e2, rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr7(
+  private def parseExpr900(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr6(tokens, constants)
-    parseExpr7Prime(e, rest, constants)
+    val (e, rest) = parseExpr800(tokens, constants)
+    parseExpr900Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr7Prime(
+  private def parseExpr900Prime(
+      e1: Expr,
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Seq[Token]) = {
+    tokens match {
+      case Seq(_: BitOrToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr800(rest1, constants)
+        parseExpr900Prime(BitwiseOr(e1, e2)(), rest2, constants)
+      case _ => (e1, tokens)
+    }
+  }
+
+  private def parseExpr800(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Seq[Token]) = {
+    val (e, rest) = parseExpr700(tokens, constants)
+    parseExpr800Prime(e, rest, constants)
+  }
+
+  @tailrec
+  private def parseExpr800Prime(
+      e1: Expr,
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Seq[Token]) = {
+    tokens match {
+      case Seq(_: BitAndToken, rest1 @ _*) =>
+        val (e2, rest2) = parseExpr700(rest1, constants)
+        parseExpr800Prime(BitwiseAnd(e1, e2)(), rest2, constants)
+      case _ => (e1, tokens)
+    }
+  }
+
+  private def parseExpr700(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Expr, Seq[Token]) = {
+    val (e, rest) = parseExpr600(tokens, constants)
+    parseExpr700Prime(e, rest, constants)
+  }
+
+  @tailrec
+  private def parseExpr700Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: EqToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(SmartEqual(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr600(rest1, constants)
+        parseExpr700Prime(SmartEqual(e1, e2)(), rest2, constants)
       case Seq(_: EqTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(Equal(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr600(rest1, constants)
+        parseExpr700Prime(Equal(e1, e2)(), rest2, constants)
       case Seq(_: NeqToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr6(rest1, constants)
-        parseExpr7Prime(SmartNotEqual(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr600(rest1, constants)
+        parseExpr700Prime(SmartNotEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr6(
+  private def parseExpr600(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr5(tokens, constants)
-    parseExpr6Prime(e, rest, constants)
+    val (e, rest) = parseExpr500(tokens, constants)
+    parseExpr600Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr6Prime(
+  private def parseExpr600Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: LtTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(LessThan(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr500(rest1, constants)
+        parseExpr600Prime(LessThan(e1, e2)(), rest2, constants)
       case Seq(_: LtToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(SmartLessThan(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr500(rest1, constants)
+        parseExpr600Prime(SmartLessThan(e1, e2)(), rest2, constants)
       case Seq(_: GtToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(SmartGreaterThan(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr500(rest1, constants)
+        parseExpr600Prime(SmartGreaterThan(e1, e2)(), rest2, constants)
       case Seq(_: LeqToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(SmartLessThanOrEqual(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr500(rest1, constants)
+        parseExpr600Prime(SmartLessThanOrEqual(e1, e2)(), rest2, constants)
       case Seq(_: GeqToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr5(rest1, constants)
-        parseExpr6Prime(SmartGreaterThanOrEqual(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr500(rest1, constants)
+        parseExpr600Prime(SmartGreaterThanOrEqual(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr5(
+  private def parseExpr500(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr4(tokens, constants)
-    parseExpr5Prime(e, rest, constants)
+    val (e, rest) = parseExpr400(tokens, constants)
+    parseExpr500Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr5Prime(
+  private def parseExpr500Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: LShiftToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr4(rest1, constants)
-        parseExpr5Prime(LShift(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr400(rest1, constants)
+        parseExpr500Prime(LShift(e1, e2)(), rest2, constants)
       case Seq(_: ARShiftToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr4(rest1, constants)
-        parseExpr5Prime(ARShift(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr400(rest1, constants)
+        parseExpr500Prime(ARShift(e1, e2)(), rest2, constants)
       case Seq(_: LRShiftToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr4(rest1, constants)
-        parseExpr5Prime(LRShift(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr400(rest1, constants)
+        parseExpr500Prime(LRShift(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr4(
+  private def parseExpr400(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr3(tokens, constants)
-    parseExpr4Prime(e, rest, constants)
+    val (e, rest) = parseExpr300(tokens, constants)
+    parseExpr400Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr4Prime(
+  private def parseExpr400Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: PlusToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SmartSum(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SmartSum(e1, e2)(), rest2, constants)
       case Seq(_: PlusTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(Sum(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(Sum(e1, e2)(), rest2, constants)
       case Seq(_: PlusPercentToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SmartWrappingSum(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SmartWrappingSum(e1, e2)(), rest2, constants)
       case Seq(_: PlusPercentTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(WrappingSum(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(WrappingSum(e1, e2)(), rest2, constants)
       case Seq(_: PlusCaretToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SafeSum(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SafeSum(e1, e2)(), rest2, constants)
       case Seq(_: MinusToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SmartDiff(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SmartDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusPercentToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SmartWrappingDiff(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SmartWrappingDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusPercentTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(WrappingDiff(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(WrappingDiff(e1, e2)(), rest2, constants)
       case Seq(_: MinusCaretToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr3(rest1, constants)
-        parseExpr4Prime(SafeDiff(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr300(rest1, constants)
+        parseExpr400Prime(SafeDiff(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr3(
+  private def parseExpr300(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
-    val (e, rest) = parseExpr2(tokens, constants)
-    parseExpr3Prime(e, rest, constants)
+    val (e, rest) = parseExpr200(tokens, constants)
+    parseExpr300Prime(e, rest, constants)
   }
 
   @tailrec
-  private def parseExpr3Prime(
+  private def parseExpr300Prime(
       e1: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: TimesToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(SmartProd(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(SmartProd(e1, e2)(), rest2, constants)
       case Seq(_: TimesTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Prod(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(Prod(e1, e2)(), rest2, constants)
       case Seq(_: TimesPercentToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(SmartWrappingProd(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(SmartWrappingProd(e1, e2)(), rest2, constants)
       case Seq(_: TimesPercentTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(WrappingProd(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(WrappingProd(e1, e2)(), rest2, constants)
       case Seq(_: TimesCaretToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(SafeProd(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(SafeProd(e1, e2)(), rest2, constants)
       case Seq(_: SlashToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(SmartDiv(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(SmartDiv(e1, e2)(), rest2, constants)
       case Seq(_: SlashTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Div(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(Div(e1, e2)(), rest2, constants)
       case Seq(_: PercentToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(SmartMod(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(SmartMod(e1, e2)(), rest2, constants)
       case Seq(_: PercentTickToken, rest1 @ _*) =>
-        val (e2, rest2) = parseExpr2(rest1, constants)
-        parseExpr3Prime(Mod(e1, e2)(), rest2, constants)
+        val (e2, rest2) = parseExpr200(rest1, constants)
+        parseExpr300Prime(Mod(e1, e2)(), rest2, constants)
       case _ => (e1, tokens)
     }
   }
 
-  private def parseExpr2(
+  private def parseExpr200(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: BangToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr2(rest1, constants)
+        val (e, rest2) = parseExpr200(rest1, constants)
         (Not(e)(), rest2)
-      case _ => parseExpr1(tokens, constants)
+      case Seq(_: TildeToken, rest1 @ _*) =>
+        val (e, rest2) = parseExpr200(rest1, constants)
+        (BitwiseNot(e)(), rest2)
+      case _ => parseExpr100(tokens, constants)
     }
   }
 
-  private def parseExpr1(
+  private def parseExpr100(
       tokens: Seq[Token],
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
@@ -679,7 +726,7 @@ object Parser {
       case Seq(_: SbuildToken, _*) => parseSbuild(tokens, constants)
       case _                       => parseExpr0(tokens, constants)
     }
-    parseExpr1Prime(e, rest, constants)
+    parseExpr100Prime(e, rest, constants)
   }
 
   private def parseSbuild(
@@ -798,7 +845,7 @@ object Parser {
   }
 
   @tailrec
-  private def parseExpr1Prime(
+  private def parseExpr100Prime(
       e: Expr,
       tokens: Seq[Token],
       constants: Map[Param, Type]
@@ -810,7 +857,7 @@ object Parser {
         val (_, rest4) = expect(LeftParToken, rest3)
         val (args, rest5) = parseExprList(rest4, constants)
         val (_, rest6) = expect(RightParToken, rest5)
-        parseExpr1Prime(
+        parseExpr100Prime(
           parseFunCall(e, Seq(typArg), args, lsq.loc),
           rest6,
           constants
@@ -818,7 +865,7 @@ object Parser {
       case Seq(lpar: LeftParToken, rest1 @ _*) =>
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        parseExpr1Prime(
+        parseExpr100Prime(
           parseFunCall(e, Seq(), args, lpar.loc),
           rest3,
           constants
@@ -836,29 +883,29 @@ object Parser {
         val (args, rest4) = parseExprList(rest3, constants)
         val (_, rest5) = expect(RightParToken, rest4)
         val loc = lsq.map(_.loc).getOrElse(lpar.loc)
-        parseExpr1Prime(
+        parseExpr100Prime(
           parseFunCall(Param(op, -1)(Missing), typArgs, e +: args, loc),
           rest5,
           constants
         )
       case Seq(_: DotToken, NatToken(i), rest @ _*) =>
-        parseExpr1Prime(TupleAccess(e, i.toInt)(), rest, constants)
+        parseExpr100Prime(TupleAccess(e, i.toInt)(), rest, constants)
       case Seq(_: LeftSquareToken, _: ColonToken, rest1 @ _*) =>
         // v[:...
         val start = Tuple()()
         val (len, step, rest2) = parseVecSliceAfterStartColon(rest1, constants)
-        parseExpr1Prime(VecSlice(e, start, len, step)(), rest2, constants)
+        parseExpr100Prime(VecSlice(e, start, len, step)(), rest2, constants)
       case Seq(_: LeftSquareToken, rest1 @ _*) =>
         val (i, rest2) = parseExpr(rest1, constants)
         rest2 match {
           case Seq(_: RightSquareToken, rest3 @ _*) =>
             // v[i]
-            parseExpr1Prime(VecAccess(e, i)(), rest3, constants)
+            parseExpr100Prime(VecAccess(e, i)(), rest3, constants)
           case Seq(_: ColonToken, rest3 @ _*) =>
             // v[i:...
             val (len, step, rest4) =
               parseVecSliceAfterStartColon(rest3, constants)
-            parseExpr1Prime(VecSlice(e, i, len, step)(), rest4, constants)
+            parseExpr100Prime(VecSlice(e, i, len, step)(), rest4, constants)
           case Seq(tok, _*) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
           case Seq() => throw SyntaxError("unexpected end of file", None)

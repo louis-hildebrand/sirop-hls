@@ -97,7 +97,7 @@ def bitwise_or(
         for (x, y) in zip(xv, yv)
     ]
     zn = (Bits(int=xn, length=3) | Bits(int=yn, length=3)).int
-    zb = xb and yb
+    zb = xb or yb
     return (zv, zn, zb)
 
 
