@@ -80,9 +80,9 @@ producers       ::= ""
                   | producer ( "," producer )*
 producer        ::= "(" ident ":" stm_typ ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
 expr1'          ::= ""
-                  | "(" expr_list ")" expr1'
+                  | [ ":[" typ "]" ] "(" expr_list ")" expr1'
                   | "." nat expr1'
-                  | "." ident "(" expr_list ")" expr1'
+                  | "." ident [ ":[" typ "]" ] "(" expr_list ")" expr1'
                   | "[" expr "]" expr1'
                   | "[" [ expr ] ":" [ expr ] [ ":" [ expr ] ] "]" expr1'
 # First(expr0) = { "(", "{", ident, "undefined", "default", "true", "false", "+", "-", nat, "[" }

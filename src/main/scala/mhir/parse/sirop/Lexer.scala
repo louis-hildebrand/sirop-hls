@@ -52,6 +52,12 @@ object Lexer {
       lex(consume(code, "{"), tokens :+ LeftCurlyToken(p), p.consume("{"))
     } else if (code.startsWith("}")) {
       lex(consume(code, "}"), tokens :+ RightCurlyToken(p), p.consume("}"))
+    } else if (code.startsWith(":[")) {
+      lex(
+        consume(code, ":["),
+        tokens :+ ColonLeftSquareToken(p),
+        p.consume(":[")
+      )
     } else if (code.startsWith("[")) {
       lex(consume(code, "["), tokens :+ LeftSquareToken(p), p.consume("["))
     } else if (code.startsWith("]v")) {

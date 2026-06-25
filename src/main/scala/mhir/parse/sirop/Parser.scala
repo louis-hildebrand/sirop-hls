@@ -804,16 +804,41 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens match {
+      case Seq(lsq: ColonLeftSquareToken, rest1 @ _*) =>
+        val (typArg, rest2) = parseTyp(rest1, constants)
+        val (_, rest3) = expect(RightSquareToken, rest2)
+        val (_, rest4) = expect(LeftParToken, rest3)
+        val (args, rest5) = parseExprList(rest4, constants)
+        val (_, rest6) = expect(RightParToken, rest5)
+        parseExpr1Prime(
+          parseFunCall(e, Seq(typArg), args, lsq.loc),
+          rest6,
+          constants
+        )
       case Seq(lpar: LeftParToken, rest1 @ _*) =>
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        parseExpr1Prime(parseFunCall(e, args, lpar.loc), rest3, constants)
-      case Seq(_: DotToken, IdentToken(op), lpar: LeftParToken, rest1 @ _*) =>
-        val (args, rest2) = parseExprList(rest1, constants)
-        val (_, rest3) = expect(RightParToken, rest2)
         parseExpr1Prime(
-          parseFunCall(Param(op, -1)(Missing), e +: args, lpar.loc),
+          parseFunCall(e, Seq(), args, lpar.loc),
           rest3,
+          constants
+        )
+      case Seq(_: DotToken, IdentToken(op), rest1 @ _*) =>
+        val (lsq, typArgs, rest2) = rest1 match {
+          case Seq(lsq: ColonLeftSquareToken, rest2 @ _*) =>
+            val (typ, rest3) = parseTyp(rest2, constants)
+            val (_, rest4) = expect(RightSquareToken, rest3)
+            (Some(lsq), Seq(typ), rest4)
+          case rest =>
+            (None, Seq(), rest)
+        }
+        val (lpar, rest3) = expect(LeftParToken, rest2)
+        val (args, rest4) = parseExprList(rest3, constants)
+        val (_, rest5) = expect(RightParToken, rest4)
+        val loc = lsq.map(_.loc).getOrElse(lpar.loc)
+        parseExpr1Prime(
+          parseFunCall(Param(op, -1)(Missing), typArgs, e +: args, loc),
+          rest5,
           constants
         )
       case Seq(_: DotToken, NatToken(i), rest @ _*) =>
@@ -897,238 +922,246 @@ object Parser {
     }
   }
 
-  private def parseFunCall(f: Expr, args: Seq[Expr], loc: SourcePoint): Expr = {
+  private def parseFunCall(
+      f: Expr,
+      typArgs: Seq[Type],
+      args: Seq[Expr],
+      loc: SourcePoint
+  ): Expr = {
     val error = { (f: Param) =>
       throw SyntaxError(s"wrong number of arguments for $f", loc)
     }
+    val combinedArgs = (typArgs, args)
     f match {
       // Arithmetic operators ----------------------------------------------
       case f @ Param("min", -1) =>
-        args match {
-          case Seq(x, y) => Min(x, y)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(x, y)) => Min(x, y)()
+          case _                  => error(f)
         }
       case f @ Param("max", -1) =>
-        args match {
-          case Seq(x, y) => Max(x, y)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(x, y)) => Max(x, y)()
+          case _                  => error(f)
         }
       case f @ Param("bits", -1) =>
-        args match {
-          case Seq(e) => Bits(e)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(e)) => Bits(e)()
+          case _               => error(f)
         }
       // Vector operators --------------------------------------------------
       case f @ Param("VecLength", -1) =>
-        args match {
-          case Seq(v) => VecLength(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecLength(v)()
+          case _               => error(f)
         }
       case f @ Param("Vec2Stm", -1) =>
-        args match {
-          case Seq(v) => Vec2Stm(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => Vec2Stm(v)()
+          case _               => error(f)
         }
       case f @ Param("VecMap", -1) =>
-        args match {
-          case Seq(v, f) => VecMap(v, f)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v, f)) => VecMap(v, f)()
+          case _                  => error(f)
         }
       case f @ Param("VecMap2", -1) =>
-        args match {
-          case Seq(v1, v2, f) => VecMap2(v1, v2, f)()
-          case _              => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v1, v2, f)) => VecMap2(v1, v2, f)()
+          case _                       => error(f)
         }
       case f @ Param("VecZip", -1) =>
-        args match {
-          case Seq(v1, v2) => VecZip(v1, v2)()
-          case _           => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v1, v2)) => VecZip(v1, v2)()
+          case _                    => error(f)
         }
       case f @ Param("VecReduce", -1) =>
-        args match {
-          case Seq(v, f) => VecReduceComb(v, f)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v, f)) => VecReduceComb(v, f)()
+          case _                  => error(f)
         }
       case f @ Param("VecFold", -1) =>
-        args match {
-          case Seq(v, z, f) => VecFoldComb(v, z, f)()
-          case _            => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v, z, f)) => VecFoldComb(v, z, f)()
+          case _                     => error(f)
         }
       case f @ Param("VecAll", -1) =>
-        args match {
-          case Seq(v) => VecAll(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecAll(v)()
+          case _               => error(f)
         }
       case f @ Param("VecAny", -1) =>
-        args match {
-          case Seq(v) => VecAny(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecAny(v)()
+          case _               => error(f)
         }
       case f @ Param("VecSum", -1) =>
-        args match {
-          case Seq(v) => VecSum(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecSum(v)()
+          case _               => error(f)
         }
       case f @ Param("VecSplit", -1) =>
-        args match {
-          case Seq(s, m) => VecSplit(s, m)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, m)) => VecSplit(s, m)()
+          case _                  => error(f)
         }
       case f @ Param("VecJoin", -1) =>
-        args match {
-          case Seq(v) => VecJoin(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecJoin(v)()
+          case _               => error(f)
         }
       case f @ Param("VecConcat", -1) =>
-        args match {
-          case Seq(v1, v2) => VecConcat(v1, v2)()
-          case _           => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v1, v2)) => VecConcat(v1, v2)()
+          case _                    => error(f)
         }
       case f @ Param("VecShiftLeft", -1) =>
-        args match {
-          case Seq(v, e) => VecShiftLeft(v, e)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v, e)) => VecShiftLeft(v, e)()
+          case _                  => error(f)
         }
       case f @ Param("VecCst", -1) =>
-        args match {
-          case Seq(n, c) => VecCst(n, c)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(n, c)) => VecCst(n, c)()
+          case _                  => error(f)
         }
       case f @ Param("VecRange", -1) =>
-        args match {
-          case Seq(n, z, delta) => VecRange(n, z, delta)()
-          case _                => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(n, z, delta)) => VecRange(n, z, delta)()
+          case _                         => error(f)
         }
       case f @ Param("VecReverse", -1) =>
-        args match {
-          case Seq(v) => VecReverse(v)
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecReverse(v)
+          case _               => error(f)
         }
       case f @ Param("VecTranspose", -1) =>
-        args match {
-          case Seq(v) => VecTranspose(v)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(v)) => VecTranspose(v)()
+          case _               => error(f)
         }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
-        args match {
-          case Seq(s) => Stm2Vec(s)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s)) => Stm2Vec(s)()
+          case _               => error(f)
         }
       case f @ Param("StmMap", -1) =>
-        args match {
-          case Seq(s, f) => StmMap(s, f)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, f)) => StmMap(s, f)()
+          case _                  => error(f)
         }
       case f @ Param("StmMap2", -1) =>
-        args match {
-          case Seq(s1, s2, f) => StmMap2(s1, s2, f)()
-          case _              => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2, f)) => StmMap2(s1, s2, f)()
+          case _                       => error(f)
         }
       case f @ Param("StmZip", -1) =>
-        args match {
-          case Seq(s1, s2) => StmZip(s1, s2)()
-          case _           => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2)) => StmZip(s1, s2)()
+          case _                    => error(f)
         }
       case f @ Param("StmReduce", -1) =>
-        args match {
-          case Seq(s, f) => StmReduce(s, f)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, f)) => StmReduce(s, f)()
+          case _                  => error(f)
         }
       case f @ Param("StmFold1D", -1) =>
-        args match {
-          case Seq(s, z, f) => StmFold1D(s, z, f)()
-          case _            => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, z, f)) => StmFold1D(s, z, f)()
+          case _                     => error(f)
         }
       case f @ Param("StmAll", -1) =>
-        args match {
-          case Seq(s) => StmAll(s)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmAll(s)()
+          case _               => error(f)
         }
       case f @ Param("StmAny", -1) =>
-        args match {
-          case Seq(s) => StmAny(s)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmAny(s)()
+          case _               => error(f)
         }
       case f @ Param("StmSum", -1) =>
-        args match {
-          case Seq(s) => StmSum(s)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmSum(s)()
+          case _               => error(f)
         }
       case f @ Param("StmSplit", -1) =>
-        args match {
-          case Seq(s, m) => StmSplit(s, m)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, m)) => StmSplit(s, m)()
+          case _                  => error(f)
         }
       case f @ Param("StmJoin", -1) =>
-        args match {
-          case Seq(s) => StmJoin(s)()
-          case _      => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmJoin(s)()
+          case _               => error(f)
         }
       case f @ Param("StmConcat", -1) =>
-        args match {
-          case Seq(s1, s2) => StmConcat(s1, s2)()
-          case _           => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2)) => StmConcat(s1, s2)()
+          case _                    => error(f)
         }
       case f @ Param("StmShiftLeft", -1) =>
-        args match {
-          case Seq(s, e) => StmShiftLeft(s, e)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, e)) => StmShiftLeft(s, e)()
+          case _                  => error(f)
         }
       case f @ Param("StmCst", -1) =>
-        args match {
-          case Seq(n, c) => StmCst(n, c)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(n, c)) => StmCst(n, c)()
+          case _                  => error(f)
         }
       case f @ Param("StmRange", -1) =>
-        args match {
-          case Seq(n, z, delta) => StmRange(n, z, delta)()
-          case _                => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(n, z, delta)) => StmRange(n, z, delta)()
+          case _                         => error(f)
         }
       case f @ Param("StmCount2D", -1) =>
-        args match {
-          case Seq(n, m) => StmCount2D(n, m)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(n, m)) => StmCount2D(n, m)()
+          case _                  => error(f)
         }
       case f @ Param("StmSlide", -1) =>
-        args match {
-          case Seq(s, w) => StmSlide(s, w)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, w)) => StmSlide(s, w)()
+          case _                  => error(f)
         }
       case f @ Param("StmSlideStartingWith", -1) =>
-        args match {
-          case Seq(s, z) => StmSlideStartingWith(s, z)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, z)) => StmSlideStartingWith(s, z)()
+          case _                  => error(f)
         }
       case f @ Param("StmSlide2D", -1) =>
-        args match {
-          case Seq(s, h, w) => StmSlide2D(s, h, w)()
-          case _            => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, h, w)) => StmSlide2D(s, h, w)()
+          case _                     => error(f)
         }
       case f @ Param("StmAccess", -1) =>
-        args match {
-          case Seq(s, i) => StmAccess(s, i)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, i)) => StmAccess(s, i)()
+          case _                  => error(f)
         }
       case f @ Param("StmPrefix", -1) =>
-        args match {
-          case Seq(s, k) => StmPrefix(s, k)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) => StmPrefix(s, k)()
+          case _                  => error(f)
         }
       case f @ Param("StmSuffix", -1) =>
-        args match {
-          case Seq(s, k) => StmSuffix(s, k)()
-          case _         => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) => StmSuffix(s, k)()
+          case _                  => error(f)
         }
       case f @ Param("MulAddCascaded", -1) =>
-        args match {
-          case Seq(s1, s2) => MulAddCascaded(s1, s2)()
-          case _           => error(f)
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2)) => MulAddCascaded(s1, s2)()
+          case _                    => error(f)
         }
       case _ =>
-        args match {
-          case Seq(x) => FunCall(f, x)()
-          case _      => FunCall(f, Tuple(args: _*)())()
+        combinedArgs match {
+          case (Seq(), Seq(x)) => FunCall(f, x)()
+          case (Seq(), args)   => FunCall(f, Tuple(args: _*)())()
+          case _ =>
+            throw SyntaxError("callee does not accept type arguments", loc)
         }
     }
   }

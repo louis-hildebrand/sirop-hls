@@ -1,6 +1,6 @@
 accelerator top =
 (s: Stm[Vec[bool, 65], 8]) =>
-    s.StmMap( (x) => interpret_as[(Vec[u8, 4], Vec[i8, 4], bool)](x) )
+    s.StmMap( (x) => x.interpret_as:[(Vec[u8, 4], Vec[i8, 4], bool)]() )
 
 const T: bool = true
 const F: bool = false

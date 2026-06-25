@@ -471,6 +471,17 @@ case class RightCurlyToken(loc: SourcePoint) extends Token {
   */
 object RightCurlyToken extends SymbolCategory("}")
 
+/** The symbol ":[".
+  */
+case class ColonLeftSquareToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ColonLeftSquareToken
+  override def original: String = ":["
+}
+
+/** Category of [[ColonLeftSquareToken]].
+  */
+object ColonLeftSquareToken extends SymbolCategory(":[")
+
 /** The symbol "[".
   */
 case class LeftSquareToken(loc: SourcePoint) extends Token {
