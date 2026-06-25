@@ -462,7 +462,7 @@ private object VhdlExprGenerator {
         )
         makeUncheckedVecAccess(va)
       case _ =>
-        logger.warn(
+        logger.debug(
           s"adding bounds checking for ${va.vec} because its length is not a power of two"
         )
         makeCheckedVecAccess(va)

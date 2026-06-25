@@ -1,6 +1,4 @@
 <configuration>
-   <!-- Deduplicate messages -->
-    <turboFilter class="ch.qos.logback.classic.turbo.DuplicateMessageFilter"/>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.out</target>
         <encoder>
