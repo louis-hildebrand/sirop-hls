@@ -272,12 +272,7 @@ trait TypeChecker {
               )
           }
         case b @ Bits(e) =>
-          val newE = e.tchk(context, constValues)
-          if (!newE.typ.isData) {
-            throw new TypeError(
-              s"Cannot convert non-data type ${newE.typ} to binary."
-            )
-          }
+          val newE = e.tchk(context, constValues).expectData()
           b.rebuild(TyVec(TyBool, newE.typ.bitwidth), Seq(newE))
         case ia @ InterpretAs(e, targetTyp) =>
           val newE = e.tchk(context, constValues)

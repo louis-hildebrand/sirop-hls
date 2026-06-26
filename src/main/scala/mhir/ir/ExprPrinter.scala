@@ -859,8 +859,8 @@ object ExprPrinter {
         s"ToUnsigned(${showScala(x)})(${showScala(tu.typ)})"
       case b @ Bits(e) =>
         s"Bits(${showScala(e)})(${showScala(b.typ)})"
-      case _: InterpretAs =>
-        ???
+      case ia @ InterpretAs(e, targetTyp) =>
+        s"InterpretAs(${showScala(e)},${showScala(targetTyp)})(${showScala(ia.typ)})"
       case ll @ LShift(e1, e2) =>
         s"LShift(${showScala(e1)},${showScala(e2)})(${showScala(ll.typ)})"
       case ar @ ARShift(e1, e2) =>
