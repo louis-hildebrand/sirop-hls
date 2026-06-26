@@ -43,6 +43,10 @@ For help with the command-line interface, run
 sirop --help
 ```
 
+### Syntax Highlighting
+
+A Vim plugin providing basic syntax highlighting can be found at [github.com/louis-hildebrand/sirop-vim](https://github.com/louis-hildebrand/sirop-vim).
+
 ## Examples
 
 Example programs can be found in the [src/main/resources/mhir/main/stored/](./src/main/resources/mhir/main/stored) directory.
