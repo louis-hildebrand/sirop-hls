@@ -16,7 +16,7 @@ accel_annotation  ::= ident [ "=" expr ]
 test_decl         ::= const_decl
                     | assertion
 
-assertion         ::= "assert" input_specs "yields" expr
+assertion         ::= "assert" input_specs "yields" expr [ "ignoring" expr ]
 input_specs       ::= "{" "}"
                     | ""
                     | "{" input_spec ( "," input_spec )* "}"

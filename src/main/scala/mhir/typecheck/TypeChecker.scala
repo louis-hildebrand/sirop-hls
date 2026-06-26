@@ -902,7 +902,18 @@ object TypeChecker {
           s" accelerator produces $accelOutTyp but assertion expects ${newOut.typ}$constNote"
       )
     }
-    Assertion(newIn, newOut)
+    val newIgnore = a.ignore.map({ e =>
+      val newE = e.tchk(constTypes, constVals)
+      if (!newE.typ.equalsGivenConstants(accelOutTyp, constVals)) {
+        val constNote = listRelevantConstants(constVals, newE.typ, accelOutTyp)
+        throw new TypeError(
+          "invalid 'ignoring' stream in assertion:" +
+            s" accelerator produces $accelOutTyp but 'ignoring' stream has type ${newE.typ}$constNote"
+        )
+      }
+      newE
+    })
+    Assertion(newIn, newOut, newIgnore)
   }
 
   private def checkInputNames(params: Set[Param], args: Set[Param]): Unit = {

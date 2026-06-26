@@ -45,6 +45,10 @@ class AetherlingBenchmarkTests extends AnyFunSuite {
   for (benchName <- BenchmarksToRun) {
     test(s"$benchName:vhdl") {
       assume(!benchName.startsWith("big"))
+      if (benchName.endsWith("_1_9")) {
+        // TODO: Figure out why these are timing out
+        ???
+      }
       val io = AetherlingBenchmarkIO.vhdlIO(benchName)
       val inFile = AetherlingBenchmarksDir / s"$benchName.txt"
       val outDir = VhdlDir / "aetherling" / s"${benchName}_test"

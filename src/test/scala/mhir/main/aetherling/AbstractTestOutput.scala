@@ -3,6 +3,7 @@ package mhir.main.aetherling
 import mhir.canonicalize._
 import mhir.gen.{verilog, vhdl}
 import mhir.ir._
+import mhir.sugar.{AllOne, AllZero, ExprLowering}
 import mhir.typecheck._
 
 /** A sequence of expected outputs that can be converted to the format required
@@ -28,7 +29,27 @@ case class AbstractTestOutput(
   /** Converts to the format required by the VHDL testbench generator.
     */
   def toVhdl: vhdl.test.TestOutput = {
-    vhdl.test.DirectTestOutput(f, elemTyp = elemTyp, len = len)
+    vhdl.test.DirectTestOutput(
+      Stream.from(0).take(len).map(f),
+      Stream.from(0).take(len).map(i => getMask(f(i))),
+      elemTyp = elemTyp,
+      len = len
+    )
+  }
+
+  private def getMask(elem: Expr): Expr = {
+    require(elem.hasType)
+    elem match {
+      case VecLiteral(elems @ _*) =>
+        VecLiteral(elems.map(getMask): _*)().tchk()
+      case Tuple(elems @ _*) =>
+        Tuple(elems.map(getMask): _*)().tchk()
+      case Undefined(typ) =>
+        AllOne(typ).tchk().lower
+      case v =>
+        assert(!v.contains(classOf[Undefined]))
+        AllZero(v.typ).tchk().lower
+    }
   }
 
   /** Converts to the format required by the Verilog testbench generator.

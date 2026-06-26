@@ -30,6 +30,11 @@ case class AccelDecl(name: String, body: Expr, annotations: Map[String, Expr])
   *   the inputs to provide to the accelerator.
   * @param expectedOutput
   *   the expected output from the accelerator.
+  * @param ignore
+  *   the parts of the output to ignore.
   */
-case class Assertion(inputs: Map[Param, Expr], expectedOutput: Expr)
-    extends TestDecl
+case class Assertion(
+    inputs: Map[Param, Expr],
+    expectedOutput: Expr,
+    ignore: Option[Expr]
+) extends TestDecl

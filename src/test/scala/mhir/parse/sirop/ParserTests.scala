@@ -1106,6 +1106,7 @@ class ParserTests extends AnyFunSuite {
         |  s = StmRange(N, Z2, DELTA2)
         |}
         |yields StmRange(N, Z2 + 5, DELTA2)
+        |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
         |""".stripMargin
     val actual = Parser.parse(src)
     val expected = {
@@ -1141,13 +1142,20 @@ class ParserTests extends AnyFunSuite {
           ),
           Assertion(
             Map(s -> StmRange(n, z, C(1)(U8))()),
-            StmRange(n, SmartSum(z, C(5)())(), C(1)(U8))()
+            StmRange(n, SmartSum(z, C(5)())(), C(1)(U8))(),
+            None
           ),
           ConstDecl(z2, ReshapeData(C(9)(), U8)()),
           ConstDecl(delta2, ReshapeData(C(2)(), U8)()),
           Assertion(
             Map(s -> StmRange(n, z2, delta2)()),
-            StmRange(n, SmartSum(z2, C(5)())(), delta2)()
+            StmRange(n, SmartSum(z2, C(5)())(), delta2)(),
+            Some(
+              StmConcat(
+                StmLiteral(AllOne(U8))(),
+                StmCst(9, AllZero(U8))()
+              )()
+            )
           )
         )
       )
@@ -1184,7 +1192,8 @@ class ParserTests extends AnyFunSuite {
               Tuple(C(1)(), True)(),
               Tuple(C(2)(), True)(),
               Tuple(C(3)(), False)()
-            )()
+            )(),
+            None
           )
         )
       )
@@ -1202,7 +1211,7 @@ class ParserTests extends AnyFunSuite {
     val expected = Program(
       Seq(),
       AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)()))
+      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
     )
     assert(actual == expected)
   }
@@ -1217,7 +1226,7 @@ class ParserTests extends AnyFunSuite {
     val expected = Program(
       Seq(),
       AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)()))
+      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
     )
     assert(actual == expected)
   }

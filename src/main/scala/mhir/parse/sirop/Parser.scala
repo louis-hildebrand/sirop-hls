@@ -191,7 +191,14 @@ object Parser {
     val (inputs, rest2) = parseInputSpecs(rest1, constants)
     val (_, rest3) = expect(YieldsToken, rest2)
     val (expectedOutput, rest4) = parseExpr(rest3, constants)
-    (Assertion(inputs, expectedOutput), rest4)
+    val (ignore, rest5) = rest4 match {
+      case Seq(_: IgnoringToken, rest4_1 @ _*) =>
+        val (e, rest4_2) = parseExpr(rest4_1, constants)
+        (Some(e), rest4_2)
+      case rest4 =>
+        (None, rest4)
+    }
+    (Assertion(inputs, expectedOutput, ignore), rest5)
   }
 
   private def parseInputSpecs(

@@ -520,7 +520,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
             ) ++
               (0 until n).map(i =>
                 Tuple(C(i)(U16), C(i * 2)(U16), C(i * i)(U16))()
-              )
+              ),
+            (0 until latency).map(_ => AllOne(TyTuple(TyTuple(U16, U16), U16)))
+              ++ (0 until n).map(_ => AllZero(TyTuple(TyTuple(U16, U16), U16)))
           )
         )
       )
@@ -552,7 +554,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
           ),
           DirectTestOutput(
             (0 until latency).map(_ => Undefined(I16)) ++
-              (0 until n).map(i => C(i * i + 3 * i)(I16))
+              (0 until n).map(i => C(i * i + 3 * i)(I16)),
+            (0 until latency).map(_ => AllOne(I16)) ++
+              (0 until n).map(_ => AllZero(I16))
           )
         ),
         KeywordTestIO(
@@ -568,7 +572,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
             (0 until latency).map(_ => Undefined(I16)) ++
               (0 until n)
                 .map(x => if (x % 2 == 0) x else -x)
-                .map(i => C(i * i + 3 * i)(I16))
+                .map(i => C(i * i + 3 * i)(I16)),
+            (0 until latency).map(_ => AllOne(I16)) ++
+              (0 until n).map(_ => AllZero(I16))
           )
         )
       )
@@ -598,7 +604,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
                 .sliding(w + 1)
                 .map(xs => VecLiteral(xs: _*)())
                 .toSeq
-            }
+            },
+            (0 until latency).map(_ => AllOne(TyVec(U16, w + 1))) ++
+              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w + 1)))
           )
         ),
         KeywordTestIO(
@@ -612,7 +620,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
                 .sliding(w + 1)
                 .map(xs => VecLiteral(xs: _*)())
                 .toSeq
-            }
+            },
+            (0 until latency).map(_ => AllOne(TyVec(U16, w + 1))) ++
+              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w + 1)))
           )
         )
       )

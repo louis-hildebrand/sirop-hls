@@ -322,10 +322,10 @@ object VhdlTestbenchGenerator {
     os.remove(data)
     os.remove(mask)
     for (xs <- out.elements.grouped(ChunkSize)) {
-      val binaryData = xs.map(Binary(_))
+      val binaryData = xs.map({ case (data, _) => Binary(data) })
       os.write.append(data, binaryData)
 
-      val binaryMask = xs.map(v => Binary.mask(v.tchk()))
+      val binaryMask = xs.map({ case (_, ignore) => Binary(ignore) })
       os.write.append(mask, binaryMask)
     }
   }
@@ -705,17 +705,16 @@ object VhdlTestbenchGenerator {
       ""
     }
     val testSteps = out.elements
-      .map({ v =>
-        val checkedV = v.tchk()
-        val mask = getMask(checkedV)
-        val expected = expectedToVhdl(checkedV)
+      .map({ case (data, ignore) =>
+        val checkedData = data.tchk()
+        val checkedIgnore = ignore.tchk()
         s"""-- Wait until falling edge to give output time to settle down (probably not necessary, but just in case)
            |wait until falling_edge(clk) and valid = '1';
            |ready <= '1';
-           |mask            := "$mask";
-           |expected        := $expected;
-           |masked_data     := data and mask;
-           |masked_expected := expected and mask;
+           |ignore          := ${expectedToVhdl(checkedIgnore)};
+           |expected        := ${expectedToVhdl(checkedData)};
+           |masked_data     := data and not ignore;
+           |masked_expected := expected and not ignore;
            |assert(masked_data = masked_expected) report "Wrong data at t = " & integer'image(t) & ".";
            |""".stripMargin.stripTrailing
       })
@@ -723,7 +722,7 @@ object VhdlTestbenchGenerator {
     val w = VhdlType(out.elemTyp).bitWidth
     s"""-- Check outputs
        |out_check_$testIdx : process
-       |    variable mask            : std_logic_vector(${w - 1} downto 0);
+       |    variable ignore          : std_logic_vector(${w - 1} downto 0);
        |    variable expected        : std_logic_vector(${w - 1} downto 0);
        |    variable masked_data     : std_logic_vector(${w - 1} downto 0);
        |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
@@ -766,7 +765,7 @@ object VhdlTestbenchGenerator {
     val w = VhdlType(elemTyp).bitWidth
     s"""-- Check outputs
        |out_check_$testIdx : process
-       |    variable mask            : std_logic_vector(${w - 1} downto 0);
+       |    variable ignore          : std_logic_vector(${w - 1} downto 0);
        |    variable expected        : std_logic_vector(${w - 1} downto 0);
        |    variable masked_data     : std_logic_vector(${w - 1} downto 0);
        |    variable masked_expected : std_logic_vector(${w - 1} downto 0);
@@ -781,9 +780,9 @@ object VhdlTestbenchGenerator {
        |        wait until falling_edge(clk) and valid = '1';
        |        ready <= '1';
        |        expected        := out_data_ram(i);
-       |        mask            := out_mask_ram(i);
-       |        masked_data     := data and mask;
-       |        masked_expected := expected and mask;
+       |        ignore          := out_mask_ram(i);
+       |        masked_data     := data and not ignore;
+       |        masked_expected := expected and not ignore;
        |        assert(masked_data = masked_expected) report "Wrong data at step " & integer'image(i) & ".";
        |    end loop;
        |
@@ -797,21 +796,6 @@ object VhdlTestbenchGenerator {
        |    wait;
        |end process out_check_$testIdx;
        |""".stripMargin.stripTrailing
-  }
-
-  private def getMask(expected: Expr): String = {
-    require(expected.hasType)
-    expected match {
-      case VecLiteral(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Tuple(elems @ _*) =>
-        elems.map(getMask).mkString("")
-      case Undefined(typ) =>
-        "0" * VhdlType(typ).bitWidth
-      case v =>
-        assert(!v.contains(classOf[Undefined]))
-        "1" * VhdlType(v.typ).bitWidth
-    }
   }
 
   private def expectedToVhdl(expected: Expr): String = {
@@ -906,7 +890,10 @@ object VhdlTestbenchGenerator {
       })
     val evaluated = mhir.eval.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
-    val outputs = DirectTestOutput(evaluated.elems)
+    val outputs = DirectTestOutput(
+      evaluated.elems,
+      evaluated.elems.map(e => AllZero(e.typ))
+    )
     (outputs, inputByParam)
   }
 }
