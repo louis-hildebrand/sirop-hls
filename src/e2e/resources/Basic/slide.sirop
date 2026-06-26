@@ -1,0 +1,56 @@
+accelerator top =
+(s: Stm[u8, 8]) =>
+    s.StmSlideStartingWith(undefined[Vec[u8, 4]])
+
+const _____ : u8 = 255:u8 /* garbage data */
+const ____  : u8 = 255:u8 /* garbage data */
+const Y: u8 = ones:[u8]()
+const n: u8 = zeros:[u8]()
+
+assert {
+    s = StmRange(8, 42:u8, 1:u8)
+}
+yields [
+    [_____, _____, _____, _____, 42:u8]v,
+    [_____, _____, _____, 42:u8, 43:u8]v,
+    [_____, _____, 42:u8, 43:u8, 44:u8]v,
+    [_____, 42:u8, 43:u8, 44:u8, 45:u8]v,
+    [42:u8, 43:u8, 44:u8, 45:u8, 46:u8]v,
+    [43:u8, 44:u8, 45:u8, 46:u8, 47:u8]v,
+    [44:u8, 45:u8, 46:u8, 47:u8, 48:u8]v,
+    [45:u8, 46:u8, 47:u8, 48:u8, 49:u8]v
+]s
+ignoring [
+    [Y, Y, Y, Y, n]v,
+    [Y, Y, Y, n, n]v,
+    [Y, Y, n, n, n]v,
+    [Y, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v
+]s
+
+assert {
+    s = [9:u8, 8:u8, 7:u8, 6:u8, 5:u8, 4:u8, 3:u8, 2:u8]s
+}
+yields [
+    [____, ____, ____, ____, 9:u8]v,
+    [____, ____, ____, 9:u8, 8:u8]v,
+    [____, ____, 9:u8, 8:u8, 7:u8]v,
+    [____, 9:u8, 8:u8, 7:u8, 6:u8]v,
+    [9:u8, 8:u8, 7:u8, 6:u8, 5:u8]v,
+    [8:u8, 7:u8, 6:u8, 5:u8, 4:u8]v,
+    [7:u8, 6:u8, 5:u8, 4:u8, 3:u8]v,
+    [6:u8, 5:u8, 4:u8, 3:u8, 2:u8]v
+]s
+ignoring [
+    [Y, Y, Y, Y, n]v,
+    [Y, Y, Y, n, n]v,
+    [Y, Y, n, n, n]v,
+    [Y, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v,
+    [n, n, n, n, n]v
+]s

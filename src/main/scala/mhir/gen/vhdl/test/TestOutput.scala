@@ -4,6 +4,7 @@ package test
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sugar.{AllOne, AllZero, ExprLowering}
 import mhir.typecheck.TypeCheck
 import os.Path
 
@@ -22,19 +23,25 @@ sealed trait TestOutput {
 
 /** A sequence of expected outputs to hard-code into the testbench source code.
   */
-case class DirectTestOutput(f: Int => Expr, elemTyp: Type, len: Int)
-    extends TestOutput {
-  def elements: Iterator[Expr] = {
-    Stream.from(0).take(len).map(f).iterator
+case class DirectTestOutput(
+    data: Seq[Expr],
+    ignore: Seq[Expr],
+    elemTyp: Type,
+    len: Int
+) extends TestOutput {
+  def elements: Iterator[(Expr, Expr)] = {
+    this.data.zip(this.ignore).iterator
   }
 }
 
 object DirectTestOutput {
-  def apply(elems: Seq[Expr]): DirectTestOutput = {
-    DirectTestOutput(
-      i => elems(i),
-      elemTyp = elems.head.tchk().typ,
-      len = elems.length
+
+  def apply(data: Seq[Expr], ignore: Seq[Expr]): DirectTestOutput = {
+    new DirectTestOutput(
+      data,
+      ignore,
+      elemTyp = data.head.typ,
+      len = data.length
     )
   }
 }

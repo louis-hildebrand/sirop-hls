@@ -740,6 +740,7 @@ class TypecheckerTests extends AnyFunSuite {
         |  s = StmRange(N, Z2, DELTA2)
         |}
         |yields StmRange(N, Z2 + 5:u8, DELTA2)
+        |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
         |""".stripMargin
     val prog = Parser.parse(src)
     val checked = prog.tchk()
@@ -748,11 +749,15 @@ class TypecheckerTests extends AnyFunSuite {
       td match {
         case ConstDecl(_, e) =>
           assert(e.hasType)
-        case Assertion(inputs, expectedOutput) =>
+        case Assertion(inputs, expectedOutput, ignoring) =>
           for ((_, e) <- inputs) {
             assert(e.hasType)
           }
           assert(expectedOutput.hasType)
+          ignoring match {
+            case None    => ()
+            case Some(e) => assert(e.hasType)
+          }
       }
     }
   }
@@ -844,9 +849,6 @@ class TypecheckerTests extends AnyFunSuite {
   test("TestSuite:Error:WrongOutputStreamLength1") {
     // Although the bitwidth is the same here, using the wrong type could still
     // cause problems.
-    // In the evaluator, this would obviously be an issue because 0 != [0]v.
-    // Even for VHDL simulation, the testbench might not compile if it tries to
-    // convert the output to a type that's not defined in the main VHDL code.
     val src =
       """accelerator top = StmRange(4, 0:u8, 1:u8)
         |
@@ -866,9 +868,6 @@ class TypecheckerTests extends AnyFunSuite {
   test("TestSuite:Error:WrongOutputStreamLength2") {
     // Although the bitwidth is the same here, using the wrong type could still
     // cause problems.
-    // In the evaluator, this would obviously be an issue because 0 != [0]v.
-    // Even for VHDL simulation, the testbench might not compile if it tries to
-    // convert the output to a type that's not defined in the main VHDL code.
     val src =
       """const N: u32 = 4
         |const Z: u8 = 0
@@ -885,6 +884,44 @@ class TypecheckerTests extends AnyFunSuite {
         .contains(
           "invalid expected output in assertion:" +
             " accelerator produces Stm[u8, N] but assertion expects Stm[u8, 5:u3] (note that N = 4:u32)"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongIgnoringType") {
+    val src =
+      """accelerator top = StmRange(4, 0:u8, 1:u8)
+        |
+        |assert {}
+        |yields [0:u8, 1:u8, 2:u8, 3:u8]s
+        |ignoring StmCst(4, 0:u16)
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .contains(
+          "invalid 'ignoring' stream in assertion:" +
+            " accelerator produces Stm[u8, 4:u3] but 'ignoring' stream has type Stm[u16, 4:u3]"
+        )
+    )
+  }
+
+  test("TestSuite:Error:WrongIgnoringLength") {
+    val src =
+      """accelerator top = StmRange(4, 0:u8, 1:u8)
+        |
+        |assert {}
+        |yields [0:u8, 1:u8, 2:u8, 3:u8]s
+        |ignoring StmCst(3, 0:u8)
+        |""".stripMargin
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage
+        .contains(
+          "invalid 'ignoring' stream in assertion:" +
+            " accelerator produces Stm[u8, 4:u3] but 'ignoring' stream has type Stm[u8, 3:u2]"
         )
     )
   }

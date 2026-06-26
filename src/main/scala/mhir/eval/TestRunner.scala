@@ -2,7 +2,8 @@ package mhir.eval
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.typecheck.TypeChecker
+import mhir.sugar.{AllOne, AllZero, BitwiseAnd, BitwiseNot, StmCst}
+import mhir.typecheck._
 import os.Path
 
 object TestRunner {
@@ -85,52 +86,51 @@ object TestRunner {
       actualPath: Option[Path]
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
-    val expectedOutput =
+    val rawExpectedOutput =
       try {
         val result = mhir.eval.eval(a.expectedOutput)
-        expectedPath match {
-          case None =>
-            logger.debug(s"expected output is $result")
-          case Some(p) =>
-            val msg = formatOutput(testIdx, ExprPrinter.display(result))
-            os.write.append(p, msg)
-            logger.debug(s"appended expected output to $p")
-        }
-        Some(result)
+        logResult(None, result, testIdx, "raw expected output")
       } catch {
         case ex: EvalException =>
-          expectedPath match {
-            case None =>
-              logger.debug(ex.getMessage)
-            case Some(p) =>
-              os.write.append(p, formatOutput(testIdx, ex.getMessage))
-              logger.debug(s"appended error (in expected output) to $p")
-          }
-          None
+          logError(expectedPath, ex, testIdx, "raw expected output")
       }
-    val actualOutput =
+    val ignore = a.ignore match {
+      case Some(ignore) =>
+        try {
+          val result = mhir.eval.eval(ignore)
+          logResult(None, result, testIdx, "'ignoring' stream")
+        } catch {
+          case ex: EvalException =>
+            logError(expectedPath, ex, testIdx, "'ignoring' stream")
+        }
+      case None =>
+        val TyStm(t, n) = a.expectedOutput.typ
+        Some(mhir.eval.eval(StmCst(n, AllZero(t))()))
+    }
+    val expectedOutput =
+      try {
+        val result = applyMask(rawExpectedOutput, ignore)
+        logResult(expectedPath, result, testIdx, "expected output")
+      } catch {
+        case ex: EvalException =>
+          logError(expectedPath, ex, testIdx, "expected output")
+      }
+    val rawActualOutput =
       try {
         val result =
           mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
-        actualPath match {
-          case None =>
-            logger.debug(s"actual output is   $result")
-          case Some(p) =>
-            val msg = formatOutput(testIdx, ExprPrinter.display(result))
-            os.write.append(p, msg)
-            logger.debug(s"appended actual output to $p")
-        }
-        Some(result)
+        logResult(None, result, testIdx, "raw actual output")
       } catch {
         case ex: EvalException =>
-          actualPath match {
-            case None =>
-              logger.debug(ex.getMessage)
-            case Some(p) =>
-              os.write.append(p, formatOutput(testIdx, ex.getMessage))
-              logger.debug(s"appended error (in actual output) to $p")
-          }
-          None
+          logError(actualPath, ex, testIdx, "raw actual output")
+      }
+    val actualOutput =
+      try {
+        val result = applyMask(rawActualOutput, ignore)
+        logResult(actualPath, result, testIdx, "actual output")
+      } catch {
+        case ex: EvalException =>
+          logError(actualPath, ex, testIdx, "actual output")
       }
     (expectedOutput, actualOutput) match {
       case (Some(expected), Some(actual)) if actual == expected =>
@@ -151,6 +151,97 @@ object TestRunner {
         )
         false
     }
+  }
+
+  private def applyMask(
+      output: Option[Expr],
+      ignore: Option[Expr]
+  ): Option[Expr] = {
+    (output, ignore) match {
+      case (Some(output), Some(ignore)) =>
+        val StmLiteral(outElems @ _*) = output
+        val StmLiteral(ignoreElems @ _*) = ignore
+        val TyStm(elemTyp, _) = ignore.typ
+        val ones = mhir.eval.eval(AllOne(elemTyp))
+        val zeros = mhir.eval.eval(AllZero(elemTyp))
+        assert(outElems.length == ignoreElems.length)
+        Some(
+          StmLiteral(
+            outElems
+              .zip(ignoreElems)
+              .map({
+                case (out, ignore) if ignore == zeros => out
+                case (_, ignore) if ignore == ones    => zeros
+                case (out, ignore) =>
+                  mhir.eval.eval(BitwiseAnd(out, BitwiseNot(ignore)())())
+              }): _*
+          )()
+        )
+      case _ =>
+        None
+    }
+  }
+
+  private def logError(
+      destination: Option[Path],
+      ex: EvalException,
+      testIdx: Int,
+      goal: String
+  ): None.type = {
+    destination match {
+      case None =>
+        logger.debug(ex.getMessage)
+      case Some(p) =>
+        os.write.append(p, formatOutput(testIdx, ex.getMessage))
+        logger.debug(s"appended error (in $goal) to $p")
+    }
+    None
+  }
+
+  private def logResult(
+      destination: Option[Path],
+      result: Option[Expr],
+      testIdx: Int,
+      goal: String
+  ): Option[Expr] = {
+    result match {
+      case Some(result) => logResult(destination, result, testIdx, goal)
+      case None         => logMissingResult(destination, testIdx, goal)
+    }
+  }
+
+  private def logResult(
+      destination: Option[Path],
+      result: Expr,
+      testIdx: Int,
+      goal: String
+  ): Option[Expr] = {
+    destination match {
+      case None =>
+        logger.debug(s"$goal is $result")
+      case Some(p) =>
+        val msg = formatOutput(testIdx, ExprPrinter.display(result))
+        os.write.append(p, msg)
+        logger.debug(s"appended $goal to $p")
+    }
+    Some(result)
+  }
+
+  private def logMissingResult(
+      destination: Option[Path],
+      testIdx: Int,
+      goal: String
+  ): Option[Expr] = {
+    val baseMsg = s"$goal could not be calculated due to previous errors"
+    destination match {
+      case None =>
+        logger.debug(baseMsg)
+      case Some(p) =>
+        val msg = formatOutput(testIdx, baseMsg)
+        os.write.append(p, msg)
+        logger.debug(s"$baseMsg; appended note to $p")
+    }
+    None
   }
 
   private def formatOutput(testIdx: Int, msg: String): String = {

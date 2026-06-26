@@ -4,6 +4,7 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.test._
 import mhir.ir._
 import mhir.main.aetherling.{AbstractTestIO, AetherlingBenchmarkIO}
+import mhir.sugar.{AllZero, ExprLowering}
 import mhir.typecheck.TypeCheck
 
 object ProgramIO {
@@ -53,7 +54,10 @@ object ProgramIO {
     val outputs = inputs.sliding(3).map(v => v(2) - v(0)).toSeq
     PositionalTestIO(
       Seq(DirectTestInput(inputs.map(C(_)(I8)).map(Some(_)))),
-      DirectTestOutput(outputs.map(C(_)(I8)))
+      DirectTestOutput(
+        outputs.map(C(_)(I8)),
+        outputs.map(_ => AllZero(I8).tchk().lower)
+      )
     )
   }
 
@@ -277,7 +281,10 @@ object ProgramIO {
     }
     PositionalTestIO(
       Seq(DirectTestInput(basicInputExprs.map(Some(_)))),
-      DirectTestOutput(basicOutputs)
+      DirectTestOutput(
+        basicOutputs,
+        basicOutputs.map(_ => AllZero(TyTuple(U32, U32, U32)).tchk().lower)
+      )
     )
   }
 
@@ -320,7 +327,7 @@ object ProgramIO {
             .toSeq
         )
       ),
-      DirectTestOutput(outputs.map(C(_)(uint)))
+      DirectTestOutput(outputs.map(C(_)(uint)), outputs.map(_ => AllZero(uint)))
     )
   }
 
@@ -374,15 +381,11 @@ object ProgramIO {
             .toSeq
         )
       ),
-      DirectTestOutput(outputs.map(C(_)(uint)))
+      DirectTestOutput(outputs.map(C(_)(uint)), outputs.map(_ => AllZero(uint)))
     )
   }
 
   private def sqrtIO: PositionalTestIO = {
     AetherlingBenchmarkIO.vhdlIO("sqrt_1")
-  }
-
-  private def sobelIO: PositionalTestIO = {
-    AetherlingBenchmarkIO.vhdlIO("bigsobel_1")
   }
 }

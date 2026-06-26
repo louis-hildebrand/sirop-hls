@@ -23,7 +23,7 @@ import mhir.optimize.{LatencyAnalysis, Optimizer, OptimizerOptions}
 import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
-import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
+import mhir.sugar.{AllOne, AllZero, ExprLowering, StmLiteralUtilsImplicit}
 import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
@@ -164,7 +164,7 @@ object Compiler {
                 s" There $isOrAre ${allAssertions.length} $testOrTests in total."
             )
           }
-          val Assertion(inputs, _) = allAssertions(testIdx)
+          val Assertion(inputs, _, _) = allAssertions(testIdx)
           val trace =
             Tracer.traceAll(
               finalProgram.body,
@@ -270,10 +270,11 @@ object Compiler {
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
         case ((subs, result), ConstDecl(x, e)) =>
           (subs + (x -> e), result)
-        case ((subs, result), Assertion(in, out)) =>
+        case ((subs, result), Assertion(in, out, ignore)) =>
           val newIn = in.map({ case (x, e) => x -> e.subPreserveType(subs) })
           val newOut = out.subPreserveType(subs)
-          (subs, result :+ Assertion(newIn, newOut))
+          val newIgnore = ignore.map(_.subPreserveType(subs))
+          (subs, result :+ Assertion(newIn, newOut, newIgnore))
       })
     Program(Seq(), newAccel, newTestSuite)
   }
@@ -383,7 +384,7 @@ object Compiler {
   ): Unit = {
     time("generating VHDL testbench", Level.DEBUG) {
       assert(os.isDir(outDir))
-      val io = TestSuiteIO(assertions.map({ case Assertion(in, out) =>
+      val io = TestSuiteIO(assertions.map({ case Assertion(in, out, ignore) =>
         val inputs = in.map({ case (x, e) =>
           x -> (mhir.eval.eval(e) match {
             case StmLiteral(elems @ _*) =>
@@ -410,24 +411,45 @@ object Compiler {
                 "if the result of evaluation is not a stream, it should be one piece of data"
               )
               logger.warn(
-                "expected output does not seem to be a stream" +
+                "expected output does not seem to be a stream." +
                   s" The accelerator output should normally be a stream."
               )
               Seq(e)
+          }
+          val elemTyp = out.typ match {
+            case TyStm(t, _) => t
+            case t           => t
+          }
+          val ignoreElems = ignore match {
+            case Some(ignore) =>
+              mhir.eval.eval(ignore) match {
+                case StmLiteral(elems @ _*) =>
+                  elems
+                case e =>
+                  assert(
+                    e.typ.isData,
+                    "if the result of evaluation is not a stream, it should be one piece of data"
+                  )
+                  logger.warn(
+                    "ignore pattern does not seem to be a stream." +
+                      s" The accelerator output should normally be a stream."
+                  )
+                  Seq(e)
+              }
+            case None =>
+              elems.map(_ => AllZero(elemTyp))
           }
           latency match {
             case Some(latency) if !options.handshake =>
               logger.debug(
                 s"adding $latency invalids at the beginning of the expected output to account for latency"
               )
-              val typ = out.typ match {
-                case TyStm(t, _) => t
-                case t           => t
-              }
-              val invalids = (0 until latency).map(_ => Undefined(typ))
-              DirectTestOutput(invalids ++ elems)
+              DirectTestOutput(
+                (0 until latency).map(_ => Undefined(elemTyp)) ++ elems,
+                (0 until latency).map(_ => AllOne(elemTyp)) ++ ignoreElems
+              )
             case _ =>
-              DirectTestOutput(elems)
+              DirectTestOutput(elems, ignoreElems)
           }
         }
         KeywordTestIO(inputs, expectedOutput)

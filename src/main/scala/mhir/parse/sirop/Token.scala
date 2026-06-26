@@ -359,6 +359,17 @@ case class YieldsToken(loc: SourcePoint) extends Token {
   */
 object YieldsToken extends KeywordCategory("yields")
 
+/** The keyword "ignoring".
+  */
+case class IgnoringToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = IgnoringToken
+  override def original: String = "ignoring"
+}
+
+/** Category of [[IgnoringToken]].
+  */
+object IgnoringToken extends KeywordCategory("ignoring")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The word "pad" followed by a natural number.
