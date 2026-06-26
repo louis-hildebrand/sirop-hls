@@ -301,7 +301,7 @@ object VhdlTestbenchGenerator {
     for (xs <- in.elements.grouped(ChunkSize)) {
       val binaryData = xs.map({
         case Some(v) => Binary(v)
-        case None    => Binary(mhir.eval.eval(Default(in.elemTyp)))
+        case None    => Binary(mhir.eval.eval(AllZero(in.elemTyp)))
       })
       os.write.append(data, binaryData)
 

@@ -471,6 +471,17 @@ case class RightCurlyToken(loc: SourcePoint) extends Token {
   */
 object RightCurlyToken extends SymbolCategory("}")
 
+/** The symbol ":[".
+  */
+case class ColonLeftSquareToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = ColonLeftSquareToken
+  override def original: String = ":["
+}
+
+/** Category of [[ColonLeftSquareToken]].
+  */
+object ColonLeftSquareToken extends SymbolCategory(":[")
+
 /** The symbol "[".
   */
 case class LeftSquareToken(loc: SourcePoint) extends Token {
@@ -603,6 +614,17 @@ case class LogOrToken(loc: SourcePoint) extends Token {
   */
 object LogOrToken extends SymbolCategory("||")
 
+/** The symbol "|".
+  */
+case class BitOrToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = BitOrToken
+  def original: String = "|"
+}
+
+/** Category of [[BitOrToken.]]
+  */
+object BitOrToken extends SymbolCategory("|")
+
 /** The symbol "&&".
   */
 case class LogAndToken(loc: SourcePoint) extends Token {
@@ -613,6 +635,17 @@ case class LogAndToken(loc: SourcePoint) extends Token {
 /** Category of [[LogAndToken]].
   */
 object LogAndToken extends SymbolCategory("&&")
+
+/** The symbol "&".
+  */
+case class BitAndToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = BitAndToken
+  override def original: String = "&"
+}
+
+/** Category of [[BitAndToken]].
+  */
+object BitAndToken extends SymbolCategory("&")
 
 /** The symbol "&lt;&lt;".
   */
@@ -910,6 +943,17 @@ case class BangToken(loc: SourcePoint) extends Token {
 /** Category of [[BangToken]].
   */
 object BangToken extends SymbolCategory("!")
+
+/** The symbol "~".
+  */
+case class TildeToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TildeToken
+  override def original: String = "~"
+}
+
+/** Category of [[TildeToken]].
+  */
+object TildeToken extends SymbolCategory("~")
 
 /** The symbol ".".
   */

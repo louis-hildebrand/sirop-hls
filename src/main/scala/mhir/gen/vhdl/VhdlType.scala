@@ -1,6 +1,5 @@
 package mhir.gen.vhdl
 
-import mhir.debug.indent
 import mhir.ir._
 
 private[vhdl] sealed trait IndexDirection
@@ -36,6 +35,13 @@ private[vhdl] sealed trait VhdlType {
     */
   def toStdLogicVec: VhdlType = {
     VhdlStdLogicVec(this.bitWidth)
+  }
+
+  /** Constructs the type of a vector of booleans with the same width as this
+    * type.
+    */
+  def toBoolVec: VhdlType = {
+    VhdlArray(this.bitWidth, VhdlBool)
   }
 }
 

@@ -24,25 +24,27 @@ input_spec        ::= ident "=" expr
 
 ##### Expressions ######################################################################################################
 
-expr            ::= expr10
-# First(expr10) = { "if", "(", "letstm", "@" } U First(expr2)
-expr10          ::= "if" expr "then" expr "else" expr
+expr            ::= expr1200
+# First(expr1200) = { "if", "(", "letstm", "@" } U First(expr200)
+expr1200        ::= "if" expr "then" expr "else" expr
                   | function
                   | pat_function
                   | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr
                   | "let" ident [ ":" typ ] "=" expr "in" expr
-                  | expr9
+                  | expr1100
 function        ::= "(" ident [ ":" typ ] ")" "=>" expr
 pat_function    ::= "@" pattern "=>" expr
 pattern         ::= ident [ ":" typ ]
                   | "()" | "(" pattern ",)" | "(" pattern ( "," pattern )+ ")"
-expr9           ::= expr8 ( "||"                                               expr8 )*
-expr8           ::= expr7 ( "&&"                                               expr7 )*
-expr7           ::= expr6 ( ( eq_symbol | neq_symbol )                         expr6 )*
-expr6           ::= expr5 ( ( lt_symbol | gt_symbol | leq_symbol | geq_symbol) expr5 )*
-expr5           ::= expr4 ( ( "<<" | ">>" | ">>>" )                            expr4 )*
-expr4           ::= expr3 ( ( plus_symbol | minus_symbol )                     expr3 )*
-expr3           ::= expr2 ( ( times_symbol | div_symbol | mod_symbol )         expr2 )*
+expr1100        ::= expr1000 ( "||"                                              expr1000 )*
+expr1000        ::= expr900 ( "&&"                                               expr900 )*
+expr900         ::= expr800 ( "|"                                                expr800 )*
+expr800         ::= expr700 ( "&"                                                expr700 )*
+expr700         ::= expr600 ( ( eq_symbol | neq_symbol )                         expr600 )*
+expr600         ::= expr500 ( ( lt_symbol | gt_symbol | leq_symbol | geq_symbol) expr500 )*
+expr500         ::= expr400 ( ( "<<" | ">>" | ">>>" )                            expr400 )*
+expr400         ::= expr300 ( ( plus_symbol | minus_symbol )                     expr300 )*
+expr300         ::= expr200 ( ( times_symbol | div_symbol | mod_symbol )         expr200 )*
 eq_symbol       ::= "==" | "==`"
 neq_symbol      ::= "!="
 lt_symbol       ::= "<"  | "<`"
@@ -60,18 +62,19 @@ times_symbol    ::= "*"
                   | "*^"
 div_symbol      ::= "/" | "/`"
 mod_symbol      ::= "%" | "%`"
-# First(expr2) = { "!" } U First(expr1)
-expr2           ::= "!" expr2
-                  | expr1
-# First(expr1) = { "pad", "truncate", "sign", "unsign", "vbuild", "sbuild", "sdata" } U First(expr0)
-expr1           ::= "pad" nat "(" expr ")" expr1'
-                  | "truncate" nat "(" expr ")" expr1'
-                  | "sign" "(" expr ")" expr1'
-                  | "unsign" "(" expr ")" expr1'
-                  | "sdata" "(" expr ")" expr1'
-                  | "vbuild" "(" expr ")" "{" function "}" expr1'
-                  | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr1'
-                  | expr0 expr1'
+# First(expr200) = { "!" } U First(expr100)
+expr200         ::= "!" expr200
+                  | "~" expr200
+                  | expr100
+# First(expr100) = { "pad", "truncate", "sign", "unsign", "vbuild", "sbuild", "sdata" } U First(expr0)
+expr100         ::= "pad" nat "(" expr ")" expr100'
+                  | "truncate" nat "(" expr ")" expr100'
+                  | "sign" "(" expr ")" expr100'
+                  | "unsign" "(" expr ")" expr100'
+                  | "sdata" "(" expr ")" expr100'
+                  | "vbuild" "(" expr ")" "{" function "}" expr100'
+                  | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr100'
+                  | expr000 expr100'
 accumulators    ::= ""
                   | accumulator ( "," accumulator )*
 accumulator     ::= "(" ident ":" typ ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
@@ -79,14 +82,14 @@ accumulator     ::= "(" ident ":" typ ")" "=" "{" "init" ":" expr "," "next" ":"
 producers       ::= ""
                   | producer ( "," producer )*
 producer        ::= "(" ident ":" stm_typ ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
-expr1'          ::= ""
-                  | "(" expr_list ")" expr1'
-                  | "." nat expr1'
-                  | "." ident "(" expr_list ")" expr1'
-                  | "[" expr "]" expr1'
-                  | "[" [ expr ] ":" [ expr ] [ ":" [ expr ] ] "]" expr1'
+expr100'          ::= ""
+                  | [ ":[" typ "]" ] "(" expr_list ")" expr100'
+                  | "." nat expr100'
+                  | "." ident [ ":[" typ "]" ] "(" expr_list ")" expr100'
+                  | "[" expr "]" expr100'
+                  | "[" [ expr ] ":" [ expr ] [ ":" [ expr ] ] "]" expr100'
 # First(expr0) = { "(", "{", ident, "undefined", "default", "true", "false", "+", "-", nat, "[" }
-expr0           ::= "(" expr ")"
+expr000         ::= "(" expr ")"
                   | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
                   | ident

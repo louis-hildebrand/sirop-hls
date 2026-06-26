@@ -143,14 +143,25 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
-          case PadTo(e, w) =>
-            PadTo(doPartialEval(e), w)()
-          case TruncateTo(arg, w) =>
-            TruncateTo(doPartialEval(arg), w)()
-          case ToSigned(e) =>
-            ToSigned(doPartialEval(e))()
-          case ToUnsigned(arg) =>
-            ToUnsigned(doPartialEval(arg))()
+          case Bits(e) =>
+            doPartialEval(e) match {
+              case InterpretAs(e, _) => e
+              case e if e == AllZero(e.typ).lower =>
+                VecBuild(e.typ.bitwidth, U32 ::+ (_ => False))()
+              case e if e == AllOne(e.typ).lower =>
+                VecBuild(e.typ.bitwidth, U32 ::+ (_ => True))()
+              case e => Bits(e)()
+            }
+          case InterpretAs(e, targetTyp) =>
+            doPartialEval(e) match {
+              case Bits(e) if e.typ == targetTyp => e
+              case VecBuild(_, Function(_, False)) =>
+                AllZero(targetTyp).lower
+              case VecBuild(_, Function(_, True)) =>
+                AllOne(targetTyp).lower
+              case e =>
+                InterpretAs(e, targetTyp)()
+            }
           case ll @ LShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
@@ -228,8 +239,6 @@ object PartialEvalPass {
           case Not(e) =>
             ArithSimplifier.simplifyArithmetic(Not(doPartialEval(e))())(facts)
 
-          case t: Tuple =>
-            Tuple(t.elems.map(doPartialEval): _*)()
           case TupleAccess(t: Expr, IntCst(i)) =>
             doPartialEval(t) match {
               case tuple: Tuple =>
@@ -248,7 +257,7 @@ object PartialEvalPass {
               case t => TupleAccess(t, C(i)())()
             }
 
-          case VecBuild(n, f) =>
+          case vb @ VecBuild(n, f) =>
             val newN = {
               // Be careful about cases like the following:
               //   if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)
@@ -258,7 +267,16 @@ object PartialEvalPass {
             }
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
             val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
-            VecBuild(newN, newF)()
+            assert(vb.hasType)
+            newF match {
+              case Function(i1, VecAccess(x, i2))
+                  if i2 == i1
+                  // It's not a no-op if the length changes
+                    && x.typ == vb.typ =>
+                x
+              case _ =>
+                VecBuild(newN, newF)()
+            }
           case VecAccess(v, i: Expr) =>
             (doPartialEval(v), doPartialEval(i)) match {
               case (Mux(c, t, f), i) =>
@@ -314,7 +332,6 @@ object PartialEvalPass {
                 )
               })
             )()
-          case StmData(s) => StmData(doPartialEval(s))()
           case LetStm(bufSize, x, in, out) =>
             LetStm(
               doPartialEval(bufSize),
@@ -323,7 +340,7 @@ object PartialEvalPass {
               doPartialEval(out)
             )()
 
-          case _: VecLiteral | _: StmLiteral | _: SyntaxSugar =>
+          case _ =>
             e.map(doPartialEval)
         }
     }
@@ -537,7 +554,7 @@ object PartialEvalPass {
                   doPartialEval(next.subPreserveType(currentValByVar)) match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
-                      val head = mhir.eval.eval(Default(t))
+                      val head = mhir.eval.eval(AllZero(t))
                       Some(Some(x -> (head, z)))
                     case True =>
                       val maybeHeadAndTail = z match {

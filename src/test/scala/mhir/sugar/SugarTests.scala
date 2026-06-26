@@ -27,11 +27,19 @@ class SugarTests extends AnyFunSuite {
     assert(e.subAndEraseType(x -> y) == expected)
   }
 
-  test("Substitute:[4/n](default[Vec[u8,n]])") {
+  test("Substitute:[4/n](zeros:[Vec[u8,n]]())") {
     val n = Param("n")(U8)
-    val e = Default(TyVec(U8, n))
+    val e = AllZero(TyVec(U8, n))
     val actual = e.subPreserveType(n -> C(4)(U8))
-    assert(actual == Default(TyVec(U8, 4)))
+    assert(actual == AllZero(TyVec(U8, 4)))
+    assert(actual.typ == TyVec(U8, 4))
+  }
+
+  test("Substitute:[4/n](ones:[Vec[u8,n]]())") {
+    val n = Param("n")(U8)
+    val e = AllOne(TyVec(U8, n))
+    val actual = e.subPreserveType(n -> C(4)(U8))
+    assert(actual == AllOne(TyVec(U8, 4)))
     assert(actual.typ == TyVec(U8, 4))
   }
 
@@ -388,16 +396,82 @@ class SugarTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("Default[Bool]:Display") {
-    val e = Default(TyBool)
-    assert(ExprPrinter.displayOneLine(e) == "default[bool]")
-    assert(ExprPrinter.display(e) == "default[bool]")
+  test("zeros[bool]:Display") {
+    val e = AllZero(TyBool)
+    assert(ExprPrinter.displayOneLine(e) == "zeros:[bool]()")
+    assert(ExprPrinter.display(e) == "zeros:[bool]()")
   }
 
-  test("Default[I16]:Display") {
-    val e = Default(I16)
-    assert(ExprPrinter.displayOneLine(e) == "default[i16]")
-    assert(ExprPrinter.display(e) == "default[i16]")
+  test("zeros[i16]:Display") {
+    val e = AllZero(I16)
+    assert(ExprPrinter.displayOneLine(e) == "zeros:[i16]()")
+    assert(ExprPrinter.display(e) == "zeros:[i16]()")
+  }
+
+  private val typesToTest = Seq(
+    TyBool,
+    U8,
+    U16,
+    I8,
+    I16,
+    TyTuple(I8, TyBool),
+    TyVec(TyTuple(I16, U8), 4)
+  )
+
+  for (typ <- typesToTest) {
+    test(s"zeros:[$typ]():Eval") {
+      val actual = AllZero(typ)
+      val expected =
+        InterpretAs(VecBuild(typ.bitwidth, U32 ::+ (_ => False))(), typ)()
+          .tchk()
+      val expectedVal = mhir.eval.eval(expected)
+      val actualVal = mhir.eval.eval(actual)
+      assert(actualVal == expectedVal)
+    }
+
+    test(s"ones:[$typ]():Eval") {
+      val actual = AllOne(typ)
+      val expected =
+        InterpretAs(VecBuild(typ.bitwidth, U32 ::+ (_ => True))(), typ)()
+          .tchk()
+      val expectedVal = mhir.eval.eval(expected)
+      val actualVal = mhir.eval.eval(actual)
+      assert(actualVal == expectedVal)
+    }
+  }
+
+  test("zeros[(i16, Vec[u8, 4], bool)]:Eval") {
+    val e = AllZero(TyTuple(I16, TyVec(U8, 4), TyBool))
+    val expected = Tuple(
+      C(0)(I16),
+      VecLiteral(C(0)(U8), C(0)(U8), C(0)(U8), C(0)(U8))(),
+      False
+    )()
+    val actual = mhir.eval.eval(e)
+    assert(actual == expected)
+  }
+
+  test("ones[bool]:Display") {
+    val e = AllOne(TyBool)
+    assert(ExprPrinter.displayOneLine(e) == "ones:[bool]()")
+    assert(ExprPrinter.display(e) == "ones:[bool]()")
+  }
+
+  test("ones[i16]:Display") {
+    val e = AllOne(I16)
+    assert(ExprPrinter.displayOneLine(e) == "ones:[i16]()")
+    assert(ExprPrinter.display(e) == "ones:[i16]()")
+  }
+
+  test("ones[(i16, Vec[u8, 4], bool)]:Eval") {
+    val e = AllOne(TyTuple(I16, TyVec(U8, 4), TyBool))
+    val expected = Tuple(
+      C(-1)(I16),
+      VecLiteral(C(255)(U8), C(255)(U8), C(255)(U8), C(255)(U8))(),
+      True
+    )()
+    val actual = mhir.eval.eval(e)
+    assert(actual == expected)
   }
 
   test("ReshapeData:Valid") {

@@ -427,6 +427,38 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == expected)
   }
 
+  test("bits(x)") {
+    val x = Param("x", -1)(U8)
+    val e = Bits(x)()
+
+    val expectedOneLine = "bits(x)"
+    assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""bits(
+         |  x
+         |)
+         |""".stripMargin.stripTrailing
+    assert(ExprPrinter.displayMultiLine(e) == expectedMultiLine)
+  }
+
+  test("interpret_as:[(i16, bool)](x)") {
+    val x = Param("x", -1)(TyTuple(I16, TyBool))
+    val e = InterpretAs(x, (I16, TyBool))()
+
+    val expectedOneLine = "interpret_as:[(i16, bool)](x)"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """interpret_as:[(i16, bool)](
+        |  x
+        |)
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
   test("a << b") {
     val a = Param("a", -1)(U8)
     val b = Param("b", -1)(U8)

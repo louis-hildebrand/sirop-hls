@@ -486,6 +486,36 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse("!x").body == !x)
   }
 
+  test("x & y & z") {
+    val src = "x & y & z"
+    val expected = BitwiseAnd(BitwiseAnd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x | y | z") {
+    val src = "x | y | z"
+    val expected = BitwiseOr(BitwiseOr(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x & y | z") {
+    val src = "x & y | z"
+    val expected = BitwiseOr(BitwiseAnd(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x | y & z") {
+    val src = "x | y & z"
+    val expected = BitwiseOr(x, BitwiseAnd(y, z)())()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("(x | y) & z") {
+    val src = "(x | y) & z"
+    val expected = BitwiseAnd(BitwiseOr(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
   test("x * y * z") {
     val src = "x * y * z"
     val expected = SmartProd(SmartProd(x, y)(), z)()
@@ -609,6 +639,48 @@ class ParserTests extends AnyFunSuite {
   test("(x + y) * z") {
     val src = "(x + y) * z"
     val expected = SmartProd(SmartSum(x, y)(), z)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("bits(x)") {
+    val src = "bits(x)"
+    val expected = Bits(x)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x.bits()") {
+    val src = "x.bits()"
+    val expected = Bits(x)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("interpret_as:[bool](x)") {
+    val src = "interpret_as:[bool](x)"
+    val expected = InterpretAs(x, TyBool)()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("x.interpret_as:[(i16, bool)]()") {
+    val src = "x.interpret_as:[(i16, bool)]()"
+    val expected = InterpretAs(x, (I16, TyBool))()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("zeros:[i16]()") {
+    val src = "zeros:[i16]()"
+    val expected = AllZero(I16)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("ones:[i16]()") {
+    val src = "ones:[i16]()"
+    val expected = AllOne(I16)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("~x") {
+    val src = "~x"
+    val expected = BitwiseNot(x)()
     assert(Parser.parse(src).body == expected)
   }
 

@@ -571,6 +571,29 @@ case class ToUnsigned(e: Expr)(typ: Type = Missing) extends IntExpr(e)(typ) {
   }
 }
 
+/** Convert any (data) value to a vector of booleans.
+  */
+case class Bits(e: Expr)(typ: Type = Missing) extends Expr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => Bits(e)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
+/** Interpret a vector of booleans as a value of the given type.
+  */
+case class InterpretAs(e: Expr, targetTyp: Type)(typ: Type = Missing)
+    extends Expr(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(e) => InterpretAs(e, this.targetTyp)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+}
+
 /** Bitwise left shift.
   *
   * @param e1

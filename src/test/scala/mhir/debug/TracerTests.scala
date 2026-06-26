@@ -76,7 +76,7 @@ class TracerTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         s -> (input, True),
         v -> (
-          VecBuild(n, Function(i, Default(I32))())(),
+          VecBuild(n, Function(i, AllZero(I32))())(),
           VecBuild(
             n,
             Function(

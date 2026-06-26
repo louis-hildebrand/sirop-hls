@@ -23,7 +23,7 @@ trait StmLiteralUtils {
       }
       val TyStm(t, n) = this.stm.typ
       val lowered = this.stm.elems match {
-        case Seq()  => StmBuild(0, Default(t).lower, True)()
+        case Seq()  => StmBuild(0, AllZero(t).lower, True)()
         case Seq(e) => StmBuild(1, e, True)()
         case _      =>
           // The index type must be at least wide enough to fit the value 1, since

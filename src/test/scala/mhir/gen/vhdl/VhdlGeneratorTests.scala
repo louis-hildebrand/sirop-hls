@@ -67,6 +67,65 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("Bits") {
+    val elemTyp = TyTuple(TyVec(U8, 8), TyVec(I8, 8), TyBool)
+    val p = Param("p")(TyStm(elemTyp, -1))
+    val f = TyStm(elemTyp, 32) ::+ (s =>
+      StmBuild(
+        32,
+        Tuple(Bits(StmData(p)())(), Bits(VecAccess(StmData(p)().__1, 0)())())(),
+        True,
+        Map[Param, (Expr, Expr)](
+          p -> (s, True)
+        )
+      )().tchk().lower
+    )
+    val inputs = Seq(
+      Seq(
+        DirectTestInput(
+          (0 until 32).map(t =>
+            Some(
+              Tuple(
+                VecLiteral(
+                  (0 until 8).map(i => 8 * t + i).map(C(_)(U8)): _*
+                )(),
+                VecLiteral(
+                  (0 until 8).map(i => -128 + 8 * t + i).map(C(_)(I8)): _*
+                )(),
+                if (t % 2 == 0) True else False
+              )()
+            )
+          )
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
+  }
+
+  test("InterpretAs") {
+    val i = Param("i")(TyVec(TyBool, 8))
+    val s = StmBuild(
+      255,
+      Tuple(
+        InterpretAs(VecSlice(i, 5, 1, 1)(), TyBool)(),
+        InterpretAs(VecSlice(i, 6, 1, 1)(), TyBool)(),
+        InterpretAs(VecSlice(i, 7, 1, 1)(), TyBool)(),
+        InterpretAs(i, U8)(),
+        InterpretAs(i, I8)(),
+        InterpretAs(i, (TyUInt(3), TySInt(5)))(),
+        InterpretAs(i, TyVec(TyUInt(2), 4))()
+      )(),
+      True,
+      Map[Param, (Expr, Expr)](
+        i -> (
+          AllZero(i.typ),
+          Bits(WrappingSum(C(1)(U8), InterpretAs(i, U8)())())()
+        )
+      )
+    )().tchk().lower
+    assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
   test("BitwiseShifts") {
     val n = 16
     val u4 = TyUInt(4)
@@ -524,7 +583,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("I0", -1)(TyStm(U16, n))
     val f = Function(
       s,
-      StmSlideStartingWith(SimpleMap(s, x => x * x), Default(TyVec(U16, w)))()
+      StmSlideStartingWith(SimpleMap(s, x => x * x), AllZero(TyVec(U16, w)))()
     )().tchk().lower
     val io = TestSuiteIO(
       Seq(
@@ -868,7 +927,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
             )()
           ),
           v -> (
-            VecBuild(n, U8 ::+ (_ => Default(U8)))(),
+            VecBuild(n, U8 ::+ (_ => AllZero(U8)))(),
             VecShiftLeft(v, a.__0)()
           ),
           s -> (

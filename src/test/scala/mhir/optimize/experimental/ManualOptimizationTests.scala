@@ -682,8 +682,7 @@ class ManualOptimizationTests extends AnyFunSuite {
     val v = Param("v")(TyVec(U8, n))
     val original = VecReverse(VecReverse(v)).tchk().lower
     val optimized = PE.partialEval(original)
-    val expected = VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))()
-    assert(optimized == expected)
+    assert(optimized == v)
   }
 
   ignore("StmReverse(StmReverse(s))") {

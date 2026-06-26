@@ -299,7 +299,7 @@ object Streamifier {
         val updatedOldEquations =
           withStreamifiedProducers.equations.map({
             case (x, (z, next)) if x.typ.isData =>
-              // TODO: Only make the seed default[T] if it actually depends on at
+              // TODO: Only make the seed undefined if it actually depends on at
               //       least one input?
               val newSeed = Undefined(x.typ).lower
               val newNext = if (haltOnFirstStep) {

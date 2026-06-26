@@ -951,11 +951,11 @@ private object LeftShiftRegister {
               if i2 == i0 && PE.isEqual(n2, n0)().getOrElse(false) =>
             // TODO: Take advantage somehow of the fact that the initial value
             //       is undefined?
-            Some((n0, U32 ::+ (_ => Default(typ).lower), Function(t, e)()))
+            Some((n0, U32 ::+ (_ => AllZero(typ).lower), Function(t, e)()))
           case Equal(i2: Param, n2)
               if i2 == i0
                 && PE.isEqual((1 + n2).tchk().lower, n0)().getOrElse(false) =>
-            Some((n0, U32 ::+ (_ => Default(typ).lower), Function(t, e)()))
+            Some((n0, U32 ::+ (_ => AllZero(typ).lower), Function(t, e)()))
           case _ => None
         }
       case _ => None

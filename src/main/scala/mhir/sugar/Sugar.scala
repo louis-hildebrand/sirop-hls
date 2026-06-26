@@ -392,19 +392,13 @@ object Lets {
   }
 }
 
-/** The default value for a given data type.
+/** A value of the given type whose binary representation is all zeros (e.g.,
+  * false, 0, a tuple full of zeros).
   *
-  * For example, the default integer is zero, the default boolean is false, and
-  * the default tuple contains the default for each element.
-  *
-  * The default value only makes sense for "data types" as defined by
-  * [[Type.isData]]. In particular, there is no default function and no default
-  * stream.
-  *
-  * @param typ
-  *   the data type for which to find the default.
+  * This only makes sense for "data types" as defined by [[Type.isData]]. In
+  * particular, there is no zero function and no zero stream.
   */
-case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
+case class AllZero(override val typ: Type) extends SyntaxSugar()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(newChildren.isEmpty)
     this
@@ -414,30 +408,93 @@ case class Default(override val typ: Type) extends SyntaxSugar()(typ) {
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    // Check that the requested type indeed has a default
-    DefaultVal(this.typ)
-    this
+    this.expectData()
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    DefaultVal(this.typ).tchk()
+    def zero(typ: Type): Expr = {
+      typ match {
+        case TyBool                 => False
+        case int: TyAnyInt          => C(0)(int)
+        case fix: TyFix             => FixCst(0)(fix)
+        case tup @ TyTuple(ts @ _*) => Tuple(ts.map(zero): _*)(tup)
+        case vec @ TyVec(t, n)      => VecBuild(n, U32 ::+ (_ => zero(t)))(vec)
+        case Missing | _: TyArrow | _: TyStm =>
+          ???
+      }
+    }
+    zero(this.typ)
   }
 
   override def sugarSubAndKeepType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    Default(this.typ.substitute(subs))
+    AllZero(this.typ.substitute(subs))
   }
 
   override def sugarSubAndEraseType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    Default(this.typ.substitute(subs))
+    AllZero(this.typ.substitute(subs))
   }
 
   override def precedence: Int = Precedence.Min
 
-  override def displayOneLine(): String = s"default[${this.typ}]"
+  override def displayOneLine(): String = s"zeros:[${this.typ}]()"
+
+  override def displayMultiLine(maxWidth: Int): String = this.displayOneLine()
+}
+
+/** A value of the given type whose binary representation is all ones (e.g.,
+  * true, -1, a tuple full of such values).
+  *
+  * This only makes sense for "data types" as defined by [[Type.isData]]. In
+  * particular, there is no "all ones" function and no "all ones" stream.
+  */
+case class AllOne(override val typ: Type) extends SyntaxSugar()(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(newChildren.isEmpty)
+    this
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    this.expectData()
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    def ones(typ: Type): Expr = {
+      typ match {
+        case TyBool                 => True
+        case uint: TyUInt           => C(uint.maxInt.toLong)(uint)
+        case int: TySInt            => C(-1)(int)
+        case fix @ TyFix(uint, _)   => FixCst(uint.maxInt.toLong)(fix)
+        case tup @ TyTuple(ts @ _*) => Tuple(ts.map(ones): _*)(tup)
+        case vec @ TyVec(t, n)      => VecBuild(n, U32 ::+ (_ => ones(t)))(vec)
+        case Missing | _: TyArrow | _: TyStm =>
+          ???
+      }
+    }
+    ones(this.typ)
+  }
+
+  override def sugarSubAndKeepType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    AllOne(this.typ.substitute(subs))
+  }
+
+  override def sugarSubAndEraseType(
+      subs: Map[Expr, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    AllOne(this.typ.substitute(subs))
+  }
+
+  override def precedence: Int = Precedence.Min
+
+  override def displayOneLine(): String = s"ones:[${this.typ}]()"
 
   override def displayMultiLine(maxWidth: Int): String = this.displayOneLine()
 }

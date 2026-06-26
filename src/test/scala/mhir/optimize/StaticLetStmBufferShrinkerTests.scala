@@ -172,7 +172,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
           Map[Param, (Expr, Expr)](
             s -> (x, True),
             acc -> (
-              VecBuild(m, U8 ::+ (_ => Default(U8)))(),
+              VecBuild(m, U8 ::+ (_ => AllZero(U8)))(),
               VecShiftLeft(acc, StmData(s)())()
             ),
             t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
