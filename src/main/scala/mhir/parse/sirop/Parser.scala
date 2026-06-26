@@ -1266,9 +1266,10 @@ object Parser {
       case Seq(_: DefaultToken, _: LeftSquareToken, rest1 @ _*) =>
         val (typ, rest2) = parseTyp(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
+        val typStr = reconstructSource(rest1.take(rest1.length - rest2.length))
         logger.warn(
-          s"the syntax default[$typ] is deprecated."
-            + s" Please use zeros:[$typ]() instead."
+          s"the syntax default[$typStr] is deprecated."
+            + s" Please use zeros:[$typStr]() instead."
         )
         (AllZero(typ), rest3)
       case Seq(_: TrueToken, rest @ _*)  => (True, rest)
@@ -1526,5 +1527,10 @@ object Parser {
 
   private def loc(tokens: Seq[Token]): String = {
     tokens.headOption.map(x => x.loc.toString).getOrElse("")
+  }
+
+  private def reconstructSource(tokens: Seq[Token]): String = {
+    // TODO: Keep track of whitespace too?
+    tokens.foldLeft("")({ case (src, tok) => src + tok.original })
   }
 }
