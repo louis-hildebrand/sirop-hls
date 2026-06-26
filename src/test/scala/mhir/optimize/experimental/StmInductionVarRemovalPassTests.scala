@@ -231,7 +231,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         (U8 ::+ (t => U8 ::+ (i => 1 - n + t + i))).tchk()
       )
     val zExamples = Seq(
-      VecBuild(n, U8 ::+ (_ => Default(I9)))().tchk(),
+      VecBuild(n, U8 ::+ (_ => AllZero(I9)))().tchk(),
       VecBuild(n, U8 ::+ (i => ToSigned(i * i + 1)()))().tchk()
     )
     for (nVal <- nExamples) {
@@ -613,7 +613,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         .get
 
     val initialVec =
-      VecBuild(n, U32 ::+ (_ => Default(I16)))().tchk().lower
+      VecBuild(n, U32 ::+ (_ => AllZero(I16)))().tchk().lower
     val next = Param("next")(stmNextFun.typ)
     val shiftRecEqn = (I33 ::+ (t =>
       TyVec(I16, n) ::+ (x =>
@@ -640,7 +640,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
             U32 ::+ (i =>
               Mux(
                 (i + t < 7).tchk().lower,
-                Default(I16).tchk().lower,
+                AllZero(I16).tchk().lower,
                 StmData(
                   StmNextK(s, (-1 * n + t + ToSigned(i)()).tchk().lower)()
                 )()
@@ -818,7 +818,7 @@ class StmInductionVarRemovalPassTests extends AnyFunSuite {
         t -> (C(0)(I33), t + 1),
         s -> (input, t < n),
         v -> (
-          VecBuild(n, U32 ::+ (_ => Default(I16)))(),
+          VecBuild(n, U32 ::+ (_ => AllZero(I16)))(),
           Mux(t < n, VecShiftLeft(v, StmData(s)())(), v)()
         )
       )

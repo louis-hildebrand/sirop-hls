@@ -2,19 +2,19 @@
     "structure": {
         "nodes": [
             [
-                "sbuild_1",
                 "sbuild_2",
+                "sbuild_3",
                 "sink"
             ]
         ],
         "edges": [
             [
                 [
-                    "sbuild_1",
-                    "sbuild_2"
+                    "sbuild_2",
+                    "sbuild_3"
                 ],
                 [
-                    "sbuild_2",
+                    "sbuild_3",
                     "sink"
                 ]
             ]
@@ -25,7 +25,7 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 4,
                     "out": {
@@ -39,7 +39,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
@@ -60,7 +60,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -69,11 +69,11 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 3,
                     "out": {
-                        "sbuild_2": "42:i32"
+                        "sbuild_3": "42:i32"
                     },
                     "accumulators": {
                         "i": "43:u8"
@@ -83,7 +83,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
@@ -94,7 +94,7 @@
                         "t": "0:u8"
                     },
                     "ready": [
-                        "sbuild_1"
+                        "sbuild_2"
                     ],
                     "loc": "InMain"
                 },
@@ -104,7 +104,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -113,11 +113,11 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        "sbuild_2": "43:i32"
+                        "sbuild_3": "43:i32"
                     },
                     "accumulators": {
                         "i": "44:u8"
@@ -127,7 +127,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
@@ -138,7 +138,7 @@
                         "t": "1:u8"
                     },
                     "ready": [
-                        "sbuild_1"
+                        "sbuild_2"
                     ],
                     "loc": "InMain"
                 },
@@ -148,7 +148,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -157,11 +157,11 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "sbuild_2": "44:i32"
+                        "sbuild_3": "44:i32"
                     },
                     "accumulators": {
                         "i": "45:u8"
@@ -171,7 +171,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
@@ -182,7 +182,7 @@
                         "t": "2:u8"
                     },
                     "ready": [
-                        "sbuild_1"
+                        "sbuild_2"
                     ],
                     "loc": "InMain"
                 },
@@ -192,7 +192,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -201,11 +201,11 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        "sbuild_2": "45:i32"
+                        "sbuild_3": "45:i32"
                     },
                     "accumulators": {
                         "i": "46:u8"
@@ -215,7 +215,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
@@ -226,7 +226,7 @@
                         "t": "3:u8"
                     },
                     "ready": [
-                        "sbuild_1"
+                        "sbuild_2"
                     ],
                     "loc": "InMain"
                 },
@@ -236,7 +236,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -245,7 +245,7 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
@@ -259,7 +259,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
@@ -280,7 +280,7 @@
                         "": "[42:i32, 43:i32, 44:i32, 45:i32]v"
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }
@@ -289,7 +289,7 @@
         {
             "$type": "mhir.debug.ValidTraceStep",
             "nodes": {
-                "sbuild_1": {
+                "sbuild_2": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
@@ -303,7 +303,7 @@
                     ],
                     "loc": "InMain"
                 },
-                "sbuild_2": {
+                "sbuild_3": {
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
@@ -324,7 +324,7 @@
                         
                     },
                     "ready": [
-                        "sbuild_2"
+                        "sbuild_3"
                     ],
                     "loc": "Sink"
                 }

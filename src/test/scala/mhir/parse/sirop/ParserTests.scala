@@ -660,9 +660,21 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
-  test("interpret_as:[(i16, bool)](x)") {
-    val src = "interpret_as:[(i16, bool)](x)"
+  test("x.interpret_as:[(i16, bool)]()") {
+    val src = "x.interpret_as:[(i16, bool)]()"
     val expected = InterpretAs(x, (I16, TyBool))()
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("zeros:[i16]()") {
+    val src = "zeros:[i16]()"
+    val expected = AllZero(I16)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("ones:[i16]()") {
+    val src = "ones:[i16]()"
+    val expected = AllOne(I16)
     assert(Parser.parse(src).body == expected)
   }
 

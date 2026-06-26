@@ -2258,7 +2258,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val actual1 = StmSlideStartingWith(
       // [1, 4, 9, 16, 25]
       build1D(5, i => C((i + 1) * (i + 1))(U8)),
-      Default(TyVec(U8, 2))
+      AllZero(TyVec(U8, 2))
     )().tchk().lower
     val expected1 = StmLiteral(
       VecLiteral(C(0)(U8), C(0)(U8), C(1)(U8))(),

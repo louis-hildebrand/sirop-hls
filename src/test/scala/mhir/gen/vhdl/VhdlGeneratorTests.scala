@@ -118,7 +118,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         i -> (
-          Default(i.typ),
+          AllZero(i.typ),
           Bits(WrappingSum(C(1)(U8), InterpretAs(i, U8)())())()
         )
       )
@@ -583,7 +583,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val s = Param("I0", -1)(TyStm(U16, n))
     val f = Function(
       s,
-      StmSlideStartingWith(SimpleMap(s, x => x * x), Default(TyVec(U16, w)))()
+      StmSlideStartingWith(SimpleMap(s, x => x * x), AllZero(TyVec(U16, w)))()
     )().tchk().lower
     val io = TestSuiteIO(
       Seq(
@@ -927,7 +927,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
             )()
           ),
           v -> (
-            VecBuild(n, U8 ::+ (_ => Default(U8)))(),
+            VecBuild(n, U8 ::+ (_ => AllZero(U8)))(),
             VecShiftLeft(v, a.__0)()
           ),
           s -> (

@@ -1001,6 +1001,16 @@ object Parser {
           case (Seq(targetTyp), Seq(e)) => InterpretAs(e, targetTyp)()
           case _                        => error(f)
         }
+      case f @ Param("zeros", -1) =>
+        combinedArgs match {
+          case (Seq(typ), Seq()) => AllZero(typ)
+          case _                 => error(f)
+        }
+      case f @ Param("ones", -1) =>
+        combinedArgs match {
+          case (Seq(typ), Seq()) => AllOne(typ)
+          case _                 => error(f)
+        }
       // Vector operators --------------------------------------------------
       case f @ Param("VecLength", -1) =>
         combinedArgs match {
@@ -1256,7 +1266,11 @@ object Parser {
       case Seq(_: DefaultToken, _: LeftSquareToken, rest1 @ _*) =>
         val (typ, rest2) = parseTyp(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
-        (Default(typ), rest3)
+        logger.warn(
+          s"the syntax default[$typ] is deprecated."
+            + s" Please use zeros:[$typ]() instead."
+        )
+        (AllZero(typ), rest3)
       case Seq(_: TrueToken, rest @ _*)  => (True, rest)
       case Seq(_: FalseToken, rest @ _*) => (False, rest)
       case Seq(_: NatToken, _*) | Seq(_: PlusToken, _*) |

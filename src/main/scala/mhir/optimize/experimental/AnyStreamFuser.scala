@@ -6,7 +6,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.StreamFuser.StmBuildFusion
-import mhir.sugar.{Default, ExprLowering}
+import mhir.sugar.{AllZero, ExprLowering}
 import mhir.typecheck._
 import org.slf4j.event.Level
 
@@ -163,7 +163,7 @@ object AnyStreamFuser {
             ++ Map(
               producer -> (producer, updateBuffer),
               bufData -> (
-                Default(producerElemTyp).tchk().lower,
+                AllZero(producerElemTyp).tchk().lower,
                 Mux(updateBuffer, StmData(producer)(), bufData)()
               ),
               bufValid -> (

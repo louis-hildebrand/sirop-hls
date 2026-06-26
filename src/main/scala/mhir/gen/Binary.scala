@@ -1,7 +1,7 @@
 package mhir.gen
 
 import mhir.ir._
-import mhir.sugar.Default
+import mhir.sugar.AllZero
 
 /** Helper methods for converting to binary.
   */
@@ -23,7 +23,7 @@ object Binary {
   def apply(expressions: Expr*): Array[Byte] = {
     def str(e: Expr): String = {
       e match {
-        case Undefined(typ) => str(mhir.eval.eval(Default(typ)))
+        case Undefined(typ) => str(mhir.eval.eval(AllZero(typ)))
         case False          => "0"
         case True           => "1"
         case c: IntCst =>

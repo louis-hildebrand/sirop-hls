@@ -238,7 +238,7 @@ private[sugar] case class StmReset(
       logger.trace(s"lowering $className with n = 0: $this")
       val TyStm(t, _) = s.typ
       Some(
-        StmBuild(0, Default(t).lower, True)()
+        StmBuild(0, AllZero(t).lower, True)()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName("Empty")
       )
@@ -1074,7 +1074,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
           t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)()),
           sAcc -> (s, True),
           acc -> (
-            Default(elemTyp).lower,
+            AllZero(elemTyp).lower,
             Mux(firstStep, sData, f(Tuple(acc, sData)()))()
           )
         )
@@ -1462,10 +1462,10 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
           VecAccess(acc, 0)(),
           True,
           Map[Param, (Expr, Expr)](
-            // TODO: It might be useful to use undefined[T] rather than
-            //       default[T] here. But it may be necessary to update the
-            //       evaluator to allow this use of undefined[T]
-            acc -> (v, VecShiftLeft(acc, Default(elemTyp))().tchk().lower)
+            // TODO: It might be useful to use undefined rather than `zeros`
+            //       here. But it may be necessary to update the evaluator to
+            //       allow this use of undefined[T]
+            acc -> (v, VecShiftLeft(acc, AllZero(elemTyp))().tchk().lower)
           )
         )()
           .annotate(NoInputsAfterLastOut)
@@ -2506,7 +2506,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     // Shifted and reshaped line buffer, for finding outputs
     val zeros = VecBuild(
       ToUnsigned(SafeSum(m, C(-1)() * winWidth)())(),
-      U32 ::+ (_ => Default(elemTyp))
+      U32 ::+ (_ => AllZero(elemTyp))
     )()
     val buf2d =
       VecSplit(VecConcat(VecAppend(buf, StmData(input)())(), zeros)(), m)()
