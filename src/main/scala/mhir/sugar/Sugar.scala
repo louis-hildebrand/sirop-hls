@@ -412,10 +412,18 @@ case class AllZero(override val typ: Type) extends SyntaxSugar()(typ) {
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    InterpretAs(
-      VecBuild(this.typ.bitwidth, U32 ::+ (_ => False))(),
-      this.typ
-    )().tchk()
+    def zero(typ: Type): Expr = {
+      typ match {
+        case TyBool                 => False
+        case int: TyAnyInt          => C(0)(int)
+        case fix: TyFix             => FixCst(0)(fix)
+        case tup @ TyTuple(ts @ _*) => Tuple(ts.map(zero): _*)(tup)
+        case vec @ TyVec(t, n)      => VecBuild(n, U32 ::+ (_ => zero(t)))(vec)
+        case Missing | _: TyArrow | _: TyStm =>
+          ???
+      }
+    }
+    zero(this.typ)
   }
 
   override def sugarSubAndKeepType(
@@ -457,10 +465,19 @@ case class AllOne(override val typ: Type) extends SyntaxSugar()(typ) {
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    InterpretAs(
-      VecBuild(this.typ.bitwidth, U32 ::+ (_ => True))(),
-      this.typ
-    )().tchk()
+    def ones(typ: Type): Expr = {
+      typ match {
+        case TyBool                 => True
+        case uint: TyUInt           => C(uint.maxInt.toLong)(uint)
+        case int: TySInt            => C(-1)(int)
+        case fix @ TyFix(uint, _)   => FixCst(uint.maxInt.toLong)(fix)
+        case tup @ TyTuple(ts @ _*) => Tuple(ts.map(ones): _*)(tup)
+        case vec @ TyVec(t, n)      => VecBuild(n, U32 ::+ (_ => ones(t)))(vec)
+        case Missing | _: TyArrow | _: TyStm =>
+          ???
+      }
+    }
+    ones(this.typ)
   }
 
   override def sugarSubAndKeepType(

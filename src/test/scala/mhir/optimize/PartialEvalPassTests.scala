@@ -327,6 +327,134 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PE.partialEval(e) == (x equ y))
   }
 
+  test("(x:T).bits().interpret_as:[T]()") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = InterpretAs(Bits(x)(), x.typ)().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("(x:A).bits().interpret_as:[B]()") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = InterpretAs(Bits(x)(), TyTuple(U8, TyBool))().tchk().lower
+    val actual = PE.partialEval(e)
+    // This is NOT a no-op, since we're reinterpreting x as a different type
+    assert(actual != x)
+  }
+
+  test("x.interpret_as:[T]().bits()") {
+    val x = Param("x")(TyVec(TyBool, 9))
+    val e = Bits(InterpretAs(x, TyTuple(I8, TyBool))())().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("x & 0") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(x, AllZero(x.typ))().tchk().lower
+    val expected = Tuple(C(0)(I8), False)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("0 & x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(AllZero(x.typ), x)().tchk().lower
+    val expected = Tuple(C(0)(I8), False)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("x & -1") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(x, AllOne(x.typ))().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("-1 & x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(AllOne(x.typ), x)().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("x & x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(x, x)().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("x & ~x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(x, BitwiseNot(x)())().tchk().lower
+    val expected = Tuple(C(0)(I8), False)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("~x & x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseAnd(BitwiseNot(x)(), x)().tchk().lower
+    val expected = Tuple(C(0)(I8), False)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("x | 0") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(x, AllZero(x.typ))().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("0 | x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(AllZero(x.typ), x)().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("x | -1") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(x, AllOne(x.typ))().tchk().lower
+    val expected = Tuple(C(-1)(I8), True)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("-1 | x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(AllOne(x.typ), x)().tchk().lower
+    val expected = Tuple(C(-1)(I8), True)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("x | x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(x, x)().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == x)
+  }
+
+  test("x | ~x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(x, BitwiseNot(x)())().tchk().lower
+    val expected = Tuple(C(-1)(I8), True)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
+  test("~x | x") {
+    val x = Param("x")(TyTuple(I8, TyBool))
+    val e = BitwiseOr(BitwiseNot(x)(), x)().tchk().lower
+    val expected = Tuple(C(-1)(I8), True)()
+    val actual = PE.partialEval(e)
+    assert(actual == expected)
+  }
+
   test("ReusedParam:FreeAndBoundTupleVar") {
     val x = Param("x")(TyTuple(U8, U8))
     val e =
@@ -583,6 +711,24 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PartialEvalPass.partialEval(v) == expected)
   }
 
+  test("vbuild(n) { i => v[i] }") {
+    val n = Param("n")(U32)
+    val v = Param("v")(TyVec(U8, n))
+    val e = VecBuild(n, U32 ::+ (i => VecAccess(v, i)()))().tchk().lower
+    val actual = PE.partialEval(e)
+    assert(actual == v)
+  }
+
+  test("vbuild(n) { i => v[i] } different size") {
+    val n = Param("n")(U32)
+    val m = Param("m")(U32)
+    val v = Param("v")(TyVec(U8, n))
+    val e = VecBuild(m, U32 ::+ (i => VecAccess(v, i)()))().tchk().lower
+    val actual = PE.partialEval(e)
+    // This is NOT a no-op, since the size changes
+    assert(actual != v)
+  }
+
   test("MuxCondition:x < 10 && x >= 0") {
     val x = Param("x")(I8)
     val e =
@@ -747,14 +893,5 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual = PE.partialEval(e)
     val expected = Not(SmartLessThan(t, 0)())()
     assert(actual == expected)
-  }
-
-  test("if (c) then VecBuild(...) else v") {
-    val c = Param("c")(TyBool)
-    val n = Param("n")(U8)
-    val v = Param("v")(TyVec(U8, n))
-    val e =
-      Mux(c, VecBuild(n, U8 ::+ (i => VecAccess(v, i)()))(), v)().tchk().lower
-    assert(PE.partialEval(e) == e)
   }
 }

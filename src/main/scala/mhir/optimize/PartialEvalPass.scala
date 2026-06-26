@@ -143,6 +143,25 @@ object PartialEvalPass {
             ArithSimplifier.simplifyArithmetic(
               e.rebuild(e.typ, newChildren)
             )(facts)
+          case Bits(e) =>
+            doPartialEval(e) match {
+              case InterpretAs(e, _) => e
+              case e if e == AllZero(e.typ).lower =>
+                VecBuild(e.typ.bitwidth, U32 ::+ (_ => False))()
+              case e if e == AllOne(e.typ).lower =>
+                VecBuild(e.typ.bitwidth, U32 ::+ (_ => True))()
+              case e => Bits(e)()
+            }
+          case InterpretAs(e, targetTyp) =>
+            doPartialEval(e) match {
+              case Bits(e) if e.typ == targetTyp => e
+              case VecBuild(_, Function(_, False)) =>
+                AllZero(targetTyp).lower
+              case VecBuild(_, Function(_, True)) =>
+                AllOne(targetTyp).lower
+              case e =>
+                InterpretAs(e, targetTyp)()
+            }
           case ll @ LShift(e1, e2) =>
             val newChildren = Seq(e1, e2).map(doPartialEval)
             ArithSimplifier
@@ -238,7 +257,7 @@ object PartialEvalPass {
               case t => TupleAccess(t, C(i)())()
             }
 
-          case VecBuild(n, f) =>
+          case vb @ VecBuild(n, f) =>
             val newN = {
               // Be careful about cases like the following:
               //   if (n == 0) then VecBuild(n, ...) else VecBuild(n, ...)
@@ -248,7 +267,16 @@ object PartialEvalPass {
             }
             val newFacts = facts.clearRange(f.param).between(f.param, 0, newN)
             val newF = Function(f.param, doPartialEval(f.body)(newFacts))()
-            VecBuild(newN, newF)()
+            assert(vb.hasType)
+            newF match {
+              case Function(i1, VecAccess(x, i2))
+                  if i2 == i1
+                  // It's not a no-op if the length changes
+                    && x.typ == vb.typ =>
+                x
+              case _ =>
+                VecBuild(newN, newF)()
+            }
           case VecAccess(v, i: Expr) =>
             (doPartialEval(v), doPartialEval(i)) match {
               case (Mux(c, t, f), i) =>

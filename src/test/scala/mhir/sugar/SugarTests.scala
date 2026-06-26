@@ -408,6 +408,38 @@ class SugarTests extends AnyFunSuite {
     assert(ExprPrinter.display(e) == "zeros:[i16]()")
   }
 
+  private val typesToTest = Seq(
+    TyBool,
+    U8,
+    U16,
+    I8,
+    I16,
+    TyTuple(I8, TyBool),
+    TyVec(TyTuple(I16, U8), 4)
+  )
+
+  for (typ <- typesToTest) {
+    test(s"zeros:[$typ]():Eval") {
+      val actual = AllZero(typ)
+      val expected =
+        InterpretAs(VecBuild(typ.bitwidth, U32 ::+ (_ => False))(), typ)()
+          .tchk()
+      val expectedVal = mhir.eval.eval(expected)
+      val actualVal = mhir.eval.eval(actual)
+      assert(actualVal == expectedVal)
+    }
+
+    test(s"ones:[$typ]():Eval") {
+      val actual = AllOne(typ)
+      val expected =
+        InterpretAs(VecBuild(typ.bitwidth, U32 ::+ (_ => True))(), typ)()
+          .tchk()
+      val expectedVal = mhir.eval.eval(expected)
+      val actualVal = mhir.eval.eval(actual)
+      assert(actualVal == expectedVal)
+    }
+  }
+
   test("zeros[(i16, Vec[u8, 4], bool)]:Eval") {
     val e = AllZero(TyTuple(I16, TyVec(U8, 4), TyBool))
     val expected = Tuple(
