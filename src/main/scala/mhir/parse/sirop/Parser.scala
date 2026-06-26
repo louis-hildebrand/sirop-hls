@@ -268,10 +268,6 @@ object Parser {
       NatToken,
       LeftSquareToken,
       // expr100
-      PadToken,
-      TruncateToken,
-      SignToken,
-      UnsignToken,
       VbuildToken,
       SbuildToken,
       SdataToken,
@@ -695,22 +691,6 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     val (e, rest) = tokens match {
-      case Seq(PadToken(w), _: LeftParToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr(rest1, constants)
-        val (_, rest3) = expect(RightParToken, rest2)
-        (PadTo(e, w)(), rest3)
-      case Seq(TruncateToken(w), _: LeftParToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr(rest1, constants)
-        val (_, rest3) = expect(RightParToken, rest2)
-        (TruncateTo(e, w)(), rest3)
-      case Seq(_: SignToken, _: LeftParToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr(rest1, constants)
-        val (_, rest3) = expect(RightParToken, rest2)
-        (ToSigned(e)(), rest3)
-      case Seq(_: UnsignToken, _: LeftParToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr(rest1, constants)
-        val (_, rest3) = expect(RightParToken, rest2)
-        (ToUnsigned(e)(), rest3)
       case Seq(_: SdataToken, _: LeftParToken, rest1 @ _*) =>
         val (e, rest2) = parseExpr(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
@@ -997,6 +977,30 @@ object Parser {
         combinedArgs match {
           case (Seq(), Seq(x, y)) => Max(x, y)()
           case _                  => error(f)
+        }
+      case f @ Param("sign", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(x)) => ToSigned(x)()
+          case _               => error(f)
+        }
+      case f @ Param("unsign", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(x)) => ToUnsigned(x)()
+          case _               => error(f)
+        }
+      case f @ Param(name, -1) if name.matches("pad[0-9]+") =>
+        combinedArgs match {
+          case (Seq(), Seq(x)) =>
+            val w = name.substring("pad".length).toInt
+            PadTo(x, w)()
+          case _ => error(f)
+        }
+      case f @ Param(name, -1) if name.matches("truncate[0-9]+") =>
+        combinedArgs match {
+          case (Seq(), Seq(x)) =>
+            val w = name.substring("truncate".length).toInt
+            TruncateTo(x, w)()
+          case _ => error(f)
         }
       case f @ Param("bits", -1) =>
         combinedArgs match {

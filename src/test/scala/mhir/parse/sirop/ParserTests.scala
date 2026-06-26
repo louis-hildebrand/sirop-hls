@@ -205,20 +205,22 @@ class ParserTests extends AnyFunSuite {
 
   test("Pad") {
     assert(Parser.parse("pad7(x)").body == PadTo(x, 7)())
-    assert(Parser.parse("pad16(x)").body == PadTo(x, 16)())
+    assert(Parser.parse("x.pad16()").body == PadTo(x, 16)())
   }
 
   test("Truncate") {
     assert(Parser.parse("truncate7(x)").body == TruncateTo(x, 7)())
-    assert(Parser.parse("truncate16(x)").body == TruncateTo(x, 16)())
+    assert(Parser.parse("x.truncate16()").body == TruncateTo(x, 16)())
   }
 
   test("Sign") {
     assert(Parser.parse("sign(x)").body == ToSigned(x)())
+    assert(Parser.parse("x.sign()").body == ToSigned(x)())
   }
 
   test("Unsign") {
     assert(Parser.parse("unsign(x)").body == ToUnsigned(x)())
+    assert(Parser.parse("x.unsign()").body == ToUnsigned(x)())
   }
 
   test("Sdata") {

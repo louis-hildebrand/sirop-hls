@@ -128,28 +128,6 @@ case class InToken(loc: SourcePoint) extends Token {
   */
 object InToken extends KeywordCategory("in")
 
-/** The keyword "sign".
-  */
-case class SignToken(loc: SourcePoint) extends Token {
-  override def category: TokenCategory = SignToken
-  override def original: String = "sign"
-}
-
-/** Category of [[SignToken]].
-  */
-object SignToken extends KeywordCategory("sign")
-
-/** The keyword "unsign".
-  */
-case class UnsignToken(loc: SourcePoint) extends Token {
-  override def category: TokenCategory = UnsignToken
-  override def original: String = "unsign"
-}
-
-/** Category of [[UnsignToken]].
-  */
-object UnsignToken extends KeywordCategory("unsign")
-
 /** The keyword "vbuild".
   */
 case class VbuildToken(loc: SourcePoint) extends Token {
@@ -371,32 +349,6 @@ case class IgnoringToken(loc: SourcePoint) extends Token {
 object IgnoringToken extends KeywordCategory("ignoring")
 
 // Keywords with natural number suffixes ---------------------------------------
-
-/** The word "pad" followed by a natural number.
-  */
-case class PadToken(width: Int)(val loc: SourcePoint) extends Token {
-  override def category: TokenCategory = PadToken
-  override def original: String = s"pad$width"
-}
-
-/** Companion object for [[PadToken]].
-  */
-object PadToken extends TokenCategory {
-  override def name: String = s"built-in function 'pad'"
-}
-
-/** The word "truncate" followed by a natural number.
-  */
-case class TruncateToken(width: Int)(val loc: SourcePoint) extends Token {
-  override def category: TokenCategory = TruncateToken
-  override def original: String = s"truncate$width"
-}
-
-/** Companion object for [[TruncateToken]].
-  */
-object TruncateToken extends TokenCategory {
-  override def name: String = s"built-in function 'truncate'"
-}
 
 /** The letter "u" followed by a natural number.
   */

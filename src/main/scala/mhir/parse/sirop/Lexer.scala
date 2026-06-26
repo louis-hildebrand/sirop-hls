@@ -192,8 +192,6 @@ object Lexer {
           case "letstm"      => LetStmToken(start)
           case "let"         => LetToken(start)
           case "in"          => InToken(start)
-          case "sign"        => SignToken(start)
-          case "unsign"      => UnsignToken(start)
           case "vbuild"      => VbuildToken(start)
           case "sbuild"      => SbuildToken(start)
           case "sdata"       => SdataToken(start)
@@ -214,12 +212,6 @@ object Lexer {
           case "assert"      => AssertToken(start)
           case "yields"      => YieldsToken(start)
           case "ignoring"    => IgnoringToken(start)
-          case x if x.matches("pad[0-9]+") =>
-            val suffix = consume(x, "pad")
-            PadToken(suffix.toInt)(start)
-          case x if x.matches("truncate[0-9]+") =>
-            val suffix = consume(x, "truncate")
-            TruncateToken(suffix.toInt)(start)
           case x if x.matches("u[0-9]+") =>
             val suffix = consume(x, "u")
             UIntToken(suffix.toInt)(start)
