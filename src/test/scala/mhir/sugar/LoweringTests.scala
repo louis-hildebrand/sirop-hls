@@ -9,8 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class LoweringTests extends AnyFunSuite {
   test("LowerParam") {
     val s = Param("s")(TyStm(TyStm(U8, 2), 2))
-    val actual = s.lower
-    assert(actual.lower == s)
+    val actual = s.lowerParam
+    assert(actual == s)
     assert(actual.typ == TyStm(U8, Prod(PadTo(2, 4)(), PadTo(2, 4)())()))
   }
 

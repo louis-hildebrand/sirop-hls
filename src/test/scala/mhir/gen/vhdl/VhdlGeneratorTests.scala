@@ -1050,7 +1050,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         .tchk()
         .lower
         .asInstanceOf[StmBuild]
-    val f = Function(s.lower.asInstanceOf[Param], optimized)().tchk()
+    val f = Function(s.lowerParam, optimized)().tchk()
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
 

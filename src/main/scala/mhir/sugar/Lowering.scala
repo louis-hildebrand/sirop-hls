@@ -166,6 +166,13 @@ trait Lowering {
     }
   }
 
+  implicit class ParamLowering(x: Param) {
+    def lowerParam(implicit c: Canonicalizer): Param = {
+      // A Param will always lower to a Param
+      this.x.lower.asInstanceOf[Param]
+    }
+  }
+
   /** The lowering transformation for types.
     */
   implicit class TypeLowering(typ: Type) {

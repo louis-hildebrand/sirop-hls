@@ -259,14 +259,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       requireType()
       (v.typ.lower, in.typ.lower) match {
         case (_: TyStm, TyStm(_, inLen)) =>
-          val x = this.x.lower.asInstanceOf[Param]
+          val x = this.x.lowerParam
           val v = this.v.lower
           val in = this.in.lower
           // Play it safe and buffer the whole input stream.
           // The optimizer may be able to improve this.
           LetStm(inLen, x, v, in)().tchk()
         case (TyData(_), TyData(_)) =>
-          val x = this.x.lower.asInstanceOf[Param]
+          val x = this.x.lowerParam
           val v = this.v.lower
           val in = this.in.lower
           Let(x, v, in)().asFunCall().tchk()

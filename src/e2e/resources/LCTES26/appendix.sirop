@@ -22,7 +22,7 @@ yields {
         row
         .StmMap( @(i, j) =>
             let mat_val = (i + j) % 6 in
-            let vec_val = i % 6 in
+            let vec_val = j % 6 in
             mat_val * vec_val
         )
         .StmReduce( @(x, y) => x + y )
