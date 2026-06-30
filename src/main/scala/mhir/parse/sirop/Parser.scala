@@ -15,10 +15,12 @@ object Parser {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def parse(f: Path): Program = parse(os.read(f))
+  def parse(p: Path): Program = parse(Lexer.lex(p))
 
-  def parse(code: String): Program = {
-    val (prog, remainingTokens) = parseProgram(Lexer.lex(code))
+  def parse(code: String): Program = parse(Lexer.lex(code))
+
+  private def parse(tokens: Seq[Token]): Program = {
+    val (prog, remainingTokens) = parseProgram(tokens)
     if (remainingTokens.nonEmpty) {
       val loc = remainingTokens.head.loc
       throw SyntaxError("unexpected tokens remaining at end of file", loc)

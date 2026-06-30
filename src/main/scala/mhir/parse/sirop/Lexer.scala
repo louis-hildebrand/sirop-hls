@@ -1,35 +1,39 @@
 package mhir.parse.sirop
 
 import mhir.parse.{SourcePoint, SyntaxError}
+import os.Path
 
+import java.io.File
 import scala.annotation.tailrec
-import scala.collection.immutable.Queue
+import scala.io.Source
 
 object Lexer {
 
-  def lex(code: String): Seq[Token] = {
-    lex(code, Queue(), SourcePoint(1, 1))
+  def lex(p: Path): Stream[Token] = lex(p.toIO)
+
+  private def lex(f: File): Stream[Token] = {
+    val source = Source.fromFile(f)
+    lex(source.toStream, SourcePoint(1, 1))
   }
 
-  @tailrec
-  private def lex(
-      code: String,
-      tokens: Queue[Token],
-      p: SourcePoint
-  ): Seq[Token] = {
+  def lex(code: String): Stream[Token] = {
+    lex(code.toCharArray.toStream, SourcePoint(1, 1))
+  }
+
+  private def lex(code: Stream[Char], p: SourcePoint): Stream[Token] = {
     if (code.isEmpty) {
-      tokens
+      Stream.empty
     }
     // Comments, whitespace ----------------------------------------------------
     else if (code.startsWith("//")) {
       val (newCode, newPt) = consumeSingleLineComment(code, p)
-      lex(newCode, tokens, newPt)
+      lex(newCode, newPt)
     } else if (code.startsWith("/*")) {
       val (newCode, newPt) = consumeMultiLineComment(code, p)
-      lex(newCode, tokens, newPt)
+      lex(newCode, newPt)
     } else if (code.head.isWhitespace) {
       val (newCode, newPt) = consumeWhitespace(code, p)
-      lex(newCode, tokens, newPt)
+      lex(newCode, newPt)
     }
     // Identifiers, keywords, numbers ------------------------------------------
     else if (code.head.isLetter || code.head == '_') {
@@ -38,135 +42,124 @@ object Lexer {
           code.tail,
           p,
           p.moveRightBy(1),
-          ident = code.head.toString
+          ident = new StringBuilder(code.head.toString)
         )
-      lex(newCode, tokens :+ tok, newPt)
+      tok #:: lex(newCode, newPt)
     } else if (code.head.isDigit) {
       val (tok, newCode, newPt) =
-        lexNumber(code.tail, p, p.moveRightBy(1), num = code.head.toString)
-      lex(newCode, tokens :+ tok, newPt)
+        lexNumber(
+          code.tail,
+          p,
+          p.moveRightBy(1),
+          num = new StringBuilder(code.head.toString)
+        )
+      tok #:: lex(newCode, newPt)
     }
     // Parentheses -------------------------------------------------------------
     else if (code.startsWith("(")) {
-      lex(consume(code, "("), tokens :+ LeftParToken(p), p.consume("("))
+      LeftParToken(p) #:: lex(consume(code, "("), p.consume("("))
     } else if (code.startsWith(")")) {
-      lex(consume(code, ")"), tokens :+ RightParToken(p), p.consume(")"))
+      RightParToken(p) #:: lex(consume(code, ")"), p.consume(")"))
     } else if (code.startsWith("{")) {
-      lex(consume(code, "{"), tokens :+ LeftCurlyToken(p), p.consume("{"))
+      LeftCurlyToken(p) #:: lex(consume(code, "{"), p.consume("{"))
     } else if (code.startsWith("}")) {
-      lex(consume(code, "}"), tokens :+ RightCurlyToken(p), p.consume("}"))
+      RightCurlyToken(p) #:: lex(consume(code, "}"), p.consume("}"))
     } else if (code.startsWith(":[")) {
-      lex(
-        consume(code, ":["),
-        tokens :+ ColonLeftSquareToken(p),
-        p.consume(":[")
-      )
+      ColonLeftSquareToken(p) #:: lex(consume(code, ":["), p.consume(":["))
     } else if (code.startsWith("[")) {
-      lex(consume(code, "["), tokens :+ LeftSquareToken(p), p.consume("["))
+      LeftSquareToken(p) #:: lex(consume(code, "["), p.consume("["))
     } else if (code.startsWith("]v")) {
-      lex(consume(code, "]v"), tokens :+ RightSquareVToken(p), p.consume("]v"))
+      RightSquareVToken(p) #:: lex(consume(code, "]v"), p.consume("]v"))
     } else if (code.startsWith("]s")) {
-      lex(consume(code, "]s"), tokens :+ RightSquareSToken(p), p.consume("]s"))
+      RightSquareSToken(p) #:: lex(consume(code, "]s"), p.consume("]s"))
     } else if (code.startsWith("]")) {
-      lex(consume(code, "]"), tokens :+ RightSquareToken(p), p.consume("]"))
+      RightSquareToken(p) #:: lex(consume(code, "]"), p.consume("]"))
     }
     // Other symbols -----------------------------------------------------------
     else if (code.startsWith("->")) {
-      lex(consume(code, "->"), tokens :+ SingleArrowToken(p), p.consume("->"))
+      SingleArrowToken(p) #:: lex(consume(code, "->"), p.consume("->"))
     } else if (code.startsWith("=>")) {
-      lex(consume(code, "=>"), tokens :+ DoubleArrowToken(p), p.consume("=>"))
+      DoubleArrowToken(p) #:: lex(consume(code, "=>"), p.consume("=>"))
     } else if (code.startsWith("==`")) {
-      lex(consume(code, "==`"), tokens :+ EqTickToken(p), p.consume("==`"))
+      EqTickToken(p) #:: lex(consume(code, "==`"), p.consume("==`"))
     } else if (code.startsWith("==")) {
-      lex(consume(code, "=="), tokens :+ EqToken(p), p.consume("=="))
+      EqToken(p) #:: lex(consume(code, "=="), p.consume("=="))
     } else if (code.startsWith("!=")) {
-      lex(consume(code, "!="), tokens :+ NeqToken(p), p.consume("!="))
+      NeqToken(p) #:: lex(consume(code, "!="), p.consume("!="))
     } else if (code.startsWith("=")) {
-      lex(consume(code, "="), tokens :+ AssignToken(p), p.consume("="))
+      AssignToken(p) #:: lex(consume(code, "="), p.consume("="))
     } else if (code.startsWith(":")) {
-      lex(consume(code, ":"), tokens :+ ColonToken(p), p.consume(":"))
+      ColonToken(p) #:: lex(consume(code, ":"), p.consume(":"))
     } else if (code.startsWith("||")) {
-      lex(consume(code, "||"), tokens :+ LogOrToken(p), p.consume("||"))
+      LogOrToken(p) #:: lex(consume(code, "||"), p.consume("||"))
     } else if (code.startsWith("|")) {
-      lex(consume(code, "|"), tokens :+ BitOrToken(p), p.consume("|"))
+      BitOrToken(p) #:: lex(consume(code, "|"), p.consume("|"))
     } else if (code.startsWith("&&")) {
-      lex(consume(code, "&&"), tokens :+ LogAndToken(p), p.consume("%%"))
+      LogAndToken(p) #:: lex(consume(code, "&&"), p.consume("%%"))
     } else if (code.startsWith("&")) {
-      lex(consume(code, "&"), tokens :+ BitAndToken(p), p.consume("&"))
+      BitAndToken(p) #:: lex(consume(code, "&"), p.consume("&"))
     } else if (code.startsWith("<<")) {
-      lex(consume(code, "<<"), tokens :+ LShiftToken(p), p.consume("<<"))
+      LShiftToken(p) #:: lex(consume(code, "<<"), p.consume("<<"))
     } else if (code.startsWith(">>>")) {
-      lex(consume(code, ">>>"), tokens :+ LRShiftToken(p), p.consume(">>>"))
+      LRShiftToken(p) #:: lex(consume(code, ">>>"), p.consume(">>>"))
     } else if (code.startsWith(">>")) {
-      lex(consume(code, ">>"), tokens :+ ARShiftToken(p), p.consume(">>"))
+      ARShiftToken(p) #:: lex(consume(code, ">>"), p.consume(">>"))
     } else if (code.startsWith("<=")) {
-      lex(consume(code, "<="), tokens :+ LeqToken(p), p.consume("<="))
+      LeqToken(p) #:: lex(consume(code, "<="), p.consume("<="))
     } else if (code.startsWith(">=")) {
-      lex(consume(code, ">="), tokens :+ GeqToken(p), p.consume(">="))
+      GeqToken(p) #:: lex(consume(code, ">="), p.consume(">="))
     } else if (code.startsWith("<`")) {
-      lex(consume(code, "<`"), tokens :+ LtTickToken(p), p.consume("<`"))
+      LtTickToken(p) #:: lex(consume(code, "<`"), p.consume("<`"))
     } else if (code.startsWith("<")) {
-      lex(consume(code, "<"), tokens :+ LtToken(p), p.consume("<"))
+      LtToken(p) #:: lex(consume(code, "<"), p.consume("<"))
     } else if (code.startsWith(">")) {
-      lex(consume(code, ">"), tokens :+ GtToken(p), p.consume(">"))
+      GtToken(p) #:: lex(consume(code, ">"), p.consume(">"))
     } else if (code.startsWith("+^")) {
-      lex(consume(code, "+^"), tokens :+ PlusCaretToken(p), p.consume("+^"))
+      PlusCaretToken(p) #:: lex(consume(code, "+^"), p.consume("+^"))
     } else if (code.startsWith("+%`")) {
-      lex(
-        consume(code, "+%`"),
-        tokens :+ PlusPercentTickToken(p),
-        p.consume("+%`")
-      )
+      PlusPercentTickToken(p) #:: lex(consume(code, "+%`"), p.consume("+%`"))
     } else if (code.startsWith("+%")) {
-      lex(consume(code, "+%"), tokens :+ PlusPercentToken(p), p.consume("+%"))
+      PlusPercentToken(p) #:: lex(consume(code, "+%"), p.consume("+%"))
     } else if (code.startsWith("+`")) {
-      lex(consume(code, "+`"), tokens :+ PlusTickToken(p), p.consume("+`"))
+      PlusTickToken(p) #:: lex(consume(code, "+`"), p.consume("+`"))
     } else if (code.startsWith("+")) {
-      lex(consume(code, "+"), tokens :+ PlusToken(p), p.consume("+"))
+      PlusToken(p) #:: lex(consume(code, "+"), p.consume("+"))
     } else if (code.startsWith("-^")) {
-      lex(consume(code, "-^"), tokens :+ MinusCaretToken(p), p.consume("-^"))
+      MinusCaretToken(p) #:: lex(consume(code, "-^"), p.consume("-^"))
     } else if (code.startsWith("-%`")) {
-      lex(
-        consume(code, "-%`"),
-        tokens :+ MinusPercentTickToken(p),
-        p.consume("-%`")
-      )
+      MinusPercentTickToken(p) #:: lex(consume(code, "-%`"), p.consume("-%`"))
     } else if (code.startsWith("-%")) {
-      lex(consume(code, "-%"), tokens :+ MinusPercentToken(p), p.consume("-%"))
+      MinusPercentToken(p) #:: lex(consume(code, "-%"), p.consume("-%"))
     } else if (code.startsWith("-")) {
-      lex(consume(code, "-"), tokens :+ MinusToken(p), p.consume("-"))
+      MinusToken(p) #:: lex(consume(code, "-"), p.consume("-"))
     } else if (code.startsWith("*^")) {
-      lex(consume(code, "*^"), tokens :+ TimesCaretToken(p), p.consume("*^"))
+      TimesCaretToken(p) #:: lex(consume(code, "*^"), p.consume("*^"))
     } else if (code.startsWith("*%`")) {
-      lex(
-        consume(code, "*%`"),
-        tokens :+ TimesPercentTickToken(p),
-        p.consume("*%`")
-      )
+      TimesPercentTickToken(p) #:: lex(consume(code, "*%`"), p.consume("*%`"))
     } else if (code.startsWith("*%")) {
-      lex(consume(code, "*%"), tokens :+ TimesPercentToken(p), p.consume("*%"))
+      TimesPercentToken(p) #:: lex(consume(code, "*%"), p.consume("*%"))
     } else if (code.startsWith("*`")) {
-      lex(consume(code, "*`"), tokens :+ TimesTickToken(p), p.consume("*`"))
+      TimesTickToken(p) #:: lex(consume(code, "*`"), p.consume("*`"))
     } else if (code.startsWith("*")) {
-      lex(consume(code, "*"), tokens :+ TimesToken(p), p.consume("*"))
+      TimesToken(p) #:: lex(consume(code, "*"), p.consume("*"))
     } else if (code.startsWith("/`")) {
-      lex(consume(code, "/`"), tokens :+ SlashTickToken(p), p.consume("/`"))
+      SlashTickToken(p) #:: lex(consume(code, "/`"), p.consume("/`"))
     } else if (code.startsWith("/")) {
-      lex(consume(code, "/"), tokens :+ SlashToken(p), p.consume("/"))
+      SlashToken(p) #:: lex(consume(code, "/"), p.consume("/"))
     } else if (code.startsWith("%`")) {
-      lex(consume(code, "%`"), tokens :+ PercentTickToken(p), p.consume("%`"))
+      PercentTickToken(p) #:: lex(consume(code, "%`"), p.consume("%`"))
     } else if (code.startsWith("%")) {
-      lex(consume(code, "%"), tokens :+ PercentToken(p), p.consume("%"))
+      PercentToken(p) #:: lex(consume(code, "%"), p.consume("%"))
     } else if (code.startsWith("!")) {
-      lex(consume(code, "!"), tokens :+ BangToken(p), p.consume("!"))
+      BangToken(p) #:: lex(consume(code, "!"), p.consume("!"))
     } else if (code.startsWith("~")) {
-      lex(consume(code, "~"), tokens :+ TildeToken(p), p.consume("~"))
+      TildeToken(p) #:: lex(consume(code, "~"), p.consume("~"))
     } else if (code.startsWith(".")) {
-      lex(consume(code, "."), tokens :+ DotToken(p), p.consume("."))
+      DotToken(p) #:: lex(consume(code, "."), p.consume("."))
     } else if (code.startsWith(",")) {
-      lex(consume(code, ","), tokens :+ CommaToken(p), p.consume(","))
+      CommaToken(p) #:: lex(consume(code, ","), p.consume(","))
     } else if (code.startsWith("@")) {
-      lex(consume(code, "@"), tokens :+ AtToken(p), p.consume("@"))
+      AtToken(p) #:: lex(consume(code, "@"), p.consume("@"))
     } else {
       throw SyntaxError(s"unexpected character: '${code.head}'", p)
     }
@@ -174,21 +167,17 @@ object Lexer {
 
   @tailrec
   private def lexIdentifierOrKeyword(
-      code: String,
+      code: Stream[Char],
       start: SourcePoint,
       here: SourcePoint,
-      ident: String
-  ): (Token, String, SourcePoint) = {
+      ident: StringBuilder
+  ): (Token, Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some(c) if c == '_' || c.isLetterOrDigit =>
-        lexIdentifierOrKeyword(
-          code.tail,
-          start,
-          here.moveRightBy(1),
-          ident + code.head
-        )
+        ident.append(code.head)
+        lexIdentifierOrKeyword(code.tail, start, here.moveRightBy(1), ident)
       case _ =>
-        val token = ident match {
+        val token = ident.toString() match {
           case "if"          => IfToken(start)
           case "iff"         => IffToken(start)
           case "then"        => ThenToken(start)
@@ -217,10 +206,10 @@ object Lexer {
           case "yields"      => YieldsToken(start)
           case "ignoring"    => IgnoringToken(start)
           case x if x.matches("u[0-9]+") =>
-            val suffix = consume(x, "u")
+            val suffix = x.tail
             UIntToken(suffix.toInt)(start)
           case x if x.matches("i[0-9]+") =>
-            val suffix = consume(x, "i")
+            val suffix = x.tail
             SIntToken(suffix.toInt)(start)
           case x => IdentToken(x)(start)
         }
@@ -230,34 +219,35 @@ object Lexer {
 
   @tailrec
   private def lexNumber(
-      code: String,
+      code: Stream[Char],
       start: SourcePoint,
       here: SourcePoint,
-      num: String
-  ): (Token, String, SourcePoint) = {
+      num: StringBuilder
+  ): (Token, Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some('_') =>
         lexNumber(code.tail, start, here.moveRightBy(1), num)
       case Some(c) if c.isDigit =>
-        lexNumber(code.tail, start, here.moveRightBy(1), num + code.head)
-      case _ => (NatToken(num.toLong)(num, start), code, here)
+        num.append(code.head)
+        lexNumber(code.tail, start, here.moveRightBy(1), num)
+      case _ => (NatToken(num.toString.toLong)(num.toString, start), code, here)
     }
   }
 
-  private def consume(code: String, prefix: String): String = {
+  private def consume(code: Stream[Char], prefix: String): Stream[Char] = {
     assert(code.startsWith(prefix))
-    code.substring(prefix.length)
+    code.drop(prefix.length)
   }
 
   private def consumeSingleLineComment(
-      code: String,
+      code: Stream[Char],
       pt: SourcePoint
-  ): (String, SourcePoint) = {
+  ): (Stream[Char], SourcePoint) = {
     @tailrec
     def consumeComment(
-        code: String,
+        code: Stream[Char],
         pt: SourcePoint
-    ): (String, SourcePoint) = {
+    ): (Stream[Char], SourcePoint) = {
       if (code.startsWith("\n")) {
         (code.tail, pt.moveDown())
       } else {
@@ -268,15 +258,15 @@ object Lexer {
   }
 
   private def consumeMultiLineComment(
-      code: String,
+      code: Stream[Char],
       pt: SourcePoint
-  ): (String, SourcePoint) = {
+  ): (Stream[Char], SourcePoint) = {
     @tailrec
     def consumeComment(
-        code: String,
+        code: Stream[Char],
         pt: SourcePoint,
         lvl: Int
-    ): (String, SourcePoint) = {
+    ): (Stream[Char], SourcePoint) = {
       if (lvl == 0) {
         (code, pt)
       } else if (code.startsWith("/*")) {
@@ -296,9 +286,9 @@ object Lexer {
 
   @tailrec
   private def consumeWhitespace(
-      code: String,
+      code: Stream[Char],
       pt: SourcePoint
-  ): (String, SourcePoint) = {
+  ): (Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some('\n') =>
         consumeWhitespace(code.tail, pt.moveDown())
