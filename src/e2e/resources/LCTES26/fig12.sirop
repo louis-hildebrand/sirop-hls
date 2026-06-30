@@ -1,14 +1,14 @@
 accelerator rowsum =
 (s: Stm[u16, 30]) =>
   sbuild(10)(
-    if first then sdata(p) else sum + sdata(s),
+    if first then sdata(p) else sum + sdata(p),
     i == 2
   ) {
     (sum: u16) = {
       init: 0,
       next: if (i == 2) then 0
-            else if (first) then sdata(s)
-            else sum + sdata(s) },
+            else if (first) then sdata(p)
+            else sum + sdata(p) },
     (first: bool) = { init: true, next: i == 2 },
     (i: u4) = {
       init: 0,
