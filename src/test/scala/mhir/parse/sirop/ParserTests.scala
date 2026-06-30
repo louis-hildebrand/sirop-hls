@@ -1245,7 +1245,7 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("StmMap") {
-    val src = "StmMap(s, (x) => x + 5:u8)"
+    val src = "StmMap(s, x => x + 5:u8)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected = StmMap(s, Function(x, SmartSum(x, 5)())())()

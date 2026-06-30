@@ -27,12 +27,13 @@ input_spec        ::= ident "=" expr
 expr            ::= expr1200
 expr1200        ::= "if" expr "then" expr "else" expr
                   | "iff" expr "then" expr "else" expr
-                  | function
-                  | pat_function
-                  | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr
                   | "let" ident [ ":" typ ] "=" expr "in" expr
+                  | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr
+                  | pat_function
+                  | function
                   | expr1100
 function        ::= "(" ident [ ":" typ ] ")" "=>" expr
+                  | ident "=>" expr
 pat_function    ::= "@" pattern "=>" expr
 pattern         ::= ident [ ":" typ ]
                   | "()" | "(" pattern ",)" | "(" pattern ( "," pattern )+ ")"
