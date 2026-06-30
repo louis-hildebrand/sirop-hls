@@ -152,11 +152,11 @@ class ExprPrinterTests extends AnyFunSuite {
     val f = Param("f", -1)((U8, U8, U8))
     val e = Mux(c, t, f)().__2
 
-    val expectedOneLine = s"(if (c) then { t } else { f }).2"
+    val expectedOneLine = s"(iff (c) then { t } else { f }).2"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""(if (c) then {
+      s"""(iff (c) then {
          |  t
          |} else {
          |  f
@@ -506,7 +506,7 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("mux + 1") {
     val e = Sum(C(1)(U8), Mux(True, C(42)(U8), C(99)(U8))())()
-    val expected = s"1:u8 +` (if (true) then { 42:u8 } else { 99:u8 })"
+    val expected = s"1:u8 +` (iff (true) then { 42:u8 } else { 99:u8 })"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.display(e) == expected)
   }
@@ -536,15 +536,15 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"if (true) then { 0:u8 } else if (true) then { 1:u8 } else if (false) then { 2:u8 } else { 3:u8 }"
+      s"iff (true) then { 0:u8 } else iff (true) then { 1:u8 } else iff (false) then { 2:u8 } else { 3:u8 }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""if (true) then {
+      s"""iff (true) then {
          |  0:u8
-         |} else if (true) then {
+         |} else iff (true) then {
          |  1:u8
-         |} else if (false) then {
+         |} else iff (false) then {
          |  2:u8
          |} else {
          |  3:u8
@@ -562,13 +562,13 @@ class ExprPrinterTests extends AnyFunSuite {
     val e = Function(c1, Mux(c, C(1)(U8), C(0)(U8))())()
 
     val expectedOneLine =
-      s"(c1 : bool) => if (c1 && c2 || c3 && c4) then { 1:u8 } else { 0:u8 }"
+      s"(c1 : bool) => iff (c1 && c2 || c3 && c4) then { 1:u8 } else { 0:u8 }"
     val actualOneLine = ExprPrinter.displayOneLine(e)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       """(c1 : bool) =>
-         |  if (
+         |  iff (
          |    c1 && c2
          |      || c3 && c4
          |  ) then {

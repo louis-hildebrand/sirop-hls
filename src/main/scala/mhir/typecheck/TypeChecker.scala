@@ -634,6 +634,14 @@ trait TypeChecker {
       }
     }
 
+    def expectBool(): Expr = {
+      this.expr.typ match {
+        case TyBool => this.expr
+        case t =>
+          throw new TypeError(s"Expected a boolean but found $t.")
+      }
+    }
+
     /** Insist that this expression has the type of an unsigned integer.
       *
       * @return

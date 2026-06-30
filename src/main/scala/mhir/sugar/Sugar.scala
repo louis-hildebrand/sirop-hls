@@ -259,14 +259,14 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
       requireType()
       (v.typ.lower, in.typ.lower) match {
         case (_: TyStm, TyStm(_, inLen)) =>
-          val x = this.x.lower.asInstanceOf[Param]
+          val x = this.x.lowerParam
           val v = this.v.lower
           val in = this.in.lower
           // Play it safe and buffer the whole input stream.
           // The optimizer may be able to improve this.
           LetStm(inLen, x, v, in)().tchk()
         case (TyData(_), TyData(_)) =>
-          val x = this.x.lower.asInstanceOf[Param]
+          val x = this.x.lowerParam
           val v = this.v.lower
           val in = this.in.lower
           Let(x, v, in)().asFunCall().tchk()
@@ -389,6 +389,100 @@ object Let {
 object Lets {
   def apply(assignments: (Param, Expr)*)(body: Expr): Expr = {
     assignments.foldRight(body)({ case ((x, v), acc) => Let(x, v, acc)() })
+  }
+}
+
+case class SmartIf(cond: Expr, t: Expr, f: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(cond, t, f)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(c, t, f) => SmartIf(c, t, f)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val cond = this.cond.tchk(context, constValues).expectBool()
+    val t = this.t.tchk(context, constValues).expectData()
+    val f = this.f.tchk(context, constValues).expectData()
+    val typ = ReshapeData.narrowestCommonAncestor(t.typ, f.typ) match {
+      case Some(typ) => typ
+      case None =>
+        throw new TypeError(
+          s"type of true branch (${t.typ}) is unrelated to type of false branch (${f.typ})"
+        )
+    }
+    this.rebuild(typ, Seq(cond, t, f))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    Mux(
+      this.cond.lower,
+      ReshapeData(this.t, this.typ)().tchk().lower,
+      ReshapeData(this.f, this.typ)().tchk().lower
+    )().tchk()
+  }
+
+  override def precedence: Int = Precedence.If
+
+  override def displayOneLine(): String = {
+    val cStr = EP.displayOneLine(this.cond, Precedence.Max)
+    val tStr = EP.displayOneLine(this.t, Precedence.Max)
+    val fStr = EP.displayOneLine(this.f, Precedence.Max)
+    f match {
+      case _: SmartIf =>
+        // if (c1) then { e1 } else if (c2) then ...
+        // rather than
+        // if (c1) then { e1 } else { if (c2) then ... }
+        s"if ($cStr) then { $tStr } else $fStr"
+      case _ =>
+        s"if ($cStr) then { $tStr } else { $fStr }"
+    }
+  }
+
+  override def displayMultiLine(maxWidth: Int): String = {
+    val cStr = {
+      val w = maxWidth - "if () {".length
+      val str =
+        EP.display(this.cond, maxWidth = w, parentPrecedence = Precedence.Max)
+      if (str.contains("\n")) {
+        s"(\n${EP.indent(str)}\n)"
+      } else {
+        s"($str)"
+      }
+    }
+    val tStr = {
+      val w = maxWidth - EP.Indent.length
+      val str =
+        EP.display(t, maxWidth = w, parentPrecedence = Precedence.Max)
+      s"{\n${EP.indent(str)}\n}"
+    }
+    val fStr = f match {
+      case _: Mux =>
+        // if (c1) then { e1 } else if (c2) then ...
+        // rather than
+        // if (c1) then { e1 } else { if (c2) then ... }
+        // Furthermore, if the first part of the if-elseif chain is
+        // wrapped, then the whole chain should be wrapped.
+        // The first line may overflow the max width a bit (because of the
+        // leading "} else "), but that's not a huge deal.
+        EP.displayMultiLine(
+          this.f,
+          maxWidth = maxWidth,
+          parentPrecedence = Precedence.Max
+        )
+      case _ =>
+        val w = maxWidth - EP.Indent.length
+        val str =
+          EP.display(f, maxWidth = w, parentPrecedence = Precedence.Max)
+        s"{\n${EP.indent(str)}\n}"
+    }
+    s"if $cStr then $tStr else $fStr"
   }
 }
 

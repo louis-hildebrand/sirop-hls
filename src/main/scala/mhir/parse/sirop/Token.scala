@@ -73,6 +73,17 @@ case class IfToken(loc: SourcePoint) extends Token {
   */
 object IfToken extends KeywordCategory("if")
 
+/** The keyword "iff".
+  */
+case class IffToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = IffToken
+  override def original: String = "iff"
+}
+
+/** Category of [[IffToken]].
+  */
+object IffToken extends KeywordCategory("iff")
+
 /** The keyword "then".
   */
 case class ThenToken(loc: SourcePoint) extends Token {

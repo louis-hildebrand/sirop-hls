@@ -488,16 +488,38 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse("!x").body == !x)
   }
 
+  test("(!)") {
+    assert(Parser.parse("(!)").body == Function(x, Not(x)())())
+  }
+
   test("x & y & z") {
     val src = "x & y & z"
     val expected = BitwiseAnd(BitwiseAnd(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(&)") {
+    val actual = Parser.parse("(&)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      BitwiseAnd(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x | y | z") {
     val src = "x | y | z"
     val expected = BitwiseOr(BitwiseOr(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(|)") {
+    val actual = Parser.parse("(|)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      BitwiseOr(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x & y | z") {
@@ -524,10 +546,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(*)") {
+    val actual = Parser.parse("(*)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartProd(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x *` y *` z") {
     val src = "x *` y *` z"
     val expected = Prod(Prod(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(*`)") {
+    val actual = Parser.parse("(*`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Prod(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x *% y *% z") {
@@ -536,10 +576,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(*%)") {
+    val actual = Parser.parse("(*%)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartWrappingProd(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x *%` y *%` z") {
     val src = "x *%` y *%` z"
     val expected = WrappingProd(WrappingProd(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(*%`)") {
+    val actual = Parser.parse("(*%`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      WrappingProd(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x *^ y *^ z") {
@@ -548,10 +606,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(*^)") {
+    val actual = Parser.parse("(*^)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SafeProd(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x / y / z") {
     val src = "x / y / z"
     val expected = SmartDiv(SmartDiv(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(/)") {
+    val actual = Parser.parse("(/)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartDiv(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x /` y /` z") {
@@ -560,10 +636,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(/`)") {
+    val actual = Parser.parse("(/`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Div(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x % y % z") {
     val src = "x % y % z"
     val expected = SmartMod(SmartMod(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(%)") {
+    val actual = Parser.parse("(%)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartMod(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x %` y %` z") {
@@ -572,10 +666,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(%`)") {
+    val actual = Parser.parse("(%`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Mod(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x + y + z") {
     val src = "x + y + z"
     val expected = SmartSum(SmartSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(+)") {
+    val actual = Parser.parse("(+)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartSum(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x +` y +` z") {
@@ -584,10 +696,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(+`)") {
+    val actual = Parser.parse("(+`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Sum(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x +% y +% z") {
     val src = "x +% y +% z"
     val expected = SmartWrappingSum(SmartWrappingSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(+%)") {
+    val actual = Parser.parse("(+%)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartWrappingSum(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x +%` y +%` z") {
@@ -596,10 +726,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(+%`)") {
+    val actual = Parser.parse("(+%`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      WrappingSum(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x +^ y +^ z") {
     val src = "x +^ y +^ z"
     val expected = SafeSum(SafeSum(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(+^)") {
+    val actual = Parser.parse("(+^)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SafeSum(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x - y - z") {
@@ -608,10 +756,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(-)") {
+    val actual = Parser.parse("(-)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartDiff(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x -% y -% z") {
     val src = "x -% y -% z"
     val expected = SmartWrappingDiff(SmartWrappingDiff(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(-%)") {
+    val actual = Parser.parse("(-%)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartWrappingDiff(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x -%` y -%` z") {
@@ -620,10 +786,28 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(-%`)") {
+    val actual = Parser.parse("(-%`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      WrappingDiff(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x -^ y -^ z") {
     val src = "x -^ y -^ z"
     val expected = SafeDiff(SafeDiff(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(-^)") {
+    val actual = Parser.parse("(-^)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SafeDiff(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x + y * z") {
@@ -686,10 +870,23 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(~)") {
+    assert(Parser.parse("(~)").body == Function(x, BitwiseNot(x)())())
+  }
+
   test("x << y << z") {
     val src = "x << y << z"
     val expected = LShift(LShift(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("(<<)") {
+    val actual = Parser.parse("(<<)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      LShift(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x >> y >> z") {
@@ -698,50 +895,158 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(>>)") {
+    val actual = Parser.parse("(>>)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      ARShift(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x >>> y >>> z") {
     val src = "x >>> y >>> z"
     val expected = LRShift(LRShift(x, y)(), z)()
     assert(Parser.parse(src).body == expected)
   }
 
+  test("(>>>)") {
+    val actual = Parser.parse("(>>>)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      LRShift(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x < y") {
     assert(Parser.parse("x < y").body == SmartLessThan(x, y)())
+  }
+
+  test("(<)") {
+    val actual = Parser.parse("(<)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartLessThan(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x <` y") {
     assert(Parser.parse("x <` y").body == LessThan(x, y)())
   }
 
+  test("(<`)") {
+    val actual = Parser.parse("(<`)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      LessThan(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x > y") {
     assert(Parser.parse("x > y").body == SmartGreaterThan(x, y)())
+  }
+
+  test("(>)") {
+    val actual = Parser.parse("(>)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartGreaterThan(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x <= y") {
     assert(Parser.parse("x <= y").body == SmartLessThanOrEqual(x, y)())
   }
 
+  test("(<=)") {
+    val actual = Parser.parse("(<=)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartLessThanOrEqual(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x >= y") {
     assert(Parser.parse("x >= y").body == SmartGreaterThanOrEqual(x, y)())
+  }
+
+  test("(>=)") {
+    val actual = Parser.parse("(>=)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartGreaterThanOrEqual(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x == y") {
     assert(Parser.parse("x == y").body == SmartEqual(x, y)())
   }
 
+  test("(==)") {
+    val actual = Parser.parse("==").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartEqual(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x ==` y") {
     assert(Parser.parse("x ==` y").body == Equal(x, y)())
+  }
+
+  test("(==`)") {
+    val actual = Parser.parse("==`").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Equal(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x != y") {
     assert(Parser.parse("x != y").body == SmartNotEqual(x, y)())
   }
 
+  test("(!=)") {
+    val actual = Parser.parse("(!=)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartNotEqual(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x && y && z") {
     assert(Parser.parse("x && y && z").body == And(And(x, y)(), z)())
   }
 
+  test("(&&)") {
+    val actual = Parser.parse("(&&)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      And(x, y)()
+    )()
+    assert(actual == expected)
+  }
+
   test("x || y || z") {
     assert(Parser.parse("x || y || z").body == Or(Or(x, y)(), z)())
+  }
+
+  test("(||)") {
+    val actual = Parser.parse("(||)").body
+    val expected = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Or(x, y)()
+    )()
+    assert(actual == expected)
   }
 
   test("x || y && z") {
@@ -760,13 +1065,13 @@ class ParserTests extends AnyFunSuite {
     val c1 = Param("c1", -1)(Missing)
     val c2 = Param("c2", -1)(Missing)
     val src = "if c1 || c2 then x + y else x * y"
-    val expected = Mux(c1 || c2, SmartSum(x, y)(), SmartProd(x, y)())()
+    val expected = SmartIf(c1 || c2, SmartSum(x, y)(), SmartProd(x, y)())()
     assert(Parser.parse(src).body == expected)
   }
 
   test("if (c) then { t } else { f }") {
     val src = "if (c) then { t } else { f }"
-    val expected = Mux(
+    val expected = SmartIf(
       Param("c", -1)(Missing),
       Param("t", -1)(Missing),
       Param("f", -1)(Missing)
@@ -858,7 +1163,7 @@ class ParserTests extends AnyFunSuite {
     val y = Param("y", -1)(TyBool)
     val expected = PatternFunction(
       TuplePattern(ParamPattern(x), ParamPattern(y)),
-      Mux(y, SmartSum(x, C(1)(U32))(), x)()
+      SmartIf(y, SmartSum(x, C(1)(U32))(), x)()
     )()
     val actual = Parser.parse(src).body
     assert(actual == expected)
@@ -940,7 +1245,7 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("StmMap") {
-    val src = "StmMap(s, (x) => x + 5:u8)"
+    val src = "StmMap(s, x => x + 5:u8)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected = StmMap(s, Function(x, SmartSum(x, 5)())())()
@@ -1233,7 +1538,37 @@ class ParserTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("NestedMultiLineComment") {
+    val src =
+      """x + y / /* z1 +
+        |z2 + z2 /* nested */ +
+        |z3 + z4 */
+        |w
+        |""".stripMargin
+    val expected = SmartSum(x, SmartDiv(y, Param("w", -1)(Missing))())()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
+  test("UnclosedMultiLineComment") {
+    val src =
+      """x + y / /* z1 +
+        |z2 + z3
+        |""".stripMargin
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.getMessage.contains("unclosed multiline comment"))
+    assert(ex.loc.contains(SourcePoint(3, 1)))
+  }
+
+  test("SingleLineComment") {
+    val src =
+      """x + y / // z1 +
+        |w
+        |""".stripMargin
+    val expected = SmartSum(x, SmartDiv(y, Param("w", -1)(Missing))())()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
   // TODO: Forbid leading zeros in int literals?
-  // TODO: Test comments
-  // TODO: Test unclosed comment
 }

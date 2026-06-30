@@ -1,0 +1,24 @@
+accelerator dot =
+(I0:Stm[u16,4]) => (I1:Stm[u16,4]) =>
+  sbuild(1)(sum+sdata(p),i+1==4) {/*StmReduce*/
+    (i:u16)   = { init: 0, next: i + 1 },
+    (sum:u16) = { init: 0, next: sum+sdata(p) }
+  }{(p: Stm[u16, 4]) = {
+      stm: sbuild(4)(                /*StmMap*/
+        sdata(p).0 * sdata(p).1, true
+      ) {} {
+        (p: Stm[(u16, u16), 4]) = {
+          stm: sbuild(4)(            /*StmZip*/
+            (sdata(p0), sdata(p1)), true) {} {
+            (p0: Stm[u16, 4]) = {
+              stm: I0, ready: true },
+            (p1: Stm[u16, 4]) = {
+              stm: I1, ready: true }},
+          ready: true } },
+      ready: true } }
+
+assert {
+  I0 = [1:u16, 2:u16, 3:u16, 4:u16]s,
+  I1 = [5:u16, 6:u16, 7:u16, 8:u16]s
+}
+yields [70:u16]s

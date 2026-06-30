@@ -287,7 +287,7 @@ object ExprPrinter {
 
       case Mux(c, t, f) =>
         val cStr = {
-          val w = maxWidth - "if () {".length
+          val w = maxWidth - "iff () {".length
           val str =
             display(c, maxWidth = w, parentPrecedence = Precedence.Max)
           if (str.contains("\n")) {
@@ -322,7 +322,7 @@ object ExprPrinter {
               display(f, maxWidth = w, parentPrecedence = Precedence.Max)
             s"{\n${indent(str)}\n}"
         }
-        s"if $cStr then $tStr else $fStr"
+        s"iff $cStr then $tStr else $fStr"
 
       case VecBuild(n, f) =>
         val nStr = displayOneLine(n, parentPrecedence = Precedence.Max)
@@ -658,9 +658,9 @@ object ExprPrinter {
             // if (c1) then { e1 } else if (c2) then ...
             // rather than
             // if (c1) then { e1 } else { if (c2) then ... }
-            s"if ($cStr) then { $tStr } else $fStr"
+            s"iff ($cStr) then { $tStr } else $fStr"
           case _ =>
-            s"if ($cStr) then { $tStr } else { $fStr }"
+            s"iff ($cStr) then { $tStr } else { $fStr }"
         }
       case StmBuild(n, data, valid, equations) =>
         val nStr = displayOneLine(n, Precedence.Max)

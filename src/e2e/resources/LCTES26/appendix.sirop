@@ -1,0 +1,30 @@
+/* TODO: Test with 256x256? It's very slow :( */
+accelerator matvec =
+(mat : Stm[Stm[u16, 16], 16]) =>
+(vec :     Stm[u16, 16]      ) =>
+    mat.StmMap( (row: Stm[u16, 16]) =>
+        /* dot(row, vec) */
+        StmZip(row, vec)
+        .StmMap( (x) => x.0 *% x.1)
+        .StmReduce( (x) => x.0 +% x.1 ) )
+
+assert {
+    mat = StmCount2D(16:u16, 16:u16)
+          .StmJoin()
+          .StmMap( @(i, j) => (i + j) % 6 )
+          .StmSplit(16),
+    vec = StmRange(16, 0:u16, 1:u16)
+          .StmMap( (i) => i % 6 )
+}
+yields {
+    StmCount2D(16:u16, 16:u16)
+    .StmMap( (row) =>
+        row
+        .StmMap( @(i, j) =>
+            let mat_val = (i + j) % 6 in
+            let vec_val = j % 6 in
+            mat_val * vec_val
+        )
+        .StmReduce( @(x, y) => x + y )
+    )
+}

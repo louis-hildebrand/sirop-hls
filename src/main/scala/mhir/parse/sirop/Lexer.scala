@@ -21,8 +21,11 @@ object Lexer {
       tokens
     }
     // Comments, whitespace ----------------------------------------------------
-    else if (code.startsWith("/*")) {
-      val (newCode, newPt) = consumeComment(code, p)
+    else if (code.startsWith("//")) {
+      val (newCode, newPt) = consumeSingleLineComment(code, p)
+      lex(newCode, tokens, newPt)
+    } else if (code.startsWith("/*")) {
+      val (newCode, newPt) = consumeMultiLineComment(code, p)
       lex(newCode, tokens, newPt)
     } else if (code.head.isWhitespace) {
       val (newCode, newPt) = consumeWhitespace(code, p)
@@ -187,6 +190,7 @@ object Lexer {
       case _ =>
         val token = ident match {
           case "if"          => IfToken(start)
+          case "iff"         => IffToken(start)
           case "then"        => ThenToken(start)
           case "else"        => ElseToken(start)
           case "letstm"      => LetStmToken(start)
@@ -245,7 +249,25 @@ object Lexer {
     code.substring(prefix.length)
   }
 
-  private def consumeComment(
+  private def consumeSingleLineComment(
+      code: String,
+      pt: SourcePoint
+  ): (String, SourcePoint) = {
+    @tailrec
+    def consumeComment(
+        code: String,
+        pt: SourcePoint
+    ): (String, SourcePoint) = {
+      if (code.startsWith("\n")) {
+        (code.tail, pt.moveDown())
+      } else {
+        consumeComment(code.tail, pt.moveRightBy(1))
+      }
+    }
+    consumeComment(code, pt)
+  }
+
+  private def consumeMultiLineComment(
       code: String,
       pt: SourcePoint
   ): (String, SourcePoint) = {
@@ -263,6 +285,8 @@ object Lexer {
         consumeComment(consume(code, "*/"), pt.consume("*/"), lvl = lvl - 1)
       } else if (code.startsWith("\n")) {
         consumeComment(code.tail, pt.moveDown(), lvl)
+      } else if (code.isEmpty) {
+        throw SyntaxError("unclosed multiline comment", pt)
       } else {
         consumeComment(code.tail, pt.moveRightBy(1), lvl)
       }

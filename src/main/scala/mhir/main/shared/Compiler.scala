@@ -23,7 +23,13 @@ import mhir.optimize.{LatencyAnalysis, Optimizer, OptimizerOptions}
 import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
-import mhir.sugar.{AllOne, AllZero, ExprLowering, StmLiteralUtilsImplicit}
+import mhir.sugar.{
+  AllOne,
+  AllZero,
+  ExprLowering,
+  ParamLowering,
+  StmLiteralUtilsImplicit
+}
 import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
@@ -256,7 +262,23 @@ object Compiler {
     time2("lowering", Level.DEBUG) {
       val inlinedProg = inlineConstants(prog)
       val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
-      inlinedProg.copy(accel = inlinedProg.accel.copy(body = loweredExpr))
+      val loweredTests =
+        inlinedProg.test.map({
+          case _: ConstDecl =>
+            throw new RuntimeException(
+              "constants should have been lowered by now"
+            )
+          case Assertion(inputs, expectedOutput, ignore) =>
+            Assertion(
+              inputs.map({ case (x, e) => x.lowerParam -> e.lower }),
+              expectedOutput.lower,
+              ignore.map(_.lower)
+            )
+        })
+      inlinedProg.copy(
+        accel = inlinedProg.accel.copy(body = loweredExpr),
+        test = loweredTests
+      )
     }
   }
 
