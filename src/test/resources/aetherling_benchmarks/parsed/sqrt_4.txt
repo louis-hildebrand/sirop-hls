@@ -35,7 +35,7 @@ let module1: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n37: ((u16, u16), (u16, u16)) = (n35, n36) in
     let n38: ((u16, u16), (u16, u16)) = n37 in
     let n39: (bool, ((u16, u16), (u16, u16))) = (n31, n38) in
-    let n40: (u16, u16) = if (n39.0) then { (n39.1).0 } else { (n39.1).1 } in
+    let n40: (u16, u16) = iff (n39.0) then { (n39.1).0 } else { (n39.1).1 } in
     (n41, n40)
 ) in
 let module2: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -66,7 +66,7 @@ let module2: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n71: ((u16, u16), (u16, u16)) = (n69, n70) in
     let n72: ((u16, u16), (u16, u16)) = n71 in
     let n73: (bool, ((u16, u16), (u16, u16))) = (n65, n72) in
-    let n74: (u16, u16) = if (n73.0) then { (n73.1).0 } else { (n73.1).1 } in
+    let n74: (u16, u16) = iff (n73.0) then { (n73.1).0 } else { (n73.1).1 } in
     (n75, n74)
 ) in
 let module3: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -97,7 +97,7 @@ let module3: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n105: ((u16, u16), (u16, u16)) = (n103, n104) in
     let n106: ((u16, u16), (u16, u16)) = n105 in
     let n107: (bool, ((u16, u16), (u16, u16))) = (n99, n106) in
-    let n108: (u16, u16) = if (n107.0) then { (n107.1).0 } else { (n107.1).1 } in
+    let n108: (u16, u16) = iff (n107.0) then { (n107.1).0 } else { (n107.1).1 } in
     (n109, n108)
 ) in
 let module4: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -128,7 +128,7 @@ let module4: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n139: ((u16, u16), (u16, u16)) = (n137, n138) in
     let n140: ((u16, u16), (u16, u16)) = n139 in
     let n141: (bool, ((u16, u16), (u16, u16))) = (n133, n140) in
-    let n142: (u16, u16) = if (n141.0) then { (n141.1).0 } else { (n141.1).1 } in
+    let n142: (u16, u16) = iff (n141.0) then { (n141.1).0 } else { (n141.1).1 } in
     (n143, n142)
 ) in
 let module5: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -159,7 +159,7 @@ let module5: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n173: ((u16, u16), (u16, u16)) = (n171, n172) in
     let n174: ((u16, u16), (u16, u16)) = n173 in
     let n175: (bool, ((u16, u16), (u16, u16))) = (n167, n174) in
-    let n176: (u16, u16) = if (n175.0) then { (n175.1).0 } else { (n175.1).1 } in
+    let n176: (u16, u16) = iff (n175.0) then { (n175.1).0 } else { (n175.1).1 } in
     (n177, n176)
 ) in
 let module6: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -190,7 +190,7 @@ let module6: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n207: ((u16, u16), (u16, u16)) = (n205, n206) in
     let n208: ((u16, u16), (u16, u16)) = n207 in
     let n209: (bool, ((u16, u16), (u16, u16))) = (n201, n208) in
-    let n210: (u16, u16) = if (n209.0) then { (n209.1).0 } else { (n209.1).1 } in
+    let n210: (u16, u16) = iff (n209.0) then { (n209.1).0 } else { (n209.1).1 } in
     (n211, n210)
 ) in
 let module7: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -221,7 +221,7 @@ let module7: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n241: ((u16, u16), (u16, u16)) = (n239, n240) in
     let n242: ((u16, u16), (u16, u16)) = n241 in
     let n243: (bool, ((u16, u16), (u16, u16))) = (n235, n242) in
-    let n244: (u16, u16) = if (n243.0) then { (n243.1).0 } else { (n243.1).1 } in
+    let n244: (u16, u16) = iff (n243.0) then { (n243.1).0 } else { (n243.1).1 } in
     (n245, n244)
 ) in
 let module8: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -252,7 +252,7 @@ let module8: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n275: ((u16, u16), (u16, u16)) = (n273, n274) in
     let n276: ((u16, u16), (u16, u16)) = n275 in
     let n277: (bool, ((u16, u16), (u16, u16))) = (n269, n276) in
-    let n278: (u16, u16) = if (n277.0) then { (n277.1).0 } else { (n277.1).1 } in
+    let n278: (u16, u16) = iff (n277.0) then { (n277.1).0 } else { (n277.1).1 } in
     (n279, n278)
 ) in
 let module9: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -283,7 +283,7 @@ let module9: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n309: ((u16, u16), (u16, u16)) = (n307, n308) in
     let n310: ((u16, u16), (u16, u16)) = n309 in
     let n311: (bool, ((u16, u16), (u16, u16))) = (n303, n310) in
-    let n312: (u16, u16) = if (n311.0) then { (n311.1).0 } else { (n311.1).1 } in
+    let n312: (u16, u16) = iff (n311.0) then { (n311.1).0 } else { (n311.1).1 } in
     (n313, n312)
 ) in
 let module10: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -314,7 +314,7 @@ let module10: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n343: ((u16, u16), (u16, u16)) = (n341, n342) in
     let n344: ((u16, u16), (u16, u16)) = n343 in
     let n345: (bool, ((u16, u16), (u16, u16))) = (n337, n344) in
-    let n346: (u16, u16) = if (n345.0) then { (n345.1).0 } else { (n345.1).1 } in
+    let n346: (u16, u16) = iff (n345.0) then { (n345.1).0 } else { (n345.1).1 } in
     (n347, n346)
 ) in
 let module11: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -345,7 +345,7 @@ let module11: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n377: ((u16, u16), (u16, u16)) = (n375, n376) in
     let n378: ((u16, u16), (u16, u16)) = n377 in
     let n379: (bool, ((u16, u16), (u16, u16))) = (n371, n378) in
-    let n380: (u16, u16) = if (n379.0) then { (n379.1).0 } else { (n379.1).1 } in
+    let n380: (u16, u16) = iff (n379.0) then { (n379.1).0 } else { (n379.1).1 } in
     (n381, n380)
 ) in
 let module12: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -376,7 +376,7 @@ let module12: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n411: ((u16, u16), (u16, u16)) = (n409, n410) in
     let n412: ((u16, u16), (u16, u16)) = n411 in
     let n413: (bool, ((u16, u16), (u16, u16))) = (n405, n412) in
-    let n414: (u16, u16) = if (n413.0) then { (n413.1).0 } else { (n413.1).1 } in
+    let n414: (u16, u16) = iff (n413.0) then { (n413.1).0 } else { (n413.1).1 } in
     (n415, n414)
 ) in
 let module13: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -407,7 +407,7 @@ let module13: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n445: ((u16, u16), (u16, u16)) = (n443, n444) in
     let n446: ((u16, u16), (u16, u16)) = n445 in
     let n447: (bool, ((u16, u16), (u16, u16))) = (n439, n446) in
-    let n448: (u16, u16) = if (n447.0) then { (n447.1).0 } else { (n447.1).1 } in
+    let n448: (u16, u16) = iff (n447.0) then { (n447.1).0 } else { (n447.1).1 } in
     (n449, n448)
 ) in
 let module14: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -438,7 +438,7 @@ let module14: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n479: ((u16, u16), (u16, u16)) = (n477, n478) in
     let n480: ((u16, u16), (u16, u16)) = n479 in
     let n481: (bool, ((u16, u16), (u16, u16))) = (n473, n480) in
-    let n482: (u16, u16) = if (n481.0) then { (n481.1).0 } else { (n481.1).1 } in
+    let n482: (u16, u16) = iff (n481.0) then { (n481.1).0 } else { (n481.1).1 } in
     (n483, n482)
 ) in
 let module15: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -469,7 +469,7 @@ let module15: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n513: ((u16, u16), (u16, u16)) = (n511, n512) in
     let n514: ((u16, u16), (u16, u16)) = n513 in
     let n515: (bool, ((u16, u16), (u16, u16))) = (n507, n514) in
-    let n516: (u16, u16) = if (n515.0) then { (n515.1).0 } else { (n515.1).1 } in
+    let n516: (u16, u16) = iff (n515.0) then { (n515.1).0 } else { (n515.1).1 } in
     (n517, n516)
 ) in
 let module16: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
@@ -500,7 +500,7 @@ let module16: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     let n547: ((u16, u16), (u16, u16)) = (n545, n546) in
     let n548: ((u16, u16), (u16, u16)) = n547 in
     let n549: (bool, ((u16, u16), (u16, u16))) = (n541, n548) in
-    let n550: (u16, u16) = if (n549.0) then { (n549.1).0 } else { (n549.1).1 } in
+    let n550: (u16, u16) = iff (n549.0) then { (n549.1).0 } else { (n549.1).1 } in
     (n551, n550)
 ) in
 let module17: (u16, (u16, u16)) -> u16 = (I : (u16, (u16, u16))) => let n557: (u16, u16) = I.1 in n557.0 in

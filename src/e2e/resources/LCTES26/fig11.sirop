@@ -1,29 +1,26 @@
 accelerator rowsum =
 (s: Stm[u16, 30]) =>
-  // /*RESET*/ stands for:
-  //   i != 2 && in_cnt == 2 && out_cnt == 1
-  //     || in_cnt == 2 && out_cnt == 0 && i == 2
   sbuild(10)(
     if first then sdata(p) else sum + sdata(p),
     i == 2
   ) {
     (sum: u16) = {
       init: 0,
-      next: if /*RESET*/ then 0
+      next: if (i != 2 && in_cnt == 2 && out_cnt == 1 || in_cnt == 2 && out_cnt == 0 && i == 2) then 0
             else if (first) then sdata(p)
             else sum + sdata(p) },
     (first: bool) = {
       init: true,
-      next: /*RESET*/ },
+      next: i != 2 && in_cnt == 2 && out_cnt == 1 || in_cnt == 2 && out_cnt == 0 && i == 2 },
     (i: u4) = {
       init: 0,
-      next: if /*RESET*/ then 0 else 1 + i },
+      next: if (i != 2 && in_cnt == 2 && out_cnt == 1 || in_cnt == 2 && out_cnt == 0 && i == 2) then 0 else 1 + i },
     (in_cnt: u32) = {
       init: 0,
-      next: if /*RESET*/ then 0 else 1+in_cnt },
+      next: if (i != 2 && in_cnt == 2 && out_cnt == 1 || in_cnt == 2 && out_cnt == 0 && i == 2) then 0 else 1+in_cnt },
     (out_cnt: u32) = {
       init: 0,
-      next: if /*RESET*/     then 0
+      next: if (i != 2 && in_cnt == 2 && out_cnt == 1 || in_cnt == 2 && out_cnt == 0 && i == 2) then 0
             else if (i == 2) then 1 + out_cnt
             else                  out_cnt }
   }{(p: Stm[u16, 30]) = { stm: s, ready: true } }

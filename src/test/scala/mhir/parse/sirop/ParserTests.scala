@@ -760,13 +760,13 @@ class ParserTests extends AnyFunSuite {
     val c1 = Param("c1", -1)(Missing)
     val c2 = Param("c2", -1)(Missing)
     val src = "if c1 || c2 then x + y else x * y"
-    val expected = Mux(c1 || c2, SmartSum(x, y)(), SmartProd(x, y)())()
+    val expected = SmartIf(c1 || c2, SmartSum(x, y)(), SmartProd(x, y)())()
     assert(Parser.parse(src).body == expected)
   }
 
   test("if (c) then { t } else { f }") {
     val src = "if (c) then { t } else { f }"
-    val expected = Mux(
+    val expected = SmartIf(
       Param("c", -1)(Missing),
       Param("t", -1)(Missing),
       Param("f", -1)(Missing)
@@ -858,7 +858,7 @@ class ParserTests extends AnyFunSuite {
     val y = Param("y", -1)(TyBool)
     val expected = PatternFunction(
       TuplePattern(ParamPattern(x), ParamPattern(y)),
-      Mux(y, SmartSum(x, C(1)(U32))(), x)()
+      SmartIf(y, SmartSum(x, C(1)(U32))(), x)()
     )()
     val actual = Parser.parse(src).body
     assert(actual == expected)

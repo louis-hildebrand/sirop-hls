@@ -190,6 +190,7 @@ object Lexer {
       case _ =>
         val token = ident match {
           case "if"          => IfToken(start)
+          case "iff"         => IffToken(start)
           case "then"        => ThenToken(start)
           case "else"        => ElseToken(start)
           case "letstm"      => LetStmToken(start)

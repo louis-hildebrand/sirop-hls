@@ -62,7 +62,7 @@ let module1: u8 -> u8 -> u8 = (
       let n141: u8 = 0:u8 in
       let n127: (u8, u8) = (n119, n141) in
       let n128: (bool, (u8, u8)) = (n124, n127) in
-      let n129: u8 = if (n128.0) then { (n128.1).0 } else { (n128.1).1 } in
+      let n129: u8 = iff (n128.0) then { (n128.1).0 } else { (n128.1).1 } in
       let n142: u8 = 2:u8 in
       let n132: (u8, u8) = (n129, n142) in
       let n133: u8 = n132.0 >>> n132.1 in
@@ -81,7 +81,7 @@ let module1: u8 -> u8 -> u8 = (
       n4,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_1 : u8) => if (x_1 == 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_1 : u8) => iff (x_1 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -101,7 +101,7 @@ let module1: u8 -> u8 -> u8 = (
       n20,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_2 : u8) => if (x_2 == 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_2 : u8) => iff (x_2 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -119,7 +119,7 @@ let module1: u8 -> u8 -> u8 = (
       n35,
       (I0 : Vec[u8, 3:u3]) =>
         (I1 : Vec[u8, 3:u3]) =>
-          vbuild(2:u2) { (x_3 : u8) => if (x_3 == 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_3 : u8) => iff (x_3 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in
@@ -131,7 +131,7 @@ let module1: u8 -> u8 -> u8 = (
       n40,
       (I0 : u8) =>
         (I1 : u8) =>
-          vbuild(2:u2) { (x_4 : u8) => if (x_4 == 0:u0) then { I0 } else { I1 }
+          vbuild(2:u2) { (x_4 : u8) => iff (x_4 == 0:u0) then { I0 } else { I1 }
           }
     )
   ) in

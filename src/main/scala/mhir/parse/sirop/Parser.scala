@@ -299,6 +299,13 @@ object Parser {
         val (t, rest4) = parseExpr(rest3, constants)
         val (_, rest5) = expect(ElseToken, rest4)
         val (f, rest6) = parseExpr(rest5, constants)
+        (SmartIf(c, t, f)(), rest6)
+      case Seq(_: IffToken, rest1 @ _*) =>
+        val (c, rest2) = parseExpr(rest1, constants)
+        val (_, rest3) = expect(ThenToken, rest2)
+        val (t, rest4) = parseExpr(rest3, constants)
+        val (_, rest5) = expect(ElseToken, rest4)
+        val (f, rest6) = parseExpr(rest5, constants)
         (Mux(c, t, f)(), rest6)
       case Seq(_: LeftParToken, IdentToken(param), _: ColonToken, rest1 @ _*) =>
         val (typ, rest2) = parseTyp(rest1, constants)

@@ -54,6 +54,10 @@ object Precedence {
     */
   val BitwiseOr: Int = 900
 
+  /** The precedence of if-then-else.
+    */
+  val If: Int = Precedence(mhir.ir.Mux(C(0)(), C(0)(), C(0)())())
+
   /** Gets the precedence of the given expression.
     *
     * Lower numbers indicate that the given operator binds "more tightly." For

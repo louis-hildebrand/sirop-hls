@@ -27,6 +27,7 @@ input_spec        ::= ident "=" expr
 expr            ::= expr1200
 # First(expr1200) = { "if", "(", "letstm", "@" } U First(expr200)
 expr1200        ::= "if" expr "then" expr "else" expr
+                  | "iff" expr "then" expr "else" expr
                   | function
                   | pat_function
                   | "letstm" "[" expr "]" ident [ ":" typ ] "=" expr "in" expr

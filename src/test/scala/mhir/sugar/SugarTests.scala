@@ -396,6 +396,13 @@ class SugarTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("if c then x else 0") {
+    val c = Param("c")(TyBool)
+    val e = SmartIf(c, C(42)(U8), C(0)())().tchk().lower
+    assert(mhir.eval.eval(e.subPreserveType(c -> False)) == C(0)(U8))
+    assert(mhir.eval.eval(e.subPreserveType(c -> True)) == C(42)(U8))
+  }
+
   test("zeros[bool]:Display") {
     val e = AllZero(TyBool)
     assert(ExprPrinter.displayOneLine(e) == "zeros:[bool]()")

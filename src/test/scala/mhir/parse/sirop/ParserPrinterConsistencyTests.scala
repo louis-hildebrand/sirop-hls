@@ -62,4 +62,6 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
 
   testSource("zeros:[(i16, bool)]()")
   testSource("ones:[(i16, bool)]()")
+  testSource("if (c1) then { x } else if (c2) then { y } else { z }")
+  testSource("iff (c1) then { x } else iff (c2) then { y } else { z }")
 }
