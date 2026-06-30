@@ -1233,7 +1233,37 @@ class ParserTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("NestedMultiLineComment") {
+    val src =
+      """x + y / /* z1 +
+        |z2 + z2 /* nested */ +
+        |z3 + z4 */
+        |w
+        |""".stripMargin
+    val expected = SmartSum(x, SmartDiv(y, Param("w", -1)(Missing))())()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
+  test("UnclosedMultiLineComment") {
+    val src =
+      """x + y / /* z1 +
+        |z2 + z3
+        |""".stripMargin
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.getMessage.contains("unclosed multiline comment"))
+    assert(ex.loc.contains(SourcePoint(3, 1)))
+  }
+
+  test("SingleLineComment") {
+    val src =
+      """x + y / // z1 +
+        |w
+        |""".stripMargin
+    val expected = SmartSum(x, SmartDiv(y, Param("w", -1)(Missing))())()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
   // TODO: Forbid leading zeros in int literals?
-  // TODO: Test comments
-  // TODO: Test unclosed comment
 }
