@@ -25,7 +25,6 @@ input_spec        ::= ident "=" expr
 ##### Expressions ######################################################################################################
 
 expr            ::= expr1200
-# First(expr1200) = { "if", "(", "letstm", "@" } U First(expr200)
 expr1200        ::= "if" expr "then" expr "else" expr
                   | "iff" expr "then" expr "else" expr
                   | function
@@ -43,7 +42,7 @@ expr900         ::= expr800 ( "|"                                               
 expr800         ::= expr700 ( "&"                                                expr700 )*
 expr700         ::= expr600 ( ( eq_symbol | neq_symbol )                         expr600 )*
 expr600         ::= expr500 ( ( lt_symbol | gt_symbol | leq_symbol | geq_symbol) expr500 )*
-expr500         ::= expr400 ( ( "<<" | ">>" | ">>>" )                            expr400 )*
+expr500         ::= expr400 ( bitshift_symbol                                    expr400 )*
 expr400         ::= expr300 ( ( plus_symbol | minus_symbol )                     expr300 )*
 expr300         ::= expr200 ( ( times_symbol | div_symbol | mod_symbol )         expr200 )*
 eq_symbol       ::= "==" | "==`"
@@ -52,29 +51,40 @@ lt_symbol       ::= "<"  | "<`"
 gt_symbol       ::= ">"
 leq_symbol      ::= "<="
 geq_symbol      ::= ">="
+bitshift_symbol ::= "<<" | ">>" | ">>>"
 plus_symbol     ::= "+"  | "+`"
                   | "+%" | "+%`"
                   | "+^"
 minus_symbol    ::= "-"
                   | "-%" | "-%`"
                   | "-^"
-times_symbol    ::= "*"
+times_symbol    ::= "*" | "*`"
                   | "*%" | "*%`"
                   | "*^"
 div_symbol      ::= "/" | "/`"
 mod_symbol      ::= "%" | "%`"
-# First(expr200) = { "!" } U First(expr100)
+binop_symbol    ::= "||" | "&&"
+                  | "|" | "&"
+                  | eq_symbol
+                  | neq_symbol
+                  | lt_symbol
+                  | gt_symbol
+                  | leq_symbol
+                  | geq_symbol
+                  | bitshift_symbol
+                  | plus_symbol
+                  | minus_symbol
+                  | times_symbol
+                  | div_symbol
+                  | mod_symbol
 expr200         ::= "!" expr200
                   | "~" expr200
+                  # You can use these symbols in isolation to describe a unary function
+                  | "!" | "~"
                   | expr100
-# First(expr100) = { "pad", "truncate", "sign", "unsign", "vbuild", "sbuild", "sdata" } U First(expr0)
-expr100         ::= "pad" nat "(" expr ")" expr100'
-                  | "truncate" nat "(" expr ")" expr100'
-                  | "sign" "(" expr ")" expr100'
-                  | "unsign" "(" expr ")" expr100'
-                  | "sdata" "(" expr ")" expr100'
-                  | "vbuild" "(" expr ")" "{" function "}" expr100'
+expr100         ::= "vbuild" "(" expr ")" "{" function "}" expr100'
                   | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr100'
+                  | "sdata" "(" expr ")" expr100'
                   | expr0 expr100'
 accumulators    ::= ""
                   | accumulator ( "," accumulator )*
@@ -89,7 +99,6 @@ expr100'          ::= ""
                   | "." ident [ ":[" typ "]" ] "(" expr_list ")" expr100'
                   | "[" expr "]" expr100'
                   | "[" [ expr ] ":" [ expr ] [ ":" [ expr ] ] "]" expr100'
-# First(expr0) = { "(", "{", ident, "undefined", "default", "true", "false", "+", "-", nat, "[" }
 expr0           ::= "(" expr ")"
                   | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
@@ -112,6 +121,8 @@ expr0           ::= "(" expr ")"
                   | "[" expr ( "," expr )* "]v"
                   | "[" "]s" ":" stm_typ
                   | "[" expr ( "," expr )* "]s"
+                  # You can use these symbols in isolation to describe a binary function
+                  | binop_symbol
 int_cst         ::= ( "+" | "-" | "" ) nat [ ":" typ ]
 expr_list       ::= ""
                   | expr ( "," expr )*

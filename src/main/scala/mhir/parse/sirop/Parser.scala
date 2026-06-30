@@ -253,32 +253,32 @@ object Parser {
     }
   }
 
+  private val FirstExpr0: Set[TokenCategory] = Set(
+    LeftParToken,
+    LeftCurlyToken,
+    IdentToken,
+    UndefinedToken,
+    DefaultToken,
+    TrueToken,
+    FalseToken,
+    PlusToken,
+    MinusToken,
+    NatToken,
+    LeftSquareToken
+  )
+  private val FirstExpr100: Set[TokenCategory] =
+    Set(VbuildToken, SbuildToken, SdataToken) ++ FirstExpr0
+  private val FirstExpr200: Set[TokenCategory] =
+    Set(BangToken, TildeToken) ++ FirstExpr100
   private val FirstExpr: Set[TokenCategory] =
     Set(
-      // expr0
-      LeftParToken,
-      LeftCurlyToken,
-      IdentToken,
-      UndefinedToken,
-      DefaultToken,
-      TrueToken,
-      FalseToken,
-      PlusToken,
-      MinusToken,
-      NatToken,
-      LeftSquareToken,
-      // expr100
-      VbuildToken,
-      SbuildToken,
-      SdataToken,
-      // expr200
-      BangToken,
       // expr1200
       IfToken,
-      LeftParToken,
+      IffToken,
+      AtToken,
       LetStmToken,
-      AtToken
-    )
+      LetToken
+    ) ++ FirstExpr200
 
   private def parseExpr(
       tokens: Seq[Token],
@@ -684,11 +684,25 @@ object Parser {
   ): (Expr, Seq[Token]) = {
     tokens match {
       case Seq(_: BangToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr200(rest1, constants)
-        (Not(e)(), rest2)
+        if (
+          rest1.headOption.exists(tok => FirstExpr200.contains(tok.category))
+        ) {
+          val (e, rest2) = parseExpr200(rest1, constants)
+          (Not(e)(), rest2)
+        } else {
+          val x = Param("x", -1)(Missing)
+          (Function(x, Not(x)())(), rest1)
+        }
       case Seq(_: TildeToken, rest1 @ _*) =>
-        val (e, rest2) = parseExpr200(rest1, constants)
-        (BitwiseNot(e)(), rest2)
+        if (
+          rest1.headOption.exists(tok => FirstExpr200.contains(tok.category))
+        ) {
+          val (e, rest2) = parseExpr200(rest1, constants)
+          (BitwiseNot(e)(), rest2)
+        } else {
+          val x = Param("x", -1)(Missing)
+          (Function(x, BitwiseNot(x)())(), rest1)
+        }
       case _ => parseExpr100(tokens, constants)
     }
   }
@@ -1292,8 +1306,8 @@ object Parser {
         (AllZero(typ), rest3)
       case Seq(_: TrueToken, rest @ _*)  => (True, rest)
       case Seq(_: FalseToken, rest @ _*) => (False, rest)
-      case Seq(_: NatToken, _*) | Seq(_: PlusToken, _*) |
-          Seq(_: MinusToken, _*) =>
+      case Seq(_: NatToken, _*) | Seq(_: PlusToken, _: NatToken, _*) |
+          Seq(_: MinusToken, _: NatToken, _*) =>
         parseIntCst(tokens)
       case Seq(
             lsq: LeftSquareToken,
@@ -1354,6 +1368,72 @@ object Parser {
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
           case Seq() => throw SyntaxError("unexpected end of file", None)
         }
+      case Seq(_: LogOrToken, rest1 @ _*) =>
+        (makePatternFunction(Or(_, _)()), rest1)
+      case Seq(_: LogAndToken, rest1 @ _*) =>
+        (makePatternFunction(And(_, _)()), rest1)
+      case Seq(_: BitOrToken, rest1 @ _*) =>
+        (makePatternFunction(BitwiseOr(_, _)()), rest1)
+      case Seq(_: BitAndToken, rest1 @ _*) =>
+        (makePatternFunction(BitwiseAnd(_, _)()), rest1)
+      case Seq(_: EqToken, rest1 @ _*) =>
+        (makePatternFunction(SmartEqual(_, _)()), rest1)
+      case Seq(_: EqTickToken, rest1 @ _*) =>
+        (makePatternFunction(Equal(_, _)()), rest1)
+      case Seq(_: NeqToken, rest1 @ _*) =>
+        (makePatternFunction(SmartNotEqual(_, _)()), rest1)
+      case Seq(_: LtToken, rest1 @ _*) =>
+        (makePatternFunction(SmartLessThan(_, _)()), rest1)
+      case Seq(_: LtTickToken, rest1 @ _*) =>
+        (makePatternFunction(LessThan(_, _)()), rest1)
+      case Seq(_: GtToken, rest1 @ _*) =>
+        (makePatternFunction(SmartGreaterThan(_, _)()), rest1)
+      case Seq(_: LeqToken, rest1 @ _*) =>
+        (makePatternFunction(SmartLessThanOrEqual(_, _)()), rest1)
+      case Seq(_: GeqToken, rest1 @ _*) =>
+        (makePatternFunction(SmartGreaterThanOrEqual(_, _)()), rest1)
+      case Seq(_: LShiftToken, rest1 @ _*) =>
+        (makePatternFunction(LShift(_, _)()), rest1)
+      case Seq(_: ARShiftToken, rest1 @ _*) =>
+        (makePatternFunction(ARShift(_, _)()), rest1)
+      case Seq(_: LRShiftToken, rest1 @ _*) =>
+        (makePatternFunction(LRShift(_, _)()), rest1)
+      case Seq(_: PlusToken, rest1 @ _*) =>
+        (makePatternFunction(SmartSum(_, _)()), rest1)
+      case Seq(_: PlusTickToken, rest1 @ _*) =>
+        (makePatternFunction(Sum(_, _)()), rest1)
+      case Seq(_: PlusPercentToken, rest1 @ _*) =>
+        (makePatternFunction(SmartWrappingSum(_, _)()), rest1)
+      case Seq(_: PlusPercentTickToken, rest1 @ _*) =>
+        (makePatternFunction(WrappingSum(_, _)()), rest1)
+      case Seq(_: PlusCaretToken, rest1 @ _*) =>
+        (makePatternFunction(SafeSum(_, _)()), rest1)
+      case Seq(_: MinusToken, rest1 @ _*) =>
+        (makePatternFunction(SmartDiff(_, _)()), rest1)
+      case Seq(_: MinusPercentToken, rest1 @ _*) =>
+        (makePatternFunction(SmartWrappingDiff(_, _)()), rest1)
+      case Seq(_: MinusPercentTickToken, rest1 @ _*) =>
+        (makePatternFunction(WrappingDiff(_, _)()), rest1)
+      case Seq(_: MinusCaretToken, rest1 @ _*) =>
+        (makePatternFunction(SafeDiff(_, _)()), rest1)
+      case Seq(_: TimesToken, rest1 @ _*) =>
+        (makePatternFunction(SmartProd(_, _)()), rest1)
+      case Seq(_: TimesTickToken, rest1 @ _*) =>
+        (makePatternFunction(Prod(_, _)()), rest1)
+      case Seq(_: TimesPercentToken, rest1 @ _*) =>
+        (makePatternFunction(SmartWrappingProd(_, _)()), rest1)
+      case Seq(_: TimesPercentTickToken, rest1 @ _*) =>
+        (makePatternFunction(WrappingProd(_, _)()), rest1)
+      case Seq(_: TimesCaretToken, rest1 @ _*) =>
+        (makePatternFunction(SafeProd(_, _)()), rest1)
+      case Seq(_: SlashToken, rest1 @ _*) =>
+        (makePatternFunction(SmartDiv(_, _)()), rest1)
+      case Seq(_: SlashTickToken, rest1 @ _*) =>
+        (makePatternFunction(Div(_, _)()), rest1)
+      case Seq(_: PercentToken, rest1 @ _*) =>
+        (makePatternFunction(SmartMod(_, _)()), rest1)
+      case Seq(_: PercentTickToken, rest1 @ _*) =>
+        (makePatternFunction(Mod(_, _)()), rest1)
       case Seq(tok, _*) =>
         throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
       case Seq() => throw SyntaxError("unexpected end of file", None)
@@ -1381,6 +1461,13 @@ object Parser {
       case _ =>
         (e, rest1)
     }
+  }
+
+  private def makePatternFunction(op: (Expr, Expr) => Expr): Expr = {
+    val x = Param("x", -1)(Missing)
+    val y = Param("y", -1)(Missing)
+    val pat = TuplePattern(ParamPattern(x), ParamPattern(y))
+    PatternFunction(pat, op(x, y))()
   }
 
   private def parseExprList(
