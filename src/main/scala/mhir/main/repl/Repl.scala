@@ -103,7 +103,8 @@ object Repl {
   ): (ReplState, Boolean) = {
     s match {
       case ExprStmt(e) =>
-        writer.println(eval(e, state.variables))
+        val result = eval(e, state.variables)
+        writer.println(ExprPrinter.display(result))
         (state, false)
       case ExitStmt =>
         (state, true)
