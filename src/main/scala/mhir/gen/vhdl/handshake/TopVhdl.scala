@@ -16,7 +16,7 @@ object TopVhdl {
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case (StmBuildNode(x, s, _), i) =>
-          val inputsOfS = s.freeVars
+          val inputsOfS = s.producers.values.map(_._1).toSet
           val component = StmBuildVhdl(
             s,
             inputsOfS,
@@ -164,7 +164,6 @@ object TopVhdl {
       })
     }
     CustomVhdlComponent(
-      expr = Some(f),
       name = options.topName,
       inPorts =
         ports.filter(_.isInstanceOf[InPort]).map(_.asInstanceOf[InPort]),

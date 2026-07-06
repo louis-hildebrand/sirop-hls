@@ -12,7 +12,7 @@ private[vhdl] sealed trait PipelineNode
   */
 private[vhdl] case class StmBuildNode(
     out: Param,
-    s: StmBuild,
+    s: GenStmBuild,
     inputLatency: Option[Int]
 ) extends PipelineNode
 

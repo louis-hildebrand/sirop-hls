@@ -15,7 +15,7 @@ private[vhdl] object StmBuildVhdl {
 
   /** Converts a [[mhir.ir.StmBuild]] to a VHDL component.
     *
-    * @param stm
+    * @param s
     *   the stream to convert.
     * @param inputs
     *   variables representing the stream producers feeding into this node.
@@ -23,61 +23,29 @@ private[vhdl] object StmBuildVhdl {
     *   the name to use for the VHDL component.
     */
   private[vhdl] def apply(
-      stm: StmBuild,
+      s: GenStmBuild,
       inputs: Set[Param],
       name: String,
       options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
     require(!options.handshake)
-    val s = {
-      // Freshen all variables first to avoid clashes
-      val s = stm.renameVars
-      // There should be no name clashes unless a given input is used multiple
-      // times, which is not allowed.
-      val replacements = s.seedByVar.flatMap({
-        case (x, z: Param) => Some(x -> z)
-        case _             => None
-      })
-      s.renameVars(replacements)
-    }
-
     implicit val context: VhdlContext = VhdlContext(
       ListMap(
-        s.equations
-          .map({
-            case (x, _) if x.typ.isData =>
-              x.name -> VhdlType(x.typ)
-            case (x, _) if x.typ.isInstanceOf[TyStm] =>
-              s"${x.name}_data_internal" -> VhdlType(
-                x.typ.asInstanceOf[TyStm].t
-              )
-            case _ => ???
-          })
-          .toSeq
+        (s.accumulators.map({ case (x, _) => x.name -> VhdlType(x.typ) })
+          ++ s.producers.map({ case (x, _) =>
+            val TyStm(elemTyp, _) = x.typ
+            s"${x.name}_data_internal" -> VhdlType(elemTyp)
+          })).toSeq
           .sortBy({ case (name, _) => name }): _*
       )
     )
 
-    val producers = s.equations
-      .flatMap({
-        case (x, (p: Param, _)) if x.typ.isInstanceOf[TyStm] =>
-          assert(p.isInstanceOf[Param])
-          Some(p)
-        case (x, _) if x.typ.isInstanceOf[TyStm] =>
-          ???
-        case _ => None
-      })
-      .toSet
-    val registerEquations = s.equations.flatMap({
-      case (x, (z, next)) if x.typ.isData => Some(x -> (z, next))
-      case _                              => None
-    })
-
+    val producers = s.producers.map({ case (_, (p, _)) => p }).toSet
     val (producerPorts, producerSignals) = producerInterface(producers)
 
     val allDecls = (
-      defaultDecls(s.n, s.data)
-        ++ registerDecls(registerEquations, options)
+      defaultDecls(s.data)
+        ++ registerDecls(s.accumulators, options)
         ++ producerSignals
     )
     val allPorts = (
@@ -86,7 +54,6 @@ private[vhdl] object StmBuildVhdl {
         ++ producerPorts
     )
     val component = CustomVhdlComponent(
-      expr = Some(s),
       name = name,
       inPorts = allPorts.flatMap({
         case p: InPort => Some(p)
@@ -136,11 +103,7 @@ private[vhdl] object StmBuildVhdl {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultDecls(
-      n: Expr,
-      data: Expr
-  )(implicit ctx: VhdlContext): Seq[Decl] = {
-    val VhdlExpr(_, nDecls) = VhdlExprGenerator.exprToVhdl(n)
+  private def defaultDecls(data: Expr)(implicit ctx: VhdlContext): Seq[Decl] = {
     val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
     val defaultSignals = Seq(
       Signal(
@@ -149,10 +112,12 @@ private[vhdl] object StmBuildVhdl {
         typ = VhdlType(data.typ),
         init = None,
         assignStmt = Some(s"data_internal <= $dataVhdl;"),
-        cond = Some("true")
+        // No register added here for data; that should be added explicitly as
+        // an accumulator at an earlier compilation stage
+        cond = None
       )
     )
-    defaultSignals ++ nDecls ++ dataDecls
+    defaultSignals ++ dataDecls
   }
 
   /** Signals to represent the registers in this component.

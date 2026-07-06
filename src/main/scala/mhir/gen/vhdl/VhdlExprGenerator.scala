@@ -449,6 +449,7 @@ private object VhdlExprGenerator {
       case _: TyAnyInt => "(others => 'X')"
       case _: TyFix    => "(others => 'X')"
       case TyBool      => "false"
+      case TyTuple()   => "\"\""
       case TyTuple(ts @ _*) =>
         ts.zipWithIndex
           .map({ case (t, i) => s"i_$i => ${makeUndefined(t)}" })

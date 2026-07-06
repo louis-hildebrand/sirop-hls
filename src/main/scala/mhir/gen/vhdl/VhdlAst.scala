@@ -1,7 +1,6 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-import mhir.ir.{Expr, ExprPrinter}
 import os.Path
 
 private[vhdl] sealed trait Decl {
@@ -194,7 +193,6 @@ private[vhdl] case class LetStmBufComponent(
   *   other components that must be instantiated by this component.
   */
 private[vhdl] case class CustomVhdlComponent(
-    expr: Option[Expr],
     name: String,
     inPorts: Seq[InPort],
     outPorts: Seq[OutPort],
@@ -248,16 +246,6 @@ private[vhdl] case class CustomVhdlComponent(
   }
 
   private def writeHeader(f: Path): Unit = {
-    this.expr match {
-      case Some(expr) =>
-        val comment = ExprPrinter
-          .display(expr, maxWidth = 120)
-          .split("\n")
-          .map(x => s"-- $x")
-          .mkString("\n")
-        os.write.append(f, comment)
-      case None => ()
-    }
     os.write.append(
       f,
       """

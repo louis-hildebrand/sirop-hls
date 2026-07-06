@@ -93,7 +93,6 @@ object LetStmVhdl {
       })
     }
     CustomVhdlComponent(
-      expr = None,
       name = name,
       inPorts =
         ports.filter(_.isInstanceOf[InPort]).map(_.asInstanceOf[InPort]),

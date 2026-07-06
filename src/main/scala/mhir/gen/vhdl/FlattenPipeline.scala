@@ -24,14 +24,16 @@ object FlattenPipeline {
       new LatencyAnalysis(handshake = options.handshake).actualLatency(f)
     val (sink1, nodes1) = makePipeline(stm, latency)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
-    val pipe = FlatPipeline(
+    val pipe1 = FlatPipeline(
       sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
       lets = nodes2.collect({ case n: LetStmNode => n }),
       inputs = inputs.toSet,
       unusedInputs = unusedInputs,
       sink = sink2
     )
-    ensureAtLeastOneBuffer(pipe)
+    val pipe2 = ensureAtLeastOneBuffer(pipe1)
+    val pipe3 = cleanUpSbuilds(pipe2)
+    pipe3
   }
 
   private def validateExpr(e: Expr, options: VhdlGeneratorOptions): Unit = {
@@ -89,7 +91,8 @@ object FlattenPipeline {
       case x: Param =>
         (x, Seq())
       case s: StmBuild =>
-        var newEquations = Map[Param, (Expr, Expr)]()
+        var newAccumulators = Map[Param, (Expr, Expr)]()
+        var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
         assert(
           latency.isInstanceOf[LatencyStmBuild],
@@ -101,21 +104,27 @@ object FlattenPipeline {
             case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
               val (sink, nodes) = makePipeline(p, producerLatencies(x))
               newNodes ++= nodes
-              newEquations += x -> (sink, ready)
-            case eqn =>
-              newEquations += eqn
+              newProducers += x -> (sink, ready)
+            case eqn @ (x, _) =>
+              assert(x.typ.isData)
+              newAccumulators += eqn
           }
         }
-        val newStm = StmBuild(
-          s.n,
-          s.data,
-          s.valid,
-          newEquations
-        )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
-        val x = Param("s")(newStm.typ)
+        val genSbuild = GenStmBuild(
+          data = s.data,
+          valid = s.valid,
+          accumulators = newAccumulators,
+          producers = newProducers,
+          intermediates = Map()
+        )
+        val x = Param("s")(s.typ)
         (
           x,
-          newNodes :+ StmBuildNode(x, newStm, inputLatency = lat.inputLatency)
+          newNodes :+ StmBuildNode(
+            x,
+            genSbuild,
+            inputLatency = lat.inputLatency
+          )
         )
       case LetStm(bufSizeExpr, x, in, out) =>
         assert(
@@ -178,26 +187,27 @@ object FlattenPipeline {
         case Seq(StmBuildNode(x, s, latency), rest @ _*) =>
           var (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename)
-          var newEquations = Map[Param, (Expr, Expr)]()
-          for (eqn <- s.equations) {
+          var newProducers = Map[Param, (Param, Expr)]()
+          for (eqn <- s.producers) {
             eqn match {
               case (x, (p: Param, ready))
                   if x.typ.isInstanceOf[TyStm] && varsToRename.contains(p) =>
                 val newP = p.freshCopy
                 renamings = renamings +
                   (p -> (renamings.getOrElse(p, Set()) + newP))
-                newEquations += x -> (newP, ready)
+                newProducers += x -> (newP, ready)
               case eqn =>
-                newEquations += eqn
+                newProducers += eqn
             }
           }
-          val newStm = StmBuild(
-            s.n,
-            s.data,
-            s.valid,
-            newEquations
-          )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
-          val newNode = StmBuildNode(x, newStm, latency)
+          val newSbuild = GenStmBuild(
+            data = s.data,
+            valid = s.valid,
+            accumulators = s.accumulators,
+            producers = newProducers,
+            intermediates = s.intermediates
+          )
+          val newNode = StmBuildNode(x, newSbuild, latency)
           (renamings, newSink, newNode +: newRest)
         case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
           val (renamings, newSink, newRest) =
@@ -223,19 +233,82 @@ object FlattenPipeline {
     (newSink, newNodes)
   }
 
+  private def cleanUpSbuilds(pipe: FlatPipeline): FlatPipeline = {
+    FlatPipeline(
+      sbuilds = pipe.sbuilds.map({ case StmBuildNode(out, s, inputLatency) =>
+        StmBuildNode(out, cleanUpSbuild(s), inputLatency)
+      }),
+      lets = pipe.lets,
+      inputs = pipe.inputs,
+      unusedInputs = pipe.unusedInputs,
+      sink = pipe.sink
+    )
+  }
+
+  /** Apply a few final transformations on the new representation of sbuild.
+    */
+  private def cleanUpSbuild(s: GenStmBuild): GenStmBuild = {
+    val s1 = makeDataRegisterExplicit(s)
+    val s2 = renameLocalProducers(s1)
+    s2
+  }
+
+  private def makeDataRegisterExplicit(s: GenStmBuild): GenStmBuild = {
+    val acc = Param("data")(s.data.typ)
+    GenStmBuild(
+      data = acc,
+      valid = s.valid,
+      accumulators = s.accumulators + (acc -> (Undefined(s.data.typ), s.data)),
+      producers = s.producers,
+      intermediates = s.intermediates
+    )
+  }
+
+  /** Rename all the producer variables to match the corresponding stream.
+    *
+    * Within `sbuild` there are a bunch of producers, each of which have (1) a
+    * stream `p` and (2) a variable `x` that is used within the `sbuild` to
+    * refer to that stream. At this point in the compilation, `p` must be a
+    * variable. Therefore, we can rename `x` to use the same name as `p`. I
+    * think this makes the generated VHDL a little more readable, since we
+    * aren't using multiple names to refer to the same thing.
+    */
+  private def renameLocalProducers(s: GenStmBuild): GenStmBuild = {
+    val renamings = s.producers
+      .filter({ case (x, (p, _)) => x != p })
+      .map({ case (x, (p, _)) => x -> p })
+    val subs = renamings.toMap[Expr, Expr]
+    GenStmBuild(
+      data = s.data.subPreserveType(subs),
+      valid = s.valid.subPreserveType(subs),
+      accumulators = s.accumulators.map({ case (x, (z, next)) =>
+        // Producers are not in scope in initial value, so no need to do any
+        // substitutions there
+        x -> (z, next.subPreserveType(subs))
+      }),
+      producers = s.producers.map({ case (x, (p, ready)) =>
+        assert(x == p || renamings(x) == p)
+        // The ready expressions cannot use sdata, so no need to do any
+        // substitutions there
+        p -> (p, ready)
+      }),
+      intermediates = s.intermediates.map({
+        case (x, Left(e))   => x -> Left(e.subPreserveType(subs))
+        case (x, Right(ip)) => x -> Right(ip)
+      })
+    )
+  }
+
   private def ensureAtLeastOneBuffer(pipe: FlatPipeline): FlatPipeline = {
     if (pipe.inputs.contains(pipe.sink)) {
       val newSink = Param("s")(pipe.sink.typ)
-      val nop = {
-        val TyStm(typ, n) = pipe.sink.typ
-        val s = Param("s")(TyStm(typ, -1))
-        StmBuild(
-          n,
-          StmData(s)(),
-          True,
-          Map[Param, (Expr, Expr)](s -> (pipe.sink, True))
-        )().tchk().asInstanceOf[StmBuild]
-      }
+      val nop = GenStmBuild(
+        data = StmData(pipe.sink)().tchk(),
+        valid = True,
+        accumulators = Map(),
+        producers = Map(pipe.sink -> (pipe.sink, True)),
+        intermediates = Map()
+      )
       val newNode = StmBuildNode(newSink, nop, Some(0))
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
