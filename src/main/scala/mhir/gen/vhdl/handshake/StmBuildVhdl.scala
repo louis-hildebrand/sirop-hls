@@ -251,7 +251,7 @@ private[vhdl] object StmBuildVhdl {
             typ = VhdlType(x.typ),
             init = None,
             assignStmt = Some(
-              s"""if $condVhdl then
+              s"""if can_update_acc and ($condVhdl) then
                  |    ${x.name}(to_integer($idxVhdl)) <= $writeVhdl;
                  |end if;
                  |""".stripMargin

@@ -331,6 +331,68 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
+  test("WonkyRepeat") {
+    val n = 16
+    val k = 16
+    val producer = {
+      val a = Param("a")(I16)
+      // 2 valid, 4 invalid, 2 valid, 4 invalid, ...
+      StmBuild(
+        n,
+        a,
+        a % 6 < 2,
+        Map[Param, (Expr, Expr)](
+          a -> (C(0)(I16), Sum(C(1)(I16), a)())
+        )
+      )().tchk().lower
+    }
+    val repeat = {
+      val p = Param("p")(TyStm(I16, n))
+      val v = Param("v")(TyVec(I16, n / 2))
+      val i = Param("i")(U8)
+      val filling1 = Param("filling1")(TyBool)
+      val filling2 = Param("filling2")(TyBool)
+      StmBuild(
+        n * k,
+        // Deliberately read the current values from `v` while filling.
+        // This is to test the hardware gen for the "single-write vector"
+        // pattern.
+        VecAccess(v, i)(),
+        !filling1,
+        Map[Param, (Expr, Expr)](
+          p -> (producer, filling2),
+          v -> (
+            Undefined(v.typ),
+            VecBuild(
+              n / 2,
+              U8 ::+ (j =>
+                Mux(filling2 && (i === j), StmData(p)(), VecAccess(v, j)())()
+              )
+            )()
+          ),
+          i -> (C(0)(U8), Mux(i === n / 2 - 1, C(0)(U8), Sum(C(1)(U8), i)())()),
+          filling1 -> (True, filling1 && (i !== n / 2 - 1)),
+          filling2 -> (True, filling1 || (filling2 && (i !== n / 2 - 1)))
+        )
+      )().tchk().lower
+    }
+    val consumer = {
+      // 2 ready, 6 not ready, 2 ready, 6 not ready, ...
+      val p = Param("p")(TyStm(I16, n * k))
+      val a = Param("a")(I16)
+      StmBuild(
+        4 * n * k,
+        Mux(a % 8 < 2, StmData(p)(), C(-1)(I16))(),
+        True,
+        Map[Param, (Expr, Expr)](
+          a -> (C(0)(I16), Sum(C(1)(I16), a)()),
+          p -> (repeat, a % 8 < 2)
+        )
+      )().tchk().lower
+    }
+    assert(VhdlTestRunner.testExpr(consumer) == TestPassed)
+  }
+
   test("StmCst(10, ((True, 42), (99, False)) |> StmIdentity") {
     // Ensure that the overloaded conversion methods can be resolved even when
     // there are two types---namely, (Bool, Int) and (Int, Bool)---with the
