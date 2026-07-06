@@ -239,27 +239,29 @@ private[vhdl] object StmBuildVhdl {
             z.freeVars.isEmpty,
             s"Initial value for accumulator ${x.name} has free variables (${z.freeVars.toSeq.mkString(", ")})."
           )
-          val initVhdl = VhdlExprGenerator.valueToVhdl(z)
+          val initVhdl = z match {
+            case _: Undefined => None
+            case z            => Some(VhdlExprGenerator.valueToVhdl(z))
+          }
           val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
-          val shouldReset = !z.isInstanceOf[Undefined]
           val sig = Signal(
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
-            init = Some(initVhdl),
+            init = initVhdl,
             assignStmt = Some({
               val update =
                 s"""if can_update_acc then
                  |    ${x.name} <= $nextVhdl;
                  |end if;
                  |""".stripMargin.stripTrailing
-              val reset = if (shouldReset) {
-                s"""if sl2bool(${options.reset}) then
-                 |    ${x.name} <= $initVhdl;
-                 |els
-                 |""".stripMargin.stripTrailing
-              } else {
-                ""
+              val reset = initVhdl match {
+                case None => ""
+                case Some(z) =>
+                  s"""if sl2bool(${options.reset}) then
+                    |    ${x.name} <= $z;
+                    |els
+                    |""".stripMargin.stripTrailing
               }
               s"$reset$update"
             }),
