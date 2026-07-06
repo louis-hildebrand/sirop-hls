@@ -9,10 +9,6 @@ package mhir.parse
   */
 case class SourcePoint(line: Int, col: Int) {
   def moveRightBy(n: Int): SourcePoint = SourcePoint(line, col + n)
-  def consume(s: String): SourcePoint = {
-    assert(!s.contains("\n"))
-    moveRightBy(s.length)
-  }
   def moveDown(): SourcePoint = SourcePoint(line + 1, 1)
 
   override def toString: String = s"$line:$col"

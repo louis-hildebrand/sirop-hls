@@ -1570,5 +1570,14 @@ class ParserTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("SingleLineCommentAtEndOfFile") {
+    val src =
+      """x + y // z1 +
+        |""".stripMargin.stripTrailing()
+    val expected = SmartSum(x, y)()
+    val actual = Parser.parse(src).body
+    assert(actual == expected)
+  }
+
   // TODO: Forbid leading zeros in int literals?
 }

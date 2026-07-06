@@ -1,184 +1,242 @@
 package mhir.parse.sirop
 
 import mhir.parse.{SourcePoint, SyntaxError}
+import os.Path
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
+import scala.io.Source
 
 object Lexer {
 
+  def lex(f: Path): Seq[Token] = {
+    lex(Source.fromFile(f.toIO).toStream, Queue(), SourcePoint(1, 1))
+  }
+
   def lex(code: String): Seq[Token] = {
-    lex(code, Queue(), SourcePoint(1, 1))
+    lex(code.toStream, Queue(), SourcePoint(1, 1))
   }
 
   @tailrec
   private def lex(
-      code: String,
+      src: Stream[Char],
       tokens: Queue[Token],
       p: SourcePoint
   ): Seq[Token] = {
-    if (code.isEmpty) {
-      tokens
+    if (src.isEmpty) {
+      return tokens
     }
-    // Comments, whitespace ----------------------------------------------------
-    else if (code.startsWith("//")) {
-      val (newCode, newPt) = consumeSingleLineComment(code, p)
-      lex(newCode, tokens, newPt)
-    } else if (code.startsWith("/*")) {
-      val (newCode, newPt) = consumeMultiLineComment(code, p)
-      lex(newCode, tokens, newPt)
-    } else if (code.head.isWhitespace) {
-      val (newCode, newPt) = consumeWhitespace(code, p)
-      lex(newCode, tokens, newPt)
-    }
-    // Identifiers, keywords, numbers ------------------------------------------
-    else if (code.head.isLetter || code.head == '_') {
-      val (tok, newCode, newPt) =
-        lexIdentifierOrKeyword(
-          code.tail,
-          p,
-          p.moveRightBy(1),
-          ident = code.head.toString
-        )
-      lex(newCode, tokens :+ tok, newPt)
-    } else if (code.head.isDigit) {
-      val (tok, newCode, newPt) =
-        lexNumber(code.tail, p, p.moveRightBy(1), num = code.head.toString)
-      lex(newCode, tokens :+ tok, newPt)
-    }
-    // Parentheses -------------------------------------------------------------
-    else if (code.startsWith("(")) {
-      lex(consume(code, "("), tokens :+ LeftParToken(p), p.consume("("))
-    } else if (code.startsWith(")")) {
-      lex(consume(code, ")"), tokens :+ RightParToken(p), p.consume(")"))
-    } else if (code.startsWith("{")) {
-      lex(consume(code, "{"), tokens :+ LeftCurlyToken(p), p.consume("{"))
-    } else if (code.startsWith("}")) {
-      lex(consume(code, "}"), tokens :+ RightCurlyToken(p), p.consume("}"))
-    } else if (code.startsWith(":[")) {
-      lex(
-        consume(code, ":["),
-        tokens :+ ColonLeftSquareToken(p),
-        p.consume(":[")
-      )
-    } else if (code.startsWith("[")) {
-      lex(consume(code, "["), tokens :+ LeftSquareToken(p), p.consume("["))
-    } else if (code.startsWith("]v")) {
-      lex(consume(code, "]v"), tokens :+ RightSquareVToken(p), p.consume("]v"))
-    } else if (code.startsWith("]s")) {
-      lex(consume(code, "]s"), tokens :+ RightSquareSToken(p), p.consume("]s"))
-    } else if (code.startsWith("]")) {
-      lex(consume(code, "]"), tokens :+ RightSquareToken(p), p.consume("]"))
-    }
-    // Other symbols -----------------------------------------------------------
-    else if (code.startsWith("->")) {
-      lex(consume(code, "->"), tokens :+ SingleArrowToken(p), p.consume("->"))
-    } else if (code.startsWith("=>")) {
-      lex(consume(code, "=>"), tokens :+ DoubleArrowToken(p), p.consume("=>"))
-    } else if (code.startsWith("==`")) {
-      lex(consume(code, "==`"), tokens :+ EqTickToken(p), p.consume("==`"))
-    } else if (code.startsWith("==")) {
-      lex(consume(code, "=="), tokens :+ EqToken(p), p.consume("=="))
-    } else if (code.startsWith("!=")) {
-      lex(consume(code, "!="), tokens :+ NeqToken(p), p.consume("!="))
-    } else if (code.startsWith("=")) {
-      lex(consume(code, "="), tokens :+ AssignToken(p), p.consume("="))
-    } else if (code.startsWith(":")) {
-      lex(consume(code, ":"), tokens :+ ColonToken(p), p.consume(":"))
-    } else if (code.startsWith("||")) {
-      lex(consume(code, "||"), tokens :+ LogOrToken(p), p.consume("||"))
-    } else if (code.startsWith("|")) {
-      lex(consume(code, "|"), tokens :+ BitOrToken(p), p.consume("|"))
-    } else if (code.startsWith("&&")) {
-      lex(consume(code, "&&"), tokens :+ LogAndToken(p), p.consume("%%"))
-    } else if (code.startsWith("&")) {
-      lex(consume(code, "&"), tokens :+ BitAndToken(p), p.consume("&"))
-    } else if (code.startsWith("<<")) {
-      lex(consume(code, "<<"), tokens :+ LShiftToken(p), p.consume("<<"))
-    } else if (code.startsWith(">>>")) {
-      lex(consume(code, ">>>"), tokens :+ LRShiftToken(p), p.consume(">>>"))
-    } else if (code.startsWith(">>")) {
-      lex(consume(code, ">>"), tokens :+ ARShiftToken(p), p.consume(">>"))
-    } else if (code.startsWith("<=")) {
-      lex(consume(code, "<="), tokens :+ LeqToken(p), p.consume("<="))
-    } else if (code.startsWith(">=")) {
-      lex(consume(code, ">="), tokens :+ GeqToken(p), p.consume(">="))
-    } else if (code.startsWith("<`")) {
-      lex(consume(code, "<`"), tokens :+ LtTickToken(p), p.consume("<`"))
-    } else if (code.startsWith("<")) {
-      lex(consume(code, "<"), tokens :+ LtToken(p), p.consume("<"))
-    } else if (code.startsWith(">")) {
-      lex(consume(code, ">"), tokens :+ GtToken(p), p.consume(">"))
-    } else if (code.startsWith("+^")) {
-      lex(consume(code, "+^"), tokens :+ PlusCaretToken(p), p.consume("+^"))
-    } else if (code.startsWith("+%`")) {
-      lex(
-        consume(code, "+%`"),
-        tokens :+ PlusPercentTickToken(p),
-        p.consume("+%`")
-      )
-    } else if (code.startsWith("+%")) {
-      lex(consume(code, "+%"), tokens :+ PlusPercentToken(p), p.consume("+%"))
-    } else if (code.startsWith("+`")) {
-      lex(consume(code, "+`"), tokens :+ PlusTickToken(p), p.consume("+`"))
-    } else if (code.startsWith("+")) {
-      lex(consume(code, "+"), tokens :+ PlusToken(p), p.consume("+"))
-    } else if (code.startsWith("-^")) {
-      lex(consume(code, "-^"), tokens :+ MinusCaretToken(p), p.consume("-^"))
-    } else if (code.startsWith("-%`")) {
-      lex(
-        consume(code, "-%`"),
-        tokens :+ MinusPercentTickToken(p),
-        p.consume("-%`")
-      )
-    } else if (code.startsWith("-%")) {
-      lex(consume(code, "-%"), tokens :+ MinusPercentToken(p), p.consume("-%"))
-    } else if (code.startsWith("-")) {
-      lex(consume(code, "-"), tokens :+ MinusToken(p), p.consume("-"))
-    } else if (code.startsWith("*^")) {
-      lex(consume(code, "*^"), tokens :+ TimesCaretToken(p), p.consume("*^"))
-    } else if (code.startsWith("*%`")) {
-      lex(
-        consume(code, "*%`"),
-        tokens :+ TimesPercentTickToken(p),
-        p.consume("*%`")
-      )
-    } else if (code.startsWith("*%")) {
-      lex(consume(code, "*%"), tokens :+ TimesPercentToken(p), p.consume("*%"))
-    } else if (code.startsWith("*`")) {
-      lex(consume(code, "*`"), tokens :+ TimesTickToken(p), p.consume("*`"))
-    } else if (code.startsWith("*")) {
-      lex(consume(code, "*"), tokens :+ TimesToken(p), p.consume("*"))
-    } else if (code.startsWith("/`")) {
-      lex(consume(code, "/`"), tokens :+ SlashTickToken(p), p.consume("/`"))
-    } else if (code.startsWith("/")) {
-      lex(consume(code, "/"), tokens :+ SlashToken(p), p.consume("/"))
-    } else if (code.startsWith("%`")) {
-      lex(consume(code, "%`"), tokens :+ PercentTickToken(p), p.consume("%`"))
-    } else if (code.startsWith("%")) {
-      lex(consume(code, "%"), tokens :+ PercentToken(p), p.consume("%"))
-    } else if (code.startsWith("!")) {
-      lex(consume(code, "!"), tokens :+ BangToken(p), p.consume("!"))
-    } else if (code.startsWith("~")) {
-      lex(consume(code, "~"), tokens :+ TildeToken(p), p.consume("~"))
-    } else if (code.startsWith(".")) {
-      lex(consume(code, "."), tokens :+ DotToken(p), p.consume("."))
-    } else if (code.startsWith(",")) {
-      lex(consume(code, ","), tokens :+ CommaToken(p), p.consume(","))
-    } else if (code.startsWith("@")) {
-      lex(consume(code, "@"), tokens :+ AtToken(p), p.consume("@"))
-    } else {
-      throw SyntaxError(s"unexpected character: '${code.head}'", p)
+    val head = src.head
+    val tail = src.tail
+
+    head match {
+      case c if c.isWhitespace =>
+        val (newCode, newPt) = consumeWhitespace(src, p)
+        lex(newCode, tokens, newPt)
+      case c if c.isLetter || c == '_' =>
+        val (tok, newSrc, newPt) =
+          lexIdentifierOrKeyword(
+            tail,
+            p,
+            p.moveRightBy(1),
+            ident = head.toString
+          )
+        lex(newSrc, tokens :+ tok, newPt)
+      case c if c.isDigit =>
+        val (tok, newSrc, newPt) =
+          lexNumber(tail, p, p.moveRightBy(1), num = head.toString)
+        lex(newSrc, tokens :+ tok, newPt)
+      case ',' =>
+        lex(tail, tokens :+ CommaToken(p), p.moveRightBy(1))
+      case '.' =>
+        lex(tail, tokens :+ DotToken(p), p.moveRightBy(1))
+      case '/' =>
+        tail.headOption match {
+          case Some('/') =>
+            lex(consumeSingleLineComment(tail.tail), tokens, p.moveDown())
+          case Some('*') =>
+            val (newSrc, newPt) =
+              consumeMultiLineComment(tail.tail, p.moveRightBy(2))
+            lex(newSrc, tokens, newPt)
+          case Some('`') =>
+            lex(tail.tail, tokens :+ SlashTickToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ SlashToken(p), p.moveRightBy(1))
+        }
+      case '(' =>
+        lex(tail, tokens :+ LeftParToken(p), p.moveRightBy(1))
+      case ')' =>
+        lex(tail, tokens :+ RightParToken(p), p.moveRightBy(1))
+      case '{' =>
+        lex(tail, tokens :+ LeftCurlyToken(p), p.moveRightBy(1))
+      case '}' =>
+        lex(tail, tokens :+ RightCurlyToken(p), p.moveRightBy(1))
+      case ':' =>
+        tail.headOption match {
+          case Some('[') =>
+            lex(tail.tail, tokens :+ ColonLeftSquareToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ ColonToken(p), p.moveRightBy(1))
+        }
+      case '[' =>
+        lex(tail, tokens :+ LeftSquareToken(p), p.moveRightBy(1))
+      case ']' =>
+        tail.headOption match {
+          case Some('v') =>
+            lex(tail.tail, tokens :+ RightSquareVToken(p), p.moveRightBy(2))
+          case Some('s') =>
+            lex(tail.tail, tokens :+ RightSquareSToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ RightSquareToken(p), p.moveRightBy(1))
+        }
+      case '=' =>
+        tail.headOption match {
+          case Some('>') =>
+            lex(tail.tail, tokens :+ DoubleArrowToken(p), p.moveRightBy(2))
+          case Some('=') =>
+            val tail2 = tail.tail
+            tail2.headOption match {
+              case Some('`') =>
+                lex(tail2.tail, tokens :+ EqTickToken(p), p.moveRightBy(3))
+              case _ =>
+                lex(tail2, tokens :+ EqToken(p), p.moveRightBy(2))
+            }
+          case _ =>
+            lex(tail, tokens :+ AssignToken(p), p.moveRightBy(1))
+        }
+      case '!' =>
+        tail.headOption match {
+          case Some('=') =>
+            lex(tail.tail, tokens :+ NeqToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ BangToken(p), p.moveRightBy(1))
+        }
+      case '|' =>
+        tail.headOption match {
+          case Some('|') =>
+            lex(tail.tail, tokens :+ LogOrToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ BitOrToken(p), p.moveRightBy(1))
+        }
+      case '&' =>
+        tail.headOption match {
+          case Some('&') =>
+            lex(tail.tail, tokens :+ LogAndToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ BitAndToken(p), p.moveRightBy(1))
+        }
+      case '<' =>
+        tail.headOption match {
+          case Some('<') =>
+            lex(tail.tail, tokens :+ LShiftToken(p), p.moveRightBy(2))
+          case Some('=') =>
+            lex(tail.tail, tokens :+ LeqToken(p), p.moveRightBy(2))
+          case Some('`') =>
+            lex(tail.tail, tokens :+ LtTickToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ LtToken(p), p.moveRightBy(1))
+        }
+      case '>' =>
+        tail.headOption match {
+          case Some('=') =>
+            lex(tail.tail, tokens :+ GeqToken(p), p.moveRightBy(2))
+          case Some('>') =>
+            val tail2 = tail.tail
+            tail2.headOption match {
+              case Some('>') =>
+                lex(tail2.tail, tokens :+ LRShiftToken(p), p.moveRightBy(3))
+              case _ =>
+                lex(tail2, tokens :+ ARShiftToken(p), p.moveRightBy(2))
+            }
+          case _ =>
+            lex(tail, tokens :+ GtToken(p), p.moveRightBy(1))
+        }
+      case '+' =>
+        tail.headOption match {
+          case Some('`') =>
+            lex(tail.tail, tokens :+ PlusTickToken(p), p.moveRightBy(2))
+          case Some('^') =>
+            lex(tail.tail, tokens :+ PlusCaretToken(p), p.moveRightBy(2))
+          case Some('%') =>
+            val tail2 = tail.tail
+            tail2.headOption match {
+              case Some('`') =>
+                lex(
+                  tail2.tail,
+                  tokens :+ PlusPercentTickToken(p),
+                  p.moveRightBy(3)
+                )
+              case _ =>
+                lex(tail2, tokens :+ PlusPercentToken(p), p.moveRightBy(2))
+            }
+          case _ =>
+            lex(tail, tokens :+ PlusToken(p), p.moveRightBy(1))
+        }
+      case '-' =>
+        tail.headOption match {
+          case Some('>') =>
+            lex(tail.tail, tokens :+ SingleArrowToken(p), p.moveRightBy(2))
+          case Some('^') =>
+            lex(tail.tail, tokens :+ MinusCaretToken(p), p.moveRightBy(2))
+          case Some('%') =>
+            val tail2 = tail.tail
+            tail2.headOption match {
+              case Some('`') =>
+                lex(
+                  tail2.tail,
+                  tokens :+ MinusPercentTickToken(p),
+                  p.moveRightBy(3)
+                )
+              case _ =>
+                lex(tail2, tokens :+ MinusPercentToken(p), p.moveRightBy(2))
+            }
+          case _ =>
+            lex(tail, tokens :+ MinusToken(p), p.moveRightBy(1))
+        }
+      case '*' =>
+        tail.headOption match {
+          case Some('`') =>
+            lex(tail.tail, tokens :+ TimesTickToken(p), p.moveRightBy(2))
+          case Some('^') =>
+            lex(tail.tail, tokens :+ TimesCaretToken(p), p.moveRightBy(2))
+          case Some('%') =>
+            val tail2 = tail.tail
+            tail2.headOption match {
+              case Some('`') =>
+                lex(
+                  tail2.tail,
+                  tokens :+ TimesPercentTickToken(p),
+                  p.moveRightBy(3)
+                )
+              case _ =>
+                lex(tail2, tokens :+ TimesPercentToken(p), p.moveRightBy(2))
+            }
+          case _ =>
+            lex(tail, tokens :+ TimesToken(p), p.moveRightBy(1))
+        }
+      case '%' =>
+        tail.headOption match {
+          case Some('`') =>
+            lex(tail.tail, tokens :+ PercentTickToken(p), p.moveRightBy(2))
+          case _ =>
+            lex(tail, tokens :+ PercentToken(p), p.moveRightBy(1))
+        }
+      case '~' =>
+        lex(tail, tokens :+ TildeToken(p), p.moveRightBy(1))
+      case '@' =>
+        lex(tail, tokens :+ AtToken(p), p.moveRightBy(1))
+      case c =>
+        throw SyntaxError(s"unexpected character: '$c'", p)
     }
   }
 
   @tailrec
   private def lexIdentifierOrKeyword(
-      code: String,
+      code: Stream[Char],
       start: SourcePoint,
       here: SourcePoint,
       ident: String
-  ): (Token, String, SourcePoint) = {
+  ): (Token, Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some(c) if c == '_' || c.isLetterOrDigit =>
         lexIdentifierOrKeyword(
@@ -217,10 +275,10 @@ object Lexer {
           case "yields"      => YieldsToken(start)
           case "ignoring"    => IgnoringToken(start)
           case x if x.matches("u[0-9]+") =>
-            val suffix = consume(x, "u")
+            val suffix = x.tail
             UIntToken(suffix.toInt)(start)
           case x if x.matches("i[0-9]+") =>
-            val suffix = consume(x, "i")
+            val suffix = x.tail
             SIntToken(suffix.toInt)(start)
           case x => IdentToken(x)(start)
         }
@@ -230,11 +288,11 @@ object Lexer {
 
   @tailrec
   private def lexNumber(
-      code: String,
+      code: Stream[Char],
       start: SourcePoint,
       here: SourcePoint,
       num: String
-  ): (Token, String, SourcePoint) = {
+  ): (Token, Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some('_') =>
         lexNumber(code.tail, start, here.moveRightBy(1), num)
@@ -244,61 +302,62 @@ object Lexer {
     }
   }
 
-  private def consume(code: String, prefix: String): String = {
-    assert(code.startsWith(prefix))
-    code.substring(prefix.length)
-  }
-
-  private def consumeSingleLineComment(
-      code: String,
-      pt: SourcePoint
-  ): (String, SourcePoint) = {
-    @tailrec
-    def consumeComment(
-        code: String,
-        pt: SourcePoint
-    ): (String, SourcePoint) = {
-      if (code.startsWith("\n")) {
-        (code.tail, pt.moveDown())
-      } else {
-        consumeComment(code.tail, pt.moveRightBy(1))
-      }
+  @tailrec
+  private def consumeSingleLineComment(code: Stream[Char]): Stream[Char] = {
+    code.headOption match {
+      case Some('\n') => code.tail
+      case None       => code
+      case _          => consumeSingleLineComment(code.tail)
     }
-    consumeComment(code, pt)
   }
 
   private def consumeMultiLineComment(
-      code: String,
+      code: Stream[Char],
       pt: SourcePoint
-  ): (String, SourcePoint) = {
+  ): (Stream[Char], SourcePoint) = {
     @tailrec
     def consumeComment(
-        code: String,
+        code: Stream[Char],
         pt: SourcePoint,
         lvl: Int
-    ): (String, SourcePoint) = {
+    ): (Stream[Char], SourcePoint) = {
       if (lvl == 0) {
         (code, pt)
-      } else if (code.startsWith("/*")) {
-        consumeComment(consume(code, "/*"), pt.consume("/*"), lvl = lvl + 1)
-      } else if (code.startsWith("*/")) {
-        consumeComment(consume(code, "*/"), pt.consume("*/"), lvl = lvl - 1)
-      } else if (code.startsWith("\n")) {
-        consumeComment(code.tail, pt.moveDown(), lvl)
-      } else if (code.isEmpty) {
-        throw SyntaxError("unclosed multiline comment", pt)
       } else {
-        consumeComment(code.tail, pt.moveRightBy(1), lvl)
+        code.headOption match {
+          case Some('/') =>
+            val tail = code.tail
+            tail.headOption match {
+              case Some('*') =>
+                consumeComment(tail.tail, pt.moveRightBy(2), lvl = lvl + 1)
+              case _ =>
+                consumeComment(tail, pt.moveRightBy(1), lvl)
+            }
+          case Some('*') =>
+            val tail = code.tail
+            tail.headOption match {
+              case Some('/') =>
+                consumeComment(tail.tail, pt.moveRightBy(2), lvl = lvl - 1)
+              case _ =>
+                consumeComment(tail, pt.moveRightBy(1), lvl)
+            }
+          case Some('\n') =>
+            consumeComment(code.tail, pt.moveDown(), lvl)
+          case None =>
+            throw SyntaxError("unclosed multiline comment", pt)
+          case _ =>
+            consumeComment(code.tail, pt.moveRightBy(1), lvl)
+        }
       }
     }
-    consumeComment(consume(code, "/*"), pt.consume("/*"), lvl = 1)
+    consumeComment(code, pt, lvl = 1)
   }
 
   @tailrec
   private def consumeWhitespace(
-      code: String,
+      code: Stream[Char],
       pt: SourcePoint
-  ): (String, SourcePoint) = {
+  ): (Stream[Char], SourcePoint) = {
     code.headOption match {
       case Some('\n') =>
         consumeWhitespace(code.tail, pt.moveDown())

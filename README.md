@@ -111,11 +111,21 @@ Therefore, the following command will run all tests *except* the hardware tests.
 sbt 'testOnly * -- -l mhir.testing.HardwareTest'
 ```
 
+Or, conversely, run *only* the hardware tests with
+```shell
+sbt 'testOnly * -- -n mhir.testing.HardwareTest'
+```
+
 Running the VHDL tests requires a VHDL compiler and simulator.
 This project was tested using Quartus Prime Lite 21.1.
 The test suite `TestRunnerTests` verifies that VHDL can be compiled and simulated.
 ```shell
 sbt 'testOnly *TestRunnerTests'
+```
+
+Similarly, run *only* the performance tests with
+```shell
+sbt 'testOnly * -- -n mhir.testing.PerformanceTest'
 ```
 
 ### Logging

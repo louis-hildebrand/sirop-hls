@@ -72,3 +72,4 @@ metals.sbt
 /src/e2e/resources/actual/
 /src/test/vhdl/
 /src/test/verilog/
+/src/test/resources/generated_benchmarks/
