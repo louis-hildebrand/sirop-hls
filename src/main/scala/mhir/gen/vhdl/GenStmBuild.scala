@@ -2,6 +2,8 @@ package mhir.gen.vhdl
 
 import mhir.ir._
 
+import scala.collection.immutable.ListMap
+
 /** A variant of [[mhir.ir.StmBuild]] that's more suitable for VHDL generation.
   *
   * @param data
@@ -25,5 +27,5 @@ case class GenStmBuild(
     valid: Expr,
     accumulators: Map[Param, (Expr, Expr)],
     producers: Map[Param, (Param, Expr)],
-    intermediates: Map[Param, Either[Expr, IpBlockInst]]
+    intermediates: ListMap[Param, Intermediate]
 )

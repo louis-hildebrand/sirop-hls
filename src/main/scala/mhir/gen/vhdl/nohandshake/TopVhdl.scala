@@ -11,9 +11,11 @@ object TopVhdl {
     * @param f
     *   the function defining the accelerator's behaviour.
     */
-  def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
+  def apply(
+      pipe: FlatPipeline,
+      options: VhdlGeneratorOptions
+  ): CustomVhdlComponent = {
     require(!options.handshake)
-    val pipe = FlattenPipeline(f, options)
     for (LetStmNode(_, bufSize, _) <- pipe.lets) {
       if (bufSize != 0) {
         throw CodegenError(

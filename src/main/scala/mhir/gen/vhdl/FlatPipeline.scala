@@ -35,4 +35,9 @@ private[vhdl] case class FlatPipeline(
     inputs: Set[Param],
     unusedInputs: Set[Param],
     sink: Param
-)
+) {
+
+  def mapSbuilds(f: GenStmBuild => GenStmBuild): FlatPipeline = {
+    this.copy(sbuilds = this.sbuilds.map(node => node.copy(s = f(node.s))))
+  }
+}

@@ -1,9 +1,17 @@
 package mhir.gen.vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.gen.vhdl.transform.{
+  BoundsCheckInsertion,
+  MakeFreeVarsIntoParams,
+  IntermediateInsertion
+}
 import mhir.ir._
+import mhir.logging.time
 import mhir.sem.SemanticAnalyzer
 import mhir.typecheck.{TypeCheck, TypeChecker}
+import org.slf4j.event.Level
 import os.Path
 
 /** The main class for generating VHDL from an [[mhir.ir.Expr]].
@@ -11,6 +19,8 @@ import os.Path
   * To generate VHDL, use [[emitVhdl]].
   */
 object VhdlGenerator {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Creates a VHDL design for the given expression and saves it in the given
     * directory.
@@ -25,12 +35,31 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): Unit = {
-    val topComponent = if (options.handshake) {
-      handshake.TopVhdl(f, options)
-    } else {
-      nohandshake.TopVhdl(f, options)
+    val pipe = {
+      val pipe0 = time("ANF conversion", Level.DEBUG) {
+        FlattenPipeline(f, options)
+      }
+      val pipe1 = time("adding vector bounds checks", Level.DEBUG) {
+        pipe0.mapSbuilds(BoundsCheckInsertion.apply)
+      }
+      val pipe2 = time("inserting intermediate variables", Level.DEBUG) {
+        pipe1.mapSbuilds(IntermediateInsertion.apply)
+      }
+      val pipe3 = time("making all function arguments explicit", Level.DEBUG) {
+        pipe2.mapSbuilds(MakeFreeVarsIntoParams.apply)
+      }
+      pipe3
     }
-    VhdlWriter.emit(topComponent, dir, options)
+    val topComponent = time("converting to VHDL", Level.DEBUG) {
+      if (options.handshake) {
+        handshake.TopVhdl(pipe, options)
+      } else {
+        nohandshake.TopVhdl(pipe, options)
+      }
+    }
+    time("writing files", Level.DEBUG) {
+      VhdlWriter.emit(topComponent, dir, options)
+    }
   }
 
   def validateExpr(e: Expr): Unit = {

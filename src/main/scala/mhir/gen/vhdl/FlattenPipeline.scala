@@ -11,6 +11,8 @@ import mhir.optimize.{
 }
 import mhir.typecheck._
 
+import scala.collection.immutable.ListMap
+
 object FlattenPipeline {
 
   private[vhdl] def apply(
@@ -115,7 +117,7 @@ object FlattenPipeline {
           valid = s.valid,
           accumulators = newAccumulators,
           producers = newProducers,
-          intermediates = Map()
+          intermediates = ListMap()
         )
         val x = Param("s")(s.typ)
         (
@@ -293,8 +295,13 @@ object FlattenPipeline {
         p -> (p, ready)
       }),
       intermediates = s.intermediates.map({
-        case (x, Left(e))   => x -> Left(e.subPreserveType(subs))
-        case (x, Right(ip)) => x -> Right(ip)
+        case (x, DataIntermediate(e)) =>
+          x -> DataIntermediate(e.subPreserveType(subs))
+        case (x, FunctionIntermediate(Seq(y), Seq(), body)) =>
+          val Function(y2, body2) =
+            Function(y, body)().tchk().subPreserveType(subs)
+          x -> FunctionIntermediate(Seq(y2), ListMap(), body2)
+        case (x, ip: IpBlockInst) => x -> ip
       })
     )
   }
@@ -307,7 +314,7 @@ object FlattenPipeline {
         valid = True,
         accumulators = Map(),
         producers = Map(pipe.sink -> (pipe.sink, True)),
-        intermediates = Map()
+        intermediates = ListMap()
       )
       val newNode = StmBuildNode(newSink, nop, Some(0))
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)

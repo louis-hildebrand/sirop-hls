@@ -73,7 +73,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f = TyStm(elemTyp, 32) ::+ (s =>
       StmBuild(
         32,
-        Tuple(Bits(StmData(p)())(), Bits(VecAccess(StmData(p)().__1, 0)())())(),
+        Tuple(
+          Bits(StmData(p)())(),
+          VecAccess(Bits(StmData(p)())(), 0)(),
+          Bits(VecAccess(StmData(p)().__1, 0)())(),
+          Bits(Tuple(StmData(p)(), C(42)(U16))())()
+        )(),
         True,
         Map[Param, (Expr, Expr)](
           p -> (s, True)
@@ -113,7 +118,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
         InterpretAs(i, U8)(),
         InterpretAs(i, I8)(),
         InterpretAs(i, (TyUInt(3), TySInt(5)))(),
-        InterpretAs(i, TyVec(TyUInt(2), 4))()
+        InterpretAs(i, TyVec(TyUInt(2), 4))(),
+        InterpretAs(i, TyVec(TyVec(TyUInt(2), 2), 2))(),
+        VecAccess(InterpretAs(i, TyVec(TyUInt(2), 4))(), 0)()
       )(),
       True,
       Map[Param, (Expr, Expr)](
@@ -324,6 +331,33 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )().tchk().lower.asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("StmBuildWithNestedVecBuild") {
+    val e = {
+      val a = Param("a")(U8)
+      val i = Param("i")(U8)
+      val j = Param("j")(U8)
+      val k = Param("k")(U8)
+      StmBuild(
+        16,
+        VecBuild(
+          4,
+          Function(
+            i,
+            VecBuild(
+              3,
+              Function(j, VecBuild(2, Function(k, Tuple(i, j, k, a)())())())()
+            )()
+          )()
+        )(),
+        True,
+        Map[Param, (Expr, Expr)](
+          a -> (C(42)(U8), Sum(C(1)(U8), a)())
+        )
+      )().tchk()
+    }
+    assert(VhdlTestRunner.testExpr(e) == TestPassed)
   }
 
   test("StmBuild:EmptyVec") {
@@ -604,7 +638,12 @@ class VhdlGeneratorTests extends AnyFunSuite {
         s,
         SimpleMap(
           SimpleZip(SimpleMap(s, x => x * x), SimpleMap(s, x => x * C(3)(I16))),
-          x => x.__0 + x.__1
+          x =>
+            Mux(
+              x.__0 lt x.__1,
+              WrappingDiff(x.__1, x.__0)(),
+              WrappingDiff(x.__0, x.__1)()
+            )()
         )
       )()
     )().tchk().lower
@@ -616,7 +655,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
           ),
           DirectTestOutput(
             (0 until latency).map(_ => Undefined(I16)) ++
-              (0 until n).map(i => C(i * i + 3 * i)(I16)),
+              (0 until n)
+                .map(i => if (i * i < 3 * i) 3 * i - i * i else i * i - 3 * i)
+                .map(C(_)(I16)),
             (0 until latency).map(_ => AllOne(I16)) ++
               (0 until n).map(_ => AllZero(I16))
           )
@@ -634,7 +675,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
             (0 until latency).map(_ => Undefined(I16)) ++
               (0 until n)
                 .map(x => if (x % 2 == 0) x else -x)
-                .map(i => C(i * i + 3 * i)(I16)),
+                .map(i => if (i * i < 3 * i) 3 * i - i * i else i * i - 3 * i)
+                .map(C(_)(I16)),
             (0 until latency).map(_ => AllOne(I16)) ++
               (0 until n).map(_ => AllZero(I16))
           )
@@ -1191,5 +1233,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )().tchk().lower
     }
     assert(VhdlTestRunner.testExpr(e) == TestPassed)
+  }
+
+  test("NonSimplifiedInitialValue") {
+    ???
   }
 }

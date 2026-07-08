@@ -10,9 +10,11 @@ object TopVhdl {
     * @param f
     *   the function defining the accelerator's behaviour.
     */
-  def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
+  def apply(
+      pipe: FlatPipeline,
+      options: VhdlGeneratorOptions
+  ): CustomVhdlComponent = {
     require(options.handshake)
-    val pipe = FlattenPipeline(f, options)
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case (StmBuildNode(x, s, _), i) =>

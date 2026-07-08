@@ -4,8 +4,6 @@ import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl._
 import mhir.ir._
 
-import scala.collection.immutable.ListMap
-
 /** VHDL converter for [[mhir.ir.StmBuild]].
   */
 private[vhdl] object StmBuildVhdl {
@@ -28,64 +26,29 @@ private[vhdl] object StmBuildVhdl {
       options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
     require(options.handshake)
-    implicit val context: VhdlContext = VhdlContext(
-      ListMap(
-        (s.accumulators.map({ case (x, _) => x.name -> VhdlType(x.typ) })
-          ++ s.producers.map({ case (x, _) =>
-            val TyStm(elemTyp, _) = x.typ
-            s"${x.name}_data_internal" -> VhdlType(elemTyp)
-          })).toSeq
-          .sortBy({ case (name, _) => name }): _*
-      )
-    )
 
-    val (readyExprByProducer, readyExprDecls) = {
-      val (rcp, decls) =
-        s.producers
-          .map({ case (x, (_, ready)) =>
-            val VhdlExpr(vhdl, decls) = VhdlExprGenerator.exprToVhdl(ready)
-            (x -> vhdl, decls)
-          })
-          .unzip
-      (rcp.toMap, decls.flatten)
-    }
-
-    val (producerPorts, producerSignals) =
-      producerInterface(readyExprByProducer)
+    val intermediateDecls = s.intermediates
+      .flatMap({ case (x, i) => i.toVhdlInArchitecture(x, options) })
 
     val allDecls = (
-      defaultDecls(s.data, s.valid, options)
-        ++ registerDecls(s.accumulators, options)
-        ++ producerSignals
-        ++ readyExprDecls
+      defaultSignals(s.valid, options)
+        ++ registerSignals(s.accumulators, options)
+        ++ producerSignals(s.producers)
+        ++ intermediateDecls
     )
     val allPorts = (
       defaultInPorts(options)
-        ++ defaultOutPorts(VhdlType(s.data.typ))
-        ++ producerPorts
+        ++ defaultOutPorts(s.data)
+        ++ producerPorts(s.producers)
     )
-    val component = CustomVhdlComponent(
+    CustomVhdlComponent(
       name = name,
-      inPorts = allPorts.flatMap({
-        case p: InPort => Some(p)
-        case _         => None
-      }),
-      outPorts = allPorts.flatMap({
-        case p: OutPort => Some(p)
-        case _          => None
-      }),
-      signals = allDecls.flatMap({
-        case s: Signal => Some(s)
-        case _         => None
-      }),
-      functions = allDecls.flatMap({
-        case f: VhdlFunction => Some(f)
-        case _               => None
-      }),
+      inPorts = allPorts.collect({ case p: InPort => p }),
+      outPorts = allPorts.collect({ case p: OutPort => p }),
+      signals = allDecls.collect({ case s: Signal => s }),
+      functions = allDecls.collect({ case f: VhdlFunction => f }),
       children = Seq()
     )
-
-    component
   }
 
   /** Input ports that appear in all stream components.
@@ -100,14 +63,16 @@ private[vhdl] object StmBuildVhdl {
 
   /** Output ports that appear in all stream components.
     */
-  private def defaultOutPorts(dataType: VhdlType): Seq[OutPort] = {
-    val dataInternalSlv =
-      VhdlConversionGenerator.toStdLogicVector("data_internal", dataType)
+  private def defaultOutPorts(data: Expr): Seq[OutPort] = {
+    val dataTyp = VhdlType(data.typ)
+    val dataVhdl = VhdlExprGenerator.toVhdl(data)
     Seq(
       OutPort(
         name = "data",
-        typ = VhdlStdLogicVec(dataType.bitWidth),
-        assign = Some(dataInternalSlv)
+        typ = VhdlStdLogicVec(dataTyp.bitWidth),
+        assign = Some(
+          VhdlConversionGenerator.toStdLogicVector(dataVhdl, dataTyp)
+        )
       ),
       OutPort(
         name = "valid",
@@ -119,26 +84,14 @@ private[vhdl] object StmBuildVhdl {
 
   /** Signals that appear in all stream components.
     */
-  private def defaultDecls(
-      data: Expr,
+  private def defaultSignals(
       valid: Expr,
       options: VhdlGeneratorOptions
-  )(implicit
-      ctx: VhdlContext
-  ): Seq[Decl] = {
-    val VhdlExpr(validVhdl, validDecls) = VhdlExprGenerator.exprToVhdl(valid)
-    val VhdlExpr(dataVhdl, dataDecls) = VhdlExprGenerator.exprToVhdl(data)
-    val defaultSignals = Seq(
-      Signal(
-        category = "Handshake (output)",
-        name = "data_internal",
-        typ = VhdlType(data.typ),
-        init = None,
-        assignStmt = Some(s"data_internal <= $dataVhdl;"),
-        // No register added here for data; that should be added explicitly as
-        // an accumulator at an earlier compilation stage
-        cond = None
-      ),
+  ): Seq[Signal] = {
+    val validVhdl = VhdlExprGenerator.toVhdl(valid)
+    Seq(
+      // No register added here for data; that should be added explicitly as
+      // an accumulator at an earlier compilation stage
       Signal(
         category = "Handshake (output)",
         name = "valid_internal",
@@ -186,7 +139,6 @@ private[vhdl] object StmBuildVhdl {
         cond = None
       )
     )
-    defaultSignals ++ validDecls ++ dataDecls
   }
 
   /** Signals to represent the registers in this component.
@@ -195,13 +147,14 @@ private[vhdl] object StmBuildVhdl {
     *   The equations (variable, initial value, next value) representing the
     *   registers.
     */
-  private def registerDecls(
+  private def registerSignals(
       registerEquations: Iterable[(Param, (Expr, Expr))],
       options: VhdlGeneratorOptions
-  )(implicit ctx: VhdlContext): Seq[Decl] = {
+  ): Seq[Signal] = {
     registerEquations
-      .flatMap({
+      .map({
         case SingleWriteVector(x, z, cond, idx, write) =>
+          // TODO: Deduplicate this code (both in handshake/ and nohandshake/)?
           // If the accumulator is a vector such that at most one element is
           // updated per step, then emit VHDL code which makes that clear.
           // This makes it possible for Quartus to recognize the accumulator as
@@ -215,11 +168,10 @@ private[vhdl] object StmBuildVhdl {
           )
           assert(x.typ.isData)
           assert(z.isInstanceOf[Undefined])
-          val VhdlExpr(condVhdl, condDecls) = VhdlExprGenerator.exprToVhdl(cond)
-          val VhdlExpr(idxVhdl, idxDecls) = VhdlExprGenerator.exprToVhdl(idx)
-          val VhdlExpr(writeVhdl, writeDecls) =
-            VhdlExprGenerator.exprToVhdl(write)
-          val sig = Signal(
+          val condVhdl = VhdlExprGenerator.toVhdl(cond)
+          val idxVhdl = VhdlExprGenerator.toVhdl(idx)
+          val writeVhdl = VhdlExprGenerator.toVhdl(write)
+          Signal(
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
@@ -232,7 +184,6 @@ private[vhdl] object StmBuildVhdl {
             ),
             cond = Some("true")
           )
-          sig +: (condDecls ++ idxDecls ++ writeDecls)
         case (x, (z, next)) =>
           assert(x.typ.isData)
           require(
@@ -241,10 +192,10 @@ private[vhdl] object StmBuildVhdl {
           )
           val initVhdl = z match {
             case _: Undefined => None
-            case z            => Some(VhdlExprGenerator.valueToVhdl(z))
+            case z            => Some(VhdlExprGenerator.toVhdl(z))
           }
-          val VhdlExpr(nextVhdl, nextDecls) = VhdlExprGenerator.exprToVhdl(next)
-          val sig = Signal(
+          val nextVhdl = VhdlExprGenerator.toVhdl(next)
+          Signal(
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
@@ -267,14 +218,38 @@ private[vhdl] object StmBuildVhdl {
             }),
             cond = Some("true")
           )
-          sig +: nextDecls
       })
       .toSeq
   }
 
-  private def producerInterface(
-      readyExprByProducer: Map[Param, String]
-  ): (Seq[Port], Seq[Signal]) = {
+  private def producerPorts(producers: Map[Param, (Expr, Expr)]): Seq[Port] = {
+    producers
+      .flatMap({ case (x, (p, _)) =>
+        assert(
+          x == p,
+          "the name of the producer variable should have been changed to match the stream itself"
+            + s" (variable is $x, stream is $p)"
+        )
+        val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
+        val bitWidth = dataType.bitWidth
+        Seq(
+          InPort(name = s"${x.name}_data", typ = VhdlStdLogicVec(bitWidth)),
+          InPort(name = s"${x.name}_valid", typ = VhdlStdLogic),
+          OutPort(
+            name = s"${x.name}_ready",
+            typ = VhdlStdLogic,
+            assign = Some(s"bool2sl(${x.name}_ready_internal)")
+          )
+        )
+      })
+      .toSeq
+  }
+
+  private def producerSignals(
+      producers: Map[Param, (Expr, Expr)]
+  ): Seq[Signal] = {
+    val readyExprByProducer = producers
+      .map({ case (x, (_, ready)) => x -> VhdlExprGenerator.toVhdl(ready) })
     // If waiting for multiple producers (e.g., in StmZip), don't raise the
     // ready signal until *all* required producers are ready
     // IMPORTANT: To avoid combinational loops, the producer's `valid` signal
@@ -294,13 +269,8 @@ private[vhdl] object StmBuildVhdl {
         assignStmt = Some(s"all_required_producers_valid <= $arpvExpr;")
       )
     }
-    val (ports, signals) = readyExprByProducer
-      .map({ case (x, readyExpr) =>
-        val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
-        val bitWidth = dataType.bitWidth
-        val rawDataConversion =
-          VhdlConversionGenerator
-            .fromStdLogicVector(s"${x.name}_data", dataType)
+    val signals = producers
+      .flatMap({ case (x, (_, ready)) =>
         val otherProducers = readyExprByProducer
           .filter({ case (y, _) => y != x })
         val allOthersValid = if (otherProducers.isEmpty) {
@@ -310,22 +280,16 @@ private[vhdl] object StmBuildVhdl {
             .map({ case (x, c) => s"(not ($c) or (${x.name}_valid_internal))" })
             .mkString(" and ")
         }
-        val ports = Seq(
-          InPort(name = s"${x.name}_data", typ = VhdlStdLogicVec(bitWidth)),
-          InPort(name = s"${x.name}_valid", typ = VhdlStdLogic),
-          OutPort(
-            name = s"${x.name}_ready",
-            typ = VhdlStdLogic,
-            assign = Some(s"bool2sl(${x.name}_ready_internal)")
-          )
-        )
-        val signals = Seq(
+        val readyVhdl = VhdlExprGenerator.toVhdl(ready)
+        Seq(
           Signal(
             category = s"Handshake (input producer $x)",
             name = s"arpv_except_${x.name}",
             typ = VhdlBool,
             assignStmt = Some(s"arpv_except_${x.name} <= $allOthersValid;")
           ),
+          // The ${x.name}_data_internal signal will be added separately; an
+          // earlier pass should have added intermediates for sdata(p)
           Signal(
             category = s"Handshake (input producer $x)",
             name = s"${x.name}_valid_internal",
@@ -340,19 +304,12 @@ private[vhdl] object StmBuildVhdl {
             typ = VhdlBool,
             assignStmt = Some(
               s"${x.name}_ready_internal <="
-                + s" ($readyExpr) and (not valid_internal or sl2bool(ready)) and arpv_except_${x.name};"
+                + s" ($readyVhdl) and (not valid_internal or sl2bool(ready)) and arpv_except_${x.name};"
             )
-          ),
-          Signal(
-            category = s"Handshake (input producer $x)",
-            name = s"${x.name}_data_internal",
-            typ = dataType,
-            assignStmt = Some(s"${x.name}_data_internal <= $rawDataConversion;")
           )
         )
-        (ports, signals)
       })
-      .unzip
-    (ports.flatten.toSeq, allRequiredProducersValid +: signals.flatten.toSeq)
+      .toSeq
+    allRequiredProducersValid +: signals
   }
 }
