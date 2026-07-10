@@ -60,7 +60,7 @@ object GenTestbench {
       VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     }
     time("copying test_vhdl.sh into VHDL project") {
-      VhdlTestRunner.copyTestBashScript(dir)
+      VhdlTestRunner.copyTestScripts(dir)
     }
   }
 }

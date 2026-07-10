@@ -36,9 +36,10 @@ object BoundsCheckInsertion {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case _: StmDataIntermediate => i
-      case ip: IpBlockInst        =>
-        // TODO: What if the inputs contain vector accesses?
-        ???
+      case _: IpBlockInst =>
+        throw new AssertionError(
+          "there shouldn't be any IP blocks yet at this compilation stage"
+        )
       case DataIntermediate(e) => DataIntermediate(this.apply(e))
       case FunctionIntermediate(params, intermediates, body) =>
         FunctionIntermediate(

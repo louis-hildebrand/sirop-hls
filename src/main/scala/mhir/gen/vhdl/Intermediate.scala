@@ -1,11 +1,13 @@
 package mhir.gen.vhdl
 
+import mhir.canonicalize._
 import mhir.ir._
 
 import scala.collection.immutable.ListMap
 
 /** An intermediate variable (e.g., a VHDL signal, function, or component
-  * instantiation) that does <i>not</i> translate to a register.
+  * instantiation) which, unlike an accumulator, does <i>not</i> translate to a
+  * register.
   */
 sealed trait Intermediate {
 
@@ -22,6 +24,8 @@ sealed trait Intermediate {
   ): Seq[Decl]
 
   def freeVars: Set[Param]
+
+  def substitute(subs: Map[Expr, Expr]): Intermediate
 }
 
 /** An [[Intermediate]] that can appear inside a function.
@@ -64,6 +68,10 @@ case class StmDataIntermediate(p: Param) extends Intermediate {
   }
 
   override def freeVars: Set[Param] = Set(this.p)
+
+  override def substitute(subs: Map[Expr, Expr]): Intermediate = {
+    StmDataIntermediate(this.p.subPreserveType(subs).asInstanceOf[Param])
+  }
 }
 
 /** An intermediate variable whose value is constantly calculated from the
@@ -131,6 +139,10 @@ case class DataIntermediate(e: Expr)
     )
     Seq(newVar)
   }
+
+  override def substitute(subs: Map[Expr, Expr]): Intermediate = {
+    DataIntermediate(this.e.subPreserveType(subs))
+  }
 }
 
 /** A function that can be called anywhere within the `sbuild`.
@@ -155,6 +167,25 @@ case class FunctionIntermediate(
           (bound + x, free ++ i.freeVars.diff(bound))
       })
     free ++ this.output.freeVars.diff(bound)
+  }
+
+  def substitute(subs: Map[Expr, Expr]): Intermediate = {
+    val varsBoundHere = this.params.toSet ++ this.intermediates.keySet
+    val wouldCapture =
+      subs.values.exists(e => e.freeVars.intersect(varsBoundHere).nonEmpty)
+    if (wouldCapture) {
+      ???
+    } else {
+      FunctionIntermediate(
+        this.params,
+        this.intermediates.map({ case (x, i) =>
+          x -> i
+            .substitute(subs)
+            .asInstanceOf[Intermediate with AllowedInFunction]
+        }),
+        output.subPreserveType(subs)
+      )
+    }
   }
 
   override def toVhdlInArchitecture(
@@ -195,8 +226,40 @@ case class FunctionIntermediate(
 }
 
 /** An instantiation of an IP block (e.g., the native Agilex DSPs).
-  *
-  * The inputs to this IP block should all be names (i.e., accumulators or other
-  * intermediates), not arbitrary expressions.
   */
-trait IpBlockInst extends Intermediate
+trait IpBlockInst extends Intermediate {
+
+  /** Convert this IP block instantiation to VHDL.
+    *
+    * @param target
+    *   the name and type of the output signal.
+    * @param options
+    *   general VHDL gen options (e.g., the name of the clock signal).
+    * @param enable
+    *   a VHDL expression saying whether to enable this IP block. If it
+    *   evaluates to `false`, then the IP block should not update its internal
+    *   registers.
+    */
+  def toVhdl(
+      target: Param,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): VhdlEntityInstantiation
+
+  override def toVhdlInArchitecture(
+      target: Param,
+      options: VhdlGeneratorOptions
+  ): Seq[Decl] = {
+    Seq(
+      Signal(
+        category = "Intermediate signals",
+        name = target.name,
+        typ = VhdlType(target.typ),
+        // This signal will be driven by the IP block, so no need for an
+        // assignment statement
+        assignStmt = None,
+        cond = None
+      )
+    )
+  }
+}

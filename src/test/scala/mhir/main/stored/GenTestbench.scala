@@ -56,7 +56,7 @@ object GenTestbench {
       )
     }
     time("copying test_vhdl.sh", Level.DEBUG) {
-      VhdlTestRunner.copyTestBashScript(dir)
+      VhdlTestRunner.copyTestScripts(dir)
     }
   }
 }

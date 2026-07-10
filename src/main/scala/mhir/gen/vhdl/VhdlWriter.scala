@@ -20,7 +20,7 @@ object VhdlWriter {
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir)
     emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir, options.reservedKeywords, options)
+    emitComponents(top, designDir, options)
     emitProjectFiles(dir, designDir, options, top)
   }
 
@@ -201,15 +201,7 @@ object VhdlWriter {
 
   private def findTypesUsedIn(c: VhdlComponent): Set[VhdlType] = {
     c match {
-      case c: StmNoOpComponent =>
-        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
-      case StartDelayComponent(maxLatency) =>
-        Set(
-          VhdlStdLogic,
-          VhdlStdLogicVec(n = 1 + maxLatency, direction = IndexUp)
-        )
-      case c: LetStmBufComponent =>
-        Set(VhdlStdLogic, VhdlStdLogicVec(c.bitWidth))
+      case c: PredefinedComponent => c.typesUsed
       case c: CustomVhdlComponent =>
         (c.inPorts.map(p => p.typ)
           ++ c.outPorts.map(p => p.typ)
@@ -231,39 +223,41 @@ object VhdlWriter {
   }
 
   private def emitComponents(
-      c: VhdlComponent,
+      top: VhdlComponent,
       dir: Path,
-      reservedWords: Set[String],
       options: VhdlGeneratorOptions
   ): Unit = {
+    val ops = writeOperations(top, dir, options)
+    for ((destination, source) <- ops) {
+      source match {
+        case Left(resource) =>
+          os.write.over(destination, Source.fromResource(resource).mkString)
+        case Right(component) =>
+          component.writeVhdl(destination, options)
+      }
+    }
+  }
+
+  private def writeOperations(
+      c: VhdlComponent,
+      dir: Path,
+      options: VhdlGeneratorOptions
+  ): Map[Path, Either[String, CustomVhdlComponent]] = {
     c match {
-      case c: StmNoOpComponent =>
-        os.write.over(
-          dir / c.VhdName,
-          Source.fromResource(s"mhir/gen/vhdl/${c.VhdName}").mkString
-        )
-      case c: StartDelayComponent =>
-        os.write.over(
-          dir / c.VhdName,
-          Source.fromResource(s"mhir/gen/vhdl/${c.VhdName}").mkString
-        )
-      case c: LetStmBufComponent =>
-        for (name <- c.VhdNames) {
-          os.write.over(
-            dir / name,
-            Source.fromResource(s"mhir/gen/vhdl/$name").mkString
-          )
-        }
+      case c: PredefinedComponent =>
+        c.filesToCopy(dir).mapValues(Left(_))
       case c: CustomVhdlComponent =>
-        if (reservedWords.contains(c.name.toLowerCase)) {
+        if (options.reservedKeywords.contains(c.name.toLowerCase)) {
           throw CodegenError(
             s"cannot generate entity '${c.name}', since its name is a reserved keyword in VHDL"
           )
         }
-        c.writeVhdl(dir / s"${c.name}.vhd", options)
-        for (VhdlEntityInstantiation(_, child, _) <- c.children) {
-          emitComponents(child, dir, reservedWords, options)
-        }
+        c.children
+          .flatMap({ case VhdlEntityInstantiation(_, child, _) =>
+            writeOperations(child, dir, options)
+          })
+          .toMap
+          .+(dir / s"${c.name}.vhd" -> Right(c))
     }
   }
 }

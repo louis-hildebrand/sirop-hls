@@ -36,8 +36,13 @@ object IntermediateInsertion {
     val (valid, validIntermediates) = this.apply(s.valid)
     intermediates ++= validIntermediates
     val accumulators = s.accumulators.map({ case (x, (z, next)) =>
-      val (newZ, zIntermediates) = this.apply(z)
-      intermediates ++= zIntermediates
+      val newZ = z match {
+        case z: Undefined => z
+        case z =>
+          val (newZ, zIntermediates) = this.apply(z)
+          intermediates ++= zIntermediates
+          newZ
+      }
       val (newNext, nextIntermediates) = this.apply(next)
       intermediates ++= nextIntermediates
       x -> (newZ, newNext)

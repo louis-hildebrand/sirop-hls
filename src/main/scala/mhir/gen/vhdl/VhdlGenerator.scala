@@ -4,12 +4,13 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.gen.vhdl.transform.{
   BoundsCheckInsertion,
-  MakeFreeVarsIntoParams,
-  IntermediateInsertion
+  IntermediateInsertion,
+  MakeFreeVarsIntoParams
 }
 import mhir.ir._
 import mhir.logging.time
-import mhir.sem.SemanticAnalyzer
+import mhir.optimize.cost.SimpleDelayCostModel
+import mhir.optimize.{EnabledBinOpTreeBalancingPass, StmOutputScheduler}
 import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
@@ -34,7 +35,7 @@ object VhdlGenerator {
       f: Expr,
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
-  ): Unit = {
+  ): FlatPipeline = {
     val pipe = {
       val pipe0 = time("ANF conversion", Level.DEBUG) {
         FlattenPipeline(f, options)
@@ -48,7 +49,24 @@ object VhdlGenerator {
       val pipe3 = time("making all function arguments explicit", Level.DEBUG) {
         pipe2.mapSbuilds(MakeFreeVarsIntoParams.apply)
       }
-      pipe3
+      val pipe4 = options.deviceFamily match {
+        case "Agilex 7" =>
+          time(s"mapping multiplications to Agilex 7 DSP blocks", Level.DEBUG) {
+            val pass = agilex7.DspSelection(
+              StmOutputScheduler(
+                EnabledBinOpTreeBalancingPass,
+                SimpleDelayCostModel(madd = true)
+              )
+            )
+            pipe3.mapSbuilds(pass.apply)
+          }
+        case family =>
+          logger.debug(
+            s"DSP selection is not currently implemented for FPGA family '$family'"
+          )
+          pipe3
+      }
+      pipe4
     }
     val topComponent = time("converting to VHDL", Level.DEBUG) {
       if (options.handshake) {
@@ -60,6 +78,7 @@ object VhdlGenerator {
     time("writing files", Level.DEBUG) {
       VhdlWriter.emit(topComponent, dir, options)
     }
+    pipe
   }
 
   def validateExpr(e: Expr): Unit = {

@@ -4,17 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
 import mhir.eval.{Evaluator, TestError, TestRunner}
-import mhir.gen.{
-  DesignCompileFailed,
-  MissingVcom,
-  MissingVsim,
-  NoTests,
-  SimulationFailed,
-  SimulationTimeout,
-  TestPassed,
-  TestbenchCompileFailed,
-  UnknownFailure
-}
+import mhir.gen._
 import mhir.gen.vhdl.test._
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
@@ -376,7 +366,7 @@ object Compiler {
       overwrite: Boolean,
       latency: Option[Int]
   ): Unit = {
-    time("generating VHDL design", Level.DEBUG) {
+    val pipe = time("generating VHDL design", Level.DEBUG) {
       if (os.exists(outDir)) {
         if (overwrite) {
           os.remove.all(outDir)
@@ -390,7 +380,13 @@ object Compiler {
     }
     val assertions = finalProgram.test.collect({ case a: Assertion => a })
     if (assertions.nonEmpty) {
-      emitVhdlTestbench(assertions, options, outDir, latency)
+      emitVhdlTestbench(
+        assertions,
+        options,
+        outDir,
+        latency,
+        designUsesIpBlocks = pipe.usesIpBlocks
+      )
     } else {
       logger.info(
         s"skipping VHDL testbench generation because no assertions were found in the source code"
@@ -402,7 +398,8 @@ object Compiler {
       assertions: Seq[Assertion],
       options: VhdlGeneratorOptions,
       outDir: Path,
-      latency: Option[Int]
+      latency: Option[Int],
+      designUsesIpBlocks: Boolean
   ): Unit = {
     time("generating VHDL testbench", Level.DEBUG) {
       assert(os.isDir(outDir))
@@ -482,7 +479,10 @@ object Compiler {
         testNotReady = false,
         options = options
       )
-      VhdlTestRunner.copyTestBashScript(outDir)
+      VhdlTestRunner.copyTestScripts(
+        outDir,
+        compileIpBlocks = designUsesIpBlocks
+      )
     }
   }
 

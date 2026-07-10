@@ -40,4 +40,13 @@ private[vhdl] case class FlatPipeline(
   def mapSbuilds(f: GenStmBuild => GenStmBuild): FlatPipeline = {
     this.copy(sbuilds = this.sbuilds.map(node => node.copy(s = f(node.s))))
   }
+
+  def usesIpBlocks: Boolean = {
+    this.sbuilds.exists({ case StmBuildNode(_, s, _) =>
+      s.intermediates.exists({
+        case (_, _: IpBlockInst) => true
+        case _                   => false
+      })
+    })
+  }
 }

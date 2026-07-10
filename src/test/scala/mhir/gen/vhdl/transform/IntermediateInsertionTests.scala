@@ -78,4 +78,27 @@ class IntermediateInsertionTests extends AnyFunSuite {
     )
     assert(actualFunIntermediates == expectedIntermediates)
   }
+
+  /* Undefined initial values for the accumulators should stay as-is so that
+   * later passes can easily recognize it (e.g., to know that there's no need
+   * to emit reset logic).
+   */
+  test("UndefinedInitialValue") {
+    val acc = Param("acc")(U8)
+    val p = Param("p")(TyStm(U8, 16))
+    val original = GenStmBuild(
+      data = acc,
+      valid = True,
+      accumulators = Map(
+        acc -> (Undefined(U8), StmData(p)().tchk())
+      ),
+      producers = Map(
+        p -> (p, True)
+      ),
+      intermediates = ListMap()
+    )
+    val actual = IntermediateInsertion(original)
+    assert(actual.accumulators.size == 1)
+    assert(actual.accumulators.head._2._1.isInstanceOf[Undefined])
+  }
 }

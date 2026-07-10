@@ -7,6 +7,8 @@ src/e2e/resources/actual/Basic/StmMap
 │   ├── conversions.vhd
 │   ├── sbuild_1.vhd
 │   └── typedefs.vhd
-├── test
-│   └── test_add5.vhd
-└── test_vhdl.sh
+├── Makefile
+├── scripts
+│   └── test_vhdl.sh
+└── test
+    └── test_add5.vhd

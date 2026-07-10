@@ -37,9 +37,10 @@ object MakeFreeVarsIntoParams {
       }),
       intermediates = s2.intermediates.map({
         case i @ (_, _: StmDataIntermediate) => i
-        case (_, _: IpBlockInst)             =>
-          // TODO: What if there are function calls in the IP block inputs?
-          ???
+        case (_, _: IpBlockInst) =>
+          throw new AssertionError(
+            "there shouldn't be any IP blocks yet at this compilation stage"
+          )
         case (x, DataIntermediate(e)) => x -> DataIntermediate(pass.apply(e))
         case (f, i: FunctionIntermediate) => pass.apply(f, i)
       })
@@ -236,9 +237,10 @@ private object EnsureTupleArgs {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case i: StmDataIntermediate => i
-      case _: IpBlockInst         =>
-        // TODO: What if the inputs contain function calls?
-        ???
+      case _: IpBlockInst =>
+        throw new AssertionError(
+          "there shouldn't be any IP blocks yet at this compilation stage"
+        )
       case DataIntermediate(e) => DataIntermediate(this.apply(e))
       case FunctionIntermediate(params, intermediates, output) =>
         assert(

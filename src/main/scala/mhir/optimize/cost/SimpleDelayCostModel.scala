@@ -55,6 +55,8 @@ case class SimpleDelayCostModel(madd: Boolean) {
         cost(staticVars, varCosts)(f) + cost(staticVars, varCosts)(arg)
       case MulAdd(a1, a2, b1, b2) if this.madd =>
         FullCycleDelay + Seq(a1, a2, b1, b2).map(cost(staticVars, varCosts)).max
+      case MulAccumulate(c, x, y) if this.madd =>
+        FullCycleDelay + Seq(c, x, y).map(cost(staticVars, varCosts)).max
       case AnyAdd(terms @ _*) =>
         val adderDelay = log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
         val childDelay = terms
@@ -189,14 +191,32 @@ case class SimpleDelayCostModel(madd: Boolean) {
   }
 }
 
+object MulAccumulate {
+
+  /** Matches expressions like `c + x*y`.
+    *
+    * @return
+    *   `Some(c, x, y)` if the expression matches, else `None`.
+    */
+  def unapply(e: Expr): Option[(Expr, Expr, Expr)] = {
+    e match {
+      case AnyAdd(c, AnyMul(x, y)) => Some(c, x, y)
+      case _                       => None
+    }
+  }
+}
+
 object MulAdd {
 
+  /** Matches expressions like `ax*ay + bx*by`.
+    *
+    * @return
+    *   `Some(ax, ay, bx, by)` if the expression matches, else `None`.
+    */
   def unapply(e: Expr): Option[(Expr, Expr, Expr, Expr)] = {
     e match {
-      case AnyAdd(AnyMul(a1, a2), AnyMul(b1, b2)) =>
-        Some(a1, a2, b1, b2)
-      case _ =>
-        None
+      case AnyAdd(AnyMul(ax, ay), AnyMul(bx, by)) => Some(ax, ay, bx, by)
+      case _                                      => None
     }
   }
 }

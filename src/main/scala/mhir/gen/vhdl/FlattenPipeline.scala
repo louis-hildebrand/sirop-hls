@@ -301,7 +301,10 @@ object FlattenPipeline {
           val Function(y2, body2) =
             Function(y, body)().tchk().subPreserveType(subs)
           x -> FunctionIntermediate(Seq(y2), ListMap(), body2)
-        case (x, ip: IpBlockInst) => x -> ip
+        case (_, _: IpBlockInst) =>
+          throw new AssertionError(
+            "there shouldn't be any IP blocks yet at this compilation stage"
+          )
       })
     )
   }
