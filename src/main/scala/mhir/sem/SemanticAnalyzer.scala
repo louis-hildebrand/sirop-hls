@@ -45,8 +45,11 @@ object SemanticAnalyzer {
     if (!prog.handshake) {
       checkNoHandshake(prog.body)
     }
+    checkStmData(prog.body)
   }
 
+  /** Check that the `valid` and `ready` expressions are always `true`.
+    */
   private def checkNoHandshake(e: Expr): Unit = {
     e match {
       case s: StmBuild =>
@@ -71,10 +74,25 @@ object SemanticAnalyzer {
             case _ => ()
           }
         }
-      case e =>
-        for (child <- e.children) {
-          checkNoHandshake(child)
+      case e => e.children.foreach(checkNoHandshake)
+    }
+  }
+
+  private def checkStmData(e: Expr): Unit = {
+    e match {
+      case s: StmBuild =>
+        for ((x, (stm, ready)) <- s.producers) {
+          checkStmData(stm)
+          if (ready.contains(classOf[StmData])) {
+            val name = s.nameAnnotation.getOrElse("sbuild")
+            throw SemanticError(
+              s"sdata is used in 'ready' expression of producer $x in $name"
+            )
+          }
         }
+      case sdata: StmData =>
+        throw SemanticError(s"$sdata is used outside sbuild")
+      case e => e.children.foreach(checkStmData)
     }
   }
 }

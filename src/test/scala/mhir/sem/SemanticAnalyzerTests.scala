@@ -143,4 +143,36 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       ex.msg == "stream operator StmReduce cannot be used without the handshake protocol: its output is not always valid"
     )
   }
+
+  test("StmData:UsedOutsideStmBuild") {
+    val s = Param("s", -1)(TyStm(U8, 1))
+    val e = Function(s, Sum(C(1)(U8), StmData(s)())())().tchk().lower
+    val prog = Program(e)
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(ex.msg == "sdata(s) is used outside sbuild")
+  }
+
+  test("StmData:UsedInReady") {
+    val e = {
+      val input1 = Param("s1", -1)(TyStm(U8, 16))
+      val input2 = Param("s2", -1)(TyStm(U8, 16))
+      val p1 = Param("p1", -1)(TyStm(U8, 16))
+      val p2 = Param("p2", -1)(TyStm(U8, 16))
+      val output = StmBuild(
+        16,
+        StmData(p1)(),
+        True,
+        Map[Param, (Expr, Expr)](
+          p1 -> (input1, True),
+          p2 -> (input2, C(0)(U8) lt StmData(p1)())
+        )
+      )().annotateWithName("StmFoo")
+      Function(input1, Function(input2, output)())().tchk().lower
+    }
+    val prog = Program(e)
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(
+      ex.msg == "sdata is used in 'ready' expression of producer p2 in StmFoo"
+    )
+  }
 }
