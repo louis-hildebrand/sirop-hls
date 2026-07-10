@@ -1234,8 +1234,4 @@ class VhdlGeneratorTests extends AnyFunSuite {
     }
     assert(VhdlTestRunner.testExpr(e) == TestPassed)
   }
-
-  test("NonSimplifiedInitialValue") {
-    ???
-  }
 }

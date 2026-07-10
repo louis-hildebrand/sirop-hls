@@ -106,8 +106,6 @@ private[vhdl] case class VhdlVariable(
   *   the name of the signal.
   * @param typ
   *   the type of the signal.
-  * @param init
-  *   the initial value of the signal.
   * @param assignStmt
   *   the statement which updates the signal (see also: [[cond]]).
   * @param cond
@@ -120,18 +118,10 @@ private[vhdl] case class Signal(
     category: String,
     name: String,
     typ: VhdlType,
-    init: Option[String] = None,
     assignStmt: Option[String] = None,
     cond: Option[String] = None
 ) extends VarOrSigDecl {
-  override def vhdlDecl: String = {
-    val str1 = s"signal $name : ${typ.vhdlName}"
-    val str2 = init match {
-      case Some(z) => s"$str1 := $z"
-      case None    => str1
-    }
-    s"$str2;"
-  }
+  override def vhdlDecl: String = s"signal $name : ${typ.vhdlName};"
 }
 
 /** The arguments to use for a VHDL `port map`.

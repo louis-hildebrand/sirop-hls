@@ -96,7 +96,6 @@ private[vhdl] object StmBuildVhdl {
         category = "Handshake (output)",
         name = "valid_internal",
         typ = VhdlBool,
-        init = Some("false"),
         assignStmt = Some(
           s"""if sl2bool(${options.reset}) then
              |    valid_internal <= false;
@@ -115,7 +114,6 @@ private[vhdl] object StmBuildVhdl {
         category = "Handshake (output)",
         name = "transfer_ok",
         typ = VhdlBool,
-        init = None,
         assignStmt = Some(
           "transfer_ok <= sl2bool(ready) and valid_internal;"
         ),
@@ -125,7 +123,6 @@ private[vhdl] object StmBuildVhdl {
         category = "Handshake (output)",
         name = "can_update_acc",
         typ = VhdlBool,
-        init = None,
         assignStmt = Some(
           "can_update_acc <="
           // This stream can keep working as long as the following conditions
@@ -175,7 +172,6 @@ private[vhdl] object StmBuildVhdl {
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
-            init = None,
             assignStmt = Some(
               s"""if can_update_acc and ($condVhdl) then
                  |    ${x.name}(to_integer($idxVhdl)) <= $writeVhdl;
@@ -186,10 +182,6 @@ private[vhdl] object StmBuildVhdl {
           )
         case (x, (z, next)) =>
           assert(x.typ.isData)
-          require(
-            z.freeVars.isEmpty,
-            s"Initial value for accumulator ${x.name} has free variables (${z.freeVars.toSeq.mkString(", ")})."
-          )
           val initVhdl = z match {
             case _: Undefined => None
             case z            => Some(VhdlExprGenerator.toVhdl(z))
@@ -199,7 +191,6 @@ private[vhdl] object StmBuildVhdl {
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
-            init = initVhdl,
             assignStmt = Some({
               val update =
                 s"""if can_update_acc then

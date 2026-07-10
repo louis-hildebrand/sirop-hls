@@ -98,7 +98,6 @@ case class DataIntermediate(e: Expr)
         category = "Intermediate signals",
         name = target.name,
         typ = VhdlType(target.typ),
-        init = None,
         assignStmt = Some(s"${target.name} <= $rhs;"),
         cond = None
       )

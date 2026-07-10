@@ -36,14 +36,11 @@ object IntermediateInsertion {
     val (valid, validIntermediates) = this.apply(s.valid)
     intermediates ++= validIntermediates
     val accumulators = s.accumulators.map({ case (x, (z, next)) =>
-      // TODO: what if z requires intermediate values? In practice I don't
-      //       think this will ever happen now, but at some point I may add
-      //       generics or extern constants or something, and then the
-      //       programmer might do something like
-      //           if MY_GENERIC then ... else ...
+      val (newZ, zIntermediates) = this.apply(z)
+      intermediates ++= zIntermediates
       val (newNext, nextIntermediates) = this.apply(next)
       intermediates ++= nextIntermediates
-      x -> (z, newNext)
+      x -> (newZ, newNext)
     })
     val producers = s.producers.map({ case (x, (p, ready)) =>
       val (newReady, readyIntermediates) = this.apply(ready)
@@ -96,8 +93,7 @@ private class ExprIntermediateInsertion(
             case i: DataIntermediate     => innerIntermediates += x -> i
             case i: FunctionIntermediate => innerIntermediates += x -> i
             // Move outside
-            case i @ StmDataIntermediate(p) =>
-              outerIntermediates += x -> i
+            case i: StmDataIntermediate => outerIntermediates += x -> i
             // Not allowed
             case _: IpBlockInst =>
               throw new AssertionError(

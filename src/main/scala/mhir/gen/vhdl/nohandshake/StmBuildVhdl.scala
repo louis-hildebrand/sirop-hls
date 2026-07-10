@@ -99,7 +99,6 @@ private[vhdl] object StmBuildVhdl {
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
-            init = None,
             assignStmt = Some(
               s"""if $condVhdl then
                  |    ${x.name}(to_integer($idxVhdl)) <= $writeVhdl;
@@ -110,10 +109,6 @@ private[vhdl] object StmBuildVhdl {
           )
         case (x, (z, next)) =>
           assert(x.typ.isData)
-          require(
-            z.freeVars.isEmpty,
-            s"Initial value for accumulator ${x.name} has free variables (${z.freeVars.toSeq.mkString(", ")})."
-          )
           val initVhdl = z match {
             case _: Undefined => None
             case z            => Some(VhdlExprGenerator.toVhdl(z))
@@ -123,7 +118,6 @@ private[vhdl] object StmBuildVhdl {
             category = "Registers",
             name = x.name,
             typ = VhdlType(x.typ),
-            init = initVhdl,
             assignStmt = Some({
               val reset = initVhdl match {
                 case None => ""
