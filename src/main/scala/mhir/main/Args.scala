@@ -40,6 +40,7 @@ object Args {
     var runVhdlSim: Option[Boolean] = None
     var vhdlFamily: Option[String] = None
     var vhdlDevice: Option[String] = None
+    var vhdlFmax: Option[Int] = None
     var vhdlVirtualPins: Option[Boolean] = None
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var prettyPrintLoweredDest: Option[PrettyPrintDestination] = None
@@ -110,6 +111,23 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(device) =>
               vhdlDevice = Some(device)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "--out:vhdl:fmax" =>
+          mutArgs.drop(1).headOption match {
+            case Some(fmaxStr) =>
+              val fmaxInt =
+                try {
+                  fmaxStr.toInt
+                } catch {
+                  case _: NumberFormatException =>
+                    throw new BadArgsException(
+                      s"value for ${mutArgs.head} must be an integer (found $fmaxStr)"
+                    )
+                }
+              vhdlFmax = Some(fmaxInt)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -349,11 +367,15 @@ object Args {
           case Some(device) => opt1.copy(device = device)
           case None         => opt1
         }
-        val opt3 = vhdlVirtualPins match {
-          case Some(b) => opt2.copy(virtualPins = b)
-          case None    => opt2
+        val opt3 = vhdlFmax match {
+          case Some(fmax) => opt2.copy(fmax = fmax)
+          case None       => opt2
         }
-        opt3
+        val opt4 = vhdlVirtualPins match {
+          case Some(b) => opt3.copy(virtualPins = b)
+          case None    => opt3
+        }
+        opt4
       },
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
@@ -384,18 +406,22 @@ object Args {
   }
 
   private[main] def printFullUsage(): Unit = {
+    val defaultFamily = VhdlGeneratorOptions.DEFAULT_FAMILY
+    val defaultDevice = VhdlGeneratorOptions.DEFAULT_DEVICE
+    val defaultFmax = VhdlGeneratorOptions.DEFAULT_FMAX
     this.printShortUsage()
     println()
     println(
-      s"""Source Arguments:
+      s"""  -h,--help                     print the help message and exit
+         |  --version                     print the compiler version and exit
+         |
+         |Source Arguments:
          |  -s (sirop|aetherling|stored)  source language (default: sirop)
          |  -i INPUT                      where to get the source code.
          |                                With -s stored, this is the program name.
          |                                Otherwise, this is the path to the source file.
          |                                If this argument is omitted, the REPL will be
          |                                launched.
-         |  -h, --help                    print the help message and exit
-         |  --version                     print the compiler version and exit
          |
          |Output Arguments:
          |  --out:eval                       evaluate the program and print its value
@@ -417,9 +443,10 @@ object Args {
          |  --out:vhdl DIR                   emit VHDL code in the given directory
          |  --out:vhdl:run-sim               run the VHDL testbench after codegen
          |  --out:vhdl:family                the value for the FAMILY assignment in the
-         |                                   .qsf file
+         |                                   .qsf file (default: $defaultFamily)
          |  --out:vhdl:device                the value for the DEVICE assignment in the
-         |                                   .qsf file
+         |                                   .qsf file (default: $defaultDevice)
+         |  --out:vhdl:fmax                  the target Fmax, in MHz (default: $defaultFmax)
          |  --out:vhdl:no-virtual-pins       don't mark the ports of the top-level entity
          |                                   as virtual pins
          |

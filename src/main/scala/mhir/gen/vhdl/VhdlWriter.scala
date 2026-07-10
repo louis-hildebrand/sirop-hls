@@ -64,7 +64,17 @@ object VhdlWriter {
     )
     os.write(
       dir / s"$topName.sdc",
-      Source.fromResource("mhir/gen/top.sdc").mkString
+      Source
+        .fromResource("mhir/gen/top.sdc")
+        .getLines()
+        .map({ line =>
+          if (line.startsWith("create_clock -name clk")) {
+            f"create_clock -name ${options.clock} -period ${options.clockPeriod}%.3f [get_ports ${options.clock}]"
+          } else {
+            line
+          }
+        })
+        .map(_ + "\n")
     )
     for (p <- os.list(designDir)) {
       os.write.append(
