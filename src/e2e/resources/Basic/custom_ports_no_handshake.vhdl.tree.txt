@@ -8,5 +8,3 @@ src/e2e/resources/actual/Basic/custom_ports_no_handshake
 ├── times3.qpf
 ├── times3.qsf
 └── times3.sdc
-
-1 directory, 8 files

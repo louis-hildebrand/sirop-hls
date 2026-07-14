@@ -10,5 +10,3 @@ src/e2e/resources/actual/Basic/StmMap
 ├── test
 │   └── test_add5.vhd
 └── test_vhdl.sh
-
-2 directories, 9 files
