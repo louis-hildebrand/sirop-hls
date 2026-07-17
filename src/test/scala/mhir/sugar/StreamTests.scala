@@ -1230,87 +1230,116 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == expected)
   }
 
-  test("MulAddCascaded:0") {
-    val tv = TyVec(U8, 0)
-    val s1 = StmLiteral(VecLiteral()(tv), VecLiteral()(tv), VecLiteral()(tv))()
-    val s2 = StmLiteral(VecLiteral()(tv), VecLiteral()(tv), VecLiteral()(tv))()
-    val n = 3
-    assert(s1.elems.length == n)
-    assert(s2.elems.length == n)
-    val actualExpr = MulAddCascaded(s1, s2)().tchk().lower
-    val actual = mhir.eval.eval(actualExpr)
-    val expected = StmLiteral(C(0)(U16), C(0)(U16), C(0)(U16))().tchk()
-    assert(actual == expected)
-  }
+  for (delay <- Seq(0, 1, 2, 3)) {
 
-  test("MulAddCascaded:1") {
-    val s1 = StmLiteral(
-      VecLiteral(C(1)(U16))(),
-      VecLiteral(C(2)(U16))(),
-      VecLiteral(C(3)(U16))(),
-      VecLiteral(C(4)(U16))(),
-      VecLiteral(C(5)(U16))(),
-      VecLiteral(C(6)(U16))(),
-      VecLiteral(C(7)(U16))()
-    )()
-    val s2 = StmLiteral(
-      VecLiteral(C(7)(U16))(),
-      VecLiteral(C(6)(U16))(),
-      VecLiteral(C(5)(U16))(),
-      VecLiteral(C(4)(U16))(),
-      VecLiteral(C(3)(U16))(),
-      VecLiteral(C(2)(U16))(),
-      VecLiteral(C(1)(U16))()
-    )()
-    val n = 7
-    assert(s1.elems.length == n)
-    assert(s2.elems.length == n)
-    val actualExpr = MulAddCascaded(s1, s2)().tchk().lower
-    val actual = mhir.eval.eval(actualExpr)
-    val expected = StmLiteral(
-      C(1 * 7)(U16),
-      C(2 * 6)(U16),
-      C(3 * 5)(U16),
-      C(4 * 4)(U16),
-      C(5 * 3)(U16),
-      C(6 * 2)(U16),
-      C(7 * 1)(U16)
-    )().tchk()
-    assert(actual == expected)
-  }
+    test(s"MulAddCascaded(Stm[u8,0],$delay)") {
+      val tv = TyVec(U8, 0)
+      val s1 = StmLiteral(
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv)
+      )()
+      val s2 = StmLiteral(
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv),
+        VecLiteral()(tv)
+      )()
+      val n = 5
+      assert(s1.elems.length == n)
+      assert(s2.elems.length == n)
+      val actualExpr =
+        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
+      val actual = mhir.eval.eval(actualExpr)
+      val expected =
+        StmLiteral((0 until (n - delay)).map(_ => C(0)(U16)): _*)().tchk()
+      assert(actual == expected)
+    }
 
-  test("MulAddCascaded:4") {
-    val s1 = StmLiteral(
-      VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))(),
-      VecLiteral(C(5)(U16), C(6)(U16), C(7)(U16), C(8)(U16))(),
-      VecLiteral(C(9)(U16), C(10)(U16), C(11)(U16), C(12)(U16))(),
-      VecLiteral(C(13)(U16), C(14)(U16), C(15)(U16), C(16)(U16))(),
-      VecLiteral(C(17)(U16), C(18)(U16), C(19)(U16), C(20)(U16))(),
-      VecLiteral(C(21)(U16), C(22)(U16), C(23)(U16), C(24)(U16))(),
-      VecLiteral(C(25)(U16), C(26)(U16), C(27)(U16), C(28)(U16))()
-    )()
-    val s2 = StmLiteral(
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
-      VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
-    )()
-    val n = 7
-    assert(s1.elems.length == n)
-    assert(s2.elems.length == n)
-    // TODO: Automatically drop the first few elements?
-    val actualExpr = StmSuffix(MulAddCascaded(s1, s2)(), n - 3)().tchk().lower
-    val actual = mhir.eval.eval(actualExpr)
-    val expected = StmLiteral(
-      C(3 * (1 + 6 + 11 + 16))(U16),
-      C(3 * (5 + 10 + 15 + 20))(U16),
-      C(3 * (9 + 14 + 19 + 24))(U16),
-      C(3 * (13 + 18 + 23 + 28))(U16)
-    )().tchk()
-    assert(actual == expected)
+    test(s"MulAddCascaded(Stm[u8,1],$delay)") {
+      val s1 = StmLiteral(
+        VecLiteral(C(1)(U16))(),
+        VecLiteral(C(2)(U16))(),
+        VecLiteral(C(3)(U16))(),
+        VecLiteral(C(4)(U16))(),
+        VecLiteral(C(5)(U16))(),
+        VecLiteral(C(6)(U16))(),
+        VecLiteral(C(7)(U16))()
+      )()
+      val s2 = StmLiteral(
+        VecLiteral(C(7)(U16))(),
+        VecLiteral(C(6)(U16))(),
+        VecLiteral(C(5)(U16))(),
+        VecLiteral(C(4)(U16))(),
+        VecLiteral(C(3)(U16))(),
+        VecLiteral(C(2)(U16))(),
+        VecLiteral(C(1)(U16))()
+      )()
+      val n = 7
+      assert(s1.elems.length == n)
+      assert(s2.elems.length == n)
+      val actualExpr =
+        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
+      val actual = mhir.eval.eval(actualExpr)
+      val expected = StmLiteral(
+        Seq(
+          C(1 * 7)(U16),
+          C(2 * 6)(U16),
+          C(3 * 5)(U16),
+          C(4 * 4)(U16),
+          C(5 * 3)(U16),
+          C(6 * 2)(U16),
+          C(7 * 1)(U16)
+        ).dropRight(delay): _*
+      )().tchk()
+      assert(actual == expected)
+    }
+
+    test(s"MulAddCascaded(Stm[u8,4],$delay)") {
+      val s1 = StmLiteral(
+        VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))(),
+        VecLiteral(C(5)(U16), C(6)(U16), C(7)(U16), C(8)(U16))(),
+        VecLiteral(C(9)(U16), C(10)(U16), C(11)(U16), C(12)(U16))(),
+        VecLiteral(C(13)(U16), C(14)(U16), C(15)(U16), C(16)(U16))(),
+        VecLiteral(C(17)(U16), C(18)(U16), C(19)(U16), C(20)(U16))(),
+        VecLiteral(C(21)(U16), C(22)(U16), C(23)(U16), C(24)(U16))(),
+        VecLiteral(C(25)(U16), C(26)(U16), C(27)(U16), C(28)(U16))(),
+        VecLiteral(C(29)(U16), C(30)(U16), C(31)(U16), C(32)(U16))(),
+        VecLiteral(C(33)(U16), C(34)(U16), C(35)(U16), C(36)(U16))()
+      )()
+      val s2 = StmLiteral(
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
+      )()
+      val n = 9
+      assert(s1.elems.length == n)
+      assert(s2.elems.length == n)
+      val actualExpr =
+        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      val actual = mhir.eval.eval(actualExpr)
+      val expected = StmLiteral(
+        Seq(
+          C(3 * (1 + 6 + 11 + 16))(U16),
+          C(3 * (5 + 10 + 15 + 20))(U16),
+          C(3 * (9 + 14 + 19 + 24))(U16),
+          C(3 * (13 + 18 + 23 + 28))(U16),
+          C(3 * (17 + 22 + 27 + 32))(U16),
+          C(3 * (21 + 26 + 31 + 36))(U16)
+        ).dropRight(delay): _*
+      )().tchk()
+      assert(actual == expected)
+    }
+
   }
 
   for (n <- 0 until 10) {
@@ -1975,6 +2004,39 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual4 == expected.dropRight(4))
 
     val s5 = StmShiftRightGarbage(input, 5)().tchk().lower
+    val actual5 = extract(mhir.eval.eval(s5)).drop(5)
+    assert(actual5 == expected.dropRight(5))
+  }
+
+  test("StmDelay:Stm[u8,8]") {
+    def extract(e: Expr): Seq[Expr] = {
+      e.asInstanceOf[StmLiteral].elems
+    }
+
+    val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()
+    val expected = (0 until 8).map(C(_)(U8))
+
+    val s0 = StmDelay(input, 0)().tchk().lower
+    val actual0 = extract(mhir.eval.eval(s0))
+    assert(actual0 == expected)
+
+    val s1 = StmDelay(input, 1)().tchk().lower
+    val actual1 = extract(mhir.eval.eval(s1)).drop(1)
+    assert(actual1 == expected.dropRight(1))
+
+    val s2 = StmDelay(input, 2)().tchk().lower
+    val actual2 = extract(mhir.eval.eval(s2)).drop(2)
+    assert(actual2 == expected.dropRight(2))
+
+    val s3 = StmDelay(input, 3)().tchk().lower
+    val actual3 = extract(mhir.eval.eval(s3)).drop(3)
+    assert(actual3 == expected.dropRight(3))
+
+    val s4 = StmDelay(input, 4)().tchk().lower
+    val actual4 = extract(mhir.eval.eval(s4)).drop(4)
+    assert(actual4 == expected.dropRight(4))
+
+    val s5 = StmDelay(input, 5)().tchk().lower
     val actual5 = extract(mhir.eval.eval(s5)).drop(5)
     assert(actual5 == expected.dropRight(5))
   }
