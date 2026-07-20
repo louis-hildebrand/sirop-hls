@@ -1163,10 +1163,10 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val s1 = this.s1.tchk(context, constValues)
-    val (n, m) = s1.typ match {
-      case TyStm(TyVec(_: TyAnyInt, m), n) =>
+    val (elemTyp1, n, m) = s1.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m), n) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
-        (n, m)
+        (t, n, m)
       case t =>
         throw new TypeError(
           s"First stream in $className has type $t."
@@ -1174,8 +1174,8 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
         )
     }
     val s2 = this.s2.tchk(context, constValues)
-    s2.typ match {
-      case TyStm(TyVec(_: TyAnyInt, m2), n2) =>
+    val elemTyp2 = s2.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
@@ -1189,7 +1189,7 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
               + s" Expected vectors of length $m."
           )
         }
-        ()
+        t
       case t =>
         throw new TypeError(
           s"Second stream in $className has type $t." +
@@ -1197,8 +1197,23 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
-    // TODO: Also support unsigned mode
-    this.rebuild(TyStm(TySInt(44), n), Seq(s1, s2, delay))
+    val outElemTyp = (elemTyp1, elemTyp2) match {
+      case (_: TyUInt, _: TyUInt) => U44
+      case _                      => I44
+      // TODO: What if the operands don't fit in u44/i44?
+      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    }
+    if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
