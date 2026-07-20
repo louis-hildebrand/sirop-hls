@@ -29,7 +29,7 @@ case class AgilexMac2(
     )
   }
 
-  override def toVhdl(
+  override def toVhdlEntityInst(
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String

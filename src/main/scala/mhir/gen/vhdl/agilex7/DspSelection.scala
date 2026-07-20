@@ -34,21 +34,23 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     s.data match {
       case data: Param
           if s.accumulators.contains(data) && onlyUsedForDataOutput(data, s) =>
-        val (init, next) = s.accumulators(data)
-        this.scheduler.moveZeroDelayToConsumer(next) match {
-          case InConsumer(cData, pData) if pData.size == 1 =>
-            val (tmp, newNext) = pData.head
-            val newAcc = data.freshCopy.rebuild(tmp.typ).asInstanceOf[Param]
-            val newOut = cData.subPreserveType(tmp -> newAcc)
-            GenStmBuild(
-              data = newOut,
-              valid = s.valid,
-              accumulators = s.accumulators
-                .-(data)
-                .+(newAcc -> (init, newNext)),
-              producers = s.producers,
-              intermediates = s.intermediates
-            )
+        s.accumulators.get(data) match {
+          case Some(ExprAccumulator(init, ExprIntermediate(next))) =>
+            this.scheduler.moveZeroDelayToConsumer(next) match {
+              case InConsumer(cData, pData) if pData.size == 1 =>
+                val (tmp, newNext) = pData.head
+                val newVar = data.freshCopy.rebuild(tmp.typ).asInstanceOf[Param]
+                val newAcc = ExprAccumulator(init, ExprIntermediate(newNext))
+                val newOut = cData.subPreserveType(tmp -> newVar)
+                GenStmBuild(
+                  data = newOut,
+                  valid = s.valid,
+                  accumulators = (s.accumulators - data) + (newVar -> newAcc),
+                  producers = s.producers,
+                  intermediates = s.intermediates
+                )
+              case _ => s
+            }
           case _ => s
         }
       case _ => s
@@ -57,9 +59,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 
   private def onlyUsedForDataOutput(x: Param, s: GenStmBuild): Boolean = {
     !(s.valid.freeVars ++
-      s.accumulators.flatMap({ case (_, (init, next)) =>
-        init.freeVars ++ next.freeVars
-      }) ++
+      s.accumulators.flatMap({ case (_, acc) => acc.freeVars }) ++
       s.producers.flatMap({ case (_, (_, ready)) => ready.freeVars }) ++
       s.intermediates.flatMap({ case (_, i) => i.freeVars })).contains(x)
   }
@@ -68,7 +68,10 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     val newIntermediates = s.accumulators.flatMap({
       case (
             acc,
-            (Undefined(_), Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))))
+            ExprAccumulator(
+              None,
+              ExprIntermediate(Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))))
+            )
           ) =>
         (x.typ, y.typ, chainin.typ) match {
           case (TySInt(wx), TySInt(wy), TySInt(wz))
@@ -79,7 +82,13 @@ case class DspSelection(scheduler: StmOutputScheduler) {
             Some(acc -> AgilexMac1(x, y, chainin))
           case _ => None
         }
-      case (acc, (Undefined(_), Prod(PadOrIntCst(x), PadTo(y, _)))) =>
+      case (
+            acc,
+            ExprAccumulator(
+              None,
+              ExprIntermediate(Prod(PadOrIntCst(x), PadTo(y, _)))
+            )
+          ) =>
         (x.typ, y.typ, acc.typ) match {
           case (TySInt(wx), TySInt(wy), TySInt(wz))
               if wx <= 18 && wy <= 19 && wz <= 64 =>
@@ -153,8 +162,8 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({ case (x, (init, next)) =>
-        x -> (init.subPreserveType(subs), next.subPreserveType(subs))
+      accumulators = s.accumulators.map({ case (x, acc) =>
+        x -> acc.substitute(subs)
       }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, ready.subPreserveType(subs))
@@ -289,27 +298,36 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 }
 
 private object VecShiftLeft {
-  def unapply(arg: (Param, (Expr, Expr))): Option[(Long, Expr)] = {
+  def unapply(arg: (Param, Accumulator)): Option[(Long, Expr)] = {
     arg match {
       case (
             x0,
-            (
-              _: Undefined,
-              VecBuild(
-                IntCst(n),
-                Function(
-                  i0,
-                  Mux(
-                    Equal(i1, IntCst(nMinusOne)),
-                    e,
-                    VecAccess(x1, Sum(IntCst(1), i2))
+            // TODO: Use special VecBuildAccumulator for this purpose instead?
+            ExprAccumulator(
+              None,
+              ExprIntermediate(
+                VecBuild(
+                  IntCst(n),
+                  Function(
+                    i0,
+                    Mux(
+                      Equal(i1, IntCst(nMinusOne)),
+                      e,
+                      VecAccess(x1, Sum(IntCst(1), i2))
+                    )
                   )
                 )
               )
             )
           ) if x1 == x0 && i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
         Some((n, e))
-      case (_, (_: Undefined, VecBuild(IntCst(1), Function(_, e)))) =>
+      case (
+            _,
+            ExprAccumulator(
+              None,
+              ExprIntermediate(VecBuild(IntCst(1), Function(_, e)))
+            )
+          ) =>
         Some((1, e))
       case _ => None
     }

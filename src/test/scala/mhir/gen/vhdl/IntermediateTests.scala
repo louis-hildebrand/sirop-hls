@@ -18,8 +18,8 @@ class IntermediateTests extends AnyFunSuite {
     val intermediate = FunctionIntermediate(
       Seq(x, y),
       ListMap(
-        a -> DataIntermediate(Sum(x, b)().tchk()), // b is free here
-        b -> DataIntermediate(Sum(y, a)().tchk()) // a is bound here
+        a -> ExprIntermediate(Sum(x, b)().tchk()), // b is free here
+        b -> ExprIntermediate(Sum(y, a)().tchk()) // a is bound here
       ),
       Tuple(x, y, a, b, c)()
     )

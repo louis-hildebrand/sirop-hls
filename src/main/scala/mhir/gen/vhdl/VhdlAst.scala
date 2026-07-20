@@ -8,6 +8,7 @@ private[vhdl] sealed trait Decl {
 
 private[vhdl] sealed trait VhdlFunctionMode
 private[vhdl] object PureFunction extends VhdlFunctionMode
+@deprecated
 private[vhdl] object ImpureFunction extends VhdlFunctionMode
 
 private[vhdl] case class VhdlFunction(

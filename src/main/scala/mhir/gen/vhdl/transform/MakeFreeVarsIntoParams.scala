@@ -29,19 +29,18 @@ object MakeFreeVarsIntoParams {
     val result = GenStmBuild(
       data = pass.apply(s2.data),
       valid = pass.apply(s2.valid),
-      accumulators = s2.accumulators.map({ case (x, (z, next)) =>
-        x -> (pass.apply(z), pass.apply(next))
+      accumulators = s2.accumulators.map({ case (x, acc) =>
+        x -> acc.map(pass.apply)
       }),
       producers = s2.producers.map({ case (x, (p, ready)) =>
         x -> (p, pass.apply(ready))
       }),
       intermediates = s2.intermediates.map({
-        case i @ (_, _: StmDataIntermediate) => i
+        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
         case (_, _: IpBlockInst) =>
           throw new AssertionError(
             "there shouldn't be any IP blocks yet at this compilation stage"
           )
-        case (x, DataIntermediate(e)) => x -> DataIntermediate(pass.apply(e))
         case (f, i: FunctionIntermediate) => pass.apply(f, i)
       })
     )
@@ -69,10 +68,8 @@ object MakeFreeVarsIntoParams {
     FunctionIntermediate(
       outer.params,
       outer.intermediates.map({
-        case (x, DataIntermediate(e)) =>
-          x -> DataIntermediate(pass.apply(e))
-        case (x, inner: FunctionIntermediate) =>
-          pass.apply(x, inner)
+        case (x, i: DataIntermediate)         => x -> i.map(pass.apply)
+        case (x, inner: FunctionIntermediate) => pass.apply(x, inner)
       }),
       pass.apply(outer.output)
     )
@@ -137,8 +134,7 @@ private class MakeFreeVarsIntoParams(
     newF -> FunctionIntermediate(
       renamedParams ++ contextArgs,
       intermediates.map({
-        case (x, DataIntermediate(e)) =>
-          x -> DataIntermediate(this.apply(e))
+        case (x, i: DataIntermediate) => x -> i.map(this.apply)
         case (_, _: FunctionIntermediate) =>
           throw new AssertionError(
             "nested functions should have been removed by now"
@@ -221,8 +217,8 @@ private object EnsureTupleArgs {
     GenStmBuild(
       data = this.apply(s.data),
       valid = this.apply(s.valid),
-      accumulators = s.accumulators.map({ case (x, (z, next)) =>
-        x -> (this.apply(z), this.apply(next))
+      accumulators = s.accumulators.map({ case (x, acc) =>
+        x -> acc.map(this.apply)
       }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
@@ -236,12 +232,11 @@ private object EnsureTupleArgs {
 
   private def apply(i: Intermediate): Intermediate = {
     i match {
-      case i: StmDataIntermediate => i
+      case i: DataIntermediate => i.map(this.apply)
       case _: IpBlockInst =>
         throw new AssertionError(
           "there shouldn't be any IP blocks yet at this compilation stage"
         )
-      case DataIntermediate(e) => DataIntermediate(this.apply(e))
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
           params.length == 1,
@@ -260,9 +255,7 @@ private object EnsureTupleArgs {
               case _: FunctionIntermediate => updateLhs(x)
               case _                       => x
             }
-            val newI = this
-              .apply(i)
-              .asInstanceOf[Intermediate with AllowedInFunction]
+            val newI = this.apply(i).asInstanceOf[IntermediateInFunction]
             newX -> newI
           }),
           this.apply(output)
@@ -314,9 +307,7 @@ private object UnNestFunctions {
         val outer1 = FunctionIntermediate(
           outer0.params,
           outer0.intermediates.flatMap({ case (x, i) =>
-            this
-              .apply(x, i)
-              .mapValues(_.asInstanceOf[Intermediate with AllowedInFunction])
+            this.apply(x, i).mapValues(_.asInstanceOf[IntermediateInFunction])
           }),
           outer0.output
         )

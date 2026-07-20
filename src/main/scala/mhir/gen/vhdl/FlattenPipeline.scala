@@ -93,7 +93,7 @@ object FlattenPipeline {
       case x: Param =>
         (x, Seq())
       case s: StmBuild =>
-        var newAccumulators = Map[Param, (Expr, Expr)]()
+        var newAccumulators = Map[Param, Accumulator]()
         var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
         assert(
@@ -107,9 +107,17 @@ object FlattenPipeline {
               val (sink, nodes) = makePipeline(p, producerLatencies(x))
               newNodes ++= nodes
               newProducers += x -> (sink, ready)
-            case eqn @ (x, _) =>
+            case (x, (_: Undefined, next)) =>
               assert(x.typ.isData)
-              newAccumulators += eqn
+              val acc = ExprAccumulator(None, ExprIntermediate(next))
+              newAccumulators += (x -> acc)
+            case (x, (init, next)) =>
+              assert(x.typ.isData)
+              val acc = ExprAccumulator(
+                Some(ExprIntermediate(init)),
+                ExprIntermediate(next)
+              )
+              newAccumulators += (x -> acc)
           }
         }
         val genSbuild = GenStmBuild(
@@ -252,7 +260,8 @@ object FlattenPipeline {
   private def cleanUpSbuild(s: GenStmBuild): GenStmBuild = {
     val s1 = makeDataRegisterExplicit(s)
     val s2 = renameLocalProducers(s1)
-    s2
+    val s3 = recognizeVecWrite(s2)
+    s3
   }
 
   private def makeDataRegisterExplicit(s: GenStmBuild): GenStmBuild = {
@@ -260,7 +269,8 @@ object FlattenPipeline {
     GenStmBuild(
       data = acc,
       valid = s.valid,
-      accumulators = s.accumulators + (acc -> (Undefined(s.data.typ), s.data)),
+      accumulators = s.accumulators +
+        (acc -> ExprAccumulator(None, ExprIntermediate(s.data))),
       producers = s.producers,
       intermediates = s.intermediates
     )
@@ -275,6 +285,10 @@ object FlattenPipeline {
     * think this makes the generated VHDL a little more readable, since we
     * aren't using multiple names to refer to the same thing.
     */
+  // TODO: If I move this before the conversion to `GenStmBuild`, I can make
+  //       the definition of `GenStmBuild` more precise by simply having a
+  //       Map[Param, Expr] for the producers rather than a
+  //       Map[Param, (Param, Expr)]
   private def renameLocalProducers(s: GenStmBuild): GenStmBuild = {
     val renamings = s.producers
       .filter({ case (x, (p, _)) => x != p })
@@ -283,10 +297,13 @@ object FlattenPipeline {
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({ case (x, (z, next)) =>
-        // Producers are not in scope in initial value, so no need to do any
-        // substitutions there
-        x -> (z, next.subPreserveType(subs))
+      accumulators = s.accumulators.map({
+        case (x, ExprAccumulator(init, next)) =>
+          // Producers are not in scope in initial value, so no need to do any
+          // substitutions there
+          x -> ExprAccumulator(init, next.substitute(subs))
+        case (x, a: Accumulator) =>
+          x -> a.substitute(subs)
       }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         assert(x == p || renamings(x) == p)
@@ -295,8 +312,8 @@ object FlattenPipeline {
         p -> (p, ready)
       }),
       intermediates = s.intermediates.map({
-        case (x, DataIntermediate(e)) =>
-          x -> DataIntermediate(e.subPreserveType(subs))
+        case (x, ExprIntermediate(e)) =>
+          x -> ExprIntermediate(e.subPreserveType(subs))
         case (x, FunctionIntermediate(Seq(y), Seq(), body)) =>
           val Function(y2, body2) =
             Function(y, body)().tchk().subPreserveType(subs)
@@ -307,6 +324,62 @@ object FlattenPipeline {
           )
       })
     )
+  }
+
+  private def recognizeVecWrite(s: GenStmBuild): GenStmBuild = {
+    // TODO: Implement this again
+    s
+//    GenStmBuild(
+//      data = s.data,
+//      valid = s.valid,
+//      accumulators = s.accumulators.map({
+//        case eqn @ (
+//              v0,
+//              Accumulator(
+//                None,
+//                DataIntermediate(
+//                  VecBuild(
+//                    _,
+//                    Function(
+//                      i0,
+//                      Mux(And(terms @ _*), write, VecAccess(v1, i1: Param))
+//                    )
+//                  )
+//                )
+//              )
+//            ) if v1 == v0 && i1 == i0 =>
+//          val indexToUpdate = terms.flatMap({
+//            case Equal(i2: Param, idx)
+//                if i2 == i0 && !idx.freeVars.contains(i0) =>
+//              Some(idx)
+//            case Equal(idx, i2: Param)
+//                if i2 == i0 && !idx.freeVars.contains(i0) =>
+//              Some(idx)
+//            case _ => None
+//          }) match {
+//            case Seq(idx) => Some(idx)
+//            case _        => None
+//          }
+//          indexToUpdate match {
+//            case Some(idx) =>
+//              val newCond = MaybeAnd(
+//                terms
+//                  .map(_.subPreserveType(i0 -> idx))
+//                  .filter({
+//                    // Remove the `index == index` term
+//                    case Equal(x, y) => x != y
+//                    case _           => true
+//                  }): _*
+//              )().tchk()
+//              val newWrite = write.subPreserveType(i0 -> idx).tchk()
+//              v0 -> VecWriteAccumulator(newCond, idx, newWrite)
+//            case None => eqn
+//          }
+//        case eqn => eqn
+//      }),
+//      producers = s.producers,
+//      intermediates = s.intermediates
+//    )
   }
 
   private def ensureAtLeastOneBuffer(pipe: FlatPipeline): FlatPipeline = {

@@ -24,16 +24,25 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       data = data,
       valid = FunCall(f, C(0)(U8))().__1.tchk(),
       accumulators = Map(
-        y -> (C(0)(U8), Sum(C(1)(U8), y)()),
-        z -> (True, Not(z)().tchk()),
-        w -> (C(0)(U8), FunCall(f, y)().tchk())
+        y -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          ExprIntermediate(Sum(C(1)(U8), y)())
+        ),
+        z -> ExprAccumulator(
+          Some(ExprIntermediate(True)),
+          ExprIntermediate(Not(z)().tchk())
+        ),
+        w -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          ExprIntermediate(FunCall(f, y)().tchk())
+        )
       ),
       producers = Map(
         p -> (p, FunCall(f, C(0)(U8))().__1.tchk())
       ),
       intermediates = ListMap(
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
-        data -> DataIntermediate(
+        data -> ExprIntermediate(
           Tuple(FunCall(f, C(42)(U8))(), StmData(p)(), w)().tchk()
         )
       )
@@ -48,16 +57,25 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       data = data,
       valid = FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk(),
       accumulators = Map(
-        y -> (C(0)(U8), Sum(C(1)(U8), y)()),
-        z -> (True, Not(z)().tchk()),
-        w -> (C(0)(U8), FunCall(f2, Tuple(y, y, z)())().tchk())
+        y -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          ExprIntermediate(Sum(C(1)(U8), y)())
+        ),
+        z -> ExprAccumulator(
+          Some(ExprIntermediate(True)),
+          ExprIntermediate(Not(z)().tchk())
+        ),
+        w -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          ExprIntermediate(FunCall(f2, Tuple(y, y, z)())().tchk())
+        )
       ),
       producers = Map(
         p -> (p, FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk())
       ),
       intermediates = ListMap(
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
-        data -> DataIntermediate(
+        data -> ExprIntermediate(
           Tuple(FunCall(f2, Tuple(C(42)(U8), y, z)())(), StmData(p)(), w)()
             .tchk()
         )
@@ -84,10 +102,22 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       data = FunCall(k, FunCall(h, C(42)(U16))())().tchk(),
       valid = True,
       accumulators = Map(
-        a -> (C(0)(U16), Sum(C(1)(U16), a)().tchk()),
-        b -> (C(42)(U16), WrappingDiff(a, C(1)(U16))().tchk()),
-        c -> (C(1)(U16), Sum(C(1)(U16), a)().tchk()),
-        d -> (C(9)(U16), Sum(C(1)(U16), d)().tchk())
+        a -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), a)().tchk())
+        ),
+        b -> ExprAccumulator(
+          Some(ExprIntermediate(C(42)(U16))),
+          ExprIntermediate(WrappingDiff(a, C(1)(U16))().tchk())
+        ),
+        c -> ExprAccumulator(
+          Some(ExprIntermediate(C(1)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), a)().tchk())
+        ),
+        d -> ExprAccumulator(
+          Some(ExprIntermediate(C(9)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), d)().tchk())
+        )
       ),
       producers = Map(),
       intermediates = ListMap(
@@ -125,10 +155,22 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       )().tchk(),
       valid = True,
       accumulators = Map(
-        a -> (C(0)(U16), Sum(C(1)(U16), a)().tchk()),
-        b -> (C(42)(U16), WrappingDiff(a, C(1)(U16))().tchk()),
-        c -> (C(1)(U16), Sum(C(1)(U16), a)().tchk()),
-        d -> (C(9)(U16), Sum(C(1)(U16), d)().tchk())
+        a -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), a)().tchk())
+        ),
+        b -> ExprAccumulator(
+          Some(ExprIntermediate(C(42)(U16))),
+          ExprIntermediate(WrappingDiff(a, C(1)(U16))().tchk())
+        ),
+        c -> ExprAccumulator(
+          Some(ExprIntermediate(C(1)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), a)().tchk())
+        ),
+        d -> ExprAccumulator(
+          Some(ExprIntermediate(C(9)(U16))),
+          ExprIntermediate(Sum(C(1)(U16), d)().tchk())
+        )
       ),
       producers = Map(),
       intermediates = ListMap(

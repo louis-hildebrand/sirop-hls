@@ -32,9 +32,7 @@ object RemoveUnused {
 
   private def findUsed(s: GenStmBuild): Set[Param] = {
     s.data.freeVars ++ s.valid.freeVars ++
-      s.accumulators.flatMap({ case (_, (init, next)) =>
-        init.freeVars ++ next.freeVars
-      }) ++
+      s.accumulators.flatMap({ case (_, acc) => acc.freeVars }) ++
       s.producers.flatMap({ case (_, (_, ready)) => ready.freeVars }) ++
       s.intermediates.flatMap({ case (_, i) => i.freeVars })
   }

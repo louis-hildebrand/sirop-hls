@@ -1,14 +1,11 @@
 package mhir.gen.vhdl.handshake
 
-import com.typesafe.scalalogging.Logger
 import mhir.gen.vhdl._
 import mhir.ir._
 
 /** VHDL converter for [[mhir.ir.StmBuild]].
   */
 private[vhdl] object StmBuildVhdl {
-
-  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Converts a [[mhir.ir.StmBuild]] to a VHDL component.
     *
@@ -28,7 +25,7 @@ private[vhdl] object StmBuildVhdl {
     require(options.handshake)
 
     val intermediateDecls = s.intermediates
-      .flatMap({ case (x, i) => i.toVhdlInArchitecture(x, options) })
+      .map({ case (x, i) => i.toVhdlDecl(x, options) })
 
     val allDecls = (
       defaultSignals(s.valid, options)
@@ -43,7 +40,7 @@ private[vhdl] object StmBuildVhdl {
     )
     val allChildren = s.intermediates
       .collect({ case (x, ip: IpBlockInst) =>
-        ip.toVhdl(x, options, enable = "bool2sl(can_update_acc)")
+        ip.toVhdlEntityInst(x, options, enable = "bool2sl(can_update_acc)")
       })
       .toSeq
     CustomVhdlComponent(
@@ -150,70 +147,12 @@ private[vhdl] object StmBuildVhdl {
     *   registers.
     */
   private def registerSignals(
-      registerEquations: Iterable[(Param, (Expr, Expr))],
+      registerEquations: Iterable[(Param, Accumulator)],
       options: VhdlGeneratorOptions
   ): Seq[Signal] = {
     registerEquations
-      .map({
-        case SingleWriteVector(x, z, cond, idx, write) =>
-          // TODO: Deduplicate this code (both in handshake/ and nohandshake/)?
-          // If the accumulator is a vector such that at most one element is
-          // updated per step, then emit VHDL code which makes that clear.
-          // This makes it possible for Quartus to recognize the accumulator as
-          // a BRAM (assuming the other conditions are met, like only reading
-          // one element per cycle).
-          // Quartus cannot recognize a BRAM if we write to every element at
-          // every cycle, even if all but one element keeps the same value.
-          logger.debug(
-            s"accumulator ${x.name} is a single-write vector"
-              + s" (cond: $cond, idx: $idx, write: $write)"
-          )
-          assert(x.typ.isData)
-          assert(z.isInstanceOf[Undefined])
-          val condVhdl = VhdlExprGenerator.toVhdl(cond)
-          val idxVhdl = VhdlExprGenerator.toVhdl(idx)
-          val writeVhdl = VhdlExprGenerator.toVhdl(write)
-          Signal(
-            category = "Registers",
-            name = x.name,
-            typ = VhdlType(x.typ),
-            assignStmt = Some(
-              s"""if can_update_acc and ($condVhdl) then
-                 |    ${x.name}(to_integer($idxVhdl)) <= $writeVhdl;
-                 |end if;
-                 |""".stripMargin
-            ),
-            cond = Some("true")
-          )
-        case (x, (z, next)) =>
-          assert(x.typ.isData)
-          val initVhdl = z match {
-            case _: Undefined => None
-            case z            => Some(VhdlExprGenerator.toVhdl(z))
-          }
-          val nextVhdl = VhdlExprGenerator.toVhdl(next)
-          Signal(
-            category = "Registers",
-            name = x.name,
-            typ = VhdlType(x.typ),
-            assignStmt = Some({
-              val update =
-                s"""if can_update_acc then
-                 |    ${x.name} <= $nextVhdl;
-                 |end if;
-                 |""".stripMargin.stripTrailing
-              val reset = initVhdl match {
-                case None => ""
-                case Some(z) =>
-                  s"""if sl2bool(${options.reset}) then
-                    |    ${x.name} <= $z;
-                    |els
-                    |""".stripMargin.stripTrailing
-              }
-              s"$reset$update"
-            }),
-            cond = Some("true")
-          )
+      .map({ case (x, acc) =>
+        acc.toVhdl(x, enable = "can_update_acc", options = options)
       })
       .toSeq
   }

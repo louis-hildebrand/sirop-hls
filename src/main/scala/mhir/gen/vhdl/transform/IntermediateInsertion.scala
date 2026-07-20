@@ -35,17 +35,12 @@ object IntermediateInsertion {
     intermediates ++= dataIntermediates
     val (valid, validIntermediates) = this.apply(s.valid)
     intermediates ++= validIntermediates
-    val accumulators = s.accumulators.map({ case (x, (z, next)) =>
-      val newZ = z match {
-        case z: Undefined => z
-        case z =>
-          val (newZ, zIntermediates) = this.apply(z)
-          intermediates ++= zIntermediates
-          newZ
-      }
-      val (newNext, nextIntermediates) = this.apply(next)
-      intermediates ++= nextIntermediates
-      x -> (newZ, newNext)
+    val accumulators = s.accumulators.map({ case (x, acc) =>
+      x -> acc.map({ e =>
+        val (newE, eIntermediates) = this.apply(e)
+        intermediates ++= eIntermediates
+        newE
+      })
     })
     val producers = s.producers.map({ case (x, (p, ready)) =>
       val (newReady, readyIntermediates) = this.apply(ready)
@@ -89,16 +84,15 @@ private class ExprIntermediateInsertion(
           new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(body)
         // Some intermediates can be kept within the function (e.g., simple
         // data) and some must be moved out (e.g., another function declaration)
-        var innerIntermediates =
-          ListMap[Param, Intermediate with AllowedInFunction]()
+        var innerIntermediates = ListMap[Param, IntermediateInFunction]()
         var outerIntermediates = Map[Param, Intermediate]()
         for ((x, i) <- intermediates) {
           i match {
+            // Move outside
+            case i: StmDataIntermediate => outerIntermediates += x -> i
             // Keep inside
             case i: DataIntermediate     => innerIntermediates += x -> i
             case i: FunctionIntermediate => innerIntermediates += x -> i
-            // Move outside
-            case i: StmDataIntermediate => outerIntermediates += x -> i
             // Not allowed
             case _: IpBlockInst =>
               throw new AssertionError(
@@ -135,7 +129,7 @@ private class ExprIntermediateInsertion(
       // --- Cases that require an intermediate variable -----------------------
       case Undefined(typ) =>
         val temp = Param("undef")(typ)
-        this.intermediates += temp -> DataIntermediate(Undefined(typ))
+        this.intermediates += temp -> ExprIntermediate(Undefined(typ))
         temp
       case Mux(c, t, f) =>
         // TODO: Specially handle "if-elseif-else," for readability? This may
@@ -144,24 +138,24 @@ private class ExprIntermediateInsertion(
         val t2 = this.run(t)
         val f2 = this.run(f)
         val temp = Param("ite")(t.typ)
-        this.intermediates += temp -> DataIntermediate(Mux(c2, t2, f2)().tchk())
+        this.intermediates += temp -> MuxIntermediate(c2, t2, f2)
         temp
       case bits @ Bits(e) =>
         val e2 = this.run(e)
         val temp = Param("bits")(bits.typ)
-        this.intermediates += temp -> DataIntermediate(Bits(e2)().tchk())
+        this.intermediates += temp -> ExprIntermediate(Bits(e2)().tchk())
         temp
       case ia @ InterpretAs(e, targetTyp) =>
         val e2 = this.run(e)
         val temp = Param("interpret_as")(ia.typ)
-        this.intermediates += temp -> DataIntermediate(
+        this.intermediates += temp -> ExprIntermediate(
           InterpretAs(e2, targetTyp)().tchk()
         )
         temp
       case tup @ Tuple(elems @ _*) =>
         val elems2 = elems.map(this.run)
         val temp = Param("t")(tup.typ)
-        this.intermediates += temp -> DataIntermediate(
+        this.intermediates += temp -> ExprIntermediate(
           Tuple(elems2: _*)().tchk()
         )
         temp
@@ -177,7 +171,7 @@ private class ExprIntermediateInsertion(
             TupleAccess(t2, i)().tchk()
           case _ =>
             val temp = Param("tmp")(t2.typ)
-            this.intermediates += temp -> DataIntermediate(t2)
+            this.intermediates += temp -> ExprIntermediate(t2)
             TupleAccess(temp, i)().tchk()
         }
       case vec @ VecLiteral(elems @ _*) =>
@@ -185,7 +179,7 @@ private class ExprIntermediateInsertion(
         val vec2 =
           VecLiteral(elems2: _*)(if (elems.isEmpty) vec.typ else Missing).tchk()
         val temp = Param("v")(vec.typ)
-        this.intermediates += temp -> DataIntermediate(vec2)
+        this.intermediates += temp -> ExprIntermediate(vec2)
         temp
       case VecAccess(v, i) =>
         val v2 = this.run(v)
@@ -197,7 +191,7 @@ private class ExprIntermediateInsertion(
             VecAccess(v2, i2)().tchk()
           case _ =>
             val temp = Param("tmp")(v2.typ)
-            this.intermediates += temp -> DataIntermediate(v2)
+            this.intermediates += temp -> ExprIntermediate(v2)
             VecAccess(temp, i2)().tchk()
         }
       case StmData(x: Param) =>

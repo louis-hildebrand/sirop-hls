@@ -20,9 +20,10 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val (actualExpr, actualIntermediates) = IntermediateInsertion(e)
 
     assert(actualIntermediates.size == 1)
-    val (tmp, DataIntermediate(actualIntermediate)) = actualIntermediates.head
-    assert(actualIntermediate == Mux(c, C(42)(U8), C(0)(U8))())
-    assert(actualIntermediate.typ == U8)
+    val (tmp, actualIntermediate) = actualIntermediates.head
+    assert(actualIntermediate == MuxIntermediate(c, C(42)(U8), C(0)(U8)))
+    assert(actualIntermediate.asInstanceOf[MuxIntermediate].t.typ == U8)
+    assert(actualIntermediate.asInstanceOf[MuxIntermediate].f.typ == U8)
     val expectedExpr = Sum(C(1)(U8), tmp)()
     assert(actualExpr == expectedExpr)
     assert(actualExpr.typ == U8)
@@ -60,7 +61,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
       case Sum(ite2: Param, ite3: Param, actualSdata) =>
         assert(actualSdata == sdata)
         actualFunIntermediates(ite2) match {
-          case DataIntermediate(Mux(_, _, ite1: Param)) =>
+          case MuxIntermediate(_, _, ite1: Param) =>
             (ite1, ite2, ite3)
           case e =>
             fail(s"wrong RHS for second if-then-else: $e")
@@ -70,11 +71,9 @@ class IntermediateInsertionTests extends AnyFunSuite {
     }
 
     val expectedIntermediates = ListMap(
-      ite1 -> DataIntermediate(
-        Mux(x gt C(-10)(I16), C(-10)(I16), C(0)(I16))().tchk()
-      ),
-      ite2 -> DataIntermediate(Mux(x gt C(0)(I16), x, ite1)().tchk()),
-      ite3 -> DataIntermediate(Mux(x lt C(42)(I16), x, C(42)(I16))().tchk())
+      ite1 -> MuxIntermediate(x gt C(-10)(I16), C(-10)(I16), C(0)(I16)),
+      ite2 -> MuxIntermediate(x gt C(0)(I16), x, ite1),
+      ite3 -> MuxIntermediate(x lt C(42)(I16), x, C(42)(I16))
     )
     assert(actualFunIntermediates == expectedIntermediates)
   }
@@ -90,7 +89,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
       data = acc,
       valid = True,
       accumulators = Map(
-        acc -> (Undefined(U8), StmData(p)().tchk())
+        acc -> ExprAccumulator(None, ExprIntermediate(StmData(p)().tchk()))
       ),
       producers = Map(
         p -> (p, True)
@@ -99,6 +98,11 @@ class IntermediateInsertionTests extends AnyFunSuite {
     )
     val actual = IntermediateInsertion(original)
     assert(actual.accumulators.size == 1)
-    assert(actual.accumulators.head._2._1.isInstanceOf[Undefined])
+    assert(
+      actual.accumulators.head._2
+        .asInstanceOf[ExprAccumulator]
+        .init
+        .isEmpty
+    )
   }
 }

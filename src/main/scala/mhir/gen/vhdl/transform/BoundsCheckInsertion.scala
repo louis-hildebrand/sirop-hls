@@ -21,8 +21,8 @@ object BoundsCheckInsertion {
     GenStmBuild(
       data = this.apply(s.data),
       valid = this.apply(s.valid),
-      accumulators = s.accumulators.map({ case (x, (z, next)) =>
-        x -> (this.apply(z), this.apply(next))
+      accumulators = s.accumulators.map({ case (x, acc: Accumulator) =>
+        x -> acc.map(this.apply)
       }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
@@ -35,20 +35,17 @@ object BoundsCheckInsertion {
 
   private def apply(i: Intermediate): Intermediate = {
     i match {
-      case _: StmDataIntermediate => i
+      case i: DataIntermediate => i.map(this.apply)
       case _: IpBlockInst =>
         throw new AssertionError(
           "there shouldn't be any IP blocks yet at this compilation stage"
         )
-      case DataIntermediate(e) => DataIntermediate(this.apply(e))
       case FunctionIntermediate(params, intermediates, body) =>
         FunctionIntermediate(
           params,
           intermediates
             .map({ case (x, i) =>
-              x -> this
-                .apply(i)
-                .asInstanceOf[Intermediate with AllowedInFunction]
+              x -> this.apply(i).asInstanceOf[IntermediateInFunction]
             }),
           this.apply(body)
         )

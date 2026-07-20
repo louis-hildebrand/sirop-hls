@@ -21,7 +21,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     )
   }
 
-  override def toVhdl(
+  override def toVhdlEntityInst(
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String

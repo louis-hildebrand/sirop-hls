@@ -2,15 +2,8 @@ package mhir.gen.vhdl
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.gen.vhdl.transform.{
-  BoundsCheckInsertion,
-  IntermediateInsertion,
-  MakeFreeVarsIntoParams
-}
 import mhir.ir._
 import mhir.logging.time
-import mhir.optimize.cost.SimpleDelayCostModel
-import mhir.optimize.{EnabledBinOpTreeBalancingPass, StmOutputScheduler}
 import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
 import os.Path
@@ -36,38 +29,10 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): FlatPipeline = {
-    val pipe = {
-      val pipe0 = time("ANF conversion", Level.DEBUG) {
-        FlattenPipeline(f, options)
-      }
-      val pipe1 = time("adding vector bounds checks", Level.DEBUG) {
-        pipe0.mapSbuilds(BoundsCheckInsertion.apply)
-      }
-      val pipe2 = time("inserting intermediate variables", Level.DEBUG) {
-        pipe1.mapSbuilds(IntermediateInsertion.apply)
-      }
-      val pipe3 = time("making all function arguments explicit", Level.DEBUG) {
-        pipe2.mapSbuilds(MakeFreeVarsIntoParams.apply)
-      }
-      val pipe4 = options.deviceFamily match {
-        case "Agilex 7" =>
-          time(s"mapping multiplications to Agilex 7 DSP blocks", Level.DEBUG) {
-            val pass = agilex7.DspSelection(
-              StmOutputScheduler(
-                EnabledBinOpTreeBalancingPass,
-                SimpleDelayCostModel(madd = true)
-              )
-            )
-            pipe3.mapSbuilds(pass.apply)
-          }
-        case family =>
-          logger.debug(
-            s"DSP selection is not currently implemented for FPGA family '$family'"
-          )
-          pipe3
-      }
-      pipe4
+    val pipe0 = time("ANF conversion", Level.DEBUG) {
+      FlattenPipeline(f, options)
     }
+    val pipe = transform.ApplyTransformations(pipe0, options)
     val topComponent = time("converting to VHDL", Level.DEBUG) {
       if (options.handshake) {
         handshake.TopVhdl(pipe, options)
