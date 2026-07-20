@@ -16,8 +16,9 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     // After combining DSPs, some intermediates might no longer be needed
     val s4 = RemoveUnused.intermediates(s3)
     val s5 = this.enableChainInOut(s4)
+    val s6 = this.mergeRegistersIntoDsps(s5)
     // TODO: Also need to ensure arguments in port map are either names or static (i.e., more intermediate insertion)?
-    s5
+    s6
   }
 
   /** Moves AST nodes with no combinational delay after the `data` output
@@ -105,7 +106,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       case i @ (x, AgilexMac1(bx, by, chaininB: Param)) =>
         s.intermediates.get(chaininB) match {
           case Some(AgilexMac1(ax, ay, chaininA)) =>
-            x -> AgilexMac2(ax, ay, bx, by, chaininA)
+            x -> AgilexMac2(ax, ay, bx, by, chaininA, pipeline = 0)
           case _ =>
             i
         }
@@ -123,7 +124,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def enableChainInOut(s: GenStmBuild): GenStmBuild = {
     val renamings = s.intermediates
       .flatMap({
-        case (_, AgilexMac2(_, _, _, _, chainin: Param)) =>
+        case (_, AgilexMac2(_, _, _, _, chainin: Param, _)) =>
           s.intermediates.get(chainin) match {
             case Some(_: AgilexMac1 | _: AgilexMac2) =>
               val chainInOutTyp = chainin.typ.asInstanceOf[TyAnyInt] match {
@@ -180,12 +181,138 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       intermediates = s.intermediates.map({
         case (
               x,
-              AgilexMac2(ax, ay, bx, by, TupleAccess(chainin: Param, IntCst(0)))
+              AgilexMac2(
+                ax,
+                ay,
+                bx,
+                by,
+                TupleAccess(chainin: Param, IntCst(0)),
+                pipeline
+              )
             ) if newNames.contains(chainin) =>
-          x -> AgilexMac2(ax, ay, bx, by, TupleAccess(chainin, 1)().tchk())
+          x -> AgilexMac2(
+            ax,
+            ay,
+            bx,
+            by,
+            TupleAccess(chainin, 1)().tchk(),
+            pipeline
+          )
         case i => i
       })
     )
+  }
+
+  private def mergeRegistersIntoDsps(s: GenStmBuild): GenStmBuild = {
+    GenStmBuild(
+      data = s.data,
+      valid = s.valid,
+      accumulators = s.accumulators,
+      producers = s.producers,
+      intermediates = s.intermediates.map({
+        case intermediate @ (
+              x,
+              AgilexMac2(
+                ax @ VecAccess(axPipe: Param, IntCst(0)),
+                ay @ VecAccess(ayPipe: Param, IntCst(0)),
+                bx @ VecAccess(bxPipe: Param, IntCst(0)),
+                by @ VecAccess(byPipe: Param, IntCst(0)),
+                chainin,
+                pipeline
+              )
+            ) =>
+          assert(pipeline >= 0)
+          assert(pipeline <= 3)
+          // How long is the shift register before each input?
+          val (axPipeLen: Long, axPipeInput) = s.accumulators
+            .get(axPipe)
+            .map(axPipe -> _)
+            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .getOrElse((0L, Undefined(ax.typ)))
+          val (ayPipeLen: Long, ayPipeInput) = s.accumulators
+            .get(ayPipe)
+            .map(ayPipe -> _)
+            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .getOrElse((0L, Undefined(ay.typ)))
+          val (bxPipeLen: Long, bxPipeInput) = s.accumulators
+            .get(bxPipe)
+            .map(bxPipe -> _)
+            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .getOrElse((0L, Undefined(bx.typ)))
+          val (byPipeLen: Long, byPipeInput) = s.accumulators
+            .get(byPipe)
+            .map(byPipe -> _)
+            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .getOrElse((0L, Undefined(by.typ)))
+          // Absorb as many stages as possible into the DSP, subject to the
+          // restriction that the DSP does not support more than 3 stages
+          val gobble = math
+            .min(
+              3 - pipeline,
+              Seq(axPipeLen, ayPipeLen, bxPipeLen, byPipeLen).max
+            )
+            .toInt
+          // Perform the transformation
+          if (gobble <= 0) {
+            intermediate
+          } else {
+            x -> AgilexMac2(
+              ax = shortenShiftRegister(axPipe, gobble, axPipeInput),
+              ay = shortenShiftRegister(ayPipe, gobble, ayPipeInput),
+              bx = shortenShiftRegister(bxPipe, gobble, bxPipeInput),
+              by = shortenShiftRegister(byPipe, gobble, byPipeInput),
+              chainin,
+              pipeline + gobble
+            )
+          }
+        case i => i
+      })
+    )
+  }
+
+  private def shortenShiftRegister(
+      pipe: Param,
+      skip: Int,
+      pipeInput: Expr
+  ): Expr = {
+    val TyVec(_, IntCst(len)) = pipe.typ
+    require(len >= 0)
+    require(skip >= 0)
+    require(skip <= len)
+    if (skip == len) {
+      // Bypass the shift register altogether
+      pipeInput
+    } else {
+      VecAccess(pipe, C(skip)())().tchk()
+    }
+  }
+}
+
+private object VecShiftLeft {
+  def unapply(arg: (Param, (Expr, Expr))): Option[(Long, Expr)] = {
+    arg match {
+      case (
+            x0,
+            (
+              _: Undefined,
+              VecBuild(
+                IntCst(n),
+                Function(
+                  i0,
+                  Mux(
+                    Equal(i1, IntCst(nMinusOne)),
+                    e,
+                    VecAccess(x1, Sum(IntCst(1), i2))
+                  )
+                )
+              )
+            )
+          ) if x1 == x0 && i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
+        Some((n, e))
+      case (_, (_: Undefined, VecBuild(IntCst(1), Function(_, e)))) =>
+        Some((1, e))
+      case _ => None
+    }
   }
 }
 

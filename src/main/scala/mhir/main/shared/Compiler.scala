@@ -184,7 +184,7 @@ object Compiler {
           if (runSim) {
             val result = VhdlTestRunner.testExistingProject(outDir)
             val moreInfoMsg =
-              "For more details, try running './test_vhdl.sh . -v' in the generated VHDL directory."
+              "For more details, try running './scripts/test_vhdl.sh . -v' in the generated VHDL directory."
             result match {
               case TestPassed =>
                 logger.info("VHDL testbench passed!")

@@ -5,11 +5,14 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck._
 
-case class AgilexMac2(ax: Expr, ay: Expr, bx: Expr, by: Expr, chainin: Expr)
-    extends IpBlockInst {
-
-  // TODO: Implement absorbing registers into DSP
-  def pipeline: Int = 0
+case class AgilexMac2(
+    ax: Expr,
+    ay: Expr,
+    bx: Expr,
+    by: Expr,
+    chainin: Expr,
+    pipeline: Int
+) extends IpBlockInst {
 
   override def freeVars: Set[Param] = {
     ax.freeVars ++ ay.freeVars ++ bx.freeVars ++ by.freeVars ++ chainin.freeVars
@@ -21,7 +24,8 @@ case class AgilexMac2(ax: Expr, ay: Expr, bx: Expr, by: Expr, chainin: Expr)
       this.ay.subPreserveType(subs),
       this.bx.subPreserveType(subs),
       this.by.subPreserveType(subs),
-      this.chainin.subPreserveType(subs)
+      this.chainin.subPreserveType(subs),
+      this.pipeline
     )
   }
 

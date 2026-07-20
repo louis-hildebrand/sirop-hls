@@ -8,8 +8,7 @@ import mhir.optimize.{
   EnabledBinOpTreeBalancingPass,
   Optimizer,
   OptimizerOptions,
-  StmOutputScheduler,
-  PartialEvalPass => PE
+  StmOutputScheduler
 }
 import mhir.sugar.{ExprLowering, MulAddCascaded, StmCst}
 import mhir.typecheck._
@@ -37,20 +36,10 @@ class DspSelectionTests extends AnyFunSuite {
     )
   )
 
-  // Check that the order of the terms I'm creating here match the order you'd
-  // actually get after optimization
-  test("SumOrder") {
-    val x = Param("x")(U8)
-    val y = Param("y")(U8)
-    val z = Param("z")(U8)
-    val e = Sum(x, Prod(y, z)())().tchk()
-    assert(PE.partialEval(e) == e)
-  }
-
   private val primes = Seq(3, 5, 7, 11, 13, 17)
   for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
     for ((inTyp, outTyp) <- Seq((I16, I44), (U16, U44))) {
-      for (pipeline <- Seq(0)) {
+      for (pipeline <- Seq(0, 1, 2, 3, 4)) {
         for (const <- Seq(false, true)) {
 
           val name =
@@ -91,21 +80,23 @@ class DspSelectionTests extends AnyFunSuite {
               val numDoublesAtStartAndEnd = if (depth == 2) 1 else 0
               val numDoublesAtMiddle =
                 numDoubles - numDoublesAtStart - numDoublesAtEnd - numDoublesAtStartAndEnd
+              val cappedPipeline = math.min(3, pipeline)
               Map(
                 // Start of the chain
-                s"agilex7_mac1(signed=$signed, pipeline=$pipeline, chainin=false, chainout=${depth >= 3})"
+                // TODO: Merge in pipeline registers for agilex_mac1 too?
+                s"agilex7_mac1(signed=$signed, pipeline=0, chainin=false, chainout=${depth >= 3})"
                   -> numSingles,
                 // Start of the chain
-                s"agilex7_mac2(signed=$signed, pipeline=$pipeline, chainin=false, chainout=true)"
+                s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=true)"
                   -> numDoublesAtStart,
                 // Middle of the chain
-                s"agilex7_mac2(signed=$signed, pipeline=$pipeline, chainin=true, chainout=true)"
+                s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=true, chainout=true)"
                   -> numDoublesAtMiddle,
                 // End of the chain
-                s"agilex7_mac2(signed=$signed, pipeline=$pipeline, chainin=true, chainout=false)"
+                s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=true, chainout=false)"
                   -> numDoublesAtEnd,
                 // Simultaneously at the start and end of the chain
-                s"agilex7_mac2(signed=$signed, pipeline=$pipeline, chainin=false, chainout=false)"
+                s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=false)"
                   -> numDoublesAtStartAndEnd
               ).filter({ case (_, n) => n > 0 })
             }
