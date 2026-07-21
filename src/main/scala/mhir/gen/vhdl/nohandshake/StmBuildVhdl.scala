@@ -79,7 +79,7 @@ private[vhdl] object StmBuildVhdl {
   ): Seq[Signal] = {
     accumulators
       .map({ case (x, acc) =>
-        acc.toVhdl(x, enable = s"sl2bool(go)", options = options)
+        acc.toVhdl(Target(x), enable = s"sl2bool(go)", options = options)
       })
       .toSeq
   }
@@ -106,7 +106,7 @@ private[vhdl] object StmBuildVhdl {
       options: VhdlGeneratorOptions
   ): Seq[Decl] = {
     intermediates
-      .map({ case (x, i) => i.toVhdlDecl(x, options) })
+      .map({ case (x, i) => i.toVhdlDecl(Target(x), options) })
       .toSeq
   }
 }

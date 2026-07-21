@@ -19,7 +19,7 @@ sealed trait Intermediate {
   // TODO: Delete this?
 //  def map(f: Expr => Expr): Intermediate
 
-  def toVhdlDecl(target: Param, options: VhdlGeneratorOptions): Decl
+  def toVhdlDecl(target: Target, options: VhdlGeneratorOptions): Decl
 }
 
 /** An [[Intermediate]] which can appear inside a function.
@@ -78,7 +78,10 @@ case class FunctionIntermediate(
 //    FunctionIntermediate(newParams, newIntermediates, newOutput)
 //  }
 
-  def toVhdlDecl(target: Param, options: VhdlGeneratorOptions): VhdlFunction = {
+  def toVhdlDecl(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): VhdlFunction = {
     for (param <- params) {
       if (!param.typ.isData) {
         throw new IllegalArgumentException(
@@ -94,7 +97,7 @@ case class FunctionIntermediate(
     val varDecls = intermediates
       .map({
         case (x, i: DataIntermediate) =>
-          i.toVhdlVariableDecl(x, options)
+          i.toVhdlVariableDecl(Target(x), options)
         case (x, i: FunctionIntermediate) =>
           // TODO: This should never happen, right?
           ???
@@ -134,7 +137,7 @@ trait IpBlockInst extends Intermediate {
   ): VhdlEntityInstantiation
 
   override def toVhdlDecl(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): Signal = {
     Signal(
@@ -155,7 +158,7 @@ trait IpBlockInst extends Intermediate {
 sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
 
   override def toVhdlDecl(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): Decl = {
     Signal(
@@ -172,7 +175,10 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
     * @param target
     *   the name and type of the left-hand side.
     */
-  def toVhdlConcurrentStmt(target: Param, options: VhdlGeneratorOptions): String
+  def toVhdlConcurrentStmt(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): String
 
   /** Create a VHDL sequential statement that assigns this intermediate to a
     * variable.
@@ -180,10 +186,10 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
     * @param target
     *   the name and type of the left-hand side.
     */
-  def toVhdlVariableStmt(target: Param, options: VhdlGeneratorOptions): String
+  def toVhdlVariableStmt(target: Target, options: VhdlGeneratorOptions): String
 
   def toVhdlVariableDecl(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): VhdlVariable = {
     VhdlVariable(
@@ -199,7 +205,7 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
     * @param target
     *   the name and type of the left-hand side.
     */
-  def toVhdlSignalStmt(target: Param, options: VhdlGeneratorOptions): String
+  def toVhdlSignalStmt(target: Target, options: VhdlGeneratorOptions): String
 
   override def substitute(subs: Map[Expr, Expr]): DataIntermediate
 
@@ -214,27 +220,27 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
 case class StmDataIntermediate(p: Param) extends DataIntermediate {
 
   override def toVhdlConcurrentStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} <= ${this.rhs(target, options)};"
   }
 
   override def toVhdlVariableStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} := ${this.rhs(target, options)};"
   }
 
   override def toVhdlSignalStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} <= ${this.rhs(target, options)};"
   }
 
-  private def rhs(target: Param, options: VhdlGeneratorOptions): String = {
+  private def rhs(target: Target, options: VhdlGeneratorOptions): String = {
     val vhdlTyp = VhdlType(target.typ)
     VhdlConversionGenerator.fromStdLogicVector(
       if (options.handshake) s"${p.name}_data" else p.name,
@@ -261,21 +267,21 @@ case class ExprIntermediate(e: Expr) extends DataIntermediate {
   override def freeVars: Set[Param] = this.e.freeVars
 
   override def toVhdlConcurrentStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
   }
 
   override def toVhdlVariableStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} := ${VhdlExprGenerator.toVhdl(this.e)};"
   }
 
   override def toVhdlSignalStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
@@ -318,7 +324,7 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
   }
 
   override def toVhdlConcurrentStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     val c = VhdlExprGenerator.toVhdl(this.c)
@@ -328,7 +334,7 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
   }
 
   override def toVhdlVariableStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then
@@ -340,7 +346,7 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
   }
 
   override def toVhdlSignalStmt(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions
   ): String = {
     s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then

@@ -13,7 +13,7 @@ sealed trait Accumulator {
   def map(f: Expr => Expr): Accumulator
 
   def toVhdl(
-      target: Param,
+      target: Target,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal
@@ -38,11 +38,10 @@ case class ExprAccumulator(
   }
 
   override def toVhdl(
-      target: Param,
+      target: Target,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal = {
-    assert(target.typ.isData)
     val initVhdl = this.init.map(init => init.toVhdlSignalStmt(target, options))
     val nextVhdl = this.next.toVhdlSignalStmt(target, options)
     Signal(
@@ -106,11 +105,10 @@ case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
   }
 
   def toVhdl(
-      target: Param,
+      target: Target,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal = {
-    assert(target.typ.isData)
     val condVhdl = VhdlExprGenerator.toVhdl(this.cond)
     // TODO: Deduplicate this code (introduce method like VhdlExprGenerator.toIntegerVhdl)
     val idxVhdl = this.index match {

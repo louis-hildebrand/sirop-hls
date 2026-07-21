@@ -25,7 +25,7 @@ private[vhdl] object StmBuildVhdl {
     require(options.handshake)
 
     val intermediateDecls = s.intermediates
-      .map({ case (x, i) => i.toVhdlDecl(x, options) })
+      .map({ case (x, i) => i.toVhdlDecl(Target(x), options) })
 
     val allDecls = (
       defaultSignals(s.valid, options)
@@ -152,7 +152,7 @@ private[vhdl] object StmBuildVhdl {
   ): Seq[Signal] = {
     registerEquations
       .map({ case (x, acc) =>
-        acc.toVhdl(x, enable = "can_update_acc", options = options)
+        acc.toVhdl(Target(x), enable = "can_update_acc", options = options)
       })
       .toSeq
   }
