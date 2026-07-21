@@ -53,7 +53,7 @@ object BoundsCheckInsertion {
   }
 
   def apply(e: Expr): Expr = {
-    e match {
+    val result = e match {
       case va @ VecAccess(v, i) =>
         v.typ.asInstanceOf[TyVec] match {
           case TyVec(_, IntCst(n)) if n <= 0 =>
@@ -95,6 +95,8 @@ object BoundsCheckInsertion {
         }
       case e => e.map(this.apply).tchk()
     }
+    assert(result.hasType)
+    result
   }
 
   /** Decides whether the given number is a power of two.

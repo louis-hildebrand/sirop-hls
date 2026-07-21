@@ -236,22 +236,22 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val (axPipeLen: Long, axPipeInput) = s.accumulators
             .get(axPipe)
             .map(axPipe -> _)
-            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .collect({ case Shift(n, e) => (n, e) })
             .getOrElse((0L, Undefined(ax.typ)))
           val (ayPipeLen: Long, ayPipeInput) = s.accumulators
             .get(ayPipe)
             .map(ayPipe -> _)
-            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .collect({ case Shift(n, e) => (n, e) })
             .getOrElse((0L, Undefined(ay.typ)))
           val (bxPipeLen: Long, bxPipeInput) = s.accumulators
             .get(bxPipe)
             .map(bxPipe -> _)
-            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .collect({ case Shift(n, e) => (n, e) })
             .getOrElse((0L, Undefined(bx.typ)))
           val (byPipeLen: Long, byPipeInput) = s.accumulators
             .get(byPipe)
             .map(byPipe -> _)
-            .collect({ case VecShiftLeft(n, e) => (n, e) })
+            .collect({ case Shift(n, e) => (n, e) })
             .getOrElse((0L, Undefined(by.typ)))
           // Absorb as many stages as possible into the DSP, subject to the
           // restriction that the DSP does not support more than 3 stages
@@ -297,39 +297,13 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   }
 }
 
-private object VecShiftLeft {
+private object Shift {
   def unapply(arg: (Param, Accumulator)): Option[(Long, Expr)] = {
     arg match {
-      case (
-            x0,
-            // TODO: Use special VecBuildAccumulator for this purpose instead?
-            ExprAccumulator(
-              None,
-              ExprIntermediate(
-                VecBuild(
-                  IntCst(n),
-                  Function(
-                    i0,
-                    Mux(
-                      Equal(i1, IntCst(nMinusOne)),
-                      e,
-                      VecAccess(x1, Sum(IntCst(1), i2))
-                    )
-                  )
-                )
-              )
-            )
-          ) if x1 == x0 && i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
-        Some((n, e))
-      case (
-            _,
-            ExprAccumulator(
-              None,
-              ExprIntermediate(VecBuild(IntCst(1), Function(_, e)))
-            )
-          ) =>
-        Some((1, e))
-      case _ => None
+      case (_, VecShiftLeftAccumulator(len, None, next)) =>
+        Some((len, next))
+      case _ =>
+        None
     }
   }
 }

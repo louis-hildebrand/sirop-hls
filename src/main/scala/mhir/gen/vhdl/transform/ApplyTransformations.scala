@@ -18,7 +18,7 @@ object ApplyTransformations {
 
   def apply(pipe: FlatPipeline, options: VhdlGeneratorOptions): FlatPipeline = {
     val pipe1 = time("looking for VecWrite", Level.DEBUG) {
-      pipe.mapSbuilds(RecognizeVecWrite.apply)
+      pipe.mapSbuilds(ClassifyVecAccumulators.apply)
     }
     val pipe2 = time("adding vector bounds checks", Level.DEBUG) {
       pipe1.mapSbuilds(BoundsCheckInsertion.apply)

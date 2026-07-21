@@ -2,14 +2,9 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
-import mhir.optimize.cost.SimpleDelayCostModel
-import mhir.optimize.{
-  EnabledBinOpTreeBalancingPass,
-  Optimizer,
-  OptimizerOptions,
-  StmOutputScheduler
-}
+import mhir.optimize.{Optimizer, OptimizerOptions}
 import mhir.sugar.{ExprLowering, MulAddCascaded, StmCst}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -29,13 +24,6 @@ class DspSelectionTests extends AnyFunSuite {
     optimizer.optimize(e)
   }
 
-  private val pass = DspSelection(
-    StmOutputScheduler(
-      EnabledBinOpTreeBalancingPass,
-      SimpleDelayCostModel(madd = true)
-    )
-  )
-
   private val primes = Seq(3, 5, 7, 11, 13, 17)
   for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
     for ((inTyp, outTyp) <- Seq((I16, I44), (U16, U44))) {
@@ -46,6 +34,7 @@ class DspSelectionTests extends AnyFunSuite {
             s"Systolic:$inTyp->$outTyp,$depth-tap,$pipeline pipeline stages," +
               (if (const) "const" else "non-const")
           test(name) {
+            val options = VhdlGeneratorOptions()
             val original = {
               val p1 = if (const) {
                 StmCst(
@@ -63,12 +52,14 @@ class DspSelectionTests extends AnyFunSuite {
                 case _ =>
                   simplify(Function(p2, sbuild)().tchk())
               }
-              val streamPipeline = FlattenPipeline(f, VhdlGeneratorOptions())
-              assert(streamPipeline.sbuilds.size == 1)
-              assert(streamPipeline.lets.isEmpty)
-              streamPipeline.sbuilds.head.s
+              FlattenPipeline(f, options)
             }
-            val actual = pass.apply(original)
+            val actual = {
+              val pipe = ApplyTransformations(original, options)
+              assert(pipe.lets.isEmpty)
+              assert(pipe.sbuilds.size == 1)
+              pipe.sbuilds.head.s
+            }
 
             val actualStats = IpStats(actual)
             val expectedStats = {

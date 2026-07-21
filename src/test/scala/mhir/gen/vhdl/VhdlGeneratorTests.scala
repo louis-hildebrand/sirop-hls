@@ -6,7 +6,7 @@ import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
 import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
-import mhir.optimize.{StmBuildSimplifier, StmSimplifier}
+import mhir.optimize.{PartialEvalPass, StmBuildSimplifier, StmSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
 import mhir.sugar.experimental.{StmFold, StmScanExclusive, StmScanInclusive}
@@ -321,14 +321,15 @@ class VhdlGeneratorTests extends AnyFunSuite {
         3,
         U8 ::+ (i => VecBuild(2, U8 ::+ (j => Tuple(i, j)()))())
       )()
-      StmBuild(
+      val s = StmBuild(
         5,
         Tuple(42, True, v)(),
         True,
         Map[Param, (Expr, Expr)](
           v -> (z, VecShiftLeft(v, VecAccess(v, 0)())())
         )
-      )().tchk().lower.asInstanceOf[StmBuild]
+      )().tchk().lower
+      PartialEvalPass.partialEval(s).asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }

@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.typecheck._
 
-object RecognizeVecWrite {
+object ClassifyVecAccumulators {
 
   def apply(s: GenStmBuild): GenStmBuild = {
     GenStmBuild(
@@ -14,6 +14,8 @@ object RecognizeVecWrite {
       accumulators = s.accumulators.map({
         case VecWrite(x, cond, index, value) =>
           x -> VecWriteAccumulator(cond, index, value)
+        case VecShiftLeft(x, len, init, next) =>
+          x -> VecShiftLeftAccumulator(len, init, next)
         case eqn => eqn
       }),
       producers = s.producers,
@@ -77,6 +79,46 @@ private object VecWrite {
             Some((v0, newCond, idx, newWrite))
           case None => None
         }
+      case _ => None
+    }
+  }
+}
+
+private object VecShiftLeft {
+
+  def unapply(
+      arg: (Param, Accumulator)
+  ): Option[(Param, Long, Option[DataIntermediate], Expr)] = {
+    arg match {
+      case (
+            x0,
+            // TODO: Use special VecBuildAccumulator for this purpose instead?
+            ExprAccumulator(
+              init,
+              ExprIntermediate(
+                VecBuild(
+                  IntCst(n),
+                  Function(
+                    i0,
+                    Mux(
+                      Equal(i1, IntCst(nMinusOne)),
+                      e,
+                      VecAccess(x1, Sum(IntCst(1), i2))
+                    )
+                  )
+                )
+              )
+            )
+          ) if x1 == x0 && i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
+        Some((x0, n, init, e))
+      case (
+            x,
+            ExprAccumulator(
+              init,
+              ExprIntermediate(VecBuild(IntCst(1), Function(_, e)))
+            )
+          ) =>
+        Some((x, 1, init, e))
       case _ => None
     }
   }

@@ -14,6 +14,13 @@ case class AgilexMac2(
     pipeline: Int
 ) extends IpBlockInst {
 
+  assert(this.ax.typ.isInstanceOf[TyAnyInt])
+  assert(this.ay.typ.isInstanceOf[TyAnyInt])
+  assert(this.bx.typ.isInstanceOf[TyAnyInt])
+  assert(this.by.typ.isInstanceOf[TyAnyInt])
+  assert(this.chainin.typ.isInstanceOf[TyAnyInt])
+  assert(this.pipeline >= 0 && this.pipeline <= 3)
+
   override def freeVars: Set[Param] = {
     ax.freeVars ++ ay.freeVars ++ bx.freeVars ++ by.freeVars ++ chainin.freeVars
   }
