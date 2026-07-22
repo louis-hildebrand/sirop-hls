@@ -201,6 +201,7 @@ object MulAccumulate {
   def unapply(e: Expr): Option[(Expr, Expr, Expr)] = {
     e match {
       case AnyAdd(c, AnyMul(x, y)) => Some(c, x, y)
+      case AnyAdd(AnyMul(x, y), c) => Some(c, x, y)
       case _                       => None
     }
   }
