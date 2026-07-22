@@ -22,7 +22,7 @@ import mhir.main.sirop.{Args => SiropArgs, Compiler => SiropFrontend}
 import mhir.main.stored.{Args => StoredArgs, Compiler => StoredFrontend}
 import mhir.parse.SyntaxError
 import mhir.sem.SemanticError
-import mhir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.{NameError, TypeCheck, TypeError}
 import org.slf4j.LoggerFactory
 
 import java.time.Duration
@@ -69,8 +69,9 @@ object Compiler {
     try {
       compile(a, argparseTime)
     } catch {
-      case ex @ (_: SyntaxError | _: TypeError | _: SemanticError |
-          _: CodegenError | _: EvalException | _: TestError) =>
+      case ex @ (_: SyntaxError | _: TypeError | _: NameError |
+          _: SemanticError | _: CodegenError | _: EvalException |
+          _: TestError) =>
         Console.err.println(ex.getMessage)
         sys.exit(1)
     }
@@ -96,9 +97,13 @@ object Compiler {
       case None =>
         Repl.run()
         Tuple()().tchk()
-      case Some(SiropSource(inFile)) =>
+      case Some(SiropSource(inFile, constOverrides)) =>
         SiropFrontend.compile(
-          SiropArgs(inFile = inFile, options = args.options),
+          SiropArgs(
+            inFile = inFile,
+            constOverrides = constOverrides,
+            options = args.options
+          ),
           argparseTime = argparseTime
         )
       case Some(AetherlingSource(inFile)) =>

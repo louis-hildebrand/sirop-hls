@@ -170,7 +170,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
     for test in test_sources:
         ran = False
         if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
-            cli_args = cli_args_file.read_text(encoding="utf-8").split()
+            cli_args = cli_args_file.read_text(encoding="utf-8").splitlines()
         else:
             cli_args = []
         if (eval_output := test.with_suffix(".eval.txt")).is_file():

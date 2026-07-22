@@ -553,7 +553,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("FreeVar") {
     val x = Param("x")()
-    assertThrows[TypeError](x.tchk())
+    assertThrows[NameError](x.tchk())
   }
 
   test("Function:NonUniqueType") {
@@ -770,8 +770,8 @@ class TypecheckerTests extends AnyFunSuite {
         |assert { s = StmRange(3, 0:u8, 1:u8) } yields [K, K + 1:u8, K + 2:u8]s
         |""".stripMargin
     val prog = Parser.parse(src)
-    val ex = intercept[TypeError](prog.tchk())
-    assert(ex.getMessage.toLowerCase.contains("free variable: k"))
+    val ex = intercept[NameError](prog.tchk())
+    assert(ex.getMessage.toLowerCase.contains("name 'k' is not defined"))
   }
 
   test("TestSuite:Error:MissingAcceleratorArg") {

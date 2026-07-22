@@ -1,0 +1,13 @@
+const N: u8 = 8
+const K: u8 = 5
+
+accelerator top =
+(s: Stm[u8, N]) => s.StmMap( x => x + K )
+
+const Z: u8 = 0:u8
+const DELTA: u8 = 1:u8
+
+assert {
+    s = StmRange(N, Z, DELTA)
+}
+yields StmRange(N, Z + K, DELTA)

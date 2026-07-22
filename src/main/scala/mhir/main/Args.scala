@@ -35,6 +35,7 @@ object Args {
     // Input args
     var sourceLang = "sirop"
     var input: Option[String] = None
+    var constOverrides = Map[String, String]()
     // Output args
     var vhdlDir: Option[Path] = None
     var runVhdlSim: Option[Boolean] = None
@@ -84,6 +85,22 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(in) =>
               input = Some(in)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "-c" =>
+          mutArgs.drop(1).headOption match {
+            case Some(in) =>
+              val indexOfEquals = in.indexOf('=')
+              if (indexOfEquals < 0) {
+                throw new BadArgsException(
+                  s"bad format for $mutArgs: expected 'IDENTIFIER=expression'"
+                )
+              }
+              val ident = in.take(indexOfEquals)
+              val expr = in.drop(indexOfEquals + 1)
+              constOverrides += (ident.strip() -> expr.strip())
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -336,11 +353,16 @@ object Args {
         ++ ppLoweredTarget.toSet
         ++ timeReportTarget.toSet)
     }
+    if (constOverrides.nonEmpty && sourceLang != "sirop") {
+      throw new BadArgsException(
+        "const overrides (-c) are only available for source language Sirop"
+      )
+    }
     val src: Option[Source] = (sourceLang, input) match {
       case ("sirop", None) =>
         None
       case ("sirop", Some(f)) =>
-        Some(SiropSource(Path(f, base = os.pwd)))
+        Some(SiropSource(Path(f, base = os.pwd), constOverrides))
       case ("aetherling", Some(f)) =>
         Some(AetherlingSource(Path(f, base = os.pwd)))
       case ("stored", Some(progName)) =>
@@ -422,6 +444,17 @@ object Args {
          |                                Otherwise, this is the path to the source file.
          |                                If this argument is omitted, the REPL will be
          |                                launched.
+         |  -c IDENTIFIER=expression      const overrides. The constant called IDENTIFIER
+         |                                will use the given expression rather than what
+         |                                is currently specified in the source code. For
+         |                                example, if the source code has the line
+         |                                    const N: u32 = 16
+         |                                and you pass -c N=8, it's as if you has written
+         |                                    const N: u32 = 8
+         |                                in the first place. This is useful for exploring
+         |                                different design alternatives without changing
+         |                                the source code. The -c argument can be given
+         |                                arbitrarily many times.
          |
          |Output Arguments:
          |  --out:eval                       evaluate the program and print its value

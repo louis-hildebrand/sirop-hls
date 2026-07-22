@@ -1,0 +1,2 @@
+accelerator top =
+(s: Stm[u8, 8]) => s.StmMap( x => x + K )

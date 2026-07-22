@@ -1,0 +1,1 @@
+NameError: the following constant(s) mentioned in -c command-line argument do not exist: 'K', 'N'

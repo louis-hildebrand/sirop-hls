@@ -4,7 +4,8 @@ import os.Path
 
 sealed trait Source
 
-case class SiropSource(inFile: Path) extends Source
+case class SiropSource(inFile: Path, constOverrides: Map[String, String])
+    extends Source
 
 case class AetherlingSource(inFile: Path) extends Source
 

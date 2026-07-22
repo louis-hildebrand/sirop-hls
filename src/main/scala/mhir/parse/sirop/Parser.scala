@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.parse.{SourcePoint, SyntaxError}
 import mhir.sugar._
-import mhir.typecheck.TypeCheck
+import mhir.typecheck.{NameError, TypeCheck}
 import os.Path
 
 import scala.annotation.tailrec
@@ -15,32 +15,49 @@ object Parser {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def parse(f: Path): Program = {
-    parse(Lexer.lex(f))
+  def parse(f: Path, constOverrides: Map[String, String] = Map()): Program = {
+    parse(Lexer.lex(f), constOverrides)
   }
 
   def parse(code: String): Program = {
-    parse(Lexer.lex(code))
+    parse(Lexer.lex(code), Map[String, String]())
   }
 
-  private def parse(tokens: Seq[Token]): Program = {
-    val (prog, remainingTokens) = parseProgram(tokens)
+  private def parse(
+      tokens: Seq[Token],
+      constOverrides: Map[String, String]
+  ): Program = {
+    val (prog, remainingTokens) = parseProgram(tokens, constOverrides)
     if (remainingTokens.nonEmpty) {
       val loc = remainingTokens.head.loc
       throw SyntaxError("unexpected tokens remaining at end of file", loc)
     }
+    val unusedConstOverrides = constOverrides.keySet
+      .diff(prog.constants.map({ case ConstDecl(x, _) => x.name }).toSet)
+      .diff(prog.test.collect({ case ConstDecl(x, _) => x.name }).toSet)
+    if (unusedConstOverrides.nonEmpty) {
+      val str =
+        unusedConstOverrides.toSeq.sorted.map(x => s"'$x'").mkString(", ")
+      throw NameError(
+        s"the following constant(s) mentioned in -c command-line argument do not exist: $str"
+      )
+    }
     prog
   }
 
-  private def parseProgram(tokens: Seq[Token]): (Program, Seq[Token]) = {
+  private def parseProgram(
+      tokens: Seq[Token],
+      constOverrides: Map[String, String]
+  ): (Program, Seq[Token]) = {
     tokens.headOption match {
       case Some(tok) if FirstMainDecl.contains(tok.category) =>
-        val (constants, rest1) = parseConstDecls(tokens, Seq())
+        val (constants, rest1) = parseConstDecls(tokens, Seq(), constOverrides)
         val (accel, rest2) = parseAcceleratorDecl(rest1, constants)
         val (test, rest3) = parseTestDecls(
           rest2,
           constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap,
-          Seq()
+          Seq(),
+          constOverrides
         )
         val prog = Program(constants, accel, test)
         (prog, rest3)
@@ -59,11 +76,12 @@ object Parser {
   private def parseTestDecls(
       tokens: Seq[Token],
       constants: Map[Param, Type],
-      testDecls: Seq[TestDecl]
+      testDecls: Seq[TestDecl],
+      constOverrides: Map[String, String]
   ): (Seq[TestDecl], Seq[Token]) = {
     tokens.headOption match {
       case Some(tok) if FirstTestDecl.contains(tok.category) =>
-        val (testDecl, rest1) = parseTestDecl(tokens, constants)
+        val (testDecl, rest1) = parseTestDecl(tokens, constants, constOverrides)
         val newConstants = testDecl match {
           case ConstDecl(x, _) =>
             assert(x.hasType)
@@ -71,7 +89,12 @@ object Parser {
           case _ =>
             constants
         }
-        parseTestDecls(rest1, newConstants, testDecls :+ testDecl)
+        parseTestDecls(
+          rest1,
+          newConstants,
+          testDecls :+ testDecl,
+          constOverrides
+        )
       case _ =>
         (testDecls, tokens)
     }
@@ -79,10 +102,12 @@ object Parser {
 
   private def parseTestDecl(
       tokens: Seq[Token],
-      constants: Map[Param, Type]
+      constants: Map[Param, Type],
+      constOverrides: Map[String, String]
   ): (TestDecl, Seq[Token]) = {
     tokens.headOption match {
-      case Some(_: ConstToken)  => parseConstDecl(tokens, constants)
+      case Some(_: ConstToken) =>
+        parseConstDecl(tokens, constants, constOverrides)
       case Some(_: AssertToken) => parseAssertion(tokens, constants)
       case _ =>
         throw new IllegalArgumentException(
@@ -94,15 +119,17 @@ object Parser {
   @tailrec
   private def parseConstDecls(
       tokens: Seq[Token],
-      constants: Seq[ConstDecl]
+      constants: Seq[ConstDecl],
+      constOverrides: Map[String, String]
   ): (Seq[ConstDecl], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: ConstToken) =>
         val (decl, rest) = parseConstDecl(
           tokens,
-          constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
+          constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap,
+          constOverrides
         )
-        parseConstDecls(rest, constants :+ decl)
+        parseConstDecls(rest, constants :+ decl, constOverrides)
       case _ =>
         (constants, tokens)
     }
@@ -110,24 +137,43 @@ object Parser {
 
   private def parseConstDecl(
       tokens: Seq[Token],
-      constants: Map[Param, Type]
+      constants: Map[Param, Type],
+      constOverrides: Map[String, String]
   ): (ConstDecl, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing const_decl")
     val (_, rest1) = expect(ConstToken, tokens)
-    val (nameToken: IdentToken, rest2) = expect(IdentToken, rest1)
+    val (nameTok @ IdentToken(name), rest2) = expect(IdentToken, rest1)
     val rest3 = rest2.headOption match {
       case Some(_: ColonToken) => rest2.tail
       case _ =>
         throw SyntaxError(
           "missing type annotation. All const declarations require a type annotation.",
-          nameToken.loc
+          nameTok.loc
         )
     }
     val (typ, rest4) = parseTyp(rest3, constants)
     val (_, rest5) = expect(AssignToken, rest4)
-    val (e, rest6) = parseExpr(rest5, constants)
-    val x = Param(nameToken.ident, -1)(typ)
-    (ConstDecl(x, ReshapeData(e, typ)()), rest6)
+    // Need to consume the right-hand side even if an override is provided
+    val (sourceVal, rest6) = parseExpr(rest5, constants)
+    val rhs = constOverrides.get(name) match {
+      case None => sourceVal
+      case Some(overrideSrc) =>
+        logger.info(
+          s"replacing value of const $name with override: $overrideSrc"
+        )
+        val tokens = Lexer.lex(overrideSrc)
+        val (overrideVal, remainingTokens) = parseExpr(tokens, constants)
+        if (remainingTokens.nonEmpty) {
+          val loc = remainingTokens.head.loc
+          throw SyntaxError(
+            s"in override for const $name: unexpected tokens remaining at end of expression",
+            loc
+          )
+        }
+        overrideVal
+    }
+    val x = Param(name, -1)(typ)
+    (ConstDecl(x, ReshapeData(rhs, typ)()), rest6)
   }
 
   private def parseAcceleratorDecl(

@@ -25,6 +25,8 @@ trait TypeChecker {
       *   that is not [[Missing]].
       * @throws TypeError
       *   if the expression is ill-typed.
+      * @throws NameError
+      *   if there are free variables.
       */
     def tchk(
         context: Map[Param, Type],
@@ -40,7 +42,7 @@ trait TypeChecker {
         case x: Param =>
           context.get(x) match {
             case Some(t) => x.rebuild(t)
-            case None    => throw new TypeError(s"Free variable: $x.")
+            case None    => throw NameError(s"name '$x' is not defined")
           }
         case Function(x, body) =>
           val t = x.typ match {

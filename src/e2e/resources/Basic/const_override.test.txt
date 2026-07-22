@@ -1,0 +1,5 @@
+[INFO ] replacing value of const N with override: 4
+[INFO ] replacing value of const K with override: N - 1
+[INFO ] replacing value of const Z with override: 42:u8
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!

@@ -25,7 +25,7 @@ object Compiler {
   def compile(args: Args, argparseTime: Duration): Expr = {
     logger.debug(s"parsing Sirop code from ${args.inFile}")
     val (parsed, parseTime) = time2("parsing", Level.DEBUG) {
-      Parser.parse(args.inFile)
+      Parser.parse(args.inFile, args.constOverrides)
     }
     SC.compile(
       parsed,
