@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
 import mhir.optimize.{Optimizer, OptimizerOptions}
-import mhir.sugar.{ExprLowering, MulAddCascaded, StmCst}
+import mhir.sugar.{ExprLowering, MulAddCascaded, SimpleMap, StmCst}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -45,7 +45,10 @@ class DspSelectionTests extends AnyFunSuite {
                 Param("p1")(TyStm(TyVec(inTyp, depth), 8))
               }
               val p2 = Param("p2")(TyStm(TyVec(inTyp, depth), 8))
-              val sbuild = MulAddCascaded(p1, p2, pipeline)().tchk().lower
+              val sbuild = SimpleMap(
+                MulAddCascaded(p1, p2, pipeline)().tchk(),
+                x => TruncateTo(ARShift(x, 2)(), 32)()
+              ).tchk().lower
               val f = p1 match {
                 case p1: Param =>
                   simplify(Function(p1, Function(p2, sbuild)())().tchk())

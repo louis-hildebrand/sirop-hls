@@ -66,13 +66,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 
   private def selectBasic(s: GenStmBuild): GenStmBuild = {
     val newIntermediates = s.accumulators.flatMap({
-      case (
-            acc,
-            ExprAccumulator(
-              None,
-              ExprIntermediate(Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))))
-            )
-          ) =>
+      case (acc, BasicMac(x, y, chainin)) =>
         (x.typ, y.typ, chainin.typ) match {
           case (TySInt(wx), TySInt(wy), TySInt(wz))
               if wx <= 18 && wy <= 19 && wz <= 64 =>
@@ -80,22 +74,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           case (TyUInt(wx), TyUInt(wy), TyUInt(wz))
               if wx <= 18 && wy <= 18 && wz <= 64 =>
             Some(acc -> AgilexMac1(x, y, chainin))
-          case _ => None
-        }
-      case (
-            acc,
-            ExprAccumulator(
-              None,
-              ExprIntermediate(Prod(PadOrIntCst(x), PadTo(y, _)))
-            )
-          ) =>
-        (x.typ, y.typ, acc.typ) match {
-          case (TySInt(wx), TySInt(wy), TySInt(wz))
-              if wx <= 18 && wy <= 19 && wz <= 64 =>
-            Some(acc -> AgilexMac1(x, y, C(0)(acc.typ)))
-          case (TyUInt(wx), TyUInt(wy), TyUInt(wz))
-              if wx <= 18 && wy <= 18 && wz <= 64 =>
-            Some(acc -> AgilexMac1(x, y, C(0)(acc.typ)))
           case _ => None
         }
       case _ =>
@@ -302,6 +280,30 @@ private object Shift {
     arg match {
       case (_, VecShiftLeftAccumulator(len, None, next)) =>
         Some((len, next))
+      case _ =>
+        None
+    }
+  }
+}
+
+private object BasicMac {
+  def unapply(arg: Accumulator): Option[(Expr, Expr, Expr)] = {
+    arg match {
+      case ExprAccumulator(
+            None,
+            ExprIntermediate(Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))))
+          ) =>
+        Some((x, y, chainin))
+      case ExprAccumulator(
+            None,
+            ExprIntermediate(Sum(Prod(PadOrIntCst(x), PadTo(y, _)), chainin))
+          ) =>
+        Some((x, y, chainin))
+      case ExprAccumulator(
+            None,
+            ExprIntermediate(prod @ Prod(PadOrIntCst(x), PadTo(y, _)))
+          ) =>
+        Some((x, y, C(0)(prod.typ)))
       case _ =>
         None
     }
