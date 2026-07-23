@@ -29,6 +29,62 @@ class IntermediateInsertionTests extends AnyFunSuite {
     assert(actualExpr.typ == U8)
   }
 
+  /* I don't want to have unnecessary intermediates that are only used as the
+   * `next` value for one accumulator. (1) This makes later steps like DSP
+   * selection more difficult to do reliably, since you've got to deal with
+   * extra levels of indirection. (2) This makes the generated VHDL uglier.
+   */
+  test("IfElseInAccumulator") {
+    val p = Param("p")(TyStm(U8, 8))
+    val acc = Param("acc")(U8)
+    val original = GenStmBuild(
+      data = acc,
+      valid = True,
+      accumulators = Map(
+        acc -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          ExprIntermediate(
+            Mux(
+              Equal(Mod(acc, C(2)(U8))(), C(0)(U8))(),
+              StmData(p)(),
+              Sum(C(1)(U8), acc)()
+            )().tchk()
+          )
+        )
+      ),
+      producers = Map(
+        p -> (p, True)
+      ),
+      intermediates = ListMap()
+    )
+    val actual = IntermediateInsertion(original)
+
+    val sdata = actual.intermediates
+      .collectFirst({ case (x, _: StmDataIntermediate) => x })
+      .get
+    val expected = GenStmBuild(
+      data = acc,
+      valid = True,
+      accumulators = Map(
+        acc -> ExprAccumulator(
+          Some(ExprIntermediate(C(0)(U8))),
+          MuxIntermediate(
+            Equal(Mod(acc, C(2)(U8))(), C(0)(U8))().tchk(),
+            StmData(p)().tchk(),
+            Sum(C(1)(U8), acc)().tchk()
+          )
+        )
+      ),
+      producers = Map(
+        p -> (p, True)
+      ),
+      intermediates = ListMap(
+        sdata -> StmDataIntermediate(p)
+      )
+    )
+    assert(actual == expected)
+  }
+
   test("MuxAndStmDataInsideFunction") {
     val s = Param("s")(TyStm(I16, 16))
     val x = Param("x")(I16)

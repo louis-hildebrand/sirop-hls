@@ -30,34 +30,47 @@ import scala.collection.immutable.ListMap
 object IntermediateInsertion {
 
   def apply(s: GenStmBuild): GenStmBuild = {
-    var intermediates = ListMap[Param, Intermediate]()
-    val (data, dataIntermediates) = this.apply(s.data)
-    intermediates ++= dataIntermediates
-    val (valid, validIntermediates) = this.apply(s.valid)
-    intermediates ++= validIntermediates
+    new IntermediateInsertion(ListMap()).apply(s)
+  }
+
+  def apply(e: Expr): (Expr, ListMap[Param, Intermediate]) = {
+    val pass = new IntermediateInsertion(ListMap())
+    val newExpr = pass.getExprAndMutateIntermediates(e)
+    (newExpr, pass.intermediates)
+  }
+}
+
+private class IntermediateInsertion(
+    var intermediates: ListMap[Param, Intermediate]
+) {
+
+  def apply(s: GenStmBuild): GenStmBuild = {
+    val data = this.getExprAndMutateIntermediates(s.data)
+    val valid = this.getExprAndMutateIntermediates(s.valid)
     val accumulators = s.accumulators.map({ case (x, acc) =>
-      x -> acc.map({ e =>
-        val (newE, eIntermediates) = this.apply(e)
-        intermediates ++= eIntermediates
-        newE
-      })
+      x -> acc.map(this.getExprAndMutateIntermediates)
     })
     val producers = s.producers.map({ case (x, (p, ready)) =>
-      val (newReady, readyIntermediates) = this.apply(ready)
-      intermediates ++= readyIntermediates
-      x -> (p, newReady)
+      x -> (p, this.getExprAndMutateIntermediates(ready))
     })
     GenStmBuild(
       data = data,
       valid = valid,
       accumulators = accumulators,
       producers = producers,
-      intermediates = intermediates
+      intermediates = this.intermediates
     )
   }
 
-  def apply(e: Expr): (Expr, ListMap[Param, Intermediate]) = {
-    new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
+  /** Insert intermediates where necessary in the given expression; return the
+    * updated expression and append the necessary intermediates to the
+    * [[intermediates]] field.
+    */
+  def getExprAndMutateIntermediates(e: Expr): Expr = {
+    val (newE, newIntermediates) =
+      new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
+    this.intermediates ++= newIntermediates
+    newE
   }
 }
 
