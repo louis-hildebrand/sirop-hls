@@ -7,18 +7,19 @@ import scala.annotation.tailrec
 
 object RemoveUnused {
 
-  def intermediates(s: GenStmBuild): GenStmBuild = {
+  def apply(s: GenStmBuild): GenStmBuild = {
     @tailrec
     def fix(s: GenStmBuild): GenStmBuild = {
       val used = this.findUsed(s)
       val next = GenStmBuild(
         data = s.data,
         valid = s.valid,
-        accumulators = s.accumulators,
-        producers = s.producers,
-        intermediates = s.intermediates.filter({ case (x, _) =>
-          used.contains(x)
-        })
+        accumulators = s.accumulators
+          .filter({ case (x, _) => used.contains(x) }),
+        producers = s.producers
+          .filter({ case (x, _) => used.contains(x) }),
+        intermediates = s.intermediates
+          .filter({ case (x, _) => used.contains(x) })
       )
       if (next == s) {
         s

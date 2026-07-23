@@ -14,11 +14,12 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     val s2 = this.selectBasic(s1)
     val s3 = this.combineDsps(s2)
     // After combining DSPs, some intermediates might no longer be needed
-    val s4 = RemoveUnused.intermediates(s3)
+    val s4 = RemoveUnused(s3)
     val s5 = this.enableChainInOut(s4)
     val s6 = this.mergeRegistersIntoDsps(s5)
     // TODO: Also need to ensure arguments in port map are either names or static (i.e., more intermediate insertion)?
-    s6
+    val s7 = RemoveUnused(s6)
+    s7
   }
 
   /** In cases where the `next` expression in an accumulator is wrapped in
