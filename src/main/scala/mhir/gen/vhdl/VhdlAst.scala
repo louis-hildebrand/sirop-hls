@@ -6,18 +6,12 @@ private[vhdl] sealed trait Decl {
   def vhdlDecl: String
 }
 
-private[vhdl] sealed trait VhdlFunctionMode
-private[vhdl] object PureFunction extends VhdlFunctionMode
-@deprecated
-private[vhdl] object ImpureFunction extends VhdlFunctionMode
-
 private[vhdl] case class VhdlFunction(
     name: String,
     args: Seq[(String, VhdlType)],
     returnType: VhdlType,
     decls: Seq[Decl],
-    ret: String,
-    mode: VhdlFunctionMode = PureFunction
+    ret: String
 ) extends Decl {
   require(
     decls.forall(d => !d.isInstanceOf[Signal]),
@@ -25,10 +19,6 @@ private[vhdl] case class VhdlFunction(
   )
 
   private def signature: String = {
-    val pureOrImpure = mode match {
-      case PureFunction   => "pure"
-      case ImpureFunction => "impure"
-    }
     val argList = args
       .map({ case (x, t) =>
         val tStr = t match {
@@ -42,7 +32,7 @@ private[vhdl] case class VhdlFunction(
         s"$x : in $tStr"
       })
       .mkString("; ")
-    s"$pureOrImpure function $name ($argList) return ${returnType.vhdlTypeMark}"
+    s"pure function $name ($argList) return ${returnType.vhdlTypeMark}"
   }
 
   def vhdlSignature: String = s"$signature;"

@@ -109,8 +109,7 @@ case class FunctionIntermediate(
       args = params.map(x => (x.name, VhdlType(x.typ))),
       returnType = VhdlType(output.typ),
       decls = varDecls,
-      ret = outVhdl,
-      mode = PureFunction
+      ret = outVhdl
     )
   }
 }

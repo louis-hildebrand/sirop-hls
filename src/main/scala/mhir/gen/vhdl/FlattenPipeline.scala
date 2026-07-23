@@ -260,8 +260,7 @@ object FlattenPipeline {
   private def cleanUpSbuild(s: GenStmBuild): GenStmBuild = {
     val s1 = makeDataRegisterExplicit(s)
     val s2 = renameLocalProducers(s1)
-    val s3 = recognizeVecWrite(s2)
-    s3
+    s2
   }
 
   private def makeDataRegisterExplicit(s: GenStmBuild): GenStmBuild = {
@@ -324,62 +323,6 @@ object FlattenPipeline {
           )
       })
     )
-  }
-
-  private def recognizeVecWrite(s: GenStmBuild): GenStmBuild = {
-    // TODO: Implement this again
-    s
-//    GenStmBuild(
-//      data = s.data,
-//      valid = s.valid,
-//      accumulators = s.accumulators.map({
-//        case eqn @ (
-//              v0,
-//              Accumulator(
-//                None,
-//                DataIntermediate(
-//                  VecBuild(
-//                    _,
-//                    Function(
-//                      i0,
-//                      Mux(And(terms @ _*), write, VecAccess(v1, i1: Param))
-//                    )
-//                  )
-//                )
-//              )
-//            ) if v1 == v0 && i1 == i0 =>
-//          val indexToUpdate = terms.flatMap({
-//            case Equal(i2: Param, idx)
-//                if i2 == i0 && !idx.freeVars.contains(i0) =>
-//              Some(idx)
-//            case Equal(idx, i2: Param)
-//                if i2 == i0 && !idx.freeVars.contains(i0) =>
-//              Some(idx)
-//            case _ => None
-//          }) match {
-//            case Seq(idx) => Some(idx)
-//            case _        => None
-//          }
-//          indexToUpdate match {
-//            case Some(idx) =>
-//              val newCond = MaybeAnd(
-//                terms
-//                  .map(_.subPreserveType(i0 -> idx))
-//                  .filter({
-//                    // Remove the `index == index` term
-//                    case Equal(x, y) => x != y
-//                    case _           => true
-//                  }): _*
-//              )().tchk()
-//              val newWrite = write.subPreserveType(i0 -> idx).tchk()
-//              v0 -> VecWriteAccumulator(newCond, idx, newWrite)
-//            case None => eqn
-//          }
-//        case eqn => eqn
-//      }),
-//      producers = s.producers,
-//      intermediates = s.intermediates
-//    )
   }
 
   private def ensureAtLeastOneBuffer(pipe: FlatPipeline): FlatPipeline = {
