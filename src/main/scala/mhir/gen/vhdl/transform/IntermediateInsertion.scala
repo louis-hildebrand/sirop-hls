@@ -47,8 +47,13 @@ private class IntermediateInsertion(
   def apply(s: GenStmBuild): GenStmBuild = {
     val data = this.getExprAndMutateIntermediates(s.data)
     val valid = this.getExprAndMutateIntermediates(s.valid)
-    val accumulators = s.accumulators.map({ case (x, acc) =>
-      x -> acc.map(this.getExprAndMutateIntermediates)
+    val accumulators = s.accumulators.map({
+      case (x, ExprAccumulator(init, next)) =>
+        val newInit = init.map(this.getDataIntermediateAndMutateIntermediates)
+        val newNext = this.getDataIntermediateAndMutateIntermediates(next)
+        x -> ExprAccumulator(newInit, newNext)
+      case (x, acc) =>
+        x -> acc.map(this.getExprAndMutateIntermediates)
     })
     val producers = s.producers.map({ case (x, (p, ready)) =>
       x -> (p, this.getExprAndMutateIntermediates(ready))
@@ -71,6 +76,42 @@ private class IntermediateInsertion(
       new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
     this.intermediates ++= newIntermediates
     newE
+  }
+
+  /** Similar to [[getExprAndMutateIntermediates]], except that we want the
+    * result to be a [[DataIntermediate]] rather than an [[Expr]]. This makes it
+    * possible to cut out unnecessary intermediates; i.e., instead of returning
+    * an [[ExprIntermediate]] containing a [[Param]] pointing to an
+    * [[Intermediate]]; just return that [[Intermediate]] directly.
+    */
+  private def getDataIntermediateAndMutateIntermediates(
+      i: DataIntermediate
+  ): DataIntermediate = {
+    i match {
+      case ExprIntermediate(e) =>
+        val (newE, newIntermediates) =
+          new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
+        newE match {
+          case x: Param =>
+            // Be careful to not remove the intermediate if it's used by
+            // another intermediate.
+            // Intermediates are added to the list in order, so if this is the
+            // last one it's definitely not used anywhere else.
+            newIntermediates.lastOption match {
+              case Some((y, i: DataIntermediate)) if y == x =>
+                // Cut out the middleman
+                this.intermediates ++= newIntermediates.init
+                i
+              case None =>
+                this.intermediates ++= newIntermediates
+                ExprIntermediate(newE)
+            }
+          case _ =>
+            this.intermediates ++= newIntermediates
+            ExprIntermediate(newE)
+        }
+      case i => i.map(this.getExprAndMutateIntermediates)
+    }
   }
 }
 

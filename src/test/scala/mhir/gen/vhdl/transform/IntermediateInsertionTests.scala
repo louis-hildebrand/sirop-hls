@@ -70,7 +70,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
           Some(ExprIntermediate(C(0)(U8))),
           MuxIntermediate(
             Equal(Mod(acc, C(2)(U8))(), C(0)(U8))().tchk(),
-            StmData(p)().tchk(),
+            sdata,
             Sum(C(1)(U8), acc)().tchk()
           )
         )
