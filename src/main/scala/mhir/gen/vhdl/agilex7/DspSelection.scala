@@ -21,47 +21,59 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     s6
   }
 
-  /** Moves AST nodes with no combinational delay after the `data` output
-    * register.
+  /** In cases where the `next` expression in an accumulator is wrapped in
+    * zero-delay computations (e.g., truncation, bitwise shifting), move those
+    * zero-delay computations <i>after</i> the accumulator.
     *
-    * For example, suppose the output of this `sbuild` is a multiplication, but
+    * For example, suppose the `next` expression is a multiplication, but
     * truncated and bitshifted and so on. This will hinder the passes that look
     * for multiplications going straight into an accumulator. Instead, the
     * accumulator should be the output of the multiplier and the truncating,
-    * bitshifting, etc. should happen after the accumulator.
+    * bitshifting, etc. should happen whenever this accumulator is <i>used</i>.
     */
   private def moveZeroDelayAfterRegister(s: GenStmBuild): GenStmBuild = {
-    s.data match {
-      case data: Param
-          if s.accumulators.contains(data) && onlyUsedForDataOutput(data, s) =>
-        s.accumulators.get(data) match {
-          case Some(ExprAccumulator(init, ExprIntermediate(next))) =>
-            this.scheduler.moveZeroDelayToConsumer(next) match {
-              case InConsumer(cData, pData) if pData.size == 1 =>
-                val (tmp, newNext) = pData.head
-                val newVar = data.freshCopy.rebuild(tmp.typ).asInstanceOf[Param]
-                val newAcc = ExprAccumulator(init, ExprIntermediate(newNext))
-                val newOut = cData.subPreserveType(tmp -> newVar)
-                GenStmBuild(
-                  data = newOut,
-                  valid = s.valid,
-                  accumulators = (s.accumulators - data) + (newVar -> newAcc),
-                  producers = s.producers,
-                  intermediates = s.intermediates
-                )
-              case _ => s
-            }
+    s.accumulators
+      .collect({
+        // Don't bother doing this if it won't help with DSP selection.
+        // In particular, I'm only interested in accumulators such that
+        //  * there's no initial value (since I don't think it's possible to
+        //    provide an arbitrary initial value for the pipeline registers in
+        //    the DSPs)
+        //  * there is some kind of multiplication happening somewhere in the
+        //    'next' expression
+        case (x, ExprAccumulator(None, ExprIntermediate(next)))
+            if next.contains(classOf[Prod]) =>
+          x -> next
+      })
+      .foldLeft(s)({ case (s, (x, next)) =>
+        this.scheduler.moveZeroDelayToConsumer(next) match {
+          case InConsumer(cData, pData) if pData.size == 1 =>
+            val (tmp, newNext) = pData.head
+            val newVar = x.freshCopy.rebuild(tmp.typ).asInstanceOf[Param]
+            val newAcc = ExprAccumulator(None, ExprIntermediate(newNext))
+            val subs = Map[Expr, Expr](
+              x -> cData.subPreserveType(tmp -> newVar)
+            )
+            val updatedS = GenStmBuild(
+              data = s.data.subPreserveType(subs),
+              valid = s.valid.subPreserveType(subs),
+              accumulators = (s.accumulators - x)
+                .map({ case (x, acc) => x -> acc.substitute(subs) })
+                .+(newVar -> newAcc),
+              producers = s.producers.map({ case (x, (p, ready)) =>
+                x -> (p, ready.subPreserveType(subs))
+              }),
+              intermediates = s.intermediates
+                .map({ case (x, i) => x -> i.substitute(subs) })
+            )
+            updatedS
           case _ => s
         }
-      case _ => s
-    }
-  }
-
-  private def onlyUsedForDataOutput(x: Param, s: GenStmBuild): Boolean = {
-    !(s.valid.freeVars ++
-      s.accumulators.flatMap({ case (_, acc) => acc.freeVars }) ++
-      s.producers.flatMap({ case (_, (_, ready)) => ready.freeVars }) ++
-      s.intermediates.flatMap({ case (_, i) => i.freeVars })).contains(x)
+      })
+    // TODO: I'll probably need to run intermediate insertion again, in case
+    //       the substitutions I performed resulted in invalid expressions.
+    //       Maybe I should just do intermediate insertion after DSP selection
+    //       in general
   }
 
   private def selectBasic(s: GenStmBuild): GenStmBuild = {

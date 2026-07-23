@@ -264,12 +264,11 @@ object FlattenPipeline {
   }
 
   private def makeDataRegisterExplicit(s: GenStmBuild): GenStmBuild = {
-    val acc = Param("data")(s.data.typ)
+    val (newData, newAccumulators) = SplitTupleIntoAccumulators(s.data, "data")
     GenStmBuild(
-      data = acc,
+      data = newData,
       valid = s.valid,
-      accumulators = s.accumulators +
-        (acc -> ExprAccumulator(None, ExprIntermediate(s.data))),
+      accumulators = s.accumulators ++ newAccumulators,
       producers = s.producers,
       intermediates = s.intermediates
     )
@@ -339,6 +338,42 @@ object FlattenPipeline {
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe
+    }
+  }
+}
+
+/** Turns the `data` expression of [[StmBuild]] into a bunch of accumulators
+  * (one for each tuple element, if it's a tuple).
+  *
+  * Splitting up a tuple into multiple arguments makes later passes easier. For
+  * example, DSP selection looks for accumulators whose `next` expression is
+  * basically a multiplication. This is harder to recognize if the
+  * multiplication is buried somewhere in a tuple.
+  */
+private object SplitTupleIntoAccumulators {
+  def apply(e: Expr, prefix: String): (Expr, Map[Param, Accumulator]) = {
+    val splitter = new SplitTupleIntoAccumulators(Map())
+    val newE = splitter.runAndMutateAccumulators(e, prefix)
+    (newE, splitter.accumulators)
+  }
+}
+
+private class SplitTupleIntoAccumulators(
+    var accumulators: Map[Param, Accumulator]
+) {
+
+  private def runAndMutateAccumulators(e: Expr, prefix: String): Expr = {
+    e match {
+      case Tuple(elems @ _*) =>
+        val newElems = elems.zipWithIndex
+          .map({ case (e, i) =>
+            this.runAndMutateAccumulators(e, s"${prefix}_$i")
+          })
+        Tuple(newElems: _*)().tchk()
+      case e =>
+        val x = Param(prefix)(e.typ)
+        this.accumulators += (x -> ExprAccumulator(None, ExprIntermediate(e)))
+        x
     }
   }
 }

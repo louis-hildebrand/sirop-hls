@@ -47,7 +47,11 @@ class DspSelectionTests extends AnyFunSuite {
               val p2 = Param("p2")(TyStm(TyVec(inTyp, depth), 8))
               val sbuild = SimpleMap(
                 MulAddCascaded(p1, p2, pipeline)().tchk(),
-                x => TruncateTo(ARShift(x, 2)(), 32)()
+                x =>
+                  Tuple(
+                    Tuple(TruncateTo(ARShift(x, 2)(), 32)(), True)(),
+                    False
+                  )()
               ).tchk().lower
               val f = p1 match {
                 case p1: Param =>
