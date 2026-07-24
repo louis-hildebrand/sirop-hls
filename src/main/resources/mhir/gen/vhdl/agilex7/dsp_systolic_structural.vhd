@@ -39,8 +39,16 @@ begin
         RESULT_B_WIDTH                  => 0,
         OUTPUT_CLKEN                    => "0",
         -- Pipelining
-        INPUT_PIPELINE_CLKEN            => ite(PIPELINE >= 2, "0", "no_reg"),
-        SECOND_PIPELINE_CLKEN           => ite(PIPELINE >= 3, "0", "no_reg"),
+        -- Counterintuitively, if you're only enabling one of these two
+        -- registers, it has to be SECOND_PIPELINE_CLKEN.
+        -- Otherwise, Quartus produces the error
+        -- "Input pipeline register for DSP block WYSIWYG primitive [...] can only
+        -- be enabled when (1) Pre-adder and/or Internal coefficient feature and
+        -- input register and output register are used, OR (2) Input register and
+        -- second pipeline register are used, OR (3) Input register, second
+        -- pipeline register and output register are used."
+        INPUT_PIPELINE_CLKEN            => ite(PIPELINE >= 3, "0", "no_reg"),
+        SECOND_PIPELINE_CLKEN           => ite(PIPELINE >= 2, "0", "no_reg"),
         INPUT_SYSTOLIC_CLKEN            => "0",
         SUB_SYSTOLIC_REG                => "no_reg",
         NEGATE_SYSTOLIC_REG             => "no_reg",
