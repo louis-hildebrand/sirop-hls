@@ -91,6 +91,7 @@ object VhdlWriter {
         )
       }
     }
+    os.write.append(dir / s"$topName.qsf", options.appendQsf.map(_ + "\n"))
   }
 
   private def emitConversionsPackage(types: Set[VhdlType], dir: Path): Unit = {
