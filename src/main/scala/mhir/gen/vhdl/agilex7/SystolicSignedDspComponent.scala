@@ -46,9 +46,6 @@ case class SystolicSignedDspComponent(
   override def filesToCopy(vhdlDir: Path): Map[Path, String] = {
     Map(
       vhdlDir / "dsp_systolic_signed.vhd" -> "mhir/gen/vhdl/agilex7/dsp_systolic_signed.vhd",
-      // TODO: Choose between the behavioral implementation (simple RTL, no dependencies other than IEEE)
-      //       and the structural implementation (instantiates the IP block, needs tennm library)
-      vhdlDir / "dsp_systolic_structural.vhd" -> "mhir/gen/vhdl/agilex7/dsp_systolic_structural.vhd",
       vhdlDir / "dsp_systolic.vhd" -> "mhir/gen/vhdl/agilex7/dsp_systolic.vhd"
     )
   }
