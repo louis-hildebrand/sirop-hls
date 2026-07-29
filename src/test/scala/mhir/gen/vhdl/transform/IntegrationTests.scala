@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir.{FlattenPipeline, StmBuildNode, VecWriteAccumulator}
 import mhir.ir._
 import mhir.sugar.{ExprLowering, StmRepeat}
 import mhir.typecheck.TypeCheck

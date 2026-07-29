@@ -1,4 +1,4 @@
-package mhir.gen.vhdl
+package mhir.gen.vhdl.ir
 
 import mhir.ir._
 

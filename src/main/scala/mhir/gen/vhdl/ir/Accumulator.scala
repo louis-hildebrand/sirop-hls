@@ -1,4 +1,5 @@
 package mhir.gen.vhdl
+package ir
 
 import mhir.canonicalize._
 import mhir.debug.indent

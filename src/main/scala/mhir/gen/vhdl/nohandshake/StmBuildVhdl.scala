@@ -1,6 +1,7 @@
 package mhir.gen.vhdl.nohandshake
 
 import mhir.gen.vhdl._
+import mhir.gen.vhdl.ir._
 import mhir.ir._
 
 import scala.collection.immutable.ListMap

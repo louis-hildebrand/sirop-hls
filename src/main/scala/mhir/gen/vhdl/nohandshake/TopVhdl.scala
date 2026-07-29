@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package nohandshake
 
 import mhir.gen.CodegenError
+import mhir.gen.vhdl.ir.{FlatPipeline, LetStmNode, StmBuildNode}
 import mhir.ir._
 
 object TopVhdl {

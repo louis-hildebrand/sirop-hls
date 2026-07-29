@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import com.typesafe.scalalogging.Logger
-import mhir.gen.vhdl.{FlatPipeline, VhdlGeneratorOptions}
+import mhir.gen.vhdl.ir.FlatPipeline
 import mhir.logging.time
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.optimize.{EnabledBinOpTreeBalancingPass, StmOutputScheduler}

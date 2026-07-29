@@ -1,11 +1,10 @@
 package mhir.gen.vhdl
+package ir
 
 import mhir.canonicalize._
 import mhir.ir._
 
 import scala.collection.immutable.ListMap
-
-// TODO: Move this stuff to package mhir.gen.vhdl.ir?
 
 /** Anything whose output can be assigned to an intermediate variable in a
   * concurrent context: an expression, a function, an IP block, etc.

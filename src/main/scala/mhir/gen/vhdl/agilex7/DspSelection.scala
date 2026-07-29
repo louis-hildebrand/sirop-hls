@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir._
 import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
 import mhir.optimize.{InConsumer, StmOutputScheduler}

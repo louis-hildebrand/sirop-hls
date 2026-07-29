@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir.{FlatPipeline, FlattenPipeline}
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck.{TypeCheck, TypeChecker}

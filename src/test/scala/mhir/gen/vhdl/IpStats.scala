@@ -1,6 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2}
+import mhir.gen.vhdl.ir.{GenStmBuild, IpBlockInst}
 import mhir.ir._
 
 object IpStats {

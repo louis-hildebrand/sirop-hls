@@ -2,6 +2,12 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir.{
+  ExprAccumulator,
+  ExprIntermediate,
+  FunctionIntermediate,
+  GenStmBuild
+}
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite

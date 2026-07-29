@@ -1,6 +1,6 @@
 package mhir.gen.vhdl.transform
 
-import mhir.gen.vhdl.GenStmBuild
+import mhir.gen.vhdl.ir.GenStmBuild
 import mhir.ir.Param
 
 import scala.annotation.tailrec

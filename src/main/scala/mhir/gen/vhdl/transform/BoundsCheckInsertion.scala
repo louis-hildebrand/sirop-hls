@@ -3,6 +3,7 @@ package transform
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.sugar.{Cast, ExprLowering, SmartLessThan}
 import mhir.typecheck.TypeCheck

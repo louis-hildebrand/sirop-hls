@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite

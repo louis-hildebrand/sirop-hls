@@ -1,6 +1,7 @@
 package mhir.gen.vhdl.handshake
 
 import mhir.gen.vhdl._
+import mhir.gen.vhdl.ir.{Accumulator, GenStmBuild, IpBlockInst, Target}
 import mhir.ir._
 
 /** VHDL converter for [[mhir.ir.StmBuild]].

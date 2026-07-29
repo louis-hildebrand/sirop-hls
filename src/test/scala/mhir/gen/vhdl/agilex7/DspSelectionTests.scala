@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir.FlattenPipeline
 import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
 import mhir.optimize.{Optimizer, OptimizerOptions}
