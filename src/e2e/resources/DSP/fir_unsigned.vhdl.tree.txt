@@ -3,6 +3,7 @@ src/e2e/resources/actual/DSP/fir_unsigned
 │   ├── conversions.vhd
 │   ├── dsp_systolic_unsigned.vhd
 │   ├── dsp_systolic.vhd
+│   ├── mac_fallback_unsigned.vhd
 │   ├── sbuild_1.vhd
 │   ├── top.vhd
 │   └── typedefs.vhd

@@ -4,16 +4,6 @@ AX_WIDTH => 18,
 AY_WIDTH => 18,
 BX_WIDTH => 18,
 BY_WIDTH => 18,
-ENABLE_CHAININ => false,
-PIPELINE => 2,
-RESULT_WIDTH => 44)
-
-entity work.dsp_systolic_unsigned
-generic map(
-AX_WIDTH => 18,
-AY_WIDTH => 18,
-BX_WIDTH => 18,
-BY_WIDTH => 18,
 ENABLE_CHAININ => true,
 PIPELINE => 2,
 RESULT_WIDTH => 44)
@@ -26,4 +16,11 @@ BX_WIDTH => 18,
 BY_WIDTH => 18,
 ENABLE_CHAININ => true,
 PIPELINE => 2,
+RESULT_WIDTH => 44)
+
+entity work.mac_fallback_unsigned
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+B_WIDTH => 44,
 RESULT_WIDTH => 44)

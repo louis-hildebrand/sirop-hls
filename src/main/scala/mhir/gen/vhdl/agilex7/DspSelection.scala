@@ -127,7 +127,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       .flatMap({
         case (_, AgilexMac2(_, _, _, _, chainin: Param, _)) =>
           s.intermediates.get(chainin) match {
-            case Some(_: AgilexMac1 | _: AgilexMac2) =>
+            case Some(_: AgilexMac2) =>
               val chainInOutTyp = chainin.typ.asInstanceOf[TyAnyInt] match {
                 case _: TySInt => TySInt(44)
                 case _: TyUInt => TyUInt(44)

@@ -59,7 +59,7 @@ case class AgilexMac2(
       case typ =>
         throw new AssertionError(
           s"wrong type for target of ${this.getClass.getName}: $typ"
-            + " (expected a tuple with result and chainout types)"
+            + " (expected an integer or a tuple with result and chainout types)"
         )
     }
     val component =

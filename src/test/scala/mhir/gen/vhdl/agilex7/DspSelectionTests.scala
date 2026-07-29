@@ -83,7 +83,7 @@ class DspSelectionTests extends AnyFunSuite {
               Map(
                 // Start of the chain
                 // TODO: Merge in pipeline registers for agilex_mac1 too?
-                s"agilex7_mac1(signed=$signed, pipeline=0, chainin=false, chainout=${depth >= 3})"
+                s"agilex7_mac1(signed=$signed, pipeline=0, chainin=false, chainout=false)"
                   -> numSingles,
                 // Start of the chain
                 s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=true)"
