@@ -76,8 +76,19 @@ case class AgilexMac2(
               case _         => true
             }
           )
-        case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw), TyUInt(cw)) =>
-          ???
+        case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw), TyUInt(rw)) =>
+          SystolicUnsignedDspComponent(
+            axWidth = axw,
+            ayWidth = ayw,
+            bxWidth = bxw,
+            byWidth = byw,
+            resultWidth = rw,
+            pipeline = this.pipeline,
+            enableChainIn = this.chainin match {
+              case IntCst(0) => false
+              case _         => true
+            }
+          )
         case _ =>
           throw new AssertionError(
             s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
