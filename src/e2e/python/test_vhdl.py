@@ -11,7 +11,7 @@ import constants as c
 
 IP_BLOCK_REGEX = re.compile(r"(entity work\.[a-zA-Z_]+)$")
 ENTITY_IGNORE_REGEX = re.compile(
-    "entity work\.(?:"
+    r"entity work\.(?:"
     # Only used by dsp_systolic_signed.vhd and dsp_systolic_unsigned.vhd.
     # Other files will use the signed and unsigned variants.
     "dsp_systolic"
