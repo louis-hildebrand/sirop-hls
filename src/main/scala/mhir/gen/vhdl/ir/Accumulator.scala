@@ -111,11 +111,7 @@ case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
       options: VhdlGeneratorOptions
   ): Signal = {
     val condVhdl = VhdlExprGenerator.toVhdl(this.cond)
-    // TODO: Deduplicate this code (introduce method like VhdlExprGenerator.toIntegerVhdl)
-    val idxVhdl = this.index match {
-      case IntCst(i) => i.toString
-      case i         => s"to_integer(${VhdlExprGenerator.toVhdl(i)})"
-    }
+    val idxVhdl = VhdlExprGenerator.toVhdlInteger(this.index)
     val writeVhdl = VhdlExprGenerator.toVhdl(this.value)
     Signal(
       category = "Registers",

@@ -75,18 +75,10 @@ private object VhdlExprGenerator {
           VhdlConversionGenerator.toStdLogicVector(toVhdl(e), vhdlTyp),
           VhdlType(targetTyp)
         )
-      case LShift(e1, e2) =>
-        val e2Vhdl = e2 match {
-          case IntCst(k) => k.toString
-          case e2        => s"to_integer(${toVhdl(e2)})"
-        }
-        s"(${toVhdl(e1)}) sll $e2Vhdl"
+      case LShift(e1, e2) => s"(${toVhdl(e1)}) sll ${toVhdlInteger(e2)}"
       case ARShift(e1, e2) =>
         val e1Vhdl = toVhdl(e1)
-        val e2Vhdl = e2 match {
-          case IntCst(k) => k.toString
-          case e2        => s"to_integer(${toVhdl(e2)})"
-        }
+        val e2Vhdl = toVhdlInteger(e2)
         e1.typ.asInstanceOf[TyAnyInt] match {
           case _: TySInt =>
             s"signed(to_stdlogicvector(to_bitvector(std_logic_vector($e1Vhdl)) sra $e2Vhdl))"
@@ -97,12 +89,7 @@ private object VhdlExprGenerator {
             // because the MSB might be 1.
             s"($e1Vhdl) srl $e2Vhdl"
         }
-      case LRShift(e1, e2) =>
-        val e2Vhdl = e2 match {
-          case IntCst(k) => k.toString
-          case e2        => s"to_integer(${toVhdl(e2)})"
-        }
-        s"(${toVhdl(e1)}) srl $e2Vhdl"
+      case LRShift(e1, e2) => s"(${toVhdl(e1)}) srl ${toVhdlInteger(e2)}"
 
       case c: FixCst =>
         toVhdl(C(c.numer)(c.typ.t))
@@ -139,23 +126,7 @@ private object VhdlExprGenerator {
         elems.zipWithIndex
           .map({ case (e, i) => s"$i => ${toVhdl(e)}" })
           .mkString("(", ", ", ")")
-      case VecAccess(v, i) =>
-        // ModelSim really seems to dislike the expression
-        //     to_integer(to_unsigned(0, 0))
-        // It emits the warning "Warning: NUMERIC_STD.TO_INTEGER: null
-        // detected, returning 0" even when NumericStdNoWarnings is set to 1.
-        // The warning is printed just before the Tcl command
-        //     set NumericStdNoWarnings 1
-        // runs, so maybe ModelSim is running into a problem while doing some
-        // optimizations or something.
-        //
-        // While I'm fixing that issue, I might as well specially handle all
-        // integer indices; it makes the VHDL code a bit more concise.
-        val iVhdl = i match {
-          case IntCst(i) => i.toString
-          case i         => s"to_integer(${toVhdl(i)})"
-        }
-        s"${toVhdl(v)}($iVhdl)"
+      case VecAccess(v, i) => s"${toVhdl(v)}(${toVhdlInteger(i)})"
 
       case e @ (_: Mux | _: VecBuild | _: StmData | _: Function) =>
         throw new AssertionError(
@@ -174,6 +145,13 @@ private object VhdlExprGenerator {
         throw new IllegalArgumentException(
           s"syntax sugar must be removed before hardware generation"
         )
+    }
+  }
+
+  def toVhdlInteger(e: Expr): String = {
+    e match {
+      case IntCst(i) => i.toString
+      case e         => s"to_integer(${toVhdl(e)})"
     }
   }
 

@@ -94,7 +94,6 @@ private object VecShiftLeft {
     arg match {
       case (
             x0,
-            // TODO: Use special VecBuildAccumulator for this purpose instead?
             ExprAccumulator(
               init,
               ExprIntermediate(

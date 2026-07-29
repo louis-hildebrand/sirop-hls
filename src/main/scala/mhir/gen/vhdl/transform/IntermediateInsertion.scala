@@ -125,10 +125,17 @@ private class ExprIntermediateInsertion(
     (result, this.intermediates)
   }
 
+  /** Insert intermediates at the appropriate places in the given expression and
+    * record them in the [[intermediates]] field.
+    *
+    * @note
+    *   in some cases this will introduce unnecessary intermediates (i.e., the
+    *   returned expression is a variable called X, which is used to define an
+    *   intermediate but not used anywhere else). However, that can be handled
+    *   by the caller (see
+    *   [[IntermediateInsertion.getDataIntermediateAndMutateIntermediates]]).
+    */
   private def run(e: Expr): Expr = {
-    // TODO: Avoid introducing needless intermediate variables at the top level
-    //       (i.e., when this expression is going to be the right-hand side of
-    //       an assignment statement already)?
     e match {
       // --- Variable binders --------------------------------------------------
       // Be careful with variable binders! The variable(s) they introduce are

@@ -15,9 +15,6 @@ sealed trait Intermediate {
 
   def substitute(subs: Map[Expr, Expr]): Intermediate
 
-  // TODO: Delete this?
-//  def map(f: Expr => Expr): Intermediate
-
   def toVhdlDecl(target: Target, options: VhdlGeneratorOptions): Decl
 }
 
@@ -69,14 +66,6 @@ case class FunctionIntermediate(
     }
   }
 
-  // TODO: Delete this?
-//  override def map(f: Expr => Expr): SequentialIntermediate = {
-//    val newParams = params.map(x => f(x).asInstanceOf[Param])
-//    val newIntermediates = intermediates.map({ case (x, i) => x -> i.map(f) })
-//    val newOutput = output.map(f)
-//    FunctionIntermediate(newParams, newIntermediates, newOutput)
-//  }
-
   def toVhdlDecl(
       target: Target,
       options: VhdlGeneratorOptions
@@ -97,9 +86,11 @@ case class FunctionIntermediate(
       .map({
         case (x, i: DataIntermediate) =>
           i.toVhdlVariableDecl(Target(x), options)
-        case (x, i: FunctionIntermediate) =>
-          // TODO: This should never happen, right?
-          ???
+        case (x, _: FunctionIntermediate) =>
+          throw new AssertionError(
+            "nested functions should have been removed in an earlier compilation stage"
+              + s" (found function ${x.name} inside ${target.name})"
+          )
       })
       .toSeq
     val outVhdl = VhdlExprGenerator.toVhdl(output)
