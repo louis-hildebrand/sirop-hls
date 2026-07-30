@@ -82,8 +82,7 @@ class DspSelectionTests extends AnyFunSuite {
               val cappedPipeline = math.min(3, pipeline)
               Map(
                 // Start of the chain
-                // TODO: Merge in pipeline registers for agilex_mac1 too?
-                s"agilex7_mac1(signed=$signed, pipeline=0, chainin=false, chainout=false)"
+                s"agilex7_mac1(signed=$signed, chainin=false)"
                   -> numSingles,
                 // Start of the chain
                 s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=true)"

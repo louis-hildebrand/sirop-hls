@@ -20,10 +20,8 @@ object IpStats {
     ip match {
       case mac: AgilexMac1 =>
         val signed = mac.x.typ.isInstanceOf[TySInt]
-        val pipeline = mac.pipeline
         val chainInEnabled = mac.chainin != C(0)()
-        val chainOutEnabled = target.typ.isInstanceOf[TyTuple]
-        s"agilex7_mac1(signed=$signed, pipeline=$pipeline, chainin=$chainInEnabled, chainout=$chainOutEnabled)"
+        s"agilex7_mac1(signed=$signed, chainin=$chainInEnabled)"
       case mac: AgilexMac2 =>
         val signed = mac.ax.typ.isInstanceOf[TySInt]
         val pipeline = mac.pipeline

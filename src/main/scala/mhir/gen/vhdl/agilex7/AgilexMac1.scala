@@ -11,9 +11,6 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
   assert(this.y.typ.isInstanceOf[TyAnyInt])
   assert(this.chainin.typ.isInstanceOf[TyAnyInt])
 
-  // TODO: Implement absorbing registers into DSP
-  def pipeline: Int = 0
-
   override def freeVars: Set[Param] = {
     x.freeVars ++ y.freeVars ++ chainin.freeVars
   }
@@ -38,6 +35,14 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     //         * The m18x18_plus36 mode has a really weird pipelining setup.
     //           There doesn't seem to be an input register for the 36-bit input!
     //           In other words, it seems to expect the 36-bit input to arrive one cycle later than the 18-bit factors.
+    //       Maybe the best way to deal with these challenges would be to
+    //       convert AgilexMac1 to other types of multiplications on a best-effort basis.
+    //       For example, if there's no chainin, translate to the independent 18x18 mode
+    //       (and possibly have another step which tries to merge those).
+    //       Similarly, if I can find enough registers to satisfy the weird requirements for the 18x18_plus36 mode,
+    //       I should translate to that mode.
+    //       If neither of these special cases apply, stick to the behavioural fallback
+    //       (and maybe emit a warning recommending that the programmer use an even number of multiplications).
     val resultTyp = target.typ match {
       case resTyp: TySInt => resTyp
       case resTyp: TyUInt => resTyp
