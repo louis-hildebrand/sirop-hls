@@ -939,6 +939,10 @@ case class StmBuild(
     this.equations.filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
   }
 
+  def accumulators: Map[Param, (Expr, Expr)] = {
+    this.equations.filter({ case (x, _) => !x.typ.isInstanceOf[TyStm] })
+  }
+
   /** Checks for structural equality, ignoring order of equations and names of
     * accumulator variables.
     */

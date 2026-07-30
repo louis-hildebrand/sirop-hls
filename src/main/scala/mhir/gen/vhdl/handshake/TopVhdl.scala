@@ -7,9 +7,6 @@ import mhir.ir._
 object TopVhdl {
 
   /** Generate the top-level VHDL entity.
-    *
-    * @param f
-    *   the function defining the accelerator's behaviour.
     */
   def apply(
       pipe: FlatPipeline,
@@ -19,13 +16,8 @@ object TopVhdl {
     val childComponents = {
       val sbuilds = pipe.sbuilds.zipWithIndex.map({
         case (StmBuildNode(x, s, _), i) =>
-          val inputsOfS = s.producers.values.map(_._1).toSet
-          val component = StmBuildVhdl(
-            s,
-            inputsOfS,
-            name = s"sbuild_${i + 1}",
-            options = options
-          )
+          val component =
+            StmBuildVhdl(s, name = s"sbuild_${i + 1}", options = options)
           val portMap = PortMap(
             Map(
               options.clock -> options.clock,
@@ -34,7 +26,7 @@ object TopVhdl {
               s"data" -> s"${x.name}_data",
               s"valid" -> s"${x.name}_valid",
               s"ready" -> s"${x.name}_ready"
-            ) ++ inputsOfS.flatMap({ x =>
+            ) ++ s.producers.keySet.flatMap({ x =>
               // Handshake with producers
               Map(
                 s"${x.name}_data" -> s"${x.name}_data",

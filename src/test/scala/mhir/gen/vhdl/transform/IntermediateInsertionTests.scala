@@ -54,9 +54,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
           )
         )
       ),
-      producers = Map(
-        p -> (p, True)
-      ),
+      producers = Map(p -> True),
       intermediates = ListMap()
     )
     val actual = IntermediateInsertion(original)
@@ -77,9 +75,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
           )
         )
       ),
-      producers = Map(
-        p -> (p, True)
-      ),
+      producers = Map(p -> True),
       intermediates = ListMap(
         sdata -> StmDataIntermediate(p)
       )
@@ -192,9 +188,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
       accumulators = Map(
         acc -> ExprAccumulator(None, ExprIntermediate(StmData(p)().tchk()))
       ),
-      producers = Map(
-        p -> (p, True)
-      ),
+      producers = Map(p -> True),
       intermediates = ListMap()
     )
     val actual = IntermediateInsertion(original)
@@ -221,9 +215,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
           ExprIntermediate(Not(b)().tchk())
         )
       ),
-      producers = Map(
-        p -> (p, True)
-      ),
+      producers = Map(p -> True),
       intermediates = ListMap(
         mul1 -> AgilexMac1(
           StmData(p)().__0.__0.tchk(),

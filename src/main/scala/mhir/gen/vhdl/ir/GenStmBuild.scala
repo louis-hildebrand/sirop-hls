@@ -16,7 +16,9 @@ import scala.collection.immutable.ListMap
   *   next value.
   * @param producers
   *   the producer streams that feed into this component. Each producer has a
-  *   name, the stream itself, and a `ready` expression.
+  *   name and a `ready` expression. The same name is used outside this `sbuild`
+  *   (in the top-level component) and inside this sbuild (as an argument for
+  *   `sdata`).
   * @param intermediates
   *   intermediate signals defined in this component. Each one has a name and an
   *   expression that calculates the value of the intermediate using the
@@ -26,6 +28,6 @@ case class GenStmBuild(
     data: Expr,
     valid: Expr,
     accumulators: Map[Param, Accumulator],
-    producers: Map[Param, (Param, Expr)],
+    producers: Map[Param, Expr],
     intermediates: ListMap[Param, Intermediate]
 )

@@ -15,14 +15,11 @@ private[vhdl] object StmBuildVhdl {
     *
     * @param s
     *   the stream to convert.
-    * @param inputs
-    *   variables representing the stream producers feeding into this node.
     * @param name
     *   the name to use for the VHDL component.
     */
   private[vhdl] def apply(
       s: GenStmBuild,
-      inputs: Set[Param],
       name: String,
       options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
@@ -85,16 +82,9 @@ private[vhdl] object StmBuildVhdl {
       .toSeq
   }
 
-  private def producerPorts(
-      producers: Map[Param, (Expr, Expr)]
-  ): Seq[Port] = {
+  private def producerPorts(producers: Map[Param, Expr]): Seq[Port] = {
     producers
-      .map({ case (x, (p, _)) =>
-        assert(
-          x == p,
-          "the name of the producer variable should have been changed to match the stream itself"
-            + s" (variable is $x, stream is $p)"
-        )
+      .map({ case (x, _) =>
         val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
         val bitWidth = dataType.bitWidth
         InPort(name = x.name, typ = VhdlStdLogicVec(bitWidth))

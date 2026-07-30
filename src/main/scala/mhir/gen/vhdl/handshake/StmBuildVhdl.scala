@@ -12,14 +12,11 @@ private[vhdl] object StmBuildVhdl {
     *
     * @param s
     *   the stream to convert.
-    * @param inputs
-    *   variables representing the stream producers feeding into this node.
     * @param name
     *   the name to use for the VHDL component.
     */
   private[vhdl] def apply(
       s: GenStmBuild,
-      inputs: Set[Param],
       name: String,
       options: VhdlGeneratorOptions
   ): CustomVhdlComponent = {
@@ -158,14 +155,9 @@ private[vhdl] object StmBuildVhdl {
       .toSeq
   }
 
-  private def producerPorts(producers: Map[Param, (Expr, Expr)]): Seq[Port] = {
+  private def producerPorts(producers: Map[Param, Expr]): Seq[Port] = {
     producers
-      .flatMap({ case (x, (p, _)) =>
-        assert(
-          x == p,
-          "the name of the producer variable should have been changed to match the stream itself"
-            + s" (variable is $x, stream is $p)"
-        )
+      .flatMap({ case (x, _) =>
         val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
         val bitWidth = dataType.bitWidth
         Seq(
@@ -181,11 +173,9 @@ private[vhdl] object StmBuildVhdl {
       .toSeq
   }
 
-  private def producerSignals(
-      producers: Map[Param, (Expr, Expr)]
-  ): Seq[Signal] = {
+  private def producerSignals(producers: Map[Param, Expr]): Seq[Signal] = {
     val readyExprByProducer = producers
-      .map({ case (x, (_, ready)) => x -> VhdlExprGenerator.toVhdl(ready) })
+      .map({ case (x, ready) => x -> VhdlExprGenerator.toVhdl(ready) })
     // If waiting for multiple producers (e.g., in StmZip), don't raise the
     // ready signal until *all* required producers are ready
     // IMPORTANT: To avoid combinational loops, the producer's `valid` signal
@@ -206,7 +196,7 @@ private[vhdl] object StmBuildVhdl {
       )
     }
     val signals = producers
-      .flatMap({ case (x, (_, ready)) =>
+      .flatMap({ case (x, ready) =>
         val otherProducers = readyExprByProducer
           .filter({ case (y, _) => y != x })
         val allOthersValid = if (otherProducers.isEmpty) {
