@@ -23,6 +23,10 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     )
   }
 
+  override def mapInputs(f: Expr => Expr): IpBlockInst = {
+    AgilexMac1(f(this.x), f(this.y), f(this.chainin))
+  }
+
   override def toVhdlEntityInst(
       target: Param,
       options: VhdlGeneratorOptions,

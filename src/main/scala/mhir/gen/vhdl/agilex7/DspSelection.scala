@@ -8,6 +8,15 @@ import mhir.ir._
 import mhir.optimize.{InConsumer, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
 
+/** Maps multiplications to native Agilex 7 DSP blocks, where possible.
+  *
+  * @note
+  *   intermediate insertion should be run (or re-run) <i>after</i> this pass,
+  *   since (1) this pass may construct Sirop expressions that are not valid
+  *   VHDL expressions (see [[moveZeroDelayAfterRegister]]) and (2) this pass
+  *   does not guarantee that all inputs of the DSP blocks are names, as
+  *   required in VHDL.
+  */
 case class DspSelection(scheduler: StmOutputScheduler) {
 
   def apply(s: GenStmBuild): GenStmBuild = {
@@ -18,7 +27,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     val s4 = RemoveUnused(s3)
     val s5 = this.enableChainInOut(s4)
     val s6 = this.mergeRegistersIntoDsps(s5)
-    // TODO: Also need to ensure arguments in port map are either names or static (i.e., more intermediate insertion)?
     val s7 = RemoveUnused(s6)
     s7
   }
@@ -72,10 +80,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           case _ => s
         }
       })
-    // TODO: I'll probably need to run intermediate insertion again, in case
-    //       the substitutions I performed resulted in invalid expressions.
-    //       Maybe I should just do intermediate insertion after DSP selection
-    //       in general
   }
 
   private def selectBasic(s: GenStmBuild): GenStmBuild = {

@@ -6,6 +6,7 @@ import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 
+import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
 /** Transformation that inserts intermediate variables where required for VHDL
@@ -59,6 +60,19 @@ private class IntermediateInsertion(
     val producers = s.producers.map({ case (x, (p, ready)) =>
       x -> (p, this.getExprAndMutateIntermediates(ready))
     })
+    s.intermediates.foreach({
+      case (x, i: DataIntermediate) =>
+        val newI = i.map(this.getExprAndMutateIntermediates)
+        this.intermediates += (x -> newI)
+      case (x, i: IpBlockInst) =>
+        val newI = i.mapInputs(this.getPortActualAndMutateIntermediates)
+        this.intermediates += (x -> newI)
+      case (x, f: FunctionIntermediate) =>
+        throw new AssertionError(
+          s"there should not be any ${f.getClass.getName} yet at this compilation stage"
+            + s" (found function $x)"
+        )
+    })
     GenStmBuild(
       data = data,
       valid = valid,
@@ -71,6 +85,10 @@ private class IntermediateInsertion(
   /** Insert intermediates where necessary in the given expression; return the
     * updated expression and append the necessary intermediates to the
     * [[intermediates]] field.
+    *
+    * @return
+    *   an expression that can be straightforwardly translated to a VHDL
+    *   expression.
     */
   def getExprAndMutateIntermediates(e: Expr): Expr = {
     val (newE, newIntermediates) =
@@ -112,6 +130,33 @@ private class IntermediateInsertion(
             ExprIntermediate(newE)
         }
       case i => i.map(this.getExprAndMutateIntermediates)
+    }
+  }
+
+  /** Insert intermediates where necessary to turn the given Sirop expression
+    * into
+    *
+    * @return
+    *   an expression that can be used as an "actual part" in a port map.
+    */
+  private def getPortActualAndMutateIntermediates(e: Expr): Expr = {
+    val newE = this.getExprAndMutateIntermediates(e)
+    if (isValidPortActual(newE)) {
+      newE
+    } else {
+      val tmp = Param("port_map_arg")(newE.typ)
+      this.intermediates += (tmp -> ExprIntermediate(newE))
+      tmp
+    }
+  }
+
+  @tailrec
+  private def isValidPortActual(e: Expr): Boolean = {
+    e match {
+      case _: BoolCst | _: IntCst | _: Param => true
+      case TupleAccess(t, _)                 => isValidPortActual(t)
+      case VecAccess(v, _: IntCst)           => isValidPortActual(v)
+      case _                                 => false
     }
   }
 }
@@ -222,20 +267,8 @@ private class ExprIntermediateInsertion(
         )
         temp
       case TupleAccess(t, i) =>
-        // The left-hand side of a record access must be a "prefix," which can
-        // be a "name" (which also includes things like tuple accesses) or a
-        // function call.
-        val t2 = this.run(t)
-        t2 match {
-          case _: Param | _: StmData =>
-            // No need for a temporary variable; the left-hand side is already
-            // just a name
-            TupleAccess(t2, i)().tchk()
-          case _ =>
-            val temp = Param("tmp")(t2.typ)
-            this.intermediates += temp -> ExprIntermediate(t2)
-            TupleAccess(temp, i)().tchk()
-        }
+        val t2 = this.getPrefixAndMutateIntermediates(t)
+        TupleAccess(t2, i)().tchk()
       case vec @ VecLiteral(elems @ _*) =>
         val elems2 = elems.map(this.run)
         val vec2 =
@@ -244,18 +277,9 @@ private class ExprIntermediateInsertion(
         this.intermediates += temp -> ExprIntermediate(vec2)
         temp
       case VecAccess(v, i) =>
-        val v2 = this.run(v)
+        val v2 = this.getPrefixAndMutateIntermediates(v)
         val i2 = this.run(i)
-        v2 match {
-          case _: Param | _: StmData =>
-            // No need for a temporary variable; the left-hand side is already
-            // just a name
-            VecAccess(v2, i2)().tchk()
-          case _ =>
-            val temp = Param("tmp")(v2.typ)
-            this.intermediates += temp -> ExprIntermediate(v2)
-            VecAccess(temp, i2)().tchk()
-        }
+        VecAccess(v2, i2)().tchk()
       case StmData(x: Param) =>
         val TyStm(elemTyp, _) = x.typ
         val temp = Param(s"${x.name}_data_internal")(elemTyp)
@@ -279,6 +303,66 @@ private class ExprIntermediateInsertion(
 
       // --- Normal case -------------------------------------------------------
       case e => e.map(this.run).tchk()
+    }
+  }
+
+  private def getPrefixAndMutateIntermediates(e: Expr): Expr = {
+    this.run(e) match {
+      case VhdlPrefix(e) => e
+      case e =>
+        val prefix = Param("prefix")(e.typ)
+        this.intermediates += prefix -> ExprIntermediate(e)
+        prefix
+    }
+  }
+}
+
+private object VhdlPrefix {
+
+  /** Matches "prefixes" as defined in IEEE Std 1076-2002.
+    *
+    * {{{
+    * prefix ::= name
+    *          | function_call
+    *
+    * name ::= simple_name
+    *        | operator_symbol
+    *        | selected_name
+    *        | indexed_name
+    *        | slice_name
+    *        | attribute_name
+    *
+    * simple_name ::= identifier
+    *
+    * selected_name ::= prefix . suffix
+    *
+    * suffix ::= simple_name
+    *          | character_literal
+    *          | operator_symbol
+    *          | "all"
+    *
+    * indexed_name ::= prefix ( expression { , expression } )
+    *
+    * function_call ::= function_name [ ( actual_parameter_part ) ]
+    * }}}
+    *
+    * @note
+    *   this method is conservative - if it returns `Some(e)` then `e` is
+    *   definitely a prefix, but if this method returns `None` it does not
+    *   necessarily mean the argument was <i>not</i> a prefix.
+    */
+  def unapply(e: Expr): Option[Expr] = {
+    Some(e).filter(this.isPrefix)
+  }
+
+  @tailrec
+  private def isPrefix(e: Expr): Boolean = {
+    e match {
+      case _: Param             => true // simple_name
+      case TupleAccess(t, _)    => isPrefix(t) // selected_name
+      case VecAccess(v, _)      => isPrefix(v) // indexed_name
+      case FunCall(_: Param, _) => true // function_call
+      case _                    => false
     }
   }
 }

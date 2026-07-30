@@ -23,13 +23,7 @@ object ApplyTransformations {
     val pipe2 = time("adding vector bounds checks", Level.DEBUG) {
       pipe1.mapSbuilds(BoundsCheckInsertion.apply)
     }
-    val pipe3 = time("inserting intermediate variables", Level.DEBUG) {
-      pipe2.mapSbuilds(IntermediateInsertion.apply)
-    }
-    val pipe4 = time("making all function arguments explicit", Level.DEBUG) {
-      pipe3.mapSbuilds(MakeFreeVarsIntoParams.apply)
-    }
-    val pipe5 = options.deviceFamily match {
+    val pipe3 = options.deviceFamily match {
       case "Agilex 7" =>
         time(s"mapping multiplications to Agilex 7 DSP blocks", Level.DEBUG) {
           val pass = agilex7.DspSelection(
@@ -38,13 +32,19 @@ object ApplyTransformations {
               SimpleDelayCostModel(madd = true)
             )
           )
-          pipe4.mapSbuilds(pass.apply)
+          pipe2.mapSbuilds(pass.apply)
         }
       case family =>
         logger.debug(
           s"DSP selection is not currently implemented for FPGA family '$family'"
         )
-        pipe4
+        pipe2
+    }
+    val pipe4 = time("inserting intermediate variables", Level.DEBUG) {
+      pipe3.mapSbuilds(IntermediateInsertion.apply)
+    }
+    val pipe5 = time("making all function arguments explicit", Level.DEBUG) {
+      pipe4.mapSbuilds(MakeFreeVarsIntoParams.apply)
     }
     pipe5
   }

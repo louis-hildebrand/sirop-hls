@@ -14,6 +14,12 @@ import scala.collection.immutable.ListMap
   * After this transformation, no function should have any free variables.
   *
   * @note
+  *   [[IntermediateInsertion]] must be run <i>before</i> this transformation,
+  *   since this transformation assumes all functions have been assigned to
+  *   intermediate variables. The functions may be nested; this transformation
+  *   will take care of flattening them all out.
+  *
+  * @note
   *   this transformation assumes functions do not return other functions, so a
   *   function cannot escape the scope in which it is declared. This is
   *   reasonable because the rest of the VHDL generator makes the same
@@ -36,11 +42,8 @@ object MakeFreeVarsIntoParams {
         x -> (p, pass.apply(ready))
       }),
       intermediates = s2.intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
-        case (_, _: IpBlockInst) =>
-          throw new AssertionError(
-            "there shouldn't be any IP blocks yet at this compilation stage"
-          )
+        case (x, i: DataIntermediate)     => x -> i.map(pass.apply)
+        case (x, i: IpBlockInst)          => x -> i.mapInputs(pass.apply)
         case (f, i: FunctionIntermediate) => pass.apply(f, i)
       })
     )
@@ -233,10 +236,7 @@ private object EnsureTupleArgs {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case i: DataIntermediate => i.map(this.apply)
-      case _: IpBlockInst =>
-        throw new AssertionError(
-          "there shouldn't be any IP blocks yet at this compilation stage"
-        )
+      case i: IpBlockInst      => i.mapInputs(this.apply)
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
           params.length == 1,

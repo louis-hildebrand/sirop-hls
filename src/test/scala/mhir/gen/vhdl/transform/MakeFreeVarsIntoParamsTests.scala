@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.agilex7.AgilexMac1
 import mhir.gen.vhdl.ir.{
   ExprAccumulator,
   ExprIntermediate,
@@ -22,7 +23,8 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
     val z = Param("z")(TyBool)
     val w = Param("w")(U8)
     val p = Param("p")(TyStm(U8, 16))
-    val data = Param("data")(TyTuple(TyTuple(U8, TyBool), U8, U8))
+    val prod = Param("prod")(U8)
+    val data = Param("data")(TyTuple(TyTuple(U8, TyBool), U8, U8, U8))
     // Notice how f accesses the variables y and z, which are not parameters
     val fBody = /* x => */ Tuple(Sum(x, y)(), z)().tchk()
     val f = Param("f")(x.typ ->: fBody.typ)
@@ -48,8 +50,13 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       ),
       intermediates = ListMap(
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
+        prod -> AgilexMac1(
+          FunCall(f, w)().__0.tchk(),
+          FunCall(f, C(3)(U8))().__0.tchk(),
+          C(0)(U8)
+        ),
         data -> ExprIntermediate(
-          Tuple(FunCall(f, C(42)(U8))(), StmData(p)(), w)().tchk()
+          Tuple(FunCall(f, C(42)(U8))(), StmData(p)(), w, prod)().tchk()
         )
       )
     )
@@ -81,8 +88,18 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       ),
       intermediates = ListMap(
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
+        prod -> AgilexMac1(
+          FunCall(f2, Tuple(w, y, z)())().__0.tchk(),
+          FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),
+          C(0)(U8)
+        ),
         data -> ExprIntermediate(
-          Tuple(FunCall(f2, Tuple(C(42)(U8), y, z)())(), StmData(p)(), w)()
+          Tuple(
+            FunCall(f2, Tuple(C(42)(U8), y, z)())(),
+            StmData(p)(),
+            w,
+            prod
+          )()
             .tchk()
         )
       )

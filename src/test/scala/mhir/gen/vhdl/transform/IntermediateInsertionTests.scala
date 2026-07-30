@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
+import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2}
 import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck._
@@ -86,6 +87,49 @@ class IntermediateInsertionTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("IfElseInExistingIntermediate") {
+    val x = Param("x")(U8)
+    val b = Param("b")(TyBool)
+    val original = GenStmBuild(
+      data = Sum(x, x)().tchk(),
+      valid = True,
+      accumulators = Map(
+        b -> ExprAccumulator(
+          Some(ExprIntermediate(True)),
+          ExprIntermediate(Not(b)().tchk())
+        )
+      ),
+      producers = Map(),
+      intermediates = ListMap(
+        x -> ExprIntermediate(
+          Sum(C(5)(U8), Mux(b, C(42)(U8), C(0)(U8))())().tchk()
+        )
+      )
+    )
+    val actual = IntermediateInsertion(original)
+
+    assert(actual.intermediates.size == 2)
+    val ite = actual.intermediates
+      .collectFirst({ case (y, _) if y != x => y })
+      .get
+    val expected = GenStmBuild(
+      data = Sum(x, x)().tchk(),
+      valid = True,
+      accumulators = Map(
+        b -> ExprAccumulator(
+          Some(ExprIntermediate(True)),
+          ExprIntermediate(Not(b)().tchk())
+        )
+      ),
+      producers = Map(),
+      intermediates = ListMap(
+        ite -> MuxIntermediate(b, C(42)(U8), C(0)(U8)),
+        x -> ExprIntermediate(Sum(C(5)(U8), ite)().tchk())
+      )
+    )
+    assert(actual == expected)
+  }
+
   test("MuxAndStmDataInsideFunction") {
     val s = Param("s")(TyStm(I16, 16))
     val x = Param("x")(I16)
@@ -161,5 +205,89 @@ class IntermediateInsertionTests extends AnyFunSuite {
         .init
         .isEmpty
     )
+  }
+
+  test("DspBlocks") {
+    val mul1 = Param("mul1")(I44)
+    val mul2 = Param("mul2")(I44)
+    val b = Param("b")(TyBool)
+    val p = Param("p")(TyStm(TyTuple(TyTuple(U8, U8), TyVec(U8, 4)), 16))
+    val original = GenStmBuild(
+      data = ARShift(mul2, 2)().tchk(),
+      valid = True,
+      accumulators = Map(
+        b -> ExprAccumulator(
+          Some(ExprIntermediate(True)),
+          ExprIntermediate(Not(b)().tchk())
+        )
+      ),
+      producers = Map(
+        p -> (p, True)
+      ),
+      intermediates = ListMap(
+        mul1 -> AgilexMac1(
+          StmData(p)().__0.__0.tchk(),
+          Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
+          C(0)(U8)
+        ),
+        mul2 -> AgilexMac2(
+          VecAccess(StmData(p)().__1, 0)().tchk(),
+          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 1)(), C(1)(U8))())()
+            .tchk(),
+          VecAccess(StmData(p)().__1, 2)().tchk(),
+          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 3)(), C(1)(U8))())()
+            .tchk(),
+          mul1,
+          pipeline = 2
+        )
+      )
+    )
+    val actual = IntermediateInsertion(original)
+
+    val mac1Count = actual.intermediates.count({
+      case (_, _: AgilexMac1) => true
+      case _                  => false
+    })
+    assert(mac1Count == 1)
+    val mac1 =
+      actual.intermediates.collectFirst({ case (_, i: AgilexMac1) => i }).get
+    mac1 match {
+      case AgilexMac1(
+            // Keep tuple access as-is
+            TupleAccess(TupleAccess(_: Param, IntCst(0)), IntCst(0)),
+            // Pull out sum
+            _: Param,
+            // Keep integer as-is
+            IntCst(0)
+          ) =>
+        ()
+      case i => fail(s"invalid mac1: $i")
+    }
+
+    val mac2Count = actual.intermediates.count({
+      case (_, _: AgilexMac2) => true
+      case _                  => false
+    })
+    assert(mac2Count == 1)
+    val mac2 =
+      actual.intermediates.collectFirst({ case (_, i: AgilexMac2) => i }).get
+    mac2 match {
+      case AgilexMac2(
+            VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(0)),
+            _: Param,
+            VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(2)),
+            _: Param,
+            mul1Actual: Param,
+            2
+          ) if mul1Actual == mul1 =>
+        ()
+      case i => fail(s"invalid mac2: $i")
+    }
+
+    val ipBlockCount = actual.intermediates.count({
+      case (_, _: IpBlockInst) => true
+      case _                   => false
+    })
+    assert(ipBlockCount == 2)
   }
 }

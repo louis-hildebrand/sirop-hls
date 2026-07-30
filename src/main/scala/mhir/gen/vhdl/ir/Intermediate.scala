@@ -139,6 +139,8 @@ trait IpBlockInst extends Intermediate {
       cond = None
     )
   }
+
+  def mapInputs(f: Expr => Expr): IpBlockInst
 }
 
 /** An intermediate that consists of some expression that is not an IP block and
