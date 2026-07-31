@@ -818,6 +818,15 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(f, inputs) == TestPassed)
   }
 
+  test("SelfConcat") {
+    val e = {
+      val n = 16
+      val x = Param("x")(TyStm(U8, n))
+      LetStm(n, x, StmCount(C(n)(U8))(), StmConcat(x, x)())().tchk().lower
+    }
+    assert(VhdlTestRunner.testExpr(e) == TestPassed)
+  }
+
   // Input stream is used by the consumer
   test("s => let idx = StmCount(10) in StmZip(idx, s)") {
     val n = 10
