@@ -43,6 +43,7 @@ object Args {
     var vhdlDevice: Option[String] = None
     var vhdlFmax: Option[Int] = None
     var vhdlVirtualPins: Option[Boolean] = None
+    var vhdlAppendQsf = Seq[String]()
     var prettyPrintDest: Option[PrettyPrintDestination] = None
     var prettyPrintLoweredDest: Option[PrettyPrintDestination] = None
     var timeReportFile: Option[Path] = None
@@ -151,6 +152,14 @@ object Args {
           }
         case "--out:vhdl:no-virtual-pins" =>
           vhdlVirtualPins = Some(false)
+        case "--out:vhdl:append-qsf" =>
+          mutArgs.drop(1).headOption match {
+            case Some(setting) =>
+              vhdlAppendQsf = vhdlAppendQsf :+ setting
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
             case Some("-") =>
@@ -380,7 +389,7 @@ object Args {
     val options = CompilerOptions(
       targets = targets,
       vhdl = {
-        val opt0 = VhdlGeneratorOptions()
+        val opt0 = VhdlGeneratorOptions(appendQsf = vhdlAppendQsf)
         val opt1 = vhdlFamily match {
           case Some(family) => opt0.copy(deviceFamily = family)
           case None         => opt0
@@ -482,6 +491,7 @@ object Args {
          |  --out:vhdl:fmax                  the target Fmax, in MHz (default: $defaultFmax)
          |  --out:vhdl:no-virtual-pins       don't mark the ports of the top-level entity
          |                                   as virtual pins
+         |  --out:vhdl:append-qsf            append the given settings to the .qsf file
          |
          |  --out:pp (FILE|-)                pretty-print the final program to the given
          |                                   file, or to stdout if argument "-" is given

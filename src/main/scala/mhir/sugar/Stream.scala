@@ -1148,13 +1148,13 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
 
 // TODO: Generalize to include pre-adder?
 // TODO: Generalize to allow 27-bit systolic mode?
-case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s1, s2)(typ) {
+case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s1, s2, delay)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s1, s2) => MulAddCascaded(s1, s2)(typ)
-      case _           => throw new BadRebuildError(this, newChildren)
+      case Seq(s1, s2, d) => MulAddCascaded(s1, s2, d)(typ)
+      case _              => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -1163,10 +1163,10 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val s1 = this.s1.tchk(context, constValues)
-    val (n, m) = s1.typ match {
-      case TyStm(TyVec(_: TyAnyInt, m), n) =>
+    val (elemTyp1, n, m) = s1.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m), n) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
-        (n, m)
+        (t, n, m)
       case t =>
         throw new TypeError(
           s"First stream in $className has type $t."
@@ -1174,8 +1174,8 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
         )
     }
     val s2 = this.s2.tchk(context, constValues)
-    s2.typ match {
-      case TyStm(TyVec(_: TyAnyInt, m2), n2) =>
+    val elemTyp2 = s2.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
         // TODO: Enforce constraint on bitwidth (18 bits?)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
@@ -1189,14 +1189,31 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
               + s" Expected vectors of length $m."
           )
         }
-        ()
+        t
       case t =>
         throw new TypeError(
           s"Second stream in $className has type $t." +
             s" Expected a stream of vectors."
         )
     }
-    this.rebuild(TyStm(TySInt(44), n), Seq(s1, s2))
+    val delay = this.delay.tchk(context, constValues).expectUInt()
+    val outElemTyp = (elemTyp1, elemTyp2) match {
+      case (_: TyUInt, _: TyUInt) => U44
+      case _                      => I44
+      // TODO: What if the operands don't fit in u44/i44?
+      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    }
+    if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -1207,28 +1224,60 @@ case class MulAddCascaded(s1: Expr, s2: Expr)(typ: Type = Missing)
         val m = mLong.toInt
         val s1 = this.s1.lower
         val s2 = this.s2.lower
+        val delay = this.delay.lower
         val TyStm(int, n) = this.typ
         val TyStm(TyVec(t2, _), _) = this.s2.typ
         val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
         val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
         val stageVars = (0 until m).map(i => Param(s"stage$i")(int))
+        val pipe1Vars =
+          (0 until m).map(i => Param(s"stage${i}_x_pipe")(TyVec(t1, delay)))
+        val pipe2Vars =
+          (0 until m).map(i => Param(s"stage${i}_y_pipe")(TyVec(t2, delay)))
         // IMPORTANT: stages must be an ordered sequence (not a Map!), since I
         // extract the last element later on
         val stages: Seq[(Param, (Expr, Expr))] = stageVars.zipWithIndex
           .map({ case (x, i) =>
-            val z = Undefined(int)
+            val init = Undefined(int)
+            val factorX = Mux(
+              delay === 0,
+              VecAccess(StmData(p1)(), i)(),
+              VecAccess(pipe1Vars(i), C(0)())()
+            )().tchk()
+            val factorY = Mux(
+              delay === 0,
+              VecAccess(StmData(p2)(), i)(),
+              VecAccess(pipe2Vars(i), C(0)())()
+            )().tchk()
             val mul = Prod(
-              ReshapeData(VecAccess(StmData(p1)(), i)(), int)(),
-              ReshapeData(VecAccess(StmData(p2)(), i)(), int)()
+              ReshapeData(factorX, int)(),
+              ReshapeData(factorY, int)()
             )().tchk().lower
             val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
-            x -> (z, next)
+            x -> (init, next)
           })
+        val pipe1 = pipe1Vars.zipWithIndex
+          .map({ case (x, i) =>
+            val init = Undefined(x.typ)
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p1)(), C(i)())())().tchk().lower
+            x -> (init, next)
+          })
+          .toMap
+        val pipe2 = pipe2Vars.zipWithIndex
+          .map({ case (x, i) =>
+            val init = Undefined(x.typ)
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p2)(), C(i)())())().tchk().lower
+            x -> (init, next)
+          })
+          .toMap
+        val (_, (_, lastStage)) = stages.last
         StmBuild(
           n,
-          stages.last._2._2,
+          lastStage,
           True,
-          stages.init.toMap ++ Map[Param, (Expr, Expr)](
+          pipe1 ++ pipe2 ++ stages.init.toMap ++ Map[Param, (Expr, Expr)](
             p1 -> (s1, True),
             p2 -> (s2, True)
           )
@@ -1781,6 +1830,8 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
 /** Discard the last element of the given stream and insert an undefined value
   * at the beginning.
   *
+  * TODO: Replace this with [[StmDelay]]?
+  *
   * @param stm
   *   the stream to shift.
   */
@@ -1949,6 +2000,59 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
             + " Expected a stream of non-empty, fixed-size vectors."
         )
     }
+  }
+}
+
+case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(stm, delay)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s, d) => StmDelay(s, d)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val stm = this.stm.tchk(context, constValues)
+    stm.typ match {
+      case TyStm(TyData(_), _) => ()
+      case typ =>
+        throw new TypeError(
+          s"Input to $className has type $typ."
+            + s" Expected a nno-nested stream."
+        )
+    }
+    val delay = this.delay.tchk(context, constValues).expectUInt()
+    this.rebuild(stm.typ, Seq(stm, delay))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val stm = this.stm.lower
+    val delay = this.delay.lower
+    val TyStm(elemTyp, n) = stm.typ
+    val p = Param("p")(TyStm(elemTyp, -1))
+    val buf = Param("buf")(TyVec(elemTyp, delay))
+    StmBuild(
+      n,
+      Mux(
+        delay === C(0)(),
+        StmData(p)(),
+        VecAccess(buf, C(0)())()
+      )().tchk().lower,
+      True,
+      Map[Param, (Expr, Expr)](
+        p -> (stm, True),
+        buf -> (
+          Undefined(buf.typ),
+          VecShiftLeft(buf, StmData(p)())().tchk().lower
+        )
+      )
+    )().tchk()
   }
 }
 

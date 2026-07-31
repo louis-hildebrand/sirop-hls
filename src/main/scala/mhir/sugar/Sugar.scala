@@ -279,20 +279,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def sugarSubAndKeepType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars.contains(this.x)
-    })
-    val newX = if (wouldCapture) this.x.freshCopy else this.x
-    val newSubs =
-      subs
-        // Substitutions with `x` free on the LHS will never match
-        // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
-        // Rename the bound variable if necessary
-        .++(if (this.x == newX) Seq() else Seq(x -> newX))
+    val (Seq(newX), newSubs) = Substitution.enterBinder(Seq(this.x), subs)
     Let(
-      // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
+      newX,
       // `x` is not bound here, so use the old subs
       this.v.subPreserveType(subs)(c),
       // `x` is bound here, so use the new subs
@@ -303,20 +292,9 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def sugarSubAndEraseType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
-    val wouldCapture = subs.exists({ case (_, rhs) =>
-      rhs.freeVars.contains(this.x)
-    })
-    val newX = if (wouldCapture) this.x.freshCopy else this.x
-    val newSubs =
-      subs
-        // Substitutions with `x` free on the LHS will never match
-        // again, since `x` is now bound.
-        .filter({ case (lhs, _) => !lhs.freeVars.contains(this.x) })
-        // Rename the bound variable if necessary
-        .++(if (this.x == newX) Seq() else Seq(x -> newX))
+    val (Seq(newX), newSubs) = Substitution.enterBinder(Seq(this.x), subs)
     Let(
-      // There may be substitutions to do within the type annotation
-      Param(newX.prefix, newX.id)(newX.typ.substitute(subs)(c)),
+      newX,
       // `x` is not bound here, so use the old subs
       this.v.subAndEraseType(subs)(c),
       // `x` is bound here, so use the new subs

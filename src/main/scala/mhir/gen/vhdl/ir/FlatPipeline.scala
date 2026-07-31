@@ -1,4 +1,4 @@
-package mhir.gen.vhdl
+package mhir.gen.vhdl.ir
 
 import mhir.ir._
 
@@ -12,7 +12,7 @@ private[vhdl] sealed trait PipelineNode
   */
 private[vhdl] case class StmBuildNode(
     out: Param,
-    s: StmBuild,
+    s: GenStmBuild,
     inputLatency: Option[Int]
 ) extends PipelineNode
 
@@ -35,4 +35,18 @@ private[vhdl] case class FlatPipeline(
     inputs: Set[Param],
     unusedInputs: Set[Param],
     sink: Param
-)
+) {
+
+  def mapSbuilds(f: GenStmBuild => GenStmBuild): FlatPipeline = {
+    this.copy(sbuilds = this.sbuilds.map(node => node.copy(s = f(node.s))))
+  }
+
+  def usesIpBlocks: Boolean = {
+    this.sbuilds.exists({ case StmBuildNode(_, s, _) =>
+      s.intermediates.exists({
+        case (_, _: IpBlockInst) => true
+        case _                   => false
+      })
+    })
+  }
+}

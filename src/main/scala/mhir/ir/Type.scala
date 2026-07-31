@@ -580,6 +580,10 @@ trait CommonIntTypes {
     */
   val U32: TyUInt = TyUInt(32)
 
+  /** The type of a 44-bit unsigned integer.
+    */
+  val U44: TyUInt = TyUInt(44)
+
   /** The type of an 8-bit signed integer.
     */
   val I8: TySInt = TySInt(8)
@@ -607,9 +611,9 @@ trait CommonIntTypes {
     */
   val I33: TySInt = TySInt(33)
 
-  /** The type of a 64-bit signed integer.
+  /** The type of a 44-bit signed integer.
     */
-  val I64: TySInt = TySInt(64)
+  val I44: TySInt = TySInt(44)
 
   /** Common integer types.
     */

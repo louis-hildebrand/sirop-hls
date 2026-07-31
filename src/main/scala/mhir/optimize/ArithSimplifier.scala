@@ -760,6 +760,7 @@ private[optimize] object ToSignedOrIntCst {
   }
 }
 
+// TODO: Deduplicate this code
 private[optimize] object PadOrIntCst {
   def unapply(e: Expr): Option[Expr] = {
     e match {

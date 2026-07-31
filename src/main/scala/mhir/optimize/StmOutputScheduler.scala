@@ -16,7 +16,11 @@ case class StmOutputScheduler(
   private val logger: Logger = Logger(getClass.getName)
 
   /** Splits an expression into at most two stages---one for the producer and
-    * possibly one for the consumer.
+    * possibly one for the consumer---such that the delay in the producer does
+    * not exceed the maximum delay.
+    *
+    * The goal is to do as much work as possible in the producer. When the delay
+    * becomes too large, the remaining work will be moved to the consumer.
     */
   def schedule(e: Expr): ComputationSchedule = {
     require(
@@ -32,6 +36,25 @@ case class StmOutputScheduler(
     val e3 = inlineConstants(e2)
     val e4 = deduplicate(e3)
     e4
+  }
+
+  /** Splits an expression into at most two stages---one for the producer and
+    * possibly one for the consumer---such that the delay in the consumer is
+    * zero.
+    *
+    * The goal is to move as many AST nodes as possible to the consumer, but
+    * only ones whose delay is zero (e.g., a tuple access).
+    */
+  def moveZeroDelayToConsumer(e: Expr): ComputationSchedule = {
+    require(
+      e.hasType,
+      "expression must be type checked before stream output scheduling"
+    )
+    require(
+      !e.hasSyntaxSugar,
+      "expression must be lowered before stream output scheduling"
+    )
+    doMoveZeroDelayToConsumer(e)
   }
 
   private def doSchedule(
@@ -138,10 +161,55 @@ case class StmOutputScheduler(
       // Not allowed
       case e @ (_: Function | _: StmLiteral | _: StmBuild | _: LetStm) =>
         throw new IllegalArgumentException(
-          s"Cannot schedule non-data expression $e"
+          s"cannot schedule non-data expression $e"
         )
       case e: SyntaxSugar =>
-        throw new IllegalArgumentException(s"Cannot schedule syntax sugar $e")
+        throw new IllegalArgumentException(s"cannot schedule syntax sugar $e")
+    }
+  }
+
+  private def doMoveZeroDelayToConsumer(e: Expr): ComputationSchedule = {
+    e match {
+      // TODO: Handle these special cases too?
+      case _: VecBuild => InProducer(e)
+      case _: FunCall  => InProducer(e)
+
+      // Nodes with no delay
+      case e @ (_: BoolCst | _: IntCst | _: TupleAccess | _: VecAccess |
+          _: PadTo | _: TruncateTo | _: ToSigned | _: ToUnsigned | _: Bits |
+          _: InterpretAs | LShift(_, _: IntCst) | ARShift(_, _: IntCst) |
+          LRShift(_, _: IntCst)) =>
+        // TODO: What if moving it to the consumer would make the producer
+        //       register larger (e.g., vector or tuple access, int truncation)?
+        //       Add another pass later to undo this in case the VHDL generator
+        //       doesn't absorb the register into an IP block?
+        val scheduledChildren = e.children.map(doMoveZeroDelayToConsumer)
+        val (cData, pData) = scheduledChildren
+          .map({
+            case InProducer(e) =>
+              val x = Param("tmp")(e.typ)
+              (x, Map(x -> e))
+            case InConsumer(cData, pData) =>
+              (cData, pData)
+          })
+          .unzip
+        InConsumer(e.rebuildAndEraseType(cData).tchk(), pData.flatten.toMap)
+
+      // Nodes with nonzero delay
+      case e @ (_: Param | _: StmData | _: BoolCst | _: IntCst | _: FixCst |
+          _: Undefined | _: Tuple | _: VecLiteral | _: Mux | _: Sum | _: Prod |
+          _: Div | _: Mod | _: WrappingSum | _: WrappingDiff | _: WrappingProd |
+          _: LShift | _: LRShift | _: ARShift | _: IntFixProd | _: Equal |
+          _: LessThan | _: Not | _: And | _: Or) =>
+        InProducer(e)
+
+      // Not allowed
+      case e @ (_: Function | _: StmLiteral | _: StmBuild | _: LetStm) =>
+        throw new IllegalArgumentException(
+          s"cannot schedule non-data expression $e"
+        )
+      case e: SyntaxSugar =>
+        throw new IllegalArgumentException(s"cannot schedule syntax sugar $e")
     }
   }
 

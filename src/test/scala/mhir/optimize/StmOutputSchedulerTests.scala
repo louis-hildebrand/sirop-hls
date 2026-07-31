@@ -230,4 +230,20 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val expected = InProducer(e)
     assert(actual == expected)
   }
+
+  test("MoveZeroDelayToConsumer:truncate18( (x +` y *` z) >> 15 )") {
+    val i44 = TySInt(44)
+    val e =
+      TruncateTo(ARShift(Sum(x(i44), Prod(y(i44), z(i44))())(), 15)(), 18)()
+        .tchk()
+    val actual = pass.moveZeroDelayToConsumer(e)
+    val expected = {
+      val tmp = Param("tmp")(i44)
+      InConsumer(
+        TruncateTo(ARShift(tmp, 15)(), 18)(),
+        Map(tmp -> Sum(x(i44), Prod(y(i44), z(i44))())())
+      )
+    }
+    assert(actual == expected)
+  }
 }

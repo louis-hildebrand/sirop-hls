@@ -87,19 +87,38 @@ function parse_args {
 
 function compile {
     echo "Compiling" "$@"
+    mkdir -p './lib'
+    if [[ ! -e './lib/work' ]]; then
+        vlib './lib/work'
+    fi
+    vmap 'work' './lib/work'
     vcom -2002 -autoorder "$@"
 }
 
+function exit_if_missing_vcom {
+    vcom -version &>/dev/null || {
+        echoerr "The command 'vcom -version' failed. Is vcom installed and in your PATH?"
+        exit "$MISSING_VCOM"
+    }
+}
+
 function run_simulation {
+    # Find all the libraries in the lib/ directory and pass those to vsim with the -L flag
+    declare -a library_args
+    for f in ./lib/*; do
+        if [[ -d "$f" ]]; then
+            library_args+=(-L "$(basename "$f")")
+        fi
+    done
     if [[ "$interactive_mode" == 'true' ]]; then
         tcl_script="run -all"
         if [[ "$SHOW_WAVES" == "true" ]]; then
             tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check_*/*; add wave sim:/testbench/DUT/*; $tcl_script"
         fi
-        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" testbench
     else
-        tcl_script="set NumericStdNoWarnings 1; log -r /*; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]"
-        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" -L work -voptargs="+acc" testbench
+        tcl_script='set NumericStdNoWarnings 1; log -r /*; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]'
+        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" testbench
     fi
 }
 
@@ -121,11 +140,17 @@ function main {
     }
 
     echo ""
-    compile design/*.vhd || {
-        vcom -version >/dev/null 2>&1 || {
-            echoerr "The command 'vcom -version' failed. Is vcom installed and in your PATH?"
-            exit "$MISSING_VCOM"
+    if [[ -e './scripts/compile_ip_blocks.sh' ]]; then
+        ./scripts/compile_ip_blocks.sh || {
+            exit_if_missing_vcom
+            echoerr "Failed to compile IP blocks."
+            exit "$DESIGN_COMPILE_FAILED"
         }
+    fi
+
+    echo ""
+    compile design/*.vhd || {
+        exit_if_missing_vcom
         echoerr "Failed to compile design."
         exit "$DESIGN_COMPILE_FAILED"
     }

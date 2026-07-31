@@ -236,7 +236,7 @@ def _parse_args() -> Namespace:
     args.test_sources = [p.resolve() for p in args.test_sources]
     for p in args.test_sources:
         if not p.is_file():
-            parser.error(f"file {p} does not exist")
+            parser.error(f"file {p} does not exist or is not a file")
         if not p.name.endswith(".sirop"):
             parser.error(f"invalid path {p}: all paths should end in .sirop")
     return args

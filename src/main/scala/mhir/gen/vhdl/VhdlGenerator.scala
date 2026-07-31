@@ -1,9 +1,12 @@
 package mhir.gen.vhdl
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.gen.vhdl.ir.{FlatPipeline, FlattenPipeline}
 import mhir.ir._
-import mhir.sem.SemanticAnalyzer
+import mhir.logging.time
 import mhir.typecheck.{TypeCheck, TypeChecker}
+import org.slf4j.event.Level
 import os.Path
 
 /** The main class for generating VHDL from an [[mhir.ir.Expr]].
@@ -11,6 +14,8 @@ import os.Path
   * To generate VHDL, use [[emitVhdl]].
   */
 object VhdlGenerator {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Creates a VHDL design for the given expression and saves it in the given
     * directory.
@@ -24,13 +29,23 @@ object VhdlGenerator {
       f: Expr,
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
-  ): Unit = {
-    val topComponent = if (options.handshake) {
-      handshake.TopVhdl(f, options)
-    } else {
-      nohandshake.TopVhdl(f, options)
+  ): FlatPipeline = {
+    this.validateExpr(f)
+    val pipe0 = time("ANF conversion", Level.DEBUG) {
+      FlattenPipeline(f, options)
     }
-    VhdlWriter.emit(topComponent, dir, options)
+    val pipe = transform.ApplyTransformations(pipe0, options)
+    val topComponent = time("converting to VHDL", Level.DEBUG) {
+      if (options.handshake) {
+        handshake.TopVhdl(pipe, options)
+      } else {
+        nohandshake.TopVhdl(pipe, options)
+      }
+    }
+    time("writing files", Level.DEBUG) {
+      VhdlWriter.emit(topComponent, dir, options)
+    }
+    pipe
   }
 
   def validateExpr(e: Expr): Unit = {

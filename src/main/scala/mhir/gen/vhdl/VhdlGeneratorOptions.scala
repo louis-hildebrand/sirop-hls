@@ -23,6 +23,8 @@ import scala.io.Source
   *   the target Fmax, in MHz.
   * @param virtualPins
   *   whether to mark the ports of the top-level entity as virtual pins.
+  * @param appendQsf
+  *   settings to append to the .qsf file.
   */
 case class VhdlGeneratorOptions(
     topName: String = "top",
@@ -33,7 +35,8 @@ case class VhdlGeneratorOptions(
     deviceFamily: String = VhdlGeneratorOptions.DEFAULT_FAMILY,
     device: String = VhdlGeneratorOptions.DEFAULT_DEVICE,
     fmax: Int = VhdlGeneratorOptions.DEFAULT_FMAX,
-    virtualPins: Boolean = true
+    virtualPins: Boolean = true,
+    appendQsf: Seq[String] = Seq()
 ) {
 
   def reservedKeywords: Set[String] = {

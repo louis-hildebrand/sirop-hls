@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package nohandshake
 
 import mhir.gen.CodegenError
+import mhir.gen.vhdl.ir.{FlatPipeline, LetStmNode, StmBuildNode}
 import mhir.ir._
 
 object TopVhdl {
@@ -11,9 +12,11 @@ object TopVhdl {
     * @param f
     *   the function defining the accelerator's behaviour.
     */
-  def apply(f: Expr, options: VhdlGeneratorOptions): CustomVhdlComponent = {
+  def apply(
+      pipe: FlatPipeline,
+      options: VhdlGeneratorOptions
+  ): CustomVhdlComponent = {
     require(!options.handshake)
-    val pipe = FlattenPipeline(f, options)
     for (LetStmNode(_, bufSize, _) <- pipe.lets) {
       if (bufSize != 0) {
         throw CodegenError(
@@ -40,7 +43,7 @@ object TopVhdl {
     }
     val childComponents = startDelayInstantiation +:
       pipe.sbuilds.zipWithIndex.map({ case (StmBuildNode(x, s, latency), i) =>
-        val inputsOfS = s.freeVars
+        val inputsOfS = s.producers.values.map(_._1).toSet
         val component = StmBuildVhdl(
           s,
           inputsOfS,
@@ -109,7 +112,6 @@ object TopVhdl {
       })
     }
     CustomVhdlComponent(
-      expr = Some(f),
       name = options.topName,
       inPorts =
         ports.filter(_.isInstanceOf[InPort]).map(_.asInstanceOf[InPort]),
