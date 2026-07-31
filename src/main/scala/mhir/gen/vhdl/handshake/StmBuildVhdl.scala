@@ -165,6 +165,12 @@ private[vhdl] object StmBuildVhdl {
           x == p,
           "the name of the producer variable should have been changed to match the stream itself"
             + s" (variable is $x, stream is $p)"
+          // This is important because the expression generator turns sdata(x)
+          // into something like x_data, whereas the actual port name is
+          // something like p_data.
+          // As for why the producer list is a Map[Param, (Expr, Expr)] at all
+          // rather than a Map[Param, Expr], see the message for commit
+          // 0763db07.
         )
         val dataType = VhdlType(x.typ.asInstanceOf[TyStm].t)
         val bitWidth = dataType.bitWidth

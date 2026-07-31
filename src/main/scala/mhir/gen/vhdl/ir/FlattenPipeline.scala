@@ -284,10 +284,6 @@ object FlattenPipeline {
     * think this makes the generated VHDL a little more readable, since we
     * aren't using multiple names to refer to the same thing.
     */
-  // TODO: If I move this before the conversion to `GenStmBuild`, I can make
-  //       the definition of `GenStmBuild` more precise by simply having a
-  //       Map[Param, Expr] for the producers rather than a
-  //       Map[Param, (Param, Expr)]
   private def renameLocalProducers(s: GenStmBuild): GenStmBuild = {
     val renamings = s.producers
       .filter({ case (x, (p, _)) => x != p })
