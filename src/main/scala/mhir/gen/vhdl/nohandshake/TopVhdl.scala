@@ -8,6 +8,9 @@ import mhir.ir._
 object TopVhdl {
 
   /** Generate the top-level VHDL entity.
+    *
+    * @param f
+    *   the function defining the accelerator's behaviour.
     */
   def apply(
       pipe: FlatPipeline,
@@ -40,8 +43,13 @@ object TopVhdl {
     }
     val childComponents = startDelayInstantiation +:
       pipe.sbuilds.zipWithIndex.map({ case (StmBuildNode(x, s, latency), i) =>
-        val component =
-          StmBuildVhdl(s, name = s"sbuild_${i + 1}", options = options)
+        val inputsOfS = s.producers.values.map(_._1).toSet
+        val component = StmBuildVhdl(
+          s,
+          inputsOfS,
+          name = s"sbuild_${i + 1}",
+          options = options
+        )
         val latencyVal = latency match {
           case Some(lat) => lat
           case None =>
@@ -55,7 +63,7 @@ object TopVhdl {
             options.reset -> options.reset,
             "data" -> x.name,
             "go" -> s"go($latencyVal)"
-          ) ++ s.producers.keySet.map(x => x.name -> x.name)
+          ) ++ inputsOfS.map(x => x.name -> x.name)
         )
         VhdlEntityInstantiation(component.name, component, portMap)
       })

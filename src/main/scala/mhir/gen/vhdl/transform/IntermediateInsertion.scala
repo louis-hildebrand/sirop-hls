@@ -57,8 +57,8 @@ private class IntermediateInsertion(
       case (x, acc) =>
         x -> acc.map(this.getExprAndMutateIntermediates)
     })
-    val producers = s.producers.map({ case (x, ready) =>
-      x -> this.getExprAndMutateIntermediates(ready)
+    val producers = s.producers.map({ case (x, (p, ready)) =>
+      x -> (p, this.getExprAndMutateIntermediates(ready))
     })
     s.intermediates.foreach({
       case (x, i: DataIntermediate) =>

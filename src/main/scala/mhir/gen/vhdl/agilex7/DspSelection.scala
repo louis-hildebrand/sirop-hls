@@ -70,8 +70,8 @@ case class DspSelection(scheduler: StmOutputScheduler) {
               accumulators = (s.accumulators - x)
                 .map({ case (x, acc) => x -> acc.substitute(subs) })
                 .+(newVar -> newAcc),
-              producers = s.producers.map({ case (x, ready) =>
-                x -> ready.subPreserveType(subs)
+              producers = s.producers.map({ case (x, (p, ready)) =>
+                x -> (p, ready.subPreserveType(subs))
               }),
               intermediates = s.intermediates
                 .map({ case (x, i) => x -> i.substitute(subs) })
@@ -161,8 +161,8 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       accumulators = s.accumulators.map({ case (x, acc) =>
         x -> acc.substitute(subs)
       }),
-      producers = s.producers.map({ case (x, ready) =>
-        x -> ready.subPreserveType(subs)
+      producers = s.producers.map({ case (x, (p, ready)) =>
+        x -> (p, ready.subPreserveType(subs))
       }),
       intermediates = s.intermediates.map({
         case (x, i) if renamings.contains(x) =>

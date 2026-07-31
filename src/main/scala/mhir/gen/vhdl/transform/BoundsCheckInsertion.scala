@@ -25,8 +25,8 @@ object BoundsCheckInsertion {
       accumulators = s.accumulators.map({ case (x, acc: Accumulator) =>
         x -> acc.map(this.apply)
       }),
-      producers = s.producers.map({ case (x, ready) =>
-        x -> this.apply(ready)
+      producers = s.producers.map({ case (x, (p, ready)) =>
+        x -> (p, this.apply(ready))
       }),
       intermediates = s.intermediates.map({ case (x, i) =>
         x -> this.apply(i)

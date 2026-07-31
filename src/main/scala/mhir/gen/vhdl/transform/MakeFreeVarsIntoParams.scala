@@ -38,8 +38,8 @@ object MakeFreeVarsIntoParams {
       accumulators = s2.accumulators.map({ case (x, acc) =>
         x -> acc.map(pass.apply)
       }),
-      producers = s2.producers.map({ case (x, ready) =>
-        x -> pass.apply(ready)
+      producers = s2.producers.map({ case (x, (p, ready)) =>
+        x -> (p, pass.apply(ready))
       }),
       intermediates = s2.intermediates.map({
         case (x, i: DataIntermediate)     => x -> i.map(pass.apply)
@@ -223,8 +223,8 @@ private object EnsureTupleArgs {
       accumulators = s.accumulators.map({ case (x, acc) =>
         x -> acc.map(this.apply)
       }),
-      producers = s.producers.map({ case (x, ready) =>
-        x -> this.apply(ready)
+      producers = s.producers.map({ case (x, (p, ready)) =>
+        x -> (p, this.apply(ready))
       }),
       intermediates = s.intermediates.map({
         case (f, i: FunctionIntermediate) => updateLhs(f) -> this.apply(i)

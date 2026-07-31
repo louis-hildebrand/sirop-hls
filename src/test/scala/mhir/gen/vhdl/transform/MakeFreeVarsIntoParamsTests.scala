@@ -46,7 +46,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         )
       ),
       producers = Map(
-        p -> FunCall(f, C(0)(U8))().__1.tchk()
+        p -> (p, FunCall(f, C(0)(U8))().__1.tchk())
       ),
       intermediates = ListMap(
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
@@ -84,7 +84,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         )
       ),
       producers = Map(
-        p -> FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk()
+        p -> (p, FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk())
       ),
       intermediates = ListMap(
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
