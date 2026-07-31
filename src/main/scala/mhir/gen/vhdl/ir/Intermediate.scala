@@ -49,21 +49,18 @@ case class FunctionIntermediate(
   }
 
   def substitute(
-      subs: Map[Expr, Expr]
-  ): IntermediateInFunction = {
-    val varsBoundHere = this.params.toSet ++ this.intermediates.keySet
-    val wouldCapture =
-      subs.values.exists(e => e.freeVars.intersect(varsBoundHere).nonEmpty)
-    if (wouldCapture) {
-      // TODO: Implement this properly
-      ???
-    } else {
-      FunctionIntermediate(
-        this.params,
-        this.intermediates.map({ case (x, i) => x -> i.substitute(subs) }),
-        output.subPreserveType(subs)
-      )
+      substitutions: Map[Expr, Expr]
+  ): FunctionIntermediate = {
+    var (newParams, subs) = Substitution.enterBinder(this.params, substitutions)
+    var newIntermediates = ListMap[Param, IntermediateInFunction]()
+    for ((x, i) <- this.intermediates) {
+      val newI = i.substitute(subs)
+      val (Seq(newX), newSubs) = Substitution.enterBinder(Seq(x), subs)
+      subs = newSubs
+      newIntermediates += (newX -> newI)
     }
+    val newOutput = this.output.subPreserveType(subs)
+    FunctionIntermediate(newParams, newIntermediates, newOutput)
   }
 
   def toVhdlDecl(

@@ -30,6 +30,7 @@ object VhdlGenerator {
       dir: Path,
       options: VhdlGeneratorOptions = VhdlGeneratorOptions()
   ): FlatPipeline = {
+    this.validateExpr(f)
     val pipe0 = time("ANF conversion", Level.DEBUG) {
       FlattenPipeline(f, options)
     }
