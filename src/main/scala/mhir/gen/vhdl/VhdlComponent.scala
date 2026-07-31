@@ -17,40 +17,6 @@ private[vhdl] trait PredefinedComponent extends VhdlComponent {
   def typesUsed: Set[VhdlType]
 }
 
-/** The predefined `stm_nop` component.
-  *
-  * @param bitWidth
-  *   the bit width to use when instantiating this component.
-  */
-private[vhdl] case class StmNoOpComponent(bitWidth: Int)
-    extends PredefinedComponent {
-
-  override def entityName: String = "work.stm_nop"
-
-  override def generics: ListMap[String, String] = {
-    ListMap("BIT_WIDTH" -> this.bitWidth.toString)
-  }
-
-  override def portNames: Set[String] = {
-    Set(
-      "c_data",
-      "c_valid",
-      "c_ready",
-      "p_data",
-      "p_valid",
-      "p_ready"
-    )
-  }
-
-  override def filesToCopy(vhdlDir: Path): Map[Path, String] = {
-    Map(vhdlDir / "stm_nop.vhd" -> s"mhir/gen/vhdl/stm_nop.vhd")
-  }
-
-  override def typesUsed: Set[VhdlType] = {
-    Set(VhdlStdLogic, VhdlStdLogicVec(this.bitWidth))
-  }
-}
-
 /** The predefined `start_delay` component.
   *
   * @param maxLatency
