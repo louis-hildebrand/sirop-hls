@@ -599,6 +599,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     assert(PE.partialEval(e) == True)
   }
 
+  test("x == 2 || x == 3") {
+    val x = Param("x")(U8)
+    val e = ((x equ C(2)(U8)) || (x equ C(3)(U8))).tchk()
+    assert(PE.partialEval(e) == e)
+  }
+
+  test("x == 2 && x == 3") {
+    val x = Param("x")(U8)
+    val e = ((x equ C(2)(U8)) && (x equ C(3)(U8))).tchk()
+    assert(PE.partialEval(e) == False)
+  }
+
   /** The partial evaluator may try to combine the constants on opposite sides
     * of a comparison. But in some cases, this will lead to overflow!
     */

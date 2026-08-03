@@ -686,7 +686,13 @@ private[optimize] object ArithSimplifier {
       case Or(terms @ _*) if terms.contains(True) =>
         True
       // TODO: Generalize these rules by looking for pairs of terms (a, b) such that a ==> b or a ==> !b ?
-      case Or(terms @ _*) if hasContradictoryTerms(terms) =>
+      case Or(terms @ _*) if terms.exists({
+            case Not(e) => terms.contains(e)
+            case _      => false
+          }) =>
+        println(
+          s"contradictory OR terms: ${terms.map(_.toString).mkString(", ")}"
+        )
         True
       case Or(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst)) if e1 == e2 =>
         assert(c1.hasType)
