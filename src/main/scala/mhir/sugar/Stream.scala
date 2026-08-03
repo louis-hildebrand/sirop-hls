@@ -1146,6 +1146,72 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   }
 }
 
+case class StmCascade(s: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmCascade(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context, constValues)
+    s.typ match {
+      case TyStm(TyVec(_, _), _) => ()
+      case typ =>
+        throw new TypeError(
+          s"Input to $className has type $typ."
+            + s" Expected a stream of vectors."
+        )
+    }
+    this.rebuild(s.typ, Seq(s))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val s = this.s.lower
+    val TyStm(TyVec(elemTyp, m), n) = s.typ
+    m match {
+      case IntCst(mLong) if mLong > 0 =>
+        val m = mLong.toInt
+        val p = Param("p")(TyStm(TyVec(elemTyp, m), -1))
+        val pipeVars = (0 until m - 1).map(i =>
+          Param(s"pipe${i + 1}")(TyVec(elemTyp, C(i + 1)()))
+        )
+        StmBuild(
+          n,
+          VecLiteral((0 until m).map({
+            case 0 => VecAccess(StmData(p)(), 0)()
+            case i => VecAccess(pipeVars((i - 1).toInt), 0)()
+          }): _*)(),
+          True,
+          pipeVars.zipWithIndex
+            .map({ case (x, i) =>
+              x -> (
+                Undefined(x.typ),
+                VecShiftLeft(x, VecAccess(StmData(p)(), i + 1)())().tchk().lower
+              )
+            })
+            .toMap
+            .+(p -> (s, True))
+        )().tchk()
+      case IntCst(0) =>
+        StmBuild(n, VecBuild(0, U8 ::+ (_ => Undefined(elemTyp)))(), True)()
+          .tchk()
+      case e =>
+        throw new TypeError(
+          s"$className is not applicable when the vectors have length $e."
+            + s" Only non-negative, constant lengths are supported."
+        )
+    }
+  }
+}
+
 // TODO: Generalize to include pre-adder?
 // TODO: Generalize to allow 27-bit systolic mode?
 case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)

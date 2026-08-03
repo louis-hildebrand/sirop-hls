@@ -1230,6 +1230,41 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == expected)
   }
 
+  test("StmCascade") {
+    val n = 8
+    val m = 4
+    // [[ 0,  1,  2,  3],
+    //  [ 4,  5,  6,  7],
+    //  [ 8,  9, 10, 11],
+    //  [12, 13, 14, 15],
+    //  [16, 17, 18, 19],
+    //  [20, 21, 22, 23],
+    //  [24, 25, 26, 26],
+    //  [27, 28, 29, 30]]
+    val input = StmLiteral(
+      (0 until n).map(t =>
+        VecLiteral((0 until m).map(i => C(i + t * m)(U8)): _*)()
+      ): _*
+    )().tchk()
+    val actual = StmSuffix(StmCascade(input)(), n - m + 1)().tchk().lower
+    // [[ 0, xx, xx, xx],
+    //  [ 4,  1, xx, xx],
+    //  [ 8,  5,  2, xx],
+    //  [12,  9,  6,  3],
+    //  [16, 13, 10,  7],
+    //  [20, 17, 14, 11],
+    //  [24, 21, 18, 15],
+    //  [27, 25, 22, 19]]
+    val expected = StmLiteral(
+      (m - 1 until n).map(t =>
+        VecLiteral(
+          (0 until m).map(i => C(i + t * m - m * i)(U8)): _*
+        )()
+      ): _*
+    )().tchk()
+    assert(mhir.eval.eval(actual) == expected)
+  }
+
   for (delay <- Seq(0, 1, 2, 3)) {
 
     test(s"MulAddCascaded(Stm[u8,0],$delay)") {
