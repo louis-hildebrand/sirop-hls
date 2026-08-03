@@ -448,7 +448,10 @@ case class TyArrow(t1: Type, t2: Type) extends Type {
   */
 case class TyTuple(ts: Type*) extends Type {
   override def toString: String = {
-    ts.map(t => t.toString).mkString("(", ", ", ")")
+    this match {
+      case TyTuple(t)       => s"(${t.toString},)"
+      case TyTuple(ts @ _*) => ts.map(t => t.toString).mkString("(", ", ", ")")
+    }
   }
 }
 

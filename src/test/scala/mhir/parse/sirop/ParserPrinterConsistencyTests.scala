@@ -1,5 +1,6 @@
 package mhir.parse.sirop
 
+import mhir.ir._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ParserPrinterConsistencyTests extends AnyFunSuite {
@@ -64,4 +65,24 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   testSource("ones:[(i16, bool)]()")
   testSource("if (c1) then { x } else if (c2) then { y } else { z }")
   testSource("iff (c1) then { x } else iff (c2) then { y } else { z }")
+
+  def testType(src: String): Unit = {
+    test(src) {
+      val fullSrc = s"(x : $src) => x"
+      val Function(x, _) = Parser.parse(fullSrc).body
+      val parsed = x.typ
+      val printed = parsed.toString
+      assert(printed == src)
+    }
+  }
+
+  testType("bool")
+  testType("i32")
+  testType("u16")
+  testType("()")
+  testType("(u8,)")
+  testType("((i32, bool), bool, i16)")
+  testType("Vec[(u8, bool), 42:u6]")
+  testType("Stm[(u8, bool), 42:u6]")
+  testType("u8 -> (u8 -> u8) -> u8")
 }
