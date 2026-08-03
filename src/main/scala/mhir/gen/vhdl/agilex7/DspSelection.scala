@@ -217,78 +217,77 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       intermediates = s.intermediates.map({
         case intermediate @ (
               x,
-              AgilexMac2(
-                ax @ VecAccess(axPipe: Param, IntCst(0)),
-                ay @ VecAccess(ayPipe: Param, IntCst(0)),
-                bx @ VecAccess(bxPipe: Param, IntCst(0)),
-                by @ VecAccess(byPipe: Param, IntCst(0)),
-                chainin,
-                pipeline
-              )
+              AgilexMac2(ax, ay, bx, by, chainin, pipeline)
             ) =>
           assert(pipeline >= 0)
           assert(pipeline <= 3)
           // How long is the shift register before each input?
-          val (axPipeLen: Long, axPipeInput) = s.accumulators
-            .get(axPipe)
-            .map(axPipe -> _)
-            .collect({ case Shift(n, e) => (n, e) })
-            .getOrElse((0L, Undefined(ax.typ)))
-          val (ayPipeLen: Long, ayPipeInput) = s.accumulators
-            .get(ayPipe)
-            .map(ayPipe -> _)
-            .collect({ case Shift(n, e) => (n, e) })
-            .getOrElse((0L, Undefined(ay.typ)))
-          val (bxPipeLen: Long, bxPipeInput) = s.accumulators
-            .get(bxPipe)
-            .map(bxPipe -> _)
-            .collect({ case Shift(n, e) => (n, e) })
-            .getOrElse((0L, Undefined(bx.typ)))
-          val (byPipeLen: Long, byPipeInput) = s.accumulators
-            .get(byPipe)
-            .map(byPipe -> _)
-            .collect({ case Shift(n, e) => (n, e) })
-            .getOrElse((0L, Undefined(by.typ)))
-          // Absorb as many stages as possible into the DSP, subject to the
-          // restriction that the DSP does not support more than 3 stages
-          val gobble = math
-            .min(
-              3 - pipeline,
-              Seq(axPipeLen, ayPipeLen, bxPipeLen, byPipeLen).max
-            )
-            .toInt
+          val gobble = math.min(
+            3 - pipeline,
+            Seq(ax, ay, bx, by).map(countAvailableRegisters(s, _)).min
+          )
           // Perform the transformation
           if (gobble <= 0) {
             intermediate
           } else {
-            x -> AgilexMac2(
-              ax = shortenShiftRegister(axPipe, gobble, axPipeInput),
-              ay = shortenShiftRegister(ayPipe, gobble, ayPipeInput),
-              bx = shortenShiftRegister(bxPipe, gobble, bxPipeInput),
-              by = shortenShiftRegister(byPipe, gobble, byPipeInput),
+            val newMac = AgilexMac2(
+              ax = shortenShiftRegister(s, ax, gobble),
+              ay = shortenShiftRegister(s, ay, gobble),
+              bx = shortenShiftRegister(s, bx, gobble),
+              by = shortenShiftRegister(s, by, gobble),
               chainin,
               pipeline + gobble
             )
+            x -> newMac
           }
-        case i => i
+        case i =>
+          i
       })
     )
   }
 
+  private def countAvailableRegisters(s: GenStmBuild, input: Expr): Int = {
+    input match {
+      case _: IntCst => Int.MaxValue
+      case VecAccess(v: Param, IntCst(i)) =>
+        s.accumulators
+          .get(v)
+          .collect({ case VecShiftLeftAccumulator(n, None, _) =>
+            (n - i).toInt
+          })
+          .getOrElse(0)
+      case _ => 0
+    }
+  }
+
   private def shortenShiftRegister(
-      pipe: Param,
-      skip: Int,
-      pipeInput: Expr
+      s: GenStmBuild,
+      input: Expr,
+      gobble: Int
   ): Expr = {
-    val TyVec(_, IntCst(len)) = pipe.typ
-    require(len >= 0)
-    require(skip >= 0)
-    require(skip <= len)
-    if (skip == len) {
-      // Bypass the shift register altogether
-      pipeInput
-    } else {
-      VecAccess(pipe, C(skip)())().tchk()
+    input match {
+      case i: IntCst => i
+      case VecAccess(pipe: Param, IntCst(i)) =>
+        val (len, pipeInput) = s.accumulators
+          .get(pipe)
+          .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
+            (len, pipeInput)
+          })
+          .get
+        val newIndex = i + gobble
+        assert(len >= 0)
+        assert(newIndex >= 0)
+        assert(newIndex <= len)
+        if (newIndex == len) {
+          // Bypass the shift register altogether
+          pipeInput
+        } else {
+          VecAccess(pipe, C(newIndex)())().tchk()
+        }
+      case e =>
+        throw new IllegalArgumentException(
+          s"invalid argument to shortenShiftRegister: $e"
+        )
     }
   }
 }
