@@ -284,6 +284,11 @@ private[sirop] object BuiltinFunctions {
           case (Seq(), Seq(s1, s2, delay)) => MulAddCascaded(s1, s2, delay)()
           case _                           => error(f)
         }
+      case f @ Param("StmMapDot", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2, delay)) => StmMapDot(s1, s2, delay)()
+          case _                           => error(f)
+        }
       case f @ Param("StmDelay", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s, d)) => StmDelay(s, d)()

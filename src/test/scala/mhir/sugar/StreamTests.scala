@@ -1376,6 +1376,48 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       assert(actual.typ == expected.typ)
     }
 
+    test(s"StmMapDot(Stm[u16,4],$delay)") {
+      val s1 = StmLiteral(
+        VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))(),
+        VecLiteral(C(5)(U16), C(6)(U16), C(7)(U16), C(8)(U16))(),
+        VecLiteral(C(9)(U16), C(10)(U16), C(11)(U16), C(12)(U16))(),
+        VecLiteral(C(13)(U16), C(14)(U16), C(15)(U16), C(16)(U16))(),
+        VecLiteral(C(17)(U16), C(18)(U16), C(19)(U16), C(20)(U16))(),
+        VecLiteral(C(21)(U16), C(22)(U16), C(23)(U16), C(24)(U16))(),
+        VecLiteral(C(25)(U16), C(26)(U16), C(27)(U16), C(28)(U16))(),
+        VecLiteral(C(29)(U16), C(30)(U16), C(31)(U16), C(32)(U16))(),
+        VecLiteral(C(33)(U16), C(34)(U16), C(35)(U16), C(36)(U16))()
+      )()
+      val s2 = StmLiteral(
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
+        VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
+      )()
+      assert(s1.elems.length == s2.elems.length)
+      val n = 9
+      val actualExpr =
+        StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      val actual = mhir.eval.eval(actualExpr)
+      val expected = StmLiteral(
+        Seq(
+          C(3 * (1 + 2 + 3 + 4))(U44),
+          C(3 * (5 + 6 + 7 + 8))(U44),
+          C(3 * (9 + 10 + 11 + 12))(U44),
+          C(3 * (13 + 14 + 15 + 16))(U44),
+          C(3 * (17 + 18 + 19 + 20))(U44),
+          C(3 * (21 + 22 + 23 + 24))(U44)
+        ).dropRight(delay): _*
+      )().tchk()
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+
     test(s"MulAddCascaded(Stm[i16,4],$delay)") {
       val s1 = StmLiteral(
         VecLiteral(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8))(),
@@ -1413,6 +1455,48 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
           C(3 * 13 - 5 * 18 + 7 * 23 - 3 * 28)(I44),
           C(3 * 17 - 5 * 22 + 7 * 27 - 3 * 32)(I44),
           C(3 * 21 - 5 * 26 + 7 * 31 - 3 * 36)(I44)
+        ).dropRight(delay): _*
+      )().tchk()
+      assert(actual == expected)
+      assert(actual.typ == expected.typ)
+    }
+
+    test(s"StmMapDot(Stm[i16,4],$delay)") {
+      val s1 = StmLiteral(
+        VecLiteral(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8))(),
+        VecLiteral(C(5)(U8), C(6)(U8), C(7)(U8), C(8)(U8))(),
+        VecLiteral(C(9)(U8), C(10)(U8), C(11)(U8), C(12)(U8))(),
+        VecLiteral(C(13)(U8), C(14)(U8), C(15)(U8), C(16)(U8))(),
+        VecLiteral(C(17)(U8), C(18)(U8), C(19)(U8), C(20)(U8))(),
+        VecLiteral(C(21)(U8), C(22)(U8), C(23)(U8), C(24)(U8))(),
+        VecLiteral(C(25)(U8), C(26)(U8), C(27)(U8), C(28)(U8))(),
+        VecLiteral(C(29)(U8), C(30)(U8), C(31)(U8), C(32)(U8))(),
+        VecLiteral(C(33)(U8), C(34)(U8), C(35)(U8), C(36)(U8))()
+      )()
+      val s2 = StmLiteral(
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
+        VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))()
+      )()
+      assert(s1.elems.length == s2.elems.length)
+      val n = s1.elems.length
+      val actualExpr =
+        StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      val actual = mhir.eval.eval(actualExpr)
+      val expected = StmLiteral(
+        Seq(
+          C(3 * 1 - 5 * 2 + 7 * 3 - 3 * 4)(I44),
+          C(3 * 5 - 5 * 6 + 7 * 7 - 3 * 8)(I44),
+          C(3 * 9 - 5 * 10 + 7 * 11 - 3 * 12)(I44),
+          C(3 * 13 - 5 * 14 + 7 * 15 - 3 * 16)(I44),
+          C(3 * 17 - 5 * 18 + 7 * 19 - 3 * 20)(I44),
+          C(3 * 21 - 5 * 22 + 7 * 23 - 3 * 24)(I44)
         ).dropRight(delay): _*
       )().tchk()
       assert(actual == expected)

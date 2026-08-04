@@ -1360,6 +1360,81 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
   }
 }
 
+case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
+    extends SyntaxSugar(s1, s2, delay)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s1, s2, delay) => StmMapDot(s1, s2, delay)(typ)
+      case _                  => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val s1 = this.s1.tchk(context, constValues)
+    val (elemTyp1, n, m) = s1.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m), n) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        (t, n, m)
+      case t =>
+        throw new TypeError(
+          s"First stream in $className has type $t."
+            + s" Expected a stream of vectors."
+        )
+    }
+    val s2 = this.s2.tchk(context, constValues)
+    val elemTyp2 = s2.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        if (!c.sameLen(n, n2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className has length $n2."
+              + s" Expected a stream of length $n."
+          )
+        }
+        if (!c.sameLen(m, m2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className contains vectors of length $m2."
+              + s" Expected vectors of length $m."
+          )
+        }
+        t
+      case t =>
+        throw new TypeError(
+          s"Second stream in $className has type $t." +
+            s" Expected a stream of vectors."
+        )
+    }
+    val delay = this.delay.tchk(context, constValues).expectUInt()
+    val outElemTyp = (elemTyp1, elemTyp2) match {
+      case (_: TyUInt, _: TyUInt) => U44
+      case _                      => I44
+      // TODO: What if the operands don't fit in u44/i44?
+      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    }
+    if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp."
+      )
+    }
+    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    MulAddCascaded(StmCascade(this.s1)(), StmCascade(this.s2)(), this.delay)()
+      .tchk()
+      .lower
+  }
+}
+
 case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
     extends SyntaxSugar(s, z, f)(typ) {
 
