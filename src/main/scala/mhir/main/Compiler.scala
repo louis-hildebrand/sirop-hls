@@ -24,6 +24,7 @@ import mhir.parse.SyntaxError
 import mhir.sem.SemanticError
 import mhir.typecheck.{NameError, TypeCheck, TypeError}
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 
 import java.time.Duration
 
@@ -39,39 +40,25 @@ object Compiler {
     *   the command-line arguments.
     */
   def main(args: Array[String]): Unit = {
-    val (a, argparseTime) = time2("parsing CLI args") {
-      val a =
-        try {
-          Args(args.toList)
-        } catch {
-          case HelpException =>
-            Args.printFullUsage()
-            return
-          case VersionException =>
-            println(Version())
-            return
-          case exc: BadArgsException =>
-            println(s"Invalid command-line arguments: ${exc.getMessage}")
-            println()
-            Args.printShortUsage()
-            return
-        }
-      a.options.logLevel match {
-        case None => ()
-        case Some(logLevel) =>
-          LoggerFactory.getILoggerFactory
-            .asInstanceOf[LoggerContext]
-            .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
-            .setLevel(logLevel)
-      }
-      a
-    }
     try {
+      // Do not set the log level to DEBUG here, since we don't even know yet
+      // what the effective log level should be!
+      val (a, argparseTime) = time2("parsing CLI args", Level.TRACE) {
+        Args(args.toList)
+      }
       compile(a, argparseTime)
     } catch {
+      case HelpException =>
+        Args.printFullUsage()
+      case VersionException =>
+        println(Version())
+      case exc: BadArgsException =>
+        println(s"Invalid command-line arguments: ${exc.getMessage}")
+        println()
+        Args.printShortUsage()
       case ex @ (_: SyntaxError | _: TypeError | _: NameError |
-          _: SemanticError | _: CodegenError | _: EvalException |
-          _: TestError) =>
+          _: SemanticError | _: CodegenError | _: EvalException | _: TestError |
+          _: FileError) =>
         Console.err.println(ex.getMessage)
         sys.exit(1)
     }

@@ -1,0 +1,2 @@
+--out:trace
+../../../../src/e2e/resources/FileError/do_not_overwrite/

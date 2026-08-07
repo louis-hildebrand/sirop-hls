@@ -2,6 +2,7 @@ package mhir.main
 
 import ch.qos.logback.classic.Level
 import mhir.gen.vhdl.VhdlGeneratorOptions
+import mhir.ir.FileError
 import mhir.main.shared._
 import mhir.optimize.OptimizerOptions
 import os.Path
@@ -37,22 +38,22 @@ object Args {
     var input: Option[String] = None
     var constOverrides = Map[String, String]()
     // Output args
-    var vhdlDir: Option[Path] = None
+    var vhdlDir: Option[String] = None
     var runVhdlSim: Option[Boolean] = None
     var vhdlFamily: Option[String] = None
     var vhdlDevice: Option[String] = None
     var vhdlFmax: Option[Int] = None
     var vhdlVirtualPins: Option[Boolean] = None
     var vhdlAppendQsf = Seq[String]()
-    var prettyPrintDest: Option[PrettyPrintDestination] = None
-    var prettyPrintLoweredDest: Option[PrettyPrintDestination] = None
-    var timeReportFile: Option[Path] = None
+    var prettyPrintDest: Option[String] = None
+    var prettyPrintLoweredDest: Option[String] = None
+    var timeReportFile: Option[String] = None
     var eval: Boolean = false
-    var traceOutDir: Option[Path] = None
+    var traceOutDir: Option[String] = None
     var traceTestIdx: Option[Int] = None
     var runTests: Boolean = false
-    var testExpectedPath: Option[Path] = None
-    var testActualPath: Option[Path] = None
+    var testExpectedPath: Option[String] = None
+    var testActualPath: Option[String] = None
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
@@ -110,7 +111,7 @@ object Args {
         case "--out:vhdl" =>
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
-              vhdlDir = Some(Path(dirName, base = os.pwd))
+              vhdlDir = Some(dirName)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -162,20 +163,16 @@ object Args {
           }
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
-            case Some("-") =>
-              prettyPrintDest = Some(PPStdout)
-            case Some(fName) =>
-              prettyPrintDest = Some(PPFile(Path(fName, base = os.pwd)))
+            case Some(path) =>
+              prettyPrintDest = Some(path)
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
           numToDrop = 2
         case "--out:pp:lowered" =>
           mutArgs.drop(1).headOption match {
-            case Some("-") =>
-              prettyPrintLoweredDest = Some(PPStdout)
-            case Some(fName) =>
-              prettyPrintLoweredDest = Some(PPFile(Path(fName, base = os.pwd)))
+            case Some(path) =>
+              prettyPrintLoweredDest = Some(path)
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
@@ -183,7 +180,7 @@ object Args {
         case "--out:ctime" =>
           mutArgs.drop(1).headOption match {
             case Some(fName) =>
-              timeReportFile = Some(Path(fName, base = os.pwd))
+              timeReportFile = Some(fName)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -210,7 +207,7 @@ object Args {
         case "--out:trace" =>
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
-              traceOutDir = Some(Path(dirName, base = os.pwd))
+              traceOutDir = Some(dirName)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -238,7 +235,7 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(path) =>
               runTests = true
-              testExpectedPath = Some(Path(path, base = os.pwd))
+              testExpectedPath = Some(path)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -247,7 +244,7 @@ object Args {
           mutArgs.drop(1).headOption match {
             case Some(path) =>
               runTests = true
-              testActualPath = Some(Path(path, base = os.pwd))
+              testActualPath = Some(path)
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -318,23 +315,37 @@ object Args {
         }
         None
       }
-      val traceTarget = traceOutDir.map(
+      val traceTarget = traceOutDir.map({ path =>
+        checkDoesNotExist(path, "--out:trace", overwrite = overwrite)
         TraceTarget(
-          _,
+          Path(path, base = os.pwd),
           testIdx = traceTestIdx.getOrElse(0),
           overwrite = overwrite
         )
-      )
+      })
       val testTarget = if (runTests) {
-        Some(TestTarget(testExpectedPath, testActualPath, overwrite))
+        testExpectedPath.foreach(
+          checkDoesNotExist(_, "--out:test:expected", overwrite = overwrite)
+        )
+        testActualPath.foreach(
+          checkDoesNotExist(_, "--out:test:actual", overwrite = overwrite)
+        )
+        Some(
+          TestTarget(
+            testExpectedPath.map(Path(_, base = os.pwd)),
+            testActualPath.map(Path(_, base = os.pwd)),
+            overwrite
+          )
+        )
       } else {
         None
       }
       val vhdlTarget = vhdlDir match {
         case Some(vhdlDir) =>
+          checkDoesNotExist(vhdlDir, "--out:vhdl", overwrite = overwrite)
           Some(
             VhdlTarget(
-              vhdlDir,
+              Path(vhdlDir, base = os.pwd),
               overwrite = overwrite,
               runSim = runVhdlSim.getOrElse(false)
             )
@@ -347,13 +358,32 @@ object Args {
           }
           None
       }
-      val ppTarget =
-        prettyPrintDest.map(PrettyPrintTarget(_, overwrite = overwrite))
+      val ppTarget = prettyPrintDest.map({
+        case "-" =>
+          PrettyPrintTarget(PPStdout, overwrite = overwrite)
+        case path =>
+          checkDoesNotExist(path, "--out:pp", overwrite = overwrite)
+          PrettyPrintTarget(
+            PPFile(Path(path, base = os.pwd)),
+            overwrite = overwrite
+          )
+      })
       val ppLoweredTarget = prettyPrintLoweredDest.map(
-        PrettyPrintAfterLoweringTarget(_, overwrite = overwrite)
+        {
+          case "-" =>
+            PrettyPrintAfterLoweringTarget(PPStdout, overwrite = overwrite)
+          case path =>
+            checkDoesNotExist(path, "--out:pp:lowered", overwrite = overwrite)
+            PrettyPrintAfterLoweringTarget(
+              PPFile(Path(path, base = os.pwd)),
+              overwrite = overwrite
+            )
+        }
       )
-      val timeReportTarget =
-        timeReportFile.map(CompileTimeTarget(_, overwrite = overwrite))
+      val timeReportTarget = timeReportFile.map({ path =>
+        checkDoesNotExist(path, "--out:ctime", overwrite = overwrite)
+        CompileTimeTarget(Path(path, base = os.pwd), overwrite = overwrite)
+      })
       (evalTarget.toSet
         ++ traceTarget.toSet
         ++ testTarget.toSet
@@ -428,6 +458,21 @@ object Args {
       logLevel = Some(logLevel)
     )
     new Args(src = src, options = options)
+  }
+
+  private def checkDoesNotExist(
+      path: String,
+      flagName: String,
+      overwrite: Boolean
+  ): Unit = {
+    // TODO: Also check for cases where you expect a file but it's a directory?
+    // TODO: Allow empty directories?
+    if (!overwrite && os.exists(Path(path, base = os.pwd))) {
+      throw FileError(
+        s"$flagName path already exists: '$path'."
+          + " Add the --overwrite flag if you want to overwrite it."
+      )
+    }
   }
 
   private[main] def printShortUsage(): Unit = {
