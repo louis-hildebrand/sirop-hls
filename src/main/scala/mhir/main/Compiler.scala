@@ -53,9 +53,14 @@ object Compiler {
       case VersionException =>
         println(Version())
       case exc: BadArgsException =>
-        println(s"Invalid command-line arguments: ${exc.getMessage}")
-        println()
-        Args.printShortUsage()
+        Console.withOut(Console.err) {
+          println(
+            s"Invalid command-line arguments: ${exc.getMessage}"
+          )
+          println()
+          Args.printShortUsage()
+        }
+        sys.exit(1)
       case ex @ (_: SyntaxError | _: TypeError | _: NameError |
           _: SemanticError | _: CodegenError | _: EvalException | _: TestError |
           _: FileError) =>
