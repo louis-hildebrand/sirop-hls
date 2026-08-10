@@ -17,11 +17,13 @@ The current semantics of the `no_handshake` mode (as of 2026-08-05) are not sati
 - The accumulators in a given `sbuild` are only updated once all producers have _logically_ valid data.
   - This imposes some overhead: you need a `go` port in each subcomponent and you need a `start_delay` component that basically counts off the required number of cycles
   - Even with the `start_delay` mechanism this is not satisfactory, since it doesn't account for the possibility of the inputs to the generated component having some delay
+- Impossible to implement things like `StmDrop`, `StmConcat`, etc. that don't exactly follow the template of "valid data arrives at time T and valid data departs at time T+1"
+  - And, as mentioned before, `StmSlideStartingWith` _can_ be implemented but in a hacky way that requires manual latency matching, hard-coding latency in test outputs, etc.
 
 ## Requirements
 
 It may be helpful to distinguish the "logical" output sequence (the values we care about) from the "physical" output sequence (the values we observe at the output of the physical circuit).
-The logical sequence will always be a suffix of the logical output sequence.
+The logical sequence will always be a suffix of the physical output sequence.
 I'll use the notation `[x1, x2, x3, ...]s ++ [y1, y2, y3, ...]s` to denote the logical sequence `[y1, y2, y3, ...]s` and the physical sequence `[x1, x2, x3, ...]s ++ [y1, y2, y3, ...]s`.
 I'll use the term "physical prefix" for the part of the physical output that is _not_ part of the logical output, i.e., `[x1, x2, x3, ...]s`.
 
@@ -93,6 +95,18 @@ I'll use the term "physical prefix" for the part of the physical output that is 
               - `StmCount(N)` (delayed):    `[X, X]s ++ [0, 1, 2, 3, 4]s`
               - `StmMap`:                   `[X, X]s ++ [0, 1, 4, 9, 16]s`
               - `StmMap2`:                  `[X, X, X]s ++ [(0, 0), (1, 1), (2, 16), (3, 81), (4, 256)]s`
+- Each producer in `sbuild` should support a delay annotation, indicating when the input is expected to start
+  - Delay is relative to the delay of the `sbuild` (which is ultimately an arbitrary number of cycles after reset)
+    - Very much like events and availability intervals in Filament (Nigam et al., "Modular Hardware Design with Timeline Types")
+    - Example (concat): `(p1: Stm[u8, N] @ 0)` and `(p2: Stm[u8, M] @ N)` means `p1` starts arriving "immediately" (again, relative to some arbitrary time) and `p2` starts arriving `N` cycles later
+  - Motivation:
+    - Makes it possible to express `StmConcat`
+      - This may actually be useful: could have low-area implementation of `StmRepeat` with long delay, and let programmer write `StmConcat(s, StmRepeat(s, k))` if they're in a hurry
+    - Simplifies fusion
+      - You can fuse one at a time; just update the arrival times of the other producers
+    - I think it provides a simple rule explaining why it's problematic to apply fusion to `StmZip(StmCount(N), p)`: `StmCount(N)` has absolute latency (exactly 1 cycle after reset) whereas `s` has some unknown latency, so the two don't mix
+- Programmer should be able to specify constraints on the physical prefix. For example, maybe I should extend the language with new assertion syntax like `assert physical @(_, valid) => !valid`, which checks that all the elements in the physical prefix satisfy the given condition. Notice that we don’t care about the _number_ of these elements.
+- What if we didn’t have a latency-insensitive interface at all, and we want the latency to be fixed? I could certainly extend the syntax to let the programmer specify the desired delay, but this is probably not needed right away.
 
 ## Possible Solutions
 
@@ -101,28 +115,25 @@ I'll use the term "physical prefix" for the part of the physical output that is 
   - Won’t it be a massive amount of work to update the existing codebase to handle this new IR?
 - Just let `valid` be something like `t == k`, where `(t) = { init: 0, next: if (t == k) then t else t + 1 }`. Update the semantic analyzer to allow this specific pattern and update things like `StmSlideStartingWith`, `StmSuffix`, etc. to follow it carefully.
   - Will the expression still be OK after fusion? Might need to make a version of the fusion pass for the `no_handshake` mode that’s aware of this pattern.
+  - Seems very brittle in general: how do I ensure the counter keeps the right form all the time?
+  - I'll probably need to update `sbuild` anyway for some of the other things (e.g., initial value of the `data` register), so I wouldn't even save much effort, if any
 
-## Logical and Physical Results
-
-How to constrain outputs that are invalid? In the FIR filter, I don’t care what the `data` outputs are, but I want the `valid` bit to be false at first.
-
-Maybe I should distinguish between the “logical” result sequence (the values we care about) and the “physical” result sequence (the sequence of values the real circuit will produce). The physical result is always a suffix of the logical sequence.
-
-For example, consider `[1, 2, 3, 4, 5]s.StmSlide(3)`. The logical result is `[[1, 2, 3]v, [2, 3, 4]v, [3, 4, 5]v]s`. But in the physical circuit there will be some delay: we actually observe a sequence like `[[X, X, X]v, [X, X, 1]v, [X, 1, 2]v, [1, 2, 3]v, [2, 3, 4]v, [3, 4, 5]v]s`.
-
-### Testing
-
-How can someone test these two outputs? Maybe I can update the language to support an assertion like
-
-```
-assert physical @(_, valid) => !valid
-```
-
-which checks that all the elements that are in the physical sequence but not the logical sequence satisfy the given condition. Notice that we don’t care about the _number_ of these elements.
-
-What if we didn’t have a latency-insensitive interface at all, and we want the latency to be fixed? I could certainly extend the syntax to let the programmer specify the desired delay, but this is probably not needed right away.
+- In `sbuild`:
+  - Add output latency (1 in the normal case, e.g., `StmMap`)
+  - Add relative delay for each producer
+  - Add initial value for data register
+- Fusion pass:
+  - TODO
+- Fission pass:
+  - TODO
+- Latency matching pass:
+  - TODO
 
 ## Implementation Plan
+
+- _Step 0:_ refactor code so `StmBuild` has separate accumulator and producer lists
+
+TODO
 
 - _First step:_ assume we don’t care at all about physical outputs
   - Update semantic analyzer to allow `valid` expression to look like `t == k`
