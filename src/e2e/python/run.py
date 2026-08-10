@@ -6,7 +6,9 @@ Script for running end-to-end tests.
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+import filecmp
 import os
+import shutil
 import subprocess
 import sys
 
@@ -67,13 +69,72 @@ def look_for_unused_files() -> None:
         sys.exit(1)
 
 
+def copy_files_that_shouldnt_be_overwritten() -> None:
+    """
+    Make copies of all the files in the DO_NOT_OVERWRITE_FILES list so we can
+    check that they haven't been overwritten afterwards.
+    """
+    for src in c.DO_NOT_OVERWRITE_FILES:
+        if not src.exists():
+            print(f"{src} does not exist. Check DO_NOT_OVERWRITE_FILES in constants.py.")
+            sys.exit(1)
+        dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
+        if dest.is_file():
+            dest.unlink()
+        if dest.is_dir():
+            shutil.rmtree(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src.copy(dest)
+
+
+def check_files_that_shouldnt_be_overwritten() -> int:
+    """
+    Compare the files in the DO_NOT_OVERWRITE_FILES list with the copies made
+    earlier, and exit with an error if their contents have changed.
+    """
+
+    def same_dir(dircmp: filecmp.dircmp) -> bool:
+        return (
+            not dircmp.left_only
+            and not dircmp.right_only
+            and not dircmp.diff_files
+            and not dircmp.funny_files
+            and all(same_dir(subdircmp) for subdircmp in dircmp.subdirs.values())
+        )
+
+    print()
+    print("Checking that files have not been overwritten...")
+    print()
+    error_count = 0
+    for src in c.DO_NOT_OVERWRITE_FILES:
+        print(f"{src.relative_to(c.RESOURCES)} ... ", end="")
+        dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
+        if src.is_dir():
+            cmp = filecmp.dircmp(src, dest, shallow=False)
+            ok = same_dir(cmp)
+        elif src.is_file():
+            ok = filecmp.cmp(src, dest, shallow=False)
+        else:
+            print(
+                f"{src} is neither a file nor a directory."
+                " Check DO_NOT_OVERWRITE_FILES in constants.py."
+            )
+            sys.exit(1)
+        if ok:
+            print("OK")
+        else:
+            print("CHANGED")
+            error_count += 1
+    return error_count
+
+
 def test_plain(expected_stderr_file: Path, cli_args: list[str]) -> bool:
     """
     Test that running the compiler with the given CLI arguments produces the expected output on
     stderr.
     """
     if not cli_args:
-        print(f"MISSING CLI ARGS")
+        print("MISSING CLI ARGS")
         return False
     name = expected_stderr_file.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
     print(f"{name} (stderr) ... ", end="", flush=True)
@@ -206,6 +267,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
     Script entry point.
     """
     look_for_unused_files()
+    copy_files_that_shouldnt_be_overwritten()
     os.chdir(c.ROOT)
     print("Building Scala project...")
     subprocess.run(["sbt", "assembly"], check=True, capture_output=True)
@@ -216,6 +278,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
         check=True
     )
     compiler_version = compiler_version.stdout.strip()
+    print()
     print(f"Testing v{compiler_version}")
     print(f"Found {len(test_sources)} .sirop files to test")
     print()
@@ -260,13 +323,11 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
         if not ran:
             print(f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}")
             error_count += 1
+    error_count += check_files_that_shouldnt_be_overwritten()
     if error_count > 0:
         test_or_tests = "test" if error_count == 1 else "tests"
         print()
         print(f"{error_count} {test_or_tests} failed")
-        sys.exit(1)
-    if True:
-        print("TODO: after each test, check that files were not overwritten")
         sys.exit(1)
     print()
     print("All tests passed!")

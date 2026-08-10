@@ -20,3 +20,10 @@ IGNORE_FILES = {
     RESOURCES / "FileError" / "do_not_overwrite.txt",
     RESOURCES / "FileError" / "do_not_overwrite" / ".gitkeep",
 }
+
+# The test runner will check that the following files and directories have not
+# been overwritten.
+DO_NOT_OVERWRITE_FILES = [
+    RESOURCES / "FileError" / "do_not_overwrite.txt",
+    RESOURCES / "FileError" / "do_not_overwrite",
+]
