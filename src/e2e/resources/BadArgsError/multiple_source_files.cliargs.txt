@@ -1,0 +1,6 @@
+-i
+multiple_source_files_1.sirop
+-i
+multiple_source_files_2.sirop
+--out:pp
+-

@@ -329,7 +329,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
             ok = skip_vsim or vsim.run(test, cli_args=cli_args)
             if not ok:
                 error_count += 1
-        if not ran:
+        if not ran and test not in c.IGNORE_FILES:
             print(f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}")
             error_count += 1
     error_count += check_files_that_shouldnt_be_overwritten()

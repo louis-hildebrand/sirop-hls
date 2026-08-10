@@ -13,6 +13,8 @@ ACTUAL_OUTPUTS = RESOURCES / "actual"
 # The test runner will error out if there are any unrecognized files.
 # The following directories and files will be ignored here; they will never
 # trigger the error.
+# The test runner also will not complain if there is nothing to do for the
+# .sirop files in this list.
 IGNORE_DIRECTORIES = {
     ACTUAL_OUTPUTS,
 }
@@ -20,6 +22,8 @@ IGNORE_FILES = {
     RESOURCES / "FileError" / "do_not_overwrite.txt",
     RESOURCES / "FileError" / "do_not_overwrite" / ".gitkeep",
     RESOURCES / "FileError" / "source_is_dir" / ".gitkeep",
+    RESOURCES / "BadArgsError" / "multiple_source_files_1.sirop",
+    RESOURCES / "BadArgsError" / "multiple_source_files_2.sirop",
 }
 
 # The test runner will check that the following files and directories have not
@@ -35,6 +39,7 @@ DO_NOT_OVERWRITE_FILES = [
 MISSING_FILES = [
     RESOURCES / "FileError" / "missing_source.sirop",
     RESOURCES / "FileError" / "source_is_dir.sirop",
+    RESOURCES / "BadArgsError" / "multiple_source_files.sirop",
 ]
 
 def is_valid_source(p: Path) -> bool:

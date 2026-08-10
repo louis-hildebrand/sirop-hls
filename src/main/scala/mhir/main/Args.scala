@@ -35,6 +35,7 @@ object Args {
 
     // Input args
     var sourceLang = "sirop"
+    var inputCount = 0
     var input: Option[String] = None
     var constOverrides = Map[String, String]()
     // Output args
@@ -86,6 +87,13 @@ object Args {
         case "-i" =>
           mutArgs.drop(1).headOption match {
             case Some(in) =>
+              input match {
+                case Some(_) =>
+                  throw new BadArgsException(
+                    s"at most one input file is allowed, but more than one was given"
+                  )
+                case None => ()
+              }
               input = Some(in)
               numToDrop = 2
             case None =>
