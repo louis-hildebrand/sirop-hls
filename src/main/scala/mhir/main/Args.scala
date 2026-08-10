@@ -401,8 +401,10 @@ object Args {
       case ("sirop", None) =>
         None
       case ("sirop", Some(f)) =>
+        checkSourceIsFile(f)
         Some(SiropSource(Path(f, base = os.pwd), constOverrides))
       case ("aetherling", Some(f)) =>
+        checkSourceIsFile(f)
         Some(AetherlingSource(Path(f, base = os.pwd)))
       case ("stored", Some(progName)) =>
         Some(StoredSource(progName))
@@ -458,6 +460,15 @@ object Args {
       logLevel = Some(logLevel)
     )
     new Args(src = src, options = options)
+  }
+
+  private def checkSourceIsFile(path: String): Unit = {
+    if (os.isDir(Path(path, base = os.pwd))) {
+      throw FileError(s"input should be a file, but is a directory: '$path'")
+    }
+    if (!os.exists(Path(path, base = os.pwd))) {
+      throw FileError(s"input file does not exist: '$path'")
+    }
   }
 
   private def checkDoesNotExist(

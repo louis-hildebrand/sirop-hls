@@ -19,6 +19,7 @@ IGNORE_DIRECTORIES = {
 IGNORE_FILES = {
     RESOURCES / "FileError" / "do_not_overwrite.txt",
     RESOURCES / "FileError" / "do_not_overwrite" / ".gitkeep",
+    RESOURCES / "FileError" / "source_is_dir" / ".gitkeep",
 }
 
 # The test runner will check that the following files and directories have not
@@ -27,3 +28,18 @@ DO_NOT_OVERWRITE_FILES = [
     RESOURCES / "FileError" / "do_not_overwrite.txt",
     RESOURCES / "FileError" / "do_not_overwrite",
 ]
+
+# The test runner will not complain that these files are missing.
+# This is useful for testing the compiler output in case the source file
+# does not exist.
+MISSING_FILES = [
+    RESOURCES / "FileError" / "missing_source.sirop",
+    RESOURCES / "FileError" / "source_is_dir.sirop",
+]
+
+def is_valid_source(p: Path) -> bool:
+    """
+    Check whether this path is a valid source file: either it should exist, or
+    it should be in MISSING_FILES.
+    """
+    return p.is_file() or p in MISSING_FILES

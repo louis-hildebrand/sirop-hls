@@ -42,11 +42,20 @@ def look_for_unused_files() -> None:
                 continue
             if f.name.endswith(".cliargs.txt"):
                 continue
-            if f.name.endswith(".stderr.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+            if (
+                f.name.endswith(".stderr.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
                 continue
-            if f.name.endswith(".eval.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+            if (
+                f.name.endswith(".eval.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
                 continue
-            if f.name.endswith(".repl.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+            if (
+                f.name.endswith(".repl.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
                 continue
             if vhdl.uses_file(f):
                 continue
@@ -133,17 +142,17 @@ def test_plain(expected_stderr_file: Path, cli_args: list[str]) -> bool:
     Test that running the compiler with the given CLI arguments produces the expected output on
     stderr.
     """
+    name = expected_stderr_file.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
+    print(f"{name} (stderr) ... ", end="", flush=True)
     if not cli_args:
         print("MISSING CLI ARGS")
         return False
-    name = expected_stderr_file.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
-    print(f"{name} (stderr) ... ", end="", flush=True)
     source_path = expected_stderr_file.with_suffix("").with_suffix(".sirop")
+    if source_path not in c.MISSING_FILES:
+        cli_args = cli_args + ["-i", source_path.as_posix()]
+    cli_args = ["java", "-jar", c.JAR.as_posix()] + cli_args
     result = subprocess.run(
-        [
-            "java", "-jar", c.JAR.as_posix(),
-            "-i", source_path.as_posix(),
-        ] + cli_args,
+        cli_args,
         encoding="utf-8",
         capture_output=True,
         check=False,
@@ -353,12 +362,12 @@ def _parse_args() -> Namespace:
     )
     args = parser.parse_args()
     if not args.test_sources:
-        args.test_sources = sorted(c.RESOURCES.glob("**/*.sirop"))
+        args.test_sources = sorted(list(c.RESOURCES.glob("**/*.sirop")) + c.MISSING_FILES)
     if not args.test_sources:
         parser.error("no test cases found")
     args.test_sources = [p.resolve() for p in args.test_sources]
     for p in args.test_sources:
-        if not p.is_file():
+        if not p.is_file() and not p in c.MISSING_FILES:
             parser.error(f"file {p} does not exist or is not a file")
         if not p.name.endswith(".sirop"):
             parser.error(f"invalid path {p}: all paths should end in .sirop")

@@ -1,0 +1,4 @@
+-i
+./does_not_exist.sirop
+--out:pp
+-
